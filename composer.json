@@ -1,0 +1,19 @@
+{
+    "name": "tommyknocker/PDO-database-class",
+    "description": "PHP PDO Wrapper which utilizes PDO and prepared statements",
+    "license": "GPL-3.0",
+    "authors": [
+        {
+            "name": "Vasiliy A. Ulin",
+            "email": "ulin.vasiliy@gmail.com",
+            "homepage": "http://mysrv.ru",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=5.5.0"
+    },
+    "autoload": {
+        "files": ["PDODb.php"]
+    }
+}
