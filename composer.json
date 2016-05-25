@@ -1,7 +1,11 @@
 {
     "name": "tommyknocker/PDO-database-class",
     "description": "PHP PDO Wrapper which utilizes PDO and prepared statements",
-    "license": "GPL-3.0",
+    "version": "1.0.2",
+    "type": "library",
+    "keywords": ["pdo", "database"],
+    "homepage": "https://github.com/tommyknocker/PDO-database-class",
+    "license": "LGPL-3.0",
     "authors": [
         {
             "name": "Vasiliy A. Ulin",
@@ -10,9 +14,16 @@
             "role": "Developer"
         }
     ],
+    "support": {
+        "issues": "https://github.com/tommyknocker/PDO-database-class/issues"
+    },    
     "require": {
-        "php": ">=5.5.0"
+        "php": ">=5.5.0",
+        "ext-pdo": "*"
     },
+    "require-dev": {
+        "phpunit/phpunit": "^5.0"
+    },    
     "autoload": {
         "files": ["PDODb.php"]
     }
