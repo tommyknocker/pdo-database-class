@@ -626,10 +626,6 @@ class PDODb
             throw new Exception('DB Type is not set.');
         }
 
-        if (empty($this->connectionParams['host'])) {
-            throw new Exception('DB host is not set.');
-        }
-
         $connectionString = $this->connectionParams['type'].':';
         $connectionParams = ['host', 'dbname', 'port', 'charset'];
 
