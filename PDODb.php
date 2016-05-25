@@ -12,7 +12,7 @@
  * @copyright Copyright (c) 2010-2016
  * @license   http://opensource.org/licenses/lgpl-3.0.html The GNU Lesser General Public License, version 3.0
  * @link      http://github.com/joshcam/PHP-MySQLi-Database-Class
- * @version   1.0.0
+ * @version   1.0.2
  */
 class PDODb
 {
@@ -22,12 +22,12 @@ class PDODb
      */
     private $connectionParams = [
         'type' => 'mysql',
-        'host' => 'localhost',
-        'username' => 'root',
-        'password',
-        'dbname' => '',
+        'host' => null,
+        'username' => null,
+        'password' => null,
+        'dbname' => null,
         'port' => null,
-        'charset' => 'utf8'
+        'charset' => null
     ];
 
     /**
@@ -189,7 +189,7 @@ class PDODb
      * @param int $port
      * @param string $charset
      */
-    public function __construct($type = null, $host = null, $username = null, $password = null, $dbname = null, $port = null, $charset = 'utf8')
+    public function __construct($type, $host = null, $username = null, $password = null, $dbname = null, $port = null, $charset = null)
     {
         if (is_array($type)) { // if params were passed as array
             $this->connectionParams = $type;
@@ -243,7 +243,7 @@ class PDODb
                     } else {
                         foreach ($val as $v) {
                             $comparison .= ' ?,';
-                            $this->param[] = $v;
+                            $this->params[] = $v;
                         }
                     }
                     $this->query .= rtrim($comparison, ',').' ) ';
@@ -371,8 +371,8 @@ class PDODb
         $this->lastErrorCode = $stmt->errorCode();
         $this->reset();
 
-        if ($this->pdo()->lastInsertId() > 0) {
-            return $this->pdo()->lastInsertId();
+        if ($status && $this->pdo()->lastInsertId() > 0) {
+            return (int) $this->pdo()->lastInsertId();
         }
 
         return $status;
@@ -635,8 +635,7 @@ class PDODb
             }
         }
 
-        rtrim($connectionString, ';');
-
+        $connectionString = rtrim($connectionString, ';');
         $this->pdo = new PDO($connectionString, $this->connectionParams['username'], $this->connectionParams['password']);
     }
 
@@ -1239,6 +1238,12 @@ class PDODb
         $stmt            = $this->pdo()->prepare($this->query);
         $this->lastQuery = $this->query;
 
+        if(!$stmt instanceof PDOStatement) {
+            $this->lastErrorCode = $this->pdo()->errorCode();
+            $this->lastError = $this->pdo()->errorInfo();
+            return null;
+        }
+
         foreach ($this->params as $key => $value) {
             $stmt->bindValue(is_int($key) ? $key + 1 : ':'.$key, $value, $this->determineType($value));
         }
@@ -1260,8 +1265,14 @@ class PDODb
             $this->params = $params;
         }
         $stmt   = $this->prepare();
-        $stmt->execute();
-        $result = $this->buildResult($stmt);
+        if($stmt) {
+            $stmt->execute();
+            $this->lastError = $stmt->errorInfo();
+            $this->lastErrorCode = $stmt->errorCode();
+            $result = $this->buildResult($stmt);
+        } else {
+            $result = null;
+        }
         $this->reset();
         return $result;
     }
@@ -1417,6 +1428,7 @@ class PDODb
         $this->where('table_schema', $this->connectionParams['dbname']);
         $this->where('table_name', $tables, 'in');
         $this->get('information_schema.tables', $count);
+
         return $this->rowCount == $count;
     }
 
