@@ -1,0 +1,18 @@
+<phpunit
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="http://schema.phpunit.de/4.5/phpunit.xsd"
+         backupGlobals="true"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         convertErrorsToExceptions="true"
+         convertNoticesToExceptions="true"
+         convertWarningsToExceptions="true"
+         processIsolation="false"
+         stopOnFailure="false"
+         verbose="false">
+    <testsuites>
+        <testsuite name="PDODb tests">
+            <directory>test</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>
