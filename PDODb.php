@@ -822,7 +822,7 @@ class PDODb
      */
     private function getTableName($tableName)
     {
-        return '`'.$this->prefix.$tableName.'`';
+        return strpos($tableName, '.') !== false ? $tableName : '`'.$this->prefix.$tableName.'`';
     }
 
     /**
@@ -933,11 +933,10 @@ class PDODb
 
         if (in_array('SQL_CALC_FOUND_ROWS', $this->queryOptions)) {
             $totalStmt        = $this->pdo()->query('SELECT FOUND_ROWS()');
-            $totalCount       = $totalStmt->fetch();
-            $this->totalCount = $totalCount[0];
+            $this->totalCount       = $totalStmt->fetchColumn();
         }
 
-        $result = $this->buildResult($stmt);
+        $result = $this->buildResult($stmt);        
         $this->reset();
 
         return $result;
@@ -1425,11 +1424,11 @@ class PDODb
         foreach ($tables as $i => $value) {
             $tables[$i] = $this->prefix.$value;
         }
+        $this->withTotalCount();
         $this->where('table_schema', $this->connectionParams['dbname']);
         $this->where('table_name', $tables, 'in');
         $this->get('information_schema.tables', $count);
-
-        return $this->rowCount == $count;
+        return $this->totalCount == $count;
     }
 
     /**
