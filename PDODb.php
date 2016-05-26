@@ -1296,6 +1296,7 @@ class PDODb
         $this->forUpdate       = false;
         $this->groupBy         = [];
         $this->join            = [];
+        $this->lastInsertId    = "";
         $this->lockInShareMode = false;
         $this->nestJoin        = false;
         $this->orderBy         = [];
@@ -1305,6 +1306,7 @@ class PDODb
         $this->queryType       = '';
         $this->returnType      = PDO::FETCH_ASSOC;
         $this->rowCount        = 0;
+        $this->updateColumns   = [];
         $this->where           = [];
     }
 
