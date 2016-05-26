@@ -1404,7 +1404,7 @@ class PDODb
      * @param string $subQueryAlias
      * @return PDODb
      */
-    public static function subQuery($subQueryAlias = "")
+    public function subQuery($subQueryAlias = "")
     {
         return new self(['type' => $this->connectionParams['type'], 'host' => $subQueryAlias, 'isSubQuery' => true]);
     }
