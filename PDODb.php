@@ -208,8 +208,8 @@ class PDODb
             return;
         }
 
-        if (isset($this->connectionParams['isSubQuery'])) {
-            $this->setPrefix($prefix);
+        if (isset($this->connectionParams['prefix'])) {
+            $this->setPrefix($this->connectionParams['prefix']);
         }
 
         self::$instance = $this;
