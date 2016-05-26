@@ -822,7 +822,7 @@ class PDODb
      */
     private function getTableName($tableName)
     {
-        return strpos($tableName, '.') !== false ? $tableName : '`'.$this->prefix.$tableName.'`';
+        return strpos($tableName, '.') !== false  ? $tableName : $this->prefix.$tableName;
     }
 
     /**
@@ -929,7 +929,7 @@ class PDODb
         $stmt->execute();
         $this->lastError     = $stmt->errorInfo();
         $this->lastErrorCode = $stmt->errorCode();
-        $this->rowCount      = $stmt->rowCount();
+        $this->rowCount      = $stmt->rowCount();        
 
         if (in_array('SQL_CALC_FOUND_ROWS', $this->queryOptions)) {
             $totalStmt        = $this->pdo()->query('SELECT FOUND_ROWS()');
@@ -1472,7 +1472,7 @@ class PDODb
      * @return PDODb
      */
     public function where($whereProp, $whereValue = 'DBNULL', $operator = '=', $cond = 'AND')
-    {
+    {        
         if (count($this->where) == 0) {
             $cond = '';
         }
