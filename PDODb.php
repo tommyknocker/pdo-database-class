@@ -1030,7 +1030,7 @@ class PDODb
      */
     public function interval($diff, $func = "NOW()")
     {
-        $types = Array("s" => "second", "m" => "minute", "h" => "hour", "d" => "day", "M" => "month", "Y" => "year");
+        $types = Array("s" => "second", "m" => "minute", "h" => "hour", "d" => "day", "m" => "month", "y" => "year");
         $incr  = '+';
         $items = '';
         $type  = 'd';
@@ -1045,7 +1045,7 @@ class PDODb
             }
 
             if (!empty($matches[3])) {
-                $type = $matches[3];
+                $type = strtolower($matches[3]);
             }
 
             if (!in_array($type, array_keys($types))) {
