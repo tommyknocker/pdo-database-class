@@ -203,13 +203,13 @@ class PDODb
             }
         }
 
+        if (isset($this->connectionParams['prefix'])) {
+            $this->setPrefix($this->connectionParams['prefix']);
+        }
+
         if (isset($this->connectionParams['isSubQuery'])) {
             $this->isSubQuery = true;
             return;
-        }
-
-        if (isset($this->connectionParams['prefix'])) {
-            $this->setPrefix($this->connectionParams['prefix']);
         }
 
         self::$instance = $this;
@@ -581,7 +581,7 @@ class PDODb
      * @return Generator
      */
     private function buildResult($stmt)
-    {
+    {        
         while ($result = $stmt->fetch($this->returnType)) {
             yield $result;
         }
@@ -636,7 +636,7 @@ class PDODb
         }
 
         $connectionString = rtrim($connectionString, ';');
-        $this->pdo = new PDO($connectionString, $this->connectionParams['username'], $this->connectionParams['password']);
+        $this->pdo        = new PDO($connectionString, $this->connectionParams['username'], $this->connectionParams['password']);
     }
 
     /**
@@ -646,7 +646,7 @@ class PDODb
      */
     public function copy()
     {
-        $copy      = unserialize(serialize($this));
+        $copy      = clone $this;
         $copy->pdo = null;
         return $copy;
     }
@@ -805,11 +805,10 @@ class PDODb
             return null;
         }
 
-        array_shift($this->params);
-        $val = Array('query' => $this->query,
+        $val = ['query' => $this->query,
             'params' => $this->params,
-            'alias' => $this->host
-        );
+            'alias' => $this->connectionParams['host']
+        ];
         $this->reset();
         return $val;
     }
@@ -822,7 +821,7 @@ class PDODb
      */
     private function getTableName($tableName)
     {
-        return strpos($tableName, '.') !== false  ? $tableName : $this->prefix.$tableName;
+        return strpos($tableName, '.') !== false ? $tableName : $this->prefix.$tableName;
     }
 
     /**
@@ -929,14 +928,14 @@ class PDODb
         $stmt->execute();
         $this->lastError     = $stmt->errorInfo();
         $this->lastErrorCode = $stmt->errorCode();
-        $this->rowCount      = $stmt->rowCount();        
+        $this->rowCount      = $stmt->rowCount();
 
         if (in_array('SQL_CALC_FOUND_ROWS', $this->queryOptions)) {
             $totalStmt        = $this->pdo()->query('SELECT FOUND_ROWS()');
-            $this->totalCount       = $totalStmt->fetchColumn();
+            $this->totalCount = $totalStmt->fetchColumn();
         }
 
-        $result = $this->buildResult($stmt);        
+        $result = $this->buildResult($stmt);
         $this->reset();
 
         return $result;
@@ -981,7 +980,7 @@ class PDODb
             return null;
         }
 
-        $newRes = Array();
+        $newRes = [];
         foreach ($result as $current) {
             if (is_int($limit) && $limit-- <= 0) {
                 break;
@@ -1030,7 +1029,7 @@ class PDODb
      */
     public function interval($diff, $func = "NOW()")
     {
-        $types = Array("s" => "second", "m" => "minute", "h" => "hour", "d" => "day", "m" => "month", "y" => "year");
+        $types = ["s" => "second", "m" => "minute", "h" => "hour", "d" => "day", "M" => "month", "Y" => "year"];
         $incr  = '+';
         $items = '';
         $type  = 'd';
@@ -1045,7 +1044,7 @@ class PDODb
             }
 
             if (!empty($matches[3])) {
-                $type = strtolower($matches[3]);
+                $type = $matches[3];
             }
 
             if (!in_array($type, array_keys($types))) {
@@ -1237,9 +1236,9 @@ class PDODb
         $stmt            = $this->pdo()->prepare($this->query);
         $this->lastQuery = $this->query;
 
-        if(!$stmt instanceof PDOStatement) {
+        if (!$stmt instanceof PDOStatement) {
             $this->lastErrorCode = $this->pdo()->errorCode();
-            $this->lastError = $this->pdo()->errorInfo();
+            $this->lastError     = $this->pdo()->errorInfo();
             return null;
         }
 
@@ -1263,12 +1262,12 @@ class PDODb
         if (is_array($params)) {
             $this->params = $params;
         }
-        $stmt   = $this->prepare();
-        if($stmt) {
+        $stmt = $this->prepare();
+        if ($stmt) {
             $stmt->execute();
-            $this->lastError = $stmt->errorInfo();
+            $this->lastError     = $stmt->errorInfo();
             $this->lastErrorCode = $stmt->errorCode();
-            $result = $this->buildResult($stmt);
+            $result              = $this->buildResult($stmt);
         } else {
             $result = null;
         }
@@ -1304,7 +1303,6 @@ class PDODb
         $this->query           = '';
         $this->queryOptions    = [];
         $this->queryType       = '';
-        $this->returnType      = PDO::FETCH_ASSOC;
         $this->rowCount        = 0;
         $this->updateColumns   = [];
         $this->where           = [];
@@ -1345,12 +1343,12 @@ class PDODb
      */
     public function setQueryOption($options)
     {
-        $allowedOptions = Array('ALL', 'DISTINCT', 'DISTINCTROW', 'HIGH_PRIORITY', 'STRAIGHT_JOIN', 'SQL_SMALL_RESULT',
+        $allowedOptions = ['ALL', 'DISTINCT', 'DISTINCTROW', 'HIGH_PRIORITY', 'STRAIGHT_JOIN', 'SQL_SMALL_RESULT',
             'SQL_BIG_RESULT', 'SQL_BUFFER_RESULT', 'SQL_CACHE', 'SQL_NO_CACHE', 'SQL_CALC_FOUND_ROWS',
-            'LOW_PRIORITY', 'IGNORE', 'QUICK', 'MYSQLI_NESTJOIN', 'FOR UPDATE', 'LOCK IN SHARE MODE');
+            'LOW_PRIORITY', 'IGNORE', 'QUICK', 'MYSQLI_NESTJOIN', 'FOR UPDATE', 'LOCK IN SHARE MODE'];
 
         if (!is_array($options)) {
-            $options = Array($options);
+            $options = [$options];
         }
 
         foreach ($options as $option) {
@@ -1406,7 +1404,7 @@ class PDODb
      */
     public function subQuery($subQueryAlias = "")
     {
-        return new self(['type' => $this->connectionParams['type'], 'host' => $subQueryAlias, 'isSubQuery' => true]);
+        return new self(['type' => $this->connectionParams['type'], 'host' => $subQueryAlias, 'isSubQuery' => true, 'prefix' => $this->prefix]);
     }
 
     /**
@@ -1472,7 +1470,7 @@ class PDODb
      * @return PDODb
      */
     public function where($whereProp, $whereValue = 'DBNULL', $operator = '=', $cond = 'AND')
-    {        
+    {
         if (count($this->where) == 0) {
             $cond = '';
         }
