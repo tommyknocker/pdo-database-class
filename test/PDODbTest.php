@@ -69,7 +69,7 @@ class PDODbTest extends PHPUnit_Framework_TestCase
         }
     }
 
-    public function testInsert()
+    public function testInsertAndPrefix()
     {
         $PDODb = PDODb::getInstance();
         $PDODb->setPrefix($this->data['prefix']);
@@ -94,5 +94,157 @@ class PDODbTest extends PHPUnit_Framework_TestCase
 
         $lastInsertId = $PDODb->insert('users', $badUser);
         $this->assertFalse($lastInsertId);
+    }
+
+    public function testInsertWithoutAutoincrement()
+    {
+        $PDODb = PDODb::getInstance();
+        $query = "DROP TABLE {$this->data['prefix']}test";
+        $PDODb->rawQuery($query);
+        $query = "CREATE TABLE {$this->data['prefix']}test (id INT(10), name VARCHAR(10));";
+        $PDODb->rawQuery($query);
+        $id    = $PDODb->insert("test", ["id" => 2, "name" => "testname"]);
+        $this->assertEquals(2, $id);
+    }
+
+    public function testInsertOnDuplicateUpdateAndGetOne()
+    {
+        $PDODb         = PDODb::getInstance();
+        $user          = ['login' => 'user3', 'updatedAt' => $PDODb->now('+1s')];
+        $updateColumns = ["updatedAt"];
+        $PDODb->onDuplicate($updateColumns, "id");
+        $result        = $PDODb->insert("users", $user);
+        $this->assertEquals(3, $result);
+
+        $updatedUser = $PDODb->where('id', 3)->getOne('users');
+        $this->assertInternalType('array', $updatedUser);
+        $this->assertNotEquals($updatedUser['createdAt'], $updatedUser['updatedAt']);
+    }
+
+    public function testGetTotalCountAndOrderBy()
+    {
+        $PDODb       = PDODb::getInstance();
+        $result      = $PDODb->withTotalCount()->orderBy('login', 'DESC')->get('users');
+        $this->assertInstanceOf('Generator', $result);
+        $firstResult = $result->current();
+        $this->assertInternalType('array', $firstResult);
+        $this->assertEquals('user3', $firstResult['login']);
+        $this->assertEquals(3, $PDODb->totalCount);
+    }
+
+    public function testUpdateAndBooleanWhereAndInc()
+    {
+        $PDODb = PDODb::getInstance();
+
+        $PDODb->withTotalCount()->where("active", true);
+        $users = $PDODb->get("users");
+        $this->assertEquals(1, $PDODb->totalCount);
+
+        $PDODb->where("active", false)->update("users", ["active" => $PDODb->not()]);
+        $this->assertEquals(2, $PDODb->getRowCount());
+
+        $PDODb->withTotalCount()->where("active", true);
+        $users = $PDODb->get("users");
+        $this->assertEquals(3, $PDODb->totalCount);
+
+        $data = [
+            'expires' => $PDODb->now("+5M", "expires"),
+            'loginCount' => $PDODb->inc()
+        ];
+        
+        $result = $PDODb->where("id", 1)->update("users", $data);        
+        $this->assertTrue($result);
+        $this->assertEquals(1, $PDODb->getRowCount());
+
+        $result = $PDODb->where('id', 1)->where('expires > NOW()')->getOne('users', ['loginCount']);
+        $this->assertInternalType('array', $result);
+        $this->assertEquals(2,  $result['loginCount']);
+    }
+
+    public function testLimitOnGet()
+    {
+        $PDODb  = PDODb::getInstance();
+        $result = $PDODb->get('users', 2);
+        $this->assertInstanceOf('Generator', $result);
+        $count  = 0;
+        foreach ($result as $row) {
+            $this->assertInternalType('array', $row);
+            $count++;
+        }
+        $this->assertEquals(2, $count);
+    }
+
+    public function testWhereConditions()
+    {
+        $PDODb = PDODb::getInstance();
+        $PDODb->withTotalCount()->where("id", [1, 2, 3], 'IN')->get("users");
+        $this->assertEquals(3, $PDODb->totalCount);
+
+        $PDODb->withTotalCount()->where("id", [2, 3], 'between')->get("users");
+        $this->assertEquals(2, $PDODb->totalCount);
+
+        $PDODb->withTotalCount()->where("id", 3)->orWhere("customerId", 10)->get("users");
+        $this->assertEquals(3, $PDODb->totalCount);
+
+        $PDODb->withTotalCount()->where("id = 1 or id = 2")->get("users");
+        $this->assertEquals(2, $PDODb->totalCount);
+
+        $PDODb->withTotalCount()->where("lastName", null, '<=>')->get("users");
+        $this->assertEquals(1, $PDODb->totalCount);
+
+        $PDODb->withTotalCount()->where("id = ? or id = ?", [1, 2])->get("users");
+        $this->assertEquals(2, $PDODb->totalCount);
+    }
+
+    public function testJoin()
+    {
+        $PDODb = PDODb::getInstance();
+        $PDODb->withTotalCount()
+            ->join("users u", "p.userId=u.id", "LEFT")
+            ->where("u.login", 'user2')
+            ->orderBy("CONCAT(u.login, u.firstName)")
+            ->get("products p", null, "u.login, p.productName");
+        $this->assertEquals(2, $PDODb->totalCount);
+    }
+
+    public function testSubQueryCopyAndGetValue()
+    {
+        $PDODb = PDODb::getInstance();
+
+        $subQuery = $PDODb->subQuery();
+        $subQuery->where('active', 1);
+        $subQuery->get('users', null, 'id');
+        $copiedDb = $PDODb->copy();
+        $result   = $copiedDb->getValue('users', "COUNT(id)");
+        $this->assertEquals(3, $result);
+
+        $subQuery = $PDODb->subQuery("u");
+        $subQuery->where("active", 1);
+        $subQuery->get("users");
+        $PDODb->join($subQuery, "p.userId=u.id", "LEFT");
+        $result   = $PDODb->get("products p", null, "u.login, p.productName");
+
+        $count = 0;
+        foreach ($result as $row) {
+            $this->assertInternalType('array', $row);
+            $count++;
+        }
+        $this->assertEquals(5, $count);
+    }
+
+    public function testDelete()
+    {
+        $PDODb = PDODb::getInstance();
+        $PDODb->where('id', 1)->delete("users");
+
+        $PDODb->withTotalCount()->get('users');
+        $this->assertEquals(2, $PDODb->totalCount);
+    }
+
+    public function testReturnType()
+    {
+        $PDODb = PDODb::getInstance();
+        $result = $PDODb->setReturnType(PDO::FETCH_OBJ)->where('id', 2)->getOne('users');
+        $this->assertInternalType('object', $result);
     }
 }
