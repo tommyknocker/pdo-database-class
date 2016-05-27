@@ -578,13 +578,11 @@ class PDODb
      * Return query result
      * 
      * @param PDOStatement $stmt
-     * @return Generator
+     * @return array
      */
     private function buildResult($stmt)
-    {        
-        while ($result = $stmt->fetch($this->returnType)) {
-            yield $result;
-        }
+    {
+        return $stmt->fetchAll($this->returnType);
     }
 
     /**
@@ -950,9 +948,8 @@ class PDODb
      */
     public function getOne($tableName, $columns = '*')
     {
-        $generator = $this->get($tableName, 1, $columns);
-        $result    = $generator->current();
-        return $result;
+        $result = $this->get($tableName, 1, $columns);
+        return $result ? $result[0] : false;
     }
 
     /**
@@ -967,12 +964,12 @@ class PDODb
     {
         $result = $this->setReturnType(PDO::FETCH_ASSOC)->get($tableName, $limit, "{$column} AS retval");
 
-        if (!$result->current()) {
+        if (!$result) {
             return null;
         }
 
         if ($limit == 1) {
-            $current = $result->current();
+            $current = $result[0];
 
             if (isset($current["retval"])) {
                 return $current["retval"];

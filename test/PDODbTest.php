@@ -125,10 +125,8 @@ class PDODbTest extends PHPUnit_Framework_TestCase
     {
         $PDODb       = PDODb::getInstance();
         $result      = $PDODb->withTotalCount()->orderBy('login', 'DESC')->get('users');
-        $this->assertInstanceOf('Generator', $result);
-        $firstResult = $result->current();
-        $this->assertInternalType('array', $firstResult);
-        $this->assertEquals('user3', $firstResult['login']);
+        $this->assertInternalType('array', $result[0]);
+        $this->assertEquals('user3', $result[0]['login']);
         $this->assertEquals(3, $PDODb->totalCount);
     }
 
@@ -165,7 +163,6 @@ class PDODbTest extends PHPUnit_Framework_TestCase
     {
         $PDODb  = PDODb::getInstance();
         $result = $PDODb->get('users', 2);
-        $this->assertInstanceOf('Generator', $result);
         $count  = 0;
         foreach ($result as $row) {
             $this->assertInternalType('array', $row);
