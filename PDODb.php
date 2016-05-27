@@ -12,7 +12,7 @@
  * @copyright Copyright (c) 2010-2016
  * @license   http://opensource.org/licenses/lgpl-3.0.html The GNU Lesser General Public License, version 3.0
  * @link      http://github.com/joshcam/PHP-MySQLi-Database-Class
- * @version   1.0.2
+ * @version   1.0.3
  */
 class PDODb
 {
