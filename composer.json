@@ -1,10 +1,10 @@
 {
-    "name": "tommyknocker/PDO-database-class",
+    "name": "tommyknocker/pdo-database-class",
     "description": "PHP PDO Wrapper which utilizes PDO and prepared statements",
     "version": "1.0.2",
     "type": "library",
     "keywords": ["pdo", "database"],
-    "homepage": "https://github.com/tommyknocker/PDO-database-class",
+    "homepage": "https://github.com/tommyknocker/pdo-database-class",
     "license": "LGPL-3.0",
     "authors": [
         {
@@ -15,7 +15,7 @@
         }
     ],
     "support": {
-        "issues": "https://github.com/tommyknocker/PDO-database-class/issues"
+        "issues": "https://github.com/tommyknocker/pdo-database-class/issues"
     },    
     "require": {
         "php": ">=5.5.0",
