@@ -31,7 +31,7 @@ Everyone's time should be valuable, so please consider donating.
 [Donate with paypal](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=ulin%2evasiliy%40gmail%2ecom&lc=DO&item_name=pdodb&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
 
 ### Installation
-To utilize this class, first import MysqliDb.php into your project, and require it.
+To utilize this class, first import PDODb.php into your project, and require it.
 PDODb requires PHP 5.5+ to work.
 
 ```php
@@ -64,7 +64,7 @@ $db = new PDODb(['type' => 'mysql',
 table prefix, port and database charset params are optional.
 If no charset should be set charset, set it to null
 
-Also it is possible to reuse already connected mysqli object:
+Also it is possible to reuse already connected pdo object:
 ```php
 $pdo = new PDO('mysql:dbname=test;host=localhost', 'user', 'password');
 $db = new PDODb($pdo);
@@ -75,7 +75,7 @@ If no table prefix were set during object creation its possible to set it later 
 $db->setPrefix('my_');
 ```
 
-If you need to get already created mysqliDb object from another class or function use
+If you need to get already created pdo object from another class or function use
 ```php
     function init() {
         // db staying private here
@@ -213,6 +213,18 @@ foreach ($logins as $login) {
 }
 ```
 
+You may use php 5.5+ generator feature with PDODb get(), rawQuery() methods just call useGenerator(true) method
+
+Example:
+```php
+$result = $db->useGenerator(true)->get('users'); // $result will contain Generator object
+if($result->current()) {
+    foreach($result as $row) {
+        print_r($row);
+    }
+}
+```
+
 ### Pagination
 Use paginate() instead of get() to fetch paginated result
 ```php
@@ -266,8 +278,9 @@ NOTE: for a rawQueryValue() to return string instead of an array 'limit 1' shoul
 Get 1 column value from multiple rows:
 ```php
 $logins = $db->rawQueryValue('SELECT login FROM users LIMIT 10');
-foreach ($logins as $login)
+foreach ($logins as $login) {
     echo $login;
+}
 ```
 
 More advanced examples:
@@ -582,7 +595,7 @@ if ($db->tableExists('users')) {
 }
 ```
 
-mysqli_real_escape_string() wrapper:
+pdo::quote() wrapper:
 ```php
 $escaped = $db->escape("' and 1=1");
 ```
