@@ -12,7 +12,7 @@
  * @copyright Copyright (c) 2010-2016
  * @license   http://opensource.org/licenses/lgpl-3.0.html The GNU Lesser General Public License, version 3.0
  * @link      http://github.com/joshcam/PHP-MySQLi-Database-Class
- * @version   1.0.3
+ * @version   1.1.0
  */
 class PDODb
 {
@@ -109,6 +109,12 @@ class PDODb
     private $orderBy = [];
 
     /**
+     * Rows per 1 page on paginate() method
+     * @var int 
+     */
+    private $pageLimit = 10;
+
+    /**
      * Binded params
      * @var array
      */
@@ -168,11 +174,24 @@ class PDODb
      */
     public $totalCount = 0;
 
+
+    /**
+     * Total pages of paginate() method
+     * @var int
+     */
+    public $totalPages = 0;
+
     /**
      * Column names for update when using onDuplicate method
      * @var array
      */
     protected $updateColumns = null;
+
+    /**
+     * Option to use generator (yield) on get() and rawQuery methods
+     * @var bool
+     */
+    private $useGenerator = false;
 
     /**
      * An array that holds where conditions
@@ -582,7 +601,23 @@ class PDODb
      */
     private function buildResult($stmt)
     {
-        return $stmt->fetchAll($this->returnType);
+        if ($this->useGenerator) {
+            return $this->buildResultGenerator($stmt);
+        } else {
+            return $stmt->fetchAll($this->returnType);
+        }
+    }
+
+    /**
+     * Return generator object
+     * @param PDOStatement $stmt
+     * @return Generator
+     */
+    private function buildResultGenerator($stmt)
+    {
+        while ($row = $stmt->fetch($this->returnType)) {
+            yield $row;
+        }
     }
 
     /**
@@ -949,7 +984,16 @@ class PDODb
     public function getOne($tableName, $columns = '*')
     {
         $result = $this->get($tableName, 1, $columns);
-        return $result ? $result[0] : false;
+
+        if ($result instanceof PDODb) {
+            return $result;
+        }
+
+        if ($this->useGenerator) {
+            return $result->current() ? $result->current() : false;
+        } else {
+            return $result ? $result[0] : false;
+        }
     }
 
     /**
@@ -1273,6 +1317,63 @@ class PDODb
     }
 
     /**
+     * Perform db query and return only one row
+     * 
+     * @param string $query
+     * @param array $params
+     * @return array
+     */
+    public function rawQueryOne($query, $params = null)
+    {
+        $result = $this->rawQuery($query, $params);
+
+        if ($this->useGenerator) {
+            return $result->current() ? $result->current() : false;
+        } else {
+            return $result ? $result[0] : false;
+        }
+    }
+
+    /**
+     * Helper function to execute raw SQL query and return only 1 column of results.
+     * If 'limit 1' will be found, then string will be returned instead of array
+     * Same idea as getValue()
+     *
+     * @param string $query      User-provided query to execute.
+     * @param array  $params Variables array to bind to the SQL statement.
+     * @return mixed Contains the returned rows from the query.
+     */
+    public function rawQueryValue($query, $params = null)
+    {
+        $result = $this->rawQuery($query, $params);
+
+        if ($this->useGenerator && !$result->current()) {
+            return null;
+        } else if (!$this->useGenerator && !$result) {
+            return null;
+        }        
+
+        if ($this->useGenerator) {
+            $firstResult = $result->current();
+        } else {
+            $firstResult = $result[0];
+        }
+
+        $key = key($firstResult);
+
+        $limit = preg_match('/limit\s+1;?$/i', $query);
+        if ($limit == true) {
+            return isset($firstResult[$key]) ? $firstResult[$key] : null;
+        }
+
+        $return = [];
+        foreach ($result as $row) {
+            $return[] = $row[$key];
+        }
+        return $return;
+    }
+
+    /**
      * Perform insert query
      *
      * @param string $tableName
@@ -1291,6 +1392,7 @@ class PDODb
     {
         $this->forUpdate       = false;
         $this->groupBy         = [];
+        $this->having          = [];
         $this->join            = [];
         $this->lastInsertId    = "";
         $this->lockInShareMode = false;
@@ -1316,6 +1418,17 @@ class PDODb
         $result            = $this->pdo()->rollback();
         $this->transaction = false;
         return $result;
+    }
+
+    /**
+     * Set row limit per 1 page
+     * @param int $limit
+     * @return PDODb
+     */
+    public function setPageLimit($limit)
+    {
+        $this->pageLimit = $limit;
+        return $this;
     }
 
     /**
@@ -1454,6 +1567,15 @@ class PDODb
 
 
         return $status;
+    }
+
+    /**
+     * Set use generator options
+     * @param bool $option
+     */
+    public function useGenerator($option)
+    {
+        $this->useGenerator = $option;
     }
 
     /**
