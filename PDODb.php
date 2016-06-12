@@ -916,9 +916,9 @@ class PDODb
      * @param mixed $value The value to escape.
      * @return string The escaped string.
      */
-    public function escape($str)
+    public function escape($value)
     {
-        return $this->pdo()->quote($str, $this->determineType($str));
+        return $this->pdo()->quote($value, $this->determineType($value));
     }
 
     /**
