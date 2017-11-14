@@ -1,5 +1,5 @@
 {
-    "name": "root/pdo-database-class",
+    "name": "tommyknocker/pdo-database-class",
     "description": "PHP PDO Wrapper which utilizes PDO and prepared statements",
     "version": "1.1.0",
     "type": "library",
