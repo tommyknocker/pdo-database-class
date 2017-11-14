@@ -817,6 +817,16 @@ class PDODb
     }
 
     /**
+     * Method returns params
+     *
+     * @return array
+     */
+    public function getParams()
+    {
+        return $this->params;
+    }
+
+    /**
      * Get count of affected rows
      *
      * @return int
