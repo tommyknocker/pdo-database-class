@@ -35,6 +35,7 @@ Everyone's time should be valuable, so please consider donating.
 [Donate with paypal](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=ulin%2evasiliy%40gmail%2ecom&lc=DO&item_name=pdodb&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
 
 ### Installation
+
 To utilize this class, first import PDODb.php into your project, and require it.
 PDODb requires PHP 5.5+ to work.
 
@@ -43,12 +44,14 @@ require_once ('PDODb.php');
 ```
 
 ### Installation with composer
+
 It is also possible to install library via composer
 ```
 composer require tommyknocker/pdo-database-class
 ```
 
 ### Initialization
+
 Simple initialization with utf8 charset set by default:
 ```php
 $db = new PDODb('host', 'username', 'password', 'databaseName');
@@ -94,6 +97,7 @@ If you need to get already created pdo object from another class or function use
 ```
 
 ### Insert Query
+
 Simple example
 ```php
 $data = ["login" => "admin",
@@ -144,9 +148,11 @@ $id = $db->insert('users', $data);
 ```
 
 ### Replace Query
+
 <a href='https://dev.mysql.com/doc/refman/5.0/en/replace.html'>Replace()</a> method implements same API as insert();
 
 ### Update Query
+
 ```php
 $data = ['firstName' => 'Bobby',
 	    'lastName' => 'Tables',
@@ -170,6 +176,7 @@ $db->update('users', $data, 10);
 ```
 
 ### Select Query
+
 After any select/get function calls amount or returned rows is stored in $count variable
 ```php
 $users = $db->get('users'); //contains an Array of all users 
@@ -230,6 +237,7 @@ if($result->current()) {
 ```
 
 ### Pagination
+
 Use paginate() instead of get() to fetch paginated result
 ```php
 $page = 1;
@@ -241,6 +249,7 @@ echo "showing $page out of " . $db->totalPages;
 ```
 
 ### Defining a return type
+
 To select a return type use setReturnType() method.
 ```php
 // Array return type
@@ -252,6 +261,7 @@ echo $u->login;
 ```
 
 ### Running raw SQL queries
+
 ```php
 $users = $db->rawQuery('SELECT * FROM users WHERE id >= ?', [10]);
 foreach ($users as $user) {
@@ -309,6 +319,7 @@ print_r ($result); // contains array of returned rows
 ```
 
 ### Where / Having Methods
+
 `where()`, `orWhere()`, `having()` and `orHaving()` methods allows you to specify where and having conditions of the query. All conditions supported by where() are supported by having() as well.
 
 WARNING: In order to use column to column comparisons only raw where conditions should be used as column name or functions cant be passed as a bind variable.
@@ -409,6 +420,7 @@ echo "Showing {$count} from {$db->totalCount}";
 ```
 
 ### Query Keywords
+
 To add LOW PRIORITY | DELAYED | HIGH PRIORITY | IGNORE and the rest of the mysql keywords to INSERT (), REPLACE (), GET (), UPDATE (), DELETE() method or FOR UPDATE | LOCK IN SHARE MODE into SELECT ():
 ```php
 $db->setQueryOption('LOW_PRIORITY')->insert($table, $param);
@@ -442,6 +454,7 @@ $results = $db
 ```
 
 ### Delete Query
+
 ```php
 $db->where('id', 1);
 if($db->delete('users')) echo 'successfully deleted';
@@ -449,6 +462,7 @@ if($db->delete('users')) echo 'successfully deleted';
 
 
 ### Ordering method
+
 ```php
 $db->orderBy("id","ASC");
 $db->orderBy("login","DESC");
@@ -479,6 +493,7 @@ $results = $db->get('users');
 ```
 
 ### Grouping method
+
 ```php
 $db->groupBy("name");
 $results = $db->get('users');
@@ -486,7 +501,9 @@ $results = $db->get('users');
 ```
 
 Join table products with table users with LEFT JOIN by tenantID
+
 ### JOIN method
+
 ```php
 $db->join("users u", "p.tenantID=u.tenantID", "LEFT");
 $db->where("u.id", 6);
@@ -495,6 +512,7 @@ print_r($products);
 ```
 
 ### Properties sharing
+
 Its is also possible to copy properties
 
 ```php
@@ -511,6 +529,7 @@ echo "total records found: " . $cnt;
 ```
 
 ### Subqueries
+
 Subquery init
 
 Subquery init without an alias to use in inserts/updates/where Eg. (select * from users)
@@ -563,6 +582,7 @@ print_r($products);
 ```
 
 ### EXISTS / NOT EXISTS condition
+
 ```php
 $sub = $db->subQuery();
 $sub->where("company", 'testCompany');
@@ -573,6 +593,7 @@ $products = $db->get ("products");
 ```
 
 ### Has method
+
 A convenient function that returns TRUE if exists at least an element that satisfy the where condition specified calling the "where" method before this one.
 ```php
 $db->where("user", $user);
@@ -582,7 +603,8 @@ if($db->has("users")) {
 } else {
     return "Wrong user/password";
 }
-``` 
+```
+
 ### Helper methods
 
 Get last executed SQL query:
@@ -605,6 +627,7 @@ $escaped = $db->escape("' and 1=1");
 ```
 
 ### Transaction helpers
+
 Please keep in mind that transactions are working on innoDB tables.
 Rollback transaction if insert fails:
 ```php
@@ -620,6 +643,7 @@ if (!$db->insert('myTable', $insertData)) {
 ```
 
 ### Error helpers
+
 After you executed a query you have options to check if there was an error. You can get the MySQL error string or the error code for the last executed query. 
 ```php
 $db->where('login', 'admin')->update('users', ['firstName' => 'Jack']);
