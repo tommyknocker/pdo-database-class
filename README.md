@@ -1,26 +1,30 @@
 # PDO-database-class
+
 PHP PDO Wrapper which utilizes PDO and prepared statements
+
 <hr>
+
 ### Table of Contents
-**[Initialization](#initialization)**  
-**[Insert Query](#insert-query)**  
-**[Update Query](#update-query)**  
-**[Select Query](#select-query)**  
-**[Delete Query](#delete-query)**  
-**[Pagination](#pagination)**  
-**[Running raw SQL queries](#running-raw-sql-queries)**  
-**[Query Keywords](#query-keywords)**  
-**[Where Conditions](#where--having-methods)**  
-**[Order Conditions](#ordering-method)**  
-**[Group Conditions](#grouping-method)**  
-**[Properties Sharing](#properties-sharing)**  
-**[Joining Tables](#join-method)**  
-**[Subqueries](#subqueries)**  
-**[EXISTS / NOT EXISTS condition](#exists--not-exists-condition)**  
-**[Has method](#has-method)**  
-**[Helper Methods](#helper-methods)**  
-**[Transaction Helpers](#transaction-helpers)**  
-**[Error Helpers](#error-helpers)**
+
+- **[Initialization](#initialization)**
+- **[Insert Query](#insert-query)**
+- **[Update Query](#update-query)**
+- **[Select Query](#select-query)**
+- **[Delete Query](#delete-query)**
+- **[Pagination](#pagination)**
+- **[Running raw SQL queries](#running-raw-sql-queries)**
+- **[Query Keywords](#query-keywords)**
+- **[Where Conditions](#where--having-methods)**
+- **[Order Conditions](#ordering-method)**
+- **[Group Conditions](#grouping-method)**
+- **[Properties Sharing](#properties-sharing)**
+- **[Joining Tables](#join-method)**
+- **[Subqueries](#subqueries)**
+- **[EXISTS / NOT EXISTS condition](#exists--not-exists-condition)**
+- **[Has method](#has-method)**
+- **[Helper Methods](#helper-methods)**
+- **[Transaction Helpers](#transaction-helpers)**
+- **[Error Helpers](#error-helpers)**
 
 ## Support Me
 
