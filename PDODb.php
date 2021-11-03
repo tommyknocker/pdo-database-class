@@ -432,7 +432,7 @@ class PDODb
         $isInsert    = in_array($this->queryType, ['REPLACE', 'INSERT']);
         $dataColumns = array_keys($tableData);
         if ($isInsert) {
-            if (isset($dataColumns[0])) $this->query .= ' (`'.implode($dataColumns, '`, `').'`) ';
+            if (isset($dataColumns[0])) $this->query .= ' (`'.implode('`, `', $dataColumns).'`) ';
             $this->query .= ' VALUES (';
         } else {
             $this->query .= " SET ";
