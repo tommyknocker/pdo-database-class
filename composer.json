@@ -1,7 +1,7 @@
 {
     "name": "tommyknocker/pdo-database-class",
     "description": "PHP PDO Wrapper which utilizes PDO and prepared statements",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "type": "library",
     "keywords": ["pdo", "database", "mssql", "mysql", "sqlite", "postgresql", "pdo_dblib"],
     "homepage": "https://github.com/tommyknocker/pdo-database-class",
