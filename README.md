@@ -42,15 +42,17 @@ composer require tommyknocker/pdo-database-class
 ### Initialization
 
 ```php
-$db = new PdoDb(['mysql', // sqlite3
-                 'pdo' => null, // PDO object 
-                 'host' => 'host',
-                 'username' => 'username', 
-                 'password' => 'password',
-                 'dbname'=> 'databaseName',
-                 'port' => 3306,
-                 'prefix' => 'my_',
-                 'charset' => 'utf8']);
+$db = new PdoDb('mysql', // sqlite3
+                 [
+                     'pdo' => null, // PDO object 
+                     'host' => 'host',
+                     'username' => 'username', 
+                     'password' => 'password',
+                     'dbname'=> 'databaseName',
+                     'port' => 3306,
+                     'prefix' => 'my_',
+                     'charset' => 'utf8'
+                 ]);
 ```
 table prefix, port and database charset params are optional.
 If no charset should be set charset, set it to null
