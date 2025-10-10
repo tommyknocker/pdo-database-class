@@ -143,7 +143,7 @@ final class PdoDbMySQLTest extends TestCase
         $rows = self::$db
             ->join('orders o', 'u.id = o.user_id')
             ->joinWhere('o', 'amount', 100)
-            ->joinOrWhere('o', 'amount', [100, 200], 'IN') // OR через IN
+            ->joinOrWhere('o', 'amount', [100, 200], 'IN')
             ->get('users u', null, ['u.name', 'o.amount']);
 
         $this->assertEquals('JoinUser', $rows[0]['name']);
@@ -228,7 +228,6 @@ final class PdoDbMySQLTest extends TestCase
     {
         $db = self::$db;
 
-        // очистим таблицы
         $db->delete('users');
         $db->delete('orders');
 
