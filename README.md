@@ -33,13 +33,6 @@ Based on https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 To utilize this class, first import PdoDb.php into your project, and require it.
 PdoDb requires PHP 8.4+ to work.
 
-```php
-require_once ('PdoDb.php');
-```
-
-### Installation with composer
-
-It is also possible to install library via composer
 ```
 composer require tommyknocker/pdo-database-class
 ```
