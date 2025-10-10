@@ -12,6 +12,8 @@ Based on https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 - **[Update Query](#update-query)**
 - **[Select Query](#select-query)**
 - **[Delete Query](#delete-query)**
+  **[Insert Data](#insert-data)**  
+  **[Insert XML](#insert-xml)**
 - **[Pagination](#pagination)**
 - **[Running raw SQL queries](#running-raw-sql-queries)**
 - **[Query Keywords](#query-keywords)**
@@ -288,6 +290,43 @@ $db->pageLimit = 2;
 $products = $db->paginate("products", $page);
 echo "showing $page out of " . $db->totalPages;
 
+```
+
+### Result transformation / map
+Instead of getting an pure array of results its possible to get result in an associative array with a needed key. If only 2 fields to fetch will be set in get(),
+method will return result in array($k => $v) and array ($k => array ($v, $v)) in rest of the cases.
+
+```php
+$user = $db->map ('login')->ObjectBuilder()->getOne ('users', 'login, id');
+Array
+(
+    [user1] => 1
+)
+
+$user = $db->map ('login')->ObjectBuilder()->getOne ('users', 'id,login,createdAt');
+Array
+(
+    [user1] => stdClass Object
+        (
+            [id] => 1
+            [login] => user1
+            [createdAt] => 2015-10-22 22:27:53
+        )
+
+)
+```
+
+### Defining a return type
+MysqliDb can return result in 3 different formats: Array of Array, Array of Objects and a Json string. To select a return type use ArrayBuilder(), ObjectBuilder() and JsonBuilder() methods. Note that ArrayBuilder() is a default return type
+```php
+// Array return type
+$u= $db->getOne("users");
+echo $u['login'];
+// Object return type
+$u = $db->ObjectBuilder()->getOne("users");
+echo $u->login;
+// Json return type
+$json = $db->JsonBuilder()->getOne("users");
 ```
 
 ### Running raw SQL queries

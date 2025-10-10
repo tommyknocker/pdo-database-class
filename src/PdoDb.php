@@ -237,7 +237,6 @@ class PdoDb
         return $ok;
     }
 
-
     public function update(string $table, array $data): int
     {
         $this->lastTableUsed = $table;
@@ -1100,7 +1099,8 @@ class PdoDb
         $sql = "LOAD XML LOCAL INFILE " . $this->pdo->quote($filePath) .
             " INTO TABLE {$this->prefix}$table " .
             "ROWS IDENTIFIED BY " . $this->pdo->quote($rowTag);
-
+        $this->lastQuery = $sql;
+        $this->logTrace($sql);
         return $this->pdo->exec($sql) !== false;
     }
 
