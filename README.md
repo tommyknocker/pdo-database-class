@@ -1,8 +1,9 @@
 # PDO-database-class
 
 PHP PDO Wrapper which utilizes PDO and prepared statements
+Based on https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 
-<hr>
+---
 
 ### Table of Contents
 
@@ -26,21 +27,14 @@ PHP PDO Wrapper which utilizes PDO and prepared statements
 - **[Transaction Helpers](#transaction-helpers)**
 - **[Error Helpers](#error-helpers)**
 
-## Support Me
-
-This software is developed during my free time and I will be glad if somebody will support me.
-
-Everyone's time should be valuable, so please consider donating.
-
-[Donate with paypal](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=ulin%2evasiliy%40gmail%2ecom&lc=DO&item_name=pdodb&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
 
 ### Installation
 
-To utilize this class, first import PDODb.php into your project, and require it.
-PDODb requires PHP 5.5+ to work.
+To utilize this class, first import PdoDb.php into your project, and require it.
+PdoDb requires PHP 8.4+ to work.
 
 ```php
-require_once ('PDODb.php');
+require_once ('PdoDb.php');
 ```
 
 ### Installation with composer
@@ -54,12 +48,12 @@ composer require tommyknocker/pdo-database-class
 
 Simple initialization with utf8 charset set by default:
 ```php
-$db = new PDODb('host', 'username', 'password', 'databaseName');
+$db = new PdoDb('host', 'username', 'password', 'databaseName');
 ```
 
 Advanced initialization:
 ```php
-$db = new PDODb(['type' => 'mysql',
+$db = new PdoDb(['type' => 'mysql',
                  'host' => 'host',
                  'username' => 'username', 
                  'password' => 'password',
@@ -71,29 +65,9 @@ $db = new PDODb(['type' => 'mysql',
 table prefix, port and database charset params are optional.
 If no charset should be set charset, set it to null
 
-Also it is possible to reuse already connected pdo object:
-```php
-$pdo = new PDO('mysql:dbname=test;host=localhost', 'user', 'password');
-$db = new PDODb($pdo);
-```
-
 If no table prefix were set during object creation its possible to set it later with a separate call:
 ```php
 $db->setPrefix('my_');
-```
-
-If you need to get already created pdo object from another class or function use
-```php
-    function init() {
-        // db staying private here
-        $db = new PDODb('type', 'host', 'username', 'password', 'databaseName');
-    }
-    ...
-    function myfunс() {
-        // obtain db object created in init()
-        $db = PDODb::getInstance();
-        ...
-    }
 ```
 
 ### Insert Query
@@ -149,7 +123,7 @@ $id = $db->insert('users', $data);
 
 ### Replace Query
 
-<a href='https://dev.mysql.com/doc/refman/5.0/en/replace.html'>Replace()</a> method implements same API as insert();
+<a href='https://dev.mysql.com/doc/refman/8.0/en/replace.html'>Replace()</a> method implements same API as insert();
 
 ### Update Query
 
@@ -224,7 +198,7 @@ foreach ($logins as $login) {
 }
 ```
 
-You may use php 5.5+ generator feature with PDODb get(), rawQuery() methods just call useGenerator(true) method
+You may use php 5.5+ generator feature with PdoDb get(), rawQuery() methods just call useGenerator(true) method
 
 Example:
 ```php

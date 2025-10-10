@@ -1,30 +1,45 @@
 {
-    "name": "tommyknocker/pdo-database-class",
-    "description": "PHP PDO Wrapper which utilizes PDO and prepared statements",
-    "version": "1.1.1",
-    "type": "library",
-    "keywords": ["pdo", "database", "mssql", "mysql", "sqlite", "postgresql", "pdo_dblib"],
-    "homepage": "https://github.com/tommyknocker/pdo-database-class",
-    "license": "LGPL-3.0",
-    "authors": [
-        {
-            "name": "Vasiliy A. Ulin",
-            "email": "ulin.vasiliy@gmail.com",
-            "homepage": "http://mysrv.ru",
-            "role": "Developer"
-        }
-    ],
-    "support": {
-        "issues": "https://github.com/tommyknocker/pdo-database-class/issues"
-    },    
-    "require": {
-        "php": ">=5.5.0",
-        "ext-pdo": "*"
-    },
-    "require-dev": {
-        "phpunit/phpunit": "^5.0"
-    },    
-    "autoload": {
-        "files": ["PDODb.php"]
+  "name": "tommyknocker/pdo-database-class",
+  "description": "PHP PDO Wrapper which utilizes PDO and prepared statements",
+  "type": "library",
+  "keywords": [
+    "pdo",
+    "database",
+    "mssql",
+    "mysql",
+    "sqlite",
+    "postgresql",
+    "pdo_dblib"
+  ],
+  "homepage": "https://github.com/tommyknocker/pdo-database-class",
+  "license": "LGPL-3.0",
+  "support": {
+    "issues": "https://github.com/tommyknocker/pdo-database-class/issues"
+  },
+  "authors": [
+    {
+      "name": "Vasiliy Krivoplyas",
+      "email": "vasiliy@krivoplyas.com"
     }
+  ],
+  "require": {
+    "php": "^8.4",
+    "ext-pdo": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "tommyknocker\\pdodb\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "tommyknocker\\pdodb\\tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit"
+  }
 }
