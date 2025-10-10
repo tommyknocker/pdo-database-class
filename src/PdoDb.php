@@ -704,7 +704,7 @@ class PdoDb
 
     public function subQuery(string $alias = ''): self
     {
-        $sub = clone $this;
+        $sub = $this->copy();
         $sub->isSubQuery = true;
         $sub->resetQueryState();
         if ($alias) {
@@ -979,10 +979,11 @@ class PdoDb
     {
         $driver = $params['driver'] ?? 'mysql';
         $charset = $params['charset'] ?? 'utf8mb4';
+        $port = $params['port'] ?? '3306';
 
         return match ($driver) {
-            'mysql' => "mysql:host={$params['host']};dbname={$params['db']}" . ($charset ? ";charset=" . $charset : ''),
-            'pgsql' => "pgsql:host={$params['host']};dbname={$params['db']}",
+            'mysql' => "mysql:host={$params['host']};dbname={$params['db']}" . ($port ? ";port={$port}" : '') . ($charset ? ";charset=" . $charset : ''),
+            'pgsql' => "pgsql:host={$params['host']};dbname={$params['db']}" . ($port ? ";port={$port}" : ''),
             'sqlite' => "sqlite:" . ($params['path'] ?? ''),
             default => throw new InvalidArgumentException("Unsupported driver: $driver"),
         };

@@ -14,6 +14,8 @@ final class PdoDbMySQLTest extends TestCase
     protected const string DB_NAME = 'test_db';
     protected const string DB_USER = 'root';
     protected const string DB_PASSWORD = '';
+    protected const int DB_PORT = 3306;
+    protected const string DB_CHARSET = 'utf8mb4';
 
     public static function setUpBeforeClass(): void
     {
@@ -21,9 +23,11 @@ final class PdoDbMySQLTest extends TestCase
             'mysql',
             [
                 'host' => self::DB_HOST,
+                'port' => self::DB_PORT,
                 'username' => self::DB_USER,
                 'password' => self::DB_PASSWORD,
-                'db' => self::DB_NAME
+                'db' => self::DB_NAME,
+                'charset' => self::DB_CHARSET,
             ]
         );
 
@@ -706,9 +710,11 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertFalse(self::$db->ping());
         self::$db = new PdoDb('mysql', [
             'host' => self::DB_HOST,
+            'port' => self::DB_PORT,
             'username' => self::DB_USER,
             'password' => self::DB_PASSWORD,
-            'db' => self::DB_NAME
+            'db' => self::DB_NAME,
+            'charset' => self::DB_CHARSET,
         ]);
         $this->assertTrue(self::$db->ping());
     }
@@ -775,9 +781,11 @@ final class PdoDbMySQLTest extends TestCase
     {
         self::$db->addConnection('secondary', [
             'host' => self::DB_HOST,
+            'port' => self::DB_PORT,
             'username' => self::DB_USER,
             'password' => self::DB_PASSWORD,
-            'db' => self::DB_NAME
+            'db' => self::DB_NAME,
+            'charset' => self::DB_CHARSET,
         ]);
 
         $pdoDb = self::$db->connection('secondary');
