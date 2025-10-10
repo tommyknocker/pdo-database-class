@@ -6,7 +6,7 @@ namespace tommyknocker\pdodb\tests;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\PdoDb;
 
-final class PdoDbTest extends TestCase
+final class PdoDbMySQLTest extends TestCase
 {
     private static ?PdoDb $db = null;
 
@@ -18,10 +18,13 @@ final class PdoDbTest extends TestCase
     public static function setUpBeforeClass(): void
     {
         self::$db = new PdoDb(
-            host: self::DB_HOST,
-            username: self::DB_USER,
-            password: self::DB_PASSWORD,
-            db: self::DB_NAME
+            'mysql',
+            [
+                'host' => self::DB_HOST,
+                'username' => self::DB_USER,
+                'password' => self::DB_PASSWORD,
+                'db' => self::DB_NAME
+            ]
         );
 
         self::$db->rawQuery("CREATE TABLE IF NOT EXISTS users (
@@ -64,6 +67,54 @@ final class PdoDbTest extends TestCase
             // ignore, if there was no lock
         }
     }
+
+    public function testInsertWithQueryOption()
+    {
+        $db = self::$db;
+        $db->delete('users');
+
+        $db->setQueryOption('LOW_PRIORITY')->insert('users', ['name' => 'Alice']);
+        $this->assertStringStartsWith('INSERT LOW_PRIORITY INTO users', $db->getLastQuery());
+    }
+
+    public function testInsertWithMultipleQueryOptions(): void
+    {
+        $db = self::$db;
+        $db->delete('users');
+
+        $db->setQueryOption(['LOW_PRIORITY', 'IGNORE'])->insert('users', ['name' => 'Bob']);
+        $this->assertStringStartsWith('INSERT LOW_PRIORITY IGNORE INTO users', $db->getLastQuery());
+    }
+
+    public function testSelectWithQueryOption(): void
+    {
+        $db = self::$db;
+        $db->setQueryOption('SQL_NO_CACHE')->get('users');
+        $this->assertStringStartsWith('SELECT SQL_NO_CACHE * FROM users', $db->getLastQuery());
+    }
+
+    public function testSelectWithForUpdate(): void
+    {
+        $db = self::$db;
+
+        $db->setQueryOption('FOR UPDATE')->get('users');
+        $this->assertStringEndsWith('FROM users FOR UPDATE', $db->getLastQuery());
+    }
+
+    public function testUpdateWithQueryOption(): void
+    {
+        $db = self::$db;
+        $db->setQueryOption('LOW_PRIORITY')->where('id', 1)->update('users', ['name' => 'Updated']);
+        $this->assertStringStartsWith('UPDATE LOW_PRIORITY users SET', $db->getLastQuery());
+    }
+
+    public function testDeleteWithQueryOption(): void
+    {
+        $db = self::$db;
+        $db->setQueryOption('LOW_PRIORITY')->where('id', 1)->delete('users');
+        $this->assertStringStartsWith('DELETE LOW_PRIORITY FROM users WHERE', $db->getLastQuery());
+    }
+
 
     public function testRawQueryOne(): void
     {
@@ -654,12 +705,12 @@ final class PdoDbTest extends TestCase
     {
         self::$db->disconnect();
         $this->assertFalse(self::$db->ping());
-        self::$db = new PdoDb(
-            host: self::DB_HOST,
-            username: self::DB_USER,
-            password: self::DB_PASSWORD,
-            db: self::DB_NAME
-        );
+        self::$db = new PdoDb('mysql', [
+            'host' => self::DB_HOST,
+            'username' => self::DB_USER,
+            'password' => self::DB_PASSWORD,
+            'db' => self::DB_NAME
+        ]);
         $this->assertTrue(self::$db->ping());
     }
 
@@ -780,9 +831,13 @@ final class PdoDbTest extends TestCase
         $tmpFile = sys_get_temp_dir() . '/users.csv';
         file_put_contents($tmpFile, "4,Dave,new\n5,Eve,new\n");
 
-        $ok = $db->loadData('users', $tmpFile, "FIELDS TERMINATED BY ',' (id, name, status)", true);
+        $ok = $db->loadData('users', $tmpFile, [
+            'fieldChar' => ',',
+            'fields' => ['id', 'name', 'status'],
+            'local' => true
+        ]);
 
-        $this->assertTrue($ok, 'loadData() вернул false');
+        $this->assertTrue($ok, 'loadData() returned false');
 
         $names = array_column($db->get('users'), 'name');
         $this->assertContains('Dave', $names);

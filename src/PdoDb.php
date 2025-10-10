@@ -42,25 +42,15 @@ class PdoDb
     protected array $connections = [];
     protected ?string $lastTableUsed = null;
     protected array $onDuplicateColumns = [];
+    protected array $queryOptionsFlags = [];
 
-    public function __construct(
-        string $host,
-        string $username,
-        string $password,
-        string $db,
-        string $charset = 'utf8mb4',
-        string $prefix = '',
-        string $driver = 'mysql'
-    ) {
-        $this->prefix = $prefix;
+    public function __construct(string $driver = 'mysql', array $config = [])
+    {
+        $this->prefix = $config['prefix'] ?? '';
 
         $this->addConnection('default', [
             'driver' => $driver,
-            'host' => $host,
-            'username' => $username,
-            'password' => $password,
-            'db' => $db,
-            'charset' => $charset,
+            ...$config
         ]);
 
         // use default connection
@@ -107,35 +97,35 @@ class PdoDb
         $this->queryOptions['table'] = $table;
 
         if ($data instanceof self && !empty($data->isSubQuery)) {
-            $sql = "INSERT INTO {$this->prefix}$table " . $data->getLastQuery();
+            $modifiers = $data->getQueryOptions() ? implode(' ', $this->getQueryOptions()) . ' ' : '';
+            $sql = "INSERT {$modifiers}INTO {$this->prefix}$table " . $data->getLastQuery();
             $params = $data->getParams() ?? [];
 
             if (!empty($this->onDuplicateColumns)) {
                 $updates = implode(', ', array_map(static fn($k) => "$k = VALUES($k)", $this->onDuplicateColumns));
                 $sql .= " ON DUPLICATE KEY UPDATE $updates";
             }
-        }
-        elseif (is_array($data) && count($data) >= 1 && current($data) instanceof self && $this->allValuesAreSameSubQuery($data)) {
+        } elseif (is_array($data) && count($data) >= 1 && current($data) instanceof self && $this->allValuesAreSameSubQuery($data)) {
             /** @var self $sub */
             $sub = current($data);
-
+            $modifiers = $this->queryOptionsFlags ? implode(' ', $this->queryOptionsFlags) . ' ' : '';
             $columns = implode(', ', array_keys($data));
-            $sql = "INSERT INTO {$this->prefix}$table ($columns) " . $sub->getLastQuery();
+            $sql = "INSERT {$modifiers}INTO {$this->prefix}$table ($columns) " . $sub->getLastQuery();
             $params = $sub->getParams() ?? [];
 
             if (!empty($this->onDuplicateColumns)) {
                 $updates = implode(', ', array_map(static fn($k) => "$k = VALUES($k)", $this->onDuplicateColumns));
                 $sql .= " ON DUPLICATE KEY UPDATE $updates";
             }
-        }
-        else {
+        } else {
             $columns = implode(', ', array_keys($data));
             $placeholders = implode(', ', array_map(static fn($k) => ":$k", array_keys($data)));
+            $modifiers = $this->queryOptionsFlags ? implode(' ', $this->queryOptionsFlags) . ' ' : '';
 
-            $sql = "INSERT INTO {$this->prefix}$table ($columns) VALUES ($placeholders)";
+            $sql = "INSERT {$modifiers}INTO {$this->prefix}$table ($columns) VALUES ($placeholders)";
 
             if (!empty($this->onDuplicateColumns)) {
-                $updates = implode(', ', array_map(fn($k) => "$k = VALUES($k)", $this->onDuplicateColumns));
+                $updates = implode(', ', array_map(static fn($k) => "$k = VALUES($k)", $this->onDuplicateColumns));
                 $sql .= " ON DUPLICATE KEY UPDATE $updates";
             }
 
@@ -187,7 +177,7 @@ class PdoDb
         $sql = "INSERT INTO {$this->prefix}$table ($columns) VALUES $rows";
 
         if (!empty($this->onDuplicateColumns)) {
-            $updates = implode(', ', array_map(fn($k) => "$k = VALUES($k)", $this->onDuplicateColumns));
+            $updates = implode(', ', array_map(static fn($k) => "$k = VALUES($k)", $this->onDuplicateColumns));
             $sql .= " ON DUPLICATE KEY UPDATE $updates";
         }
 
@@ -210,9 +200,11 @@ class PdoDb
     {
         $this->lastTableUsed = $table;
         $columns = implode(', ', array_keys($data));
-        $placeholders = implode(', ', array_map(fn($k) => ":$k", array_keys($data)));
+        $placeholders = implode(', ', array_map(static fn($k) => ":$k", array_keys($data)));
 
-        $sql = "REPLACE INTO {$this->prefix}$table ($columns) VALUES ($placeholders)";
+        $modifiers = $this->queryOptionsFlags ? implode(' ', $this->queryOptionsFlags) . ' ' : '';
+
+        $sql = "REPLACE {$modifiers}INTO {$this->prefix}$table ($columns) VALUES ($placeholders)";
         $stmt = $this->pdo->prepare($sql);
 
         foreach ($data as $k => $v) {
@@ -283,7 +275,9 @@ class PdoDb
             }
         }
 
-        $sql = "UPDATE {$this->prefix}$table SET " . implode(', ', $setParts);
+        $modifiers = $this->queryOptionsFlags ? implode(' ', $this->queryOptionsFlags) . ' ' : '';
+
+        $sql = "UPDATE {$modifiers}{$this->prefix}$table SET " . implode(', ', $setParts);
         $sql .= $this->buildWhere();
 
         $this->lastQuery = $sql;
@@ -309,7 +303,8 @@ class PdoDb
     public function delete(string $table): int
     {
         $this->lastTableUsed = $table;
-        $sql = "DELETE FROM {$this->prefix}$table";
+        $modifiers = $this->queryOptionsFlags ? implode(' ', $this->queryOptionsFlags) . ' ' : '';
+        $sql = "DELETE {$modifiers}FROM {$this->prefix}$table";
         $sql .= $this->buildWhere();
 
         $this->lastQuery = $sql;
@@ -364,7 +359,24 @@ class PdoDb
     /* ---------------- SELECT ---------------- */
     protected function buildSelect(string $table, array $columns, ?int $limit = null, ?int $offset = null): string
     {
-        $sql = "SELECT " . implode(', ', $columns) . " FROM {$this->prefix}$table";
+        $tailQueryOptions = [];
+        $queryOptions = $this->queryOptionsFlags;
+
+        foreach ($queryOptions as $index => $queryOption) {
+            if (in_array($queryOption, ['LOCK IN SHARE MODE', 'FOR UPDATE'])) {
+                $tailQueryOptions[] = $queryOption;
+                unset($queryOptions[$index]);
+            }
+        }
+
+        if (in_array('FOR UPDATE', $tailQueryOptions) && in_array('LOCK IN SHARE MODE', $tailQueryOptions)) {
+            throw new InvalidArgumentException('Cannot use FOR UPDATE and LOCK IN SHARE MODE together');
+        }
+
+        $modifiers = $queryOptions ? implode(' ', $queryOptions) . ' ' : '';
+        $endingModifiers = $tailQueryOptions ? ' ' . implode(' ', $tailQueryOptions) : '';
+
+        $sql = "SELECT {$modifiers}" . implode(', ', $columns) . " FROM {$this->prefix}$table";
 
         if ($this->join) {
             $sql .= ' ' . implode(' ', $this->join);
@@ -383,6 +395,8 @@ class PdoDb
         if ($limit !== null) {
             $sql .= $offset !== null ? " LIMIT $offset, $limit" : " LIMIT $limit";
         }
+
+        $sql .= $endingModifiers;
 
         return $sql;
     }
@@ -541,8 +555,7 @@ class PdoDb
                             'cond' => $cond,
                             'sql' => "$expr $operator ($value)"
                         ];
-                    }
-                    else {
+                    } else {
                         $p = $this->makeParam($expr);
 
                         $this->params[$p] = $value;
@@ -562,7 +575,7 @@ class PdoDb
     protected function makeParam(string $expr, string $suffix = ''): string
     {
         // sanitize expression to safe identifier
-        $base = preg_replace('/[^a-zA-Z0-9_]/', '_', $expr);
+        $base = preg_replace('/\W/', '_', $expr);
         return ':' . strtolower($base) . $suffix . count($this->params);
     }
 
@@ -694,20 +707,11 @@ class PdoDb
     {
         $sub = clone $this;
         $sub->isSubQuery = true;
-        $sub->resetQueryState();;
+        $sub->resetQueryState();
         if ($alias) {
             $sub->queryOptions['alias'] = $alias;
         }
         return $sub;
-    }
-
-    protected function buildSubQuerySql(): string
-    {
-        return 'SELECT ' . implode(', ', $this->columns ?? ['*'])
-            . ' FROM ' . $this->table
-            . $this->buildWhere()
-            . ($this->groupBy ? ' GROUP BY ' . implode(', ', $this->groupBy) : ' ')
-            . $this->buildHaving();
     }
 
     protected function resetQueryState(): void
@@ -720,6 +724,7 @@ class PdoDb
         $this->having = [];
         $this->params = [];
         $this->onDuplicateColumns = [];
+        $this->queryOptionsFlags = [];
     }
 
 
@@ -850,7 +855,7 @@ class PdoDb
         try {
             $this->pdo->query('SELECT 1');
             return true;
-        } catch (Throwable $e) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -909,6 +914,17 @@ class PdoDb
 
     /* ---------------- UTILS ---------------- */
 
+    public function setQueryOption(string|array $flags): self
+    {
+        $this->queryOptionsFlags = is_array($flags) ? $flags : [$flags];
+        return $this;
+    }
+
+    public function getQueryOptions(): array
+    {
+        return $this->queryOptionsFlags;
+    }
+
     public function setPrefix(string $prefix): self
     {
         $this->prefix = $prefix;
@@ -963,11 +979,12 @@ class PdoDb
     protected function buildDsn(array $params): string
     {
         $driver = $params['driver'] ?? 'mysql';
+        $charset = $params['charset'] ?? 'utf8mb4';
 
         return match ($driver) {
-            'mysql' => "mysql:host={$params['host']};dbname={$params['db']};charset=" . ($params['charset'] ?? 'utf8mb4'),
+            'mysql' => "mysql:host={$params['host']};dbname={$params['db']}" . ($charset ? ";charset=" . $charset : ''),
             'pgsql' => "pgsql:host={$params['host']};dbname={$params['db']}",
-            'sqlite' => "sqlite:{$params['path']}",
+            'sqlite' => "sqlite:" . ($params['path'] ?? ''),
             default => throw new InvalidArgumentException("Unsupported driver: $driver"),
         };
     }
@@ -976,12 +993,17 @@ class PdoDb
     public function addConnection(string $name, array $params): void
     {
         $dsn = $this->buildDsn($params);
-        $pdo = new PDO($dsn, $params['username'], $params['password'], [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-            PDO::MYSQL_ATTR_LOCAL_INFILE => true
-        ]);
+
+        $pdo = $params['pdo'] ?? null;
+
+        if (!$pdo) {
+            $pdo = new PDO($dsn, $params['username'], $params['password'], [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::MYSQL_ATTR_LOCAL_INFILE => true
+            ]);
+        }
         $this->connections[$name] = $pdo;
 
         if ($name === 'default') {
@@ -1024,12 +1046,47 @@ class PdoDb
 
     /* ---------------- LOAD DATA/XML ---------------- */
 
-    public function loadData(string $table, string $filePath, string $options = '', bool $useLocal = false): bool
+    public function loadData(string $table, string $filePath, array $options = []): bool
     {
-        $localPrefix = $useLocal ? 'LOCAL ' : '';
+
+        $defaults = [
+            "fieldChar" => ';',
+            'fieldEnclosure' => null,
+            'fields' => [],
+            "lineChar" => null,
+            "linesToIgnore" => null,
+            'lineStarting' => null,
+            'local' => false,
+        ];
+
+        $options = $options ? array_merge($defaults, $options) : $defaults;
+
+        $localPrefix = $options['local'] ? 'LOCAL ' : '';
 
         $quotedPath = $this->pdo->quote($filePath);
-        $sql = "LOAD DATA {$localPrefix}INFILE {$quotedPath} INTO TABLE {$this->prefix}$table $options";
+        $sql = "LOAD DATA {$localPrefix}INFILE {$quotedPath} INTO TABLE {$this->prefix}$table";
+
+        // FIELDS
+        $sql .= sprintf(' FIELDS TERMINATED BY \'%s\'', $options["fieldChar"]);
+        if ($options['fields']) {
+            $sql .= ' (' . implode(', ', $options['fields']) . ')';
+        }
+        if ($options["fieldEnclosure"]) {
+            $sql .= sprintf(' ENCLOSED BY \'%s\'', $options["fieldEnclosure"]);
+        }
+
+        // LINES
+        if ($options['lineChar']) {
+            $sql .= sprintf(' LINES TERMINATED BY \'%s\'', $options["lineChar"]);
+        }
+        if ($options["lineStarting"]) {
+            $sql .= sprintf(' STARTING BY \'%s\'', $options["lineStarting"]);
+        }
+
+        // IGNORE LINES
+        if ($options["linesToIgnore"]) {
+            $sql .= sprintf(' IGNORE %d LINES', $options["linesToIgnore"]);
+        }
 
         $this->lastQuery = $sql;
         $this->logTrace($sql);

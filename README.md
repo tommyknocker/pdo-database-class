@@ -40,7 +40,8 @@ composer require tommyknocker/pdo-database-class
 ### Initialization
 
 ```php
-$db = new PdoDb(['driver' => 'mysql',
+$db = new PdoDb(['mysql', // sqlite3
+                 'pdo' => null, // PDO object 
                  'host' => 'host',
                  'username' => 'username', 
                  'password' => 'password',
@@ -77,7 +78,7 @@ $data = [
     'active' => true,
 	'firstName' => 'John',
 	'lastName' => 'Doe',
-	'password' => $db->func('SHA1(?)',Array ("secretpassword+salt")),
+	'password' => $db->func('SHA1(?)', ["secretpassword+salt"]),
 	// password = SHA1('secretpassword+salt')
 	'createdAt' => $db->now(),
 	// createdAt = NOW()
@@ -111,6 +112,44 @@ $id = $db->insert('users', $data);
 ### Replace Query
 
 <a href='https://dev.mysql.com/doc/refman/8.0/en/replace.html'>Replace()</a> method implements same API as insert();
+
+Insert multiple datasets at once
+```php
+$data = [
+    ["login" => "admin",
+        "firstName" => "John",
+        "lastName" => 'Doe'
+    ],
+    ["login" => "other",
+        "firstName" => "Another",
+        "lastName" => 'User',
+        "password" => "very_cool_hash"
+    ]
+];
+$ids = $db->insertMulti('users', $data);
+if(!$ids) {
+    echo 'insert failed: ' . $db->getLastError();
+} else {
+    echo 'new users inserted with following id\'s: ' . implode(', ', $ids);
+}
+```
+
+
+If all datasets only have the same keys, it can be simplified
+```php
+$data = [
+    ["admin", "John", "Doe"],
+    ["other", "Another", "User"]
+];
+$keys = ["login", "firstName", "lastName"];
+
+$ids = $db->insertMulti('users', $data, $keys);
+if(!$ids) {
+    echo 'insert failed: ' . $db->getLastError();
+} else {
+    echo 'new users inserted with following id\'s: ' . implode(', ', $ids);
+}
+```
 
 ### Update Query
 
@@ -185,16 +224,58 @@ foreach ($logins as $login) {
 }
 ```
 
-You may use php 5.5+ generator feature with PdoDb get(), rawQuery() methods just call useGenerator(true) method
-
-Example:
+### Insert Data
+You can also load .CSV or .XML data into a specific table.
+To insert .csv data, use the following syntax:
 ```php
-$result = $db->useGenerator(true)->get('users'); // $result will contain Generator object
-if($result->current()) {
-    foreach($result as $row) {
-        print_r($row);
-    }
-}
+$path_to_file = "/home/john/file.csv";
+$db->loadData("users", $path_to_file);
+```
+This will load a .csv file called **file.csv** in the folder **/home/john/** (john's home directory.)
+You can also attach an optional array of options.
+Valid options are:
+
+```php
+[
+    "local" => false,         // LOCAL
+	"fieldChar" => ';', 	  // Char which separates the data
+	"lineChar" => '\r\n', 	  // Char which separates the lines
+	"linesToIgnore" => 1	  // Amount of lines to ignore at the beginning of the import
+    'fieldEnclosure' => null, // field enclosure char
+    'fields' => [],           // table fields
+    'lineStarting' => null    // Char wich start the lines
+];
+```
+
+Attach them using
+```php
+$options = ["fieldChar" => ';', "lineChar" => '\r\n', "linesToIgnore" => 1];
+$db->loadData("users", "/home/john/file.csv", $options);
+// LOAD DATA ...
+```
+
+### Insert XML
+To load XML data into a table, you can use the method **loadXML**.
+The syntax is smillar to the loadData syntax.
+```php
+$path_to_file = "/home/john/file.xml";
+$db->loadXML("users", $path_to_file);
+```
+
+You can also add optional parameters.
+Valid parameters:
+```php
+Array(
+	"linesToIgnore" => 0,		// Amount of lines / rows to ignore at the beginning of the import
+	"rowTag"	=> "<user>"	// The tag which marks the beginning of an entry
+)
+```
+
+Usage:
+```php
+$options = Array("linesToIgnore" => 0, "rowTag"	=> "<user>"):
+$path_to_file = "/home/john/file.xml";
+$db->loadXML("users", $path_to_file, $options);
 ```
 
 ### Pagination
@@ -207,18 +288,6 @@ $db->pageLimit = 2;
 $products = $db->paginate("products", $page);
 echo "showing $page out of " . $db->totalPages;
 
-```
-
-### Defining a return type
-
-To select a return type use setReturnType() method.
-```php
-// Array return type
-$= $db->getOne("users");
-echo $u['login'];
-// Object return type
-$u = $db->setReturnType(PDO::FETCH_OBJ)->getOne("users");
-echo $u->login;
 ```
 
 ### Running raw SQL queries
@@ -348,12 +417,18 @@ $results = $db->get('users');
 // Gives: SELECT * FROM users WHERE firstName='John' OR firstName='peter'
 ```
 
-
 NULL comparison:
 ```php
 $db->where("lastName", NULL, 'IS NOT');
 $results = $db->get("users");
 // Gives: SELECT * FROM users where lastName IS NOT NULL
+```
+
+LIKE comparison:
+```php
+$db->where ("fullName", 'John%', 'like');
+$results = $db->get("users");
+// Gives: SELECT * FROM users where fullName like 'John%'
 ```
 
 Also you can use raw where conditions:
@@ -472,6 +547,23 @@ $products = $db->get("products p", null, "u.name, p.productName");
 print_r($products);
 ```
 
+### Join Conditions
+Add AND condition to join statement
+```php
+$db->join("users u", "p.tenantID=u.tenantID", "LEFT");
+$db->joinWhere("users u", "u.tenantID", 5);
+$products = $db->get ("products p", null, "u.name, p.productName");
+print_r ($products);
+// Gives: SELECT  u.name, p.productName FROM products p LEFT JOIN users u ON (p.tenantID=u.tenantID AND u.tenantID = 5)
+```
+Add OR condition to join statement
+```php
+$db->join("users u", "p.tenantID=u.tenantID", "LEFT");
+$db->joinOrWhere("users u", "u.tenantID", 5);
+$products = $db->get ("products p", null, "u.name, p.productName");
+print_r ($products);
+// Gives: SELECT  u.login, p.productName FROM products p LEFT JOIN users u ON (p.tenantID=u.tenantID OR u.tenantID = 5)
+
 ### Properties sharing
 
 Its is also possible to copy properties
@@ -582,7 +674,7 @@ if ($db->tableExists('users')) {
 }
 ```
 
-pdo::quote() wrapper:
+PDO::quote() wrapper:
 ```php
 $escaped = $db->escape("' and 1=1");
 ```
@@ -610,8 +702,63 @@ After you executed a query you have options to check if there was an error. You 
 $db->where('login', 'admin')->update('users', ['firstName' => 'Jack']);
 
 if ($db->getLastErrNo() === 0) {
-    echo 'Update succesfull';
+    echo 'Update successful';
 } else {
     echo 'Update failed. Error: '. $db->getLastError();
 }
 ```
+## Query execution time benchmarking
+To track query execution time setTrace() function should be called.
+```php
+$db->setTrace (true);
+// As a second parameter it is possible to define prefix of the path which should be striped from filename
+// $db->setTrace (true, $_SERVER['SERVER_ROOT']);
+$db->get("users");
+$db->get("test");
+print_r ($db->trace);
+```
+
+```
+    [0] => Array
+        (
+            ['query'] => SELECT  * FROM t_users ORDER BY `id` ASC
+            ['params] => MysqliDb->get() >>  file "/avb/work/PHP-MySQLi-Database-Class/tests.php" line #151
+            ['time'] => 0.0010669231414795            
+        )
+
+    [1] => Array
+        (
+            ['query'] => SELECT  * FROM t_test
+            ['params'] => MysqliDb->get() >>  file "/avb/work/PHP-MySQLi-Database-Class/tests.php" line #152
+            ['time'] => 0.00069189071655273
+        )
+
+```
+
+### Table Locking
+
+To lock tables, you can use the **lock** method together with **setLockMethod**.
+The following example will lock the table **users** for **write** access.
+
+```php
+$db->setLockMethod("WRITE")->lock("users");
+```
+
+Calling another **->lock()** will remove the first lock.
+
+You can also use
+
+```php
+$db->unlock();
+```
+to unlock the previous locked tables.
+To lock multiple tables, you can use an array.
+
+Example:
+
+```php
+$db->setLockMethod("READ")->lock(array("users", "log"));
+```
+
+This will lock the tables **users** and **log** for **READ** access only.
+Make sure you use **unlock()* afterwards or your tables will remain locked!
