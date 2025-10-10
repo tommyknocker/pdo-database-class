@@ -1024,12 +1024,19 @@ class PdoDb
 
     /* ---------------- LOAD DATA/XML ---------------- */
 
-    public function loadData(string $table, string $filePath, string $options = ''): bool
+    public function loadData(string $table, string $filePath, string $options = '', bool $useLocal = false): bool
     {
-        $sql = "LOAD DATA INFILE " . $this->pdo->quote($filePath) .
-            " INTO TABLE {$this->prefix}$table $options";
+        $localPrefix = $useLocal ? 'LOCAL ' : '';
+
+        $quotedPath = $this->pdo->quote($filePath);
+        $sql = "LOAD DATA {$localPrefix}INFILE {$quotedPath} INTO TABLE {$this->prefix}$table $options";
+
+        $this->lastQuery = $sql;
+        $this->logTrace($sql);
+
         return $this->pdo->exec($sql) !== false;
     }
+
 
     public function loadXml(string $table, string $filePath, string $rowTag = '<row>'): bool
     {

@@ -39,14 +39,8 @@ composer require tommyknocker/pdo-database-class
 
 ### Initialization
 
-Simple initialization with utf8 charset set by default:
 ```php
-$db = new PdoDb('host', 'username', 'password', 'databaseName');
-```
-
-Advanced initialization:
-```php
-$db = new PdoDb(['type' => 'mysql',
+$db = new PdoDb(['driver' => 'mysql',
                  'host' => 'host',
                  'username' => 'username', 
                  'password' => 'password',

@@ -129,7 +129,6 @@ final class PdoDbTest extends TestCase
         $this->assertEquals(55, $age);
     }
 
-
     public function testInsertAndGetOne(): void
     {
         $id = self::$db->insert('users', ['name' => 'Vasiliy', 'age' => 30]);
@@ -149,7 +148,6 @@ final class PdoDbTest extends TestCase
         $row = self::$db->where('id', $id)->getOne('users');
         $this->assertEquals(31, $row['age']);
     }
-
 
     public function testGetValue(): void
     {
@@ -204,8 +202,6 @@ final class PdoDbTest extends TestCase
         $this->assertCount(1, $rows);
         $this->assertEquals('Charlie', $rows[0]['name']);
     }
-
-
 
     public function testWhereBetweenAndNotBetween(): void
     {
@@ -278,7 +274,6 @@ final class PdoDbTest extends TestCase
         $this->assertCount(2, $rows);
     }
 
-
     public function testHavingAndOrHaving(): void
     {
         $u1 = self::$db->insert('users', ['name' => 'H1']);
@@ -303,7 +298,6 @@ final class PdoDbTest extends TestCase
         $this->assertEquals([300, 500, 700], $totals);
     }
 
-
     public function testComplexHavingAndOrHaving(): void
     {
         // Prepare test data
@@ -316,7 +310,6 @@ final class PdoDbTest extends TestCase
         self::$db->insert('orders', ['user_id' => $u2, 'amount' => 300]);
         self::$db->insert('orders', ['user_id' => $u2, 'amount' => 400]);
         self::$db->insert('orders', ['user_id' => $u3, 'amount' => 500]);
-
 
         // Build query with group by and multiple having/orHaving
         $rows = self::$db
@@ -334,7 +327,6 @@ final class PdoDbTest extends TestCase
         $this->assertEquals([300, 500, 700], $totals);
     }
 
-
     public function testGroupBy(): void
     {
         self::$db->insertMulti('users', [
@@ -345,7 +337,6 @@ final class PdoDbTest extends TestCase
         $rows = self::$db->groupBy('age')->get('users', null, ['age', 'COUNT(*) as cnt']);
         $this->assertEquals(2, $rows[0]['cnt']);
     }
-
 
     public function testTransaction(): void
     {
@@ -395,7 +386,6 @@ final class PdoDbTest extends TestCase
         $this->assertStringContainsString("O\\'Reilly", $safe);
     }
 
-
     public function testBuilders(): void
     {
         self::$db->insert('users', ['name' => 'Olya', 'age' => 22]);
@@ -417,7 +407,6 @@ final class PdoDbTest extends TestCase
         $this->assertEquals('Olya', $decoded[0]['name']);
     }
 
-
     public function testInsertMulti(): void
     {
         $rows = [
@@ -431,7 +420,6 @@ final class PdoDbTest extends TestCase
         $all = self::$db->get('users');
         $this->assertCount(3, $all);
     }
-
 
     public function testReplace(): void
     {
@@ -628,7 +616,6 @@ final class PdoDbTest extends TestCase
         $this->assertEquals('new', $status);
     }
 
-
     public function testUpdateWithSubquery()
     {
         $db = self::$db;
@@ -662,8 +649,6 @@ final class PdoDbTest extends TestCase
         $count = $db->where('status', 'active')->getValue('users', 'COUNT(*)');
         $this->assertEquals(2, $count);
     }
-
-
 
     public function testDisconnectAndPing(): void
     {
@@ -752,7 +737,6 @@ final class PdoDbTest extends TestCase
         $this->assertInstanceOf(PdoDb::class, $pdoDb);
     }
 
-
     public function testFuncNowIncDec(): void
     {
         $id = self::$db->insert('users', ['name' => 'FuncTest', 'age' => 1]);
@@ -787,6 +771,25 @@ final class PdoDbTest extends TestCase
         $this->assertEquals(1, (int)$row['max_age']);
     }
 
+    public function testLoadDataInfile()
+    {
+        $db = self::$db;
+
+        $db->delete('users');
+
+        $tmpFile = sys_get_temp_dir() . '/users.csv';
+        file_put_contents($tmpFile, "4,Dave,new\n5,Eve,new\n");
+
+        $ok = $db->loadData('users', $tmpFile, "FIELDS TERMINATED BY ',' (id, name, status)", true);
+
+        $this->assertTrue($ok, 'loadData() вернул false');
+
+        $names = array_column($db->get('users'), 'name');
+        $this->assertContains('Dave', $names);
+        $this->assertContains('Eve', $names);
+
+        unlink($tmpFile);
+    }
 
     public function testLoadXml(): void
     {
