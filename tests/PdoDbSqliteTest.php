@@ -203,6 +203,6 @@ final class PdoDbSqliteTest extends TestCase
         $db = self::$db;
         $plan = $db->explainAnalyze('SELECT * FROM users WHERE status = "active"');
         $this->assertNotEmpty($plan);
-        $this->assertArrayHasKey('detail', $plan[0]); // SQLite возвращает колонку detail
+        $this->assertArrayHasKey('detail', $plan[0]);
     }
 }

@@ -119,7 +119,7 @@ final class PdoDbMySQLTest extends TestCase
         $db->delete('users');
 
         $db->setQueryOption('LOW_PRIORITY')->insert('users', ['name' => 'Alice']);
-        $this->assertStringStartsWith('INSERT LOW_PRIORITY INTO users', $db->getLastQuery());
+        $this->assertStringStartsWith('INSERT LOW_PRIORITY INTO `users`', $db->getLastQuery());
     }
 
     public function testInsertWithMultipleQueryOptions(): void
@@ -128,7 +128,7 @@ final class PdoDbMySQLTest extends TestCase
         $db->delete('users');
 
         $db->setQueryOption(['LOW_PRIORITY', 'IGNORE'])->insert('users', ['name' => 'Bob']);
-        $this->assertStringStartsWith('INSERT LOW_PRIORITY IGNORE INTO users', $db->getLastQuery());
+        $this->assertStringStartsWith('INSERT LOW_PRIORITY IGNORE INTO `users`', $db->getLastQuery());
     }
 
     public function testSelectWithQueryOption(): void
@@ -150,7 +150,7 @@ final class PdoDbMySQLTest extends TestCase
     {
         $db = self::$db;
         $db->setQueryOption('LOW_PRIORITY')->where('id', 1)->update('users', ['name' => 'Updated']);
-        $this->assertStringStartsWith('UPDATE LOW_PRIORITY users SET', $db->getLastQuery());
+        $this->assertStringStartsWith('UPDATE LOW_PRIORITY `users` SET', $db->getLastQuery());
     }
 
     public function testDeleteWithQueryOption(): void
@@ -466,7 +466,7 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertTrue($db->setLockMethod('WRITE')->lock(['users', 'orders']));
 
         $this->assertSame(
-            'LOCK TABLES users WRITE, orders WRITE',
+            'LOCK TABLES `users` WRITE, `orders` WRITE',
             $db->getLastQuery()
         );
 
@@ -736,7 +736,7 @@ final class PdoDbMySQLTest extends TestCase
         ]);
 
         $this->assertSame(
-            'INSERT INTO archive_users (user_id) SELECT id FROM users',
+            'INSERT INTO `archive_users` (`user_id`) SELECT id FROM users',
             $db->getLastQuery()
         );
 
@@ -756,7 +756,7 @@ final class PdoDbMySQLTest extends TestCase
             ->insert('users', ['id' => 1, 'name' => 'Alice', 'status' => 'new']);
 
         $this->assertStringContainsString(
-            'ON DUPLICATE KEY UPDATE status = VALUES(status)',
+            'ON DUPLICATE KEY UPDATE `status` = VALUES(`status`)',
             $db->getLastQuery()
         );
 
@@ -786,7 +786,7 @@ final class PdoDbMySQLTest extends TestCase
             ->update('users', ['status' => 'active']);
 
         $this->assertStringContainsString(
-            'UPDATE users SET status =',
+            'UPDATE `users` SET `status` =',
             $db->getLastQuery()
         );
         $this->assertStringContainsString(
@@ -874,6 +874,7 @@ final class PdoDbMySQLTest extends TestCase
     public function testAddConnectionAndSwitch(): void
     {
         self::$db->addConnection('secondary', [
+            'driver' => 'mysql',
             'host' => self::DB_HOST,
             'port' => self::DB_PORT,
             'username' => self::DB_USER,
@@ -987,7 +988,6 @@ XML
         $db = self::$db;
         $plan = $db->explainAnalyze('SELECT * FROM users WHERE status = "active"');
         $this->assertNotEmpty($plan);
-
-        $this->assertArrayHasKey('EXPLAIN', $plan[0]); // SQLite возвращает колонку detail
+        $this->assertArrayHasKey('select_type', $plan[0]);
     }
 }

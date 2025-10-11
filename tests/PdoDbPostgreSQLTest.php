@@ -411,6 +411,6 @@ final class PdoDbPostgreSQLTest extends TestCase
         $db = self::$db;
         $plan = $db->explainAnalyze('SELECT * FROM users WHERE status = :status', ['status' => 'active']);
         $this->assertNotEmpty($plan);
-        $this->assertArrayHasKey('QUERY PLAN', $plan[0]); // SQLite возвращает колонку detail
+        $this->assertArrayHasKey('QUERY PLAN', $plan[0]);
     }
 }

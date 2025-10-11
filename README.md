@@ -110,8 +110,9 @@ $data = [
     "lastName" => 'Doe'
 ];
 $id = $db->insert('users', $data);
-if($id)
+if ($id) {
     echo 'User was created. Id=' . $id;
+}
 ```
 
 ## Insert with functions use
@@ -172,7 +173,7 @@ $data = [
     ]
 ];
 $ids = $db->insertMulti('users', $data);
-if(!$ids) {
+if (!$ids) {
     echo 'insert failed: ' . $db->getLastError();
 } else {
     echo 'new users inserted with following id\'s: ' . implode(', ', $ids);
@@ -189,7 +190,7 @@ $data = [
 $keys = ["login", "firstName", "lastName"];
 
 $ids = $db->insertMulti('users', $data, $keys);
-if(!$ids) {
+if (!$ids) {
     echo 'insert failed: ' . $db->getLastError();
 } else {
     echo 'new users inserted with following id\'s: ' . implode(', ', $ids);
@@ -223,13 +224,12 @@ $db->update('users', $data, 10);
 
 ## Select Query
 
-After any select/get function calls amount or returned rows is stored in $count variable
 ```php
 $users = $db->get('users'); //contains an array of all users 
 $users = $db->get('users', 10); //contains an array 10 users
 ```
 
-or select with custom columns set. Functions also could be used
+### Select with custom columns set. Functions also could be used
 
 ```php
 $cols = ["id", "name", "email"];
@@ -241,7 +241,7 @@ if ($users) {
 }
 ```
 
-or select just one row
+### Select just one row
 
 ```php
 $db->where("id", 1);
@@ -252,14 +252,14 @@ $stats = $db->getOne("users", "SUM(id), COUNT(*) as cnt");
 echo "total ".$stats['cnt']. "users found";
 ```
 
-or select one column value or function result
+### Select single row value or function result
 
 ```php
 $count = $db->getValue("users", "COUNT(*)");
 echo "{$count} users found";
 ```
 
-select column value or function result from multiple rows:
+### Select column value or function result from multiple rows:
 
 ```php
 $logins = $db->getColumn("users", "login");
@@ -271,13 +271,16 @@ foreach ($logins as $login) {
 }
 ```
 
-### Insert Data
+## Insert Data
+
 You can also load .CSV or .XML data into a specific table.
 To insert .csv data, use the following syntax:
+
 ```php
 $path_to_file = "/home/john/file.csv";
 $db->loadData("users", $path_to_file);
 ```
+
 This will load a .csv file called **file.csv** in the folder **/home/john/** (john's home directory.)
 You can also attach an optional array of options.
 Valid options are:
@@ -295,15 +298,18 @@ Valid options are:
 ```
 
 Attach them using
+
 ```php
 $options = ["fieldChar" => ';', "lineChar" => '\r\n', "linesToIgnore" => 1];
 $db->loadData("users", "/home/john/file.csv", $options);
 // LOAD DATA ...
 ```
 
-### Insert XML
+## Insert XML
+
 To load XML data into a table, you can use the method **loadXML**.
 The syntax is smillar to the loadData syntax.
+
 ```php
 $path_to_file = "/home/john/file.xml";
 $db->loadXML("users", $path_to_file);
@@ -311,21 +317,21 @@ $db->loadXML("users", $path_to_file);
 
 You can also add optional parameters.
 Valid parameters:
+
 ```php
-[
-	"linesToIgnore" => 0,		// Amount of lines / rows to ignore at the beginning of the import
-	"rowTag"	=> "<user>"	// The tag which marks the beginning of an entry
-]
+	$rowTag 		// Amount of lines / rows to ignore at the beginning of the import
+	$linesToIgnore	// The tag which marks the beginning of an entry
+
 ```
 
 Usage:
+
 ```php
-$options = ["linesToIgnore" => 0, "rowTag"	=> "<user>"]:
 $path_to_file = "/home/john/file.xml";
-$db->loadXML("users", $path_to_file, $options);
+$db->loadXML("users", $path_to_file, '<br>', 1);
 ```
 
-### Pagination
+## Pagination
 
 Use paginate() instead of get() to fetch paginated result
 ```php
@@ -337,7 +343,7 @@ echo "showing $page out of " . $db->totalPages;
 
 ```
 
-### Result transformation / map
+## Result transformation / map
 Instead of getting a pure array of results its possible to get result in an associative array with a needed key. If only 2 fields to fetch will be set in get(),
 method will return result in `[$k => $v]` and array `[$k => array []$v, $v]]` in rest of the cases.
 
@@ -360,8 +366,12 @@ Array
 )
 ```
 
-### Defining a return type
-MysqliDb can return result in 3 different formats: Array of Array, Array of Objects and a Json string. To select a return type use ArrayBuilder(), ObjectBuilder() and JsonBuilder() methods. Note that ArrayBuilder() is a default return type
+## Defining a return type
+
+PdoDb can return result in 3 different formats: array of arrays, array of abjects and a JSON string. 
+To select a return type use `ArrayBuilder()`, `ObjectBuilder()` and `JsonBuilder()` methods. 
+Note that `ArrayBuilder()` is a default return type.
+
 ```php
 // Array return type
 $u= $db->getOne("users");
@@ -386,9 +396,10 @@ foreach ($users as $user) {
     print_r($user);
 }
 ```
-To avoid long if checks there are couple helper functions to work with raw query select results:
+To avoid long if checks there are couple helper functions to work with raw query select results.
 
 Get 1 row of results:
+
 ```php
 $user = $db->rawQueryOne('SELECT * FROM users WHERE id=:id', [id => 10]);
 echo $user['login'];
@@ -396,21 +407,25 @@ echo $user['login'];
 $user = $db->setReturnType(PDO::FETCH_OBJ)->rawQueryOne('SELECT * FROM users WHERE id=?', [10]);
 echo $user->login;
 ```
+
 Get 1 column value as a string:
+
 ```php
 $password = $db->rawQueryValue('SELECT password FROM users WHERE id=? LIMIT 1', [10]);
 echo "Password is {$password}";
 NOTE: for a rawQueryValue() to return string instead of an array 'limit 1' should be added to the end of the query.
 ```
+
 Get 1 column value from multiple rows:
+
 ```php
 $logins = $db->rawQueryValue('SELECT login FROM users LIMIT 10');
 foreach ($logins as $login) {
     echo $login;
 }
 ```
-
 More advanced examples:
+
 ```php
 $params = [1, 'admin'];
 $users = $db->rawQuery("SELECT id, firstName, lastName FROM users WHERE id = ? AND login = ?", $params);
@@ -431,7 +446,7 @@ $result = $db->rawQuery($query, $params);
 print_r($result); // contains array of returned rows
 ```
 
-### Where / Having Methods
+## Where / Having Methods
 
 `where()`, `orWhere()`, `having()` and `orHaving()` methods allows you to specify where and having conditions of the query. All conditions supported by where() are supported by having() as well.
 
@@ -452,8 +467,8 @@ $results = $db->get('users');
 // Gives: SELECT * FROM users WHERE id=1 HAVING login='admin';
 ```
 
-
 Regular == operator with column to column comparison:
+
 ```php
 // WRONG
 $db->where('lastLogin', 'createdAt');
@@ -471,6 +486,7 @@ $results = $db->get('users');
 ```
 
 BETWEEN / NOT BETWEEN:
+
 ```php
 $db->where('id', [4, 20], 'BETWEEN');
 
@@ -479,6 +495,7 @@ $results = $db->get('users');
 ```
 
 IN / NOT IN:
+
 ```php
 $db->where('id', [1, 5, 27, -1, 'd'], 'IN');
 $results = $db->get('users');
@@ -486,12 +503,6 @@ $results = $db->get('users');
 ```
 
 OR CASE
-```php
-$db->where('firstName', 'John');
-$db->orWhere('firstName', 'Peter');
-$results = $db->get('users');
-// Gives: SELECT * FROM users WHERE firstName='John' OR firstName='peter'
-```
 
 ```php
 $db->where('firstName', 'John');
@@ -500,7 +511,14 @@ $results = $db->get('users');
 // Gives: SELECT * FROM users WHERE firstName='John' OR firstName='peter'
 ```
 
+```php
+$db->where('firstName', 'John');
+$db->orWhere('firstName', 'Peter');
+$results = $db->get('users');
+// Gives: SELECT * FROM users WHERE firstName='John' OR firstName='peter'
+```
 NULL comparison:
+
 ```php
 $db->where("lastName", NULL, 'IS NOT');
 $results = $db->get("users");
@@ -508,6 +526,7 @@ $results = $db->get("users");
 ```
 
 LIKE comparison:
+
 ```php
 $db->where("fullName", 'John%', 'like');
 $results = $db->get("users");
@@ -515,6 +534,7 @@ $results = $db->get("users");
 ```
 
 Also you can use raw where conditions:
+
 ```php
 $db->where("id != companyId");
 $db->where("DATE(createdAt) = DATE(lastLogin)");
@@ -522,6 +542,7 @@ $results = $db->get("users");
 ```
 
 Or raw condition with variables:
+
 ```php
 $db->where("(id = ? OR id = ?)", [6,2]);
 $db->where("login","mike")
@@ -529,8 +550,8 @@ $res = $db->get("users");
 // Gives: SELECT * FROM users WHERe(id = 6 OR id = 2) AND login='mike';
 ```
 
-
 Find the total number of rows matched. Simple pagination example:
+
 ```php
 $offset = 10;
 $count = 15;
@@ -538,25 +559,28 @@ $users = $db->withTotalCount()->get('users', [$offset, $count]);
 echo "Showing {$count} from {$db->totalCount}";
 ```
 
-### Query Keywords
+## Query Keywords
 
 To add LOW PRIORITY | DELAYED | HIGH PRIORITY | IGNORE and the rest of the mysql keywords to INSERT (), REPLACe(), get(), UPDATe(), DELETE() method or FOR UPDATE | LOCK IN SHARE MODE into SELECT ():
+
 ```php
 $db->setQueryOption('LOW_PRIORITY')->insert($table, $param);
 // GIVES: INSERT LOW_PRIORITY INTO table ...
 ```
+
 ```php
 $db->setQueryOption('FOR UPDATE')->get('users');
 // GIVES: SELECT * FROM USERS FOR UPDATE;
 ```
 
 Also you can use an array of keywords:
+
 ```php
 $db->setQueryOption(['LOW_PRIORITY', 'IGNORE'])->insert($table,$param);
 // GIVES: INSERT LOW_PRIORITY IGNORE INTO table ...
 ```
-
 Same way keywords could be used in SELECT queries as well:
+
 ```php
 $db->setQueryOption('SQL_NO_CACHE');
 $db->get("users");
@@ -572,17 +596,16 @@ $results = $db
 	->get('users');
 ```
 
-### Delete Query
+## Delete Query
 
 ```php
 $db->where('id', 1);
-if($db->delete('users')) {
- echo 'successfully deleted';
+if ($db->delete('users')) {
+    echo 'successfully deleted';
 }
 ```
 
-
-### Ordering method
+## Ordering method
 
 ```php
 $db->orderBy("id","ASC");
@@ -593,6 +616,7 @@ $results = $db->get('users');
 ```
 
 Order by values example:
+
 ```php
 $db->orderBy('userGroup', 'ASC', ['superuser', 'admin', 'users']);
 $db->get('users');
@@ -613,7 +637,7 @@ $results = $db->get('users');
 // CORRECT: That will give: SELECT * FROM t_users ORDER BY t_users.id ASC;
 ```
 
-### Grouping method
+## Grouping method
 
 ```php
 $db->groupBy("name");
@@ -623,7 +647,7 @@ $results = $db->get('users');
 
 Join table products with table users with LEFT JOIN by tenantID
 
-### JOIN method
+## JOIN method
 
 ```php
 $db->join("users u", "p.tenantID=u.tenantID", "LEFT");
@@ -632,8 +656,10 @@ $products = $db->get("products p", null, "u.name, p.productName");
 print_r($products);
 ```
 
-### Join Conditions
+## Join Conditions
+
 Add AND condition to join statement
+
 ```php
 $db->join("users u", "p.tenantID=u.tenantID", "LEFT");
 $db->joinWhere("users u", "u.tenantID", 5);
@@ -641,15 +667,18 @@ $products = $db->get("products p", null, "u.name, p.productName");
 print_r($products);
 // Gives: SELECT  u.name, p.productName FROM products p LEFT JOIN users u ON (p.tenantID=u.tenantID AND u.tenantID = 5)
 ```
+
 Add OR condition to join statement
+
 ```php
 $db->join("users u", "p.tenantID=u.tenantID", "LEFT");
 $db->joinOrWhere("users u", "u.tenantID", 5);
 $products = $db->get("products p", null, "u.name, p.productName");
 print_r($products);
 // Gives: SELECT  u.login, p.productName FROM products p LEFT JOIN users u ON (p.tenantID=u.tenantID OR u.tenantID = 5)
+```
 
-### Properties sharing
+## Properties sharing
 
 Its is also possible to copy properties
 
@@ -666,23 +695,24 @@ echo "total records found: " . $cnt;
 // SELECT COUNT(id) FROM users WHERE agentId = 10 AND active = 1
 ```
 
-### Subqueries
-
-Subquery init
+## Subqueries
 
 Subquery init without an alias to use in inserts/updates/where Eg. (select * from users)
+
 ```php
 $sq = $db->subQuery();
 $sq->get("users");
 ```
  
 A subquery with an alias specified to use in JOINs . Eg. (select * from users) sq
+
 ```php
 $sq = $db->subQuery("sq");
 $sq->get("users");
 ```
 
 Subquery in selects:
+
 ```php
 $ids = $db->subQuery();
 $ids->where("qty", 2, ">");
@@ -719,7 +749,7 @@ print_r($products);
 // SELECT u.login, p.productName FROM products p LEFT JOIN (SELECT * FROM t_users WHERE active = 1) u on p.userId=u.id;
 ```
 
-### EXISTS / NOT EXISTS condition
+## EXISTS / NOT EXISTS condition
 
 ```php
 $sub = $db->subQuery();
@@ -730,20 +760,20 @@ $products = $db->get("products");
 // Gives SELECT * FROM products WHERE EXISTS (select userId from users where company='testCompany')
 ```
 
-### Has method
+## Has method
 
 A convenient function that returns TRUE if exists at least an element that satisfy the where condition specified calling the "where" method before this one.
 ```php
 $db->where("user", $user);
 $db->where("password", md5($password));
-if($db->has("users")) {
+if ($db->has("users")) {
     return "You are logged";
 } else {
     return "Wrong user/password";
 }
 ```
 
-### Helper methods
+## Helper methods
 
 Get last executed SQL query:
 Please note that function returns SQL query only for debugging purposes as its execution most likely will fail due missing quotes around char variables.
@@ -780,7 +810,7 @@ if (!$db->insert('myTable', $insertData)) {
 }
 ```
 
-### Error helpers
+## Error helpers
 
 After you executed a query you have options to check if there was an error. You can get the MySQL error string or the error code for the last executed query. 
 ```php
@@ -820,7 +850,7 @@ print_r($db->trace);
 
 ```
 
-### Table Locking
+## Table Locking
 
 To lock tables, you can use the **lock** method together with **setLockMethod**.
 The following example will lock the table **users** for **write** access.

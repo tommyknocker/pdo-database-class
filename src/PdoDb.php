@@ -3,11 +3,15 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb;
 
-use JsonException;
-use RuntimeException;
 use InvalidArgumentException;
+use JsonException;
 use PDO;
+use RuntimeException;
 use Throwable;
+use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\MySQLDialect;
+use tommyknocker\pdodb\dialects\PostgreSQLDialect;
+use tommyknocker\pdodb\dialects\SqliteDialect;
 
 class PdoDb
 {
@@ -22,6 +26,7 @@ class PdoDb
             $this->pdo = $pdo;
         }
     }
+    protected DialectInterface $dialect;
 
     protected string $prefix = '';
     protected array $queryOptions = [];
@@ -117,66 +122,52 @@ class PdoDb
         $this->lastTableUsed = $table;
         $this->queryOptions['table'] = $table;
 
-        // Check if $data is an array or a valid PdoDb object
-        if (!is_array($data) && !($data instanceof self)) {
-            throw new InvalidArgumentException('$data must be an array or a valid PdoDb object');
-        }
+        $params = [];
+        $targetTable = $this->prefix . $table;
 
-        // If $data is a PdoDb object, get its last query and params
+        // --- 1. Subquery (builder)
         if ($data instanceof self && !empty($data->isSubQuery)) {
-            $modifiers = $data->getQueryOptions() ? implode(' ', $this->getQueryOptions()) . ' ' : '';
-            $sql = "INSERT {$modifiers}INTO {$this->prefix}$table " . $data->getLastQuery();
+            $subSql = $data->getLastQuery();
             $params = $data->getParams() ?? [];
 
-            // If $data is a PdoDb object and its last query is a subquery, add the on duplicate key update clause
-            if ($this->isPgsql() && !empty($this->onDuplicateColumns)) {
-                $updates = implode(', ', array_map(static fn($k) => "$k = EXCLUDED.$k", $this->onDuplicateColumns));
-                $sql .= " ON CONFLICT (id) DO UPDATE SET $updates";
-            } elseif (!empty($this->onDuplicateColumns)) {
-                $updates = implode(', ', array_map(static fn($k) => "$k = VALUES($k)", $this->onDuplicateColumns));
-                $sql .= " ON DUPLICATE KEY UPDATE $updates";
+            $sql = $this->dialect->buildInsertSubquery($targetTable, null, $subSql, $this->queryOptionsFlags);
+
+            if (!empty($this->onDuplicateColumns)) {
+                $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicateColumns, 'id');
             }
-        } elseif (is_array($data) && count($data) >= 1 && current($data) instanceof self && $this->allValuesAreSameSubQuery($data)) {
+        } // --- 2. Same subquery
+        elseif (is_array($data) && count($data) >= 1 && current($data) instanceof self && $this->allValuesAreSameSubQuery($data)) {
             /** @var self $sub */
             $sub = current($data);
-            $modifiers = $this->queryOptionsFlags ? implode(' ', $this->queryOptionsFlags) . ' ' : '';
-            $columns = implode(', ', array_keys($data));
-            $sql = "INSERT {$modifiers}INTO {$this->prefix}$table ($columns) " . $sub->getLastQuery();
+            $subSql = $sub->getLastQuery();
             $params = $sub->getParams() ?? [];
 
-            // If all values of $data are the same subquery, add the on duplicate key update clause
-            if ($this->isPgsql() && !empty($this->onDuplicateColumns)) {
-                $updates = implode(', ', array_map(fn($k) => "$k = EXCLUDED.$k", $this->onDuplicateColumns));
-                $sql .= " ON CONFLICT (id) DO UPDATE SET $updates";
-            } elseif (!empty($this->onDuplicateColumns)) {
-                $updates = implode(', ', array_map(static fn($k) => "$k = VALUES($k)", $this->onDuplicateColumns));
-                $sql .= " ON DUPLICATE KEY UPDATE $updates";
+            $columns = array_keys($data);
+
+            $sql = $this->dialect->buildInsertSubquery($targetTable, $columns, $subSql, $this->queryOptionsFlags);
+
+            if (!empty($this->onDuplicateColumns)) {
+                $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicateColumns, 'id');
             }
-        } else {
-            $columns = implode(', ', array_keys($data));
-            $placeholders = implode(', ', array_map(static fn($k) => ":$k", array_keys($data)));
-            $modifiers = $this->queryOptionsFlags ? implode(' ', $this->queryOptionsFlags) . ' ' : '';
+        } // --- 3. Common array
+        else {
+            $columns = array_keys($data);
+            $placeholders = array_map(static fn($k) => ":$k", $columns);
 
-            $sql = "INSERT {$modifiers}INTO {$this->prefix}$table ($columns) VALUES ($placeholders)";
+            $sql = $this->dialect->buildInsertValues($targetTable, $columns, $placeholders, $this->queryOptionsFlags);
 
-            // Add the on duplicate key update clause
-            if ($this->isPgsql() && !empty($this->onDuplicateColumns)) {
-                $updates = implode(', ', array_map(fn($k) => "$k = EXCLUDED.$k", $this->onDuplicateColumns));
-                $sql .= " ON CONFLICT (id) DO UPDATE SET $updates";
-            } elseif (!empty($this->onDuplicateColumns)) {
-                $updates = implode(', ', array_map(static fn($k) => "$k = VALUES($k)", $this->onDuplicateColumns));
-                $sql .= " ON DUPLICATE KEY UPDATE $updates";
+            if (!empty($this->onDuplicateColumns)) {
+                $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicateColumns, 'id');
             }
 
-            $params = [];
             foreach ($data as $k => $v) {
                 $params[":$k"] = $v;
             }
         }
 
-        // PostgreSQL: add the RETURNING clause
-        if ($this->isPgsql() && $returning) {
-            $sql .= " RETURNING {$returning}";
+        // RETURNING (Postgres)
+        if ($this->dialect->supportsReturning()) {
+            $sql .= $this->dialect->buildReturningClause($returning);
         }
 
         $this->lastQuery = $sql;
@@ -184,22 +175,23 @@ class PdoDb
 
         $stmt = $this->pdo->prepare($sql);
         foreach ($params as $pk => $pv) {
-            $stmt->bindValue(str_starts_with($pk, ':') ? $pk : ":$pk", $pv);
+            $stmt->bindValue($pk, $pv);
         }
 
         $ok = $stmt->execute();
-
         $this->resetQueryState();
 
-        if ($ok && $this->isPgsql() && $returning) {
-            return $stmt->fetchColumn();
+        // If RETURNING and dialect supports it
+        if ($ok && $returning && $this->dialect->supportsReturning()) {
+            $ret = $stmt->fetchColumn();
+            if ($ret !== false && $ret !== null) {
+                return (int)$ret;
+            }
         }
 
-        if ($ok) {
-            return (int)$this->pdo->lastInsertId();
-        }
-        return false;
+        return $ok ? (int)$this->lastInsertId($table) : false;
     }
+
 
     /**
      * Check if all values in the array are the same subquery
@@ -267,60 +259,46 @@ class PdoDb
      */
     public function replace(string $table, array $data): int
     {
-        if ($this->isPgsql()) {
-            // PostgreSQL: INSERT ... ON CONFLICT(id) DO UPDATE SET ...
-            $columns = array_keys($data);
-            $placeholders = array_map(static fn($k) => ":$k", $columns);
-            $conflictColumn = array_key_exists('id', $data) ? 'id' : null;
-            if (!$conflictColumn) {
-                throw new InvalidArgumentException('PostgreSQL REPLACE requires primary/unique key (e.g., "id") present in $data');
-            }
+        $this->lastTableUsed = $table;
 
-            $updates = [];
-            foreach ($columns as $col) {
-                if ($col === $conflictColumn) {
-                    continue;
-                }
-                $updates[] = "$col = EXCLUDED.$col";
-            }
+        // 1) Raw identifiers and placeholders
+        $columns = array_keys($data);
+        $placeholders = array_map(static fn($k) => ":{$k}", $columns);
+        $fullTable = $this->prefix . $table;
 
-            $sql = "INSERT INTO {$this->prefix}$table (" . implode(', ', $columns) . ") VALUES ("
-                . implode(', ', $placeholders) . ")
-                                ON CONFLICT ({$conflictColumn}) DO UPDATE SET " . implode(', ', $updates);
+        // 2) Base INSERT/REPLACE is built by the dialect (it will quote identifiers itself)
+        //    Important: pass RAW names, not already quoted ones.
+        $sql = $this->dialect->buildInsertValues(
+            $fullTable,      // raw table name; dialect will quote
+            $columns,        // raw column names; dialect will quote
+            $placeholders,   // :named placeholders (as strings)
+            $this->queryOptionsFlags
+        );
 
-            $this->lastQuery = $sql;
-            $this->logTrace($sql, $data);
-            $stmt = $this->pdo->prepare($sql);
-            foreach ($data as $k => $v) {
-                $stmt->bindValue(":$k", $v);
-            }
-            $stmt->execute();
-            $result = $stmt->rowCount();
-            $this->resetQueryState();
-            return $result;
+        // 3) UPSERT/ON CONFLICT — only if the dialect requires it
+        //    (for MySQL it should return an empty string).
+        //    Pass raw column names, dialect will quote internally.
+        $upsert = $this->dialect->buildUpsertClause($columns);
+        if ($upsert !== '') {
+            $sql .= ' ' . $upsert;
         }
 
-        $this->lastTableUsed = $table;
-        $columns = implode(', ', array_keys($data));
-        $placeholders = implode(', ', array_map(static fn($k) => ":$k", array_keys($data)));
-
-        $modifiers = $this->queryOptionsFlags ? implode(' ', $this->queryOptionsFlags) . ' ' : '';
-
-        $sql = "REPLACE {$modifiers}INTO {$this->prefix}$table ($columns) VALUES ($placeholders)";
-        $stmt = $this->pdo->prepare($sql);
-
+        // 4) Prepare + bind (parameter names without leading colon)
         $this->lastQuery = $sql;
         $this->logTrace($sql, $data);
 
+        $stmt = $this->pdo->prepare($sql);
         foreach ($data as $k => $v) {
-            $stmt->bindValue(":$k", $v);
+            $stmt->bindValue($k, $v);
         }
 
         $stmt->execute();
-        $result = $stmt->rowCount();
+        $affected = $stmt->rowCount();
+
         $this->resetQueryState();
-        return $result;
+        return $affected;
     }
+
 
     /**
      * Insert multiple rows into a table
@@ -359,73 +337,98 @@ class PdoDb
     {
         $this->lastTableUsed = $table;
 
-        $setParts = [];
+        // --- SET
         $bindData = [];
+        $setParts = [];
 
         foreach ($data as $col => $val) {
+            $qid = $this->dialect->quoteIdentifier($col);
+
             if (is_array($val) && isset($val['__op'])) {
                 switch ($val['__op']) {
                     case 'inc':
                         $num = (float)$val['val'];
-                        $setParts[] = "$col = $col + $num";
+                        $setParts[] = "{$qid} = {$qid} + {$num}";
                         break;
                     case 'dec':
                         $num = (float)$val['val'];
-                        $setParts[] = "$col = $col - $num";
+                        $setParts[] = "{$qid} = {$qid} - {$num}";
                         break;
                     case 'not':
-                        $setParts[] = "$col = NOT $col";
+                        $setParts[] = "{$qid} = NOT {$qid}";
                         break;
                     default:
-                        // unknown marker — fallback to bind
-                        $setParts[] = "$col = :upd_$col";
-                        $bindData[":upd_$col"] = $val;
+                        $ph = ":upd_{$col}";
+                        $setParts[] = "{$qid} = {$ph}";
+                        $bindData[$ph] = $val;
                         break;
                 }
             } elseif (is_string($val) && preg_match('/\bNOW\(\)\b/', $val)) {
-                // Raw expression NOW() or NOW() + INTERVAL ...
-                $setParts[] = "$col = $val";
+                // Raw NOW() / NOW() + INTERVAL
+                $setParts[] = "{$qid} = {$val}";
             } else {
-                // Common expression
-                $setParts[] = "$col = :upd_$col";
-                $bindData[":upd_$col"] = $val;
+                // Regular bind
+                $ph = ":upd_{$col}";
+                $setParts[] = "{$qid} = {$ph}";
+                $bindData[$ph] = $val;
             }
         }
 
+        // --- UPDATE header
         $modifiers = $this->queryOptionsFlags ? implode(' ', $this->queryOptionsFlags) . ' ' : '';
+        $fullTable = $this->prefix . $table;
 
-        $sql = "UPDATE {$modifiers}{$this->prefix}$table SET " . implode(', ', $setParts);
+        $sql = "UPDATE {$modifiers}" . $this->dialect->quoteIdentifier($fullTable) .
+            " SET " . implode(', ', $setParts);
 
-        if ($limit && $this->isPgsql()) {
-            $subQuery = $this->copy();
-            $subQuery->isSubQuery = true;
-            $result = $subQuery->getColumn($table, 'ctid', $limit);
-            $this->where('ctid', $result, 'IN');
+        if ($limit && $this->dialect->isStandardUpdateLimit($table, $limit, $this)) {
+            $limitClause = $this->dialect->limitOffsetClause($limit, null);
+            if ($limitClause !== '') {
+                $sql .= ' ' . $limitClause;
+            }
         }
 
+        // --- WHERE (includes possible ctid IN)
         $sql .= $this->buildWhere();
 
-        if ($limit && !$this->isPgsql()) {
-            $sql .= " LIMIT {$limit}";
+        // --- RETURNING if supported and set
+        if (!empty($this->queryOptions['returning']) && $this->dialect->supportsReturning()) {
+            $sql .= $this->dialect->buildReturningClause($this->queryOptions['returning']);
         }
 
+        // --- Prepare and bind
         $this->lastQuery = $sql;
         $this->logTrace($sql, $bindData);
 
         $stmt = $this->pdo->prepare($sql);
 
-        // Only regular values are bound; raw expressions are not bound.
+        // Bind SET named params (PDO expects name without leading colon)
         foreach ($bindData as $p => $v) {
-            $stmt->bindValue($p, $v);
+            $stmt->bindValue(ltrim($p, ':'), $v);
         }
-        foreach ($this->params as $p => $v) {
-            $stmt->bindValue($p, $v);
+
+        // Bind WHERE params: positional (?) or named (:name)
+        if (!empty($this->params)) {
+            $keys = array_keys($this->params);
+            $isPositional = $keys === range(0, count($keys) - 1);
+
+            if ($isPositional) {
+                $i = 1;
+                foreach ($this->params as $v) {
+                    $stmt->bindValue($i++, $v);
+                }
+            } else {
+                foreach ($this->params as $p => $v) {
+                    $stmt->bindValue(ltrim($p, ':'), $v);
+                }
+            }
         }
 
         $stmt->execute();
-        $result = $stmt->rowCount();
+        $affected = $stmt->rowCount();
+
         $this->resetQueryState();
-        return $result;
+        return $affected;
     }
 
 
@@ -550,13 +553,7 @@ class PdoDb
             $sql .= ' ORDER BY ' . implode(', ', $this->orderBy);
         }
         if ($limit !== null) {
-            if ($this->isPgsql()) {
-                // PostgreSQL: LIMIT count [OFFSET offset]
-                $sql .= $offset !== null ? " LIMIT {$limit} OFFSET {$offset}" : " LIMIT {$limit}";
-            } else {
-                // MySQL: LIMIT [offset,] count
-                $sql .= $offset !== null ? " LIMIT {$offset}, {$limit}" : " LIMIT {$limit}";
-            }
+            $sql .= ' ' . $this->dialect->limitOffsetClause($limit, $offset);
         }
         $sql .= $endingModifiers;
 
@@ -1214,47 +1211,34 @@ class PdoDb
      */
     public function lock(string|array $tables): bool
     {
-        if (!is_array($tables)) {
-            $tables = [$tables];
-        }
+        $tables = (array)$tables;
 
-        if ($this->isPgsql()) {
-            $list = implode(', ', array_map(fn($t) => "{$this->prefix}{$t}", $tables));
-            $sql = "LOCK TABLE {$list} IN ACCESS EXCLUSIVE MODE";
-            $this->logTrace($sql);
-            $this->lastQuery = $sql;
-            return $this->pdo->exec($sql) !== false;
-        }
-
-        $parts = [];
-        foreach ($tables as $table) {
-            $parts[] = "{$this->prefix}{$table} {$this->lockMethod}";
-        }
-
-        $sql = "LOCK TABLES " . implode(', ', $parts);
+        $sql = $this->dialect->buildLockSql($tables, $this->prefix, $this->lockMethod);
 
         $this->logTrace($sql);
         $this->lastQuery = $sql;
 
-        return $this->pdo->exec($sql) === 0;
+        return $this->pdo->exec($sql) !== false;
     }
 
     /**
      * Unlocks the specified tables.
      *
-     * @return bool True if the unlock was successful, false otherwise.
+     * @return bool True if unlock was successful, false otherwise.
      */
     public function unlock(): bool
     {
-        if ($this->isPgsql()) {
-            $this->lastQuery = '/* unlock is no-op in PostgreSQL; released at COMMIT/ROLLBACK */';
-            $this->logTrace($this->lastQuery);
-            return true;
-        }
-        $sql = "UNLOCK TABLES";
+        $sql = $this->dialect->buildUnlockSql();
+
         $this->logTrace($sql);
         $this->lastQuery = $sql;
-        return $this->pdo->exec($sql) === 0;
+
+        // In Postgres unlock — no‑op, return true
+        if ($sql === '') {
+            return true;
+        }
+
+        return $this->pdo->exec($sql) !== false;
     }
 
     /**
@@ -1270,6 +1254,11 @@ class PdoDb
     }
 
     /* ---------------- HELPERS ---------------- */
+
+    public function lastInsertId(string $table, ?string $column = null)
+    {
+        return $this->dialect->lastInsertId($this->pdo, $table, $column);
+    }
 
     /**
      * Get params
@@ -1288,7 +1277,7 @@ class PdoDb
      */
     public function escape(string $str): string
     {
-        return substr($this->pdo->quote($str), 1, -1);
+        return $this->pdo->quote($str);
     }
 
     /**
@@ -1324,51 +1313,11 @@ class PdoDb
      */
     public function tableExists(string $table): bool
     {
-        if ($this->isPgsql()) {
-            $schema = 'public';
-            $name = $this->prefix . $table;
-            $sql = "SELECT EXISTS (
-                    SELECT 1 FROM information_schema.tables
-                    WHERE table_schema = :schema AND table_name = :name
-                )";
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute([':schema' => $schema, ':name' => $name]);
-            return (bool)$stmt->fetchColumn();
-        }
-        $like = $this->pdo->quote($this->prefix . $table);
-        $stmt = $this->pdo->query("SHOW TABLES LIKE $like");
-        return (bool)$stmt->fetchColumn();
+        $sql = $this->dialect->tableExistsSql($this->prefix . $table);
+        $res = $this->rawQuery($sql);
+        return !empty($res);
     }
 
-    /**
-     * Checks if the database is PostgreSQL.
-     *
-     * @return bool True if the database is PostgreSQL, false otherwise.
-     */
-    protected function isPgsql(): bool
-    {
-        return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql';
-    }
-
-    /**
-     * Checks if the database is MySQL.
-     *
-     * @return bool True if the database is MySQL, false otherwise.
-     */
-    protected function isMysql(): bool
-    {
-        return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql';
-    }
-
-    /**
-     * Checks if the database is SQLite.
-     *
-     * @return bool True if the database is SQLite, false otherwise.
-     */
-    protected function isSqlite(): bool
-    {
-        return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite';
-    }
 
     /* ---------------- TRACE ---------------- */
 
@@ -1516,7 +1465,7 @@ class PdoDb
      */
     public function now(string $diff = '', string $func = 'NOW()'): string
     {
-        return $diff ? "$func + INTERVAL $diff" : $func;
+        return $this->dialect->now($diff, $func);
     }
 
     /**
@@ -1575,64 +1524,10 @@ class PdoDb
     }
 
     /* ---------------- CONNECTIONS ---------------- */
-
-    /**
-     * Builds a DSN string from an array of parameters.
-     *
-     * @param array $params The parameters to use to build the DSN.
-     * @return string The DSN string.
-     */
     public function buildDsn(array $params): string
     {
-        $driver = $params['driver'] ?? 'mysql';
-
-        switch ($driver) {
-            case 'mysql':
-                foreach (['host', 'dbname', 'username', 'password'] as $requiredParam) {
-                    if (empty($params[$requiredParam])) {
-                        throw new InvalidArgumentException("Missing '$requiredParam' parameter");
-                    }
-                }
-                return "mysql:host={$params['host']};dbname={$params['dbname']}"
-                    . (!empty($params['port']) ? ";port={$params['port']}" : '')
-                    . (!empty($params['charset']) ? ";charset={$params['charset']}" : '')
-                    . (!empty($params['unix_socket']) ? ";unix_socket={$params['unix_socket']}" : '')
-                    . (!empty($params['sslca']) ? ";sslca={$params['sslca']}" : '')
-                    . (!empty($params['sslcert']) ? ";sslcert={$params['sslcert']}" : '')
-                    . (!empty($params['sslkey']) ? ";sslkey={$params['sslkey']}" : '')
-                    . (!empty($params['compress']) ? ";compress={$params['compress']}" : '');
-
-            case 'pgsql':
-                foreach (['host', 'dbname', 'username', 'password'] as $requiredParam) {
-                    if (empty($params[$requiredParam])) {
-                        throw new InvalidArgumentException("Missing '$requiredParam' parameter");
-                    }
-                }
-                return "pgsql:host={$params['host']};dbname={$params['dbname']}"
-                    . (!empty($params['hostaddr']) ? ";hostaddr={$params['hostaddr']}" : '')
-                    . (!empty($params['service']) ? ";service={$params['service']}" : '')
-                    . (!empty($params['port']) ? ";port={$params['port']}" : '')
-                    . (!empty($params['options']) ? ";options={$params['options']}" : '')
-                    . (!empty($params['sslmode']) ? ";sslmode={$params['sslmode']}" : '')
-                    . (!empty($params['sslkey']) ? ";sslkey={$params['sslkey']}" : '')
-                    . (!empty($params['sslcert']) ? ";sslcert={$params['sslcert']}" : '')
-                    . (!empty($params['sslrootcert']) ? ";sslrootcert={$params['sslrootcert']}" : '')
-                    . (!empty($params['application_name']) ? ";application_name={$params['application_name']}" : '')
-                    . (!empty($params['connect_timeout']) ? ";connect_timeout={$params['connect_timeout']}" : '')
-                    . (!empty($params['target_session_attrs']) ? ";target_session_attrs={$params['target_session_attrs']}" : '');
-            case 'sqlite':
-                if (!isset($params['path'])) {
-                    throw new InvalidArgumentException("Missing 'path' parameter");
-                }
-                return "sqlite:{$params['path']}"
-                    . (!empty($params['mode']) ? ";mode={$params['mode']}" : '')       // ex. ro/rw/rwc/memory
-                    . (!empty($params['cache']) ? ";cache={$params['cache']}" : '');    // shared/private
-
-            default:
-                throw new InvalidArgumentException("Unsupported driver: $driver");
-        }
+        return $this->dialect->buildDsn($params);
     }
-
 
     /**
      * Adds a connection to the connection pool.
@@ -1643,18 +1538,22 @@ class PdoDb
      */
     public function addConnection(string $name, array $params): void
     {
-        $dsn = $this->buildDsn($params);
+        $this->dialect = match ($params['driver']) {
+            'mysql' => new MySQLDialect(),
+            'pgsql' => new PostgreSQLDialect(),
+            'sqlite' => new SqliteDialect(),
+            default => throw new InvalidArgumentException("Unsupported driver: {$params['driver']}"),
+        };
 
+        $dsn = $this->buildDsn($params);
         $pdo = $params['pdo'] ?? null;
 
-
         if (!$pdo) {
-            $pdo = new PDO($dsn, $params['username'] ?? null, $params['password'] ?? null, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::MYSQL_ATTR_LOCAL_INFILE => true
-            ]);
+            $pdo = new PDO($dsn,
+                $params['username'] ?? null,
+                $params['password'] ?? null,
+                $this->dialect->defaultPdoOptions() // @todo Support client's options
+            );
         }
         $this->connections[$name] = $pdo;
 
@@ -1728,59 +1627,18 @@ class PdoDb
      */
     public function loadData(string $table, string $filePath, array $options = []): bool
     {
-        if ($this->isPgsql()) {
-            // Basic csv support with header
-            $quotedPath = $this->pdo->quote($filePath);
-            $sql = "COPY {$this->prefix}$table FROM {$quotedPath} WITH (FORMAT csv, HEADER true)";
-            $this->lastQuery = $sql;
-            $this->logTrace($sql);
-            return $this->pdo->exec($sql) !== false;
+        if (!$this->dialect->canLoadData()) {
+            throw new RuntimeException('Driver does not support bulk load: ' . $this->dialect->getDriverName());
         }
 
-        $defaults = [
-            "fieldChar" => ';',
-            'fieldEnclosure' => null,
-            'fields' => [],
-            "lineChar" => null,
-            "linesToIgnore" => null,
-            'lineStarting' => null,
-            'local' => false,
-        ];
-
-        $options = $options ? array_merge($defaults, $options) : $defaults;
-
-        $localPrefix = $options['local'] ? 'LOCAL ' : '';
-
-        $quotedPath = $this->pdo->quote($filePath);
-        $sql = "LOAD DATA {$localPrefix}INFILE {$quotedPath} INTO TABLE {$this->prefix}$table";
-
-        // FIELDS
-        $sql .= sprintf(' FIELDS TERMINATED BY \'%s\'', $options["fieldChar"]);
-        if ($options['fields']) {
-            $sql .= ' (' . implode(', ', $options['fields']) . ')';
-        }
-        if ($options["fieldEnclosure"]) {
-            $sql .= sprintf(' ENCLOSED BY \'%s\'', $options["fieldEnclosure"]);
-        }
-
-        // LINES
-        if ($options['lineChar']) {
-            $sql .= sprintf(' LINES TERMINATED BY \'%s\'', $options["lineChar"]);
-        }
-        if ($options["lineStarting"]) {
-            $sql .= sprintf(' STARTING BY \'%s\'', $options["lineStarting"]);
-        }
-
-        // IGNORE LINES
-        if ($options["linesToIgnore"]) {
-            $sql .= sprintf(' IGNORE %d LINES', $options["linesToIgnore"]);
-        }
+        $sql = $this->dialect->buildLoadDataSql($this->pdo, $this->prefix . $table, $filePath, $options);
 
         $this->lastQuery = $sql;
         $this->logTrace($sql);
 
         return $this->pdo->exec($sql) !== false;
     }
+
 
     /**
      * Loads data from an XML file into a table.
@@ -1793,8 +1651,8 @@ class PdoDb
      */
     public function loadXml(string $table, string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool
     {
-        if ($this->isPgsql()) {
-            throw new InvalidArgumentException('LOAD XML is not supported by PostgreSQL');
+        if (!$this->dialect->canLoadXml()) {
+            throw new InvalidArgumentException('LOAD XML is not supported by ' . $this->dialect->getDriverName());
         }
         $sql = "LOAD XML LOCAL INFILE " . $this->pdo->quote($filePath) .
             " INTO TABLE {$this->prefix}$table " .
@@ -1814,21 +1672,8 @@ class PdoDb
      */
     public function describe(string $table): array
     {
-        switch (true) {
-            case $this->isPgsql():
-                $sql = "SELECT column_name, data_type, is_nullable, column_default
-                        FROM information_schema.columns
-                        WHERE table_name = :table";
-                return $this->rawQuery($sql, [':table' => $this->prefix . $table]);
-            case $this->isSqlite():
-                $sql = "PRAGMA table_info({$this->prefix}{$table})";
-                return $this->rawQuery($sql);
-            case $this->isMysql():
-                $sql = "DESCRIBE {$this->prefix}{$table}";
-                return $this->rawQuery($sql);
-            default:
-                throw new \Exception("Unsupported driver for DESCRIBE");
-        }
+        $sql = $this->dialect->describeTableSql($this->prefix . $table);
+        return $this->rawQuery($sql);
     }
 
     /**
@@ -1840,7 +1685,7 @@ class PdoDb
      */
     public function explain(string $query, array $params = []): array
     {
-        $sql = "EXPLAIN " . $query;
+        $sql = $this->dialect->explainSql($query, false);
         return $this->rawQuery($sql, $params);
     }
 
@@ -1853,11 +1698,7 @@ class PdoDb
      */
     public function explainAnalyze(string $query, array $params = []): array
     {
-        if($this->isSqlite()) {
-            $sql = 'EXPLAIN QUERY PLAN ' . $query;
-        } else {
-            $sql = "EXPLAIN ANALYZE " . $query;
-        }
+        $sql = $this->dialect->explainSql($query, true);
         return $this->rawQuery($sql, $params);
     }
 
