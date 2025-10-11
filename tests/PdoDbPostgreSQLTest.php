@@ -379,5 +379,22 @@ final class PdoDbPostgreSQLTest extends TestCase
         $this->assertEquals(7, self::$db->totalCount());
     }
 
+    public function testGetColumn(): void
+    {
+        $db = self::$db;
+        self::$db->insert('users', ['name' => 'SubUser', 'company' => 'testCompany']);
+        self::$db->insert('users', ['name' => 'OtherUser', 'company' => 'otherCompany']);
+        $names = $db->getColumn('users', 'name');
+        $this->assertEquals(['SubUser', 'OtherUser'], $names);
+    }
 
+
+    public function testUpdateLimit(): void
+    {
+        for ($i = 1; $i <= 7; $i++) {
+            self::$db->insert('users', ['name' => "Cnt{$i}", 'company' => 'C', 'age' => 20 + $i, 'status' => 'active']);
+        }
+        self::$db->update('users', ['status' => 'inactive'], 5);
+        $this->assertCount(5, self::$db->where('status', 'inactive')->get('users'));
+    }
 }

@@ -571,7 +571,6 @@ final class PdoDbMySQLTest extends TestCase
 
     public function testPaginate(): void
     {
-        // Заполняем таблицу 15 пользователями
         for ($i = 0; $i < 15; $i++) {
             self::$db->insert('users', [
                 'name' => 'User' . $i,
@@ -579,28 +578,27 @@ final class PdoDbMySQLTest extends TestCase
             ]);
         }
 
-        // Устанавливаем размер страницы = 5
         self::$db->setPageLimit(5);
 
-        // Страница 1: должно вернуться 5 записей
+        // Page 1 - 5 records
         $page1 = self::$db->withTotalCount()->orderBy('id', 'ASC')
             ->paginate('users', 1, ['id', 'name']);
         $this->assertCount(5, $page1);
 
-        // Проверяем, что общее количество строк = 15
+        // Total count is 15
         $this->assertEquals(15, self::$db->totalCount());
 
-        // Страница 2: ещё 5 записей
+        // Page 2 - 5 records
         self::$db->orderBy('id', 'ASC')->setPageLimit(5);
         $page2 = self::$db->paginate('users', 2, ['id', 'name']);
         $this->assertCount(5, $page2);
 
-        // Страница 3: последние 5
+        // Page 3 - 5 records
         self::$db->orderBy('id', 'ASC')->setPageLimit(5);
         $page3 = self::$db->paginate('users', 3, ['id', 'name']);
         $this->assertCount(5, $page3);
 
-        // Страница 4: пусто
+        // Page 4 - empty result
         self::$db->orderBy('id', 'ASC')->setPageLimit(5);
         $page4 = self::$db->paginate('users', 4, ['id', 'name']);
         $this->assertCount(0, $page4);
@@ -620,6 +618,23 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertEquals(4, $cnt);
     }
 
+    public function testGetColumn(): void
+    {
+        $db = self::$db;
+        self::$db->insert('users', ['name' => 'SubUser', 'company' => 'testCompany']);
+        self::$db->insert('users', ['name' => 'OtherUser', 'company' => 'otherCompany']);
+        $names = $db->orderBy('name', 'desc')->getColumn('users', 'name');
+        $this->assertEquals(['SubUser','OtherUser'], $names);
+    }
+
+    public function testUpdateLimit(): void
+    {
+        for ($i = 1; $i <= 7; $i++) {
+            self::$db->insert('users', ['name' => "Cnt{$i}", 'company' => 'C', 'age' => 20 + $i, 'status' => 'active']);
+        }
+        self::$db->update('users', ['status' => 'inactive'], 5);
+        $this->assertCount(5, self::$db->where('status', 'inactive')->get('users'));
+    }
 
     public function testSubQuery(): void
     {
@@ -937,15 +952,19 @@ final class PdoDbMySQLTest extends TestCase
         $file = sys_get_temp_dir() . '/users.xml';
         file_put_contents($file, <<<XML
             <users>
+             <user>
+                <name>XMLUser 1</name>
+                <age>45</age>
+              </user>
               <user>
-                <name>XMLUser</name>
+                <name>XMLUser 2</name>
                 <age>44</age>
               </user>
             </users>
 XML
         );
 
-        $ok = self::$db->loadXml('users', $file, '<user>');
+        $ok = self::$db->loadXml('users', $file, '<user>', 1);
         $this->assertTrue($ok);
 
         $row = self::$db->getOne('users');

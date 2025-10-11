@@ -161,4 +161,22 @@ final class PdoDbSqliteTest extends TestCase
         $cnt = self::$db->getValue('users', 'COUNT(*) AS cnt');
         $this->assertEquals(3, $cnt);
     }
+
+    public function testGetColumn(): void
+    {
+        $db = self::$db;
+        self::$db->insert('users', ['name' => 'SubUser', 'status' => 'active']);
+        self::$db->insert('users', ['name' => 'OtherUser', 'status' => 'active']);
+        $names = $db->getColumn('users', 'name');
+        $this->assertEquals(['SubUser','OtherUser'], $names);
+    }
+
+    public function testUpdateLimit(): void
+    {
+        for ($i = 1; $i <= 7; $i++) {
+            self::$db->insert('users', ['name' => "Cnt{$i}", 'status' => 'active']);
+        }
+        self::$db->update('users', ['status' => 'inactive'], 5);
+        $this->assertCount(5, self::$db->where('status', 'inactive')->get('users'));
+    }
 }

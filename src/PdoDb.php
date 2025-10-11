@@ -352,9 +352,10 @@ class PdoDb
      * Update a row in a table
      * @param string $table
      * @param array $data
+     * @param int|null $limit
      * @return int
      */
-    public function update(string $table, array $data): int
+    public function update(string $table, array $data, ?int $limit = null): int
     {
         $this->lastTableUsed = $table;
 
@@ -394,7 +395,19 @@ class PdoDb
         $modifiers = $this->queryOptionsFlags ? implode(' ', $this->queryOptionsFlags) . ' ' : '';
 
         $sql = "UPDATE {$modifiers}{$this->prefix}$table SET " . implode(', ', $setParts);
+
+        if ($limit && $this->isPgsql()) {
+            $subQuery = $this->copy();
+            $subQuery->isSubQuery = true;
+            $result = $subQuery->getColumn($table, 'ctid', $limit);
+            $this->where('ctid', $result, 'IN');
+        }
+
         $sql .= $this->buildWhere();
+
+        if ($limit && !$this->isPgsql()) {
+            $sql .= " LIMIT {$limit}";
+        }
 
         $this->lastQuery = $sql;
         $this->logTrace($sql, $bindData);
@@ -613,6 +626,31 @@ class PdoDb
     }
 
     /**
+     * Fetch a single column from the result set.
+     *
+     * @param string $table The table from which to fetch data.
+     * @param string $column The column to select from the table.
+     * @param ?int $limit The maximum number of rows to return. If null, all rows are returned.
+     * @return array The results of the query.
+     * @throws JsonException
+     */
+    public function getColumn(string $table, string $column, ?int $limit = null): array
+    {
+        $rows = $this->get($table, $limit, [$column]);
+        $result = [];
+        foreach ($rows as $row) {
+            if (is_object($row) && $row->{$column} === null) {
+                $result[] = $row->{$column};
+            } elseif (array_key_exists($column, $row)) {
+                $result[] = $row[$column];
+            } else {
+                throw new InvalidArgumentException('getColumn accepts array or object builders only');
+            }
+        }
+        return $result;
+    }
+
+    /**
      * Fetch a single row from the database.
      *
      * Runs a SELECT query on the specified table with the provided columns and limit 1.
@@ -643,7 +681,7 @@ class PdoDb
      * @return mixed The value of the column, or an array of values if the limit is greater than 1.
      * @throws JsonException
      */
-    public function getValue(string $table, string $column, ?int $limit = null): mixed
+    public function getValue(string $table, string $column): mixed
     {
         $alias = $column;
         if (stripos($column, ' as ') !== false) {
@@ -654,12 +692,9 @@ class PdoDb
             $column .= " AS {$alias}";
         }
 
-        $result = $this->get($table, $limit ?? 1, [$column]);
+        $result = $this->get($table, 1, [$column]);
 
-        if ($limit === 1 || $limit === null) {
-            return $result[0][$alias] ?? null;
-        }
-        return array_column($result, $alias);
+        return $result[0][$alias] ?? null;
     }
 
 
@@ -1570,7 +1605,7 @@ class PdoDb
                     throw new InvalidArgumentException("Missing 'path' parameter");
                 }
                 return "sqlite:{$params['path']}"
-                    . (!empty($params['mode']) ? ";mode={$params['mode']}" : '')       // например, ro/rw/rwc/memory
+                    . (!empty($params['mode']) ? ";mode={$params['mode']}" : '')       // ex. ro/rw/rwc/memory
                     . (!empty($params['cache']) ? ";cache={$params['cache']}" : '');    // shared/private
 
             default:
@@ -1733,16 +1768,18 @@ class PdoDb
      * @param string $table The table to load data into.
      * @param string $filePath The path to the XML file.
      * @param string $rowTag The tag that identifies a row.
+     * @param int|null $linesToIgnore The number of lines to ignore at the beginning of the file.
      * @return bool True on success, false on failure.
      */
-    public function loadXml(string $table, string $filePath, string $rowTag = '<row>'): bool
+    public function loadXml(string $table, string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool
     {
         if ($this->isPgsql()) {
             throw new InvalidArgumentException('LOAD XML is not supported by PostgreSQL');
         }
         $sql = "LOAD XML LOCAL INFILE " . $this->pdo->quote($filePath) .
             " INTO TABLE {$this->prefix}$table " .
-            "ROWS IDENTIFIED BY " . $this->pdo->quote($rowTag);
+            "ROWS IDENTIFIED BY " . $this->pdo->quote($rowTag)
+            . ($linesToIgnore ? sprintf(' IGNORE %d LINES', $linesToIgnore) : '');
         $this->lastQuery = $sql;
         $this->logTrace($sql);
         return $this->pdo->exec($sql) !== false;

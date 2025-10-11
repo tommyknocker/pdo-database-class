@@ -6,7 +6,7 @@ Based on https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 
 ---
 
-### Table of Contents
+## Table of Contents
 
 - **[Initialization](#initialization)**
 - **[Insert Query](#insert-query)**
@@ -31,7 +31,7 @@ Based on https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 - **[Error Helpers](#error-helpers)**
 
 
-### Installation
+## Installation
 
 To utilize this class, first import PdoDb.php into your project, and require it.
 PdoDb requires PHP 8.4+ to work. Supports MySQL, PostgreSQL ans S
@@ -40,7 +40,7 @@ PdoDb requires PHP 8.4+ to work. Supports MySQL, PostgreSQL ans S
 composer require tommyknocker/pdo-database-class
 ```
 
-### Initialization
+## Initialization
 
 ```php
 $db = new PdoDb('mysql', [
@@ -74,7 +74,7 @@ $db = new PdoDb('pgsql', [
     'sslkey'           => '/path/client.key',   // Optional. Path to SSL private key.
     'sslcert'          => '/path/client.crt',   // Optional. Path to SSL client certificate.
     'sslrootcert'      => '/path/ca.crt',       // Optional. Path to SSL root certificate.
-    'application_name' => 'MyApp',         // Optional. Application name (visible in pg_stat_activity).
+    'application_name' => 'MyApp',         // Optional. Application name(visible in pg_stat_activity).
     'connect_timeout'  => 5,               // Optional. Connection timeout in seconds.
     'hostaddr'         => '192.168.1.10',  // Optional. Direct IP address (bypasses DNS).
     'service'          => 'myservice',     // Optional. Service name from pg_service.conf.
@@ -99,7 +99,7 @@ It's possible to set table prefix later with a separate call:
 $db->setPrefix('my_');
 ```
 
-### Insert Query
+## Insert Query
 
 Simple example
 ```php
@@ -113,7 +113,8 @@ if($id)
     echo 'User was created. Id=' . $id;
 ```
 
-Insert with functions use
+## Insert with functions use
+
 ```php
 $data = [
 	'login' => 'admin',
@@ -137,7 +138,8 @@ if ($id) {
 }
 ```
 
-Insert with on duplicate key update
+## Insert with on duplicate key update
+
 ```php
 $data = ["login" => "admin",
          "firstName" => "John",
@@ -151,7 +153,7 @@ $db->onDuplicate($updateColumns, $lastInsertId);
 $id = $db->insert('users', $data);
 ```
 
-### Replace Query
+## Replace Query
 
 <a href='https://dev.mysql.com/doc/refman/8.0/en/replace.html'>Replace()</a> method implements same API as insert();
 
@@ -176,8 +178,8 @@ if(!$ids) {
 }
 ```
 
-
 If all datasets only have the same keys, it can be simplified
+
 ```php
 $data = [
     ["admin", "John", "Doe"],
@@ -193,7 +195,7 @@ if(!$ids) {
 }
 ```
 
-### Update Query
+## Update Query
 
 ```php
 $data = ['firstName' => 'Bobby',
@@ -212,17 +214,18 @@ if ($db->update('users', $data)) {
 ```
 
 `update()` also support limit parameter:
+
 ```php
 $db->update('users', $data, 10);
 // Gives: UPDATE users SET ... LIMIT 10
 ```
 
-### Select Query
+## Select Query
 
 After any select/get function calls amount or returned rows is stored in $count variable
 ```php
-$users = $db->get('users'); //contains an Array of all users 
-$users = $db->get('users', 10); //contains an Array 10 users
+$users = $db->get('users'); //contains an array of all users 
+$users = $db->get('users', 10); //contains an array 10 users
 ```
 
 or select with custom columns set. Functions also could be used
@@ -232,7 +235,7 @@ $cols = ["id", "name", "email"];
 $users = $db->get("users", null, $cols);
 if ($users) {
     foreach ($users as $user) { 
-        print_r ($user);
+        print_r($user);
     }
 }
 ```
@@ -255,11 +258,12 @@ $count = $db->getValue("users", "COUNT(*)");
 echo "{$count} users found";
 ```
 
-select one column value or function result from multiple rows:
+select column value or function result from multiple rows:
+
 ```php
-$logins = $db->getValue("users", "login", null);
+$logins = $db->getColumn("users", "login");
 // select login from users
-$logins = $db->getValue("users", "login", 5);
+$logins = $db->getColumn("users", "login", 5); // limit query
 // select login from users limit 5
 foreach ($logins as $login) {
     echo $login;
@@ -307,15 +311,15 @@ $db->loadXML("users", $path_to_file);
 You can also add optional parameters.
 Valid parameters:
 ```php
-Array(
+[
 	"linesToIgnore" => 0,		// Amount of lines / rows to ignore at the beginning of the import
 	"rowTag"	=> "<user>"	// The tag which marks the beginning of an entry
-)
+]
 ```
 
 Usage:
 ```php
-$options = Array("linesToIgnore" => 0, "rowTag"	=> "<user>"):
+$options = ["linesToIgnore" => 0, "rowTag"	=> "<user>"]:
 $path_to_file = "/home/john/file.xml";
 $db->loadXML("users", $path_to_file, $options);
 ```
@@ -333,17 +337,16 @@ echo "showing $page out of " . $db->totalPages;
 ```
 
 ### Result transformation / map
-Instead of getting an pure array of results its possible to get result in an associative array with a needed key. If only 2 fields to fetch will be set in get(),
-method will return result in array($k => $v) and array ($k => array ($v, $v)) in rest of the cases.
+Instead of getting a pure array of results its possible to get result in an associative array with a needed key. If only 2 fields to fetch will be set in get(),
+method will return result in `[$k => $v]` and array `[$k => array []$v, $v]]` in rest of the cases.
 
 ```php
-$user = $db->map ('login')->ObjectBuilder()->getOne ('users', 'login, id');
-Array
-(
+$user = $db->map ('login')->ObjectBuilder()->getOne('users', 'login, id');
+[
     [user1] => 1
-)
+]
 
-$user = $db->map ('login')->ObjectBuilder()->getOne ('users', 'id,login,createdAt');
+$user = $db->map ('login')->ObjectBuilder()->getOne('users', 'id,login,createdAt');
 Array
 (
     [user1] => stdClass Object
@@ -424,7 +427,7 @@ $query = "(
         ORDER BY a LIMIT ?
 )";
 $result = $db->rawQuery($query, $params);
-print_r ($result); // contains array of returned rows
+print_r($result); // contains array of returned rows
 ```
 
 ### Where / Having Methods
@@ -442,9 +445,9 @@ $results = $db->get('users');
 ```
 
 ```php
-$db->where ('id', 1);
-$db->having ('login', 'admin');
-$results = $db->get ('users');
+$db->where('id', 1);
+$db->having('login', 'admin');
+$results = $db->get('users');
 // Gives: SELECT * FROM users WHERE id=1 HAVING login='admin';
 ```
 
@@ -505,7 +508,7 @@ $results = $db->get("users");
 
 LIKE comparison:
 ```php
-$db->where ("fullName", 'John%', 'like');
+$db->where("fullName", 'John%', 'like');
 $results = $db->get("users");
 // Gives: SELECT * FROM users where fullName like 'John%'
 ```
@@ -521,8 +524,8 @@ Or raw condition with variables:
 ```php
 $db->where("(id = ? OR id = ?)", [6,2]);
 $db->where("login","mike")
-$res = $db->get ("users");
-// Gives: SELECT * FROM users WHERE (id = 6 OR id = 2) AND login='mike';
+$res = $db->get("users");
+// Gives: SELECT * FROM users WHERe(id = 6 OR id = 2) AND login='mike';
 ```
 
 
@@ -536,7 +539,7 @@ echo "Showing {$count} from {$db->totalCount}";
 
 ### Query Keywords
 
-To add LOW PRIORITY | DELAYED | HIGH PRIORITY | IGNORE and the rest of the mysql keywords to INSERT (), REPLACE (), GET (), UPDATE (), DELETE() method or FOR UPDATE | LOCK IN SHARE MODE into SELECT ():
+To add LOW PRIORITY | DELAYED | HIGH PRIORITY | IGNORE and the rest of the mysql keywords to INSERT (), REPLACe(), get(), UPDATe(), DELETE() method or FOR UPDATE | LOCK IN SHARE MODE into SELECT ():
 ```php
 $db->setQueryOption('LOW_PRIORITY')->insert($table, $param);
 // GIVES: INSERT LOW_PRIORITY INTO table ...
@@ -572,7 +575,9 @@ $results = $db
 
 ```php
 $db->where('id', 1);
-if($db->delete('users')) echo 'successfully deleted';
+if($db->delete('users')) {
+ echo 'successfully deleted';
+}
 ```
 
 
@@ -631,16 +636,16 @@ Add AND condition to join statement
 ```php
 $db->join("users u", "p.tenantID=u.tenantID", "LEFT");
 $db->joinWhere("users u", "u.tenantID", 5);
-$products = $db->get ("products p", null, "u.name, p.productName");
-print_r ($products);
+$products = $db->get("products p", null, "u.name, p.productName");
+print_r($products);
 // Gives: SELECT  u.name, p.productName FROM products p LEFT JOIN users u ON (p.tenantID=u.tenantID AND u.tenantID = 5)
 ```
 Add OR condition to join statement
 ```php
 $db->join("users u", "p.tenantID=u.tenantID", "LEFT");
 $db->joinOrWhere("users u", "u.tenantID", 5);
-$products = $db->get ("products p", null, "u.name, p.productName");
-print_r ($products);
+$products = $db->get("products p", null, "u.name, p.productName");
+print_r($products);
 // Gives: SELECT  u.login, p.productName FROM products p LEFT JOIN users u ON (p.tenantID=u.tenantID OR u.tenantID = 5)
 
 ### Properties sharing
@@ -678,7 +683,7 @@ $sq->get("users");
 
 Subquery in selects:
 ```php
-$ids = $db->subQuery ();
+$ids = $db->subQuery();
 $ids->where("qty", 2, ">");
 $ids->get("products", null, "userId");
 
@@ -689,7 +694,7 @@ $res = $db->get("users");
 
 Subquery in inserts:
 ```php
-$userIdQ = $db->subQuery ();
+$userIdQ = $db->subQuery();
 $userIdQ->where("id", 6);
 $userIdQ->getOne("users", "name");
 
@@ -718,9 +723,9 @@ print_r($products);
 ```php
 $sub = $db->subQuery();
 $sub->where("company", 'testCompany');
-$sub->get ("users", null, 'userId');
-$db->where (null, $sub, 'EXISTS');
-$products = $db->get ("products");
+$sub->get("users", null, 'userId');
+$db->where(null, $sub, 'EXISTS');
+$products = $db->get("products");
 // Gives SELECT * FROM products WHERE EXISTS (select userId from users where company='testCompany')
 ```
 
@@ -789,12 +794,12 @@ if ($db->getLastErrNo() === 0) {
 ## Query execution time benchmarking
 To track query execution time setTrace() function should be called.
 ```php
-$db->setTrace (true);
+$db->setTrace(true);
 // As a second parameter it is possible to define prefix of the path which should be striped from filename
-// $db->setTrace (true, $_SERVER['SERVER_ROOT']);
+// $db->setTrace(true, $_SERVER['SERVER_ROOT']);
 $db->get("users");
 $db->get("test");
-print_r ($db->trace);
+print_r($db->trace);
 ```
 
 ```
@@ -836,7 +841,7 @@ To lock multiple tables, you can use an array.
 Example:
 
 ```php
-$db->setLockMethod("READ")->lock(array("users", "log"));
+$db->setLockMethod("READ")->lock(["users", "log"]);
 ```
 
 This will lock the tables **users** and **log** for **READ** access only.
