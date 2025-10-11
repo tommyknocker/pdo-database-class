@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\PdoDb;
 
@@ -11,14 +12,20 @@ final class PdoDbMySQLTest extends TestCase
     private static ?PdoDb $db = null;
 
     protected const string DB_HOST = '127.0.0.1';
-    protected const string DB_NAME = 'test_db';
-    protected const string DB_USER = 'root';
-    protected const string DB_PASSWORD = '';
+    protected const string DB_NAME = 'testdb';
+    protected const string DB_USER = 'testuser';
+    protected const string DB_PASSWORD = 'testpass';
     protected const int DB_PORT = 3306;
     protected const string DB_CHARSET = 'utf8mb4';
 
     public static function setUpBeforeClass(): void
     {
+        /**
+         * CREATE DATABASE testdb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+         * CREATE USER 'testuser'@'127.0.0.1' IDENTIFIED BY 'testpass';
+         * GRANT ALL PRIVILEGES ON testdb.* TO 'testuser'@'127.0.0.1';
+         * FLUSH PRIVILEGES;
+         */
         self::$db = new PdoDb(
             'mysql',
             [
@@ -26,7 +33,7 @@ final class PdoDbMySQLTest extends TestCase
                 'port' => self::DB_PORT,
                 'username' => self::DB_USER,
                 'password' => self::DB_PASSWORD,
-                'db' => self::DB_NAME,
+                'dbname' => self::DB_NAME,
                 'charset' => self::DB_CHARSET,
             ]
         );
@@ -65,11 +72,45 @@ final class PdoDbMySQLTest extends TestCase
         self::$db->rawQuery("TRUNCATE TABLE archive_users");
         self::$db->rawQuery("SET FOREIGN_KEY_CHECKS=1");
         parent::setUp();
-        try {
-            self::$db->unlock();
-        } catch (\Throwable $e) {
-            // ignore, if there was no lock
-        }
+    }
+
+    public function testMysqlMinimalParams(): void
+    {
+        $dsn = self::$db->buildDsn([
+            'driver' => 'mysql',
+            'host' => '127.0.0.1',
+            'username' => 'testuser',
+            'password' => 'testpassword',
+            'dbname' => 'testdb',
+        ]);
+        $this->assertEquals('mysql:host=127.0.0.1;dbname=testdb', $dsn);
+    }
+
+    public function testMysqlAllParams(): void
+    {
+        $dsn = self::$db->buildDsn([
+            'driver' => 'mysql',
+            'host' => '127.0.0.1',
+            'username' => 'testuser',
+            'password' => 'testpassword',
+            'dbname' => 'testdb',
+            'port' => 3306,
+            'charset' => 'utf8mb4',
+            'unix_socket' => '/tmp/mysql.sock',
+            'sslca' => '/path/ca.pem',
+            'sslcert' => '/path/client-cert.pem',
+            'sslkey' => '/path/client-key.pem',
+            'compress' => true,
+        ]);
+        $this->assertStringContainsString('mysql:host=127.0.0.1;dbname=testdb;port=3306;charset=utf8mb4', $dsn);
+        $this->assertStringContainsString('unix_socket=/tmp/mysql.sock', $dsn);
+        $this->assertStringContainsString('sslca=/path/ca.pem', $dsn);
+    }
+
+    public function testMysqlMissingParamsThrows(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        self::$db->buildDsn(['driver' => 'mysql']); // no host/dbname
     }
 
     public function testInsertWithQueryOption()
@@ -530,17 +571,55 @@ final class PdoDbMySQLTest extends TestCase
 
     public function testPaginate(): void
     {
+        // Заполняем таблицу 15 пользователями
         for ($i = 0; $i < 15; $i++) {
-            self::$db->insert('users', ['name' => 'User' . $i, 'age' => 20 + $i]);
+            self::$db->insert('users', [
+                'name' => 'User' . $i,
+                'age' => 20 + $i
+            ]);
         }
 
-        $page1 = self::$db->withTotalCount()->paginate('users', 1, ['id', 'name']);
-        $this->assertLessThanOrEqual(20, count($page1));
-        $this->assertGreaterThan(0, self::$db->totalCount());
+        // Устанавливаем размер страницы = 5
+        self::$db->setPageLimit(5);
 
+        // Страница 1: должно вернуться 5 записей
+        $page1 = self::$db->withTotalCount()->orderBy('id', 'ASC')
+            ->paginate('users', 1, ['id', 'name']);
+        $this->assertCount(5, $page1);
+
+        // Проверяем, что общее количество строк = 15
+        $this->assertEquals(15, self::$db->totalCount());
+
+        // Страница 2: ещё 5 записей
+        self::$db->orderBy('id', 'ASC')->setPageLimit(5);
         $page2 = self::$db->paginate('users', 2, ['id', 'name']);
-        $this->assertIsArray($page2);
+        $this->assertCount(5, $page2);
+
+        // Страница 3: последние 5
+        self::$db->orderBy('id', 'ASC')->setPageLimit(5);
+        $page3 = self::$db->paginate('users', 3, ['id', 'name']);
+        $this->assertCount(5, $page3);
+
+        // Страница 4: пусто
+        self::$db->orderBy('id', 'ASC')->setPageLimit(5);
+        $page4 = self::$db->paginate('users', 4, ['id', 'name']);
+        $this->assertCount(0, $page4);
     }
+
+    public function testGetValueWithAliasMySQL(): void
+    {
+        for ($i = 1; $i <= 4; $i++) {
+            self::$db->insert('users', [
+                'name' => "User{$i}",
+                'company' => "Comp{$i}",
+                'age' => 20 + $i
+            ]);
+        }
+
+        $cnt = self::$db->getValue('users', 'COUNT(*) AS cnt');
+        $this->assertEquals(4, $cnt);
+    }
+
 
     public function testSubQuery(): void
     {
@@ -713,7 +792,7 @@ final class PdoDbMySQLTest extends TestCase
             'port' => self::DB_PORT,
             'username' => self::DB_USER,
             'password' => self::DB_PASSWORD,
-            'db' => self::DB_NAME,
+            'dbname' => self::DB_NAME,
             'charset' => self::DB_CHARSET,
         ]);
         $this->assertTrue(self::$db->ping());
@@ -784,7 +863,7 @@ final class PdoDbMySQLTest extends TestCase
             'port' => self::DB_PORT,
             'username' => self::DB_USER,
             'password' => self::DB_PASSWORD,
-            'db' => self::DB_NAME,
+            'dbname' => self::DB_NAME,
             'charset' => self::DB_CHARSET,
         ]);
 

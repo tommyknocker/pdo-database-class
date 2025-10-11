@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests;
 
-use PDO;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\PdoDb;
 
@@ -13,10 +13,7 @@ final class PdoDbSqliteTest extends TestCase
 
     public function setUp(): void
     {
-        $pdo = new PDO('sqlite::memory:');
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-        $db = new PdoDb('sqlite', ['pdo' => $pdo]);
+        $db = new PdoDb('sqlite', ['path' => ':memory:']);
 
         $db->rawQuery("CREATE TABLE users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,6 +27,34 @@ final class PdoDbSqliteTest extends TestCase
         )");
 
         self::$db = $db;
+    }
+
+    public function testSqliteMinimalParams(): void
+    {
+        $dsn = self::$db->buildDsn([
+            'driver' => 'sqlite',
+            'path' => ':memory:',
+        ]);
+        $this->assertEquals('sqlite::memory:', $dsn);
+    }
+
+    public function testSqliteAllParams(): void
+    {
+        $dsn = self::$db->buildDsn([
+            'driver' => 'sqlite',
+            'path' => '/tmp/test.sqlite',
+            'mode' => 'rwc',
+            'cache' => 'shared',
+        ]);
+        $this->assertStringContainsString('sqlite:/tmp/test.sqlite', $dsn);
+        $this->assertStringContainsString('mode=rwc', $dsn);
+        $this->assertStringContainsString('cache=shared', $dsn);
+    }
+
+    public function testSqliteMissingParamsThrows(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        self::$db->buildDsn(['driver' => 'sqlite']); // no path
     }
 
     public function testBasicSqliteUsage(): void
@@ -83,5 +108,57 @@ final class PdoDbSqliteTest extends TestCase
         $this->assertEquals('Bob', $remaining[0]['name']);
     }
 
+    public function testPaginate(): void
+    {
+        // Заполняем таблицу 12 пользователями
+        for ($i = 1; $i <= 12; $i++) {
+            self::$db->insert('users', [
+                'name' => "User{$i}",
+                'status' => 'active'
+            ]);
+        }
 
+        // Устанавливаем размер страницы = 5
+        self::$db->setPageLimit(5);
+
+        // Страница 1: первые 5 пользователей
+        $page1 = self::$db->withTotalCount()->orderBy('id', 'ASC')
+            ->paginate('users', 1, ['id', 'name']);
+        $this->assertCount(5, $page1);
+        $this->assertEquals('User1', $page1[0]['name']);
+        $this->assertEquals('User5', $page1[4]['name']);
+        $this->assertEquals(12, self::$db->totalCount());
+
+        // Страница 2: следующие 5 (User6..User10)
+        self::$db->orderBy('id', 'ASC')->setPageLimit(5);
+        $page2 = self::$db->paginate('users', 2, ['id', 'name']);
+        $this->assertCount(5, $page2);
+        $this->assertEquals('User6', $page2[0]['name']);
+        $this->assertEquals('User10', $page2[4]['name']);
+
+        // Страница 3: оставшиеся 2 (User11..User12)
+        self::$db->orderBy('id', 'ASC')->setPageLimit(5);
+        $page3 = self::$db->paginate('users', 3, ['id', 'name']);
+        $this->assertCount(2, $page3);
+        $this->assertEquals('User11', $page3[0]['name']);
+        $this->assertEquals('User12', $page3[1]['name']);
+
+        // Страница 4: пусто
+        self::$db->orderBy('id', 'ASC')->setPageLimit(5);
+        $page4 = self::$db->paginate('users', 4, ['id', 'name']);
+        $this->assertCount(0, $page4);
+    }
+
+    public function testGetValueWithAliasSqlite(): void
+    {
+        for ($i = 1; $i <= 3; $i++) {
+            self::$db->insert('users', [
+                'name' => "User{$i}",
+                'status' => 'active'
+            ]);
+        }
+
+        $cnt = self::$db->getValue('users', 'COUNT(*) AS cnt');
+        $this->assertEquals(3, $cnt);
+    }
 }

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb;
 
+use JsonException;
 use RuntimeException;
 use InvalidArgumentException;
 use PDO;
@@ -44,6 +45,22 @@ class PdoDb
     protected array $onDuplicateColumns = [];
     protected array $queryOptionsFlags = [];
 
+    /**
+     * Initializes a new PdoDb object.
+     *
+     * @param string $driver The database driver to use. Defaults to 'mysql'.
+     * @param array $config An array of configuration options for the database connection.
+     *     The following options are supported:
+     *     - host: The hostname or IP address of the database server.
+     *     - port: The port number to use when connecting to the database server.
+     *     - username: The username to use when connecting to the database server.
+     *     - password: The password to use when connecting to the database server.
+     *     - db: The name of the database to use.
+     *     - charset: The character set to use when connecting to the database server.
+     *     - prefix: The prefix to use for all database tables.
+     *     - path: database path (sqlite3 only)
+     *     - pdo : PDO object. if present, all other settings except driver and prefix are ignored
+     */
     public function __construct(string $driver = 'mysql', array $config = [])
     {
         $this->prefix = $config['prefix'] ?? '';
@@ -86,22 +103,36 @@ class PdoDb
 
 
     /**
-     * Insert query
+     * Insert data into the database.
+     *
      * @param string $table
-     * @param array|PdoDb $data
+     * @param array|self $data
+     * @param string|null $returning RETURNING param for PostgreSQL
      * @return int|false
+     *
+     * @throws InvalidArgumentException if $data is not an array or a valid PdoDb object
      */
-    public function insert(string $table, array|self $data): int|false
+    public function insert(string $table, array|self $data, ?string $returning = null): int|false
     {
         $this->lastTableUsed = $table;
         $this->queryOptions['table'] = $table;
 
+        // Check if $data is an array or a valid PdoDb object
+        if (!is_array($data) && !($data instanceof self)) {
+            throw new InvalidArgumentException('$data must be an array or a valid PdoDb object');
+        }
+
+        // If $data is a PdoDb object, get its last query and params
         if ($data instanceof self && !empty($data->isSubQuery)) {
             $modifiers = $data->getQueryOptions() ? implode(' ', $this->getQueryOptions()) . ' ' : '';
             $sql = "INSERT {$modifiers}INTO {$this->prefix}$table " . $data->getLastQuery();
             $params = $data->getParams() ?? [];
 
-            if (!empty($this->onDuplicateColumns)) {
+            // If $data is a PdoDb object and its last query is a subquery, add the on duplicate key update clause
+            if ($this->isPgsql() && !empty($this->onDuplicateColumns)) {
+                $updates = implode(', ', array_map(static fn($k) => "$k = EXCLUDED.$k", $this->onDuplicateColumns));
+                $sql .= " ON CONFLICT (id) DO UPDATE SET $updates";
+            } elseif (!empty($this->onDuplicateColumns)) {
                 $updates = implode(', ', array_map(static fn($k) => "$k = VALUES($k)", $this->onDuplicateColumns));
                 $sql .= " ON DUPLICATE KEY UPDATE $updates";
             }
@@ -113,7 +144,11 @@ class PdoDb
             $sql = "INSERT {$modifiers}INTO {$this->prefix}$table ($columns) " . $sub->getLastQuery();
             $params = $sub->getParams() ?? [];
 
-            if (!empty($this->onDuplicateColumns)) {
+            // If all values of $data are the same subquery, add the on duplicate key update clause
+            if ($this->isPgsql() && !empty($this->onDuplicateColumns)) {
+                $updates = implode(', ', array_map(fn($k) => "$k = EXCLUDED.$k", $this->onDuplicateColumns));
+                $sql .= " ON CONFLICT (id) DO UPDATE SET $updates";
+            } elseif (!empty($this->onDuplicateColumns)) {
                 $updates = implode(', ', array_map(static fn($k) => "$k = VALUES($k)", $this->onDuplicateColumns));
                 $sql .= " ON DUPLICATE KEY UPDATE $updates";
             }
@@ -124,7 +159,11 @@ class PdoDb
 
             $sql = "INSERT {$modifiers}INTO {$this->prefix}$table ($columns) VALUES ($placeholders)";
 
-            if (!empty($this->onDuplicateColumns)) {
+            // Add the on duplicate key update clause
+            if ($this->isPgsql() && !empty($this->onDuplicateColumns)) {
+                $updates = implode(', ', array_map(fn($k) => "$k = EXCLUDED.$k", $this->onDuplicateColumns));
+                $sql .= " ON CONFLICT (id) DO UPDATE SET $updates";
+            } elseif (!empty($this->onDuplicateColumns)) {
                 $updates = implode(', ', array_map(static fn($k) => "$k = VALUES($k)", $this->onDuplicateColumns));
                 $sql .= " ON DUPLICATE KEY UPDATE $updates";
             }
@@ -133,6 +172,11 @@ class PdoDb
             foreach ($data as $k => $v) {
                 $params[":$k"] = $v;
             }
+        }
+
+        // PostgreSQL: add the RETURNING clause
+        if ($this->isPgsql() && $returning) {
+            $sql .= " RETURNING {$returning}";
         }
 
         $this->lastQuery = $sql;
@@ -147,12 +191,21 @@ class PdoDb
 
         $this->resetQueryState();
 
+        if ($ok && $this->isPgsql() && $returning) {
+            return $stmt->fetchColumn();
+        }
+
         if ($ok) {
             return (int)$this->pdo->lastInsertId();
         }
         return false;
     }
 
+    /**
+     * Check if all values in the array are the same subquery
+     * @param array $data
+     * @return bool
+     */
     protected function allValuesAreSameSubQuery(array $data): bool
     {
         $first = current($data);
@@ -162,7 +215,12 @@ class PdoDb
         return array_all($data, static fn($v) => $v === $first);
     }
 
-
+    /**
+     * Insert multiple rows into a table
+     * @param string $table
+     * @param array $multiData
+     * @return bool
+     */
     public function insertMulti(string $table, array $multiData): bool
     {
         if (empty($multiData)) {
@@ -190,14 +248,58 @@ class PdoDb
         return $ok;
     }
 
+    /**
+     * Set the columns to be updated on duplicate key
+     * @param array $updateColumns
+     * @return self
+     */
     public function onDuplicate(array $updateColumns): self
     {
         $this->onDuplicateColumns = $updateColumns;
         return $this;
     }
 
+    /**
+     * Insert or update a row in a table
+     * @param string $table
+     * @param array $data
+     * @return int
+     */
     public function replace(string $table, array $data): int
     {
+        if ($this->isPgsql()) {
+            // PostgreSQL: INSERT ... ON CONFLICT(id) DO UPDATE SET ...
+            $columns = array_keys($data);
+            $placeholders = array_map(static fn($k) => ":$k", $columns);
+            $conflictColumn = array_key_exists('id', $data) ? 'id' : null;
+            if (!$conflictColumn) {
+                throw new InvalidArgumentException('PostgreSQL REPLACE requires primary/unique key (e.g., "id") present in $data');
+            }
+
+            $updates = [];
+            foreach ($columns as $col) {
+                if ($col === $conflictColumn) {
+                    continue;
+                }
+                $updates[] = "$col = EXCLUDED.$col";
+            }
+
+            $sql = "INSERT INTO {$this->prefix}$table (" . implode(', ', $columns) . ") VALUES ("
+                . implode(', ', $placeholders) . ")
+                                ON CONFLICT ({$conflictColumn}) DO UPDATE SET " . implode(', ', $updates);
+
+            $this->lastQuery = $sql;
+            $this->logTrace($sql, $data);
+            $stmt = $this->pdo->prepare($sql);
+            foreach ($data as $k => $v) {
+                $stmt->bindValue(":$k", $v);
+            }
+            $stmt->execute();
+            $result = $stmt->rowCount();
+            $this->resetQueryState();
+            return $result;
+        }
+
         $this->lastTableUsed = $table;
         $columns = implode(', ', array_keys($data));
         $placeholders = implode(', ', array_map(static fn($k) => ":$k", array_keys($data)));
@@ -206,6 +308,9 @@ class PdoDb
 
         $sql = "REPLACE {$modifiers}INTO {$this->prefix}$table ($columns) VALUES ($placeholders)";
         $stmt = $this->pdo->prepare($sql);
+
+        $this->lastQuery = $sql;
+        $this->logTrace($sql, $data);
 
         foreach ($data as $k => $v) {
             $stmt->bindValue(":$k", $v);
@@ -217,6 +322,12 @@ class PdoDb
         return $result;
     }
 
+    /**
+     * Insert multiple rows into a table
+     * @param string $table
+     * @param array $multiData
+     * @return bool
+     */
     public function replaceMulti(string $table, array $multiData): bool
     {
         if (empty($multiData)) {
@@ -237,6 +348,12 @@ class PdoDb
         return $ok;
     }
 
+    /**
+     * Update a row in a table
+     * @param string $table
+     * @param array $data
+     * @return int
+     */
     public function update(string $table, array $data): int
     {
         $this->lastTableUsed = $table;
@@ -299,6 +416,12 @@ class PdoDb
     }
 
 
+    /**
+     * Delete data from the database.
+     *
+     * @param string $table The table from which to delete data.
+     * @return int The number of rows deleted.
+     */
     public function delete(string $table): int
     {
         $this->lastTableUsed = $table;
@@ -322,6 +445,13 @@ class PdoDb
 
     /* ---------------- RAW ---------------- */
 
+    /**
+     * Execute a raw query.
+     *
+     * @param string $query The raw query to be executed.
+     * @param array $params The parameters to be bound to the query.
+     * @return array The result of the query.
+     */
     public function rawQuery(string $query, array $params = []): array
     {
         $this->lastQuery = $query;
@@ -344,6 +474,13 @@ class PdoDb
         return $result;
     }
 
+    /**
+     * Execute a raw query and return the value of the first column of the first row.
+     *
+     * @param string $query The raw query to be executed.
+     * @param array $params The parameters to be bound to the query.
+     * @return mixed The value of the first column of the first row.
+     */
     public function rawQueryValue(string $query, array $params = []): mixed
     {
         $this->lastQuery = $query;
@@ -355,7 +492,15 @@ class PdoDb
         return $result;
     }
 
-    /* ---------------- SELECT ---------------- */
+    /**
+     * Builds a SELECT query string
+     *
+     * @param string $table The table to be queried
+     * @param array $columns The columns to be retrieved
+     * @param int|null $limit The maximum number of rows to be retrieved
+     * @param int|null $offset The offset of the first row to be retrieved
+     * @return string The SELECT query string
+     */
     protected function buildSelect(string $table, array $columns, ?int $limit = null, ?int $offset = null): string
     {
         $tailQueryOptions = [];
@@ -392,9 +537,14 @@ class PdoDb
             $sql .= ' ORDER BY ' . implode(', ', $this->orderBy);
         }
         if ($limit !== null) {
-            $sql .= $offset !== null ? " LIMIT $offset, $limit" : " LIMIT $limit";
+            if ($this->isPgsql()) {
+                // PostgreSQL: LIMIT count [OFFSET offset]
+                $sql .= $offset !== null ? " LIMIT {$limit} OFFSET {$offset}" : " LIMIT {$limit}";
+            } else {
+                // MySQL: LIMIT [offset,] count
+                $sql .= $offset !== null ? " LIMIT {$offset}, {$limit}" : " LIMIT {$limit}";
+            }
         }
-
         $sql .= $endingModifiers;
 
         return $sql;
@@ -404,27 +554,50 @@ class PdoDb
     /**
      * Execute a SELECT query.
      *
-     * @param string $table
-     * @param array $columns
-     * @param ?int $limit
-     * @param ?int $offset
-     * @return array
+     * Builds a SELECT query based on the provided parameters and then executes it.
+     * The results are returned as an array.
+     *
+     * @param string $table The name of the table to select from.
+     * @param array $columns The columns to select from the table.
+     * @param ?int $limit The maximum number of rows to return. If null, all rows are returned.
+     * @param ?int $offset The offset from which to start returning rows. If null, the first row is returned.
+     * @return array The results of the query.
      */
     protected function runSelect(string $table, array $columns, ?int $limit = null, ?int $offset = null): array
     {
+        // Build the SELECT query based on the provided parameters
         $sql = $this->buildSelect($table, $columns, $limit, $offset);
 
+        // Store the query for later use
         $this->lastQuery = $sql;
+
+        // Log the query for debugging purposes
         $this->logTrace($sql);
 
+        // Prepare the query and execute it
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($this->params);
 
+        // Fetch the results of the query
+        // The fetch mode is determined by the query options
         $mode = $this->queryOptions['fetchMode'] ?? PDO::FETCH_ASSOC;
         return $stmt->fetchAll($mode);
     }
 
 
+    /**
+     * Fetch data from the database.
+     *
+     * Runs a SELECT query on the specified table with the provided columns and limit.
+     * If the query options flag 'json' is set, the results are returned as a JSON string.
+     * Otherwise, the results are returned as an array.
+     *
+     * @param string $table The table from which to fetch data.
+     * @param ?int $limit The maximum number of rows to return. If null, all rows are returned.
+     * @param array $columns The columns to select from the table. Defaults to ['*'].
+     * @return array|string The results of the query.
+     * @throws JsonException
+     */
     public function get(string $table, ?int $limit = null, array $columns = ['*']): array|string
     {
         $this->lastTableUsed = $table;
@@ -439,21 +612,63 @@ class PdoDb
         return $json ? json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE) : $rows;
     }
 
+    /**
+     * Fetch a single row from the database.
+     *
+     * Runs a SELECT query on the specified table with the provided columns and limit 1.
+     * If the query options flag 'json' is set, the results are returned as a JSON string.
+     * Otherwise, the results are returned as an array.
+     *
+     * @param string $table The table from which to fetch data.
+     * @param array $columns The columns to select from the table. Defaults to ['*'].
+     * @return array The results of the query.
+     * @throws JsonException
+     */
     public function getOne(string $table, array $columns = ['*']): array
     {
         $result = $this->get($table, 1, $columns);
         return $result[0] ?? [];
     }
 
+    /**
+     * Retrieve a single value from the database.
+     *
+     * Runs a SELECT query on the specified table with the provided column and limit.
+     * If the limit is 1 or null, the first value of the column is returned.
+     * Otherwise, an array of all values of the column is returned.
+     *
+     * @param string $table The table from which to retrieve the value.
+     * @param string $column The column from which to retrieve the value.
+     * @param ?int $limit The maximum number of values to return. If null or 1, the first value is returned.
+     * @return mixed The value of the column, or an array of values if the limit is greater than 1.
+     * @throws JsonException
+     */
     public function getValue(string $table, string $column, ?int $limit = null): mixed
     {
-        $result = $this->get($table, $limit ?? 1, [$column]);
-        if ($limit === 1 || $limit === null) {
-            return $result[0][$column] ?? null;
+        $alias = $column;
+        if (stripos($column, ' as ') !== false) {
+            $parts = preg_split('/\s+as\s+/i', $column);
+            $alias = trim(end($parts));
+        } elseif (preg_match('/\W/', $column)) {
+            $alias = 'value';
+            $column .= " AS {$alias}";
         }
-        return array_column($result, $column);
+
+        $result = $this->get($table, $limit ?? 1, [$column]);
+
+        if ($limit === 1 || $limit === null) {
+            return $result[0][$alias] ?? null;
+        }
+        return array_column($result, $alias);
     }
 
+
+    /**
+     * Checks if a table exists in the database.
+     *
+     * @param string $table The name of the table to check.
+     * @return bool True if the table exists, false otherwise.
+     */
     public function has(string $table): bool
     {
         $sql = "SELECT EXISTS(SELECT 1 FROM {$this->prefix}$table";
@@ -465,7 +680,15 @@ class PdoDb
         return (bool)$stmt->fetchColumn();
     }
 
-    /* ---------------- CONDITIONS ---------------- */
+    /**
+     * Adds a condition to the query.
+     *
+     * @param string $type The type of condition ('where' or 'having').
+     * @param ?string $expr The expression for the condition.
+     * @param mixed $value The value for the condition.
+     * @param string $operator The operator for the condition.
+     * @param string $cond The condition to add.
+     */
     protected function addCondition(
         string $type,       // 'where' or 'having'
         ?string $expr,
@@ -570,7 +793,13 @@ class PdoDb
         }
     }
 
-
+    /**
+     * Makes a parameter for the query.
+     *
+     * @param string $expr The expression for the parameter.
+     * @param string $suffix The suffix for the parameter.
+     * @return string The parameter.
+     */
     protected function makeParam(string $expr, string $suffix = ''): string
     {
         // sanitize expression to safe identifier
@@ -578,7 +807,13 @@ class PdoDb
         return ':' . strtolower($base) . $suffix . count($this->params);
     }
 
-
+    /**
+     * Builds the conditions for the query.
+     *
+     * @param array $items The items to build the conditions from.
+     * @param string $keyword The keyword to use for the conditions.
+     * @return string The conditions for the query.
+     */
     protected function buildConditions(array $items, string $keyword): string
     {
         if (empty($items)) {
@@ -602,61 +837,136 @@ class PdoDb
         return ' ' . $keyword . ' ' . implode(' ', $clauses);
     }
 
+    /**
+     * Builds the WHERE clause for the query.
+     *
+     * @return string The WHERE clause for the query.
+     */
     protected function buildWhere(): string
     {
         return $this->buildConditions($this->where, 'WHERE');
     }
 
+    /**
+     * Builds the HAVING clause for the query.
+     *
+     * @return string The HAVING clause for the query.
+     */
     protected function buildHaving(): string
     {
         return $this->buildConditions($this->having, 'HAVING');
     }
 
-
+    /**
+     * Adds AND condition to the WHERE clause.
+     *
+     * @param ?string $expr The expression for the condition.
+     * @param mixed $value The value for the condition.
+     * @param string $operator The operator for the condition.
+     * @return self The current object.
+     */
     public function where(?string $expr, mixed $value, string $operator = '='): self
     {
         $this->addCondition('where', $expr, $value, $operator, 'AND');
         return $this;
     }
 
+    /**
+     * Adds OR condition to the WHERE clause.
+     *
+     * @param ?string $expr The expression for the condition.
+     * @param mixed $value The value for the condition.
+     * @param string $operator The operator for the condition.
+     * @return self The current object.
+     */
     public function orWhere(?string $expr, mixed $value, string $operator = '='): self
     {
         $this->addCondition('where', $expr, $value, $operator, 'OR');
         return $this;
     }
 
+    /**
+     * Adds AND condition to the HAVING clause.
+     *
+     * @param string $expr The expression for the condition.
+     * @param mixed $value The value for the condition.
+     * @param string $operator The operator for the condition.
+     * @return self The current object.
+     */
     public function having(string $expr, mixed $value = null, string $operator = '='): self
     {
         $this->addCondition('having', $expr, $value, $operator, 'AND');
         return $this;
     }
 
+    /**
+     * Adds OR condition to the HAVING clause.
+     *
+     * @param string $expr The expression for the condition.
+     * @param mixed $value The value for the condition.
+     * @param string $operator The operator for the condition.
+     * @return self The current object.
+     */
     public function orHaving(string $expr, mixed $value = null, string $operator = '='): self
     {
         $this->addCondition('having', $expr, $value, $operator, 'OR');
         return $this;
     }
 
-
-    // join(): keep given table string as-is (with alias if user passes "users u")
+    /**
+     * Adds a join to the query.
+     *
+     * @param string $table The table to join.
+     * @param string $condition The condition for the join.
+     * @param string $type The type of join.
+     * @return self The current object.
+     */
     public function join(string $table, string $condition, string $type = 'INNER'): self
     {
         $this->join[] = strtoupper($type) . " JOIN {$this->prefix}$table ON $condition";
         return $this;
     }
 
+    /**
+     * Adds a condition to the join.
+     *
+     * @param string $table The table to join.
+     * @param string $column The column to join on.
+     * @param mixed $value The value for the condition.
+     * @param string $operator The operator for the condition.
+     * @return self The current object.
+     */
     public function joinWhere(string $table, string $column, mixed $value, string $operator = '='): self
     {
         $this->buildJoinCondition('AND', $table, $column, $value, $operator);
         return $this;
     }
 
+    /**
+     * Adds OR condition to the join.
+     *
+     * @param string $table The table to join.
+     * @param string $column The column to join on.
+     * @param mixed $value The value for the condition.
+     * @param string $operator The operator for the condition.
+     * @return self The current object.
+     */
     public function joinOrWhere(string $table, string $column, mixed $value, string $operator = '='): self
     {
         $this->buildJoinCondition('OR', $table, $column, $value, $operator);
         return $this;
     }
 
+    /**
+     * Builds a join condition.
+     *
+     * @param string $cond The condition to build.
+     * @param string $table The table to join.
+     * @param string $column The column to join on.
+     * @param mixed $value The value for the condition.
+     * @param string $operator The operator for the condition.
+     * @return void
+     */
     protected function buildJoinCondition(
         string $cond,
         string $table,
@@ -687,21 +997,37 @@ class PdoDb
         $this->where[] = ['cond' => $cond, 'sql' => $sql];
     }
 
-
+    /**
+     * Groups the results by the specified column.
+     *
+     * @param string $column The column to group by.
+     * @return self The current object.
+     */
     public function groupBy(string $column): self
     {
         $this->groupBy[] = $column;
         return $this;
     }
 
+    /**
+     * Orders the results by the specified column.
+     *
+     * @param string $column The column to order by.
+     * @param string $direction The direction to order by.
+     * @return self The current object.
+     */
     public function orderBy(string $column, string $direction = 'ASC'): self
     {
         $this->orderBy[] = "$column " . strtoupper($direction);
         return $this;
     }
 
-    /* ---------------- SUBQUERY ---------------- */
-
+    /**
+     * Creates a subquery.
+     *
+     * @param string $alias The alias for the subquery.
+     * @return self The current object.
+     */
     public function subQuery(string $alias = ''): self
     {
         $sub = $this->copy();
@@ -713,6 +1039,11 @@ class PdoDb
         return $sub;
     }
 
+    /**
+     * Resets the query state.
+     *
+     * @return void
+     */
     protected function resetQueryState(): void
     {
         $this->queryOptions = [];
@@ -729,12 +1060,38 @@ class PdoDb
 
     /* ---------------- PAGINATION ---------------- */
 
+    /**
+     * Enables total count calculation.
+     *
+     * @return self The current object.
+     */
     public function withTotalCount(): self
     {
         $this->queryOptions['calcFoundRows'] = true;
         return $this;
     }
 
+    /**
+     * Sets the page limit.
+     *
+     * @param int $limit The limit for the page.
+     * @return self The current object.
+     */
+    public function setPageLimit(int $limit): self
+    {
+        $this->queryOptions['limit'] = $limit;
+        return $this;
+    }
+
+    /**
+     * Paginates the results.
+     *
+     * @param string $table The table to paginate.
+     * @param int $page The page number.
+     * @param array $columns The columns to select.
+     * @return array|string The paginated results.
+     * @throws JsonException
+     */
     public function paginate(string $table, int $page, array $columns = ['*']): array|string
     {
         $this->lastTableUsed = $table;
@@ -748,9 +1105,6 @@ class PdoDb
 
         // count total
         if (!empty($this->queryOptions['calcFoundRows'])) {
-            $countStmt = $this->pdo->query("SELECT FOUND_ROWS()");
-            $this->totalCount = (int)$countStmt->fetchColumn();
-        } else {
             $countSql = "SELECT COUNT(*) FROM {$this->prefix}$table" . $this->buildWhere();
             $countStmt = $this->pdo->prepare($countSql);
             $countStmt->execute($this->params);
@@ -763,7 +1117,11 @@ class PdoDb
         return $json ? json_encode($rows, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE) : $rows;
     }
 
-
+    /**
+     * Returns the total count of rows.
+     *
+     * @return int The total count of rows.
+     */
     public function totalCount(): int
     {
         return $this->totalCount;
@@ -771,6 +1129,11 @@ class PdoDb
 
     /* ---------------- TRANSACTIONS ---------------- */
 
+    /**
+     * Starts a transaction.
+     *
+     * @return void
+     */
     public function startTransaction(): void
     {
         if (!$this->transactionInProgress) {
@@ -779,6 +1142,11 @@ class PdoDb
         }
     }
 
+    /**
+     * Commits the transaction.
+     *
+     * @return void
+     */
     public function commit(): void
     {
         if ($this->transactionInProgress) {
@@ -787,6 +1155,11 @@ class PdoDb
         }
     }
 
+    /**
+     * Rolls back the transaction.
+     *
+     * @return void
+     */
     public function rollback(): void
     {
         if ($this->transactionInProgress) {
@@ -798,10 +1171,24 @@ class PdoDb
 
     /* ---------------- LOCKING ---------------- */
 
+    /**
+     * Locks the specified tables.
+     *
+     * @param string|array $tables The tables to lock.
+     * @return bool True if the lock was successful, false otherwise.
+     */
     public function lock(string|array $tables): bool
     {
         if (!is_array($tables)) {
             $tables = [$tables];
+        }
+
+        if ($this->isPgsql()) {
+            $list = implode(', ', array_map(fn($t) => "{$this->prefix}{$t}", $tables));
+            $sql = "LOCK TABLE {$list} IN ACCESS EXCLUSIVE MODE";
+            $this->logTrace($sql);
+            $this->lastQuery = $sql;
+            return $this->pdo->exec($sql) !== false;
         }
 
         $parts = [];
@@ -817,16 +1204,30 @@ class PdoDb
         return $this->pdo->exec($sql) === 0;
     }
 
-
+    /**
+     * Unlocks the specified tables.
+     *
+     * @return bool True if the unlock was successful, false otherwise.
+     */
     public function unlock(): bool
     {
+        if ($this->isPgsql()) {
+            $this->lastQuery = '/* unlock is no-op in PostgreSQL; released at COMMIT/ROLLBACK */';
+            $this->logTrace($this->lastQuery);
+            return true;
+        }
         $sql = "UNLOCK TABLES";
         $this->logTrace($sql);
         $this->lastQuery = $sql;
         return $this->pdo->exec($sql) === 0;
     }
 
-
+    /**
+     * Sets the lock method.
+     *
+     * @param string $method The lock method to use.
+     * @return self The current object.
+     */
     public function setLockMethod(string $method): self
     {
         $this->lockMethod = strtoupper($method);
@@ -834,21 +1235,42 @@ class PdoDb
     }
 
     /* ---------------- HELPERS ---------------- */
+
+    /**
+     * Get params
+     * @return array
+     */
     public function getParams(): array
     {
         return $this->params;
     }
 
+    /**
+     * Escapes a string for use in a SQL query.
+     *
+     * @param string $str The string to escape.
+     * @return string The escaped string.
+     */
     public function escape(string $str): string
     {
         return substr($this->pdo->quote($str), 1, -1);
     }
 
+    /**
+     * Disconnects from the database.
+     *
+     * @return void
+     */
     public function disconnect(): void
     {
         $this->pdo = null;
     }
 
+    /**
+     * Pings the database.
+     *
+     * @return bool True if the ping was successful, false otherwise.
+     */
     public function ping(): bool
     {
         try {
@@ -859,21 +1281,60 @@ class PdoDb
         }
     }
 
+    /**
+     * Checks if a table exists.
+     *
+     * @param string $table The table to check.
+     * @return bool True if the table exists, false otherwise.
+     */
     public function tableExists(string $table): bool
     {
+        if ($this->isPgsql()) {
+            $schema = 'public';
+            $name = $this->prefix . $table;
+            $sql = "SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_schema = :schema AND table_name = :name
+                )";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([':schema' => $schema, ':name' => $name]);
+            return (bool)$stmt->fetchColumn();
+        }
         $like = $this->pdo->quote($this->prefix . $table);
         $stmt = $this->pdo->query("SHOW TABLES LIKE $like");
         return (bool)$stmt->fetchColumn();
     }
 
+    /**
+     * Checks if the database is PostgreSQL.
+     *
+     * @return bool True if the database is PostgreSQL, false otherwise.
+     */
+    protected function isPgsql(): bool
+    {
+        return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql';
+    }
+
     /* ---------------- TRACE ---------------- */
 
-
+    /**
+     * Sets the trace enabled state.
+     *
+     * @param bool $enabled The trace enabled state.
+     * @return void
+     */
     public function setTrace(bool $enabled = true): void
     {
         $this->traceEnabled = $enabled;
     }
 
+    /**
+     * Logs a trace of the query.
+     *
+     * @param string $sql The SQL query to log.
+     * @param array $params The parameters for the query.
+     * @return void
+     */
     protected function logTrace(string $sql, array $params = []): void
     {
         if ($this->traceEnabled) {
@@ -885,27 +1346,51 @@ class PdoDb
         }
     }
 
+    /**
+     * Returns the trace log.
+     *
+     * @return array The trace log.
+     */
     public function trace(): array
     {
         return $this->traceLog;
     }
 
-
+    /**
+     * Returns the last query.
+     *
+     * @return string The last query.
+     */
     public function getLastQuery(): string
     {
         return $this->lastQuery;
     }
 
+    /**
+     * Returns the last error.
+     *
+     * @return string The last error.
+     */
     public function getLastError(): string
     {
         return $this->lastError;
     }
 
+    /**
+     * Returns the last error number.
+     *
+     * @return int The last error number.
+     */
     public function getLastErrno(): int
     {
         return $this->lastErrno;
     }
 
+    /**
+     * Returns the trace log.
+     *
+     * @return array The trace log.
+     */
     public function getLogTrace(): array
     {
         return $this->traceLog;
@@ -913,23 +1398,47 @@ class PdoDb
 
     /* ---------------- UTILS ---------------- */
 
+    /**
+     * Sets the query options.
+     *
+     * @param string|array $flags The query options.
+     * @return self The current object.
+     */
     public function setQueryOption(string|array $flags): self
     {
         $this->queryOptionsFlags = is_array($flags) ? $flags : [$flags];
         return $this;
     }
 
+    /**
+     * Returns the query options.
+     *
+     * @return array The query options.
+     */
     public function getQueryOptions(): array
     {
         return $this->queryOptionsFlags;
     }
 
+    /**
+     * Sets the prefix.
+     *
+     * @param string $prefix The prefix.
+     * @return self The current object.
+     */
     public function setPrefix(string $prefix): self
     {
         $this->prefix = $prefix;
         return $this;
     }
 
+    /**
+     * Replaces placeholders in a string with bind parameters.
+     *
+     * @param string $expr The string to replace placeholders in.
+     * @param array $bindParams The bind parameters.
+     * @return string The string with placeholders replaced.
+     */
     public function func(string $expr, array $bindParams = []): string
     {
         foreach ($bindParams as $k => $v) {
@@ -943,61 +1452,149 @@ class PdoDb
         return $expr;
     }
 
+    /**
+     * Returns a string with the current date and time.
+     *
+     * @param string $diff The time interval to add to the current date and time.
+     * @param string $func The function to use to get the current date and time.
+     * @return string The current date and time.
+     */
     public function now(string $diff = '', string $func = 'NOW()'): string
     {
         return $diff ? "$func + INTERVAL $diff" : $func;
     }
 
+    /**
+     * Returns an array with an increment operation.
+     *
+     * @param int|float $num The number to increment by.
+     * @return array The array with the increment operation.
+     */
     public function inc(int|float $num = 1): array
     {
         return ['__op' => 'inc', 'val' => $num];
     }
 
+    /**
+     * Returns an array with a decrement operation.
+     *
+     * @param int|float $num The number to decrement by.
+     * @return array The array with the decrement operation.
+     */
     public function dec(int|float $num = 1): array
     {
         return ['__op' => 'dec', 'val' => $num];
     }
 
+    /**
+     * Returns an array with a not operation.
+     *
+     * @param mixed $val The value to negate.
+     * @return array The array with the not operation.
+     */
     public function not(mixed $val): array
     {
         return ['__op' => 'not', 'val' => $val];
     }
 
+    /**
+     * Returns an array with a map operation.
+     *
+     * @param string $idField The field to use as the map key.
+     * @return self The current object.
+     */
     public function map(string $idField): self
     {
         $this->queryOptions['mapKey'] = $idField;
         return $this;
     }
 
+    /**
+     * Returns a copy of the current object.
+     *
+     * @return self The copy of the current object.
+     */
     public function copy(): self
     {
         return clone $this;
     }
 
     /* ---------------- CONNECTIONS ---------------- */
-    protected function buildDsn(array $params): string
+
+    /**
+     * Builds a DSN string from an array of parameters.
+     *
+     * @param array $params The parameters to use to build the DSN.
+     * @return string The DSN string.
+     */
+    public function buildDsn(array $params): string
     {
         $driver = $params['driver'] ?? 'mysql';
-        $charset = $params['charset'] ?? 'utf8mb4';
-        $port = $params['port'] ?? '3306';
 
-        return match ($driver) {
-            'mysql' => "mysql:host={$params['host']};dbname={$params['db']}" . ($port ? ";port={$port}" : '') . ($charset ? ";charset=" . $charset : ''),
-            'pgsql' => "pgsql:host={$params['host']};dbname={$params['db']}" . ($port ? ";port={$port}" : ''),
-            'sqlite' => "sqlite:" . ($params['path'] ?? ''),
-            default => throw new InvalidArgumentException("Unsupported driver: $driver"),
-        };
+        switch ($driver) {
+            case 'mysql':
+                foreach (['host', 'dbname', 'username', 'password'] as $requiredParam) {
+                    if (empty($params[$requiredParam])) {
+                        throw new InvalidArgumentException("Missing '$requiredParam' parameter");
+                    }
+                }
+                return "mysql:host={$params['host']};dbname={$params['dbname']}"
+                    . (!empty($params['port']) ? ";port={$params['port']}" : '')
+                    . (!empty($params['charset']) ? ";charset={$params['charset']}" : '')
+                    . (!empty($params['unix_socket']) ? ";unix_socket={$params['unix_socket']}" : '')
+                    . (!empty($params['sslca']) ? ";sslca={$params['sslca']}" : '')
+                    . (!empty($params['sslcert']) ? ";sslcert={$params['sslcert']}" : '')
+                    . (!empty($params['sslkey']) ? ";sslkey={$params['sslkey']}" : '')
+                    . (!empty($params['compress']) ? ";compress={$params['compress']}" : '');
+
+            case 'pgsql':
+                foreach (['host', 'dbname', 'username', 'password'] as $requiredParam) {
+                    if (empty($params[$requiredParam])) {
+                        throw new InvalidArgumentException("Missing '$requiredParam' parameter");
+                    }
+                }
+                return "pgsql:host={$params['host']};dbname={$params['dbname']}"
+                    . (!empty($params['hostaddr']) ? ";hostaddr={$params['hostaddr']}" : '')
+                    . (!empty($params['service']) ? ";service={$params['service']}" : '')
+                    . (!empty($params['port']) ? ";port={$params['port']}" : '')
+                    . (!empty($params['options']) ? ";options={$params['options']}" : '')
+                    . (!empty($params['sslmode']) ? ";sslmode={$params['sslmode']}" : '')
+                    . (!empty($params['sslkey']) ? ";sslkey={$params['sslkey']}" : '')
+                    . (!empty($params['sslcert']) ? ";sslcert={$params['sslcert']}" : '')
+                    . (!empty($params['sslrootcert']) ? ";sslrootcert={$params['sslrootcert']}" : '')
+                    . (!empty($params['application_name']) ? ";application_name={$params['application_name']}" : '')
+                    . (!empty($params['connect_timeout']) ? ";connect_timeout={$params['connect_timeout']}" : '')
+                    . (!empty($params['target_session_attrs']) ? ";target_session_attrs={$params['target_session_attrs']}" : '');
+            case 'sqlite':
+                if (!isset($params['path'])) {
+                    throw new InvalidArgumentException("Missing 'path' parameter");
+                }
+                return "sqlite:{$params['path']}"
+                    . (!empty($params['mode']) ? ";mode={$params['mode']}" : '')       // например, ro/rw/rwc/memory
+                    . (!empty($params['cache']) ? ";cache={$params['cache']}" : '');    // shared/private
+
+            default:
+                throw new InvalidArgumentException("Unsupported driver: $driver");
+        }
     }
 
 
+    /**
+     * Adds a connection to the connection pool.
+     *
+     * @param string $name The name of the connection.
+     * @param array $params The parameters to use to connect to the database.
+     * @return void
+     */
     public function addConnection(string $name, array $params): void
     {
         $dsn = $this->buildDsn($params);
 
         $pdo = $params['pdo'] ?? null;
 
+
         if (!$pdo) {
-            $pdo = new PDO($dsn, $params['username'], $params['password'], [
+            $pdo = new PDO($dsn, $params['username'] ?? null, $params['password'] ?? null, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
@@ -1011,6 +1608,12 @@ class PdoDb
         }
     }
 
+    /**
+     * Returns a connection from the connection pool.
+     *
+     * @param string $name The name of the connection.
+     * @return self The connection.
+     */
     public function connection(string $name): self
     {
         if (!isset($this->connections[$name])) {
@@ -1023,19 +1626,33 @@ class PdoDb
 
     /* ---------------- BUILDERS ---------------- */
 
-    // builders
+    /**
+     * Sets the fetch mode to array.
+     *
+     * @return self The current object.
+     */
     public function arrayBuilder(): self
     {
         $this->queryOptions['fetchMode'] = PDO::FETCH_ASSOC;
         return $this;
     }
 
+    /**
+     * Sets the fetch mode to object.
+     *
+     * @return self The current object.
+     */
     public function objectBuilder(): self
     {
         $this->queryOptions['fetchMode'] = PDO::FETCH_OBJ;
         return $this;
     }
 
+    /**
+     * Sets the fetch mode to JSON.
+     *
+     * @return self The current object.
+     */
     public function jsonBuilder(): self
     {
         // mark json output flag instead of passing a string mode to fetchAll
@@ -1046,8 +1663,24 @@ class PdoDb
 
     /* ---------------- LOAD DATA/XML ---------------- */
 
+    /**
+     * Loads data from a CSV file into a table.
+     *
+     * @param string $table The table to load data into.
+     * @param string $filePath The path to the CSV file.
+     * @param array $options The options to use to load the data.
+     * @return bool True on success, false on failure.
+     */
     public function loadData(string $table, string $filePath, array $options = []): bool
     {
+        if ($this->isPgsql()) {
+            // Basic csv support with header
+            $quotedPath = $this->pdo->quote($filePath);
+            $sql = "COPY {$this->prefix}$table FROM {$quotedPath} WITH (FORMAT csv, HEADER true)";
+            $this->lastQuery = $sql;
+            $this->logTrace($sql);
+            return $this->pdo->exec($sql) !== false;
+        }
 
         $defaults = [
             "fieldChar" => ';',
@@ -1094,9 +1727,19 @@ class PdoDb
         return $this->pdo->exec($sql) !== false;
     }
 
-
+    /**
+     * Loads data from an XML file into a table.
+     *
+     * @param string $table The table to load data into.
+     * @param string $filePath The path to the XML file.
+     * @param string $rowTag The tag that identifies a row.
+     * @return bool True on success, false on failure.
+     */
     public function loadXml(string $table, string $filePath, string $rowTag = '<row>'): bool
     {
+        if ($this->isPgsql()) {
+            throw new InvalidArgumentException('LOAD XML is not supported by PostgreSQL');
+        }
         $sql = "LOAD XML LOCAL INFILE " . $this->pdo->quote($filePath) .
             " INTO TABLE {$this->prefix}$table " .
             "ROWS IDENTIFIED BY " . $this->pdo->quote($rowTag);
@@ -1105,9 +1748,13 @@ class PdoDb
         return $this->pdo->exec($sql) !== false;
     }
 
+    /**
+     * Returns a string representation of the last query.
+     *
+     * @return string The last query.
+     */
     public function __toString(): string
     {
         return $this->lastQuery;
     }
-
 }

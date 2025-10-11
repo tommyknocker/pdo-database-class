@@ -1,6 +1,7 @@
 # PDO-database-class
 
-PHP PDO Wrapper which utilizes PDO and prepared statements
+PHP PDO Wrapper which utilizes PDO and prepared statements.
+
 Based on https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 
 ---
@@ -33,7 +34,7 @@ Based on https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 ### Installation
 
 To utilize this class, first import PdoDb.php into your project, and require it.
-PdoDb requires PHP 8.4+ to work.
+PdoDb requires PHP 8.4+ to work. Supports MySQL, PostgreSQL ans S
 
 ```
 composer require tommyknocker/pdo-database-class
@@ -42,22 +43,58 @@ composer require tommyknocker/pdo-database-class
 ### Initialization
 
 ```php
-$db = new PdoDb('mysql', // sqlite3
-                 [
-                     'pdo' => null, // PDO object 
-                     'host' => 'host',
-                     'username' => 'username', 
-                     'password' => 'password',
-                     'dbname'=> 'databaseName',
-                     'port' => 3306,
-                     'prefix' => 'my_',
-                     'charset' => 'utf8'
-                 ]);
+$db = new PdoDb('mysql', [
+    'pdo'         => null,                 // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
+    'host'        => '127.0.0.1',          // Required. MySQL host (e.g. 'localhost' or IP address).
+    'username'    => 'testuser',           // Required. MySQL username.
+    'password'    => 'testpass',           // Required. MySQL password.
+    'dbname'      => 'testdb',             // Required. Database name.
+    'port'        => 3306,                 // Optional. MySQL port (default is 3306).
+    'prefix'      => 'my_',                // Optional. Table prefix (e.g. 'wp_').
+    'charset'     => 'utf8mb4',            // Optional. Connection charset (recommended: 'utf8mb4').
+    'unix_socket' => '/var/run/mysqld/mysqld.sock', // Optional. Path to Unix socket if used.
+    'sslca'       => '/path/ca.pem',       // Optional. Path to SSL CA certificate.
+    'sslcert'     => '/path/client-cert.pem', // Optional. Path to SSL client certificate.
+    'sslkey'      => '/path/client-key.pem',  // Optional. Path to SSL client key.
+    'compress'    => true                  // Optional. Enable protocol compression.
+]);
 ```
-table prefix, port and database charset params are optional.
-If no charset should be set charset, set it to null
 
-If no table prefix were set during object creation its possible to set it later with a separate call:
+```php
+$db = new PdoDb('pgsql', [
+    'pdo'              => null,            // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
+    'host'             => '127.0.0.1',     // Required. PostgreSQL host.
+    'username'         => 'testuser',      // Required. PostgreSQL username.
+    'password'         => 'testpass',      // Required. PostgreSQL password.
+    'dbname'           => 'testdb',        // Required. Database name.
+    'port'             => 5432,            // Optional. PostgreSQL port (default is 5432).
+    'prefix'           => 'pg_',           // Optional. Table prefix.
+    'options'          => '--client_encoding=UTF8', // Optional. Extra options (e.g. client encoding).
+    'sslmode'          => 'require',       // Optional. SSL mode: disable, allow, prefer, require, verify-ca, verify-full.
+    'sslkey'           => '/path/client.key',   // Optional. Path to SSL private key.
+    'sslcert'          => '/path/client.crt',   // Optional. Path to SSL client certificate.
+    'sslrootcert'      => '/path/ca.crt',       // Optional. Path to SSL root certificate.
+    'application_name' => 'MyApp',         // Optional. Application name (visible in pg_stat_activity).
+    'connect_timeout'  => 5,               // Optional. Connection timeout in seconds.
+    'hostaddr'         => '192.168.1.10',  // Optional. Direct IP address (bypasses DNS).
+    'service'          => 'myservice',     // Optional. Service name from pg_service.conf.
+    'target_session_attrs' => 'read-write' // Optional. For clusters: any, read-write.
+]);
+```
+
+```php
+$db = new PdoDb('sqlite', [
+    'pdo'   => null,                       // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
+    'path'  => '/path/to/database.sqlite', // Required. Path to SQLite database file.
+                                           // Use ':memory:' for an in-memory database.
+    'prefix'=> 'sq_',                      // Optional. Table prefix.
+    'mode'  => 'rwc',                      // Optional. Open mode: ro (read-only), rw (read/write), rwc (create if not exists), memory.
+    'cache' => 'shared'                    // Optional. Cache mode: shared or private.
+]);
+```
+
+It's possible to set table prefix later with a separate call:
+
 ```php
 $db->setPrefix('my_');
 ```
@@ -66,13 +103,14 @@ $db->setPrefix('my_');
 
 Simple example
 ```php
-$data = ["login" => "admin",
-         "firstName" => "John",
-         "lastName" => 'Doe'
+$data = [
+    "login" => "admin",
+    "firstName" => "John",
+    "lastName" => 'Doe'
 ];
 $id = $db->insert('users', $data);
 if($id)
-    echo 'user was created. Id=' . $id;
+    echo 'User was created. Id=' . $id;
 ```
 
 Insert with functions use
@@ -93,9 +131,9 @@ $data = [
 
 $id = $db->insert('users', $data);
 if ($id) {
-    echo 'user was created. Id=' . $id;
+    echo 'User was created. Id=' . $id;
 } else {
-    echo 'insert failed: ' . $db->getLastError();
+    echo 'Insert failed: ' . $db->getLastError();
 }
 ```
 
