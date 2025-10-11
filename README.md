@@ -29,6 +29,7 @@ Based on https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 - **[Helper Methods](#helper-methods)**
 - **[Transaction Helpers](#transaction-helpers)**
 - **[Error Helpers](#error-helpers)**
+- **[Explain](#explain)**
 
 
 ## Installation
@@ -846,3 +847,13 @@ $db->setLockMethod("READ")->lock(["users", "log"]);
 
 This will lock the tables **users** and **log** for **READ** access only.
 Make sure you use **unlock()* afterwards or your tables will remain locked!
+
+## Explain
+
+You can use explain(), explainAnalyze(), describe() methods to get query execution plan.
+
+```php
+$db->explain("SELECT * FROM users WHERE status = 'active'");
+$db->explainAnalyze("SELECT * FROM users WHERE status = 'active'");
+$db->describe("users");
+```

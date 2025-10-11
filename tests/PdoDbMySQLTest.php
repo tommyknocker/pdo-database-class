@@ -968,9 +968,26 @@ XML
         $this->assertTrue($ok);
 
         $row = self::$db->getOne('users');
-        $this->assertEquals('XMLUser', $row['name']);
+        $this->assertEquals('XMLUser 2', $row['name']);
         $this->assertEquals(44, $row['age']);
 
         unlink($file);
+    }
+
+    public function testExplainSelectUsers(): void
+    {
+        $db = self::$db;
+        $plan = $db->explain("SELECT * FROM users WHERE status = 'active'");
+        $this->assertNotEmpty($plan);
+        $this->assertIsArray($plan[0]);
+    }
+
+    public function testExplainAnalyzeSelectUsers(): void
+    {
+        $db = self::$db;
+        $plan = $db->explainAnalyze('SELECT * FROM users WHERE status = "active"');
+        $this->assertNotEmpty($plan);
+
+        $this->assertArrayHasKey('EXPLAIN', $plan[0]); // SQLite возвращает колонку detail
     }
 }

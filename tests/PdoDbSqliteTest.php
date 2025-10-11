@@ -168,7 +168,7 @@ final class PdoDbSqliteTest extends TestCase
         self::$db->insert('users', ['name' => 'SubUser', 'status' => 'active']);
         self::$db->insert('users', ['name' => 'OtherUser', 'status' => 'active']);
         $names = $db->getColumn('users', 'name');
-        $this->assertEquals(['SubUser','OtherUser'], $names);
+        $this->assertEquals(['SubUser', 'OtherUser'], $names);
     }
 
     public function testUpdateLimit(): void
@@ -178,5 +178,31 @@ final class PdoDbSqliteTest extends TestCase
         }
         self::$db->update('users', ['status' => 'inactive'], 5);
         $this->assertCount(5, self::$db->where('status', 'inactive')->get('users'));
+    }
+
+    public function testDescribeUsersSqlite(): void
+    {
+        $db = self::$db;
+        $columns = $db->describe('users');
+        $this->assertNotEmpty($columns);
+        $this->assertEquals('id', $columns[0]['name']);
+        $this->assertEquals('name', $columns[1]['name']);
+        $this->assertEquals('status', $columns[2]['name']);
+    }
+
+    public function testExplainSelectUsers(): void
+    {
+        $db = self::$db;
+        $plan = $db->explain("SELECT * FROM users WHERE status = 'active'");
+        $this->assertNotEmpty($plan);
+        $this->assertIsArray($plan[0]);
+    }
+
+    public function testExplainAnalyzeSelectUsers(): void
+    {
+        $db = self::$db;
+        $plan = $db->explainAnalyze('SELECT * FROM users WHERE status = "active"');
+        $this->assertNotEmpty($plan);
+        $this->assertArrayHasKey('detail', $plan[0]); // SQLite возвращает колонку detail
     }
 }

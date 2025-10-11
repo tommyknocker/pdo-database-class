@@ -1350,6 +1350,26 @@ class PdoDb
         return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql';
     }
 
+    /**
+     * Checks if the database is MySQL.
+     *
+     * @return bool True if the database is MySQL, false otherwise.
+     */
+    protected function isMysql(): bool
+    {
+        return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql';
+    }
+
+    /**
+     * Checks if the database is SQLite.
+     *
+     * @return bool True if the database is SQLite, false otherwise.
+     */
+    protected function isSqlite(): bool
+    {
+        return $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite';
+    }
+
     /* ---------------- TRACE ---------------- */
 
     /**
@@ -1784,6 +1804,63 @@ class PdoDb
         $this->logTrace($sql);
         return $this->pdo->exec($sql) !== false;
     }
+
+
+    /**
+     * Describes a table.
+     *
+     * @param string $table The table to describe.
+     * @return array The table description.
+     */
+    public function describe(string $table): array
+    {
+        switch (true) {
+            case $this->isPgsql():
+                $sql = "SELECT column_name, data_type, is_nullable, column_default
+                        FROM information_schema.columns
+                        WHERE table_name = :table";
+                return $this->rawQuery($sql, [':table' => $this->prefix . $table]);
+            case $this->isSqlite():
+                $sql = "PRAGMA table_info({$this->prefix}{$table})";
+                return $this->rawQuery($sql);
+            case $this->isMysql():
+                $sql = "DESCRIBE {$this->prefix}{$table}";
+                return $this->rawQuery($sql);
+            default:
+                throw new \Exception("Unsupported driver for DESCRIBE");
+        }
+    }
+
+    /**
+     * Explains a query.
+     *
+     * @param string $query The query to explain.
+     * @param array $params The parameters to use to explain the query.
+     * @return array The query explanation.
+     */
+    public function explain(string $query, array $params = []): array
+    {
+        $sql = "EXPLAIN " . $query;
+        return $this->rawQuery($sql, $params);
+    }
+
+    /**
+     * Explains and analyzes a query.
+     *
+     * @param string $query The query to explain and analyze.
+     * @param array $params The parameters to use to explain and analyze the query.
+     * @return array The query explanation and analysis.
+     */
+    public function explainAnalyze(string $query, array $params = []): array
+    {
+        if($this->isSqlite()) {
+            $sql = 'EXPLAIN QUERY PLAN ' . $query;
+        } else {
+            $sql = "EXPLAIN ANALYZE " . $query;
+        }
+        return $this->rawQuery($sql, $params);
+    }
+
 
     /**
      * Returns a string representation of the last query.

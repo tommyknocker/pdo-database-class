@@ -397,4 +397,20 @@ final class PdoDbPostgreSQLTest extends TestCase
         self::$db->update('users', ['status' => 'inactive'], 5);
         $this->assertCount(5, self::$db->where('status', 'inactive')->get('users'));
     }
+
+    public function testExplainSelectUsers(): void
+    {
+        $db = self::$db;
+        $plan = $db->explain("SELECT * FROM users WHERE status = 'active'");
+        $this->assertNotEmpty($plan);
+        $this->assertIsArray($plan[0]);
+    }
+
+    public function testExplainAnalyzeSelectUsers(): void
+    {
+        $db = self::$db;
+        $plan = $db->explainAnalyze('SELECT * FROM users WHERE status = :status', ['status' => 'active']);
+        $this->assertNotEmpty($plan);
+        $this->assertArrayHasKey('QUERY PLAN', $plan[0]); // SQLite возвращает колонку detail
+    }
 }
