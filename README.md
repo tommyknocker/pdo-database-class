@@ -1,12 +1,54 @@
-# PDO-database-class
+# PDO Database Class
 
-PHP PDO Wrapper which utilizes PDO and prepared statements.
+Lightweight PDO wrapper for PHP with query builder, cross‑database dialect support (MySQL, PostgreSQL, SQLite, MSSQL), 
+and safe prepared statements.
 
-Based on https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
+This library provides a simple, consistent API for working with multiple SQL databases using PDO. It focuses on security, 
+portability, and developer productivity, while staying lightweight and dependency‑free.
+Inspired by https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 
 ---
 
-## Table of Contents
+## Features
+* ✅ Cross‑database support: MySQL, PostgreSQL, SQLite
+* ✅ Safe prepared statements everywhere
+* ✅ Query builder for SELECT, INSERT, UPDATE, DELETE
+* ✅ Dialect abstraction: database‑specific logic lives in dialect classes
+* ✅ Bulk operations: loadData, bulkInsert, update with limit
+* ✅ Transaction helpers (begin, commit, rollback)
+* ✅ Debugging support: lastQuery, getParams, query logging
+
+---
+
+## Dialects
+
+Database‑specific behavior is encapsulated in dialect classes:
+
+* MysqlDialect
+* PgsqlDialect
+* SqliteDialect
+
+This keeps PdoDb clean and makes it easy to extend for new databases.
+
+---
+
+## Testing
+
+Run the test suite with:
+
+```bash
+vendor/bin/phpunit
+```
+
+Integration tests are included for multiple databases.
+
+---
+
+## Licence
+
+MIT Licence. See [LICENCE](LICENSE) for details
+
+## Usage
 
 - **[Initialization](#initialization)**
 - **[Insert Query](#insert-query)**
@@ -34,10 +76,7 @@ Based on https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 
 ## Installation
 
-To utilize this class, first import PdoDb.php into your project, and require it.
-PdoDb requires PHP 8.4+ to work. Supports MySQL, PostgreSQL ans S
-
-```
+```bash
 composer require tommyknocker/pdo-database-class
 ```
 
@@ -103,6 +142,7 @@ $db->setPrefix('my_');
 ## Insert Query
 
 Simple example
+
 ```php
 $data = [
     "login" => "admin",
@@ -281,7 +321,7 @@ $path_to_file = "/home/john/file.csv";
 $db->loadData("users", $path_to_file);
 ```
 
-This will load a .csv file called **file.csv** in the folder **/home/john/** (john's home directory.)
+This will load a .csv file called **file.csv** in the folder **/home/john/** (John's home directory.)
 You can also attach an optional array of options.
 Valid options are:
 
@@ -308,7 +348,7 @@ $db->loadData("users", "/home/john/file.csv", $options);
 ## Insert XML
 
 To load XML data into a table, you can use the method **loadXML**.
-The syntax is smillar to the loadData syntax.
+The syntax is similar to the loadData syntax.
 
 ```php
 $path_to_file = "/home/john/file.xml";
@@ -533,7 +573,7 @@ $results = $db->get("users");
 // Gives: SELECT * FROM users where fullName like 'John%'
 ```
 
-Also you can use raw where conditions:
+You can use raw where conditions:
 
 ```php
 $db->where("id != companyId");
@@ -561,7 +601,7 @@ echo "Showing {$count} from {$db->totalCount}";
 
 ## Query Keywords
 
-To add LOW PRIORITY | DELAYED | HIGH PRIORITY | IGNORE and the rest of the mysql keywords to INSERT (), REPLACe(), get(), UPDATe(), DELETE() method or FOR UPDATE | LOCK IN SHARE MODE into SELECT ():
+To add LOW PRIORITY | DELAYED | HIGH PRIORITY | IGNORE and the rest of the mysql keywords to INSERT (), REPLACe(), get(), UPDATE(), DELETE() method or FOR UPDATE | LOCK IN SHARE MODE into SELECT ():
 
 ```php
 $db->setQueryOption('LOW_PRIORITY')->insert($table, $param);
@@ -573,7 +613,7 @@ $db->setQueryOption('FOR UPDATE')->get('users');
 // GIVES: SELECT * FROM USERS FOR UPDATE;
 ```
 
-Also you can use an array of keywords:
+You can use an array of keywords:
 
 ```php
 $db->setQueryOption(['LOW_PRIORITY', 'IGNORE'])->insert($table,$param);
@@ -697,14 +737,14 @@ echo "total records found: " . $cnt;
 
 ## Subqueries
 
-Subquery init without an alias to use in inserts/updates/where Eg. (select * from users)
+Subquery init without an alias to use in inserts/updates/where E.g. (select * from users)
 
 ```php
 $sq = $db->subQuery();
 $sq->get("users");
 ```
  
-A subquery with an alias specified to use in JOINs . Eg. (select * from users) sq
+A subquery with an alias specified to use in JOINs . E.g. (select * from users) sq
 
 ```php
 $sq = $db->subQuery("sq");
@@ -876,7 +916,7 @@ $db->setLockMethod("READ")->lock(["users", "log"]);
 ```
 
 This will lock the tables **users** and **log** for **READ** access only.
-Make sure you use **unlock()* afterwards or your tables will remain locked!
+Make sure you use **unlock()* afterward or your tables will remain locked!
 
 ## Explain
 

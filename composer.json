@@ -1,15 +1,21 @@
 {
   "name": "tommyknocker/pdo-database-class",
-  "description": "PHP PDO Wrapper which utilizes PDO and prepared statements",
+  "description": "Lightweight PDO database wrapper for PHP with query builder, cross‑database dialect support (MySQL, PostgreSQL, SQLite, etc), and safe prepared statements",
   "type": "library",
   "keywords": [
     "pdo",
+    "pdo wrapper",
     "database",
-    "mssql",
+    "query builder",
+    "dbal",
     "mysql",
-    "sqlite",
     "postgresql",
-    "pdo_dblib"
+    "sqlite",
+    "mssql",
+    "prepared statements",
+    "sql helper",
+    "database abstraction",
+    "lightweight orm"
   ],
   "homepage": "https://github.com/tommyknocker/pdo-database-class",
   "license": "LGPL-3.0",
