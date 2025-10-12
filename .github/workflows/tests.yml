@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  mysql:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: testdb
+          MYSQL_USER: testuser
+          MYSQL_PASSWORD: testpass
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql
+      - run: composer install --no-interaction --prefer-dist
+      - run: |
+          DB_DSN="mysql:host=127.0.0.1;port=3306;dbname=testdb;charset=utf8mb4" \
+          DB_USER="testuser" \
+          DB_PASS="testpass" \
+          vendor/bin/phpunit tests/PdoDbMySQLTest.php
+
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd="pg_isready -U testuser -d testdb"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql
+      - run: composer install --no-interaction --prefer-dist
+      - run: |
+          DB_DSN="pgsql:host=localhost;port=5433;dbname=testdb" \
+          DB_USER="testuser" \
+          DB_PASS="testpass" \
+          vendor/bin/phpunit tests/PdoDbPostgreSQLTest.php
+
+  sqlite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite
+      - run: composer install --no-interaction --prefer-dist
+      - run: |
+          DB_DSN="sqlite::memory:" \
+          vendor/bin/phpunit tests/PdoDbSqliteTest.php
