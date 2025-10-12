@@ -18,7 +18,7 @@
     "lightweight orm"
   ],
   "homepage": "https://github.com/tommyknocker/pdo-database-class",
-  "license": "LGPL-3.0",
+  "license": "MIT",
   "support": {
     "issues": "https://github.com/tommyknocker/pdo-database-class/issues"
   },
