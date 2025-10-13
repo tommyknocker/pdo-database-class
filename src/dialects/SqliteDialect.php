@@ -4,6 +4,8 @@ namespace tommyknocker\pdodb\dialects;
 
 use InvalidArgumentException;
 use PDO;
+use RuntimeException;
+use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\PdoDb;
 
 class SqliteDialect implements DialectInterface
@@ -38,10 +40,11 @@ class SqliteDialect implements DialectInterface
         return "\"{$name}\"";
     }
 
-    public function booleanLiteral(bool $value): string
+    public function quoteTable(mixed $table): string
     {
-        return $value ? '1' : '0';
+        return $this->quoteTableWithAlias($table);
     }
+
 
     public function insertKeywords(array $flags): string
     {
@@ -52,84 +55,119 @@ class SqliteDialect implements DialectInterface
         return 'INSERT ';
     }
 
-    public function buildInsertValues(string $fullTable, array $columns, array $placeholders, array $flags): string
+    public function buildInsertSql(string $fullTable, array $columns, array $placeholders, array $options): string
     {
         $cols = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
         $phs = implode(',', $placeholders);
-        return $this->insertKeywords($flags) . "INTO {$this->quoteIdentifier($fullTable)} ({$cols}) VALUES ({$phs})";
+        return $this->insertKeywords($options) . "INTO {$fullTable} ({$cols}) VALUES ({$phs})";
     }
 
-    public function buildInsertSubquery(string $fullTable, ?array $columns, string $subquerySql, array $flags): string
-    {
-        $cols = $columns ? '(' . implode(',', array_map([$this, 'quoteIdentifier'], $columns)) . ')' : '';
-        return $this->insertKeywords($flags) . "INTO {$this->quoteIdentifier($fullTable)} {$cols} {$subquerySql}";
-    }
 
-    public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id'): string
+    public function formatSelectOptions(string $sql, array $options): string
     {
-        // In SQLite, INSERT OR REPLACE is more commonly used, so there is no separate clause
-        return '';
-    }
-
-    public function buildReturningClause(?string $returning): string
-    {
-        // SQLite 3.35+ supports RETURNING, but for compatibility we leave it empty
-        return '';
-    }
-
-    public function supportsReturning(): bool
-    {
-        return false;
-    }
-
-    public function lastInsertId(PDO $pdo, ?string $table = null, ?string $column = null): string
-    {
-        return $pdo->lastInsertId();
-    }
-
-    public function buildUpdateSet(array $data): array
-    {
-        $set = [];
-        $params = [];
-        foreach ($data as $col => $val) {
-            $set[] = $this->quoteIdentifier($col) . " = :$col";
-            $params[":$col"] = $val;
+        $middle = [];
+        $tail = [];
+        foreach ($options as $opt) {
+            $u = strtoupper(trim($opt));
+            if (in_array($u, ['LOCK IN SHARE MODE', 'FOR UPDATE'])) {
+                $tail[] = $opt;
+            } else {
+                $middle[] = $opt;
+            }
         }
-        return ['sql' => implode(', ', $set), 'params' => $params];
-    }
 
-    public function buildUpdateStatement(string $fullTable, string $setSql, ?string $whereSql): string
-    {
-        $sql = "UPDATE {$this->quoteIdentifier($fullTable)} SET {$setSql}";
-        if ($whereSql) {
-            $sql .= " WHERE {$whereSql}";
+        if ($middle) {
+            $sql = preg_replace('/^SELECT\s+/i', 'SELECT ' . implode(',', $middle) . ' ', $sql, 1);
+        }
+        if ($tail) {
+            $sql .= ' ' . implode(' ', $tail);
         }
         return $sql;
     }
 
-    public function isStandardUpdateLimit(string $table, int $limit, PdoDb $db): bool
+    public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id'): string
     {
-        return true;
-    }
-
-
-    public function limitOffsetClause(?int $limit, ?int $offset): string
-    {
-        if ($limit === null) {
+        if (!$updateColumns) {
             return '';
         }
-        return $offset ? " LIMIT {$limit} OFFSET {$offset}" : " LIMIT {$limit}";
-    }
 
-    public function now(?string $diff = '', ?string $func = null): string
-    {
-        $func = $func ?: 'CURRENT_TIMESTAMP';
-        if (!$diff) {
-            return $func;
+        $parts = [];
+        $isAssoc = array_keys($updateColumns) !== range(0, count($updateColumns) - 1);
+
+        if ($isAssoc) {
+            foreach ($updateColumns as $col => $expr) {
+                $colSql = $this->quoteIdentifier($col);
+
+                // RawValue вставляем как есть
+                if ($expr instanceof RawValue) {
+                    $parts[] = "{$colSql} = {$expr->getValue()}";
+                    continue;
+                }
+
+                $exprStr = trim((string)$expr);
+
+                // Простое имя или EXCLUDED.name
+                if (preg_match('/^(?:excluded\.)?[A-Za-z_][A-Za-z0-9_]*$/i', $exprStr)) {
+                    if (stripos($exprStr, 'excluded.') === 0) {
+                        $parts[] = "{$colSql} = {$exprStr}";
+                    } else {
+                        $parts[] = "{$colSql} = excluded.{$this->quoteIdentifier($exprStr)}";
+                    }
+                    continue;
+                }
+
+                // Автоквалификация для типичных выражений: заменяем только "голые" вхождения имени колонки на excluded."col"
+                $quotedCol = $this->quoteIdentifier($col);
+                $replacement = 'excluded.' . $quotedCol;
+
+                $safeExpr = preg_replace_callback(
+                    '/\b' . preg_quote($col, '/') . '\b/i',
+                    function ($m) use ($exprStr, $replacement) {
+                        $pos = strpos($exprStr, $m[0]);
+                        if ($pos === false) {
+                            return $m[0];
+                        }
+                        $left = $pos > 0 ? substr($exprStr, max(0, $pos - 9), 9) : '';
+                        if (strpos($left, '.') !== false || stripos($left, 'excluded') !== false) {
+                            return $m[0];
+                        }
+                        return $replacement;
+                    },
+                    $exprStr
+                );
+
+                $parts[] = "{$colSql} = {$safeExpr}";
+            }
+        } else {
+            foreach ($updateColumns as $c) {
+                $parts[] = "{$this->quoteIdentifier($c)} = excluded.{$this->quoteIdentifier($c)}";
+            }
         }
-        return "DATETIME('now','{$diff}')";
+
+        $target = $this->quoteIdentifier($defaultConflictTarget);
+        return "ON CONFLICT ({$target}) DO UPDATE SET " . implode(', ', $parts);
     }
 
+
+    public function buildReplaceSql(string $table, array $columns, array $placeholders, bool $isMultiple = false): string
+    {
+        $colsSql = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
+
+        $valsSql = implode(',', $placeholders);
+
+        if($isMultiple) {
+            return sprintf('REPLACE INTO %s (%s) VALUES %s', $table, $colsSql, $valsSql);
+        }
+        return sprintf('REPLACE INTO %s (%s) VALUES (%s)', $table, $colsSql, $valsSql);
+    }
+
+    public function now(?string $diff = ''): RawValue
+    {
+        if (!$diff) {
+            return new RawValue('CURRENT_TIMESTAMP');
+        }
+        return new RawValue("DATETIME('now','{$diff}')");
+    }
 
     public function explainSql(string $query, bool $analyze = false): string
     {
@@ -151,21 +189,17 @@ class SqliteDialect implements DialectInterface
 
     public function buildLockSql(array $tables, string $prefix, string $lockMethod): string
     {
-        $parts = [];
-        foreach ($tables as $t) {
-            $parts[] = $this->quoteIdentifier($prefix . $t) . " {$lockMethod}";
-        }
-        return "LOCK TABLES " . implode(', ', $parts);
+        throw new RuntimeException('LOCK TABLES not supported');
     }
 
     public function buildUnlockSql(): string
     {
-        return "UNLOCK TABLES";
+        throw new RuntimeException('UNLOCK TABLES not supported');
     }
 
     public function canLoadXml(): bool
     {
-        return true;
+        return false;
     }
 
     public function canLoadData(): bool
@@ -176,5 +210,32 @@ class SqliteDialect implements DialectInterface
     public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options): string
     {
         return '';
+    }
+
+    protected function quoteTableWithAlias(string $table): string
+    {
+        $table = trim($table);
+
+        // supported formats:
+        //  - "schema.table"         (without alias)
+        //  - "schema.table alias"   (alias with space)
+        //  - "schema.table AS alias" (AS)
+        //  - "table alias" / "table AS alias"
+        //  - "table"                (without alias)
+
+        if (preg_match('/\s+AS\s+/i', $table)) {
+            [$name, $alias] = preg_split('/\s+AS\s+/i', $table, 2);
+            $name = trim($name);
+            $alias = trim($alias);
+            return $this->quoteIdentifier($name) . ' AS ' . $this->quoteIdentifier($alias);
+        }
+
+        $parts = preg_split('/\s+/', $table, 2);
+        if (count($parts) === 1) {
+            return $this->quoteIdentifier($parts[0]);
+        }
+
+        [$name, $alias] = $parts;
+        return $this->quoteIdentifier($name) . ' ' . $this->quoteIdentifier($alias);
     }
 }

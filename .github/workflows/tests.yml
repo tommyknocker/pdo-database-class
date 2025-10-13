@@ -18,6 +18,7 @@ jobs:
         ports:
           - 3306:3306
         options: >-
+          --local-infile=1
           --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
           --health-interval=10s
           --health-timeout=5s
@@ -29,7 +30,12 @@ jobs:
           php-version: '8.4'
           extensions: pdo_mysql
       - run: composer install --no-interaction --prefer-dist
-      - run: |
+      - name: Enable local_infile on server
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot -e "SET GLOBAL local_infile = 1;"
+          mysql -h 127.0.0.1 -uroot -proot -e "SHOW VARIABLES LIKE 'local_infile';"
+      - name: Run MySQL tests with local_infile enabled
+        run: |
           DB_DSN="mysql:host=127.0.0.1;port=3306;dbname=testdb;charset=utf8mb4" \
           DB_USER="testuser" \
           DB_PASS="testpass" \
@@ -53,17 +59,30 @@ jobs:
           --health-retries=5
     steps:
       - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
           extensions: pdo_pgsql
-      - run: composer install --no-interaction --prefer-dist
-      - run: |
-          DB_DSN="pgsql:host=localhost;port=5433;dbname=testdb" \
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Start PostgreSQL with required permissions
+        run: |
+          sudo systemctl start postgresql
+          sudo -u postgres psql -c "CREATE ROLE testuser WITH LOGIN PASSWORD 'testpass';"
+          sudo -u postgres psql -c "CREATE DATABASE testdb OWNER testuser;"
+          sudo -u postgres psql -d testdb -c "GRANT pg_read_server_files, pg_write_server_files TO testuser;"
+          # Optional: create a test table or load fixtures if needed
+
+      - name: Run PHPUnit tests
+        run: |
+          DB_DSN="pgsql:host=localhost;port=5432;dbname=testdb" \
           DB_USER="testuser" \
           DB_PASS="testpass" \
           vendor/bin/phpunit tests/PdoDbPostgreSQLTest.php
-
   sqlite:
     runs-on: ubuntu-latest
     steps:

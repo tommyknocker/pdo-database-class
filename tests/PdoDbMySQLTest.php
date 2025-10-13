@@ -5,6 +5,7 @@ namespace tommyknocker\pdodb\tests;
 
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
+use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\PdoDb;
 
 final class PdoDbMySQLTest extends TestCase
@@ -45,7 +46,7 @@ final class PdoDbMySQLTest extends TestCase
             age INT,
             status VARCHAR(20) DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT NULL,
             UNIQUE KEY uniq_name (name)
         ) ENGINE=InnoDB");
 
@@ -116,222 +117,632 @@ final class PdoDbMySQLTest extends TestCase
     public function testInsertWithQueryOption()
     {
         $db = self::$db;
-        $db->delete('users');
-
-        $db->setQueryOption('LOW_PRIORITY')->insert('users', ['name' => 'Alice']);
-        $this->assertStringStartsWith('INSERT LOW_PRIORITY INTO `users`', $db->getLastQuery());
+        $id = $db->find()
+            ->table('users')
+            ->option('LOW_PRIORITY')
+            ->insert(['name' => 'Alice']);
+        $this->assertEquals(1, $id);
+        $this->assertStringStartsWith('INSERT LOW_PRIORITY INTO `users`', $db->lastQuery);
     }
 
     public function testInsertWithMultipleQueryOptions(): void
     {
         $db = self::$db;
-        $db->delete('users');
 
-        $db->setQueryOption(['LOW_PRIORITY', 'IGNORE'])->insert('users', ['name' => 'Bob']);
-        $this->assertStringStartsWith('INSERT LOW_PRIORITY IGNORE INTO `users`', $db->getLastQuery());
+        $id = $db->find()
+            ->table('users')
+            ->option(['LOW_PRIORITY', 'IGNORE'])
+            ->insert(['name' => 'Bob']);
+        $this->assertEquals(1, $id);
+
+        $this->assertStringStartsWith('INSERT LOW_PRIORITY IGNORE INTO `users`', $db->lastQuery);
+
+        $id = $db->find()
+            ->table('users')
+            ->option('LOW_PRIORITY')
+            ->option('IGNORE')
+            ->insert(['name' => 'Bob']);
+        $this->assertEquals(1, $id);
+
+        $this->assertStringStartsWith('INSERT LOW_PRIORITY IGNORE INTO `users`', $db->lastQuery);
     }
+
+    public function testInsertWithRawValue(): void
+    {
+        $db = self::$db;
+
+        $id = $db->find()->table('users')->insert([
+            'name' => 'raw_now_user',
+            'age' => 21,
+            'created_at' => new RawValue('NOW()'),
+        ]);
+
+        $this->assertIsInt($id);
+
+        $row = $db->find()
+            ->from('users')
+            ->where('id', $id)
+            ->select(['id', 'name', 'created_at', new RawValue('NOW() AS nowcol')])
+            ->getOne();
+
+        $this->assertNotEquals('0000-00-00 00:00:00', $row['created_at']);
+        $this->assertArrayHasKey('nowcol', $row);
+        $this->assertNotEquals('0000-00-00 00:00:00', $row['nowcol']);
+        $this->assertEquals('raw_now_user', $row['name']);
+    }
+
+
+    public function testInsertMultiWithRawValues(): void
+    {
+        $db = self::$db;
+
+
+        $rows = [
+            ['name' => 'multi_raw_1', 'age' => 10, 'created_at' => new RawValue('NOW()')],
+            ['name' => 'multi_raw_2', 'age' => 11, 'created_at' => new RawValue('NOW()')],
+        ];
+
+        $rowCount = $db->find()->table('users')->insertMulti($rows);
+        $this->assertEquals(2, $rowCount);
+
+        // ON DUPLICATE with RawValue increment for age
+        $db->find()->table('users')->onDuplicate([
+            'age' => new RawValue('age + 100')
+        ])->insert([
+            'name' => 'multi_raw_1',
+            'age' => 20
+        ]);
+
+        $row = $db->find()->from('users')->where('name', 'multi_raw_1')->getOne();
+        $this->assertGreaterThanOrEqual(110, (int)$row['age']);
+    }
+
 
     public function testSelectWithQueryOption(): void
     {
         $db = self::$db;
-        $db->setQueryOption('SQL_NO_CACHE')->get('users');
-        $this->assertStringStartsWith('SELECT SQL_NO_CACHE * FROM users', $db->getLastQuery());
+
+        $id = $db->find()
+            ->table('users')
+            ->insert(['name' => 'Test', 'age' => 20]);
+        $this->assertEquals(1, $id);
+
+        $rows = $db->find()
+            ->from('users')
+            ->option('SQL_NO_CACHE')
+            ->get();
+        $this->assertCount(1, $rows);
+
+        $row = $db->find()
+            ->from('users')
+            ->option('SQL_NO_CACHE')
+            ->getOne();
+        $this->assertIsArray($row);
+        $this->assertEquals('Test', $row['name']);
+
+        $this->assertStringStartsWith('SELECT SQL_NO_CACHE * FROM `users`', $db->lastQuery);
     }
 
     public function testSelectWithForUpdate(): void
     {
         $db = self::$db;
 
-        $db->setQueryOption('FOR UPDATE')->get('users');
-        $this->assertStringEndsWith('FROM users FOR UPDATE', $db->getLastQuery());
+        $id = $db->find()
+            ->table('users')
+            ->insert(['name' => 'Test', 'age' => 20]);
+        $this->assertEquals(1, $id);
+
+        $rows = $db->find()
+            ->table('users')
+            ->option('FOR UPDATE')
+            ->get();
+        $this->assertCount(1, $rows);
+
+        $this->assertStringEndsWith('FROM `users` FOR UPDATE', $db->lastQuery);
+    }
+
+    public function testUpdate(): void
+    {
+        $db = self::$db;
+
+        $id = $db->find()
+            ->table('users')
+            ->insert(['name' => 'Vasiliy', 'age' => 30]);
+        $this->assertIsInt($id);
+
+
+        self::$db->find()
+            ->table('users')
+            ->where('id', $id)
+            ->update(['age' => 31]);
+
+        $row = $db->find()
+            ->from('users')
+            ->getOne();
+        $this->assertIsArray($row);
+        $this->assertEquals('31', $row['age']);
+
     }
 
     public function testUpdateWithQueryOption(): void
     {
         $db = self::$db;
-        $db->setQueryOption('LOW_PRIORITY')->where('id', 1)->update('users', ['name' => 'Updated']);
-        $this->assertStringStartsWith('UPDATE LOW_PRIORITY `users` SET', $db->getLastQuery());
+
+        $id = $db->find()
+            ->table('users')
+            ->insert(['name' => 'Test', 'age' => 20]);
+        $this->assertEquals(1, $id);
+
+        $rowCount = $db->find()
+            ->table('users')
+            ->option('LOW_PRIORITY')
+            ->where('id', 1)
+            ->update(['name' => 'Updated']);
+        $this->assertEquals(1, $rowCount);
+
+        $this->assertStringStartsWith('UPDATE LOW_PRIORITY `users` SET', $db->lastQuery);
+
+        $row = $db->find()
+            ->from('users')
+            ->getOne();
+        $this->assertIsArray($row);
+        $this->assertEquals('Updated', $row['name']);
+    }
+
+    public function testUpdateLimit(): void
+    {
+        $db = self::$db;
+
+
+        for ($i = 1; $i <= 7; $i++) {
+            $db->find()->table('users')->insert([
+                'name' => "Cnt{$i}",
+                'company' => 'C',
+                'age' => 20 + $i,
+                'status' => 'active',
+            ]);
+        }
+
+        // Update with limit 5
+        $db->find()->table('users')
+            ->limit(5)
+            ->update(['status' => 'inactive']);
+
+        $inactive = $db->find()
+            ->from('users')
+            ->where('status', 'inactive')
+            ->get();
+
+        $this->assertCount(5, $inactive);
+    }
+
+
+    public function testUpdateWithRawValue(): void
+    {
+        $db = self::$db;
+
+        $id = $db->find()->table('users')->insert([
+            'name' => 'update_raw_user',
+            'age' => 30,
+        ]);
+        $this->assertIsInt($id);
+
+        // Update using RawValue for timestamp and expression for value
+        $rowCount = $db->find()
+            ->from('users')
+            ->where('id', $id)
+            ->update([
+                'created_at' => new RawValue('NOW()'),
+                'updated_at' => new RawValue('NOW()'),
+                'age' => new RawValue('age + 5'),
+            ]);
+        $this->assertEquals(1, $rowCount);
+
+        $row = $db->find()
+            ->from('users')
+            ->where('id', $id)
+            ->getOne();
+
+        $this->assertNotEquals('0000-00-00 00:00:00', $row['updated_at']);
+        $this->assertSame($row['created_at'], $row['updated_at']);
+        $this->assertNotEmpty($row['updated_at']);
+        $this->assertEquals(35, (int)$row['age']);
+    }
+
+    public function testUpdateWithSubquery(): void
+    {
+        $db = self::$db;
+
+        $db->find()->table('users')->insert(['id' => 1, 'name' => 'Alice']);
+        $db->find()->table('users')->insert(['id' => 2, 'name' => 'Bob']);
+        $db->find()->table('users')->insert(['id' => 3, 'name' => 'Charlie']);
+
+        $db->find()->table('orders')->insert(['user_id' => 1, 'amount' => 100]);
+        $db->find()->table('orders')->insert(['user_id' => 1, 'amount' => 200]);
+        $db->find()->table('orders')->insert(['user_id' => 2, 'amount' => 50]);
+
+        $sub = $db->find()->from('orders')->select(['user_id']);
+
+        $db->find()
+            ->from('users')
+            ->where('id', $sub, 'IN')
+            ->update(['status' => 'active']);
+
+        $this->assertStringContainsString('UPDATE `users` SET', $db->lastQuery);
+        $this->assertStringContainsString('WHERE `id` IN (SELECT `user_id` FROM `orders`)', $db->lastQuery);
+
+        $count = $db->find()
+            ->from('users')
+            ->select(new RawValue('COUNT(*)'))
+            ->where('status', 'active')
+            ->getValue();
+        $this->assertEquals(2, $count);
+    }
+
+    public function testDelete(): void
+    {
+        $db = self::$db;
+
+        $rowCount = self::$db->find()
+            ->table('users')
+            ->insertMulti([
+                ['name' => 'UserA', 'age' => 20],
+                ['name' => 'UserB', 'age' => 20],
+                ['name' => 'UserC', 'age' => 30],
+                ['name' => 'UserD', 'age' => 40],
+                ['name' => 'UserE', 'age' => 50]
+            ]);
+        $this->assertEquals(5, $rowCount);
+
+        $deleted = self::$db->find()
+            ->from('users')
+            ->where('age', 20)
+            ->delete();
+        $this->assertEquals(2, $deleted);
+
+        $rows = $db->find()
+            ->table('users')
+            ->get();
+        $this->assertCount(3, $rows);
+    }
+
+    public function testDeleteWithSubquery(): void
+    {
+        $db = self::$db;
+
+        $rowCount = self::$db->find()
+            ->table('users')
+            ->insertMulti([
+                ['id' => 1, 'name' => 'UserA', 'age' => 10],
+                ['id' => 2, 'name' => 'UserB', 'age' => 20],
+                ['id' => 3, 'name' => 'UserC', 'age' => 30],
+                ['id' => 4, 'name' => 'UserD', 'age' => 40],
+                ['id' => 5, 'name' => 'UserE', 'age' => 50]
+            ]);
+        $this->assertEquals(5, $rowCount);
+
+        $rowCount = self::$db->find()
+            ->table('orders')
+            ->insertMulti([
+                ['user_id' => 1, 'amount' => 100],
+                ['user_id' => 2, 'amount' => 200],
+            ]);
+        $this->assertEquals(2, $rowCount);
+
+
+        $subQuery = $db->find()
+            ->from('orders')
+            ->select('user_id')
+            ->where('amount', 100, '>=');
+
+        $db->find()
+            ->from('users')
+            ->where('id', $subQuery, 'IN')
+            ->delete();
+
+
+        $this->assertStringContainsString(
+            'DELETE FROM `users` WHERE `id` IN (SELECT `user_id` FROM `orders` WHERE `amount` >=',
+            $db->lastQuery
+        );
+        $this->assertStringContainsString(')', $db->lastQuery);
+
+
+        $rows = $db->find()
+            ->table('users')
+            ->select('id')
+            ->orderBy('id', 'ASC')
+            ->getColumn();
+        $this->assertCount(3, $rows);
+        $this->assertSame([3, 4, 5], $rows);
     }
 
     public function testDeleteWithQueryOption(): void
     {
         $db = self::$db;
-        $db->setQueryOption('LOW_PRIORITY')->where('id', 1)->delete('users');
-        $this->assertStringStartsWith('DELETE LOW_PRIORITY FROM users WHERE', $db->getLastQuery());
-    }
 
+        $id = $db->find()
+            ->table('users')
+            ->insert(['name' => 'Test', 'age' => 20]);
+        $this->assertEquals(1, $id);
+
+        $db->find()
+            ->table('users')
+            ->option('LOW_PRIORITY')
+            ->where('id', 1)
+            ->delete();
+
+        $this->assertStringStartsWith('DELETE LOW_PRIORITY FROM `users` WHERE', $db->lastQuery);
+
+        $rows = $db->find()
+            ->from('users')
+            ->option('SQL_NO_CACHE')
+            ->get();
+        $this->assertCount(0, $rows);
+    }
 
     public function testRawQueryOne(): void
     {
-        self::$db->insert('users', ['name' => 'RawOne', 'age' => 42]);
+        $db = self::$db;
 
-        $row = self::$db->rawQueryOne("SELECT * FROM users WHERE name = ?", ['RawOne']);
+        $id = $db->find()
+            ->table('users')
+            ->insert(['name' => 'Test', 'age' => 42]);
+        $this->assertEquals(1, $id);
+
+        $row = self::$db->rawQueryOne("SELECT * FROM users WHERE name = ?", ['Test']);
         $this->assertEquals(42, $row['age']);
+    }
+
+    public function testRawQueryValue(): void
+    {
+        $db = self::$db;
+
+        $id = $db->find()
+            ->table('users')
+            ->insert(['name' => 'RawVal', 'age' => 55]);
+        $this->assertEquals(1, $id);
+
+
+        $age = self::$db->rawQueryValue("SELECT age FROM users WHERE name = ?", ['RawVal']);
+        $this->assertEquals(55, $age);
     }
 
     public function testOrWhere(): void
     {
-        self::$db->insertMulti('users', [
-            ['name' => 'A', 'age' => 10],
-            ['name' => 'B', 'age' => 20],
-        ]);
+        $rowCount = self::$db->find()
+            ->table('users')
+            ->insertMulti([
+                ['name' => 'A', 'age' => 10],
+                ['name' => 'B', 'age' => 20],
+            ]);
+        $this->assertEquals(2, $rowCount);
 
-        $rows = self::$db->where('age', 10)->orWhere('age', 20)->get('users');
+        $rows = self::$db->find()
+            ->from('users')
+            ->where('age', 10)
+            ->orWhere('age', 20)
+            ->get();
         $this->assertCount(2, $rows);
+
+        $rows = self::$db->find()
+            ->from('users')
+            ->where('age', 10)
+            ->orWhere('age', 30)
+            ->get();
+        $this->assertCount(1, $rows);
     }
 
-    public function testJoinWhereAndJoinOrWhere(): void
+    public function testAndWhere(): void
     {
-        $uid = self::$db->insert('users', ['name' => 'JoinUser', 'age' => 40]);
-        self::$db->insert('orders', ['user_id' => $uid, 'amount' => 100]);
+        $rowCount = self::$db->find()
+            ->table('users')
+            ->insertMulti([
+                ['name' => 'A', 'age' => 10],
+                ['name' => 'B', 'age' => 20],
+            ]);
+        $this->assertEquals(2, $rowCount);
+
+        $rows = self::$db->find()
+            ->from('users')
+            ->where('age', 10)
+            ->andWhere('name', 'A')
+            ->get();
+        $this->assertCount(1, $rows);
+
+        $rows = self::$db->find()
+            ->from('users')
+            ->where('age', 10)
+            ->andWhere('name', 'B')
+            ->get();
+        $this->assertCount(0, $rows);
+    }
+
+    public function testInnerJoinAndWhere(): void
+    {
+        $db = self::$db;
+
+        $uid = $db->find()
+            ->table('users')
+            ->insert(['name' => 'JoinUser', 'age' => 40]);
+        $this->assertEquals(1, $uid);
+
+
+        self::$db->find()
+            ->table('orders')
+            ->insert(['user_id' => $uid, 'amount' => 100]);
 
         $rows = self::$db
-            ->join('orders o', 'u.id = o.user_id')
-            ->joinWhere('o', 'amount', 100)
-            ->joinOrWhere('o', 'amount', [100, 200], 'IN')
-            ->get('users u', null, ['u.name', 'o.amount']);
+            ->find()
+            ->from('users u')
+            ->innerJoin('orders o', 'u.id = o.user_id')
+            ->where('o.amount', 100)
+            ->andWhere('o.amount', [100, 200], 'IN')
+            ->get();
 
         $this->assertEquals('JoinUser', $rows[0]['name']);
     }
 
     public function testComplexWhereAndOrWhere(): void
     {
-        // Prepare test data
-        self::$db->insert('users', ['name' => 'UserA', 'age' => 20]);
-        self::$db->insert('users', ['name' => 'UserB', 'age' => 30]);
-        self::$db->insert('users', ['name' => 'UserC', 'age' => 40]);
-        self::$db->insert('users', ['name' => 'UserD', 'age' => 50]);
+        $rowCount = self::$db->find()
+            ->table('users')
+            ->insertMulti([
+                ['name' => 'UserA', 'age' => 20],
+                ['name' => 'UserB', 'age' => 30],
+                ['name' => 'UserC', 'age' => 40],
+                ['name' => 'UserD', 'age' => 50]
+            ]);
+        $this->assertEquals(4, $rowCount);
 
         // Build query with where + multiple orWhere
-        $rows = self::$db
-            ->where('age', 20)                       // first condition
-            ->orWhere('age', 30)                     // first OR
-            ->orWhere('age', 40)                     // second OR
-            ->get('users', null, ['name', 'age']);
-
-        // Collect ages from result
-        $ages = array_column($rows, 'age');
+        $ages = self::$db
+            ->find()
+            ->from('users')
+            ->select(['age'])
+            ->where('age', 20)
+            ->orWhere('age', 30)
+            ->orWhere('age', 40)
+            ->getColumn();
 
         // Assert that only expected ages are returned
         sort($ages);
         $this->assertEquals([20, 30, 40], $ages);
     }
 
-    public function testRawQueryValue(): void
+    public function testGetColumn(): void
     {
-        self::$db->insert('users', ['name' => 'RawVal', 'age' => 55]);
+        $db = self::$db;
 
-        $age = self::$db->rawQueryValue("SELECT age FROM users WHERE name = ?", ['RawVal']);
-        $this->assertEquals(55, $age);
-    }
+        // prepare data
+        $db->find()->table('users')->insert(['id' => 1, 'name' => 'Alice', 'age' => 30]);
+        $db->find()->table('users')->insert(['id' => 2, 'name' => 'Bob', 'age' => 25]);
 
-    public function testInsertAndGetOne(): void
-    {
-        $id = self::$db->insert('users', ['name' => 'Vasiliy', 'age' => 30]);
-        $this->assertIsInt($id);
+        // 1) simple field
+        $columns = $db->find()->from('users')->select(['id'])->getColumn();
+        $this->assertIsArray($columns);
+        $this->assertCount(2, $columns);
+        $this->assertSame([1, 2], array_values($columns));
 
-        $row = self::$db->getOne('users');
-        $this->assertEquals('Vasiliy', $row['name']);
-    }
+        // 2) alias support (select expression with alias)
+        $columns = $db->find()
+            ->from('users')
+            ->select(['name AS username'])
+            ->getColumn();
+        $this->assertIsArray($columns);
+        $this->assertCount(2, $columns);
+        $this->assertSame(['Alice', 'Bob'], array_values($columns));
 
-    public function testUpdate(): void
-    {
-        $id = self::$db->insert('users', ['name' => 'Vasiliy', 'age' => 30]);
-        $this->assertIsInt($id);
-
-        self::$db->where('id', $id)->update('users', ['age' => 31]);
-
-        $row = self::$db->where('id', $id)->getOne('users');
-        $this->assertEquals(31, $row['age']);
+        // 3) raw value with alias (must provide alias to be addressable)
+        $columns = $db->find()
+            ->from('users')
+            ->select([new RawValue('CONCAT(name, "_", age) AS name_age')])
+            ->getColumn();
+        $this->assertIsArray($columns);
+        $this->assertCount(2, $columns);
+        $this->assertSame(['Alice_30', 'Bob_25'], array_values($columns));
     }
 
     public function testGetValue(): void
     {
-        $id = self::$db->insert('users', ['name' => 'Petya', 'age' => 31]);
-        $this->assertIsInt($id);
+        $db = self::$db;
 
-        $age = self::$db->where('id', $id)->getValue('users', 'age');
-        $this->assertEquals(31, $age);
+        // prepare data
+        $db->find()->table('users')->insert(['id' => 10, 'name' => 'Carol', 'age' => 40]);
+
+        // 1) simple field -> returns single value from first row
+        $val = $db->find()->from('users')->select(['id'])->getValue();
+        $this->assertNotFalse($val);
+        $this->assertSame(10, $val);
+
+        // 2) alias support
+        $val = $db->find()->from('users')->select(['name AS username'])->getValue();
+        $this->assertNotFalse($val);
+        $this->assertSame('Carol', $val);
+
+        // 3) raw value with alias
+        $val = $db->find()
+            ->from('users')
+            ->select([new RawValue('CONCAT(name, "-", age) AS n_age')])
+            ->getValue();
+        $this->assertNotFalse($val);
+        $this->assertSame('Carol-40', $val);
     }
 
-    public function testDelete(): void
-    {
-        $id = self::$db->insert('users', ['name' => 'ToDelete', 'age' => 99]);
-        $this->assertIsInt($id);
-
-        $exists = self::$db->where('id', $id)->has('users');
-        $this->assertTrue($exists);
-
-        $deleted = self::$db->where('id', $id)->delete('users');
-        $this->assertGreaterThan(0, $deleted);
-
-        $exists = self::$db->where('id', $id)->has('users');
-        $this->assertFalse($exists);
-    }
-
-    public function testDeleteWithSubquery()
+    public function testGetAsObject(): void
     {
         $db = self::$db;
 
-        $db->delete('users');
-        $db->delete('orders');
+        $db->find()->table('users')->insert(['name' => 'Olya', 'age' => 22]);
 
-        $db->insert('users', ['id' => 1, 'name' => 'Alice']);
-        $db->insert('users', ['id' => 2, 'name' => 'Bob']);
-        $db->insert('users', ['id' => 3, 'name' => 'Charlie']);
+        // objectBuilder for multiple rows
+        $rows = $db->find()
+            ->from('users')
+            ->asObject()
+            ->get();
+        $this->assertIsObject($rows[0]);
+        $this->assertEquals(22, $rows[0]->age);
 
-        $db->insert('orders', ['user_id' => 1, 'amount' => 100]);
-        $db->insert('orders', ['user_id' => 2, 'amount' => 50]);
-
-        $sub = $db->subQuery();
-        $sub->get('orders', null, ['user_id']);
-
-        $db->where('id', $sub, 'IN')->delete('users');
-
-        $this->assertStringContainsString(
-            'DELETE FROM users WHERE id IN (SELECT user_id FROM orders)',
-            $db->getLastQuery()
-        );
-
-        $rows = $db->get('users');
-        $this->assertCount(1, $rows);
-        $this->assertEquals('Charlie', $rows[0]['name']);
+        // objectBuilder for single row
+        $row = $db->find()
+            ->from('users')
+            ->asObject()
+            ->getOne();
+        $this->assertIsObject($row);
+        $this->assertEquals(22, $row->age);
     }
+
 
     public function testWhereBetweenAndNotBetween(): void
     {
+        $db = self::$db;
+
         // Prepare data
-        self::$db->insert('users', ['name' => 'A', 'age' => 10]);
-        self::$db->insert('users', ['name' => 'B', 'age' => 25]);
-        self::$db->insert('users', ['name' => 'C', 'age' => 30]);
-        self::$db->insert('users', ['name' => 'D', 'age' => 50]);
+        $db->find()->table('users')->insert(['name' => 'A', 'age' => 10]);
+        $db->find()->table('users')->insert(['name' => 'B', 'age' => 25]);
+        $db->find()->table('users')->insert(['name' => 'C', 'age' => 30]);
+        $db->find()->table('users')->insert(['name' => 'D', 'age' => 50]);
 
         // BETWEEN
-        $rows = self::$db->where('age', [20, 40], 'BETWEEN')->get('users');
-        $ages = array_column($rows, 'age');
-        sort($ages);
+        $ages = $db->find()
+            ->from('users')
+            ->select('age')
+            ->where('age', [20, 40], 'BETWEEN')
+            ->orderBy('age', 'ASC')
+            ->getColumn();
         $this->assertEquals([25, 30], $ages);
 
         // NOT BETWEEN
-        $rows = self::$db->where('age', [20, 40], 'NOT BETWEEN')->get('users');
-        $ages = array_column($rows, 'age');
-        sort($ages);
+        $ages = $db->find()
+            ->from('users')
+            ->select('age')
+            ->where('age', [20, 40], 'NOT BETWEEN')
+            ->orderBy('age', 'ASC')
+            ->getColumn();
         $this->assertEquals([10, 50], $ages);
     }
 
     public function testWhereInAndNotIn(): void
     {
-        self::$db->insert('users', ['name' => 'E', 'age' => 60]);
-        self::$db->insert('users', ['name' => 'F', 'age' => 70]);
+        $db = self::$db;
+
+        $db->find()->table('users')->insert(['name' => 'E', 'age' => 60]);
+        $db->find()->table('users')->insert(['name' => 'F', 'age' => 70]);
 
         // IN
-        $rows = self::$db->where('age', [60, 70], 'IN')->get('users');
+        $rows = $db->find()
+            ->from('users')
+            ->where('age', [60, 70], 'IN')
+            ->get();
         $ages = array_column($rows, 'age');
         sort($ages);
         $this->assertEquals([60, 70], $ages);
 
         // NOT IN
-        $rows = self::$db->where('age', [60, 70], 'NOT IN')->get('users');
+        $rows = $db->find()
+            ->from('users')
+            ->where('age', [60, 70], 'NOT IN')
+            ->get();
         $ages = array_column($rows, 'age');
         $this->assertNotContains(60, $ages);
         $this->assertNotContains(70, $ages);
@@ -339,54 +750,93 @@ final class PdoDbMySQLTest extends TestCase
 
     public function testWhereInWithEmptyArray(): void
     {
-        self::$db->insert('users', ['name' => 'EmptyIn', 'age' => 99]);
-        $rows = self::$db->where('age', [], 'IN')->get('users');
+        $db = self::$db;
+
+        $db->find()->table('users')->insert(['name' => 'EmptyIn', 'age' => 99]);
+
+        $rows = $db->find()
+            ->from('users')
+            ->where('age', [], 'IN')
+            ->get();
+
         $this->assertCount(0, $rows, 'IN [] must return no rows');
     }
 
     public function testWhereNotInWithEmptyArray(): void
     {
-        $id = self::$db->insert('users', ['name' => 'EmptyNotIn', 'age' => 100]);
+        $db = self::$db;
 
-        $rows = self::$db->where('id', [], 'NOT IN')->get('users');
+        $id = $db->find()->table('users')->insert(['name' => 'EmptyNotIn', 'age' => 100]);
+
+        $rows = $db->find()
+            ->from('users')
+            ->where('id', [], 'NOT IN')
+            ->get();
         $ids = array_column($rows, 'id');
 
         $this->assertContains($id, $ids, 'NOT IN [] must not filter out any rows');
     }
 
-    public function testWhereStateIsResetBetweenQueries()
+    public function testWhereStateIsResetBetweenQueries(): void
     {
         $db = self::$db;
 
-        $db->delete('users');
-        $db->insert('users', ['id' => 1, 'name' => 'Alice']);
-        $db->insert('users', ['id' => 2, 'name' => 'Bob']);
+        $db->find()->table('users')->insert(['id' => 1, 'name' => 'Alice']);
+        $db->find()->table('users')->insert(['id' => 2, 'name' => 'Bob']);
 
-        $row = $db->where('id', 1)->getOne('users');
+        $row = $db->find()
+            ->from('users')
+            ->where('id', 1)
+            ->getOne();
         $this->assertEquals('Alice', $row['name']);
 
-        $rows = $db->get('users');
+        $rows = $db->find()
+            ->from('users')
+            ->get();
         $this->assertCount(2, $rows);
+    }
+
+    public function testWhereInAndRawValueNotBound(): void
+    {
+        $db = self::$db;
+
+        // prepare table
+        $id1 = $db->find()->table('users')->insert(['name' => 'where_raw_1', 'age' => 1]);
+        $id2 = $db->find()->table('users')->insert(['name' => 'where_raw_2', 'age' => 3]);
+
+        // Use RawValue in condition so RHS is inlined and not bound as a parameter
+        $rows = $db->find()
+            ->from('users')
+            ->where('id', [$id1, $id2], 'IN')
+            ->where('age', new RawValue('2 + 1'), '=')
+            ->get();
+
+        $ids = array_column($rows, 'id');
+        $this->assertContains($id2, $ids);
     }
 
     public function testHavingAndOrHaving(): void
     {
-        $u1 = self::$db->insert('users', ['name' => 'H1']);
-        $u2 = self::$db->insert('users', ['name' => 'H2']);
-        $u3 = self::$db->insert('users', ['name' => 'H3']);
+        $db = self::$db;
 
-        self::$db->insert('orders', ['user_id' => $u1, 'amount' => 100]);
-        self::$db->insert('orders', ['user_id' => $u1, 'amount' => 200]); // total 300
-        self::$db->insert('orders', ['user_id' => $u2, 'amount' => 300]);
-        self::$db->insert('orders', ['user_id' => $u2, 'amount' => 400]); // total 700
-        self::$db->insert('orders', ['user_id' => $u3, 'amount' => 500]); // total 500
+        $u1 = $db->find()->table('users')->insert(['name' => 'H1']);
+        $u2 = $db->find()->table('users')->insert(['name' => 'H2']);
+        $u3 = $db->find()->table('users')->insert(['name' => 'H3']);
 
-        $rows = self::$db
+        $db->find()->table('orders')->insert(['user_id' => $u1, 'amount' => 100]);
+        $db->find()->table('orders')->insert(['user_id' => $u1, 'amount' => 200]); // total 300
+        $db->find()->table('orders')->insert(['user_id' => $u2, 'amount' => 300]);
+        $db->find()->table('orders')->insert(['user_id' => $u2, 'amount' => 400]); // total 700
+        $db->find()->table('orders')->insert(['user_id' => $u3, 'amount' => 500]); // total 500
+
+        $rows = $db->find()
+            ->from('orders')
             ->groupBy('user_id')
-            ->having('SUM(amount)', 300, '=')       // first condition
-            ->orHaving('SUM(amount)', 500, '=')     // OR
-            ->orHaving('SUM(amount)', 700, '=')     // OR
-            ->get('orders', null, ['user_id', 'SUM(amount) as total']);
+            ->having(new RawValue('SUM(amount)'), 300, '=')
+            ->orHaving(new RawValue('SUM(amount)'), 500, '=')
+            ->orHaving(new RawValue('SUM(amount)'), 700, '=')
+            ->select(['user_id', 'SUM(amount) AS total'])
+            ->get();
 
         $totals = array_column($rows, 'total');
         sort($totals);
@@ -395,59 +845,78 @@ final class PdoDbMySQLTest extends TestCase
 
     public function testComplexHavingAndOrHaving(): void
     {
-        // Prepare test data
-        $u1 = self::$db->insert('users', ['name' => 'User1', 'age' => 20]);
-        $u2 = self::$db->insert('users', ['name' => 'User2', 'age' => 30]);
-        $u3 = self::$db->insert('users', ['name' => 'User3', 'age' => 40]);
+        $db = self::$db;
 
-        self::$db->insert('orders', ['user_id' => $u1, 'amount' => 100]);
-        self::$db->insert('orders', ['user_id' => $u1, 'amount' => 200]);
-        self::$db->insert('orders', ['user_id' => $u2, 'amount' => 300]);
-        self::$db->insert('orders', ['user_id' => $u2, 'amount' => 400]);
-        self::$db->insert('orders', ['user_id' => $u3, 'amount' => 500]);
 
-        // Build query with group by and multiple having/orHaving
-        $rows = self::$db
+        $u1 = $db->find()->table('users')->insert(['name' => 'User1', 'age' => 20]);
+        $u2 = $db->find()->table('users')->insert(['name' => 'User2', 'age' => 30]);
+        $u3 = $db->find()->table('users')->insert(['name' => 'User3', 'age' => 40]);
+
+        $db->find()->table('orders')->insert(['user_id' => $u1, 'amount' => 100]);
+        $db->find()->table('orders')->insert(['user_id' => $u1, 'amount' => 200]); // total 300
+        $db->find()->table('orders')->insert(['user_id' => $u2, 'amount' => 300]);
+        $db->find()->table('orders')->insert(['user_id' => $u2, 'amount' => 400]); // total 700
+        $db->find()->table('orders')->insert(['user_id' => $u3, 'amount' => 500]); // total 500
+
+        $rows = $db->find()
+            ->from('orders')
+            ->select(['user_id', 'SUM(amount) AS total'])
             ->groupBy('user_id')
-            ->having('SUM(amount)', 300, '>=')       // first condition
-            ->orHaving('SUM(amount)', 500, '=')      // first OR
-            ->orHaving('SUM(amount)', 700, '=')      // second OR
-            ->get('orders', null, ['user_id', 'SUM(amount) as total']);
+            ->having(new RawValue('SUM(amount)'), 300, '>=')
+            ->orHaving(new RawValue('SUM(amount)'), 500, '=')
+            ->orHaving(new RawValue('SUM(amount)'), 700, '=')
+            ->get();
 
-        // Collect totals from result
         $totals = array_column($rows, 'total');
-
-        // Assert that expected totals are present
         sort($totals);
         $this->assertEquals([300, 500, 700], $totals);
     }
 
     public function testGroupBy(): void
     {
-        self::$db->insertMulti('users', [
+        $db = self::$db;
+
+        $db->find()->table('users')->insertMulti([
             ['name' => 'A', 'age' => 10],
             ['name' => 'B', 'age' => 10],
         ]);
 
-        $rows = self::$db->groupBy('age')->get('users', null, ['age', 'COUNT(*) as cnt']);
+        $rows = $db->find()
+            ->from('users')
+            ->groupBy('age')
+            ->select(['age', 'COUNT(*) AS cnt'])
+            ->get();
+
+        $this->assertCount(1, $rows);
+        $this->assertEquals(10, $rows[0]['age']);
         $this->assertEquals(2, $rows[0]['cnt']);
     }
 
     public function testTransaction(): void
     {
-        self::$db->startTransaction();
-        self::$db->insert('users', ['name' => 'Alice', 'age' => 25]);
-        self::$db->rollback();
+        $db = self::$db;
 
-        $exists = self::$db->where('name', 'Alice')->has('users');
-        $this->assertFalse($exists);
+        // First transaction: insert and rollback
+        $db->startTransaction();
+        $db->find()->table('users')->insert(['name' => 'Alice', 'age' => 25]);
+        $db->rollback();
 
-        self::$db->startTransaction();
-        self::$db->insert('users', ['name' => 'Bob', 'age' => 40]);
-        self::$db->commit();
+        $exists = $db->find()
+            ->from('users')
+            ->where('name', 'Alice')
+            ->exists();
+        $this->assertFalse($exists, 'Rolled back insert should not exist');
 
-        $exists = self::$db->where('name', 'Bob')->has('users');
-        $this->assertTrue($exists);
+        // Second transaction: insert and commit
+        $db->startTransaction();
+        $db->find()->table('users')->insert(['name' => 'Bob', 'age' => 40]);
+        $db->commit();
+
+        $exists = $db->find()
+            ->from('users')
+            ->where('name', 'Bob')
+            ->exists();
+        $this->assertTrue($exists, 'Committed insert should exist');
     }
 
     public function testLockUnlock(): void
@@ -467,7 +936,7 @@ final class PdoDbMySQLTest extends TestCase
 
         $this->assertSame(
             'LOCK TABLES `users` WRITE, `orders` WRITE',
-            $db->getLastQuery()
+            $db->lastQuery
         );
 
         $ok = self::$db->unlock();
@@ -481,322 +950,128 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertStringContainsString("O\\'Reilly", $safe);
     }
 
-    public function testBuilders(): void
-    {
-        self::$db->insert('users', ['name' => 'Olya', 'age' => 22]);
-
-        // arrayBuilder
-        $rows = self::$db->arrayBuilder()->get('users');
-        $this->assertIsArray($rows);
-        $this->assertEquals('Olya', $rows[0]['name']);
-
-        // objectBuilder
-        $rows = self::$db->objectBuilder()->get('users');
-        $this->assertIsObject($rows[0]);
-        $this->assertEquals(22, $rows[0]->age);
-
-        // jsonBuilder
-        $rows = self::$db->jsonBuilder()->get('users');
-        $this->assertJson($rows);
-        $decoded = json_decode($rows, true, 512, JSON_THROW_ON_ERROR);
-        $this->assertEquals('Olya', $decoded[0]['name']);
-    }
-
-    public function testInsertMulti(): void
-    {
-        $rows = [
-            ['name' => 'Alice', 'age' => 25],
-            ['name' => 'Bob', 'age' => 30],
-            ['name' => 'Charlie', 'age' => 35],
-        ];
-        $ok = self::$db->insertMulti('users', $rows);
-        $this->assertTrue($ok);
-
-        $all = self::$db->get('users');
-        $this->assertCount(3, $all);
-    }
-
     public function testReplace(): void
     {
-        $id = self::$db->insert('users', ['name' => 'Diana', 'age' => 40]);
+        $db = self::$db;
+
+        $id = $db->find()->table('users')->insert([
+            'name' => 'Diana',
+            'age' => 40,
+        ]);
         $this->assertIsInt($id);
 
-        $rowCount = self::$db->replace('users', ['id' => $id, 'name' => 'Diana', 'age' => 41]);
+        $rowCount = $db->find()->table('users')->replace([
+            'id' => $id,
+            'name' => 'Diana',
+            'age' => 41,
+        ]);
         $this->assertGreaterThan(0, $rowCount);
 
-        $row = self::$db->where('id', $id)->getOne('users');
+        $row = $db->find()
+            ->from('users')
+            ->where('id', $id)
+            ->getOne();
+
         $this->assertEquals(41, $row['age']);
     }
 
     public function testReplaceMulti(): void
     {
-        self::$db->insertMulti('users', [
+        $db = self::$db;
+
+        $db->find()->table('users')->insertMulti([
             ['id' => 1, 'name' => 'Alice', 'age' => 25],
             ['id' => 2, 'name' => 'Bob', 'age' => 30],
         ]);
 
-        $all = self::$db->orderBy('id')->get('users');
+        $all = $db->find()
+            ->from('users')
+            ->orderBy('id')
+            ->get();
+
         $this->assertCount(2, $all);
         $this->assertEquals(25, $all[0]['age']);
         $this->assertEquals(30, $all[1]['age']);
 
-        $ok = self::$db->replaceMulti('users', [
-            ['id' => 1, 'name' => 'Alice', 'age' => 26], // replace existent
-            ['id' => 3, 'name' => 'Charlie', 'age' => 35], // insert new
+        $rowCount = $db->find()->table('users')->replaceMulti([
+            ['id' => 1, 'name' => 'Alice', 'age' => 26],     // replace existing
+            ['id' => 3, 'name' => 'Charlie', 'age' => 35],   // insert new
         ]);
-        $this->assertTrue($ok);
+        $this->assertEquals(3, $rowCount);
 
-        $all = self::$db->orderBy('id')->get('users');
+        $all = $db->find()
+            ->from('users')
+            ->orderBy('id')
+            ->get();
+
         $this->assertCount(3, $all);
-
-        // Alice replaced
-        $this->assertEquals(26, $all[0]['age']);
-        // Bob remains the same
-        $this->assertEquals(30, $all[1]['age']);
-        // Charlie added
-        $this->assertEquals('Charlie', $all[2]['name']);
+        $this->assertEquals(26, $all[0]['age']);            // Alice replaced
+        $this->assertEquals(30, $all[1]['age']);            // Bob unchanged
+        $this->assertEquals('Charlie', $all[2]['name']);    // Charlie added
         $this->assertEquals(35, $all[2]['age']);
     }
 
-    public function testOnDuplicate(): void
+    public function testInsertOnDuplicate(): void
     {
-        self::$db->insert('users', ['name' => 'Eve', 'age' => 20]);
+        $db = self::$db;
 
-        self::$db->onDuplicate(['age'])->insert('users', ['name' => 'Eve', 'age' => 21]);
+        $db->find()->table('users')->insert(['name' => 'Eve', 'age' => 20]);
 
-        $row = self::$db->where('name', 'Eve')->getOne('users');
+        // Use fluent builder to set ON DUPLICATE behavior and perform insert
+        $db->find()
+            ->table('users')
+            ->onDuplicate(['age'])
+            ->insert(['name' => 'Eve', 'age' => 21]);
+
+        $this->assertStringContainsString(
+            'ON DUPLICATE KEY UPDATE `age` = VALUES(`age`)',
+            $db->lastQuery
+        );
+
+        $row = $db->find()
+            ->from('users')
+            ->where('name', 'Eve')
+            ->getOne();
+
         $this->assertEquals(21, $row['age']);
     }
 
 
-    public function testPaginate(): void
-    {
-        for ($i = 0; $i < 15; $i++) {
-            self::$db->insert('users', [
-                'name' => 'User' . $i,
-                'age' => 20 + $i
-            ]);
-        }
-
-        self::$db->setPageLimit(5);
-
-        // Page 1 - 5 records
-        $page1 = self::$db->withTotalCount()->orderBy('id', 'ASC')
-            ->paginate('users', 1, ['id', 'name']);
-        $this->assertCount(5, $page1);
-
-        // Total count is 15
-        $this->assertEquals(15, self::$db->totalCount());
-
-        // Page 2 - 5 records
-        self::$db->orderBy('id', 'ASC')->setPageLimit(5);
-        $page2 = self::$db->paginate('users', 2, ['id', 'name']);
-        $this->assertCount(5, $page2);
-
-        // Page 3 - 5 records
-        self::$db->orderBy('id', 'ASC')->setPageLimit(5);
-        $page3 = self::$db->paginate('users', 3, ['id', 'name']);
-        $this->assertCount(5, $page3);
-
-        // Page 4 - empty result
-        self::$db->orderBy('id', 'ASC')->setPageLimit(5);
-        $page4 = self::$db->paginate('users', 4, ['id', 'name']);
-        $this->assertCount(0, $page4);
-    }
-
-    public function testGetValueWithAliasMySQL(): void
-    {
-        for ($i = 1; $i <= 4; $i++) {
-            self::$db->insert('users', [
-                'name' => "User{$i}",
-                'company' => "Comp{$i}",
-                'age' => 20 + $i
-            ]);
-        }
-
-        $cnt = self::$db->getValue('users', 'COUNT(*) AS cnt');
-        $this->assertEquals(4, $cnt);
-    }
-
-    public function testGetColumn(): void
+    public function testSubQueryInWhere(): void
     {
         $db = self::$db;
-        self::$db->insert('users', ['name' => 'SubUser', 'company' => 'testCompany']);
-        self::$db->insert('users', ['name' => 'OtherUser', 'company' => 'otherCompany']);
-        $names = $db->orderBy('name', 'desc')->getColumn('users', 'name');
-        $this->assertEquals(['SubUser','OtherUser'], $names);
-    }
 
-    public function testUpdateLimit(): void
-    {
-        for ($i = 1; $i <= 7; $i++) {
-            self::$db->insert('users', ['name' => "Cnt{$i}", 'company' => 'C', 'age' => 20 + $i, 'status' => 'active']);
-        }
-        self::$db->update('users', ['status' => 'inactive'], 5);
-        $this->assertCount(5, self::$db->where('status', 'inactive')->get('users'));
-    }
+        $rowCount = self::$db->find()
+            ->table('users')
+            ->insertMulti([
+                ['name' => 'UserA', 'age' => 20],
+                ['name' => 'UserB', 'age' => 20],
+                ['name' => 'UserC', 'age' => 30],
+                ['name' => 'UserD', 'age' => 40],
+                ['name' => 'UserE', 'age' => 50]
+            ]);
+        $this->assertEquals(5, $rowCount);
 
-    public function testSubQuery(): void
-    {
-        $sub = self::$db->subQuery('u');
-        $sub->where('age', 30, '>')->get('users', null, ['id']);
+        // prepare subquery that selects ids of users older than 30 and aliases it as u
+        $sub = $db->find()->from('users u')
+            ->select(['u.id'])
+            ->where('age', 30, '>');
 
-        $rows = self::$db
+        // main query joins the subquery alias u to the main users table and returns up to 5 rows
+        $rows = $db->find()
+            ->from('users main')
             ->join('users u', 'u.id = main.id')
-            ->get('users main', 5, ['main.name', 'u.age']);
+            ->select(['main.name', 'u.age'])
+            ->where('u.id', $sub, 'IN')
+            ->get();
+
+        $this->assertStringContainsString('IN (SELECT', $db->lastQuery);
+        $this->assertStringContainsString(')', $db->lastQuery);
 
         $this->assertIsArray($rows);
+        $this->assertCount(2, $rows);
     }
 
-    public function testExistsSubquery(): void
-    {
-        $u1 = self::$db->insert('users', ['name' => 'SubUser', 'company' => 'testCompany']);
-        $u2 = self::$db->insert('users', ['name' => 'OtherUser', 'company' => 'otherCompany']);
-
-        self::$db->insert('orders', ['user_id' => $u1, 'amount' => 100]);
-        self::$db->insert('orders', ['user_id' => $u2, 'amount' => 200]);
-
-        // Subquery string
-        $sub = "SELECT id FROM users WHERE company = 'testCompany' AND users.id = o.user_id";
-
-        $rows = self::$db
-            ->where(null, $sub, 'EXISTS')
-            ->get('orders o', null, ['o.user_id', 'o.amount']);
-
-        $userIds = array_column($rows, 'user_id');
-        $this->assertContains($u1, $userIds);
-        $this->assertNotContains($u2, $userIds);
-    }
-
-    public function testSubQueryWithJoin(): void
-    {
-        $aliceId = self::$db->insert('users', ['name' => 'Alice', 'age' => 25]);
-        $bobId = self::$db->insert('users', ['name' => 'Bob', 'age' => 30]);
-
-        self::$db->insertMulti('orders', [
-            ['user_id' => $aliceId, 'amount' => 50.00],
-            ['user_id' => $aliceId, 'amount' => 150.00],
-            ['user_id' => $bobId, 'amount' => 20.00],
-        ]);
-
-        // Subquery: select `user_id` values of users who have orders greater than 100.
-        $sub = self::$db->subQuery('o');
-        $sub->where('amount', 100, '>');
-        $sub->get('orders', null, ['user_id']);
-
-        // Main query: select the names of users who have such orders.
-        $rows = self::$db
-            ->join('orders o', 'u.id = o.user_id')
-            ->where('o.amount', 100, '>')
-            ->get('users u', null, ['u.name']);
-
-        $this->assertNotEmpty($rows);
-        $this->assertEquals('Alice', $rows[0]['name']);
-    }
-
-    public function testSubqueryInSelectWhereIn(): void
-    {
-        $u1 = self::$db->insert('users', ['name' => 'SubSel1']);
-        $u2 = self::$db->insert('users', ['name' => 'SubSel2']);
-
-        self::$db->insert('orders', ['user_id' => $u1, 'amount' => 10]);
-        self::$db->insert('orders', ['user_id' => $u1, 'amount' => 20]);
-        self::$db->insert('orders', ['user_id' => $u1, 'amount' => 30]);
-
-        self::$db->insert('orders', ['user_id' => $u2, 'amount' => 40]);
-
-        $ids = self::$db->subQuery();
-        $ids->groupBy('user_id');
-        $ids->having('COUNT(*)', 2, '>');
-        $ids->get('orders', null, ['user_id']);
-
-        $rows = self::$db->where('id', $ids, 'IN')->get('users');
-        $idsResult = array_column($rows, 'id');
-
-        $this->assertContains($u1, $idsResult);
-        $this->assertNotContains($u2, $idsResult);
-    }
-
-    public function testInsertWithSubquery()
-    {
-        $db = self::$db;
-
-        $db->delete('users');
-        $db->delete('archive_users');
-
-        $db->insert('users', ['name' => 'Alice']);
-        $db->insert('users', ['name' => 'Bob']);
-        $db->insert('users', ['name' => 'Charlie']);
-
-        $sub = $db->subQuery();
-        $sub->get('users', null, ['id']);
-
-        $db->insert('archive_users', [
-            'user_id' => $sub
-        ]);
-
-        $this->assertSame(
-            'INSERT INTO `archive_users` (`user_id`) SELECT id FROM users',
-            $db->getLastQuery()
-        );
-
-        $count = $db->getValue('archive_users', 'COUNT(*)');
-        $this->assertEquals(3, $count);
-    }
-
-    public function testInsertOnDuplicateKeyUpdate()
-    {
-        $db = self::$db;
-
-        $db->delete('users');
-
-        $db->insert('users', ['id' => 1, 'name' => 'Alice', 'status' => 'old']);
-
-        $db->onDuplicate(['status'])
-            ->insert('users', ['id' => 1, 'name' => 'Alice', 'status' => 'new']);
-
-        $this->assertStringContainsString(
-            'ON DUPLICATE KEY UPDATE `status` = VALUES(`status`)',
-            $db->getLastQuery()
-        );
-
-        $status = $db->where('id', 1)->getValue('users', 'status');
-        $this->assertEquals('new', $status);
-    }
-
-    public function testUpdateWithSubquery()
-    {
-        $db = self::$db;
-
-        $db->delete('users');
-        $db->delete('orders');
-
-        $db->insert('users', ['id' => 1, 'name' => 'Alice']);
-        $db->insert('users', ['id' => 2, 'name' => 'Bob']);
-        $db->insert('users', ['id' => 3, 'name' => 'Charlie']);
-
-        $db->insert('orders', ['user_id' => 1, 'amount' => 100]);
-        $db->insert('orders', ['user_id' => 1, 'amount' => 200]);
-        $db->insert('orders', ['user_id' => 2, 'amount' => 50]);
-
-        $sub = $db->subQuery();
-        $sub->get('orders', null, ['user_id']);
-
-        $db->where('id', $sub, 'IN')
-            ->update('users', ['status' => 'active']);
-
-        $this->assertStringContainsString(
-            'UPDATE `users` SET `status` =',
-            $db->getLastQuery()
-        );
-        $this->assertStringContainsString(
-            'WHERE id IN (SELECT user_id FROM orders)',
-            $db->getLastQuery()
-        );
-
-        $count = $db->where('status', 'active')->getValue('users', 'COUNT(*)');
-        $this->assertEquals(2, $count);
-    }
 
     public function testDisconnectAndPing(): void
     {
@@ -821,38 +1096,44 @@ final class PdoDbMySQLTest extends TestCase
 
     public function testTraceAndLastQuery(): void
     {
-        self::$db->setTrace(true);
+        $db = self::$db;
+
+        $db->enableTrace();
 
         // INSERT
-        self::$db->insert('users', ['name' => 'TraceInsert', 'age' => 10]);
-        $lastQuery = self::$db->getLastQuery();
+        $db->find()->table('users')->insert(['name' => 'TraceInsert', 'age' => 10]);
+        $lastQuery = $db->lastQuery;
         $this->assertStringContainsString('INSERT INTO', $lastQuery);
 
         // UPDATE
-        self::$db->where('name', 'TraceInsert')
-            ->update('users', ['age' => 11]);
-        $lastQuery = self::$db->getLastQuery();
+        $db->find()
+            ->from('users')
+            ->where('name', 'TraceInsert')
+            ->update(['age' => 11]);
+        $lastQuery = $db->lastQuery;
         $this->assertStringContainsString('UPDATE', $lastQuery);
 
         // SELECT (getOne)
-        $row = self::$db->where('name', 'TraceInsert')
-            ->getOne('users');
-        $lastQuery = self::$db->getLastQuery();
+        $row = $db->find()
+            ->from('users')
+            ->where('name', 'TraceInsert')
+            ->getOne();
+        $lastQuery = $db->lastQuery;
         $this->assertStringContainsString('SELECT', $lastQuery);
         $this->assertEquals('TraceInsert', $row['name']);
 
         // DELETE
-        self::$db->delete('users', 'name = :name', ['name' => 'TraceInsert']);
-        $lastQuery = self::$db->getLastQuery();
+        $db->find()->table('users')->delete('name = :name', ['name' => 'TraceInsert']);
+        $lastQuery = $db->lastQuery;
         $this->assertStringContainsString('DELETE', $lastQuery);
 
         // RAW QUERY
-        self::$db->rawQuery("SELECT COUNT(*) AS cnt FROM users");
-        $lastQuery = self::$db->getLastQuery();
+        $db->rawQuery("SELECT COUNT(*) AS cnt FROM users");
+        $lastQuery = $db->lastQuery;
         $this->assertStringContainsString('SELECT COUNT', $lastQuery);
 
         // Check trace log
-        $trace = self::$db->getLogTrace();
+        $trace = $db->traceLog;
         $this->assertIsArray($trace);
         $this->assertNotEmpty($trace);
 
@@ -862,8 +1143,8 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertTrue($this->arrayContainsSubstring($queries, 'SELECT'));
         $this->assertTrue($this->arrayContainsSubstring($queries, 'DELETE'));
 
-        $this->assertEmpty(self::$db->getLastError());
-        $this->assertEquals(0, self::$db->getLastErrno());
+        $this->assertEmpty($db->lastError);
+        $this->assertEquals(0, $db->lastErrno);
     }
 
     private function arrayContainsSubstring(array $haystack, string $needle): bool
@@ -890,45 +1171,10 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertInstanceOf(PdoDb::class, $pdoDb);
     }
 
-    public function testFuncNowIncDec(): void
-    {
-        $id = self::$db->insert('users', ['name' => 'FuncTest', 'age' => 1]);
-
-        // now
-        $expr = self::$db->now();
-        $this->assertEquals('NOW()', $expr);
-
-        $exprPlus = self::$db->now('1 DAY');
-        $this->assertEquals('NOW() + INTERVAL 1 DAY', $exprPlus);
-
-        // inc
-        self::$db->where('id', $id)->update('users', ['age' => self::$db->inc()]);
-        $row = self::$db->where('id', $id)->getOne('users');
-        $this->assertEquals(2, $row['age']);
-
-        // dec
-        self::$db->where('id', $id)->update('users', ['age' => self::$db->dec()]);
-        $row = self::$db->where('id', $id)->getOne('users');
-        $this->assertEquals(1, $row['age']);
-
-        // now(): if there is a datetime column, we can check the server-time of the record
-        // for example, if there is `updated_at` DATETIME
-        self::$db->where('id', $id)->update('users', ['updated_at' => self::$db->now()]);
-        $row = self::$db->where('id', $id)->getOne('users');
-        $this->assertNotEmpty($row['updated_at']);
-
-        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $row['updated_at']);
-
-        // func MAX(age)
-        $row = self::$db->getOne('users', ['MAX(age) as max_age']);
-        $this->assertEquals(1, (int)$row['max_age']);
-    }
 
     public function testLoadDataInfile()
     {
         $db = self::$db;
-
-        $db->delete('users');
 
         $tmpFile = sys_get_temp_dir() . '/users.csv';
         file_put_contents($tmpFile, "4,Dave,new\n5,Eve,new\n");
@@ -941,7 +1187,7 @@ final class PdoDbMySQLTest extends TestCase
 
         $this->assertTrue($ok, 'loadData() returned false');
 
-        $names = array_column($db->get('users'), 'name');
+        $names = array_column($db->find()->from('users')->get(), 'name');
         $this->assertContains('Dave', $names);
         $this->assertContains('Eve', $names);
 
@@ -968,11 +1214,58 @@ XML
         $ok = self::$db->loadXml('users', $file, '<user>', 1);
         $this->assertTrue($ok);
 
-        $row = self::$db->getOne('users');
+        $row = self::$db->find()->from('users')->where('name', 'XmlUser 2')->getOne();
         $this->assertEquals('XMLUser 2', $row['name']);
         $this->assertEquals(44, $row['age']);
 
         unlink($file);
+    }
+
+    public function testFuncNowIncDec(): void
+    {
+        $db = self::$db;
+
+        $id = $db->find()->table('users')->insert(['name' => 'FuncTest', 'age' => 1]);
+
+        // now
+        $expr = $db->now();
+        $this->assertEquals('NOW()', $expr);
+
+        $exprPlus = $db->now('1 DAY');
+        $this->assertEquals('NOW() + INTERVAL 1 DAY', $exprPlus);
+
+        // inc
+        $db->find()
+            ->from('users')
+            ->where('id', $id)
+            ->update(['age' => $db->inc()]);
+
+        $row = $db->find()->from('users')->where('id', $id)->getOne();
+        $this->assertEquals(2, $row['age']);
+
+        // dec
+        $db->find()
+            ->from('users')
+            ->where('id', $id)
+            ->update(['age' => $db->dec()]);
+
+        $row = $db->find()->from('users')->where('id', $id)->getOne();
+        $this->assertEquals(1, $row['age']);
+
+        // now() into updated_at
+        $db->find()
+            ->from('users')
+            ->where('id', $id)
+            ->update(['updated_at' => $db->now()]);
+
+        $row = $db->find()->from('users')->where('id', $id)->getOne();
+        $this->assertNotEmpty($row['updated_at']);
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $row['updated_at']);
+        $this->assertNotEquals('0000-00-00 00:00:00', $row['updated_at']);
+
+        // func MAX(age)
+        $row = $db->find()->from('users')->select(['MAX(age) as max_age'])->getOne();
+        $this->assertEquals(1, (int)$row['max_age']);
     }
 
     public function testExplainSelectUsers(): void
@@ -990,4 +1283,5 @@ XML
         $this->assertNotEmpty($plan);
         $this->assertArrayHasKey('select_type', $plan[0]);
     }
+
 }

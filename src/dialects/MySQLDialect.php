@@ -4,6 +4,7 @@ namespace tommyknocker\pdodb\dialects;
 
 use InvalidArgumentException;
 use PDO;
+use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\PdoDb;
 
 class MySQLDialect implements DialectInterface
@@ -41,97 +42,118 @@ class MySQLDialect implements DialectInterface
         ];
     }
 
-    public function quoteIdentifier(string $name): string
+    public function quoteIdentifier(mixed $name): string
     {
-        return "`{$name}`";
+        return $name instanceof RawValue ? $name->getValue() : "`{$name}`";
     }
 
-    public function booleanLiteral(bool $value): string
+    public function quoteTable(mixed $table): string
     {
-        return $value ? '1' : '0';
+        // Support for schema.table and alias: "schema"."table" AS `t`
+        // Simple implementation: escape parts split by dot
+        $parts = explode(' ', $table, 3); // partial support for "table AS t", better to parse beforehand if needed
+
+        $name = $parts[0];
+        $alias = $parts[1] ?? null;
+
+        $segments = explode('.', $name);
+        $quotedSegments = array_map(fn($s) => '`' . str_replace('`', '``', $s) . '`', $segments);
+        $quoted = implode('.', $quotedSegments);
+
+        if ($alias) {
+            return $quoted . ' ' . implode(' ', array_slice($parts, 1));
+        }
+        return $quoted;
     }
 
-    public function insertKeywords(array $flags): string
+    public function buildInsertSql(string $table, array $columns, array $placeholders, array $options = []): string
     {
-        return 'INSERT ' . ($flags ? implode(' ', $flags) . ' ' : '');
+        $cols = implode(', ', array_map([$this, 'quoteIdentifier'], $columns));
+        $vals = implode(', ', $placeholders);
+        $prefix = 'INSERT' . ($options ? ' ' . implode(' ', $options) : '') . ' INTO';
+        return sprintf('%s %s (%s) VALUES (%s)', $prefix, $table, $cols, $vals);
     }
 
-    public function buildInsertValues(string $fullTable, array $columns, array $placeholders, array $flags): string
+    public function formatSelectOptions(string $sql, array $options): string
     {
-        $cols = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
-        $phs = implode(',', $placeholders);
-        return $this->insertKeywords($flags) . "INTO {$this->quoteIdentifier($fullTable)} ({$cols}) VALUES ({$phs})";
+        $middle = [];
+        $tail = [];
+        foreach ($options as $opt) {
+            $u = strtoupper(trim($opt));
+            if (in_array($u, ['LOCK IN SHARE MODE', 'FOR UPDATE'])) {
+                $tail[] = $opt;
+            } else {
+                $middle[] = $opt;
+            }
+        }
+
+        if ($middle) {
+            $sql = preg_replace('/^SELECT\s+/i', 'SELECT ' . implode(',', $middle) . ' ', $sql, 1);
+        }
+        if ($tail) {
+            $sql .= ' ' . implode(' ', $tail);
+        }
+        return $sql;
     }
 
-    public function buildInsertSubquery(string $fullTable, ?array $columns, string $subquerySql, array $flags): string
-    {
-        $cols = $columns ? '(' . implode(',', array_map([$this, 'quoteIdentifier'], $columns)) . ')' : '';
-        return $this->insertKeywords($flags) . "INTO {$this->quoteIdentifier($fullTable)} {$cols} {$subquerySql}";
-    }
 
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id'): string
     {
         if (!$updateColumns) {
             return '';
         }
-        $updates = implode(',',
-            array_map(fn($c) => "{$this->quoteIdentifier($c)} = VALUES({$this->quoteIdentifier($c)})", $updateColumns));
-        return "ON DUPLICATE KEY UPDATE {$updates}";
-    }
 
-    public function buildReturningClause(?string $returning): string
-    {
-        return '';
-    }
+        $updates = [];
 
-    public function supportsReturning(): bool
-    {
-        return false;
-    }
+        foreach ($updateColumns as $key => $val) {
+            if (is_int($key)) {
+                $col = $val;
+                $qid = $this->quoteIdentifier($col);
+                $updates[] = "{$qid} = VALUES({$qid})";
+            } else {
+                $col = $key;
+                $qid = $this->quoteIdentifier($col);
 
-    public function lastInsertId(PDO $pdo, ?string $table = null, ?string $column = null): string
-    {
-        return $pdo->lastInsertId();
-    }
-
-    public function buildUpdateSet(array $data): array
-    {
-        $set = [];
-        $params = [];
-        foreach ($data as $col => $val) {
-            $set[] = $this->quoteIdentifier($col) . " = :$col";
-            $params[":$col"] = $val;
+                if ($val instanceof RawValue) {
+                    $updates[] = "{$qid} = {$val->getValue()}";
+                } elseif ($val === true) {
+                    $updates[] = "{$qid} = VALUES({$qid})";
+                } elseif (is_string($val)) {
+                    $updates[] = "{$qid} = {$val}";
+                } else {
+                    $updates[] = "{$qid} = VALUES({$qid})";
+                }
+            }
         }
-        return ['sql' => implode(', ', $set), 'params' => $params];
-    }
 
-    public function isStandardUpdateLimit(string $table, int $limit, PdoDb $db): bool
-    {
-       return true;
+        return 'ON DUPLICATE KEY UPDATE ' . implode(', ', $updates);
     }
 
 
-    public function buildUpdateStatement(string $fullTable, string $setSql, ?string $whereSql): string
-    {
-        $sql = "UPDATE {$this->quoteIdentifier($fullTable)} SET {$setSql}";
-        if ($whereSql) {
-            $sql .= " WHERE {$whereSql}";
+    public function buildReplaceSql(
+        string $table,
+        array $columns,
+        array $placeholders,
+        bool $isMultiple = false
+    ): string {
+        $tableSql = $this->quoteTable($table);
+        $colsSql = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
+
+        if ($isMultiple) {
+            // placeholders already contain grouped row expressions like "(...),(...)" or ["(...)", "(...)"]
+            $valsSql = implode(',', $placeholders);
+            return sprintf('REPLACE INTO %s (%s) VALUES %s', $tableSql, $colsSql, $valsSql);
         }
-        return $sql;
+
+        // Single row: placeholders are scalar fragments matching columns
+        $valsSql = implode(',', $placeholders);
+        return sprintf('REPLACE INTO %s (%s) VALUES (%s)', $tableSql, $colsSql, $valsSql);
     }
 
-    public function limitOffsetClause(?int $limit, ?int $offset): string
+    public function now(?string $diff = ''): RawValue
     {
-        if ($limit === null) {
-            return '';
-        }
-        return $offset ? " LIMIT {$limit} OFFSET {$offset}" : " LIMIT {$limit}";
-    }
-
-    public function now(?string $diff = '', ?string $func = null): string
-    {
-        $func = $func ?: 'NOW()';
-        return $diff ? "$func + INTERVAL $diff" : $func;
+        $func = 'NOW()';
+        return new RawValue($diff ? "$func + INTERVAL $diff" : $func);
     }
 
 
@@ -177,18 +199,18 @@ class MySQLDialect implements DialectInterface
     public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options): string
     {
         $defaults = [
-            "fieldChar"     => ';',
-            "fieldEnclosure"=> null,
-            "fields"        => [],
-            "lineChar"      => null,
+            "fieldChar" => ';',
+            "fieldEnclosure" => null,
+            "fields" => [],
+            "lineChar" => null,
             "linesToIgnore" => null,
-            "lineStarting"  => null,
-            "local"         => false,
+            "lineStarting" => null,
+            "local" => false,
         ];
         $options = array_merge($defaults, $options);
 
         $localPrefix = $options['local'] ? 'LOCAL ' : '';
-        $quotedPath  = $pdo->quote($filePath);
+        $quotedPath = $pdo->quote($filePath);
 
         $sql = "LOAD DATA {$localPrefix}INFILE {$quotedPath} INTO TABLE {$table}";
 
@@ -211,7 +233,7 @@ class MySQLDialect implements DialectInterface
             $sql .= sprintf(" IGNORE %d LINES", $options["linesToIgnore"]);
         }
 
-        // FIELDS LIST (в конце!)
+        // FIELDS LIST (in the end!)
         if ($options['fields']) {
             $sql .= ' (' . implode(', ', $options['fields']) . ')';
         }

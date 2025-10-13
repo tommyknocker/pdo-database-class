@@ -4,7 +4,7 @@ namespace tommyknocker\pdodb\dialects;
 
 use InvalidArgumentException;
 use PDO;
-use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\helpers\RawValue;
 
 class PostgreSQLDialect implements DialectInterface
 {
@@ -50,27 +50,68 @@ class PostgreSQLDialect implements DialectInterface
         return "\"{$name}\"";
     }
 
-    public function booleanLiteral(bool $value): string
+    public function quoteTable(mixed $table): string
     {
-        return $value ? 'TRUE' : 'FALSE';
+        return $this->quoteTableWithAlias($table);
     }
 
-    public function insertKeywords(array $flags): string
+    public function buildInsertSql(string $table, array $columns, array $placeholders, array $options = []): string
     {
-        return 'INSERT ' . ($flags ? implode(' ', $flags) . ' ' : '');
+        $cols = implode(', ', array_map([$this, 'quoteIdentifier'], $columns));
+        $vals = implode(', ', $placeholders);
+        $sql = sprintf('INSERT INTO %s (%s) VALUES (%s)', $table, $cols, $vals);
+
+        $tail = [];
+        $beforeValues = []; // e.g., OVERRIDING ...
+        foreach ($options as $opt) {
+            $u = strtoupper(trim($opt));
+            if (str_starts_with($u, 'RETURNING')) {
+                $tail[] = $opt;
+            } elseif (str_starts_with($u, 'ONLY')) {
+                $sql = preg_replace(
+                    '/^INSERT INTO\s+' . preg_quote($table, '/') . '/i',
+                    'INSERT INTO ONLY ' . $table,
+                    $sql,
+                    1
+                );
+            } elseif (str_starts_with($u, 'OVERRIDING')) {
+                // insert before VALUES
+                $beforeValues[] = $opt;
+            } elseif (str_starts_with($u, 'ON CONFLICT')) {
+                // ON CONFLICT goes after VALUES and before RETURNING
+                $tail[] = $opt;
+            } else {
+                // move unknown option to tail by default
+                $tail[] = $opt;
+            }
+        }
+
+        if (!empty($beforeValues)) {
+            $sql = preg_replace('/\)\s+VALUES\s+/i', ') ' . implode(' ', $beforeValues) . ' VALUES ', $sql, 1);
+        }
+
+        if (!empty($tail)) {
+            $sql .= ' ' . implode(' ', $tail);
+        }
+
+        return $sql;
     }
 
-    public function buildInsertValues(string $fullTable, array $columns, array $placeholders, array $flags): string
-    {
-        $cols = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
-        $phs = implode(',', $placeholders);
-        return $this->insertKeywords($flags) . "INTO {$this->quoteIdentifier($fullTable)} ({$cols}) VALUES ({$phs})";
-    }
 
-    public function buildInsertSubquery(string $fullTable, ?array $columns, string $subquerySql, array $flags): string
+    public function formatSelectOptions(string $sql, array $options): string
     {
-        $cols = $columns ? '(' . implode(',', array_map([$this, 'quoteIdentifier'], $columns)) . ')' : '';
-        return $this->insertKeywords($flags) . "INTO {$this->quoteIdentifier($fullTable)} {$cols} {$subquerySql}";
+        $tail = [];
+        foreach ($options as $opt) {
+            $u = strtoupper(trim($opt));
+            // PG supports FOR UPDATE / FOR SHARE as tail options
+            if (in_array($u, ['FOR UPDATE', 'FOR SHARE', 'FOR NO KEY UPDATE', 'FOR KEY SHARE'])) {
+                $tail[] = $opt;
+            }
+        }
+        if ($tail) {
+            $sql .= ' ' . implode(' ', $tail);
+        }
+        return $sql;
     }
 
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id'): string
@@ -78,75 +119,115 @@ class PostgreSQLDialect implements DialectInterface
         if (!$updateColumns) {
             return '';
         }
-        $updates = implode(',',
-            array_map(fn($c) => "{$this->quoteIdentifier($c)}=EXCLUDED.{$this->quoteIdentifier($c)}", $updateColumns));
-        return "ON CONFLICT ({$this->quoteIdentifier($defaultConflictTarget)}) DO UPDATE SET {$updates}";
-    }
 
-    public function buildReturningClause(?string $returning): string
-    {
-        return $returning ? " RETURNING {$this->quoteIdentifier($returning)}" : '';
-    }
+        $parts = [];
+        $isAssoc = array_keys($updateColumns) !== range(0, count($updateColumns) - 1);
 
-    public function supportsReturning(): bool
-    {
-        return true;
-    }
+        if ($isAssoc) {
+            foreach ($updateColumns as $col => $expr) {
+                $colSql = $this->quoteIdentifier($col);
 
-    public function lastInsertId(PDO $pdo, ?string $table = null, ?string $column = null): string
-    {
-        if ($table && $column) {
-            return $pdo->lastInsertId("{$table}_{$column}_seq");
+                if ($expr instanceof RawValue) {
+                    $parts[] = "{$colSql} = {$expr->getValue()}";
+                    continue;
+                }
+
+                $exprStr = trim((string)$expr);
+
+                if (preg_match('/^(?:EXCLUDED\.)?[A-Za-z_][A-Za-z0-9_]*$/i', $exprStr)) {
+                    if (stripos($exprStr, 'EXCLUDED.') === 0) {
+                        $parts[] = "{$colSql} = {$exprStr}";
+                    } else {
+                        $parts[] = "{$colSql} = EXCLUDED.{$this->quoteIdentifier($exprStr)}";
+                    }
+                    continue;
+                }
+
+                $quotedCol = $this->quoteIdentifier($col); // e.g. "age"
+                $replacement = 'EXCLUDED.' . $quotedCol;   // EXCLUDED."age"
+
+                $safeExpr = preg_replace_callback(
+                    '/\b' . preg_quote($col, '/') . '\b/i',
+                    function ($m) use ($exprStr, $replacement) {
+                        $pos = strpos($exprStr, $m[0]);
+                        if ($pos === false) {
+                            return $m[0];
+                        }
+                        $left = $pos > 0 ? substr($exprStr, max(0, $pos - 9), 9) : '';
+                        if (strpos($left, '.') !== false || stripos($left, 'EXCLUDED') !== false) {
+                            return $m[0];
+                        }
+                        return $replacement;
+                    },
+                    $exprStr
+                );
+
+                $parts[] = "{$colSql} = {$safeExpr}";
+            }
+        } else {
+            foreach ($updateColumns as $c) {
+                $parts[] = "{$this->quoteIdentifier($c)} = EXCLUDED.{$this->quoteIdentifier($c)}";
+            }
         }
-        return $pdo->lastInsertId();
+
+        return "ON CONFLICT ({$this->quoteIdentifier($defaultConflictTarget)}) DO UPDATE SET " . implode(', ', $parts);
     }
 
-    public function buildUpdateSet(array $data): array
+
+
+    public function buildReplaceSql(string $table, array $columns, array $placeholders, bool $isMultiple = false): string
     {
-        $set = [];
-        $params = [];
-        foreach ($data as $col => $val) {
-            $set[] = $this->quoteIdentifier($col) . " = :$col";
-            $params[":$col"] = $val;
+        $tableSql = $this->quoteTable($table);
+        $colsSql  = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
+
+        if ($isMultiple) {
+            // $placeholders is expected to be an array of strings where each string
+            // is a list of placeholders without outer parentheses or already wrapped.
+            // Normalize to: VALUES (row1),(row2),...
+            $rows = [];
+            foreach ($placeholders as $ph) {
+                // if the element already has outer parentheses — keep it, otherwise wrap it
+                $phTrim = trim($ph);
+                if (str_starts_with($phTrim, '(') && str_ends_with($phTrim, ')')) {
+                    $rows[] = $phTrim;
+                } else {
+                    $rows[] = '(' . $phTrim . ')';
+                }
+            }
+            $valsSql = implode(',', $rows);
+        } else {
+            // single insert: ensure parentheses around the list
+            $phList = implode(',', $placeholders);
+            $valsSql = '(' . $phList . ')';
         }
-        return ['sql' => implode(', ', $set), 'params' => $params];
-    }
 
-    public function buildUpdateStatement(string $fullTable, string $setSql, ?string $whereSql): string
-    {
-        $sql = "UPDATE {$this->quoteIdentifier($fullTable)} SET {$setSql}";
-        if ($whereSql) {
-            $sql .= " WHERE {$whereSql}";
+        if (in_array('id', $columns, true)) {
+            $updates = [];
+            foreach ($columns as $col) {
+                if ($col === 'id') {
+                    continue;
+                }
+                $quoted = $this->quoteIdentifier($col);
+                $updates[] = sprintf('%s = EXCLUDED.%s', $quoted, $quoted);
+            }
+            $updateSql = empty($updates) ? 'DO NOTHING' : 'DO UPDATE SET ' . implode(', ', $updates);
+            return sprintf(
+                'INSERT INTO %s (%s) VALUES %s ON CONFLICT (%s) %s',
+                $tableSql,
+                $colsSql,
+                $valsSql,
+                $this->quoteIdentifier('id'),
+                $updateSql
+            );
         }
-        return $sql;
+
+        return sprintf('INSERT INTO %s (%s) VALUES %s ON CONFLICT DO NOTHING', $tableSql, $colsSql, $valsSql);
     }
 
-    public function isStandardUpdateLimit(string $table, int $limit, PdoDb $db): bool
+    public function now(?string $diff = ''): RawValue
     {
-        // UPDATE emulation ... LIMIT through ctid
-        $subQuery = $db->subQuery();
-        $result = $subQuery->getColumn($table, 'ctid', $limit);
-        $db->where('ctid', $result, 'IN');
-        return false;
-    }
-
-
-    public function limitOffsetClause(?int $limit, ?int $offset): string
-    {
-        $sql = '';
-        if ($limit !== null) {
-            $sql .= " LIMIT {$limit}";
-        }
-        if ($offset !== null) {
-            $sql .= " OFFSET {$offset}";
-        }
-        return $sql;
-    }
-
-    public function now(?string $diff = '', ?string $func = null): string
-    {
-        $func = $func ?: 'NOW()';
-        return $diff ? "$func + INTERVAL '{$diff}'" : $func;
+        $func = 'NOW()';
+        return new RawValue($diff ? "$func + INTERVAL '{$diff}'" : $func);
     }
 
     public function explainSql(string $query, bool $analyze = false): string
@@ -191,20 +272,58 @@ class PostgreSQLDialect implements DialectInterface
 
     public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options): string
     {
-        $quotedPath = $this->pdo->quote($filePath);
+        $tableSql = $this->quoteIdentifier($table);
+
+        $quotedPath = $pdo->quote($filePath);
 
         $delimiter = $options['fieldChar'] ?? ',';
-        $header    = $options['header'] ?? true;
         $quoteChar = $options['fieldEnclosure'] ?? '"';
+        $header = isset($options['header']) ? (bool)$options['header'] : false;
+
+        $columnsSql = '';
+        if (!empty($options['fields']) && is_array($options['fields'])) {
+            $columnsSql = ' (' . implode(', ', array_map([$this, 'quoteIdentifier'], $options['fields'])) . ')';
+        }
+
+        $del = $pdo->quote($delimiter);
+        $quo = $pdo->quote($quoteChar);
 
         return sprintf(
-            'COPY %s FROM %s WITH (FORMAT csv, HEADER %s, DELIMITER %s, QUOTE %s)',
-            $table,
+            'COPY %s%s FROM %s WITH (FORMAT csv, HEADER %s, DELIMITER %s, QUOTE %s)',
+            $tableSql,
+            $columnsSql,
             $quotedPath,
             $header ? 'true' : 'false',
-            $this->pdo->quote($delimiter),
-            $this->pdo->quote($quoteChar)
+            $del,
+            $quo
         );
+    }
+
+    protected function quoteTableWithAlias(string $table): string
+    {
+        $table = trim($table);
+
+        // supported formats:
+        //  - "schema.table"         (without alias)
+        //  - "schema.table alias"   (alias with space)
+        //  - "schema.table AS alias" (AS)
+        //  - "table alias" / "table AS alias"
+        //  - "table"                (without alias)
+
+        if (preg_match('/\s+AS\s+/i', $table)) {
+            [$name, $alias] = preg_split('/\s+AS\s+/i', $table, 2);
+            $name = trim($name);
+            $alias = trim($alias);
+            return $this->quoteIdentifier($name) . ' AS ' . $this->quoteIdentifier($alias);
+        }
+
+        $parts = preg_split('/\s+/', $table, 2);
+        if (count($parts) === 1) {
+            return $this->quoteIdentifier($parts[0]);
+        }
+
+        [$name, $alias] = $parts;
+        return $this->quoteIdentifier($name) . ' ' . $this->quoteIdentifier($alias);
     }
 
 }

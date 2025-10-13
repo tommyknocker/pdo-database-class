@@ -3,91 +3,149 @@
 namespace tommyknocker\pdodb\dialects;
 
 use PDO;
-use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\helpers\RawValue;
 
 interface DialectInterface
 {
+    /**
+     * Returns the driver name.
+     *
+     * @return string The driver name.
+     */
     public function getDriverName(): string;
 
-    // Connection / identity
+    /**
+     * Build dsn string
+     * @param array $params
+     * @return string
+     */
     public function buildDsn(array $params): string;
 
+    /**
+     * Returns the default PDO options.
+     *
+     * @return array The default PDO options.
+     */
     public function defaultPdoOptions(): array;
 
-    // Identifiers
+    /**
+     * Quote table column in query
+     * @param string $name
+     * @return string
+     */
     public function quoteIdentifier(string $name): string;
 
+    /**
+     * Quote table
+     * @param string $table
+     * @return string
+     */
+    public function quoteTable(string $table): string;
 
-    // INSERT builders (exactly reflect current PdoDb semantics)
-    public function insertKeywords(array $flags): string;
-
-    // e.g. returns "INSERT IGNORE " or "INSERT " (flags are placed after INSERT, before INTO)
-
-    public function buildInsertValues(
+    /**
+     * Build insert sql
+     * @param string $fullTable
+     * @param array $columns
+     * @param array $placeholders
+     * @param array $options
+     * @return string
+     */
+    public function buildInsertSql(
         string $fullTable,
         array $columns,
         array $placeholders,
-        array $flags
+        array $options
     ): string;
 
-    // -> "INSERT [flags]INTO <table> (<quoted cols>) VALUES (<placeholders>)"
+    /***
+     * Format select query options (e.g. SELECT SLQ_NO_CACHE for MySQL)
+     * @param string $sql
+     * @param array $options
+     * @return string
+     */
+    public function formatSelectOptions(string $sql, array $options): string;
 
-    public function buildInsertSubquery(
-        string $fullTable,
-        ?array $columns,          // null/[] = no column list (subquery defines it)
-        string $subquerySql,
-        array $flags
-    ): string;
-
-    // -> "INSERT [flags]INTO <table> (<quoted cols>?) <subquery>"
-
+    /**
+     * Build upsert clause
+     * @param array $updateColumns
+     * @param string $defaultConflictTarget
+     * @return string
+     */
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id'): string;
-    // MySQL: "ON DUPLICATE KEY UPDATE col=VALUES(col), ..."
-    // Postgres: "ON CONFLICT (id) DO UPDATE SET col=EXCLUDED.col, ..."
-    // SQLite: usually empty (INSERT OR REPLACE is a different statement-level mode)
 
-    public function buildReturningClause(?string $returning): string;
+    /**
+     * Build replace sql
+     * @param string $table
+     * @param array $columns
+     * @param array $placeholders
+     * @param bool $isMultiple
+     * @return string
+     */
+    public function buildReplaceSql(string $table, array $columns, array $placeholders, bool $isMultiple = false): string;
 
-    public function supportsReturning(): bool;
+    /**
+     * NOW() with diff support
+     * @param string|null $diff
+     * @return RawValue
+     */
+    public function now(?string $diff = ''): RawValue;
 
-    public function lastInsertId(\PDO $pdo, ?string $table = null, ?string $column = null): string;
-
-    // UPDATE builders
-    public function buildUpdateSet(array $data): array;
-    // returns [sql => "SET \"col\"=:col, ...", params => [":col" => val, ...]]
-    // position of identifier quoting and named params must match current PdoDb
-
-    public function buildUpdateStatement(
-        string $fullTable,
-        string $setSql,
-        ?string $whereSql
-    ): string;
-    // -> "UPDATE <table> SET ... WHERE ..."
-
-    public function isStandardUpdateLimit(string $table, int $limit, PdoDb $db): bool;
-
-    // WHERE / fragments (used across builders)
-    public function limitOffsetClause(?int $limit, ?int $offset): string;
-
-    // Functions and literals used by PdoDb
-    public function now(?string $diff = '', ?string $func = null): string;
-
-    public function booleanLiteral(bool $value): string;
-
-    // Introspection / debug (used elsewhere in PdoDb)
+    /**
+     * EXPLAIN syntax
+     * @param string $query
+     * @param bool $analyze
+     * @return string
+     */
     public function explainSql(string $query, bool $analyze = false): string;
 
+    /**
+     * EXISTS syntax
+     * @param string $table
+     * @return string
+     */
     public function tableExistsSql(string $table): string;
 
+    /**
+     * DESCRIBE syntax
+     * @param string $table
+     * @return string
+     */
     public function describeTableSql(string $table): string;
 
+    /**
+     * LOCK syntax
+     * @param array $tables
+     * @param string $prefix
+     * @param string $lockMethod
+     * @return string
+     */
     public function buildLockSql(array $tables, string $prefix, string $lockMethod): string;
 
+    /**
+     * UNLOCK syntax
+     * @return string
+     */
     public function buildUnlockSql(): string;
 
+    /**
+     * LOAD XML support flag
+     * @return bool
+     */
     public function canLoadXml(): bool;
 
+    /**
+     * LOAD DATA support flag
+     * @return bool
+     */
     public function canLoadData(): bool;
 
+    /**
+     * LOAD DATA syntax
+     * @param PDO $pdo
+     * @param string $table
+     * @param string $filePath
+     * @param array $options
+     * @return string
+     */
     public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options): string;
 }
