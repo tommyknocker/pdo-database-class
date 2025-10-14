@@ -320,7 +320,7 @@ class PdoDb
      */
     public function tableExists(string $table): bool
     {
-        $sql = $this->dialect->tableExistsSql($this->prefix . $table);
+        $sql = $this->dialect->buildExistsSql($this->prefix . $table);
         $res = $this->rawQueryValue($sql);
         return !empty($res);
     }
@@ -456,16 +456,17 @@ class PdoDb
      */
     public function loadData(string $table, string $filePath, array $options = []): bool
     {
-        if (!$this->dialect->canLoadData()) {
-            throw new RuntimeException('Driver does not support bulk load: ' . $this->dialect->getDriverName());
+        $this->startTransaction();
+        try {
+            $sql = $this->dialect->buildLoadDataSql($this->pdo, $this->prefix . $table, $filePath, $options);
+            $this->lastQuery = $sql;
+            $this->trace($sql);
+            return $this->pdo->exec($sql) !== false;
+        } catch (\Throwable $e) {
+            $this->lastErrno = $e->getCode();
+            $this->lastError = $e->getMessage();
         }
-
-        $sql = $this->dialect->buildLoadDataSql($this->pdo, $this->prefix . $table, $filePath, $options);
-
-        $this->lastQuery = $sql;
-        $this->trace($sql);
-
-        return $this->pdo->exec($sql) !== false;
+        return false;
     }
 
 
@@ -480,16 +481,21 @@ class PdoDb
      */
     public function loadXml(string $table, string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool
     {
-        if (!$this->dialect->canLoadXml()) {
-            throw new RuntimeException('LOAD XML is not supported by ' . $this->dialect->getDriverName());
+        $this->startTransaction();
+        try {
+            $options = [
+                'rowTag' => $rowTag,
+                'linesToIgnore' => $linesToIgnore
+            ];
+            $sql = $this->dialect->buildLoadXML($this->pdo, $this->prefix . $table, $filePath, $options);
+            $this->lastQuery = $sql;
+            $this->trace($sql);
+            return $this->pdo->exec($sql) !== false;
+        } catch (\Throwable $e) {
+            $this->lastErrno = $e->getCode();
+            $this->lastError = $e->getMessage();
         }
-        $sql = "LOAD XML LOCAL INFILE " . $this->pdo->quote($filePath) .
-            " INTO TABLE {$this->prefix}$table" .
-            " ROWS IDENTIFIED BY " . $this->pdo->quote($rowTag)
-            . ($linesToIgnore ? sprintf(' IGNORE %d LINES', $linesToIgnore) : '');
-        $this->lastQuery = $sql;
-        $this->trace($sql);
-        return $this->pdo->exec($sql) !== false;
+        return false;
     }
 
 
@@ -501,7 +507,7 @@ class PdoDb
      */
     public function describe(string $table): array
     {
-        $sql = $this->dialect->describeTableSql($this->prefix . $table);
+        $sql = $this->dialect->buildDescribeTableSql($this->prefix . $table);
         return $this->rawQuery($sql);
     }
 
@@ -514,7 +520,7 @@ class PdoDb
      */
     public function explain(string $query, array $params = []): array
     {
-        $sql = $this->dialect->explainSql($query, false);
+        $sql = $this->dialect->buildExplainSql($query, false);
         return $this->rawQuery($sql, $params);
     }
 
@@ -527,7 +533,7 @@ class PdoDb
      */
     public function explainAnalyze(string $query, array $params = []): array
     {
-        $sql = $this->dialect->explainSql($query, true);
+        $sql = $this->dialect->buildExplainSql($query, true);
         return $this->rawQuery($sql, $params);
     }
 

@@ -1,0 +1,363 @@
+<?php
+
+namespace tommyknocker\pdodb\dialects;
+
+use InvalidArgumentException;
+use PDO;
+use RuntimeException;
+use SplFileObject;
+use XMLReader;
+
+abstract class DialectAbstract
+{
+    /**
+     * Quote table name with optional alias
+     * @param string $table
+     * @return string
+     */
+    protected function quoteTableWithAlias(string $table): string
+    {
+        $table = trim($table);
+
+        // supported formats:
+        //  - "schema.table"         (without alias)
+        //  - "schema.table alias"   (alias with space)
+        //  - "schema.table AS alias" (AS)
+        //  - "table alias" / "table AS alias"
+        //  - "table"                (without alias)
+
+        if (preg_match('/\s+AS\s+/i', $table)) {
+            [$name, $alias] = preg_split('/\s+AS\s+/i', $table, 2);
+            $name = trim($name);
+            $alias = trim($alias);
+            return $this->quoteIdentifier($name) . ' AS ' . $this->quoteIdentifier($alias);
+        }
+
+        $parts = preg_split('/\s+/', $table, 2);
+        if (count($parts) === 1) {
+            return $this->quoteIdentifier($parts[0]);
+        }
+
+        [$name, $alias] = $parts;
+        return $this->quoteIdentifier($name) . ' ' . $this->quoteIdentifier($alias);
+    }
+
+    /**
+     * Build SQL for loading data from XML file
+     * @param PDO $pdo
+     * @param string $table
+     * @param string $filePath
+     * @param array $options
+     * @return string
+     */
+    public function buildLoadXML(PDO $pdo, string $table, string $filePath, array $options = []): string
+    {
+        $defaults = [
+            'rowTag' => '<row>',
+            'linesToIgnore' => 0,
+        ];
+        $opts = $options + $defaults;
+
+        if (!is_readable($filePath)) {
+            throw new InvalidArgumentException("XML file is not readable: {$filePath}");
+        }
+
+        $rowTag = trim((string) $opts['rowTag'], " \t\n\r\0\x0B<>");
+        $skipRows = max(0, (int) $opts['linesToIgnore']);
+
+        $reader = new XMLReader();
+        if (!@$reader->open($filePath)) {
+            throw new RuntimeException("Unable to open XML file: {$filePath}");
+        }
+
+        $quoteValue = static function ($v) use ($pdo) {
+            if ($v === null) {
+                return 'NULL';
+            }
+
+            // keep empty string as quoted empty string
+            return $pdo->quote((string) $v);
+        };
+
+        $quoteIdent = static function (string $ident) {
+            $parts = explode('.', $ident);
+
+            $parts = array_map(
+                static function ($p) {
+                    $p = trim($p);
+                    return preg_match('/^[A-Za-z0-9_]+$/', $p) ? "\"{$p}\"" : $p;
+                },
+                $parts
+            );
+
+            return implode('.', $parts);
+        };
+
+        $tableQ = $quoteIdent($table);
+        $columns = [];
+        $batch = [];
+        $batchesSql = [];
+        $batchSize = 500;
+        $rowsProcessed = 0;
+        $skipped = 0;
+
+        while (@$reader->read()) {
+            if ($reader->nodeType !== XMLReader::ELEMENT) {
+                continue;
+            }
+
+            if ($reader->localName !== $rowTag) {
+                continue;
+            }
+
+            // Skip first N logical row elements if requested
+            if ($skipped < $skipRows) {
+                $skipped++;
+                $reader->next();
+                continue;
+            }
+
+            $xml = $reader->readOuterXml();
+            if ($xml === false || $xml === '') {
+                $reader->next();
+                continue;
+            }
+
+            $elem = @simplexml_load_string($xml);
+            if ($elem === false) {
+                $reader->next();
+                continue;
+            }
+
+            // Determine columns from the first encountered row
+            if ($columns === []) {
+                foreach ($elem->children() as $child) {
+                    $columns[] = (string) $child->getName();
+                }
+
+                // fallback to attributes if no child elements
+                if ($columns === []) {
+                    foreach ($elem->attributes() as $name => $val) {
+                        $columns[] = (string) $name;
+                    }
+                }
+
+                if ($columns === []) {
+                    $reader->close();
+                    return '';
+                }
+            }
+
+            $values = [];
+            foreach ($columns as $col) {
+                $val = null;
+
+                if (isset($elem->{$col}) && (string) $elem->{$col} !== '') {
+                    $val = (string) $elem->{$col};
+                } elseif ($elem->attributes()->{$col} !== null) {
+                    $val = (string) $elem->attributes()->{$col};
+                }
+
+                $values[] = $quoteValue($val);
+            }
+
+            $batch[] = '(' . implode(', ', $values) . ')';
+            $rowsProcessed++;
+
+            if (count($batch) >= $batchSize) {
+                $colsEscaped = array_map(
+                    static function ($c) {
+                        return preg_match('/^[A-Za-z0-9_]+$/', $c) ? "\"{$c}\"" : $c;
+                    },
+                    $columns
+                );
+
+                $batchesSql[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ') VALUES ' . implode(', ', $batch) . ';';
+                $batch = [];
+            }
+
+            $reader->next();
+        }
+
+        $reader->close();
+
+        if ($batch !== []) {
+            $colsEscaped = array_map(
+                static function ($c) {
+                    return preg_match('/^[A-Za-z0-9_]+$/', $c) ? "\"{$c}\"" : $c;
+                },
+                $columns
+            );
+
+            $batchesSql[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ') VALUES ' . implode(', ', $batch) . ';';
+        }
+
+        if ($rowsProcessed === 0) {
+            return '';
+        }
+
+        return implode("\n", $batchesSql);
+    }
+
+
+
+
+    /**
+     * Build SQL for loading data from CSV file
+     * @param PDO $pdo
+     * @param string $table
+     * @param string $filePath
+     * @param array $options
+     * @return string
+     */
+    public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options = []): string
+    {
+        $defaults = [
+            'fieldChar' => ',',
+            'fieldEnclosure' => null,
+            'fields' => [],
+            'lineChar' => null,
+            'linesToIgnore' => null,
+            'lineStarting' => null,
+            'local' => false,
+        ];
+        $opts = $options + $defaults;
+
+        if (!is_readable($filePath)) {
+            throw new InvalidArgumentException("CSV file is not readable: {$filePath}");
+        }
+
+        $delimiter = (string)$opts['fieldChar'];
+        $enclosure = $opts['fieldEnclosure'] ?? '"';
+        $escape = '\\';
+
+        $file = new SplFileObject($filePath, 'r');
+        $file->setFlags(SplFileObject::READ_AHEAD);
+
+        // Скип физических строк перед началом обработки
+        if (!empty($opts['linesToIgnore'])) {
+            $skip = (int)$opts['linesToIgnore'];
+            for ($i = 0; $i < $skip && !$file->eof(); $i++) {
+                $file->fgets();
+            }
+        }
+
+        // Определяем колонки: либо из options['fields'], либо из первой непустой CSV-строки
+        $columns = $opts['fields'];
+        if (empty($columns)) {
+            while (!$file->eof()) {
+                $row = $file->fgetcsv($delimiter, $enclosure, $escape);
+                if ($row === false) {
+                    continue;
+                }
+                $isBlank = count($row) === 1 && ($row[0] === null || $row[0] === '');
+                if ($isBlank) {
+                    continue;
+                }
+                $columns = array_map('trim', $row);
+                break;
+            }
+        }
+
+        if (empty($columns)) {
+            throw new RuntimeException('No CSV header detected and no fields provided.');
+        }
+
+        // Если требуется начать с конкретной логической строки (1-based), перемещаемся
+        if (!empty($opts['lineStarting']) && (int)$opts['lineStarting'] > 1) {
+            $target = (int)$opts['lineStarting'];
+            $file->rewind();
+            for ($line = 1; $line < $target && !$file->eof(); $line++) {
+                $file->fgets();
+            }
+        }
+
+        $quote = static function ($v) use ($pdo) {
+            if ($v === null) {
+                return 'NULL';
+            }
+            return $pdo->quote((string)$v);
+        };
+
+        $quoteIdent = static function (string $ident) {
+            $parts = explode('.', $ident);
+            $parts = array_map(static function ($p) {
+                $p = trim($p);
+                return preg_match('/^[A-Za-z0-9_]+$/', $p) ? "\"{$p}\"" : $p;
+            }, $parts);
+            return implode('.', $parts);
+        };
+
+        $tableQ = $quoteIdent($table);
+        $colsQ = array_map(static function ($c) {
+            return preg_match('/^[A-Za-z0-9_]+$/', $c) ? "\"{$c}\"" : $c;
+        }, $columns);
+
+        $batchSize = 500;
+        $batch = [];
+        $sqlParts = [];
+        $rows = 0;
+
+        // Читаем и формируем батчи
+        while (!$file->eof()) {
+            $row = $file->fgetcsv($delimiter, $enclosure, $escape);
+            if ($row === false) {
+                continue;
+            }
+            $isBlank = count($row) === 1 && ($row[0] === null || $row[0] === '');
+            if ($isBlank) {
+                continue;
+            }
+
+            // Нормализуем длину строки под колонки
+            $cells = array_map(function ($c) {
+                return $c === null ? null : trim((string)$c);
+            }, $row);
+
+            if (count($cells) < count($columns)) {
+                $cells = array_merge($cells, array_fill(0, count($columns) - count($cells), null));
+            } elseif (count($cells) > count($columns)) {
+                $cells = array_slice($cells, 0, count($columns));
+            }
+
+            // Пропускаем полностью пустые строки
+            $allEmpty = true;
+            foreach ($cells as $c) {
+                if ($c !== null && $c !== '') {
+                    $allEmpty = false;
+                    break;
+                }
+            }
+            if ($allEmpty) {
+                continue;
+            }
+
+            $vals = [];
+            foreach ($cells as $v) {
+                $vals[] = $quote($v);
+            }
+
+            $batch[] = '(' . implode(', ', $vals) . ')';
+            $rows++;
+
+            if (count($batch) >= $batchSize) {
+                $sqlParts[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
+                    . ' VALUES ' . implode(', ', $batch) . ';';
+                $batch = [];
+            }
+        }
+
+        if (!empty($batch)) {
+            $sqlParts[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
+                . ' VALUES ' . implode(', ', $batch) . ';';
+        }
+
+        if ($rows === 0) {
+            return '';
+        }
+
+        return implode("\n", $sqlParts);
+    }
+
+
+}

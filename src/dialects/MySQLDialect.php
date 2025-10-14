@@ -5,9 +5,8 @@ namespace tommyknocker\pdodb\dialects;
 use InvalidArgumentException;
 use PDO;
 use tommyknocker\pdodb\helpers\RawValue;
-use tommyknocker\pdodb\PdoDb;
 
-class MySQLDialect implements DialectInterface
+class MySQLDialect extends DialectAbstract implements DialectInterface
 {
     public function getDriverName(): string
     {
@@ -157,17 +156,17 @@ class MySQLDialect implements DialectInterface
     }
 
 
-    public function explainSql(string $query, bool $analyze = false): string
+    public function buildExplainSql(string $query, bool $analyze = false): string
     {
         return "EXPLAIN " . $query;
     }
 
-    public function tableExistsSql(string $table): string
+    public function buildExistsSql(string $table): string
     {
         return "SHOW TABLES LIKE '{$table}'";
     }
 
-    public function describeTableSql(string $table): string
+    public function buildDescribeTableSql(string $table): string
     {
         return "DESCRIBE {$table}";
     }
@@ -196,12 +195,22 @@ class MySQLDialect implements DialectInterface
         return true;
     }
 
-    public function canLoadData(): bool
+    public function buildLoadXML(PDO $pdo, string $table, string $filePath, array $options = []): string
     {
-        return true;
+        $defaults = [
+            'rowTag' => '<row>',
+            'linesToIgnore' => null
+        ];
+        $options = array_merge($defaults, $options);
+
+        return "LOAD XML LOCAL INFILE " . $pdo->quote($filePath) .
+            " INTO TABLE " . $this->quoteTableWithAlias($table) .
+            " ROWS IDENTIFIED BY " . $pdo->quote($options['rowTag']) .
+            ($options['linesToIgnore'] ? sprintf(' IGNORE %d LINES', $options['linesToIgnore']) : '');
     }
 
-    public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options): string
+
+    public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options = []): string
     {
         $defaults = [
             "fieldChar" => ';',

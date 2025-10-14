@@ -96,21 +96,21 @@ interface DialectInterface
      * @param bool $analyze
      * @return string
      */
-    public function explainSql(string $query, bool $analyze = false): string;
+    public function buildExplainSql(string $query, bool $analyze = false): string;
 
     /**
      * EXISTS syntax
      * @param string $table
      * @return string
      */
-    public function tableExistsSql(string $table): string;
+    public function buildExistsSql(string $table): string;
 
     /**
      * DESCRIBE syntax
      * @param string $table
      * @return string
      */
-    public function describeTableSql(string $table): string;
+    public function buildDescribeTableSql(string $table): string;
 
     /**
      * LOCK syntax
@@ -135,16 +135,14 @@ interface DialectInterface
     public function buildTruncateSql(string $table): string;
 
     /**
-     * LOAD XML support flag
-     * @return bool
+     * Build SQL for loading data from XML file
+     * @param PDO $pdo
+     * @param string $table
+     * @param string $filePath
+     * @param array $options
+     * @return string
      */
-    public function canLoadXml(): bool;
-
-    /**
-     * LOAD DATA support flag
-     * @return bool
-     */
-    public function canLoadData(): bool;
+    public function buildLoadXML(PDO $pdo, string $table, string $filePath, array $options = []): string;
 
     /**
      * LOAD DATA syntax
@@ -154,5 +152,5 @@ interface DialectInterface
      * @param array $options
      * @return string
      */
-    public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options): string;
+    public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options = []): string;
 }

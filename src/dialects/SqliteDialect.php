@@ -6,9 +6,8 @@ use InvalidArgumentException;
 use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\helpers\RawValue;
-use tommyknocker\pdodb\PdoDb;
 
-class SqliteDialect implements DialectInterface
+class SqliteDialect extends DialectAbstract implements DialectInterface
 {
     public function getDriverName(): string
     {
@@ -171,7 +170,7 @@ class SqliteDialect implements DialectInterface
         return new RawValue("DATETIME('now','{$diff}')");
     }
 
-    public function explainSql(string $query, bool $analyze = false): string
+    public function buildExplainSql(string $query, bool $analyze = false): string
     {
         if ($analyze) {
             return "EXPLAIN QUERY PLAN " . $query;
@@ -179,12 +178,12 @@ class SqliteDialect implements DialectInterface
         return "EXPLAIN " . $query;
     }
 
-    public function tableExistsSql(string $table): string
+    public function buildExistsSql(string $table): string
     {
         return "SELECT name FROM sqlite_master WHERE type='table' AND name='{$table}'";
     }
 
-    public function describeTableSql(string $table): string
+    public function buildDescribeTableSql(string $table): string
     {
         return "PRAGMA table_info({$table})";
     }
@@ -204,47 +203,5 @@ class SqliteDialect implements DialectInterface
         $table = $this->quoteTable($table);
         $identifier = $this->quoteIdentifier($table);
         return "DELETE FROM {$table}; DELETE FROM sqlite_sequence WHERE name={$identifier}";
-    }
-
-    public function canLoadXml(): bool
-    {
-        return false;
-    }
-
-    public function canLoadData(): bool
-    {
-        return false;
-    }
-
-    public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options): string
-    {
-        return '';
-    }
-
-    protected function quoteTableWithAlias(string $table): string
-    {
-        $table = trim($table);
-
-        // supported formats:
-        //  - "schema.table"         (without alias)
-        //  - "schema.table alias"   (alias with space)
-        //  - "schema.table AS alias" (AS)
-        //  - "table alias" / "table AS alias"
-        //  - "table"                (without alias)
-
-        if (preg_match('/\s+AS\s+/i', $table)) {
-            [$name, $alias] = preg_split('/\s+AS\s+/i', $table, 2);
-            $name = trim($name);
-            $alias = trim($alias);
-            return $this->quoteIdentifier($name) . ' AS ' . $this->quoteIdentifier($alias);
-        }
-
-        $parts = preg_split('/\s+/', $table, 2);
-        if (count($parts) === 1) {
-            return $this->quoteIdentifier($parts[0]);
-        }
-
-        [$name, $alias] = $parts;
-        return $this->quoteIdentifier($name) . ' ' . $this->quoteIdentifier($alias);
     }
 }

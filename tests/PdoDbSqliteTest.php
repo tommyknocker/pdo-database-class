@@ -1058,30 +1058,58 @@ final class PdoDbSqliteTest extends TestCase
         $this->assertInstanceOf(PdoDb::class, $pdoDb);
     }
 
+    public function testLoadXml(): void
+    {
+        $file = sys_get_temp_dir() . '/users.xml';
+        file_put_contents($file, <<<XML
+            <users>
+             <user>
+                <name>XMLUser 1</name>
+                <age>45</age>
+              </user>
+              <user>
+                <name>XMLUser 2</name>
+                <age>44</age>
+              </user>
+            </users>
+XML
+        );
+
+        $ok = self::$db->loadXml('users', $file, '<user>', 1);
+        $this->assertTrue($ok);
+
+        $row = self::$db->find()->from('users')->where('name', 'XMLUser 2')->getOne();
+        $this->assertEquals('XMLUser 2', $row['name']);
+        $this->assertEquals(44, $row['age']);
+
+        unlink($file);
+    }
 
     public function testLoadDataInfile()
     {
         $db = self::$db;
 
-        $this->expectException(RuntimeException::class);
         $tmpFile = sys_get_temp_dir() . '/users.csv';
-        file_put_contents($tmpFile, "4,Dave,new\n5,Eve,new\n");
+        file_put_contents($tmpFile, "4,Dave,new,30\n5,Eve,new,40\n");
 
         $ok = $db->loadData('users', $tmpFile, [
             'fieldChar' => ',',
-            'fields' => ['id', 'name', 'status'],
+            'fields' => ['id', 'name', 'status', 'age'],
             'local' => true
         ]);
 
         $this->assertTrue($ok, 'loadData() returned false');
 
-        $names = array_column($db->find()->from('users')->get(), 'name');
+        $names =$db->find()
+            ->from('users')
+            ->select(['name'])
+            ->getColumn();
+
         $this->assertContains('Dave', $names);
         $this->assertContains('Eve', $names);
 
         unlink($tmpFile);
     }
-
 
     public function testFuncNowIncDec(): void
     {

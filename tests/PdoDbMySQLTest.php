@@ -1243,7 +1243,7 @@ XML
         $ok = self::$db->loadXml('users', $file, '<user>', 1);
         $this->assertTrue($ok);
 
-        $row = self::$db->find()->from('users')->where('name', 'XmlUser 2')->getOne();
+        $row = self::$db->find()->from('users')->where('name', 'XMLUser 2')->getOne();
         $this->assertEquals('XMLUser 2', $row['name']);
         $this->assertEquals(44, $row['age']);
 

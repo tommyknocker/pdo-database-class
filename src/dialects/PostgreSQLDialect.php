@@ -6,7 +6,7 @@ use InvalidArgumentException;
 use PDO;
 use tommyknocker\pdodb\helpers\RawValue;
 
-class PostgreSQLDialect implements DialectInterface
+class PostgreSQLDialect extends DialectAbstract implements DialectInterface
 {
     public function getDriverName(): string
     {
@@ -33,7 +33,6 @@ class PostgreSQLDialect implements DialectInterface
             . (!empty($params['application_name']) ? ";application_name={$params['application_name']}" : '')
             . (!empty($params['connect_timeout']) ? ";connect_timeout={$params['connect_timeout']}" : '')
             . (!empty($params['target_session_attrs']) ? ";target_session_attrs={$params['target_session_attrs']}" : '');
-
     }
 
     public function defaultPdoOptions(): array
@@ -174,11 +173,14 @@ class PostgreSQLDialect implements DialectInterface
     }
 
 
-
-    public function buildReplaceSql(string $table, array $columns, array $placeholders, bool $isMultiple = false): string
-    {
+    public function buildReplaceSql(
+        string $table,
+        array $columns,
+        array $placeholders,
+        bool $isMultiple = false
+    ): string {
         $tableSql = $this->quoteTable($table);
-        $colsSql  = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
+        $colsSql = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
 
         if ($isMultiple) {
             // $placeholders is expected to be an array of strings where each string
@@ -230,17 +232,17 @@ class PostgreSQLDialect implements DialectInterface
         return new RawValue($diff ? "$func + INTERVAL '{$diff}'" : $func);
     }
 
-    public function explainSql(string $query, bool $analyze = false): string
+    public function buildExplainSql(string $query, bool $analyze = false): string
     {
         return "EXPLAIN " . ($analyze ? "ANALYZE " : "") . $query;
     }
 
-    public function tableExistsSql(string $table): string
+    public function buildExistsSql(string $table): string
     {
         return "SELECT to_regclass('{$table}') IS NOT NULL AS exists";
     }
 
-    public function describeTableSql(string $table): string
+    public function buildDescribeTableSql(string $table): string
     {
         return "SELECT column_name, data_type, is_nullable, column_default
                 FROM information_schema.columns
@@ -264,18 +266,7 @@ class PostgreSQLDialect implements DialectInterface
         return 'TRUNCATE TABLE ' . $this->quoteTable($table);
     }
 
-    public function canLoadXml(): bool
-    {
-        // PostgreSQL can't load XML
-        return false;
-    }
-
-    public function canLoadData(): bool
-    {
-        return true;
-    }
-
-    public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options): string
+    public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options = []): string
     {
         $tableSql = $this->quoteIdentifier($table);
 
@@ -283,7 +274,7 @@ class PostgreSQLDialect implements DialectInterface
 
         $delimiter = $options['fieldChar'] ?? ',';
         $quoteChar = $options['fieldEnclosure'] ?? '"';
-        $header = isset($options['header']) ? (bool)$options['header'] : false;
+        $header = isset($options['header']) && (bool)$options['header'];
 
         $columnsSql = '';
         if (!empty($options['fields']) && is_array($options['fields'])) {
@@ -303,32 +294,4 @@ class PostgreSQLDialect implements DialectInterface
             $quo
         );
     }
-
-    protected function quoteTableWithAlias(string $table): string
-    {
-        $table = trim($table);
-
-        // supported formats:
-        //  - "schema.table"         (without alias)
-        //  - "schema.table alias"   (alias with space)
-        //  - "schema.table AS alias" (AS)
-        //  - "table alias" / "table AS alias"
-        //  - "table"                (without alias)
-
-        if (preg_match('/\s+AS\s+/i', $table)) {
-            [$name, $alias] = preg_split('/\s+AS\s+/i', $table, 2);
-            $name = trim($name);
-            $alias = trim($alias);
-            return $this->quoteIdentifier($name) . ' AS ' . $this->quoteIdentifier($alias);
-        }
-
-        $parts = preg_split('/\s+/', $table, 2);
-        if (count($parts) === 1) {
-            return $this->quoteIdentifier($parts[0]);
-        }
-
-        [$name, $alias] = $parts;
-        return $this->quoteIdentifier($name) . ' ' . $this->quoteIdentifier($alias);
-    }
-
 }
