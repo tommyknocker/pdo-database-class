@@ -11,22 +11,27 @@ Inspired by https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 ## Key features
 
 * **Unified API** across MySQL, PostgreSQL and SQLite.
-* **QueryBuilder**: fluent, expressive construction for SELECT/INSERT/UPDATE/DELETE, GROUP/HAVING, joins, etc..
+* **QueryBuilder**: fluent, expressive construction for `SELECT`/`INSERT`/`UPDATE`/`DELETE`, `GROUP`/`HAVING`, `JOIN`, etc.
 * **Safe parameter binding**: automatic placeholders and unique names for multi-row inserts.
 * **Multi-row inserts** with efficient parameter generation.
-* **UPSERT support**: generates dialect-appropriate UPSERT (ON CONFLICT for SQLite/Postgres, ON DUPLICATE KEY UPDATE for MySQL).
+* **UPSERT support**: generates dialect-appropriate UPSERT (`ON CONFLICT` for SQLite/Postgres, `ON DUPLICATE KEY UPDAT`E for MySQL).
 * **RawValue support** for injecting safe SQL expressions where needed.
-* **Bulk loaders**: CSV loader (COPY for Postgres when available, server-side file or client streaming depending on options) and XML loader (PHP parsing fallback).
-* **Dialect helpers**: identifier quoting, type mapping, and small semantics (REPLACE vs UPSERT) handled per driver.
-* **Transaction** helpers and concurrency primitives adapted to each engine.`
+* **Bulk loaders**: CSV loader (CSV loader; `COPY`/`LOAD DATA` when available) and XML loader.
+* **Dialect helpers**: identifier quoting, type mapping, and small semantics (`REPLACE` vs `UPSERT`) handled per driver.
+* **Transaction** helpers and concurrency primitives adapted to each engine.
 * **Comprehensive** tests across three dialects ensuring consistent behavior.
+
 ---
 
 ## Installation
 
+Install via Composer:
+
 ```bash
 composer require tommyknocker/pdo-database-class
 ```
+
+---
 
 ## Initialization
 
@@ -81,9 +86,11 @@ $db = new PdoDb('sqlite', [
 ]);
 ```
 
-## Quick start QueryBuilder examples
+---
 
-All QueryBuilder examples start with $db->find() which returns a QueryBuilder instance.
+## Quick start
+
+All QueryBuilder examples start with `$db->find()` which returns a QueryBuilder instance.
 
 ### Simple select
 
@@ -98,20 +105,23 @@ $row = $db->find()
 ### Select with grouping and having
 
 ```php
-use tommyknocker\pdodb\helpers\RawValue;$rows = $db->find()
+use tommyknocker\pdodb\helpers\RawValue;
+
+$rows = $db->find()
     ->from('orders')
     ->select(['user_id', new RawValue('SUM(amount) AS total')])
     ->groupBy('user_id')
     ->having(new RawValue('SUM(amount)'), 300, '=')
     ->orHaving(new RawValue('SUM(amount)'), 500, '=')
-    ->orHaving(new RawValue('SUM(amount)'), 700, '=')
     ->get();
 ```
 
 ### Joins and pagination
 
 ```php
-use tommyknocker\pdodb\helpers\RawValue;$rows = $db->find()
+use tommyknocker\pdodb\helpers\RawValue
+
+;$rows = $db->find()
     ->from('users AS u')
     ->select(['u.id', 'u.name', new RawValue('SUM(o.amount) AS total')])
     ->join('orders AS o', 'o.user_id = u.id', 'LEFT')
@@ -123,6 +133,7 @@ use tommyknocker\pdodb\helpers\RawValue;$rows = $db->find()
 ```
 
 ### Insert single row
+
 ```php
 $id = $db->find()->table('users')->insert([
     'name' => 'Alice',
@@ -146,9 +157,10 @@ $count = $db->find()->table('users')->insertMulti($rows);
 ```php
 use tommyknocker\pdodb\helpers\RawValue;
 
-$db->find()->table('counters')->insert([
-    'name'  => 'views',
-    'count' => new RawValue('1')
+$id = $db->find()->table('users')->insert([
+    'name' => 'Alex',
+    'age' => 21,
+    'created_at' => new RawValue('NOW()'),
 ]);
 ```
 
@@ -162,8 +174,6 @@ $db->find()->table('users')->onDuplicate([
     'age'  => 30
 ]);
 ```
-
-## Loaders
 
 ### CSV loader loadData
 
@@ -183,13 +193,7 @@ $db->loadData('users', '/tmp/users.csv', [
 $db->find()->table('users')->insertXml('/path/to/file.xml');
 ```
 
-## Identifier quoting and expressions
-
-* **Automatic quoting**: identifiers are quoted per dialect (`"name"` for Postgres/SQLite, ``name`` for MySQL).
-* **Functions and expressions**: expressions containing parentheses, operators, or keywords are preserved and not quoted. Use RawValue for explicit SQL fragments.
-* **Schema and alias support**: accepts `schema.table AS t` forms and escapes parts split by dot. Complex aliasing should be provided pre-parsed for full reliability.
-
-## Transactions and locking
+### Transactions and locking
 
 ```php
 $db->beginTransaction();
@@ -202,6 +206,37 @@ try {
 }
 ```
 
+---
+
+## Public API overview
+
+* **find()**: returns QueryBuilder instance.
+* **table(string|array) / from(string)**: set target table (supports schema.table and simple aliasing).
+* **select(array|string), where(...), join(...), groupBy(...), having(...), orderBy(...), limit(int), offset(int)**.
+* **insert(array)**: insert single row, returns inserted primary key when available.
+* **insertMulti(array)**: insert multiple rows; generates unique named placeholders like :col_0, :col_1 and returns inserted row count.
+* **onDuplicate(array) / upsert(...)**: build UPSERT clause; dialect-specific generation.
+* **update(array, conditions)**: update rows, returns affected count.
+* **delete(conditions)**: delete rows, returns affected count.
+* **loadData(table, file, options)**: CSV loader; COPY/LOAD DATA when available.
+* **loadXml(table, file, tag, options)**: XML loader.
+* **truncate()**: wrapper for table truncation; note dialect differences (see Dialect specifics).
+* **beginTransaction() / commit() / rollBack()**: transaction helpers.
+
+Use RawValue for SQL fragments that must bypass parameter binding.
+
+---
+
+## Dialect specifics and behavioral notes
+
+* **Identifier quoting**: automatic per driver — double quotes for Postgres/SQLite, backticks for MySQL by default. Functions and expressions (containing parentheses/operators) are preserved and not quoted. Use RawValue to inject explicit SQL fragments.
+* **UPSERT: SQLite/Postgres**: `ON CONFLICT` syntax (uses excluded.<col> semantics). **MySQL**: `ON DUPLICATE KEY UPDATE`. Library chooses the correct form automatically.
+* **TRUNCATE**: SQLite does not support TRUNCATE. For SQLite library uses `DELETE FROM table`; reset AUTOINCREMENT via sqlite_sequence.
+* **Bulk loaders**: PostgreSQL use COPY when permissions allow; MySQL use LOAD DATA LOCAL INFILE when allowed.
+* **Multi-row inserts**: placeholders are generated uniquely per row/column (e.g., :name_0, :name_1) to avoid binding conflicts in PDO. . RawValue elements are embedded verbatim into the `VALUES` tuples.
+
+---
+
 ## Conventions and return values
 
 * **insert** returns the inserted primary key where applicable.
@@ -210,7 +245,9 @@ try {
 * **RawValue** entries are embedded verbatim into SQL tuples and not bound as parameters.
 * **Multi-row inserts** generate unique named placeholders like `:name_0`, `:name_1` `to avoid PDO binding conflicts.
 
-## Testing
+---
+
+## Testing and CI
 
 * The project includes PHPUnit tests that run against MySQL PostgreSQL and SQLite. Tests are designed to run in containers or against local instances.
 * Recommended CI workflow runs the test matrix on GitHub Actions with containerized MySQL and PostgreSQL and native SQLite.
@@ -220,6 +257,8 @@ Run the test suite with:
 ```bash
 vendor/bin/phpunit
 ```
+
+---
 
 ## Contributing
 
