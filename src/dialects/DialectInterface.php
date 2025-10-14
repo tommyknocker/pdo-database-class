@@ -128,6 +128,13 @@ interface DialectInterface
     public function buildUnlockSql(): string;
 
     /**
+     * TRUNCATE syntax
+     * @param string $table
+     * @return string
+     */
+    public function buildTruncateSql(string $table): string;
+
+    /**
      * LOAD XML support flag
      * @return bool
      */

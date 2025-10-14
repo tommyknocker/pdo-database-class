@@ -95,11 +95,7 @@ class QueryBuilder
             $cols = [$cols];
         }
         foreach ($cols as $col) {
-            if ($col instanceof RawValue) {
-                $this->select[] = $col->getValue();
-            } else {
-                $this->select[] = (string)$col;
-            }
+            $this->select[] = (string)$col; // RawValue has __toString() method
         }
         return $this;
     }
@@ -141,15 +137,8 @@ class QueryBuilder
     public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): self
     {
         $type = strtoupper(trim($type));
-
         $tableSql = $this->normalizeTable($tableAlias);
-
-        if ($condition instanceof RawValue) {
-            $onSql = $condition->getValue();
-        } else {
-            $onSql = (string)$condition;
-        }
-
+        $onSql = (string)$condition; // RawValue has __toString() method
         $this->joins[] = "{$type} JOIN {$tableSql} ON {$onSql}";
         return $this;
     }
@@ -278,20 +267,21 @@ class QueryBuilder
      * @param string $cond The condition to use.
      * @return self The current instance.
      */
-    protected function addCondition(string $prop, string|RawValue $exprOrColumn, mixed $value, string $operator, string $cond): self
-    {
+    protected function addCondition(
+        string $prop,
+        string|RawValue $exprOrColumn,
+        mixed $value,
+        string $operator,
+        string $cond
+    ): self {
         // if RawValue is provided and there is no value — insert it as is
         if ($value === null) {
-            if ($exprOrColumn instanceof RawValue) {
-                $this->{$prop}[] = $exprOrColumn;
-            } else {
-                $this->{$prop}[] = (string)$exprOrColumn;
-            }
+            $this->{$prop}[] = $exprOrColumn; // RawValue has __toString() method
             return $this;
         }
 
-        if($exprOrColumn instanceof RawValue && $value) {
-            $this->{$prop}[] = ['sql' => "{$exprOrColumn->getValue()} {$operator} {$value}", 'cond' => $cond];
+        if ($exprOrColumn instanceof RawValue && $value) {
+            $this->{$prop}[] = ['sql' => "{$exprOrColumn} {$operator} {$value}", 'cond' => $cond];
             return $this;
         }
 
@@ -512,7 +502,7 @@ class QueryBuilder
     {
         $this->data = $data;
 
-        if($onDuplicate) {
+        if ($onDuplicate) {
             $this->onDuplicate = $onDuplicate;
         }
 
@@ -548,7 +538,7 @@ class QueryBuilder
 
         $this->multiRows = $rows;
 
-        if($onDuplicate) {
+        if ($onDuplicate) {
             $this->onDuplicate = $onDuplicate;
         }
 
@@ -656,8 +646,7 @@ class QueryBuilder
         }
         $row = $this->getOne();
         $key = $this->resolveSelectedKey();
-        if(count($row) === 1 && !isset($row[$key]))
-        {
+        if (count($row) === 1 && !isset($row[$key])) {
             return array_shift($row);
         }
         return $row[$key] ?? null;
@@ -670,9 +659,9 @@ class QueryBuilder
      */
     public function truncate(): bool
     {
-        $sql = 'TRUNCATE TABLE ' . $this->dialect->quoteTable($this->table);
-        $this->db->lastQuery = $sql;
-        return (bool)$this->executeStatement($sql);
+        $sql = $this->dialect->buildTruncateSql($this->table);
+        $this->executeStatement($sql);
+        return $this->db->lastErrno === 0;
     }
 
     /**
@@ -917,6 +906,8 @@ class QueryBuilder
     {
         $this->db->lastQuery = $sql;
         $this->db->trace($sql, $params);
+        $this->db->lastError = '';
+        $this->db->lastErrno = 0;
         try {
             $pdo = $this->db->pdo;
             $stmt = $pdo->prepare($sql);
@@ -944,7 +935,8 @@ class QueryBuilder
     {
         $this->db->lastQuery = $sql;
         $this->db->trace($sql, $params);
-
+        $this->db->lastError = '';
+        $this->db->lastErrno = 0;
         try {
             $pdo = $this->db->pdo;
             $stmt = $pdo->prepare($sql);
@@ -968,10 +960,18 @@ class QueryBuilder
     {
         $this->db->lastQuery = $sql;
         $this->db->trace($sql, $params);
-        $pdo = $this->db->pdo;
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll($this->fetchMode);
+        $this->db->lastError = '';
+        $this->db->lastErrno = 0;
+        try {
+            $pdo = $this->db->pdo;
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll($this->fetchMode);
+        } catch (Throwable $e) {
+            $this->db->lastError = $e->getMessage();
+            $this->db->lastErrno = (int)$e->getCode();
+            throw $e;
+        }
     }
 
     /**
@@ -984,14 +984,19 @@ class QueryBuilder
     protected function fetchColumn(string $sql, array $params): mixed
     {
         $this->db->lastQuery = $sql;
-
-        // trace
         $this->db->trace($sql, $params);
-
-        $pdo = $this->db->pdo;
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchColumn();
+        $this->db->lastError = '';
+        $this->db->lastErrno = 0;
+        try {
+            $pdo = $this->db->pdo;
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchColumn();
+        } catch (Throwable $e) {
+            $this->db->lastError = $e->getMessage();
+            $this->db->lastErrno = (int)$e->getCode();
+            throw $e;
+        }
     }
 
     /**
@@ -1004,14 +1009,19 @@ class QueryBuilder
     protected function fetch(string $sql, array $params): mixed
     {
         $this->db->lastQuery = $sql;
-
-        // trace
         $this->db->trace($sql, $params);
-
-        $pdo = $this->db->pdo;
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetch($this->fetchMode);
+        $this->db->lastError = '';
+        $this->db->lastErrno = 0;
+        try {
+            $pdo = $this->db->pdo;
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetch($this->fetchMode);
+        } catch (Throwable $e) {
+            $this->db->lastError = $e->getMessage();
+            $this->db->lastErrno = (int)$e->getCode();
+            throw $e;
+        }
     }
 
     /* utilities */

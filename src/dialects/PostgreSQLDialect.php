@@ -259,6 +259,11 @@ class PostgreSQLDialect implements DialectInterface
         return '';
     }
 
+    public function buildTruncateSql(string $table): string
+    {
+        return 'TRUNCATE TABLE ' . $this->quoteTable($table);
+    }
+
     public function canLoadXml(): bool
     {
         // PostgreSQL can't load XML

@@ -122,7 +122,7 @@ class SqliteDialect implements DialectInterface
 
                 $safeExpr = preg_replace_callback(
                     '/\b' . preg_quote($col, '/') . '\b/i',
-                    function ($m) use ($exprStr, $replacement) {
+                    static function ($m) use ($exprStr, $replacement) {
                         $pos = strpos($exprStr, $m[0]);
                         if ($pos === false) {
                             return $m[0];
@@ -149,13 +149,15 @@ class SqliteDialect implements DialectInterface
     }
 
 
-    public function buildReplaceSql(string $table, array $columns, array $placeholders, bool $isMultiple = false): string
-    {
+    public function buildReplaceSql(
+        string $table,
+        array $columns,
+        array $placeholders,
+        bool $isMultiple = false
+    ): string {
         $colsSql = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
-
         $valsSql = implode(',', $placeholders);
-
-        if($isMultiple) {
+        if ($isMultiple) {
             return sprintf('REPLACE INTO %s (%s) VALUES %s', $table, $colsSql, $valsSql);
         }
         return sprintf('REPLACE INTO %s (%s) VALUES (%s)', $table, $colsSql, $valsSql);
@@ -195,6 +197,13 @@ class SqliteDialect implements DialectInterface
     public function buildUnlockSql(): string
     {
         throw new RuntimeException('UNLOCK TABLES not supported');
+    }
+
+    public function buildTruncateSql(string $table): string
+    {
+        $table = $this->quoteTable($table);
+        $identifier = $this->quoteIdentifier($table);
+        return "DELETE FROM {$table}; DELETE FROM sqlite_sequence WHERE name={$identifier}";
     }
 
     public function canLoadXml(): bool

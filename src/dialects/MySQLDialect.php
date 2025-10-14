@@ -181,6 +181,11 @@ class MySQLDialect implements DialectInterface
         return "LOCK TABLES " . implode(', ', $parts);
     }
 
+    public function buildTruncateSql(string $table): string
+    {
+        return 'TRUNCATE TABLE ' . $this->quoteTable($table);
+    }
+
     public function buildUnlockSql(): string
     {
         return "UNLOCK TABLES";

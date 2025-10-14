@@ -379,6 +379,33 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertEquals(2, $count);
     }
 
+    public function testTruncate(): void
+    {
+        $db = self::$db;
+
+        $rowCount = self::$db->find()
+            ->table('archive_users')
+            ->insertMulti([
+                ['user_id' => 1],
+                ['user_id' => 2],
+                ['user_id' => 3],
+            ]);
+        $this->assertEquals(3, $rowCount);
+
+        $rows = $db->find()
+            ->from('archive_users')
+            ->get();
+        $this->assertCount(3, $rows);
+
+        $result = $db->find()->table('archive_users')->truncate();
+        $this->assertTrue($result);
+
+        $rows = $db->find()
+            ->from('archive_users')
+            ->get();
+        $this->assertCount(0, $rows);
+    }
+
     public function testDelete(): void
     {
         $db = self::$db;
