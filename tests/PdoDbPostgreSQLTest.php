@@ -1243,4 +1243,144 @@ XML
         $this->assertNotEmpty($plan);
         $this->assertArrayHasKey('QUERY PLAN', $plan[0]);
     }
+
+    public function testDescribeUsers(): void
+    {
+        $db = self::$db;
+        $columns = $db->describe('users');
+        $this->assertNotEmpty($columns);
+        
+        $columnNames = array_column($columns, 'column_name');
+        $this->assertContains('id', $columnNames);
+        $this->assertContains('name', $columnNames);
+        $this->assertContains('company', $columnNames);
+        $this->assertContains('age', $columnNames);
+        $this->assertContains('status', $columnNames);
+        $this->assertContains('created_at', $columnNames);
+        $this->assertContains('updated_at', $columnNames);
+        
+        $idColumn = null;
+        foreach ($columns as $column) {
+            if ($column['column_name'] === 'id') {
+                $idColumn = $column;
+                break;
+            }
+        }
+        $this->assertNotNull($idColumn);
+        $this->assertEquals('integer', $idColumn['data_type']);
+        $this->assertEquals('NO', $idColumn['is_nullable']);
+        
+        $nameColumn = null;
+        foreach ($columns as $column) {
+            if ($column['column_name'] === 'name') {
+                $nameColumn = $column;
+                break;
+            }
+        }
+        $this->assertNotNull($nameColumn);
+        $this->assertEquals('character varying', $nameColumn['data_type']);
+        $this->assertContains($nameColumn['is_nullable'], ['YES', 'NO']);
+        
+        foreach ($columns as $column) {
+            $this->assertArrayHasKey('column_name', $column);
+            $this->assertArrayHasKey('data_type', $column);
+            $this->assertArrayHasKey('is_nullable', $column);
+            $this->assertArrayHasKey('column_default', $column);
+        }
+    }
+
+    public function testDescribeOrders(): void
+    {
+        $db = self::$db;
+        $columns = $db->describe('orders');
+        $this->assertNotEmpty($columns);
+        
+        $columnNames = array_column($columns, 'column_name');
+        $this->assertContains('id', $columnNames);
+        $this->assertContains('user_id', $columnNames);
+        $this->assertContains('amount', $columnNames);
+        
+        $userIdColumn = null;
+        foreach ($columns as $column) {
+            if ($column['column_name'] === 'user_id') {
+                $userIdColumn = $column;
+                break;
+            }
+        }
+        $this->assertNotNull($userIdColumn);
+        $this->assertEquals('integer', $userIdColumn['data_type']);
+        $this->assertEquals('NO', $userIdColumn['is_nullable']);
+        
+        foreach ($columns as $column) {
+            if ($column['column_name'] === 'amount') {
+                $amountColumn = $column;
+                break;
+            }
+        }
+        $this->assertNotNull($amountColumn);
+        $this->assertEquals('numeric', $amountColumn['data_type']);
+        $this->assertEquals('NO', $amountColumn['is_nullable']);
+    }
+
+    public function testPrefixMethod(): void
+    {
+        $db = self::$db;
+        
+        $queryBuilder = $db->find()->prefix('test_')->from('users');
+        
+        $db->rawQuery("CREATE TABLE IF NOT EXISTS test_prefixed_table (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100)
+        )");
+        
+        $id = $queryBuilder->table('prefixed_table')->insert(['name' => 'Test User']);
+        $this->assertIsInt($id);
+        
+        $user = $queryBuilder->table('prefixed_table')->where('id', $id)->getOne();
+        $this->assertEquals('Test User', $user['name']);
+        
+        $this->assertStringContainsString('"test_prefixed_table"', $db->lastQuery);
+        
+        $db->rawQuery("DROP TABLE IF EXISTS test_prefixed_table");
+    }
+
+    public function testLeftJoin(): void
+    {
+        $db = self::$db;
+        
+        $userId = $db->find()->table('users')->insert(['name' => 'Left Join User', 'age' => 30]);
+        $db->find()->table('orders')->insert(['user_id' => $userId, 'amount' => 150.50]);
+        
+        $results = $db->find()
+            ->from('users u')
+            ->leftJoin('orders o', 'u.id = o.user_id')
+            ->select(['u.name', 'o.amount'])
+            ->get();
+        
+        $this->assertNotEmpty($results);
+        $this->assertEquals('Left Join User', $results[0]['name']);
+        $this->assertEquals('150.50', $results[0]['amount']);
+        
+        $this->assertStringContainsString('LEFT JOIN', $db->lastQuery);
+    }
+
+    public function testRightJoin(): void
+    {
+        $db = self::$db;
+        
+        $userId = $db->find()->table('users')->insert(['name' => 'Right Join User', 'age' => 25]);
+        $db->find()->table('orders')->insert(['user_id' => $userId, 'amount' => 200.75]);
+        
+        $results = $db->find()
+            ->from('users u')
+            ->rightJoin('orders o', 'u.id = o.user_id')
+            ->select(['u.name', 'o.amount'])
+            ->get();
+        
+        $this->assertNotEmpty($results);
+        $this->assertEquals('Right Join User', $results[0]['name']);
+        $this->assertEquals('200.75', $results[0]['amount']);
+        
+        $this->assertStringContainsString('RIGHT JOIN', $db->lastQuery);
+    }
 }

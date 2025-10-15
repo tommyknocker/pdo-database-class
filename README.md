@@ -1,4 +1,4 @@
-# PDO Database Class
+# PDOdb
 
 A lightweight, portable PHP database library built on PDO that provides a unified API for common database operations 
 across MySQL, PostgreSQL and SQLite. It includes a QueryBuilder with a fluent, chainable API, safe parameter binding,
@@ -14,11 +14,13 @@ Inspired by https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 * **QueryBuilder**: fluent, expressive construction for `SELECT`/`INSERT`/`UPDATE`/`DELETE`, `GROUP`/`HAVING`, `JOIN`, etc.
 * **Safe parameter binding**: automatic placeholders and unique names for multi-row inserts.
 * **Multi-row inserts** with efficient parameter generation.
-* **UPSERT support**: generates dialect-appropriate UPSERT (`ON CONFLICT` for SQLite/Postgres, `ON DUPLICATE KEY UPDAT`E for MySQL).
+* **UPSERT support**: generates dialect-appropriate UPSERT (`ON CONFLICT` for SQLite/Postgres, `ON DUPLICATE KEY UPDATE` for MySQL).
 * **RawValue support** for injecting safe SQL expressions where needed.
-* **Bulk loaders**: CSV loader (CSV loader; `COPY`/`LOAD DATA` when available) and XML loader.
+* **Bulk loaders**: CSV loader (`COPY`/`LOAD DATA` when available) and XML loader.
 * **Dialect helpers**: identifier quoting, type mapping, and small semantics (`REPLACE` vs `UPSERT`) handled per driver.
-* **Transaction** helpers and concurrency primitives adapted to each engine.
+* **Transaction helpers** and table locking primitives adapted to each engine.
+* **Connection pooling** support for multiple database connections.
+* **Helper functions** for common operations (`inc()`, `dec()`, `not()`, `now()`).
 * **Comprehensive** tests across three dialects ensuring consistent behavior.
 
 ---
@@ -35,7 +37,7 @@ composer require tommyknocker/pdo-database-class
 
 ## Initialization
 
-```new PdOdb(string $driver, array $config, array $pdoOptions);```
+```new PdoDb(string $driver, array $config, array $pdoOptions = [], ?LoggerInterface $logger = null);```
 
 ```php
 $db = new PdoDb('mysql', [
@@ -88,6 +90,20 @@ $db = new PdoDb('sqlite', [
 ]);
 ```
 
+### Connection Pooling
+
+```php
+$db = new PdoDb();
+
+// Add multiple connections
+$db->addConnection('mysql', ['driver' => 'mysql', 'host' => 'localhost', /* ... */]);
+$db->addConnection('pgsql', ['driver' => 'pgsql', 'host' => 'localhost', /* ... */]);
+
+// Switch between connections
+$db->connection('mysql')->find()->from('users')->get();
+$db->connection('pgsql')->find()->from('posts')->get();
+```
+
 ---
 
 ## Quick start
@@ -126,7 +142,7 @@ use tommyknocker\pdodb\helpers\RawValue;
 $rows = $db->find()
     ->from('users AS u')
     ->select(['u.id', 'u.name', new RawValue('SUM(o.amount) AS total')])
-    ->join('orders AS o', 'o.user_id = u.id', 'LEFT')
+    ->leftJoin('orders AS o', 'o.user_id = u.id')
     ->groupBy('u.id')
     ->orderBy('total', 'DESC')
     ->limit(20)
@@ -200,7 +216,7 @@ $db->find()->table('users')->insertXml('/path/to/file.xml');
 ### Transactions and locking
 
 ```php
-$db->beginTransaction();
+$db->startTransaction();
 try {
     // actions
     $db->commit();
@@ -208,24 +224,90 @@ try {
     $db->rollBack();
     throw $e;
 }
+
+// Table locking
+$db->lock(['users', 'orders'])->setLockMethod('WRITE');
+try {
+    // perform operations
+} finally {
+    $db->unlock();
+}
+```
+
+### Helper functions
+
+```php
+// Increment/decrement operations
+$db->find()->table('users')->where('id', 1)->update(['age' => $db->inc()]);
+$db->find()->table('users')->where('id', 1)->update(['age' => $db->dec(5)]);
+
+// NOT operation (PostgreSQL requires boolean types)
+$db->find()->table('users')->where('id', 1)->update(['is_active' => $db->not(true)]);
+
+// Current timestamp
+$db->find()->table('users')->insert([
+    'name' => 'John',
+    'created_at' => $db->now(),
+    'expires_at' => $db->now('1 YEAR')
+]);
 ```
 
 ---
 
 ## Public API overview
 
+### PdoDb Main Class
+
 * **find()**: returns QueryBuilder instance.
-* **table(string|array) / from(string)**: set target table (supports `schema.table` and simple aliasing).
-* **select(array|string), where(...), join(...), groupBy(...), having(...), orderBy(...), limit(int), offset(int)**.
-* **insert(array)**: insert single row, returns inserted primary key when available.
-* **insertMulti(array)**: insert multiple rows; generates unique named placeholders like :col_0, :col_1 and returns inserted row count.
-* **onDuplicate(array) / upsert(...)**: build UPSERT clause; dialect-specific generation.
-* **update(array, conditions)**: update rows, returns affected count.
-* **delete(conditions)**: delete rows, returns affected count.
+* **rawQuery(string, array)**: execute raw SQL, returns array of rows.
+* **rawQueryOne(string, array)**: execute raw SQL, returns first row.
+* **rawQueryValue(string, array)**: execute raw SQL, returns single value.
+* **startTransaction() / commit() / rollBack()**: transaction helpers.
+* **lock(array|string) / unlock()**: table locking helpers.
+* **setLockMethod(string)**: set lock method (READ/WRITE).
 * **loadData(table, file, options)**: CSV loader; COPY/LOAD DATA when available.
 * **loadXml(table, file, tag, options)**: XML loader.
-* **truncate()**: wrapper for table truncation; note dialect differences (see Dialect specifics).
-* **beginTransaction() / commit() / rollBack()**: transaction helpers.
+* **describe(string)**: get table structure.
+* **explain(string, array) / explainAnalyze(string, array)**: query analysis.
+* **tableExists(string)**: check if table exists.
+* **ping()**: check database connection.
+* **escape(string)**: escape string for SQL.
+* **disconnect()**: close connection.
+* **addConnection(name, config, options, logger)**: add connection to pool.
+* **connection(name)**: switch to named connection.
+
+### Helper Functions
+
+* **inc(int|float)**: returns increment operation array.
+* **dec(int|float)**: returns decrement operation array.
+* **not(mixed)**: returns NOT operation array.
+* **now(string)**: returns current timestamp with optional interval.
+
+### QueryBuilder Methods
+
+* **table(string) / from(string)**: set target table (supports `schema.table` and simple aliasing).
+* **prefix(string)**: set table prefix for this query.
+* **select(array|string)**: specify columns to select.
+* **where(...) / andWhere(...) / orWhere(...)**: add WHERE conditions.
+* **join(...) / leftJoin(...) / rightJoin(...) / innerJoin(...)**: add JOIN clauses.
+* **groupBy(...)**: add GROUP BY clause.
+* **having(...) / orHaving(...)**: add HAVING conditions.
+* **orderBy(...)**: add ORDER BY clause.
+* **limit(int) / offset(int)**: add LIMIT and OFFSET.
+* **option(string|array)**: add query options.
+* **insert(array)**: insert single row, returns inserted primary key when available.
+* **insertMulti(array)**: insert multiple rows; generates unique named placeholders and returns inserted row count.
+* **onDuplicate(array)**: build UPSERT clause; dialect-specific generation.
+* **replace(array) / replaceMulti(array)**: MySQL-specific REPLACE operations.
+* **update(array)**: update rows, returns affected count.
+* **delete()**: delete rows, returns affected count.
+* **truncate()**: truncate table (DELETE FROM for SQLite).
+* **get()**: execute SELECT and return all rows.
+* **getOne()**: execute SELECT and return first row.
+* **getColumn()**: execute SELECT and return single column values.
+* **getValue()**: execute SELECT and return single value.
+* **exists()**: check if any rows match conditions.
+* **asObject()**: set fetch mode to objects instead of arrays.
 
 Use RawValue for SQL fragments that must bypass parameter binding.
 
@@ -235,9 +317,12 @@ Use RawValue for SQL fragments that must bypass parameter binding.
 
 * **Identifier quoting**: automatic per driver — double quotes for PostgreSQL/SQLite, backticks for MySQL by default. Functions and expressions (containing parentheses/operators) are preserved and not quoted. Use RawValue to inject explicit SQL fragments.
 * **UPSERT: SQLite/PostgreSQL**: `ON CONFLICT` syntax (uses excluded.<col> semantics). **MySQL**: `ON DUPLICATE KEY UPDATE`. Library chooses the correct form automatically.
+* **REPLACE**: MySQL-specific operation. Other dialects use UPSERT equivalents.
 * **TRUNCATE**: SQLite does not support TRUNCATE. For SQLite library uses `DELETE FROM table`; reset AUTOINCREMENT via sqlite_sequence.
+* **Table locking**: MySQL uses `LOCK TABLES`, PostgreSQL uses `LOCK TABLE`, SQLite uses `BEGIN IMMEDIATE`.
+* **NOT operation**: PostgreSQL requires boolean types for NOT operations, MySQL and SQLite support various types.
 * **Bulk loaders**: PostgreSQL use COPY when permissions allow; MySQL use LOAD DATA LOCAL INFILE when allowed.
-* **Multi-row inserts**: placeholders are generated uniquely per row/column (e.g., :name_0, :name_1) to avoid binding conflicts in PDO. . RawValue elements are embedded verbatim into the `VALUES` tuples.
+* **Multi-row inserts**: placeholders are generated uniquely per row/column (e.g., :name_0, :name_1) to avoid binding conflicts in PDO. RawValue elements are embedded verbatim into the `VALUES` tuples.
 
 ---
 
@@ -247,13 +332,14 @@ Use RawValue for SQL fragments that must bypass parameter binding.
 * **insertMulti** returns the number of inserted rows.
 * **replace/upsert** returns affected row count when deterministic; semantics follow dialect best practices.
 * **RawValue** entries are embedded verbatim into SQL tuples and not bound as parameters.
-* **Multi-row inserts** generate unique named placeholders like `:name_0`, `:name_1` `to avoid PDO binding conflicts.
+* **Multi-row inserts** generate unique named placeholders like `:name_0`, `:name_1` to avoid PDO binding conflicts.
+* **Helper functions** (`inc`, `dec`, `not`) return arrays that are processed during SQL generation.
 
 ---
 
 ## Testing and CI
 
-* The project includes PHPUnit tests that run against MySQL PostgreSQL and SQLite. Tests are designed to run in containers or against local instances.
+* The project includes PHPUnit tests that run against MySQL, PostgreSQL and SQLite. Tests are designed to run in containers or against local instances.
 * Recommended CI workflow runs the test matrix on GitHub Actions with containerized MySQL and PostgreSQL and native SQLite.
 
 Run the test suite with:

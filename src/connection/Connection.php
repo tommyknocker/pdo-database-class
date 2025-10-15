@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\connection;
 
 use PDO;
-use PDOException;
 use PDOStatement;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -25,6 +24,13 @@ class Connection implements ConnectionInterface
     protected int $lastErrno = 0;
     protected mixed $executeState = null;
 
+    /**
+     * Connection constructor.
+     *
+     * @param PDO $pdo The PDO instance to use.
+     * @param DialectInterface $dialect The dialect to use.
+     * @param LoggerInterface|null $logger The logger to use.
+     */
     public function __construct(PDO $pdo, DialectInterface $dialect, ?LoggerInterface $logger = null)
     {
         $this->pdo = $pdo;
@@ -32,21 +38,43 @@ class Connection implements ConnectionInterface
         $this->logger = $logger;
     }
 
+    /**
+     * Returns the PDO instance.
+     *
+     * @return PDO The PDO instance.
+     */
     public function getPdo(): PDO
     {
         return $this->pdo;
     }
 
+    /**
+     * Returns the driver name.
+     *
+     * @return string The driver name.
+     */
     public function getDriverName(): string
     {
         return (string)$this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
     }
 
+    /**
+     * Returns the dialect.
+     *
+     * @return DialectInterface The dialect.
+     */
     public function getDialect(): DialectInterface
     {
         return $this->dialect;
     }
 
+    /**
+     * Executes a SQL statement.
+     *
+     * @param string $sql The SQL statement to execute.
+     * @param array $params The parameters to bind to the statement.
+     * @return PDOStatement The PDOStatement instance.
+     */
     public function execute(string $sql, array $params = []): PDOStatement
     {
         $this->lastQuery = $sql;
@@ -96,6 +124,12 @@ class Connection implements ConnectionInterface
         }
     }
 
+    /**
+     * Executes a SQL query.
+     *
+     * @param string $sql The SQL query to execute.
+     * @return PDOStatement|false The PDOStatement instance or false on failure.
+     */
     public function query(string $sql): PDOStatement|false
     {
         $this->lastQuery = $sql;
@@ -129,11 +163,22 @@ class Connection implements ConnectionInterface
         }
     }
 
+    /**
+     * Quotes a string for use in a query.
+     *
+     * @param mixed $value The value to quote.
+     * @return string|false The quoted string or false on failure.
+     */
     public function quote(mixed $value): string|false
     {
         return $this->pdo->quote((string)$value);
     }
 
+    /**
+     * Begins a transaction.
+     *
+     * @return bool True on success, false on failure.
+     */
     public function transaction(): bool
     {
         $this->logger?->debug('operation.start', [
@@ -154,6 +199,11 @@ class Connection implements ConnectionInterface
         }
     }
 
+    /**
+     * Commits a transaction.
+     *
+     * @return bool True on success, false on failure.
+     */
     public function commit(): bool
     {
         try {
@@ -175,6 +225,11 @@ class Connection implements ConnectionInterface
         }
     }
 
+    /**
+     * Rolls back a transaction.
+     *
+     * @return bool True on success, false on failure.
+     */
     public function rollBack(): bool
     {
         try {
@@ -196,22 +251,42 @@ class Connection implements ConnectionInterface
         }
     }
 
+    /**
+     * Checks if a transaction is active.
+     *
+     * @return bool True if a transaction is active, false otherwise.
+     */
     public function inTransaction(): bool
     {
         return $this->pdo->inTransaction();
     }
 
+    /**
+     * Returns the last execute state.
+     *
+     * @return bool The last execute state.
+     */
     public function getExecuteState(): bool
     {
         return $this->executeState;
     }
 
-
+    /**
+     * Returns the last insert ID.
+     *
+     * @param string|null $name The name of the sequence to use.
+     * @return false|string The last insert ID or false on failure.
+     */
     public function getLastInsertId(?string $name = null): false|string
     {
         return $this->pdo->lastInsertId($name);
     }
 
+    /**
+     * Returns the last query.
+     *
+     * @return string|null The last query or null if no query has been executed.
+     */
     public function getLastQuery(): ?string
     {
         return $this->lastQuery;

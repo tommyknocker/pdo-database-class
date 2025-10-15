@@ -1177,15 +1177,146 @@ XML
         $this->assertEquals(1, (int)$row['max_age']);
     }
 
-    public function testDescribeUsersSqlite(): void
+    public function testDescribeUsers(): void
     {
         $db = self::$db;
         $columns = $db->describe('users');
         $this->assertNotEmpty($columns);
-        $this->assertEquals('id', $columns[0]['name']);
-        $this->assertEquals('name', $columns[1]['name']);
-        $this->assertEquals('company', $columns[2]['name']);
+        
+        $columnNames = array_column($columns, 'name');
+        $this->assertContains('id', $columnNames);
+        $this->assertContains('name', $columnNames);
+        $this->assertContains('company', $columnNames);
+        $this->assertContains('age', $columnNames);
+        $this->assertContains('status', $columnNames);
+        $this->assertContains('created_at', $columnNames);
+        $this->assertContains('updated_at', $columnNames);
+        
+        $idColumn = $columns[0];
+        $this->assertEquals('id', $idColumn['name']);
+        $this->assertEquals('INTEGER', $idColumn['type']);
+        $this->assertEquals(0, (int)$idColumn['notnull']); // 0 = false (nullable)
+        $this->assertEquals(1, (int)$idColumn['pk']); // Primary key
+        if (isset($idColumn['auto_increment'])) {
+            $this->assertEquals(1, (int)$idColumn['auto_increment']); // Auto increment
+        }
+        
+        $nameColumn = null;
+        foreach ($columns as $column) {
+            if ($column['name'] === 'name') {
+                $nameColumn = $column;
+                break;
+            }
+        }
+        $this->assertNotNull($nameColumn);
+        $this->assertEquals('TEXT', $nameColumn['type']);
+        $this->assertEquals(0, (int)$nameColumn['notnull']);
+        $this->assertEquals(0, (int)$nameColumn['pk']);
+        
+        foreach ($columns as $column) {
+            $this->assertArrayHasKey('name', $column);
+            $this->assertArrayHasKey('type', $column);
+            $this->assertArrayHasKey('notnull', $column);
+            $this->assertArrayHasKey('pk', $column);
+        }
     }
+
+    public function testDescribeOrders(): void
+    {
+        $db = self::$db;
+        $columns = $db->describe('orders');
+        $this->assertNotEmpty($columns);
+        
+        $columnNames = array_column($columns, 'name');
+        $this->assertContains('id', $columnNames);
+        $this->assertContains('user_id', $columnNames);
+        $this->assertContains('amount', $columnNames);
+        
+        $userIdColumn = null;
+        foreach ($columns as $column) {
+            if ($column['name'] === 'user_id') {
+                $userIdColumn = $column;
+                break;
+            }
+        }
+        $this->assertNotNull($userIdColumn);
+        $this->assertEquals('INTEGER', $userIdColumn['type']);
+        $this->assertEquals(1, (int)$userIdColumn['notnull']); // NOT NULL
+        
+        $amountColumn = null;
+        foreach ($columns as $column) {
+            if ($column['name'] === 'amount') {
+                $amountColumn = $column;
+                break;
+            }
+        }
+        $this->assertNotNull($amountColumn);
+        $this->assertEquals('NUMERIC(10,2)', $amountColumn['type']);
+        $this->assertEquals(1, (int)$amountColumn['notnull']); // NOT NULL
+    }
+
+    public function testPrefixMethod(): void
+    {
+        $db = self::$db;
+        
+        $queryBuilder = $db->find()->prefix('test_')->from('users');
+        
+        $db->rawQuery("CREATE TABLE IF NOT EXISTS test_prefixed_table (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT
+        )");
+        
+        $id = $queryBuilder->table('prefixed_table')->insert(['name' => 'Test User']);
+        $this->assertIsInt($id);
+        
+        $user = $queryBuilder->table('prefixed_table')->where('id', $id)->getOne();
+        $this->assertEquals('Test User', $user['name']);
+        
+        $this->assertStringContainsString('"test_prefixed_table"', $db->lastQuery);
+        
+        $db->rawQuery("DROP TABLE IF EXISTS test_prefixed_table");
+    }
+
+    public function testLeftJoin(): void
+    {
+        $db = self::$db;
+        
+        $userId = $db->find()->table('users')->insert(['name' => 'Left Join User', 'age' => 30]);
+        $db->find()->table('orders')->insert(['user_id' => $userId, 'amount' => 150.50]);
+        
+        $results = $db->find()
+            ->from('users u')
+            ->leftJoin('orders o', 'u.id = o.user_id')
+            ->select(['u.name', 'o.amount'])
+            ->get();
+        
+        $this->assertNotEmpty($results);
+        $this->assertEquals('Left Join User', $results[0]['name']);
+        $this->assertEquals('150.50', $results[0]['amount']);
+        
+        $this->assertStringContainsString('LEFT JOIN', $db->lastQuery);
+    }
+
+    public function testRightJoin(): void
+    {
+        $db = self::$db;
+        
+        $userId = $db->find()->table('users')->insert(['name' => 'Right Join User', 'age' => 25]);
+        $db->find()->table('orders')->insert(['user_id' => $userId, 'amount' => 200.75]);
+        
+        $results = $db->find()
+            ->from('users u')
+            ->rightJoin('orders o', 'u.id = o.user_id')
+            ->select(['u.name', 'o.amount'])
+            ->get();
+        
+        $this->assertNotEmpty($results);
+        $this->assertEquals('Right Join User', $results[0]['name']);
+        $this->assertEquals('200.75', $results[0]['amount']);
+        
+        $this->assertStringContainsString('RIGHT JOIN', $db->lastQuery);
+    }
+
 
     public function testExplainSelectUsers(): void
     {

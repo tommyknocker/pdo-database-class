@@ -11,7 +11,6 @@ use Throwable;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\RawValue;
-use tommyknocker\pdodb\PdoDb;
 
 class QueryBuilder
 {
@@ -174,18 +173,6 @@ class QueryBuilder
         return $this;
     }
 
-    /**
-     * Add OUTER JOIN clause.
-     *
-     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
-     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
-     */
-    public function outerJoin(string $tableAlias, string|RawValue $condition): self
-    {
-        $this->join($tableAlias, $condition, 'OUTER');
-        return $this;
-
-    }
 
     /**
      * Add WHERE clause.
@@ -830,8 +817,6 @@ class QueryBuilder
                     $setParts[] = "{$qid} = {$qid} + " . (int)$val['val'];
                 } elseif ($op === 'dec') {
                     $setParts[] = "{$qid} = {$qid} - " . (int)$val['val'];
-                } elseif ($op === 'not') {
-                    $setParts[] = "{$qid} = NOT {$qid}";
                 } else {
                     $ph = ":upd_{$col}";
                     $setParts[] = "{$qid} = {$ph}";
@@ -961,7 +946,7 @@ class QueryBuilder
      * Compile query
      * @return array
      */
-    public function compile(): array
+    protected function compile(): array
     {
         $sql = $this->buildSelectSql();
         $params = $this->params ?? [];
