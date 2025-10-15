@@ -946,7 +946,7 @@ class QueryBuilder
      * Compile query
      * @return array
      */
-    protected function compile(): array
+    public function compile(): array
     {
         $sql = $this->buildSelectSql();
         $params = $this->params ?? [];
