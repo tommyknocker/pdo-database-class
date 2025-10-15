@@ -1,6 +1,6 @@
 {
   "name": "tommyknocker/pdo-database-class",
-  "description": "Lightweight PDO database wrapper for PHP with query builder, cross‑database dialect support (MySQL, PostgreSQL, SQLite), and safe prepared statements",
+  "description": "A lightweight, portable PHP database library built on PDO that provides a unified API for common database operations \nacross MySQL, PostgreSQL and SQLite. It includes a QueryBuilder with a fluent, chainable API, safe parameter binding,\nmulti-row inserts, UPSERT support, CSV/XML loaders, and helpers for dialect differences.",
   "type": "library",
   "keywords": [
     "pdo",
@@ -9,6 +9,7 @@
     "mysql",
     "postgresql",
     "sqlite",
+    "sqlite3",
     "prepared statements",
     "database abstraction",
     "php database",
@@ -16,7 +17,10 @@
     "bulk insert",
     "csv import",
     "xml import",
-    "transactional"
+    "transactional",
+    "connection pool",
+    "foreign keys",
+    "psr-3"
   ],
   "homepage": "https://github.com/tommyknocker/pdo-database-class",
   "license": "MIT",
