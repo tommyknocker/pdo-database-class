@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects;
 
@@ -56,7 +57,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         $alias = $parts[1] ?? null;
 
         $segments = explode('.', $name);
-        $quotedSegments = array_map(fn($s) => '`' . str_replace('`', '``', $s) . '`', $segments);
+        $quotedSegments = array_map(static fn($s) => '`' . str_replace('`', '``', $s) . '`', $segments);
         $quoted = implode('.', $quotedSegments);
 
         if ($alias) {
@@ -180,19 +181,15 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         return "LOCK TABLES " . implode(', ', $parts);
     }
 
-    public function buildTruncateSql(string $table): string
-    {
-        return 'TRUNCATE TABLE ' . $this->quoteTable($table);
-    }
-
     public function buildUnlockSql(): string
     {
         return "UNLOCK TABLES";
     }
 
-    public function canLoadXml(): bool
+
+    public function buildTruncateSql(string $table): string
     {
-        return true;
+        return 'TRUNCATE TABLE ' . $this->quoteTable($table);
     }
 
     public function buildLoadXML(PDO $pdo, string $table, string $filePath, array $options = []): string

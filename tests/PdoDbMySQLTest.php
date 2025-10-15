@@ -4,13 +4,15 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests;
 
 use InvalidArgumentException;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\PdoDb;
 
 final class PdoDbMySQLTest extends TestCase
 {
-    private static ?PdoDb $db = null;
+    private static PdoDb $db;
 
     protected const string DB_HOST = '127.0.0.1';
     protected const string DB_NAME = 'testdb';
@@ -77,7 +79,7 @@ final class PdoDbMySQLTest extends TestCase
 
     public function testMysqlMinimalParams(): void
     {
-        $dsn = self::$db->buildDsn([
+        $dsn = self::$db->connection->getDialect()->buildDsn([
             'driver' => 'mysql',
             'host' => '127.0.0.1',
             'username' => 'testuser',
@@ -89,7 +91,7 @@ final class PdoDbMySQLTest extends TestCase
 
     public function testMysqlAllParams(): void
     {
-        $dsn = self::$db->buildDsn([
+        $dsn = self::$db->connection->getDialect()->buildDsn([
             'driver' => 'mysql',
             'host' => '127.0.0.1',
             'username' => 'testuser',
@@ -111,10 +113,10 @@ final class PdoDbMySQLTest extends TestCase
     public function testMysqlMissingParamsThrows(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        self::$db->buildDsn(['driver' => 'mysql']); // no host/dbname
+        self::$db->connection->getDialect()->buildDsn(['driver' => 'mysql']); // no host/dbname
     }
 
-    public function testInsertWithQueryOption()
+    public function testInsertWithQueryOption(): void
     {
         $db = self::$db;
         $id = $db->find()
@@ -951,8 +953,12 @@ final class PdoDbMySQLTest extends TestCase
         $ok = self::$db->lock('users');
         $this->assertTrue($ok);
 
+        $this->assertSame('LOCK TABLES `users` WRITE', self::$db->lastQuery);
+
         $ok = self::$db->unlock();
         $this->assertTrue($ok);
+
+        $this->assertSame('UNLOCK TABLES', self::$db->lastQuery);
     }
 
     public function testLockMultipleTableWrite()
@@ -968,6 +974,8 @@ final class PdoDbMySQLTest extends TestCase
 
         $ok = self::$db->unlock();
         $this->assertTrue($ok);
+
+        $this->assertSame('UNLOCK TABLES', $db->lastQuery);
     }
 
     public function testEscape(): void
@@ -1121,62 +1129,101 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertFalse(self::$db->tableExists('nonexistent'));
     }
 
-    public function testTraceAndLastQuery(): void
+
+    public function testInvalidSqlLogsErrorAndException(): void
     {
-        $db = self::$db;
+        $sql = 'INSERT INTO users (non_existing_column) VALUES (:v)';
+        $params = ['v' => 'X'];
 
-        $db->enableTrace();
+        $this->expectException(\PDOException::class);
 
-        // INSERT
-        $db->find()->table('users')->insert(['name' => 'TraceInsert', 'age' => 10]);
-        $lastQuery = $db->lastQuery;
-        $this->assertStringContainsString('INSERT INTO', $lastQuery);
+        $testHandler = new TestHandler();
+        $logger = new Logger('test-db');
+        $logger->pushHandler($testHandler);
+        $db = new PdoDb(
+            'mysql',
+            [
+                'host' => self::DB_HOST,
+                'port' => self::DB_PORT,
+                'username' => self::DB_USER,
+                'password' => self::DB_PASSWORD,
+                'dbname' => self::DB_NAME,
+                'charset' => self::DB_CHARSET,
+            ], [], $logger
+        );
 
-        // UPDATE
-        $db->find()
-            ->from('users')
-            ->where('name', 'TraceInsert')
-            ->update(['age' => 11]);
-        $lastQuery = $db->lastQuery;
-        $this->assertStringContainsString('UPDATE', $lastQuery);
-
-        // SELECT (getOne)
-        $row = $db->find()
-            ->from('users')
-            ->where('name', 'TraceInsert')
-            ->getOne();
-        $lastQuery = $db->lastQuery;
-        $this->assertStringContainsString('SELECT', $lastQuery);
-        $this->assertEquals('TraceInsert', $row['name']);
-
-        // DELETE
-        $db->find()->table('users')->delete('name = :name', ['name' => 'TraceInsert']);
-        $lastQuery = $db->lastQuery;
-        $this->assertStringContainsString('DELETE', $lastQuery);
-
-        // RAW QUERY
-        $db->rawQuery("SELECT COUNT(*) AS cnt FROM users");
-        $lastQuery = $db->lastQuery;
-        $this->assertStringContainsString('SELECT COUNT', $lastQuery);
-
-        // Check trace log
-        $trace = $db->traceLog;
-        $this->assertIsArray($trace);
-        $this->assertNotEmpty($trace);
-
-        $queries = array_column($trace, 'query');
-        $this->assertTrue($this->arrayContainsSubstring($queries, 'INSERT INTO'));
-        $this->assertTrue($this->arrayContainsSubstring($queries, 'UPDATE'));
-        $this->assertTrue($this->arrayContainsSubstring($queries, 'SELECT'));
-        $this->assertTrue($this->arrayContainsSubstring($queries, 'DELETE'));
-
-        $this->assertEmpty($db->lastError);
-        $this->assertEquals(0, $db->lastErrno);
+        try {
+            $db->connection->execute($sql, $params);
+        } finally {
+            $hasOpError = false;
+            foreach ($testHandler->getRecords() as $rec) {
+                if (($rec['message'] ?? '') === 'operation.error'
+                    && ($rec['context']['operation'] ?? '') === 'execute'
+                    && ($rec['context']['exception'] ?? new \StdClass()) instanceof \PDOException
+                ) {
+                    $hasOpError = true;
+                }
+            }
+            $this->assertTrue($hasOpError, 'Expected operation.error for invalid SQL');
+        }
     }
 
-    private function arrayContainsSubstring(array $haystack, string $needle): bool
+    public function testTransactionBeginCommitRollbackLogging(): void
     {
-        return array_any($haystack, static fn($item) => str_contains($item, $needle));
+        $testHandler = new TestHandler();
+        $logger = new Logger('test-db');
+        $logger->pushHandler($testHandler);
+        $db = new PdoDb(
+            'mysql',
+            [
+                'host' => self::DB_HOST,
+                'port' => self::DB_PORT,
+                'username' => self::DB_USER,
+                'password' => self::DB_PASSWORD,
+                'dbname' => self::DB_NAME,
+                'charset' => self::DB_CHARSET,
+            ], [], $logger
+        );
+
+        // Begin
+        $db->startTransaction();
+        $foundBegin = false;
+        foreach ($testHandler->getRecords() as $rec) {
+            if (($rec['message'] ?? '') === 'operation.start'
+                && ($rec['context']['operation'] ?? '') === 'transaction.begin'
+            ) {
+                $foundBegin = true;
+                break;
+            }
+        }
+        $this->assertTrue($foundBegin, 'transaction.begin not logged');
+
+        // Commit
+        $db->connection->commit();
+        $foundCommit = false;
+        foreach ($testHandler->getRecords() as $rec) {
+            if (($rec['message'] ?? '') === 'operation.end'
+                && ($rec['context']['operation'] ?? '') === 'transaction.commit'
+            ) {
+                $foundCommit = true;
+                break;
+            }
+        }
+        $this->assertTrue($foundCommit, 'transaction.commit not logged');
+
+        // Rollback
+        $db->connection->transaction();
+        $db->connection->rollBack();
+        $foundRollback = false;
+        foreach ($testHandler->getRecords() as $rec) {
+            if (($rec['message'] ?? '') === 'operation.end'
+                && ($rec['context']['operation'] ?? '') === 'transaction.rollback'
+            ) {
+                $foundRollback = true;
+                break;
+            }
+        }
+        $this->assertTrue($foundRollback, 'transaction.rollback not logged');
     }
 
     public function testAddConnectionAndSwitch(): void

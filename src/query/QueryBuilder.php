@@ -1,18 +1,21 @@
 <?php
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb;
+namespace tommyknocker\pdodb\query;
 
 use InvalidArgumentException;
 use PDO;
+use PDOStatement;
 use RuntimeException;
 use Throwable;
+use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\PdoDb;
 
 class QueryBuilder
 {
-    protected PdoDb $db;
+    protected ConnectionInterface $connection;
     protected DialectInterface $dialect;
 
     protected ?string $table = null {
@@ -41,11 +44,11 @@ class QueryBuilder
 
     protected array $options = [];
 
-    public function __construct(PdoDb $db)
+    public function __construct(ConnectionInterface $connection, string $prefix = '')
     {
-        $this->db = $db;
-        $this->dialect = $db->dialect;
-        $this->prefix = $db->prefix;
+        $this->connection = $connection;
+        $this->dialect = $connection->getDialect();
+        $this->prefix = $prefix;
     }
 
     /**
@@ -111,18 +114,10 @@ class QueryBuilder
      */
     public function exists(): bool
     {
-        // Clone to avoid mutating current builder (no side effects)
-        $sub = clone $this;
-        // Ensure the subquery is a simple projection
-        $sub->limit(1);
-
-        // Compile subquery SQL and params (buildSelectSql must not execute)
-        $subSql = $sub->buildSelectSql();
-        $params = $sub->params ?? [];
-
-        // Main SQL uses EXISTS(...) which returns 1 or 0 on most DBs
+        $this->limit(1);
+        $subSql = $this->buildSelectSql();
+        $params = $this->params ?? [];
         $sql = 'SELECT EXISTS(' . $subSql . ')';
-
         return (bool)$this->fetchColumn($sql, $params);
     }
 
@@ -161,7 +156,7 @@ class QueryBuilder
      * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      */
-    public function rightJoin(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): self
+    public function rightJoin(string $tableAlias, string|RawValue $condition): self
     {
         $this->join($tableAlias, $condition, 'RIGHT');
         return $this;
@@ -173,7 +168,7 @@ class QueryBuilder
      * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      */
-    public function innerJoin(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): self
+    public function innerJoin(string $tableAlias, string|RawValue $condition): self
     {
         $this->join($tableAlias, $condition, 'INNER');
         return $this;
@@ -185,7 +180,7 @@ class QueryBuilder
      * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      */
-    public function outerJoin(string $tableAlias, string|RawValue $condition, string $type = 'OUTER'): self
+    public function outerJoin(string $tableAlias, string|RawValue $condition): self
     {
         $this->join($tableAlias, $condition, 'OUTER');
         return $this;
@@ -580,7 +575,7 @@ class QueryBuilder
     {
         $this->data = $data;
         [$sql, $params] = $this->buildUpdateSql();
-        return $this->executeStatement($sql, $params);
+        return $this->executeStatement($sql, $params)->rowCount();
     }
 
     /**
@@ -594,7 +589,7 @@ class QueryBuilder
         $options = $this->options ? implode(',', $this->options) . ' ' : '';
         $sql = "DELETE {$options}FROM {$table}";
         $sql .= $this->buildConditionsClause($this->where, 'WHERE');
-        return $this->executeStatement($sql, $this->params);
+        return $this->executeStatement($sql, $this->params)->rowCount();
     }
 
     /**
@@ -661,7 +656,7 @@ class QueryBuilder
     {
         $sql = $this->dialect->buildTruncateSql($this->table);
         $this->executeStatement($sql);
-        return $this->db->lastErrno === 0;
+        return $this->connection->getLastErrno() === 0;
     }
 
     /**
@@ -904,49 +899,24 @@ class QueryBuilder
      */
     protected function executeInsert(string $sql, array $params, bool $isMulty = false): int
     {
-        $this->db->lastQuery = $sql;
-        $this->db->trace($sql, $params);
-        $this->db->lastError = '';
-        $this->db->lastErrno = 0;
-        try {
-            $pdo = $this->db->pdo;
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            if ($isMulty) {
-                return $stmt->rowCount();
-            }
-            $id = (int)$pdo->lastInsertId();
-            return $id > 0 ? $id : 1;
-        } catch (Throwable $e) {
-            $this->db->lastError = $e->getMessage();
-            $this->db->lastErrno = (int)$e->getCode();
-            throw $e;
+        $stmt = $this->executeStatement($sql, $params);
+        if ($isMulty) {
+            return $stmt->rowCount();
         }
+        $id = (int)$this->connection->getLastInsertId();
+        return $id > 0 ? $id : 1;
     }
 
     /**
      * Execute statement
      * @param string $sql
      * @param array $params
-     * @return int
+     * @return PDOStatement
      * @throws Throwable
      */
-    protected function executeStatement(string $sql, array $params = []): int
+    public function executeStatement(string $sql, array $params = []): PDOStatement
     {
-        $this->db->lastQuery = $sql;
-        $this->db->trace($sql, $params);
-        $this->db->lastError = '';
-        $this->db->lastErrno = 0;
-        try {
-            $pdo = $this->db->pdo;
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            return $stmt->rowCount();
-        } catch (Throwable $e) {
-            $this->db->lastError = $e->getMessage();
-            $this->db->lastErrno = (int)$e->getCode();
-            throw $e;
-        }
+        return $this->connection->execute($sql, $params);
     }
 
     /**
@@ -956,22 +926,9 @@ class QueryBuilder
      * @return array
      * @throws Throwable
      */
-    protected function fetchAll(string $sql, array $params): array
+    public function fetchAll(string $sql, array $params): array
     {
-        $this->db->lastQuery = $sql;
-        $this->db->trace($sql, $params);
-        $this->db->lastError = '';
-        $this->db->lastErrno = 0;
-        try {
-            $pdo = $this->db->pdo;
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            return $stmt->fetchAll($this->fetchMode);
-        } catch (Throwable $e) {
-            $this->db->lastError = $e->getMessage();
-            $this->db->lastErrno = (int)$e->getCode();
-            throw $e;
-        }
+        return $this->executeStatement($sql, $params)->fetchAll($this->fetchMode);
     }
 
     /**
@@ -981,22 +938,9 @@ class QueryBuilder
      * @return mixed
      * @throws Throwable
      */
-    protected function fetchColumn(string $sql, array $params): mixed
+    public function fetchColumn(string $sql, array $params): mixed
     {
-        $this->db->lastQuery = $sql;
-        $this->db->trace($sql, $params);
-        $this->db->lastError = '';
-        $this->db->lastErrno = 0;
-        try {
-            $pdo = $this->db->pdo;
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            return $stmt->fetchColumn();
-        } catch (Throwable $e) {
-            $this->db->lastError = $e->getMessage();
-            $this->db->lastErrno = (int)$e->getCode();
-            throw $e;
-        }
+        return $this->executeStatement($sql, $params)->fetchColumn();
     }
 
     /**
@@ -1006,22 +950,9 @@ class QueryBuilder
      * @return mixed
      * @throws Throwable
      */
-    protected function fetch(string $sql, array $params): mixed
+    public function fetch(string $sql, array $params): mixed
     {
-        $this->db->lastQuery = $sql;
-        $this->db->trace($sql, $params);
-        $this->db->lastError = '';
-        $this->db->lastErrno = 0;
-        try {
-            $pdo = $this->db->pdo;
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-            return $stmt->fetch($this->fetchMode);
-        } catch (Throwable $e) {
-            $this->db->lastError = $e->getMessage();
-            $this->db->lastErrno = (int)$e->getCode();
-            throw $e;
-        }
+        return $this->executeStatement($sql, $params)->fetch($this->fetchMode);
     }
 
     /* utilities */

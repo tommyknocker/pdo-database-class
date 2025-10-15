@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects;
 
@@ -62,11 +63,10 @@ abstract class DialectAbstract
             throw new InvalidArgumentException("XML file is not readable: {$filePath}");
         }
 
-        $rowTag = trim((string) $opts['rowTag'], " \t\n\r\0\x0B<>");
-        $skipRows = max(0, (int) $opts['linesToIgnore']);
+        $rowTag = trim((string)$opts['rowTag'], " \t\n\r\0\x0B<>");
+        $skipRows = max(0, (int)$opts['linesToIgnore']);
 
-        $reader = new XMLReader();
-        if (!@$reader->open($filePath)) {
+        if (!$reader = XMLReader::open($filePath)) {
             throw new RuntimeException("Unable to open XML file: {$filePath}");
         }
 
@@ -76,7 +76,7 @@ abstract class DialectAbstract
             }
 
             // keep empty string as quoted empty string
-            return $pdo->quote((string) $v);
+            return $pdo->quote((string)$v);
         };
 
         $quoteIdent = static function (string $ident) {
@@ -101,7 +101,7 @@ abstract class DialectAbstract
         $rowsProcessed = 0;
         $skipped = 0;
 
-        while (@$reader->read()) {
+        while ($reader->read()) {
             if ($reader->nodeType !== XMLReader::ELEMENT) {
                 continue;
             }
@@ -123,7 +123,7 @@ abstract class DialectAbstract
                 continue;
             }
 
-            $elem = @simplexml_load_string($xml);
+            $elem = simplexml_load_string($xml);
             if ($elem === false) {
                 $reader->next();
                 continue;
@@ -132,13 +132,13 @@ abstract class DialectAbstract
             // Determine columns from the first encountered row
             if ($columns === []) {
                 foreach ($elem->children() as $child) {
-                    $columns[] = (string) $child->getName();
+                    $columns[] = (string)$child->getName();
                 }
 
                 // fallback to attributes if no child elements
                 if ($columns === []) {
                     foreach ($elem->attributes() as $name => $val) {
-                        $columns[] = (string) $name;
+                        $columns[] = (string)$name;
                     }
                 }
 
@@ -152,10 +152,10 @@ abstract class DialectAbstract
             foreach ($columns as $col) {
                 $val = null;
 
-                if (isset($elem->{$col}) && (string) $elem->{$col} !== '') {
-                    $val = (string) $elem->{$col};
+                if (isset($elem->{$col}) && (string)$elem->{$col} !== '') {
+                    $val = (string)$elem->{$col};
                 } elseif ($elem->attributes()->{$col} !== null) {
-                    $val = (string) $elem->attributes()->{$col};
+                    $val = (string)$elem->attributes()->{$col};
                 }
 
                 $values[] = $quoteValue($val);
@@ -172,7 +172,8 @@ abstract class DialectAbstract
                     $columns
                 );
 
-                $batchesSql[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ') VALUES ' . implode(', ', $batch) . ';';
+                $batchesSql[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ',
+                        $colsEscaped) . ') VALUES ' . implode(', ', $batch) . ';';
                 $batch = [];
             }
 
@@ -189,7 +190,8 @@ abstract class DialectAbstract
                 $columns
             );
 
-            $batchesSql[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ') VALUES ' . implode(', ', $batch) . ';';
+            $batchesSql[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ') VALUES ' . implode(', ',
+                    $batch) . ';';
         }
 
         if ($rowsProcessed === 0) {
@@ -198,8 +200,6 @@ abstract class DialectAbstract
 
         return implode("\n", $batchesSql);
     }
-
-
 
 
     /**
@@ -234,7 +234,7 @@ abstract class DialectAbstract
         $file = new SplFileObject($filePath, 'r');
         $file->setFlags(SplFileObject::READ_AHEAD);
 
-        // Скип физических строк перед началом обработки
+        // Skip physical lines before processing begins
         if (!empty($opts['linesToIgnore'])) {
             $skip = (int)$opts['linesToIgnore'];
             for ($i = 0; $i < $skip && !$file->eof(); $i++) {
@@ -242,7 +242,7 @@ abstract class DialectAbstract
             }
         }
 
-        // Определяем колонки: либо из options['fields'], либо из первой непустой CSV-строки
+        // Determine columns: either from options['fields'] or from the first non-empty CSV row
         $columns = $opts['fields'];
         if (empty($columns)) {
             while (!$file->eof()) {
@@ -263,7 +263,7 @@ abstract class DialectAbstract
             throw new RuntimeException('No CSV header detected and no fields provided.');
         }
 
-        // Если требуется начать с конкретной логической строки (1-based), перемещаемся
+        // If a specific logical line (1-based) is requested, seek to it
         if (!empty($opts['lineStarting']) && (int)$opts['lineStarting'] > 1) {
             $target = (int)$opts['lineStarting'];
             $file->rewind();
@@ -298,7 +298,7 @@ abstract class DialectAbstract
         $sqlParts = [];
         $rows = 0;
 
-        // Читаем и формируем батчи
+        // Read and build batches
         while (!$file->eof()) {
             $row = $file->fgetcsv($delimiter, $enclosure, $escape);
             if ($row === false) {
@@ -309,8 +309,8 @@ abstract class DialectAbstract
                 continue;
             }
 
-            // Нормализуем длину строки под колонки
-            $cells = array_map(function ($c) {
+            // Normalize row length to match column count
+            $cells = array_map(static function ($c) {
                 return $c === null ? null : trim((string)$c);
             }, $row);
 
@@ -320,7 +320,7 @@ abstract class DialectAbstract
                 $cells = array_slice($cells, 0, count($columns));
             }
 
-            // Пропускаем полностью пустые строки
+            // Skip completely empty rows
             $allEmpty = true;
             foreach ($cells as $c) {
                 if ($c !== null && $c !== '') {
@@ -358,6 +358,4 @@ abstract class DialectAbstract
 
         return implode("\n", $sqlParts);
     }
-
-
 }

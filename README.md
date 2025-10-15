@@ -35,6 +35,8 @@ composer require tommyknocker/pdo-database-class
 
 ## Initialization
 
+```new PdOdb(string $driver, array $config, array $pdoOptions);```
+
 ```php
 $db = new PdoDb('mysql', [
     'pdo'         => null,                 // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
@@ -119,9 +121,9 @@ $rows = $db->find()
 ### Joins and pagination
 
 ```php
-use tommyknocker\pdodb\helpers\RawValue
+use tommyknocker\pdodb\helpers\RawValue;
 
-;$rows = $db->find()
+$rows = $db->find()
     ->from('users AS u')
     ->select(['u.id', 'u.name', new RawValue('SUM(o.amount) AS total')])
     ->join('orders AS o', 'o.user_id = u.id', 'LEFT')
@@ -167,6 +169,8 @@ $id = $db->find()->table('users')->insert([
 ### Portable UPSERT
 
 ```php
+use tommyknocker\pdodb\helpers\RawValue;
+
 $db->find()->table('users')->onDuplicate([
     'age' => new RawValue('age + 1')
 ])->insert([
@@ -211,7 +215,7 @@ try {
 ## Public API overview
 
 * **find()**: returns QueryBuilder instance.
-* **table(string|array) / from(string)**: set target table (supports schema.table and simple aliasing).
+* **table(string|array) / from(string)**: set target table (supports `schema.table` and simple aliasing).
 * **select(array|string), where(...), join(...), groupBy(...), having(...), orderBy(...), limit(int), offset(int)**.
 * **insert(array)**: insert single row, returns inserted primary key when available.
 * **insertMulti(array)**: insert multiple rows; generates unique named placeholders like :col_0, :col_1 and returns inserted row count.
@@ -229,8 +233,8 @@ Use RawValue for SQL fragments that must bypass parameter binding.
 
 ## Dialect specifics and behavioral notes
 
-* **Identifier quoting**: automatic per driver — double quotes for Postgres/SQLite, backticks for MySQL by default. Functions and expressions (containing parentheses/operators) are preserved and not quoted. Use RawValue to inject explicit SQL fragments.
-* **UPSERT: SQLite/Postgres**: `ON CONFLICT` syntax (uses excluded.<col> semantics). **MySQL**: `ON DUPLICATE KEY UPDATE`. Library chooses the correct form automatically.
+* **Identifier quoting**: automatic per driver — double quotes for PostgreSQL/SQLite, backticks for MySQL by default. Functions and expressions (containing parentheses/operators) are preserved and not quoted. Use RawValue to inject explicit SQL fragments.
+* **UPSERT: SQLite/PostgreSQL**: `ON CONFLICT` syntax (uses excluded.<col> semantics). **MySQL**: `ON DUPLICATE KEY UPDATE`. Library chooses the correct form automatically.
 * **TRUNCATE**: SQLite does not support TRUNCATE. For SQLite library uses `DELETE FROM table`; reset AUTOINCREMENT via sqlite_sequence.
 * **Bulk loaders**: PostgreSQL use COPY when permissions allow; MySQL use LOAD DATA LOCAL INFILE when allowed.
 * **Multi-row inserts**: placeholders are generated uniquely per row/column (e.g., :name_0, :name_1) to avoid binding conflicts in PDO. . RawValue elements are embedded verbatim into the `VALUES` tuples.
