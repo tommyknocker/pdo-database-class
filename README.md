@@ -20,7 +20,7 @@ Inspired by https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 * **Dialect helpers**: identifier quoting, type mapping, and small semantics (`REPLACE` vs `UPSERT`) handled per driver.
 * **Transaction helpers** and table locking primitives adapted to each engine.
 * **Connection pooling** support for multiple database connections.
-* **Helper functions** for common operations (`inc()`, `dec()`, `not()`, `now()`).
+* **Helper functions** for common operations (`inc()`, `dec()`, `now()`).
 * **Comprehensive** tests across three dialects ensuring consistent behavior.
 
 ---
