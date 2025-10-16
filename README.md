@@ -1,8 +1,7 @@
 # PDOdb
 
-A lightweight, portable PHP database library built on PDO that provides a unified API for common database operations 
-across MySQL, PostgreSQL and SQLite. It includes a QueryBuilder with a fluent, chainable API, safe parameter binding,
-multi-row inserts, UPSERT support, CSV/XML loaders, and helpers for dialect differences.
+Lightweight PHP database library with unified API for MySQL, PostgreSQL & SQLite. Features fluent QueryBuilder, 
+connection pooling, UPSERT support, bulk inserts, CSV/XML loaders, and comprehensive testing.
 
 Inspired by https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 
