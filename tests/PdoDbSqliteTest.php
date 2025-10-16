@@ -1005,7 +1005,7 @@ final class PdoDbSqliteTest extends TestCase
             $hasOpError = false;
             foreach ($testHandler->getRecords() as $rec) {
                 if (($rec['message'] ?? '') === 'operation.error'
-                    && ($rec['context']['operation'] ?? '') === 'execute'
+                    && ($rec['context']['operation'] ?? '') === 'prepare'
                     && ($rec['context']['exception'] ?? new \StdClass()) instanceof \PDOException
                 ) {
                     $hasOpError = true;
