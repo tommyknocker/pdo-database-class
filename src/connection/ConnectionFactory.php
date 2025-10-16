@@ -30,6 +30,7 @@ class ConnectionFactory
             $options = $dialect->defaultPdoOptions() + ($config['options'] ?? []);
             $pdo = new PDO($dsn, $user, $pass, $options);
         }
+        $dialect->setPdo($pdo);
         return new Connection($pdo, $dialect, $logger);
     }
 

@@ -192,7 +192,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         return 'TRUNCATE TABLE ' . $this->quoteTable($table);
     }
 
-    public function buildLoadXML(PDO $pdo, string $table, string $filePath, array $options = []): string
+    public function buildLoadXML(string $table, string $filePath, array $options = []): string
     {
         $defaults = [
             'rowTag' => '<row>',
@@ -200,14 +200,14 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         ];
         $options = array_merge($defaults, $options);
 
-        return "LOAD XML LOCAL INFILE " . $pdo->quote($filePath) .
+        return "LOAD XML LOCAL INFILE " . $this->pdo->quote($filePath) .
             " INTO TABLE " . $this->quoteTableWithAlias($table) .
-            " ROWS IDENTIFIED BY " . $pdo->quote($options['rowTag']) .
+            " ROWS IDENTIFIED BY " . $this->pdo->quote($options['rowTag']) .
             ($options['linesToIgnore'] ? sprintf(' IGNORE %d LINES', $options['linesToIgnore']) : '');
     }
 
 
-    public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options = []): string
+    public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string
     {
         $defaults = [
             "fieldChar" => ';',
@@ -221,7 +221,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         $options = array_merge($defaults, $options);
 
         $localPrefix = $options['local'] ? 'LOCAL ' : '';
-        $quotedPath = $pdo->quote($filePath);
+        $quotedPath = $this->pdo->quote($filePath);
 
         $sql = "LOAD DATA {$localPrefix}INFILE {$quotedPath} INTO TABLE {$table}";
 

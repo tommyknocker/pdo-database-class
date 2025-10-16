@@ -1153,7 +1153,7 @@ final class PdoDbMySQLTest extends TestCase
         );
 
         try {
-            $db->connection->execute($sql, $params);
+            $db->connection->prepare($sql)->execute($params);
         } finally {
             $hasOpError = false;
             foreach ($testHandler->getRecords() as $rec) {
@@ -1246,7 +1246,7 @@ final class PdoDbMySQLTest extends TestCase
     }
 
 
-    public function testLoadDataInfile()
+    public function testLoadCsv()
     {
         $this->markTestSkipped('Github actions run failed');
         $db = self::$db;
@@ -1254,7 +1254,7 @@ final class PdoDbMySQLTest extends TestCase
         $tmpFile = sys_get_temp_dir() . '/users.csv';
         file_put_contents($tmpFile, "4,Dave,new\n5,Eve,new\n");
 
-        $ok = $db->loadData('users', $tmpFile, [
+        $ok = $db->loadCsv('users', $tmpFile, [
             'fieldChar' => ',',
             'fields' => ['id', 'name', 'status'],
             'local' => true

@@ -177,7 +177,7 @@ class PdoDb
     {
         $tables = (array)$tables;
         $sql = $this->connection->getDialect()->buildLockSql($tables, $this->prefix, $this->lockMethod);
-        $this->connection->execute($sql);
+        $this->connection->prepare($sql)->execute();
         return $this->executeState !== false;
     }
 
@@ -192,7 +192,7 @@ class PdoDb
         if ($sql === '') {
             return true;
         }
-        $this->connection->execute($sql);
+        $this->connection->prepare($sql)->execute();
         return $this->executeState !== false;
     }
 
@@ -346,7 +346,7 @@ class PdoDb
     }
 
 
-    /* ---------------- LOAD DATA/XML ---------------- */
+    /* ---------------- LOAD CSV/XML ---------------- */
 
     /**
      * Loads data from a CSV file into a table.
@@ -356,13 +356,12 @@ class PdoDb
      * @param array $options The options to use to load the data.
      * @return bool True on success, false on failure.
      */
-    public function loadData(string $table, string $filePath, array $options = []): bool
+    public function loadCsv(string $table, string $filePath, array $options = []): bool
     {
         $this->startTransaction();
         try {
-            $sql = $this->connection->getDialect()->buildLoadDataSql($this->connection->getPdo(),
-                $this->prefix . $table, $filePath, $options);
-            $this->connection->execute($sql);
+            $sql = $this->connection->getDialect()->buildLoadCsvSql($this->prefix . $table, $filePath, $options);
+            $this->connection->prepare($sql)->execute();
             $this->commit();
             return $this->executeState !== false;
         } catch (Throwable $e) {
@@ -389,9 +388,8 @@ class PdoDb
                 'rowTag' => $rowTag,
                 'linesToIgnore' => $linesToIgnore
             ];
-            $sql = $this->connection->getDialect()->buildLoadXML($this->connection->getPdo(), $this->prefix . $table,
-                $filePath, $options);
-            $this->connection->execute($sql);
+            $sql = $this->connection->getDialect()->buildLoadXML($this->prefix . $table, $filePath, $options);
+            $this->connection->prepare($sql)->execute();
             $this->commit();
             return $this->executeState !== false;
         } catch (Throwable $e) {

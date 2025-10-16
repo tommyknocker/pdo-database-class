@@ -20,7 +20,11 @@ interface ConnectionInterface
 
     public function getDialect(): DialectInterface;
 
-    public function execute(string $sql, array $params = []): PDOStatement;
+    public function resetState(): void;
+    
+    public function prepare(string $sql, array $params = []): static;
+
+    public function execute(array $params = []): PDOStatement;
 
     public function query(string $sql): PDOStatement|false;
 

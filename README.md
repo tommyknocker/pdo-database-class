@@ -194,23 +194,32 @@ $db->find()->table('users')->onDuplicate([
 ]);
 ```
 
-### CSV loader loadData
+### XML and CSV loaders
 
 ```php
-$db->loadData('users', '/tmp/users.csv', [
-    'fieldChar' => ',',
-    'fieldEnclosure' => '"',
-    'fields' => ['id','name','status','age'],
-    'header' => false,
-    'local' => true,
+$db->loadXml('users', '/path/to/file.xml');
+
+$db->loadXml('users', '/path/to/file.xml', [
+    'rowTag' => '<row>',
+    'linesToIgnore' => 0,
 ]);
 ```
 
-### XML loader
-
 ```php
-$db->find()->table('users')->insertXml('/path/to/file.xml');
+$db->loadCsv('users', '/path/to/file.csv');
+
+$db->loadCsv('users', '/path/to/file.csv', [
+    'fieldChar' => ',',
+    'fieldEnclosure' => '"',
+    'fields' => ['id','name','status','age'],
+    'local' => true,
+    'lineChar' => "\n",
+    'linesToIgnore' => 0,
+    'lineStarting' => 0       
+]);
 ```
+
+
 
 ### Transactions and locking
 
@@ -264,7 +273,7 @@ $db->find()->table('users')->insert([
 * **startTransaction() / commit() / rollBack()**: transaction helpers.
 * **lock(array|string) / unlock()**: table locking helpers.
 * **setLockMethod(string)**: set lock method (READ/WRITE).
-* **loadData(table, file, options)**: CSV loader; COPY/LOAD DATA when available.
+* **loadCsv(table, file, options)**: CSV loader; COPY/LOAD DATA when available.
 * **loadXml(table, file, tag, options)**: XML loader.
 * **describe(string)**: get table structure.
 * **explain(string, array) / explainAnalyze(string, array)**: query analysis.

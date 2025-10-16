@@ -267,7 +267,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         return 'TRUNCATE TABLE ' . $this->quoteTable($table);
     }
 
-    public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options = []): string
+    public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string
     {
         $tableSql = $this->quoteIdentifier($table);
 

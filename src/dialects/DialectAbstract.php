@@ -11,6 +11,13 @@ use XMLReader;
 
 abstract class DialectAbstract
 {
+    protected PDO $pdo;
+
+    public function setPdo(PDO $pdo): void
+    {
+        $this->pdo = $pdo;
+    }
+
     /**
      * Quote table name with optional alias
      * @param string $table
@@ -45,14 +52,14 @@ abstract class DialectAbstract
 
     /**
      * Build SQL for loading data from XML file
-     * @param PDO $pdo
      * @param string $table
      * @param string $filePath
      * @param array $options
      * @return string
      */
-    public function buildLoadXML(PDO $pdo, string $table, string $filePath, array $options = []): string
+    public function buildLoadXML(string $table, string $filePath, array $options = []): string
     {
+        $pdo = $this->pdo;
         $defaults = [
             'rowTag' => '<row>',
             'linesToIgnore' => 0,
@@ -204,14 +211,14 @@ abstract class DialectAbstract
 
     /**
      * Build SQL for loading data from CSV file
-     * @param PDO $pdo
      * @param string $table
      * @param string $filePath
      * @param array $options
      * @return string
      */
-    public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options = []): string
+    public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string
     {
+        $pdo = $this->pdo;
         $defaults = [
             'fieldChar' => ',',
             'fieldEnclosure' => null,
@@ -219,7 +226,6 @@ abstract class DialectAbstract
             'lineChar' => null,
             'linesToIgnore' => null,
             'lineStarting' => null,
-            'local' => false,
         ];
         $opts = $options + $defaults;
 

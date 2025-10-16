@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\connection;
 
 use PDO;
+use PDOException;
 use PDOStatement;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -19,6 +20,7 @@ class Connection implements ConnectionInterface
     protected PDO $pdo;
     protected DialectInterface $dialect;
     protected ?LoggerInterface $logger;
+    protected ?PDOStatement $stmt = null;
     protected ?string $lastQuery = null;
     protected ?string $lastError = null;
     protected int $lastErrno = 0;
@@ -69,55 +71,90 @@ class Connection implements ConnectionInterface
     }
 
     /**
-     * Executes a SQL statement.
+     * Resets the state.
      *
-     * @param string $sql The SQL statement to execute.
-     * @param array $params The parameters to bind to the statement.
-     * @return PDOStatement The PDOStatement instance.
+     * @return void
      */
-    public function execute(string $sql, array $params = []): PDOStatement
+    public function resetState(): void
     {
-        $this->lastQuery = $sql;
         $this->lastError = null;
         $this->lastErrno = 0;
         $this->executeState = null;
+    }
 
-        $driver = $this->getDriverName();
+    /**
+     * Prepare SQL query
+     * @param string $sql
+     * @param array $params
+     * @return $this
+     */
+    public function prepare(string $sql, array $params = []): static
+    {
+        $this->logger?->debug('operation.start', [
+            'operation' => 'prepare',
+            'driver' => $this->getDriverName(),
+            'sql' => $sql,
+            'timestamp' => microtime(true)
+        ]);
+        try {
+            $this->stmt = $this->pdo->prepare($sql, $params);
+            $this->logger?->debug('operation.end', [
+                'operation' => 'prepare',
+                'driver' => $this->getDriverName(),
+                'sql' => $this->stmt->queryString,
+                'timestamp' => microtime(true),
+            ]);
+            return $this;
+        } catch (PDOException $e) {
+            $this->lastError = $e->getMessage();
+            $this->lastErrno = (int)$e->getCode();
+            $this->logger?->error('operation.error', [
+                'operation' => 'prepare',
+                'driver' => $this->getDriverName(),
+                'sql' => $this->stmt?->queryString,
+                'timestamp' => microtime(true),
+                'exception' => $e
+            ]);
+            throw $e;
+        }
+    }
 
-        $tsStart = microtime(true);
+    /**
+     * Executes a SQL statement.
+     *
+     * @return PDOStatement The PDOStatement instance.
+     */
+    public function execute(array $params = []): PDOStatement
+    {
+        $this->resetState();
+        $stmt = $this->stmt;
         $this->logger?->debug('operation.start', [
             'operation' => 'execute',
-            'driver' => $driver,
-            'sql' => $sql,
-            'ts_start' => microtime(true)
+            'driver' => $this->getDriverName(),
+            'sql' => $stmt->queryString,
+            'timestamp' => microtime(true)
         ]);
-
         try {
-            $stmt = $this->pdo->prepare($sql);
             $this->executeState = $stmt->execute($params);
-            $rows = $stmt->rowCount();
-
-            $durationMs = round((microtime(true) - $tsStart) * 1000.0, 3);
+            $this->lastQuery = $stmt->queryString;
             $this->logger?->debug('operation.end', [
                 'operation' => 'execute',
-                'driver' => $driver,
-                'sql' => $sql,
-                'ts_stop' => microtime(true),
-                'duration_ms' => $durationMs,
-                'rows_affected' => $rows,
+                'driver' => $this->getDriverName(),
+                'sql' => $stmt->queryString,
+                'timestamp' => microtime(true),
+                'rows_affected' => $stmt->rowCount(),
                 'success' => (bool)$this->executeState,
             ]);
-
+            $this->stmt = null;
             return $stmt;
-        } catch (Throwable $e) {
+        } catch (PDOException $e) {
             $this->lastError = $e->getMessage();
             $this->lastErrno = (int)$e->getCode();
             $this->logger?->error('operation.error', [
                 'operation' => 'execute',
-                'driver' => $driver,
-                'sql' => $sql,
-                'ts_stop' => microtime(true),
-                'duration_ms' =>  round((microtime(true) - $tsStart) * 1000.0, 3),
+                'driver' => $this->getDriverName(),
+                'sql' => $stmt->queryString,
+                'timestamp' => microtime(true),
                 'exception' => $e
             ]);
             throw $e;
@@ -132,29 +169,29 @@ class Connection implements ConnectionInterface
      */
     public function query(string $sql): PDOStatement|false
     {
-        $this->lastQuery = $sql;
-        $driver = $this->getDriverName();
+        $this->resetState();
         $this->logger?->debug('operation.start', [
             'operation' => 'query',
-            'driver' => $driver,
+            'driver' => $this->getDriverName(),
             'timestamp' => microtime(true),
             'sql' => $sql,
         ]);
         try {
-            $res = $this->pdo->query($sql);
+            $stmt = $this->pdo->query($sql);
+            $this->lastQuery = $sql;
             $this->logger?->debug('operation.end', [
                 'operation' => 'query',
-                'driver' => $driver,
+                'driver' => $this->getDriverName(),
                 'timestamp' => microtime(true),
                 'sql' => $sql,
             ]);
-            return $res;
-        } catch (Throwable $e) {
+            return $stmt;
+        } catch (PDOException $e) {
             $this->lastError = $e->getMessage();
             $this->lastErrno = (int)$e->getCode();
             $this->logger?->error('operation.error', [
                 'operation' => 'query',
-                'driver' => $driver,
+                'driver' => $this->getDriverName(),
                 'timestamp' => microtime(true),
                 'sql' => $sql,
                 'exception' => $e
@@ -188,7 +225,7 @@ class Connection implements ConnectionInterface
         ]);
         try {
             return $this->pdo->beginTransaction();
-        } catch (Throwable $e) {
+        } catch (PDOException $e) {
             $this->logger?->error('operation.error', [
                 'operation' => 'transaction.begin',
                 'driver' => $this->getDriverName(),
@@ -207,13 +244,13 @@ class Connection implements ConnectionInterface
     public function commit(): bool
     {
         try {
-        $res = $this->pdo->commit();
-        $this->logger?->debug('operation.end', [
-            'operation' => 'transaction.commit',
-            'driver' => $this->getDriverName(),
-            'timestamp' => microtime(true),
-        ]);
-        return $res;
+            $res = $this->pdo->commit();
+            $this->logger?->debug('operation.end', [
+                'operation' => 'transaction.commit',
+                'driver' => $this->getDriverName(),
+                'timestamp' => microtime(true),
+            ]);
+            return $res;
         } catch (Throwable $e) {
             $this->logger?->error('operation.error', [
                 'operation' => 'transaction.commit',
@@ -240,7 +277,7 @@ class Connection implements ConnectionInterface
                 'timestamp' => microtime(true)
             ]);
             return $res;
-        } catch (Throwable $e) {
+        } catch (PDOException $e) {
             $this->logger?->error('operation.error', [
                 'operation' => 'transaction.rollback',
                 'driver' => $this->getDriverName(),

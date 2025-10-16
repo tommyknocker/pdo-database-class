@@ -1040,7 +1040,7 @@ final class PdoDbPostgreSQLTest extends TestCase
             ], [], $logger);
 
         try {
-            $db->connection->execute($sql, $params);
+            $db->connection->prepare($sql)->execute($params);
         } finally {
             $hasOpError = false;
             foreach ($testHandler->getRecords() as $rec) {
@@ -1130,7 +1130,7 @@ final class PdoDbPostgreSQLTest extends TestCase
     }
 
 
-    public function testLoadDataInfile()
+    public function testLoadCsv()
     {
         $this->markTestSkipped('Github actions run failed');
         $db = self::$db;
@@ -1138,7 +1138,7 @@ final class PdoDbPostgreSQLTest extends TestCase
         $tmpFile = sys_get_temp_dir() . '/users.csv';
         file_put_contents($tmpFile, "4,Dave,new,30\n5,Eve,new,40\n");
 
-        $ok = $db->loadData('users', $tmpFile, [
+        $ok = $db->loadCsv('users', $tmpFile, [
             'fieldChar' => ',',
             'fields' => ['id', 'name', 'status', 'age'],
             'local' => true

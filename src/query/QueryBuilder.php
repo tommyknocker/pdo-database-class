@@ -901,7 +901,7 @@ class QueryBuilder
      */
     public function executeStatement(string $sql, array $params = []): PDOStatement
     {
-        return $this->connection->execute($sql, $params);
+        return $this->connection->prepare($sql)->execute($params);
     }
 
     /**

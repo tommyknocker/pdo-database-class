@@ -1000,7 +1000,7 @@ final class PdoDbSqliteTest extends TestCase
         $db = new PdoDb('sqlite', ['path' => ':memory:'], [], $logger);
 
         try {
-            $db->connection->execute($sql, $params);
+            $db->connection->prepare($sql)->execute();
         } finally {
             $hasOpError = false;
             foreach ($testHandler->getRecords() as $rec) {
@@ -1104,14 +1104,14 @@ XML
         unlink($file);
     }
 
-    public function testLoadDataInfile()
+    public function testLoadCsv()
     {
         $db = self::$db;
 
         $tmpFile = sys_get_temp_dir() . '/users.csv';
         file_put_contents($tmpFile, "4,Dave,new,30\n5,Eve,new,40\n");
 
-        $ok = $db->loadData('users', $tmpFile, [
+        $ok = $db->loadCsv('users', $tmpFile, [
             'fieldChar' => ',',
             'fields' => ['id', 'name', 'status', 'age'],
             'local' => true

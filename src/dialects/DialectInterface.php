@@ -15,6 +15,8 @@ interface DialectInterface
      */
     public function getDriverName(): string;
 
+    public function setPdo(PDO $pdo): void;
+
     /**
      * Build dsn string
      * @param array $params
@@ -137,21 +139,19 @@ interface DialectInterface
 
     /**
      * Build SQL for loading data from XML file
-     * @param PDO $pdo
      * @param string $table
      * @param string $filePath
      * @param array $options
      * @return string
      */
-    public function buildLoadXML(PDO $pdo, string $table, string $filePath, array $options = []): string;
+    public function buildLoadXML(string $table, string $filePath, array $options = []): string;
 
     /**
-     * LOAD DATA syntax
-     * @param PDO $pdo
+     * Build SQL for loading data from CSV file
      * @param string $table
      * @param string $filePath
      * @param array $options
      * @return string
      */
-    public function buildLoadDataSql(PDO $pdo, string $table, string $filePath, array $options = []): string;
+    public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string;
 }
