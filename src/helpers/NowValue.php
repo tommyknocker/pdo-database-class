@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * NOW() value representation
+ * NOW() value e.g. NOW(), NOW() + INTERVAL
  */
 class NowValue extends RawValue
 {

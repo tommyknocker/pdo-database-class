@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * Raw value (e.g. NOW(), NOW() + INTERVAL)
+ * Raw value e.g. NOW(), CONCAT(), etc.
  */
 class RawValue
 {
