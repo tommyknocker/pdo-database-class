@@ -186,7 +186,7 @@ $id = $db->find()->table('users')->insert([
 use tommyknocker\pdodb\helpers\Db;
 
 $db->find()->table('users')->onDuplicate([
-    'age' => Db::raw('age + 1')
+    'age' => Db::raw('age + :age', ['age' => 1])
 ])->insert([
     'name' => 'Alice',
     'age'  => 30
@@ -250,8 +250,13 @@ use tommyknocker\pdodb\helpers\Db;
 $db->find()->table('users')->where('id', 1)->update(['age' => Db::inc()]);
 $db->find()->table('users')->where('id', 1)->update(['age' => Db::dec(5)]);
 
-// NOT operation (PostgreSQL requires boolean types)
-$db->find()->table('users')->where('id', 1)->update(['is_active' => $db->not(true)]);
+$db->find()
+    ->table('users')
+    ->where('id', 5)
+    ->update([
+        'age' => new RawValue('age + :inc', [':inc' => 5]),
+        'name' => new RawValue('CONCAT(name, :suffix)', [':suffix' => '_updated'])
+    ]);
 
 // Current timestamp
 $db->find()->table('users')->insert([
@@ -318,7 +323,7 @@ $db->find()->table('users')->insert([
 * **exists()**: check if any rows match conditions.
 * **asObject()**: set fetch mode to objects instead of arrays.
 
-Use RawValue for SQL fragments that must bypass parameter binding.
+Use `Db::raw(string $value, ?array $params)` for SQL fragments that must bypass parameter binding.
 
 ---
 

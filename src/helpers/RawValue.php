@@ -9,13 +9,16 @@ namespace tommyknocker\pdodb\helpers;
 class RawValue
 {
     protected string $value;
+    protected array $params = [];
 
     /**
      * @param string $value
+     * @param array $params
      */
-    public function __construct(string $value) // @todo Implement params binding to avoid SQL injection
+    public function __construct(string $value, array $params = [])
     {
         $this->value = $value;
+        $this->params = $params;
     }
 
     public function getValue(): string
@@ -23,11 +26,8 @@ class RawValue
         return $this->value;
     }
 
-    /**
-     * @return string
-     */
-    public function __toString(): string
+    public function getParams(): array
     {
-        return $this->value;
+        return $this->params;
     }
 }

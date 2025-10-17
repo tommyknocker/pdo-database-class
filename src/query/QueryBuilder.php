@@ -740,13 +740,13 @@ class QueryBuilder
         $params = [];
 
         foreach ($columns as $col) {
-            $val = $this->data[$col];
-            if ($val instanceof RawValue) {
-                $placeholders[] = $this->resolveRawValue($val);
+            $value = $this->data[$col];
+            if ($value instanceof RawValue) {
+                $placeholders[] = $this->resolveRawValue($value);
             } else {
-                $ph = ':' . $col;
-                $placeholders[] = $ph;
-                $params[$ph] = $val;
+                $placeholder = ':' . $col;
+                $placeholders[] = $placeholder;
+                $params[$placeholder] = $value;
             }
         }
 
@@ -785,16 +785,15 @@ class QueryBuilder
                     $placeholders[] = $this->resolveRawValue($val);
                 } else {
                     // unique placeholder for each row/column
-                    $ph = ':' . $col . '_' . $i;
-                    $placeholders[] = $ph;
-                    $params[$ph] = $val;
+                    $placeholder = ':' . $col . '_' . $i;
+                    $placeholders[] = $placeholder;
+                    $params[$placeholder] = $val;
                 }
             }
             // each tuple must be wrapped in its own parentheses
             $tuples[] = '(' . implode(', ', $placeholders) . ')';
             $i++;
         }
-
 
         $opt = $this->options ? ' ' . implode(',', $this->options) : ''; // " LOW_PRIORITY IGNORE" or ''
         $tableSql = $this->dialect->quoteTable($this->table);
@@ -823,23 +822,27 @@ class QueryBuilder
 
             if (is_array($val) && isset($val['__op'])) {
                 $op = $val['__op'];
-                if ($op === 'inc') {
-                    $setParts[] = "{$qid} = {$qid} + " . (int)$val['val'];
-                } elseif ($op === 'dec') {
-                    $setParts[] = "{$qid} = {$qid} - " . (int)$val['val'];
-                } else {
-                    // for other ops expect payload under 'val'
-                    if (!array_key_exists('val', $val)) {
-                        throw new InvalidArgumentException("Missing 'val' for operation '{$op}' on column {$col}");
-                    }
-                    $valueForParam = $val['val'];
-                    if ($valueForParam instanceof RawValue) {
-                        $setParts[] = "{$qid} = " . $this->resolveRawValue($valueForParam);
-                    } else {
-                        $ph = $this->makeParam("upd_{$col}");
-                        $setParts[] = "{$qid} = {$ph}";
-                        $params[$ph] = $valueForParam;
-                    }
+                switch ($op) {
+                    case 'inc':
+                        $setParts[] = "{$qid} = {$qid} + " . (int)$val['val'];
+                        break;
+                    case 'dec':
+                        $setParts[] = "{$qid} = {$qid} - " . (int)$val['val'];
+                        break;
+                    default:
+                        // for other ops expect payload under 'val'
+                        if (!array_key_exists('val', $val)) {
+                            throw new InvalidArgumentException("Missing 'val' for operation '{$op}' on column {$col}");
+                        }
+                        $valueForParam = $val['val'];
+                        if ($valueForParam instanceof RawValue) {
+                            $setParts[] = "{$qid} = " . $this->resolveRawValue($valueForParam);
+                        } else {
+                            $ph = $this->makeParam("upd_{$col}");
+                            $setParts[] = "{$qid} = {$ph}";
+                            $params[$ph] = $valueForParam;
+                        }
+                        break;
                 }
             } elseif ($val instanceof RawValue) {
                 $setParts[] = "{$qid} = {$this->resolveRawValue($val)}";
@@ -923,6 +926,8 @@ class QueryBuilder
      */
     public function executeStatement(string $sql, array $params = []): PDOStatement
     {
+        $params = array_merge($this->params, $params);
+        $params = $this->normalizeParams($params);
         return $this->connection->prepare($sql)->execute($params);
     }
 
@@ -1050,7 +1055,7 @@ class QueryBuilder
         if (preg_match('/[`\["\'\s\(\),]/', $name)) {
             // allow already-quoted or complex expressions to pass through,
             // but still protect obvious injection attempts by checking for dangerous tokens
-            if (preg_match('/;|--|\bDROP\b|\bDELETE\b|\bINSERT\b|\bUPDATE\b/i', $name)) {
+            if (preg_match('/;|--|\bDROP\b|\bDELETE\b|\bINSERT\b|\bUPDATE\b|\bSELECT\b|\bUNION\b/i', $name)) {
                 throw new InvalidArgumentException('Unsafe SQL expression provided as identifier/expression.');
             }
             return $name;
@@ -1091,17 +1096,49 @@ class QueryBuilder
         return $this->dialect->quoteTable($this->prefix ? $this->prefix . $table : $table);
     }
 
+    protected function normalizeParams(array $params): array
+    {
+        $out = [];
+        foreach ($params as $k => $v) {
+            $key = is_string($k) ? ltrim($k, ':') : $k;
+            $out[$key] = $v;
+        }
+        return $out;
+    }
+
     /**
      * Resolve RawValue instances — return dialect-specific NOW() when NowValue provided.
+     * Binds any parameters from RawValue into $this->params.
      *
-     * @param RawValue $v
+     * @param RawValue $value
      * @return string
      */
-    protected function resolveRawValue(RawValue $v): string
+    protected function resolveRawValue(RawValue $value): string
     {
-        if ($v instanceof NowValue) {
-            return $this->dialect->now($v->getValue());
+        if ($value instanceof NowValue) {
+            return $this->dialect->now($value->getValue());
         }
-        return $v->getValue();
+
+        $sql = $value->getValue();
+        $params = $value->getParams();
+
+        if (empty($params)) {
+            return $sql;
+        }
+
+        // Create map of old => new parameter names and merge params
+        $paramMap = [];
+        foreach ($params as $key => $val) {
+            // Ensure parameter name starts with :
+            $oldParam = strpos($key, ':') === 0 ? $key : ':' . $key;
+            // Create new unique parameter name
+            $newParam = $this->makeParam('raw_' . ltrim($oldParam, ':'));
+            $paramMap[$oldParam] = $newParam;
+            $this->params[ltrim($newParam, ':')] = $val;
+        }
+
+        // Replace old parameter names with new ones in SQL
+        return strtr($sql, $paramMap);
     }
+
 }

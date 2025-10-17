@@ -14,7 +14,7 @@ class Db
      * @param array $params The parameters to bind to the SQL.
      * @return RawValue The raw value.
      */
-    public static function raw(string $sql, array $params = [])
+    public static function raw(string $sql, array $params = []): RawValue
     {
         return new RawValue($sql, $params);
     }

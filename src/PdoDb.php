@@ -8,13 +8,10 @@ use RuntimeException;
 use Throwable;
 use tommyknocker\pdodb\connection\ConnectionFactory;
 use tommyknocker\pdodb\connection\ConnectionInterface;
-use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\query\QueryBuilder;
 
 class PdoDb
 {
-    public DialectInterface $dialect;
-
     public ?ConnectionInterface $connection {
         get {
             if (!$this->connection instanceof ConnectionInterface) {
@@ -25,14 +22,14 @@ class PdoDb
     }
 
     protected array $connections = [];
-
+    protected string $connectionName;
     public string $prefix;
     public string $lastQuery {
         get {
             return $this->connection->getLastQuery();
         }
     }
-    public string $lastError {
+    public ?string $lastError {
         get {
             return $this->connection->getLastError();
         }
