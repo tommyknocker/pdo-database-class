@@ -9,12 +9,17 @@ use tommyknocker\pdodb\helpers\RawValue;
 
 class PostgreSQLDialect extends DialectAbstract implements DialectInterface
 {
+    /**
+     * {@inheritDoc}
+     */
     public function getDriverName(): string
     {
         return 'pgsql';
     }
 
-    // Connection / identity
+    /**
+     * {@inheritDoc}
+     */
     public function buildDsn(array $params): string
     {
         foreach (['host', 'dbname', 'username', 'password'] as $requiredParam) {
@@ -36,6 +41,9 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
             . (!empty($params['target_session_attrs']) ? ";target_session_attrs={$params['target_session_attrs']}" : '');
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function defaultPdoOptions(): array
     {
         return [
@@ -45,16 +53,25 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         ];
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function quoteIdentifier(string $name): string
     {
         return "\"{$name}\"";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function quoteTable(mixed $table): string
     {
         return $this->quoteTableWithAlias($table);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildInsertSql(string $table, array $columns, array $placeholders, array $options = []): string
     {
         $cols = implode(', ', array_map([$this, 'quoteIdentifier'], $columns));
@@ -97,7 +114,9 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         return $sql;
     }
 
-
+    /**
+     * {@inheritDoc}
+     */
     public function formatSelectOptions(string $sql, array $options): string
     {
         $tail = [];
@@ -114,6 +133,9 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         return $sql;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id'): string
     {
         if (!$updateColumns) {
@@ -173,7 +195,9 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         return "ON CONFLICT ({$this->quoteIdentifier($defaultConflictTarget)}) DO UPDATE SET " . implode(', ', $parts);
     }
 
-
+    /**
+     * {@inheritDoc}
+     */
     public function buildReplaceSql(
         string $table,
         array $columns,
@@ -227,22 +251,34 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         return sprintf('INSERT INTO %s (%s) VALUES %s ON CONFLICT DO NOTHING', $tableSql, $colsSql, $valsSql);
     }
 
-    public function now(?string $diff = ''): RawValue
+    /**
+     * {@inheritDoc}
+     */
+    public function now(?string $diff = ''): string
     {
         $func = 'NOW()';
-        return new RawValue($diff ? "$func + INTERVAL '{$diff}'" : $func);
+        return $diff ? "$func + INTERVAL '{$diff}'" : $func;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildExplainSql(string $query, bool $analyze = false): string
     {
         return "EXPLAIN " . ($analyze ? "ANALYZE " : "") . $query;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildExistsSql(string $table): string
     {
         return "SELECT to_regclass('{$table}') IS NOT NULL AS exists";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildDescribeTableSql(string $table): string
     {
         return "SELECT column_name, data_type, is_nullable, column_default
@@ -250,27 +286,39 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
                 WHERE table_name = '{$table}'";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildLockSql(array $tables, string $prefix, string $lockMethod): string
     {
         $list = implode(', ', array_map(fn($t) => $this->quoteIdentifier($prefix . $t), $tables));
         return "LOCK TABLE {$list} IN ACCESS EXCLUSIVE MODE";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildUnlockSql(): string
     {
         // PostgreSQL does not need unlock
         return '';
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildTruncateSql(string $table): string
     {
         return 'TRUNCATE TABLE ' . $this->quoteTable($table);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string
     {
         $tableSql = $this->quoteIdentifier($table);
-
+        $pdo = $this->pdo;
         $quotedPath = $pdo->quote($filePath);
 
         $delimiter = $options['fieldChar'] ?? ',';

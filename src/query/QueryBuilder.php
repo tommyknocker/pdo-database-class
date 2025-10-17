@@ -5,12 +5,13 @@ namespace tommyknocker\pdodb\query;
 
 use InvalidArgumentException;
 use PDO;
+use PDOException;
 use PDOStatement;
 use RuntimeException;
-use Throwable;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\helpers\NowValue;
 
 class QueryBuilder
 {
@@ -97,7 +98,11 @@ class QueryBuilder
             $cols = [$cols];
         }
         foreach ($cols as $col) {
-            $this->select[] = (string)$col; // RawValue has __toString() method
+            if ($col instanceof RawValue) {
+                $this->select[] = $this->resolveRawValue($col);
+            } else {
+                $this->select[] = (string)$col; // RawValue has __toString() method
+            }
         }
         return $this;
     }
@@ -109,7 +114,7 @@ class QueryBuilder
      * It does not execute any nested queries separately; the subquery is compiled only.
      *
      * @return bool
-     * @throws Throwable
+     * @throws PDOException
      */
     public function exists(): bool
     {
@@ -132,7 +137,7 @@ class QueryBuilder
     {
         $type = strtoupper(trim($type));
         $tableSql = $this->normalizeTable($tableAlias);
-        $onSql = (string)$condition; // RawValue has __toString() method
+        $onSql = $condition instanceof RawValue ? $this->resolveRawValue($condition) : (string)$condition;
         $this->joins[] = "{$type} JOIN {$tableSql} ON {$onSql}";
         return $this;
     }
@@ -258,12 +263,17 @@ class QueryBuilder
     ): self {
         // if RawValue is provided and there is no value — insert it as is
         if ($value === null) {
-            $this->{$prop}[] = $exprOrColumn; // RawValue has __toString() method
+            if ($exprOrColumn instanceof RawValue) {
+                $this->{$prop}[] = $this->resolveRawValue($exprOrColumn);
+            } else {
+                $this->{$prop}[] = $exprOrColumn;
+            }
             return $this;
         }
 
         if ($exprOrColumn instanceof RawValue && $value) {
-            $this->{$prop}[] = ['sql' => "{$exprOrColumn} {$operator} {$value}", 'cond' => $cond];
+            $left = $this->resolveRawValue($exprOrColumn);
+            $this->{$prop}[] = ['sql' => "{$left} {$operator} {$value}", 'cond' => $cond];
             return $this;
         }
 
@@ -296,7 +306,7 @@ class QueryBuilder
             $placeholders = [];
             foreach ($value as $i => $v) {
                 if ($v instanceof RawValue) {
-                    $placeholders[] = $v->getValue();
+                    $placeholders[] = $this->resolveRawValue($v);
                     continue;
                 }
                 $ph = $this->makeParam((string)$exprOrColumn . '_in_' . $i);
@@ -324,14 +334,14 @@ class QueryBuilder
 
             // support RawValue bounds
             if ($low instanceof RawValue) {
-                $left = $low->getValue();
+                $left = $this->resolveRawValue($low);
             } else {
                 $left = $this->makeParam((string)$exprOrColumn . '_bt_low');
                 $this->params[$left] = $low;
             }
 
             if ($high instanceof RawValue) {
-                $right = $high->getValue();
+                $right = $this->resolveRawValue($high);
             } else {
                 $right = $this->makeParam((string)$exprOrColumn . '_bt_high');
                 $this->params[$right] = $high;
@@ -345,7 +355,7 @@ class QueryBuilder
         }
 
         if ($value instanceof RawValue) {
-            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$value->getValue()}", 'cond' => $cond];
+            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$this->resolveRawValue($value)}", 'cond' => $cond];
         } else {
             $ph = $this->makeParam((string)$exprOrColumn);
             $this->params[$ph] = $value;
@@ -369,7 +379,7 @@ class QueryBuilder
         }
 
         if ($expr instanceof RawValue) {
-            $this->order[] = $expr->getValue() . ' ' . $dir;
+            $this->order[] = $this->resolveRawValue($expr) . ' ' . $dir;
         } else {
             $this->order[] = $this->dialect->quoteIdentifier($expr) . ' ' . $dir;
         }
@@ -391,7 +401,7 @@ class QueryBuilder
         $groups = [];
         foreach ($cols as $col) {
             if ($col instanceof RawValue) {
-                $groups[] = $col->getValue();
+                $groups[] = $this->resolveRawValue($col);
             } else {
                 $groups[] = $this->dialect->quoteIdentifier((string)$col);
             }
@@ -494,7 +504,7 @@ class QueryBuilder
         foreach ($columns as $col) {
             $val = $this->data[$col];
             if ($val instanceof RawValue) {
-                $placeholders[] = $val->getValue();
+                $placeholders[] = $this->resolveRawValue($val);
             } else {
                 $ph = ':' . $col;
                 $placeholders[] = $ph;
@@ -534,7 +544,7 @@ class QueryBuilder
             foreach ($columns as $col) {
                 $val = $row[$col];
                 if ($val instanceof RawValue) {
-                    $placeholders[] = $val->getValue();
+                    $placeholders[] = $this->resolveRawValue($val);
                 } else {
                     $ph = ':' . $col . '_' . $i;
                     $placeholders[] = $ph;
@@ -556,7 +566,7 @@ class QueryBuilder
      * Execute UPDATE statement
      * @param array $data
      * @return int
-     * @throws Throwable
+     * @throws PDOException
      */
     public function update(array $data): int
     {
@@ -568,7 +578,7 @@ class QueryBuilder
     /**
      * Execute DELETE statement
      * @return int
-     * @throws Throwable
+     * @throws PDOException
      */
     public function delete(): int
     {
@@ -582,7 +592,7 @@ class QueryBuilder
     /**
      * Execute SELECT statement and return all rows
      * @return mixed
-     * @throws Throwable
+     * @throws PDOException
      */
     public function get(): mixed
     {
@@ -593,7 +603,7 @@ class QueryBuilder
     /**
      * Execute SELECT statement and return first row
      * @return mixed
-     * @throws Throwable
+     * @throws PDOException
      */
     public function getOne(): mixed
     {
@@ -604,7 +614,7 @@ class QueryBuilder
     /**
      * Execute SELECT statement and return column values
      * @return array
-     * @throws Throwable
+     * @throws PDOException
      */
     public function getColumn(): array
     {
@@ -619,7 +629,7 @@ class QueryBuilder
     /**
      * Execute SELECT statement and return single value
      * @return mixed
-     * @throws Throwable
+     * @throws PDOException
      */
     public function getValue(): mixed
     {
@@ -637,7 +647,7 @@ class QueryBuilder
     /**
      * Execute TRUNCATE statement
      * @return bool
-     * @throws Throwable
+     * @throws PDOException
      */
     public function truncate(): bool
     {
@@ -732,7 +742,7 @@ class QueryBuilder
         foreach ($columns as $col) {
             $val = $this->data[$col];
             if ($val instanceof RawValue) {
-                $placeholders[] = $val->getValue();
+                $placeholders[] = $this->resolveRawValue($val);
             } else {
                 $ph = ':' . $col;
                 $placeholders[] = $ph;
@@ -772,7 +782,7 @@ class QueryBuilder
                 $val = $row[$col];
                 if ($val instanceof RawValue) {
                     // insert raw expression directly without a parameter
-                    $placeholders[] = $val->getValue();
+                    $placeholders[] = $this->resolveRawValue($val);
                 } else {
                     // unique placeholder for each row/column
                     $ph = ':' . $col . '_' . $i;
@@ -818,18 +828,28 @@ class QueryBuilder
                 } elseif ($op === 'dec') {
                     $setParts[] = "{$qid} = {$qid} - " . (int)$val['val'];
                 } else {
-                    $ph = ":upd_{$col}";
-                    $setParts[] = "{$qid} = {$ph}";
-                    $params[$ph] = $val;
+                    // for other ops expect payload under 'val'
+                    if (!array_key_exists('val', $val)) {
+                        throw new InvalidArgumentException("Missing 'val' for operation '{$op}' on column {$col}");
+                    }
+                    $valueForParam = $val['val'];
+                    if ($valueForParam instanceof RawValue) {
+                        $setParts[] = "{$qid} = " . $this->resolveRawValue($valueForParam);
+                    } else {
+                        $ph = $this->makeParam("upd_{$col}");
+                        $setParts[] = "{$qid} = {$ph}";
+                        $params[$ph] = $valueForParam;
+                    }
                 }
             } elseif ($val instanceof RawValue) {
-                $setParts[] = "{$qid} = {$val->getValue()}";
+                $setParts[] = "{$qid} = {$this->resolveRawValue($val)}";
             } else {
-                $ph = ":upd_{$col}";
+                $ph = $this->makeParam("upd_{$col}");
                 $setParts[] = "{$qid} = {$ph}";
                 $params[$ph] = $val;
             }
         }
+
         $table = $this->normalizeTable();
         $sql = "UPDATE {$options}{$table} SET " . implode(', ', $setParts);
         $sql .= $this->buildConditionsClause($this->where, 'WHERE');
@@ -841,6 +861,8 @@ class QueryBuilder
 
     /**
      * Build conditions clause
+     * @param array $items
+     * @param string $keyword
      * @return string
      */
     protected function buildConditionsClause(array $items, string $keyword): string
@@ -851,7 +873,7 @@ class QueryBuilder
         $clauses = [];
         foreach ($items as $i => $w) {
             if ($w instanceof RawValue) {
-                $sql = $w->getValue();
+                $sql = $this->resolveRawValue($w);
                 $clauses[] = ($i === 0 ? '' : 'AND ') . $sql;
                 continue;
             }
@@ -865,7 +887,7 @@ class QueryBuilder
                 continue;
             }
             if ($sql instanceof RawValue) {
-                $sql = $sql->getValue();
+                $sql = $this->resolveRawValue($sql);
             }
             $clauses[] = ($i === 0 || $cond === '') ? $sql : strtoupper($cond) . ' ' . $sql;
         }
@@ -880,7 +902,7 @@ class QueryBuilder
      * @param array $params
      * @param bool $isMulty
      * @return int
-     * @throws Throwable
+     * @throws PDOException
      */
     protected function executeInsert(string $sql, array $params, bool $isMulty = false): int
     {
@@ -897,7 +919,7 @@ class QueryBuilder
      * @param string $sql
      * @param array $params
      * @return PDOStatement
-     * @throws Throwable
+     * @throws PDOException
      */
     public function executeStatement(string $sql, array $params = []): PDOStatement
     {
@@ -909,7 +931,7 @@ class QueryBuilder
      * @param string $sql
      * @param array $params
      * @return array
-     * @throws Throwable
+     * @throws PDOException
      */
     public function fetchAll(string $sql, array $params): array
     {
@@ -921,7 +943,7 @@ class QueryBuilder
      * @param string $sql
      * @param array $params
      * @return mixed
-     * @throws Throwable
+     * @throws PDOException
      */
     public function fetchColumn(string $sql, array $params): mixed
     {
@@ -933,7 +955,7 @@ class QueryBuilder
      * @param string $sql
      * @param array $params
      * @return mixed
-     * @throws Throwable
+     * @throws PDOException
      */
     public function fetch(string $sql, array $params): mixed
     {
@@ -998,7 +1020,6 @@ class QueryBuilder
             return null;
         }
 
-
         $expr = $this->select[0];
 
         // 1) Try to capture explicit alias at the end: " ... AS alias" or " ... alias"
@@ -1024,10 +1045,24 @@ class QueryBuilder
      */
     protected function quoteQualifiedIdentifier(string $name): string
     {
-        if (preg_match('/\s|\(|\)|`|"|\'|,/', $name)) {
+        // If looks like an expression (contains spaces, parentheses, commas or quotes)
+        // treat as raw expression but DO NOT accept suspicious unquoted parts silently.
+        if (preg_match('/[`\["\'\s\(\),]/', $name)) {
+            // allow already-quoted or complex expressions to pass through,
+            // but still protect obvious injection attempts by checking for dangerous tokens
+            if (preg_match('/;|--|\bDROP\b|\bDELETE\b|\bINSERT\b|\bUPDATE\b/i', $name)) {
+                throw new InvalidArgumentException('Unsafe SQL expression provided as identifier/expression.');
+            }
             return $name;
         }
+
         $parts = explode('.', $name);
+        foreach ($parts as $p) {
+            // require valid simple identifier parts
+            if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $p)) {
+                throw new InvalidArgumentException("Invalid identifier part: {$p}");
+            }
+        }
         $quoted = array_map(fn($p) => $this->dialect->quoteIdentifier($p), $parts);
         return implode('.', $quoted);
     }
@@ -1039,8 +1074,10 @@ class QueryBuilder
      */
     protected function makeParam(string $name): string
     {
-        $name = preg_replace('/[^a-z0-9_]/i', '_', $name);
-        return ':' . $name . '_' . count($this->params);
+        // sanitize base name and ensure unique suffix
+        $base = preg_replace('/[^a-z0-9_]/i', '_', $name) ?: 'p';
+        $index = count($this->params);
+        return ':' . $base . '_' . $index;
     }
 
     /**
@@ -1052,5 +1089,19 @@ class QueryBuilder
     {
         $table = $table ?: $this->table;
         return $this->dialect->quoteTable($this->prefix ? $this->prefix . $table : $table);
+    }
+
+    /**
+     * Resolve RawValue instances — return dialect-specific NOW() when NowValue provided.
+     *
+     * @param RawValue $v
+     * @return string
+     */
+    protected function resolveRawValue(RawValue $v): string
+    {
+        if ($v instanceof NowValue) {
+            return $this->dialect->now($v->getValue());
+        }
+        return $v->getValue();
     }
 }

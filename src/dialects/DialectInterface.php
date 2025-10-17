@@ -15,6 +15,11 @@ interface DialectInterface
      */
     public function getDriverName(): string;
 
+    /**
+     * Set PDO instance
+     * @param PDO $pdo
+     * @return void
+     */
     public function setPdo(PDO $pdo): void;
 
     /**
@@ -91,7 +96,7 @@ interface DialectInterface
      * @param string|null $diff
      * @return RawValue
      */
-    public function now(?string $diff = ''): RawValue;
+    public function now(?string $diff = ''): string;
 
     /**
      * EXPLAIN syntax

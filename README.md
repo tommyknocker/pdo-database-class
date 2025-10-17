@@ -122,25 +122,25 @@ $row = $db->find()
 ### Select with grouping and having
 
 ```php
-use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\helpers\Db;
 
 $rows = $db->find()
     ->from('orders')
-    ->select(['user_id', new RawValue('SUM(amount) AS total')])
+    ->select(['user_id', Db::raw('SUM(amount) AS total')])
     ->groupBy('user_id')
-    ->having(new RawValue('SUM(amount)'), 300, '=')
-    ->orHaving(new RawValue('SUM(amount)'), 500, '=')
+    ->having(Db::raw('SUM(amount)'), 300, '=')
+    ->orHaving(Db::raw('SUM(amount)'), 500, '=')
     ->get();
 ```
 
 ### Joins and pagination
 
 ```php
-use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\helpers\Db;
 
 $rows = $db->find()
     ->from('users AS u')
-    ->select(['u.id', 'u.name', new RawValue('SUM(o.amount) AS total')])
+    ->select(['u.id', 'u.name', Db::raw('SUM(o.amount) AS total')])
     ->leftJoin('orders AS o', 'o.user_id = u.id')
     ->groupBy('u.id')
     ->orderBy('total', 'DESC')
@@ -165,29 +165,28 @@ $rows = [
     ['name'=>'multi1','age'=>10],
     ['name'=>'multi2','age'=>11],
 ];
-
 $count = $db->find()->table('users')->insertMulti($rows);
 ```
 
 ### Insert with RawValue expression
 
 ```php
-use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\helpers\Db;
 
 $id = $db->find()->table('users')->insert([
     'name' => 'Alex',
     'age' => 21,
-    'created_at' => new RawValue('NOW()'),
+    'created_at' => Db::now(),
 ]);
 ```
 
 ### Portable UPSERT
 
 ```php
-use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\helpers\Db;
 
 $db->find()->table('users')->onDuplicate([
-    'age' => new RawValue('age + 1')
+    'age' => Db::raw('age + 1')
 ])->insert([
     'name' => 'Alice',
     'age'  => 30
@@ -246,8 +245,10 @@ try {
 
 ```php
 // Increment/decrement operations
-$db->find()->table('users')->where('id', 1)->update(['age' => $db->inc()]);
-$db->find()->table('users')->where('id', 1)->update(['age' => $db->dec(5)]);
+use tommyknocker\pdodb\helpers\Db;
+
+$db->find()->table('users')->where('id', 1)->update(['age' => Db::inc()]);
+$db->find()->table('users')->where('id', 1)->update(['age' => Db::dec(5)]);
 
 // NOT operation (PostgreSQL requires boolean types)
 $db->find()->table('users')->where('id', 1)->update(['is_active' => $db->not(true)]);
@@ -255,8 +256,8 @@ $db->find()->table('users')->where('id', 1)->update(['is_active' => $db->not(tru
 // Current timestamp
 $db->find()->table('users')->insert([
     'name' => 'John',
-    'created_at' => $db->now(),
-    'expires_at' => $db->now('1 YEAR')
+    'created_at' => Db::now(),
+    'expires_at' => Db::now('1 YEAR')
 ]);
 ```
 
@@ -286,10 +287,10 @@ $db->find()->table('users')->insert([
 
 ### Helper Functions
 
-* **inc(int|float)**: returns increment operation array.
-* **dec(int|float)**: returns decrement operation array.
-* **not(mixed)**: returns NOT operation array.
-* **now(string)**: returns current timestamp with optional interval.
+* **Db::raw(string)**: returns raw value expression.
+* **Db::inc(int|float)**: returns increment operation array.
+* **Db::dec(int|float)**: returns decrement operation array.
+* **Db::now(?string)**: returns current timestamp with optional interval.
 
 ### QueryBuilder Methods
 

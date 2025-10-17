@@ -7,6 +7,7 @@ use InvalidArgumentException;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
+use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\PdoDb;
 
@@ -156,7 +157,7 @@ final class PdoDbMySQLTest extends TestCase
         $id = $db->find()->table('users')->insert([
             'name' => 'raw_now_user',
             'age' => 21,
-            'created_at' => new RawValue('NOW()'),
+            'created_at' => Db::now(),
         ]);
 
         $this->assertIsInt($id);
@@ -180,8 +181,8 @@ final class PdoDbMySQLTest extends TestCase
 
 
         $rows = [
-            ['name' => 'multi_raw_1', 'age' => 10, 'created_at' => new RawValue('NOW()')],
-            ['name' => 'multi_raw_2', 'age' => 11, 'created_at' => new RawValue('NOW()')],
+            ['name' => 'multi_raw_1', 'age' => 10, 'created_at' => Db::now()],
+            ['name' => 'multi_raw_2', 'age' => 11, 'created_at' => Db::now()],
         ];
 
         $rowCount = $db->find()->table('users')->insertMulti($rows);
@@ -334,8 +335,8 @@ final class PdoDbMySQLTest extends TestCase
             ->from('users')
             ->where('id', $id)
             ->update([
-                'created_at' => new RawValue('NOW()'),
-                'updated_at' => new RawValue('NOW()'),
+                'created_at' => Db::now(),
+                'updated_at' => Db::now(),
                 'age' => new RawValue('age + 5'),
             ]);
         $this->assertEquals(1, $rowCount);
@@ -1303,18 +1304,11 @@ XML
 
         $id = $db->find()->table('users')->insert(['name' => 'FuncTest', 'age' => 1]);
 
-        // now
-        $expr = $db->now();
-        $this->assertEquals('NOW()', $expr);
-
-        $exprPlus = $db->now('1 DAY');
-        $this->assertEquals('NOW() + INTERVAL 1 DAY', $exprPlus);
-
         // inc
         $db->find()
             ->from('users')
             ->where('id', $id)
-            ->update(['age' => $db->inc()]);
+            ->update(['age' => Db::inc()]);
 
         $row = $db->find()->from('users')->where('id', $id)->getOne();
         $this->assertEquals(2, $row['age']);
@@ -1323,7 +1317,7 @@ XML
         $db->find()
             ->from('users')
             ->where('id', $id)
-            ->update(['age' => $db->dec()]);
+            ->update(['age' => Db::dec()]);
 
         $row = $db->find()->from('users')->where('id', $id)->getOne();
         $this->assertEquals(1, $row['age']);
@@ -1332,7 +1326,7 @@ XML
         $db->find()
             ->from('users')
             ->where('id', $id)
-            ->update(['updated_at' => $db->now()]);
+            ->update(['updated_at' => Db::now()]);
 
         $row = $db->find()->from('users')->where('id', $id)->getOne();
         $this->assertNotEmpty($row['updated_at']);

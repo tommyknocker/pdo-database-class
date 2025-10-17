@@ -8,6 +8,7 @@ use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\PdoDb;
 
@@ -88,7 +89,7 @@ final class PdoDbSqliteTest extends TestCase
         $id = $db->find()->table('users')->insert([
             'name' => 'raw_now_user',
             'age' => 21,
-            'created_at' => new RawValue('CURRENT_TIMESTAMP'),
+            'created_at' => Db::now(),
         ]);
 
         $this->assertIsInt($id);
@@ -111,8 +112,8 @@ final class PdoDbSqliteTest extends TestCase
         $db = self::$db;
 
         $rows = [
-            ['name' => 'multi_raw_1', 'age' => 10, 'created_at' => new RawValue('CURRENT_TIMESTAMP')],
-            ['name' => 'multi_raw_2', 'age' => 11, 'created_at' => new RawValue('CURRENT_TIMESTAMP')],
+            ['name' => 'multi_raw_1', 'age' => 10, 'created_at' => Db::now()],
+            ['name' => 'multi_raw_2', 'age' => 11, 'created_at' => Db::now()],
         ];
 
         $rowCount = $db->find()->table('users')->insertMulti($rows);
@@ -225,8 +226,8 @@ final class PdoDbSqliteTest extends TestCase
             ->from('users')
             ->where('id', $id)
             ->update([
-                'created_at' => new RawValue('CURRENT_TIMESTAMP'),
-                'updated_at' => new RawValue('CURRENT_TIMESTAMP'),
+                'created_at' => Db::now(),
+                'updated_at' => Db::now(),
                 'age' => new RawValue('age + 5'),
             ]);
         $this->assertEquals(1, $rowCount);
@@ -261,7 +262,7 @@ final class PdoDbSqliteTest extends TestCase
             ->where('id', $sub, 'IN')
             ->update(['status' => 'active']);
 
-        $this->assertStringContainsString('UPDATE "users" SET "status" = :upd_status WHERE "id" IN (SELECT "user_id" FROM "orders")', $db->lastQuery);
+        $this->assertStringContainsString('UPDATE "users" SET "status" = :upd_status_0 WHERE "id" IN (SELECT "user_id" FROM "orders")', $db->lastQuery);
 
         $count = $db->find()
             ->from('users')
@@ -763,6 +764,7 @@ final class PdoDbSqliteTest extends TestCase
             ->orHaving(new RawValue('SUM(amount)'), 700, '=')
             ->get();
 
+
         $totals = array_column($rows, 'total');
         sort($totals);
         $this->assertEquals([300, 500, 700], $totals);
@@ -1136,18 +1138,11 @@ XML
 
         $id = $db->find()->table('users')->insert(['name' => 'FuncTest', 'age' => 1]);
 
-        // now
-        $expr = $db->now('', 'CURRENT_TIMESTAMP');
-        $this->assertEquals('CURRENT_TIMESTAMP', $expr);
-
-        $exprPlus = $db->now('1 DAY');
-        $this->assertEquals("DATETIME('now','1 DAY')", (string) $exprPlus);
-
         // inc
         $db->find()
             ->from('users')
             ->where('id', $id)
-            ->update(['age' => $db->inc()]);
+            ->update(['age' => Db::inc()]);
 
         $row = $db->find()->from('users')->where('id', $id)->getOne();
         $this->assertEquals(2, $row['age']);
@@ -1156,7 +1151,7 @@ XML
         $db->find()
             ->from('users')
             ->where('id', $id)
-            ->update(['age' => $db->dec()]);
+            ->update(['age' => Db::dec()]);
 
         $row = $db->find()->from('users')->where('id', $id)->getOne();
         $this->assertEquals(1, $row['age']);
@@ -1165,7 +1160,7 @@ XML
         $db->find()
             ->from('users')
             ->where('id', $id)
-            ->update(['updated_at' => $db->now()]);
+            ->update(['updated_at' => Db::now()]);
 
         $row = $db->find()->from('users')->where('id', $id)->getOne();
         $this->assertNotEmpty($row['updated_at']);

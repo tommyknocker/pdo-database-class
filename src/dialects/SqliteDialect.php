@@ -10,12 +10,17 @@ use tommyknocker\pdodb\helpers\RawValue;
 
 class SqliteDialect extends DialectAbstract implements DialectInterface
 {
+    /**
+     * {@inheritDoc}
+     */
     public function getDriverName(): string
     {
         return 'sqlite';
     }
 
-    // Connection / identity
+    /**
+     * {@inheritDoc}
+     */
     public function buildDsn(array $params): string
     {
         if (!isset($params['path'])) {
@@ -26,6 +31,9 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
             . (!empty($params['cache']) ? ";cache={$params['cache']}" : '');    // shared/private
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function defaultPdoOptions(): array
     {
         return [
@@ -35,17 +43,25 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         ];
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function quoteIdentifier(string $name): string
     {
         return "\"{$name}\"";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function quoteTable(mixed $table): string
     {
         return $this->quoteTableWithAlias($table);
     }
 
-
+    /**
+     * {@inheritDoc}
+     */
     public function insertKeywords(array $flags): string
     {
         // SQLite does not support IGNORE directly, but supports INSERT OR IGNORE
@@ -55,6 +71,9 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         return 'INSERT ';
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildInsertSql(string $fullTable, array $columns, array $placeholders, array $options): string
     {
         $cols = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
@@ -62,7 +81,9 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         return $this->insertKeywords($options) . "INTO {$fullTable} ({$cols}) VALUES ({$phs})";
     }
 
-
+    /**
+     * {@inheritDoc}
+     */
     public function formatSelectOptions(string $sql, array $options): string
     {
         $middle = [];
@@ -85,6 +106,9 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         return $sql;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id'): string
     {
         if (!$updateColumns) {
@@ -148,7 +172,9 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         return "ON CONFLICT ({$target}) DO UPDATE SET " . implode(', ', $parts);
     }
 
-
+    /**
+     * {@inheritDoc}
+     */
     public function buildReplaceSql(
         string $table,
         array $columns,
@@ -163,14 +189,17 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         return sprintf('REPLACE INTO %s (%s) VALUES (%s)', $table, $colsSql, $valsSql);
     }
 
-    public function now(?string $diff = ''): RawValue
+    /**
+     * {@inheritDoc}
+     */
+    public function now(?string $diff = ''): string
     {
-        if (!$diff) {
-            return new RawValue('CURRENT_TIMESTAMP');
-        }
-        return new RawValue("DATETIME('now','{$diff}')");
+        return $diff ? "DATETIME('now','{$diff}')" : 'CURRENT_TIMESTAMP';
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildExplainSql(string $query, bool $analyze = false): string
     {
         if ($analyze) {
@@ -179,26 +208,41 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         return "EXPLAIN " . $query;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildExistsSql(string $table): string
     {
         return "SELECT name FROM sqlite_master WHERE type='table' AND name='{$table}'";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildDescribeTableSql(string $table): string
     {
         return "PRAGMA table_info({$table})";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildLockSql(array $tables, string $prefix, string $lockMethod): string
     {
         throw new RuntimeException('LOCK TABLES not supported');
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildUnlockSql(): string
     {
         throw new RuntimeException('UNLOCK TABLES not supported');
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildTruncateSql(string $table): string
     {
         $table = $this->quoteTable($table);

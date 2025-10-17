@@ -3,14 +3,12 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb;
 
-use PDO;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Throwable;
 use tommyknocker\pdodb\connection\ConnectionFactory;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\query\QueryBuilder;
 
 class PdoDb
@@ -210,38 +208,6 @@ class PdoDb
 
     /* ---------------- HELPERS ---------------- */
 
-    /**
-     * Returns an array with an increment operation.
-     *
-     * @param int|float $num The number to increment by.
-     * @return array The array with the increment operation.
-     */
-    public function inc(int|float $num = 1): array
-    {
-        return ['__op' => 'inc', 'val' => $num];
-    }
-
-    /**
-     * Returns an array with a decrement operation.
-     *
-     * @param int|float $num The number to decrement by.
-     * @return array The array with the decrement operation.
-     */
-    public function dec(int|float $num = 1): array
-    {
-        return ['__op' => 'dec', 'val' => $num];
-    }
-
-    /**
-     * Returns an array with a not operation.
-     *
-     * @param mixed $val The value to negate.
-     * @return array The array with the not operation.
-     */
-    public function not(mixed $val): array
-    {
-        return ['__op' => 'not', 'val' => $val];
-    }
 
     /**
      * Escapes a string for use in a SQL query.
@@ -259,7 +225,7 @@ class PdoDb
      *
      * @return void
      */
-    public function disconnect(): void
+    public function disconnect(): void // @todo also unset in connections pool
     {
         $this->connection = null;
     }
@@ -290,21 +256,6 @@ class PdoDb
         $sql = $this->connection->getDialect()->buildExistsSql($this->prefix . $table);
         $res = $this->rawQueryValue($sql);
         return !empty($res);
-    }
-
-
-    /* ---------------- UTILS ---------------- */
-
-
-    /**
-     * Returns a string with the current date and time.
-     *
-     * @param string $diff The time interval to add to the current date and time.
-     * @return RawValue The current date and time.
-     */
-    public function now(string $diff = ''): RawValue
-    {
-        return $this->connection->getDialect()->now($diff);
     }
 
     /* ---------------- CONNECTIONS ---------------- */

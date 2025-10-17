@@ -13,7 +13,7 @@ class RawValue
     /**
      * @param string $value
      */
-    public function __construct(string $value)
+    public function __construct(string $value) // @todo Implement params binding to avoid SQL injection
     {
         $this->value = $value;
     }

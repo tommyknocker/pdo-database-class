@@ -9,12 +9,17 @@ use tommyknocker\pdodb\helpers\RawValue;
 
 class MySQLDialect extends DialectAbstract implements DialectInterface
 {
+    /**
+     * {@inheritDoc}
+     */
     public function getDriverName(): string
     {
         return 'mysql';
     }
 
-    // Connection / identity
+    /**
+     * {@inheritDoc}
+     */
     public function buildDsn(array $params): string
     {
         foreach (['host', 'dbname', 'username', 'password'] as $requiredParam) {
@@ -32,6 +37,9 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
             . (!empty($params['compress']) ? ";compress={$params['compress']}" : '');
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function defaultPdoOptions(): array
     {
         return [
@@ -42,11 +50,17 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         ];
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function quoteIdentifier(mixed $name): string
     {
         return $name instanceof RawValue ? $name->getValue() : "`{$name}`";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function quoteTable(mixed $table): string
     {
         // Support for schema.table and alias: "schema"."table" AS `t`
@@ -66,6 +80,9 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         return $quoted;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildInsertSql(string $table, array $columns, array $placeholders, array $options = []): string
     {
         $cols = implode(', ', array_map([$this, 'quoteIdentifier'], $columns));
@@ -74,6 +91,9 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         return sprintf('%s %s (%s) VALUES (%s)', $prefix, $table, $cols, $vals);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function formatSelectOptions(string $sql, array $options): string
     {
         $middle = [];
@@ -97,6 +117,9 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id'): string
     {
         if (!$updateColumns) {
@@ -130,6 +153,9 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     }
 
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildReplaceSql(
         string $table,
         array $columns,
@@ -150,28 +176,42 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         return sprintf('REPLACE INTO %s (%s) VALUES (%s)', $tableSql, $colsSql, $valsSql);
     }
 
-    public function now(?string $diff = ''): RawValue
+    /**
+     * {@inheritDoc}
+     */
+    public function now(?string $diff = ''): string
     {
         $func = 'NOW()';
-        return new RawValue($diff ? "$func + INTERVAL $diff" : $func);
+        return $diff ? "$func + INTERVAL $diff" : $func;
     }
 
-
+    /**
+     * {@inheritDoc}
+     */
     public function buildExplainSql(string $query, bool $analyze = false): string
     {
         return "EXPLAIN " . $query;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildExistsSql(string $table): string
     {
         return "SHOW TABLES LIKE '{$table}'";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildDescribeTableSql(string $table): string
     {
         return "DESCRIBE {$table}";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildLockSql(array $tables, string $prefix, string $lockMethod): string
     {
         $parts = [];
@@ -181,17 +221,25 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         return "LOCK TABLES " . implode(', ', $parts);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildUnlockSql(): string
     {
         return "UNLOCK TABLES";
     }
 
-
+    /**
+     * {@inheritDoc}
+     */
     public function buildTruncateSql(string $table): string
     {
         return 'TRUNCATE TABLE ' . $this->quoteTable($table);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function buildLoadXML(string $table, string $filePath, array $options = []): string
     {
         $defaults = [
@@ -206,7 +254,9 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
             ($options['linesToIgnore'] ? sprintf(' IGNORE %d LINES', $options['linesToIgnore']) : '');
     }
 
-
+    /**
+     * {@inheritDoc}
+     */
     public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string
     {
         $defaults = [
@@ -251,5 +301,4 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
 
         return $sql;
     }
-
 }
