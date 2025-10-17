@@ -211,7 +211,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function buildExistsSql(string $table): string
+    public function buildTableExistsSql(string $table): string
     {
         return "SELECT name FROM sqlite_master WHERE type='table' AND name='{$table}'";
     }

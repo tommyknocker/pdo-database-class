@@ -271,7 +271,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function buildExistsSql(string $table): string
+    public function buildTableExistsSql(string $table): string
     {
         return "SELECT to_regclass('{$table}') IS NOT NULL AS exists";
     }

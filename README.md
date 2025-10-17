@@ -196,18 +196,18 @@ $db->find()->table('users')->onDuplicate([
 ### XML and CSV loaders
 
 ```php
-$db->loadXml('users', '/path/to/file.xml');
+$db->find()->table('users')->loadXml('/path/to/file.xml');
 
-$db->loadXml('users', '/path/to/file.xml', [
+$db->find()->table('users')->loadXml('/path/to/file.xml', [
     'rowTag' => '<row>',
     'linesToIgnore' => 0,
 ]);
 ```
 
 ```php
-$db->loadCsv('users', '/path/to/file.csv');
+$db->find()->table('users')->loadCsv('/path/to/file.csv');
 
-$db->loadCsv('users', '/path/to/file.csv', [
+$db->find()->table('users')->loadCsv('/path/to/file.csv', [
     'fieldChar' => ',',
     'fieldEnclosure' => '"',
     'fields' => ['id','name','status','age'],
@@ -279,13 +279,9 @@ $db->find()->table('users')->insert([
 * **startTransaction() / commit() / rollBack()**: transaction helpers.
 * **lock(array|string) / unlock()**: table locking helpers.
 * **setLockMethod(string)**: set lock method (READ/WRITE).
-* **loadCsv(table, file, options)**: CSV loader; COPY/LOAD DATA when available.
-* **loadXml(table, file, tag, options)**: XML loader.
 * **describe(string)**: get table structure.
 * **explain(string, array) / explainAnalyze(string, array)**: query analysis.
-* **tableExists(string)**: check if table exists.
 * **ping()**: check database connection.
-* **escape(string)**: escape string for SQL.
 * **disconnect()**: close connection.
 * **addConnection(name, config, options, logger)**: add connection to pool.
 * **connection(name)**: switch to named connection.
@@ -296,6 +292,7 @@ $db->find()->table('users')->insert([
 * **Db::inc(int|float)**: returns increment operation array.
 * **Db::dec(int|float)**: returns decrement operation array.
 * **Db::now(?string)**: returns current timestamp with optional interval.
+* **Db::escape(string)**: escape string for SQL.
 
 ### QueryBuilder Methods
 
@@ -311,6 +308,8 @@ $db->find()->table('users')->insert([
 * **option(string|array)**: add query options.
 * **insert(array)**: insert single row, returns inserted primary key when available.
 * **insertMulti(array)**: insert multiple rows; generates unique named placeholders and returns inserted row count.
+* **loadCsv(table, file, options)**: CSV loader; COPY/LOAD DATA when available.
+* **loadXml(table, file, tag, options)**: XML loader.
 * **onDuplicate(array)**: build UPSERT clause; dialect-specific generation.
 * **replace(array) / replaceMulti(array)**: MySQL-specific REPLACE operations.
 * **update(array)**: update rows, returns affected count.
@@ -321,6 +320,7 @@ $db->find()->table('users')->insert([
 * **getColumn()**: execute SELECT and return single column values.
 * **getValue()**: execute SELECT and return single value.
 * **exists()**: check if any rows match conditions.
+* **tableExists(string)**: check if table exists.
 * **asObject()**: set fetch mode to objects instead of arrays.
 
 Use `Db::raw(string $value, ?array $params)` for SQL fragments that must bypass parameter binding.

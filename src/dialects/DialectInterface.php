@@ -111,7 +111,7 @@ interface DialectInterface
      * @param string $table
      * @return string
      */
-    public function buildExistsSql(string $table): string;
+    public function buildTableExistsSql(string $table): string;
 
     /**
      * DESCRIBE syntax

@@ -8,6 +8,7 @@ use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\helpers\EscapeValue;
 use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\PdoDb;
 
@@ -955,7 +956,7 @@ final class PdoDbPostgreSQLTest extends TestCase
 
     }
 
-    public function testLockMultipleTableWrite()
+    public function testLockMultipleTableWrite(): void
     {
         $db = self::$db;
 
@@ -974,9 +975,20 @@ final class PdoDbPostgreSQLTest extends TestCase
 
     public function testEscape(): void
     {
-        $unsafe = "O'Reilly";
-        $safe = self::$db->escape($unsafe);
-        $this->assertStringContainsString("'O''Reilly'", $safe);
+        $id = self::$db->find()
+            ->table('users')
+            ->insert([
+                'name' => Db::escape("O'Reilly"),
+                'age' => 30
+            ]);
+        $this->assertIsInt($id);
+
+        $row = self::$db->find()
+            ->from('users')
+            ->where('id', $id)
+            ->getOne();
+        $this->assertEquals("O'Reilly", $row['name']);
+        $this->assertEquals(30, $row['age']);
     }
 
     public function testReplace(): void
@@ -1118,8 +1130,8 @@ final class PdoDbPostgreSQLTest extends TestCase
 
     public function testTableExists(): void
     {
-        $this->assertTrue(self::$db->tableExists('users'));
-        $this->assertFalse(self::$db->tableExists('nonexistent'));
+        $this->assertTrue(self::$db->find()->table('users')->tableExists());
+        $this->assertFalse(self::$db->find()->table('nonexistent')->tableExists());
     }
 
     public function testInvalidSqlLogsErrorAndException(): void
@@ -1243,7 +1255,7 @@ final class PdoDbPostgreSQLTest extends TestCase
         $tmpFile = sys_get_temp_dir() . '/users.csv';
         file_put_contents($tmpFile, "4,Dave,new,30\n5,Eve,new,40\n");
 
-        $ok = $db->loadCsv('users', $tmpFile, [
+        $ok = $db->find()->table('users')->loadCsv($tmpFile, [
             'fieldChar' => ',',
             'fields' => ['id', 'name', 'status', 'age'],
             'local' => true
@@ -1275,7 +1287,7 @@ final class PdoDbPostgreSQLTest extends TestCase
 XML
         );
 
-        $ok = self::$db->loadXml('users', $file, '<user>', 1);
+        $ok = self::$db->find()->table('users')->loadXml($file, '<user>', 1);
         $this->assertTrue($ok);
 
         $row = self::$db->find()->from('users')->where('name', 'XMLUser 2')->getOne();

@@ -10,6 +10,7 @@ use PDOStatement;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\helpers\EscapeValue;
 use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\helpers\NowValue;
 
@@ -101,7 +102,7 @@ class QueryBuilder
             if ($col instanceof RawValue) {
                 $this->select[] = $this->resolveRawValue($col);
             } else {
-                $this->select[] = (string)$col; // RawValue has __toString() method
+                $this->select[] = (string)$col;
             }
         }
         return $this;
@@ -123,6 +124,19 @@ class QueryBuilder
         $params = $this->params ?? [];
         $sql = 'SELECT EXISTS(' . $subSql . ')';
         return (bool)$this->fetchColumn($sql, $params);
+    }
+
+    /**
+     * Checks if a table exists.
+     *
+     * @return bool True if the table exists, false otherwise.
+     */
+    public function tableExists(): bool
+    {
+        $table =  $this->prefix . $this->table;
+        $sql = $this->dialect->buildTableExistsSql($table);
+        $res = $this->executeStatement($sql)->fetchColumn();
+        return !empty($res);
     }
 
 
@@ -938,7 +952,7 @@ class QueryBuilder
      * @return array
      * @throws PDOException
      */
-    public function fetchAll(string $sql, array $params): array
+    public function fetchAll(string $sql, array $params = []): array
     {
         return $this->executeStatement($sql, $params)->fetchAll($this->fetchMode);
     }
@@ -950,7 +964,7 @@ class QueryBuilder
      * @return mixed
      * @throws PDOException
      */
-    public function fetchColumn(string $sql, array $params): mixed
+    public function fetchColumn(string $sql, array $params = []): mixed
     {
         return $this->executeStatement($sql, $params)->fetchColumn();
     }
@@ -962,7 +976,7 @@ class QueryBuilder
      * @return mixed
      * @throws PDOException
      */
-    public function fetch(string $sql, array $params): mixed
+    public function fetch(string $sql, array $params = []): mixed
     {
         return $this->executeStatement($sql, $params)->fetch($this->fetchMode);
     }
@@ -978,6 +992,69 @@ class QueryBuilder
         $sql = $this->buildSelectSql();
         $params = $this->params ?? [];
         return ['sql' => $sql, 'params' => $params];
+    }
+
+
+    /* ---------------- LOAD CSV/XML ---------------- */
+
+    /**
+     * Loads data from a CSV file into a table.
+     *
+     * @param string $filePath The path to the CSV file.
+     * @param array $options The options to use to load the data.
+     * @return bool True on success, false on failure.
+     */
+    public function loadCsv(string $filePath, array $options = []): bool
+    {
+        if(!$this->connection->inTransaction()) {
+            $this->connection->transaction();
+        }
+        try {
+            $sql = $this->connection->getDialect()->buildLoadCsvSql($this->prefix . $this->table, $filePath, $options);
+            $this->connection->prepare($sql)->execute();
+            if($this->connection->inTransaction()) {
+                $this->connection->commit();
+            }
+            return $this->connection->getExecuteState()  !== false;
+        } catch (PDOException $e) {
+            if($this->connection->inTransaction()) {
+                $this->connection->rollback();
+            }
+        }
+        return false;
+    }
+
+
+    /**
+     * Loads data from an XML file into a table.
+     *
+     * @param string $filePath The path to the XML file.
+     * @param string $rowTag The tag that identifies a row.
+     * @param int|null $linesToIgnore The number of lines to ignore at the beginning of the file.
+     * @return bool True on success, false on failure.
+     */
+    public function loadXml(string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool
+    {
+        if(!$this->connection->inTransaction()) {
+            $this->connection->transaction();
+        }
+        try {
+            $options = [
+                'rowTag' => $rowTag,
+                'linesToIgnore' => $linesToIgnore
+            ];
+            $sql = $this->connection->getDialect()->buildLoadXML($this->prefix . $this->table, $filePath, $options);
+            $this->connection->prepare($sql)->execute();
+            if($this->connection->inTransaction()) {
+                $this->connection->commit();
+            }
+            return $this->connection->getExecuteState() !== false;
+        } catch (PDOException $e) {
+            if($this->connection->inTransaction()) {
+                $this->connection->rollback();
+            }
+        }
+        return false;
     }
 
     /**
@@ -1093,7 +1170,7 @@ class QueryBuilder
     protected function normalizeTable(?string $table = null): string
     {
         $table = $table ?: $this->table;
-        return $this->dialect->quoteTable($this->prefix ? $this->prefix . $table : $table);
+        return $this->dialect->quoteTable($this->prefix . $table);
     }
 
     protected function normalizeParams(array $params): array
@@ -1117,6 +1194,10 @@ class QueryBuilder
     {
         if ($value instanceof NowValue) {
             return $this->dialect->now($value->getValue());
+        }
+
+        if ($value instanceof EscapeValue) {
+            return $this->connection->quote($value->getValue());
         }
 
         $sql = $value->getValue();

@@ -20,6 +20,17 @@ class Db
     }
 
     /**
+     * Escapes a string for use in a SQL query.
+     *
+     * @param string $str The string to escape.
+     * @return EscapeValue The EscapeValue instance
+     */
+    public static function escape(string $str): EscapeValue
+    {
+        return new EscapeValue($str);
+    }
+
+    /**
      * Returns a NowValue instance representing the current timestamp with an optional difference.
      *
      * @param string|null $diff An optional time difference (e.g., '+1 day', '-2 hours').

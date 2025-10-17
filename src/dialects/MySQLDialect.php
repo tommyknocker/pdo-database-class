@@ -196,7 +196,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function buildExistsSql(string $table): string
+    public function buildTableExistsSql(string $table): string
     {
         return "SHOW TABLES LIKE '{$table}'";
     }

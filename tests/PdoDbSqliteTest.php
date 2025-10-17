@@ -15,6 +15,7 @@ use tommyknocker\pdodb\PdoDb;
 final class PdoDbSqliteTest extends TestCase
 {
     private static PdoDb $db;
+
     public function setUp(): void
     {
         self::$db = new PdoDb('sqlite', ['path' => ':memory:']);
@@ -260,7 +261,6 @@ final class PdoDbSqliteTest extends TestCase
     }
 
 
-
     public function testUpdate(): void
     {
         $db = self::$db;
@@ -364,7 +364,8 @@ final class PdoDbSqliteTest extends TestCase
             ->where('id', $sub, 'IN')
             ->update(['status' => 'active']);
 
-        $this->assertStringContainsString('UPDATE "users" SET "status" = :upd_status_0 WHERE "id" IN (SELECT "user_id" FROM "orders")', $db->lastQuery);
+        $this->assertStringContainsString('UPDATE "users" SET "status" = :upd_status_0 WHERE "id" IN (SELECT "user_id" FROM "orders")',
+            $db->lastQuery);
 
         $count = $db->find()
             ->from('users')
@@ -929,7 +930,7 @@ final class PdoDbSqliteTest extends TestCase
         $this->assertTrue($ok);
     }
 
-    public function testLockMultipleTableWrite()
+    public function testLockMultipleTableWrite(): void
     {
         $db = self::$db;
 
@@ -947,9 +948,20 @@ final class PdoDbSqliteTest extends TestCase
 
     public function testEscape(): void
     {
-        $unsafe = "O'Reilly";
-        $safe = self::$db->escape($unsafe);
-        $this->assertStringContainsString("'O''Reilly'", $safe);
+        $id = self::$db->find()
+            ->table('users')
+            ->insert([
+                'name' => Db::escape("O'Reilly"),
+                'age' => 30
+            ]);
+        $this->assertIsInt($id);
+
+        $row = self::$db->find()
+            ->from('users')
+            ->where('id', $id)
+            ->getOne();
+        $this->assertEquals("O'Reilly", $row['name']);
+        $this->assertEquals(30, $row['age']);
     }
 
     public function testReplace(): void
@@ -1087,8 +1099,8 @@ final class PdoDbSqliteTest extends TestCase
 
     public function testTableExists(): void
     {
-        $this->assertTrue(self::$db->tableExists('users'));
-        $this->assertFalse(self::$db->tableExists('nonexistent'));
+        $this->assertTrue(self::$db->find()->table('users')->tableExists());
+        $this->assertFalse(self::$db->find()->table('nonexistent')->tableExists());
     }
 
     public function testInvalidSqlLogsErrorAndException(): void
@@ -1198,7 +1210,7 @@ final class PdoDbSqliteTest extends TestCase
 XML
         );
 
-        $ok = self::$db->loadXml('users', $file, '<user>', 1);
+        $ok = self::$db->find()->table('users')->loadXml($file, '<user>', 1);
         $this->assertTrue($ok);
 
         $row = self::$db->find()->from('users')->where('name', 'XMLUser 2')->getOne();
@@ -1215,7 +1227,7 @@ XML
         $tmpFile = sys_get_temp_dir() . '/users.csv';
         file_put_contents($tmpFile, "4,Dave,new,30\n5,Eve,new,40\n");
 
-        $ok = $db->loadCsv('users', $tmpFile, [
+        $ok = $db->find()->table('users')->loadCsv($tmpFile, [
             'fieldChar' => ',',
             'fields' => ['id', 'name', 'status', 'age'],
             'local' => true
@@ -1223,7 +1235,7 @@ XML
 
         $this->assertTrue($ok, 'loadData() returned false');
 
-        $names =$db->find()
+        $names = $db->find()
             ->from('users')
             ->select(['name'])
             ->getColumn();
@@ -1279,7 +1291,7 @@ XML
         $db = self::$db;
         $columns = $db->describe('users');
         $this->assertNotEmpty($columns);
-        
+
         $columnNames = array_column($columns, 'name');
         $this->assertContains('id', $columnNames);
         $this->assertContains('name', $columnNames);
@@ -1288,7 +1300,7 @@ XML
         $this->assertContains('status', $columnNames);
         $this->assertContains('created_at', $columnNames);
         $this->assertContains('updated_at', $columnNames);
-        
+
         $idColumn = $columns[0];
         $this->assertEquals('id', $idColumn['name']);
         $this->assertEquals('INTEGER', $idColumn['type']);
@@ -1297,7 +1309,7 @@ XML
         if (isset($idColumn['auto_increment'])) {
             $this->assertEquals(1, (int)$idColumn['auto_increment']); // Auto increment
         }
-        
+
         $nameColumn = null;
         foreach ($columns as $column) {
             if ($column['name'] === 'name') {
@@ -1309,7 +1321,7 @@ XML
         $this->assertEquals('TEXT', $nameColumn['type']);
         $this->assertEquals(0, (int)$nameColumn['notnull']);
         $this->assertEquals(0, (int)$nameColumn['pk']);
-        
+
         foreach ($columns as $column) {
             $this->assertArrayHasKey('name', $column);
             $this->assertArrayHasKey('type', $column);
@@ -1323,12 +1335,12 @@ XML
         $db = self::$db;
         $columns = $db->describe('orders');
         $this->assertNotEmpty($columns);
-        
+
         $columnNames = array_column($columns, 'name');
         $this->assertContains('id', $columnNames);
         $this->assertContains('user_id', $columnNames);
         $this->assertContains('amount', $columnNames);
-        
+
         $userIdColumn = null;
         foreach ($columns as $column) {
             if ($column['name'] === 'user_id') {
@@ -1339,7 +1351,7 @@ XML
         $this->assertNotNull($userIdColumn);
         $this->assertEquals('INTEGER', $userIdColumn['type']);
         $this->assertEquals(1, (int)$userIdColumn['notnull']); // NOT NULL
-        
+
         $amountColumn = null;
         foreach ($columns as $column) {
             if ($column['name'] === 'amount') {
@@ -1355,62 +1367,62 @@ XML
     public function testPrefixMethod(): void
     {
         $db = self::$db;
-        
+
         $queryBuilder = $db->find()->prefix('test_')->from('users');
-        
+
         $db->rawQuery("CREATE TABLE IF NOT EXISTS test_prefixed_table (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT
         )");
-        
+
         $id = $queryBuilder->table('prefixed_table')->insert(['name' => 'Test User']);
         $this->assertIsInt($id);
-        
+
         $user = $queryBuilder->table('prefixed_table')->where('id', $id)->getOne();
         $this->assertEquals('Test User', $user['name']);
-        
+
         $this->assertStringContainsString('"test_prefixed_table"', $db->lastQuery);
-        
+
         $db->rawQuery("DROP TABLE IF EXISTS test_prefixed_table");
     }
 
     public function testLeftJoin(): void
     {
         $db = self::$db;
-        
+
         $userId = $db->find()->table('users')->insert(['name' => 'Left Join User', 'age' => 30]);
         $db->find()->table('orders')->insert(['user_id' => $userId, 'amount' => 150.50]);
-        
+
         $results = $db->find()
             ->from('users u')
             ->leftJoin('orders o', 'u.id = o.user_id')
             ->select(['u.name', 'o.amount'])
             ->get();
-        
+
         $this->assertNotEmpty($results);
         $this->assertEquals('Left Join User', $results[0]['name']);
         $this->assertEquals('150.50', $results[0]['amount']);
-        
+
         $this->assertStringContainsString('LEFT JOIN', $db->lastQuery);
     }
 
     public function testRightJoin(): void
     {
         $db = self::$db;
-        
+
         $userId = $db->find()->table('users')->insert(['name' => 'Right Join User', 'age' => 25]);
         $db->find()->table('orders')->insert(['user_id' => $userId, 'amount' => 200.75]);
-        
+
         $results = $db->find()
             ->from('users u')
             ->rightJoin('orders o', 'u.id = o.user_id')
             ->select(['u.name', 'o.amount'])
             ->get();
-        
+
         $this->assertNotEmpty($results);
         $this->assertEquals('Right Join User', $results[0]['name']);
         $this->assertEquals('200.75', $results[0]['amount']);
-        
+
         $this->assertStringContainsString('RIGHT JOIN', $db->lastQuery);
     }
 

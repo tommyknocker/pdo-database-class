@@ -4,11 +4,11 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb;
 
 use Psr\Log\LoggerInterface;
-use RuntimeException;
-use Throwable;
 use tommyknocker\pdodb\connection\ConnectionFactory;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\query\QueryBuilder;
+use RuntimeException;
+use PDOException;
 
 class PdoDb
 {
@@ -20,9 +20,8 @@ class PdoDb
             return $this->connection;
         }
     }
-
     protected array $connections = [];
-    protected string $connectionName;
+    protected ?string $connectionName;
     public string $prefix;
     public string $lastQuery {
         get {
@@ -45,7 +44,6 @@ class PdoDb
         }
     }
     protected string $lockMethod = 'WRITE';
-
 
     /**
      * Initializes a new PdoDb object.
@@ -203,57 +201,6 @@ class PdoDb
         return $this;
     }
 
-    /* ---------------- HELPERS ---------------- */
-
-
-    /**
-     * Escapes a string for use in a SQL query.
-     *
-     * @param string $str The string to escape.
-     * @return string The escaped string.
-     */
-    public function escape(string $str): string
-    {
-        return $this->connection->quote($str);
-    }
-
-    /**
-     * Disconnects from the database.
-     *
-     * @return void
-     */
-    public function disconnect(): void // @todo also unset in connections pool
-    {
-        $this->connection = null;
-    }
-
-    /**
-     * Pings the database.
-     *
-     * @return bool True if the ping was successful, false otherwise.
-     */
-    public function ping(): bool
-    {
-        try {
-            $this->connection->query('SELECT 1')->execute();
-            return true;
-        } catch (Throwable) {
-            return false;
-        }
-    }
-
-    /**
-     * Checks if a table exists.
-     *
-     * @param string $table The table to check.
-     * @return bool True if the table exists, false otherwise.
-     */
-    public function tableExists(string $table): bool
-    {
-        $sql = $this->connection->getDialect()->buildExistsSql($this->prefix . $table);
-        $res = $this->rawQueryValue($sql);
-        return !empty($res);
-    }
 
     /* ---------------- CONNECTIONS ---------------- */
 
@@ -275,6 +222,7 @@ class PdoDb
         $params['options'] = $pdoOptions;
         $connectionFactory = new ConnectionFactory();
         $connection = $connectionFactory->create($params, $logger);
+        $this->connectionName = $name;
         $this->connections[$name] = $connection;
     }
 
@@ -293,58 +241,34 @@ class PdoDb
         return $this;
     }
 
-
-    /* ---------------- LOAD CSV/XML ---------------- */
-
     /**
-     * Loads data from a CSV file into a table.
+     * Disconnects from the database.
      *
-     * @param string $table The table to load data into.
-     * @param string $filePath The path to the CSV file.
-     * @param array $options The options to use to load the data.
-     * @return bool True on success, false on failure.
+     * @return void
      */
-    public function loadCsv(string $table, string $filePath, array $options = []): bool
+    public function disconnect(): void
     {
-        $this->startTransaction();
-        try {
-            $sql = $this->connection->getDialect()->buildLoadCsvSql($this->prefix . $table, $filePath, $options);
-            $this->connection->prepare($sql)->execute();
-            $this->commit();
-            return $this->executeState !== false;
-        } catch (Throwable $e) {
-            $this->rollback();
-        }
-        return false;
+        $this->connection = null;
+        unset($this->connections[$this->connectionName]);
+        $this->connectionName = null;
     }
 
-
     /**
-     * Loads data from an XML file into a table.
+     * Pings the database.
      *
-     * @param string $table The table to load data into.
-     * @param string $filePath The path to the XML file.
-     * @param string $rowTag The tag that identifies a row.
-     * @param int|null $linesToIgnore The number of lines to ignore at the beginning of the file.
-     * @return bool True on success, false on failure.
+     * @return bool True if the ping was successful, false otherwise.
      */
-    public function loadXml(string $table, string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool
+    public function ping(): bool
     {
-        $this->startTransaction();
         try {
-            $options = [
-                'rowTag' => $rowTag,
-                'linesToIgnore' => $linesToIgnore
-            ];
-            $sql = $this->connection->getDialect()->buildLoadXML($this->prefix . $table, $filePath, $options);
-            $this->connection->prepare($sql)->execute();
-            $this->commit();
-            return $this->executeState !== false;
-        } catch (Throwable $e) {
-            $this->rollback();
+            $this->connection->query('SELECT 1')->execute();
+            return true;
+        } catch (PDOException|RuntimeException) {
+            return false;
         }
-        return false;
     }
+
+    /* ---------------- SQL Introspection Methods  ---------------- */
 
     /**
      * Describes a table.

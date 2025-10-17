@@ -31,9 +31,7 @@
     "cross-platform",
     "testing",
     "ci-cd",
-    "github-actions",
-    "composer",
-    "packagist"
+    "github-actions"
   ],
   "homepage": "https://github.com/tommyknocker/pdo-database-class",
   "license": "MIT",
