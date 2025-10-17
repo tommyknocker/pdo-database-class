@@ -254,8 +254,8 @@ $db->find()
     ->table('users')
     ->where('id', 5)
     ->update([
-        'age' => new RawValue('age + :inc', [':inc' => 5]),
-        'name' => new RawValue('CONCAT(name, :suffix)', [':suffix' => '_updated'])
+        'age' => Db::raw('age + :inc', [':inc' => 5]),
+        'name' => Db::raw('CONCAT(name, :suffix)', [':suffix' => '_updated'])
     ]);
 
 // Current timestamp

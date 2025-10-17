@@ -158,7 +158,7 @@ final class PdoDbPostgreSQLTest extends TestCase
         $row = $db->find()
             ->from('users')
             ->where('id', $id)
-            ->select(['id', 'name', 'created_at', new RawValue('NOW() AS nowcol')])
+            ->select(['id', 'name', 'created_at', Db::raw('NOW() AS nowcol')])
             ->getOne();
 
         $this->assertNotEquals('0000-00-00 00:00:00', $row['created_at']);
@@ -202,7 +202,7 @@ final class PdoDbPostgreSQLTest extends TestCase
 
         // 1. INSERT with RawValue containing parameters
         $id = $db->find()->table('users')->insert([
-            'name' => new RawValue('CONCAT(:prefix || :name)', [
+            'name' => Db::raw('CONCAT(:prefix || :name)', [
                 ':prefix' => 'Mr_',
                 ':name' => 'John'
             ]),
@@ -218,8 +218,8 @@ final class PdoDbPostgreSQLTest extends TestCase
             ->table('users')
             ->where('id', $id)
             ->update([
-                'age' => new RawValue('age + :inc', [':inc' => 5]),
-                'name' => new RawValue('CONCAT(name || :suffix)', [':suffix' => '_updated'])
+                'age' => Db::raw('age + :inc', [':inc' => 5]),
+                'name' => Db::raw('CONCAT(name || :suffix)', [':suffix' => '_updated'])
             ]);
 
         $this->assertEquals(1, $rowCount);
@@ -230,7 +230,7 @@ final class PdoDbPostgreSQLTest extends TestCase
         // 3. WHERE condition with RawValue parameters
         $rows = $db->find()
             ->from('users')
-            ->where(new RawValue('age BETWEEN :min AND :max', [
+            ->where(Db::raw('age BETWEEN :min AND :max', [
                 ':min' => 30,
                 ':max' => 40
             ]))
@@ -249,7 +249,7 @@ final class PdoDbPostgreSQLTest extends TestCase
 
         $result = $db->find()
             ->from('users u')
-            ->join('orders o', new RawValue('o.user_id = u.id AND o.amount > :min_amount', [
+            ->join('orders o', Db::raw('o.user_id = u.id AND o.amount > :min_amount', [
                 ':min_amount' => 50
             ]))
             ->where('u.id', $id)
@@ -263,7 +263,7 @@ final class PdoDbPostgreSQLTest extends TestCase
             ->from('orders')
             ->select(['user_id', 'SUM(amount) as total'])
             ->groupBy('user_id')
-            ->having(new RawValue('SUM(amount) > :min_total AND SUM(amount) < :max_total', [
+            ->having(Db::raw('SUM(amount) > :min_total AND SUM(amount) < :max_total', [
                 ':min_total' => 50,
                 ':max_total' => 150
             ]))
@@ -276,7 +276,7 @@ final class PdoDbPostgreSQLTest extends TestCase
         // 6. DELETE with RawValue parameters in WHERE
         $rowCount = $db->find()
             ->table('orders')
-            ->where(new RawValue('amount BETWEEN :min AND :max', [
+            ->where(Db::raw('amount BETWEEN :min AND :max', [
                 ':min' => 90,
                 ':max' => 110
             ]))
@@ -287,8 +287,8 @@ final class PdoDbPostgreSQLTest extends TestCase
         // 7. Multiple RawValues with overlapping parameter names
         $rows = $db->find()
             ->from('users')
-            ->where(new RawValue('age > :val', [':val' => 30]))
-            ->andWhere(new RawValue('name LIKE :val', [':val' => '%updated%']))
+            ->where(Db::raw('age > :val', [':val' => 30]))
+            ->andWhere(Db::raw('name LIKE :val', [':val' => '%updated%']))
             ->get();
 
         $this->assertNotEmpty($rows);
@@ -355,7 +355,7 @@ final class PdoDbPostgreSQLTest extends TestCase
             ->update([
                 'created_at' => Db::now(),
                 'updated_at' => Db::now(),
-                'age' => new RawValue('age + 5'),
+                'age' => Db::raw('age + 5'),
             ]);
         $this->assertEquals(1, $rowCount);
 
@@ -394,7 +394,7 @@ final class PdoDbPostgreSQLTest extends TestCase
 
         $count = $db->find()
             ->from('users')
-            ->select(new RawValue('COUNT(*)'))
+            ->select(Db::raw('COUNT(*)'))
             ->where('status', 'active')
             ->getValue();
         $this->assertEquals(2, $count);
@@ -660,7 +660,7 @@ final class PdoDbPostgreSQLTest extends TestCase
         // 3) raw value with alias (must provide alias to be addressable)
         $columns = $db->find()
             ->from('users')
-            ->select([new RawValue('CONCAT(name, \'_\', age) AS name_age')])
+            ->select([Db::raw('CONCAT(name, \'_\', age) AS name_age')])
             ->getColumn();
         $this->assertIsArray($columns);
         $this->assertCount(2, $columns);
@@ -687,7 +687,7 @@ final class PdoDbPostgreSQLTest extends TestCase
         // 3) raw value with alias
         $val = $db->find()
             ->from('users')
-            ->select([new RawValue('CONCAT(name, \'-\', age) AS n_age')])
+            ->select([Db::raw('CONCAT(name, \'-\', age) AS n_age')])
             ->getValue();
         $this->assertNotFalse($val);
         $this->assertSame('Carol-40', $val);
@@ -832,7 +832,7 @@ final class PdoDbPostgreSQLTest extends TestCase
         $rows = $db->find()
             ->from('users')
             ->where('id', [$id1, $id2], 'IN')
-            ->where('age', new RawValue('2 + 1'), '=')
+            ->where('age', Db::raw('2 + 1'), '=')
             ->get();
 
         $ids = array_column($rows, 'id');
@@ -856,9 +856,9 @@ final class PdoDbPostgreSQLTest extends TestCase
         $rows = $db->find()
             ->from('orders')
             ->groupBy('user_id')
-            ->having(new RawValue('SUM(amount)'), 300, '=')
-            ->orHaving(new RawValue('SUM(amount)'), 500, '=')
-            ->orHaving(new RawValue('SUM(amount)'), 700, '=')
+            ->having(Db::raw('SUM(amount)'), 300, '=')
+            ->orHaving(Db::raw('SUM(amount)'), 500, '=')
+            ->orHaving(Db::raw('SUM(amount)'), 700, '=')
             ->select(['user_id', 'SUM(amount) AS total'])
             ->get();
 
@@ -886,9 +886,9 @@ final class PdoDbPostgreSQLTest extends TestCase
             ->from('orders')
             ->select(['user_id', 'SUM(amount) AS total'])
             ->groupBy('user_id')
-            ->having(new RawValue('SUM(amount)'), 300, '>=')
-            ->orHaving(new RawValue('SUM(amount)'), 500, '=')
-            ->orHaving(new RawValue('SUM(amount)'), 700, '=')
+            ->having(Db::raw('SUM(amount)'), 300, '>=')
+            ->orHaving(Db::raw('SUM(amount)'), 500, '=')
+            ->orHaving(Db::raw('SUM(amount)'), 700, '=')
             ->get();
 
         $totals = array_column($rows, 'total');
