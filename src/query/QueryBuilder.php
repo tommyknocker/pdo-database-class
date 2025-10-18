@@ -784,7 +784,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Set fetch mode to return objects
      * @return $this
      */
-    public function asObject()
+    public function asObject(): self
     {
         $this->fetchMode = PDO::FETCH_OBJ;
         return $this;
