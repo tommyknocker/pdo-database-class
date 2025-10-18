@@ -6,7 +6,9 @@ namespace tommyknocker\pdodb\tests;
 use InvalidArgumentException;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
+use PDOException;
 use PHPUnit\Framework\TestCase;
+use StdClass;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\PdoDb;
 
@@ -1484,12 +1486,25 @@ final class PdoDbMySQLTest extends TestCase
         $db = self::$db;
 
         $db->find()->table('users')->insertMulti([
-            ['name' => 'A', 'age' => 10],
-            ['name' => 'B', 'age' => 10],
+            // for string groupBy test (company G1)
+            ['name' => 'A', 'age' => 10, 'company' => 'G1'],
+            ['name' => 'B', 'age' => 10, 'company' => 'G1'],
+
+            // for RawValue groupBy test (company G2)
+            ['name' => 'C', 'age' => 20, 'company' => 'G2'],
+            ['name' => 'D', 'age' => 20, 'company' => 'G2'],
+            ['name' => 'E', 'age' => 20, 'company' => 'G2'],
+
+            // for array groupBy test (company G3) using unique names
+            ['name' => 'X1', 'age' => 30, 'company' => 'G3'],
+            ['name' => 'X2', 'age' => 30, 'company' => 'G3'],
+            ['name' => 'Y',  'age' => 30, 'company' => 'G3'],
         ]);
 
+        // 1) groupBy using string
         $rows = $db->find()
             ->from('users')
+            ->where(['company' => 'G1'])
             ->groupBy('age')
             ->select(['age', 'COUNT(*) AS cnt'])
             ->get();
@@ -1497,6 +1512,40 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertCount(1, $rows);
         $this->assertEquals(10, $rows[0]['age']);
         $this->assertEquals(2, $rows[0]['cnt']);
+
+        // 2) groupBy using RawValue (expression)
+        $rowsRaw = $db->find()
+            ->from('users')
+            ->where(['company' => 'G2'])
+            ->groupBy(\tommyknocker\pdodb\helpers\Db::raw('age'))
+            ->select([\tommyknocker\pdodb\helpers\Db::raw('age'), 'COUNT(*) AS cnt'])
+            ->get();
+
+        $this->assertCount(1, $rowsRaw);
+        $this->assertEquals(20, $rowsRaw[0]['age']);
+        $this->assertEquals(3, $rowsRaw[0]['cnt']);
+
+        // 3) groupBy using array (multiple columns)
+        $rowsArr = $db->find()
+            ->from('users')
+            ->where(['company' => 'G3'])
+            ->groupBy(['age', 'name'])
+            ->select(['age', 'name', 'COUNT(*) AS cnt'])
+            ->orderBy('name ASC')
+            ->get();
+
+        // Expect three groups for X1, X2 and Y with counts 1,1,1
+        $this->assertCount(3, $rowsArr);
+
+        $map = [];
+        foreach ($rowsArr as $r) {
+            $map[$r['name']] = (int)$r['cnt'];
+            $this->assertEquals(30, (int)$r['age']);
+        }
+
+        $this->assertEquals(1, $map['X1']);
+        $this->assertEquals(1, $map['X2']);
+        $this->assertEquals(1, $map['Y']);
     }
 
     public function testTransaction(): void
@@ -1769,7 +1818,7 @@ final class PdoDbMySQLTest extends TestCase
         $sql = 'INSERT INTO users (non_existing_column) VALUES (:v)';
         $params = ['v' => 'X'];
 
-        $this->expectException(\PDOException::class);
+        $this->expectException(PDOException::class);
 
         $testHandler = new TestHandler();
         $logger = new Logger('test-db');
@@ -1793,7 +1842,7 @@ final class PdoDbMySQLTest extends TestCase
             foreach ($testHandler->getRecords() as $rec) {
                 if (($rec['message'] ?? '') === 'operation.error'
                     && ($rec['context']['operation'] ?? '') === 'prepare'
-                    && ($rec['context']['exception'] ?? new \StdClass()) instanceof \PDOException
+                    && ($rec['context']['exception'] ?? new StdClass()) instanceof PDOException
                 ) {
                     $hasOpError = true;
                 }

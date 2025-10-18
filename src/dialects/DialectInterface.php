@@ -10,6 +10,8 @@ use tommyknocker\pdodb\helpers\RawValue;
 
 interface DialectInterface
 {
+    /* ---------------- Construction / PDO ---------------- */
+
     /**
      * Returns the driver name.
      *
@@ -38,6 +40,9 @@ interface DialectInterface
      */
     public function defaultPdoOptions(): array;
 
+
+    /* ---------------- Quoting / identifiers / table formatting ---------------- */
+
     /**
      * Quote table column in query
      * @param string $name
@@ -51,6 +56,9 @@ interface DialectInterface
      * @return string
      */
     public function quoteTable(string $table): string;
+
+
+    /* ---------------- DML / DDL builders ---------------- */
 
     /**
      * Build insert sql
@@ -68,7 +76,7 @@ interface DialectInterface
     ): string;
 
     /***
-     * Format select query options (e.g. SELECT SLQ_NO_CACHE for MySQL)
+     * Format select query options (e.g. SELECT SQL_NO_CACHE for MySQL)
      * @param string $sql
      * @param array $options
      * @return string
@@ -92,6 +100,9 @@ interface DialectInterface
      * @return string
      */
     public function buildReplaceSql(string $table, array $columns, array $placeholders, bool $isMultiple = false): string;
+
+
+    /* ---------------- SQL helpers and dialect-specific expressions ---------------- */
 
     /**
      * NOW() with diff support
@@ -122,6 +133,9 @@ interface DialectInterface
      * @return RawValue
      */
     public function concat(ConcatValue $value): RawValue;
+
+
+    /* ---------------- Introspection / utility SQL ---------------- */
 
     /**
      * EXPLAIN syntax
@@ -166,6 +180,9 @@ interface DialectInterface
      * @return string
      */
     public function buildTruncateSql(string $table): string;
+
+
+    /* ---------------- Loaders / bulk operations ---------------- */
 
     /**
      * Build SQL for loading data from XML file

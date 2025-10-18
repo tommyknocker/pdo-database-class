@@ -19,6 +19,8 @@ use tommyknocker\pdodb\helpers\RawValue;
 
 class QueryBuilder implements QueryBuilderInterface
 {
+    /* ---------------- Construction / meta ---------------- */
+
     protected ConnectionInterface $connection;
     protected DialectInterface $dialect;
 
@@ -48,6 +50,12 @@ class QueryBuilder implements QueryBuilderInterface
 
     protected array $options = [];
 
+    /**
+     * QueryBuilder constructor.
+     *
+     * @param ConnectionInterface $connection
+     * @param string $prefix
+     */
     public function __construct(ConnectionInterface $connection, string $prefix = '')
     {
         $this->connection = $connection;
@@ -85,6 +93,7 @@ class QueryBuilder implements QueryBuilderInterface
         return $this->prefix;
     }
 
+    /* ---------------- Table / source ---------------- */
 
     /**
      * Sets the table to query.
@@ -121,6 +130,8 @@ class QueryBuilder implements QueryBuilderInterface
         return $this;
     }
 
+    /* ---------------- Select / projection ---------------- */
+
     /**
      * Adds columns to the SELECT clause.
      *
@@ -147,412 +158,61 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
-     * Return true if at least one row matches the current WHERE conditions.
-     *
-     * This builds a single query using SQL EXISTS and executes it.
-     * It does not execute any nested queries separately; the subquery is compiled only.
-     *
-     * @return bool
+     * Execute SELECT statement and return all rows
+     * @return mixed
      * @throws PDOException
      */
-    public function exists(): bool
+    public function get(): mixed
     {
-        $this->limit(1);
-        $subSql = $this->buildSelectSql();
-        $params = $this->params ?? [];
-        $sql = 'SELECT EXISTS(' . $subSql . ')';
-        return (bool)$this->fetchColumn($sql, $params);
+        $sql = $this->buildSelectSql();
+        return $this->fetchAll($sql, $this->params);
     }
 
     /**
-     * Return true if no rows match the current WHERE conditions.
-     *
-     * This builds a single query using SQL NOT EXISTS and executes it.
-     * It does not execute any nested queries separately; the subquery is compiled only.
-     *
-     * @return bool
+     * Execute SELECT statement and return first row
+     * @return mixed
      * @throws PDOException
      */
-    public function notExists(): bool
+    public function getOne(): mixed
     {
-        $this->limit(1);
-        $subSql = $this->buildSelectSql();
-        $params = $this->params ?? [];
-        $sql = 'SELECT NOT EXISTS(' . $subSql . ')';
-        return (bool)$this->fetchColumn($sql, $params);
+        $sql = $this->buildSelectSql();
+        return $this->fetch($sql, $this->params);
     }
 
     /**
-     * Checks if a table exists.
-     *
-     * @return bool True if the table exists, false otherwise.
+     * Execute SELECT statement and return column values
+     * @return array
+     * @throws PDOException
      */
-    public function tableExists(): bool
+    public function getColumn(): array
     {
-        $table = $this->prefix . $this->table;
-        $sql = $this->dialect->buildTableExistsSql($table);
-        $res = $this->executeStatement($sql)->fetchColumn();
-        return !empty($res);
-    }
-
-
-    /**
-     * Add JOIN clause.
-     *
-     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
-     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
-     * @param string $type JOIN type, e.g. INNER, LEFT, RIGHT
-     */
-    public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): self
-    {
-        $type = strtoupper(trim($type));
-        $tableSql = $this->normalizeTable($tableAlias);
-        $onSql = $condition instanceof RawValue ? $this->resolveRawValue($condition) : (string)$condition;
-        $this->joins[] = "{$type} JOIN {$tableSql} ON {$onSql}";
-        return $this;
-    }
-
-    /**
-     * Add LEFT JOIN clause.
-     *
-     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
-     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
-     */
-    public function leftJoin(string $tableAlias, string|RawValue $condition): self
-    {
-        $this->join($tableAlias, $condition, 'LEFT');
-        return $this;
-    }
-
-    /**
-     * Add RIGHT JOIN clause.
-     *
-     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
-     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
-     */
-    public function rightJoin(string $tableAlias, string|RawValue $condition): self
-    {
-        $this->join($tableAlias, $condition, 'RIGHT');
-        return $this;
-    }
-
-    /**
-     * Add INNER JOIN clause.
-     *
-     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
-     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
-     */
-    public function innerJoin(string $tableAlias, string|RawValue $condition): self
-    {
-        $this->join($tableAlias, $condition, 'INNER');
-        return $this;
-    }
-
-
-    /**
-     * Add WHERE clause.
-     *
-     * Syntax:
-     *
-     * where('column', 'value') // column = value
-     * where('column', 'value', '!=') // column != value
-     * where(new RawValue('LENGTH(column)'), 5, '>') // LENGTH(column) > 5
-     *
-     * @param string|array|RawValue $exprOrColumn The expression or column to add.
-     * @param mixed $value The value to use in the condition.
-     * @param string $operator The operator to use in the condition.
-     * @return self The current instance.
-     */
-    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
-    {
-        return $this->addCondition('where', $exprOrColumn, $value, $operator, 'AND');
-    }
-
-    /**
-     * Add AND WHERE clause.
-     *
-     * @param string|RawValue|array $exprOrColumn The expression or column to add.
-     * @param string|array|RawValue $value The value to use in the condition.
-     * @param string $operator The operator to use in the condition.
-     * @return self The current instance.
-     */
-    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
-    {
-        return $this->where($exprOrColumn, $value, $operator);
-    }
-
-    /**
-     * Add OR WHERE clause.
-     *
-     * @param string|RawValue $exprOrColumn The expression or column to add.
-     * @param mixed $value The value to use in the condition.
-     * @param string $operator The operator to use in the condition.
-     * @return self The current instance.
-     */
-    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
-    {
-        return $this->addCondition('where', $exprOrColumn, $value, $operator, 'OR');
-    }
-
-    /**
-     * Add HAVING clause.
-     *
-     * @param string|array|rawValue $exprOrColumn The expression or column to add.
-     * @param mixed $value The value to use in the condition.
-     * @param string $operator The operator to use in the condition.
-     * @return self The current instance.
-     */
-    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
-    {
-        return $this->addCondition('having', $exprOrColumn, $value, $operator, 'AND');
-    }
-
-    /**
-     * Add OR HAVING clause.
-     *
-     * @param string|array|RawValue $exprOrColumn The expression or column to add.
-     * @param mixed $value The value to use in the condition.
-     * @param string $operator The operator to use in the condition.
-     * @return self The current instance.
-     */
-    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
-    {
-        return $this->addCondition('having', $exprOrColumn, $value, $operator, 'OR');
-    }
-
-    /**
-     * Add condition to the WHERE or HAVING clause.
-     *
-     * @param string $prop The property to add the condition to.
-     * @param string|RawValue $exprOrColumn The expression or column to add.
-     * @param mixed $value The value to use in the condition.
-     * @param string $operator The operator to use in the condition.
-     * @param string $cond The condition to use.
-     * @return self The current instance.
-     */
-    protected function addCondition(
-        string $prop,
-        string|array|RawValue $exprOrColumn,
-        mixed $value,
-        string $operator,
-        string $cond
-    ): self {
-        if (is_array($exprOrColumn)) {
-            foreach ($exprOrColumn as $col => $val) {
-                $exprQuoted = $this->quoteQualifiedIdentifier((string)$col);
-                if ($val instanceof RawValue) {
-                    $this->{$prop}[] = [
-                        'sql' => "{$exprQuoted} {$operator} {$this->resolveRawValue($val)}",
-                        'cond' => $cond
-                    ];
-                } elseif (is_array($value)) {
-                    $this->params[trim($val, ':')] = $value[trim($val, ':')] ?? null;
-                    $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$val}", 'cond' => $cond];
-                } else {
-                    $ph = $this->makeParam((string)$col);
-                    $this->params[$ph] = $val;
-                    $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$ph}", 'cond' => $cond];
-                }
-            }
-            return $this;
+        if (count($this->select) !== 1) {
+            return [];
         }
-
-
-        // if RawValue is provided and there is no value — insert it as is
-        if ($value === null) {
-            if ($exprOrColumn instanceof RawValue) {
-                $this->{$prop}[] = $this->resolveRawValue($exprOrColumn);
-            } else {
-                $this->{$prop}[] = $exprOrColumn;
-            }
-            return $this;
-        }
-
-        if ($exprOrColumn instanceof RawValue) {
-            $left = $this->resolveRawValue($exprOrColumn);
-            $this->{$prop}[] = ['sql' => "{$left} {$operator} {$value}", 'cond' => $cond];
-            return $this;
-        }
-
-        $exprQuoted = $this->quoteQualifiedIdentifier((string)$exprOrColumn);
-
-        // subquery handling
-        if ($value instanceof self) {
-            $sub = $value->compile();
-            $map = $this->mergeSubParams($sub['params'], 'sq');
-            $subSql = $this->replacePlaceholdersInSql($sub['sql'], $map);
-            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} ({$subSql})", 'cond' => $cond];
-            return $this;
-        }
-
-        $opUpper = strtoupper(trim($operator));
-        // support IN / NOT IN with an array of values
-        if (($opUpper === 'IN' || $opUpper === 'NOT IN') && is_array($value)) {
-            if (empty($value)) {
-                // The semantics of an empty IN depend on the logic: it's better to form a condition
-                // that is always false/true. Here it's safe to create a condition that never matches for IN,
-                // and always matches for NOT IN.
-                if ($opUpper === 'IN') {
-                    $this->{$prop}[] = ['sql' => '0=1', 'cond' => $cond];
-                } else {
-                    $this->{$prop}[] = ['sql' => '1=1', 'cond' => $cond];
-                }
-                return $this;
-            }
-
-            $placeholders = [];
-            foreach ($value as $i => $v) {
-                if ($v instanceof RawValue) {
-                    $placeholders[] = $this->resolveRawValue($v);
-                    continue;
-                }
-                $ph = $this->makeParam((string)$exprOrColumn . '_in_' . $i);
-                $this->params[$ph] = $v;
-                $placeholders[] = $ph;
-            }
-
-            $inSql = '(' . implode(', ', $placeholders) . ')';
-            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$opUpper} {$inSql}", 'cond' => $cond];
-            return $this;
-        }
-
-        // handle BETWEEN / NOT BETWEEN when value is array with two items
-        $opUpper = strtoupper(trim($operator));
-        if (($opUpper === 'BETWEEN' || $opUpper === 'NOT BETWEEN') && is_array($value)) {
-            $value = array_values($value);
-
-            // require exactly two bounds; if not - treat defensively
-            if (count($value) !== 2) {
-                throw new InvalidArgumentException('BETWEEN requires an array with exactly two elements.');
-            }
-
-            // left and right bounds
-            [$low, $high] = $value;
-
-            // support RawValue bounds
-            if ($low instanceof RawValue) {
-                $left = $this->resolveRawValue($low);
-            } else {
-                $left = $this->makeParam($exprOrColumn . '_bt_low');
-                $this->params[$left] = $low;
-            }
-
-            if ($high instanceof RawValue) {
-                $right = $this->resolveRawValue($high);
-            } else {
-                $right = $this->makeParam($exprOrColumn . '_bt_high');
-                $this->params[$right] = $high;
-            }
-
-            $this->{$prop}[] = [
-                'sql' => "{$exprQuoted} {$opUpper} {$left} AND {$right}",
-                'cond' => $cond,
-            ];
-            return $this;
-        }
-
-        if ($value instanceof RawValue) {
-            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$this->resolveRawValue($value)}", 'cond' => $cond];
-        } else {
-            $ph = $this->makeParam((string)$exprOrColumn);
-            $this->params[$ph] = $value;
-            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$ph}", 'cond' => $cond];
-        }
-
-        return $this;
-    }
-
-
-    /**
-     * Add ORDER BY clause.
-     * $expr may be a column name (string), complete expression or RawValue instance.
-     * $direction can be 'ASC' or 'DESC' (case-insensitive). Defaults to 'ASC'.
-     *
-     * Syntax:
-     *
-     * orderBy('column_name', 'ASC')
-     * orderBy(new RawValue('LENGTH(column_name)'), 'DESC')
-     * orderBy('column_name DESC') // full expression
-     *
-     * @param string|RawValue $expr The expression to order by.
-     * @param string $direction The direction of the ordering (ASC or DESC).
-     * @return self The current instance.
-     */
-    public function orderBy(string|RawValue $expr, string $direction = 'ASC'): self
-    {
-        $dir = strtoupper(trim($direction));
-        if ($dir !== 'ASC' && $dir !== 'DESC') {
-            $dir = 'ASC';
-        }
-        if ($expr instanceof RawValue) {
-            $this->order[] = $this->resolveRawValue($expr) . ' ' . $dir;
-        } elseif (preg_match('/^[a-z0-9]+\s+(ASC|DESC)/iu', $expr)) {
-            $this->order[] = $expr;
-        } else {
-            $this->order[] = $this->dialect->quoteIdentifier($expr) . ' ' . $dir;
-        }
-
-        return $this;
+        $key = $this->resolveSelectedKey();
+        $rows = $this->get();
+        return array_column($rows, $key);
     }
 
     /**
-     * Add GROUP BY clause.
-     *
-     * @param string|array $cols The columns to group by.
-     * @return self The current instance.
+     * Execute SELECT statement and return single value
+     * @return mixed
+     * @throws PDOException
      */
-    public function groupBy(string|array $cols): self
+    public function getValue(): mixed
     {
-        if (!is_array($cols)) {
-            $cols = [$cols];
+        if (count($this->select) !== 1) {
+            return false;
         }
-        $groups = [];
-        foreach ($cols as $col) {
-            if ($col instanceof RawValue) {
-                $groups[] = $this->resolveRawValue($col);
-            } else {
-                $groups[] = $this->dialect->quoteIdentifier((string)$col);
-            }
+        $row = $this->getOne();
+        $key = $this->resolveSelectedKey();
+        if (count($row) === 1 && !isset($row[$key])) {
+            return array_shift($row);
         }
-        $this->group = implode(', ', $groups);
-        return $this;
+        return $row[$key] ?? null;
     }
 
-    /**
-     * Add LIMIT clause.
-     *
-     * @param int $number The number of rows to limit.
-     * @return self The current instance.
-     */
-    public function limit(int $number): self
-    {
-        $this->limit = $number;
-        return $this;
-    }
-
-    /**
-     * Add OFFSET clause.
-     *
-     * @param int $number The number of rows to offset.
-     * @return self The current instance.
-     */
-    public function offset(int $number): self
-    {
-        $this->offset = $number;
-        return $this;
-    }
-
-    /**
-     * Add ON DUPLICATE clause.
-     *
-     * @param array $onDuplicate The columns to update on duplicate.
-     * @return self The current instance.
-     */
-    public function onDuplicate(array $onDuplicate): self
-    {
-        $this->onDuplicate = $onDuplicate;
-        return $this;
-    }
+    /* ---------------- DML: insert / update / delete / replace ---------------- */
 
     /**
      * Insert data into the table.
@@ -698,61 +358,6 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
-     * Execute SELECT statement and return all rows
-     * @return mixed
-     * @throws PDOException
-     */
-    public function get(): mixed
-    {
-        $sql = $this->buildSelectSql();
-        return $this->fetchAll($sql, $this->params);
-    }
-
-    /**
-     * Execute SELECT statement and return first row
-     * @return mixed
-     * @throws PDOException
-     */
-    public function getOne(): mixed
-    {
-        $sql = $this->buildSelectSql();
-        return $this->fetch($sql, $this->params);
-    }
-
-    /**
-     * Execute SELECT statement and return column values
-     * @return array
-     * @throws PDOException
-     */
-    public function getColumn(): array
-    {
-        if (count($this->select) !== 1) {
-            return [];
-        }
-        $key = $this->resolveSelectedKey();
-        $rows = $this->get();
-        return array_column($rows, $key);
-    }
-
-    /**
-     * Execute SELECT statement and return single value
-     * @return mixed
-     * @throws PDOException
-     */
-    public function getValue(): mixed
-    {
-        if (count($this->select) !== 1) {
-            return false;
-        }
-        $row = $this->getOne();
-        $key = $this->resolveSelectedKey();
-        if (count($row) === 1 && !isset($row[$key])) {
-            return array_shift($row);
-        }
-        return $row[$key] ?? null;
-    }
-
-    /**
      * Execute TRUNCATE statement
      * @return bool
      * @throws PDOException
@@ -762,6 +367,265 @@ class QueryBuilder implements QueryBuilderInterface
         $sql = $this->dialect->buildTruncateSql($this->table);
         $this->executeStatement($sql);
         return $this->connection->getLastErrno() === 0;
+    }
+
+    /* ---------------- Conditions: where / having / logical variants ---------------- */
+
+    /**
+     * Add WHERE clause.
+     *
+     * Syntax:
+     *
+     * where('column', 'value') // column = value
+     * where('column', 'value', '!=') // column != value
+     * where(new RawValue('LENGTH(column)'), 5, '>') // LENGTH(column) > 5
+     *
+     * @param string|array|RawValue $exprOrColumn The expression or column to add.
+     * @param mixed $value The value to use in the condition.
+     * @param string $operator The operator to use in the condition.
+     * @return self The current instance.
+     */
+    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    {
+        return $this->addCondition('where', $exprOrColumn, $value, $operator, 'AND');
+    }
+
+    /**
+     * Add AND WHERE clause.
+     *
+     * @param string|RawValue|array $exprOrColumn The expression or column to add.
+     * @param string|array|RawValue $value The value to use in the condition.
+     * @param string $operator The operator to use in the condition.
+     * @return self The current instance.
+     */
+    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    {
+        return $this->where($exprOrColumn, $value, $operator);
+    }
+
+    /**
+     * Add OR WHERE clause.
+     *
+     * @param string|RawValue $exprOrColumn The expression or column to add.
+     * @param mixed $value The value to use in the condition.
+     * @param string $operator The operator to use in the condition.
+     * @return self The current instance.
+     */
+    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    {
+        return $this->addCondition('where', $exprOrColumn, $value, $operator, 'OR');
+    }
+
+    /**
+     * Add HAVING clause.
+     *
+     * @param string|array|rawValue $exprOrColumn The expression or column to add.
+     * @param mixed $value The value to use in the condition.
+     * @param string $operator The operator to use in the condition.
+     * @return self The current instance.
+     */
+    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    {
+        return $this->addCondition('having', $exprOrColumn, $value, $operator, 'AND');
+    }
+
+    /**
+     * Add OR HAVING clause.
+     *
+     * @param string|array|RawValue $exprOrColumn The expression or column to add.
+     * @param mixed $value The value to use in the condition.
+     * @param string $operator The operator to use in the condition.
+     * @return self The current instance.
+     */
+    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    {
+        return $this->addCondition('having', $exprOrColumn, $value, $operator, 'OR');
+    }
+
+    /* ---------------- Existence helpers ---------------- */
+
+    /**
+     * Return true if at least one row matches the current WHERE conditions.
+     *
+     * This builds a single query using SQL EXISTS and executes it.
+     * It does not execute any nested queries separately; the subquery is compiled only.
+     *
+     * @return bool
+     * @throws PDOException
+     */
+    public function exists(): bool
+    {
+        $this->limit(1);
+        $subSql = $this->buildSelectSql();
+        $params = $this->params ?? [];
+        $sql = 'SELECT EXISTS(' . $subSql . ')';
+        return (bool)$this->fetchColumn($sql, $params);
+    }
+
+    /**
+     * Return true if no rows match the current WHERE conditions.
+     *
+     * This builds a single query using SQL NOT EXISTS and executes it.
+     * It does not execute any nested queries separately; the subquery is compiled only.
+     *
+     * @return bool
+     * @throws PDOException
+     */
+    public function notExists(): bool
+    {
+        $this->limit(1);
+        $subSql = $this->buildSelectSql();
+        $params = $this->params ?? [];
+        $sql = 'SELECT NOT EXISTS(' . $subSql . ')';
+        return (bool)$this->fetchColumn($sql, $params);
+    }
+
+    /**
+     * Checks if a table exists.
+     *
+     * @return bool True if the table exists, false otherwise.
+     */
+    public function tableExists(): bool
+    {
+        $table = $this->prefix . $this->table;
+        $sql = $this->dialect->buildTableExistsSql($table);
+        $res = $this->executeStatement($sql)->fetchColumn();
+        return !empty($res);
+    }
+
+    /* ---------------- Joins ---------------- */
+
+    /**
+     * Add JOIN clause.
+     *
+     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
+     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
+     * @param string $type JOIN type, e.g. INNER, LEFT, RIGHT
+     */
+    public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): self
+    {
+        $type = strtoupper(trim($type));
+        $tableSql = $this->normalizeTable($tableAlias);
+        $onSql = $condition instanceof RawValue ? $this->resolveRawValue($condition) : (string)$condition;
+        $this->joins[] = "{$type} JOIN {$tableSql} ON {$onSql}";
+        return $this;
+    }
+
+    /**
+     * Add LEFT JOIN clause.
+     *
+     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
+     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
+     */
+    public function leftJoin(string $tableAlias, string|RawValue $condition): self
+    {
+        $this->join($tableAlias, $condition, 'LEFT');
+        return $this;
+    }
+
+    /**
+     * Add RIGHT JOIN clause.
+     *
+     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
+     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
+     */
+    public function rightJoin(string $tableAlias, string|RawValue $condition): self
+    {
+        $this->join($tableAlias, $condition, 'RIGHT');
+        return $this;
+    }
+
+    /**
+     * Add INNER JOIN clause.
+     *
+     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
+     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
+     */
+    public function innerJoin(string $tableAlias, string|RawValue $condition): self
+    {
+        $this->join($tableAlias, $condition, 'INNER');
+        return $this;
+    }
+
+    /* ---------------- Ordering / grouping / pagination / options ---------------- */
+
+    /**
+     * Add ORDER BY clause.
+     * $expr may be a column name (string), complete expression or RawValue instance.
+     * $direction can be 'ASC' or 'DESC' (case-insensitive). Defaults to 'ASC'.
+     *
+     * Syntax:
+     *
+     * orderBy('column_name', 'ASC')
+     * orderBy(new RawValue('LENGTH(column_name)'), 'DESC')
+     * orderBy('column_name DESC') // full expression
+     *
+     * @param string|RawValue $expr The expression to order by.
+     * @param string $direction The direction of the ordering (ASC or DESC).
+     * @return self The current instance.
+     */
+    public function orderBy(string|RawValue $expr, string $direction = 'ASC'): self
+    {
+        $dir = strtoupper(trim($direction));
+        if ($dir !== 'ASC' && $dir !== 'DESC') {
+            $dir = 'ASC';
+        }
+        if ($expr instanceof RawValue) {
+            $this->order[] = $this->resolveRawValue($expr) . ' ' . $dir;
+        } elseif (preg_match('/^[a-z0-9]+\s+(ASC|DESC)/iu', $expr)) {
+            $this->order[] = $expr;
+        } else {
+            $this->order[] = $this->dialect->quoteIdentifier($expr) . ' ' . $dir;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Add GROUP BY clause.
+     *
+     * @param string|array|RawValue $cols The columns to group by.
+     * @return self The current instance.
+     */
+    public function groupBy(string|array|RawValue $cols): self
+    {
+        if (!is_array($cols)) {
+            $cols = [$cols];
+        }
+        $groups = [];
+        foreach ($cols as $col) {
+            if ($col instanceof RawValue) {
+                $groups[] = $this->resolveRawValue($col);
+            } else {
+                $groups[] = $this->dialect->quoteIdentifier((string)$col);
+            }
+        }
+        $this->group = implode(', ', $groups);
+        return $this;
+    }
+
+    /**
+     * Add LIMIT clause.
+     *
+     * @param int $number The number of rows to limit.
+     * @return self The current instance.
+     */
+    public function limit(int $number): self
+    {
+        $this->limit = $number;
+        return $this;
+    }
+
+    /**
+     * Add OFFSET clause.
+     *
+     * @param int $number The number of rows to offset.
+     * @return self The current instance.
+     */
+    public function offset(int $number): self
+    {
+        $this->offset = $number;
+        return $this;
     }
 
     /**
@@ -790,7 +654,150 @@ class QueryBuilder implements QueryBuilderInterface
         return $this;
     }
 
-    /* internal builders */
+    /* ---------------- ON DUPLICATE / upsert helpers ---------------- */
+
+    /**
+     * Add ON DUPLICATE clause.
+     *
+     * @param array $onDuplicate The columns to update on duplicate.
+     * @return self The current instance.
+     */
+    public function onDuplicate(array $onDuplicate): self
+    {
+        $this->onDuplicate = $onDuplicate;
+        return $this;
+    }
+
+    /* ---------------- Compile / introspect ---------------- */
+
+    /**
+     * Compile query
+     * @return array
+     */
+    public function compile(): array
+    {
+        $sql = $this->buildSelectSql();
+        $params = $this->params ?? [];
+        return ['sql' => $sql, 'params' => $params];
+    }
+
+    /* ---------------- Execution primitives (pass-through helpers) ---------------- */
+
+    /**
+     * Execute statement
+     * @param string|RawValue $sql
+     * @param array $params
+     * @return PDOStatement
+     * @throws PDOException
+     */
+    public function executeStatement(string|RawValue $sql, array $params = []): PDOStatement
+    {
+        $sql = $this->resolveRawValue($sql);
+        $params = array_merge($this->params, $params);
+        $params = $this->normalizeParams($params);
+        return $this->connection->prepare($sql)->execute($params);
+    }
+
+    /**
+     * Fetch all rows
+     * @param string|RawValue $sql
+     * @param array $params
+     * @return array
+     * @throws PDOException
+     */
+    public function fetchAll(string|RawValue $sql, array $params = []): array
+    {
+        return $this->executeStatement($sql, $params)->fetchAll($this->fetchMode);
+    }
+
+    /**
+     * Fetch column
+     * @param string|RawValue $sql
+     * @param array $params
+     * @return mixed
+     * @throws PDOException
+     */
+    public function fetchColumn(string|RawValue $sql, array $params = []): mixed
+    {
+        return $this->executeStatement($sql, $params)->fetchColumn();
+    }
+
+    /**
+     * Fetch row
+     * @param string|RawValue $sql
+     * @param array $params
+     * @return mixed
+     * @throws PDOException
+     */
+    public function fetch(string|RawValue $sql, array $params = []): mixed
+    {
+        return $this->executeStatement($sql, $params)->fetch($this->fetchMode);
+    }
+
+    /* ---------------- CSV / XML loaders ---------------- */
+
+    /**
+     * Loads data from a CSV file into a table.
+     *
+     * @param string $filePath The path to the CSV file.
+     * @param array $options The options to use to load the data.
+     * @return bool True on success, false on failure.
+     */
+    public function loadCsv(string $filePath, array $options = []): bool
+    {
+        if (!$this->connection->inTransaction()) {
+            $this->connection->transaction();
+        }
+        try {
+            $sql = $this->connection->getDialect()->buildLoadCsvSql($this->prefix . $this->table, $filePath, $options);
+            $this->connection->prepare($sql)->execute();
+            if ($this->connection->inTransaction()) {
+                $this->connection->commit();
+            }
+            return $this->connection->getExecuteState() !== false;
+        } catch (PDOException $e) {
+            if ($this->connection->inTransaction()) {
+                $this->connection->rollback();
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Loads data from an XML file into a table.
+     *
+     * @param string $filePath The path to the XML file.
+     * @param string $rowTag The tag that identifies a row.
+     * @param int|null $linesToIgnore The number of lines to ignore at the beginning of the file.
+     * @return bool True on success, false on failure.
+     */
+    public function loadXml(string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool
+    {
+        if (!$this->connection->inTransaction()) {
+            $this->connection->transaction();
+        }
+        try {
+            $options = [
+                'rowTag' => $rowTag,
+                'linesToIgnore' => $linesToIgnore
+            ];
+            $sql = $this->connection->getDialect()->buildLoadXML($this->prefix . $this->table, $filePath, $options);
+            $this->connection->prepare($sql)->execute();
+            if ($this->connection->inTransaction()) {
+                $this->connection->commit();
+            }
+            return $this->connection->getExecuteState() !== false;
+        } catch (PDOException $e) {
+            if ($this->connection->inTransaction()) {
+                $this->connection->rollback();
+            }
+        }
+        return false;
+    }
+
+    /* ---------------- Protected helpers (grouped by purpose) ---------------- */
+
+    /* Builders */
 
     /**
      * Build SELECT sql
@@ -1005,7 +1012,151 @@ class QueryBuilder implements QueryBuilderInterface
         return ' ' . $keyword . ' ' . implode(' ', $clauses);
     }
 
-    /* execution helpers */
+    /* Condition helper core */
+
+    /**
+     * Add condition to the WHERE or HAVING clause.
+     *
+     * @param string $prop The property to add the condition to.
+     * @param string|RawValue $exprOrColumn The expression or column to add.
+     * @param mixed $value The value to use in the condition.
+     * @param string $operator The operator to use in the condition.
+     * @param string $cond The condition to use.
+     * @return self The current instance.
+     */
+    protected function addCondition(
+        string $prop,
+        string|array|RawValue $exprOrColumn,
+        mixed $value,
+        string $operator,
+        string $cond
+    ): self {
+        if (is_array($exprOrColumn)) {
+            foreach ($exprOrColumn as $col => $val) {
+                $exprQuoted = $this->quoteQualifiedIdentifier((string)$col);
+                if ($val instanceof RawValue) {
+                    $this->{$prop}[] = [
+                        'sql' => "{$exprQuoted} {$operator} {$this->resolveRawValue($val)}",
+                        'cond' => $cond
+                    ];
+                } elseif (is_array($value)) {
+                    $this->params[trim($val, ':')] = $value[trim($val, ':')] ?? null;
+                    $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$val}", 'cond' => $cond];
+                } else {
+                    $ph = $this->makeParam((string)$col);
+                    $this->params[$ph] = $val;
+                    $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$ph}", 'cond' => $cond];
+                }
+            }
+            return $this;
+        }
+
+
+        // if RawValue is provided and there is no value — insert it as is
+        if ($value === null) {
+            if ($exprOrColumn instanceof RawValue) {
+                $this->{$prop}[] = $this->resolveRawValue($exprOrColumn);
+            } else {
+                $this->{$prop}[] = $exprOrColumn;
+            }
+            return $this;
+        }
+
+        if ($exprOrColumn instanceof RawValue) {
+            $left = $this->resolveRawValue($exprOrColumn);
+            $this->{$prop}[] = ['sql' => "{$left} {$operator} {$value}", 'cond' => $cond];
+            return $this;
+        }
+
+        $exprQuoted = $this->quoteQualifiedIdentifier((string)$exprOrColumn);
+
+        // subquery handling
+        if ($value instanceof self) {
+            $sub = $value->compile();
+            $map = $this->mergeSubParams($sub['params'], 'sq');
+            $subSql = $this->replacePlaceholdersInSql($sub['sql'], $map);
+            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} ({$subSql})", 'cond' => $cond];
+            return $this;
+        }
+
+        $opUpper = strtoupper(trim($operator));
+        // support IN / NOT IN with an array of values
+        if (($opUpper === 'IN' || $opUpper === 'NOT IN') && is_array($value)) {
+            if (empty($value)) {
+                // The semantics of an empty IN depend on the logic: it's better to form a condition
+                // that is always false/true. Here it's safe to create a condition that never matches for IN,
+                // and always matches for NOT IN.
+                if ($opUpper === 'IN') {
+                    $this->{$prop}[] = ['sql' => '0=1', 'cond' => $cond];
+                } else {
+                    $this->{$prop}[] = ['sql' => '1=1', 'cond' => $cond];
+                }
+                return $this;
+            }
+
+            $placeholders = [];
+            foreach ($value as $i => $v) {
+                if ($v instanceof RawValue) {
+                    $placeholders[] = $this->resolveRawValue($v);
+                    continue;
+                }
+                $ph = $this->makeParam((string)$exprOrColumn . '_in_' . $i);
+                $this->params[$ph] = $v;
+                $placeholders[] = $ph;
+            }
+
+            $inSql = '(' . implode(', ', $placeholders) . ')';
+            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$opUpper} {$inSql}", 'cond' => $cond];
+            return $this;
+        }
+
+        // handle BETWEEN / NOT BETWEEN when value is array with two items
+        $opUpper = strtoupper(trim($operator));
+        if (($opUpper === 'BETWEEN' || $opUpper === 'NOT BETWEEN') && is_array($value)) {
+            $value = array_values($value);
+
+            // require exactly two bounds; if not - treat defensively
+            if (count($value) !== 2) {
+                throw new InvalidArgumentException('BETWEEN requires an array with exactly two elements.');
+            }
+
+            // left and right bounds
+            [$low, $high] = $value;
+
+            // support RawValue bounds
+            if ($low instanceof RawValue) {
+                $left = $this->resolveRawValue($low);
+            } else {
+                $left = $this->makeParam($exprOrColumn . '_bt_low');
+                $this->params[$left] = $low;
+            }
+
+            if ($high instanceof RawValue) {
+                $right = $this->resolveRawValue($high);
+            } else {
+                $right = $this->makeParam($exprOrColumn . '_bt_high');
+                $this->params[$right] = $high;
+            }
+
+            $this->{$prop}[] = [
+                'sql' => "{$exprQuoted} {$opUpper} {$left} AND {$right}",
+                'cond' => $cond,
+            ];
+            return $this;
+        }
+
+        if ($value instanceof RawValue) {
+            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$this->resolveRawValue($value)}", 'cond' => $cond];
+        } else {
+            $ph = $this->makeParam((string)$exprOrColumn);
+            $this->params[$ph] = $value;
+            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$ph}", 'cond' => $cond];
+        }
+
+        return $this;
+    }
+
+    /* Execution helpers */
 
     /**
      * Execute INSERT statement
@@ -1025,132 +1176,7 @@ class QueryBuilder implements QueryBuilderInterface
         return $id > 0 ? $id : 1;
     }
 
-    /**
-     * Execute statement
-     * @param string|RawValue $sql
-     * @param array $params
-     * @return PDOStatement
-     * @throws PDOException
-     */
-    public function executeStatement(string|RawValue $sql, array $params = []): PDOStatement
-    {
-        $sql = $this->resolveRawValue($sql);
-        $params = array_merge($this->params, $params);
-        $params = $this->normalizeParams($params);
-        return $this->connection->prepare($sql)->execute($params);
-    }
-
-    /**
-     * Fetch all rows
-     * @param string|RawValue $sql
-     * @param array $params
-     * @return array
-     * @throws PDOException
-     */
-    public function fetchAll(string|RawValue $sql, array $params = []): array
-    {
-        return $this->executeStatement($sql, $params)->fetchAll($this->fetchMode);
-    }
-
-    /**
-     * Fetch column
-     * @param string|RawValue $sql
-     * @param array $params
-     * @return mixed
-     * @throws PDOException
-     */
-    public function fetchColumn(string|RawValue $sql, array $params = []): mixed
-    {
-        return $this->executeStatement($sql, $params)->fetchColumn();
-    }
-
-    /**
-     * Fetch row
-     * @param string|RawValue $sql
-     * @param array $params
-     * @return mixed
-     * @throws PDOException
-     */
-    public function fetch(string|RawValue $sql, array $params = []): mixed
-    {
-        return $this->executeStatement($sql, $params)->fetch($this->fetchMode);
-    }
-
-    /* utilities */
-
-    /**
-     * Compile query
-     * @return array
-     */
-    public function compile(): array
-    {
-        $sql = $this->buildSelectSql();
-        $params = $this->params ?? [];
-        return ['sql' => $sql, 'params' => $params];
-    }
-
-
-    /* ---------------- LOAD CSV/XML ---------------- */
-
-    /**
-     * Loads data from a CSV file into a table.
-     *
-     * @param string $filePath The path to the CSV file.
-     * @param array $options The options to use to load the data.
-     * @return bool True on success, false on failure.
-     */
-    public function loadCsv(string $filePath, array $options = []): bool
-    {
-        if (!$this->connection->inTransaction()) {
-            $this->connection->transaction();
-        }
-        try {
-            $sql = $this->connection->getDialect()->buildLoadCsvSql($this->prefix . $this->table, $filePath, $options);
-            $this->connection->prepare($sql)->execute();
-            if ($this->connection->inTransaction()) {
-                $this->connection->commit();
-            }
-            return $this->connection->getExecuteState() !== false;
-        } catch (PDOException $e) {
-            if ($this->connection->inTransaction()) {
-                $this->connection->rollback();
-            }
-        }
-        return false;
-    }
-
-
-    /**
-     * Loads data from an XML file into a table.
-     *
-     * @param string $filePath The path to the XML file.
-     * @param string $rowTag The tag that identifies a row.
-     * @param int|null $linesToIgnore The number of lines to ignore at the beginning of the file.
-     * @return bool True on success, false on failure.
-     */
-    public function loadXml(string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool
-    {
-        if (!$this->connection->inTransaction()) {
-            $this->connection->transaction();
-        }
-        try {
-            $options = [
-                'rowTag' => $rowTag,
-                'linesToIgnore' => $linesToIgnore
-            ];
-            $sql = $this->connection->getDialect()->buildLoadXML($this->prefix . $this->table, $filePath, $options);
-            $this->connection->prepare($sql)->execute();
-            if ($this->connection->inTransaction()) {
-                $this->connection->commit();
-            }
-            return $this->connection->getExecuteState() !== false;
-        } catch (PDOException $e) {
-            if ($this->connection->inTransaction()) {
-                $this->connection->rollback();
-            }
-        }
-        return false;
-    }
+    /* Utilities - table / params / quoting / raw resolution */
 
     /**
      * Merge subquery parameters
@@ -1326,5 +1352,4 @@ class QueryBuilder implements QueryBuilderInterface
         // Replace old parameter names with new ones in SQL
         return strtr($sql, $paramMap);
     }
-
 }

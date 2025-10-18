@@ -57,7 +57,7 @@ interface QueryBuilderInterface
 
     // Ordering / grouping / pagination / options
     public function orderBy(string|RawValue $expr, string $direction = 'ASC'): self;
-    public function groupBy(string|array $cols): self;
+    public function groupBy(string|array|RawValue $cols): self;
     public function limit(int $number): self;
     public function offset(int $number): self;
     public function option(string|array $options): self;

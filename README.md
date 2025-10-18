@@ -314,7 +314,7 @@ $db->find()->table('users')->insert([
 
 * **table(string) / from(string)**: set target table (supports `schema.table` and simple aliasing).
 * **prefix(string)**: set table prefix for this query.
-* **select(array|string)**: specify columns to select.
+* **select(array|string|RawValue)**: specify columns to select.
 * **where(...) / andWhere(...) / orWhere(...)**: add WHERE conditions.
 * **join(...) / leftJoin(...) / rightJoin(...) / innerJoin(...)**: add JOIN clauses.
 * **groupBy(...)**: add GROUP BY clause.
