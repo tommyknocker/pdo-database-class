@@ -488,14 +488,14 @@ final class PdoDbMySQLTest extends TestCase
             'name' => 'TrueUser',
             'company' => 'BoolCorp',
             'age' => 30,
-            'is_active' => true
+            'is_active' => 1
         ]);
 
         $db->find()->table('users')->insert([
             'name' => 'FalseUser',
             'company' => 'BoolCorp',
             'age' => 35,
-            'is_active' => false
+            'is_active' => 0
         ]);
 
         $trueResults = $db->find()
