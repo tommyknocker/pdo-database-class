@@ -254,10 +254,30 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function now(?string $diff = ''): string
+    public function now(?string $diff = '', bool $asTimestamp = false): string
     {
-        $func = 'NOW()';
-        return $diff ? "$func + INTERVAL '{$diff}'" : $func;
+        if (!$diff) {
+            return $asTimestamp ? "EXTRACT(EPOCH FROM NOW())" : "NOW()";
+        }
+
+        $trimmedDif = trim($diff);
+        if (preg_match('/^([+-]?)(\d+)\s+([A-Za-z]+)$/', $trimmedDif, $matches)) {
+            $sign = $matches[1] === '-' ? '-' : '+';
+            $value = $matches[2];
+            $unit = strtolower($matches[3]);
+
+            if ($asTimestamp) {
+                return "EXTRACT(EPOCH FROM (NOW() {$sign} INTERVAL '{$value} {$unit}'))";
+            }
+
+            return "NOW() {$sign} INTERVAL '{$value} {$unit}'";
+        }
+
+        if ($asTimestamp) {
+            return "EXTRACT(EPOCH FROM (NOW() + INTERVAL '{$trimmedDif}'))";
+        }
+
+        return "NOW() + INTERVAL '{$trimmedDif}'";
     }
 
     /**
@@ -326,8 +346,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string
     {
         $tableSql = $this->quoteIdentifier($table);
-        $pdo = $this->pdo;
-        $quotedPath = $pdo->quote($filePath);
+        $quotedPath = $this->pdo->quote($filePath);
 
         $delimiter = $options['fieldChar'] ?? ',';
         $quoteChar = $options['fieldEnclosure'] ?? '"';
@@ -338,8 +357,8 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
             $columnsSql = ' (' . implode(', ', array_map([$this, 'quoteIdentifier'], $options['fields'])) . ')';
         }
 
-        $del = $pdo->quote($delimiter);
-        $quo = $pdo->quote($quoteChar);
+        $del = $this->pdo->quote($delimiter);
+        $quo = $this->pdo->quote($quoteChar);
 
         return sprintf(
             'COPY %s%s FROM %s WITH (FORMAT csv, HEADER %s, DELIMITER %s, QUOTE %s)',
@@ -351,4 +370,117 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
             $quo
         );
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonGet(string $col, array|string $path, bool $asText = true): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        if (empty($parts)) {
+            return $asText ? $this->quoteIdentifier($col) . "::text" : $this->quoteIdentifier($col);
+        }
+        $arr = "ARRAY[" . implode(',', array_map(fn($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . "]";
+        // build #> or #>> with array literal
+        if ($asText) {
+            return $this->quoteIdentifier($col) . " #>> " . $arr;
+        }
+        return $this->quoteIdentifier($col) . " #> " . $arr;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function connectionQuoteParamOrLiteral($p): string
+    {
+        // numeric index should be unquoted integer in array
+        if (preg_match('/^\d+$/', (string)$p)) {
+            return "'" . $p . "'";
+        }
+        return "'" . $p . "'";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonContains(string $col, mixed $value, array|string $path = null): array|string
+    {
+        $colQuoted = $this->quoteIdentifier($col);
+        $parts = $this->normalizeJsonPath($path ?? []);
+        $paramJson = ':jsonc';
+        $json = json_encode($value, JSON_UNESCAPED_UNICODE);
+
+        if (empty($parts)) {
+            $sql = "{$colQuoted}::jsonb @> {$paramJson}::jsonb";
+            return [$sql, [$paramJson => $json]];
+        }
+
+        $arr = "ARRAY[" . implode(',', array_map(fn($p) => "'" . str_replace("'", "''", (string)$p) . "'", $parts)) . "]";
+        $extracted = "{$colQuoted}::jsonb #> {$arr}";
+
+        if (is_string($value)) {
+            // Avoid using the '?' operator because PDO treats '?' as positional placeholder.
+            // Use EXISTS with jsonb_array_elements_text to check presence of string element.
+            $tokenParam = ':jsonc_token';
+            $sql = "EXISTS (SELECT 1 FROM jsonb_array_elements_text({$extracted}) AS _e(val) WHERE _e.val = {$tokenParam})";
+            return [$sql, [$tokenParam => (string)$value]];
+        }
+
+        // non-string scalar or array/object: use jsonb containment against extracted node
+        $sql = "{$extracted} @> {$paramJson}::jsonb";
+        return [$sql, [$paramJson => $json]];
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonSet(string $col, array|string $path, mixed $value): array
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $pathArray = "ARRAY[" . implode(',', array_map(fn($p) => "'" . $p . "'", $parts)) . "]";
+        $param = ':jsonset';
+        // create_missing true
+        $expr = "jsonb_set(" . $this->quoteIdentifier($col) . "::jsonb, {$pathArray}, {$param}::jsonb, true)";
+        return [$expr, [$param => json_encode($value, JSON_UNESCAPED_UNICODE)]];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonRemove(string $col, array|string $path): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $quoted = $this->quoteIdentifier($col);
+
+        // Use jsonb operators; cast column to jsonb first, apply operator, then cast back to jsonb
+        // (if you prefer json, replace ::jsonb at the end with ::json)
+        if (count($parts) === 1) {
+            $key = str_replace("'", "''", $parts[0]);
+            return "({$quoted}::jsonb - '{$key}')::jsonb";
+        }
+
+        $arr = "ARRAY[" . implode(',', array_map(fn($p) => "'" . str_replace("'", "''", $p) . "'", $parts)) . "]::text[]";
+        return "({$quoted}::jsonb #- {$arr})::jsonb";
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonExists(string $col, array|string $path): string
+    {
+        $get = $this->formatJsonGet($col, $path, false);
+        return "{$get} IS NOT NULL";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonOrderExpr(string $col, array|string $path): string
+    {
+        // return text extraction to be safe for ORDER BY
+        return $this->formatJsonGet($col, $path, true);
+    }
+
 }

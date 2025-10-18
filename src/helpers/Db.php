@@ -55,9 +55,20 @@ class Db
      * @param string|null $diff An optional time difference (e.g., '+1 day', '-2 hours').
      * @return NowValue The NowValue instance.
      */
-    public static function now(?string $diff = null): NowValue
+    public static function now(?string $diff = null, bool $asTimestamp = false): NowValue
     {
-        return new NowValue($diff);
+        return new NowValue($diff, $asTimestamp);
+    }
+
+    /**
+     * Returns a NowValue instance representing the current timestamp as a Unix timestamp.
+     *
+     * @param string|null $diff An optional time difference (e.g., '+1 day', '-2 hours').
+     * @return NowValue The NowValue instance representing the timestamp.
+     */
+    public static function ts(?string $diff = null): NowValue
+    {
+        return new NowValue($diff, true);
     }
 
     /**

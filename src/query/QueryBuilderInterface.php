@@ -66,6 +66,15 @@ interface QueryBuilderInterface
     // ON DUPLICATE / upsert helpers
     public function onDuplicate(array $onDuplicate): self;
 
+    // JSON helpers
+    public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): self;
+    public function whereJsonPath(string $col, array|string $path, string $operator, mixed $value, string $cond = 'AND'): self;
+    public function whereJsonContains(string $col, mixed $value, array|string|null $path = null, string $cond = 'AND'): self;
+    public function jsonSet(string $col, array|string $path, mixed $value): RawValue;
+    public function jsonRemove(string $col, array|string $path): RawValue;
+    public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): self;
+    public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): self;
+
     // Compile / introspect
     public function compile(): array;
 

@@ -101,15 +101,69 @@ interface DialectInterface
      */
     public function buildReplaceSql(string $table, array $columns, array $placeholders, bool $isMultiple = false): string;
 
+    /* ---------------- JSON methods ---------------- */
+
+    /**
+     * Format JSON_GET expression
+     * @param string $col
+     * @param array|string $path
+     * @param bool $asText
+     * @return string
+     */
+    public function formatJsonGet(string $col, array|string $path, bool $asText = true): string;
+
+    /**
+     * Format JSON_CONTAINS expression
+     * @param string $col
+     * @param mixed $value
+     * @param array|string|null $path
+     * @return array|string
+     */
+    public function formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string;
+
+    /**
+     * Format JSON_SET expression
+     * @param string $col
+     * @param array|string $path
+     * @param mixed $value
+     * @return array
+     */
+    public function formatJsonSet(string $col, array|string $path, mixed $value): array;
+
+    /**
+     * Format JSON_REMOVE expression
+     * @param string $col
+     * @param array|string $path
+     * @return string
+     */
+    public function formatJsonRemove(string $col, array|string $path): string;
+
+    /**
+     * Format JSON_EXISTS expression
+     * @param string $col
+     * @param array|string $path
+     * @return string
+     */
+    public function formatJsonExists(string $col, array|string $path): string;
+
+    /**
+     * Format JSON order expression
+     * @param string $col
+     * @param array|string $path
+     * @return string
+     */
+    public function formatJsonOrderExpr(string $col, array|string $path): string;
+
 
     /* ---------------- SQL helpers and dialect-specific expressions ---------------- */
 
     /**
      * NOW() with diff support
      * @param string|null $diff
-     * @return RawValue
+     * @param bool $asTimestamp
+     * @return string
      */
-    public function now(?string $diff = ''): string;
+    public function now(?string $diff = '', bool $asTimestamp = false): string;
 
     /**
      * ILIKE syntax

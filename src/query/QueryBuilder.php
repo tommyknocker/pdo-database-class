@@ -49,7 +49,7 @@ class QueryBuilder implements QueryBuilderInterface
     protected int $fetchMode = PDO::FETCH_ASSOC;
 
     protected array $options = [];
-
+    protected int $paramCounter = 0;
     /**
      * QueryBuilder constructor.
      *
@@ -458,6 +458,7 @@ class QueryBuilder implements QueryBuilderInterface
         $this->limit(1);
         $subSql = $this->buildSelectSql();
         $params = $this->params ?? [];
+        $params = $this->normalizeParams($params);
         $sql = 'SELECT EXISTS(' . $subSql . ')';
         return (bool)$this->fetchColumn($sql, $params);
     }
@@ -795,6 +796,163 @@ class QueryBuilder implements QueryBuilderInterface
         return false;
     }
 
+    /* ---------------- JSON methods ---------------- */
+
+    /**
+     * Add SELECT expression extracting JSON value by path.
+     *
+     * @param string $col
+     * @param array|string $path
+     * @param string|null $alias
+     * @param bool $asText
+     * @return self
+     */
+    public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): self
+    {
+        $expr = $this->dialect->formatJsonGet($col, $path, $asText);
+        if ($alias) {
+            $this->select[] = $expr . ' AS ' . $this->dialect->quoteIdentifier($alias);
+        } else {
+            $this->select[] = $expr;
+        }
+        return $this;
+    }
+
+    /**
+     * Add WHERE condition comparing JSON value at path.
+     *
+     * @param string $col
+     * @param array|string $path
+     * @param string $operator
+     * @param mixed $value
+     * @param string $cond
+     * @return self
+     */
+    public function whereJsonPath(string $col, array|string $path, string $operator, mixed $value, string $cond = 'AND'): self
+    {
+        $expr = $this->dialect->formatJsonGet($col, $path, true);
+
+        if ($value instanceof RawValue) {
+            $right = $this->resolveRawValue($value);
+            $this->where([$expr => $right], null, '',);
+            // fallback: add raw comparison
+            $this->where($expr . " {$operator} " . $right);
+            return $this;
+        }
+
+        $ph = $this->makeParam("json_" . (is_string($col) ? $col : 'col'));
+        $this->params[$ph] = $value;
+        $this->where[] = ['sql' => "{$expr} {$operator} {$ph}", 'cond' => 'AND'];
+        return $this;
+    }
+
+    /**
+     * Add WHERE JSON contains (col contains value).
+     *
+     * @param string $col
+     * @param mixed $value
+     * @param string $cond
+     * @return self
+     */
+    // QueryBuilder
+    public function whereJsonContains(string $col, mixed $value, array|string|null $path = null, string $cond = 'AND'): self
+    {
+        $res = $this->dialect->formatJsonContains($col, $value, $path);
+        if (is_array($res)) {
+            [$sql, $params] = $res;
+            foreach ($params as $k => $v) {
+                $old = strpos($k, ':') === 0 ? $k : ':' . $k;
+                $new = $this->makeParam('jsonc_' . ltrim($old, ':'));
+                $this->params[$new] = $v;
+                $sql = strtr($sql, [$old => $new]);
+            }
+            $this->where[] = ['sql' => $sql, 'cond' => $cond];
+            return $this;
+        }
+        $this->where[] = ['sql' => $res, 'cond' => $cond];
+        return $this;
+    }
+
+
+    /**
+     * Update JSON field: set value at path (create missing).
+     *
+     * Usage:
+     *   ->update(['meta' => $this->jsonSet('meta', ['a','b'], $value)])
+     *
+     * @param string $col
+     * @param array|string $path
+     * @param mixed $value
+     * @return RawValue
+     */
+    public function jsonSet(string $col, array|string $path, mixed $value): RawValue
+    {
+        // ask dialect for expression and parameters
+        [$expr, $params] = $this->dialect->formatJsonSet($col, $path, $value);
+
+        // integrate params into RawValue with unique placeholders
+        $paramMap = [];
+        foreach ($params as $k => $v) {
+            $old = strpos($k, ':') === 0 ? $k : ':' . $k;
+            $new = $this->makeParam('jsonset_' . ltrim($old, ':'));
+            $paramMap[$old] = $new;
+            $this->params[$new] = $v;
+        }
+
+        $sql = strtr($expr, $paramMap);
+        $rawParams = [];
+        foreach ($paramMap as $old => $new) {
+            $key = ltrim($old, ':');
+            if (isset($params[$key])) {
+                $rawParams[$new] = $params[$key];
+            }
+        }
+        return new RawValue($sql, $rawParams);
+    }
+
+    /**
+     * Remove JSON path from column (returns RawValue to use in update).
+     *
+     * @param string $col
+     * @param array|string $path
+     * @return RawValue
+     */
+    public function jsonRemove(string $col, array|string $path): RawValue
+    {
+        $expr = $this->dialect->formatJsonRemove($col, $path);
+        return new RawValue($expr);
+    }
+
+    /**
+     * Add ORDER BY expression based on JSON path.
+     *
+     * @param string $col
+     * @param array|string $path
+     * @param string $direction
+     * @return self
+     */
+    public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): self
+    {
+        $expr = $this->dialect->formatJsonOrderExpr($col, $path);
+        return $this->orderBy(new RawValue($expr), $direction);
+    }
+
+    /**
+     * Check existence of JSON path (returns boolean condition).
+     *
+     * @param string $col
+     * @param array|string $path
+     * @param string $cond
+     * @return self
+     */
+    public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): self
+    {
+        $expr = $this->dialect->formatJsonExists($col, $path);
+        $this->where[] = ['sql' => $expr, 'cond' => $cond];
+        return $this;
+    }
+
+
     /* ---------------- Protected helpers (grouped by purpose) ---------------- */
 
     /* Builders */
@@ -955,7 +1113,7 @@ class QueryBuilder implements QueryBuilderInterface
                         } else {
                             $ph = $this->makeParam("upd_{$col}");
                             $setParts[] = "{$qid} = {$ph}";
-                            $params[$ph] = $valueForParam;
+                            $this->params[$ph] = $valueForParam;
                         }
                         break;
                 }
@@ -964,7 +1122,7 @@ class QueryBuilder implements QueryBuilderInterface
             } else {
                 $ph = $this->makeParam("upd_{$col}");
                 $setParts[] = "{$qid} = {$ph}";
-                $params[$ph] = $val;
+                $this->params[$ph] = $val;
             }
         }
 
@@ -974,7 +1132,7 @@ class QueryBuilder implements QueryBuilderInterface
         if ($this->limit !== null) {
             $sql .= ' LIMIT ' . (int)$this->limit;
         }
-        return [$sql, array_merge($this->params, $params)];
+        return [$sql, $this->normalizeParams($this->params)];
     }
 
     /**
@@ -1277,10 +1435,9 @@ class QueryBuilder implements QueryBuilderInterface
      */
     protected function makeParam(string $name): string
     {
-        // sanitize base name and ensure unique suffix
         $base = preg_replace('/[^a-z0-9_]/i', '_', $name) ?: 'p';
-        $index = count($this->params);
-        return ':' . $base . '_' . $index;
+        $this->paramCounter++;
+        return ':' . $base . '_' . $this->paramCounter;
     }
 
     /**
@@ -1298,7 +1455,7 @@ class QueryBuilder implements QueryBuilderInterface
     {
         $out = [];
         foreach ($params as $k => $v) {
-            $key = is_string($k) ? ltrim($k, ':') : $k;
+            $key = is_string($k) ? (strpos($k, ':') === 0 ? $k : ':' . $k) : $k;
             $out[$key] = $v;
         }
         return $out;
@@ -1317,7 +1474,7 @@ class QueryBuilder implements QueryBuilderInterface
             return $value;
         }
         $result = match (true) {
-            $value instanceof NowValue => $this->dialect->now($value->getValue()),
+            $value instanceof NowValue => $this->dialect->now($value->getValue(), $value->getAsTimestamp()),
             $value instanceof ILikeValue => $this->dialect->ilike($value->getValue(), $value->getParams()[0]),
             $value instanceof EscapeValue => $this->connection->quote($value->getValue()),
             $value instanceof ConfigValue => $this->dialect->config($value),
@@ -1346,7 +1503,7 @@ class QueryBuilder implements QueryBuilderInterface
             // Create new unique parameter name
             $newParam = $this->makeParam('raw_' . ltrim($oldParam, ':'));
             $paramMap[$oldParam] = $newParam;
-            $this->params[ltrim($newParam, ':')] = $val;
+            $this->params[$newParam] = $val;
         }
 
         // Replace old parameter names with new ones in SQL

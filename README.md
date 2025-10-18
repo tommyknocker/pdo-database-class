@@ -258,7 +258,7 @@ $db->find()
         'name' => Db::raw('CONCAT(name, :suffix)', [':suffix' => '_updated'])
     ]);
 
-// Current timestamp
+// Datetime helpers
 $db->find()->table('users')->insert([
     'name' => 'John',
     'created_at' => Db::now(),
@@ -285,30 +285,6 @@ $db->find()->table('users')->insert([
 * **disconnect()**: close connection.
 * **addConnection(name, config, options, logger)**: add connection to pool.
 * **connection(name)**: switch to named connection.
-
-### Helper Functions
-
-* **Db::raw(string $sql, array $params = [])**: returns raw value expression.
-* **Db::inc(int|float)**: returns increment operation array.
-* **Db::dec(int|float)**: returns decrement operation array.
-* **Db::now(?string)**: returns current timestamp with optional interval.
-* **Db::escape(string)**: escape string for SQL.
-* **DB::null()**: returns NULL value for SQL.
-* **Db::like(string $column, string $pattern)**: LIKE condition.
-* **Db::ilike(string $column, string $pattern)**: ILIKE condition (OR LOWER(column) LIKE LOWER(pattern) if ILIKE is not supported).
-* **Db::not(RawValue $value)**: Inverses a RawValue condition using NOT.
-* **Db::config(string $key, mixed $value, bool $useEqualSign = true, bool $quoteValue = true)**: returns SET KEY = :value statement (e.g. SET FOREIGN_KEYS_CHECKS = 1 or SET NAMES 'utf8mb4').
-* **Db::between(string $column, mixed $min, mixed $max)**: returns column BETWEEN min AND max condition.
-* **Db::notBetween(string $column, mixed $min, mixed $max)**: returns column NOT BETWEEN min AND max condition.
-* **Db::in(string $column, array $values)**: returns column IN values condition.
-* **Db::notIn(string $column, array $values)**: returns column NOT IN values condition.
-* **Db::isNull(string $column)**: returns column IS NULL condition.
-* **Db::isNotNull(string $column)**: returns column IS NOT NULL condition.
-* **Db::case(array $conditions, ?string $else = null)**: returns CASE statement: CASE WHEN ... THEN ... [ELSE ...] END.
-* **Db::concat(array $values)**: returns concatenated string expression.
-* **Db::default()**: returns DEFAULT value for SQL. (not supported in Sqlite).
-* **Db::true()**: returns TRUE value for SQL.
-* **Db::false()**: returns FALSE value for SQL.
 
 ### QueryBuilder Methods
 
@@ -339,8 +315,40 @@ $db->find()->table('users')->insert([
 * **notExists()**: check if no rows match conditions.
 * **tableExists(string)**: check if table exists.
 * **asObject()**: set fetch mode to objects instead of arrays.
+* **selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true)**: select JSON column or path (dialect-specific).
+* **whereJsonPath(string $col, array|string $path, string $operator, mixed $value, string $cond = 'AND')**: add JSON path condition (dialect-specific).
+* **whereJsonContains(string $col, mixed $value, array|string|null $path = null, string $cond = 'AND')**: add JSON contains condition (dialect-specific).
+* **jsonSet(string $col, array|string $path, mixed $value)**: set JSON value (dialect-specific).
+* **jsonRemove(string $col, array|string $path)**: remove JSON path (dialect-specific).
+* **orderByJson(string $col, array|string $path, string $direction = 'ASC')**: order by JSON path (dialect-specific).
+* **whereJsonExists(string $col, array|string $path, string $cond = 'AND')**: add JSON path existence condition (dialect-specific).
+
+### Helper Functions
 
 Use `Db::raw(string $value, ?array $params)` for SQL fragments that must bypass parameter binding.
+
+* **Db::raw(string $sql, array $params = [])**: returns raw value expression.
+* **Db::inc(int|float)**: returns increment operation array.
+* **Db::dec(int|float)**: returns decrement operation array.
+* **Db::now(?string)**: returns current datetime with optional interval.
+* **Db::ts(?string)**: returns current timestamp with optional interval.
+* **Db::escape(string)**: escape string for SQL.
+* **DB::null()**: returns NULL value for SQL.
+* **Db::like(string $column, string $pattern)**: LIKE condition.
+* **Db::ilike(string $column, string $pattern)**: ILIKE condition (OR LOWER(column) LIKE LOWER(pattern) if ILIKE is not supported).
+* **Db::not(RawValue $value)**: Inverses a RawValue condition using NOT.
+* **Db::config(string $key, mixed $value, bool $useEqualSign = true, bool $quoteValue = true)**: returns SET KEY = :value statement (e.g. SET FOREIGN_KEYS_CHECKS = 1 or SET NAMES 'utf8mb4').
+* **Db::between(string $column, mixed $min, mixed $max)**: returns column BETWEEN min AND max condition.
+* **Db::notBetween(string $column, mixed $min, mixed $max)**: returns column NOT BETWEEN min AND max condition.
+* **Db::in(string $column, array $values)**: returns column IN values condition.
+* **Db::notIn(string $column, array $values)**: returns column NOT IN values condition.
+* **Db::isNull(string $column)**: returns column IS NULL condition.
+* **Db::isNotNull(string $column)**: returns column IS NOT NULL condition.
+* **Db::case(array $conditions, ?string $else = null)**: returns CASE statement: CASE WHEN ... THEN ... [ELSE ...] END.
+* **Db::concat(array $values)**: returns concatenated string expression.
+* **Db::default()**: returns DEFAULT value for SQL. (not supported in Sqlite).
+* **Db::true()**: returns TRUE value for SQL.
+* **Db::false()**: returns FALSE value for SQL.
 
 ---
 

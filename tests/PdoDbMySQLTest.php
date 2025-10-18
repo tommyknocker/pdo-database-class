@@ -10,6 +10,7 @@ use PDOException;
 use PHPUnit\Framework\TestCase;
 use StdClass;
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\PdoDb;
 
 final class PdoDbMySQLTest extends TestCase
@@ -561,6 +562,42 @@ final class PdoDbMySQLTest extends TestCase
             ->getOne();
 
         $this->assertEquals('Anna', $results['only']);
+    }
+
+    public function testTsHelper(): void
+    {
+        $db = self::$db;
+
+        $db->rawQuery('DROP TABLE IF EXISTS tmp_timestamps;');
+        $db->rawQuery("CREATE TABLE tmp_timestamps (
+        id INTEGER PRIMARY KEY AUTO_INCREMENT,
+        ts INTEGER NOT NULL,
+        ts_diff INTEGER NOT NULL,
+        ts_diff2 INTEGER NOT NULL          
+    );");
+
+        // Insert using Db::now as timestamp: Db::now(null, true)
+        $ts = time();
+        $id = $db->find()
+            ->table('tmp_timestamps')
+            ->insert([
+                'ts' => Db::ts(),
+                'ts_diff' => Db::ts('+1 DAY'),
+                'ts_diff2' => Db::ts('-1 DAY'),
+            ]);
+
+        $this->assertIsInt($id);
+
+        $row = $db->find()
+            ->from('tmp_timestamps')
+            ->where('id', $id)
+            ->getOne();
+
+        $now = time();
+
+        $this->assertGreaterThanOrEqual($ts, $row['ts']);
+        $this->assertGreaterThanOrEqual($now + 83600, $row['ts_diff']);
+        $this->assertLessThanOrEqual($now - 83600, $row['ts_diff2']);
     }
 
     public function testInsertMultiWithRawValues(): void
@@ -1498,7 +1535,7 @@ final class PdoDbMySQLTest extends TestCase
             // for array groupBy test (company G3) using unique names
             ['name' => 'X1', 'age' => 30, 'company' => 'G3'],
             ['name' => 'X2', 'age' => 30, 'company' => 'G3'],
-            ['name' => 'Y',  'age' => 30, 'company' => 'G3'],
+            ['name' => 'Y', 'age' => 30, 'company' => 'G3'],
         ]);
 
         // 1) groupBy using string
@@ -2157,4 +2194,97 @@ XML
 
         $this->assertStringContainsString('RIGHT JOIN', $db->lastQuery);
     }
+
+    public function testJsonMethods()
+    {
+        $db = self::$db; // configured for MySQL in suite setup
+
+        // prepare table
+        $db->rawQuery("DROP TABLE IF EXISTS t_json");
+        $db->rawQuery("CREATE TABLE t_json (id INT AUTO_INCREMENT PRIMARY KEY, meta JSON)");
+
+        // insert initial rows
+        $payload1 = ['a' => ['b' => 1], 'tags' => ['x','y'], 'score' => 10];
+        $id1 = $db->find()->table('t_json')->insert(['meta' => json_encode($payload1, JSON_UNESCAPED_UNICODE)]);
+        $this->assertIsInt($id1);
+
+        $payload2 = ['a' => ['b' => 2], 'tags' => ['y','z'], 'score' => 5];
+        $id2 = $db->find()->table('t_json')->insert(['meta' => json_encode($payload2, JSON_UNESCAPED_UNICODE)]);
+        $this->assertIsInt($id2);
+
+        // --- selectJson: fetch meta.a.b for id1 via QueryBuilder::selectJson
+        $row = $db->find()
+            ->table('t_json')
+            ->selectJson('meta', ['a','b'], 'ab')
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertNotNull($row);
+        $this->assertEquals(1, (int)$row['ab']);
+
+        // --- whereJsonContains: verify tags contains 'x' for id1
+        $contains = $db->find()
+            ->table('t_json')
+            ->whereJsonContains('meta', 'x', ['tags'])
+            ->where('id', $id1)
+            ->exists();
+        $this->assertTrue($contains);
+
+        // --- whereJsonExists: check that path $.a.b exists for id1
+        $exists = $db->find()
+            ->table('t_json')
+            ->whereJsonExists('meta', ['a','b'])
+            ->where('id', $id1)
+            ->exists();
+        $this->assertTrue($exists);
+
+        // --- whereJsonPath: check $.a.b = 1 for id1
+        $matches = $db->find()
+            ->table('t_json')
+            ->whereJsonPath('meta', ['a','b'], '=', 1)
+            ->where('id', $id1)
+            ->exists();
+        $this->assertTrue($matches);
+
+        // --- jsonSet: set meta.a.c = 42 for id1 using QueryBuilder::jsonSet
+        $qb = $db->find()->table('t_json')->where('id', $id1);
+        $rawSet = $qb->jsonSet('meta', ['a','c'], 42);
+        $qb->update(['meta' => $rawSet]);
+
+        $val = $db->find()
+            ->table('t_json')
+            ->selectJson('meta', ['a','c'], 'ac')
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertEquals(42, (int)$val['ac']);
+
+        // --- jsonRemove: remove meta.a.b for id1 using QueryBuilder::jsonRemove
+        $qb2 = $db->find()->table('t_json')->where('id', $id1);
+        $rawRemove = $qb2->jsonRemove('meta', ['a','b']);
+        $qb2->update(['meta' => $rawRemove]);
+
+        $after = $db->find()
+            ->table('t_json')
+            ->selectJson('meta', ['a','b'], 'ab')
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertNull($after['ab']);
+
+        // --- orderByJson: order by JSON key meta.score ASC using QueryBuilder::orderByJson
+        $list = $db->find()
+            ->table('t_json')
+            ->select(['id'])
+            ->selectJson('meta', ['score'], 'score')
+            ->orderByJson('meta', ['score'], 'ASC')
+            ->get();
+
+        $this->assertCount(2, $list);
+        // After all operations, id2 should still have score=5, id1 should still have score=10
+        // So in ASC order: id2 (5) first, then id1 (10)
+        $scores = array_map(fn($r) => (int)$r['score'], $list);
+        sort($scores);
+        $this->assertEquals(5, $scores[0]);
+        $this->assertEquals(10, $scores[1]);
+    }
+
+
 }

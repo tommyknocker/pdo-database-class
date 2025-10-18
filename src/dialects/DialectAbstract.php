@@ -453,4 +453,23 @@ abstract class DialectAbstract
 
         return implode("\n", $sqlParts);
     }
+
+    /**
+     * Normalize JSON path input
+     * @param array|string $path
+     * @return array
+     */
+    protected function normalizeJsonPath(array|string $path): array
+    {
+        if (is_string($path)) {
+            $path = trim($path);
+            if ($path === '' || $path === '$') {
+                return [];
+            }
+            // allow dot notation like "a.b[0].c" or simple keys separated by dots
+            return explode('.', $path);
+        }
+        return array_values($path);
+    }
+
 }

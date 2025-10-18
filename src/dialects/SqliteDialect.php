@@ -192,9 +192,12 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function now(?string $diff = ''): string
+    public function now(?string $diff = '', bool $asTimestamp = false): string
     {
-        return $diff ? "DATETIME('now','{$diff}')" : 'DATETIME(\'now\')';
+        if ($asTimestamp) {
+            return $diff ? "STRFTIME('%s','now','{$diff}')" : "STRFTIME('%s','now')";
+        }
+        return $diff ? "DATETIME('now','{$diff}')" : "DATETIME('now')";
     }
 
     /**
@@ -259,5 +262,102 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         $table = $this->quoteTable($table);
         $identifier = $this->quoteIdentifier($table);
         return "DELETE FROM {$table}; DELETE FROM sqlite_sequence WHERE name={$identifier}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonGet(string $col, array|string $path, bool $asText = true): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = '$' . (empty($parts) ? '' : '.' . implode('.', array_map(function($p){
+                    return preg_match('/^\d+$/', $p) ? $p : $p;
+                }, $parts)));
+
+        $colQuoted = $this->quoteIdentifier($col);
+        $base = "json_extract({$colQuoted}, '{$jsonPath}')";
+
+        // If caller requests "text" form we still try to return a scalar-friendly expression.
+        // Use json_type() to detect numeric types and coerce them to SQL numbers via +0.
+        // For other types return the raw json_extract result.
+        //
+        // Explanation:
+        // - For JSON numbers json_type(...) returns 'integer' or 'real'. Adding +0 coerces the JSON literal to SQL numeric.
+        // - For strings/objects/arrays we return json_extract(...) unchanged so JSON strings remain comparable to string params.
+        //
+        // Resulting SQL example:
+        // CASE json_type(json_extract("meta",'$.a.b'))
+        //   WHEN 'integer' THEN json_extract("meta",'$.a.b') + 0
+        //   WHEN 'real' THEN json_extract("meta",'$.a.b') + 0
+        //   ELSE json_extract("meta",'$.a.b')
+        // END
+        $expr = "CASE json_type({$base}) WHEN 'integer' THEN ({$base} + 0) WHEN 'real' THEN ({$base} + 0) ELSE {$base} END";
+
+        // If caller explicitly asked for "text" and you want always text, you can wrap in CAST(... AS TEXT)
+        if ($asText) {
+            return "CAST({$expr} AS TEXT)";
+        }
+
+        return $expr;
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
+    {
+        $parts = $this->normalizeJsonPath($path ?? []);
+        $jsonPath = '$' . (empty($parts) ? '' : '.' . implode('.', $parts));
+        $param = ':jsonc';
+        $quotedCol = $this->quoteIdentifier($col);
+
+        // SQLite doesn't support JSON_CONTAINS; emulate via json_each
+        $sql = "EXISTS (SELECT 1 FROM json_each({$quotedCol}, '{$jsonPath}') WHERE json_each.value = {$param})";
+        return [$sql, [$param => $value]];
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonSet(string $col, array|string $path, mixed $value): array
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = '$' . (empty($parts) ? '' : '.' . implode('.', array_map(function($p){
+                    return preg_match('/^\d+$/', $p) ? $p : $p;
+                }, $parts)));
+        $param = ':jsonset';
+        $expr = "JSON_SET(" . $this->quoteIdentifier($col) . ", '{$jsonPath}', {$param})";
+        return [$expr, [$param => json_encode($value, JSON_UNESCAPED_UNICODE)]];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonRemove(string $col, array|string $path): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = '$' . (empty($parts) ? '' : '.' . implode('.', array_map(function($p){
+                    return preg_match('/^\d+$/', $p) ? $p : $p;
+                }, $parts)));
+        return "JSON_REMOVE(" . $this->quoteIdentifier($col) . ", '{$jsonPath}')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonExists(string $col, array|string $path): string
+    {
+        $expr = $this->formatJsonGet($col, $path, false);
+        return "{$expr} IS NOT NULL";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonOrderExpr(string $col, array|string $path): string
+    {
+        return $this->formatJsonGet($col, $path, true);
     }
 }

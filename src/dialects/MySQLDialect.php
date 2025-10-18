@@ -5,7 +5,6 @@ namespace tommyknocker\pdodb\dialects;
 
 use InvalidArgumentException;
 use PDO;
-use tommyknocker\pdodb\helpers\ConcatValue;
 use tommyknocker\pdodb\helpers\RawValue;
 
 class MySQLDialect extends DialectAbstract implements DialectInterface
@@ -178,10 +177,30 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function now(?string $diff = ''): string
+    public function now(?string $diff = '', bool $asTimestamp = false): string
     {
-        $func = 'NOW()';
-        return $diff ? "$func + INTERVAL $diff" : $func;
+        if (!$diff) {
+            return $asTimestamp ? 'UNIX_TIMESTAMP()' : 'NOW()';
+        }
+
+        $trimmedDif = trim($diff);
+        if (preg_match('/^([+-]?)(\d+)\s+([A-Za-z]+)$/', $trimmedDif, $matches)) {
+            $sign = $matches[1] === '-' ? '-' : '+';
+            $value = $matches[2];
+            $unit = strtoupper($matches[3]);
+
+            if ($asTimestamp) {
+                return "UNIX_TIMESTAMP(NOW() {$sign} INTERVAL {$value} {$unit})";
+            }
+
+            return "NOW() {$sign} INTERVAL {$value} {$unit}";
+        }
+
+        if ($asTimestamp) {
+            return "UNIX_TIMESTAMP(NOW() + INTERVAL {$trimmedDif})";
+        }
+
+        return "NOW() + INTERVAL {$trimmedDif}";
     }
 
 
@@ -302,4 +321,68 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
 
         return $sql;
     }
+
+    public function formatJsonGet(string $col, array|string $path, bool $asText = true): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = '$' . (empty($parts) ? '' : ('.' . implode('.', array_map(function($p){
+                    return preg_match('/^\d+$/', $p) ? "[$p]" : $p;
+                }, $parts))));
+        $expr = "JSON_EXTRACT(" . $this->quoteIdentifier($col) . ", '{$jsonPath}')";
+        if ($asText) {
+            return "JSON_UNQUOTE({$expr})";
+        }
+        return $expr;
+    }
+
+    public function formatJsonContains(string $col, mixed $value, array|string $path = null): array
+    {
+        $colQuoted = $this->quoteIdentifier($col);
+        $param = ':jsonc';
+        $json = json_encode($value, JSON_UNESCAPED_UNICODE);
+        $pathSql = '';
+        if ($path !== null) {
+            $parts = $this->normalizeJsonPath($path);
+            $jsonPath = '$' . (empty($parts) ? '' : ('.' . implode('.', array_map(function($p){
+                        return preg_match('/^\d+$/', $p) ? "[$p]" : $p;
+                    }, $parts))));
+            $pathSql = ", '{$jsonPath}'";
+        }
+        $sql = "JSON_CONTAINS({$colQuoted}, {$param}{$pathSql})";
+        return [$sql, [$param => $json]];
+    }
+
+    public function formatJsonSet(string $col, array|string $path, mixed $value): array
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = '$' . (empty($parts) ? '' : ('.' . implode('.', array_map(function($p){
+                    return preg_match('/^\d+$/', $p) ? "[$p]" : $p;
+                }, $parts))));
+        $param = ':jsonset';
+        $expr = "JSON_SET(" . $this->quoteIdentifier($col) . ", '{$jsonPath}', {$param})";
+        return [$expr, [$param => json_encode($value, JSON_UNESCAPED_UNICODE)]];
+    }
+
+    public function formatJsonRemove(string $col, array|string $path): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = '$' . (empty($parts) ? '' : ('.' . implode('.', array_map(function($p){
+                    return preg_match('/^\d+$/', $p) ? "[$p]" : $p;
+                }, $parts))));
+        return "JSON_REMOVE(" . $this->quoteIdentifier($col) . ", '{$jsonPath}')";
+    }
+
+    public function formatJsonExists(string $col, array|string $path): string
+    {
+        $getExpr = $this->formatJsonGet($col, $path, false);
+        // If JSON_EXTRACT returns NULL then path missing
+        return "{$getExpr} IS NOT NULL";
+    }
+
+    public function formatJsonOrderExpr(string $col, array|string $path): string
+    {
+        // Return text extraction; consumer may cast as needed in SQL
+        return $this->formatJsonGet($col, $path, true);
+    }
+
 }
