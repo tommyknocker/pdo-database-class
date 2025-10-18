@@ -126,4 +126,123 @@ class Db
     {
         return new RawValue("NOT (" . $value->getValue() . ")", $value->getParams());
     }
+
+    /**
+     * Returns a RawValue instance representing a BETWEEN condition.
+     *
+     * @param string $column The column name.
+     * @param mixed $min The minimum value.
+     * @param mixed $max The maximum value.
+     * @return RawValue The RawValue instance for the BETWEEN condition.
+     */
+    public static function between(string $column, mixed $min, mixed $max): RawValue
+    {
+        return new RawValue("$column BETWEEN :min AND :max", ['min' => $min, 'max' => $max]);
+    }
+
+    /**
+     * Returns a RawValue instance representing a NOT BETWEEN condition.
+     *
+     * @param string $column The column name.
+     * @param mixed $min The minimum value.
+     * @param mixed $max The maximum value.
+     * @return RawValue The RawValue instance for the NOT BETWEEN condition.
+     */
+    public static function notBetween(string $column, mixed $min, mixed $max): RawValue
+    {
+        return new RawValue("$column NOT BETWEEN :min AND :max", ['min' => $min, 'max' => $max]);
+    }
+
+    /**
+     * Returns a RawValue instance representing an IN condition.
+     *
+     * @param string $column The column name.
+     * @param array $values The array of values for the IN condition.
+     * @return RawValue The RawValue instance for the IN condition.
+     */
+    public static function in(string $column, array $values): RawValue
+    {
+        $params = [];
+        $placeholders = [];
+
+        foreach ($values as $i => $val) {
+            $key = "in_{$column}_$i";
+            $params[$key] = $val;
+            $placeholders[] = ":$key";
+        }
+
+        return new RawValue("$column IN (" . implode(', ', $placeholders) . ")", $params);
+    }
+
+    /**
+     * Returns a RawValue instance representing a NOT IN condition.
+     *
+     * @param string $column The column name.
+     * @param array $values The array of values for the NOT IN condition.
+     * @return RawValue The RawValue instance for the NOT IN condition.
+     */
+    public static function notIn(string $column, array $values): RawValue
+    {
+        $params = [];
+        $placeholders = [];
+
+        foreach ($values as $i => $val) {
+            $key = "in_{$column}_$i";
+            $params[$key] = $val;
+            $placeholders[] = ":$key";
+        }
+
+        return new RawValue("$column NOT IN (" . implode(', ', $placeholders) . ")", $params);
+    }
+
+    /**
+     * Returns a RawValue instance representing an IS NULL condition.
+     * @param string $column The column name.
+     * @return RawValue
+     */
+    public static function isNull(string $column): RawValue
+    {
+        return new RawValue("$column IS NULL");
+    }
+
+    /**
+     * Returns a RawValue instance representing an IS NULL condition.
+     * @param string $column The column name.
+     * @return RawValue
+     */
+    public static function isNotNull(string $column): RawValue
+    {
+        return new RawValue("$column IS NOT NULL");
+    }
+
+    /**
+     * Returns a RawValue instance representing a CASE statement.
+     *
+     * @param array $cases An associative array where keys are WHEN conditions and values are THEN results.
+     * @param string|null $else An optional ELSE result.
+     * @return CaseValue The RawValue instance for the CASE statement.
+     */
+    public static function case(array $cases, string|null $else = null): CaseValue
+    {
+        $sql = 'CASE';
+        foreach ($cases as $when => $then) {
+            $sql .= " WHEN $when THEN $then";
+        }
+        if ($else !== null) {
+            $sql .= " ELSE $else";
+        }
+        $sql .= ' END';
+
+        return new CaseValue($sql);
+    }
+
+    /**
+     * Returns a RawValue instance representing SQL DEFAULT.
+     *
+     * @return RawValue The RawValue instance for DEFAULT.
+     */
+    public static function default(): RawValue
+    {
+        return new RawValue('DEFAULT');
+    }
 }

@@ -298,6 +298,14 @@ $db->find()->table('users')->insert([
 * **Db::ilike(string $column, string $pattern)**: ILIKE condition (OR LOWER(column) LIKE LOWER(pattern) if ILIKE is not supported).
 * **Db::not(RawValue $value)**: Inverses a RawValue condition using NOT.
 * **Db::config(string $key, mixed $value, bool $useEqualSign = true, bool $quoteValue = true)**: returns SET KEY = :value statement (e.g. SET FOREIGN_KEYS_CHECKS = 1 or SET NAMES 'utf8mb4').
+* **Db::between(string $column, mixed $min, mixed $max)**: returns column BETWEEN min AND max condition.
+* **Db::notBetween(string $column, mixed $min, mixed $max)**: returns column NOT BETWEEN min AND max condition.
+* **Db::in(string $column, array $values)**: returns column IN values condition.
+* **Db::notIn(string $column, array $values)**: returns column NOT IN values condition.
+* **Db::isNull(string $column)**: returns column IS NULL condition.
+* **Db::isNotNull(string $column)**: returns column IS NOT NULL condition.
+* **Db::case(array $conditions, ?string $else = null)**: returns CASE statement: CASE WHEN ... THEN ... [ELSE ...] END.
+* **Db::default()**: returns DEFAULT value for SQL. (not supported in Sqlite).
 
 ### QueryBuilder Methods
 
@@ -352,7 +360,7 @@ Use `Db::raw(string $value, ?array $params)` for SQL fragments that must bypass 
 * **replace/upsert** returns affected row count when deterministic; semantics follow dialect best practices.
 * **RawValue** entries are embedded verbatim into SQL tuples and not bound as parameters.
 * **Multi-row inserts** generate unique named placeholders like `:name_0`, `:name_1` to avoid PDO binding conflicts.
-* **Helper functions** (`inc`, `dec`, `not`) return arrays that are processed during SQL generation.
+* **Helper functions** (`inc`, `dec,`) return arrays that are processed during SQL generation.
 
 ---
 

@@ -10,6 +10,7 @@ use PDOStatement;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\helpers\CaseValue;
 use tommyknocker\pdodb\helpers\ConfigValue;
 use tommyknocker\pdodb\helpers\EscapeValue;
 use tommyknocker\pdodb\helpers\ILikeValue;
@@ -100,11 +101,15 @@ class QueryBuilder
         if (!is_array($cols)) {
             $cols = [$cols];
         }
-        foreach ($cols as $col) {
-            if ($col instanceof RawValue) {
+        foreach ($cols as $index => $col) {
+            if ($col instanceof CaseValue) {
+                $this->select[] = $this->resolveRawValue($col) . ' AS ' . $index;
+            } elseif ($col instanceof RawValue) {
                 $this->select[] = $this->resolveRawValue($col);
+            } elseif (is_string($index)) { // ['total' => 'SUM(amount)] Treat it as SUM(amount) AS total
+                $this->select[] = $col . ' AS ' . $index;
             } else {
-                $this->select[] = (string)$col;
+                $this->select[] = $col;
             }
         }
         return $this;
@@ -287,7 +292,7 @@ class QueryBuilder
             return $this;
         }
 
-        if ($exprOrColumn instanceof RawValue && $value) {
+        if ($exprOrColumn instanceof RawValue) {
             $left = $this->resolveRawValue($exprOrColumn);
             $this->{$prop}[] = ['sql' => "{$left} {$operator} {$value}", 'cond' => $cond];
             return $this;
@@ -384,8 +389,18 @@ class QueryBuilder
 
     /**
      * Add ORDER BY clause.
-     * $expr may be a column name (string) or RawValue instance.
+     * $expr may be a column name (string), complete expression or RawValue instance.
      * $direction can be 'ASC' or 'DESC' (case-insensitive). Defaults to 'ASC'.
+     *
+     * Syntax:
+     *
+     * orderBy('column_name', 'ASC')
+     * orderBy(new RawValue('LENGTH(column_name)'), 'DESC')
+     * orderBy('column_name DESC') // full expression
+     *
+     * @param string|RawValue $expr The expression to order by.
+     * @param string $direction The direction of the ordering (ASC or DESC).
+     * @return self The current instance.
      */
     public function orderBy(string|RawValue $expr, string $direction = 'ASC'): self
     {
@@ -393,9 +408,10 @@ class QueryBuilder
         if ($dir !== 'ASC' && $dir !== 'DESC') {
             $dir = 'ASC';
         }
-
         if ($expr instanceof RawValue) {
             $this->order[] = $this->resolveRawValue($expr) . ' ' . $dir;
+        } elseif (preg_match('/^[a-z0-9]+\s+(ASC|DESC)/iu', $expr)) {
+            $this->order[] = $expr;
         } else {
             $this->order[] = $this->dialect->quoteIdentifier($expr) . ' ' . $dir;
         }
@@ -710,7 +726,7 @@ class QueryBuilder
         if (empty($this->select)) {
             $select = '*';
         } else {
-            $select = implode(', ', array_map(fn($v) => $this->quoteQualifiedIdentifier($v), $this->select));
+            $select = implode(', ', array_map(fn($value) => $this->quoteQualifiedIdentifier($value), $this->select));
         }
 
         $from = $this->normalizeTable();

@@ -179,6 +179,205 @@ final class PdoDbSqliteTest extends TestCase
         $this->assertEquals('PRAGMA FOREIGN_KEYS = OFF', self::$db->lastQuery);
     }
 
+    public function testInAndNotInHelpers(): void
+    {
+        $db = self::$db;
+
+        $db->find()->table('users')->insert(['name' => 'Dana', 'company' => 'X', 'age' => 40]);
+        $db->find()->table('users')->insert(['name' => 'Eve', 'company' => 'Y', 'age' => 45]);
+        $db->find()->table('users')->insert(['name' => 'Frank', 'company' => 'Z', 'age' => 50]);
+
+        $inResults = $db->find()
+            ->from('users')
+            ->where(Db::in('name', ['Dana', 'Eve']))
+            ->get();
+
+        $this->assertCount(2, $inResults);
+
+        $notInResults = $db->find()
+            ->from('users')
+            ->where(Db::not(Db::in('name', ['Dana', 'Eve'])))
+            ->get();
+
+        $this->assertCount(1, $notInResults);
+        $this->assertEquals('Frank', $notInResults[0]['name']);
+
+        $notInResults = $db->find()
+            ->from('users')
+            ->where(Db::notIn('name', ['Dana', 'Eve']))
+            ->get();
+
+        $this->assertCount(1, $notInResults);
+        $this->assertEquals('Frank', $notInResults[0]['name']);
+    }
+
+    public function testIsNullIsNotNullHelpers(): void
+    {
+        $db = self::$db;
+
+        // Вставляем пользователя со статусом NULL
+        $idNull = $db->find()->table('users')->insert([
+            'name' => 'Grace',
+            'company' => 'NullCorp',
+            'age' => 33,
+            'status' => Db::null()
+        ]);
+
+        // Вставляем пользователя со статусом NOT NULL
+        $idNotNull = $db->find()->table('users')->insert([
+            'name' => 'Helen',
+            'company' => 'LiveCorp',
+            'age' => 35,
+            'status' => 'active'
+        ]);
+
+        // Проверка Db::isNull()
+        $nullResults = $db->find()
+            ->from('users')
+            ->where(Db::isNull('status'))
+            ->get();
+
+        $this->assertNotEmpty($nullResults);
+        $this->assertEquals('Grace', $nullResults[0]['name']);
+
+        // Проверка Db::isNotNull()
+        $notNullResults = $db->find()
+            ->from('users')
+            ->where(Db::isNotNull('status'))
+            ->get();
+
+        $this->assertNotEmpty($notNullResults);
+        $this->assertEquals('Helen', $notNullResults[0]['name']);
+    }
+
+    public function testCaseInSelect(): void
+    {
+        $db = self::$db;
+
+        $db->find()->table('users')->insert(['name' => 'Alice', 'company' => 'A', 'age' => 22]);
+        $db->find()->table('users')->insert(['name' => 'Bob', 'company' => 'B', 'age' => 35]);
+
+        $case = Db::case([
+            'age < 30' => "'young'",
+            'age >= 30' => "'adult'"
+        ]);
+
+        $results = $db->find()
+            ->select(['category' => $case])
+            ->from('users')
+            ->orderBy('age ASC')
+            ->get();
+
+        $this->assertStringContainsString("CASE WHEN age < 30 THEN 'young' WHEN age >= 30 THEN 'adult' END AS category", $db->lastQuery);
+
+        $this->assertEquals('young', $results[0]['category']);
+        $this->assertEquals('adult', $results[1]['category']);
+    }
+
+    public function testCaseInWhere(): void
+    {
+        $db = self::$db;
+
+        // Вставляем пользователей с разными возрастами
+        $db->find()->table('users')->insert(['name' => 'Charlie', 'company' => 'C', 'age' => 28]);
+        $db->find()->table('users')->insert(['name' => 'Dana', 'company' => 'D', 'age' => 40]);
+        $db->find()->table('users')->insert(['name' => 'Eve', 'company' => 'E', 'age' => null]); // не попадает ни в WHEN
+
+        // CASE с ELSE
+        $case = Db::case([
+            'age < 30' => '1',
+            'age >= 30' => '0'
+        ], '2'); // ELSE → 2
+
+        // WHERE CASE = 2 → должен вернуть Eve
+        $results = $db->find()
+            ->from('users')
+            ->where($case, 2)
+            ->get();
+
+        $this->assertStringContainsString(
+            'CASE WHEN age < 30 THEN 1 WHEN age >= 30 THEN 0 ELSE 2 END',
+            $db->lastQuery
+        );
+
+        $this->assertCount(1, $results);
+        $this->assertEquals('Eve', $results[0]['name']);
+    }
+
+    public function testCaseInOrderBy(): void
+    {
+        $db = self::$db;
+
+        $db->find()->table('users')->insert(['name' => 'Eve', 'company' => 'E', 'age' => 45]);
+        $db->find()->table('users')->insert(['name' => 'Frank', 'company' => 'F', 'age' => 20]);
+
+        $orderCase = Db::case([
+            'age < 30' => '1',
+            'age >= 30' => '2'
+        ]);
+
+        $results = $db->find()
+            ->from('users')
+            ->orderBy($orderCase, 'ASC')
+            ->get();
+
+        $this->assertStringContainsString('CASE WHEN age < 30 THEN 1 WHEN age >= 30 THEN 2', $db->lastQuery);
+
+        $this->assertEquals('Frank', $results[0]['name']);
+        $this->assertEquals('Eve', $results[1]['name']);
+    }
+
+    public function testCaseInHaving(): void
+    {
+        $db = self::$db;
+
+        $db->find()->table('users')->insert(['name' => 'Gina', 'company' => 'G', 'age' => 25]);
+        $db->find()->table('users')->insert(['name' => 'Hank', 'company' => 'G', 'age' => 45]);
+
+        $case = Db::case([
+            'AVG(age) < 30' => '1',
+            'AVG(age) >= 30' => '0'
+        ]);
+
+        $results = $db->find()
+            ->select(['company', 'avg_age' => 'AVG(age)'])
+            ->from('users')
+            ->groupBy('company')
+            ->having($case,0)
+            ->get();
+
+        $this->assertStringContainsString('CASE WHEN AVG(age) < 30 THEN 1 WHEN AVG(age) >= 30 THEN 0', $db->lastQuery);
+
+        $this->assertEquals('G', $results[0]['company']);
+        $this->assertGreaterThanOrEqual(30, $results[0]['avg_age']);
+    }
+
+    public function testCaseInUpdate(): void
+    {
+        $db = self::$db;
+
+        $id1 = $db->find()->table('users')->insert(['name' => 'Ivy', 'company' => 'U', 'age' => 18, 'status' => '']);
+        $id2 = $db->find()->table('users')->insert(['name' => 'Jack', 'company' => 'U', 'age' => 50, 'status' => '']);
+
+        $case = Db::case([
+            'age < 30' => "'junior'",
+            'age >= 30' => "'senior'"
+        ]);
+
+        $db->find()
+            ->table('users')
+            ->where('company', 'U')
+            ->update(['status' => $case]);
+
+        $this->assertStringContainsString("CASE WHEN age < 30 THEN 'junior' WHEN age >= 30 THEN 'senior'", $db->lastQuery);
+
+        $user1 = $db->find()->from('users')->where('id', $id1)->getOne();
+        $user2 = $db->find()->from('users')->where('id', $id2)->getOne();
+
+        $this->assertEquals('junior', $user1['status']);
+        $this->assertEquals('senior', $user2['status']);
+    }
+
     public function testInsertMultiWithRawValues(): void
     {
         $db = self::$db;
@@ -823,6 +1022,35 @@ final class PdoDbSqliteTest extends TestCase
             ->from('users')
             ->select('age')
             ->where('age', [20, 40], 'NOT BETWEEN')
+            ->orderBy('age', 'ASC')
+            ->getColumn();
+        $this->assertEquals([10, 50], $ages);
+    }
+
+    public function testBetweenHelper(): void
+    {
+        $db = self::$db;
+
+        // Prepare data
+        $db->find()->table('users')->insert(['name' => 'A', 'age' => 10]);
+        $db->find()->table('users')->insert(['name' => 'B', 'age' => 25]);
+        $db->find()->table('users')->insert(['name' => 'C', 'age' => 30]);
+        $db->find()->table('users')->insert(['name' => 'D', 'age' => 50]);
+
+        // BETWEEN
+        $ages = $db->find()
+            ->from('users')
+            ->select('age')
+            ->where(Db::between('age', 20, 40))
+            ->orderBy('age', 'ASC')
+            ->getColumn();
+        $this->assertEquals([25, 30], $ages);
+
+        // NOT BETWEEN
+        $ages = $db->find()
+            ->from('users')
+            ->select('age')
+            ->where(Db::notBetween('age', 20, 40))
             ->orderBy('age', 'ASC')
             ->getColumn();
         $this->assertEquals([10, 50], $ages);

@@ -97,7 +97,6 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
                 $middle[] = $opt;
             }
         }
-
         if ($middle) {
             $sql = preg_replace('/^SELECT\s+/i', 'SELECT ' . implode(',', $middle) . ' ', $sql, 1);
         }
