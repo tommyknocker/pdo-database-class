@@ -10,7 +10,7 @@ use PDOStatement;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\helpers\CaseValue;
+use tommyknocker\pdodb\helpers\ConcatValue;
 use tommyknocker\pdodb\helpers\ConfigValue;
 use tommyknocker\pdodb\helpers\EscapeValue;
 use tommyknocker\pdodb\helpers\ILikeValue;
@@ -102,7 +102,7 @@ class QueryBuilder
             $cols = [$cols];
         }
         foreach ($cols as $index => $col) {
-            if ($col instanceof CaseValue) {
+            if ($col instanceof RawValue && is_string($index)) {
                 $this->select[] = $this->resolveRawValue($col) . ' AS ' . $index;
             } elseif ($col instanceof RawValue) {
                 $this->select[] = $this->resolveRawValue($col);
@@ -130,6 +130,24 @@ class QueryBuilder
         $subSql = $this->buildSelectSql();
         $params = $this->params ?? [];
         $sql = 'SELECT EXISTS(' . $subSql . ')';
+        return (bool)$this->fetchColumn($sql, $params);
+    }
+
+    /**
+     * Return true if no rows match the current WHERE conditions.
+     *
+     * This builds a single query using SQL NOT EXISTS and executes it.
+     * It does not execute any nested queries separately; the subquery is compiled only.
+     *
+     * @return bool
+     * @throws PDOException
+     */
+    public function notExists(): bool
+    {
+        $this->limit(1);
+        $subSql = $this->buildSelectSql();
+        $params = $this->params ?? [];
+        $sql = 'SELECT NOT EXISTS(' . $subSql . ')';
         return (bool)$this->fetchColumn($sql, $params);
     }
 
@@ -203,12 +221,18 @@ class QueryBuilder
     /**
      * Add WHERE clause.
      *
-     * @param string|RawValue $exprOrColumn The expression or column to add.
+     * Syntax:
+     *
+     * where('column', 'value') // column = value
+     * where('column', 'value', '!=') // column != value
+     * where(new RawValue('LENGTH(column)'), 5, '>') // LENGTH(column) > 5
+     *
+     * @param string|array|RawValue $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      * @return self The current instance.
      */
-    public function where(string|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
     {
         return $this->addCondition('where', $exprOrColumn, $value, $operator, 'AND');
     }
@@ -216,12 +240,12 @@ class QueryBuilder
     /**
      * Add AND WHERE clause.
      *
-     * @param string|RawValue $exprOrColumn The expression or column to add.
-     * @param mixed $value The value to use in the condition.
+     * @param string|RawValue|array $exprOrColumn The expression or column to add.
+     * @param string|array|RawValue $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      * @return self The current instance.
      */
-    public function andWhere(string|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
     {
         return $this->where($exprOrColumn, $value, $operator);
     }
@@ -234,7 +258,7 @@ class QueryBuilder
      * @param string $operator The operator to use in the condition.
      * @return self The current instance.
      */
-    public function orWhere(string|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
     {
         return $this->addCondition('where', $exprOrColumn, $value, $operator, 'OR');
     }
@@ -242,12 +266,12 @@ class QueryBuilder
     /**
      * Add HAVING clause.
      *
-     * @param string|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array|rawValue $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      * @return self The current instance.
      */
-    public function having(string|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
     {
         return $this->addCondition('having', $exprOrColumn, $value, $operator, 'AND');
     }
@@ -255,12 +279,12 @@ class QueryBuilder
     /**
      * Add OR HAVING clause.
      *
-     * @param string|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array|RawValue $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      * @return self The current instance.
      */
-    public function orHaving(string|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
     {
         return $this->addCondition('having', $exprOrColumn, $value, $operator, 'OR');
     }
@@ -277,11 +301,29 @@ class QueryBuilder
      */
     protected function addCondition(
         string $prop,
-        string|RawValue $exprOrColumn,
+        string|array|RawValue $exprOrColumn,
         mixed $value,
         string $operator,
         string $cond
     ): self {
+        if (is_array($exprOrColumn)) {
+            foreach ($exprOrColumn as $col => $val) {
+                $exprQuoted = $this->quoteQualifiedIdentifier((string)$col);
+                if ($val instanceof RawValue) {
+                    $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$this->resolveRawValue($val)}", 'cond' => $cond];
+                } elseif(is_array($value)) {
+                    $this->params[trim($val, ':')] = $value[trim($val, ':')] ?? null;
+                    $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$val}", 'cond' => $cond];
+                } else {
+                    $ph = $this->makeParam((string)$col);
+                    $this->params[$ph] = $val;
+                    $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$ph}", 'cond' => $cond];
+                }
+            }
+            return $this;
+        }
+
+
         // if RawValue is provided and there is no value — insert it as is
         if ($value === null) {
             if ($exprOrColumn instanceof RawValue) {
@@ -357,14 +399,14 @@ class QueryBuilder
             if ($low instanceof RawValue) {
                 $left = $this->resolveRawValue($low);
             } else {
-                $left = $this->makeParam((string)$exprOrColumn . '_bt_low');
+                $left = $this->makeParam($exprOrColumn . '_bt_low');
                 $this->params[$left] = $low;
             }
 
             if ($high instanceof RawValue) {
                 $right = $this->resolveRawValue($high);
             } else {
-                $right = $this->makeParam((string)$exprOrColumn . '_bt_high');
+                $right = $this->makeParam($exprOrColumn . '_bt_high');
                 $this->params[$right] = $high;
             }
 
@@ -1219,6 +1261,7 @@ class QueryBuilder
             $value instanceof ILikeValue => $this->dialect->ilike($value->getValue(), $value->getParams()[0]),
             $value instanceof EscapeValue => $this->connection->quote($value->getValue()),
             $value instanceof ConfigValue => $this->dialect->config($value),
+            $value instanceof ConcatValue => $this->dialect->concat($value),
             default => $value,
         };
 

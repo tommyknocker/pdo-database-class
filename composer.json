@@ -11,7 +11,6 @@
     "sqlite",
     "database-abstraction",
     "orm",
-    "active-record",
     "fluent-api",
     "prepared-statements",
     "sql-injection",
@@ -31,7 +30,8 @@
     "cross-platform",
     "testing",
     "ci-cd",
-    "github-actions"
+    "pdodb",
+    "pdo-db"
   ],
   "homepage": "https://github.com/tommyknocker/pdo-database-class",
   "license": "MIT",

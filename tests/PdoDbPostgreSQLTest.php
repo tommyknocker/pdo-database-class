@@ -42,14 +42,19 @@ final class PdoDbPostgreSQLTest extends TestCase
             ]
         );
 
+        self::$db->rawQuery('DROP TABLE IF EXISTS archive_users');
+        self::$db->rawQuery('DROP TABLE IF EXISTS orders');
+        self::$db->rawQuery('DROP TABLE IF EXISTS users');
+
         // users
         self::$db->rawQuery("        
-            CREATE TABLE IF NOT EXISTS users (
+            CREATE TABLE users (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(100) NOT NULL,
                 company VARCHAR(100),
                 age INT,
                 status VARCHAR(20),
+                is_active BOOLEAN NOT NULL DEFAULT FALSE,
                 created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NULL,
                 UNIQUE (name)
@@ -58,7 +63,7 @@ final class PdoDbPostgreSQLTest extends TestCase
 
         // orders
         self::$db->rawQuery("
-             CREATE TABLE IF NOT EXISTS orders (
+             CREATE TABLE orders (
                 id SERIAL PRIMARY KEY,
                 user_id INT NOT NULL,
                 amount NUMERIC(10,2) NOT NULL,
@@ -69,7 +74,7 @@ final class PdoDbPostgreSQLTest extends TestCase
 
         // archive_users
         self::$db->rawQuery("
-            CREATE TABLE IF NOT EXISTS archive_users (
+            CREATE TABLE archive_users (
                 id SERIAL PRIMARY KEY,
                 user_id INT
             );
@@ -272,6 +277,43 @@ final class PdoDbPostgreSQLTest extends TestCase
         $this->assertEquals('Frank', $notInResults[0]['name']);
     }
 
+    public function testIsNullIsNotNullHelpers(): void
+    {
+        $db = self::$db;
+
+        $idNull = $db->find()->table('users')->insert([
+            'name' => 'Grace',
+            'company' => 'NullCorp',
+            'age' => 33,
+            'status' => Db::null()
+        ]);
+        $this->assertIsInt($idNull);
+
+        $idNotNull = $db->find()->table('users')->insert([
+            'name' => 'Helen',
+            'company' => 'LiveCorp',
+            'age' => 35,
+            'status' => 'active'
+        ]);
+        $this->assertIsInt($idNotNull);
+
+        $nullResults = $db->find()
+            ->from('users')
+            ->where(Db::isNull('status'))
+            ->get();
+
+        $this->assertNotEmpty($nullResults);
+        $this->assertEquals('Grace', $nullResults[0]['name']);
+
+        $notNullResults = $db->find()
+            ->from('users')
+            ->where(Db::isNotNull('status'))
+            ->get();
+
+        $this->assertNotEmpty($notNullResults);
+        $this->assertEquals('Helen', $notNullResults[0]['name']);
+    }
+
     public function testInsertMultiWithRawValues(): void
     {
         $db = self::$db;
@@ -438,35 +480,6 @@ final class PdoDbPostgreSQLTest extends TestCase
         $this->assertIsArray($row);
         $this->assertEquals('31', $row['age']);
 
-    }
-
-    public function testUpdateLimit(): void
-    {
-        // @todo Implement update limit logic for PostgreSQL
-        $this->markTestSkipped('Logic not implemented for PostgreSQL dialect.');
-        $db = self::$db;
-
-
-        for ($i = 1; $i <= 7; $i++) {
-            $db->find()->table('users')->insert([
-                'name' => "Cnt{$i}",
-                'company' => 'C',
-                'age' => 20 + $i,
-                'status' => 'active',
-            ]);
-        }
-
-        // Update with limit 5
-        $db->find()->table('users')
-            ->limit(5)
-            ->update(['status' => 'inactive']);
-
-        $inactive = $db->find()
-            ->from('users')
-            ->where('status', 'inactive')
-            ->get();
-
-        $this->assertCount(5, $inactive);
     }
 
     public function testLimitAndOffset(): void
@@ -884,6 +897,30 @@ final class PdoDbPostgreSQLTest extends TestCase
         $this->assertEquals(22, $row->age);
     }
 
+    public function testWhereSyntax(): void
+    {
+        $db = self::$db;
+
+        $db->find()->table('users')->insert(['name' => 'A', 'age' => 10]);
+        $db->find()->table('users')->insert(['name' => 'B', 'age' => 25]);
+        $db->find()->table('users')->insert(['name' => 'C', 'age' => 30]);
+        $db->find()->table('users')->insert(['name' => 'D', 'age' => 50]);
+
+        $row = $db->find()->from('users')->where(['age' => 25])->getOne();
+        $this->assertEquals('B', $row['name']);
+
+        $row = $db->find()->from('users')->where(['age' => ':age'], ['age' => 30])->getOne();
+        $this->assertEquals('C', $row['name']);
+
+        $row = $db->find()->from('users')->where('age = 50')->getOne();
+        $this->assertEquals('D', $row['name']);
+
+        $row = $db->find()->from('users')->where(Db::between('age', 10, 20))->getOne();
+        $this->assertEquals('A', $row['name']);
+
+        $row = $db->find()->from('users')->where('age', [25,29], 'BETWEEN')->getOne();
+        $this->assertEquals('B', $row['name']);
+    }
 
     public function testWhereBetweenAndNotBetween(): void
     {
@@ -941,45 +978,6 @@ final class PdoDbPostgreSQLTest extends TestCase
             ->orderBy('age', 'ASC')
             ->getColumn();
         $this->assertEquals([10, 50], $ages);
-    }
-
-    public function testIsNullIsNotNullHelpers(): void
-    {
-        $db = self::$db;
-
-        // Вставляем пользователя со статусом NULL
-        $idNull = $db->find()->table('users')->insert([
-            'name' => 'Grace',
-            'company' => 'NullCorp',
-            'age' => 33,
-            'status' => Db::null()
-        ]);
-
-        // Вставляем пользователя со статусом NOT NULL
-        $idNotNull = $db->find()->table('users')->insert([
-            'name' => 'Helen',
-            'company' => 'LiveCorp',
-            'age' => 35,
-            'status' => 'active'
-        ]);
-
-        // Проверка Db::isNull()
-        $nullResults = $db->find()
-            ->from('users')
-            ->where(Db::isNull('status'))
-            ->get();
-
-        $this->assertNotEmpty($nullResults);
-        $this->assertEquals('Grace', $nullResults[0]['name']);
-
-        // Проверка Db::isNotNull()
-        $notNullResults = $db->find()
-            ->from('users')
-            ->where(Db::isNotNull('status'))
-            ->get();
-
-        $this->assertNotEmpty($notNullResults);
-        $this->assertEquals('Helen', $notNullResults[0]['name']);
     }
 
     public function testDefaultHelper(): void
@@ -1132,6 +1130,87 @@ final class PdoDbPostgreSQLTest extends TestCase
 
         $this->assertEquals('junior', $user1['status']);
         $this->assertEquals('senior', $user2['status']);
+    }
+
+    public function testTrueAndFalseHelpers(): void
+    {
+        $db = self::$db;
+
+        $db->find()->table('users')->insert([
+            'name' => 'TrueUser',
+            'company' => 'BoolCorp',
+            'age' => 30,
+            'is_active' => db::true()
+        ]);
+
+        $db->find()->table('users')->insert([
+            'name' => 'FalseUser',
+            'company' => 'BoolCorp',
+            'age' => 35,
+            'is_active' => db::false()
+        ]);
+
+        $trueResults = $db->find()
+            ->from('users')
+            ->where('is_active', Db::true())
+            ->get();
+
+        $this->assertCount(1, $trueResults);
+        $this->assertEquals('TrueUser', $trueResults[0]['name']);
+
+        $falseResults = $db->find()
+            ->from('users')
+            ->where('is_active', Db::false())
+            ->get();
+
+        $this->assertCount(1, $falseResults);
+        $this->assertEquals('FalseUser', $falseResults[0]['name']);
+    }
+
+    public function testConcatHelper(): void
+    {
+        $db = self::$db;
+
+        // prepare table rows
+        $db->find()->table('users')->insert(['name' => 'John', 'company' => 'C1', 'age' => 30, 'status' => 'ok']);
+        $db->find()->table('users')->insert(['name' => 'Anna', 'company' => 'C2', 'age' => 25, 'status' => 'ok']);
+
+        // 1) column + literal (space) + column
+        $results = $db->find()
+            ->select(['full' => Db::concat('name', "' '", 'company')])
+            ->from('users')
+            ->where(['name' => 'John'])
+            ->getOne();
+
+        $this->assertEquals('John C1', $results['full']);
+
+        // 2) RawValue + literal + column
+        $raw = Db::raw("UPPER(name)");
+        $results = $db->find()
+            ->select(['x' => Db::concat($raw, "' - '", 'company')])
+            ->from('users')
+            ->where(['name' => 'Anna'])
+            ->getOne();
+
+        $this->assertEquals('ANNA - C2', $results['x']);
+
+        // 3) numeric literal and column
+        $results = $db->find()
+            ->select(['s' => Db::concat('name', "' #'", 100)])
+            ->from('users')
+            ->where(['name' => 'John'])
+            ->getOne();
+
+        $this->assertEquals('John #100', $results['s']);
+
+        // 4) single-part concat (should return the part as-is)
+        $results = $db->find()
+            ->select(['only' => Db::concat('name')])
+            ->from('users')
+            ->where(['name' => 'Anna'])
+            ->getOne();
+
+        $this->assertEquals('Anna', $results['only']);
     }
 
     public function testWhereInAndNotIn(): void
@@ -1514,6 +1593,51 @@ final class PdoDbPostgreSQLTest extends TestCase
             'dbname' => self::DB_NAME,
         ]);
         $this->assertTrue(self::$db->ping());
+    }
+
+    public function testExistsAndNotExists(): void
+    {
+        $db = self::$db;
+
+        // Вставляем одну запись
+        $db->find()->table('users')->insert([
+            'name' => 'Existy',
+            'company' => 'CheckCorp',
+            'age' => 42,
+            'status' => 'active'
+        ]);
+
+        // Проверка exists() — должен вернуть true
+        $exists = $db->find()
+            ->from('users')
+            ->where(['name' => 'Existy'])
+            ->exists();
+
+        $this->assertTrue($exists, 'Expected exists() to return true for matching row');
+
+        // Проверка notExists() — должен вернуть false
+        $notExists = $db->find()
+            ->from('users')
+            ->where(['name' => 'Existy'])
+            ->notExists();
+
+        $this->assertFalse($notExists, 'Expected notExists() to return false for matching row');
+
+        // Проверка exists() — для несуществующего значения
+        $noMatchExists = $db->find()
+            ->from('users')
+            ->where(['name' => 'Ghosty'])
+            ->exists();
+
+        $this->assertFalse($noMatchExists, 'Expected exists() to return false for non-matching row');
+
+        // Проверка notExists() — для несуществующего значения
+        $noMatchNotExists = $db->find()
+            ->from('users')
+            ->where(['name' => 'Ghosty'])
+            ->notExists();
+
+        $this->assertTrue($noMatchNotExists, 'Expected notExists() to return true for non-matching row');
     }
 
     public function testTableExists(): void

@@ -7,6 +7,7 @@ use InvalidArgumentException;
 use PDO;
 use RuntimeException;
 use SplFileObject;
+use tommyknocker\pdodb\helpers\ConcatValue;
 use tommyknocker\pdodb\helpers\ConfigValue;
 use tommyknocker\pdodb\helpers\RawValue;
 use XMLReader;
@@ -74,6 +75,66 @@ abstract class DialectAbstract
         $sql = "SET " . strtoupper($value->getValue())
             . ($value->getUseEqualSign() ? ' = ' : ' ')
             . ($value->getQuoteValue() ? '\'' . $value->getParams()[0] . '\'' : $value->getParams()[0]);
+        return new RawValue($sql);
+    }
+
+    /**
+     * Concatenate values
+     * @param ConcatValue $value
+     * @return RawValue
+     */
+    public function concat(ConcatValue $value): RawValue
+    {
+        $parts = $value->getValues();
+        $dialect = $this->getDriverName();
+
+        $mapped = [];
+        foreach ($parts as $part) {
+            if ($part instanceof RawValue) {
+                $mapped[] = $part->getValue();
+                continue;
+            }
+
+            if (is_numeric($part)) {
+                $mapped[] = (string)$part;
+                continue;
+            }
+
+            $s = (string)$part;
+
+            // already quoted literal?
+            if (preg_match("/^'.*'\$/s", $s) || preg_match('/^".*"\$/s', $s)) {
+                $mapped[] = $s;
+                continue;
+            }
+
+            // contains spaces, parentheses, commas or operators — treat as raw SQL
+            if (preg_match('/[()\s,+\-*\/%<>=!]/', $s)) {
+                $mapped[] = $s;
+                continue;
+            }
+
+            // simple identifier (maybe schema.table or table.column) — quote each part
+            $pieces = explode('.', $s);
+            foreach ($pieces as &$p) {
+                match($dialect) {
+                    'pgsql', 'sqlite' => $p = '"' . str_replace('"', '""', $p) . '"',
+                    default => $p = '`' . str_replace('`', '``', $p) . '`'
+                };
+
+            }
+            $mapped[] = implode('.', $pieces);
+        }
+
+        // choose concatenation style
+        if ($dialect === 'sqlite') {
+            $sql = implode(" || ", $mapped);
+        } else {
+            // default to CONCAT(); PostgreSQL and MySQL support CONCAT()
+            // if only two parts and dialect explicitly sqlite was requested, we already handled above
+            $sql = 'CONCAT(' . implode(', ', $mapped) . ')';
+        }
+
         return new RawValue($sql);
     }
 

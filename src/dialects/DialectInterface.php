@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\dialects;
 
 use PDO;
+use tommyknocker\pdodb\helpers\ConcatValue;
 use tommyknocker\pdodb\helpers\ConfigValue;
 use tommyknocker\pdodb\helpers\RawValue;
 
@@ -114,6 +115,13 @@ interface DialectInterface
      * @return RawValue
      */
     public function config(ConfigValue $value): RawValue;
+
+    /**
+     * CONCAT syntax
+     * @param ConcatValue $value Items to concatenate
+     * @return RawValue
+     */
+    public function concat(ConcatValue $value): RawValue;
 
     /**
      * EXPLAIN syntax

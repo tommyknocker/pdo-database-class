@@ -220,9 +220,9 @@ class Db
      *
      * @param array $cases An associative array where keys are WHEN conditions and values are THEN results.
      * @param string|null $else An optional ELSE result.
-     * @return CaseValue The RawValue instance for the CASE statement.
+     * @return RawValue The RawValue instance for the CASE statement.
      */
-    public static function case(array $cases, string|null $else = null): CaseValue
+    public static function case(array $cases, string|null $else = null): RawValue
     {
         $sql = 'CASE';
         foreach ($cases as $when => $then) {
@@ -233,7 +233,18 @@ class Db
         }
         $sql .= ' END';
 
-        return new CaseValue($sql);
+        return new RawValue($sql);
+    }
+
+    /**
+     * Returns a ConcatValue instance representing a concatenation of values.
+     *
+     * @param mixed ...$args The values to concatenate.
+     * @return ConcatValue The ConcatValue instance.
+     */
+    public static function concat(...$args): ConcatValue
+    {
+        return new ConcatValue($args);
     }
 
     /**
@@ -244,5 +255,25 @@ class Db
     public static function default(): RawValue
     {
         return new RawValue('DEFAULT');
+    }
+
+    /**
+     * Returns a RawValue instance representing SQL TRUE.
+     *
+     * @return RawValue The RawValue instance for TRUE.
+     */
+    public static function true(): RawValue
+    {
+        return new RawValue('TRUE');
+    }
+
+    /**
+     * Returns a RawValue instance representing SQL FALSE.
+     *
+     * @return RawValue The RawValue instance for FALSE.
+     */
+    public static function false(): RawValue
+    {
+        return new RawValue('FALSE');
     }
 }

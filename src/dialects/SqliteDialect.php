@@ -194,7 +194,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
      */
     public function now(?string $diff = ''): string
     {
-        return $diff ? "DATETIME('now','{$diff}')" : 'CURRENT_TIMESTAMP';
+        return $diff ? "DATETIME('now','{$diff}')" : 'DATETIME(\'now\')';
     }
 
     /**

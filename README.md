@@ -305,7 +305,10 @@ $db->find()->table('users')->insert([
 * **Db::isNull(string $column)**: returns column IS NULL condition.
 * **Db::isNotNull(string $column)**: returns column IS NOT NULL condition.
 * **Db::case(array $conditions, ?string $else = null)**: returns CASE statement: CASE WHEN ... THEN ... [ELSE ...] END.
+* **Db::concat(array $values)**: returns concatenated string expression.
 * **Db::default()**: returns DEFAULT value for SQL. (not supported in Sqlite).
+* **Db::true()**: returns TRUE value for SQL.
+* **Db::false()**: returns FALSE value for SQL.
 
 ### QueryBuilder Methods
 
@@ -333,6 +336,7 @@ $db->find()->table('users')->insert([
 * **getColumn()**: execute SELECT and return single column values.
 * **getValue()**: execute SELECT and return single value.
 * **exists()**: check if any rows match conditions.
+* **notExists()**: check if no rows match conditions.
 * **tableExists(string)**: check if table exists.
 * **asObject()**: set fetch mode to objects instead of arrays.
 
@@ -372,7 +376,7 @@ Use `Db::raw(string $value, ?array $params)` for SQL fragments that must bypass 
 Run the test suite with:
 
 ```bash
-vendor/bin/phpunit
+ALL_TESTS=1 ./vendor/bin/phpunit
 ```
 
 ---

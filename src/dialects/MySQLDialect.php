@@ -5,6 +5,7 @@ namespace tommyknocker\pdodb\dialects;
 
 use InvalidArgumentException;
 use PDO;
+use tommyknocker\pdodb\helpers\ConcatValue;
 use tommyknocker\pdodb\helpers\RawValue;
 
 class MySQLDialect extends DialectAbstract implements DialectInterface
@@ -115,7 +116,6 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         return $sql;
     }
 
-
     /**
      * {@inheritDoc}
      */
@@ -183,6 +183,8 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         $func = 'NOW()';
         return $diff ? "$func + INTERVAL $diff" : $func;
     }
+
+
 
     /**
      * {@inheritDoc}
