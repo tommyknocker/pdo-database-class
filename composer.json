@@ -28,7 +28,6 @@
     "lightweight",
     "portable",
     "cross-platform",
-    "testing",
     "ci-cd",
     "pdodb",
     "pdo-db"
