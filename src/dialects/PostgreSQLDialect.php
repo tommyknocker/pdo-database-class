@@ -260,6 +260,11 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         return $diff ? "$func + INTERVAL '{$diff}'" : $func;
     }
 
+    public function ilike(string $column, string $pattern): RawValue
+    {
+        return new RawValue("$column ILIKE :pattern", ['pattern' => $pattern]);
+    }
+
     /**
      * {@inheritDoc}
      */

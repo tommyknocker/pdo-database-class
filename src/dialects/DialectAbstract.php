@@ -7,6 +7,7 @@ use InvalidArgumentException;
 use PDO;
 use RuntimeException;
 use SplFileObject;
+use tommyknocker\pdodb\helpers\RawValue;
 use XMLReader;
 
 abstract class DialectAbstract
@@ -48,6 +49,17 @@ abstract class DialectAbstract
 
         [$name, $alias] = $parts;
         return $this->quoteIdentifier($name) . ' ' . $this->quoteIdentifier($alias);
+    }
+
+    /**
+     * Case-insensitive LIKE expression
+     * @param string $column
+     * @param string $pattern
+     * @return RawValue
+     */
+    public function ilike(string $column, string $pattern): RawValue
+    {
+        return new RawValue("LOWER($column) LIKE LOWER(:pattern)", ['pattern' => $pattern]);
     }
 
     /**

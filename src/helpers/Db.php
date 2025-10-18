@@ -62,4 +62,49 @@ class Db
     {
         return ['__op' => 'dec', 'val' => $num];
     }
+
+    /**
+     * Returns a RawValue instance representing SQL NULL.
+     *
+     * @return RawValue The RawValue instance for NULL.
+     */
+    public static function null(): RawValue
+    {
+        return new RawValue('NULL');
+    }
+
+    /**
+     * Returns a RawValue instance representing a LIKE condition.
+     *
+     * @param string $column The column name.
+     * @param string $pattern The pattern to match.
+     * @return RawValue The RawValue instance.
+     */
+    public static function like(string $column, string $pattern): RawValue
+    {
+        return new RawValue("$column LIKE :pattern", ['pattern' => $pattern]);
+    }
+
+    /**
+     * Returns a RawValue instance representing a case-insensitive LIKE condition.
+     *
+     * @param string $column The column name.
+     * @param string $pattern The pattern to match.
+     * @return RawValue The RawValue instance for the case-insensitive LIKE condition.
+     */
+    public static function ilike(string $column, string $pattern): RawValue
+    {
+        return new ILikeValue($column, $pattern);
+    }
+
+    /**
+     * Inverses a RawValue condition using NOT.
+     *
+     * @param RawValue $value The RawValue to negate.
+     * @return RawValue The RawValue instance for the NOT condition.
+     */
+    public static function not(RawValue $value): RawValue
+    {
+        return new RawValue("NOT (" . $value->getValue() . ")", $value->getParams());
+    }
 }

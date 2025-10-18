@@ -8,8 +8,6 @@ use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\helpers\Db;
-use tommyknocker\pdodb\helpers\EscapeValue;
-use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\PdoDb;
 
 final class PdoDbPostgreSQLTest extends TestCase
@@ -167,6 +165,72 @@ final class PdoDbPostgreSQLTest extends TestCase
         $this->assertEquals('raw_now_user', $row['name']);
     }
 
+    public function testInsertWithNullHelper(): void
+    {
+        $db = self::$db;
+
+        $id = $db->find()
+            ->table('users')
+            ->insert([
+                'name' => 'NullUser',
+                'company' => 'Acme',
+                'age' => 25,
+                'status' => Db::null()
+            ]);
+
+        $this->assertIsInt($id);
+
+        $user = $db->find()
+            ->from('users')
+            ->where('id', $id)
+            ->getOne();
+
+        $this->assertNull($user['status']);
+    }
+
+    public function testLikeAndIlikeHelpers(): void
+    {
+        $db = self::$db;
+
+        $db->find()->table('users')->insert(['name' => 'Alice', 'company' => 'WonderCorp', 'age' => 30]);
+        $db->find()->table('users')->insert(['name' => 'Bob', 'company' => 'wondercorp', 'age' => 35]);
+
+        // LIKE
+        $likeResults = $db->find()
+            ->from('users')
+            ->where(Db::like('company', 'Wonder%'))
+            ->get();
+
+        $this->assertCount(1, $likeResults);
+        $this->assertEquals('Alice', $likeResults[0]['name']);
+
+        // ILIKE
+        $ilikeResults = $db->find()
+            ->from('users')
+            ->where(Db::ilike('company', 'Wonder%'))
+            ->get();
+
+        $this->assertCount(2, $ilikeResults);
+    }
+
+    public function testNotHelper(): void
+    {
+        $db = self::$db;
+
+        $db->find()->table('users')->insert(['name' => 'Charlie', 'company' => 'TechX', 'age' => 40]);
+        $db->find()->table('users')->insert(['name' => 'Dana', 'company' => 'BizY', 'age' => 45]);
+
+        // NOT LIKE 'Tech%'
+        $notLike = Db::not(Db::like('company', 'Tech%'));
+
+        $results = $db->find()
+            ->from('users')
+            ->where($notLike)
+            ->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals('Dana', $results[0]['name']);
+    }
 
     public function testInsertMultiWithRawValues(): void
     {

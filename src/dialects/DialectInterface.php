@@ -99,6 +99,14 @@ interface DialectInterface
     public function now(?string $diff = ''): string;
 
     /**
+     * ILIKE syntax
+     * @param string $column
+     * @param string $pattern
+     * @return RawValue
+     */
+    public function ilike(string $column, string $pattern): RawValue;
+
+    /**
      * EXPLAIN syntax
      * @param string $query
      * @param bool $analyze

@@ -11,6 +11,7 @@ use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\EscapeValue;
+use tommyknocker\pdodb\helpers\ILikeValue;
 use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\helpers\NowValue;
 
@@ -133,7 +134,7 @@ class QueryBuilder
      */
     public function tableExists(): bool
     {
-        $table =  $this->prefix . $this->table;
+        $table = $this->prefix . $this->table;
         $sql = $this->dialect->buildTableExistsSql($table);
         $res = $this->executeStatement($sql)->fetchColumn();
         return !empty($res);
@@ -1006,18 +1007,18 @@ class QueryBuilder
      */
     public function loadCsv(string $filePath, array $options = []): bool
     {
-        if(!$this->connection->inTransaction()) {
+        if (!$this->connection->inTransaction()) {
             $this->connection->transaction();
         }
         try {
             $sql = $this->connection->getDialect()->buildLoadCsvSql($this->prefix . $this->table, $filePath, $options);
             $this->connection->prepare($sql)->execute();
-            if($this->connection->inTransaction()) {
+            if ($this->connection->inTransaction()) {
                 $this->connection->commit();
             }
-            return $this->connection->getExecuteState()  !== false;
+            return $this->connection->getExecuteState() !== false;
         } catch (PDOException $e) {
-            if($this->connection->inTransaction()) {
+            if ($this->connection->inTransaction()) {
                 $this->connection->rollback();
             }
         }
@@ -1035,7 +1036,7 @@ class QueryBuilder
      */
     public function loadXml(string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool
     {
-        if(!$this->connection->inTransaction()) {
+        if (!$this->connection->inTransaction()) {
             $this->connection->transaction();
         }
         try {
@@ -1045,12 +1046,12 @@ class QueryBuilder
             ];
             $sql = $this->connection->getDialect()->buildLoadXML($this->prefix . $this->table, $filePath, $options);
             $this->connection->prepare($sql)->execute();
-            if($this->connection->inTransaction()) {
+            if ($this->connection->inTransaction()) {
                 $this->connection->commit();
             }
             return $this->connection->getExecuteState() !== false;
         } catch (PDOException $e) {
-            if($this->connection->inTransaction()) {
+            if ($this->connection->inTransaction()) {
                 $this->connection->rollback();
             }
         }
@@ -1192,12 +1193,17 @@ class QueryBuilder
      */
     protected function resolveRawValue(RawValue $value): string
     {
-        if ($value instanceof NowValue) {
-            return $this->dialect->now($value->getValue());
-        }
+        $result = match (true) {
+            $value instanceof NowValue => $this->dialect->now($value->getValue()),
+            $value instanceof ILikeValue => $this->dialect->ilike($value->getValue(), $value->getParams()[0]),
+            $value instanceof EscapeValue => $this->connection->quote($value->getValue()),
+            default => $value,
+        };
 
-        if ($value instanceof EscapeValue) {
-            return $this->connection->quote($value->getValue());
+        if ($result instanceof RawValue) { // Allow nested RawValue resolution
+            $value = $result;
+        } else {
+            return $result;
         }
 
         $sql = $value->getValue();

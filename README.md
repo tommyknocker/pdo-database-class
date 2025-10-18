@@ -293,6 +293,10 @@ $db->find()->table('users')->insert([
 * **Db::dec(int|float)**: returns decrement operation array.
 * **Db::now(?string)**: returns current timestamp with optional interval.
 * **Db::escape(string)**: escape string for SQL.
+* **DB::null()**: returns NULL value for SQL.
+* **Db::like(string $column, string $pattern)**: LIKE condition.
+* **Db::ilike(string $column, string $pattern)**: ILIKE condition (OR LOWER(column) LIKE LOWER(pattern) if ILIKE is not supported).
+* **Db::not(RawValue $value)**: Inverses a RawValue condition using NOT.
 
 ### QueryBuilder Methods
 
