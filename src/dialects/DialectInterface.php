@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\dialects;
 
 use PDO;
+use tommyknocker\pdodb\helpers\ConfigValue;
 use tommyknocker\pdodb\helpers\RawValue;
 
 interface DialectInterface
@@ -105,6 +106,14 @@ interface DialectInterface
      * @return RawValue
      */
     public function ilike(string $column, string $pattern): RawValue;
+
+    /**
+     * SET/PRAGMA statement syntax.
+     * e.g. SET FOREIGN_KEY_CHECKS = 1 OR SET NAMES 'utf8mb4' in MySQL and PostgreSQL or PRAGMA statements in SQLite
+     * @param ConfigValue $value
+     * @return RawValue
+     */
+    public function config(ConfigValue $value): RawValue;
 
     /**
      * EXPLAIN syntax

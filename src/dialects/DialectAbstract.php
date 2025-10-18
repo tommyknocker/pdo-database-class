@@ -7,6 +7,7 @@ use InvalidArgumentException;
 use PDO;
 use RuntimeException;
 use SplFileObject;
+use tommyknocker\pdodb\helpers\ConfigValue;
 use tommyknocker\pdodb\helpers\RawValue;
 use XMLReader;
 
@@ -61,6 +62,21 @@ abstract class DialectAbstract
     {
         return new RawValue("LOWER($column) LIKE LOWER(:pattern)", ['pattern' => $pattern]);
     }
+
+    /**
+     * SET/PRAGMA statement syntax.
+     * e.g. SET FOREIGN_KEY_CHECKS = 1 OR SET NAMES 'utf8mb4' in MySQL and PostgreSQL or PRAGMA statements in SQLite
+     * @param ConfigValue $value
+     * @return RawValue
+     */
+    public function config(ConfigValue $value): RawValue
+    {
+        $sql = "SET " . strtoupper($value->getValue())
+            . ($value->getUseEqualSign() ? ' = ' : ' ')
+            . ($value->getQuoteValue() ? '\'' . $value->getParams()[0] . '\'' : $value->getParams()[0]);
+        return new RawValue($sql);
+    }
+
 
     /**
      * Build SQL for loading data from XML file

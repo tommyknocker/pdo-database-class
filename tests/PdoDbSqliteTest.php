@@ -173,6 +173,12 @@ final class PdoDbSqliteTest extends TestCase
         $this->assertEquals('Dana', $results[0]['name']);
     }
 
+    public function testConfigHelper(): void
+    {
+        self::$db->rawQuery(Db::config('foreign_keys', 'OFF'));
+        $this->assertEquals('PRAGMA FOREIGN_KEYS = OFF', self::$db->lastQuery);
+    }
+
     public function testInsertMultiWithRawValues(): void
     {
         $db = self::$db;
@@ -403,7 +409,7 @@ final class PdoDbSqliteTest extends TestCase
         // (offset = 2)
         $nextTwo = $db->find()
             ->from('users')
-            ->orderBy('id' ,'ASC')
+            ->orderBy('id', 'ASC')
             ->limit(2)
             ->offset(2)
             ->get();

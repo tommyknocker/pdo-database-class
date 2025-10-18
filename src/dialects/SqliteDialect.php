@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\dialects;
 use InvalidArgumentException;
 use PDO;
 use RuntimeException;
+use tommyknocker\pdodb\helpers\ConfigValue;
 use tommyknocker\pdodb\helpers\RawValue;
 
 class SqliteDialect extends DialectAbstract implements DialectInterface
@@ -195,6 +196,17 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
     public function now(?string $diff = ''): string
     {
         return $diff ? "DATETIME('now','{$diff}')" : 'CURRENT_TIMESTAMP';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function config(ConfigValue $value): RawValue
+    {
+        $sql = "PRAGMA " . strtoupper($value->getValue())
+            . ($value->getUseEqualSign() ? ' = ' : ' ')
+            . ($value->getQuoteValue() ? '\'' . $value->getParams()[0] . '\'' : $value->getParams()[0]);
+        return new RawValue($sql);
     }
 
     /**

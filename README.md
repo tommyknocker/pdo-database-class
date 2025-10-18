@@ -273,9 +273,9 @@ $db->find()->table('users')->insert([
 ### PdoDb Main Class
 
 * **find()**: returns QueryBuilder instance.
-* **rawQuery(string, array)**: execute raw SQL, returns array of rows.
-* **rawQueryOne(string, array)**: execute raw SQL, returns first row.
-* **rawQueryValue(string, array)**: execute raw SQL, returns single value.
+* **rawQuery(string|RawValue, array $params = [])**: execute raw SQL, returns array of rows.
+* **rawQueryOne(string|RawValue, array $params = [])**: execute raw SQL, returns first row.
+* **rawQueryValue(string|RawValue, array $params = [])**: execute raw SQL, returns single value.
 * **startTransaction() / commit() / rollBack()**: transaction helpers.
 * **lock(array|string) / unlock()**: table locking helpers.
 * **setLockMethod(string)**: set lock method (READ/WRITE).
@@ -288,7 +288,7 @@ $db->find()->table('users')->insert([
 
 ### Helper Functions
 
-* **Db::raw(string)**: returns raw value expression.
+* **Db::raw(string $sql, array $params = [])**: returns raw value expression.
 * **Db::inc(int|float)**: returns increment operation array.
 * **Db::dec(int|float)**: returns decrement operation array.
 * **Db::now(?string)**: returns current timestamp with optional interval.
@@ -297,6 +297,7 @@ $db->find()->table('users')->insert([
 * **Db::like(string $column, string $pattern)**: LIKE condition.
 * **Db::ilike(string $column, string $pattern)**: ILIKE condition (OR LOWER(column) LIKE LOWER(pattern) if ILIKE is not supported).
 * **Db::not(RawValue $value)**: Inverses a RawValue condition using NOT.
+* **Db::config(string $key, mixed $value, bool $useEqualSign = true, bool $quoteValue = true)**: returns SET KEY = :value statement (e.g. SET FOREIGN_KEYS_CHECKS = 1 or SET NAMES 'utf8mb4').
 
 ### QueryBuilder Methods
 

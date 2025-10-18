@@ -31,6 +31,25 @@ class Db
     }
 
     /**
+     * Returns a ConfigValue instance representing a SET statement.
+     * e.g. SET FOREIGN_KEY_CHECKS = 1 OR SET NAMES 'utf8mb4' in MySQL and PostgreSQL or PRAGMA statements in SQLite
+     *
+     * @param string $key The column name.
+     * @param mixed $value The value to set.
+     * @param bool $useEqualSign Whether to use an equal sign (=) in the statement. Default is true.
+     * @param bool $quoteValue Whether to quote value or not.
+     * @return ConfigValue The ConfigValue instance for the SET/PRAGMA operation.
+     */
+    public static function config(
+        string $key,
+        mixed $value,
+        bool $useEqualSign = true,
+        bool $quoteValue = false
+    ): ConfigValue {
+        return new ConfigValue($key, $value, $useEqualSign, $quoteValue);
+    }
+
+    /**
      * Returns a NowValue instance representing the current timestamp with an optional difference.
      *
      * @param string|null $diff An optional time difference (e.g., '+1 day', '-2 hours').

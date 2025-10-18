@@ -10,6 +10,7 @@ use PDOStatement;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\helpers\ConfigValue;
 use tommyknocker\pdodb\helpers\EscapeValue;
 use tommyknocker\pdodb\helpers\ILikeValue;
 use tommyknocker\pdodb\helpers\RawValue;
@@ -934,13 +935,14 @@ class QueryBuilder
 
     /**
      * Execute statement
-     * @param string $sql
+     * @param string|RawValue $sql
      * @param array $params
      * @return PDOStatement
      * @throws PDOException
      */
-    public function executeStatement(string $sql, array $params = []): PDOStatement
+    public function executeStatement(string|RawValue $sql, array $params = []): PDOStatement
     {
+        $sql = $this->resolveRawValue($sql);
         $params = array_merge($this->params, $params);
         $params = $this->normalizeParams($params);
         return $this->connection->prepare($sql)->execute($params);
@@ -948,36 +950,36 @@ class QueryBuilder
 
     /**
      * Fetch all rows
-     * @param string $sql
+     * @param string|RawValue $sql
      * @param array $params
      * @return array
      * @throws PDOException
      */
-    public function fetchAll(string $sql, array $params = []): array
+    public function fetchAll(string|RawValue $sql, array $params = []): array
     {
         return $this->executeStatement($sql, $params)->fetchAll($this->fetchMode);
     }
 
     /**
      * Fetch column
-     * @param string $sql
+     * @param string|RawValue $sql
      * @param array $params
      * @return mixed
      * @throws PDOException
      */
-    public function fetchColumn(string $sql, array $params = []): mixed
+    public function fetchColumn(string|RawValue $sql, array $params = []): mixed
     {
         return $this->executeStatement($sql, $params)->fetchColumn();
     }
 
     /**
      * Fetch row
-     * @param string $sql
+     * @param string|RawValue $sql
      * @param array $params
      * @return mixed
      * @throws PDOException
      */
-    public function fetch(string $sql, array $params = []): mixed
+    public function fetch(string|RawValue $sql, array $params = []): mixed
     {
         return $this->executeStatement($sql, $params)->fetch($this->fetchMode);
     }
@@ -1188,15 +1190,19 @@ class QueryBuilder
      * Resolve RawValue instances — return dialect-specific NOW() when NowValue provided.
      * Binds any parameters from RawValue into $this->params.
      *
-     * @param RawValue $value
+     * @param string|RawValue $value
      * @return string
      */
-    protected function resolveRawValue(RawValue $value): string
+    protected function resolveRawValue(string|RawValue $value): string
     {
+        if (!$value instanceof RawValue) {
+            return $value;
+        }
         $result = match (true) {
             $value instanceof NowValue => $this->dialect->now($value->getValue()),
             $value instanceof ILikeValue => $this->dialect->ilike($value->getValue(), $value->getParams()[0]),
             $value instanceof EscapeValue => $this->connection->quote($value->getValue()),
+            $value instanceof ConfigValue => $this->dialect->config($value),
             default => $value,
         };
 

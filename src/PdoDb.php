@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb;
 use Psr\Log\LoggerInterface;
 use tommyknocker\pdodb\connection\ConnectionFactory;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\query\QueryBuilder;
 use RuntimeException;
 use PDOException;
@@ -86,11 +87,11 @@ class PdoDb
     /**
      * Execute a raw query.
      *
-     * @param string $query The raw query to be executed.
+     * @param string|RawValue $query The raw query to be executed.
      * @param array $params The parameters to be bound to the query.
      * @return array The result of the query.
      */
-    public function rawQuery(string $query, array $params = []): array
+    public function rawQuery(string|RawValue $query, array $params = []): array
     {
         return $this->find()->fetchAll($query, $params);
     }
@@ -98,11 +99,11 @@ class PdoDb
     /**
      * Execute a raw query and return the first row.
      *
-     * @param string $query The raw query to be executed.
+     * @param string|RawValue $query The raw query to be executed.
      * @param array $params The parameters to be bound to the query.
      * @return array The first row of the result.
      */
-    public function rawQueryOne(string $query, array $params = []): array
+    public function rawQueryOne(string|RawValue $query, array $params = []): array
     {
         return $this->find()->fetch($query, $params);
     }
@@ -110,11 +111,11 @@ class PdoDb
     /**
      * Execute a raw query and return the value of the first column of the first row.
      *
-     * @param string $query The raw query to be executed.
+     * @param string|RawValue $query The raw query to be executed.
      * @param array $params The parameters to be bound to the query.
      * @return mixed The value of the first column of the first row.
      */
-    public function rawQueryValue(string $query, array $params = []): mixed
+    public function rawQueryValue(string|RawValue $query, array $params = []): mixed
     {
         return $this->find()->fetchColumn($query, $params);
     }

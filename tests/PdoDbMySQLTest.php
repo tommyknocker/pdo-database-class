@@ -240,10 +240,17 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertEquals('Dana', $results[0]['name']);
     }
 
+    public function testConfigHelper(): void
+    {
+        self::$db->rawQuery(Db::config('FOREIGN_KEY_CHECKS', 0));
+        $this->assertEquals('SET FOREIGN_KEY_CHECKS = 0', self::$db->lastQuery);
+        self::$db->rawQuery(Db::config('NAMES', 'utf8mb4', false, true));
+        $this->assertEquals('SET NAMES \'utf8mb4\'', self::$db->lastQuery);
+    }
+
     public function testInsertMultiWithRawValues(): void
     {
         $db = self::$db;
-
 
         $rows = [
             ['name' => 'multi_raw_1', 'age' => 10, 'created_at' => Db::now()],
@@ -367,7 +374,6 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertGreaterThan(30, $rows[0]['age']);
         $this->assertStringContainsString('updated', $rows[0]['name']);
     }
-
 
 
     public function testSelectWithQueryOption(): void
@@ -515,7 +521,7 @@ final class PdoDbMySQLTest extends TestCase
         // (offset = 2)
         $nextTwo = $db->find()
             ->from('users')
-            ->orderBy('id' ,'ASC')
+            ->orderBy('id', 'ASC')
             ->limit(2)
             ->offset(2)
             ->get();
@@ -1465,7 +1471,7 @@ final class PdoDbMySQLTest extends TestCase
 
     public function testLoadCsv()
     {
-        if(!getenv('ALL_TESTS')) {
+        if (!getenv('ALL_TESTS')) {
             $this->markTestSkipped('Github actions run failed');
         }
         $db = self::$db;
@@ -1490,7 +1496,7 @@ final class PdoDbMySQLTest extends TestCase
 
     public function testLoadXml(): void
     {
-        if(!getenv('ALL_TESTS')) {
+        if (!getenv('ALL_TESTS')) {
             $this->markTestSkipped('Github actions run failed');
         }
         $file = sys_get_temp_dir() . '/users.xml';
@@ -1579,7 +1585,7 @@ XML
         $db = self::$db;
         $columns = $db->describe('users');
         $this->assertNotEmpty($columns);
-        
+
         $columnNames = array_column($columns, 'Field');
         $this->assertContains('id', $columnNames);
         $this->assertContains('name', $columnNames);
@@ -1588,14 +1594,14 @@ XML
         $this->assertContains('status', $columnNames);
         $this->assertContains('created_at', $columnNames);
         $this->assertContains('updated_at', $columnNames);
-        
+
         $idColumn = $columns[0];
         $this->assertEquals('id', $idColumn['Field']);
         $this->assertEquals('int', strtolower($idColumn['Type']));
         $this->assertEquals('NO', $idColumn['Null']);
         $this->assertEquals('PRI', $idColumn['Key']);
         $this->assertEquals('auto_increment', $idColumn['Extra']);
-        
+
         foreach ($columns as $column) {
             $this->assertArrayHasKey('Field', $column);
             $this->assertArrayHasKey('Type', $column);
@@ -1611,12 +1617,12 @@ XML
         $db = self::$db;
         $columns = $db->describe('orders');
         $this->assertNotEmpty($columns);
-        
+
         $columnNames = array_column($columns, 'Field');
         $this->assertContains('id', $columnNames);
         $this->assertContains('user_id', $columnNames);
         $this->assertContains('amount', $columnNames);
-        
+
         $userIdColumn = null;
         foreach ($columns as $column) {
             if ($column['Field'] === 'user_id') {
@@ -1633,62 +1639,62 @@ XML
     public function testPrefixMethod(): void
     {
         $db = self::$db;
-        
+
         $queryBuilder = $db->find()->prefix('test_')->from('users');
-        
+
         $db->rawQuery("CREATE TABLE IF NOT EXISTS test_prefixed_table (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(100)
         )");
-        
+
         $id = $queryBuilder->table('prefixed_table')->insert(['name' => 'Test User']);
         $this->assertIsInt($id);
-        
+
         $user = $queryBuilder->table('prefixed_table')->where('id', $id)->getOne();
         $this->assertEquals('Test User', $user['name']);
-        
+
         $this->assertStringContainsString('`test_prefixed_table`', $db->lastQuery);
-        
+
         $db->rawQuery("DROP TABLE IF EXISTS test_prefixed_table");
     }
 
     public function testLeftJoin(): void
     {
         $db = self::$db;
-        
+
         $userId = $db->find()->table('users')->insert(['name' => 'Left Join User', 'age' => 30]);
         $db->find()->table('orders')->insert(['user_id' => $userId, 'amount' => 150.50]);
-        
+
         $results = $db->find()
             ->from('users u')
             ->leftJoin('orders o', 'u.id = o.user_id')
             ->select(['u.name', 'o.amount'])
             ->get();
-        
+
         $this->assertNotEmpty($results);
         $this->assertEquals('Left Join User', $results[0]['name']);
         $this->assertEquals('150.50', $results[0]['amount']);
-        
+
         $this->assertStringContainsString('LEFT JOIN', $db->lastQuery);
     }
 
     public function testRightJoin(): void
     {
         $db = self::$db;
-        
+
         $userId = $db->find()->table('users')->insert(['name' => 'Right Join User', 'age' => 25]);
         $db->find()->table('orders')->insert(['user_id' => $userId, 'amount' => 200.75]);
-        
+
         $results = $db->find()
             ->from('users u')
             ->rightJoin('orders o', 'u.id = o.user_id')
             ->select(['u.name', 'o.amount'])
             ->get();
-        
+
         $this->assertNotEmpty($results);
         $this->assertEquals('Right Join User', $results[0]['name']);
         $this->assertEquals('200.75', $results[0]['amount']);
-        
+
         $this->assertStringContainsString('RIGHT JOIN', $db->lastQuery);
     }
 }
