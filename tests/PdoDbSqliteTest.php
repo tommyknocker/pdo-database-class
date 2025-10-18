@@ -169,8 +169,6 @@ final class PdoDbSqliteTest extends TestCase
             ->where($notLike)
             ->get();
 
-        var_dump($db->lastQuery);
-
         $this->assertCount(1, $results);
         $this->assertEquals('Dana', $results[0]['name']);
     }
