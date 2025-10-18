@@ -14,10 +14,10 @@ use tommyknocker\pdodb\helpers\ConcatValue;
 use tommyknocker\pdodb\helpers\ConfigValue;
 use tommyknocker\pdodb\helpers\EscapeValue;
 use tommyknocker\pdodb\helpers\ILikeValue;
-use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\helpers\NowValue;
+use tommyknocker\pdodb\helpers\RawValue;
 
-class QueryBuilder
+class QueryBuilder implements QueryBuilderInterface
 {
     protected ConnectionInterface $connection;
     protected DialectInterface $dialect;
@@ -54,6 +54,37 @@ class QueryBuilder
         $this->dialect = $connection->getDialect();
         $this->prefix = $prefix;
     }
+
+    /**
+     * Return active connection instance.
+     *
+     * @return ConnectionInterface
+     */
+    public function getConnection(): ConnectionInterface
+    {
+        return $this->connection;
+    }
+
+    /**
+     * Return dialect instance used by this builder.
+     *
+     * @return DialectInterface
+     */
+    public function getDialect(): DialectInterface
+    {
+        return $this->dialect;
+    }
+
+    /**
+     * Return table prefix configured for this builder.
+     *
+     * @return string|null
+     */
+    public function getPrefix(): ?string
+    {
+        return $this->prefix;
+    }
+
 
     /**
      * Sets the table to query.
@@ -310,8 +341,11 @@ class QueryBuilder
             foreach ($exprOrColumn as $col => $val) {
                 $exprQuoted = $this->quoteQualifiedIdentifier((string)$col);
                 if ($val instanceof RawValue) {
-                    $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$this->resolveRawValue($val)}", 'cond' => $cond];
-                } elseif(is_array($value)) {
+                    $this->{$prop}[] = [
+                        'sql' => "{$exprQuoted} {$operator} {$this->resolveRawValue($val)}",
+                        'cond' => $cond
+                    ];
+                } elseif (is_array($value)) {
                     $this->params[trim($val, ':')] = $value[trim($val, ':')] ?? null;
                     $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$val}", 'cond' => $cond];
                 } else {
