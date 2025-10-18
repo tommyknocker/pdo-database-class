@@ -401,6 +401,71 @@ final class PdoDbPostgreSQLTest extends TestCase
 
     }
 
+    public function testUpdateLimit(): void
+    {
+        // @todo Implement update limit logic for PostgreSQL
+        $this->markTestSkipped('Logic not implemented for PostgreSQL dialect.');
+        $db = self::$db;
+
+
+        for ($i = 1; $i <= 7; $i++) {
+            $db->find()->table('users')->insert([
+                'name' => "Cnt{$i}",
+                'company' => 'C',
+                'age' => 20 + $i,
+                'status' => 'active',
+            ]);
+        }
+
+        // Update with limit 5
+        $db->find()->table('users')
+            ->limit(5)
+            ->update(['status' => 'inactive']);
+
+        $inactive = $db->find()
+            ->from('users')
+            ->where('status', 'inactive')
+            ->get();
+
+        $this->assertCount(5, $inactive);
+    }
+
+    public function testLimitAndOffset(): void
+    {
+        $db = self::$db;
+
+        $names = ['Alice', 'Bob', 'Charlie', 'Dana', 'Eve'];
+        foreach ($names as $i => $name) {
+            $db->find()->table('users')->insert([
+                'name' => $name,
+                'company' => 'TestCorp',
+                'age' => 20 + $i
+            ]);
+        }
+
+        // first two records (limit = 2)
+        $firstTwo = $db->find()
+            ->from('users')
+            ->orderBy('id', 'ASC')
+            ->limit(2)
+            ->get();
+
+        $this->assertCount(2, $firstTwo);
+        $this->assertEquals('Alice', $firstTwo[0]['name']);
+        $this->assertEquals('Bob', $firstTwo[1]['name']);
+
+        // (offset = 2)
+        $nextTwo = $db->find()
+            ->from('users')
+            ->orderBy('id' ,'ASC')
+            ->limit(2)
+            ->offset(2)
+            ->get();
+
+        $this->assertCount(2, $nextTwo);
+        $this->assertEquals('Charlie', $nextTwo[0]['name']);
+        $this->assertEquals('Dana', $nextTwo[1]['name']);
+    }
 
     public function testUpdateWithRawValue(): void
     {

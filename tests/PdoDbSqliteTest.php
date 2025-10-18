@@ -349,7 +349,6 @@ final class PdoDbSqliteTest extends TestCase
 
     }
 
-
     public function testUpdateLimit(): void
     {
         $db = self::$db;
@@ -377,6 +376,42 @@ final class PdoDbSqliteTest extends TestCase
         $this->assertCount(5, $inactive);
     }
 
+    public function testLimitAndOffset(): void
+    {
+        $db = self::$db;
+
+        $names = ['Alice', 'Bob', 'Charlie', 'Dana', 'Eve'];
+        foreach ($names as $i => $name) {
+            $db->find()->table('users')->insert([
+                'name' => $name,
+                'company' => 'TestCorp',
+                'age' => 20 + $i
+            ]);
+        }
+
+        // first two records (limit = 2)
+        $firstTwo = $db->find()
+            ->from('users')
+            ->orderBy('id', 'ASC')
+            ->limit(2)
+            ->get();
+
+        $this->assertCount(2, $firstTwo);
+        $this->assertEquals('Alice', $firstTwo[0]['name']);
+        $this->assertEquals('Bob', $firstTwo[1]['name']);
+
+        // (offset = 2)
+        $nextTwo = $db->find()
+            ->from('users')
+            ->orderBy('id' ,'ASC')
+            ->limit(2)
+            ->offset(2)
+            ->get();
+
+        $this->assertCount(2, $nextTwo);
+        $this->assertEquals('Charlie', $nextTwo[0]['name']);
+        $this->assertEquals('Dana', $nextTwo[1]['name']);
+    }
 
     public function testUpdateWithRawValue(): void
     {
