@@ -176,7 +176,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
                             return $m[0];
                         }
                         $left = $pos > 0 ? substr($exprStr, max(0, $pos - 9), 9) : '';
-                        if (strpos($left, '.') !== false || stripos($left, 'EXCLUDED') !== false) {
+                        if (str_contains($left, '.') || stripos($left, 'EXCLUDED') !== false) {
                             return $m[0];
                         }
                         return $replacement;
@@ -402,13 +402,14 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     * @throws \JsonException
      */
-    public function formatJsonContains(string $col, mixed $value, array|string $path = null): array|string
+    public function formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
     {
         $colQuoted = $this->quoteIdentifier($col);
         $parts = $this->normalizeJsonPath($path ?? []);
         $paramJson = ':jsonc';
-        $json = json_encode($value, JSON_UNESCAPED_UNICODE);
+        $json = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
         if (empty($parts)) {
             $sql = "{$colQuoted}::jsonb @> {$paramJson}::jsonb";
@@ -433,6 +434,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     * @throws \JsonException
      */
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
     {
@@ -460,12 +462,12 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
                 || $trim === 'true'
                 || $trim === 'false'
                 || (strlen($trim) > 0 && ($trim[0] === '{' || $trim[0] === '[' || $trim[0] === '"'));
-            $jsonText = $looksLikeJson ? $value : json_encode($value, JSON_UNESCAPED_UNICODE);
+            $jsonText = $looksLikeJson ? $value : json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         } else {
-            $jsonText = json_encode($value, JSON_UNESCAPED_UNICODE);
+            $jsonText = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         }
         if ($jsonText === false) {
-            $jsonText = json_encode((string)$value, JSON_UNESCAPED_UNICODE);
+            $jsonText = json_encode((string)$value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         }
 
         // If there is a parent path, first ensure parent exists as object: set(parentPath, COALESCE(col->parent, {}))
@@ -577,5 +579,60 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         // CASE expression: if text looks like a number, cast to numeric for ordering, otherwise NULL
         // This yields numeric values for numeric entries and NULL for non-numeric ones.
         return "CASE WHEN ({$expr}) ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN ({$expr})::numeric ELSE NULL END";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonLength(string $col, array|string|null $path = null): string
+    {
+        $colQuoted = $this->quoteIdentifier($col);
+        
+        if ($path === null) {
+            // For whole column, use jsonb_array_length for arrays, return 0 for others
+            return "CASE WHEN jsonb_typeof({$colQuoted}::jsonb) = 'array' THEN jsonb_array_length({$colQuoted}::jsonb) ELSE 0 END";
+        }
+        
+        $parts = $this->normalizeJsonPath($path);
+        $arr = "ARRAY[" . implode(',', array_map(fn($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . "]";
+        $extracted = "{$colQuoted}::jsonb #> {$arr}";
+        
+        return "CASE WHEN jsonb_typeof({$extracted}) = 'array' THEN jsonb_array_length({$extracted}) ELSE 0 END";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonKeys(string $col, array|string|null $path = null): string
+    {
+        $colQuoted = $this->quoteIdentifier($col);
+        
+        if ($path === null) {
+            // Return JSON array of keys (simplified - in practice would need aggregation)
+            return "'{}'::jsonb";
+        }
+        
+        $parts = $this->normalizeJsonPath($path);
+        $arr = "ARRAY[" . implode(',', array_map(fn($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . "]";
+        
+        return "'{}'::jsonb";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonType(string $col, array|string|null $path = null): string
+    {
+        $colQuoted = $this->quoteIdentifier($col);
+        
+        if ($path === null) {
+            return "jsonb_typeof({$colQuoted}::jsonb)";
+        }
+        
+        $parts = $this->normalizeJsonPath($path);
+        $arr = "ARRAY[" . implode(',', array_map(fn($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . "]";
+        $extracted = "{$colQuoted}::jsonb #> {$arr}";
+        
+        return "jsonb_typeof({$extracted})";
     }
 }

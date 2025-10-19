@@ -12,8 +12,10 @@ class RawValue
     protected array $params = [];
 
     /**
-     * @param string $value
-     * @param array $params
+     * Constructor
+     *
+     * @param string $value The raw SQL value.
+     * @param array $params Optional parameters for prepared statements.
      */
     public function __construct(string $value, array $params = [])
     {
@@ -21,11 +23,21 @@ class RawValue
         $this->params = $params;
     }
 
+    /**
+     * Get the raw SQL value.
+     *
+     * @return string The raw SQL value.
+     */
     public function getValue(): string
     {
         return $this->value;
     }
 
+    /**
+     * Get the parameters for prepared statements.
+     *
+     * @return array The parameters.
+     */
     public function getParams(): array
     {
         return $this->params;

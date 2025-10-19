@@ -20,6 +20,7 @@ Inspired by https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 * **Transaction helpers** and table locking primitives adapted to each engine.
 * **Connection pooling** support for multiple database connections.
 * **Helper functions** for common operations (`Db::raw()`, `Db::inc()`, `Db::dec()`, `Db::now()`, and many others).
+* **JSON support**: unified API for JSON operations with dialect-specific implementations (`jsonPath()`, `jsonContains()`, `jsonExists()`, `jsonGet()`, `jsonLength()`, and more).
 * **Comprehensive** tests across three dialects ensuring consistent behavior.
 
 ---
@@ -266,6 +267,76 @@ $db->find()->table('users')->insert([
 ]);
 ```
 
+### JSON helpers
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Create JSON data
+$db->find()->table('users')->insert([
+    'name' => 'John',
+    'meta' => Db::jsonObject(['city' => 'NYC', 'age' => 30]),
+    'tags' => Db::jsonArray('php', 'mysql', 'docker')
+]);
+
+// Query by JSON path
+$adults = $db->find()
+    ->from('users')
+    ->where(Db::jsonPath('meta', ['age'], '>=', 18))
+    ->get();
+
+// Check JSON contains value
+$phpDevs = $db->find()
+    ->from('users')
+    ->where(Db::jsonContains('tags', 'php'))
+    ->get();
+
+// Check multiple values (subset matching)
+$fullStack = $db->find()
+    ->from('users')
+    ->where(Db::jsonContains('tags', ['php', 'mysql']))
+    ->get();
+
+// Check if JSON path exists
+$withCity = $db->find()
+    ->from('users')
+    ->where(Db::jsonExists('meta', ['city']))
+    ->get();
+
+// Extract JSON value in SELECT
+$names = $db->find()
+    ->from('users')
+    ->select(['id', 'city' => Db::jsonGet('meta', ['city'])])
+    ->get();
+
+// Order by JSON value
+$sorted = $db->find()
+    ->from('users')
+    ->orderBy(Db::jsonGet('meta', ['age']), 'DESC')
+    ->get();
+
+// Get JSON array/object length
+$withManyTags = $db->find()
+    ->from('users')
+    ->where(Db::jsonLength('tags'), 3, '>')
+    ->get();
+
+// Get JSON value type
+$arrayFields = $db->find()
+    ->from('users')
+    ->select(['id', 'tags_type' => Db::jsonType('tags')])
+    ->get();
+
+// Combine JSON helpers
+$active = $db->find()
+    ->from('users')
+    ->where(Db::jsonPath('meta', ['age'], '>', 25))
+    ->where(Db::jsonContains('tags', 'php'))
+    ->where(Db::jsonExists('meta', ['verified']))
+    ->orderBy(Db::jsonGet('meta', ['priority']), 'DESC')
+    ->get();
+```
+
 ---
 
 ## Public API overview
@@ -349,6 +420,19 @@ Use `Db::raw(string $value, ?array $params)` for SQL fragments that must bypass 
 * **Db::default()**: returns DEFAULT value for SQL. (not supported in Sqlite).
 * **Db::true()**: returns TRUE value for SQL.
 * **Db::false()**: returns FALSE value for SQL.
+
+#### JSON Helper Functions
+
+* **Db::jsonPath(string $column, array|string $path, string $operator, mixed $value)**: compare JSON value at path with given operator.
+* **Db::jsonContains(string $column, mixed $value, array|string|null $path = null)**: check if JSON contains value (supports arrays for subset matching).
+* **Db::jsonExists(string $column, array|string $path)**: check if JSON path exists.
+* **Db::jsonGet(string $column, array|string $path, bool $asText = true)**: extract JSON value at path (useful in SELECT, ORDER BY, GROUP BY).
+* **Db::jsonExtract(...)**: alias for `jsonGet()`.
+* **Db::jsonLength(string $column, array|string|null $path = null)**: get length of JSON array or number of keys in object.
+* **Db::jsonKeys(string $column, array|string|null $path = null)**: get keys of JSON object.
+* **Db::jsonType(string $column, array|string|null $path = null)**: get type of JSON value (e.g., 'array', 'object', 'string', 'number', 'boolean', 'null').
+* **Db::jsonArray(...$values)**: create JSON array string from values.
+* **Db::jsonObject(array $pairs)**: create JSON object string from key-value pairs.
 
 ---
 

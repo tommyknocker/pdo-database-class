@@ -2287,7 +2287,7 @@ XML
         $this->assertEquals(10, $scores[1]);
     }
 
-    public function testJsonMethodsEdgeCases()
+    public function testJsonMethodsEdgeCases(): void
     {
         $db = self::$db;
 
@@ -2449,5 +2449,95 @@ XML
             ->where('id', $specId)
             ->exists();
         $this->assertTrue($containsSubset);
+    }
+
+    public function testJsonHelpers()
+    {
+        $db = self::$db;
+
+        // Create test table
+        $db->rawQuery('DROP TABLE IF EXISTS t_json_helpers');
+        $db->rawQuery("CREATE TABLE t_json_helpers (id INT AUTO_INCREMENT PRIMARY KEY, data JSON)");
+
+        // Insert test data using Db::jsonObject and Db::jsonArray
+        $id1 = $db->find()->table('t_json_helpers')->insert([
+            'data' => Db::jsonObject(['name' => 'Alice', 'age' => 30, 'tags' => ['php', 'mysql']])
+        ]);
+        $this->assertIsInt($id1);
+
+        $id2 = $db->find()->table('t_json_helpers')->insert([
+            'data' => Db::jsonObject(['name' => 'Bob', 'age' => 25, 'items' => [1, 2, 3, 4, 5]])
+        ]);
+        $this->assertIsInt($id2);
+
+        // Test Db::jsonPath - compare JSON value
+        $results = $db->find()
+            ->table('t_json_helpers')
+            ->where(Db::jsonPath('data', ['age'], '>', 27))
+            ->get();
+        $this->assertCount(1, $results);
+        $this->assertEquals($id1, $results[0]['id']);
+
+        // Test Db::jsonContains - check if value exists
+        $hasPhp = $db->find()
+            ->table('t_json_helpers')
+            ->where(Db::jsonContains('data', 'php', ['tags']))
+            ->exists();
+        $this->assertTrue($hasPhp);
+
+        // Test Db::jsonExists - check if path exists
+        $hasItems = $db->find()
+            ->table('t_json_helpers')
+            ->where(Db::jsonExists('data', ['items']))
+            ->where('id', $id2)
+            ->exists();
+        $this->assertTrue($hasItems);
+
+        // Test Db::jsonGet in SELECT
+        $row = $db->find()
+            ->table('t_json_helpers')
+            ->select(['id', 'name' => Db::jsonGet('data', ['name'])])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertEquals('Alice', $row['name']);
+
+        // Test Db::jsonLength - get array/object length
+        $row = $db->find()
+            ->table('t_json_helpers')
+            ->select(['id', 'items_count' => Db::jsonLength('data', ['items'])])
+            ->where('id', $id2)
+            ->getOne();
+        $this->assertEquals(5, (int)$row['items_count']);
+
+        // Test Db::jsonType - get JSON type
+        $row = $db->find()
+            ->table('t_json_helpers')
+            ->select(['id', 'tags_type' => Db::jsonType('data', ['tags'])])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertEquals('ARRAY', strtoupper($row['tags_type']));
+
+        // Test Db::jsonGet in ORDER BY
+        $sorted = $db->find()
+            ->table('t_json_helpers')
+            ->select(['id'])
+            ->orderBy(Db::jsonGet('data', ['age']), 'ASC')
+            ->getColumn();
+        $this->assertEquals([$id2, $id1], $sorted); // Bob (25) before Alice (30)
+
+        // Test Db::jsonLength in WHERE condition
+        $manyItems = $db->find()
+            ->table('t_json_helpers')
+            ->where(Db::jsonLength('data', ['items']), 3, '>')
+            ->get();
+        $this->assertCount(1, $manyItems);
+        $this->assertEquals($id2, $manyItems[0]['id']);
+
+        // Test that jsonPath works with different operators
+        $ageEq = $db->find()
+            ->table('t_json_helpers')
+            ->where(Db::jsonPath('data', ['age'], '=', 25))
+            ->getOne();
+        $this->assertEquals($id2, $ageEq['id']);
     }
 }

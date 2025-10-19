@@ -23,16 +23,16 @@ interface QueryBuilderInterface
 
     // Select / projection
     public function select(RawValue|string|array $cols): self;
-    public function get(): mixed;
+    public function get(): array;
     public function getOne(): mixed;
     public function getColumn(): array;
     public function getValue(): mixed;
 
     // DML: insert / update / delete / replace
-    public function insert(array $data, array $onDuplicate = []): mixed;
-    public function insertMulti(array $rows, array $onDuplicate = []): mixed;
-    public function replace(array $data, array $onDuplicate = []): mixed;
-    public function replaceMulti(array $rows, array $onDuplicate = []): mixed;
+    public function insert(array $data, array $onDuplicate = []): int;
+    public function insertMulti(array $rows, array $onDuplicate = []): int;
+    public function replace(array $data, array $onDuplicate = []): int;
+    public function replaceMulti(array $rows, array $onDuplicate = []): int;
     public function update(array $data): int;
     public function delete(): int;
     public function truncate(): bool;

@@ -14,6 +14,13 @@ use tommyknocker\pdodb\helpers\ConcatValue;
 use tommyknocker\pdodb\helpers\ConfigValue;
 use tommyknocker\pdodb\helpers\EscapeValue;
 use tommyknocker\pdodb\helpers\ILikeValue;
+use tommyknocker\pdodb\helpers\JsonContainsValue;
+use tommyknocker\pdodb\helpers\JsonExistsValue;
+use tommyknocker\pdodb\helpers\JsonGetValue;
+use tommyknocker\pdodb\helpers\JsonKeysValue;
+use tommyknocker\pdodb\helpers\JsonLengthValue;
+use tommyknocker\pdodb\helpers\JsonPathValue;
+use tommyknocker\pdodb\helpers\JsonTypeValue;
 use tommyknocker\pdodb\helpers\NowValue;
 use tommyknocker\pdodb\helpers\RawValue;
 
@@ -157,10 +164,10 @@ class QueryBuilder implements QueryBuilderInterface
 
     /**
      * Execute SELECT statement and return all rows
-     * @return mixed
+     * @return array
      * @throws PDOException
      */
-    public function get(): mixed
+    public function get(): array
     {
         $sql = $this->buildSelectSql();
         return $this->fetchAll($sql, $this->params);
@@ -219,7 +226,7 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array $onDuplicate The columns to update on duplicate.
      * @return mixed The result of the insert operation.
      */
-    public function insert(array $data, array $onDuplicate = []): mixed
+    public function insert(array $data, array $onDuplicate = []): int
     {
         $this->data = $data;
         if ($onDuplicate) {
@@ -234,9 +241,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param array $rows The rows to insert.
      * @param array $onDuplicate The columns to update on duplicate.
-     * @return mixed The result of the insert operation.
+     * @return int The result of the insert operation.
      */
-    public function insertMulti(array $rows, array $onDuplicate = []): mixed
+    public function insertMulti(array $rows, array $onDuplicate = []): int
     {
         if (empty($rows)) {
             throw new RuntimeException('insertMulti requires at least one row');
@@ -254,9 +261,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param array $data The data to replace.
      * @param array $onDuplicate The columns to update on duplicate.
-     * @return mixed The result of the replace operation.
+     * @return int The result of the replace operation.
      */
-    public function replace(array $data, array $onDuplicate = []): mixed
+    public function replace(array $data, array $onDuplicate = []): int
     {
         $this->data = $data;
 
@@ -288,7 +295,7 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array $onDuplicate The columns to update on duplicate.
      * @return mixed The result of the replace operation.
      */
-    public function replaceMulti(array $rows, array $onDuplicate = []): mixed
+    public function replaceMulti(array $rows, array $onDuplicate = []): int
     {
         if (empty($rows)) {
             throw new RuntimeException('replaceMulti requires at least one row');
@@ -836,7 +843,7 @@ class QueryBuilder implements QueryBuilderInterface
             return $this;
         }
 
-        $ph = $this->makeParam("json_" . (is_string($col) ? $col : 'col'));
+        $ph = $this->makeParam("json_" . ($col));
         $this->params[$ph] = $value;
         $this->where[] = ['sql' => "{$expr} {$operator} {$ph}", 'cond' => 'AND'];
         return $this;
@@ -858,7 +865,7 @@ class QueryBuilder implements QueryBuilderInterface
         if (is_array($res)) {
             [$sql, $params] = $res;
             foreach ($params as $k => $v) {
-                $old = strpos($k, ':') === 0 ? $k : ':' . $k;
+                $old = str_starts_with($k, ':') ? $k : ':' . $k;
                 $new = $this->makeParam('jsonc_' . ltrim($old, ':'));
                 $this->params[$new] = $v;
                 $sql = strtr($sql, [$old => $new]);
@@ -890,7 +897,7 @@ class QueryBuilder implements QueryBuilderInterface
         // integrate params into RawValue with unique placeholders
         $paramMap = [];
         foreach ($params as $k => $v) {
-            $old = strpos($k, ':') === 0 ? $k : ':' . $k;
+            $old = str_starts_with($k, ':') ? $k : ':' . $k;
             $new = $this->makeParam('jsonset_' . ltrim($old, ':'));
             $paramMap[$old] = $new;
             $this->params[$new] = $v;
@@ -1452,7 +1459,7 @@ class QueryBuilder implements QueryBuilderInterface
     {
         $out = [];
         foreach ($params as $k => $v) {
-            $key = is_string($k) ? (strpos($k, ':') === 0 ? $k : ':' . $k) : $k;
+            $key = is_string($k) && !str_starts_with($k, ':') ? ":$k" : $k;
             $out[$key] = $v;
         }
         return $out;
@@ -1476,6 +1483,13 @@ class QueryBuilder implements QueryBuilderInterface
             $value instanceof EscapeValue => $this->connection->quote($value->getValue()),
             $value instanceof ConfigValue => $this->dialect->config($value),
             $value instanceof ConcatValue => $this->dialect->concat($value),
+            $value instanceof JsonGetValue => $this->dialect->formatJsonGet($value->getColumn(), $value->getPath(), $value->getAsText()),
+            $value instanceof JsonLengthValue => $this->dialect->formatJsonLength($value->getColumn(), $value->getPath()),
+            $value instanceof JsonKeysValue => $this->dialect->formatJsonKeys($value->getColumn(), $value->getPath()),
+            $value instanceof JsonTypeValue => $this->dialect->formatJsonType($value->getColumn(), $value->getPath()),
+            $value instanceof JsonPathValue => $this->resolveJsonPathValue($value),
+            $value instanceof JsonContainsValue => $this->resolveJsonContainsValue($value),
+            $value instanceof JsonExistsValue => $this->dialect->formatJsonExists($value->getColumn(), $value->getPath()),
             default => $value,
         };
 
@@ -1505,5 +1519,50 @@ class QueryBuilder implements QueryBuilderInterface
 
         // Replace old parameter names with new ones in SQL
         return strtr($sql, $paramMap);
+    }
+
+    /**
+     * Resolve JsonPathValue - build comparison expression
+     *
+     * @param JsonPathValue $value
+     * @return string
+     */
+    protected function resolveJsonPathValue(JsonPathValue $value): string
+    {
+        $expr = $this->dialect->formatJsonGet($value->getColumn(), $value->getPath(), true);
+        $compareValue = $value->getCompareValue();
+        
+        if ($compareValue instanceof RawValue) {
+            $right = $this->resolveRawValue($compareValue);
+            return "{$expr} {$value->getOperator()} {$right}";
+        }
+        
+        $ph = $this->makeParam("jsonpath_" . $value->getColumn());
+        $this->params[$ph] = $compareValue;
+        return "{$expr} {$value->getOperator()} {$ph}";
+    }
+
+    /**
+     * Resolve JsonContainsValue - build contains check expression
+     *
+     * @param JsonContainsValue $value
+     * @return string
+     */
+    protected function resolveJsonContainsValue(JsonContainsValue $value): string
+    {
+        $res = $this->dialect->formatJsonContains($value->getColumn(), $value->getSearchValue(), $value->getPath());
+        
+        if (is_array($res)) {
+            [$sql, $params] = $res;
+            foreach ($params as $k => $v) {
+                $old = strpos($k, ':') === 0 ? $k : ':' . $k;
+                $new = $this->makeParam('jsonc_' . ltrim($old, ':'));
+                $this->params[$new] = $v;
+                $sql = strtr($sql, [$old => $new]);
+            }
+            return $sql;
+        }
+        
+        return $res;
     }
 }

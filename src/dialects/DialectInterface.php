@@ -62,14 +62,14 @@ interface DialectInterface
 
     /**
      * Build insert sql
-     * @param string $fullTable
+     * @param string $table
      * @param array $columns
      * @param array $placeholders
      * @param array $options
      * @return string
      */
     public function buildInsertSql(
-        string $fullTable,
+        string $table,
         array $columns,
         array $placeholders,
         array $options
@@ -153,6 +153,30 @@ interface DialectInterface
      * @return string
      */
     public function formatJsonOrderExpr(string $col, array|string $path): string;
+
+    /**
+     * Format JSON_LENGTH expression
+     * @param string $col
+     * @param array|string|null $path
+     * @return string
+     */
+    public function formatJsonLength(string $col, array|string|null $path = null): string;
+
+    /**
+     * Format JSON_KEYS expression
+     * @param string $col
+     * @param array|string|null $path
+     * @return string
+     */
+    public function formatJsonKeys(string $col, array|string|null $path = null): string;
+
+    /**
+     * Format JSON_TYPE expression
+     * @param string $col
+     * @param array|string|null $path
+     * @return string
+     */
+    public function formatJsonType(string $col, array|string|null $path = null): string;
 
 
     /* ---------------- SQL helpers and dialect-specific expressions ---------------- */

@@ -378,9 +378,9 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         $param = ':' .  substr(md5($col . '|' . $jsonPath), 0, 8);
 
         // single json_encode call, avoid double-encoding
-        $jsonText = json_encode($value, JSON_UNESCAPED_UNICODE);
+        $jsonText = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         if ($jsonText === false) {
-            $jsonText = json_encode((string)$value, JSON_UNESCAPED_UNICODE);
+            $jsonText = json_encode((string)$value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         }
 
         // If nested path, ensure parent exists as object before setting child
@@ -497,6 +497,78 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         return "({$unquoted} + 0)";
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonLength(string $col, array|string|null $path = null): string
+    {
+        $colQuoted = $this->quoteIdentifier($col);
+        
+        if ($path === null) {
+            return "JSON_LENGTH({$colQuoted})";
+        }
+        
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            if (preg_match('/^\d+$/', (string)$p)) {
+                $jsonPath .= '[' . $p . ']';
+            } else {
+                $jsonPath .= '.' . $p;
+            }
+        }
+        
+        return "JSON_LENGTH({$colQuoted}, '{$jsonPath}')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonKeys(string $col, array|string|null $path = null): string
+    {
+        $colQuoted = $this->quoteIdentifier($col);
+        
+        if ($path === null) {
+            return "JSON_KEYS({$colQuoted})";
+        }
+        
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            if (preg_match('/^\d+$/', (string)$p)) {
+                $jsonPath .= '[' . $p . ']';
+            } else {
+                $jsonPath .= '.' . $p;
+            }
+        }
+        
+        return "JSON_KEYS({$colQuoted}, '{$jsonPath}')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonType(string $col, array|string|null $path = null): string
+    {
+        $colQuoted = $this->quoteIdentifier($col);
+        
+        if ($path === null) {
+            return "JSON_TYPE({$colQuoted})";
+        }
+        
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            if (preg_match('/^\d+$/', (string)$p)) {
+                $jsonPath .= '[' . $p . ']';
+            } else {
+                $jsonPath .= '.' . $p;
+            }
+        }
+        
+        return "JSON_TYPE(JSON_EXTRACT({$colQuoted}, '{$jsonPath}'))";
+    }
+
     private function buildJsonPath(array|string $path): string
     {
         $parts = $this->normalizeJsonPath($path);
@@ -509,9 +581,9 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
 
     private function toJsonText(mixed $value): string
     {
-        $json = json_encode($value, JSON_UNESCAPED_UNICODE);
+        $json = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         if ($json === false) {
-            return json_encode((string)$value, JSON_UNESCAPED_UNICODE);
+            return json_encode((string)$value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         }
         return $json;
     }
