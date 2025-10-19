@@ -5,6 +5,11 @@ composer.lock
 .phpunit.cache
 .phpunit.result.cache
 
+# Coverage reports
+coverage-*.xml
+coverage/
+.coverage
+
 # Examples
 examples/config.php
 examples/**/*.db

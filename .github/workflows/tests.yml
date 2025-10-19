@@ -1,4 +1,4 @@
-name: CI
+name: Tests
 
 on:
   push:
@@ -28,12 +28,20 @@ jobs:
         with:
           php-version: '8.4'
           extensions: pdo_mysql
+          coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
       - run: |
           DB_DSN="mysql:host=127.0.0.1;port=3306;dbname=testdb;charset=utf8mb4" \
           DB_USER="testuser" \
           DB_PASS="testpass" \
-          vendor/bin/phpunit tests/PdoDbMySQLTest.php
+          vendor/bin/phpunit tests/PdoDbMySQLTest.php --coverage-clover coverage-mysql.xml
+      - name: Upload MySQL coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage-mysql.xml
+          flags: mysql
+          name: mysql-coverage
 
   postgres:
     runs-on: ubuntu-latest
@@ -57,12 +65,20 @@ jobs:
         with:
           php-version: '8.4'
           extensions: pdo_pgsql
+          coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
       - run: |
           DB_DSN="pgsql:host=localhost;port=5433;dbname=testdb" \
           DB_USER="testuser" \
           DB_PASS="testpass" \
-          vendor/bin/phpunit tests/PdoDbPostgreSQLTest.php
+          vendor/bin/phpunit tests/PdoDbPostgreSQLTest.php --coverage-clover coverage-postgres.xml
+      - name: Upload PostgreSQL coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage-postgres.xml
+          flags: postgres
+          name: postgres-coverage
 
   sqlite:
     runs-on: ubuntu-latest
@@ -72,7 +88,15 @@ jobs:
         with:
           php-version: '8.4'
           extensions: pdo_sqlite
+          coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
       - run: |
           DB_DSN="sqlite::memory:" \
-          vendor/bin/phpunit tests/PdoDbSqliteTest.php
+          vendor/bin/phpunit tests/PdoDbSqliteTest.php --coverage-clover coverage-sqlite.xml
+      - name: Upload SQLite coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage-sqlite.xml
+          flags: sqlite
+          name: sqlite-coverage

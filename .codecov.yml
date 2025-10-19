@@ -1,0 +1,43 @@
+codecov:
+  require_ci_to_pass: yes
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  
+  status:
+    project:
+      default:
+        target: 75%
+        threshold: 2%
+        if_ci_failed: error
+    patch:
+      default:
+        target: 75%
+        threshold: 2%
+
+comment:
+  layout: "reach,diff,flags,files,footer"
+  behavior: default
+  require_changes: false
+
+flags:
+  mysql:
+    paths:
+      - src/
+    carryforward: true
+  postgres:
+    paths:
+      - src/
+    carryforward: true
+  sqlite:
+    paths:
+      - src/
+    carryforward: true
+
+ignore:
+  - "tests/"
+  - "examples/"
+  - "vendor/"
+
