@@ -329,11 +329,21 @@ class Connection implements ConnectionInterface
         return $this->lastQuery;
     }
 
+    /**
+     * Returns the last error message.
+     *
+     * @return string|null The last error message or null if no error has occurred.
+     */
     public function getLastError(): ?string
     {
         return $this->lastError;
     }
 
+    /**
+     * Returns the last error number.
+     *
+     * @return int The last error number.
+     */
     public function getLastErrno(): int
     {
         return $this->lastErrno;

@@ -1,27 +1,80 @@
 # PDOdb
 
-Lightweight PHP database library with unified API for MySQL, PostgreSQL & SQLite. Features fluent QueryBuilder, 
-connection pooling, UPSERT support, bulk inserts, CSV/XML loaders, and comprehensive testing.
+[![PHP Version](https://img.shields.io/badge/php-%3E%3D8.4-blue.svg)](https://php.net)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)]()
 
-Inspired by https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
+**PDOdb** is a lightweight, framework-agnostic PHP database library providing a **unified API** across MySQL, PostgreSQL, and SQLite.
+
+Built on top of PDO with **zero external dependencies**, it offers:
+- Fluent query builder with intuitive syntax
+- Automatic SQL dialect handling for cross-database compatibility
+- Native JSON support with consistent API across all databases
+- Production-ready features: transactions, bulk operations, connection pooling
+- Fully tested with comprehensive test coverage
+
+Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class)
 
 ---
 
-## Key features
+## Table of Contents
 
-* **Unified API** across MySQL, PostgreSQL and SQLite.
-* **QueryBuilder**: fluent, expressive construction for `SELECT`/`INSERT`/`UPDATE`/`DELETE`, `GROUP`/`HAVING`, `JOIN`, etc.
-* **Safe parameter binding**: automatic placeholders and unique names for multi-row inserts.
-* **Multi-row inserts** with efficient parameter generation.
-* **UPSERT support**: generates dialect-appropriate UPSERT (`ON CONFLICT` for SQLite/Postgres, `ON DUPLICATE KEY UPDATE` for MySQL).
-* **RawValue support** for injecting safe SQL expressions where needed.
-* **Bulk loaders**: CSV loader (`COPY`/`LOAD DATA` when available) and XML loader.
-* **Dialect helpers**: identifier quoting, type mapping, and small semantics (`REPLACE` vs `UPSERT`) handled per driver.
-* **Transaction helpers** and table locking primitives adapted to each engine.
-* **Connection pooling** support for multiple database connections.
-* **Helper functions** for common operations (`Db::raw()`, `Db::inc()`, `Db::dec()`, `Db::now()`, and many others).
-* **JSON support**: unified API for JSON operations with dialect-specific implementations (`jsonPath()`, `jsonContains()`, `jsonExists()`, `jsonGet()`, `jsonLength()`, and more).
-* **Comprehensive** tests across three dialects ensuring consistent behavior.
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quick Example](#quick-example)
+- [Configuration](#configuration)
+  - [MySQL Configuration](#mysql-configuration)
+  - [PostgreSQL Configuration](#postgresql-configuration)
+  - [SQLite Configuration](#sqlite-configuration)
+  - [Connection Pooling](#connection-pooling)
+- [Quick Start](#quick-start)
+  - [Basic CRUD Operations](#basic-crud-operations)
+  - [Filtering and Joining](#filtering-and-joining)
+  - [Bulk Operations](#bulk-operations)
+  - [Transactions](#transactions)
+- [JSON Operations](#json-operations)
+  - [Creating JSON Data](#creating-json-data)
+  - [Querying JSON](#querying-json)
+  - [Extracting JSON Values](#extracting-json-values)
+- [Advanced Usage](#advanced-usage)
+  - [Raw Queries](#raw-queries)
+  - [Complex Conditions](#complex-conditions)
+  - [Subqueries](#subqueries)
+  - [Schema Support](#schema-support-postgresql)
+- [Error Handling](#error-handling)
+- [Performance Tips](#performance-tips)
+- [Debugging](#debugging)
+- [Helper Functions Reference](#helper-functions-reference)
+- [Public API Reference](#public-api-reference)
+- [Dialect Differences](#dialect-differences)
+- [Troubleshooting](#troubleshooting)
+- [Testing](#testing)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Requirements
+
+- **PHP**: 8.4 or higher
+- **PDO Extensions**: 
+  - `pdo_mysql` for MySQL/MariaDB
+  - `pdo_pgsql` for PostgreSQL
+  - `pdo_sqlite` for SQLite
+- **Supported Databases**:
+  - MySQL 5.7+ / MariaDB 10.3+
+  - PostgreSQL 12+
+  - SQLite 3.32+
+
+**For JSON support:**
+- MySQL 5.7+ / MariaDB 10.2+ (JSON functions available)
+- PostgreSQL 9.4+ (JSONB available)
+- SQLite 3.38+ (compiled with JSON1 extension)
+
+Check if your SQLite has JSON support:
+```bash
+sqlite3 :memory: "SELECT json_valid('{}')"
+```
 
 ---
 
@@ -33,13 +86,58 @@ Install via Composer:
 composer require tommyknocker/pdo-database-class
 ```
 
+For specific versions:
+
+```bash
+# Latest 1.x version
+composer require tommyknocker/pdo-database-class:^1.0
+
+# Development version
+composer require tommyknocker/pdo-database-class:dev-master
+```
+
 ---
 
-## Initialization
-
-```new PdoDb(string $driver, array $config, array $pdoOptions = [], ?LoggerInterface $logger = null);```
+## Quick Example
 
 ```php
+use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\helpers\Db;
+
+// Initialize
+$db = new PdoDb('mysql', [
+    'host' => 'localhost',
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'testdb'
+]);
+
+// Simple query
+$users = $db->find()
+    ->from('users')
+    ->where('age', 18, '>')
+    ->where(Db::jsonContains('tags', 'php'))
+    ->orderBy('created_at', 'DESC')
+    ->limit(10)
+    ->get();
+
+// Insert with JSON
+$id = $db->find()->table('users')->insert([
+    'name' => 'John',
+    'age' => 25,
+    'meta' => Db::jsonObject(['city' => 'NYC', 'active' => true])
+]);
+```
+
+---
+
+## Configuration
+
+### MySQL Configuration
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
 $db = new PdoDb('mysql', [
     'pdo'         => null,                 // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
     'host'        => '127.0.0.1',          // Required. MySQL host (e.g. 'localhost' or IP address).
@@ -57,7 +155,11 @@ $db = new PdoDb('mysql', [
 ]);
 ```
 
+### PostgreSQL Configuration
+
 ```php
+use tommyknocker\pdodb\PdoDb;
+
 $db = new PdoDb('pgsql', [
     'pdo'              => null,            // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
     'host'             => '127.0.0.1',     // Required. PostgreSQL host.
@@ -71,7 +173,7 @@ $db = new PdoDb('pgsql', [
     'sslkey'           => '/path/client.key',   // Optional. Path to SSL private key.
     'sslcert'          => '/path/client.crt',   // Optional. Path to SSL client certificate.
     'sslrootcert'      => '/path/ca.crt',       // Optional. Path to SSL root certificate.
-    'application_name' => 'MyApp',         // Optional. Application name(visible in pg_stat_activity).
+    'application_name' => 'MyApp',         // Optional. Application name (visible in pg_stat_activity).
     'connect_timeout'  => 5,               // Optional. Connection timeout in seconds.
     'hostaddr'         => '192.168.1.10',  // Optional. Direct IP address (bypasses DNS).
     'service'          => 'myservice',     // Optional. Service name from pg_service.conf.
@@ -79,7 +181,11 @@ $db = new PdoDb('pgsql', [
 ]);
 ```
 
+### SQLite Configuration
+
 ```php
+use tommyknocker\pdodb\PdoDb;
+
 $db = new PdoDb('sqlite', [
     'pdo'   => null,                       // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
     'path'  => '/path/to/database.sqlite', // Required. Path to SQLite database file.
@@ -92,446 +198,1174 @@ $db = new PdoDb('sqlite', [
 
 ### Connection Pooling
 
+Manage multiple database connections and switch between them:
+
 ```php
+use tommyknocker\pdodb\PdoDb;
+
+// Initialize without a default connection
 $db = new PdoDb();
 
 // Add multiple connections
-$db->addConnection('mysql', ['driver' => 'mysql', 'host' => 'localhost', /* ... */]);
-$db->addConnection('pgsql', ['driver' => 'pgsql', 'host' => 'localhost', /* ... */]);
+$db->addConnection('mysql_main', [
+    'driver' => 'mysql',
+    'host' => 'mysql.server.com',
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'main_db'
+]);
+
+$db->addConnection('pgsql_analytics', [
+    'driver' => 'pgsql',
+    'host' => 'postgres.server.com',
+    'username' => 'analyst',
+    'password' => 'pass',
+    'dbname' => 'analytics'
+]);
 
 // Switch between connections
-$db->connection('mysql')->find()->from('users')->get();
-$db->connection('pgsql')->find()->from('posts')->get();
+$users = $db->connection('mysql_main')->find()->from('users')->get();
+$stats = $db->connection('pgsql_analytics')->find()->from('stats')->get();
 ```
 
 ---
 
-## Quick start
+## Quick Start
 
-All QueryBuilder examples start with `$db->find()` which returns a QueryBuilder instance.
+**Note**: All query examples start with `$db->find()` which returns a `QueryBuilder` instance. You can chain multiple methods before executing the query with `get()`, `getOne()`, `insert()`, `update()`, or `delete()`.
 
-### Simple select
+### Basic CRUD Operations
+
+#### Simple SELECT
 
 ```php
-$row = $db->find()
+// Get one row
+$user = $db->find()
     ->from('users')
-    ->select(['id', 'name'])
+    ->select(['id', 'name', 'email'])
     ->where('id', 10)
     ->getOne();
+
+// Get multiple rows
+$users = $db->find()
+    ->from('users')
+    ->select(['id', 'name'])
+    ->where('age', 18, '>=')
+    ->get();
 ```
 
-### Select with grouping and having
+#### INSERT
 
 ```php
 use tommyknocker\pdodb\helpers\Db;
 
-$rows = $db->find()
-    ->from('orders')
-    ->select(['user_id', Db::raw('SUM(amount) AS total')])
-    ->groupBy('user_id')
-    ->having(Db::raw('SUM(amount)'), 300, '=')
-    ->orHaving(Db::raw('SUM(amount)'), 500, '=')
-    ->get();
-```
-
-### Joins and pagination
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-$rows = $db->find()
-    ->from('users AS u')
-    ->select(['u.id', 'u.name', Db::raw('SUM(o.amount) AS total')])
-    ->leftJoin('orders AS o', 'o.user_id = u.id')
-    ->groupBy('u.id')
-    ->orderBy('total', 'DESC')
-    ->limit(20)
-    ->offset(0)
-    ->get();
-```
-
-### Insert single row
-
-```php
+// Single row
 $id = $db->find()->table('users')->insert([
     'name' => 'Alice',
     'age'  => 30,
+    'created_at' => Db::now()
 ]);
-```
 
-### Insert multiple rows
-
-```php
+// Multiple rows
 $rows = [
-    ['name'=>'multi1','age'=>10],
-    ['name'=>'multi2','age'=>11],
+    ['name' => 'Bob', 'age' => 25],
+    ['name' => 'Carol', 'age' => 28],
 ];
 $count = $db->find()->table('users')->insertMulti($rows);
 ```
 
-### Insert with RawValue expression
+#### UPDATE
 
 ```php
 use tommyknocker\pdodb\helpers\Db;
 
-$id = $db->find()->table('users')->insert([
-    'name' => 'Alex',
-    'age' => 21,
-    'created_at' => Db::now(),
-]);
+$affected = $db->find()
+    ->table('users')
+    ->where('id', 5)
+    ->update([
+        'age' => Db::inc(),  // Increment by 1
+        'updated_at' => Db::now()
+    ]);
 ```
 
-### Portable UPSERT
+#### DELETE
+
+```php
+$affected = $db->find()
+    ->table('users')
+    ->where('age', 18, '<')
+    ->delete();
+```
+
+### Filtering and Joining
+
+#### WHERE Conditions
 
 ```php
 use tommyknocker\pdodb\helpers\Db;
 
+$users = $db->find()
+    ->from('users')
+    ->where('status', 'active')
+    ->where('age', 18, '>')
+    ->where(Db::like('email', '%@example.com'))
+    ->get();
+```
+
+#### JOIN and GROUP BY
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+$stats = $db->find()
+    ->from('users AS u')
+    ->select(['u.id', 'u.name', Db::raw('SUM(o.amount) AS total')])
+    ->leftJoin('orders AS o', 'o.user_id = u.id')
+    ->groupBy('u.id')
+    ->having(Db::raw('SUM(o.amount)'), 1000, '>')
+    ->orderBy('total', 'DESC')
+    ->limit(20)
+    ->get();
+```
+
+### Bulk Operations
+
+#### UPSERT (INSERT or UPDATE)
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Portable across MySQL, PostgreSQL, SQLite
 $db->find()->table('users')->onDuplicate([
-    'age' => Db::raw('age + :age', ['age' => 1])
+    'age' => Db::inc(),
+    'updated_at' => Db::now()
 ])->insert([
+    'email' => 'alice@example.com',  // Unique key
     'name' => 'Alice',
-    'age'  => 30
+    'age' => 30
 ]);
 ```
 
-### XML and CSV loaders
+#### CSV Loader
 
 ```php
-$db->find()->table('users')->loadXml('/path/to/file.xml');
-
-$db->find()->table('users')->loadXml('/path/to/file.xml', [
-    'rowTag' => '<row>',
-    'linesToIgnore' => 0,
-]);
-```
-
-```php
+// Simple load
 $db->find()->table('users')->loadCsv('/path/to/file.csv');
 
+// With options
 $db->find()->table('users')->loadCsv('/path/to/file.csv', [
     'fieldChar' => ',',
     'fieldEnclosure' => '"',
-    'fields' => ['id','name','status','age'],
+    'fields' => ['id', 'name', 'email', 'age'],
     'local' => true,
     'lineChar' => "\n",
-    'linesToIgnore' => 0,
-    'lineStarting' => 0       
+    'linesToIgnore' => 1  // Skip header row
 ]);
 ```
 
+#### XML Loader
 
+```php
+$db->find()->table('users')->loadXml('/path/to/file.xml', [
+    'rowTag' => '<user>',
+    'linesToIgnore' => 0
+]);
+```
 
-### Transactions and locking
+### Transactions
 
 ```php
 $db->startTransaction();
 try {
-    // actions
+    $userId = $db->find()->table('users')->insert(['name' => 'Alice']);
+    $db->find()->table('orders')->insert(['user_id' => $userId, 'total' => 100]);
     $db->commit();
 } catch (\Throwable $e) {
     $db->rollBack();
     throw $e;
 }
+```
 
-// Table locking
+#### Table Locking
+
+```php
 $db->lock(['users', 'orders'])->setLockMethod('WRITE');
 try {
-    // perform operations
+    // Perform exclusive operations
+    $db->find()->table('users')->where('id', 1)->update(['balance' => 100]);
 } finally {
     $db->unlock();
 }
 ```
 
-### Helper functions
+---
+
+## JSON Operations
+
+PDOdb provides a unified JSON API that works consistently across MySQL, PostgreSQL, and SQLite.
+
+### Creating JSON Data
 
 ```php
-// Increment/decrement operations
 use tommyknocker\pdodb\helpers\Db;
 
-$db->find()->table('users')->where('id', 1)->update(['age' => Db::inc()]);
-$db->find()->table('users')->where('id', 1)->update(['age' => Db::dec(5)]);
-
-$db->find()
-    ->table('users')
-    ->where('id', 5)
-    ->update([
-        'age' => Db::raw('age + :inc', [':inc' => 5]),
-        'name' => Db::raw('CONCAT(name, :suffix)', [':suffix' => '_updated'])
-    ]);
-
-// Datetime helpers
 $db->find()->table('users')->insert([
     'name' => 'John',
-    'created_at' => Db::now(),
-    'expires_at' => Db::now('1 YEAR')
+    'meta' => Db::jsonObject(['city' => 'NYC', 'age' => 30, 'verified' => true]),
+    'tags' => Db::jsonArray('php', 'mysql', 'docker')
 ]);
 ```
 
-### JSON helpers
+### Querying JSON
+
+#### Filter by JSON path value
 
 ```php
 use tommyknocker\pdodb\helpers\Db;
 
-// Create JSON data
-$db->find()->table('users')->insert([
-    'name' => 'John',
-    'meta' => Db::jsonObject(['city' => 'NYC', 'age' => 30]),
-    'tags' => Db::jsonArray('php', 'mysql', 'docker')
-]);
-
-// Query by JSON path
+// Find users older than 25
 $adults = $db->find()
     ->from('users')
-    ->where(Db::jsonPath('meta', ['age'], '>=', 18))
+    ->where(Db::jsonPath('meta', ['age'], '>', 25))
     ->get();
 
-// Check JSON contains value
-$phpDevs = $db->find()
-    ->from('users')
-    ->where(Db::jsonContains('tags', 'php'))
-    ->get();
-
-// Check multiple values (subset matching)
-$fullStack = $db->find()
-    ->from('users')
-    ->where(Db::jsonContains('tags', ['php', 'mysql']))
-    ->get();
-
-// Check if JSON path exists
-$withCity = $db->find()
-    ->from('users')
-    ->where(Db::jsonExists('meta', ['city']))
-    ->get();
-
-// Extract JSON value in SELECT
-$names = $db->find()
-    ->from('users')
-    ->select(['id', 'city' => Db::jsonGet('meta', ['city'])])
-    ->get();
-
-// Order by JSON value
-$sorted = $db->find()
-    ->from('users')
-    ->orderBy(Db::jsonGet('meta', ['age']), 'DESC')
-    ->get();
-
-// Get JSON array/object length
-$withManyTags = $db->find()
-    ->from('users')
-    ->where(Db::jsonLength('tags'), 3, '>')
-    ->get();
-
-// Get JSON value type
-$arrayFields = $db->find()
-    ->from('users')
-    ->select(['id', 'tags_type' => Db::jsonType('tags')])
-    ->get();
-
-// Combine JSON helpers
+// Multiple JSON conditions
 $active = $db->find()
     ->from('users')
     ->where(Db::jsonPath('meta', ['age'], '>', 25))
     ->where(Db::jsonContains('tags', 'php'))
     ->where(Db::jsonExists('meta', ['verified']))
-    ->orderBy(Db::jsonGet('meta', ['priority']), 'DESC')
+    ->get();
+```
+
+#### Check if JSON contains value
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Single value
+$phpDevs = $db->find()
+    ->from('users')
+    ->where(Db::jsonContains('tags', 'php'))
+    ->get();
+
+// Multiple values (subset matching)
+$fullStack = $db->find()
+    ->from('users')
+    ->where(Db::jsonContains('tags', ['php', 'mysql']))  // Must have both
+    ->get();
+```
+
+#### Check if JSON path exists
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+$withCity = $db->find()
+    ->from('users')
+    ->where(Db::jsonExists('meta', ['city']))
+    ->get();
+```
+
+### Extracting JSON Values
+
+#### Select JSON values
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+$users = $db->find()
+    ->from('users')
+    ->select([
+        'id',
+        'name',
+        'city' => Db::jsonGet('meta', ['city']),
+        'age' => Db::jsonGet('meta', ['age'])
+    ])
+    ->get();
+```
+
+#### Order by JSON value
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+$sorted = $db->find()
+    ->from('users')
+    ->orderBy(Db::jsonGet('meta', ['age']), 'DESC')
+    ->get();
+```
+
+#### Get JSON array/object length
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+$users = $db->find()
+    ->from('users')
+    ->select([
+        'id',
+        'tag_count' => Db::jsonLength('tags')
+    ])
+    ->where(Db::jsonLength('tags'), 3, '>')
+    ->get();
+```
+
+#### Get JSON type
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+$users = $db->find()
+    ->from('users')
+    ->select([
+        'id',
+        'tags_type' => Db::jsonType('tags')  // 'array', 'object', 'string', etc.
+    ])
+    ->get();
+```
+
+#### Update JSON values
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Update JSON field using QueryBuilder method
+$db->find()
+    ->table('users')
+    ->where('id', 1)
+    ->update([
+        'meta' => $db->find()->jsonSet('meta', ['city'], 'London')
+    ]);
+
+// Remove JSON field
+$db->find()
+    ->table('users')
+    ->where('id', 1)
+    ->update([
+        'meta' => $db->find()->jsonRemove('meta', ['old_field'])
+    ]);
+```
+
+---
+
+## Advanced Usage
+
+### Raw Queries
+
+#### Safe parameter binding
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Raw SELECT
+$users = $db->rawQuery(
+    'SELECT * FROM users WHERE age > :age AND city = :city',
+    ['age' => 18, 'city' => 'NYC']
+);
+
+// Single row
+$user = $db->rawQueryOne(
+    'SELECT * FROM users WHERE id = :id',
+    ['id' => 10]
+);
+
+// Single value
+$count = $db->rawQueryValue(
+    'SELECT COUNT(*) FROM users WHERE status = :status',
+    ['status' => 'active']
+);
+```
+
+#### Using RawValue in queries
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Raw SQL fragments
+$db->find()
+    ->table('users')
+    ->where('id', 5)
+    ->update([
+        'age' => Db::raw('age + :inc', ['inc' => 5]),
+        'name' => Db::raw('CONCAT(name, :suffix)', ['suffix' => '_updated'])
+    ]);
+```
+
+### Complex Conditions
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Nested OR conditions
+$users = $db->find()
+    ->from('users')
+    ->where('status', 'active')
+    ->where(function($qb) {
+        $qb->where('age', 18, '>')
+           ->orWhere('verified', 1);
+    })
+    ->get();
+
+// IN condition
+$users = $db->find()
+    ->from('users')
+    ->where(Db::in('id', [1, 2, 3, 4, 5]))
+    ->get();
+
+// BETWEEN
+$users = $db->find()
+    ->from('users')
+    ->where(Db::between('age', 18, 65))
+    ->get();
+
+// IS NULL / IS NOT NULL
+$users = $db->find()
+    ->from('users')
+    ->where(Db::isNull('deleted_at'))
+    ->where(Db::isNotNull('email'))
+    ->get();
+```
+
+### Subqueries
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Subquery in WHERE
+$users = $db->find()
+    ->from('users')
+    ->where(Db::raw('id IN (SELECT user_id FROM orders WHERE total > 1000)'))
+    ->get();
+
+// Subquery in SELECT
+$users = $db->find()
+    ->from('users AS u')
+    ->select([
+        'u.id',
+        'u.name',
+        'order_count' => Db::raw('(SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id)')
+    ])
+    ->get();
+```
+
+### Schema Support (PostgreSQL)
+
+```php
+// Specify schema explicitly
+$users = $db->find()->from('public.users')->get();
+$archived = $db->find()->from('archive.old_users')->get();
+
+// Cross-schema JOIN
+$data = $db->find()
+    ->from('public.users AS u')
+    ->leftJoin('archive.orders AS o', 'o.user_id = u.id')
     ->get();
 ```
 
 ---
 
-## Public API overview
+## Error Handling
+
+### Connection Errors
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+try {
+    $db = new PdoDb('mysql', [
+        'host' => 'localhost',
+        'username' => 'user',
+        'password' => 'pass',
+        'dbname' => 'db'
+    ]);
+} catch (\PDOException $e) {
+    error_log("Database connection failed: " . $e->getMessage());
+    // Handle error appropriately
+}
+```
+
+### Query Errors
+
+```php
+try {
+    $users = $db->find()
+        ->from('users')
+        ->where('invalid_column', 1)
+        ->get();
+} catch (\PDOException $e) {
+    // Check error code for specific errors
+    if ($e->getCode() === '42S22') {
+        // Unknown column error
+        error_log("Column not found: " . $e->getMessage());
+    }
+}
+```
+
+### Transaction with Proper Rollback
+
+```php
+$db->startTransaction();
+try {
+    $userId = $db->find()->table('users')->insert(['name' => 'Alice']);
+    $db->find()->table('orders')->insert(['user_id' => $userId, 'total' => 100]);
+    $db->commit();
+} catch (\Throwable $e) {
+    $db->rollBack();
+    error_log("Transaction failed: " . $e->getMessage());
+    throw $e;
+}
+```
+
+---
+
+## Performance Tips
+
+### 1. Use Batch Operations
+
+```php
+// ❌ Slow: Multiple single inserts
+foreach ($users as $user) {
+    $db->find()->table('users')->insert($user);
+}
+
+// ✅ Fast: Single batch insert
+$db->find()->table('users')->insertMulti($users);
+```
+
+### 2. Always Limit Result Sets
+
+```php
+// ❌ Dangerous: Can load millions of rows
+$users = $db->find()->from('users')->get();
+
+// ✅ Safe: Limited results
+$users = $db->find()->from('users')->limit(1000)->get();
+```
+
+### 3. Use Indexes for JSON Queries
+
+For frequently queried JSON paths, create indexes (MySQL 5.7+):
+
+```sql
+-- Create virtual column + index
+ALTER TABLE users 
+ADD COLUMN meta_age INT AS (JSON_EXTRACT(meta, '$.age'));
+
+CREATE INDEX idx_meta_age ON users(meta_age);
+```
+
+### 4. Connection Reuse
+
+```php
+// ✅ Good: Reuse connection for multiple operations
+$db->addConnection('main', $config);
+
+$users = $db->connection('main')->find()->from('users')->get();
+$orders = $db->connection('main')->find()->from('orders')->get();
+```
+
+### 5. Prepared Statements (Automatic)
+
+All queries automatically use prepared statements - no action needed!
+
+```php
+// Automatically uses prepared statements
+$users = $db->find()
+    ->from('users')
+    ->where('age', 18, '>')
+    ->get();
+```
+
+---
+
+## Debugging
+
+### Enable Query Logging
+
+```php
+use tommyknocker\pdodb\PdoDb;
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+
+// Create logger
+$logger = new Logger('database');
+$logger->pushHandler(new StreamHandler('php://stdout'));
+
+// Initialize with logger
+$db = new PdoDb('mysql', $config, [], $logger);
+
+// All queries will be logged with parameters
+$users = $db->find()->from('users')->get();
+```
+
+### Inspect Generated SQL
+
+```php
+// Build query but don't execute
+$query = $db->find()
+    ->from('users')
+    ->where('age', 18, '>');
+
+// Get generated SQL
+$sql = $query->getLastQuery();
+echo "SQL: " . $sql . "\n";
+
+// Get bound parameters
+$params = $query->getLastParams();
+print_r($params);
+```
+
+### Check Query Results
+
+```php
+$users = $db->find()->from('users')->where('age', 18, '>')->get();
+
+echo "Found " . count($users) . " users\n";
+echo "Memory used: " . memory_get_usage(true) / 1024 / 1024 . " MB\n";
+```
+
+---
+
+## Helper Functions Reference
+
+### Core Helpers
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Raw SQL expressions
+Db::raw('CONCAT(first_name, " ", last_name)')
+Db::raw('age + :years', ['years' => 5])
+
+// Escape strings
+Db::escape("O'Reilly")
+
+// Configuration
+Db::config('FOREIGN_KEY_CHECKS', 1)
+```
+
+### NULL Handling
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+Db::null()                              // NULL
+Db::isNull('column')                    // column IS NULL
+Db::isNotNull('column')                 // column IS NOT NULL
+Db::ifNull('column', 'default')         // IFNULL(column, 'default')
+Db::coalesce('col1', 'col2', 'default') // COALESCE(col1, col2, 'default')
+Db::nullIf('col1', 'col2')              // NULLIF(col1, col2)
+```
+
+### Boolean Values
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+Db::true()    // TRUE (1)
+Db::false()   // FALSE (0)
+Db::default() // DEFAULT
+```
+
+### Numeric Operations
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+Db::inc()              // age + 1
+Db::dec(5)             // age - 5
+Db::abs('column')      // ABS(column)
+Db::round('column', 2) // ROUND(column, 2)
+Db::mod('a', 'b')      // MOD(a, b) or a % b
+```
+
+### String Operations
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+Db::concat('first_name', ' ', 'last_name') // CONCAT(...)
+Db::upper('name')                          // UPPER(name)
+Db::lower('email')                         // LOWER(email)
+Db::trim('text')                           // TRIM(text)
+Db::ltrim('text')                          // LTRIM(text)
+Db::rtrim('text')                          // RTRIM(text)
+Db::length('text')                         // LENGTH(text)
+Db::substring('text', 1, 5)                // SUBSTRING(text, 1, 5)
+Db::replace('text', 'old', 'new')          // REPLACE(text, 'old', 'new')
+```
+
+### Comparison Operators
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+Db::like('email', '%@example.com')      // email LIKE '%@example.com'
+Db::ilike('name', 'john%')              // Case-insensitive LIKE
+Db::not(Db::like('email', '%@spam.com')) // NOT LIKE
+Db::between('age', 18, 65)              // age BETWEEN 18 AND 65
+Db::notBetween('age', 0, 17)            // age NOT BETWEEN 0 AND 17
+Db::in('id', [1, 2, 3])                 // id IN (1, 2, 3)
+Db::notIn('status', ['deleted', 'banned']) // status NOT IN (...)
+```
+
+### Conditional Logic
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+Db::case([
+    ['age < 18', "'minor'"],
+    ['age < 65', "'adult'"]
+], "'senior'")
+// CASE WHEN age < 18 THEN 'minor' WHEN age < 65 THEN 'adult' ELSE 'senior' END
+```
+
+### Date/Time Functions
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+Db::now()                    // NOW() or CURRENT_TIMESTAMP
+Db::now('1 DAY')             // NOW() + INTERVAL 1 DAY
+Db::ts()                     // UNIX_TIMESTAMP()
+Db::curDate()                // CURDATE()
+Db::curTime()                // CURTIME()
+Db::date('created_at')       // DATE(created_at)
+Db::time('created_at')       // TIME(created_at)
+Db::year('created_at')       // YEAR(created_at)
+Db::month('created_at')      // MONTH(created_at)
+Db::day('created_at')        // DAY(created_at)
+Db::hour('created_at')       // HOUR(created_at)
+Db::minute('created_at')     // MINUTE(created_at)
+Db::second('created_at')     // SECOND(created_at)
+```
+
+### Aggregate Functions
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+Db::count()             // COUNT(*)
+Db::count('DISTINCT id') // COUNT(DISTINCT id)
+Db::sum('amount')       // SUM(amount)
+Db::avg('rating')       // AVG(rating)
+Db::min('price')        // MIN(price)
+Db::max('price')        // MAX(price)
+```
+
+### Type Conversion & Comparison
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+Db::cast('123', 'INTEGER')       // CAST('123' AS INTEGER)
+Db::greatest('a', 'b', 'c')      // GREATEST(a, b, c)
+Db::least('a', 'b', 'c')         // LEAST(a, b, c)
+```
+
+### JSON Helper Functions
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Create JSON
+Db::jsonObject(['key' => 'value'])     // '{"key":"value"}'
+Db::jsonArray('a', 'b', 'c')           // '["a","b","c"]'
+
+// Query JSON
+Db::jsonPath('meta', ['age'], '>', 18)      // JSON path comparison
+Db::jsonContains('tags', 'php')             // Check if contains value
+Db::jsonContains('tags', ['php', 'mysql'])  // Check if contains all values
+Db::jsonExists('meta', ['city'])            // Check if path exists
+
+// Extract JSON
+Db::jsonGet('meta', ['city'])               // Extract value at path
+Db::jsonExtract('meta', ['city'])           // Alias for jsonGet
+Db::jsonLength('tags')                      // Array/object length
+Db::jsonKeys('meta')                        // Object keys
+Db::jsonType('tags')                        // Value type
+```
+
+---
+
+## Public API Reference
 
 ### PdoDb Main Class
 
-* **find()**: returns QueryBuilder instance.
-* **rawQuery(string|RawValue, array $params = [])**: execute raw SQL, returns array of rows.
-* **rawQueryOne(string|RawValue, array $params = [])**: execute raw SQL, returns first row.
-* **rawQueryValue(string|RawValue, array $params = [])**: execute raw SQL, returns single value.
-* **startTransaction() / commit() / rollBack()**: transaction helpers.
-* **lock(array|string) / unlock()**: table locking helpers.
-* **setLockMethod(string)**: set lock method (READ/WRITE).
-* **describe(string)**: get table structure.
-* **explain(string, array) / explainAnalyze(string, array)**: query analysis.
-* **ping()**: check database connection.
-* **disconnect()**: close connection.
-* **addConnection(name, config, options, logger)**: add connection to pool.
-* **connection(name)**: switch to named connection.
+| Method | Description |
+|--------|-------------|
+| `find()` | Returns QueryBuilder instance |
+| `rawQuery(string\|RawValue, array)` | Execute raw SQL, returns array of rows |
+| `rawQueryOne(string\|RawValue, array)` | Execute raw SQL, returns first row |
+| `rawQueryValue(string\|RawValue, array)` | Execute raw SQL, returns single value |
+| `startTransaction()` | Begin transaction |
+| `commit()` | Commit transaction |
+| `rollBack()` | Roll back transaction |
+| `lock(array\|string)` | Lock tables |
+| `unlock()` | Unlock tables |
+| `setLockMethod(string)` | Set lock method (READ/WRITE) |
+| `describe(string)` | Get table structure |
+| `explain(string, array)` | Analyze query execution plan |
+| `explainAnalyze(string, array)` | Analyze query with execution |
+| `ping()` | Check database connection |
+| `disconnect()` | Close connection |
+| `addConnection(name, config, options, logger)` | Add connection to pool |
+| `connection(name)` | Switch to named connection |
 
 ### QueryBuilder Methods
 
-* **table(string) / from(string)**: set target table (supports `schema.table` and simple aliasing).
-* **prefix(string)**: set table prefix for this query.
-* **select(array|string|RawValue)**: specify columns to select.
-* **where(...) / andWhere(...) / orWhere(...)**: add WHERE conditions.
-* **join(...) / leftJoin(...) / rightJoin(...) / innerJoin(...)**: add JOIN clauses.
-* **groupBy(...)**: add GROUP BY clause.
-* **having(...) / orHaving(...)**: add HAVING conditions.
-* **orderBy(...)**: add ORDER BY clause.
-* **limit(int) / offset(int)**: add LIMIT and OFFSET.
-* **option(string|array)**: add query options.
-* **insert(array)**: insert single row, returns inserted primary key when available.
-* **insertMulti(array)**: insert multiple rows; generates unique named placeholders and returns inserted row count.
-* **loadCsv(file, options)**: CSV loader; COPY/LOAD DATA when available.
-* **loadXml(file, tag, linesToIgnore)**: XML loader.
-* **onDuplicate(array)**: build UPSERT clause; dialect-specific generation.
-* **replace(array) / replaceMulti(array)**: MySQL-specific REPLACE operations.
-* **update(array)**: update rows, returns affected count.
-* **delete()**: delete rows, returns affected count.
-* **truncate()**: truncate table (DELETE FROM for SQLite).
-* **get()**: execute SELECT and return all rows.
-* **getOne()**: execute SELECT and return first row.
-* **getColumn()**: execute SELECT and return single column values.
-* **getValue()**: execute SELECT and return single value.
-* **exists()**: check if any rows match conditions.
-* **notExists()**: check if no rows match conditions.
-* **tableExists(string)**: check if table exists.
-* **asObject()**: set fetch mode to objects instead of arrays.
-* **selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true)**: select JSON column or path (dialect-specific).
-* **whereJsonPath(string $col, array|string $path, string $operator, mixed $value, string $cond = 'AND')**: add JSON path condition (dialect-specific).
-* **whereJsonContains(string $col, mixed $value, array|string|null $path = null, string $cond = 'AND')**: add JSON contains condition (dialect-specific).
-* **jsonSet(string $col, array|string $path, mixed $value)**: set JSON value (dialect-specific).
-* **jsonRemove(string $col, array|string $path)**: remove JSON path (dialect-specific).
-* **orderByJson(string $col, array|string $path, string $direction = 'ASC')**: order by JSON path (dialect-specific).
-* **whereJsonExists(string $col, array|string $path, string $cond = 'AND')**: add JSON path existence condition (dialect-specific).
+#### Table & Selection
 
-### Helper Functions
+| Method | Description |
+|--------|-------------|
+| `table(string)` / `from(string)` | Set target table (supports `schema.table` and aliases) |
+| `prefix(string)` | Set table prefix for this query |
+| `select(array\|string\|RawValue)` | Specify columns to select |
 
-Use `Db::raw(string $value, ?array $params)` for SQL fragments that must bypass parameter binding.
+#### Filtering & Joining
 
-**Core helpers**
-* **Db::raw(string $sql, array $params = [])**: returns raw value expression.
-* **Db::escape(string)**: escape string for SQL.
-* **Db::config(string $key, mixed $value, bool $useEqualSign = true, bool $quoteValue = true)**: returns SET KEY = :value statement (e.g. SET FOREIGN_KEYS_CHECKS = 1 or SET NAMES 'utf8mb4').
+| Method | Description |
+|--------|-------------|
+| `where(...)` / `andWhere(...)` / `orWhere(...)` | Add WHERE conditions |
+| `join(...)` / `leftJoin(...)` / `rightJoin(...)` / `innerJoin(...)` | Add JOIN clauses |
+| `groupBy(...)` | Add GROUP BY clause |
+| `having(...)` / `orHaving(...)` | Add HAVING conditions |
 
-**NULL handling**
-* **Db::null()**: returns NULL value for SQL.
-* **Db::isNull(string $column)**: returns column IS NULL condition.
-* **Db::isNotNull(string $column)**: returns column IS NOT NULL condition.
-* **Db::coalesce(...$values)**: returns first non-NULL value from arguments.
-* **Db::ifNull(string $expr, mixed $default)**: returns IFNULL / COALESCE for NULL replacement (dialect-specific).
-* **Db::nullIf(mixed $expr1, mixed $expr2)**: returns NULL if two expressions are equal.
+#### Ordering & Limiting
 
-**Boolean values**
-* **Db::true()**: returns TRUE value for SQL.
-* **Db::false()**: returns FALSE value for SQL.
-* **Db::default()**: returns DEFAULT value for SQL. (not supported in Sqlite).
+| Method | Description |
+|--------|-------------|
+| `orderBy(...)` | Add ORDER BY clause |
+| `limit(int)` | Set LIMIT |
+| `offset(int)` | Set OFFSET |
+| `option(string\|array)` | Add query options (e.g., DISTINCT, SQL_CALC_FOUND_ROWS) |
 
-**Numeric operations**
-* **Db::inc(int|float)**: returns increment operation array.
-* **Db::dec(int|float)**: returns decrement operation array.
-* **Db::abs(string|RawValue)**: returns absolute value.
-* **Db::round(string|RawValue, int $precision = 0)**: returns rounded value.
-* **Db::mod(string|RawValue $dividend, string|RawValue $divisor)**: returns modulo operation (dialect-specific).
+#### Data Manipulation
 
-**String operations**
-* **Db::concat(...$args)**: returns concatenated string expression.
-* **Db::upper(string|RawValue)**: converts string to uppercase.
-* **Db::lower(string|RawValue)**: converts string to lowercase.
-* **Db::trim(string|RawValue)**: trims whitespace from both sides.
-* **Db::ltrim(string|RawValue)**: trims whitespace from the left side.
-* **Db::rtrim(string|RawValue)**: trims whitespace from the right side.
-* **Db::length(string|RawValue)**: returns string length.
-* **Db::substring(string|RawValue $value, int $start, ?int $length = null)**: returns substring (dialect-specific for SUBSTRING vs SUBSTR).
-* **Db::replace(string|RawValue $value, string $search, string $replace)**: returns string with replacements.
+| Method | Description |
+|--------|-------------|
+| `insert(array)` | Insert single row, returns inserted ID |
+| `insertMulti(array)` | Insert multiple rows, returns count |
+| `update(array)` | Update rows, returns affected count |
+| `delete()` | Delete rows, returns affected count |
+| `truncate()` | Truncate table |
+| `replace(array)` / `replaceMulti(array)` | MySQL REPLACE operations |
+| `onDuplicate(array)` | Build UPSERT clause (dialect-specific) |
 
-**Comparison operators**
-* **Db::like(string $column, string $pattern)**: LIKE condition.
-* **Db::ilike(string $column, string $pattern)**: ILIKE condition (OR LOWER(column) LIKE LOWER(pattern) if ILIKE is not supported).
-* **Db::not(RawValue $value)**: Inverses a RawValue condition using NOT.
-* **Db::between(string $column, mixed $min, mixed $max)**: returns column BETWEEN min AND max condition.
-* **Db::notBetween(string $column, mixed $min, mixed $max)**: returns column NOT BETWEEN min AND max condition.
-* **Db::in(string $column, array $values)**: returns column IN values condition.
-* **Db::notIn(string $column, array $values)**: returns column NOT IN values condition.
+#### Bulk Loading
 
-**Conditional logic**
-* **Db::case(array $conditions, ?string $else = null)**: returns CASE statement: CASE WHEN ... THEN ... [ELSE ...] END.
+| Method | Description |
+|--------|-------------|
+| `loadCsv(file, options)` | CSV loader (uses COPY/LOAD DATA when available) |
+| `loadXml(file, options)` | XML loader |
 
-**Date/Time functions**
-* **Db::now(?string $diff = null, bool $asTimestamp = false)**: returns current timestamp with optional difference.
-* **Db::ts(?string $diff = null)**: returns current timestamp as Unix timestamp with optional difference.
-* **Db::curDate()**: returns current date (dialect-specific).
-* **Db::curTime()**: returns current time (dialect-specific).
-* **Db::date(string|RawValue)**: extracts date part from datetime.
-* **Db::time(string|RawValue)**: extracts time part from datetime.
-* **Db::year(string|RawValue)**: extracts year from date (dialect-specific).
-* **Db::month(string|RawValue)**: extracts month from date (dialect-specific).
-* **Db::day(string|RawValue)**: extracts day from date (dialect-specific).
-* **Db::hour(string|RawValue)**: extracts hour from time (dialect-specific).
-* **Db::minute(string|RawValue)**: extracts minute from time (dialect-specific).
-* **Db::second(string|RawValue)**: extracts second from time (dialect-specific).
+#### Execution
 
-**Aggregate functions**
-* **Db::count(string|RawValue $expr = '*')**: returns COUNT expression.
-* **Db::sum(string|RawValue)**: returns SUM expression.
-* **Db::avg(string|RawValue)**: returns AVG expression.
-* **Db::min(string|RawValue)**: returns MIN expression.
-* **Db::max(string|RawValue)**: returns MAX expression.
+| Method | Description |
+|--------|-------------|
+| `get()` | Execute SELECT, return all rows |
+| `getOne()` | Execute SELECT, return first row |
+| `getColumn()` | Execute SELECT, return single column values |
+| `getValue()` | Execute SELECT, return single value |
+| `exists()` | Check if any rows match conditions |
+| `notExists()` | Check if no rows match conditions |
+| `tableExists(string)` | Check if table exists |
 
-**Type conversion & comparison**
-* **Db::cast(mixed $value, string $type)**: returns CAST expression.
-* **Db::greatest(...$values)**: returns greatest (maximum) value from arguments (dialect-specific).
-* **Db::least(...$values)**: returns least (minimum) value from arguments (dialect-specific).
+#### JSON Operations
 
-#### JSON Helper Functions
+| Method | Description |
+|--------|-------------|
+| `selectJson(col, path, alias, asText)` | Select JSON column or path |
+| `whereJsonPath(col, path, operator, value, cond)` | Add JSON path condition |
+| `whereJsonContains(col, value, path, cond)` | Add JSON contains condition |
+| `whereJsonExists(col, path, cond)` | Add JSON path existence condition |
+| `jsonSet(col, path, value)` | Set JSON value |
+| `jsonRemove(col, path)` | Remove JSON path |
+| `orderByJson(col, path, direction)` | Order by JSON path |
 
-* **Db::jsonPath(string $column, array|string $path, string $operator, mixed $value)**: compare JSON value at path with given operator.
-* **Db::jsonContains(string $column, mixed $value, array|string|null $path = null)**: check if JSON contains value (supports arrays for subset matching).
-* **Db::jsonExists(string $column, array|string $path)**: check if JSON path exists.
-* **Db::jsonGet(string $column, array|string $path, bool $asText = true)**: extract JSON value at path (useful in SELECT, ORDER BY, GROUP BY).
-* **Db::jsonExtract(...)**: alias for `jsonGet()`.
-* **Db::jsonLength(string $column, array|string|null $path = null)**: get length of JSON array or number of keys in object.
-* **Db::jsonKeys(string $column, array|string|null $path = null)**: get keys of JSON object.
-* **Db::jsonType(string $column, array|string|null $path = null)**: get type of JSON value (e.g., 'array', 'object', 'string', 'number', 'boolean', 'null').
-* **Db::jsonArray(...$values)**: create JSON array string from values.
-* **Db::jsonObject(array $pairs)**: create JSON object string from key-value pairs.
+#### Fetch Modes
+
+| Method | Description |
+|--------|-------------|
+| `asObject()` | Set fetch mode to objects instead of arrays |
 
 ---
 
-## Dialect specifics and behavioral notes
+## Dialect Differences
 
-* **Identifier quoting**: automatic per driver — double quotes for PostgreSQL/SQLite, backticks for MySQL by default. Functions and expressions (containing parentheses/operators) are preserved and not quoted. Use RawValue to inject explicit SQL fragments.
-* **UPSERT: SQLite/PostgreSQL**: `ON CONFLICT` syntax (uses excluded.<col> semantics). **MySQL**: `ON DUPLICATE KEY UPDATE`. Library chooses the correct form automatically.
-* **REPLACE**: MySQL-specific operation. Other dialects use UPSERT equivalents.
-* **TRUNCATE**: SQLite does not support TRUNCATE. For SQLite library uses `DELETE FROM table`; reset AUTOINCREMENT via sqlite_sequence.
-* **Table locking**: MySQL uses `LOCK TABLES`, PostgreSQL uses `LOCK TABLE`, SQLite uses `BEGIN IMMEDIATE`.
-* **NOT operation**: PostgreSQL requires boolean types for NOT operations, MySQL and SQLite support various types.
-* **Bulk loaders**: PostgreSQL use COPY when permissions allow; MySQL use LOAD DATA LOCAL INFILE when allowed.
-* **Multi-row inserts**: placeholders are generated uniquely per row/column (e.g., :name_0, :name_1) to avoid binding conflicts in PDO. RawValue elements are embedded verbatim into the `VALUES` tuples.
+PDOdb handles most differences automatically, but here are some key points:
+
+### Identifier Quoting
+
+- **MySQL**: Backticks `` `column` ``
+- **PostgreSQL**: Double quotes `"column"`
+- **SQLite**: Double quotes `"column"`
+
+Automatically handled by the library.
+
+### UPSERT
+
+- **MySQL**: `ON DUPLICATE KEY UPDATE`
+- **PostgreSQL**: `ON CONFLICT ... DO UPDATE SET`
+- **SQLite**: `ON CONFLICT ... DO UPDATE SET`
+
+Use `onDuplicate()` for portable UPSERT:
+
+```php
+$db->find()->table('users')->onDuplicate([
+    'age' => Db::inc()
+])->insert(['email' => 'user@example.com', 'age' => 25]);
+```
+
+### REPLACE
+
+- **MySQL**: Native `REPLACE` statement
+- **PostgreSQL**: Emulated via UPSERT
+- **SQLite**: Native `REPLACE` statement
+
+```php
+$db->find()->table('users')->replace(['id' => 1, 'name' => 'Alice']);
+```
+
+### TRUNCATE
+
+- **MySQL/PostgreSQL**: Native `TRUNCATE TABLE`
+- **SQLite**: Emulated via `DELETE FROM` + reset AUTOINCREMENT
+
+```php
+$db->find()->table('users')->truncate();
+```
+
+### Table Locking
+
+- **MySQL**: `LOCK TABLES ... READ/WRITE`
+- **PostgreSQL**: `LOCK TABLE ... IN ... MODE`
+- **SQLite**: `BEGIN IMMEDIATE`
+
+```php
+$db->lock(['users'])->setLockMethod('WRITE');
+```
+
+### JSON Functions
+
+- **MySQL**: Uses `JSON_EXTRACT`, `JSON_CONTAINS`, etc.
+- **PostgreSQL**: Uses `->`, `->>`, `@>` operators
+- **SQLite**: Uses `json_extract`, `json_each`, etc.
+
+All handled transparently through `Db::json*()` helpers.
+
+### Bulk Loaders
+
+- **MySQL**: `LOAD DATA [LOCAL] INFILE`
+- **PostgreSQL**: `COPY FROM`
+- **SQLite**: Row-by-row inserts in a transaction
+
+```php
+$db->find()->table('users')->loadCsv('/path/to/file.csv');
+```
+
+### Multi-row Inserts
+
+All dialects support efficient multi-row inserts. The library generates unique placeholders (`:name_0`, `:name_1`) to avoid PDO binding conflicts:
+
+```php
+$db->find()->table('users')->insertMulti([
+    ['name' => 'Alice', 'age' => 30],
+    ['name' => 'Bob', 'age' => 25]
+]);
+```
 
 ---
 
-## Conventions and return values
+## Troubleshooting
 
-* **insert** returns the inserted primary key where applicable.
-* **insertMulti** returns the number of inserted rows.
-* **replace/upsert** returns affected row count when deterministic; semantics follow dialect best practices.
-* **RawValue** entries are embedded verbatim into SQL tuples and not bound as parameters.
-* **Multi-row inserts** generate unique named placeholders like `:name_0`, `:name_1` to avoid PDO binding conflicts.
-* **Helper functions** (`inc`, `dec,`) return arrays that are processed during SQL generation.
+### "Driver not found" Error
 
----
+**Problem**: PDO extension not installed.
 
-## Testing and CI
-
-* The project includes PHPUnit tests that run against MySQL, PostgreSQL and SQLite. Tests are designed to run in containers or against local instances.
-* Recommended CI workflow runs the test matrix on GitHub Actions with containerized MySQL and PostgreSQL and native SQLite.
-
-Run the test suite with:
+**Solution**: Install the required PHP extension:
 
 ```bash
+# Ubuntu/Debian
+sudo apt-get install php8.4-mysql php8.4-pgsql php8.4-sqlite3
+
+# macOS
+brew install php
+
+# Check installed extensions
+php -m | grep pdo
+```
+
+### "JSON functions not available" (SQLite)
+
+**Problem**: SQLite compiled without JSON1 extension.
+
+**Solution**: Check if JSON support is available:
+
+```bash
+sqlite3 :memory: "SELECT json_valid('{}')"
+```
+
+If it returns an error, you need to recompile SQLite with JSON1 or use a pre-built version with JSON support.
+
+### "SQLSTATE[HY000]: General error: 1 near 'OFFSET'"
+
+**Problem**: Using OFFSET without LIMIT in SQLite.
+
+**Solution**: Always use LIMIT with OFFSET in SQLite:
+
+```php
+// ❌ Doesn't work in SQLite
+$db->find()->from('users')->offset(10)->get();
+
+// ✅ Works
+$db->find()->from('users')->limit(20)->offset(10)->get();
+```
+
+### Slow JSON Operations
+
+**Problem**: JSON operations can be slow on large datasets without indexes.
+
+**Solutions**:
+
+1. **Add indexes** (MySQL 5.7+):
+   ```sql
+   ALTER TABLE users ADD COLUMN meta_age INT AS (JSON_EXTRACT(meta, '$.age'));
+   CREATE INDEX idx_meta_age ON users(meta_age);
+   ```
+
+2. **Denormalize frequently accessed fields**:
+   ```sql
+   ALTER TABLE users ADD COLUMN age INT;
+   -- Copy from JSON
+   UPDATE users SET age = JSON_EXTRACT(meta, '$.age');
+   ```
+
+3. **Use virtual columns with indexes** (PostgreSQL):
+   ```sql
+   CREATE INDEX idx_meta_age ON users((meta->>'age'));
+   ```
+
+### "Too many connections" Error
+
+**Problem**: Connection pool not properly managed.
+
+**Solution**: Reuse connections and disconnect when done:
+
+```php
+// ✅ Good: Reuse connection
+$db->addConnection('main', $config);
+$users = $db->connection('main')->find()->from('users')->get();
+$orders = $db->connection('main')->find()->from('orders')->get();
+
+// Disconnect when completely done
+$db->disconnect();
+```
+
+### Memory Issues with Large Result Sets
+
+**Problem**: Loading millions of rows into memory.
+
+**Solution**: Use LIMIT or process in chunks:
+
+```php
+// Process in chunks
+$offset = 0;
+$limit = 1000;
+
+while (true) {
+    $users = $db->find()
+        ->from('users')
+        ->limit($limit)
+        ->offset($offset)
+        ->get();
+    
+    if (empty($users)) break;
+    
+    // Process $users...
+    
+    $offset += $limit;
+}
+```
+
+---
+
+## Testing
+
+The project includes comprehensive PHPUnit tests for MySQL, PostgreSQL, and SQLite.
+
+### Running Tests
+
+```bash
+# Run all tests
 ALL_TESTS=1 ./vendor/bin/phpunit
+
+# Run specific dialect tests
+./vendor/bin/phpunit tests/PdoDbMySQLTest.php
+./vendor/bin/phpunit tests/PdoDbPostgreSQLTest.php
+./vendor/bin/phpunit tests/PdoDbSqliteTest.php
+
+# Run with coverage
+ALL_TESTS=1 ./vendor/bin/phpunit --coverage-html coverage
+```
+
+### Test Requirements
+
+- **MySQL**: Running instance on localhost:3306
+- **PostgreSQL**: Running instance on localhost:5432
+- **SQLite**: No setup required (uses `:memory:`)
+
+### CI/CD
+
+Tests are designed to run in containers or against local instances. Recommended CI workflow:
+
+```yaml
+# GitHub Actions example
+- name: Run tests
+  run: ALL_TESTS=1 ./vendor/bin/phpunit
+  env:
+    MYSQL_HOST: 127.0.0.1
+    MYSQL_PORT: 3306
+    PGSQL_HOST: 127.0.0.1
+    PGSQL_PORT: 5432
 ```
 
 ---
 
 ## Contributing
 
-* Open issues with failing queries, expected SQL, actual SQL, and environment details (driver and PHP versions).
-* Include unit tests for new dialect behavior.
-* Follow PSR-12 formatting and include tests with pull requests.
+Contributions are welcome! Please follow these guidelines:
+
+1. **Open an issue** first for new features or bug reports
+2. **Include failing tests** that demonstrate the problem
+3. **Provide details**: 
+   - Expected SQL vs. actual SQL
+   - Environment details (PHP version, database version, driver)
+   - Steps to reproduce
+4. **Follow PSR-12** coding standards
+5. **Write tests** for all new functionality
+6. **Test against all three dialects** (MySQL, PostgreSQL, SQLite)
+
+### Pull Request Process
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ---
 
-## Licence
+## License
 
-This project is open source. See [LICENCE](LICENSE) file for details.
+This project is open source. See [LICENSE](LICENSE) file for details.
+
+---
+
+## Acknowledgments
+
+Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class)
+
+Built with ❤️ for the PHP community.

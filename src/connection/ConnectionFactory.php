@@ -18,6 +18,14 @@ use tommyknocker\pdodb\dialects\SqliteDialect;
  */
 class ConnectionFactory
 {
+    /**
+     * Create a new Connection instance.
+     *
+     * @param array $config Configuration array.
+     * @param LoggerInterface|null $logger Logger instance.
+     * @return Connection The created Connection instance.
+     * @throws InvalidArgumentException If the driver is not specified or unsupported.
+     */
     public function create(array $config, ?LoggerInterface $logger): Connection
     {
         $driver = $config['driver'] ?? throw new InvalidArgumentException('driver is required');
@@ -34,6 +42,13 @@ class ConnectionFactory
         return new Connection($pdo, $dialect, $logger);
     }
 
+    /**
+     * Resolve the dialect based on the driver name.
+     *
+     * @param string $driver The driver name.
+     * @return DialectInterface The resolved dialect instance.
+     * @throws InvalidArgumentException If the driver is unsupported.
+     */
     protected function resolveDialect(string $driver): DialectInterface
     {
         return match ($driver) {
