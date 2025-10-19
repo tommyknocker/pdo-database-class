@@ -472,4 +472,82 @@ abstract class DialectAbstract
         return array_values($path);
     }
 
+    /* ---------------- Helper methods for value resolution ---------------- */
+
+    /**
+     * Resolve RawValue or return value as-is
+     * @param string|RawValue $value
+     * @return string
+     */
+    protected function resolveValue(string|RawValue $value): string
+    {
+        return $value instanceof RawValue ? $value->getValue() : $value;
+    }
+
+    /**
+     * Resolve array of values (handle RawValue instances)
+     * @param array $values
+     * @return array
+     */
+    protected function resolveValues(array $values): array
+    {
+        return array_map(fn($v) => $v instanceof RawValue ? $v->getValue() : $v, $values);
+    }
+
+    /**
+     * Format default value for IFNULL/COALESCE
+     * @param mixed $default
+     * @return string
+     */
+    protected function formatDefaultValue(mixed $default): string
+    {
+        if ($default instanceof RawValue) {
+            return $default->getValue();
+        }
+        if (is_string($default)) {
+            return "'{$default}'";
+        }
+        return (string)$default;
+    }
+
+    /* ---------------- Default implementations of dialect-specific methods ---------------- */
+
+    /**
+     * Format GREATEST expression (default implementation)
+     * Override in specific dialects if needed (e.g., SQLite uses MAX)
+     * @param array $values
+     * @return string
+     */
+    public function formatGreatest(array $values): string
+    {
+        $args = $this->resolveValues($values);
+        return 'GREATEST(' . implode(', ', $args) . ')';
+    }
+
+    /**
+     * Format LEAST expression (default implementation)
+     * Override in specific dialects if needed (e.g., SQLite uses MIN)
+     * @param array $values
+     * @return string
+     */
+    public function formatLeast(array $values): string
+    {
+        $args = $this->resolveValues($values);
+        return 'LEAST(' . implode(', ', $args) . ')';
+    }
+
+    /**
+     * Format MOD expression (default implementation)
+     * Override in specific dialects if needed (e.g., SQLite uses %)
+     * @param string|RawValue $dividend
+     * @param string|RawValue $divisor
+     * @return string
+     */
+    public function formatMod(string|RawValue $dividend, string|RawValue $divisor): string
+    {
+        $d1 = $this->resolveValue($dividend);
+        $d2 = $this->resolveValue($divisor);
+        return "MOD($d1, $d2)";
+    }
+
 }

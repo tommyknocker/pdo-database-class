@@ -574,26 +574,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatIfNull(string $expr, mixed $default): string
     {
-        $defaultStr = is_string($default) ? "'{$default}'" : $default;
-        return "IFNULL($expr, $defaultStr)";
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function formatGreatest(array $values): string
-    {
-        $args = array_map(fn($v) => $v instanceof RawValue ? $v->getValue() : $v, $values);
-        return 'GREATEST(' . implode(', ', $args) . ')';
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function formatLeast(array $values): string
-    {
-        $args = array_map(fn($v) => $v instanceof RawValue ? $v->getValue() : $v, $values);
-        return 'LEAST(' . implode(', ', $args) . ')';
+        return "IFNULL($expr, {$this->formatDefaultValue($default)})";
     }
 
     /**
@@ -601,21 +582,11 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatSubstring(string|RawValue $source, int $start, ?int $length): string
     {
-        $src = $source instanceof RawValue ? $source->getValue() : $source;
+        $src = $this->resolveValue($source);
         if ($length === null) {
             return "SUBSTRING($src, $start)";
         }
         return "SUBSTRING($src, $start, $length)";
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function formatMod(string|RawValue $dividend, string|RawValue $divisor): string
-    {
-        $d1 = $dividend instanceof RawValue ? $dividend->getValue() : $dividend;
-        $d2 = $divisor instanceof RawValue ? $divisor->getValue() : $divisor;
-        return "MOD($d1, $d2)";
     }
 
     /**
@@ -639,8 +610,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatYear(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "YEAR($val)";
+        return "YEAR({$this->resolveValue($value)})";
     }
 
     /**
@@ -648,8 +618,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatMonth(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "MONTH($val)";
+        return "MONTH({$this->resolveValue($value)})";
     }
 
     /**
@@ -657,8 +626,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatDay(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "DAY($val)";
+        return "DAY({$this->resolveValue($value)})";
     }
 
     /**
@@ -666,8 +634,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatHour(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "HOUR($val)";
+        return "HOUR({$this->resolveValue($value)})";
     }
 
     /**
@@ -675,8 +642,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatMinute(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "MINUTE($val)";
+        return "MINUTE({$this->resolveValue($value)})";
     }
 
     /**
@@ -684,8 +650,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatSecond(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "SECOND($val)";
+        return "SECOND({$this->resolveValue($value)})";
     }
 
     private function buildJsonPath(array|string $path): string

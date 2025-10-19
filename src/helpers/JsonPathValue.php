@@ -19,6 +19,7 @@ class JsonPathValue extends RawValue
         $this->path = $path;
         $this->operator = $operator;
         $this->compareValue = $value;
+        parent::__construct('');
     }
 
     public function getColumn(): string

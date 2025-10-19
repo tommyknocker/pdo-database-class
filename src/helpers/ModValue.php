@@ -15,6 +15,7 @@ class ModValue extends RawValue
     {
         $this->dividend = $dividend;
         $this->divisor = $divisor;
+        parent::__construct('');
     }
 
     public function getDividend(): string|RawValue

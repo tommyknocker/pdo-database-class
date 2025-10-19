@@ -17,6 +17,7 @@ class JsonGetValue extends RawValue
         $this->column = $column;
         $this->path = $path;
         $this->asText = $asText;
+        parent::__construct('');
     }
 
     public function getColumn(): string

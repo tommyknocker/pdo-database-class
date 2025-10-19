@@ -13,6 +13,7 @@ class LeastValue extends RawValue
     public function __construct(array $values)
     {
         $this->values = $values;
+        parent::__construct('');
     }
 
     public function getValues(): array

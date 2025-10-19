@@ -13,6 +13,7 @@ class DayValue extends RawValue
     public function __construct(string|RawValue $source)
     {
         $this->source = $source;
+        parent::__construct('');
     }
 
     public function getSource(): string|RawValue

@@ -17,6 +17,7 @@ class JsonContainsValue extends RawValue
         $this->column = $column;
         $this->searchValue = $value;
         $this->path = $path;
+        parent::__construct('');
     }
 
     public function getColumn(): string

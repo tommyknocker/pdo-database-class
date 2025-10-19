@@ -288,14 +288,9 @@ class QueryBuilder implements QueryBuilderInterface
         $placeholders = [];
         $params = [];
         foreach ($columns as $col) {
-            $val = $this->data[$col];
-            if ($val instanceof RawValue) {
-                $placeholders[] = $this->resolveRawValue($val);
-            } else {
-                $ph = ':' . $col;
-                $placeholders[] = $ph;
-                $params[$ph] = $val;
-            }
+            $result = $this->processValueForSql($this->data[$col], $col);
+            $placeholders[] = $result['sql'];
+            $params = array_merge($params, $result['params']);
         }
         $sql = $this->dialect->buildReplaceSql($this->table, $columns, $placeholders);
         return $this->executeInsert($sql, $params);
@@ -328,14 +323,9 @@ class QueryBuilder implements QueryBuilderInterface
         foreach ($rows as $row) {
             $placeholders = [];
             foreach ($columns as $col) {
-                $val = $row[$col];
-                if ($val instanceof RawValue) {
-                    $placeholders[] = $this->resolveRawValue($val);
-                } else {
-                    $ph = ':' . $col . '_' . $i;
-                    $placeholders[] = $ph;
-                    $params[$ph] = $val;
-                }
+                $result = $this->processValueForSql($row[$col], $col, $col . '_' . $i . '_');
+                $placeholders[] = $result['sql'];
+                $params = array_merge($params, $result['params']);
             }
             // collect per-row group WITHOUT adding outer parentheses here
             // because dialect will assemble VALUES list and must accept both modes
@@ -856,8 +846,7 @@ class QueryBuilder implements QueryBuilderInterface
             return $this;
         }
 
-        $ph = $this->makeParam("json_" . ($col));
-        $this->params[$ph] = $value;
+        $ph = $this->addParam("json_" . $col, $value);
         $this->where[] = ['sql' => "{$expr} {$operator} {$ph}", 'cond' => 'AND'];
         return $this;
     }
@@ -1030,14 +1019,9 @@ class QueryBuilder implements QueryBuilderInterface
         $params = [];
 
         foreach ($columns as $col) {
-            $value = $this->data[$col];
-            if ($value instanceof RawValue) {
-                $placeholders[] = $this->resolveRawValue($value);
-            } else {
-                $placeholder = ':' . $col;
-                $placeholders[] = $placeholder;
-                $params[$placeholder] = $value;
-            }
+            $result = $this->processValueForSql($this->data[$col], $col);
+            $placeholders[] = $result['sql'];
+            $params = array_merge($params, $result['params']);
         }
 
         $sql = $this->dialect->buildInsertSql($this->normalizeTable(), $columns, $placeholders, $this->options);
@@ -1071,7 +1055,6 @@ class QueryBuilder implements QueryBuilderInterface
             foreach ($columns as $col) {
                 $val = $row[$col];
                 if ($val instanceof RawValue) {
-                    // insert raw expression directly without a parameter
                     $placeholders[] = $this->resolveRawValue($val);
                 } else {
                     // unique placeholder for each row/column
@@ -1128,18 +1111,16 @@ class QueryBuilder implements QueryBuilderInterface
                         if ($valueForParam instanceof RawValue) {
                             $setParts[] = "{$qid} = " . $this->resolveRawValue($valueForParam);
                         } else {
-                            $ph = $this->makeParam("upd_{$col}");
+                            $ph = $this->addParam("upd_{$col}", $valueForParam);
                             $setParts[] = "{$qid} = {$ph}";
-                            $this->params[$ph] = $valueForParam;
                         }
                         break;
                 }
             } elseif ($val instanceof RawValue) {
                 $setParts[] = "{$qid} = {$this->resolveRawValue($val)}";
             } else {
-                $ph = $this->makeParam("upd_{$col}");
+                $ph = $this->addParam("upd_{$col}", $val);
                 $setParts[] = "{$qid} = {$ph}";
-                $this->params[$ph] = $val;
             }
         }
 
@@ -1218,8 +1199,7 @@ class QueryBuilder implements QueryBuilderInterface
                     $this->params[trim($val, ':')] = $value[trim($val, ':')] ?? null;
                     $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$val}", 'cond' => $cond];
                 } else {
-                    $ph = $this->makeParam((string)$col);
-                    $this->params[$ph] = $val;
+                    $ph = $this->addParam((string)$col, $val);
                     $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$ph}", 'cond' => $cond];
                 }
             }
@@ -1254,7 +1234,7 @@ class QueryBuilder implements QueryBuilderInterface
             return $this;
         }
 
-        $opUpper = strtoupper(trim($operator));
+        $opUpper = $this->normalizeOperator($operator);
         // support IN / NOT IN with an array of values
         if (($opUpper === 'IN' || $opUpper === 'NOT IN') && is_array($value)) {
             if (empty($value)) {
@@ -1275,9 +1255,7 @@ class QueryBuilder implements QueryBuilderInterface
                     $placeholders[] = $this->resolveRawValue($v);
                     continue;
                 }
-                $ph = $this->makeParam((string)$exprOrColumn . '_in_' . $i);
-                $this->params[$ph] = $v;
-                $placeholders[] = $ph;
+                $placeholders[] = $this->addParam((string)$exprOrColumn . '_in_' . $i, $v);
             }
 
             $inSql = '(' . implode(', ', $placeholders) . ')';
@@ -1286,7 +1264,6 @@ class QueryBuilder implements QueryBuilderInterface
         }
 
         // handle BETWEEN / NOT BETWEEN when value is array with two items
-        $opUpper = strtoupper(trim($operator));
         if (($opUpper === 'BETWEEN' || $opUpper === 'NOT BETWEEN') && is_array($value)) {
             $value = array_values($value);
 
@@ -1302,15 +1279,13 @@ class QueryBuilder implements QueryBuilderInterface
             if ($low instanceof RawValue) {
                 $left = $this->resolveRawValue($low);
             } else {
-                $left = $this->makeParam($exprOrColumn . '_bt_low');
-                $this->params[$left] = $low;
+                $left = $this->addParam($exprOrColumn . '_bt_low', $low);
             }
 
             if ($high instanceof RawValue) {
                 $right = $this->resolveRawValue($high);
             } else {
-                $right = $this->makeParam($exprOrColumn . '_bt_high');
-                $this->params[$right] = $high;
+                $right = $this->addParam($exprOrColumn . '_bt_high', $high);
             }
 
             $this->{$prop}[] = [
@@ -1323,8 +1298,7 @@ class QueryBuilder implements QueryBuilderInterface
         if ($value instanceof RawValue) {
             $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$this->resolveRawValue($value)}", 'cond' => $cond];
         } else {
-            $ph = $this->makeParam((string)$exprOrColumn);
-            $this->params[$ph] = $value;
+            $ph = $this->addParam((string)$exprOrColumn, $value);
             $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$ph}", 'cond' => $cond];
         }
 
@@ -1458,6 +1432,47 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
+     * Create parameter and register it in params array
+     * @param string $name
+     * @param mixed $value
+     * @return string The placeholder name
+     */
+    protected function addParam(string $name, mixed $value): string
+    {
+        $ph = $this->makeParam($name);
+        $this->params[$ph] = $value;
+        return $ph;
+    }
+
+    /**
+     * Normalize operator (trim and uppercase)
+     * @param string $operator
+     * @return string
+     */
+    protected function normalizeOperator(string $operator): string
+    {
+        return strtoupper(trim($operator));
+    }
+
+    /**
+     * Process value for SQL - returns placeholder or raw SQL
+     * @param mixed $value
+     * @param string $columnName
+     * @param string $prefix
+     * @return array ['sql' => string, 'params' => array]
+     */
+    protected function processValueForSql(mixed $value, string $columnName, string $prefix = ''): array
+    {
+        if ($value instanceof RawValue) {
+            return ['sql' => $this->resolveRawValue($value), 'params' => []];
+        }
+        
+        // Create placeholder (simple or with prefix)
+        $ph = $prefix === '' ? ':' . $columnName : ':' . $prefix . $columnName;
+        return ['sql' => $ph, 'params' => [$ph => $value]];
+    }
+
+    /**
      * Normalizes a table name by prefixing it with the database prefix if it is set.
      * @param string|null $table
      * @return string The normalized table name.
@@ -1563,8 +1578,7 @@ class QueryBuilder implements QueryBuilderInterface
             return "{$expr} {$value->getOperator()} {$right}";
         }
         
-        $ph = $this->makeParam("jsonpath_" . $value->getColumn());
-        $this->params[$ph] = $compareValue;
+        $ph = $this->addParam("jsonpath_" . $value->getColumn(), $compareValue);
         return "{$expr} {$value->getOperator()} {$ph}";
     }
 

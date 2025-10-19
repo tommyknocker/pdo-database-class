@@ -482,28 +482,25 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
      */
     public function formatIfNull(string $expr, mixed $default): string
     {
-        $defaultStr = is_string($default) ? "'{$default}'" : $default;
-        return "IFNULL($expr, $defaultStr)";
+        return "IFNULL($expr, {$this->formatDefaultValue($default)})";
     }
 
     /**
      * {@inheritDoc}
+     * SQLite doesn't have GREATEST, use MAX
      */
     public function formatGreatest(array $values): string
     {
-        // SQLite doesn't have GREATEST, use MAX
-        $args = array_map(fn($v) => $v instanceof RawValue ? $v->getValue() : $v, $values);
-        return 'MAX(' . implode(', ', $args) . ')';
+        return 'MAX(' . implode(', ', $this->resolveValues($values)) . ')';
     }
 
     /**
      * {@inheritDoc}
+     * SQLite doesn't have LEAST, use MIN
      */
     public function formatLeast(array $values): string
     {
-        // SQLite doesn't have LEAST, use MIN
-        $args = array_map(fn($v) => $v instanceof RawValue ? $v->getValue() : $v, $values);
-        return 'MIN(' . implode(', ', $args) . ')';
+        return 'MIN(' . implode(', ', $this->resolveValues($values)) . ')';
     }
 
     /**
@@ -511,7 +508,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
      */
     public function formatSubstring(string|RawValue $source, int $start, ?int $length): string
     {
-        $src = $source instanceof RawValue ? $source->getValue() : $source;
+        $src = $this->resolveValue($source);
         if ($length === null) {
             return "SUBSTR($src, $start)";
         }
@@ -520,13 +517,11 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     * SQLite doesn't have MOD function, use % operator
      */
     public function formatMod(string|RawValue $dividend, string|RawValue $divisor): string
     {
-        // SQLite doesn't have MOD function, use % operator
-        $d1 = $dividend instanceof RawValue ? $dividend->getValue() : $dividend;
-        $d2 = $divisor instanceof RawValue ? $divisor->getValue() : $divisor;
-        return "($d1 % $d2)";
+        return "({$this->resolveValue($dividend)} % {$this->resolveValue($divisor)})";
     }
 
     /**
@@ -550,8 +545,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
      */
     public function formatYear(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "CAST(STRFTIME('%Y', $val) AS INTEGER)";
+        return "CAST(STRFTIME('%Y', {$this->resolveValue($value)}) AS INTEGER)";
     }
 
     /**
@@ -559,8 +553,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
      */
     public function formatMonth(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "CAST(STRFTIME('%m', $val) AS INTEGER)";
+        return "CAST(STRFTIME('%m', {$this->resolveValue($value)}) AS INTEGER)";
     }
 
     /**
@@ -568,8 +561,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
      */
     public function formatDay(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "CAST(STRFTIME('%d', $val) AS INTEGER)";
+        return "CAST(STRFTIME('%d', {$this->resolveValue($value)}) AS INTEGER)";
     }
 
     /**
@@ -577,8 +569,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
      */
     public function formatHour(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "CAST(STRFTIME('%H', $val) AS INTEGER)";
+        return "CAST(STRFTIME('%H', {$this->resolveValue($value)}) AS INTEGER)";
     }
 
     /**
@@ -586,8 +577,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
      */
     public function formatMinute(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "CAST(STRFTIME('%M', $val) AS INTEGER)";
+        return "CAST(STRFTIME('%M', {$this->resolveValue($value)}) AS INTEGER)";
     }
 
     /**
@@ -595,8 +585,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
      */
     public function formatSecond(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "CAST(STRFTIME('%S', $val) AS INTEGER)";
+        return "CAST(STRFTIME('%S', {$this->resolveValue($value)}) AS INTEGER)";
     }
 }
 

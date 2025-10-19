@@ -642,26 +642,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     public function formatIfNull(string $expr, mixed $default): string
     {
         // PostgreSQL doesn't have IFNULL, use COALESCE
-        $defaultStr = is_string($default) ? "'{$default}'" : $default;
-        return "COALESCE($expr, $defaultStr)";
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function formatGreatest(array $values): string
-    {
-        $args = array_map(fn($v) => $v instanceof RawValue ? $v->getValue() : $v, $values);
-        return 'GREATEST(' . implode(', ', $args) . ')';
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function formatLeast(array $values): string
-    {
-        $args = array_map(fn($v) => $v instanceof RawValue ? $v->getValue() : $v, $values);
-        return 'LEAST(' . implode(', ', $args) . ')';
+        return "COALESCE($expr, {$this->formatDefaultValue($default)})";
     }
 
     /**
@@ -669,21 +650,11 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatSubstring(string|RawValue $source, int $start, ?int $length): string
     {
-        $src = $source instanceof RawValue ? $source->getValue() : $source;
+        $src = $this->resolveValue($source);
         if ($length === null) {
             return "SUBSTRING($src FROM $start)";
         }
         return "SUBSTRING($src FROM $start FOR $length)";
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function formatMod(string|RawValue $dividend, string|RawValue $divisor): string
-    {
-        $d1 = $dividend instanceof RawValue ? $dividend->getValue() : $dividend;
-        $d2 = $divisor instanceof RawValue ? $divisor->getValue() : $divisor;
-        return "MOD($d1, $d2)";
     }
 
     /**
@@ -707,8 +678,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatYear(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "EXTRACT(YEAR FROM $val)";
+        return "EXTRACT(YEAR FROM {$this->resolveValue($value)})";
     }
 
     /**
@@ -716,8 +686,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatMonth(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "EXTRACT(MONTH FROM $val)";
+        return "EXTRACT(MONTH FROM {$this->resolveValue($value)})";
     }
 
     /**
@@ -725,8 +694,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatDay(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "EXTRACT(DAY FROM $val)";
+        return "EXTRACT(DAY FROM {$this->resolveValue($value)})";
     }
 
     /**
@@ -734,8 +702,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatHour(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "EXTRACT(HOUR FROM $val)";
+        return "EXTRACT(HOUR FROM {$this->resolveValue($value)})";
     }
 
     /**
@@ -743,8 +710,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatMinute(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "EXTRACT(MINUTE FROM $val)";
+        return "EXTRACT(MINUTE FROM {$this->resolveValue($value)})";
     }
 
     /**
@@ -752,7 +718,6 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatSecond(string|RawValue $value): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return "EXTRACT(SECOND FROM $val)";
+        return "EXTRACT(SECOND FROM {$this->resolveValue($value)})";
     }
 }

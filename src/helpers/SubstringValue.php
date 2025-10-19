@@ -17,6 +17,7 @@ class SubstringValue extends RawValue
         $this->source = $source;
         $this->start = $start;
         $this->length = $length;
+        parent::__construct('');
     }
 
     public function getSource(): string|RawValue

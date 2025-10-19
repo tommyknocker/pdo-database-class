@@ -15,6 +15,7 @@ class JsonLengthValue extends RawValue
     {
         $this->column = $column;
         $this->path = $path;
+        parent::__construct('');
     }
 
     public function getColumn(): string

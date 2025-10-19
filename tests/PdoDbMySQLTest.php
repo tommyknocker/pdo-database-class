@@ -2541,6 +2541,8 @@ XML
         $this->assertEquals($id2, $ageEq['id']);
     }
 
+    /* ---------------- New DB Helpers Tests ---------------- */
+
     public function testNewDbHelpers(): void
     {
         $db = self::$db;
@@ -2697,5 +2699,243 @@ XML
             ->getOne();
         $this->assertStringContainsString('Alice', $row['full_info']);
         $this->assertStringContainsString('30', $row['full_info']);
+    }
+
+    public function testNewDbHelpersEdgeCases(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('DROP TABLE IF EXISTS t_edge');
+        $db->rawQuery("CREATE TABLE t_edge (id INT AUTO_INCREMENT PRIMARY KEY, val1 VARCHAR(255), val2 VARCHAR(255), num1 INT, num2 DECIMAL(10,5), dt DATETIME)");
+
+        // Test replace() function - not tested before
+        $id1 = $db->find()->table('t_edge')->insert(['val1' => 'Hello World']);
+        $row = $db->find()->table('t_edge')
+            ->select(['replaced' => Db::replace('val1', 'World', 'MySQL')])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertEquals('Hello MySQL', $row['replaced']);
+
+        // Test date() and time() extraction functions
+        $id2 = $db->find()->table('t_edge')->insert(['dt' => '2025-10-19 14:30:45']);
+        $row = $db->find()->table('t_edge')
+            ->select([
+                'date_part' => Db::date('dt'),
+                'time_part' => Db::time('dt')
+            ])
+            ->where('id', $id2)
+            ->getOne();
+        $this->assertEquals('2025-10-19', $row['date_part']);
+        $this->assertEquals('14:30:45', $row['time_part']);
+
+        // Test nullIf - should return NULL when values are equal
+        $row = $db->find()->table('t_edge')
+            ->select(['null_result' => Db::nullIf('5', '5')])
+            ->getOne();
+        $this->assertNull($row['null_result']);
+
+        // Test coalesce with all NULLs
+        $id3 = $db->find()->table('t_edge')->insert(['val1' => null, 'val2' => null]);
+        $row = $db->find()->table('t_edge')
+            ->select(['result' => Db::coalesce('val1', 'val2', Db::raw("'fallback'"))])
+            ->where('id', $id3)
+            ->getOne();
+        $this->assertEquals('fallback', $row['result']);
+
+        // Test round() with different precision
+        $id4 = $db->find()->table('t_edge')->insert(['num2' => 3.14159]);
+        $row = $db->find()->table('t_edge')
+            ->select([
+                'round0' => Db::round('num2'),
+                'round2' => Db::round('num2', 2),
+                'round4' => Db::round('num2', 4)
+            ])
+            ->where('id', $id4)
+            ->getOne();
+        $this->assertEquals(3, (int)$row['round0']);
+        $this->assertEquals(3.14, (float)$row['round2']);
+        $this->assertEquals(3.1416, (float)$row['round4']);
+
+        // Test round() with negative numbers
+        $id5 = $db->find()->table('t_edge')->insert(['num2' => -3.7]);
+        $row = $db->find()->table('t_edge')
+            ->select(['rounded' => Db::round('num2')])
+            ->where('id', $id5)
+            ->getOne();
+        $this->assertEquals(-4, (int)$row['rounded']);
+
+        // Test mod() with negative numbers
+        $row = $db->find()->table('t_edge')
+            ->select(['mod_result' => Db::mod('-10', '3')])
+            ->getOne();
+        $this->assertEquals(-1, (int)$row['mod_result']);
+
+        // Test substring() with edge cases
+        $id6 = $db->find()->table('t_edge')->insert(['val1' => 'Hello']);
+        // Index beyond string length
+        $row = $db->find()->table('t_edge')
+            ->select(['substr_beyond' => Db::substring('val1', 10, 5)])
+            ->where('id', $id6)
+            ->getOne();
+        $this->assertEquals('', $row['substr_beyond']);
+
+        // Test length() with empty string
+        $id7 = $db->find()->table('t_edge')->insert(['val1' => '']);
+        $row = $db->find()->table('t_edge')
+            ->select(['len' => Db::length('val1')])
+            ->where('id', $id7)
+            ->getOne();
+        $this->assertEquals(0, (int)$row['len']);
+
+        // Test upper/lower with UTF-8
+        $id8 = $db->find()->table('t_edge')->insert(['val1' => 'Привет 🎉']);
+        $row = $db->find()->table('t_edge')
+            ->select([
+                'upper_utf8' => Db::upper('val1'),
+                'lower_utf8' => Db::lower('val1')
+            ])
+            ->where('id', $id8)
+            ->getOne();
+        $this->assertStringContainsString('🎉', $row['upper_utf8']);
+        $this->assertStringContainsString('🎉', $row['lower_utf8']);
+
+        // Test concat() with NULL values (using ifNull)
+        $id9 = $db->find()->table('t_edge')->insert(['val1' => 'Start', 'val2' => null]);
+        $row = $db->find()->table('t_edge')
+            ->select([
+                'val_or_default' => Db::ifNull('val2', 'DefaultValue'),
+                'concat_result' => Db::concat('val1', Db::raw("' - '"), Db::raw("'End'"))
+            ])
+            ->where('id', $id9)
+            ->getOne();
+        $this->assertEquals('DefaultValue', $row['val_or_default']);
+        $this->assertStringContainsString('Start', $row['concat_result']);
+        $this->assertStringContainsString('End', $row['concat_result']);
+
+        // Test cast() in WHERE
+        $id10 = $db->find()->table('t_edge')->insert(['val1' => '123']);
+        $found = $db->find()->table('t_edge')
+            ->where(Db::cast('val1', 'UNSIGNED'), 123)
+            ->where('id', $id10)
+            ->exists();
+        $this->assertTrue($found);
+
+        // Test cast() in ORDER BY
+        $db->find()->table('t_edge')->insert(['val1' => '10']);
+        $db->find()->table('t_edge')->insert(['val1' => '2']);
+        $db->find()->table('t_edge')->insert(['val1' => '100']);
+        
+        $results = $db->find()->table('t_edge')
+            ->select(['val1'])
+            ->where('val1', ['2', '10', '100'], 'IN')
+            ->orderBy(Db::cast('val1', 'UNSIGNED'), 'ASC')
+            ->getColumn();
+        $this->assertEquals(['2', '10', '100'], $results);
+
+        // Test multiple helpers in same query (not nested)
+        $id11 = $db->find()->table('t_edge')->insert(['val1' => 'hello world']);
+        $row = $db->find()->table('t_edge')
+            ->select([
+                'upper_val' => Db::upper('val1'),
+                'substr_val' => Db::substring('val1', 1, 5)
+            ])
+            ->where('id', $id11)
+            ->getOne();
+        $this->assertEquals('HELLO WORLD', $row['upper_val']);
+        $this->assertEquals('hello', $row['substr_val']);
+
+        // Test greatest/least in WHERE
+        $id12 = $db->find()->table('t_edge')->insert(['num1' => 10, 'num2' => 20.5]);
+        $found = $db->find()->table('t_edge')
+            ->where(Db::greatest('num1', 'num2'), 15, '>')
+            ->where('id', $id12)
+            ->exists();
+        $this->assertTrue($found);
+
+        // Test ORDER BY with ifNull
+        $db->find()->table('t_edge')->insert(['val1' => null, 'num1' => 1]);
+        $db->find()->table('t_edge')->insert(['val1' => 'B', 'num1' => 2]);
+        $db->find()->table('t_edge')->insert(['val1' => 'A', 'num1' => 3]);
+        
+        $results = $db->find()->table('t_edge')
+            ->select(['num1'])
+            ->where('num1', [1, 2, 3], 'IN')
+            ->orderBy(Db::ifNull('val1', Db::raw("'ZZZ'")), 'ASC')
+            ->getColumn();
+        $this->assertEquals([3, 2, 1], $results); // A, B, NULL(->ZZZ)
+
+        // Test year/month/day with hour/minute/second
+        $dt = '2025-10-19 14:30:45';
+        $id13 = $db->find()->table('t_edge')->insert(['dt' => $dt]);
+        $row = $db->find()->table('t_edge')
+            ->select([
+                'h' => Db::hour('dt'),
+                'm' => Db::minute('dt'),
+                's' => Db::second('dt')
+            ])
+            ->where('id', $id13)
+            ->getOne();
+        $this->assertEquals(14, (int)$row['h']);
+        $this->assertEquals(30, (int)$row['m']);
+        $this->assertEquals(45, (int)$row['s']);
+
+        // Test curDate/curTime in SELECT
+        $row = $db->find()->table('t_edge')
+            ->select([
+                'today' => Db::curDate(),
+                'now_time' => Db::curTime()
+            ])
+            ->getOne();
+        $this->assertNotEmpty($row['today']);
+        $this->assertNotEmpty($row['now_time']);
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', $row['today']);
+        $this->assertMatchesRegularExpression('/^\d{2}:\d{2}:\d{2}$/', $row['now_time']);
+    }
+
+    public function testDialectSpecificDifferences(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('DROP TABLE IF EXISTS t_dialect');
+        $db->rawQuery("CREATE TABLE t_dialect (id INT AUTO_INCREMENT PRIMARY KEY, str VARCHAR(255), num INT)");
+
+        // Test SUBSTRING (MySQL) vs SUBSTR (SQLite)
+        $id1 = $db->find()->table('t_dialect')->insert(['str' => 'MySQL']);
+        $row = $db->find()->table('t_dialect')
+            ->select(['sub' => Db::substring('str', 1, 3)])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertEquals('MyS', $row['sub']);
+        // Should use SUBSTRING in MySQL
+        $this->assertStringContainsString('SUBSTRING', $db->lastQuery);
+
+        // Test MOD (MySQL) vs % (SQLite)
+        $id2 = $db->find()->table('t_dialect')->insert(['num' => 10]);
+        $row = $db->find()->table('t_dialect')
+            ->select(['mod_result' => Db::mod('num', '3')])
+            ->where('id', $id2)
+            ->getOne();
+        $this->assertEquals(1, (int)$row['mod_result']);
+        // Should use MOD in MySQL
+        $this->assertStringContainsString('MOD', $db->lastQuery);
+
+        // Test IFNULL (MySQL) vs COALESCE (PostgreSQL)
+        $id3 = $db->find()->table('t_dialect')->insert(['str' => null]);
+        $row = $db->find()->table('t_dialect')
+            ->select(['result' => Db::ifNull('str', 'default')])
+            ->where('id', $id3)
+            ->getOne();
+        $this->assertEquals('default', $row['result']);
+        $this->assertStringContainsString('IFNULL', $db->lastQuery);
+
+        // Test GREATEST/LEAST (MySQL/PostgreSQL) vs MAX/MIN (SQLite)
+        $row = $db->find()->table('t_dialect')
+            ->select([
+                'max_val' => Db::greatest('5', '10', '3'),
+                'min_val' => Db::least('5', '10', '3')
+            ])
+            ->getOne();
+        $this->assertEquals(10, (int)$row['max_val']);
+        $this->assertEquals(3, (int)$row['min_val']);
+        // Should use GREATEST/LEAST in MySQL
+        $this->assertStringContainsString('GREATEST', $db->lastQuery);
     }
 }

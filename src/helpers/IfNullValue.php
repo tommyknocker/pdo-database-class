@@ -15,6 +15,7 @@ class IfNullValue extends RawValue
     {
         $this->expr = $expr;
         $this->defaultValue = $defaultValue;
+        parent::__construct('');
     }
 
     public function getExpr(): string
