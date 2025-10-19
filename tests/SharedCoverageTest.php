@@ -83,60 +83,6 @@ class SharedCoverageTest extends TestCase
 
     /* ---------------- PdoDb Helper Methods Tests ---------------- */
 
-    public function testEscapeMethod(): void
-    {
-        $escaped = self::$db->escape("O'Reilly");
-        $this->assertIsString($escaped);
-        $this->assertStringContainsString("'", $escaped);
-        
-        $empty = self::$db->escape("");
-        $this->assertIsString($empty);
-    }
-
-    public function testIncDecNotHelpers(): void
-    {
-        // Test inc
-        $inc = self::$db->inc();
-        $this->assertEquals(['__op' => 'inc', 'val' => 1], $inc);
-        
-        $inc5 = self::$db->inc(5);
-        $this->assertEquals(['__op' => 'inc', 'val' => 5], $inc5);
-        
-        $incFloat = self::$db->inc(2.5);
-        $this->assertEquals(['__op' => 'inc', 'val' => 2.5], $incFloat);
-        
-        // Test dec
-        $dec = self::$db->dec();
-        $this->assertEquals(['__op' => 'dec', 'val' => 1], $dec);
-        
-        $dec3 = self::$db->dec(3);
-        $this->assertEquals(['__op' => 'dec', 'val' => 3], $dec3);
-        
-        // Test not
-        $not = self::$db->not(true);
-        $this->assertEquals(['__op' => 'not', 'val' => true], $not);
-        
-        $not2 = self::$db->not(Db::like('name', '%test%'));
-        $this->assertArrayHasKey('__op', $not2);
-        $this->assertEquals('not', $not2['__op']);
-    }
-
-    public function testNowHelper(): void
-    {
-        // Test now() is covered through insert operations
-        self::$db->rawQuery("DELETE FROM test_coverage");
-        
-        $id = self::$db->find()->table('test_coverage')->insert([
-            'name' => 'test_now'
-        ]);
-        
-        $this->assertGreaterThan(0, $id);
-        
-        // Verify created_at was set
-        $result = self::$db->find()->from('test_coverage')->where('id', $id)->getOne();
-        $this->assertNotNull($result['created_at']);
-    }
-
     public function testSetLockMethod(): void
     {
         $result = self::$db->setLockMethod('READ');
@@ -147,16 +93,6 @@ class SharedCoverageTest extends TestCase
         
         $result3 = self::$db->setLockMethod('WRITE'); // uppercase
         $this->assertInstanceOf(PdoDb::class, $result3);
-    }
-
-    public function testTableExists(): void
-    {
-        // tableExists() is implemented in QueryBuilder
-        $exists = self::$db->find()->table('test_coverage')->tableExists('test_coverage');
-        $this->assertTrue($exists);
-        
-        $notExists = self::$db->find()->table('test')->tableExists('nonexistent_table_xyz');
-        $this->assertFalse($notExists);
     }
 
     /* ---------------- Introspection Methods Tests ---------------- */

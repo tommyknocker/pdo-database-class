@@ -52,7 +52,6 @@ class PdoDb
     }
     protected string $lockMethod = 'WRITE';
 
-
     /**
      * Initializes a new PdoDb object.
      *
@@ -212,52 +211,6 @@ class PdoDb
         return $this;
     }
 
-    /* ---------------- HELPERS ---------------- */
-
-    /**
-     * Returns an array with an increment operation.
-     *
-     * @param int|float $num The number to increment by.
-     * @return array The array with the increment operation.
-     */
-    public function inc(int|float $num = 1): array
-    {
-        return ['__op' => 'inc', 'val' => $num];
-    }
-
-    /**
-     * Returns an array with a decrement operation.
-     *
-     * @param int|float $num The number to decrement by.
-     * @return array The array with the decrement operation.
-     */
-    public function dec(int|float $num = 1): array
-    {
-        return ['__op' => 'dec', 'val' => $num];
-    }
-
-    /**
-     * Returns an array with a not operation.
-     *
-     * @param mixed $val The value to negate.
-     * @return array The array with the not operation.
-     */
-    public function not(mixed $val): array
-    {
-        return ['__op' => 'not', 'val' => $val];
-    }
-
-    /**
-     * Escapes a string for use in a SQL query.
-     *
-     * @param string $str The string to escape.
-     * @return string The escaped string.
-     */
-    public function escape(string $str): string
-    {
-        return $this->connection->quote($str);
-    }
-
     /**
      * Disconnects from the database.
      *
@@ -281,34 +234,6 @@ class PdoDb
         } catch (Throwable) {
             return false;
         }
-    }
-
-    /**
-     * Checks if a table exists.
-     *
-     * @param string $table The table to check.
-     * @return bool True if the table exists, false otherwise.
-     */
-    public function tableExists(string $table): bool
-    {
-        $sql = $this->connection->getDialect()->buildExistsSql($this->prefix . $table);
-        $res = $this->rawQueryValue($sql);
-        return !empty($res);
-    }
-
-
-    /* ---------------- UTILS ---------------- */
-
-
-    /**
-     * Returns a string with the current date and time.
-     *
-     * @param string $diff The time interval to add to the current date and time.
-     * @return RawValue The current date and time.
-     */
-    public function now(string $diff = ''): RawValue
-    {
-        return $this->connection->getDialect()->now($diff);
     }
 
     /* ---------------- CONNECTIONS ---------------- */
@@ -347,61 +272,6 @@ class PdoDb
         }
         $this->connection = $this->connections[$name];
         return $this;
-    }
-
-
-    /* ---------------- LOAD DATA/XML ---------------- */
-
-    /**
-     * Loads data from a CSV file into a table.
-     *
-     * @param string $table The table to load data into.
-     * @param string $filePath The path to the CSV file.
-     * @param array $options The options to use to load the data.
-     * @return bool True on success, false on failure.
-     */
-    public function loadData(string $table, string $filePath, array $options = []): bool
-    {
-        $this->startTransaction();
-        try {
-            $sql = $this->connection->getDialect()->buildLoadDataSql($this->connection->getPdo(),
-                $this->prefix . $table, $filePath, $options);
-            $this->connection->prepare($sql)->execute();
-            $this->commit();
-            return $this->executeState !== false;
-        } catch (Throwable $e) {
-            $this->rollback();
-        }
-        return false;
-    }
-
-
-    /**
-     * Loads data from an XML file into a table.
-     *
-     * @param string $table The table to load data into.
-     * @param string $filePath The path to the XML file.
-     * @param string $rowTag The tag that identifies a row.
-     * @param int|null $linesToIgnore The number of lines to ignore at the beginning of the file.
-     * @return bool True on success, false on failure.
-     */
-    public function loadXml(string $table, string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool
-    {
-        $this->startTransaction();
-        try {
-            $options = [
-                'rowTag' => $rowTag,
-                'linesToIgnore' => $linesToIgnore
-            ];
-            $sql = $this->connection->getDialect()->buildLoadXML($this->connection->getPdo(), $this->prefix . $table,
-                $filePath, $options);
-            $this->connection->prepare($sql)->execute();
-            $this->commit();
-            return $this->executeState !== false;
-        } catch (Throwable $e) {
-            $this->rollback();
-        }
-        return false;
     }
 
     /**

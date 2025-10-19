@@ -47,7 +47,7 @@ class QueryBuilder implements QueryBuilderInterface
     protected ?string $table = null {
         get {
             if (!$this->table) {
-                throw new RuntimeException('You must define table first. User table() or from() methods');
+                throw new RuntimeException('You must define table first. Use table() or from() methods');
             }
             return $this->table;
         }

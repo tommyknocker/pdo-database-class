@@ -2785,4 +2785,113 @@ XML
         // Should use MAX/MIN in SQLite
         $this->assertStringContainsString('MAX', $db->lastQuery);
     }
+
+    /* ---------------- Dialect Method Coverage Tests ---------------- */
+
+    public function testBuildLoadCsvSql(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+        
+        // Create temp file for testing
+        $tempFile = tempnam(sys_get_temp_dir(), 'csv_');
+        file_put_contents($tempFile, "id,name\n1,John\n");
+        
+        // SQLite uses INSERT fallback
+        $sql = $dialect->buildLoadCsvSql('users', $tempFile, []);
+        
+        $this->assertNotEmpty($sql);
+        // SQLite fallback uses INSERT statements
+        $this->assertStringContainsString('INSERT', $sql);
+        $this->assertStringContainsString('users', $sql);
+        
+        // Test with options
+        $tempFile2 = tempnam(sys_get_temp_dir(), 'csv_');
+        file_put_contents($tempFile2, "id;name;price\n1;Product;99.99\n");
+        
+        $sql2 = $dialect->buildLoadCsvSql('products', $tempFile2, [
+            'fieldChar' => ';',
+            'fields' => ['id', 'name', 'price'],
+            'linesToIgnore' => 1
+        ]);
+        
+        $this->assertStringContainsString('INSERT', $sql2);
+        
+        // Cleanup
+        unlink($tempFile);
+        unlink($tempFile2);
+    }
+
+    public function testBuildLoadXmlSql(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+        
+        // Create temp XML file for testing
+        $tempFile = tempnam(sys_get_temp_dir(), 'xml_');
+        file_put_contents($tempFile, "<users><user><id>1</id><name>John</name></user></users>");
+        
+        // SQLite uses INSERT fallback for XML
+        $sql = $dialect->buildLoadXML('users', $tempFile, [
+            'rowTag' => '<user>',
+            'linesToIgnore' => 0
+        ]);
+        
+        $this->assertNotEmpty($sql);
+        // SQLite fallback uses INSERT statements
+        $this->assertStringContainsString('INSERT', $sql);
+        $this->assertStringContainsString('users', $sql);
+        
+        // Cleanup
+        unlink($tempFile);
+    }
+
+    public function testFormatSelectOptions(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+        
+        $baseSql = "SELECT * FROM users";
+        
+        // Test with DISTINCT
+        $withDistinct = $dialect->formatSelectOptions($baseSql, ['DISTINCT']);
+        $this->assertStringContainsString('DISTINCT', $withDistinct);
+        
+        // SQLite handles basic options
+        $withOther = $dialect->formatSelectOptions($baseSql, ['SOME_OPTION']);
+        $this->assertNotEmpty($withOther);
+    }
+
+    public function testBuildExplainSqlVariations(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+        
+        $query = "SELECT * FROM users WHERE age > 18";
+        
+        // Test basic EXPLAIN
+        $explain = $dialect->buildExplainSql($query, false);
+        $this->assertStringContainsString('EXPLAIN', $explain);
+        $this->assertStringContainsString($query, $explain);
+        
+        // Test EXPLAIN QUERY PLAN
+        $analyze = $dialect->buildExplainSql($query, true);
+        $this->assertStringContainsString('EXPLAIN QUERY PLAN', $analyze);
+    }
+
+    public function testBuildLockSqlThrowsException(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+        
+        // SQLite doesn't support LOCK TABLES
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('not supported');
+        $dialect->buildLockSql(['users'], '', 'READ');
+    }
+
+    public function testBuildUnlockSqlThrowsException(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+        
+        // SQLite doesn't support UNLOCK TABLES
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('not supported');
+        $dialect->buildUnlockSql();
+    }
 }

@@ -210,7 +210,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
      */
     public function buildExplainSql(string $query, bool $analyze = false): string
     {
-        return "EXPLAIN " . $query;
+        return "EXPLAIN " . ($analyze ? "ANALYZE " : "") . $query;
     }
 
     /**

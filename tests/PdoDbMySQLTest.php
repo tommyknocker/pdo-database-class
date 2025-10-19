@@ -2938,4 +2938,112 @@ XML
         // Should use GREATEST/LEAST in MySQL
         $this->assertStringContainsString('GREATEST', $db->lastQuery);
     }
+
+    /* ---------------- Dialect Method Coverage Tests ---------------- */
+
+    public function testBuildLoadCsvSql(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+        
+        // Create temp file for testing
+        $tempFile = tempnam(sys_get_temp_dir(), 'csv_');
+        file_put_contents($tempFile, "id,name\n1,John\n");
+        
+        // Test basic CSV load SQL generation
+        $sql = $dialect->buildLoadCsvSql('users', $tempFile, []);
+        
+        $this->assertNotEmpty($sql);
+        $this->assertStringContainsString('LOAD DATA', $sql);
+        $this->assertStringContainsString('users', $sql);
+        
+        // Test with options
+        $tempFile2 = tempnam(sys_get_temp_dir(), 'csv_');
+        file_put_contents($tempFile2, "id;name;price\n1;Product;99.99\n");
+        
+        $sql2 = $dialect->buildLoadCsvSql('products', $tempFile2, [
+            'fieldChar' => ';',
+            'fieldEnclosure' => '"',
+            'fields' => ['id', 'name', 'price'],
+            'local' => true,
+            'linesToIgnore' => 1
+        ]);
+        
+        $this->assertStringContainsString('LOAD DATA LOCAL INFILE', $sql2);
+        $this->assertStringContainsString('FIELDS TERMINATED BY', $sql2);
+        $this->assertStringContainsString('IGNORE 1 LINES', $sql2);
+        
+        // Cleanup
+        unlink($tempFile);
+        unlink($tempFile2);
+    }
+
+    public function testBuildLoadXmlSql(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+        
+        // Create temp XML file for testing
+        $tempFile = tempnam(sys_get_temp_dir(), 'xml_');
+        file_put_contents($tempFile, "<users><user><id>1</id><name>John</name></user></users>");
+        
+        $sql = $dialect->buildLoadXML('users', $tempFile, [
+            'rowTag' => '<user>',
+            'linesToIgnore' => 0
+        ]);
+        
+        $this->assertNotEmpty($sql);
+        $this->assertStringContainsString('LOAD XML', $sql);
+        $this->assertStringContainsString('users', $sql);
+        
+        // Test with different options
+        $tempFile2 = tempnam(sys_get_temp_dir(), 'xml_');
+        file_put_contents($tempFile2, "<products><product><id>1</id></product></products>");
+        
+        $sql2 = $dialect->buildLoadXML('products', $tempFile2, [
+            'rowTag' => '<product>',
+            'linesToIgnore' => 2
+        ]);
+        
+        $this->assertStringContainsString('LOAD XML', $sql2);
+        
+        // Cleanup
+        unlink($tempFile);
+        unlink($tempFile2);
+    }
+
+    public function testFormatSelectOptions(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+        
+        $baseSql = "SELECT * FROM users";
+        
+        // Test with DISTINCT
+        $withDistinct = $dialect->formatSelectOptions($baseSql, ['DISTINCT']);
+        $this->assertStringContainsString('DISTINCT', $withDistinct);
+        
+        // Test with SQL_NO_CACHE
+        $withNoCache = $dialect->formatSelectOptions($baseSql, ['SQL_NO_CACHE']);
+        $this->assertStringContainsString('SQL_NO_CACHE', $withNoCache);
+        
+        // Test with multiple options
+        $withMultiple = $dialect->formatSelectOptions($baseSql, ['DISTINCT', 'SQL_CALC_FOUND_ROWS']);
+        $this->assertStringContainsString('DISTINCT', $withMultiple);
+        $this->assertStringContainsString('SQL_CALC_FOUND_ROWS', $withMultiple);
+    }
+
+    public function testBuildExplainSqlVariations(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+        
+        $query = "SELECT * FROM users WHERE age > 18";
+        
+        // Test basic EXPLAIN
+        $explain = $dialect->buildExplainSql($query, false);
+        $this->assertStringContainsString('EXPLAIN', $explain);
+        $this->assertStringContainsString($query, $explain);
+        
+        // Test EXPLAIN ANALYZE
+        $analyze = $dialect->buildExplainSql($query, true);
+        $this->assertStringContainsString('EXPLAIN', $analyze);
+        $this->assertStringContainsString('ANALYZE', $analyze);
+    }
 }

@@ -1327,7 +1327,7 @@ The project includes comprehensive PHPUnit tests for MySQL, PostgreSQL, and SQLi
 
 ```bash
 # Run all tests
-ALL_TESTS=1 ./vendor/bin/phpunit
+./vendor/bin/phpunit
 
 # Run specific dialect tests
 ./vendor/bin/phpunit tests/PdoDbMySQLTest.php
@@ -1335,7 +1335,7 @@ ALL_TESTS=1 ./vendor/bin/phpunit
 ./vendor/bin/phpunit tests/PdoDbSqliteTest.php
 
 # Run with coverage
-ALL_TESTS=1 ./vendor/bin/phpunit --coverage-html coverage
+./vendor/bin/phpunit --coverage-html coverage
 ```
 
 ### Test Requirements
@@ -1351,7 +1351,7 @@ Tests are designed to run in containers or against local instances. Recommended 
 ```yaml
 # GitHub Actions example
 - name: Run tests
-  run: ALL_TESTS=1 ./vendor/bin/phpunit
+  run: ./vendor/bin/phpunit
   env:
     MYSQL_HOST: 127.0.0.1
     MYSQL_PORT: 3306

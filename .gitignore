@@ -15,6 +15,3 @@ examples/config.php
 examples/**/*.db
 examples/**/*.sqlite
 examples/**/*.sql
-
-# Release scripts
-/release.sh
