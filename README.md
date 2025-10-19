@@ -1,8 +1,11 @@
 # PDOdb
 
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.4-blue.svg)](https://php.net)
+[![Latest Version](https://img.shields.io/packagist/v/tommyknocker/pdo-database-class.svg)](https://packagist.org/packages/tommyknocker/pdo-database-class)
+[![CI](https://github.com/tommyknocker/pdo-database-class/workflows/CI/badge.svg)](https://github.com/tommyknocker/pdo-database-class/actions)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)]()
+[![Downloads](https://img.shields.io/packagist/dt/tommyknocker/pdo-database-class.svg)](https://packagist.org/packages/tommyknocker/pdo-database-class)
+[![GitHub Stars](https://img.shields.io/github/stars/tommyknocker/pdo-database-class?style=social)](https://github.com/tommyknocker/pdo-database-class)
 
 **PDOdb** is a lightweight, framework-agnostic PHP database library providing a **unified API** across MySQL, PostgreSQL, and SQLite.
 
