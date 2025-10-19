@@ -2907,11 +2907,15 @@ XML
         
         $baseSql = "SELECT * FROM users";
         
-        // Test with DISTINCT
-        $withDistinct = $dialect->formatSelectOptions($baseSql, ['DISTINCT']);
-        $this->assertStringContainsString('DISTINCT', $withDistinct);
+        // Test with FOR UPDATE (PostgreSQL specific)
+        $withForUpdate = $dialect->formatSelectOptions($baseSql, ['FOR UPDATE']);
+        $this->assertStringContainsString('FOR UPDATE', $withForUpdate);
         
-        // PostgreSQL doesn't modify SELECT for most options
+        // Test with FOR SHARE (PostgreSQL specific)
+        $withForShare = $dialect->formatSelectOptions($baseSql, ['FOR SHARE']);
+        $this->assertStringContainsString('FOR SHARE', $withForShare);
+        
+        // PostgreSQL doesn't modify SELECT for non-locking options
         $withOther = $dialect->formatSelectOptions($baseSql, ['SOME_OPTION']);
         $this->assertNotEmpty($withOther);
     }

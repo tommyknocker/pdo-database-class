@@ -3041,9 +3041,11 @@ XML
         $this->assertStringContainsString('EXPLAIN', $explain);
         $this->assertStringContainsString($query, $explain);
         
-        // Test EXPLAIN ANALYZE
+        // Test with analyze flag (MySQL currently ignores it for compatibility)
         $analyze = $dialect->buildExplainSql($query, true);
         $this->assertStringContainsString('EXPLAIN', $analyze);
-        $this->assertStringContainsString('ANALYZE', $analyze);
+        // MySQL EXPLAIN ANALYZE returns tree format which is incompatible with table format
+        // So we just verify EXPLAIN is present
+        $this->assertStringContainsString($query, $analyze);
     }
 }

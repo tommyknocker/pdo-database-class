@@ -210,7 +210,10 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
      */
     public function buildExplainSql(string $query, bool $analyze = false): string
     {
-        return "EXPLAIN " . ($analyze ? "ANALYZE " : "") . $query;
+        // Note: EXPLAIN ANALYZE in MySQL 8.0+ returns a different format (tree/JSON)
+        // which is not compatible with the traditional table format
+        // For now, we ignore the $analyze flag to maintain compatibility
+        return "EXPLAIN " . $query;
     }
 
     /**
