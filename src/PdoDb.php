@@ -97,11 +97,11 @@ class PdoDb
     /**
      * Execute a raw query.
      *
-     * @param string $query The raw query to be executed.
+     * @param string|RawValue $query The raw query to be executed.
      * @param array $params The parameters to be bound to the query.
      * @return array The result of the query.
      */
-    public function rawQuery(string $query, array $params = []): array
+    public function rawQuery(string|RawValue $query, array $params = []): array
     {
         return $this->find()->fetchAll($query, $params);
     }
@@ -109,11 +109,11 @@ class PdoDb
     /**
      * Execute a raw query and return the first row.
      *
-     * @param string $query The raw query to be executed.
+     * @param string|RawValue $query The raw query to be executed.
      * @param array $params The parameters to be bound to the query.
      * @return array The first row of the result.
      */
-    public function rawQueryOne(string $query, array $params = []): array
+    public function rawQueryOne(string|RawValue $query, array $params = []): array
     {
         return $this->find()->fetch($query, $params);
     }
@@ -121,11 +121,11 @@ class PdoDb
     /**
      * Execute a raw query and return the value of the first column of the first row.
      *
-     * @param string $query The raw query to be executed.
+     * @param string|RawValue $query The raw query to be executed.
      * @param array $params The parameters to be bound to the query.
      * @return mixed The value of the first column of the first row.
      */
-    public function rawQueryValue(string $query, array $params = []): mixed
+    public function rawQueryValue(string|RawValue $query, array $params = []): mixed
     {
         return $this->find()->fetchColumn($query, $params);
     }
@@ -181,7 +181,7 @@ class PdoDb
     {
         $tables = (array)$tables;
         $sql = $this->connection->getDialect()->buildLockSql($tables, $this->prefix, $this->lockMethod);
-        $this->connection->execute($sql);
+        $this->connection->prepare($sql)->execute();
         return $this->executeState !== false;
     }
 
@@ -196,7 +196,7 @@ class PdoDb
         if ($sql === '') {
             return true;
         }
-        $this->connection->execute($sql);
+        $this->connection->prepare($sql)->execute();
         return $this->executeState !== false;
     }
 
@@ -366,7 +366,7 @@ class PdoDb
         try {
             $sql = $this->connection->getDialect()->buildLoadDataSql($this->connection->getPdo(),
                 $this->prefix . $table, $filePath, $options);
-            $this->connection->execute($sql);
+            $this->connection->prepare($sql)->execute();
             $this->commit();
             return $this->executeState !== false;
         } catch (Throwable $e) {
@@ -395,7 +395,7 @@ class PdoDb
             ];
             $sql = $this->connection->getDialect()->buildLoadXML($this->connection->getPdo(), $this->prefix . $table,
                 $filePath, $options);
-            $this->connection->execute($sql);
+            $this->connection->prepare($sql)->execute();
             $this->commit();
             return $this->executeState !== false;
         } catch (Throwable $e) {
