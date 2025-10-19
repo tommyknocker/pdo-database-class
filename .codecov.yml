@@ -35,6 +35,10 @@ flags:
     paths:
       - src/
     carryforward: true
+  shared:
+    paths:
+      - src/
+    carryforward: true
 
 ignore:
   - "tests/"

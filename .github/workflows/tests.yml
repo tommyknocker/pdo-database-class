@@ -100,3 +100,22 @@ jobs:
           files: ./coverage-sqlite.xml
           flags: sqlite
           name: sqlite-coverage
+
+  shared-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite
+          coverage: xdebug
+      - run: composer install --no-interaction --prefer-dist
+      - run: vendor/bin/phpunit tests/SharedCoverageTest.php --coverage-clover coverage-shared.xml
+      - name: Upload Shared coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage-shared.xml
+          flags: shared
+          name: shared-coverage
