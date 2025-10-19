@@ -628,6 +628,170 @@ class SharedCoverageTest extends TestCase
         $this->assertEquals('  test', $result['rtrimmed']);
     }
 
+    /* ---------------- Connection Methods Coverage ---------------- */
+
+    public function testGetPdo(): void
+    {
+        $connection = self::$db->connection;
+        $pdo = $connection->getPdo();
+        
+        $this->assertInstanceOf(\PDO::class, $pdo);
+    }
+
+    public function testGetLastError(): void
+    {
+        $connection = self::$db->connection;
+        
+        // Initially null
+        $this->assertNull($connection->getLastError());
+        
+        // After error, should be set
+        try {
+            self::$db->rawQuery('SELECT * FROM nonexistent_table');
+        } catch (\PDOException $e) {
+            $lastError = $connection->getLastError();
+            $this->assertNotNull($lastError);
+            $this->assertStringContainsString('nonexistent_table', $lastError);
+        }
+    }
+
+    public function testQueryBuilderGetters(): void
+    {
+        $qb = self::$db->find()->table('test_coverage');
+        
+        // Test getConnection
+        $this->assertInstanceOf(\tommyknocker\pdodb\connection\ConnectionInterface::class, $qb->getConnection());
+        
+        // Test getDialect
+        $this->assertInstanceOf(\tommyknocker\pdodb\dialects\DialectInterface::class, $qb->getDialect());
+        
+        // Test getPrefix (returns empty string when no prefix set)
+        $prefix = $qb->getPrefix();
+        $this->assertTrue($prefix === null || $prefix === '');
+    }
+
+    public function testGetColumnWithMultipleSelects(): void
+    {
+        self::$db->find()->table('test_coverage')->insert(['name' => 'test1', 'value' => 1]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'test2', 'value' => 2]);
+        
+        // getColumn() should return empty array when select has multiple columns
+        $result = self::$db->find()
+            ->table('test_coverage')
+            ->select(['name', 'value'])
+            ->getColumn();
+        
+        $this->assertIsArray($result);
+        $this->assertEmpty($result);
+    }
+
+    public function testInsertMultiWithEmptyRows(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('insertMulti requires at least one row');
+        
+        self::$db->find()->table('test_coverage')->insertMulti([]);
+    }
+
+    public function testReplaceMultiWithEmptyRows(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('replaceMulti requires at least one row');
+        
+        self::$db->find()->table('test_coverage')->replaceMulti([]);
+    }
+
+    public function testOrderByWithInvalidDirection(): void
+    {
+        // Clear table first
+        self::$db->rawQuery('DELETE FROM test_coverage');
+        
+        self::$db->find()->table('test_coverage')->insert(['name' => 'B', 'value' => 2]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'A', 'value' => 1]);
+        
+        // Invalid direction should default to ASC
+        $results = self::$db->find()
+            ->table('test_coverage')
+            ->select(['name'])
+            ->orderBy('name', 'INVALID')
+            ->get();
+        
+        // Check that ordering was applied (default ASC)
+        $this->assertCount(2, $results);
+        $this->assertEquals('A', $results[0]['name']);
+        $this->assertEquals('B', $results[1]['name']);
+    }
+
+    public function testWhereJsonPathWithRawValue(): void
+    {
+        // Create table with JSON column
+        self::$db->rawQuery("
+            CREATE TABLE IF NOT EXISTS test_json_raw (
+                id INTEGER PRIMARY KEY,
+                data TEXT
+            )
+        ");
+        
+        self::$db->find()->table('test_json_raw')->insert([
+            'data' => json_encode(['count' => 5])
+        ]);
+        
+        // Test whereJsonPath with RawValue
+        // This tests the code path where value is RawValue instance
+        $results = self::$db->find()
+            ->table('test_json_raw')
+            ->whereJsonPath('data', 'count', '>', Db::raw('3'))
+            ->get();
+        
+        // Should find the row since json count (5) > 3
+        $this->assertCount(1, $results);
+        
+        // Cleanup
+        self::$db->rawQuery('DROP TABLE test_json_raw');
+    }
+
+    public function testUpdateWithUnknownOperation(): void
+    {
+        $id = self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 10]);
+        
+        // Test unknown operation with val
+        self::$db->find()
+            ->table('test_coverage')
+            ->where('id', $id)
+            ->update(['value' => ['__op' => 'custom', 'val' => 99]]);
+        
+        $row = self::$db->find()->table('test_coverage')->where('id', $id)->getOne();
+        $this->assertEquals(99, $row['value']);
+    }
+
+    public function testUpdateWithUnknownOperationMissingVal(): void
+    {
+        $id = self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 10]);
+        
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("Missing 'val' for operation");
+        
+        // Test unknown operation without val
+        self::$db->find()
+            ->table('test_coverage')
+            ->where('id', $id)
+            ->update(['value' => ['__op' => 'custom']]);
+    }
+
+    public function testUpdateWithUnknownOperationAndRawValue(): void
+    {
+        $id = self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 10]);
+        
+        // Test unknown operation with RawValue
+        self::$db->find()
+            ->table('test_coverage')
+            ->where('id', $id)
+            ->update(['value' => ['__op' => 'multiply', 'val' => Db::raw('value * 2')]]);
+        
+        $row = self::$db->find()->table('test_coverage')->where('id', $id)->getOne();
+        $this->assertEquals(20, $row['value']);
+    }
+
     /* ---------------- Cleanup ---------------- */
 
     public static function tearDownAfterClass(): void

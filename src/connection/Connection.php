@@ -7,7 +7,6 @@ use PDO;
 use PDOException;
 use PDOStatement;
 use Psr\Log\LoggerInterface;
-use Throwable;
 use tommyknocker\pdodb\dialects\DialectInterface;
 
 /**
@@ -251,7 +250,7 @@ class Connection implements ConnectionInterface
                 'timestamp' => microtime(true),
             ]);
             return $res;
-        } catch (Throwable $e) {
+        } catch (PDOException $e) {
             $this->logger?->error('operation.error', [
                 'operation' => 'transaction.commit',
                 'driver' => $this->getDriverName(),

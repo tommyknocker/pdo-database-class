@@ -1074,7 +1074,9 @@ class QueryBuilder implements QueryBuilderInterface
             . ' (' . implode(',', $colsQuoted) . ') VALUES ' . implode(', ', $tuples);
 
         if (!empty($this->onDuplicate)) {
-            $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate);
+            // if no id column in columns, use first column for $defaultConflictTarget
+            $defaultConflictTarget = in_array('id', $columns, true) ? 'id' : ($columns[0] ?? 'id');
+            $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget);
         }
 
         return [$sql, $params];

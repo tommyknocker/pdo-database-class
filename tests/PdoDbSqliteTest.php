@@ -2894,4 +2894,44 @@ XML
         $this->expectExceptionMessage('not supported');
         $dialect->buildUnlockSql();
     }
+
+    public function testInsertWithOnDuplicateParameter(): void
+    {
+        $db = self::$db;
+        
+        // First insert
+        $db->find()->table('users')->insert(['name' => 'TestUser', 'age' => 25]);
+        
+        // Insert with onDuplicate as second parameter (SQLite uses ON CONFLICT)
+        $db->find()->table('users')->insert(['name' => 'TestUser', 'age' => 30], ['age']);
+        
+        $this->assertStringContainsString('ON CONFLICT', $db->lastQuery);
+        $this->assertStringContainsString('DO UPDATE', $db->lastQuery);
+        
+        $row = $db->find()->table('users')->where('name', 'TestUser')->getOne();
+        $this->assertEquals(30, $row['age']);
+    }
+
+    public function testInsertMultiWithOnDuplicateParameter(): void
+    {
+        $db = self::$db;
+        
+        // Initial data
+        $db->find()->table('users')->insert(['name' => 'MultiTest1', 'age' => 20]);
+        
+        // insertMulti with onDuplicate as second parameter
+        $db->find()->table('users')->insertMulti([
+            ['name' => 'MultiTest1', 'age' => 25],
+            ['name' => 'MultiTest2', 'age' => 30]
+        ], ['age']);
+        
+        $this->assertStringContainsString('ON CONFLICT', $db->lastQuery);
+        $this->assertStringContainsString('DO UPDATE', $db->lastQuery);
+        
+        $row1 = $db->find()->table('users')->where('name', 'MultiTest1')->getOne();
+        $this->assertEquals(25, $row1['age']);
+        
+        $row2 = $db->find()->table('users')->where('name', 'MultiTest2')->getOne();
+        $this->assertEquals(30, $row2['age']);
+    }
 }
