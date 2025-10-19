@@ -112,16 +112,13 @@ $notElectronics = $db->find()
     ->get();
 echo "  Found " . count($notElectronics) . " non-electronics\n\n";
 
-// Example 10: Complex conditions
-echo "10. Complex conditions (nested)...\n";
+// Example 10: Complex conditions with raw SQL
+echo "10. Complex conditions (using raw SQL)...\n";
 $complex = $db->find()
     ->from('products')
     ->select(['name', 'price', 'stock'])
     ->where('active', 1)
-    ->where(function($q) {
-        $q->where('price', 100, '<')
-          ->orWhere('stock', 40, '>');
-    })
+    ->where(Db::raw('(price < 100 OR stock > 40)'))
     ->get();
 
 echo "  Found " . count($complex) . " products (active AND (cheap OR high stock)):\n";

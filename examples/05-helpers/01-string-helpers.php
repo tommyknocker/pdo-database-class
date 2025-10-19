@@ -90,17 +90,17 @@ foreach ($users as $user) {
 echo "\n";
 
 // Example 5: SUBSTRING - Extract part of string
-echo "5. SUBSTRING - Extract email domain...\n";
+echo "5. SUBSTRING - Extract first 3 characters...\n";
 $users = $db->find()
     ->from('users')
     ->select([
-        'email',
-        'domain' => Db::substring('email', Db::raw('INSTR(email, "@") + 1'))
+        'first_name',
+        'short_name' => Db::substring('first_name', 1, 3)
     ])
     ->get();
 
 foreach ($users as $user) {
-    echo "  • {$user['email']} → domain: {$user['domain']}\n";
+    echo "  • {$user['first_name']} → {$user['short_name']}\n";
 }
 echo "\n";
 
@@ -120,23 +120,23 @@ foreach ($users as $user) {
 echo "\n";
 
 // Example 7: Combine multiple string functions
-echo "7. Complex string operations...\n";
+echo "7. Combining string functions with raw SQL...\n";
 $users = $db->find()
     ->from('users')
     ->select([
-        'display_name' => Db::concat(
-            Db::upper(Db::substring('first_name', 1, 1)),
-            Db::lower(Db::substring('first_name', 2)),
-            Db::raw("' '"),
-            Db::upper(Db::substring('last_name', 1, 1)),
-            Db::lower(Db::substring('last_name', 2))
-        )
+        'first_name',
+        'last_name',
+        'full_name_upper' => Db::raw('UPPER(first_name || " " || last_name)'),
+        'email_lower' => Db::lower('email')
     ])
+    ->limit(2)
     ->get();
 
-echo "  Properly capitalized names:\n";
+echo "  Combined operations:\n";
 foreach ($users as $user) {
-    echo "  • {$user['display_name']}\n";
+    echo "  • Original: {$user['first_name']} {$user['last_name']}\n";
+    echo "    Full name (UPPER): {$user['full_name_upper']}\n";
+    echo "    Email (lower): {$user['email_lower']}\n";
 }
 
 echo "\nString helper functions example completed!\n";

@@ -71,13 +71,13 @@ $results = $db->find()
     ->select([
         'name',
         'reading',
-        'remainder' => Db::mod('reading', Db::raw('2')),
-        'even_odd' => Db::raw('CASE WHEN ' . Db::mod('reading', Db::raw('2')) . ' = 0 THEN "even" ELSE "odd" END')
+        'remainder' => Db::mod('reading', Db::raw('2'))
     ])
     ->get();
 
 foreach ($results as $row) {
-    echo "  • {$row['name']}: reading {$row['reading']} is {$row['even_odd']}\n";
+    $evenOdd = ($row['remainder'] == 0) ? 'even' : 'odd';
+    echo "  • {$row['name']}: reading {$row['reading']} is {$evenOdd} (remainder: {$row['remainder']})\n";
 }
 echo "\n";
 

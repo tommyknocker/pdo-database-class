@@ -151,14 +151,16 @@ echo "6. Fetching complete post data...\n";
 $post = $db->find()
     ->from('posts AS p')
     ->join('users AS u', 'u.id = p.author_id')
-    ->select([
-        'p.*',
-        'author_username' => 'u.username',
-        'comment_count' => Db::raw('(SELECT COUNT(*) FROM comments WHERE post_id = p.id AND status = "approved")'),
-        'reading_time' => Db::jsonGet('p.meta', ['reading_time'])
-    ])
+    ->select(['p.id', 'p.title', 'p.status', 'p.view_count', 'p.meta', 'p.published_at', 'u.username AS author_username'])
     ->where('p.id', $postId)
     ->getOne();
+
+// Get comment count separately
+$commentCount = $db->rawQueryValue(
+    'SELECT COUNT(*) FROM comments WHERE post_id = :post_id AND status = "approved"',
+    ['post_id' => $postId]
+);
+$post['comment_count'] = $commentCount;
 
 $meta = json_decode($post['meta'], true);
 
@@ -168,7 +170,7 @@ echo "  │ " . str_pad($post['title'], 51) . " │\n";
 echo "  ├─────────────────────────────────────────────────────┤\n";
 echo "  │ By: " . str_pad($post['author_username'], 47) . " │\n";
 echo "  │ Published: " . str_pad(substr($post['published_at'], 0, 16), 40) . " │\n";
-echo "  │ Reading time: " . str_pad($post['reading_time'] . " minutes", 37) . " │\n";
+echo "  │ Reading time: " . str_pad($meta['reading_time'] . " minutes", 37) . " │\n";
 echo "  │ Views: " . str_pad((string)$post['view_count'], 44) . " │\n";
 echo "  │ Comments: " . str_pad((string)$post['comment_count'], 41) . " │\n";
 echo "  └─────────────────────────────────────────────────────┘\n\n";
@@ -214,11 +216,7 @@ echo "  Found " . count($phpPosts) . " post(s) with PHP tag\n\n";
 echo "8. Getting most popular posts...\n";
 $popular = $db->find()
     ->from('posts')
-    ->select([
-        'title',
-        'view_count',
-        'comment_count' => Db::raw('(SELECT COUNT(*) FROM comments WHERE post_id = posts.id AND status = "approved")')
-    ])
+    ->select(['id', 'title', 'view_count'])
     ->where('status', 'published')
     ->orderBy('view_count', 'DESC')
     ->limit(5)
@@ -226,7 +224,12 @@ $popular = $db->find()
 
 echo "  Top posts:\n";
 foreach ($popular as $p) {
-    echo "  • {$p['title']} - {$p['view_count']} views, {$p['comment_count']} comments\n";
+    // Get comment count separately
+    $comments = $db->rawQueryValue(
+        'SELECT COUNT(*) FROM comments WHERE post_id = :id AND status = "approved"',
+        ['id' => $p['id']]
+    );
+    echo "  • {$p['title']} - {$p['view_count']} views, $comments comments\n";
 }
 echo "\n";
 
@@ -245,31 +248,24 @@ foreach ($featured as $post) {
 }
 echo "\n";
 
-// Scenario 10: Statistics across all connections
+// Scenario 10: Blog statistics summary
 echo "10. Blog statistics summary...\n";
 
-$db->connection('users_db');
 $userCount = $db->rawQueryValue('SELECT COUNT(*) FROM users');
-
-$db->connection('users_db'); // posts are in users_db
 $postCount = $db->rawQueryValue("SELECT COUNT(*) FROM posts WHERE status = 'published'");
-
-$db->connection('analytics_db');
-$eventCount = $db->rawQueryValue('SELECT COUNT(*) FROM events');
-
-$db->connection('users_db');
 $commentCount = $db->rawQueryValue("SELECT COUNT(*) FROM comments WHERE status = 'approved'");
+$tagCount = $db->rawQueryValue('SELECT COUNT(*) FROM tags');
 
 echo "  📊 Blog Statistics:\n";
 echo "     Users: $userCount\n";
 echo "     Published Posts: $postCount\n";
 echo "     Approved Comments: $commentCount\n";
-echo "     Total Events: $eventCount\n";
+echo "     Tags: $tagCount\n\n";
 
-echo "\nBlog system example completed!\n";
+echo "Blog system example completed!\n";
 echo "\nKey Takeaways:\n";
-echo "  • Connection pooling allows organizing data across multiple databases\n";
-echo "  • Easy switching between connections\n";
-echo "  • Complex queries with JOINs work seamlessly\n";
+echo "  • Complex relational data with multiple tables\n";
+echo "  • JOINs work seamlessly across tables\n";
 echo "  • JSON metadata provides flexible post properties\n";
+echo "  • Efficient querying with proper indexing\n";
 

@@ -30,13 +30,11 @@ echo "✓ Table created\n\n";
 echo "1. First UPSERT for user 1 (will INSERT)...\n";
 $db->find()->table('user_stats')
     ->onDuplicate([
-        'login_count' => Db::inc(),
-        'last_login' => Db::now()
+        'login_count' => Db::raw('login_count + 1')
     ])
     ->insert([
         'user_id' => 1,
-        'login_count' => 1,
-        'last_login' => Db::now()
+        'login_count' => 1
     ]);
 
 $stats = $db->find()->from('user_stats')->where('user_id', 1)->getOne();
@@ -46,25 +44,22 @@ echo "  ✓ User 1 stats: login_count={$stats['login_count']}, points={$stats['t
 echo "2. Second UPSERT for user 1 (will UPDATE)...\n";
 $db->find()->table('user_stats')
     ->onDuplicate([
-        'login_count' => Db::inc(),
-        'last_login' => Db::now()
+        'login_count' => Db::raw('login_count + 1')
     ])
     ->insert([
         'user_id' => 1,
-        'login_count' => 1,
-        'last_login' => Db::now()
+        'login_count' => 1
     ]);
 
 $stats = $db->find()->from('user_stats')->where('user_id', 1)->getOne();
 echo "  ✓ User 1 stats: login_count={$stats['login_count']} (incremented!)\n\n";
 
-// Example 3: UPSERT with complex update
+// Example 3: UPSERT with multiple field updates
 echo "3. UPSERT with multiple field updates...\n";
 $db->find()->table('user_stats')
     ->onDuplicate([
-        'login_count' => Db::inc(),
-        'total_points' => Db::raw('total_points + :points', ['points' => 100]),
-        'last_login' => Db::now()
+        'login_count' => Db::raw('login_count + 1'),
+        'total_points' => Db::raw('total_points + :points', ['points' => 100])
     ])
     ->insert([
         'user_id' => 1,
@@ -80,9 +75,8 @@ echo "4. UPSERT for multiple users...\n";
 for ($userId = 2; $userId <= 5; $userId++) {
     $db->find()->table('user_stats')
         ->onDuplicate([
-            'login_count' => Db::inc(),
-            'total_points' => Db::raw('total_points + 10'),
-            'last_login' => Db::now()
+            'login_count' => Db::raw('login_count + 1'),
+            'total_points' => Db::raw('total_points + 10')
         ])
         ->insert([
             'user_id' => $userId,
@@ -101,13 +95,11 @@ $userIds = [1, 2, 1, 3, 1, 4, 2];
 foreach ($userIds as $userId) {
     $db->find()->table('user_stats')
         ->onDuplicate([
-            'login_count' => Db::inc(),
-            'last_login' => Db::now()
+            'login_count' => Db::raw('login_count + 1')
         ])
         ->insert([
             'user_id' => $userId,
-            'login_count' => 1,
-            'last_login' => Db::now()
+            'login_count' => 1
         ]);
 }
 
@@ -131,9 +123,8 @@ echo "\n";
 echo "7. UPSERT with bonus points for frequent users...\n";
 $db->find()->table('user_stats')
     ->onDuplicate([
-        'login_count' => Db::inc(),
-        'total_points' => Db::raw('CASE WHEN login_count >= 3 THEN total_points + 50 ELSE total_points + 10 END'),
-        'last_login' => Db::now()
+        'login_count' => Db::raw('login_count + 1'),
+        'total_points' => Db::raw('CASE WHEN login_count >= 3 THEN total_points + 50 ELSE total_points + 10 END')
     ])
     ->insert([
         'user_id' => 1,

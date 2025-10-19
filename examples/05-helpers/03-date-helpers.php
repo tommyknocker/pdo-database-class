@@ -67,7 +67,8 @@ $events = $db->find()
     ->get();
 
 foreach ($events as $event) {
-    echo "  • {$event['title']} at {$event['hour']}:{$event['minute']:02d}\n";
+    $minute = str_pad($event['minute'], 2, '0', STR_PAD_LEFT);
+    echo "  • {$event['title']} at {$event['hour']}:$minute\n";
 }
 echo "\n";
 
