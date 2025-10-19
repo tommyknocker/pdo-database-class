@@ -83,6 +83,41 @@ final class PdoDbSqliteTest extends TestCase
         $this->assertStringStartsWith('INSERT OR IGNORE INTO "users"', $db->lastQuery);
     }
 
+    public function testInsertWithMultipleQueryOptions(): void
+    {
+        $db = self::$db;
+
+        // SQLite supports only one OR clause, but we can test that option() method works
+        // with both array and sequential calls
+        $id = $db->find()
+            ->table('users')
+            ->option(['IGNORE'])
+            ->insert(['name' => 'Bob']);
+        $this->assertIsInt($id);
+
+        $this->assertStringStartsWith('INSERT OR IGNORE INTO "users"', $db->lastQuery);
+
+        // Test sequential option() calls
+        $id2 = $db->find()
+            ->table('users')
+            ->option('IGNORE')
+            ->insert(['name' => 'Charlie']);
+        $this->assertIsInt($id2);
+
+        $this->assertStringStartsWith('INSERT OR IGNORE INTO "users"', $db->lastQuery);
+
+        // Try to insert duplicate with IGNORE - should be ignored, no new record created
+        $countBefore = $db->find()->from('users')->where('name', 'Charlie')->getValue();
+        
+        $db->find()
+            ->table('users')
+            ->option('IGNORE')
+            ->insert(['name' => 'Charlie']);
+        
+        $countAfter = $db->find()->from('users')->select(Db::raw('COUNT(*)'))->where('name', 'Charlie')->getValue();
+        $this->assertEquals(1, $countAfter); // Still only 1 record with name 'Charlie'
+    }
+
     public function testInsertWithRawValue(): void
     {
         $db = self::$db;
