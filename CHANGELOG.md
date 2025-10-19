@@ -65,6 +65,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `loadData()`, `loadXml()` - Use `QueryBuilder::loadCsv()`, `QueryBuilder::loadXml()` instead
 
 ### Fixed
+- **CRITICAL: insertMulti() conflict target detection bug**: Fixed automatic conflict target determination for PostgreSQL/SQLite ON CONFLICT
+  - `buildInsertMultiSql()` now correctly uses first column when `id` not present (matches `insert()` behavior)
+  - Enables proper bulk UPSERT operations across all dialects
+  - Without this fix, bulk inserts with `onDuplicate` parameter would fail on PostgreSQL/SQLite
 - Restored `RawValue` union type support in `rawQuery()`, `rawQueryOne()`, `rawQueryValue()` methods
 - Corrected method calls in `lock()`, `unlock()`, `loadData()`, `loadXml()` to use `prepare()->execute()` pattern
 - SQLite JSON support fixes for edge cases (array indexing, value encoding, numeric sorting)
@@ -74,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PostgreSQL formatSelectOptions test**: Fixed to test actual supported features (FOR UPDATE/FOR SHARE)
 
 ### Technical Details
-- **All tests passing**: 300 tests, 1424 assertions across MySQL, PostgreSQL, and SQLite (3 skipped for live testing)
+- **All tests passing**: 317 tests, 1464 assertions across MySQL, PostgreSQL, and SQLite (3 skipped for live testing)
 - **Test coverage**: 83%+ with comprehensive dialect-specific and edge-case testing
 - **Full backward compatibility maintained**: Zero breaking changes (deprecated methods removal is non-breaking)
 - Examples tested and verified on PHP 8.4.13
