@@ -792,6 +792,108 @@ class SharedCoverageTest extends TestCase
         $this->assertEquals(20, $row['value']);
     }
 
+    /* ---------------- Connection Exception Handling Tests ---------------- */
+
+    public function testPrepareException(): void
+    {
+        $connection = self::$db->connection;
+        
+        // Test that prepare() exception is caught and re-thrown
+        $this->expectException(\PDOException::class);
+        
+        try {
+            $connection->prepare('INVALID SQL SYNTAX HERE @#$%');
+        } catch (\PDOException $e) {
+            // Verify lastError is set
+            $this->assertNotNull($connection->getLastError());
+            $this->assertGreaterThanOrEqual(0, $connection->getLastErrno());
+            throw $e;
+        }
+    }
+
+    public function testQueryException(): void
+    {
+        $connection = self::$db->connection;
+        
+        $this->expectException(\PDOException::class);
+        
+        try {
+            $connection->query('SELECT * FROM nonexistent_table_xyz');
+        } catch (\PDOException $e) {
+            // Verify lastError and lastErrno are set
+            $this->assertNotNull($connection->getLastError());
+            $this->assertStringContainsString('nonexistent_table_xyz', $connection->getLastError());
+            throw $e;
+        }
+    }
+
+    public function testExecuteException(): void
+    {
+        $connection = self::$db->connection;
+        
+        $this->expectException(\PDOException::class);
+        
+        try {
+            // Create a constraint violation
+            $connection->prepare('INSERT INTO test_coverage (id, name) VALUES (?, ?)')
+                ->execute([999, 'test']);
+            // Try to insert same id again
+            $connection->prepare('INSERT INTO test_coverage (id, name) VALUES (?, ?)')
+                ->execute([999, 'test2']);
+        } catch (\PDOException $e) {
+            $this->assertNotNull($connection->getLastError());
+            throw $e;
+        }
+    }
+
+    public function testTransactionBeginException(): void
+    {
+        // SQLite throws exception on nested transactions
+        self::$db->startTransaction();
+        
+        $this->expectException(\PDOException::class);
+        
+        try {
+            // Try to start nested transaction - should fail
+            self::$db->connection->transaction();
+        } finally {
+            // Cleanup - rollback the outer transaction
+            if (self::$db->connection->inTransaction()) {
+                self::$db->rollback();
+            }
+        }
+    }
+
+    public function testCommitException(): void
+    {
+        $connection = self::$db->connection;
+        
+        // Ensure no active transaction
+        if ($connection->inTransaction()) {
+            $connection->rollBack();
+        }
+        
+        // Try to commit without active transaction
+        $this->expectException(\PDOException::class);
+        
+        $connection->commit();
+    }
+
+    public function testRollbackException(): void
+    {
+        $connection = self::$db->connection;
+        
+        // Ensure no active transaction
+        if ($connection->inTransaction()) {
+            $connection->rollBack();
+        }
+        
+        // Try to rollback without active transaction
+        $this->expectException(\PDOException::class);
+        
+        $connection->rollBack();
+    }
+
     /* ---------------- Cleanup ---------------- */
 
     public static function tearDownAfterClass(): void
