@@ -2540,4 +2540,162 @@ XML
             ->getOne();
         $this->assertEquals($id2, $ageEq['id']);
     }
+
+    public function testNewDbHelpers(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('DROP TABLE IF EXISTS t_helpers');
+        $db->rawQuery("CREATE TABLE t_helpers (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), age INT, created_at DATETIME, description TEXT)");
+
+        // Test ifNull, coalesce
+        $id1 = $db->find()->table('t_helpers')->insert([
+            'name' => 'Alice',
+            'age' => 30,
+            'created_at' => date('Y-m-d H:i:s'),
+            'description' => null
+        ]);
+
+        $row = $db->find()->table('t_helpers')
+            ->select([
+                'name',
+                'description_text' => Db::ifNull('description', 'No description')
+            ])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertEquals('No description', $row['description_text']);
+
+        // Test upper, lower
+        $row = $db->find()->table('t_helpers')
+            ->select([
+                'upper' => Db::upper('name'),
+                'lower' => Db::lower('name')
+            ])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertEquals('ALICE', $row['upper']);
+        $this->assertEquals('alice', $row['lower']);
+
+        // Test abs, round
+        $id2 = $db->find()->table('t_helpers')->insert([
+            'name' => 'Bob',
+            'age' => -5,
+            'created_at' => date('Y-m-d H:i:s')
+        ]);
+
+        $row = $db->find()->table('t_helpers')
+            ->select([
+                'abs_age' => Db::abs('age')
+            ])
+            ->where('id', $id2)
+            ->getOne();
+        $this->assertEquals(5, (int)$row['abs_age']);
+
+        // Test mod
+        $row = $db->find()->table('t_helpers')
+            ->select([
+                'mod_result' => Db::mod('age', '3')
+            ])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertEquals(0, (int)$row['mod_result']);
+
+        // Test greatest, least
+        $row = $db->find()->table('t_helpers')
+            ->select([
+                'max_val' => Db::greatest('10', '5', '20'),
+                'min_val' => Db::least('10', '5', '20')
+            ])
+            ->getOne();
+        $this->assertEquals(20, (int)$row['max_val']);
+        $this->assertEquals(5, (int)$row['min_val']);
+
+        // Test substring
+        $row = $db->find()->table('t_helpers')
+            ->select([
+                'substr' => Db::substring('name', 1, 3)
+            ])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertEquals('Ali', $row['substr']);
+
+        // Test length
+        $row = $db->find()->table('t_helpers')
+            ->select([
+                'len' => Db::length('name')
+            ])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertEquals(5, (int)$row['len']);
+
+        // Test trim, ltrim, rtrim
+        $id3 = $db->find()->table('t_helpers')->insert([
+            'name' => '  Charlie  ',
+            'age' => 25,
+            'created_at' => date('Y-m-d H:i:s')
+        ]);
+
+        $row = $db->find()->table('t_helpers')
+            ->select([
+                'trimmed' => Db::trim('name')
+            ])
+            ->where('id', $id3)
+            ->getOne();
+        $this->assertEquals('Charlie', $row['trimmed']);
+
+        // Test curDate, curTime
+        $row = $db->find()->table('t_helpers')
+            ->select([
+                'cur_date' => Db::curDate(),
+                'cur_time' => Db::curTime()
+            ])
+            ->getOne();
+        $this->assertNotEmpty($row['cur_date']);
+        $this->assertNotEmpty($row['cur_time']);
+
+        // Test year, month, day, hour, minute, second
+        $row = $db->find()->table('t_helpers')
+            ->select([
+                'year' => Db::year('created_at'),
+                'month' => Db::month('created_at'),
+                'day' => Db::day('created_at')
+            ])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertEquals((int)date('Y'), (int)$row['year']);
+        $this->assertEquals((int)date('m'), (int)$row['month']);
+        $this->assertEquals((int)date('d'), (int)$row['day']);
+
+        // Test count, sum, avg, min, max
+        $row = $db->find()->table('t_helpers')
+            ->select([
+                'count' => Db::count(),
+                'sum_age' => Db::sum('age'),
+                'avg_age' => Db::avg('age'),
+                'min_age' => Db::min('age'),
+                'max_age' => Db::max('age')
+            ])
+            ->getOne();
+        $this->assertEquals(3, (int)$row['count']);
+        $this->assertEquals(50, (int)$row['sum_age']); // 30 + (-5) + 25
+        $this->assertGreaterThan(0, (float)$row['avg_age']);
+
+        // Test cast
+        $row = $db->find()->table('t_helpers')
+            ->select([
+                'age_str' => Db::cast('age', 'CHAR')
+            ])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertIsString($row['age_str']);
+
+        // Test concat
+        $row = $db->find()->table('t_helpers')
+            ->select([
+                'full_info' => Db::concat('name', Db::raw("' - '"), Db::cast('age', 'CHAR'))
+            ])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertStringContainsString('Alice', $row['full_info']);
+        $this->assertStringContainsString('30', $row['full_info']);
+    }
 }

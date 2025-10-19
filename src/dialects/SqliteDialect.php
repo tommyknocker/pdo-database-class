@@ -459,11 +459,11 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
     public function formatJsonType(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-
+        
         if ($path === null) {
             return "json_type({$colQuoted})";
         }
-
+        
         $parts = $this->normalizeJsonPath($path);
         $jsonPath = '$';
         foreach ($parts as $p) {
@@ -473,7 +473,130 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
                 $jsonPath .= '.' . $p;
             }
         }
-
+        
         return "json_type(json_extract({$colQuoted}, '{$jsonPath}'))";
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatIfNull(string $expr, mixed $default): string
+    {
+        $defaultStr = is_string($default) ? "'{$default}'" : $default;
+        return "IFNULL($expr, $defaultStr)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatGreatest(array $values): string
+    {
+        // SQLite doesn't have GREATEST, use MAX
+        $args = array_map(fn($v) => $v instanceof RawValue ? $v->getValue() : $v, $values);
+        return 'MAX(' . implode(', ', $args) . ')';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatLeast(array $values): string
+    {
+        // SQLite doesn't have LEAST, use MIN
+        $args = array_map(fn($v) => $v instanceof RawValue ? $v->getValue() : $v, $values);
+        return 'MIN(' . implode(', ', $args) . ')';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatSubstring(string|RawValue $source, int $start, ?int $length): string
+    {
+        $src = $source instanceof RawValue ? $source->getValue() : $source;
+        if ($length === null) {
+            return "SUBSTR($src, $start)";
+        }
+        return "SUBSTR($src, $start, $length)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatMod(string|RawValue $dividend, string|RawValue $divisor): string
+    {
+        // SQLite doesn't have MOD function, use % operator
+        $d1 = $dividend instanceof RawValue ? $dividend->getValue() : $dividend;
+        $d2 = $divisor instanceof RawValue ? $divisor->getValue() : $divisor;
+        return "($d1 % $d2)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatCurDate(): string
+    {
+        return "DATE('now')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatCurTime(): string
+    {
+        return "TIME('now')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatYear(string|RawValue $value): string
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        return "CAST(STRFTIME('%Y', $val) AS INTEGER)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatMonth(string|RawValue $value): string
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        return "CAST(STRFTIME('%m', $val) AS INTEGER)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatDay(string|RawValue $value): string
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        return "CAST(STRFTIME('%d', $val) AS INTEGER)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatHour(string|RawValue $value): string
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        return "CAST(STRFTIME('%H', $val) AS INTEGER)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatMinute(string|RawValue $value): string
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        return "CAST(STRFTIME('%M', $val) AS INTEGER)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatSecond(string|RawValue $value): string
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        return "CAST(STRFTIME('%S', $val) AS INTEGER)";
+    }
 }
+

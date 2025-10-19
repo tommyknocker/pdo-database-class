@@ -12,7 +12,13 @@ use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\ConcatValue;
 use tommyknocker\pdodb\helpers\ConfigValue;
+use tommyknocker\pdodb\helpers\CurDateValue;
+use tommyknocker\pdodb\helpers\CurTimeValue;
+use tommyknocker\pdodb\helpers\DayValue;
 use tommyknocker\pdodb\helpers\EscapeValue;
+use tommyknocker\pdodb\helpers\GreatestValue;
+use tommyknocker\pdodb\helpers\HourValue;
+use tommyknocker\pdodb\helpers\IfNullValue;
 use tommyknocker\pdodb\helpers\ILikeValue;
 use tommyknocker\pdodb\helpers\JsonContainsValue;
 use tommyknocker\pdodb\helpers\JsonExistsValue;
@@ -21,8 +27,15 @@ use tommyknocker\pdodb\helpers\JsonKeysValue;
 use tommyknocker\pdodb\helpers\JsonLengthValue;
 use tommyknocker\pdodb\helpers\JsonPathValue;
 use tommyknocker\pdodb\helpers\JsonTypeValue;
+use tommyknocker\pdodb\helpers\LeastValue;
+use tommyknocker\pdodb\helpers\MinuteValue;
+use tommyknocker\pdodb\helpers\ModValue;
+use tommyknocker\pdodb\helpers\MonthValue;
 use tommyknocker\pdodb\helpers\NowValue;
 use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\helpers\SecondValue;
+use tommyknocker\pdodb\helpers\SubstringValue;
+use tommyknocker\pdodb\helpers\YearValue;
 
 class QueryBuilder implements QueryBuilderInterface
 {
@@ -1490,6 +1503,19 @@ class QueryBuilder implements QueryBuilderInterface
             $value instanceof JsonPathValue => $this->resolveJsonPathValue($value),
             $value instanceof JsonContainsValue => $this->resolveJsonContainsValue($value),
             $value instanceof JsonExistsValue => $this->dialect->formatJsonExists($value->getColumn(), $value->getPath()),
+            $value instanceof IfNullValue => $this->dialect->formatIfNull($value->getExpr(), $value->getDefaultValue()),
+            $value instanceof GreatestValue => $this->dialect->formatGreatest($value->getValues()),
+            $value instanceof LeastValue => $this->dialect->formatLeast($value->getValues()),
+            $value instanceof SubstringValue => $this->dialect->formatSubstring($value->getSource(), $value->getStart(), $value->getLength()),
+            $value instanceof ModValue => $this->dialect->formatMod($value->getDividend(), $value->getDivisor()),
+            $value instanceof CurDateValue => $this->dialect->formatCurDate(),
+            $value instanceof CurTimeValue => $this->dialect->formatCurTime(),
+            $value instanceof YearValue => $this->dialect->formatYear($value->getSource()),
+            $value instanceof MonthValue => $this->dialect->formatMonth($value->getSource()),
+            $value instanceof DayValue => $this->dialect->formatDay($value->getSource()),
+            $value instanceof HourValue => $this->dialect->formatHour($value->getSource()),
+            $value instanceof MinuteValue => $this->dialect->formatMinute($value->getSource()),
+            $value instanceof SecondValue => $this->dialect->formatSecond($value->getSource()),
             default => $value,
         };
 

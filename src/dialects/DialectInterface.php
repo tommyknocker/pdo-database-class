@@ -182,6 +182,101 @@ interface DialectInterface
     /* ---------------- SQL helpers and dialect-specific expressions ---------------- */
 
     /**
+     * Format IFNULL expression
+     * @param string $expr
+     * @param mixed $default
+     * @return string
+     */
+    public function formatIfNull(string $expr, mixed $default): string;
+
+    /**
+     * Format GREATEST expression
+     * @param array $values
+     * @return string
+     */
+    public function formatGreatest(array $values): string;
+
+    /**
+     * Format LEAST expression
+     * @param array $values
+     * @return string
+     */
+    public function formatLeast(array $values): string;
+
+    /**
+     * Format SUBSTRING expression
+     * @param string|RawValue $source
+     * @param int $start
+     * @param int|null $length
+     * @return string
+     */
+    public function formatSubstring(string|RawValue $source, int $start, ?int $length): string;
+
+    /**
+     * Format MOD expression
+     * @param string|RawValue $dividend
+     * @param string|RawValue $divisor
+     * @return string
+     */
+    public function formatMod(string|RawValue $dividend, string|RawValue $divisor): string;
+
+    /**
+     * Format CURDATE expression
+     * @return string
+     */
+    public function formatCurDate(): string;
+
+    /**
+     * Format CURTIME expression
+     * @return string
+     */
+    public function formatCurTime(): string;
+
+    /**
+     * Format YEAR extraction
+     * @param string|RawValue $value
+     * @return string
+     */
+    public function formatYear(string|RawValue $value): string;
+
+    /**
+     * Format MONTH extraction
+     * @param string|RawValue $value
+     * @return string
+     */
+    public function formatMonth(string|RawValue $value): string;
+
+    /**
+     * Format DAY extraction
+     * @param string|RawValue $value
+     * @return string
+     */
+    public function formatDay(string|RawValue $value): string;
+
+    /**
+     * Format HOUR extraction
+     * @param string|RawValue $value
+     * @return string
+     */
+    public function formatHour(string|RawValue $value): string;
+
+    /**
+     * Format MINUTE extraction
+     * @param string|RawValue $value
+     * @return string
+     */
+    public function formatMinute(string|RawValue $value): string;
+
+    /**
+     * Format SECOND extraction
+     * @param string|RawValue $value
+     * @return string
+     */
+    public function formatSecond(string|RawValue $value): string;
+
+    /* ---------------- Original SQL helpers and dialect-specific expressions ---------------- */
+
+    /**
      * NOW() with diff support
      * @param string|null $diff
      * @param bool $asTimestamp

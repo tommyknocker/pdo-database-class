@@ -398,28 +398,79 @@ $active = $db->find()
 
 Use `Db::raw(string $value, ?array $params)` for SQL fragments that must bypass parameter binding.
 
+**Core helpers**
 * **Db::raw(string $sql, array $params = [])**: returns raw value expression.
+* **Db::escape(string)**: escape string for SQL.
+* **Db::config(string $key, mixed $value, bool $useEqualSign = true, bool $quoteValue = true)**: returns SET KEY = :value statement (e.g. SET FOREIGN_KEYS_CHECKS = 1 or SET NAMES 'utf8mb4').
+
+**NULL handling**
+* **Db::null()**: returns NULL value for SQL.
+* **Db::isNull(string $column)**: returns column IS NULL condition.
+* **Db::isNotNull(string $column)**: returns column IS NOT NULL condition.
+* **Db::coalesce(...$values)**: returns first non-NULL value from arguments.
+* **Db::ifNull(string $expr, mixed $default)**: returns IFNULL / COALESCE for NULL replacement (dialect-specific).
+* **Db::nullIf(mixed $expr1, mixed $expr2)**: returns NULL if two expressions are equal.
+
+**Boolean values**
+* **Db::true()**: returns TRUE value for SQL.
+* **Db::false()**: returns FALSE value for SQL.
+* **Db::default()**: returns DEFAULT value for SQL. (not supported in Sqlite).
+
+**Numeric operations**
 * **Db::inc(int|float)**: returns increment operation array.
 * **Db::dec(int|float)**: returns decrement operation array.
-* **Db::now(?string)**: returns current datetime with optional interval.
-* **Db::ts(?string)**: returns current timestamp with optional interval.
-* **Db::escape(string)**: escape string for SQL.
-* **DB::null()**: returns NULL value for SQL.
+* **Db::abs(string|RawValue)**: returns absolute value.
+* **Db::round(string|RawValue, int $precision = 0)**: returns rounded value.
+* **Db::mod(string|RawValue $dividend, string|RawValue $divisor)**: returns modulo operation (dialect-specific).
+
+**String operations**
+* **Db::concat(...$args)**: returns concatenated string expression.
+* **Db::upper(string|RawValue)**: converts string to uppercase.
+* **Db::lower(string|RawValue)**: converts string to lowercase.
+* **Db::trim(string|RawValue)**: trims whitespace from both sides.
+* **Db::ltrim(string|RawValue)**: trims whitespace from the left side.
+* **Db::rtrim(string|RawValue)**: trims whitespace from the right side.
+* **Db::length(string|RawValue)**: returns string length.
+* **Db::substring(string|RawValue $value, int $start, ?int $length = null)**: returns substring (dialect-specific for SUBSTRING vs SUBSTR).
+* **Db::replace(string|RawValue $value, string $search, string $replace)**: returns string with replacements.
+
+**Comparison operators**
 * **Db::like(string $column, string $pattern)**: LIKE condition.
 * **Db::ilike(string $column, string $pattern)**: ILIKE condition (OR LOWER(column) LIKE LOWER(pattern) if ILIKE is not supported).
 * **Db::not(RawValue $value)**: Inverses a RawValue condition using NOT.
-* **Db::config(string $key, mixed $value, bool $useEqualSign = true, bool $quoteValue = true)**: returns SET KEY = :value statement (e.g. SET FOREIGN_KEYS_CHECKS = 1 or SET NAMES 'utf8mb4').
 * **Db::between(string $column, mixed $min, mixed $max)**: returns column BETWEEN min AND max condition.
 * **Db::notBetween(string $column, mixed $min, mixed $max)**: returns column NOT BETWEEN min AND max condition.
 * **Db::in(string $column, array $values)**: returns column IN values condition.
 * **Db::notIn(string $column, array $values)**: returns column NOT IN values condition.
-* **Db::isNull(string $column)**: returns column IS NULL condition.
-* **Db::isNotNull(string $column)**: returns column IS NOT NULL condition.
+
+**Conditional logic**
 * **Db::case(array $conditions, ?string $else = null)**: returns CASE statement: CASE WHEN ... THEN ... [ELSE ...] END.
-* **Db::concat(array $values)**: returns concatenated string expression.
-* **Db::default()**: returns DEFAULT value for SQL. (not supported in Sqlite).
-* **Db::true()**: returns TRUE value for SQL.
-* **Db::false()**: returns FALSE value for SQL.
+
+**Date/Time functions**
+* **Db::now(?string $diff = null, bool $asTimestamp = false)**: returns current timestamp with optional difference.
+* **Db::ts(?string $diff = null)**: returns current timestamp as Unix timestamp with optional difference.
+* **Db::curDate()**: returns current date (dialect-specific).
+* **Db::curTime()**: returns current time (dialect-specific).
+* **Db::date(string|RawValue)**: extracts date part from datetime.
+* **Db::time(string|RawValue)**: extracts time part from datetime.
+* **Db::year(string|RawValue)**: extracts year from date (dialect-specific).
+* **Db::month(string|RawValue)**: extracts month from date (dialect-specific).
+* **Db::day(string|RawValue)**: extracts day from date (dialect-specific).
+* **Db::hour(string|RawValue)**: extracts hour from time (dialect-specific).
+* **Db::minute(string|RawValue)**: extracts minute from time (dialect-specific).
+* **Db::second(string|RawValue)**: extracts second from time (dialect-specific).
+
+**Aggregate functions**
+* **Db::count(string|RawValue $expr = '*')**: returns COUNT expression.
+* **Db::sum(string|RawValue)**: returns SUM expression.
+* **Db::avg(string|RawValue)**: returns AVG expression.
+* **Db::min(string|RawValue)**: returns MIN expression.
+* **Db::max(string|RawValue)**: returns MAX expression.
+
+**Type conversion & comparison**
+* **Db::cast(mixed $value, string $type)**: returns CAST expression.
+* **Db::greatest(...$values)**: returns greatest (maximum) value from arguments (dialect-specific).
+* **Db::least(...$values)**: returns least (minimum) value from arguments (dialect-specific).
 
 #### JSON Helper Functions
 
