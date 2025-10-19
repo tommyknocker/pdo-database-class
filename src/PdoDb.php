@@ -4,32 +4,38 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb;
 
 use Psr\Log\LoggerInterface;
+use RuntimeException;
+use Throwable;
 use tommyknocker\pdodb\connection\ConnectionFactory;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\query\QueryBuilder;
-use RuntimeException;
-use PDOException;
 
 class PdoDb
 {
-    public ?ConnectionInterface $connection {
+    public DialectInterface $dialect;
+
+    public ?ConnectionInterface $connection = null {
         get {
-            if (!$this->connection instanceof ConnectionInterface) {
-                throw new RuntimeException('Connection not initialized');
+            if ($this->connection === null) {
+                throw new RuntimeException(
+                    'Connection not initialized. Use addConnection() to add a connection, then connection() to select it.'
+                );
             }
             return $this->connection;
         }
     }
+
     protected array $connections = [];
-    protected ?string $connectionName;
+
     public string $prefix;
     public string $lastQuery {
         get {
             return $this->connection->getLastQuery();
         }
     }
-    public ?string $lastError {
+    public string $lastError {
         get {
             return $this->connection->getLastError();
         }
@@ -46,30 +52,34 @@ class PdoDb
     }
     protected string $lockMethod = 'WRITE';
 
+
     /**
      * Initializes a new PdoDb object.
      *
-     * @param string $driver The database driver to use. Defaults to 'mysql'.
+     * @param string|null $driver The database driver to use. Pass null to use connection pooling without default connection.
      * @param array $config An array of configuration options for the database connection.
      * @param array $pdoOptions An array of PDO options to use to connect to the database.
      * @param LoggerInterface|null $logger The logger to use to log the queries.
      * @see /README.md for details
      */
     public function __construct(
-        string $driver = 'mysql',
+        ?string $driver = null,
         array $config = [],
         array $pdoOptions = [],
         ?LoggerInterface $logger = null
     ) {
         $this->prefix = $config['prefix'] ?? '';
 
-        $this->addConnection('default', [
-            'driver' => $driver,
-            ...$config
-        ], $pdoOptions, $logger);
+        // Only create default connection if driver is provided
+        if ($driver !== null) {
+            $this->addConnection('default', [
+                'driver' => $driver,
+                ...$config
+            ], $pdoOptions, $logger);
 
-        // use default connection
-        $this->connection('default');
+            // use default connection
+            $this->connection('default');
+        }
     }
 
     /**
@@ -87,11 +97,11 @@ class PdoDb
     /**
      * Execute a raw query.
      *
-     * @param string|RawValue $query The raw query to be executed.
+     * @param string $query The raw query to be executed.
      * @param array $params The parameters to be bound to the query.
      * @return array The result of the query.
      */
-    public function rawQuery(string|RawValue $query, array $params = []): array
+    public function rawQuery(string $query, array $params = []): array
     {
         return $this->find()->fetchAll($query, $params);
     }
@@ -99,11 +109,11 @@ class PdoDb
     /**
      * Execute a raw query and return the first row.
      *
-     * @param string|RawValue $query The raw query to be executed.
+     * @param string $query The raw query to be executed.
      * @param array $params The parameters to be bound to the query.
      * @return array The first row of the result.
      */
-    public function rawQueryOne(string|RawValue $query, array $params = []): array
+    public function rawQueryOne(string $query, array $params = []): array
     {
         return $this->find()->fetch($query, $params);
     }
@@ -111,11 +121,11 @@ class PdoDb
     /**
      * Execute a raw query and return the value of the first column of the first row.
      *
-     * @param string|RawValue $query The raw query to be executed.
+     * @param string $query The raw query to be executed.
      * @param array $params The parameters to be bound to the query.
      * @return mixed The value of the first column of the first row.
      */
-    public function rawQueryValue(string|RawValue $query, array $params = []): mixed
+    public function rawQueryValue(string $query, array $params = []): mixed
     {
         return $this->find()->fetchColumn($query, $params);
     }
@@ -171,7 +181,7 @@ class PdoDb
     {
         $tables = (array)$tables;
         $sql = $this->connection->getDialect()->buildLockSql($tables, $this->prefix, $this->lockMethod);
-        $this->connection->prepare($sql)->execute();
+        $this->connection->execute($sql);
         return $this->executeState !== false;
     }
 
@@ -186,7 +196,7 @@ class PdoDb
         if ($sql === '') {
             return true;
         }
-        $this->connection->prepare($sql)->execute();
+        $this->connection->execute($sql);
         return $this->executeState !== false;
     }
 
@@ -202,6 +212,104 @@ class PdoDb
         return $this;
     }
 
+    /* ---------------- HELPERS ---------------- */
+
+    /**
+     * Returns an array with an increment operation.
+     *
+     * @param int|float $num The number to increment by.
+     * @return array The array with the increment operation.
+     */
+    public function inc(int|float $num = 1): array
+    {
+        return ['__op' => 'inc', 'val' => $num];
+    }
+
+    /**
+     * Returns an array with a decrement operation.
+     *
+     * @param int|float $num The number to decrement by.
+     * @return array The array with the decrement operation.
+     */
+    public function dec(int|float $num = 1): array
+    {
+        return ['__op' => 'dec', 'val' => $num];
+    }
+
+    /**
+     * Returns an array with a not operation.
+     *
+     * @param mixed $val The value to negate.
+     * @return array The array with the not operation.
+     */
+    public function not(mixed $val): array
+    {
+        return ['__op' => 'not', 'val' => $val];
+    }
+
+    /**
+     * Escapes a string for use in a SQL query.
+     *
+     * @param string $str The string to escape.
+     * @return string The escaped string.
+     */
+    public function escape(string $str): string
+    {
+        return $this->connection->quote($str);
+    }
+
+    /**
+     * Disconnects from the database.
+     *
+     * @return void
+     */
+    public function disconnect(): void
+    {
+        $this->connection = null;
+    }
+
+    /**
+     * Pings the database.
+     *
+     * @return bool True if the ping was successful, false otherwise.
+     */
+    public function ping(): bool
+    {
+        try {
+            $this->connection->query('SELECT 1')->execute();
+            return true;
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if a table exists.
+     *
+     * @param string $table The table to check.
+     * @return bool True if the table exists, false otherwise.
+     */
+    public function tableExists(string $table): bool
+    {
+        $sql = $this->connection->getDialect()->buildExistsSql($this->prefix . $table);
+        $res = $this->rawQueryValue($sql);
+        return !empty($res);
+    }
+
+
+    /* ---------------- UTILS ---------------- */
+
+
+    /**
+     * Returns a string with the current date and time.
+     *
+     * @param string $diff The time interval to add to the current date and time.
+     * @return RawValue The current date and time.
+     */
+    public function now(string $diff = ''): RawValue
+    {
+        return $this->connection->getDialect()->now($diff);
+    }
 
     /* ---------------- CONNECTIONS ---------------- */
 
@@ -223,7 +331,6 @@ class PdoDb
         $params['options'] = $pdoOptions;
         $connectionFactory = new ConnectionFactory();
         $connection = $connectionFactory->create($params, $logger);
-        $this->connectionName = $name;
         $this->connections[$name] = $connection;
     }
 
@@ -242,34 +349,60 @@ class PdoDb
         return $this;
     }
 
-    /**
-     * Disconnects from the database.
-     *
-     * @return void
-     */
-    public function disconnect(): void
-    {
-        $this->connection = null;
-        unset($this->connections[$this->connectionName]);
-        $this->connectionName = null;
-    }
+
+    /* ---------------- LOAD DATA/XML ---------------- */
 
     /**
-     * Pings the database.
+     * Loads data from a CSV file into a table.
      *
-     * @return bool True if the ping was successful, false otherwise.
+     * @param string $table The table to load data into.
+     * @param string $filePath The path to the CSV file.
+     * @param array $options The options to use to load the data.
+     * @return bool True on success, false on failure.
      */
-    public function ping(): bool
+    public function loadData(string $table, string $filePath, array $options = []): bool
     {
+        $this->startTransaction();
         try {
-            $this->connection->query('SELECT 1')->execute();
-            return true;
-        } catch (PDOException|RuntimeException) {
-            return false;
+            $sql = $this->connection->getDialect()->buildLoadDataSql($this->connection->getPdo(),
+                $this->prefix . $table, $filePath, $options);
+            $this->connection->execute($sql);
+            $this->commit();
+            return $this->executeState !== false;
+        } catch (Throwable $e) {
+            $this->rollback();
         }
+        return false;
     }
 
-    /* ---------------- SQL Introspection Methods  ---------------- */
+
+    /**
+     * Loads data from an XML file into a table.
+     *
+     * @param string $table The table to load data into.
+     * @param string $filePath The path to the XML file.
+     * @param string $rowTag The tag that identifies a row.
+     * @param int|null $linesToIgnore The number of lines to ignore at the beginning of the file.
+     * @return bool True on success, false on failure.
+     */
+    public function loadXml(string $table, string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool
+    {
+        $this->startTransaction();
+        try {
+            $options = [
+                'rowTag' => $rowTag,
+                'linesToIgnore' => $linesToIgnore
+            ];
+            $sql = $this->connection->getDialect()->buildLoadXML($this->connection->getPdo(), $this->prefix . $table,
+                $filePath, $options);
+            $this->connection->execute($sql);
+            $this->commit();
+            return $this->executeState !== false;
+        } catch (Throwable $e) {
+            $this->rollback();
+        }
+        return false;
+    }
 
     /**
      * Describes a table.
