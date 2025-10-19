@@ -322,67 +322,198 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         return $sql;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string
     {
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$' . (empty($parts) ? '' : ('.' . implode('.', array_map(function($p){
-                    return preg_match('/^\d+$/', $p) ? "[$p]" : $p;
-                }, $parts))));
-        $expr = "JSON_EXTRACT(" . $this->quoteIdentifier($col) . ", '{$jsonPath}')";
+
+        // build JSON path: start with $
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            if (preg_match('/^\d+$/', (string)$p)) {
+                // numeric index -> [N]
+                $jsonPath .= '[' . $p . ']';
+            } else {
+                // object key -> .key   (no quotes; if keys need quoting, handle separately)
+                $jsonPath .= '.' . $p;
+            }
+        }
+
+        $expr = "JSON_EXTRACT(" . $this->quoteIdentifier($col) . ", '" . $jsonPath . "')";
         if ($asText) {
-            return "JSON_UNQUOTE({$expr})";
+            return "JSON_UNQUOTE(" . $expr . ")";
         }
         return $expr;
     }
 
-    public function formatJsonContains(string $col, mixed $value, array|string $path = null): array
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
     {
+        $jsonPath = $path === null ? '$' : $this->buildJsonPath($path);
         $colQuoted = $this->quoteIdentifier($col);
-        $param = ':jsonc';
-        $json = json_encode($value, JSON_UNESCAPED_UNICODE);
-        $pathSql = '';
-        if ($path !== null) {
-            $parts = $this->normalizeJsonPath($path);
-            $jsonPath = '$' . (empty($parts) ? '' : ('.' . implode('.', array_map(function($p){
-                        return preg_match('/^\d+$/', $p) ? "[$p]" : $p;
-                    }, $parts))));
-            $pathSql = ", '{$jsonPath}'";
-        }
-        $sql = "JSON_CONTAINS({$colQuoted}, {$param}{$pathSql})";
-        return [$sql, [$param => $json]];
+        $param = ':' . 'jsonc_' . substr(md5($col . '|' . $jsonPath), 0, 8);
+        $jsonText = $this->toJsonText($value);
+
+        $sql = "JSON_CONTAINS({$colQuoted}, {$param}, '{$jsonPath}')";
+        return [$sql, [$param => $jsonText]];
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
     {
+        // normalize path -> array
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$' . (empty($parts) ? '' : ('.' . implode('.', array_map(function($p){
-                    return preg_match('/^\d+$/', $p) ? "[$p]" : $p;
-                }, $parts))));
-        $param = ':jsonset';
-        $expr = "JSON_SET(" . $this->quoteIdentifier($col) . ", '{$jsonPath}', {$param})";
-        return [$expr, [$param => json_encode($value, JSON_UNESCAPED_UNICODE)]];
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            $jsonPath .= preg_match('/^\d+$/', (string)$p) ? "[$p]" : ".{$p}";
+        }
+
+        $colQuoted = $this->quoteIdentifier($col);
+        $param = ':' .  substr(md5($col . '|' . $jsonPath), 0, 8);
+
+        // single json_encode call, avoid double-encoding
+        $jsonText = json_encode($value, JSON_UNESCAPED_UNICODE);
+        if ($jsonText === false) {
+            $jsonText = json_encode((string)$value, JSON_UNESCAPED_UNICODE);
+        }
+
+        // If nested path, ensure parent exists as object before setting child
+        if (count($parts) > 1) {
+            $parentParts = $parts;
+            array_pop($parentParts);
+            $parentPath = '$';
+            foreach ($parentParts as $pp) {
+                $parentPath .= preg_match('/^\d+$/', (string)$pp) ? "[$pp]" : ".{$pp}";
+            }
+            $lastKey = array_pop($parts); // the final key to set inside parent
+
+            // Build expression: set the parent to JSON_SET(COALESCE(JSON_EXTRACT(col,parent), {}) , '$.<last>', CAST(:param AS JSON))
+            // then write that parent back into the document
+            $parentNew = "JSON_SET(COALESCE(JSON_EXTRACT({$colQuoted}, '{$parentPath}'), CAST('{}' AS JSON)), '$.{$lastKey}', CAST({$param} AS JSON))";
+            $sql = "JSON_SET({$colQuoted}, '{$parentPath}', {$parentNew})";
+        } else {
+            // simple single-segment path
+            $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', CAST({$param} AS JSON))";
+        }
+
+        // Return numeric array [sql, params] to match places in QueryBuilder that unpack by index
+        return [$sql, [$param => $jsonText]];
     }
 
+
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatJsonRemove(string $col, array|string $path): string
     {
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$' . (empty($parts) ? '' : ('.' . implode('.', array_map(function($p){
-                    return preg_match('/^\d+$/', $p) ? "[$p]" : $p;
-                }, $parts))));
-        return "JSON_REMOVE(" . $this->quoteIdentifier($col) . ", '{$jsonPath}')";
+
+        // build JSON path: keys as .key, numeric indexes as [N]
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            if (preg_match('/^\d+$/', (string)$p)) {
+                $jsonPath .= '[' . $p . ']';
+            } else {
+                $jsonPath .= '.' . $p;
+            }
+        }
+
+        $colQuoted = $this->quoteIdentifier($col);
+
+        // If last segment is numeric — replace that array slot with JSON null to preserve array length semantics
+        $last = end($parts);
+        if (preg_match('/^\d+$/', (string)$last)) {
+            // JSON_SET(column, '$.path[index]', CAST('null' AS JSON))
+            return "JSON_SET({$colQuoted}, '{$jsonPath}', CAST('null' AS JSON))";
+        }
+
+        // otherwise remove object key
+        return "JSON_REMOVE({$colQuoted}, '{$jsonPath}')";
     }
 
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatJsonExists(string $col, array|string $path): string
     {
-        $getExpr = $this->formatJsonGet($col, $path, false);
-        // If JSON_EXTRACT returns NULL then path missing
-        return "{$getExpr} IS NOT NULL";
+        $parts = $this->normalizeJsonPath($path);
+
+        // build JSON path: start with $
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            if (preg_match('/^\d+$/', (string)$p)) {
+                $jsonPath .= '[' . $p . ']';
+            } else {
+                $jsonPath .= '.' . $p;
+            }
+        }
+
+        $colQuoted = $this->quoteIdentifier($col);
+
+        // Combined check to cover multiple edge cases:
+        // 1) JSON_CONTAINS_PATH detects presence even when value is JSON null
+        // 2) JSON_SEARCH finds a scalar/string value inside arrays/objects
+        // 3) JSON_EXTRACT(...) IS NOT NULL picks up non-NULL extraction results
+        // Any one true -> path considered present
+        return "("
+            . "JSON_CONTAINS_PATH({$colQuoted}, 'one', '{$jsonPath}')"
+            . " OR JSON_SEARCH({$colQuoted}, 'one', JSON_UNQUOTE(JSON_EXTRACT({$colQuoted}, '{$jsonPath}'))) IS NOT NULL"
+            . " OR JSON_EXTRACT({$colQuoted}, '{$jsonPath}') IS NOT NULL"
+            . ")";
     }
 
+
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatJsonOrderExpr(string $col, array|string $path): string
     {
-        // Return text extraction; consumer may cast as needed in SQL
-        return $this->formatJsonGet($col, $path, true);
+        $parts = $this->normalizeJsonPath($path);
+
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            if (preg_match('/^\d+$/', (string)$p)) {
+                $jsonPath .= '[' . $p . ']';
+            } else {
+                $jsonPath .= '.' . $p;
+            }
+        }
+
+        $colQuoted = $this->quoteIdentifier($col);
+        $base = "JSON_EXTRACT({$colQuoted}, '{$jsonPath}')";
+        $unquoted = "JSON_UNQUOTE({$base})";
+
+        // Force numeric coercion for ordering: numeric-like strings and numeric JSON become numbers.
+        // This returns an expression suitable for ORDER BY ... ASC/DESC.
+        return "({$unquoted} + 0)";
+    }
+
+    private function buildJsonPath(array|string $path): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            $jsonPath .= preg_match('/^\d+$/', (string)$p) ? "[$p]" : ".{$p}";
+        }
+        return $jsonPath;
+    }
+
+    private function toJsonText(mixed $value): string
+    {
+        $json = json_encode($value, JSON_UNESCAPED_UNICODE);
+        if ($json === false) {
+            return json_encode((string)$value, JSON_UNESCAPED_UNICODE);
+        }
+        return $json;
     }
 
 }

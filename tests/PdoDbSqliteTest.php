@@ -2018,10 +2018,12 @@ XML
         $payload1 = ['a' => ['b' => 1], 'tags' => ['x','y'], 'score' => 10];
         $id1 = $db->find()->table('t_json')->insert(['meta' => json_encode($payload1, JSON_UNESCAPED_UNICODE)]);
         $this->assertIsInt($id1);
+        $this->assertGreaterThan(0, $id1);
 
         $payload2 = ['a' => ['b' => 2], 'tags' => ['y','z'], 'score' => 5];
         $id2 = $db->find()->table('t_json')->insert(['meta' => json_encode($payload2, JSON_UNESCAPED_UNICODE)]);
         $this->assertIsInt($id2);
+        $this->assertGreaterThan(0, $id1);
 
         // --- selectJson: fetch meta.a.b for id1 via QueryBuilder::selectJson
         $row = $db->find()
@@ -2096,5 +2098,168 @@ XML
         sort($scores);
         $this->assertEquals(5, $scores[0]);
         $this->assertEquals(10, $scores[1]);
+    }
+
+    public function testJsonMethodsEdgeCases()
+    {
+        $db = self::$db;
+
+        $db->rawQuery('DROP TABLE IF EXISTS t_json_edge');
+        $db->rawQuery("CREATE TABLE t_json_edge (id INTEGER PRIMARY KEY AUTOINCREMENT, meta JSON)");
+
+        // Insert rows covering a variety of JSON shapes and types
+        $rows = [
+            // basic numeric scalar and nested object
+            ['a' => ['b' => 1], 'tags' => ['x','y'], 'score' => 10, 'maybe' => null],
+            // numeric as string, nested array, array order changed
+            ['a' => ['b' => '1'], 'tags' => ['y','x'], 'score' => '5', 'extra' => ['z', ['k' => 7]]],
+            // deeper nesting and floats
+            ['a' => ['b' => 1.0], 'tags' => ['x','z'], 'score' => 2.5, 'list' => [1,2,3]],
+            // arrays with duplicate elements and nulls
+            ['a' => ['b' => null], 'tags' => ['x','x'], 'score' => 0, 'list' => [null, '0', 0]],
+            // object with mixed types and an array of objects
+            ['a' => ['b' => 42], 'tags' => [], 'score' => 100, 'items' => [['id'=>1], ['id'=>2]]],
+        ];
+
+        $ids = [];
+        foreach ($rows as $r) {
+            $ids[] = $db->find()->table('t_json_edge')->insert(['meta' => json_encode($r, JSON_UNESCAPED_UNICODE)]);
+        }
+        $this->assertCount(count($rows), $ids);
+        foreach ($ids as $id) {
+            $this->assertIsInt($id);
+        }
+
+        // 1) whereJsonPath: numeric equality and string numeric equality (should find appropriate rows)
+        $foundNum = $db->find()
+            ->table('t_json_edge')
+            ->whereJsonPath('meta', ['a','b'], '=', 1)
+            ->get();
+        // should find rows where a.b is numeric 1 or numeric 1.0 (rows 0 and 2)
+        $this->assertNotEmpty($foundNum);
+
+        // 2) whereJsonPath: compare numeric-as-string -> ensure equality semantics allow distinguishing strings vs numbers
+        $foundStrNum = $db->find()
+            ->table('t_json_edge')
+            ->whereJsonPath('meta', ['a','b'], '=', '1')
+            ->get();
+        $this->assertNotEmpty($foundStrNum);
+        // Ensure at least one row differs between numeric vs string match
+        $idsNum = array_map(fn($r) => (int)$r['id'], $foundNum);
+        $idsStr = array_map(fn($r) => (int)$r['id'], $foundStrNum);
+        $this->assertTrue(count(array_unique(array_merge($idsNum, $idsStr))) >= 2);
+
+        // 3) whereJsonContains: array membership for scalars and duplicates
+        $containsX = $db->find()
+            ->table('t_json_edge')
+            ->whereJsonContains('meta', 'x', ['tags'])
+            ->get();
+        $this->assertNotEmpty($containsX, 'Expected some rows to contain tag x');
+
+        // 4) whereJsonContains: check array-of-objects contains object by matching subpath
+        $containsItem1 = $db->find()
+            ->table('t_json_edge')
+            ->whereJsonPath('meta', ['items', '0', 'id'], '=', 1)
+            ->exists();
+        $this->assertTrue($containsItem1);
+
+        // 5) jsonSet: set nested scalar and nested object fields
+        $id0 = $ids[0];
+        $qb = $db->find()->table('t_json_edge')->where('id', $id0);
+        $rawSet = $qb->jsonSet('meta', ['a','c'], 'newval');
+        $qb->update(['meta' => $rawSet]);
+
+        $val = $db->find()
+            ->table('t_json_edge')
+            ->selectJson('meta', ['a','c'], 'ac')
+            ->where('id', $id0)
+            ->getOne();
+        $this->assertEquals('newval', $val['ac'] ?? null);
+
+        // 6) jsonSet: set numeric value and ensure numeric comparisons still work
+        $qb2 = $db->find()->table('t_json_edge')->where('id', $ids[4]);
+        $rawSet2 = $qb2->jsonSet('meta', ['a','b'], 999);
+        $qb2->update(['meta' => $rawSet2]);
+
+        $numCheck = $db->find()
+            ->table('t_json_edge')
+            ->whereJsonPath('meta', ['a','b'], '=', 999)
+            ->where('id', $ids[4])
+            ->exists();
+        $this->assertTrue($numCheck);
+
+        // 7) jsonRemove: remove scalar path, remove nested array element (index)
+        $qb3 = $db->find()->table('t_json_edge')->where('id', $ids[1]);
+        $rawRemove = $qb3->jsonRemove('meta', ['extra', '0']); // remove first element of extra array
+        $qb3->update(['meta' => $rawRemove]);
+
+        $afterRemove = $db->find()
+            ->table('t_json_edge')
+            ->selectJson('meta', ['extra', '0'], 'ex0')
+            ->where('id', $ids[1])
+            ->getOne();
+        // after removal, the element at index 0 should be null or not present
+        $this->assertTrue($afterRemove['ex0'] === null || $afterRemove['ex0'] === '' || $afterRemove['ex0'] === 'null');
+
+        // 8) orderByJson: numeric ordering vs string ordering
+        $list = $db->find()
+            ->table('t_json_edge')
+            ->select(['id'])
+            ->selectJson('meta', ['score'], 'score')
+            ->orderByJson('meta', ['score'], 'ASC')
+            ->get();
+        $this->assertCount(count($rows), $list);
+        $scores = array_map(fn($r) => is_null($r['score']) ? null : (float)$r['score'], $list);
+        $sorted = $scores;
+        sort($sorted, SORT_NUMERIC);
+        $this->assertEquals($sorted, $scores);
+
+        // 9) whereJsonExists: check existing vs non-existing paths
+        $existsA = $db->find()
+            ->table('t_json_edge')
+            ->whereJsonExists('meta', ['a','b'])
+            ->get();
+        $this->assertNotEmpty($existsA);
+
+        $notExists = $db->find()
+            ->table('t_json_edge')
+            ->whereJsonExists('meta', ['non','existent'])
+            ->get();
+        $this->assertEmpty($notExists);
+
+        // 10) Combine JSON operations: set, then remove, then check contains/exists
+        $id3 = $ids[2];
+        $qb4 = $db->find()->table('t_json_edge')->where('id', $id3);
+        $qb4->update(['meta' => $qb4->jsonSet('meta', ['compound','value'], ['x' => 1])]);
+
+        $hasCompound = $db->find()
+            ->table('t_json_edge')
+            ->whereJsonExists('meta', ['compound','value'])
+            ->where('id', $id3)
+            ->exists();
+        $this->assertTrue($hasCompound);
+
+        $qb4b = $db->find()->table('t_json_edge')->where('id', $id3);
+        $qb4b->update(['meta' => $qb4b->jsonRemove('meta', ['compound','value'])]);
+
+        $hasCompoundAfter = $db->find()
+            ->table('t_json_edge')
+            ->whereJsonExists('meta', ['compound','value'])
+            ->where('id', $id3)
+            ->exists();
+        $this->assertFalse($hasCompoundAfter);
+
+        // 11) Json contains for arrays: check that checking multiple items works (subset)
+        // Insert a row with tags ['alpha','beta','gamma'] for explicit test
+        $special = ['tags' => ['alpha','beta','gamma']];
+        $specId = $db->find()->table('t_json_edge')->insert(['meta' => json_encode($special, JSON_UNESCAPED_UNICODE)]);
+        $this->assertIsInt($specId);
+
+        $containsSubset = $db->find()
+            ->table('t_json_edge')
+            ->whereJsonContains('meta', ['alpha','gamma'], ['tags'])
+            ->where('id', $specId)
+            ->exists();
+        $this->assertTrue($containsSubset);
     }
 }

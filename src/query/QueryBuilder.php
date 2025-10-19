@@ -45,9 +45,7 @@ class QueryBuilder implements QueryBuilderInterface
     protected ?int $limit = null;
     protected ?int $offset = null;
     protected ?string $prefix = null;
-
     protected int $fetchMode = PDO::FETCH_ASSOC;
-
     protected array $options = [];
     protected int $paramCounter = 0;
     /**
@@ -834,8 +832,6 @@ class QueryBuilder implements QueryBuilderInterface
 
         if ($value instanceof RawValue) {
             $right = $this->resolveRawValue($value);
-            $this->where([$expr => $right], null, '',);
-            // fallback: add raw comparison
             $this->where($expr . " {$operator} " . $right);
             return $this;
         }
@@ -851,6 +847,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param string $col
      * @param mixed $value
+     * @param array|string|null $path
      * @param string $cond
      * @return self
      */

@@ -270,35 +270,19 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string
     {
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$' . (empty($parts) ? '' : '.' . implode('.', array_map(function($p){
-                    return preg_match('/^\d+$/', $p) ? $p : $p;
-                }, $parts)));
-
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            if (preg_match('/^\d+$/', (string)$p)) {
+                // Numeric index -> [N]
+                $jsonPath .= '[' . $p . ']';
+            } else {
+                // Object key -> .key
+                $jsonPath .= '.' . $p;
+            }
+        }
         $colQuoted = $this->quoteIdentifier($col);
         $base = "json_extract({$colQuoted}, '{$jsonPath}')";
-
-        // If caller requests "text" form we still try to return a scalar-friendly expression.
-        // Use json_type() to detect numeric types and coerce them to SQL numbers via +0.
-        // For other types return the raw json_extract result.
-        //
-        // Explanation:
-        // - For JSON numbers json_type(...) returns 'integer' or 'real'. Adding +0 coerces the JSON literal to SQL numeric.
-        // - For strings/objects/arrays we return json_extract(...) unchanged so JSON strings remain comparable to string params.
-        //
-        // Resulting SQL example:
-        // CASE json_type(json_extract("meta",'$.a.b'))
-        //   WHEN 'integer' THEN json_extract("meta",'$.a.b') + 0
-        //   WHEN 'real' THEN json_extract("meta",'$.a.b') + 0
-        //   ELSE json_extract("meta",'$.a.b')
-        // END
-        $expr = "CASE json_type({$base}) WHEN 'integer' THEN ({$base} + 0) WHEN 'real' THEN ({$base} + 0) ELSE {$base} END";
-
-        // If caller explicitly asked for "text" and you want always text, you can wrap in CAST(... AS TEXT)
-        if ($asText) {
-            return "CAST({$expr} AS TEXT)";
-        }
-
-        return $expr;
+        return $asText ? "({$base} || '')" : $base;
     }
 
 
@@ -308,15 +292,42 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
     public function formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
     {
         $parts = $this->normalizeJsonPath($path ?? []);
-        $jsonPath = '$' . (empty($parts) ? '' : '.' . implode('.', $parts));
-        $param = ':jsonc';
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            if (preg_match('/^\d+$/', (string)$p)) {
+                // Numeric index -> [N]
+                $jsonPath .= '[' . $p . ']';
+            } else {
+                // Object key -> .key
+                $jsonPath .= '.' . $p;
+            }
+        }
         $quotedCol = $this->quoteIdentifier($col);
 
-        // SQLite doesn't support JSON_CONTAINS; emulate via json_each
+        // If value is an array, check that all elements are present in the JSON array
+        if (is_array($value)) {
+            $conditions = [];
+            $params = [];
+            
+            foreach ($value as $idx => $item) {
+                $param = ':jsonc_' . $idx;
+                $conditions[] = "EXISTS (SELECT 1 FROM json_each({$quotedCol}, '{$jsonPath}') WHERE json_each.value = {$param})";
+                $params[$param] = is_string($item) ? $item : json_encode($item, JSON_UNESCAPED_UNICODE);
+            }
+            
+            $sql = '(' . implode(' AND ', $conditions) . ')';
+            return [$sql, $params];
+        }
+        
+        // For scalar values, use simple json_each check
+        $param = ':jsonc';
         $sql = "EXISTS (SELECT 1 FROM json_each({$quotedCol}, '{$jsonPath}') WHERE json_each.value = {$param})";
-        return [$sql, [$param => $value]];
+        
+        // Encode value as JSON if not a simple scalar
+        $paramValue = is_string($value) ? $value : json_encode($value, JSON_UNESCAPED_UNICODE);
+        
+        return [$sql, [$param => $paramValue]];
     }
-
 
     /**
      * {@inheritDoc}
@@ -324,11 +335,19 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
     {
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$' . (empty($parts) ? '' : '.' . implode('.', array_map(function($p){
-                    return preg_match('/^\d+$/', $p) ? $p : $p;
-                }, $parts)));
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            if (preg_match('/^\d+$/', (string)$p)) {
+                // Numeric index -> [N]
+                $jsonPath .= '[' . $p . ']';
+            } else {
+                // Object key -> .key
+                $jsonPath .= '.' . $p;
+            }
+        }
         $param = ':jsonset';
-        $expr = "JSON_SET(" . $this->quoteIdentifier($col) . ", '{$jsonPath}', {$param})";
+        // Use json() to parse the JSON-encoded value properly
+        $expr = "JSON_SET(" . $this->quoteIdentifier($col) . ", '{$jsonPath}', json({$param}))";
         return [$expr, [$param => json_encode($value, JSON_UNESCAPED_UNICODE)]];
     }
 
@@ -338,10 +357,28 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
     public function formatJsonRemove(string $col, array|string $path): string
     {
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$' . (empty($parts) ? '' : '.' . implode('.', array_map(function($p){
-                    return preg_match('/^\d+$/', $p) ? $p : $p;
-                }, $parts)));
-        return "JSON_REMOVE(" . $this->quoteIdentifier($col) . ", '{$jsonPath}')";
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            if (preg_match('/^\d+$/', (string)$p)) {
+                // Numeric index -> [N]
+                $jsonPath .= '[' . $p . ']';
+            } else {
+                // Object key -> .key
+                $jsonPath .= '.' . $p;
+            }
+        }
+        
+        $colQuoted = $this->quoteIdentifier($col);
+        
+        // If last segment is numeric, replace array element with JSON null to preserve indices
+        $last = end($parts);
+        if (preg_match('/^\d+$/', (string)$last)) {
+            // Use JSON_SET to set the element to JSON null (using json('null'))
+            return "JSON_SET({$colQuoted}, '{$jsonPath}', json('null'))";
+        }
+        
+        // Otherwise remove object key
+        return "JSON_REMOVE({$colQuoted}, '{$jsonPath}')";
     }
 
     /**
@@ -358,6 +395,9 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
      */
     public function formatJsonOrderExpr(string $col, array|string $path): string
     {
-        return $this->formatJsonGet($col, $path, true);
+        $expr = $this->formatJsonGet($col, $path, true);
+        // Force numeric coercion for ordering: add 0 to convert string to number
+        // This ensures numeric ordering instead of lexicographic ordering
+        return "({$expr} + 0)";
     }
 }

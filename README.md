@@ -19,7 +19,7 @@ Inspired by https://github.com/ThingEngineer/PHP-MySQLi-Database-Class
 * **Dialect helpers**: identifier quoting, type mapping, and small semantics (`REPLACE` vs `UPSERT`) handled per driver.
 * **Transaction helpers** and table locking primitives adapted to each engine.
 * **Connection pooling** support for multiple database connections.
-* **Helper functions** for common operations (`inc()`, `dec()`, `now()`).
+* **Helper functions** for common operations (`Db::raw()`, `Db::inc()`, `Db::dec()`, `Db::now()`, and many others).
 * **Comprehensive** tests across three dialects ensuring consistent behavior.
 
 ---
@@ -300,8 +300,8 @@ $db->find()->table('users')->insert([
 * **option(string|array)**: add query options.
 * **insert(array)**: insert single row, returns inserted primary key when available.
 * **insertMulti(array)**: insert multiple rows; generates unique named placeholders and returns inserted row count.
-* **loadCsv(table, file, options)**: CSV loader; COPY/LOAD DATA when available.
-* **loadXml(table, file, tag, options)**: XML loader.
+* **loadCsv(file, options)**: CSV loader; COPY/LOAD DATA when available.
+* **loadXml(file, tag, linesToIgnore)**: XML loader.
 * **onDuplicate(array)**: build UPSERT clause; dialect-specific generation.
 * **replace(array) / replaceMulti(array)**: MySQL-specific REPLACE operations.
 * **update(array)**: update rows, returns affected count.

@@ -431,18 +431,54 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         return [$sql, [$paramJson => $json]];
     }
 
-
     /**
      * {@inheritDoc}
      */
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
     {
         $parts = $this->normalizeJsonPath($path);
-        $pathArray = "ARRAY[" . implode(',', array_map(fn($p) => "'" . $p . "'", $parts)) . "]";
-        $param = ':jsonset';
-        // create_missing true
-        $expr = "jsonb_set(" . $this->quoteIdentifier($col) . "::jsonb, {$pathArray}, {$param}::jsonb, true)";
-        return [$expr, [$param => json_encode($value, JSON_UNESCAPED_UNICODE)]];
+        $colQuoted = $this->quoteIdentifier($col);
+
+        // build pg path for full path and for parent path
+        $pgPath = '{' . implode(',', array_map(fn($p) => str_replace('}', '\\}', (string)$p), $parts)) . '}';
+        if (count($parts) > 1) {
+            $parentParts = $parts;
+            array_pop($parentParts);
+            $pgParentPath = '{' . implode(',', array_map(fn($p) => str_replace('}', '\\}', (string)$p), $parentParts)) . '}';
+            $lastKey = (string)end($parts);
+        } else {
+            $pgParentPath = null;
+            $lastKey = (string)$parts[0];
+        }
+
+        $param = ':' . substr(md5($col . '|' . $pgPath), 0, 8);
+
+        // produce json text to bind exactly once (use as-is if already looks like JSON)
+        if (is_string($value)) {
+            $trim = trim($value);
+            $looksLikeJson = $trim === 'null'
+                || $trim === 'true'
+                || $trim === 'false'
+                || (strlen($trim) > 0 && ($trim[0] === '{' || $trim[0] === '[' || $trim[0] === '"'));
+            $jsonText = $looksLikeJson ? $value : json_encode($value, JSON_UNESCAPED_UNICODE);
+        } else {
+            $jsonText = json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+        if ($jsonText === false) {
+            $jsonText = json_encode((string)$value, JSON_UNESCAPED_UNICODE);
+        }
+
+        // If there is a parent path, first ensure parent exists as object: set(parentPath, COALESCE(col->parent, {}))
+        // Then set the final child inside that parent with jsonb_set(..., fullPath, to_jsonb(CAST(:param AS json)), true)
+        if ($pgParentPath !== null) {
+            $ensureParent = "jsonb_set({$colQuoted}::jsonb, '{$pgParentPath}', COALESCE({$colQuoted}::jsonb #> '{$pgParentPath}', '{}'::jsonb), true)";
+            $expr = "jsonb_set({$ensureParent}, '{$pgPath}', to_jsonb(CAST({$param} AS json)), true)::json";
+        } else {
+            // single segment: just set directly
+            $expr = "jsonb_set({$colQuoted}::jsonb, '{$pgPath}', to_jsonb(CAST({$param} AS json)), true)::json";
+        }
+
+        return [$expr, [$param => $jsonText]];
     }
 
     /**
@@ -451,27 +487,77 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     public function formatJsonRemove(string $col, array|string $path): string
     {
         $parts = $this->normalizeJsonPath($path);
-        $quoted = $this->quoteIdentifier($col);
+        $colQuoted = $this->quoteIdentifier($col);
 
-        // Use jsonb operators; cast column to jsonb first, apply operator, then cast back to jsonb
-        // (if you prefer json, replace ::jsonb at the end with ::json)
-        if (count($parts) === 1) {
-            $key = str_replace("'", "''", $parts[0]);
-            return "({$quoted}::jsonb - '{$key}')::jsonb";
+        // Build pg path array literal for functions that need it
+        $pgPathArr = '{' . implode(',', array_map(fn($p) => str_replace('}', '\\}', (string)$p), $parts)) . '}';
+
+        // If last segment is numeric -> treat as array index: set that element to JSON null (preserve indices)
+        $last = end($parts);
+        if (is_string($last) && preg_match('/^\d+$/', $last)) {
+            // Use jsonb_set to assign JSON null at exact path; create parents if needed
+            return "jsonb_set({$colQuoted}::jsonb, '{$pgPathArr}', 'null'::jsonb, true)::jsonb";
         }
 
-        $arr = "ARRAY[" . implode(',', array_map(fn($p) => "'" . str_replace("'", "''", $p) . "'", $parts)) . "]::text[]";
-        return "({$quoted}::jsonb #- {$arr})::jsonb";
+        // Otherwise treat as object key removal: use #- operator which removes key at path (works for nested paths)
+        // Operator expects text[] on right-hand side; use the same pgPathArr
+        // Return expression only (no "col ="), QueryBuilder will use: SET "meta" = <expr>
+        return "({$colQuoted}::jsonb #- '{$pgPathArr}')::jsonb";
     }
-
 
     /**
      * {@inheritDoc}
      */
     public function formatJsonExists(string $col, array|string $path): string
     {
-        $get = $this->formatJsonGet($col, $path, false);
-        return "{$get} IS NOT NULL";
+        $parts = $this->normalizeJsonPath($path);
+        $colQuoted = $this->quoteIdentifier($col);
+
+        // Build jsonpath for jsonb_path_exists
+        $jsonPath = '$';
+        foreach ($parts as $p) {
+            if (preg_match('/^\d+$/', (string)$p)) {
+                $jsonPath .= '[' . $p . ']';
+            } else {
+                if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', (string)$p)) {
+                    $jsonPath .= '.' . $p;
+                } else {
+                    $escaped = str_replace('"', '\\"', (string)$p);
+                    $jsonPath .= '.\"' . $escaped . '\"';
+                }
+            }
+        }
+
+        $checks = ["jsonb_path_exists({$colQuoted}::jsonb, '{$jsonPath}')"];
+
+        // Build prefix existence checks without using the ? operator to avoid PDO positional placeholder issues
+        $prefixExpr = $colQuoted . "::jsonb";
+        $accum = [];
+        foreach ($parts as $i => $p) {
+            $isIndex = preg_match('/^\d+$/', (string)$p);
+            if ($isIndex) {
+                $idx = (int)$p;
+                $lenCheck = "(jsonb_typeof({$prefixExpr}) = 'array' AND jsonb_array_length({$prefixExpr}) > {$idx})";
+                $accum[] = $lenCheck;
+                $prefixExpr = "{$prefixExpr} -> {$idx}";
+            } else {
+                // use -> to get child and IS NOT NULL to check existence (avoids ? operator)
+                $keyLiteral = "'" . str_replace("'", "''", (string)$p) . "'";
+                $accum[] = "({$prefixExpr} -> {$keyLiteral}) IS NOT NULL";
+                $prefixExpr = "{$prefixExpr} -> {$keyLiteral}";
+            }
+        }
+
+        if (!empty($accum)) {
+            $prefixCheck = '(' . implode(' AND ', $accum) . ')';
+            $checks[] = $prefixCheck;
+        }
+
+        // Final fallback: #> path not null. Build pg path array literal safely.
+        $pgPathArr = '{' . implode(',', array_map(fn($p) => str_replace('}', '\\}', (string)$p), $parts)) . '}';
+        $checks[] = "({$colQuoted}::jsonb #> '{$pgPathArr}') IS NOT NULL";
+
+        return '(' . implode(' OR ', $checks) . ')';
     }
 
     /**
@@ -479,8 +565,17 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
      */
     public function formatJsonOrderExpr(string $col, array|string $path): string
     {
-        // return text extraction to be safe for ORDER BY
-        return $this->formatJsonGet($col, $path, true);
-    }
+        $parts = $this->normalizeJsonPath($path);
+        if (empty($parts)) {
+            // whole column: cast text to numeric when possible
+            $expr = $this->quoteIdentifier($col) . "::text";
+        } else {
+            $arr = "ARRAY[" . implode(',', array_map(fn($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . "]";
+            $expr = $this->quoteIdentifier($col) . " #>> " . $arr;
+        }
 
+        // CASE expression: if text looks like a number, cast to numeric for ordering, otherwise NULL
+        // This yields numeric values for numeric entries and NULL for non-numeric ones.
+        return "CASE WHEN ({$expr}) ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN ({$expr})::numeric ELSE NULL END";
+    }
 }
