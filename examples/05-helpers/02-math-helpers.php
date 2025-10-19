@@ -1,0 +1,160 @@
+<?php
+/**
+ * Example: Math Helper Functions
+ * 
+ * Demonstrates mathematical operations and calculations
+ */
+
+require_once __DIR__ . '/../../vendor/autoload.php';
+
+use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\helpers\Db;
+
+$db = new PdoDb('sqlite', ['path' => ':memory:']);
+
+echo "=== Math Helper Functions Example ===\n\n";
+
+// Setup
+$db->rawQuery("CREATE TABLE measurements (id INTEGER PRIMARY KEY, name TEXT, value REAL, reading INTEGER)");
+
+$db->find()->table('measurements')->insertMulti([
+    ['name' => 'Temperature', 'value' => -5.7, 'reading' => 15],
+    ['name' => 'Pressure', 'value' => 101.325, 'reading' => 42],
+    ['name' => 'Humidity', 'value' => 65.432, 'reading' => 7],
+    ['name' => 'Wind Speed', 'value' => -12.3, 'reading' => 23],
+]);
+
+echo "✓ Test data inserted\n\n";
+
+// Example 1: ABS - Absolute value
+echo "1. ABS - Absolute values...\n";
+$results = $db->find()
+    ->from('measurements')
+    ->select([
+        'name',
+        'value',
+        'absolute' => Db::abs('value')
+    ])
+    ->get();
+
+foreach ($results as $row) {
+    echo "  • {$row['name']}: {$row['value']} → |{$row['absolute']}|\n";
+}
+echo "\n";
+
+// Example 2: ROUND - Rounding numbers
+echo "2. ROUND - Rounding to different precisions...\n";
+$results = $db->find()
+    ->from('measurements')
+    ->select([
+        'name',
+        'value',
+        'rounded_0' => Db::round('value', 0),
+        'rounded_1' => Db::round('value', 1),
+        'rounded_2' => Db::round('value', 2)
+    ])
+    ->limit(2)
+    ->get();
+
+foreach ($results as $row) {
+    echo "  • {$row['name']}: {$row['value']}\n";
+    echo "    0 decimals: {$row['rounded_0']}\n";
+    echo "    1 decimal: {$row['rounded_1']}\n";
+    echo "    2 decimals: {$row['rounded_2']}\n";
+}
+echo "\n";
+
+// Example 3: MOD - Modulo operation
+echo "3. MOD - Finding even/odd readings...\n";
+$results = $db->find()
+    ->from('measurements')
+    ->select([
+        'name',
+        'reading',
+        'remainder' => Db::mod('reading', Db::raw('2')),
+        'even_odd' => Db::raw('CASE WHEN ' . Db::mod('reading', Db::raw('2')) . ' = 0 THEN "even" ELSE "odd" END')
+    ])
+    ->get();
+
+foreach ($results as $row) {
+    echo "  • {$row['name']}: reading {$row['reading']} is {$row['even_odd']}\n";
+}
+echo "\n";
+
+// Example 4: GREATEST - Maximum of multiple values
+echo "4. GREATEST - Maximum of multiple columns...\n";
+$db->rawQuery("ALTER TABLE measurements ADD COLUMN alt_reading INTEGER DEFAULT 0");
+$db->rawQuery("UPDATE measurements SET alt_reading = reading + 10 WHERE id <= 2");
+$db->rawQuery("UPDATE measurements SET alt_reading = reading - 5 WHERE id > 2");
+
+$results = $db->find()
+    ->from('measurements')
+    ->select([
+        'name',
+        'reading',
+        'alt_reading',
+        'max_reading' => Db::greatest('reading', 'alt_reading')
+    ])
+    ->get();
+
+foreach ($results as $row) {
+    echo "  • {$row['name']}: reading={$row['reading']}, alt={$row['alt_reading']}, max={$row['max_reading']}\n";
+}
+echo "\n";
+
+// Example 5: LEAST - Minimum of multiple values
+echo "5. LEAST - Minimum of multiple columns...\n";
+$results = $db->find()
+    ->from('measurements')
+    ->select([
+        'name',
+        'reading',
+        'alt_reading',
+        'min_reading' => Db::least('reading', 'alt_reading')
+    ])
+    ->get();
+
+foreach ($results as $row) {
+    echo "  • {$row['name']}: reading={$row['reading']}, alt={$row['alt_reading']}, min={$row['min_reading']}\n";
+}
+echo "\n";
+
+// Example 6: Combining math functions
+echo "6. Complex calculation - Normalized scores...\n";
+$results = $db->find()
+    ->from('measurements')
+    ->select([
+        'name',
+        'value',
+        'abs_value' => Db::abs('value'),
+        'normalized' => Db::round(Db::abs('value'), 1)
+    ])
+    ->orderBy(Db::abs('value'), 'DESC')
+    ->get();
+
+echo "  Measurements ordered by absolute value:\n";
+foreach ($results as $row) {
+    echo "  • {$row['name']}: {$row['value']} → {$row['normalized']}\n";
+}
+echo "\n";
+
+// Example 7: Using math in WHERE clause
+echo "7. Filtering by math operations...\n";
+$filtered = $db->find()
+    ->from('measurements')
+    ->select(['name', 'value'])
+    ->where(Db::abs('value'), 10, '>')
+    ->get();
+
+echo "  Measurements with |value| > 10:\n";
+foreach ($filtered as $row) {
+    echo "  • {$row['name']}: {$row['value']}\n";
+}
+
+echo "\nMath helper functions example completed!\n";
+echo "\nKey Takeaways:\n";
+echo "  • Use ABS for absolute values\n";
+echo "  • Use ROUND to control precision\n";
+echo "  • Use MOD for modulo operations (even/odd, cycles)\n";
+echo "  • Use GREATEST/LEAST to compare multiple values\n";
+

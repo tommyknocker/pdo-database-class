@@ -98,6 +98,29 @@ composer require tommyknocker/pdo-database-class:dev-master
 
 ---
 
+## 📚 Examples
+
+Comprehensive, runnable examples are available in the [`examples/`](examples/) directory:
+
+- **[Basic](examples/01-basic/)** - Connection, CRUD, WHERE conditions
+- **[Intermediate](examples/02-intermediate/)** - JOINs, aggregations, pagination, transactions
+- **[Advanced](examples/03-advanced/)** - Connection pooling, bulk operations, UPSERT
+- **[JSON Operations](examples/04-json/)** - Complete guide to JSON features
+- **[Helper Functions](examples/05-helpers/)** - String, math, date/time helpers
+- **[Real-World](examples/06-real-world/)** - Blog system, user auth, search, multi-tenant
+
+Each example is self-contained with setup instructions. See [`examples/README.md`](examples/README.md) for the full catalog.
+
+**Quick start:**
+```bash
+cd examples
+cp config.example.php config.php
+# Update config.php with your credentials
+php 01-basic/01-connection.php
+```
+
+---
+
 ## Quick Example
 
 ```php

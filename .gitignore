@@ -5,45 +5,11 @@ composer.lock
 .phpunit.cache
 .phpunit.result.cache
 
+# Examples
+examples/config.php
+examples/**/*.db
+examples/**/*.sqlite
+examples/**/*.sql
+
+# Release scripts
 /release.sh
-
-## Major Feature Release
-
-### ✨ New Features
-
-**Connection Pooling**
-- Support for initialization without default connection via `new PdoDb()`
-- Better error messages for uninitialized connections
-
-**17 New SQL Helper Functions**
-- NULL handling: `Db::ifNull()`, `Db::coalesce()`, `Db::nullIf()`
-- Math operations: `Db::abs()`, `Db::round()`, `Db::mod()`, `Db::greatest()`, `Db::least()`
-- String operations: `Db::upper()`, `Db::lower()`, `Db::trim()`, `Db::length()`, `Db::substring()`, `Db::replace()`
-- Date/Time extraction: `Db::curDate()`, `Db::curTime()`, `Db::date()`, `Db::time()`, `Db::year()`, `Db::month()`, `Db::day()`, `Db::hour()`, `Db::minute()`, `Db::second()`
-
-**Complete JSON Operations API**
-- `Db::jsonGet()`, `Db::jsonLength()`, `Db::jsonKeys()`, `Db::jsonType()`
-- Unified API across MySQL, PostgreSQL, and SQLite
-- Comprehensive edge-case testing
-
-**Documentation**
-- Professional README (1400+ lines)
-- Table of contents, error handling, performance tips
-- Debugging guide and troubleshooting section
-
-### 🔧 Improvements
-
-- Optimized QueryBuilder with helper methods
-- Comprehensive edge-case test coverage
-- 246 tests, 1296 assertions - all passing
-
-### 🐛 Bug Fixes
-
-- Restored RawValue support in rawQuery methods
-- Fixed method calls in lock/unlock/loadData/loadXml
-
-### 📝 Technical Details
-
-- **Backward compatible**: Zero breaking changes
-- **PHP**: 8.4+ required
-- **Full CHANGELOG**: See [CHANGELOG.md](CHANGELOG.md)

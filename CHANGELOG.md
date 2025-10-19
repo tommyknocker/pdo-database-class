@@ -7,29 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [2.5.0] - 2025-10-19
+
 ### Added
 - **Connection pooling**: Support for initialization without default connection via `new PdoDb()`
 - **17 new SQL helper functions** with full dialect support:
-    - NULL handling: `Db::ifNull()`, `Db::coalesce()`, `Db::nullIf()`
-    - Math operations: `Db::abs()`, `Db::round()`, `Db::mod()`, `Db::greatest()`, `Db::least()`
-    - String operations: `Db::upper()`, `Db::lower()`, `Db::trim()`, `Db::length()`, `Db::substring()`, `Db::replace()`
-    - Date/Time extraction: `Db::curDate()`, `Db::curTime()`, `Db::date()`, `Db::time()`, `Db::year()`, `Db::month()`, `Db::day()`, `Db::hour()`, `Db::minute()`, `Db::second()`
+  - NULL handling: `Db::ifNull()`, `Db::coalesce()`, `Db::nullIf()`
+  - Math operations: `Db::abs()`, `Db::round()`, `Db::mod()`, `Db::greatest()`, `Db::least()`
+  - String operations: `Db::upper()`, `Db::lower()`, `Db::trim()`, `Db::length()`, `Db::substring()`, `Db::replace()`
+  - Date/Time extraction: `Db::curDate()`, `Db::curTime()`, `Db::date()`, `Db::time()`, `Db::year()`, `Db::month()`, `Db::day()`, `Db::hour()`, `Db::minute()`, `Db::second()`
 - **Complete JSON operations API**:
-    - `Db::jsonGet()`, `Db::jsonLength()`, `Db::jsonKeys()`, `Db::jsonType()`
-    - Unified API across MySQL, PostgreSQL, and SQLite
-    - Edge-case testing for JSON operations
+  - `Db::jsonGet()`, `Db::jsonLength()`, `Db::jsonKeys()`, `Db::jsonType()`
+  - Unified API across MySQL, PostgreSQL, and SQLite
+  - Edge-case testing for JSON operations
+- **Comprehensive examples directory** (`examples/`) with 18 runnable examples:
+  - Basic operations (connection, CRUD, WHERE conditions)
+  - Intermediate patterns (JOINs, aggregations, pagination, transactions)
+  - Advanced features (connection pooling, bulk operations, UPSERT)
+  - JSON operations (complete guide with real-world usage)
+  - Helper functions (string, math, date/time, NULL handling)
+  - Real-world applications (blog system with posts, comments, tags)
 - **Comprehensive edge-case test coverage** for new helpers and dialect-specific behaviors
 - **Professional README documentation** (1400+ lines) with:
-    - Table of contents with navigation
-    - Error handling examples
-    - Performance tips
-    - Debugging guide
-    - Troubleshooting section
-    - PHP 8.4+ requirement clearly documented
+  - Table of contents with navigation
+  - Error handling examples
+  - Performance tips
+  - Debugging guide
+  - Troubleshooting section
+  - PHP 8.4+ requirement clearly documented
+  - Examples directory section
+- **Complete CHANGELOG.md** documenting all changes from v1.0.3 to present
 
 ### Changed
 - **Optimized QueryBuilder**: Refactored duplicated code with new helper methods (`addParam()`, `normalizeOperator()`, `processValueForSql()`)
 - **Improved error messages**: Property hooks now provide clearer guidance for uninitialized connections
+- **Updated .gitignore**: Cleaned up and added examples-related ignores
 
 ### Fixed
 - Restored `RawValue` union type support in `rawQuery()`, `rawQueryOne()`, `rawQueryValue()` methods
@@ -40,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All tests passing: 246 tests, 1296 assertions across MySQL, PostgreSQL, and SQLite
 - Full backward compatibility maintained
 - Zero breaking changes
+- Examples tested and verified on PHP 8.4.13
 
 ---
 

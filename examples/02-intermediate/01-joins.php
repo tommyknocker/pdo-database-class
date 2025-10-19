@@ -1,0 +1,139 @@
+<?php
+/**
+ * Example: JOIN Operations
+ * 
+ * Demonstrates INNER, LEFT, RIGHT, and complex JOIN patterns
+ */
+
+require_once __DIR__ . '/../../vendor/autoload.php';
+
+use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\helpers\Db;
+
+$db = new PdoDb('sqlite', ['path' => ':memory:']);
+
+echo "=== JOIN Operations Example ===\n\n";
+
+// Setup tables
+$db->rawQuery("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, city TEXT)");
+$db->rawQuery("CREATE TABLE orders (id INTEGER PRIMARY KEY, user_id INTEGER, product TEXT, amount REAL)");
+$db->rawQuery("CREATE TABLE reviews (id INTEGER PRIMARY KEY, user_id INTEGER, rating INTEGER, comment TEXT)");
+
+// Insert test data
+$db->find()->table('users')->insertMulti([
+    ['name' => 'Alice', 'city' => 'NYC'],
+    ['name' => 'Bob', 'city' => 'LA'],
+    ['name' => 'Carol', 'city' => 'Chicago'],
+    ['name' => 'Dave', 'city' => 'NYC'],  // User without orders
+]);
+
+$db->find()->table('orders')->insertMulti([
+    ['user_id' => 1, 'product' => 'Laptop', 'amount' => 999.99],
+    ['user_id' => 1, 'product' => 'Mouse', 'amount' => 29.99],
+    ['user_id' => 2, 'product' => 'Keyboard', 'amount' => 79.99],
+    ['user_id' => 3, 'product' => 'Monitor', 'amount' => 299.99],
+]);
+
+$db->find()->table('reviews')->insertMulti([
+    ['user_id' => 1, 'rating' => 5, 'comment' => 'Great products!'],
+    ['user_id' => 2, 'rating' => 4, 'comment' => 'Good service'],
+]);
+
+echo "✓ Test data inserted\n\n";
+
+// Example 1: INNER JOIN
+echo "1. INNER JOIN - Users with their orders...\n";
+$results = $db->find()
+    ->from('users AS u')
+    ->join('orders AS o', 'o.user_id = u.id')
+    ->select(['u.name', 'o.product', 'o.amount'])
+    ->get();
+
+echo "  Orders (INNER JOIN):\n";
+foreach ($results as $row) {
+    echo "  • {$row['name']} ordered {$row['product']} (\${$row['amount']})\n";
+}
+echo "\n";
+
+// Example 2: LEFT JOIN
+echo "2. LEFT JOIN - All users (with or without orders)...\n";
+$results = $db->find()
+    ->from('users AS u')
+    ->leftJoin('orders AS o', 'o.user_id = u.id')
+    ->select(['u.name', 'o.product'])
+    ->get();
+
+echo "  All users:\n";
+$current = null;
+foreach ($results as $row) {
+    if ($current !== $row['name']) {
+        $current = $row['name'];
+        echo "  • {$row['name']}:";
+    }
+    echo $row['product'] ? " {$row['product']}" : " (no orders)";
+    echo "\n";
+}
+echo "\n";
+
+// Example 3: Multiple JOINs
+echo "3. Multiple JOINs - Users, orders, and reviews...\n";
+$results = $db->find()
+    ->from('users AS u')
+    ->leftJoin('orders AS o', 'o.user_id = u.id')
+    ->leftJoin('reviews AS r', 'r.user_id = u.id')
+    ->select([
+        'u.name',
+        'order_count' => Db::raw('COUNT(DISTINCT o.id)'),
+        'review_count' => Db::raw('COUNT(DISTINCT r.id)')
+    ])
+    ->groupBy('u.id')
+    ->get();
+
+echo "  User activity summary:\n";
+foreach ($results as $row) {
+    echo "  • {$row['name']}: {$row['order_count']} orders, {$row['review_count']} reviews\n";
+}
+echo "\n";
+
+// Example 4: JOIN with aggregation
+echo "4. JOIN with aggregation - Total spending per user...\n";
+$results = $db->find()
+    ->from('users AS u')
+    ->leftJoin('orders AS o', 'o.user_id = u.id')
+    ->select([
+        'u.name',
+        'total_spent' => Db::raw('COALESCE(SUM(o.amount), 0)')
+    ])
+    ->groupBy('u.id')
+    ->orderBy(Db::raw('total_spent'), 'DESC')
+    ->get();
+
+echo "  User spending:\n";
+foreach ($results as $row) {
+    echo "  • {$row['name']}: \$" . number_format($row['total_spent'], 2) . "\n";
+}
+echo "\n";
+
+// Example 5: JOIN with WHERE and HAVING
+echo "5. JOIN with WHERE and HAVING...\n";
+$results = $db->find()
+    ->from('users AS u')
+    ->join('orders AS o', 'o.user_id = u.id')
+    ->select([
+        'u.name',
+        'u.city',
+        'order_count' => Db::raw('COUNT(*)'),
+        'total' => Db::raw('SUM(o.amount)')
+    ])
+    ->where('u.city', 'NYC')
+    ->groupBy('u.id')
+    ->having(Db::raw('SUM(o.amount)'), 500, '>')
+    ->get();
+
+echo "  High-value NYC customers:\n";
+foreach ($results as $row) {
+    echo "  • {$row['name']} ({$row['city']}): {$row['order_count']} orders, \$" . number_format($row['total'], 2) . "\n";
+}
+
+echo "\nJOIN operations example completed!\n";
+
