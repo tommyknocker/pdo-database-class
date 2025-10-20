@@ -75,7 +75,7 @@ $contacts = $db->find()
     ->from('users')
     ->select([
         'name',
-        'contact' => Db::coalesce('phone', 'email', Db::raw("'No contact'"))
+        'contact' => Db::coalesce('phone', 'email', "'No contact'")
     ])
     ->get();
 
@@ -93,7 +93,7 @@ $users = $db->find()
     ->select([
         'name',
         'email',
-        'clean_email' => Db::nullIf('email', Db::raw("''"))
+        'clean_email' => Db::nullIf('email', "''")
     ])
     ->where('name', 'Eve')
     ->getOne();
@@ -124,9 +124,9 @@ $sorted = $db->find()
     ->from('users')
     ->select([
         'name',
-        'contact_priority' => Db::coalesce('phone', 'email', Db::raw("'zzz'"))
+        'contact_priority' => Db::coalesce('phone', 'email', "'zzz'")
     ])
-    ->orderBy(Db::coalesce('phone', 'email', Db::raw("'zzz'")))
+    ->orderBy(Db::coalesce('phone', 'email', "'zzz'"))
     ->get();
 
 echo "  Users sorted by contact availability:\n";

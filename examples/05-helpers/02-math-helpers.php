@@ -71,7 +71,7 @@ $results = $db->find()
     ->select([
         'name',
         'reading',
-        'remainder' => Db::mod('reading', Db::raw('2'))
+        'remainder' => Db::mod('reading', '2')
     ])
     ->get();
 

@@ -113,7 +113,7 @@ $stats = $db->find()
     ->from('events')
     ->select([
         'user_id',
-        'event_count' => Db::raw('COUNT(*)')
+        'event_count' => Db::count()
     ])
     ->groupBy('user_id')
     ->get();

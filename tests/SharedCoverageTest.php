@@ -31,6 +31,18 @@ class SharedCoverageTest extends TestCase
         ");
     }
 
+    /**
+     * Clean up test data before each test
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Clear all data from test table before each test
+        self::$db->rawQuery("DELETE FROM test_coverage");
+        // Reset auto-increment counter (SQLite specific)
+        self::$db->rawQuery("DELETE FROM sqlite_sequence WHERE name='test_coverage'");
+    }
+
     /* ---------------- Connection Pooling Tests ---------------- */
 
     public function testUninitializedConnection(): void
@@ -184,6 +196,9 @@ class SharedCoverageTest extends TestCase
 
     public function testGreatestWithMixedTypes(): void
     {
+        // Insert a dummy row since we need at least one row for SELECT to return results
+        self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 1]);
+        
         $result = self::$db->find()
             ->from('test_coverage')
             ->select(['max' => Db::greatest(Db::raw('1'), Db::raw('5'), Db::raw('3'))])
@@ -194,6 +209,9 @@ class SharedCoverageTest extends TestCase
 
     public function testLeastWithMixedTypes(): void
     {
+        // Insert a dummy row since we need at least one row for SELECT to return results
+        self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 1]);
+        
         $result = self::$db->find()
             ->from('test_coverage')
             ->select(['min' => Db::least(Db::raw('10'), Db::raw('5'), Db::raw('8'))])
@@ -204,6 +222,9 @@ class SharedCoverageTest extends TestCase
 
     public function testModWithNegativeNumbers(): void
     {
+        // Insert a dummy row since we need at least one row for SELECT to return results
+        self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 1]);
+        
         $result = self::$db->find()
             ->from('test_coverage')
             ->select(['result' => Db::mod(Db::raw('-10'), Db::raw('3'))])
@@ -215,6 +236,9 @@ class SharedCoverageTest extends TestCase
 
     public function testAbsWithNegative(): void
     {
+        // Insert a dummy row since we need at least one row for SELECT to return results
+        self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 1]);
+        
         $result = self::$db->find()
             ->from('test_coverage')
             ->select(['result' => Db::abs(Db::raw('-42.5'))])
@@ -225,6 +249,9 @@ class SharedCoverageTest extends TestCase
 
     public function testRoundWithPrecision(): void
     {
+        // Insert a dummy row since we need at least one row for SELECT to return results
+        self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 1]);
+        
         $result = self::$db->find()
             ->from('test_coverage')
             ->select([
@@ -310,6 +337,9 @@ class SharedCoverageTest extends TestCase
 
     public function testCurDateCurTime(): void
     {
+        // Insert a dummy row since we need at least one row for SELECT to return results
+        self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 1]);
+        
         $result = self::$db->find()
             ->from('test_coverage')
             ->select([
@@ -369,6 +399,9 @@ class SharedCoverageTest extends TestCase
 
     public function testCastDifferentTypes(): void
     {
+        // Insert a dummy row since we need at least one row for SELECT to return results
+        self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 1]);
+        
         $result = self::$db->find()
             ->from('test_coverage')
             ->select([
@@ -399,7 +432,6 @@ class SharedCoverageTest extends TestCase
 
     public function testAggregateHelpers(): void
     {
-        self::$db->rawQuery("DELETE FROM test_coverage");
         self::$db->rawQuery("INSERT INTO test_coverage (value) VALUES (10), (20), (30)");
         
         $result = self::$db->find()
@@ -422,7 +454,6 @@ class SharedCoverageTest extends TestCase
 
     public function testCountDistinct(): void
     {
-        self::$db->rawQuery("DELETE FROM test_coverage");
         self::$db->rawQuery("INSERT INTO test_coverage (value) VALUES (1), (1), (2)");
         
         $result = self::$db->find()
@@ -437,7 +468,6 @@ class SharedCoverageTest extends TestCase
 
     public function testBetweenOperator(): void
     {
-        self::$db->rawQuery("DELETE FROM test_coverage");
         self::$db->rawQuery("INSERT INTO test_coverage (value) VALUES (5), (15), (25)");
         
         $results = self::$db->find()
@@ -451,7 +481,6 @@ class SharedCoverageTest extends TestCase
 
     public function testNotBetweenOperator(): void
     {
-        self::$db->rawQuery("DELETE FROM test_coverage");
         self::$db->rawQuery("INSERT INTO test_coverage (value) VALUES (5), (15), (25)");
         
         $results = self::$db->find()
@@ -464,7 +493,6 @@ class SharedCoverageTest extends TestCase
 
     public function testInOperator(): void
     {
-        self::$db->rawQuery("DELETE FROM test_coverage");
         self::$db->rawQuery("INSERT INTO test_coverage (value) VALUES (1), (2), (3), (4), (5)");
         
         $results = self::$db->find()
@@ -477,7 +505,6 @@ class SharedCoverageTest extends TestCase
 
     public function testNotInOperator(): void
     {
-        self::$db->rawQuery("DELETE FROM test_coverage");
         self::$db->rawQuery("INSERT INTO test_coverage (value) VALUES (1), (2), (3)");
         
         $results = self::$db->find()
@@ -490,7 +517,6 @@ class SharedCoverageTest extends TestCase
 
     public function testLikeOperator(): void
     {
-        self::$db->rawQuery("DELETE FROM test_coverage");
         self::$db->rawQuery("INSERT INTO test_coverage (name) VALUES ('Hello'), ('World'), ('Help')");
         
         $results = self::$db->find()
@@ -503,7 +529,6 @@ class SharedCoverageTest extends TestCase
 
     public function testNotOperator(): void
     {
-        self::$db->rawQuery("DELETE FROM test_coverage");
         self::$db->rawQuery("INSERT INTO test_coverage (name) VALUES ('Test'), ('Other')");
         
         $results = self::$db->find()
@@ -519,7 +544,6 @@ class SharedCoverageTest extends TestCase
 
     public function testCaseStatementWithRawSql(): void
     {
-        self::$db->rawQuery("DELETE FROM test_coverage");
         self::$db->rawQuery("INSERT INTO test_coverage (value) VALUES (5), (15), (25)");
         
         $results = self::$db->find()
@@ -541,7 +565,6 @@ class SharedCoverageTest extends TestCase
 
     public function testBooleanHelpers(): void
     {
-        self::$db->rawQuery("DELETE FROM test_coverage");
         
         // Test Db::true() and Db::false() return RawValue
         $trueVal = Db::true();
@@ -567,7 +590,6 @@ class SharedCoverageTest extends TestCase
 
     public function testIsNullIsNotNull(): void
     {
-        self::$db->rawQuery("DELETE FROM test_coverage");
         self::$db->rawQuery("INSERT INTO test_coverage (name, value) VALUES ('test', NULL), ('test2', 42)");
         
         $nulls = self::$db->find()
@@ -589,7 +611,6 @@ class SharedCoverageTest extends TestCase
 
     public function testTransactionRollbackOnError(): void
     {
-        self::$db->rawQuery("DELETE FROM test_coverage");
         
         self::$db->startTransaction();
         try {
@@ -611,7 +632,6 @@ class SharedCoverageTest extends TestCase
 
     public function testTrimVariants(): void
     {
-        self::$db->rawQuery("DELETE FROM test_coverage");
         self::$db->rawQuery("INSERT INTO test_coverage (name) VALUES ('  test  ')");
         
         $result = self::$db->find()
@@ -703,8 +723,6 @@ class SharedCoverageTest extends TestCase
 
     public function testOrderByWithInvalidDirection(): void
     {
-        // Clear table first
-        self::$db->rawQuery('DELETE FROM test_coverage');
         
         self::$db->find()->table('test_coverage')->insert(['name' => 'B', 'value' => 2]);
         self::$db->find()->table('test_coverage')->insert(['name' => 'A', 'value' => 1]);
@@ -746,7 +764,6 @@ class SharedCoverageTest extends TestCase
         // Should find the row since json count (5) > 3
         $this->assertCount(1, $results);
         
-        // Cleanup
         self::$db->rawQuery('DROP TABLE test_json_raw');
     }
 
@@ -899,6 +916,9 @@ class SharedCoverageTest extends TestCase
     public function testQuoteTableWithAliasUsingAS(): void
     {
         // Test table alias with AS keyword
+        // Insert a dummy row since we need at least one row for SELECT to return results
+        self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 1]);
+        
         $result = self::$db->find()
             ->from('test_coverage AS tc')
             ->select(['tc.name'])
@@ -913,6 +933,9 @@ class SharedCoverageTest extends TestCase
     {
         // Test with empty JSON path (should return empty array)
         // This tests the edge case in normalizeJsonPath
+        // Insert a dummy row since we need at least one row for SELECT to return results
+        self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'meta' => '{}']);
+        
         $result = self::$db->find()
             ->from('test_coverage')
             ->select(['data' => Db::jsonGet('meta', [])])
@@ -927,6 +950,9 @@ class SharedCoverageTest extends TestCase
     {
         // Test formatDefaultValue with numeric values
         // Covered through coalesce with different types
+        // Insert a dummy row since we need at least one row for SELECT to return results
+        self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 1]);
+        
         $result = self::$db->find()
             ->from('test_coverage')
             ->select(['result' => Db::coalesce('value', Db::raw('0'))])
@@ -936,11 +962,164 @@ class SharedCoverageTest extends TestCase
         $this->assertArrayHasKey('result', $result);
     }
 
-    /* ---------------- Cleanup ---------------- */
+    /* ---------------- Db::concat() Edge Cases (Bug Fixes) ---------------- */
 
-    public static function tearDownAfterClass(): void
+    public function testConcatWithStringLiterals(): void
     {
-        self::$db->disconnect();
+        // Test that string literals with spaces are automatically quoted
+        // This was a bug where ' ' was treated as column name
+        self::$db->rawQuery("INSERT INTO test_coverage (name, value) VALUES ('John', 1)");
+        
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->select(['display' => Db::concat('name', ' ', 'value')])
+            ->where('name', 'John')
+            ->getOne();
+        
+        $this->assertNotNull($result, 'Result should not be null');
+        $this->assertEquals('John 1', $result['display']);
+    }
+
+    public function testConcatWithSpecialCharacters(): void
+    {
+        // Test concat with various special characters that should be quoted
+        self::$db->rawQuery("INSERT INTO test_coverage (name, value) VALUES ('TestSpecial', 42)");
+        
+        // Test with colon
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->select(['display' => Db::concat('ID: ', 'value')])
+            ->where('name', 'TestSpecial')
+            ->getOne();
+        
+        $this->assertNotNull($result, 'Result should not be null for colon test');
+        $this->assertEquals('ID: 42', $result['display']);
+        
+        // Test with pipe
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->select(['display' => Db::concat('name', ' | ', 'value')])
+            ->where('name', 'TestSpecial')
+            ->getOne();
+        
+        $this->assertNotNull($result, 'Result should not be null for pipe test');
+        $this->assertEquals('TestSpecial | 42', $result['display']);
+        
+        // Test with dash
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->select(['display' => Db::concat('name', ' - ', 'value')])
+            ->where('name', 'TestSpecial')
+            ->getOne();
+        
+        $this->assertNotNull($result, 'Result should not be null for dash test');
+        $this->assertEquals('TestSpecial - 42', $result['display']);
+    }
+
+    public function testConcatWithNestedHelpers(): void
+    {
+        // Test that Db::upper/lower can be used inside Db::concat
+        self::$db->rawQuery("INSERT INTO test_coverage (name) VALUES ('alice')");
+        
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->select(['display' => Db::concat(Db::upper('name'), ' ', Db::raw("'USER'"))])
+            ->where('name', 'alice')
+            ->getOne();
+        
+        $this->assertEquals('ALICE USER', $result['display']);
+        
+        // Test with Db::lower
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->select(['display' => Db::concat(Db::lower('name'), ' ', Db::raw("'test'"))])
+            ->where('name', 'alice')
+            ->getOne();
+        
+        $this->assertEquals('alice test', $result['display']);
+    }
+
+    public function testConcatNestedInHelperThrowsException(): void
+    {
+        // Test that nesting Db::concat inside Db::upper throws helpful exception
+        // This was a bug that caused "Typed property not initialized" error
+        self::$db->rawQuery("INSERT INTO test_coverage (name) VALUES ('test')");
+        
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('ConcatValue cannot be used directly in SQL expressions');
+        
+        self::$db->find()
+            ->from('test_coverage')
+            ->select(['result' => Db::upper(Db::concat('name', ' ', 'value'))])
+            ->where('name', 'test')
+            ->getOne();
+    }
+
+    public function testConcatWithQuotedLiterals(): void
+    {
+        // Test that already-quoted literals are passed through unchanged
+        self::$db->rawQuery("INSERT INTO test_coverage (name) VALUES ('Bob')");
+        
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->select(['display' => Db::concat('name', Db::raw("' is here'"))])
+            ->where('name', 'Bob')
+            ->getOne();
+        
+        $this->assertEquals('Bob is here', $result['display']);
+    }
+
+    public function testConcatWithNumericValues(): void
+    {
+        // Test concat with numbers (should be converted to string)
+        self::$db->rawQuery("INSERT INTO test_coverage (name, value) VALUES ('Item', 123)");
+        
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->select(['display' => Db::concat('name', ': ', 'value')])
+            ->where('name', 'Item')
+            ->getOne();
+        
+        $this->assertEquals('Item: 123', $result['display']);
+    }
+
+    public function testConcatWithEmptyString(): void
+    {
+        // Test concat with empty strings
+        self::$db->rawQuery("INSERT INTO test_coverage (name) VALUES ('Test')");
+        
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->select(['display' => Db::concat('name', '', 'name')])
+            ->where('name', 'Test')
+            ->getOne();
+        
+        // Empty string should still be quoted but result in concatenation
+        $this->assertIsString($result['display']);
+        $this->assertStringContainsString('Test', $result['display']);
+    }
+
+    public function testConcatWithMixedTypes(): void
+    {
+        // Test concat with various mixed types
+        self::$db->rawQuery("INSERT INTO test_coverage (name, value) VALUES ('Product', 99)");
+        
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->select([
+                'display' => Db::concat(
+                    'Name: ',
+                    Db::upper('name'),
+                    ' | ',
+                    'Price: ',
+                    'value',
+                    '$'
+                )
+            ])
+            ->where('name', 'Product')
+            ->getOne();
+        
+        $this->assertEquals('Name: PRODUCT | Price: 99$', $result['display']);
     }
 }
 

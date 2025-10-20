@@ -35,13 +35,13 @@ try {
     $db->find()
         ->table('accounts')
         ->where('name', 'Alice')
-        ->update(['balance' => Db::raw('balance - 200')]);
+        ->update(['balance' => Db::dec(200)]);
     
     // Add to Bob
     $db->find()
         ->table('accounts')
         ->where('name', 'Bob')
-        ->update(['balance' => Db::raw('balance + 200')]);
+        ->update(['balance' => Db::inc(200)]);
     
     // Record transaction
     $db->find()->table('transactions')->insert([
@@ -82,7 +82,7 @@ try {
     $db->find()
         ->table('accounts')
         ->where('name', 'Bob')
-        ->update(['balance' => Db::raw('balance - 2000')]);
+        ->update(['balance' => Db::dec(2000)]);
     
     $db->commit();
     
@@ -110,13 +110,13 @@ try {
         $db->find()
             ->table('accounts')
             ->where('name', $transfer['from'])
-            ->update(['balance' => Db::raw("balance - {$transfer['amount']}")]);
+            ->update(['balance' => Db::dec($transfer['amount'])]);
         
         // Add
         $db->find()
             ->table('accounts')
             ->where('name', $transfer['to'])
-            ->update(['balance' => Db::raw("balance + {$transfer['amount']}")]);
+            ->update(['balance' => Db::inc($transfer['amount'])]);
         
         // Log
         $fromId = $db->find()->from('accounts')->where('name', $transfer['from'])->getValue('id');

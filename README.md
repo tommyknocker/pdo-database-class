@@ -93,6 +93,9 @@ composer require tommyknocker/pdo-database-class
 For specific versions:
 
 ```bash
+# Latest 2.x version
+composer require tommyknocker/pdo-database-class:^2.0
+
 # Latest 1.x version
 composer require tommyknocker/pdo-database-class:^1.0
 

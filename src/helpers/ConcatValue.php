@@ -11,6 +11,8 @@ class ConcatValue extends RawValue
 
     public function __construct(array $values)
     {
+        // Initialize parent with empty value - will be handled by dialect
+        parent::__construct('');
         $this->values = $values;
     }
 
@@ -22,5 +24,22 @@ class ConcatValue extends RawValue
     public function getValues(): array
     {
         return $this->values;
+    }
+
+    /**
+     * Override getValue() to prevent incorrect usage.
+     * ConcatValue must be processed by dialect's concat() method, not used directly.
+     *
+     * @return string
+     * @throws \RuntimeException
+     */
+    public function getValue(): string
+    {
+        throw new \RuntimeException(
+            'ConcatValue cannot be used directly in SQL expressions. ' .
+            'It must be processed by the dialect. ' .
+            'Avoid nesting Db::concat() inside other helpers like Db::upper(). ' .
+            'Use Db::raw() for complex expressions instead.'
+        );
     }
 }

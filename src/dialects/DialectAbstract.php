@@ -108,8 +108,21 @@ abstract class DialectAbstract
                 continue;
             }
 
-            // contains spaces, parentheses, commas or operators — treat as raw SQL
-            if (preg_match('/[()\s,+\-*\/%<>=!]/', $s)) {
+            // Check if it's a simple string literal:
+            // - Contains spaces OR special chars like : ; ! ? etc (but not SQL operators)
+            // - Does NOT contain SQL operators or parentheses
+            // - Does NOT look like SQL keywords
+            if (
+                preg_match('/[\s:;!?@#\$&]/', $s) &&
+                !preg_match('/[()%<>=+*\/]|SELECT|FROM|WHERE|AND|OR|JOIN|NULL|TRUE|FALSE/i', $s)
+            ) {
+                // Quote as string literal
+                $mapped[] = "'" . str_replace("'", "''", $s) . "'";
+                continue;
+            }
+
+            // contains parentheses, math/comparison operators — treat as raw SQL  
+            if (preg_match('/[()%<>=]/', $s)) {
                 $mapped[] = $s;
                 continue;
             }

@@ -119,7 +119,7 @@ $start = microtime(true);
 $affected = $db->find()
     ->table('users')
     ->where('age', 50, '>=')
-    ->update(['age' => Db::raw('age - 10')]);
+    ->update(['age' => Db::dec(10)]);
 
 $elapsed = round((microtime(true) - $start) * 1000, 2);
 echo "✓ Updated $affected rows in {$elapsed}ms\n\n";

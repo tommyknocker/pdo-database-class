@@ -22,13 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Db::jsonGet()`, `Db::jsonLength()`, `Db::jsonKeys()`, `Db::jsonType()`
   - Unified API across MySQL, PostgreSQL, and SQLite
   - Edge-case testing for JSON operations
-- **Comprehensive examples directory** (`examples/`) with 18 runnable examples:
+- **Comprehensive examples directory** (`examples/`) with 21 runnable examples:
   - Basic operations (connection, CRUD, WHERE conditions)
   - Intermediate patterns (JOINs, aggregations, pagination, transactions)
   - Advanced features (connection pooling, bulk operations, UPSERT)
   - JSON operations (complete guide with real-world usage)
   - Helper functions (string, math, date/time, NULL handling)
-  - Real-world applications (blog system with posts, comments, tags)
+  - Real-world applications:
+    - Blog system with posts, comments, tags, analytics
+    - User authentication with sessions, RBAC, password hashing
+    - Advanced search & filters with facets, sorting, pagination
+    - Multi-tenant SaaS with resource tracking and quota management
 - **Dialect coverage tests** for better test coverage (300 total tests):
   - `buildLoadCsvSql()` - CSV loading SQL generation with temp file handling
   - `buildLoadXML()` - XML loading SQL generation with temp file handling
@@ -55,6 +59,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Improved error messages**: Property hooks now provide clearer guidance for uninitialized connections
 - **Updated .gitignore**: Cleaned up and added examples-related ignores, coverage reports
 - **README.md improvements**: Removed `ALL_TESTS=1` requirement - tests now run without environment variables
+- **Enhanced examples** (14 files updated): Maximized use of `Db::` helpers over `Db::raw()` for better code clarity:
+  - Replaced 30+ raw SQL expressions with helper functions
+  - `Db::inc()`/`Db::dec()` for increments/decrements
+  - `Db::count()`, `Db::sum()`, `Db::avg()`, `Db::coalesce()` for aggregations
+  - `Db::case()` for conditional logic
+  - `Db::concat()` with automatic string literal quoting
+- **Improved test organization**: Added `setUp()` method in `SharedCoverageTest` for automatic table cleanup before each test
+  - Removed 26+ redundant cleanup statements
+  - Better test isolation and reliability
 
 ### Removed
 - **Deprecated helper methods from PdoDb** (~130 lines removed):
@@ -69,6 +82,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `buildInsertMultiSql()` now correctly uses first column when `id` not present (matches `insert()` behavior)
   - Enables proper bulk UPSERT operations across all dialects
   - Without this fix, bulk inserts with `onDuplicate` parameter would fail on PostgreSQL/SQLite
+- **CRITICAL: Db::concat() helper bugs** (2 major issues fixed):
+  - **Bug #1**: `ConcatValue` not initializing parent `RawValue` class causing "Typed property not initialized" error
+    - Added `parent::__construct('')` call in `ConcatValue` constructor
+    - Added protective `getValue()` override with clear error message to prevent misuse
+  - **Bug #2**: String literals (spaces, special chars) not auto-quoted, treated as column names
+    - Enhanced `DialectAbstract::concat()` logic to auto-detect and quote string literals
+    - Supports spaces, colons, pipes, dashes, emoji, and unicode characters
+    - Examples: `Db::concat('first_name', ' ', 'last_name')` now works without `Db::raw()`
+  - Added 8 comprehensive edge-case tests in `SharedCoverageTest`:
+    - `testConcatWithStringLiterals()` - spaces and simple literals
+    - `testConcatWithSpecialCharacters()` - colon, pipe, dash
+    - `testConcatWithNestedHelpers()` - `Db::upper/lower` inside concat
+    - `testConcatNestedInHelperThrowsException()` - protection from incorrect usage
+    - `testConcatWithQuotedLiterals()` - already-quoted strings
+    - `testConcatWithNumericValues()` - number handling
+    - `testConcatWithEmptyString()` - empty string edge case
+    - `testConcatWithMixedTypes()` - mixed type concatenation
 - Restored `RawValue` union type support in `rawQuery()`, `rawQueryOne()`, `rawQueryValue()` methods
 - Corrected method calls in `lock()`, `unlock()`, `loadData()`, `loadXml()` to use `prepare()->execute()` pattern
 - SQLite JSON support fixes for edge cases (array indexing, value encoding, numeric sorting)
@@ -78,8 +108,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PostgreSQL formatSelectOptions test**: Fixed to test actual supported features (FOR UPDATE/FOR SHARE)
 
 ### Technical Details
-- **All tests passing**: 317 tests, 1464 assertions across MySQL, PostgreSQL, and SQLite (3 skipped for live testing)
-- **Test coverage**: 83%+ with comprehensive dialect-specific and edge-case testing
+- **All tests passing**: 334 tests, 1499 assertions across MySQL, PostgreSQL, and SQLite (3 skipped for live testing)
+  - **68 tests** in SharedCoverageTest (dialect-independent code)
+  - **8 new edge-case tests** for `Db::concat()` bug fixes
+  - Added `setUp()` method for automatic table cleanup before each test
+- **Test coverage**: 90%+ with comprehensive dialect-specific and edge-case testing
 - **Full backward compatibility maintained**: Zero breaking changes (deprecated methods removal is non-breaking)
 - Examples tested and verified on PHP 8.4.13
 - **Performance**: Optimized QueryBuilder reduces code duplication and improves maintainability

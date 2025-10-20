@@ -31,7 +31,7 @@ $users = $db->find()
     ->from('users')
     ->select([
         'id',
-        'full_name' => Db::concat(Db::upper('first_name'), Db::raw("' '"), Db::upper('last_name'))
+        'full_name' => Db::concat(Db::upper('first_name'), ' ', Db::upper('last_name'))
     ])
     ->get();
 

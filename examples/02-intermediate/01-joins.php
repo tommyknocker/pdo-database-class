@@ -83,8 +83,8 @@ $results = $db->find()
     ->leftJoin('reviews AS r', 'r.user_id = u.id')
     ->select([
         'u.name',
-        'order_count' => Db::raw('COUNT(DISTINCT o.id)'),
-        'review_count' => Db::raw('COUNT(DISTINCT r.id)')
+        'order_count' => Db::count('DISTINCT o.id'),
+        'review_count' => Db::count('DISTINCT r.id')
     ])
     ->groupBy('u.id')
     ->get();
@@ -102,10 +102,10 @@ $results = $db->find()
     ->leftJoin('orders AS o', 'o.user_id = u.id')
     ->select([
         'u.name',
-        'total_spent' => Db::raw('COALESCE(SUM(o.amount), 0)')
+        'total_spent' => Db::coalesce(Db::sum('o.amount'), '0')
     ])
     ->groupBy('u.id')
-    ->orderBy(Db::raw('total_spent'), 'DESC')
+    ->orderBy('total_spent', 'DESC')
     ->get();
 
 echo "  User spending:\n";
@@ -122,12 +122,12 @@ $results = $db->find()
     ->select([
         'u.name',
         'u.city',
-        'order_count' => Db::raw('COUNT(*)'),
-        'total' => Db::raw('SUM(o.amount)')
+        'order_count' => Db::count(),
+        'total' => Db::sum('o.amount')
     ])
     ->where('u.city', 'NYC')
     ->groupBy('u.id')
-    ->having(Db::raw('SUM(o.amount)'), 500, '>')
+    ->having(Db::sum('o.amount'), 500, '>')
     ->get();
 
 echo "  High-value NYC customers:\n";

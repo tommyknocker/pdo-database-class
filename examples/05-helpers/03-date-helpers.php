@@ -127,7 +127,7 @@ $byMonth = $db->find()
     ->from('events')
     ->select([
         'month' => Db::month('event_date'),
-        'event_count' => Db::raw('COUNT(*)')
+        'event_count' => Db::count()
     ])
     ->groupBy(Db::month('event_date'))
     ->orderBy(Db::month('event_date'))

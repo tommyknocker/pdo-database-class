@@ -107,7 +107,7 @@ $db->find()
     ->table('counters')
     ->where('name', 'page_views')
     ->update([
-        'value' => Db::raw('value + 50'),
+        'value' => Db::inc(50),
         'name' => Db::raw('name || "_total"'),
         'updated_at' => Db::now()
     ]);
