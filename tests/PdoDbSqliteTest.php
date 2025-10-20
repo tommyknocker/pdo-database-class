@@ -2792,19 +2792,17 @@ XML
     {
         $dialect = self::$db->connection->getDialect();
         
-        // Create temp file for testing
+        // Test 1: Basic CSV
         $tempFile = tempnam(sys_get_temp_dir(), 'csv_');
         file_put_contents($tempFile, "id,name\n1,John\n");
         
-        // SQLite uses INSERT fallback
         $sql = $dialect->buildLoadCsvSql('users', $tempFile, []);
         
         $this->assertNotEmpty($sql);
-        // SQLite fallback uses INSERT statements
         $this->assertStringContainsString('INSERT', $sql);
         $this->assertStringContainsString('users', $sql);
         
-        // Test with options
+        // Test 2: CSV with options (fieldChar, linesToIgnore)
         $tempFile2 = tempnam(sys_get_temp_dir(), 'csv_');
         file_put_contents($tempFile2, "id;name;price\n1;Product;99.99\n");
         
@@ -2816,32 +2814,127 @@ XML
         
         $this->assertStringContainsString('INSERT', $sql2);
         
+        // Test 3: CSV with empty values (treated as empty strings by CSV parser)
+        $tempFile3 = tempnam(sys_get_temp_dir(), 'csv_');
+        file_put_contents($tempFile3, "id,name,value\n1,Test,\n2,,100\n");
+        
+        $sql3 = $dialect->buildLoadCsvSql('test_table', $tempFile3, [
+            'fields' => ['id', 'name', 'value']
+        ]);
+        
+        $this->assertStringContainsString('INSERT', $sql3);
+        // Empty CSV cells are treated as empty strings, not NULL
+        $this->assertStringContainsString("''", $sql3);
+        
+        // Test 4: CSV with more columns than expected
+        $tempFile4 = tempnam(sys_get_temp_dir(), 'csv_');
+        file_put_contents($tempFile4, "id,name,extra1,extra2\n1,John,X,Y\n");
+        
+        $sql4 = $dialect->buildLoadCsvSql('users', $tempFile4, [
+            'fields' => ['id', 'name']
+        ]);
+        
+        $this->assertStringContainsString('INSERT', $sql4);
+        
+        // Test 5: CSV with less columns than expected
+        $tempFile5 = tempnam(sys_get_temp_dir(), 'csv_');
+        file_put_contents($tempFile5, "id\n1\n");
+        
+        $sql5 = $dialect->buildLoadCsvSql('users', $tempFile5, [
+            'fields' => ['id', 'name', 'age']
+        ]);
+        
+        $this->assertStringContainsString('INSERT', $sql5);
+        
+        // Test 6: Empty CSV file (returns empty string)
+        $tempFile6 = tempnam(sys_get_temp_dir(), 'csv_');
+        file_put_contents($tempFile6, "");
+        
+        $sql6 = $dialect->buildLoadCsvSql('users', $tempFile6, [
+            'fields' => ['id', 'name']
+        ]);
+        
+        $this->assertEquals('', $sql6);
+        
+        // Test 7: CSV with only blank lines
+        $tempFile7 = tempnam(sys_get_temp_dir(), 'csv_');
+        file_put_contents($tempFile7, "\n\n\n");
+        
+        $sql7 = $dialect->buildLoadCsvSql('users', $tempFile7, [
+            'fields' => ['id', 'name']
+        ]);
+        
+        $this->assertEquals('', $sql7);
+        
         // Cleanup
         unlink($tempFile);
         unlink($tempFile2);
+        unlink($tempFile3);
+        unlink($tempFile4);
+        unlink($tempFile5);
+        unlink($tempFile6);
+        unlink($tempFile7);
     }
 
     public function testBuildLoadXmlSql(): void
     {
         $dialect = self::$db->connection->getDialect();
         
-        // Create temp XML file for testing
+        // Test 1: Basic XML
         $tempFile = tempnam(sys_get_temp_dir(), 'xml_');
         file_put_contents($tempFile, "<users><user><id>1</id><name>John</name></user></users>");
         
-        // SQLite uses INSERT fallback for XML
         $sql = $dialect->buildLoadXML('users', $tempFile, [
             'rowTag' => '<user>',
             'linesToIgnore' => 0
         ]);
         
         $this->assertNotEmpty($sql);
-        // SQLite fallback uses INSERT statements
         $this->assertStringContainsString('INSERT', $sql);
         $this->assertStringContainsString('users', $sql);
         
-        // Cleanup
-        unlink($tempFile);
+        // Test 2: XML with attributes
+        $tempFile2 = tempnam(sys_get_temp_dir(), 'xml_');
+        file_put_contents($tempFile2, '<users><user id="1" name="Alice"><age>30</age></user></users>');
+        
+        $sql2 = $dialect->buildLoadXML('users', $tempFile2, [
+            'rowTag' => '<user>'
+        ]);
+        
+        $this->assertNotEmpty($sql2);
+        $this->assertStringContainsString('INSERT', $sql2);
+        
+        // Test 3: XML with empty elements
+        $tempFile3 = tempnam(sys_get_temp_dir(), 'xml_');
+        file_put_contents($tempFile3, '<users><user><id>1</id><name></name></user></users>');
+        
+        $sql3 = $dialect->buildLoadXML('users', $tempFile3, [
+            'rowTag' => '<user>'
+        ]);
+        
+        $this->assertNotEmpty($sql3);
+        
+        // Test 4: Empty XML file
+        $tempFile4 = tempnam(sys_get_temp_dir(), 'xml_');
+        file_put_contents($tempFile4, '<?xml version="1.0"?><users></users>');
+        
+        $sql4 = $dialect->buildLoadXML('users', $tempFile4, [
+            'rowTag' => '<user>'
+        ]);
+        
+        $this->assertEquals('', $sql4);
+        
+        // Test 5: Unreadable file
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('not readable');
+        
+        $dialect->buildLoadXML('users', '/nonexistent/path/file.xml', []);
+        
+        // Cleanup (after exception, these won't run, but PHPUnit handles it)
+        @unlink($tempFile);
+        @unlink($tempFile2);
+        @unlink($tempFile3);
+        @unlink($tempFile4);
     }
 
     public function testFormatSelectOptions(): void

@@ -894,6 +894,48 @@ class SharedCoverageTest extends TestCase
         $connection->rollBack();
     }
 
+    /* ---------------- DialectAbstract Edge Cases Tests ---------------- */
+
+    public function testQuoteTableWithAliasUsingAS(): void
+    {
+        // Test table alias with AS keyword
+        $result = self::$db->find()
+            ->from('test_coverage AS tc')
+            ->select(['tc.name'])
+            ->limit(1)
+            ->getOne();
+        
+        // Verify AS syntax works
+        $this->assertArrayHasKey('name', $result);
+    }
+
+    public function testNormalizeJsonPathWithEmptyString(): void
+    {
+        // Test with empty JSON path (should return empty array)
+        // This tests the edge case in normalizeJsonPath
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->select(['data' => Db::jsonGet('meta', [])])
+            ->limit(1)
+            ->getOne();
+        
+        // Should execute without error
+        $this->assertArrayHasKey('data', $result);
+    }
+
+    public function testFormatDefaultValueWithNumbers(): void
+    {
+        // Test formatDefaultValue with numeric values
+        // Covered through coalesce with different types
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->select(['result' => Db::coalesce('value', Db::raw('0'))])
+            ->limit(1)
+            ->getOne();
+        
+        $this->assertArrayHasKey('result', $result);
+    }
+
     /* ---------------- Cleanup ---------------- */
 
     public static function tearDownAfterClass(): void
