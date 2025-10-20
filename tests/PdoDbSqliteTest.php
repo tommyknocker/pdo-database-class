@@ -312,18 +312,18 @@ final class PdoDbSqliteTest extends TestCase
     {
         $db = self::$db;
 
-        // Вставляем пользователей с разными возрастами
+        // Insert users with different ages
         $db->find()->table('users')->insert(['name' => 'Charlie', 'company' => 'C', 'age' => 28]);
         $db->find()->table('users')->insert(['name' => 'Dana', 'company' => 'D', 'age' => 40]);
-        $db->find()->table('users')->insert(['name' => 'Eve', 'company' => 'E', 'age' => null]); // не попадает ни в WHEN
+        $db->find()->table('users')->insert(['name' => 'Eve', 'company' => 'E', 'age' => null]); // does not match any WHEN
 
-        // CASE с ELSE
+        // CASE with ELSE
         $case = Db::case([
             'age < 30' => '1',
             'age >= 30' => '0'
         ], '2'); // ELSE → 2
 
-        // WHERE CASE = 2 → должен вернуть Eve
+        // WHERE CASE = 2 should return Eve
         $results = $db->find()
             ->from('users')
             ->where($case, 2)
@@ -1654,7 +1654,7 @@ final class PdoDbSqliteTest extends TestCase
     {
         $db = self::$db;
 
-        // Вставляем одну запись
+        // Insert one record
         $db->find()->table('users')->insert([
             'name' => 'Existy',
             'company' => 'CheckCorp',
@@ -1662,7 +1662,7 @@ final class PdoDbSqliteTest extends TestCase
             'status' => 'active'
         ]);
 
-        // Проверка exists() — должен вернуть true
+        // Check exists() - should return true
         $exists = $db->find()
             ->from('users')
             ->where(['name' => 'Existy'])
@@ -1670,7 +1670,7 @@ final class PdoDbSqliteTest extends TestCase
 
         $this->assertTrue($exists, 'Expected exists() to return true for matching row');
 
-        // Проверка notExists() — должен вернуть false
+        // Check notExists() - should return false
         $notExists = $db->find()
             ->from('users')
             ->where(['name' => 'Existy'])
@@ -1678,7 +1678,7 @@ final class PdoDbSqliteTest extends TestCase
 
         $this->assertFalse($notExists, 'Expected notExists() to return false for matching row');
 
-        // Проверка exists() — для несуществующего значения
+        // Check exists() - for non-existent value
         $noMatchExists = $db->find()
             ->from('users')
             ->where(['name' => 'Ghosty'])
@@ -1686,7 +1686,7 @@ final class PdoDbSqliteTest extends TestCase
 
         $this->assertFalse($noMatchExists, 'Expected exists() to return false for non-matching row');
 
-        // Проверка notExists() — для несуществующего значения
+        // Check notExists() - for non-existent value
         $noMatchNotExists = $db->find()
             ->from('users')
             ->where(['name' => 'Ghosty'])
@@ -2634,7 +2634,7 @@ XML
         $this->assertEquals(0, (int)$row['len']);
 
         // Test upper/lower with UTF-8
-        $id8 = $db->find()->table('t_edge')->insert(['val1' => 'Привет 🎉']);
+        $id8 = $db->find()->table('t_edge')->insert(['val1' => 'Hello 🎉']);
         $row = $db->find()->table('t_edge')
             ->select([
                 'upper_utf8' => Db::upper('val1'),
