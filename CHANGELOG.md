@@ -308,7 +308,7 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.4.5...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.5.0...HEAD
 [2.5.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.4.3...v2.5.0
 [2.4.3]: https://github.com/tommyknocker/pdo-database-class/compare/v2.4.2...v2.4.3
 [2.4.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.4.1...v2.4.2
