@@ -91,7 +91,9 @@ final class PdoDbPostgreSQLTest extends TestCase
     // ---------- PostgreSQL ----------
     public function testPgsqlMinimalParams(): void
     {
-        $dsn = self::$db->connection->getDialect()->buildDsn([
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dsn = $connection->getDialect()->buildDsn([
             'driver' => 'pgsql',
             'host' => 'localhost',
             'username' => 'testuser',
@@ -103,7 +105,9 @@ final class PdoDbPostgreSQLTest extends TestCase
 
     public function testPgsqlAllParams(): void
     {
-        $dsn = self::$db->connection->getDialect()->buildDsn([
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dsn = $connection->getDialect()->buildDsn([
             'driver' => 'pgsql',
             'host' => 'localhost',
             'username' => 'testuser',
@@ -128,8 +132,10 @@ final class PdoDbPostgreSQLTest extends TestCase
 
     public function testPgsqlMissingParamsThrows(): void
     {
+        $connection = self::$db->connection;
+        assert($connection !== null);
         $this->expectException(InvalidArgumentException::class);
-        self::$db->connection->getDialect()->buildDsn(['driver' => 'pgsql']); // no host/dbname
+        $connection->getDialect()->buildDsn(['driver' => 'pgsql']); // no host/dbname
     }
 
     public function testInsertWithQueryOption(): void
@@ -1838,11 +1844,8 @@ final class PdoDbPostgreSQLTest extends TestCase
     }
 
 
-    public function testLoadCsv()
+    public function testLoadCsv(): void
     {
-        if (!getenv('ALL_TESTS')) {
-            $this->markTestSkipped('Github actions run failed');
-        }
         $db = self::$db;
 
         $tmpFile = sys_get_temp_dir() . '/users.csv';
@@ -2084,7 +2087,7 @@ XML
         $this->assertStringContainsString('RIGHT JOIN', $db->lastQuery);
     }
 
-    public function testJsonMethods()
+    public function testJsonMethods(): void
     {
         $db = self::$db; // configured for MySQL in suite setup
 
@@ -2177,7 +2180,7 @@ XML
         $this->assertEquals(10, $scores[1]);
     }
 
-    public function testJsonMethodsEdgeCases()
+    public function testJsonMethodsEdgeCases(): void
     {
         $db = self::$db;
 

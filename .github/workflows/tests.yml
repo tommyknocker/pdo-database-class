@@ -36,12 +36,13 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3
+          --local-infile=1
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_mysql
+          extensions: pdo_mysql, simplexml, xmlreader
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
       - run: |
@@ -79,7 +80,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_pgsql
+          extensions: pdo_pgsql, simplexml, xmlreader
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
       - run: |

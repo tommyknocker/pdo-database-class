@@ -1818,7 +1818,7 @@ XML
         unlink($file);
     }
 
-    public function testLoadCsv()
+    public function testLoadCsv(): void
     {
         $db = self::$db;
 
@@ -2041,7 +2041,7 @@ XML
         $this->assertArrayHasKey('detail', $plan[0]);
     }
 
-    public function testJsonMethods()
+    public function testJsonMethods(): void
     {
         $db = self::$db; // configured for MySQL in suite setup
 
@@ -2135,7 +2135,7 @@ XML
         $this->assertEquals(10, $scores[1]);
     }
 
-    public function testJsonMethodsEdgeCases()
+    public function testJsonMethodsEdgeCases(): void
     {
         $db = self::$db;
 

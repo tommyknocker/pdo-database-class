@@ -86,7 +86,9 @@ final class PdoDbMySQLTest extends TestCase
 
     public function testMysqlMinimalParams(): void
     {
-        $dsn = self::$db->connection->getDialect()->buildDsn([
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dsn = $connection->getDialect()->buildDsn([
             'driver' => 'mysql',
             'host' => '127.0.0.1',
             'username' => 'testuser',
@@ -98,7 +100,9 @@ final class PdoDbMySQLTest extends TestCase
 
     public function testMysqlAllParams(): void
     {
-        $dsn = self::$db->connection->getDialect()->buildDsn([
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dsn = $connection->getDialect()->buildDsn([
             'driver' => 'mysql',
             'host' => '127.0.0.1',
             'username' => 'testuser',
@@ -119,8 +123,10 @@ final class PdoDbMySQLTest extends TestCase
 
     public function testMysqlMissingParamsThrows(): void
     {
+        $connection = self::$db->connection;
+        assert($connection !== null);
         $this->expectException(InvalidArgumentException::class);
-        self::$db->connection->getDialect()->buildDsn(['driver' => 'mysql']); // no host/dbname
+        $connection->getDialect()->buildDsn(['driver' => 'mysql']); // no host/dbname
     }
 
     public function testInsertWithQueryOption(): void
@@ -131,7 +137,8 @@ final class PdoDbMySQLTest extends TestCase
             ->option('LOW_PRIORITY')
             ->insert(['name' => 'Alice']);
         $this->assertEquals(1, $id);
-        $this->assertStringStartsWith('INSERT LOW_PRIORITY INTO `users`', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringStartsWith('INSERT LOW_PRIORITY INTO `users`', $lastQuery);
     }
 
     public function testInsertWithMultipleQueryOptions(): void
@@ -144,7 +151,8 @@ final class PdoDbMySQLTest extends TestCase
             ->insert(['name' => 'Bob']);
         $this->assertEquals(1, $id);
 
-        $this->assertStringStartsWith('INSERT LOW_PRIORITY IGNORE INTO `users`', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringStartsWith('INSERT LOW_PRIORITY IGNORE INTO `users`', $lastQuery);
 
         $id = $db->find()
             ->table('users')
@@ -153,7 +161,8 @@ final class PdoDbMySQLTest extends TestCase
             ->insert(['name' => 'Bob']);
         $this->assertEquals(1, $id);
 
-        $this->assertStringStartsWith('INSERT LOW_PRIORITY IGNORE INTO `users`', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringStartsWith('INSERT LOW_PRIORITY IGNORE INTO `users`', $lastQuery);
     }
 
     public function testInsertWithRawValue(): void
@@ -366,8 +375,9 @@ final class PdoDbMySQLTest extends TestCase
             ->orderBy('age ASC')
             ->get();
 
+        $lastQuery = $db->lastQuery ?? '';
         $this->assertStringContainsString("CASE WHEN age < 30 THEN 'young' WHEN age >= 30 THEN 'adult' END AS category",
-            $db->lastQuery);
+            $lastQuery);
 
         $this->assertEquals('young', $results[0]['category']);
         $this->assertEquals('adult', $results[1]['category']);
@@ -398,9 +408,10 @@ final class PdoDbMySQLTest extends TestCase
             ->where($case, 2)
             ->get();
 
+        $lastQuery = $db->lastQuery ?? '';
         $this->assertStringContainsString(
             'CASE WHEN age < 30 THEN 1 WHEN age >= 30 THEN 0 ELSE 2 END',
-            $db->lastQuery
+            $lastQuery
         );
 
         $this->assertCount(1, $results);
@@ -424,7 +435,8 @@ final class PdoDbMySQLTest extends TestCase
             ->orderBy($orderCase, 'ASC')
             ->get();
 
-        $this->assertStringContainsString('CASE WHEN age < 30 THEN 1 WHEN age >= 30 THEN 2', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringContainsString('CASE WHEN age < 30 THEN 1 WHEN age >= 30 THEN 2', $lastQuery);
 
         $this->assertEquals('Frank', $results[0]['name']);
         $this->assertEquals('Eve', $results[1]['name']);
@@ -449,7 +461,8 @@ final class PdoDbMySQLTest extends TestCase
             ->having($case, 0)
             ->get();
 
-        $this->assertStringContainsString('CASE WHEN AVG(age) < 30 THEN 1 WHEN AVG(age) >= 30 THEN 0', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringContainsString('CASE WHEN AVG(age) < 30 THEN 1 WHEN AVG(age) >= 30 THEN 0', $lastQuery);
 
         $this->assertEquals('G', $results[0]['company']);
         $this->assertGreaterThanOrEqual(30, $results[0]['avg_age']);
@@ -472,8 +485,9 @@ final class PdoDbMySQLTest extends TestCase
             ->where('company', 'U')
             ->update(['status' => $case]);
 
+        $lastQuery = $db->lastQuery ?? '';
         $this->assertStringContainsString("CASE WHEN age < 30 THEN 'junior' WHEN age >= 30 THEN 'senior'",
-            $db->lastQuery);
+            $lastQuery);
 
         $user1 = $db->find()->from('users')->where('id', $id1)->getOne();
         $user2 = $db->find()->from('users')->where('id', $id2)->getOne();
@@ -749,7 +763,8 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertIsArray($row);
         $this->assertEquals('Test', $row['name']);
 
-        $this->assertStringStartsWith('SELECT SQL_NO_CACHE * FROM `users`', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringStartsWith('SELECT SQL_NO_CACHE * FROM `users`', $lastQuery);
     }
 
     public function testSelectWithForUpdate(): void
@@ -767,7 +782,8 @@ final class PdoDbMySQLTest extends TestCase
             ->get();
         $this->assertCount(1, $rows);
 
-        $this->assertStringEndsWith('FROM `users` FOR UPDATE', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringEndsWith('FROM `users` FOR UPDATE', $lastQuery);
     }
 
     public function testUpdate(): void
@@ -809,7 +825,8 @@ final class PdoDbMySQLTest extends TestCase
             ->update(['name' => 'Updated']);
         $this->assertEquals(1, $rowCount);
 
-        $this->assertStringStartsWith('UPDATE LOW_PRIORITY `users` SET', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringStartsWith('UPDATE LOW_PRIORITY `users` SET', $lastQuery);
 
         $row = $db->find()
             ->from('users')
@@ -933,8 +950,9 @@ final class PdoDbMySQLTest extends TestCase
             ->where('id', $sub, 'IN')
             ->update(['status' => 'active']);
 
-        $this->assertStringContainsString('UPDATE `users` SET', $db->lastQuery);
-        $this->assertStringContainsString('WHERE `id` IN (SELECT `user_id` FROM `orders`)', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringContainsString('UPDATE `users` SET', $lastQuery);
+        $this->assertStringContainsString('WHERE `id` IN (SELECT `user_id` FROM `orders`)', $lastQuery);
 
         $count = $db->find()
             ->from('users')
@@ -1033,11 +1051,12 @@ final class PdoDbMySQLTest extends TestCase
             ->delete();
 
 
+        $lastQuery = $db->lastQuery ?? '';
         $this->assertStringContainsString(
             'DELETE FROM `users` WHERE `id` IN (SELECT `user_id` FROM `orders` WHERE `amount` >=',
-            $db->lastQuery
+            $lastQuery
         );
-        $this->assertStringContainsString(')', $db->lastQuery);
+        $this->assertStringContainsString(')', $lastQuery);
 
 
         $rows = $db->find()
@@ -1064,7 +1083,8 @@ final class PdoDbMySQLTest extends TestCase
             ->where('id', 1)
             ->delete();
 
-        $this->assertStringStartsWith('DELETE LOW_PRIORITY FROM `users` WHERE', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringStartsWith('DELETE LOW_PRIORITY FROM `users` WHERE', $lastQuery);
 
         $rows = $db->find()
             ->from('users')
@@ -1273,6 +1293,7 @@ final class PdoDbMySQLTest extends TestCase
             ->asObject()
             ->get();
         $this->assertIsObject($rows[0]);
+        assert(property_exists($rows[0], 'age'));
         $this->assertEquals(22, $rows[0]->age);
 
         // objectBuilder for single row
@@ -1281,6 +1302,7 @@ final class PdoDbMySQLTest extends TestCase
             ->asObject()
             ->getOne();
         $this->assertIsObject($row);
+        assert(property_exists($row, 'age'));
         $this->assertEquals(22, $row->age);
     }
 
@@ -1729,12 +1751,14 @@ final class PdoDbMySQLTest extends TestCase
         // Use fluent builder to set ON DUPLICATE behavior and perform insert
         $db->find()
             ->table('users')
+            // @phpstan-ignore argument.type
             ->onDuplicate(['age'])
             ->insert(['name' => 'Eve', 'age' => 21]);
 
+        $lastQuery = $db->lastQuery ?? '';
         $this->assertStringContainsString(
             'ON DUPLICATE KEY UPDATE `age` = VALUES(`age`)',
-            $db->lastQuery
+            $lastQuery
         );
 
         $row = $db->find()
@@ -1774,8 +1798,9 @@ final class PdoDbMySQLTest extends TestCase
             ->where('u.id', $sub, 'IN')
             ->get();
 
-        $this->assertStringContainsString('IN (SELECT', $db->lastQuery);
-        $this->assertStringContainsString(')', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringContainsString('IN (SELECT', $lastQuery);
+        $this->assertStringContainsString(')', $lastQuery);
 
         $this->assertIsArray($rows);
         $this->assertCount(2, $rows);
@@ -1872,13 +1897,17 @@ final class PdoDbMySQLTest extends TestCase
         );
 
         try {
-            $db->connection->prepare($sql)->execute($params);
+            $connection = $db->connection;
+            assert($connection !== null);
+            $connection->prepare($sql)->execute($params);
         } finally {
             $hasOpError = false;
             foreach ($testHandler->getRecords() as $rec) {
+                $context = $rec['context'] ?? [];
+                assert(is_array($context));
                 if (($rec['message'] ?? '') === 'operation.error'
-                    && ($rec['context']['operation'] ?? '') === 'prepare'
-                    && ($rec['context']['exception'] ?? new StdClass()) instanceof PDOException
+                    && ($context['operation'] ?? '') === 'prepare'
+                    && ($context['exception'] ?? new StdClass()) instanceof PDOException
                 ) {
                     $hasOpError = true;
                 }
@@ -1908,8 +1937,10 @@ final class PdoDbMySQLTest extends TestCase
         $db->startTransaction();
         $foundBegin = false;
         foreach ($testHandler->getRecords() as $rec) {
+            $context = $rec['context'] ?? [];
+            assert(is_array($context));
             if (($rec['message'] ?? '') === 'operation.start'
-                && ($rec['context']['operation'] ?? '') === 'transaction.begin'
+                && ($context['operation'] ?? '') === 'transaction.begin'
             ) {
                 $foundBegin = true;
                 break;
@@ -1918,11 +1949,15 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertTrue($foundBegin, 'transaction.begin not logged');
 
         // Commit
-        $db->connection->commit();
+        $connection = $db->connection;
+        assert($connection !== null);
+        $connection->commit();
         $foundCommit = false;
         foreach ($testHandler->getRecords() as $rec) {
+            $context = $rec['context'] ?? [];
+            assert(is_array($context));
             if (($rec['message'] ?? '') === 'operation.end'
-                && ($rec['context']['operation'] ?? '') === 'transaction.commit'
+                && ($context['operation'] ?? '') === 'transaction.commit'
             ) {
                 $foundCommit = true;
                 break;
@@ -1931,12 +1966,14 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertTrue($foundCommit, 'transaction.commit not logged');
 
         // Rollback
-        $db->connection->transaction();
-        $db->connection->rollBack();
+        $connection->transaction();
+        $connection->rollBack();
         $foundRollback = false;
         foreach ($testHandler->getRecords() as $rec) {
+            $context = $rec['context'] ?? [];
+            assert(is_array($context));
             if (($rec['message'] ?? '') === 'operation.end'
-                && ($rec['context']['operation'] ?? '') === 'transaction.rollback'
+                && ($context['operation'] ?? '') === 'transaction.rollback'
             ) {
                 $foundRollback = true;
                 break;
@@ -1958,18 +1995,15 @@ final class PdoDbMySQLTest extends TestCase
         ]);
 
         $pdoDb = self::$db->connection('secondary');
-        $this->assertInstanceOf(PdoDb::class, $pdoDb);
+        $this->assertSame(self::$db, $pdoDb);
 
         $pdoDb = self::$db->connection('default');
-        $this->assertInstanceOf(PdoDb::class, $pdoDb);
+        $this->assertSame(self::$db, $pdoDb);
     }
 
 
-    public function testLoadCsv()
+    public function testLoadCsv(): void
     {
-        if (!getenv('ALL_TESTS')) {
-            $this->markTestSkipped('Github actions run failed');
-        }
         $db = self::$db;
 
         $tmpFile = sys_get_temp_dir() . '/users.csv';
@@ -1992,9 +2026,6 @@ final class PdoDbMySQLTest extends TestCase
 
     public function testLoadXml(): void
     {
-        if (!getenv('ALL_TESTS')) {
-            $this->markTestSkipped('Github actions run failed');
-        }
         $file = sys_get_temp_dir() . '/users.xml';
         file_put_contents($file, <<<XML
             <users>
@@ -2149,7 +2180,8 @@ XML
         $user = $queryBuilder->table('prefixed_table')->where('id', $id)->getOne();
         $this->assertEquals('Test User', $user['name']);
 
-        $this->assertStringContainsString('`test_prefixed_table`', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringContainsString('`test_prefixed_table`', $lastQuery);
 
         $db->rawQuery("DROP TABLE IF EXISTS test_prefixed_table");
     }
@@ -2171,7 +2203,8 @@ XML
         $this->assertEquals('Left Join User', $results[0]['name']);
         $this->assertEquals('150.50', $results[0]['amount']);
 
-        $this->assertStringContainsString('LEFT JOIN', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringContainsString('LEFT JOIN', $lastQuery);
     }
 
     public function testRightJoin(): void
@@ -2191,10 +2224,11 @@ XML
         $this->assertEquals('Right Join User', $results[0]['name']);
         $this->assertEquals('200.75', $results[0]['amount']);
 
-        $this->assertStringContainsString('RIGHT JOIN', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringContainsString('RIGHT JOIN', $lastQuery);
     }
 
-    public function testJsonMethods()
+    public function testJsonMethods(): void
     {
         $db = self::$db; // configured for MySQL in suite setup
 
@@ -2451,7 +2485,7 @@ XML
         $this->assertTrue($containsSubset);
     }
 
-    public function testJsonHelpers()
+    public function testJsonHelpers(): void
     {
         $db = self::$db;
 
@@ -2905,7 +2939,8 @@ XML
             ->getOne();
         $this->assertEquals('MyS', $row['sub']);
         // Should use SUBSTRING in MySQL
-        $this->assertStringContainsString('SUBSTRING', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringContainsString('SUBSTRING', $lastQuery);
 
         // Test MOD (MySQL) vs % (SQLite)
         $id2 = $db->find()->table('t_dialect')->insert(['num' => 10]);
@@ -2915,7 +2950,8 @@ XML
             ->getOne();
         $this->assertEquals(1, (int)$row['mod_result']);
         // Should use MOD in MySQL
-        $this->assertStringContainsString('MOD', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringContainsString('MOD', $lastQuery);
 
         // Test IFNULL (MySQL) vs COALESCE (PostgreSQL)
         $id3 = $db->find()->table('t_dialect')->insert(['str' => null]);
@@ -2924,7 +2960,8 @@ XML
             ->where('id', $id3)
             ->getOne();
         $this->assertEquals('default', $row['result']);
-        $this->assertStringContainsString('IFNULL', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringContainsString('IFNULL', $lastQuery);
 
         // Test GREATEST/LEAST (MySQL/PostgreSQL) vs MAX/MIN (SQLite)
         $row = $db->find()->table('t_dialect')
@@ -2936,14 +2973,17 @@ XML
         $this->assertEquals(10, (int)$row['max_val']);
         $this->assertEquals(3, (int)$row['min_val']);
         // Should use GREATEST/LEAST in MySQL
-        $this->assertStringContainsString('GREATEST', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringContainsString('GREATEST', $lastQuery);
     }
 
     /* ---------------- Dialect Method Coverage Tests ---------------- */
 
     public function testBuildLoadCsvSql(): void
     {
-        $dialect = self::$db->connection->getDialect();
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
         
         // Create temp file for testing
         $tempFile = tempnam(sys_get_temp_dir(), 'csv_');
@@ -2979,7 +3019,9 @@ XML
 
     public function testBuildLoadXmlSql(): void
     {
-        $dialect = self::$db->connection->getDialect();
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
         
         // Create temp XML file for testing
         $tempFile = tempnam(sys_get_temp_dir(), 'xml_');
@@ -3012,7 +3054,9 @@ XML
 
     public function testFormatSelectOptions(): void
     {
-        $dialect = self::$db->connection->getDialect();
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
         
         $baseSql = "SELECT * FROM users";
         
@@ -3032,7 +3076,9 @@ XML
 
     public function testBuildExplainSqlVariations(): void
     {
-        $dialect = self::$db->connection->getDialect();
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
         
         $query = "SELECT * FROM users WHERE age > 18";
         
@@ -3057,9 +3103,11 @@ XML
         $db->find()->table('users')->insert(['name' => 'TestUser', 'age' => 25]);
         
         // Insert with onDuplicate as second parameter (MySQL uses ON DUPLICATE KEY UPDATE)
+        // @phpstan-ignore argument.type
         $db->find()->table('users')->insert(['name' => 'TestUser', 'age' => 30], ['age']);
         
-        $this->assertStringContainsString('ON DUPLICATE KEY UPDATE', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringContainsString('ON DUPLICATE KEY UPDATE', $lastQuery);
         
         $row = $db->find()->table('users')->where('name', 'TestUser')->getOne();
         $this->assertEquals(30, $row['age']);
@@ -3076,9 +3124,10 @@ XML
         $db->find()->table('users')->insertMulti([
             ['name' => 'MultiTest1', 'age' => 25],
             ['name' => 'MultiTest2', 'age' => 30]
-        ], ['age']);
+        ], ['age']); // @phpstan-ignore argument.type
         
-        $this->assertStringContainsString('ON DUPLICATE KEY UPDATE', $db->lastQuery);
+        $lastQuery = $db->lastQuery ?? '';
+        $this->assertStringContainsString('ON DUPLICATE KEY UPDATE', $lastQuery);
         
         $row1 = $db->find()->table('users')->where('name', 'MultiTest1')->getOne();
         $this->assertEquals(25, $row1['age']);
