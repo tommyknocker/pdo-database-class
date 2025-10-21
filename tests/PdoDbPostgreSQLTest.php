@@ -1854,7 +1854,7 @@ final class PdoDbPostgreSQLTest extends TestCase
         $ok = $db->find()->table('users')->loadCsv($tmpFile, [
             'fieldChar' => ',',
             'fields' => ['id', 'name', 'status', 'age'],
-            'local' => true
+            'header' => false
         ]);
 
         $this->assertTrue($ok, 'loadData() returned false');

@@ -36,7 +36,6 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3
-          --local-infile=1
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -45,6 +44,9 @@ jobs:
           extensions: pdo_mysql, simplexml, xmlreader
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
+      - name: Enable MySQL local_infile
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot -e "SET GLOBAL local_infile=1;"
       - run: |
           DB_DSN="mysql:host=127.0.0.1;port=3306;dbname=testdb;charset=utf8mb4" \
           DB_USER="testuser" \
@@ -66,12 +68,12 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_DB: testdb
-          POSTGRES_USER: testuser
-          POSTGRES_PASSWORD: testpass
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
         ports:
           - 5433:5432
         options: >-
-          --health-cmd="pg_isready -U testuser -d testdb"
+          --health-cmd="pg_isready -U postgres -d testdb"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -83,6 +85,12 @@ jobs:
           extensions: pdo_pgsql, simplexml, xmlreader
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
+      - name: Setup PostgreSQL test user with permissions
+        run: |
+          PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d testdb -c "CREATE USER testuser WITH PASSWORD 'testpass';"
+          PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d testdb -c "GRANT ALL PRIVILEGES ON DATABASE testdb TO testuser;"
+          PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d testdb -c "GRANT ALL ON SCHEMA public TO testuser;"
+          PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d testdb -c "GRANT pg_read_server_files TO testuser;"
       - run: |
           DB_DSN="pgsql:host=localhost;port=5433;dbname=testdb" \
           DB_USER="testuser" \
