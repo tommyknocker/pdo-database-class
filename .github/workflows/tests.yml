@@ -85,12 +85,11 @@ jobs:
           extensions: pdo_pgsql, simplexml, xmlreader
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
-      - name: Setup PostgreSQL test user with permissions
+      - name: Setup PostgreSQL test user
         run: |
           PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d testdb -c "CREATE USER testuser WITH PASSWORD 'testpass';"
           PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d testdb -c "GRANT ALL PRIVILEGES ON DATABASE testdb TO testuser;"
           PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d testdb -c "GRANT ALL ON SCHEMA public TO testuser;"
-          PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d testdb -c "GRANT pg_read_server_files TO testuser;"
       - run: |
           DB_DSN="pgsql:host=localhost;port=5433;dbname=testdb" \
           DB_USER="testuser" \

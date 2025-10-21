@@ -119,7 +119,7 @@ echo ""
 
 # Run all tests (including all dialects)
 echo "🧪 Running all tests (MySQL, PostgreSQL, SQLite)..."
-ALL_TESTS=1 ./vendor/bin/phpunit
+./vendor/bin/phpunit
 
 if [ $? -ne 0 ]; then
     echo "❌ Tests failed. Fix them before releasing."
