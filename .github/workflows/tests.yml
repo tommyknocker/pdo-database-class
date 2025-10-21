@@ -19,6 +19,7 @@ jobs:
       - run: composer phpstan
 
   mysql:
+    name: MySQL Tests
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -57,6 +58,7 @@ jobs:
           name: mysql-coverage
 
   postgres:
+    name: PostgreSQL Tests
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -94,6 +96,7 @@ jobs:
           name: postgres-coverage
 
   sqlite:
+    name: SQLite Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -115,6 +118,7 @@ jobs:
           name: sqlite-coverage
 
   shared-coverage:
+    name: Shared Coverage Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
