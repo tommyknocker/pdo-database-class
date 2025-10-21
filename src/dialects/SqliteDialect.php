@@ -62,6 +62,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     * @param array<int|string, mixed> $flags
      */
     public function insertKeywords(array $flags): string
     {
@@ -84,6 +85,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     * @param array<string, mixed> $options
      */
     public function formatSelectOptions(string $sql, array $options): string
     {
@@ -98,7 +100,8 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
             }
         }
         if ($middle) {
-            $sql = preg_replace('/^SELECT\s+/i', 'SELECT ' . implode(',', $middle) . ' ', $sql, 1);
+            $result = preg_replace('/^SELECT\s+/i', 'SELECT ' . implode(',', $middle) . ' ', $sql, 1);
+            $sql = $result !== null ? $result : $sql;
         }
         if ($tail) {
             $sql .= ' ' . implode(' ', $tail);
@@ -120,7 +123,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
 
         if ($isAssoc) {
             foreach ($updateColumns as $col => $expr) {
-                $colSql = $this->quoteIdentifier($col);
+                $colSql = $this->quoteIdentifier((string)$col);
 
                 // RawValue is inserted as-is
                 if ($expr instanceof RawValue) {
@@ -141,11 +144,11 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
                 }
 
                 // Auto-qualify for typical expressions: replace only "bare" occurrences of column name with excluded."col"
-                $quotedCol = $this->quoteIdentifier($col);
+                $quotedCol = $this->quoteIdentifier((string)$col);
                 $replacement = 'excluded.' . $quotedCol;
 
                 $safeExpr = preg_replace_callback(
-                    '/\b' . preg_quote($col, '/') . '\b/i',
+                    '/\b' . preg_quote((string)$col, '/') . '\b/i',
                     static function ($m) use ($exprStr, $replacement) {
                         $pos = strpos($exprStr, $m[0]);
                         if ($pos === false) {
@@ -174,6 +177,8 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     * @param array<int, string> $columns
+     * @param array<int, string|array<int, string>> $placeholders
      */
     public function buildReplaceSql(
         string $table,
@@ -182,10 +187,16 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         bool $isMultiple = false
     ): string {
         $colsSql = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
-        $valsSql = implode(',', $placeholders);
+        
         if ($isMultiple) {
+            $valsSql = implode(',', array_map(function($p) {
+                return is_array($p) ? '(' . implode(',', $p) . ')' : $p;
+            }, $placeholders));
             return sprintf('REPLACE INTO %s (%s) VALUES %s', $table, $colsSql, $valsSql);
         }
+        
+        $stringPlaceholders = array_map(fn($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
+        $valsSql = implode(',', $stringPlaceholders);
         return sprintf('REPLACE INTO %s (%s) VALUES (%s)', $table, $colsSql, $valsSql);
     }
 

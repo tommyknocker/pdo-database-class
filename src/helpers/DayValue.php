@@ -8,6 +8,7 @@ namespace tommyknocker\pdodb\helpers;
  */
 class DayValue extends RawValue
 {
+    /** @var string|RawValue Source date/datetime expression */
     protected string|RawValue $source;
 
     public function __construct(string|RawValue $source)

@@ -13,7 +13,7 @@ class Db
      * Returns a raw value.
      *
      * @param string $sql The SQL to execute.
-     * @param array $params The parameters to bind to the SQL.
+     * @param array<int|string, string|int|float|bool|null> $params The parameters to bind to the SQL.
      * @return RawValue The raw value.
      */
     public static function raw(string $sql, array $params = []): RawValue
@@ -168,7 +168,7 @@ class Db
      * Returns an array with an increment operation.
      *
      * @param int|float $num The number to increment by.
-     * @return array The array with the increment operation.
+     * @return array<string, string|int|float> The array with the increment operation.
      */
     public static function inc(int|float $num = 1): array
     {
@@ -179,7 +179,7 @@ class Db
      * Returns an array with a decrement operation.
      *
      * @param int|float $num The number to decrement by.
-     * @return array The array with the decrement operation.
+     * @return array<string, string|int|float> The array with the decrement operation.
      */
     public static function dec(int|float $num = 1): array
     {
@@ -228,12 +228,12 @@ class Db
     /**
      * Returns a ConcatValue instance representing a concatenation of values.
      *
-     * @param mixed ...$args The values to concatenate.
+     * @param string|int|float|RawValue ...$args The values to concatenate.
      * @return ConcatValue The ConcatValue instance.
      */
-    public static function concat(...$args): ConcatValue
+    public static function concat(string|int|float|RawValue ...$args): ConcatValue
     {
-        return new ConcatValue($args);
+        return new ConcatValue(array_values($args));
     }
 
     /**
@@ -402,7 +402,7 @@ class Db
      * Returns a RawValue instance representing an IN condition.
      *
      * @param string $column The column name.
-     * @param array $values The array of values for the IN condition.
+     * @param array<int, string|int|float|bool|null> $values The array of values for the IN condition.
      * @return RawValue The RawValue instance for the IN condition.
      */
     public static function in(string $column, array $values): RawValue
@@ -423,7 +423,7 @@ class Db
      * Returns a RawValue instance representing a NOT IN condition.
      *
      * @param string $column The column name.
-     * @param array $values The array of values for the NOT IN condition.
+     * @param array<int, string|int|float|bool|null> $values The array of values for the NOT IN condition.
      * @return RawValue The RawValue instance for the NOT IN condition.
      */
     public static function notIn(string $column, array $values): RawValue
@@ -445,7 +445,7 @@ class Db
     /**
      * Returns a RawValue instance representing a CASE statement.
      *
-     * @param array $cases An associative array where keys are WHEN conditions and values are THEN results.
+     * @param array<string, string> $cases An associative array where keys are WHEN conditions and values are THEN results.
      * @param string|null $else An optional ELSE result.
      * @return RawValue The RawValue instance for the CASE statement.
      */
@@ -678,23 +678,23 @@ class Db
     /**
      * Returns greatest (maximum) value from arguments (dialect-specific).
      *
-     * @param mixed ...$values The values to compare.
+     * @param string|int|float|RawValue ...$values The values to compare.
      * @return GreatestValue The GreatestValue instance.
      */
-    public static function greatest(...$values): GreatestValue
+    public static function greatest(string|int|float|RawValue ...$values): GreatestValue
     {
-        return new GreatestValue($values);
+        return new GreatestValue(array_values($values));
     }
 
     /**
      * Returns least (minimum) value from arguments (dialect-specific).
      *
-     * @param mixed ...$values The values to compare.
+     * @param string|int|float|RawValue ...$values The values to compare.
      * @return LeastValue The LeastValue instance.
      */
-    public static function least(...$values): LeastValue
+    public static function least(string|int|float|RawValue ...$values): LeastValue
     {
-        return new LeastValue($values);
+        return new LeastValue(array_values($values));
     }
 
     /* ---------------- JSON helpers ---------------- */
@@ -703,7 +703,7 @@ class Db
      * Returns a JsonPathValue for comparing JSON value at path.
      *
      * @param string $column The JSON column name.
-     * @param array|string $path The JSON path.
+     * @param array<int, string|int>|string $path The JSON path.
      * @param string $operator The comparison operator.
      * @param mixed $value The value to compare.
      * @return JsonPathValue The JsonPathValue instance.
@@ -718,7 +718,7 @@ class Db
      *
      * @param string $column The JSON column name.
      * @param mixed $value The value to check for.
-     * @param array|string|null $path Optional JSON path.
+     * @param array<int, string|int>|string|null $path Optional JSON path.
      * @return JsonContainsValue The JsonContainsValue instance.
      */
     public static function jsonContains(string $column, mixed $value, array|string|null $path = null): JsonContainsValue
@@ -730,7 +730,7 @@ class Db
      * Returns a JsonExistsValue for checking JSON path existence.
      *
      * @param string $column The JSON column name.
-     * @param array|string $path The JSON path to check.
+     * @param array<int, string|int>|string $path The JSON path to check.
      * @return JsonExistsValue The JsonExistsValue instance.
      */
     public static function jsonExists(string $column, array|string $path): JsonExistsValue
@@ -743,7 +743,7 @@ class Db
      * Useful in SELECT, ORDER BY, GROUP BY clauses.
      *
      * @param string $column The JSON column name.
-     * @param array|string $path The JSON path.
+     * @param array<int, string|int>|string $path The JSON path.
      * @param bool $asText Whether to return as text (default true).
      * @return JsonGetValue The JsonGetValue instance.
      */
@@ -756,7 +756,7 @@ class Db
      * Alias for jsonGet().
      *
      * @param string $column The JSON column name.
-     * @param array|string $path The JSON path.
+     * @param array<int, string|int>|string $path The JSON path.
      * @param bool $asText Whether to return as text (default true).
      * @return JsonGetValue The JsonGetValue instance.
      */
@@ -769,7 +769,7 @@ class Db
      * Returns a JsonLengthValue for JSON length/size.
      *
      * @param string $column The JSON column name.
-     * @param array|string|null $path Optional JSON path.
+     * @param array<int, string|int>|string|null $path Optional JSON path.
      * @return JsonLengthValue The JsonLengthValue instance.
      */
     public static function jsonLength(string $column, array|string|null $path = null): JsonLengthValue
@@ -781,7 +781,7 @@ class Db
      * Returns a JsonKeysValue for extracting JSON object keys.
      *
      * @param string $column The JSON column name.
-     * @param array|string|null $path Optional JSON path.
+     * @param array<int, string|int>|string|null $path Optional JSON path.
      * @return JsonKeysValue The JsonKeysValue instance.
      */
     public static function jsonKeys(string $column, array|string|null $path = null): JsonKeysValue
@@ -793,7 +793,7 @@ class Db
      * Returns a JsonTypeValue for getting JSON value type.
      *
      * @param string $column The JSON column name.
-     * @param array|string|null $path Optional JSON path.
+     * @param array<int, string|int>|string|null $path Optional JSON path.
      * @return JsonTypeValue The JsonTypeValue instance.
      */
     public static function jsonType(string $column, array|string|null $path = null): JsonTypeValue
@@ -815,7 +815,7 @@ class Db
     /**
      * Returns a JSON-encoded object string.
      *
-     * @param array $pairs Associative array of key-value pairs.
+     * @param array<string, mixed> $pairs Associative array of key-value pairs.
      * @return string The JSON-encoded object string.
      */
     public static function jsonObject(array $pairs): string

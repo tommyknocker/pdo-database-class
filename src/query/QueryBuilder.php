@@ -41,7 +41,10 @@ class QueryBuilder implements QueryBuilderInterface
 {
     /* ---------------- Construction / meta ---------------- */
 
+    /** @var ConnectionInterface Database connection instance */
     protected ConnectionInterface $connection;
+    
+    /** @var DialectInterface Dialect instance for database-specific SQL */
     protected DialectInterface $dialect;
 
     protected ?string $table = null {
@@ -52,21 +55,53 @@ class QueryBuilder implements QueryBuilderInterface
             return $this->table;
         }
     }
+    
+    /** @var array<int, string> */
     protected array $select = [];
+    
+    /** @var array<int, string> */
     protected array $joins = [];
+    
+    /** @var array<int, string|array<string, mixed>> */
     protected array $where = [];
+    
+    /** @var array<int, string|array<string, mixed>> */
     protected array $having = [];
+    
+    /** @var array<string, string|int|float|bool|null> */
     protected array $params = [];
+    
+    /** @var array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> */
     protected array $data = [];
+    
+    /** @var array<int, array<string, string|int|float|bool|null|RawValue>> */
     protected array $multiRows = [];
+    
+    /** @var array<string, string|int|float|bool|null|RawValue> */
     protected array $onDuplicate = [];
+    
+    /** @var array<int, string> ORDER BY expressions */
     protected array $order = [];
+    
+    /** @var string|null GROUP BY expression */
     protected ?string $group = null;
+    
+    /** @var int|null LIMIT value */
     protected ?int $limit = null;
+    
+    /** @var int|null OFFSET value */
     protected ?int $offset = null;
+    
+    /** @var string|null Table prefix */
     protected ?string $prefix = null;
+    
+    /** @var int PDO fetch mode */
     protected int $fetchMode = PDO::FETCH_ASSOC;
+    
+    /** @var array<int|string, mixed> Query options (e.g., FOR UPDATE, IGNORE) */
     protected array $options = [];
+    
+    /** @var int Parameter counter for generating unique param names */
     protected int $paramCounter = 0;
     /**
      * QueryBuilder constructor.
@@ -153,7 +188,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Adds columns to the SELECT clause.
      *
-     * @param RawValue|string|array $cols The columns to add.
+     * @param RawValue|string|array<int|string, string|RawValue> $cols The columns to add.
      * @return self The current instance.
      */
     public function select(RawValue|string|array $cols): self
@@ -177,7 +212,7 @@ class QueryBuilder implements QueryBuilderInterface
 
     /**
      * Execute SELECT statement and return all rows
-     * @return array
+     * @return array<int, array<string, mixed>>
      * @throws PDOException
      */
     public function get(): array
@@ -199,7 +234,7 @@ class QueryBuilder implements QueryBuilderInterface
 
     /**
      * Execute SELECT statement and return column values
-     * @return array
+     * @return array<int, mixed>
      * @throws PDOException
      */
     public function getColumn(): array
@@ -235,9 +270,9 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Insert data into the table.
      *
-     * @param array $data The data to insert.
-     * @param array $onDuplicate The columns to update on duplicate.
-     * @return mixed The result of the insert operation.
+     * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data The data to insert.
+     * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
+     * @return int The result of the insert operation.
      */
     public function insert(array $data, array $onDuplicate = []): int
     {
@@ -252,8 +287,8 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Insert multiple rows into the table.
      *
-     * @param array $rows The rows to insert.
-     * @param array $onDuplicate The columns to update on duplicate.
+     * @param array<int, array<string, string|int|float|bool|null|RawValue>> $rows The rows to insert.
+     * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      * @return int The result of the insert operation.
      */
     public function insertMulti(array $rows, array $onDuplicate = []): int
@@ -272,8 +307,8 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Replace data into the table.
      *
-     * @param array $data The data to replace.
-     * @param array $onDuplicate The columns to update on duplicate.
+     * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data The data to replace.
+     * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      * @return int The result of the replace operation.
      */
     public function replace(array $data, array $onDuplicate = []): int
@@ -288,20 +323,23 @@ class QueryBuilder implements QueryBuilderInterface
         $placeholders = [];
         $params = [];
         foreach ($columns as $col) {
-            $result = $this->processValueForSql($this->data[$col], $col);
+            $colStr = (string)$col;
+            $result = $this->processValueForSql($this->data[$col], $colStr);
             $placeholders[] = $result['sql'];
             $params = array_merge($params, $result['params']);
         }
-        $sql = $this->dialect->buildReplaceSql($this->table, $columns, $placeholders);
+        $tableName = $this->table; // Use getter to ensure not null
+        assert(is_string($tableName)); // PHPStan assertion
+        $sql = $this->dialect->buildReplaceSql($tableName, array_values(array_map('strval', $columns)), $placeholders);
         return $this->executeInsert($sql, $params);
     }
 
     /**
      * Replace multiple rows into the table.
      *
-     * @param array $rows The rows to replace.
-     * @param array $onDuplicate The columns to update on duplicate.
-     * @return mixed The result of the replace operation.
+     * @param array<int, array<string, string|int|float|bool|null|RawValue>> $rows The rows to replace.
+     * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
+     * @return int The result of the replace operation.
      */
     public function replaceMulti(array $rows, array $onDuplicate = []): int
     {
@@ -323,7 +361,7 @@ class QueryBuilder implements QueryBuilderInterface
         foreach ($rows as $row) {
             $placeholders = [];
             foreach ($columns as $col) {
-                $result = $this->processValueForSql($row[$col], $col, $col . '_' . $i . '_');
+                $result = $this->processValueForSql($row[$col], (string)$col, (string)$col . '_' . $i . '_');
                 $placeholders[] = $result['sql'];
                 $params = array_merge($params, $result['params']);
             }
@@ -334,13 +372,15 @@ class QueryBuilder implements QueryBuilderInterface
         }
 
         // Pass isMultiple = true so dialect will not add extra parentheses
-        $sql = $this->dialect->buildReplaceSql($this->table, $columns, $valuesList, true);
+        $tableName = $this->table; // Use getter to ensure not null
+        assert(is_string($tableName)); // PHPStan assertion
+        $sql = $this->dialect->buildReplaceSql($tableName, array_values(array_map('strval', $columns)), $valuesList, true);
         return $this->executeInsert($sql, $params);
     }
 
     /**
      * Execute UPDATE statement
-     * @param array $data
+     * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data
      * @return int
      * @throws PDOException
      */
@@ -372,7 +412,9 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function truncate(): bool
     {
-        $sql = $this->dialect->buildTruncateSql($this->table);
+        $tableName = $this->table; // Use getter to ensure not null
+        assert(is_string($tableName)); // PHPStan assertion
+        $sql = $this->dialect->buildTruncateSql($tableName);
         $this->executeStatement($sql);
         return $this->connection->getLastErrno() === 0;
     }
@@ -388,7 +430,7 @@ class QueryBuilder implements QueryBuilderInterface
      * where('column', 'value', '!=') // column != value
      * where(new RawValue('LENGTH(column)'), 5, '>') // LENGTH(column) > 5
      *
-     * @param string|array|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      * @return self The current instance.
@@ -401,8 +443,8 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add AND WHERE clause.
      *
-     * @param string|RawValue|array $exprOrColumn The expression or column to add.
-     * @param string|array|RawValue $value The value to use in the condition.
+     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      * @return self The current instance.
      */
@@ -414,7 +456,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add OR WHERE clause.
      *
-     * @param string|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      * @return self The current instance.
@@ -427,7 +469,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add HAVING clause.
      *
-     * @param string|array|rawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      * @return self The current instance.
@@ -440,7 +482,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add OR HAVING clause.
      *
-     * @param string|array|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      * @return self The current instance.
@@ -593,7 +635,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add GROUP BY clause.
      *
-     * @param string|array|RawValue $cols The columns to group by.
+     * @param string|array<int, string|RawValue>|RawValue $cols The columns to group by.
      * @return self The current instance.
      */
     public function groupBy(string|array|RawValue $cols): self
@@ -640,13 +682,19 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Sets the query options.
      *
-     * @param string|array $options The query options.
+     * @param string|array<int|string, mixed> $options The query options.
      * @return self The current object.
      */
     public function option(string|array $options): self
     {
         if (is_array($options)) {
-            $this->options += $options;
+            foreach ($options as $key => $value) {
+                if (is_string($key)) {
+                    $this->options[$key] = $value;
+                } else {
+                    $this->options[] = $value;
+                }
+            }
         } else {
             $this->options[] = $options;
         }
@@ -668,7 +716,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add ON DUPLICATE clause.
      *
-     * @param array $onDuplicate The columns to update on duplicate.
+     * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      * @return self The current instance.
      */
     public function onDuplicate(array $onDuplicate): self
@@ -681,7 +729,7 @@ class QueryBuilder implements QueryBuilderInterface
 
     /**
      * Compile query
-     * @return array
+     * @return array{sql: string, params: array<string, string|int|float|bool|null>}
      */
     public function compile(): array
     {
@@ -695,7 +743,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Execute statement
      * @param string|RawValue $sql
-     * @param array $params
+     * @param array<int|string, string|int|float|bool|null> $params
      * @return PDOStatement
      * @throws PDOException
      */
@@ -710,8 +758,8 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Fetch all rows
      * @param string|RawValue $sql
-     * @param array $params
-     * @return array
+     * @param array<int|string, string|int|float|bool|null> $params
+     * @return array<int, array<string, mixed>>
      * @throws PDOException
      */
     public function fetchAll(string|RawValue $sql, array $params = []): array
@@ -722,7 +770,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Fetch column
      * @param string|RawValue $sql
-     * @param array $params
+     * @param array<int|string, string|int|float|bool|null> $params
      * @return mixed
      * @throws PDOException
      */
@@ -734,7 +782,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Fetch row
      * @param string|RawValue $sql
-     * @param array $params
+     * @param array<int|string, string|int|float|bool|null> $params
      * @return mixed
      * @throws PDOException
      */
@@ -749,7 +797,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Loads data from a CSV file into a table.
      *
      * @param string $filePath The path to the CSV file.
-     * @param array $options The options to use to load the data.
+     * @param array<string, mixed> $options The options to use to load the data.
      * @return bool True on success, false on failure.
      */
     public function loadCsv(string $filePath, array $options = []): bool
@@ -810,7 +858,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Add SELECT expression extracting JSON value by path.
      *
      * @param string $col
-     * @param array|string $path
+     * @param array<int, string|int>|string $path
      * @param string|null $alias
      * @param bool $asText
      * @return self
@@ -830,7 +878,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Add WHERE condition comparing JSON value at path.
      *
      * @param string $col
-     * @param array|string $path
+     * @param array<int, string|int>|string $path
      * @param string $operator
      * @param mixed $value
      * @param string $cond
@@ -856,7 +904,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param string $col
      * @param mixed $value
-     * @param array|string|null $path
+     * @param array<int, string|int>|string|null $path
      * @param string $cond
      * @return self
      */
@@ -887,7 +935,7 @@ class QueryBuilder implements QueryBuilderInterface
      *   ->update(['meta' => $this->jsonSet('meta', ['a','b'], $value)])
      *
      * @param string $col
-     * @param array|string $path
+     * @param array<int, string|int>|string $path
      * @param mixed $value
      * @return RawValue
      */
@@ -920,7 +968,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Remove JSON path from column (returns RawValue to use in update).
      *
      * @param string $col
-     * @param array|string $path
+     * @param array<int, string|int>|string $path
      * @return RawValue
      */
     public function jsonRemove(string $col, array|string $path): RawValue
@@ -933,7 +981,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Add ORDER BY expression based on JSON path.
      *
      * @param string $col
-     * @param array|string $path
+     * @param array<int, string|int>|string $path
      * @param string $direction
      * @return self
      */
@@ -947,7 +995,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Check existence of JSON path (returns boolean condition).
      *
      * @param string $col
-     * @param array|string $path
+     * @param array<int, string|int>|string $path
      * @param string $cond
      * @return self
      */
@@ -1010,7 +1058,7 @@ class QueryBuilder implements QueryBuilderInterface
 
     /**
      * Build INSERT sql
-     * @return array
+     * @return array{string, array<string, string|int|float|bool|null>}
      */
     protected function buildInsertSql(): array
     {
@@ -1027,7 +1075,7 @@ class QueryBuilder implements QueryBuilderInterface
         $sql = $this->dialect->buildInsertSql($this->normalizeTable(), $columns, $placeholders, $this->options);
         if (!empty($this->onDuplicate)) {
             // if no id column in columns, use first column for $defaultConflictTarget
-            $defaultConflictTarget = in_array('id', $columns, true) ? 'id' : ($columns[0] ?? 'id');
+            $defaultConflictTarget = in_array('id', $columns, true) ? 'id' : (string)($columns[0] ?? 'id');
             $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget);
         }
 
@@ -1036,7 +1084,7 @@ class QueryBuilder implements QueryBuilderInterface
 
     /**
      * Build INSERT multiple rows sql
-     * @return array
+     * @return array{string, array<string, string|int|float|bool|null>}
      */
     protected function buildInsertMultiSql(): array
     {
@@ -1069,13 +1117,15 @@ class QueryBuilder implements QueryBuilderInterface
         }
 
         $opt = $this->options ? ' ' . implode(',', $this->options) : ''; // " LOW_PRIORITY IGNORE" or ''
-        $tableSql = $this->dialect->quoteTable($this->table);
+        $tableName = $this->table; // Use getter to ensure not null
+        assert(is_string($tableName)); // PHPStan assertion
+        $tableSql = $this->dialect->quoteTable($tableName);
         $sql = 'INSERT' . $opt . ' INTO ' . $tableSql
             . ' (' . implode(',', $colsQuoted) . ') VALUES ' . implode(', ', $tuples);
 
         if (!empty($this->onDuplicate)) {
             // if no id column in columns, use first column for $defaultConflictTarget
-            $defaultConflictTarget = in_array('id', $columns, true) ? 'id' : ($columns[0] ?? 'id');
+            $defaultConflictTarget = in_array('id', $columns, true) ? 'id' : (string)($columns[0] ?? 'id');
             $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget);
         }
 
@@ -1084,7 +1134,7 @@ class QueryBuilder implements QueryBuilderInterface
 
     /**
      * Build UPDATE sql
-     * @return array
+     * @return array{string, array<int|string, string|int|float|bool|null>}
      */
     protected function buildUpdateSql(): array
     {
@@ -1137,7 +1187,7 @@ class QueryBuilder implements QueryBuilderInterface
 
     /**
      * Build conditions clause
-     * @param array $items
+     * @param array<int, string|array<string, mixed>> $items
      * @param string $keyword
      * @return string
      */
@@ -1176,7 +1226,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Add condition to the WHERE or HAVING clause.
      *
      * @param string $prop The property to add the condition to.
-     * @param string|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      * @param string $cond The condition to use.
@@ -1312,7 +1362,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Execute INSERT statement
      * @param string $sql
-     * @param array $params
+     * @param array<string, string|int|float|bool|null> $params
      * @param bool $isMulty
      * @return int
      * @throws PDOException
@@ -1331,9 +1381,9 @@ class QueryBuilder implements QueryBuilderInterface
 
     /**
      * Merge subquery parameters
-     * @param array $subParams
+     * @param array<string, string|int|float|bool|null> $subParams
      * @param string $prefix
-     * @return array
+     * @return array<string, string>
      */
     protected function mergeSubParams(array $subParams, string $prefix = 'sub'): array
     {
@@ -1350,7 +1400,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Replace placeholders in SQL
      * @param string $sql
-     * @param array $map
+     * @param array<string, string> $map
      * @return string
      */
     protected function replacePlaceholdersInSql(string $sql, array $map): string
@@ -1461,7 +1511,7 @@ class QueryBuilder implements QueryBuilderInterface
      * @param mixed $value
      * @param string $columnName
      * @param string $prefix
-     * @return array ['sql' => string, 'params' => array]
+     * @return array{sql: string, params: array<string, mixed>}
      */
     protected function processValueForSql(mixed $value, string $columnName, string $prefix = ''): array
     {
@@ -1485,11 +1535,28 @@ class QueryBuilder implements QueryBuilderInterface
         return $this->dialect->quoteTable($this->prefix . $table);
     }
 
+    /**
+     * @param array<int|string, string|int|float|bool|null> $params
+     * @return array<int|string, string|int|float|bool|null>
+     */
     protected function normalizeParams(array $params): array
     {
+        // Check if all keys are sequential integers starting from 0 (positional parameters)
+        $keys = array_keys($params);
+        if ($keys === range(0, count($keys) - 1)) {
+            // Positional parameters - return as is
+            return $params;
+        }
+        
+        // Named parameters - normalize by adding : prefix if needed
+        /** @var array<string, string|int|float|bool|null> $out */
         $out = [];
         foreach ($params as $k => $v) {
-            $key = is_string($k) && !str_starts_with($k, ':') ? ":$k" : $k;
+            if (is_string($k)) {
+                $key = !str_starts_with($k, ':') ? ":$k" : $k;
+            } else {
+                $key = ':param_' . $k;
+            }
             $out[$key] = $v;
         }
         return $out;
@@ -1509,8 +1576,8 @@ class QueryBuilder implements QueryBuilderInterface
         }
         $result = match (true) {
             $value instanceof NowValue => $this->dialect->now($value->getValue(), $value->getAsTimestamp()),
-            $value instanceof ILikeValue => $this->dialect->ilike($value->getValue(), $value->getParams()[0]),
-            $value instanceof EscapeValue => $this->connection->quote($value->getValue()),
+            $value instanceof ILikeValue => $this->dialect->ilike($value->getValue(), (string)$value->getParams()[0]),
+            $value instanceof EscapeValue => $this->connection->quote($value->getValue()) ?: "'" . addslashes((string)$value->getValue()) . "'",
             $value instanceof ConfigValue => $this->dialect->config($value),
             $value instanceof ConcatValue => $this->dialect->concat($value),
             $value instanceof JsonGetValue => $this->dialect->formatJsonGet($value->getColumn(), $value->getPath(), $value->getAsText()),
@@ -1553,7 +1620,8 @@ class QueryBuilder implements QueryBuilderInterface
         $paramMap = [];
         foreach ($params as $key => $val) {
             // Ensure parameter name starts with :
-            $oldParam = strpos($key, ':') === 0 ? $key : ':' . $key;
+            $keyStr = (string)$key;
+            $oldParam = str_starts_with($keyStr, ':') ? $keyStr : ':' . $keyStr;
             // Create new unique parameter name
             $newParam = $this->makeParam('raw_' . ltrim($oldParam, ':'));
             $paramMap[$oldParam] = $newParam;

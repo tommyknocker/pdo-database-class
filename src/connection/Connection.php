@@ -16,13 +16,28 @@ use tommyknocker\pdodb\dialects\DialectInterface;
  */
 class Connection implements ConnectionInterface
 {
+    /** @var PDO PDO instance */
     protected PDO $pdo;
+    
+    /** @var DialectInterface Dialect instance for database-specific SQL */
     protected DialectInterface $dialect;
+    
+    /** @var LoggerInterface|null Logger instance for query logging */
     protected ?LoggerInterface $logger;
+    
+    /** @var PDOStatement|null Last prepared statement */
     protected ?PDOStatement $stmt = null;
+    
+    /** @var string|null Last executed query */
     protected ?string $lastQuery = null;
+    
+    /** @var string|null Last error message */
     protected ?string $lastError = null;
+    
+    /** @var int Last error code */
     protected int $lastErrno = 0;
+    
+    /** @var mixed Last execute state (success/failure) */
     protected mixed $executeState = null;
 
     /**
@@ -84,7 +99,7 @@ class Connection implements ConnectionInterface
     /**
      * Prepare SQL query
      * @param string $sql
-     * @param array $params
+     * @param array<int|string, string|int|float|bool|null> $params
      * @return $this
      */
     public function prepare(string $sql, array $params = []): static
@@ -121,12 +136,17 @@ class Connection implements ConnectionInterface
     /**
      * Executes a SQL statement.
      *
+     * @param array<int|string, string|int|float|bool|null> $params
      * @return PDOStatement The PDOStatement instance.
      */
     public function execute(array $params = []): PDOStatement
     {
         $this->resetState();
         $stmt = $this->stmt;
+        
+        if ($stmt === null) {
+            throw new \RuntimeException('No statement prepared. Call prepare() first.');
+        }
         $this->logger?->debug('operation.start', [
             'operation' => 'execute',
             'driver' => $this->getDriverName(),
@@ -300,9 +320,9 @@ class Connection implements ConnectionInterface
     /**
      * Returns the last execute state.
      *
-     * @return bool The last execute state.
+     * @return bool|null The last execute state.
      */
-    public function getExecuteState(): bool
+    public function getExecuteState(): ?bool
     {
         return $this->executeState;
     }

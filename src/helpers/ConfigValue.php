@@ -4,7 +4,10 @@ namespace tommyknocker\pdodb\helpers;
 
 class ConfigValue extends RawValue
 {
+    /** @var bool Whether to use equal sign (=) in SET statement */
     protected bool $useEqualSign = true;
+    
+    /** @var bool Whether to quote the value */
     protected bool $quoteValue = true;
 
     /**

@@ -8,6 +8,7 @@ namespace tommyknocker\pdodb\helpers;
  */
 class HourValue extends RawValue
 {
+    /** @var string|RawValue Source datetime expression */
     protected string|RawValue $source;
 
     public function __construct(string|RawValue $source)

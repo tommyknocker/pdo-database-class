@@ -1,0 +1,20 @@
+includes:
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+
+parameters:
+    level: 8
+    paths:
+        - src
+    
+    # Исключаем vendor, примеры и тесты из анализа
+    excludePaths:
+        - vendor
+        - examples
+        - tests
+    
+    # Для PHP 8.4
+    phpVersion: 80400
+    
+    # Включаем строгие проверки
+    treatPhpDocTypesAsCertain: false
+

@@ -93,6 +93,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     * @param array<string, mixed> $options
      */
     public function formatSelectOptions(string $sql, array $options): string
     {
@@ -107,7 +108,8 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
             }
         }
         if ($middle) {
-            $sql = preg_replace('/^SELECT\s+/i', 'SELECT ' . implode(',', $middle) . ' ', $sql, 1);
+            $result = preg_replace('/^SELECT\s+/i', 'SELECT ' . implode(',', $middle) . ' ', $sql, 1);
+            $sql = $result !== null ? $result : $sql;
         }
         if ($tail) {
             $sql .= ' ' . implode(' ', $tail);
@@ -154,6 +156,10 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    /**
+     * @param array<int, string> $columns
+     * @param array<int, string|array<int, string>> $placeholders
+     */
     public function buildReplaceSql(
         string $table,
         array $columns,
@@ -165,12 +171,15 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
 
         if ($isMultiple) {
             // placeholders already contain grouped row expressions like "(...),(...)" or ["(...)", "(...)"]
-            $valsSql = implode(',', $placeholders);
+            $valsSql = implode(',', array_map(function($p) {
+                return is_array($p) ? '(' . implode(',', $p) . ')' : $p;
+            }, $placeholders));
             return sprintf('REPLACE INTO %s (%s) VALUES %s', $tableSql, $colsSql, $valsSql);
         }
 
         // Single row: placeholders are scalar fragments matching columns
-        $valsSql = implode(',', $placeholders);
+        $stringPlaceholders = array_map(fn($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
+        $valsSql = implode(',', $stringPlaceholders);
         return sprintf('REPLACE INTO %s (%s) VALUES (%s)', $tableSql, $colsSql, $valsSql);
     }
 
@@ -656,6 +665,10 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         return "SECOND({$this->resolveValue($value)})";
     }
 
+    /**
+     * @param array<int, string|int>|string $path
+     * @return string
+     */
     private function buildJsonPath(array|string $path): string
     {
         $parts = $this->normalizeJsonPath($path);

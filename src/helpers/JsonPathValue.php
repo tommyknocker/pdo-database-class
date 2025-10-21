@@ -8,11 +8,24 @@ namespace tommyknocker\pdodb\helpers;
  */
 class JsonPathValue extends RawValue
 {
+    /** @var string JSON column name */
     protected string $column;
+    
+    /** @var array<int, string|int>|string JSON path */
     protected array|string $path;
+    
+    /** @var string Comparison operator (e.g., '=', '>', '<') */
     protected string $operator;
+    
+    /** @var mixed Value to compare against */
     protected mixed $compareValue;
 
+    /**
+     * @param string $column
+     * @param array<int, string|int>|string $path
+     * @param string $operator
+     * @param mixed $value
+     */
     public function __construct(string $column, array|string $path, string $operator, mixed $value)
     {
         $this->column = $column;
@@ -27,6 +40,9 @@ class JsonPathValue extends RawValue
         return $this->column;
     }
 
+    /**
+     * @return array<int, string|int>|string
+     */
     public function getPath(): array|string
     {
         return $this->path;

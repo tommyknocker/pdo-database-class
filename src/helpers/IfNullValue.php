@@ -8,7 +8,10 @@ namespace tommyknocker\pdodb\helpers;
  */
 class IfNullValue extends RawValue
 {
+    /** @var string Expression to check for NULL */
     protected string $expr;
+    
+    /** @var mixed Default value if expression is NULL */
     protected mixed $defaultValue;
 
     public function __construct(string $expr, mixed $defaultValue)

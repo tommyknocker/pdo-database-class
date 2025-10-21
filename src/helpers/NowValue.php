@@ -9,6 +9,7 @@ namespace tommyknocker\pdodb\helpers;
  */
 class NowValue extends RawValue
 {
+    /** @var bool Whether to return as timestamp instead of NOW() expression */
     protected bool $asTimestamp;
 
     /**

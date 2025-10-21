@@ -8,10 +8,20 @@ namespace tommyknocker\pdodb\helpers;
  */
 class JsonGetValue extends RawValue
 {
+    /** @var string JSON column name */
     protected string $column;
+    
+    /** @var array<int, string|int>|string JSON path */
     protected array|string $path;
+    
+    /** @var bool Whether to extract as text */
     protected bool $asText;
 
+    /**
+     * @param string $column
+     * @param array<int, string|int>|string $path
+     * @param bool $asText
+     */
     public function __construct(string $column, array|string $path, bool $asText = true)
     {
         $this->column = $column;
@@ -25,6 +35,9 @@ class JsonGetValue extends RawValue
         return $this->column;
     }
 
+    /**
+     * @return array<int, string|int>|string
+     */
     public function getPath(): array|string
     {
         return $this->path;

@@ -14,8 +14,10 @@ use tommyknocker\pdodb\query\QueryBuilder;
 
 class PdoDb
 {
+    /** @var DialectInterface Current dialect instance */
     public DialectInterface $dialect;
 
+    /** @var ConnectionInterface|null Current active connection */
     public ?ConnectionInterface $connection = null {
         get {
             if ($this->connection === null) {
@@ -27,37 +29,57 @@ class PdoDb
         }
     }
 
+    /** @var array<string, ConnectionInterface> Named connections pool */
     protected array $connections = [];
 
+    /** @var string Table prefix for queries */
     public string $prefix;
-    public string $lastQuery {
+    
+    public ?string $lastQuery {
         get {
-            return $this->connection->getLastQuery();
+            return $this->getConn()->getLastQuery();
         }
     }
-    public string $lastError {
+    
+    public ?string $lastError {
         get {
-            return $this->connection->getLastError();
+            return $this->getConn()->getLastError();
         }
     }
+    
     public int $lastErrNo {
         get {
-            return $this->connection->getLastErrno();
+            return $this->getConn()->getLastErrno();
         }
     }
+    
     public ?bool $executeState {
         get {
-            return $this->connection->getExecuteState();
+            return $this->getConn()->getExecuteState();
         }
     }
+    
+    /** @var string Lock method for table locking (WRITE/READ) */
     protected string $lockMethod = 'WRITE';
+    
+    /**
+     * Get non-null connection or throw exception
+     * @return ConnectionInterface
+     */
+    private function getConn(): ConnectionInterface
+    {
+        if ($this->connection === null) {
+            throw new RuntimeException('No connection available. Call addConnection() and connection() first.');
+        }
+        return $this->connection;
+    }
 
     /**
      * Initializes a new PdoDb object.
      *
      * @param string|null $driver The database driver to use. Pass null to use connection pooling without default connection.
-     * @param array $config An array of configuration options for the database connection.
-     * @param array $pdoOptions An array of PDO options to use to connect to the database.
+     * @param array<string, mixed> $config An array of configuration options for the database connection.
+     * @param array<int|string, mixed> $pdoOptions An array of PDO options to use to connect to the database.
      * @param LoggerInterface|null $logger The logger to use to log the queries.
      * @see /README.md for details
      */
@@ -88,7 +110,7 @@ class PdoDb
      */
     public function find(): QueryBuilder
     {
-        return new QueryBuilder($this->connection, $this->prefix);
+        return new QueryBuilder($this->getConn(), $this->prefix);
     }
 
     /* ---------------- RAW ---------------- */
@@ -97,8 +119,8 @@ class PdoDb
      * Execute a raw query.
      *
      * @param string|RawValue $query The raw query to be executed.
-     * @param array $params The parameters to be bound to the query.
-     * @return array The result of the query.
+     * @param array<int|string, string|int|float|bool|null> $params The parameters to be bound to the query.
+     * @return array<int, array<string, mixed>> The result of the query.
      */
     public function rawQuery(string|RawValue $query, array $params = []): array
     {
@@ -109,10 +131,10 @@ class PdoDb
      * Execute a raw query and return the first row.
      *
      * @param string|RawValue $query The raw query to be executed.
-     * @param array $params The parameters to be bound to the query.
-     * @return array The first row of the result.
+     * @param array<int|string, string|int|float|bool|null> $params The parameters to be bound to the query.
+     * @return mixed The first row of the result.
      */
-    public function rawQueryOne(string|RawValue $query, array $params = []): array
+    public function rawQueryOne(string|RawValue $query, array $params = []): mixed
     {
         return $this->find()->fetch($query, $params);
     }
@@ -121,7 +143,7 @@ class PdoDb
      * Execute a raw query and return the value of the first column of the first row.
      *
      * @param string|RawValue $query The raw query to be executed.
-     * @param array $params The parameters to be bound to the query.
+     * @param array<int|string, string|int|float|bool|null> $params The parameters to be bound to the query.
      * @return mixed The value of the first column of the first row.
      */
     public function rawQueryValue(string|RawValue $query, array $params = []): mixed
@@ -138,8 +160,9 @@ class PdoDb
      */
     public function startTransaction(): void
     {
-        if (!$this->connection->inTransaction()) {
-            $this->connection->transaction();
+        $conn = $this->getConn();
+        if (!$conn->inTransaction()) {
+            $conn->transaction();
         }
     }
 
@@ -150,8 +173,9 @@ class PdoDb
      */
     public function commit(): void
     {
-        if ($this->connection->inTransaction()) {
-            $this->connection->commit();
+        $conn = $this->getConn();
+        if ($conn->inTransaction()) {
+            $conn->commit();
         }
     }
 
@@ -162,8 +186,9 @@ class PdoDb
      */
     public function rollback(): void
     {
-        if ($this->connection->inTransaction()) {
-            $this->connection->rollBack();
+        $conn = $this->getConn();
+        if ($conn->inTransaction()) {
+            $conn->rollBack();
         }
     }
 
@@ -173,14 +198,15 @@ class PdoDb
     /**
      * Locks the specified tables.
      *
-     * @param string|array $tables The tables to lock.
+     * @param string|array<int, string> $tables The tables to lock.
      * @return bool True if the lock was successful, false otherwise.
      */
     public function lock(string|array $tables): bool
     {
         $tables = (array)$tables;
-        $sql = $this->connection->getDialect()->buildLockSql($tables, $this->prefix, $this->lockMethod);
-        $this->connection->prepare($sql)->execute();
+        $conn = $this->getConn();
+        $sql = $conn->getDialect()->buildLockSql($tables, $this->prefix, $this->lockMethod);
+        $conn->prepare($sql)->execute();
         return $this->executeState !== false;
     }
 
@@ -191,11 +217,12 @@ class PdoDb
      */
     public function unlock(): bool
     {
-        $sql = $this->connection->getDialect()->buildUnlockSql();
+        $conn = $this->getConn();
+        $sql = $conn->getDialect()->buildUnlockSql();
         if ($sql === '') {
             return true;
         }
-        $this->connection->prepare($sql)->execute();
+        $conn->prepare($sql)->execute();
         return $this->executeState !== false;
     }
 
@@ -229,7 +256,10 @@ class PdoDb
     public function ping(): bool
     {
         try {
-            $this->connection->query('SELECT 1')->execute();
+            $stmt = $this->getConn()->query('SELECT 1');
+            if ($stmt !== false) {
+                $stmt->execute();
+            }
             return true;
         } catch (Throwable) {
             return false;
@@ -242,8 +272,8 @@ class PdoDb
      * Adds a connection to the connection pool.
      *
      * @param string $name The name of the connection.
-     * @param array $params The parameters to use to connect to the database.
-     * @param array $pdoOptions The PDO options to use to connect to the database.
+     * @param array<string, mixed> $params The parameters to use to connect to the database.
+     * @param array<int|string, mixed> $pdoOptions The PDO options to use to connect to the database.
      * @param LoggerInterface|null $logger The logger to use to log the queries.
      * @return void
      */
@@ -278,11 +308,11 @@ class PdoDb
      * Describes a table.
      *
      * @param string $table The table to describe.
-     * @return array The table description.
+     * @return array<int, array<string, mixed>> The table description.
      */
     public function describe(string $table): array
     {
-        $sql = $this->connection->getDialect()->buildDescribeTableSql($this->prefix . $table);
+        $sql = $this->getConn()->getDialect()->buildDescribeTableSql($this->prefix . $table);
         return $this->rawQuery($sql);
     }
 
@@ -290,12 +320,12 @@ class PdoDb
      * Explains a query.
      *
      * @param string $query The query to explain.
-     * @param array $params The parameters to use to explain the query.
-     * @return array The query explanation.
+     * @param array<int|string, string|int|float|bool|null> $params The parameters to use to explain the query.
+     * @return array<int, array<string, mixed>> The query explanation.
      */
     public function explain(string $query, array $params = []): array
     {
-        $sql = $this->connection->getDialect()->buildExplainSql($query, false);
+        $sql = $this->getConn()->getDialect()->buildExplainSql($query, false);
         return $this->rawQuery($sql, $params);
     }
 
@@ -303,12 +333,12 @@ class PdoDb
      * Explains and analyzes a query.
      *
      * @param string $query The query to explain and analyze.
-     * @param array $params The parameters to use to explain and analyze the query.
-     * @return array The query explanation and analysis.
+     * @param array<int|string, string|int|float|bool|null> $params The parameters to use to explain and analyze the query.
+     * @return array<int, array<string, mixed>> The query explanation and analysis.
      */
     public function explainAnalyze(string $query, array $params = []): array
     {
-        $sql = $this->connection->getDialect()->buildExplainSql($query, true);
+        $sql = $this->getConn()->getDialect()->buildExplainSql($query, true);
         return $this->rawQuery($sql, $params);
     }
 }

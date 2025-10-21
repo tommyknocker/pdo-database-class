@@ -21,7 +21,7 @@ class ConnectionFactory
     /**
      * Create a new Connection instance.
      *
-     * @param array $config Configuration array.
+     * @param array<string, mixed> $config Configuration array.
      * @param LoggerInterface|null $logger Logger instance.
      * @return Connection The created Connection instance.
      * @throws InvalidArgumentException If the driver is not specified or unsupported.

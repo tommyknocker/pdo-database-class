@@ -28,7 +28,7 @@ interface DialectInterface
 
     /**
      * Build dsn string
-     * @param array $params
+     * @param array<string, mixed> $params
      * @return string
      */
     public function buildDsn(array $params): string;
@@ -36,7 +36,7 @@ interface DialectInterface
     /**
      * Returns the default PDO options.
      *
-     * @return array The default PDO options.
+     * @return array<int|string, mixed> The default PDO options.
      */
     public function defaultPdoOptions(): array;
 
@@ -63,9 +63,9 @@ interface DialectInterface
     /**
      * Build insert sql
      * @param string $table
-     * @param array $columns
-     * @param array $placeholders
-     * @param array $options
+     * @param array<int, string> $columns
+     * @param array<int, string> $placeholders
+     * @param array<int|string, mixed> $options
      * @return string
      */
     public function buildInsertSql(
@@ -75,17 +75,17 @@ interface DialectInterface
         array $options
     ): string;
 
-    /***
+    /**
      * Format select query options (e.g. SELECT SQL_NO_CACHE for MySQL)
      * @param string $sql
-     * @param array $options
+     * @param array<int|string, mixed> $options
      * @return string
      */
     public function formatSelectOptions(string $sql, array $options): string;
 
     /**
      * Build upsert clause
-     * @param array $updateColumns
+     * @param array<int, string>|array<string, mixed> $updateColumns Either array of column names or associative array with expressions
      * @param string $defaultConflictTarget
      * @return string
      */
@@ -94,8 +94,8 @@ interface DialectInterface
     /**
      * Build replace sql
      * @param string $table
-     * @param array $columns
-     * @param array $placeholders
+     * @param array<int, string> $columns
+     * @param array<int, string|array<int, string>> $placeholders
      * @param bool $isMultiple
      * @return string
      */
@@ -106,7 +106,7 @@ interface DialectInterface
     /**
      * Format JSON_GET expression
      * @param string $col
-     * @param array|string $path
+     * @param array<int, string|int>|string $path
      * @param bool $asText
      * @return string
      */
@@ -116,24 +116,24 @@ interface DialectInterface
      * Format JSON_CONTAINS expression
      * @param string $col
      * @param mixed $value
-     * @param array|string|null $path
-     * @return array|string
+     * @param array<int, string|int>|string|null $path
+     * @return array<int|string, mixed>|string
      */
     public function formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string;
 
     /**
      * Format JSON_SET expression
      * @param string $col
-     * @param array|string $path
+     * @param array<int, string|int>|string $path
      * @param mixed $value
-     * @return array
+     * @return array<int|string, mixed>
      */
     public function formatJsonSet(string $col, array|string $path, mixed $value): array;
 
     /**
      * Format JSON_REMOVE expression
      * @param string $col
-     * @param array|string $path
+     * @param array<int, string|int>|string $path
      * @return string
      */
     public function formatJsonRemove(string $col, array|string $path): string;
@@ -141,7 +141,7 @@ interface DialectInterface
     /**
      * Format JSON_EXISTS expression
      * @param string $col
-     * @param array|string $path
+     * @param array<int, string|int>|string $path
      * @return string
      */
     public function formatJsonExists(string $col, array|string $path): string;
@@ -149,7 +149,7 @@ interface DialectInterface
     /**
      * Format JSON order expression
      * @param string $col
-     * @param array|string $path
+     * @param array<int, string|int>|string $path
      * @return string
      */
     public function formatJsonOrderExpr(string $col, array|string $path): string;
@@ -157,7 +157,7 @@ interface DialectInterface
     /**
      * Format JSON_LENGTH expression
      * @param string $col
-     * @param array|string|null $path
+     * @param array<int, string|int>|string|null $path
      * @return string
      */
     public function formatJsonLength(string $col, array|string|null $path = null): string;
@@ -165,7 +165,7 @@ interface DialectInterface
     /**
      * Format JSON_KEYS expression
      * @param string $col
-     * @param array|string|null $path
+     * @param array<int, string|int>|string|null $path
      * @return string
      */
     public function formatJsonKeys(string $col, array|string|null $path = null): string;
@@ -173,7 +173,7 @@ interface DialectInterface
     /**
      * Format JSON_TYPE expression
      * @param string $col
-     * @param array|string|null $path
+     * @param array<int, string|int>|string|null $path
      * @return string
      */
     public function formatJsonType(string $col, array|string|null $path = null): string;
@@ -191,14 +191,14 @@ interface DialectInterface
 
     /**
      * Format GREATEST expression
-     * @param array $values
+     * @param array<int, string|int|float|RawValue> $values
      * @return string
      */
     public function formatGreatest(array $values): string;
 
     /**
      * Format LEAST expression
-     * @param array $values
+     * @param array<int, string|int|float|RawValue> $values
      * @return string
      */
     public function formatLeast(array $values): string;
@@ -334,7 +334,7 @@ interface DialectInterface
 
     /**
      * LOCK syntax
-     * @param array $tables
+     * @param array<int, string> $tables
      * @param string $prefix
      * @param string $lockMethod
      * @return string
@@ -361,7 +361,7 @@ interface DialectInterface
      * Build SQL for loading data from XML file
      * @param string $table
      * @param string $filePath
-     * @param array $options
+     * @param array<string, mixed> $options
      * @return string
      */
     public function buildLoadXML(string $table, string $filePath, array $options = []): string;
@@ -370,7 +370,7 @@ interface DialectInterface
      * Build SQL for loading data from CSV file
      * @param string $table
      * @param string $filePath
-     * @param array $options
+     * @param array<string, mixed> $options
      * @return string
      */
     public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string;

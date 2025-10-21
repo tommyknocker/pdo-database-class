@@ -12,14 +12,28 @@ use tommyknocker\pdodb\helpers\ConfigValue;
 use tommyknocker\pdodb\helpers\RawValue;
 use XMLReader;
 
-abstract class DialectAbstract
+abstract class DialectAbstract implements DialectInterface
 {
+    /** @var PDO PDO instance */
     protected PDO $pdo;
 
     public function setPdo(PDO $pdo): void
     {
         $this->pdo = $pdo;
     }
+    
+    /**
+     * Get the driver name
+     * @return string
+     */
+    abstract public function getDriverName(): string;
+    
+    /**
+     * Quote identifier (column/table name)
+     * @param string $name
+     * @return string
+     */
+    abstract public function quoteIdentifier(string $name): string;
 
     /**
      * Quote table name with optional alias
@@ -38,15 +52,19 @@ abstract class DialectAbstract
         //  - "table"                (without alias)
 
         if (preg_match('/\s+AS\s+/i', $table)) {
-            [$name, $alias] = preg_split('/\s+AS\s+/i', $table, 2);
+            $parts = preg_split('/\s+AS\s+/i', $table, 2);
+            if ($parts === false || count($parts) < 2) {
+                return $this->quoteIdentifier($table);
+            }
+            [$name, $alias] = $parts;
             $name = trim($name);
             $alias = trim($alias);
             return $this->quoteIdentifier($name) . ' AS ' . $this->quoteIdentifier($alias);
         }
 
         $parts = preg_split('/\s+/', $table, 2);
-        if (count($parts) === 1) {
-            return $this->quoteIdentifier($parts[0]);
+        if ($parts === false || count($parts) === 1) {
+            return $this->quoteIdentifier($table);
         }
 
         [$name, $alias] = $parts;
@@ -156,7 +174,7 @@ abstract class DialectAbstract
      * Build SQL for loading data from XML file
      * @param string $table
      * @param string $filePath
-     * @param array $options
+     * @param array<string, mixed> $options
      * @return string
      */
     public function buildLoadXML(string $table, string $filePath, array $options = []): string
@@ -315,7 +333,7 @@ abstract class DialectAbstract
      * Build SQL for loading data from CSV file
      * @param string $table
      * @param string $filePath
-     * @param array $options
+     * @param array<string, mixed> $options
      * @return string
      */
     public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string
@@ -355,14 +373,14 @@ abstract class DialectAbstract
         if (empty($columns)) {
             while (!$file->eof()) {
                 $row = $file->fgetcsv($delimiter, $enclosure, $escape);
-                if ($row === false) {
+                if ($row === false || $row === null) {
                     continue;
                 }
                 $isBlank = count($row) === 1 && ($row[0] === null || $row[0] === '');
                 if ($isBlank) {
                     continue;
                 }
-                $columns = array_map('trim', $row);
+                $columns = array_map(fn($v) => trim((string)($v ?? '')), $row);
                 break;
             }
         }
@@ -409,7 +427,7 @@ abstract class DialectAbstract
         // Read and build batches
         while (!$file->eof()) {
             $row = $file->fgetcsv($delimiter, $enclosure, $escape);
-            if ($row === false) {
+            if ($row === false || $row === null) {
                 continue;
             }
             $isBlank = count($row) === 1 && ($row[0] === null || $row[0] === '');
@@ -469,8 +487,8 @@ abstract class DialectAbstract
 
     /**
      * Normalize JSON path input
-     * @param array|string $path
-     * @return array
+     * @param array<int, string|int>|string $path
+     * @return array<int, string|int>
      */
     protected function normalizeJsonPath(array|string $path): array
     {
@@ -499,8 +517,8 @@ abstract class DialectAbstract
 
     /**
      * Resolve array of values (handle RawValue instances)
-     * @param array $values
-     * @return array
+     * @param array<int, string|int|float|RawValue> $values
+     * @return array<int, string|int|float>
      */
     protected function resolveValues(array $values): array
     {
@@ -528,7 +546,7 @@ abstract class DialectAbstract
     /**
      * Format GREATEST expression (default implementation)
      * Override in specific dialects if needed (e.g., SQLite uses MAX)
-     * @param array $values
+     * @param array<int, string|int|float|RawValue> $values
      * @return string
      */
     public function formatGreatest(array $values): string
@@ -540,7 +558,7 @@ abstract class DialectAbstract
     /**
      * Format LEAST expression (default implementation)
      * Override in specific dialects if needed (e.g., SQLite uses MIN)
-     * @param array $values
+     * @param array<int, string|int|float|RawValue> $values
      * @return string
      */
     public function formatLeast(array $values): string

@@ -7,8 +7,12 @@ namespace tommyknocker\pdodb\helpers;
  */
 class ConcatValue extends RawValue
 {
+    /** @var array<int, string|int|float|RawValue> Values to concatenate */
     protected array $values;
 
+    /**
+     * @param array<int, string|int|float|RawValue> $values
+     */
     public function __construct(array $values)
     {
         // Initialize parent with empty value - will be handled by dialect
@@ -19,7 +23,7 @@ class ConcatValue extends RawValue
     /**
      * Returns the array of values to be concatenated.
      *
-     * @return array The array of values.
+     * @return array<int, string|int|float|RawValue> The array of values.
      */
     public function getValues(): array
     {

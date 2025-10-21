@@ -85,12 +85,13 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
             if (str_starts_with($u, 'RETURNING')) {
                 $tail[] = $opt;
             } elseif (str_starts_with($u, 'ONLY')) {
-                $sql = preg_replace(
+                $result = preg_replace(
                     '/^INSERT INTO\s+' . preg_quote($table, '/') . '/i',
                     'INSERT INTO ONLY ' . $table,
                     $sql,
                     1
                 );
+                $sql = $result !== null ? $result : $sql;
             } elseif (str_starts_with($u, 'OVERRIDING')) {
                 // insert before VALUES
                 $beforeValues[] = $opt;
@@ -104,7 +105,8 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         }
 
         if (!empty($beforeValues)) {
-            $sql = preg_replace('/\)\s+VALUES\s+/i', ') ' . implode(' ', $beforeValues) . ' VALUES ', $sql, 1);
+            $result = preg_replace('/\)\s+VALUES\s+/i', ') ' . implode(' ', $beforeValues) . ' VALUES ', $sql, 1);
+            $sql = $result !== null ? $result : $sql;
         }
 
         if (!empty($tail)) {
@@ -116,6 +118,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     * @param array<string, mixed> $options
      */
     public function formatSelectOptions(string $sql, array $options): string
     {
@@ -147,7 +150,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
 
         if ($isAssoc) {
             foreach ($updateColumns as $col => $expr) {
-                $colSql = $this->quoteIdentifier($col);
+                $colSql = $this->quoteIdentifier((string)$col);
 
                 if ($expr instanceof RawValue) {
                     $parts[] = "{$colSql} = {$expr->getValue()}";
@@ -165,11 +168,11 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
                     continue;
                 }
 
-                $quotedCol = $this->quoteIdentifier($col); // e.g. "age"
+                $quotedCol = $this->quoteIdentifier((string)$col); // e.g. "age"
                 $replacement = 'EXCLUDED.' . $quotedCol;   // EXCLUDED."age"
 
                 $safeExpr = preg_replace_callback(
-                    '/\b' . preg_quote($col, '/') . '\b/i',
+                    '/\b' . preg_quote((string)$col, '/') . '\b/i',
                     function ($m) use ($exprStr, $replacement) {
                         $pos = strpos($exprStr, $m[0]);
                         if ($pos === false) {
@@ -197,6 +200,8 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     * @param array<int, string> $columns
+     * @param array<int, string|array<int, string>> $placeholders
      */
     public function buildReplaceSql(
         string $table,
@@ -214,7 +219,8 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
             $rows = [];
             foreach ($placeholders as $ph) {
                 // if the element already has outer parentheses — keep it, otherwise wrap it
-                $phTrim = trim($ph);
+                $phStr = is_array($ph) ? implode(',', $ph) : $ph;
+                $phTrim = trim($phStr);
                 if (str_starts_with($phTrim, '(') && str_ends_with($phTrim, ')')) {
                     $rows[] = $phTrim;
                 } else {
@@ -224,7 +230,8 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
             $valsSql = implode(',', $rows);
         } else {
             // single insert: ensure parentheses around the list
-            $phList = implode(',', $placeholders);
+            $stringPlaceholders = array_map(fn($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
+            $phList = implode(',', $stringPlaceholders);
             $valsSql = '(' . $phList . ')';
         }
 
@@ -390,8 +397,9 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     * @param string|int $p
      */
-    protected function connectionQuoteParamOrLiteral($p): string
+    protected function connectionQuoteParamOrLiteral(string|int $p): string
     {
         // numeric index should be unquoted integer in array
         if (preg_match('/^\d+$/', (string)$p)) {

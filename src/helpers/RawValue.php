@@ -8,14 +8,17 @@ namespace tommyknocker\pdodb\helpers;
  */
 class RawValue
 {
+    /** @var string Raw SQL expression */
     protected string $value;
+    
+    /** @var array<int|string, string|int|float|bool|null> Parameters for prepared statements */
     protected array $params = [];
 
     /**
      * Constructor
      *
      * @param string $value The raw SQL value.
-     * @param array $params Optional parameters for prepared statements.
+     * @param array<int|string, string|int|float|bool|null> $params Optional parameters for prepared statements.
      */
     public function __construct(string $value, array $params = [])
     {
@@ -36,7 +39,7 @@ class RawValue
     /**
      * Get the parameters for prepared statements.
      *
-     * @return array The parameters.
+     * @return array<int|string, string|int|float|bool|null> The parameters.
      */
     public function getParams(): array
     {

@@ -8,7 +8,10 @@ namespace tommyknocker\pdodb\helpers;
  */
 class ModValue extends RawValue
 {
+    /** @var string|RawValue Dividend value */
     protected string|RawValue $dividend;
+    
+    /** @var string|RawValue Divisor value */
     protected string|RawValue $divisor;
 
     public function __construct(string|RawValue $dividend, string|RawValue $divisor)
