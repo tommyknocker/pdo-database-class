@@ -1851,18 +1851,33 @@ final class PdoDbPostgreSQLTest extends TestCase
         $tmpFile = sys_get_temp_dir() . '/users.csv';
         file_put_contents($tmpFile, "4,Dave,new,30\n5,Eve,new,40\n");
 
-        try {
-            $ok = $db->find()->table('users')->loadCsv($tmpFile, [
-                'fieldChar' => ',',
-                'fields' => ['id', 'name', 'status', 'age'],
-                'header' => false
-            ]);
-        } catch (\PDOException $e) {
-            $this->markTestSkipped(
-                'PostgreSQL COPY FROM requires file access from database server. ' .
-                'In Docker/CI environments, the file is on the host but PostgreSQL runs in container. ' .
-                'This is a known limitation. Error: ' . $e->getMessage()
-            );
+        $ok = $db->find()->table('users')->loadCsv($tmpFile, [
+            'fieldChar' => ',',
+            'fields' => ['id', 'name', 'status', 'age'],
+            'header' => false
+        ]);
+        
+        // Check if loadCsv failed due to Docker/CI file access limitations
+        if (!$ok) {
+            $lastError = $db->lastError;
+            $lastErrno = $db->lastErrNo;
+            
+            // PostgreSQL error codes for file access issues:
+            // 58P01 - could not open file
+            // Check if it's the expected COPY permission/access issue
+            if ($lastError !== null && 
+                (str_contains($lastError, 'COPY') || 
+                 str_contains($lastError, 'could not open file') ||
+                 str_contains($lastError, 'No such file') ||
+                 $lastErrno === 58 || // PostgreSQL file access error class
+                 str_contains($lastError, 'must be superuser') ||
+                 str_contains($lastError, 'permission denied'))) {
+                $this->markTestSkipped(
+                    'PostgreSQL COPY FROM requires file access from database server. ' .
+                    'In Docker/CI environments, the file is on the host but PostgreSQL runs in container. ' .
+                    'This is a known limitation. Error: ' . $lastError
+                );
+            }
         }
 
         $this->assertTrue($ok, 'loadData() returned false');
