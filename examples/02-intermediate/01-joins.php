@@ -88,7 +88,7 @@ $results = $db->find()
         'order_count' => Db::count('DISTINCT o.id'),
         'review_count' => Db::count('DISTINCT r.id')
     ])
-    ->groupBy('u.id')
+    ->groupBy('users.id')
     ->get();
 
 echo "  User activity summary:\n";
@@ -106,7 +106,7 @@ $results = $db->find()
         'u.name',
         'total_spent' => Db::coalesce(Db::sum('o.amount'), '0')
     ])
-    ->groupBy('u.id')
+    ->groupBy('users.id')
     ->orderBy('total_spent', 'DESC')
     ->get();
 
@@ -128,7 +128,7 @@ $results = $db->find()
         'total' => Db::sum('o.amount')
     ])
     ->where('u.city', 'NYC')
-    ->groupBy('u.id')
+    ->groupBy('users.id')
     ->having(Db::sum('o.amount'), 500, '>')
     ->get();
 

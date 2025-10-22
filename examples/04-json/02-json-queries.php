@@ -17,14 +17,12 @@ $driver = getCurrentDriver($db);
 echo "=== JSON Queries Example (on $driver) ===\n\n";
 
 // Setup
-$db->rawQuery("
-    CREATE TABLE products (
-        id INTEGER PRIMARY KEY,
-        name TEXT,
-        specs TEXT,  -- JSON: {cpu: '...', ram: 16, storage: {...}}
-        tags TEXT    -- JSON: ['laptop', 'gaming', ...]
-    )
-");
+recreateTable($db, 'products', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'name' => 'TEXT',
+    'specs' => 'TEXT',
+    'tags' => 'TEXT'
+]);
 
 echo "1. Inserting products with nested JSON...\n";
 $db->find()->table('products')->insertMulti([

@@ -17,14 +17,12 @@ $driver = getCurrentDriver($db);
 echo "=== JSON Basics Example (on $driver) ===\n\n";
 
 // Create table
-$db->rawQuery("
-    CREATE TABLE users (
-        id INTEGER PRIMARY KEY,
-        name TEXT,
-        settings TEXT,  -- JSON column
-        tags TEXT       -- JSON array
-    )
-");
+recreateTable($db, 'users', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'name' => 'TEXT',
+    'settings' => 'TEXT',
+    'tags' => 'TEXT'
+]);
 
 echo "✓ Table created\n\n";
 
