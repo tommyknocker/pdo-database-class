@@ -220,7 +220,7 @@ echo "6. Price range distribution:\n";
 $priceRanges = $db->find()
     ->from('products')
     ->select([
-        'range' => Db::raw("CASE 
+        'price_range' => Db::raw("CASE 
             WHEN price < 100 THEN 'Under $100'
             WHEN price < 500 THEN '$100-$500'
             WHEN price < 1000 THEN '$500-$1000'
@@ -243,7 +243,7 @@ $priceRanges = $db->find()
 echo "  Price ranges:\n";
 foreach ($priceRanges as $range) {
     $avgRating = number_format($range['avg_rating'], 2);
-    echo "  • {$range['range']}: {$range['count']} products, ⭐{$avgRating}\n";
+    echo "  • {$range['price_range']}: {$range['count']} products, ⭐{$avgRating}\n";
 }
 echo "\n";
 
@@ -308,9 +308,9 @@ $term = '%so%';
 $suggestions = $db->rawQuery(
     "SELECT name AS suggestion, 'product' AS type, category 
      FROM products 
-     WHERE LOWER(name) LIKE :term OR LOWER(brand) LIKE :term 
+     WHERE LOWER(name) LIKE :term1 OR LOWER(brand) LIKE :term2 
      LIMIT 5",
-    ['term' => $term]
+    ['term1' => $term, 'term2' => $term]
 );
 
 echo "  Suggestions:\n";

@@ -163,9 +163,9 @@ $history = $db->find()
         'from_name' => 'af.name',
         'to_name' => 'at.name',
         't.amount',
-        't.created_at'
+        'created_at' => 't.created_at'
     ])
-    ->orderBy('t.id')
+    ->orderBy('created_at')
     ->get();
 
 foreach ($history as $t) {

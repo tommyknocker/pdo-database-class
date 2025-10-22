@@ -107,19 +107,20 @@ $db->find()->table('events')->insert([
     'event_time' => Db::curTime()
 ]);
 
+$driver = getCurrentDriver($db);
 $autoEvent = $db->find()
     ->from('events')
     ->select([
         'title',
-        'current_date' => Db::curDate(),
-        'current_time' => Db::curTime()
+        'cur_date' => Db::raw($driver === 'mysql' ? 'CURDATE()' : ($driver === 'pgsql' ? 'CURRENT_DATE' : "DATE('now')")),
+        'cur_time' => Db::raw($driver === 'mysql' ? 'CURTIME()' : ($driver === 'pgsql' ? 'CURRENT_TIME' : "TIME('now')"))
     ])
     ->where('title', 'Auto Event')
     ->getOne();
 
 echo "  • Event: {$autoEvent['title']}\n";
-echo "  • Current date: {$autoEvent['current_date']}\n";
-echo "  • Current time: {$autoEvent['current_time']}\n\n";
+echo "  • Current date: {$autoEvent['cur_date']}\n";
+echo "  • Current time: {$autoEvent['cur_time']}\n\n";
 
 // Example 7: Group by month
 echo "7. Grouping events by month...\n";

@@ -1470,6 +1470,50 @@ final class PdoDbPostgreSQLTest extends TestCase
         $this->assertEquals(1, $map['Y']);
     }
 
+    public function testGroupByWithQualifiedNames(): void
+    {
+        $db = self::$db;
+
+        // Setup test data
+        $db->find()->table('users')->insertMulti([
+            ['name' => 'GQAlice', 'age' => 30],
+            ['name' => 'GQBob', 'age' => 25],
+            ['name' => 'GQCarol', 'age' => 30]
+        ]);
+
+        $u1 = $db->find()->from('users')->where('name', 'GQAlice')->getOne()['id'];
+        $u2 = $db->find()->from('users')->where('name', 'GQBob')->getOne()['id'];
+        $u3 = $db->find()->from('users')->where('name', 'GQCarol')->getOne()['id'];
+
+        $db->find()->table('orders')->insertMulti([
+            ['user_id' => $u1, 'amount' => 100.00],
+            ['user_id' => $u1, 'amount' => 200.00],
+            ['user_id' => $u2, 'amount' => 150.00],
+            ['user_id' => $u3, 'amount' => 300.00]
+        ]);
+
+        // Test groupBy with qualified column names (table.column)
+        // This should work WITHOUT Db::raw() wrapping
+        $results = $db->find()
+            ->from('users AS u')
+            ->leftJoin('orders AS o', 'o.user_id = u.id')
+            ->select([
+                'u.name',
+                'total' => Db::sum('o.amount')
+            ])
+            ->groupBy(['u.id', 'u.name'])
+            ->orderBy('u.id')
+            ->get();
+
+        $this->assertCount(3, $results);
+        $this->assertEquals('GQAlice', $results[0]['name']);
+        $this->assertEquals(300.00, (float)$results[0]['total']);
+        $this->assertEquals('GQBob', $results[1]['name']);
+        $this->assertEquals(150.00, (float)$results[1]['total']);
+        $this->assertEquals('GQCarol', $results[2]['name']);
+        $this->assertEquals(300.00, (float)$results[2]['total']);
+    }
+
     public function testTransaction(): void
     {
         $db = self::$db;

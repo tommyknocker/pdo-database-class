@@ -626,7 +626,7 @@ class QueryBuilder implements QueryBuilderInterface
         } elseif (preg_match('/^[a-z0-9]+\s+(ASC|DESC)/iu', $expr)) {
             $this->order[] = $expr;
         } else {
-            $this->order[] = $this->dialect->quoteIdentifier($expr) . ' ' . $dir;
+            $this->order[] = $this->quoteQualifiedIdentifier($expr) . ' ' . $dir;
         }
 
         return $this;
@@ -648,7 +648,7 @@ class QueryBuilder implements QueryBuilderInterface
             if ($col instanceof RawValue) {
                 $groups[] = $this->resolveRawValue($col);
             } else {
-                $groups[] = $this->dialect->quoteIdentifier((string)$col);
+                $groups[] = $this->quoteQualifiedIdentifier((string)$col);
             }
         }
         $this->group = implode(', ', $groups);

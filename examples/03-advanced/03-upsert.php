@@ -59,7 +59,7 @@ echo "3. UPSERT with multiple field updates...\n";
 $db->find()->table('user_stats')
     ->onDuplicate([
         'login_count' => Db::raw('login_count + 1'),
-        'total_points' => Db::raw('total_points + :points', ['points' => 100])
+        'total_points' => Db::raw('total_points + 100')
     ])
     ->insert([
         'user_id' => 1,

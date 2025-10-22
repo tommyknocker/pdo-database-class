@@ -84,11 +84,12 @@ $results = $db->find()
     ->leftJoin('orders AS o', 'o.user_id = u.id')
     ->leftJoin('reviews AS r', 'r.user_id = u.id')
     ->select([
+        'u.id',
         'u.name',
         'order_count' => Db::count('DISTINCT o.id'),
         'review_count' => Db::count('DISTINCT r.id')
     ])
-    ->groupBy('users.id')
+    ->groupBy(['u.id', 'u.name'])
     ->get();
 
 echo "  User activity summary:\n";
@@ -106,7 +107,7 @@ $results = $db->find()
         'u.name',
         'total_spent' => Db::coalesce(Db::sum('o.amount'), '0')
     ])
-    ->groupBy('users.id')
+    ->groupBy(['u.id', 'u.name'])
     ->orderBy('total_spent', 'DESC')
     ->get();
 
@@ -128,7 +129,7 @@ $results = $db->find()
         'total' => Db::sum('o.amount')
     ])
     ->where('u.city', 'NYC')
-    ->groupBy('users.id')
+    ->groupBy(['u.id', 'u.name', 'u.city'])
     ->having(Db::sum('o.amount'), 500, '>')
     ->get();
 

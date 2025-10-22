@@ -163,7 +163,7 @@ $storageUsage = $db->find()
         'total_size_kb' => Db::sum('d.size_kb'),
         'avg_size_kb' => Db::avg('d.size_kb')
     ])
-    ->groupBy('t.id')
+    ->groupBy(['d.tenant_id', 't.name', 't.max_storage_mb'])
     ->orderBy(Db::sum('d.size_kb'), 'DESC')
     ->get();
 
@@ -224,7 +224,7 @@ $apiStats = $db->find()
         'total_requests' => Db::sum('a.requests_count'),
         'endpoints_count' => Db::count('DISTINCT a.endpoint')
     ])
-    ->groupBy('a.tenant_id')
+    ->groupBy(['a.tenant_id', 't.name', 't.plan'])
     ->orderBy(Db::sum('a.requests_count'), 'DESC')
     ->get();
 
@@ -311,7 +311,7 @@ $mostActive = $db->find()
         'total_size_kb' => Db::sum('d.size_kb'),
         'public_docs' => Db::sum(Db::case(['d.is_public = 1' => '1'], '0'))
     ])
-    ->groupBy('d.tenant_id')
+    ->groupBy(['d.tenant_id', 't.name'])
     ->orderBy(Db::count(), 'DESC')
     ->limit(1)
     ->getOne();
