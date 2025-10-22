@@ -838,6 +838,43 @@ class QueryBuilder implements QueryBuilderInterface
         return ['sql' => $sql, 'params' => $params];
     }
 
+    /**
+     * Execute EXPLAIN query to analyze query execution plan
+     * @return array<int, array<string, mixed>>
+     * @throws PDOException
+     */
+    public function explain(): array
+    {
+        $sql = $this->buildSelectSql();
+        $explainSql = $this->dialect->buildExplainSql($sql);
+        return $this->fetchAll($explainSql, $this->params);
+    }
+
+    /**
+     * Execute EXPLAIN ANALYZE query (PostgreSQL) or EXPLAIN FORMAT=JSON (MySQL)
+     * @return array<int, array<string, mixed>>
+     * @throws PDOException
+     */
+    public function explainAnalyze(): array
+    {
+        $sql = $this->buildSelectSql();
+        $explainSql = $this->dialect->buildExplainAnalyzeSql($sql);
+        return $this->fetchAll($explainSql, $this->params);
+    }
+
+    /**
+     * Execute DESCRIBE query to get table structure
+     * @return array<int, array<string, mixed>>
+     * @throws PDOException
+     */
+    public function describe(): array
+    {
+        $tableName = $this->table; // Use getter to ensure not null
+        assert(is_string($tableName)); // PHPStan assertion
+        $describeSql = $this->dialect->buildDescribeSql($tableName);
+        return $this->fetchAll($describeSql);
+    }
+
 
     /* ---------------- Execution primitives (pass-through helpers) ---------------- */
 

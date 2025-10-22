@@ -241,6 +241,15 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function buildExplainAnalyzeSql(string $query): string
+    {
+        // MySQL 8.0+ supports EXPLAIN ANALYZE with JSON format
+        return "EXPLAIN FORMAT=JSON " . $query;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildTableExistsSql(string $table): string
     {
         return "SHOW TABLES LIKE '{$table}'";
@@ -249,7 +258,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function buildDescribeTableSql(string $table): string
+    public function buildDescribeSql(string $table): string
     {
         return "DESCRIBE {$table}";
     }

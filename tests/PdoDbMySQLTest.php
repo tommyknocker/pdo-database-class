@@ -3670,4 +3670,66 @@ XML
         $this->assertEquals(2, $results[0]['order_count']);
         $this->assertEquals(1, $results[1]['order_count']);
     }
+
+    /**
+     * Test query analysis methods: explain(), explainAnalyze(), describe()
+     */
+    public function testQueryAnalysisMethods(): void
+    {
+        // Clean up first
+        self::$db->find()->table('orders')->delete();
+        self::$db->find()->table('users')->delete();
+
+        // Insert test data
+        self::$db->find()->table('users')->insertMulti([
+            ['name' => 'Alice', 'age' => 25],
+            ['name' => 'Bob', 'age' => 30],
+        ]);
+
+        self::$db->find()->table('orders')->insertMulti([
+            ['user_id' => 1, 'amount' => 99.99],
+            ['user_id' => 2, 'amount' => 199.99],
+        ]);
+
+        // Test explain()
+        $explainResult = self::$db->find()
+            ->table('users')
+            ->where('age', 25, '>')
+            ->explain();
+
+        $this->assertIsArray($explainResult);
+        $this->assertNotEmpty($explainResult);
+        $this->assertArrayHasKey('id', $explainResult[0]);
+        $this->assertArrayHasKey('select_type', $explainResult[0]);
+        $this->assertArrayHasKey('table', $explainResult[0]);
+
+        // Test explainAnalyze() - MySQL uses FORMAT=JSON
+        $explainAnalyzeResult = self::$db->find()
+            ->table('users')
+            ->where('age', 25, '>')
+            ->explainAnalyze();
+
+        $this->assertIsArray($explainAnalyzeResult);
+        $this->assertNotEmpty($explainAnalyzeResult);
+
+        // Test describe()
+        $describeResult = self::$db->find()
+            ->table('users')
+            ->describe();
+
+        $this->assertIsArray($describeResult);
+        $this->assertNotEmpty($describeResult);
+        $this->assertArrayHasKey('Field', $describeResult[0]);
+        $this->assertArrayHasKey('Type', $describeResult[0]);
+        $this->assertArrayHasKey('Null', $describeResult[0]);
+        $this->assertArrayHasKey('Key', $describeResult[0]);
+        $this->assertArrayHasKey('Default', $describeResult[0]);
+        $this->assertArrayHasKey('Extra', $describeResult[0]);
+
+        // Verify we have expected columns
+        $fieldNames = array_column($describeResult, 'Field');
+        $this->assertContains('id', $fieldNames);
+        $this->assertContains('name', $fieldNames);
+        $this->assertContains('age', $fieldNames);
+    }
 }

@@ -349,6 +349,14 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function buildExplainAnalyzeSql(string $query): string
+    {
+        return "EXPLAIN ANALYZE " . $query;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildTableExistsSql(string $table): string
     {
         return "SELECT to_regclass('{$table}') IS NOT NULL AS exists";
@@ -357,7 +365,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function buildDescribeTableSql(string $table): string
+    public function buildDescribeSql(string $table): string
     {
         return "SELECT column_name, data_type, is_nullable, column_default
                 FROM information_schema.columns

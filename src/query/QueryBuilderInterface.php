@@ -333,6 +333,21 @@ interface QueryBuilderInterface
      * @return array{sql: string, params: array<string, string|int|float|bool|null>}
      */
     public function toSQL(): array;
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function explain(): array;
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function explainAnalyze(): array;
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function describe(): array;
     
 
     // Execution primitives (pass-through helpers)

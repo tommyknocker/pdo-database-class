@@ -312,7 +312,7 @@ class PdoDb
      */
     public function describe(string $table): array
     {
-        $sql = $this->getConn()->getDialect()->buildDescribeTableSql($this->prefix . $table);
+        $sql = $this->getConn()->getDialect()->buildDescribeSql($this->prefix . $table);
         return $this->rawQuery($sql);
     }
 

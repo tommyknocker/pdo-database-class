@@ -253,6 +253,14 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function buildExplainAnalyzeSql(string $query): string
+    {
+        return "EXPLAIN QUERY PLAN " . $query;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildTableExistsSql(string $table): string
     {
         return "SELECT name FROM sqlite_master WHERE type='table' AND name='{$table}'";
@@ -261,7 +269,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function buildDescribeTableSql(string $table): string
+    public function buildDescribeSql(string $table): string
     {
         return "PRAGMA table_info({$table})";
     }

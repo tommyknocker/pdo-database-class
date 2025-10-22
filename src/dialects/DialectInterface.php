@@ -320,6 +320,13 @@ interface DialectInterface
     public function buildExplainSql(string $query, bool $analyze = false): string;
 
     /**
+     * EXPLAIN ANALYZE syntax (PostgreSQL) or EXPLAIN FORMAT=JSON (MySQL)
+     * @param string $query
+     * @return string
+     */
+    public function buildExplainAnalyzeSql(string $query): string;
+
+    /**
      * EXISTS syntax
      * @param string $table
      * @return string
@@ -331,7 +338,7 @@ interface DialectInterface
      * @param string $table
      * @return string
      */
-    public function buildDescribeTableSql(string $table): string;
+    public function buildDescribeSql(string $table): string;
 
     /**
      * LOCK syntax

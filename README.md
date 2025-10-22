@@ -38,6 +38,11 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - [Filtering and Joining](#filtering-and-joining)
   - [Bulk Operations](#bulk-operations)
   - [Transactions](#transactions)
+- [Query Analysis](#query-analysis)
+  - [Execution Plan Analysis](#execution-plan-analysis)
+  - [Table Structure Analysis](#table-structure-analysis)
+  - [SQL Generation](#sql-generation)
+  - [Performance Optimization Example](#performance-optimization-example)
 - [JSON Operations](#json-operations)
   - [Creating JSON Data](#creating-json-data)
   - [Querying JSON](#querying-json)
@@ -117,6 +122,7 @@ Comprehensive, runnable examples are available in the [`examples/`](examples/) d
 - **[JSON Operations](examples/04-json/)** - Complete guide to JSON features
 - **[Helper Functions](examples/05-helpers/)** - String, math, date/time helpers
 - **[Real-World](examples/06-real-world/)** - Blog system, user auth, search, multi-tenant
+- **[README Examples](examples/07-readme-examples/)** - Examples extracted from this README
 
 Each example is self-contained with setup instructions. See [`examples/README.md`](examples/README.md) for the full catalog.
 
@@ -444,6 +450,99 @@ try {
 } finally {
     $db->unlock();
 }
+```
+
+---
+
+## Query Analysis
+
+PDOdb provides methods to analyze query execution plans and table structures across all supported databases.
+
+### Execution Plan Analysis
+
+#### Basic EXPLAIN
+
+```php
+// Analyze query execution plan
+$plan = $db->find()
+    ->table('users')
+    ->where('age', 25, '>')
+    ->orderBy('created_at', 'DESC')
+    ->explain();
+
+// Returns dialect-specific execution plan
+// MySQL: id, select_type, table, type, possible_keys, key, key_len, ref, rows, Extra
+// PostgreSQL: QUERY PLAN column with execution details
+// SQLite: addr, opcode, p1, p2, p3, p4, p5, comment
+```
+
+#### Detailed Analysis with EXPLAIN ANALYZE
+
+```php
+// Get detailed execution statistics
+$analysis = $db->find()
+    ->table('users')
+    ->join('orders', 'users.id = orders.user_id')
+    ->where('users.age', 25, '>')
+    ->explainAnalyze();
+
+// Returns:
+// - PostgreSQL: EXPLAIN ANALYZE with actual execution times
+// - MySQL: EXPLAIN FORMAT=JSON with detailed cost analysis
+// - SQLite: EXPLAIN QUERY PLAN with query optimization details
+```
+
+### Table Structure Analysis
+
+```php
+// Get table structure information
+$structure = $db->find()
+    ->table('users')
+    ->describe();
+
+// Returns dialect-specific column information:
+// MySQL: Field, Type, Null, Key, Default, Extra
+// PostgreSQL: column_name, data_type, is_nullable, column_default
+// SQLite: cid, name, type, notnull, dflt_value, pk
+```
+
+### SQL Generation
+
+```php
+// Get SQL query and parameters without execution
+$query = $db->find()
+    ->table('users')
+    ->where('age', 25, '>')
+    ->where('status', 'active')
+    ->toSQL();
+
+echo $query['sql'];    // "SELECT * FROM users WHERE age > :age AND status = :status"
+print_r($query['params']); // ['age' => 25, 'status' => 'active']
+```
+
+### Performance Optimization Example
+
+```php
+// Analyze a complex query
+$complexQuery = $db->find()
+    ->table('users')
+    ->join('orders', 'users.id = orders.user_id')
+    ->join('products', 'orders.product_id = products.id')
+    ->where('users.created_at', '2023-01-01', '>')
+    ->where('orders.status', 'completed')
+    ->groupBy('users.id')
+    ->having('COUNT(orders.id)', 5, '>')
+    ->orderBy('users.created_at', 'DESC');
+
+// Get execution plan
+$plan = $complexQuery->explain();
+
+// Get detailed analysis
+$analysis = $complexQuery->explainAnalyze();
+
+// Check table structures
+$usersStructure = $db->find()->table('users')->describe();
+$ordersStructure = $db->find()->table('orders')->describe();
 ```
 
 ---
@@ -1120,6 +1219,15 @@ Db::jsonType('tags')                        // Value type
 | `exists()` | Check if any rows match conditions |
 | `notExists()` | Check if no rows match conditions |
 | `tableExists(string)` | Check if table exists |
+
+#### Query Analysis
+
+| Method | Description |
+|--------|-------------|
+| `explain()` | Execute EXPLAIN query to analyze execution plan |
+| `explainAnalyze()` | Execute EXPLAIN ANALYZE (PostgreSQL) or EXPLAIN FORMAT=JSON (MySQL) |
+| `describe()` | Execute DESCRIBE to get table structure |
+| `toSQL()` | Convert query to SQL string and parameters |
 
 #### JSON Operations
 
