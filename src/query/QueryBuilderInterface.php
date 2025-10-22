@@ -53,7 +53,7 @@ interface QueryBuilderInterface
 
     // Select / projection
     /**
-     * @param RawValue|string|array<int|string, string|RawValue> $cols
+     * @param RawValue|string|array<int|string, string|RawValue|callable> $cols
      * @return self
      */
     public function select(RawValue|string|array $cols): self;
@@ -153,6 +153,47 @@ interface QueryBuilderInterface
      * @return self
      */
     public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
+
+    // New Query Builder methods
+    /**
+     * @param string $column
+     * @param callable $subquery
+     * @return self
+     */
+    public function whereIn(string $column, callable $subquery): self;
+
+    /**
+     * @param string $column
+     * @param callable $subquery
+     * @return self
+     */
+    public function whereNotIn(string $column, callable $subquery): self;
+
+    /**
+     * @param callable $subquery
+     * @return self
+     */
+    public function whereExists(callable $subquery): self;
+
+    /**
+     * @param callable $subquery
+     * @return self
+     */
+    public function whereNotExists(callable $subquery): self;
+
+    /**
+     * @param string $sql
+     * @param array<string, mixed> $params
+     * @return self
+     */
+    public function whereRaw(string $sql, array $params = []): self;
+
+    /**
+     * @param string $sql
+     * @param array<string, mixed> $params
+     * @return self
+     */
+    public function havingRaw(string $sql, array $params = []): self;
 
     // Existence helpers
     /**
@@ -287,11 +328,12 @@ interface QueryBuilderInterface
      */
     public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): self;
 
-    // Compile / introspect
+    // Introspect
     /**
      * @return array{sql: string, params: array<string, string|int|float|bool|null>}
      */
-    public function compile(): array;
+    public function toSQL(): array;
+    
 
     // Execution primitives (pass-through helpers)
     /**

@@ -188,7 +188,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Adds columns to the SELECT clause.
      *
-     * @param RawValue|string|array<int|string, string|RawValue> $cols The columns to add.
+     * @param RawValue|string|array<int|string, string|RawValue|callable> $cols The columns to add.
      * @return self The current instance.
      */
     public function select(RawValue|string|array $cols): self
@@ -201,6 +201,14 @@ class QueryBuilder implements QueryBuilderInterface
                 $this->select[] = $this->resolveRawValue($col) . ' AS ' . $index;
             } elseif ($col instanceof RawValue) {
                 $this->select[] = $this->resolveRawValue($col);
+            } elseif (is_callable($col)) {
+                // Handle callback for subqueries
+                $subQuery = new self($this->connection, $this->prefix ?? '');
+                $col($subQuery);
+                $sub = $subQuery->toSQL();
+                $map = $this->mergeSubParams($sub['params'], 'sq');
+                $subSql = $this->replacePlaceholdersInSql($sub['sql'], $map);
+                $this->select[] = is_string($index) ? "({$subSql}) AS {$index}" : "({$subSql})";
             } elseif (is_string($index)) { // ['total' => 'SUM(amount)] Treat it as SUM(amount) AS total
                 $this->select[] = $col . ' AS ' . $index;
             } else {
@@ -492,6 +500,98 @@ class QueryBuilder implements QueryBuilderInterface
         return $this->addCondition('having', $exprOrColumn, $value, $operator, 'OR');
     }
 
+    /**
+     * Add WHERE IN clause with subquery
+     *
+     * @param string $column The column to check
+     * @param callable $subquery The subquery callback
+     * @return self The current instance
+     */
+    public function whereIn(string $column, callable $subquery): self
+    {
+        return $this->where($column, $subquery, 'IN');
+    }
+
+    /**
+     * Add WHERE NOT IN clause with subquery
+     *
+     * @param string $column The column to check
+     * @param callable $subquery The subquery callback
+     * @return self The current instance
+     */
+    public function whereNotIn(string $column, callable $subquery): self
+    {
+        return $this->where($column, $subquery, 'NOT IN');
+    }
+
+    /**
+     * Add WHERE EXISTS clause
+     *
+     * @param callable $subquery The subquery callback
+     * @return self The current instance
+     */
+    public function whereExists(callable $subquery): self
+    {
+        $subQuery = new self($this->connection, $this->prefix ?? '');
+        $subquery($subQuery);
+        $sub = $subQuery->toSQL();
+        $map = $this->mergeSubParams($sub['params'], 'sq');
+        $subSql = $this->replacePlaceholdersInSql($sub['sql'], $map);
+        $this->where[] = ['sql' => "EXISTS ({$subSql})", 'cond' => 'AND'];
+        return $this;
+    }
+
+    /**
+     * Add WHERE NOT EXISTS clause
+     *
+     * @param callable $subquery The subquery callback
+     * @return self The current instance
+     */
+    public function whereNotExists(callable $subquery): self
+    {
+        $subQuery = new self($this->connection, $this->prefix ?? '');
+        $subquery($subQuery);
+        $sub = $subQuery->toSQL();
+        $map = $this->mergeSubParams($sub['params'], 'sq');
+        $subSql = $this->replacePlaceholdersInSql($sub['sql'], $map);
+        $this->where[] = ['sql' => "NOT EXISTS ({$subSql})", 'cond' => 'AND'];
+        return $this;
+    }
+
+    /**
+     * Add raw WHERE clause
+     *
+     * @param string $sql The raw SQL condition
+     * @param array<string, mixed> $params The parameters for the condition
+     * @return self The current instance
+     */
+    public function whereRaw(string $sql, array $params = []): self
+    {
+        foreach ($params as $key => $value) {
+            $placeholder = str_starts_with($key, ':') ? $key : ':' . $key;
+            $this->params[$placeholder] = $value;
+        }
+        $this->where[] = ['sql' => $sql, 'cond' => 'AND'];
+        return $this;
+    }
+
+    /**
+     * Add raw HAVING clause
+     *
+     * @param string $sql The raw SQL condition
+     * @param array<string, mixed> $params The parameters for the condition
+     * @return self The current instance
+     */
+    public function havingRaw(string $sql, array $params = []): self
+    {
+        foreach ($params as $key => $value) {
+            $placeholder = str_starts_with($key, ':') ? $key : ':' . $key;
+            $this->params[$placeholder] = $value;
+        }
+        $this->having[] = ['sql' => $sql, 'cond' => 'AND'];
+        return $this;
+    }
+
     /* ---------------- Existence helpers ---------------- */
 
     /**
@@ -725,18 +825,19 @@ class QueryBuilder implements QueryBuilderInterface
         return $this;
     }
 
-    /* ---------------- Compile / introspect ---------------- */
+    /* ---------------- Introspect ---------------- */
 
     /**
-     * Compile query
+     * Convert query to SQL string and parameters
      * @return array{sql: string, params: array<string, string|int|float|bool|null>}
      */
-    public function compile(): array
+    public function toSQL(): array
     {
         $sql = $this->buildSelectSql();
         $params = $this->params ?? [];
         return ['sql' => $sql, 'params' => $params];
     }
+
 
     /* ---------------- Execution primitives (pass-through helpers) ---------------- */
 
@@ -1021,7 +1122,13 @@ class QueryBuilder implements QueryBuilderInterface
         if (empty($this->select)) {
             $select = '*';
         } else {
-            $select = implode(', ', array_map(fn($value) => $this->quoteQualifiedIdentifier($value), $this->select));
+            $select = implode(', ', array_map(function($value) {
+                // Check if it's already a compiled subquery (starts with '(')
+                if (str_starts_with($value, '(')) {
+                    return $value;
+                }
+                return $this->quoteQualifiedIdentifier($value);
+            }, $this->select));
         }
 
         $from = $this->normalizeTable();
@@ -1291,7 +1398,18 @@ class QueryBuilder implements QueryBuilderInterface
 
         // subquery handling
         if ($value instanceof self) {
-            $sub = $value->compile();
+            $sub = $value->toSQL();
+            $map = $this->mergeSubParams($sub['params'], 'sq');
+            $subSql = $this->replacePlaceholdersInSql($sub['sql'], $map);
+            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} ({$subSql})", 'cond' => $cond];
+            return $this;
+        }
+
+        // callback handling for subqueries
+        if (is_callable($value)) {
+            $subQuery = new self($this->connection, $this->prefix ?? '');
+            $value($subQuery);
+            $sub = $subQuery->toSQL();
             $map = $this->mergeSubParams($sub['params'], 'sq');
             $subSql = $this->replacePlaceholdersInSql($sub['sql'], $map);
             $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} ({$subSql})", 'cond' => $cond];
