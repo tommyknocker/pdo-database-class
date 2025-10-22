@@ -224,7 +224,7 @@ foreach ($popular as $p) {
         ->from('comments')
         ->select([Db::count()])
         ->where('post_id', $p['id'])
-        ->where('status', 'approved')
+        ->andWhere('status', 'approved')
         ->getValue();
     echo "  • {$p['title']} - {$p['view_count']} views, $comments comments\n";
 }

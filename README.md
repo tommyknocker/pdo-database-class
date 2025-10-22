@@ -361,8 +361,8 @@ use tommyknocker\pdodb\helpers\Db;
 $users = $db->find()
     ->from('users')
     ->where('status', 'active')
-    ->where('age', 18, '>')
-    ->where(Db::like('email', '%@example.com'))
+    ->andWhere('age', 18, '>')
+    ->andWhere(Db::like('email', '%@example.com'))
     ->get();
 ```
 
@@ -513,7 +513,7 @@ $structure = $db->find()
 $query = $db->find()
     ->table('users')
     ->where('age', 25, '>')
-    ->where('status', 'active')
+    ->andWhere('status', 'active')
     ->toSQL();
 
 echo $query['sql'];    // "SELECT * FROM users WHERE age > :age AND status = :status"
@@ -529,7 +529,7 @@ $complexQuery = $db->find()
     ->join('orders', 'users.id = orders.user_id')
     ->join('products', 'orders.product_id = products.id')
     ->where('users.created_at', '2023-01-01', '>')
-    ->where('orders.status', 'completed')
+    ->andWhere('orders.status', 'completed')
     ->groupBy('users.id')
     ->having('COUNT(orders.id)', 5, '>')
     ->orderBy('users.created_at', 'DESC');
@@ -580,8 +580,8 @@ $adults = $db->find()
 $active = $db->find()
     ->from('users')
     ->where(Db::jsonPath('meta', ['age'], '>', 25))
-    ->where(Db::jsonContains('tags', 'php'))
-    ->where(Db::jsonExists('meta', ['verified']))
+    ->andWhere(Db::jsonContains('tags', 'php'))
+    ->andWhere(Db::jsonExists('meta', ['verified']))
     ->get();
 ```
 
@@ -770,7 +770,7 @@ $users = $db->find()
 $users = $db->find()
     ->from('users')
     ->where(Db::isNull('deleted_at'))
-    ->where(Db::isNotNull('email'))
+    ->andWhere(Db::isNotNull('email'))
     ->get();
 ```
 

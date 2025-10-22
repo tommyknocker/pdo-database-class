@@ -83,8 +83,8 @@ echo "-------------------------\n";
 $users = $db->find()
     ->from('users')
     ->where('status', 'active')
-    ->where('age', 18, '>')
-    ->where(Db::like('email', '%@example.com'))
+    ->andWhere('age', 18, '>')
+    ->andWhere(Db::like('email', '%@example.com'))
     ->get();
 echo "Found " . count($users) . " active users over 18\n";
 
