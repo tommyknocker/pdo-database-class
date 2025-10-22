@@ -3,6 +3,7 @@
  * Example 01: Database Connection
  * 
  * Demonstrates how to connect to different databases
+ * This example tests all available database configurations
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
@@ -10,57 +11,82 @@ require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 
-// Load configuration
-if (!file_exists(__DIR__ . '/../config.php')) {
-    die("Error: Please copy config.example.php to config.php and update with your credentials\n");
+echo "=== PDOdb Connection Examples ===\n\n";
+
+// Helper function to check if config file exists and is accessible
+function tryConnect($driver, $configFile) {
+    if (!file_exists($configFile)) {
+        return null;
+    }
+    
+    try {
+        $config = require $configFile;
+        $db = new PdoDb($driver, $config);
+        return $db;
+    } catch (\Throwable $e) {
+        echo "  ⚠️  Connection failed: {$e->getMessage()}\n";
+        return false;
+    }
 }
-$config = require __DIR__ . '/../config.php';
 
-echo "=== PDOdb Connection Examples (on $driver) ===\n\n";
+// Example 1: SQLite Connection (always available)
+echo "1. Connecting to SQLite...\n";
+$sqliteConfig = __DIR__ . '/../config.sqlite.php';
+$sqlite = tryConnect('sqlite', $sqliteConfig);
 
-// Example 1: SQLite Connection (in-memory) - easiest to get started
-echo "1. Connecting to SQLite (in-memory)...\n";
-try {
-    $sqlite = new PdoDb('sqlite', $config['sqlite']);
+if ($sqlite instanceof PdoDb) {
     echo "✓ SQLite connected successfully\n";
-    echo "  Path: {$config['sqlite']['path']}\n\n";
+    $config = require $sqliteConfig;
+    echo "  Path: {$config['path']}\n";
     
     // Test with a simple query
     $result = $sqlite->rawQueryValue('SELECT 1 + 1 AS result');
     echo "  Test query result: $result\n\n";
-} catch (\PDOException $e) {
-    echo "✗ SQLite connection failed: {$e->getMessage()}\n\n";
+} else {
+    echo "✗ SQLite config not found: $sqliteConfig\n\n";
 }
 
-// Example 2: MySQL Connection (requires MySQL server)
+// Example 2: MySQL Connection (if config exists)
 echo "2. Connecting to MySQL...\n";
-try {
-    $mysql = new PdoDb('mysql', $config['mysql']);
+$mysqlConfig = __DIR__ . '/../config.mysql.php';
+$mysql = tryConnect('mysql', $mysqlConfig);
+
+if ($mysql instanceof PdoDb) {
     echo "✓ MySQL connected successfully\n";
-    echo "  Server: {$config['mysql']['host']}:{$config['mysql']['port']}\n";
-    echo "  Database: {$config['mysql']['dbname']}\n\n";
-} catch (\Throwable $e) {
-    echo "✗ MySQL connection failed: {$e->getMessage()}\n";
-    echo "  (This is OK if MySQL is not installed or config.php needs updating)\n\n";
+    $config = require $mysqlConfig;
+    echo "  Server: {$config['host']}:{$config['port']}\n";
+    echo "  Database: {$config['dbname']}\n\n";
+} elseif ($mysql === false) {
+    echo "  (Check your MySQL server and config.mysql.php settings)\n\n";
+} else {
+    echo "  ℹ️  Config not found: $mysqlConfig\n";
+    echo "  (This is OK - MySQL is optional. Create config.mysql.php to test)\n\n";
 }
 
-// Example 3: PostgreSQL Connection (requires PostgreSQL server)
+// Example 3: PostgreSQL Connection (if config exists)
 echo "3. Connecting to PostgreSQL...\n";
-try {
-    $pgsql = new PdoDb('pgsql', $config['pgsql']);
+$pgsqlConfig = __DIR__ . '/../config.pgsql.php';
+$pgsql = tryConnect('pgsql', $pgsqlConfig);
+
+if ($pgsql instanceof PdoDb) {
     echo "✓ PostgreSQL connected successfully\n";
-    echo "  Server: {$config['pgsql']['host']}:{$config['pgsql']['port']}\n";
-    echo "  Database: {$config['pgsql']['dbname']}\n\n";
-} catch (\Throwable $e) {
-    echo "✗ PostgreSQL connection failed: {$e->getMessage()}\n";
-    echo "  (This is OK if PostgreSQL is not installed or config.php needs updating)\n\n";
+    $config = require $pgsqlConfig;
+    echo "  Server: {$config['host']}:{$config['port']}\n";
+    echo "  Database: {$config['dbname']}\n\n";
+} elseif ($pgsql === false) {
+    echo "  (Check your PostgreSQL server and config.pgsql.php settings)\n\n";
+} else {
+    echo "  ℹ️  Config not found: $pgsqlConfig\n";
+    echo "  (This is OK - PostgreSQL is optional. Create config.pgsql.php to test)\n\n";
 }
 
 // Example 4: Connection pooling (without default connection)
 echo "4. Connection pooling example...\n";
 $db = new PdoDb();
 
-$db->addConnection('primary', $config['sqlite']);
+// Use SQLite for pooling demo (always available)
+$sqliteConf = require $sqliteConfig;
+$db->addConnection('primary', $sqliteConf);
 $db->addConnection('analytics', ['driver' => 'sqlite', 'path' => ':memory:']);
 
 echo "✓ Two connections added to pool\n";
@@ -76,4 +102,4 @@ $result = $db->rawQueryValue('SELECT "Connected to analytics"');
 echo "✓ $result\n\n";
 
 echo "All connection examples completed!\n";
-
+echo "\nℹ️  Tip: Create config.mysql.php and config.pgsql.php to test all databases\n";

@@ -123,10 +123,53 @@ Each example is self-contained with setup instructions. See [`examples/README.md
 **Quick start:**
 ```bash
 cd examples
-cp config.example.php config.php
-# Update config.php with your credentials
-php 01-basic/01-connection.php
+
+# SQLite is already configured (examples/config.sqlite.php)
+php 01-basic/02-simple-crud.php
+
+# For MySQL - create config.mysql.php based on config.example.php
+cat > config.mysql.php << 'EOF'
+<?php
+return [
+    'driver' => 'mysql',
+    'host' => 'localhost',
+    'port' => 3306,
+    'username' => 'your_user',
+    'password' => 'your_pass',
+    'dbname' => 'your_db',
+    'charset' => 'utf8mb4'
+];
+EOF
+
+# Run with MySQL
+PDODB_DRIVER=mysql php 01-basic/02-simple-crud.php
+
+# For PostgreSQL - create config.pgsql.php
+cat > config.pgsql.php << 'EOF'
+<?php
+return [
+    'driver' => 'pgsql',
+    'host' => 'localhost',
+    'port' => 5432,
+    'username' => 'your_user',
+    'password' => 'your_pass',
+    'dbname' => 'your_db'
+];
+EOF
+
+# Run with PostgreSQL
+PDODB_DRIVER=pgsql php 01-basic/02-simple-crud.php
+
+# Test all examples on all available databases
+./scripts/test-examples.sh
 ```
+
+**Environment variable `PDODB_DRIVER`** controls which database to use:
+- `sqlite` (default) - uses `config.sqlite.php`
+- `mysql` - uses `config.mysql.php`
+- `pgsql` - uses `config.pgsql.php`
+
+If config file is missing, falls back to SQLite.
 
 ---
 

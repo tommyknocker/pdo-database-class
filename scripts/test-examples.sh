@@ -115,7 +115,7 @@ for file in examples/*/*.php; do
     fi
     
     # Test on MySQL if available
-    if [ $MYSQL_AVAILABLE -eq 1 ] && [[ "$filename" != "01-connection.php" ]]; then
+    if [ $MYSQL_AVAILABLE -eq 1 ]; then
         RESULTS["mysql_total"]=$((${RESULTS["mysql_total"]} + 1))
         echo -n -e "${CYAN}[$category/$filename]${NC} on ${BLUE}MySQL${NC} ... "
         
@@ -136,7 +136,7 @@ for file in examples/*/*.php; do
     fi
     
     # Test on PostgreSQL if available
-    if [ $PGSQL_AVAILABLE -eq 1 ] && [[ "$filename" != "01-connection.php" ]]; then
+    if [ $PGSQL_AVAILABLE -eq 1 ]; then
         RESULTS["pgsql_total"]=$((${RESULTS["pgsql_total"]} + 1))
         echo -n -e "${CYAN}[$category/$filename]${NC} on ${BLUE}PostgreSQL${NC} ... "
         
@@ -196,10 +196,25 @@ if [ $TOTAL_FAILED -gt 0 ]; then
     exit 1
 else
     echo -e "${GREEN}All available examples passed!${NC}"
-    echo ""
-    echo "Tip: To test on all databases, create config files:"
-    echo "  - examples/config.mysql.php"
-    echo "  - examples/config.pgsql.php"  
-    echo "  - examples/config.sqlite.php (already exists)"
+    
+    # Show tip only if some databases are not configured
+    MISSING_DBS=()
+    if [ $MYSQL_AVAILABLE -eq 0 ]; then
+        MISSING_DBS+=("MySQL (create examples/config.mysql.php)")
+    fi
+    if [ $PGSQL_AVAILABLE -eq 0 ]; then
+        MISSING_DBS+=("PostgreSQL (create examples/config.pgsql.php)")
+    fi
+    
+    if [ ${#MISSING_DBS[@]} -gt 0 ]; then
+        echo ""
+        echo "💡 Tip: Test on more databases by creating config files:"
+        for db in "${MISSING_DBS[@]}"; do
+            echo "  • $db"
+        done
+        echo ""
+        echo "   See examples/config.example.php for reference"
+    fi
+    
     exit 0
 fi

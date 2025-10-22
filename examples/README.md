@@ -1,12 +1,79 @@
 # PDOdb Examples
 
-Complete collection of examples demonstrating PDOdb features.
+Complete collection of **21 runnable examples** demonstrating PDOdb features across **all 3 database dialects** (MySQL, PostgreSQL, SQLite).
 
 ## 🚀 Quick Start
 
-1. Copy `config.example.php` to `config.php`
-2. Update database credentials
-3. Run any example: `php 01-basic/01-connection.php`
+### Option 1: SQLite (No setup required)
+```bash
+# SQLite is pre-configured and ready to use
+php 01-basic/02-simple-crud.php
+```
+
+### Option 2: MySQL
+```bash
+# Create MySQL configuration
+cat > config.mysql.php << 'EOF'
+<?php
+return [
+    'driver' => 'mysql',
+    'host' => 'localhost',
+    'port' => 3306,
+    'username' => 'your_user',
+    'password' => 'your_pass',
+    'dbname' => 'your_db',
+    'charset' => 'utf8mb4'
+];
+EOF
+
+# Run with MySQL
+PDODB_DRIVER=mysql php 01-basic/02-simple-crud.php
+```
+
+### Option 3: PostgreSQL
+```bash
+# Create PostgreSQL configuration
+cat > config.pgsql.php << 'EOF'
+<?php
+return [
+    'driver' => 'pgsql',
+    'host' => 'localhost',
+    'port' => 5432,
+    'username' => 'your_user',
+    'password' => 'your_pass',
+    'dbname' => 'your_db'
+];
+EOF
+
+# Run with PostgreSQL
+PDODB_DRIVER=pgsql php 01-basic/02-simple-crud.php
+```
+
+### Test All Examples on All Databases
+```bash
+./scripts/test-examples.sh
+```
+This script automatically:
+- Detects which databases are configured
+- Runs all examples on each available database
+- Reports pass/fail status for each
+
+## 🔧 Configuration Files
+
+PDOdb examples use **separate config files per database**:
+
+| File | Database | Status |
+|------|----------|--------|
+| `config.sqlite.php` | SQLite | ✅ Included in repo |
+| `config.mysql.php` | MySQL | Create from `config.example.php` |
+| `config.pgsql.php` | PostgreSQL | Create from `config.example.php` |
+
+**Environment variable `PDODB_DRIVER`** controls which config to use:
+- `sqlite` (default) - loads `config.sqlite.php`
+- `mysql` - loads `config.mysql.php`
+- `pgsql` - loads `config.pgsql.php`
+
+**No environment variable?** Defaults to SQLite with `:memory:` database.
 
 ## 📚 Categories
 
@@ -66,11 +133,41 @@ Complete applications and patterns.
 - Database connections are cleaned up automatically
 - Use SQLite (`:memory:`) for quick testing without setup
 
+## 🎯 How Examples Work
+
+All examples use the **QueryBuilder fluent API** - no raw SQL except for table creation:
+
+```php
+// ✅ Good - uses QueryBuilder
+$users = $db->find()
+    ->from('users')
+    ->where('age', 18, '>')
+    ->orderBy('name')
+    ->get();
+
+// ❌ Avoid - raw SQL (except for DDL)
+$users = $db->rawQuery('SELECT * FROM users WHERE age > 18 ORDER BY name');
+```
+
+Examples automatically adapt to your database:
+- **JSONB** for PostgreSQL, **TEXT** for MySQL/SQLite
+- **SERIAL** for PostgreSQL, **AUTO_INCREMENT** for MySQL, **AUTOINCREMENT** for SQLite
+- Dialect-specific date/time, string concat, and type conversions
+
 ## 🐛 Troubleshooting
 
 If you encounter issues:
-1. Check database credentials in `config.php`
-2. Ensure PDO extensions are installed (`pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`)
-3. Verify database server is running
-4. See main [README.md](../README.md#troubleshooting) for more help
+1. **Check database credentials** in `config.<driver>.php`
+2. **Ensure PDO extensions** are installed:
+   ```bash
+   php -m | grep pdo_mysql
+   php -m | grep pdo_pgsql
+   php -m | grep pdo_sqlite
+   ```
+3. **Verify database server** is running
+4. **Set PDODB_DRIVER** environment variable:
+   ```bash
+   PDODB_DRIVER=mysql php examples/01-basic/02-simple-crud.php
+   ```
+5. See main [README.md](../README.md#troubleshooting) for more help
 
