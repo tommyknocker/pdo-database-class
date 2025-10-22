@@ -39,6 +39,13 @@ class ConnectionFactory
             $pdo = new PDO($dsn, $user, $pass, $options);
         }
         $dialect->setPdo($pdo);
+        
+        // Use RetryableConnection if retry is enabled
+        $retryConfig = $config['retry'] ?? [];
+        if (!empty($retryConfig['enabled'])) {
+            return new RetryableConnection($pdo, $dialect, $logger, $retryConfig);
+        }
+        
         return new Connection($pdo, $dialect, $logger);
     }
 

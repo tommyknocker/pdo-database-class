@@ -170,7 +170,7 @@ $db = new PdoDb('mysql', [
 $users = $db->find()
     ->from('users')
     ->where('age', 18, '>')
-    ->where(Db::jsonContains('tags', 'php'))
+    ->andWhere(Db::jsonContains('tags', 'php'))
     ->orderBy('created_at', 'DESC')
     ->limit(10)
     ->get();
@@ -748,7 +748,7 @@ use tommyknocker\pdodb\helpers\Db;
 $users = $db->find()
     ->from('users')
     ->where('status', 'active')
-    ->where(function($qb) {
+    ->andWhere(function($qb) {
         $qb->where('age', 18, '>')
            ->orWhere('verified', 1);
     })

@@ -185,7 +185,7 @@ echo "---------------------\n";
 $users = $db->find()
     ->from('users')
     ->where('status', 'active')
-    ->where('age', 18, '>')
+    ->andWhere('age', 18, '>')
     ->orWhere('email', 'alice@example.com')
     ->get();
 echo "Complex condition query returned " . count($users) . " users\n";

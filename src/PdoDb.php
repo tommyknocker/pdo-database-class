@@ -17,17 +17,20 @@ class PdoDb
     /** @var DialectInterface Current dialect instance */
     public DialectInterface $dialect;
 
-    /** @var ConnectionInterface|null Current active connection */
-    public ?ConnectionInterface $connection = null {
+    /** @var ConnectionInterface Current active connection */
+    public ConnectionInterface $connection {
         get {
-            if ($this->connection === null) {
+            if ($this->connectionStorage === null) {
                 throw new RuntimeException(
                     'Connection not initialized. Use addConnection() to add a connection, then connection() to select it.'
                 );
             }
-            return $this->connection;
+            return $this->connectionStorage;
         }
     }
+    
+    /** @var ConnectionInterface|null Internal connection storage */
+    protected ?ConnectionInterface $connectionStorage = null;
 
     /** @var array<string, ConnectionInterface> Named connections pool */
     protected array $connections = [];
@@ -37,42 +40,31 @@ class PdoDb
     
     public ?string $lastQuery {
         get {
-            return $this->getConn()->getLastQuery();
+            return $this->connection->getLastQuery();
         }
     }
     
     public ?string $lastError {
         get {
-            return $this->getConn()->getLastError();
+            return $this->connection->getLastError();
         }
     }
     
     public int $lastErrNo {
         get {
-            return $this->getConn()->getLastErrno();
+            return $this->connection->getLastErrno();
         }
     }
     
     public ?bool $executeState {
         get {
-            return $this->getConn()->getExecuteState();
+            return $this->connection->getExecuteState();
         }
     }
     
     /** @var string Lock method for table locking (WRITE/READ) */
     protected string $lockMethod = 'WRITE';
     
-    /**
-     * Get non-null connection or throw exception
-     * @return ConnectionInterface
-     */
-    private function getConn(): ConnectionInterface
-    {
-        if ($this->connection === null) {
-            throw new RuntimeException('No connection available. Call addConnection() and connection() first.');
-        }
-        return $this->connection;
-    }
 
     /**
      * Initializes a new PdoDb object.
@@ -110,7 +102,7 @@ class PdoDb
      */
     public function find(): QueryBuilder
     {
-        return new QueryBuilder($this->getConn(), $this->prefix);
+        return new QueryBuilder($this->connection, $this->prefix);
     }
 
     /* ---------------- RAW ---------------- */
@@ -160,7 +152,7 @@ class PdoDb
      */
     public function startTransaction(): void
     {
-        $conn = $this->getConn();
+        $conn = $this->connection;
         if (!$conn->inTransaction()) {
             $conn->transaction();
         }
@@ -173,7 +165,7 @@ class PdoDb
      */
     public function commit(): void
     {
-        $conn = $this->getConn();
+        $conn = $this->connection;
         if ($conn->inTransaction()) {
             $conn->commit();
         }
@@ -186,7 +178,7 @@ class PdoDb
      */
     public function rollback(): void
     {
-        $conn = $this->getConn();
+        $conn = $this->connection;
         if ($conn->inTransaction()) {
             $conn->rollBack();
         }
@@ -204,7 +196,7 @@ class PdoDb
     public function lock(string|array $tables): bool
     {
         $tables = (array)$tables;
-        $conn = $this->getConn();
+        $conn = $this->connection;
         $sql = $conn->getDialect()->buildLockSql($tables, $this->prefix, $this->lockMethod);
         $conn->prepare($sql)->execute();
         return $this->executeState !== false;
@@ -217,7 +209,7 @@ class PdoDb
      */
     public function unlock(): bool
     {
-        $conn = $this->getConn();
+        $conn = $this->connection;
         $sql = $conn->getDialect()->buildUnlockSql();
         if ($sql === '') {
             return true;
@@ -245,7 +237,7 @@ class PdoDb
      */
     public function disconnect(): void
     {
-        $this->connection = null;
+        $this->connectionStorage = null;
     }
 
     /**
@@ -256,7 +248,7 @@ class PdoDb
     public function ping(): bool
     {
         try {
-            $stmt = $this->getConn()->query('SELECT 1');
+            $stmt = $this->connection->query('SELECT 1');
             if ($stmt !== false) {
                 $stmt->execute();
             }
@@ -300,7 +292,7 @@ class PdoDb
         if (!isset($this->connections[$name])) {
             throw new RuntimeException("Connection $name not found");
         }
-        $this->connection = $this->connections[$name];
+        $this->connectionStorage = $this->connections[$name];
         return $this;
     }
 
@@ -312,7 +304,7 @@ class PdoDb
      */
     public function describe(string $table): array
     {
-        $sql = $this->getConn()->getDialect()->buildDescribeSql($this->prefix . $table);
+        $sql = $this->connection->getDialect()->buildDescribeSql($this->prefix . $table);
         return $this->rawQuery($sql);
     }
 
@@ -325,7 +317,7 @@ class PdoDb
      */
     public function explain(string $query, array $params = []): array
     {
-        $sql = $this->getConn()->getDialect()->buildExplainSql($query, false);
+        $sql = $this->connection->getDialect()->buildExplainSql($query, false);
         return $this->rawQuery($sql, $params);
     }
 
@@ -338,7 +330,7 @@ class PdoDb
      */
     public function explainAnalyze(string $query, array $params = []): array
     {
-        $sql = $this->getConn()->getDialect()->buildExplainSql($query, true);
+        $sql = $this->connection->getDialect()->buildExplainSql($query, true);
         return $this->rawQuery($sql, $params);
     }
 }

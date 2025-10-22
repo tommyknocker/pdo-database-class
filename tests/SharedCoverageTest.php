@@ -1121,5 +1121,129 @@ class SharedCoverageTest extends TestCase
         
         $this->assertEquals('Name: PRODUCT | Price: 99$', $result['display']);
     }
+
+    /* ---------------- Connection Retry Tests ---------------- */
+
+    public function testRetryableConnectionCreation(): void
+    {
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 100,
+                'retryable_errors' => [2002, 2003, 2006]
+            ]
+        ];
+        
+        $db = new PdoDb('sqlite', $config);
+        
+        // Verify we get a RetryableConnection
+        $connection = $db->connection;
+        $this->assertInstanceOf(\tommyknocker\pdodb\connection\RetryableConnection::class, $connection);
+        
+        // Test basic functionality still works
+        $db->rawQuery('CREATE TABLE retry_test (id INTEGER PRIMARY KEY, name TEXT)');
+        $db->rawQuery('INSERT INTO retry_test (name) VALUES (?)', ['test']);
+        
+        $result = $db->rawQueryValue('SELECT name FROM retry_test WHERE id = 1');
+        $this->assertEquals('test', $result);
+    }
+
+    public function testRetryableConnectionConfig(): void
+    {
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 5,
+                'delay_ms' => 200,
+                'backoff_multiplier' => 3,
+                'max_delay_ms' => 5000,
+                'retryable_errors' => [2002, 2003, 2006, 2013]
+            ]
+        ];
+        
+        $db = new PdoDb('sqlite', $config);
+        $connection = $db->connection;
+        
+        $this->assertInstanceOf(\tommyknocker\pdodb\connection\RetryableConnection::class, $connection);
+        
+        if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+            $retryConfig = $connection->getRetryConfig();
+            $this->assertTrue($retryConfig['enabled']);
+            $this->assertEquals(5, $retryConfig['max_attempts']);
+            $this->assertEquals(200, $retryConfig['delay_ms']);
+            $this->assertEquals(3, $retryConfig['backoff_multiplier']);
+            $this->assertEquals(5000, $retryConfig['max_delay_ms']);
+            $this->assertEquals([2002, 2003, 2006, 2013], $retryConfig['retryable_errors']);
+        }
+    }
+
+    public function testRetryableConnectionDisabled(): void
+    {
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => false,
+                'max_attempts' => 3,
+                'retryable_errors' => [2002, 2003, 2006]
+            ]
+        ];
+        
+        $db = new PdoDb('sqlite', $config);
+        $connection = $db->connection;
+        
+        // Should get regular Connection when retry is disabled
+        $this->assertInstanceOf(\tommyknocker\pdodb\connection\Connection::class, $connection);
+        $this->assertNotInstanceOf(\tommyknocker\pdodb\connection\RetryableConnection::class, $connection);
+    }
+
+    public function testRetryableConnectionWithoutConfig(): void
+    {
+        $config = [
+            'path' => ':memory:'
+            // No retry config
+        ];
+        
+        $db = new PdoDb('sqlite', $config);
+        $connection = $db->connection;
+        
+        // Should get regular Connection when no retry config
+        $this->assertInstanceOf(\tommyknocker\pdodb\connection\Connection::class, $connection);
+        $this->assertNotInstanceOf(\tommyknocker\pdodb\connection\RetryableConnection::class, $connection);
+    }
+
+    public function testRetryableConnectionCurrentAttempt(): void
+    {
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 10, // Very short delay for testing
+                'retryable_errors' => [2002, 2003, 2006]
+            ]
+        ];
+        
+        $db = new PdoDb('sqlite', $config);
+        $connection = $db->connection;
+        
+        $this->assertInstanceOf(\tommyknocker\pdodb\connection\RetryableConnection::class, $connection);
+        
+        // Initially should be 0
+        if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+            $this->assertEquals(0, $connection->getCurrentAttempt());
+        }
+        
+        // Test that normal operations work
+        $db->rawQuery('CREATE TABLE retry_attempt_test (id INTEGER PRIMARY KEY)');
+        $db->rawQuery('INSERT INTO retry_attempt_test (id) VALUES (1)');
+        
+        // Should still be 0 after successful operation
+        if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+            $this->assertEquals(0, $connection->getCurrentAttempt());
+        }
+    }
 }
 
