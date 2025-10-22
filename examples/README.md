@@ -12,19 +12,9 @@ php 01-basic/02-simple-crud.php
 
 ### Option 2: MySQL
 ```bash
-# Create MySQL configuration
-cat > config.mysql.php << 'EOF'
-<?php
-return [
-    'driver' => 'mysql',
-    'host' => 'localhost',
-    'port' => 3306,
-    'username' => 'your_user',
-    'password' => 'your_pass',
-    'dbname' => 'your_db',
-    'charset' => 'utf8mb4'
-];
-EOF
+# Edit config.mysql.php with your credentials
+# File already exists in examples/ directory
+nano config.mysql.php
 
 # Run with MySQL
 PDODB_DRIVER=mysql php 01-basic/02-simple-crud.php
@@ -32,18 +22,9 @@ PDODB_DRIVER=mysql php 01-basic/02-simple-crud.php
 
 ### Option 3: PostgreSQL
 ```bash
-# Create PostgreSQL configuration
-cat > config.pgsql.php << 'EOF'
-<?php
-return [
-    'driver' => 'pgsql',
-    'host' => 'localhost',
-    'port' => 5432,
-    'username' => 'your_user',
-    'password' => 'your_pass',
-    'dbname' => 'your_db'
-];
-EOF
+# Edit config.pgsql.php with your credentials
+# File already exists in examples/ directory
+nano config.pgsql.php
 
 # Run with PostgreSQL
 PDODB_DRIVER=pgsql php 01-basic/02-simple-crud.php
@@ -64,9 +45,9 @@ PDOdb examples use **separate config files per database**:
 
 | File | Database | Status |
 |------|----------|--------|
-| `config.sqlite.php` | SQLite | ✅ Included in repo |
-| `config.mysql.php` | MySQL | Create from `config.example.php` |
-| `config.pgsql.php` | PostgreSQL | Create from `config.example.php` |
+| `config.sqlite.php` | SQLite | ✅ Included, ready to use (`:memory:`) |
+| `config.mysql.php` | MySQL | ✅ Included, update credentials |
+| `config.pgsql.php` | PostgreSQL | ✅ Included, update credentials |
 
 **Environment variable `PDODB_DRIVER`** controls which config to use:
 - `sqlite` (default) - loads `config.sqlite.php`

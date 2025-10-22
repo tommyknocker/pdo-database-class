@@ -124,40 +124,13 @@ Each example is self-contained with setup instructions. See [`examples/README.md
 ```bash
 cd examples
 
-# SQLite is already configured (examples/config.sqlite.php)
+# SQLite (ready to use, no setup required)
 php 01-basic/02-simple-crud.php
 
-# For MySQL - create config.mysql.php based on config.example.php
-cat > config.mysql.php << 'EOF'
-<?php
-return [
-    'driver' => 'mysql',
-    'host' => 'localhost',
-    'port' => 3306,
-    'username' => 'your_user',
-    'password' => 'your_pass',
-    'dbname' => 'your_db',
-    'charset' => 'utf8mb4'
-];
-EOF
-
-# Run with MySQL
+# MySQL (update config.mysql.php with your credentials)
 PDODB_DRIVER=mysql php 01-basic/02-simple-crud.php
 
-# For PostgreSQL - create config.pgsql.php
-cat > config.pgsql.php << 'EOF'
-<?php
-return [
-    'driver' => 'pgsql',
-    'host' => 'localhost',
-    'port' => 5432,
-    'username' => 'your_user',
-    'password' => 'your_pass',
-    'dbname' => 'your_db'
-];
-EOF
-
-# Run with PostgreSQL
+# PostgreSQL (update config.pgsql.php with your credentials)
 PDODB_DRIVER=pgsql php 01-basic/02-simple-crud.php
 
 # Test all examples on all available databases

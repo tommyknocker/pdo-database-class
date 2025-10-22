@@ -10,8 +10,8 @@ coverage-*.xml
 coverage/
 .coverage
 
-# Examples
-examples/config.php
+# Examples - temporary files only
+# Note: config.*.php files are tracked in repo with default credentials
 examples/**/*.db
 examples/**/*.sqlite
 examples/**/*.sql

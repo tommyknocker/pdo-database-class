@@ -213,7 +213,7 @@ else
             echo "  • $db"
         done
         echo ""
-        echo "   See examples/config.example.php for reference"
+        echo "   Config files included - just update credentials in examples/config.*.php"
     fi
     
     exit 0
