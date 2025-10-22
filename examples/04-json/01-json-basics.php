@@ -16,12 +16,13 @@ $driver = getCurrentDriver($db);
 
 echo "=== JSON Basics Example (on $driver) ===\n\n";
 
-// Create table
+// Create table  
+$driver = getCurrentDriver($db);
 recreateTable($db, 'users', [
     'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
     'name' => 'TEXT',
-    'settings' => 'TEXT',
-    'tags' => 'TEXT'
+    'settings' => $driver === 'pgsql' ? 'JSONB' : 'TEXT',
+    'tags' => $driver === 'pgsql' ? 'JSONB' : 'TEXT'
 ]);
 
 echo "✓ Table created\n\n";

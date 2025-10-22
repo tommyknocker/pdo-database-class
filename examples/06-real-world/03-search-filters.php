@@ -73,12 +73,13 @@ echo "✓ Inserted " . count($products) . " products\n\n";
 echo "2. Text search: 'Pro'\n";
 
 $searchTerm = '%Pro%';
-$searchResults = $db->rawQuery(
-    "SELECT name, brand, price, rating FROM products 
-     WHERE name LIKE :search1 OR description LIKE :search2 
-     ORDER BY rating DESC",
-    ['search1' => $searchTerm, 'search2' => $searchTerm]
-);
+$searchResults = $db->find()
+    ->from('products')
+    ->select(['name', 'brand', 'price', 'rating'])
+    ->where(Db::like('name', $searchTerm))
+    ->orWhere(Db::like('description', $searchTerm))
+    ->orderBy('rating', 'DESC')
+    ->get();
 
 echo "  Found " . count($searchResults) . " products:\n";
 foreach ($searchResults as $product) {
@@ -305,13 +306,17 @@ echo "\n";
 echo "10. Autocomplete suggestions for 'so':\n";
 
 $term = '%so%';
-$suggestions = $db->rawQuery(
-    "SELECT name AS suggestion, 'product' AS type, category 
-     FROM products 
-     WHERE LOWER(name) LIKE :term1 OR LOWER(brand) LIKE :term2 
-     LIMIT 5",
-    ['term1' => $term, 'term2' => $term]
-);
+$suggestions = $db->find()
+    ->from('products')
+    ->select([
+        'suggestion' => 'name',
+        'type' => Db::raw("'product'"),
+        'category'
+    ])
+    ->where(Db::raw('LOWER(name) LIKE ' . $db->connection->quote($term)))
+    ->orWhere(Db::raw('LOWER(brand) LIKE ' . $db->connection->quote($term)))
+    ->limit(5)
+    ->get();
 
 echo "  Suggestions:\n";
 foreach ($suggestions as $sug) {

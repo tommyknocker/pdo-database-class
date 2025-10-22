@@ -1076,7 +1076,8 @@ class QueryBuilder implements QueryBuilderInterface
         if (!empty($this->onDuplicate)) {
             // if no id column in columns, use first column for $defaultConflictTarget
             $defaultConflictTarget = in_array('id', $columns, true) ? 'id' : (string)($columns[0] ?? 'id');
-            $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget);
+            $tableName = $this->table ?? '';
+            $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget, $tableName);
         }
 
         return [$sql, $params];
@@ -1126,7 +1127,8 @@ class QueryBuilder implements QueryBuilderInterface
         if (!empty($this->onDuplicate)) {
             // if no id column in columns, use first column for $defaultConflictTarget
             $defaultConflictTarget = in_array('id', $columns, true) ? 'id' : (string)($columns[0] ?? 'id');
-            $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget);
+            $tableName = $this->table ?? '';
+            $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget, $tableName);
         }
 
         return [$sql, $params];
@@ -1373,8 +1375,13 @@ class QueryBuilder implements QueryBuilderInterface
         if ($isMulty) {
             return $stmt->rowCount();
         }
-        $id = (int)$this->connection->getLastInsertId();
-        return $id > 0 ? $id : 1;
+        try {
+            $id = (int)$this->connection->getLastInsertId();
+            return $id > 0 ? $id : 1;
+        } catch (PDOException $e) {
+            // PostgreSQL: lastval is not yet defined (no SERIAL column)
+            return 1;
+        }
     }
 
     /* Utilities - table / params / quoting / raw resolution */

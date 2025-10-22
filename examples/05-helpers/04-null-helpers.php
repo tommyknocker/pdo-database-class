@@ -88,7 +88,7 @@ echo "\n";
 
 // Example 5: NULLIF - Return NULL if equal
 echo "5. NULLIF - Convert empty strings to NULL...\n";
-$db->rawQuery("INSERT INTO users (name, email, phone) VALUES ('Eve', '', '555-0005')");
+$db->find()->table('users')->insert(['name' => 'Eve', 'email' => '', 'phone' => '555-0005']);
 
 $users = $db->find()
     ->from('users')
@@ -139,15 +139,16 @@ echo "\n";
 
 // Example 8: NULL statistics
 echo "8. NULL statistics report...\n";
-$stats = $db->rawQuery("
-    SELECT 
-        SUM(CASE WHEN email IS NULL THEN 1 ELSE 0 END) as missing_email,
-        SUM(CASE WHEN phone IS NULL THEN 1 ELSE 0 END) as missing_phone,
-        SUM(CASE WHEN address IS NULL THEN 1 ELSE 0 END) as missing_address,
-        SUM(CASE WHEN bio IS NULL THEN 1 ELSE 0 END) as missing_bio,
-        COUNT(*) as total
-    FROM users
-")[0];
+$stats = $db->find()
+    ->from('users')
+    ->select([
+        'missing_email' => Db::sum(Db::case(['email IS NULL' => '1'], '0')),
+        'missing_phone' => Db::sum(Db::case(['phone IS NULL' => '1'], '0')),
+        'missing_address' => Db::sum(Db::case(['address IS NULL' => '1'], '0')),
+        'missing_bio' => Db::sum(Db::case(['bio IS NULL' => '1'], '0')),
+        'total' => Db::count()
+    ])
+    ->getOne();
 
 echo "  Data completeness:\n";
 echo "  • Total users: {$stats['total']}\n";

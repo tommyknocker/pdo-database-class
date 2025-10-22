@@ -165,12 +165,14 @@ echo "✗ Failed login for 'jane_smith': {$failedLogin['message']}\n\n";
 echo "4. Checking user permissions...\n";
 
 function hasPermission($db, $userId, $resource, $action) {
-    $count = $db->rawQueryValue(
-        'SELECT COUNT(*) FROM users u 
-         JOIN permissions p ON p.role = u.role 
-         WHERE u.id = :uid AND p.resource = :res AND p.action = :act',
-        ['uid' => $userId, 'res' => $resource, 'act' => $action]
-    );
+    $count = $db->find()
+        ->from('users u')
+        ->join('permissions p', 'p.role = u.role')
+        ->select([Db::count()])
+        ->where('u.id', $userId)
+        ->where('p.resource', $resource)
+        ->where('p.action', $action)
+        ->getValue();
     
     return $count > 0;
 }
@@ -206,7 +208,7 @@ $stats = $db->find()
         'total_users' => Db::count(),
         'active_users' => Db::sum(Db::case(['is_active = 1' => '1'], '0')),
         'verified_users' => Db::sum(Db::case(['email_verified = 1' => '1'], '0')),
-        'admin_count' => Db::sum(Db::case(['role = "admin"' => '1'], '0'))
+        'admin_count' => Db::sum(Db::case(["role = 'admin'" => '1'], '0'))
     ])
     ->getOne();
 

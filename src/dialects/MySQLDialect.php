@@ -120,7 +120,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id'): string
+    public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
     {
         if (!$updateColumns) {
             return '';
@@ -137,7 +137,20 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
                 $col = $key;
                 $qid = $this->quoteIdentifier($col);
 
-                if ($val instanceof RawValue) {
+                // Handle Db::inc() / Db::dec()
+                if (is_array($val) && isset($val['__op'])) {
+                    $op = $val['__op'];
+                    switch ($op) {
+                        case 'inc':
+                            $updates[] = "{$qid} = {$qid} + " . (int)$val['val'];
+                            break;
+                        case 'dec':
+                            $updates[] = "{$qid} = {$qid} - " . (int)$val['val'];
+                            break;
+                        default:
+                            $updates[] = "{$qid} = VALUES({$qid})";
+                    }
+                } elseif ($val instanceof RawValue) {
                     $updates[] = "{$qid} = {$val->getValue()}";
                 } elseif ($val === true) {
                     $updates[] = "{$qid} = VALUES({$qid})";

@@ -139,7 +139,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id'): string
+    public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
     {
         if (!$updateColumns) {
             return '';
@@ -152,8 +152,51 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
             foreach ($updateColumns as $col => $expr) {
                 $colSql = $this->quoteIdentifier((string)$col);
 
+                // Handle Db::inc() / Db::dec()
+                if (is_array($expr) && isset($expr['__op'])) {
+                    $op = $expr['__op'];
+                    // For inc/dec we reference the old table value
+                    $tableRef = $tableName ? $this->quoteTable($tableName) . '.' : '';
+                    switch ($op) {
+                        case 'inc':
+                            $parts[] = "{$colSql} = {$tableRef}{$colSql} + " . (int)$expr['val'];
+                            break;
+                        case 'dec':
+                            $parts[] = "{$colSql} = {$tableRef}{$colSql} - " . (int)$expr['val'];
+                            break;
+                        default:
+                            $parts[] = "{$colSql} = EXCLUDED.{$colSql}";
+                    }
+                    continue;
+                }
+
                 if ($expr instanceof RawValue) {
-                    $parts[] = "{$colSql} = {$expr->getValue()}";
+                    // For RawValue with column references, replace with table.column
+                    $exprStr = $expr->getValue();
+                    if ($tableName) {
+                        $quotedCol = $this->quoteIdentifier((string)$col);
+                        $tableRef = $this->quoteTable($tableName);
+                        $replacement = $tableRef . '.' . $quotedCol;
+                        
+                        $safeExpr = preg_replace_callback(
+                            '/\b' . preg_quote((string)$col, '/') . '\b/i',
+                            function ($m) use ($exprStr, $replacement) {
+                                $pos = strpos($exprStr, $m[0]);
+                                if ($pos === false) {
+                                    return $m[0];
+                                }
+                                $left = $pos > 0 ? substr($exprStr, max(0, $pos - 9), 9) : '';
+                                if (str_contains($left, '.') || stripos($left, 'excluded') !== false) {
+                                    return $m[0];
+                                }
+                                return $replacement;
+                            },
+                            $exprStr
+                        );
+                        $parts[] = "{$colSql} = {$safeExpr}";
+                    } else {
+                        $parts[] = "{$colSql} = {$exprStr}";
+                    }
                     continue;
                 }
 
@@ -169,7 +212,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
                 }
 
                 $quotedCol = $this->quoteIdentifier((string)$col); // e.g. "age"
-                $replacement = 'EXCLUDED.' . $quotedCol;   // EXCLUDED."age"
+                $replacement = 'excluded.' . $quotedCol;   // excluded."age" (lowercase excluded)
 
                 $safeExpr = preg_replace_callback(
                     '/\b' . preg_quote((string)$col, '/') . '\b/i',
@@ -179,7 +222,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
                             return $m[0];
                         }
                         $left = $pos > 0 ? substr($exprStr, max(0, $pos - 9), 9) : '';
-                        if (str_contains($left, '.') || stripos($left, 'EXCLUDED') !== false) {
+                        if (str_contains($left, '.') || stripos($left, 'excluded') !== false) {
                             return $m[0];
                         }
                         return $replacement;

@@ -60,7 +60,7 @@ for ($page = 1; $page <= 3; $page++) {
 
 // Example 3: Calculate total pages
 echo "3. Pagination metadata...\n";
-$totalUsers = $db->rawQueryValue('SELECT COUNT(*) FROM users');
+$totalUsers = $db->find()->from('users')->select([Db::count()])->getValue();
 $totalPages = ceil($totalUsers / $perPage);
 
 echo "  Total users: $totalUsers\n";
@@ -79,7 +79,7 @@ function getPaginatedResults($db, $page, $perPage = 10) {
         ->offset($offset)
         ->get();
     
-    $total = $db->rawQueryValue('SELECT COUNT(*) FROM users');
+    $total = $db->find()->from('users')->select([Db::count()])->getValue();
     
     return [
         'data' => $results,

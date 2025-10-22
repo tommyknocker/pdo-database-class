@@ -18,7 +18,7 @@ echo "=== UPSERT Operations Example (on $driver) ===\n\n";
 
 // Setup
 recreateTable($db, 'user_stats', [
-    'user_id' => 'INTEGER PRIMARY KEY',
+    'user_id' => 'INTEGER PRIMARY KEY',  // Not AUTOINCREMENT - user_id is set manually
     'login_count' => 'INTEGER DEFAULT 0',
     'last_login' => 'DATETIME',
     'total_points' => 'INTEGER DEFAULT 0'
@@ -85,7 +85,7 @@ for ($userId = 2; $userId <= 5; $userId++) {
         ]);
 }
 
-$count = $db->rawQueryValue('SELECT COUNT(*) FROM user_stats');
+$count = $db->find()->from('user_stats')->select([Db::count()])->getValue();
 echo "  ✓ Total users in stats table: $count\n\n";
 
 // Example 5: Simulate daily login tracking
@@ -123,8 +123,8 @@ echo "\n";
 echo "7. UPSERT with bonus points for frequent users...\n";
 $db->find()->table('user_stats')
     ->onDuplicate([
-        'login_count' => Db::raw('login_count + 1'),
-        'total_points' => Db::raw('CASE WHEN login_count >= 3 THEN total_points + 50 ELSE total_points + 10 END')
+        'login_count' => Db::inc(1),
+        'total_points' => Db::raw('CASE WHEN user_stats.login_count >= 3 THEN user_stats.total_points + 50 ELSE user_stats.total_points + 10 END')
     ])
     ->insert([
         'user_id' => 1,

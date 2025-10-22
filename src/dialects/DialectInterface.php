@@ -87,9 +87,10 @@ interface DialectInterface
      * Build upsert clause
      * @param array<int, string>|array<string, mixed> $updateColumns Either array of column names or associative array with expressions
      * @param string $defaultConflictTarget
+     * @param string $tableName Table name for PostgreSQL to resolve ambiguous column references
      * @return string
      */
-    public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id'): string;
+    public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string;
 
     /**
      * Build replace sql

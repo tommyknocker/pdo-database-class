@@ -52,6 +52,25 @@ jobs:
           DB_USER="testuser" \
           DB_PASS="testpass" \
           vendor/bin/phpunit tests/PdoDbMySQLTest.php --coverage-clover coverage-mysql.xml
+      - name: Test MySQL Examples
+        run: |
+          cp examples/config.example.php examples/config.mysql.php
+          cat > examples/config.mysql.php << 'EOF'
+          <?php
+          return [
+              'driver' => 'mysql',
+              'host' => '127.0.0.1',
+              'port' => 3306,
+              'username' => 'testuser',
+              'password' => 'testpass',
+              'dbname' => 'testdb',
+              'charset' => 'utf8mb4',
+              'options' => [
+                  PDO::MYSQL_ATTR_LOCAL_INFILE => true
+              ]
+          ];
+          EOF
+          ./scripts/test-examples.sh
       - name: Upload MySQL coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -95,6 +114,20 @@ jobs:
           DB_USER="testuser" \
           DB_PASS="testpass" \
           vendor/bin/phpunit tests/PdoDbPostgreSQLTest.php --coverage-clover coverage-postgres.xml
+      - name: Test PostgreSQL Examples
+        run: |
+          cat > examples/config.pgsql.php << 'EOF'
+          <?php
+          return [
+              'driver' => 'pgsql',
+              'host' => 'localhost',
+              'port' => 5433,
+              'username' => 'testuser',
+              'password' => 'testpass',
+              'dbname' => 'testdb'
+          ];
+          EOF
+          ./scripts/test-examples.sh
       - name: Upload PostgreSQL coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -117,6 +150,8 @@ jobs:
       - run: |
           DB_DSN="sqlite::memory:" \
           vendor/bin/phpunit tests/PdoDbSqliteTest.php --coverage-clover coverage-sqlite.xml
+      - name: Test SQLite Examples
+        run: ./scripts/test-examples.sh
       - name: Upload SQLite coverage to Codecov
         uses: codecov/codecov-action@v4
         with:

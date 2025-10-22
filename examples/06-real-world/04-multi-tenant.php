@@ -184,10 +184,12 @@ $tenants = $db->find()->from('tenants')->select(['id', 'name', 'plan', 'max_user
 
 echo "  👥 User limits:\n";
 foreach ($tenants as $tenant) {
-    $currentUsers = $db->rawQueryValue(
-        'SELECT COUNT(*) FROM users WHERE tenant_id = :tid AND is_active = 1',
-        ['tid' => $tenant['id']]
-    );
+    $currentUsers = $db->find()
+        ->from('users')
+        ->select([Db::count()])
+        ->where('tenant_id', $tenant['id'])
+        ->where('is_active', 1)
+        ->getValue();
     
     $percentUsed = number_format(($currentUsers / $tenant['max_users']) * 100, 0);
     $status = $percentUsed >= 90 ? '⚠️' : '✓';
@@ -242,15 +244,15 @@ $platformStats = $db->find()
     ->select([
         'total_tenants' => Db::count(),
         'active_tenants' => Db::sum(Db::case(['is_active = 1' => '1'], '0')),
-        'enterprise_count' => Db::sum(Db::case(['plan = "enterprise"' => '1'], '0')),
-        'business_count' => Db::sum(Db::case(['plan = "business"' => '1'], '0')),
-        'free_count' => Db::sum(Db::case(['plan = "free"' => '1'], '0'))
+        'enterprise_count' => Db::sum(Db::case(["plan = 'enterprise'" => '1'], '0')),
+        'business_count' => Db::sum(Db::case(["plan = 'business'" => '1'], '0')),
+        'free_count' => Db::sum(Db::case(["plan = 'free'" => '1'], '0'))
     ])
     ->getOne();
 
-$totalUsers = $db->rawQueryValue('SELECT COUNT(*) FROM users');
-$totalDocs = $db->rawQueryValue('SELECT COUNT(*) FROM documents');
-$totalRequests = $db->rawQueryValue('SELECT SUM(requests_count) FROM api_usage') ?: 0;
+$totalUsers = $db->find()->from('users')->select([Db::count()])->getValue();
+$totalDocs = $db->find()->from('documents')->select([Db::count()])->getValue();
+$totalRequests = $db->find()->from('api_usage')->select([Db::sum('requests_count')])->getValue() ?: 0;
 
 echo "  🏢 Platform Statistics:\n";
 echo "     Total Tenants: {$platformStats['total_tenants']} (Active: {$platformStats['active_tenants']})\n";

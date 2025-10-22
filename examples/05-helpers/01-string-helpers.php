@@ -128,7 +128,7 @@ $users = $db->find()
     ->select([
         'first_name',
         'last_name',
-        'full_name_upper' => Db::raw('UPPER(first_name || " " || last_name)'),
+        'full_name_upper' => Db::raw(getCurrentDriver($db) === 'pgsql' ? "UPPER(first_name || ' ' || last_name)" : "UPPER(CONCAT(first_name, ' ', last_name))"),
         'email_lower' => Db::lower('email')
     ])
     ->limit(2)

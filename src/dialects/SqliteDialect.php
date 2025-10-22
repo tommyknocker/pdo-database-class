@@ -112,7 +112,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id'): string
+    public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
     {
         if (!$updateColumns) {
             return '';
@@ -124,6 +124,23 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         if ($isAssoc) {
             foreach ($updateColumns as $col => $expr) {
                 $colSql = $this->quoteIdentifier((string)$col);
+
+                // Handle Db::inc() / Db::dec()
+                if (is_array($expr) && isset($expr['__op'])) {
+                    $op = $expr['__op'];
+                    // SQLite uses column (unqualified) for old values
+                    switch ($op) {
+                        case 'inc':
+                            $parts[] = "{$colSql} = {$colSql} + " . (int)$expr['val'];
+                            break;
+                        case 'dec':
+                            $parts[] = "{$colSql} = {$colSql} - " . (int)$expr['val'];
+                            break;
+                        default:
+                            $parts[] = "{$colSql} = excluded.{$colSql}";
+                    }
+                    continue;
+                }
 
                 // RawValue is inserted as-is
                 if ($expr instanceof RawValue) {

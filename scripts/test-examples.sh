@@ -48,7 +48,8 @@ if [ -f "examples/config.pgsql.php" ]; then
     if php -r "
         \$config = require 'examples/config.pgsql.php';
         try {
-            \$dsn = \$config['driver'] . ':host=' . \$config['host'] . ';dbname=' . \$config['dbname'];
+            \$port = \$config['port'] ?? 5432;
+            \$dsn = \$config['driver'] . ':host=' . \$config['host'] . ';dbname=' . \$config['dbname'] . ';port=' . \$port;
             new PDO(\$dsn, \$config['username'], \$config['password']);
             exit(0);
         } catch (Exception \$e) {

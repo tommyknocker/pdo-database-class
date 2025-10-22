@@ -17,11 +17,12 @@ $driver = getCurrentDriver($db);
 echo "=== JSON Queries Example (on $driver) ===\n\n";
 
 // Setup
+$driver = getCurrentDriver($db);
 recreateTable($db, 'products', [
     'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
     'name' => 'TEXT',
-    'specs' => 'TEXT',
-    'tags' => 'TEXT'
+    'specs' => $driver === 'pgsql' ? 'JSONB' : 'TEXT',
+    'tags' => $driver === 'pgsql' ? 'JSONB' : 'TEXT'
 ]);
 
 echo "1. Inserting products with nested JSON...\n";

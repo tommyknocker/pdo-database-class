@@ -41,7 +41,7 @@ $elapsed = round((microtime(true) - $start) * 1000, 2);
 echo "✗ Inserted 100 rows in {$elapsed}ms (SLOW)\n\n";
 
 // Clear for comparison
-$db->rawQuery('DELETE FROM users');
+$db->find()->table('users')->where(Db::raw('1=1'))->delete();
 
 // Example 2: Bulk insert (fast)
 echo "2. Bulk insert with insertMulti (RECOMMENDED)...\n";
@@ -63,7 +63,7 @@ echo "  Performance improvement: ~" . round(100 / $elapsed, 1) . "x faster\n\n";
 
 // Example 3: Bulk insert in batches
 echo "3. Bulk insert in batches (for very large datasets)...\n";
-$db->rawQuery('DELETE FROM users');
+$db->find()->table('users')->where(Db::raw('1=1'))->delete();
 
 $totalUsers = 1000;
 $batchSize = 100;
@@ -88,7 +88,7 @@ for ($batch = 0; $batch < $batches; $batch++) {
 }
 
 $elapsed = round((microtime(true) - $start) * 1000, 2);
-$count = $db->rawQueryValue('SELECT COUNT(*) FROM users');
+$count = $db->find()->from('users')->select([Db::count()])->getValue();
 
 echo "✓ Inserted $count rows in $batches batches ({$elapsed}ms)\n";
 echo "  Batch size: $batchSize\n";
@@ -96,7 +96,7 @@ echo "  Average per batch: " . round($elapsed / $batches, 2) . "ms\n\n";
 
 // Example 4: Bulk insert with transactions
 echo "4. Bulk insert with transaction (even faster)...\n";
-$db->rawQuery('DELETE FROM users');
+$db->find()->table('users')->where(Db::raw('1=1'))->delete();
 
 $users = [];
 for ($i = 1; $i <= 500; $i++) {
@@ -139,7 +139,7 @@ $deleted = $db->find()
     ->where('age', 25, '<')
     ->delete();
 
-$remaining = $db->rawQueryValue('SELECT COUNT(*) FROM users');
+$remaining = $db->find()->from('users')->select([Db::count()])->getValue();
 echo "✓ Deleted $deleted rows, $remaining remaining\n\n";
 
 // Example 7: Truncate (fastest way to clear table)
@@ -148,7 +148,7 @@ $start = microtime(true);
 $db->find()->table('users')->truncate();
 $elapsed = round((microtime(true) - $start) * 1000, 2);
 
-$count = $db->rawQueryValue('SELECT COUNT(*) FROM users');
+$count = $db->find()->from('users')->select([Db::count()])->getValue();
 echo "✓ Table truncated in {$elapsed}ms, $count rows remaining\n";
 
 echo "\nBulk operations example completed!\n";

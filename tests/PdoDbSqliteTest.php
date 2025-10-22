@@ -1647,6 +1647,42 @@ final class PdoDbSqliteTest extends TestCase
         $this->assertEquals(21, $row['age']);
     }
 
+    public function testUpsertWithRawIncrement(): void
+    {
+        $db = self::$db;
+
+        // First insert
+        $db->find()->table('users')->insert(['name' => 'UpsertTest', 'age' => 10]);
+
+        // UPSERT with raw increment expression
+        $db->find()->table('users')
+            ->onDuplicate([
+                'age' => Db::raw('age + 5')
+            ])
+            ->insert(['name' => 'UpsertTest', 'age' => 20]);
+
+        $row = $db->find()->from('users')->where('name', 'UpsertTest')->getOne();
+        $this->assertEquals(15, $row['age'], 'Age should be incremented by 5 (10 + 5)');
+    }
+
+    public function testUpsertWithIncHelper(): void
+    {
+        $db = self::$db;
+
+        // First insert
+        $db->find()->table('users')->insert(['name' => 'IncTest', 'age' => 100]);
+
+        // UPSERT with Db::inc() helper
+        $db->find()->table('users')
+            ->onDuplicate([
+                'age' => Db::inc(25)
+            ])
+            ->insert(['name' => 'IncTest', 'age' => 999]);
+
+        $row = $db->find()->from('users')->where('name', 'IncTest')->getOne();
+        $this->assertEquals(125, $row['age'], 'Age should be incremented by 25 (100 + 25), not replaced with 999');
+    }
+
 
     public function testSubQueryInWhere(): void
     {

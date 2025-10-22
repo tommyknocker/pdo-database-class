@@ -26,13 +26,14 @@ recreateTable($db, 'users', [
     'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
 ]);
 
+$driver = getCurrentDriver($db);
 recreateTable($db, 'posts', [
     'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
     'title' => 'TEXT NOT NULL',
     'slug' => 'TEXT UNIQUE NOT NULL',
     'content' => 'TEXT',
     'author_id' => 'INTEGER',
-    'meta' => 'TEXT',
+    'meta' => $driver === 'pgsql' ? 'JSONB' : 'TEXT',
     'status' => 'TEXT DEFAULT \'draft\'',
     'view_count' => 'INTEGER DEFAULT 0',
     'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP',
@@ -148,10 +149,12 @@ $post = $db->find()
     ->getOne();
 
 // Get comment count separately
-$commentCount = $db->rawQueryValue(
-    'SELECT COUNT(*) FROM comments WHERE post_id = :post_id AND status = "approved"',
-    ['post_id' => $postId]
-);
+$commentCount = $db->find()
+    ->from('comments')
+    ->select([Db::count()])
+    ->where('post_id', $postId)
+    ->where('status', 'approved')
+    ->getValue();
 $post['comment_count'] = $commentCount;
 
 $meta = json_decode($post['meta'], true);
@@ -217,10 +220,12 @@ $popular = $db->find()
 echo "  Top posts:\n";
 foreach ($popular as $p) {
     // Get comment count separately
-    $comments = $db->rawQueryValue(
-        'SELECT COUNT(*) FROM comments WHERE post_id = :id AND status = "approved"',
-        ['id' => $p['id']]
-    );
+    $comments = $db->find()
+        ->from('comments')
+        ->select([Db::count()])
+        ->where('post_id', $p['id'])
+        ->where('status', 'approved')
+        ->getValue();
     echo "  • {$p['title']} - {$p['view_count']} views, $comments comments\n";
 }
 echo "\n";
@@ -243,10 +248,10 @@ echo "\n";
 // Scenario 10: Blog statistics summary
 echo "10. Blog statistics summary...\n";
 
-$userCount = $db->rawQueryValue('SELECT COUNT(*) FROM users');
-$postCount = $db->rawQueryValue("SELECT COUNT(*) FROM posts WHERE status = 'published'");
-$commentCount = $db->rawQueryValue("SELECT COUNT(*) FROM comments WHERE status = 'approved'");
-$tagCount = $db->rawQueryValue('SELECT COUNT(*) FROM tags');
+$userCount = $db->find()->from('users')->select([Db::count()])->getValue();
+$postCount = $db->find()->from('posts')->select([Db::count()])->where('status', 'published')->getValue();
+$commentCount = $db->find()->from('comments')->select([Db::count()])->where('status', 'approved')->getValue();
+$tagCount = $db->find()->from('tags')->select([Db::count()])->getValue();
 
 echo "  📊 Blog Statistics:\n";
 echo "     Users: $userCount\n";

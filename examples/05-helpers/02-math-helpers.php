@@ -86,8 +86,8 @@ echo "\n";
 // Example 4: GREATEST - Maximum of multiple values
 echo "4. GREATEST - Maximum of multiple columns...\n";
 $db->rawQuery("ALTER TABLE measurements ADD COLUMN alt_reading INTEGER DEFAULT 0");
-$db->rawQuery("UPDATE measurements SET alt_reading = reading + 10 WHERE id <= 2");
-$db->rawQuery("UPDATE measurements SET alt_reading = reading - 5 WHERE id > 2");
+$db->find()->table('measurements')->where('id', 2, '<=')->update(['alt_reading' => Db::raw('reading + 10')]);
+$db->find()->table('measurements')->where('id', 2, '>')->update(['alt_reading' => Db::raw('reading - 5')]);
 
 $results = $db->find()
     ->from('measurements')
