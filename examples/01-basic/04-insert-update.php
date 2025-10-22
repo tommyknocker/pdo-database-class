@@ -6,23 +6,23 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== INSERT and UPDATE Operations ===\n\n";
+echo "=== INSERT and UPDATE Operations (on $driver) ===\n\n";
 
 // Setup
-$db->rawQuery("
-    CREATE TABLE counters (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE,
-        value INTEGER DEFAULT 0,
-        updated_at DATETIME
-    )
-");
+recreateTable($db, 'counters', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'name' => 'TEXT UNIQUE',
+    'value' => 'INTEGER DEFAULT 0',
+    'updated_at' => 'DATETIME'
+]);
 
 // Example 1: Basic INSERT
 echo "1. Basic INSERT...\n";
@@ -116,7 +116,12 @@ $counter = $db->find()
     ->from('counters')
     ->where(Db::like('name', '%total'))
     ->getOne();
-echo "  ✓ Renamed to '{$counter['name']}', value: {$counter['value']}\n\n";
+
+if ($counter) {
+    echo "  ✓ Renamed to '{$counter['name']}', value: {$counter['value']}\n\n";
+} else {
+    echo "  ✗ Counter not found\n\n";
+}
 
 // Example 10: Show final state
 echo "10. Final state of all counters:\n";

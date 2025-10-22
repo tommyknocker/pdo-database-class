@@ -6,16 +6,18 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== NULL Handling Helpers Example ===\n\n";
+echo "=== NULL Handling Helpers Example (on $driver) ===\n\n";
 
 // Setup
-$db->rawQuery("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT, phone TEXT, address TEXT, bio TEXT)");
+recreateTable($db, 'users', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'name' => 'TEXT', 'email' => 'TEXT', 'phone' => 'TEXT', 'address' => 'TEXT', 'bio' => 'TEXT']);
 
 $db->find()->table('users')->insertMulti([
     ['name' => 'Alice', 'email' => 'alice@example.com', 'phone' => '555-0001', 'address' => '123 Main St', 'bio' => 'Developer'],

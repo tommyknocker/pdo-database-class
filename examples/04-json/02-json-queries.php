@@ -6,13 +6,15 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== JSON Queries Example ===\n\n";
+echo "=== JSON Queries Example (on $driver) ===\n\n";
 
 // Setup
 $db->rawQuery("

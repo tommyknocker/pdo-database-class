@@ -7,45 +7,43 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== Advanced Search & Filters Example ===\n\n";
+echo "=== Advanced Search & Filters Example (on $driver) ===\n\n";
 
 // Create schema
 echo "Setting up product catalog database...\n";
 
-$db->rawQuery("
-    CREATE TABLE products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        description TEXT,
-        category TEXT NOT NULL,
-        brand TEXT,
-        price DECIMAL(10,2) NOT NULL,
-        stock INTEGER DEFAULT 0,
-        rating DECIMAL(3,2) DEFAULT 0,
-        review_count INTEGER DEFAULT 0,
-        tags TEXT,
-        specs TEXT,
-        is_featured INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-");
+recreateTable($db, 'products', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'name' => 'TEXT NOT NULL',
+    'description' => 'TEXT',
+    'category' => 'TEXT NOT NULL',
+    'brand' => 'TEXT',
+    'price' => 'REAL NOT NULL',
+    'stock' => 'INTEGER DEFAULT 0',
+    'rating' => 'REAL DEFAULT 0',
+    'review_count' => 'INTEGER DEFAULT 0',
+    'tags' => 'TEXT',
+    'specs' => 'TEXT',
+    'is_featured' => 'INTEGER DEFAULT 0',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+]);
 
-$db->rawQuery("
-    CREATE TABLE reviews (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        product_id INTEGER NOT NULL,
-        user_name TEXT NOT NULL,
-        rating INTEGER NOT NULL,
-        comment TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-");
+recreateTable($db, 'reviews', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'product_id' => 'INTEGER NOT NULL',
+    'user_name' => 'TEXT NOT NULL',
+    'rating' => 'INTEGER NOT NULL',
+    'comment' => 'TEXT',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+]);
 
 echo "✓ Schema created\n\n";
 
@@ -77,9 +75,9 @@ echo "2. Text search: 'Pro'\n";
 $searchTerm = '%Pro%';
 $searchResults = $db->rawQuery(
     "SELECT name, brand, price, rating FROM products 
-     WHERE name LIKE :search OR description LIKE :search 
+     WHERE name LIKE :search1 OR description LIKE :search2 
      ORDER BY rating DESC",
-    ['search' => $searchTerm]
+    ['search1' => $searchTerm, 'search2' => $searchTerm]
 );
 
 echo "  Found " . count($searchResults) . " products:\n";

@@ -7,67 +7,61 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== Multi-Tenant Application Example ===\n\n";
+echo "=== Multi-Tenant Application Example (on $driver) ===\n\n";
 
 // Create schema
 echo "Setting up multi-tenant database...\n";
 
-$db->rawQuery("
-    CREATE TABLE tenants (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        slug TEXT UNIQUE NOT NULL,
-        plan TEXT DEFAULT 'free',
-        max_users INTEGER DEFAULT 5,
-        max_storage_mb INTEGER DEFAULT 100,
-        is_active INTEGER DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-");
+recreateTable($db, 'tenants', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'name' => 'TEXT NOT NULL',
+    'slug' => 'TEXT UNIQUE NOT NULL',
+    'plan' => 'TEXT DEFAULT \'free\'',
+    'max_users' => 'INTEGER DEFAULT 5',
+    'max_storage_mb' => 'INTEGER DEFAULT 100',
+    'is_active' => 'INTEGER DEFAULT 1',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+]);
 
-$db->rawQuery("
-    CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tenant_id INTEGER NOT NULL,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        role TEXT DEFAULT 'member',
-        is_active INTEGER DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(tenant_id, email)
-    )
-");
+recreateTable($db, 'users', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'tenant_id' => 'INTEGER NOT NULL',
+    'name' => 'TEXT NOT NULL',
+    'email' => 'TEXT NOT NULL',
+    'role' => 'TEXT DEFAULT \'member\'',
+    'is_active' => 'INTEGER DEFAULT 1',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP',
+    'UNIQUE(tenant_id, email)' => ''
+]);
 
-$db->rawQuery("
-    CREATE TABLE documents (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tenant_id INTEGER NOT NULL,
-        user_id INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        content TEXT,
-        size_kb INTEGER DEFAULT 0,
-        is_public INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-");
+recreateTable($db, 'documents', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'tenant_id' => 'INTEGER NOT NULL',
+    'user_id' => 'INTEGER NOT NULL',
+    'title' => 'TEXT NOT NULL',
+    'content' => 'TEXT',
+    'size_kb' => 'INTEGER DEFAULT 0',
+    'is_public' => 'INTEGER DEFAULT 0',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP',
+    'updated_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+]);
 
-$db->rawQuery("
-    CREATE TABLE api_usage (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tenant_id INTEGER NOT NULL,
-        endpoint TEXT NOT NULL,
-        requests_count INTEGER DEFAULT 0,
-        date DATE NOT NULL,
-        UNIQUE(tenant_id, endpoint, date)
-    )
-");
+recreateTable($db, 'api_usage', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'tenant_id' => 'INTEGER NOT NULL',
+    'endpoint' => 'TEXT NOT NULL',
+    'requests_count' => 'INTEGER DEFAULT 0',
+    'date' => 'DATE NOT NULL',
+    'UNIQUE(tenant_id, endpoint, date)' => ''
+]);
 
 echo "✓ Schema created (tenants, users, documents, api_usage)\n\n";
 
@@ -169,7 +163,7 @@ $storageUsage = $db->find()
         'total_size_kb' => Db::sum('d.size_kb'),
         'avg_size_kb' => Db::avg('d.size_kb')
     ])
-    ->groupBy('d.tenant_id')
+    ->groupBy('t.id')
     ->orderBy(Db::sum('d.size_kb'), 'DESC')
     ->get();
 

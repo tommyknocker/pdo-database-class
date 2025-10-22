@@ -6,16 +6,23 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== Pagination Example ===\n\n";
+echo "=== Pagination Example (on $driver) ===\n\n";
 
 // Setup with 50 users
-$db->rawQuery("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
+recreateTable($db, 'users', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'name' => 'TEXT',
+    'email' => 'TEXT',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+]);
 
 echo "1. Inserting 50 users...\n";
 $users = [];

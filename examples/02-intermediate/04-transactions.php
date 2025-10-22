@@ -6,17 +6,25 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== Transaction Management Example ===\n\n";
+echo "=== Transaction Management Example (on $driver) ===\n\n";
 
 // Setup
-$db->rawQuery("CREATE TABLE accounts (id INTEGER PRIMARY KEY, name TEXT, balance REAL DEFAULT 0)");
-$db->rawQuery("CREATE TABLE transactions (id INTEGER PRIMARY KEY, from_account INTEGER, to_account INTEGER, amount REAL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
+recreateTable($db, 'accounts', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'name' => 'TEXT', 'balance' => 'REAL DEFAULT 0']);
+recreateTable($db, 'transactions', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'from_account' => 'INTEGER',
+    'to_account' => 'INTEGER',
+    'amount' => 'REAL',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+]);
 
 $db->find()->table('accounts')->insertMulti([
     ['name' => 'Alice', 'balance' => 1000.00],

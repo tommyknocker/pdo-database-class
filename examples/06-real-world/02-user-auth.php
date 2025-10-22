@@ -7,52 +7,48 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== User Authentication System Example ===\n\n";
+echo "=== User Authentication System Example (on $driver) ===\n\n";
 
 // Create schema
 echo "Setting up authentication database...\n";
 
-$db->rawQuery("
-    CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        role TEXT DEFAULT 'user',
-        is_active INTEGER DEFAULT 1,
-        email_verified INTEGER DEFAULT 0,
-        failed_login_attempts INTEGER DEFAULT 0,
-        last_login_at DATETIME,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-");
+recreateTable($db, 'users', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'username' => 'TEXT UNIQUE NOT NULL',
+    'email' => 'TEXT UNIQUE NOT NULL',
+    'password_hash' => 'TEXT NOT NULL',
+    'role' => 'TEXT DEFAULT \'user\'',
+    'is_active' => 'INTEGER DEFAULT 1',
+    'email_verified' => 'INTEGER DEFAULT 0',
+    'failed_login_attempts' => 'INTEGER DEFAULT 0',
+    'last_login_at' => 'DATETIME',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+]);
 
-$db->rawQuery("
-    CREATE TABLE sessions (
-        id TEXT PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        ip_address TEXT,
-        user_agent TEXT,
-        expires_at DATETIME NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-");
+recreateTable($db, 'sessions', [
+    'id' => 'TEXT PRIMARY KEY',
+    'user_id' => 'INTEGER NOT NULL',
+    'ip_address' => 'TEXT',
+    'user_agent' => 'TEXT',
+    'expires_at' => 'DATETIME NOT NULL',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+]);
 
-$db->rawQuery("
-    CREATE TABLE permissions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        role TEXT NOT NULL,
-        resource TEXT NOT NULL,
-        action TEXT NOT NULL,
-        UNIQUE(role, resource, action)
-    )
-");
+recreateTable($db, 'permissions', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'role' => 'TEXT NOT NULL',
+    'resource' => 'TEXT NOT NULL',
+    'action' => 'TEXT NOT NULL',
+    'UNIQUE(role, resource, action)' => ''
+]);
 
 echo "✓ Schema created (users, sessions, permissions)\n\n";
 
@@ -139,7 +135,7 @@ function loginUser($db, $username, $password) {
         'user_id' => $user['id'],
         'ip_address' => '127.0.0.1',
         'user_agent' => 'Mozilla/5.0',
-        'expires_at' => Db::now('+7 days')
+        'expires_at' => Db::raw(getCurrentDriver($db) === 'mysql' ? 'DATE_ADD(NOW(), INTERVAL 7 DAY)' : (getCurrentDriver($db) === 'pgsql' ? "NOW() + INTERVAL '7 days'" : "DATETIME('now', '+7 days')"))
     ]);
     
     return [
@@ -192,7 +188,7 @@ $activeSessions = $db->find()
     ->from('sessions AS s')
     ->join('users AS u', 'u.id = s.user_id')
     ->select(['s.id', 'u.username', 's.created_at', 's.expires_at'])
-    ->where(Db::raw('s.expires_at > DATETIME("now")'))
+    ->where('s.expires_at', Db::now(), '>')
     ->get();
 
 echo "  Active sessions: " . count($activeSessions) . "\n";
@@ -244,7 +240,7 @@ echo "8. Cleaning up expired sessions...\n";
 
 $deleted = $db->find()
     ->table('sessions')
-    ->where(Db::raw('expires_at < DATETIME("now")'))
+    ->where('expires_at', Db::now(), '<')
     ->delete();
 
 echo "  ✓ Deleted $deleted expired session(s)\n\n";

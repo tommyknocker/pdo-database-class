@@ -6,16 +6,24 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== Bulk Operations Example ===\n\n";
+echo "=== Bulk Operations Example (on $driver) ===\n\n";
 
 // Setup
-$db->rawQuery("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT, age INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
+recreateTable($db, 'users', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'name' => 'TEXT',
+    'email' => 'TEXT',
+    'age' => 'INTEGER',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+]);
 
 // Example 1: Single inserts (slow)
 echo "1. Single inserts (NOT recommended for bulk)...\n";

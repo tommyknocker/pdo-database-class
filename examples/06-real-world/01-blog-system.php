@@ -6,68 +6,60 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== Blog System Example ===\n\n";
+echo "=== Blog System Example (on $driver) ===\n\n";
 
 // Create schema
 echo "Setting up blog database schema...\n";
 
-$db->rawQuery("
-    CREATE TABLE users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-");
+recreateTable($db, 'users', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'username' => 'TEXT UNIQUE NOT NULL',
+    'email' => 'TEXT UNIQUE NOT NULL',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+]);
 
-$db->rawQuery("
-    CREATE TABLE posts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        slug TEXT UNIQUE NOT NULL,
-        content TEXT,
-        author_id INTEGER,
-        meta TEXT,  -- JSON for SEO, featured_image, etc.
-        status TEXT DEFAULT 'draft',
-        view_count INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        published_at DATETIME
-    )
-");
+recreateTable($db, 'posts', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'title' => 'TEXT NOT NULL',
+    'slug' => 'TEXT UNIQUE NOT NULL',
+    'content' => 'TEXT',
+    'author_id' => 'INTEGER',
+    'meta' => 'TEXT',
+    'status' => 'TEXT DEFAULT \'draft\'',
+    'view_count' => 'INTEGER DEFAULT 0',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP',
+    'published_at' => 'DATETIME'
+]);
 
-$db->rawQuery("
-    CREATE TABLE comments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        post_id INTEGER,
-        author_name TEXT,
-        author_email TEXT,
-        content TEXT,
-        status TEXT DEFAULT 'pending',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-");
+recreateTable($db, 'comments', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'post_id' => 'INTEGER',
+    'author_name' => 'TEXT',
+    'author_email' => 'TEXT',
+    'content' => 'TEXT',
+    'status' => 'TEXT DEFAULT \'pending\'',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+]);
 
-$db->rawQuery("
-    CREATE TABLE tags (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE,
-        slug TEXT UNIQUE
-    )
-");
+recreateTable($db, 'tags', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'name' => 'TEXT UNIQUE',
+    'slug' => 'TEXT UNIQUE'
+]);
 
-$db->rawQuery("
-    CREATE TABLE post_tags (
-        post_id INTEGER,
-        tag_id INTEGER,
-        PRIMARY KEY (post_id, tag_id)
-    )
-");
+recreateTable($db, 'post_tags', [
+    'post_id' => 'INTEGER',
+    'tag_id' => 'INTEGER',
+    'PRIMARY KEY (post_id, tag_id)' => ''
+]);
 
 echo "✓ Schema created (users, posts, comments, tags, post_tags)\n\n";
 

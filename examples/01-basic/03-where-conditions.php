@@ -6,25 +6,25 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== WHERE Conditions Examples ===\n\n";
+echo "=== WHERE Conditions Examples (on $driver) ===\n\n";
 
 // Setup
-$db->rawQuery("
-    CREATE TABLE products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        category TEXT,
-        price REAL,
-        stock INTEGER,
-        active INTEGER DEFAULT 1
-    )
-");
+recreateTable($db, 'products', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'name' => 'TEXT',
+    'category' => 'TEXT',
+    'price' => 'REAL',
+    'stock' => 'INTEGER',
+    'active' => 'INTEGER DEFAULT 1'
+]);
 
 $products = [
     ['name' => 'Laptop', 'category' => 'Electronics', 'price' => 999.99, 'stock' => 15, 'active' => 1],

@@ -6,23 +6,23 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== UPSERT Operations Example ===\n\n";
+echo "=== UPSERT Operations Example (on $driver) ===\n\n";
 
 // Setup
-$db->rawQuery("
-    CREATE TABLE user_stats (
-        user_id INTEGER PRIMARY KEY,
-        login_count INTEGER DEFAULT 0,
-        last_login DATETIME,
-        total_points INTEGER DEFAULT 0
-    )
-");
+recreateTable($db, 'user_stats', [
+    'user_id' => 'INTEGER PRIMARY KEY',
+    'login_count' => 'INTEGER DEFAULT 0',
+    'last_login' => 'DATETIME',
+    'total_points' => 'INTEGER DEFAULT 0'
+]);
 
 echo "✓ Table created\n\n";
 

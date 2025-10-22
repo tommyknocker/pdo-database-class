@@ -6,16 +6,26 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== Aggregations Example ===\n\n";
+echo "=== Aggregations Example (on $driver) ===\n\n";
 
 // Setup
-$db->rawQuery("CREATE TABLE sales (id INTEGER PRIMARY KEY, product TEXT, category TEXT, amount REAL, quantity INTEGER, region TEXT, sale_date DATE)");
+recreateTable($db, 'sales', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'product' => 'TEXT',
+    'category' => 'TEXT',
+    'amount' => 'REAL',
+    'quantity' => 'INTEGER',
+    'region' => 'TEXT',
+    'sale_date' => 'DATE'
+]);
 
 $db->find()->table('sales')->insertMulti([
     ['product' => 'Laptop', 'category' => 'Electronics', 'amount' => 999.99, 'quantity' => 2, 'region' => 'East', 'sale_date' => '2025-10-01'],

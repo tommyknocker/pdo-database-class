@@ -6,16 +6,18 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== Math Helper Functions Example ===\n\n";
+echo "=== Math Helper Functions Example (on $driver) ===\n\n";
 
 // Setup
-$db->rawQuery("CREATE TABLE measurements (id INTEGER PRIMARY KEY, name TEXT, value REAL, reading INTEGER)");
+recreateTable($db, 'measurements', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'name' => 'TEXT', 'value' => 'REAL', 'reading' => 'INTEGER']);
 
 $db->find()->table('measurements')->insertMulti([
     ['name' => 'Temperature', 'value' => -5.7, 'reading' => 15],

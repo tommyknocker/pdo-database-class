@@ -6,24 +6,24 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== Date and Time Helpers Example ===\n\n";
+echo "=== Date and Time Helpers Example (on $driver) ===\n\n";
 
 // Setup
-$db->rawQuery("
-    CREATE TABLE events (
-        id INTEGER PRIMARY KEY,
-        title TEXT,
-        event_date DATE,
-        event_time TIME,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-");
+recreateTable($db, 'events', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'title' => 'TEXT',
+    'event_date' => 'DATE',
+    'event_time' => 'TIME',
+    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+]);
 
 echo "1. Inserting events with current timestamp...\n";
 $db->find()->table('events')->insertMulti([

@@ -6,6 +6,7 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 
@@ -15,7 +16,7 @@ if (!file_exists(__DIR__ . '/../config.php')) {
 }
 $config = require __DIR__ . '/../config.php';
 
-echo "=== PDOdb Connection Examples ===\n\n";
+echo "=== PDOdb Connection Examples (on $driver) ===\n\n";
 
 // Example 1: SQLite Connection (in-memory) - easiest to get started
 echo "1. Connecting to SQLite (in-memory)...\n";

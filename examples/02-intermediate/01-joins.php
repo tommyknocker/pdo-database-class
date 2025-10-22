@@ -6,18 +6,20 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 
-echo "=== JOIN Operations Example ===\n\n";
+echo "=== JOIN Operations Example (on $driver) ===\n\n";
 
 // Setup tables
-$db->rawQuery("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, city TEXT)");
-$db->rawQuery("CREATE TABLE orders (id INTEGER PRIMARY KEY, user_id INTEGER, product TEXT, amount REAL)");
-$db->rawQuery("CREATE TABLE reviews (id INTEGER PRIMARY KEY, user_id INTEGER, rating INTEGER, comment TEXT)");
+recreateTable($db, 'users', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'name' => 'TEXT', 'city' => 'TEXT']);
+recreateTable($db, 'orders', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'user_id' => 'INTEGER', 'product' => 'TEXT', 'amount' => 'REAL']);
+recreateTable($db, 'reviews', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'user_id' => 'INTEGER', 'rating' => 'INTEGER', 'comment' => 'TEXT']);
 
 // Insert test data
 $db->find()->table('users')->insertMulti([

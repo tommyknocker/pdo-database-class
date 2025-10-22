@@ -6,11 +6,12 @@
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-echo "=== Connection Pooling Example ===\n\n";
+echo "=== Connection Pooling Example (on $driver) ===\n\n";
 
 // Initialize without default connection
 $db = new PdoDb();
