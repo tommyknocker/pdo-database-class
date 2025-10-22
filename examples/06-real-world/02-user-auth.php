@@ -101,7 +101,7 @@ function loginUser($db, $username, $password) {
     $user = $db->find()
         ->from('users')
         ->where('username', $username)
-        ->where('is_active', 1)
+        ->andWhere('is_active', 1)
         ->getOne();
     
     if (!$user) {
@@ -170,8 +170,8 @@ function hasPermission($db, $userId, $resource, $action) {
         ->join('permissions p', 'p.role = u.role')
         ->select([Db::count()])
         ->where('u.id', $userId)
-        ->where('p.resource', $resource)
-        ->where('p.action', $action)
+        ->andWhere('p.resource', $resource)
+        ->andWhere('p.action', $action)
         ->getValue();
     
     return $count > 0;

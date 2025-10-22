@@ -119,7 +119,7 @@ $acmeTenantId = 1;
 $acmeUsers = $db->find()
     ->from('users')
     ->where('tenant_id', $acmeTenantId)
-    ->where('is_active', 1)
+    ->andWhere('is_active', 1)
     ->orderBy('role')
     ->get();
 
@@ -188,7 +188,7 @@ foreach ($tenants as $tenant) {
         ->from('users')
         ->select([Db::count()])
         ->where('tenant_id', $tenant['id'])
-        ->where('is_active', 1)
+        ->andWhere('is_active', 1)
         ->getValue();
     
     $percentUsed = number_format(($currentUsers / $tenant['max_users']) * 100, 0);
@@ -270,7 +270,7 @@ function getTenantDocuments($db, $userId) {
         ->from('documents AS d')
         ->join('users AS u', 'u.id = d.user_id')
         ->where('d.user_id', $userId)
-        ->where('u.tenant_id = d.tenant_id') // Ensure tenant isolation
+        ->andWhere('u.tenant_id = d.tenant_id') // Ensure tenant isolation
         ->select(['d.title', 'd.size_kb', 'u.name AS author'])
         ->get();
 }

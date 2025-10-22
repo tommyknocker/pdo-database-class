@@ -58,7 +58,7 @@ echo "3. Multiple AND conditions...\n";
 $cheapElectronics = $db->find()
     ->from('products')
     ->where('category', 'Electronics')
-    ->where('price', 50, '<')
+    ->andWhere('price', 50, '<')
     ->get();
 echo "  Found " . count($cheapElectronics) . " cheap electronics\n\n";
 
@@ -100,7 +100,7 @@ echo "8. IS NULL / IS NOT NULL...\n";
 $hasStock = $db->find()
     ->from('products')
     ->where(Db::isNotNull('stock'))
-    ->where('stock', 0, '>')
+    ->andWhere('stock', 0, '>')
     ->get();
 echo "  Found " . count($hasStock) . " products in stock\n\n";
 
@@ -118,7 +118,7 @@ $complex = $db->find()
     ->from('products')
     ->select(['name', 'price', 'stock'])
     ->where('active', 1)
-    ->where(Db::raw('(price < 100 OR stock > 40)'))
+    ->andWhere(Db::raw('(price < 100 OR stock > 40)'))
     ->get();
 
 echo "  Found " . count($complex) . " products (active AND (cheap OR high stock)):\n";

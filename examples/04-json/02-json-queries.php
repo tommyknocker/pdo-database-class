@@ -155,7 +155,7 @@ $gaming = $db->find()
         'ram' => Db::jsonGet('specs', ['ram'])
     ])
     ->where(Db::jsonContains('tags', 'gaming'))
-    ->where(Db::jsonPath('specs', ['ram'], '>=', 16))
+    ->andWhere(Db::jsonPath('specs', ['ram'], '>=', 16))
     ->get();
 
 if ($gaming) {

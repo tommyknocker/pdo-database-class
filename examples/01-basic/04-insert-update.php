@@ -96,7 +96,7 @@ echo "8. Conditional UPDATE...\n";
 $affected = $db->find()
     ->table('counters')
     ->where('name', 'downloads')
-    ->where('value', 100, '<')
+    ->andWhere('value', 100, '<')
     ->update(['value' => 100]);
 
 echo "  ✓ Set downloads to 100 (affected: $affected rows)\n\n";

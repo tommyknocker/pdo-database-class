@@ -1245,10 +1245,20 @@ class QueryBuilder implements QueryBuilderInterface
             foreach ($exprOrColumn as $col => $val) {
                 $exprQuoted = $this->quoteQualifiedIdentifier((string)$col);
                 if ($val instanceof RawValue) {
-                    $this->{$prop}[] = [
-                        'sql' => "{$exprQuoted} {$operator} {$this->resolveRawValue($val)}",
-                        'cond' => $cond
-                    ];
+                    $resolved = $this->resolveRawValue($val);
+                    // Check if RawValue already contains the column name (full condition)
+                    // e.g., "age LIKE :pattern" or "age IN (:p1, :p2)"
+                    $quotedCol = $this->dialect->quoteIdentifier((string)$col);
+                    if (stripos($resolved, (string)$col) === 0 || stripos($resolved, $quotedCol) === 0) {
+                        // Full condition - use as is
+                        $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
+                    } else {
+                        // Just a value - add column and operator
+                        $this->{$prop}[] = [
+                            'sql' => "{$exprQuoted} {$operator} {$resolved}",
+                            'cond' => $cond
+                        ];
+                    }
                 } elseif (is_array($value)) {
                     $this->params[trim($val, ':')] = $value[trim($val, ':')] ?? null;
                     $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$val}", 'cond' => $cond];

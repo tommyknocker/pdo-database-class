@@ -153,7 +153,7 @@ $commentCount = $db->find()
     ->from('comments')
     ->select([Db::count()])
     ->where('post_id', $postId)
-    ->where('status', 'approved')
+    ->andWhere('status', 'approved')
     ->getValue();
 $post['comment_count'] = $commentCount;
 
@@ -184,7 +184,7 @@ echo "  Tags: " . implode(', ', array_column($postTags, 'name')) . "\n\n";
 $postComments = $db->find()
     ->from('comments')
     ->where('post_id', $postId)
-    ->where('status', 'approved')
+    ->andWhere('status', 'approved')
     ->orderBy('created_at', 'ASC')
     ->get();
 
@@ -202,7 +202,7 @@ $phpPosts = $db->find()
     ->join('tags AS t', 't.id = pt.tag_id')
     ->select(['p.title', 'p.slug'])
     ->where('t.slug', 'php')
-    ->where('p.status', 'published')
+    ->andWhere('p.status', 'published')
     ->get();
 
 echo "  Found " . count($phpPosts) . " post(s) with PHP tag\n\n";
@@ -236,7 +236,7 @@ $featured = $db->find()
     ->from('posts')
     ->select(['title'])
     ->where('status', 'published')
-    ->where(Db::jsonPath('meta', ['featured'], '=', true))
+    ->andWhere(Db::jsonPath('meta', ['featured'], '=', true))
     ->get();
 
 echo "  Found " . count($featured) . " featured post(s):\n";
