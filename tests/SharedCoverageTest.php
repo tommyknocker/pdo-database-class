@@ -1122,6 +1122,184 @@ class SharedCoverageTest extends TestCase
         $this->assertEquals('Name: PRODUCT | Price: 99$', $result['display']);
     }
 
+    /* ---------------- Constants Tests ---------------- */
+
+    public function testLockConstants(): void
+    {
+        $this->assertEquals('WRITE', PdoDb::LOCK_WRITE);
+        $this->assertEquals('READ', PdoDb::LOCK_READ);
+    }
+
+    /* ---------------- Transaction Methods Tests ---------------- */
+
+    public function testInTransaction(): void
+    {
+        // Initially no transaction
+        $this->assertFalse(self::$db->inTransaction());
+        
+        // Start transaction
+        self::$db->startTransaction();
+        $this->assertTrue(self::$db->inTransaction());
+        
+        // Commit transaction
+        self::$db->commit();
+        $this->assertFalse(self::$db->inTransaction());
+    }
+
+    public function testTransactionCallback(): void
+    {
+        $result = self::$db->transaction(function($db) {
+            $db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 42]);
+            return 'success';
+        });
+        
+        $this->assertEquals('success', $result);
+        
+        // Verify data was committed
+        $count = self::$db->rawQueryValue('SELECT COUNT(*) FROM test_coverage WHERE name = ?', ['test']);
+        $this->assertEquals(1, $count);
+        
+        // Verify no active transaction
+        $this->assertFalse(self::$db->inTransaction());
+    }
+
+    public function testTransactionCallbackRollback(): void
+    {
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('Test rollback');
+        
+        try {
+            self::$db->transaction(function($db) {
+                $db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 42]);
+                throw new \Exception('Test rollback');
+            });
+        } catch (\Exception $e) {
+            // Verify data was rolled back
+            $count = self::$db->rawQueryValue('SELECT COUNT(*) FROM test_coverage WHERE name = ?', ['test']);
+            $this->assertEquals(0, $count);
+            
+            // Verify no active transaction
+            $this->assertFalse(self::$db->inTransaction());
+            
+            throw $e;
+        }
+    }
+
+    /* ---------------- Locking Methods Tests ---------------- */
+
+    public function testLockUnlock(): void
+    {
+        // SQLite doesn't support LOCK TABLES, so we expect an exception
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('LOCK TABLES not supported');
+        
+        self::$db->lock('test_coverage');
+    }
+
+    public function testLockMultipleTables(): void
+    {
+        // SQLite doesn't support LOCK TABLES, so we expect an exception
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('LOCK TABLES not supported');
+        
+        self::$db->lock(['test_coverage', 'test_coverage']);
+    }
+
+    public function testSetLockMethodWithConstants(): void
+    {
+        // Test using constants
+        $result = self::$db->setLockMethod(PdoDb::LOCK_READ);
+        $this->assertInstanceOf(PdoDb::class, $result);
+        
+        $result = self::$db->setLockMethod(PdoDb::LOCK_WRITE);
+        $this->assertInstanceOf(PdoDb::class, $result);
+    }
+
+    public function testSetLockMethodInvalid(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid lock method: INVALID');
+        
+        self::$db->setLockMethod('INVALID');
+    }
+
+    /* ---------------- Connection Methods Tests ---------------- */
+
+    public function testPing(): void
+    {
+        $result = self::$db->ping();
+        $this->assertTrue($result);
+    }
+
+    public function testHasConnection(): void
+    {
+        $db = new PdoDb();
+        
+        // Initially no connections
+        $this->assertFalse($db->hasConnection('test'));
+        
+        // Add connection
+        $db->addConnection('test', ['driver' => 'sqlite', 'path' => ':memory:']);
+        $this->assertTrue($db->hasConnection('test'));
+        
+        // Non-existent connection
+        $this->assertFalse($db->hasConnection('nonexistent'));
+    }
+
+    public function testDisconnectSpecificConnection(): void
+    {
+        $db = new PdoDb();
+        
+        // Add multiple connections
+        $db->addConnection('conn1', ['driver' => 'sqlite', 'path' => ':memory:']);
+        $db->addConnection('conn2', ['driver' => 'sqlite', 'path' => ':memory:']);
+        
+        $this->assertTrue($db->hasConnection('conn1'));
+        $this->assertTrue($db->hasConnection('conn2'));
+        
+        // Disconnect specific connection
+        $db->disconnect('conn1');
+        $this->assertFalse($db->hasConnection('conn1'));
+        $this->assertTrue($db->hasConnection('conn2'));
+    }
+
+    public function testDisconnectAllConnections(): void
+    {
+        $db = new PdoDb();
+        
+        // Add connections
+        $db->addConnection('conn1', ['driver' => 'sqlite', 'path' => ':memory:']);
+        $db->addConnection('conn2', ['driver' => 'sqlite', 'path' => ':memory:']);
+        
+        $this->assertTrue($db->hasConnection('conn1'));
+        $this->assertTrue($db->hasConnection('conn2'));
+        
+        // Disconnect all
+        $db->disconnect();
+        $this->assertFalse($db->hasConnection('conn1'));
+        $this->assertFalse($db->hasConnection('conn2'));
+    }
+
+    public function testDisconnectCurrentConnection(): void
+    {
+        $db = new PdoDb();
+        
+        // Add and select connection
+        $db->addConnection('test', ['driver' => 'sqlite', 'path' => ':memory:']);
+        $db->connection('test');
+        
+        $this->assertTrue($db->hasConnection('test'));
+        
+        // Disconnect current connection
+        $db->disconnect('test');
+        $this->assertFalse($db->hasConnection('test'));
+        
+        // Should throw exception when trying to use disconnected connection
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Connection not initialized');
+        $db->find();
+    }
+
     /* ---------------- Connection Retry Tests ---------------- */
 
     public function testRetryableConnectionCreation(): void

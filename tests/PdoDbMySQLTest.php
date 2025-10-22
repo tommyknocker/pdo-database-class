@@ -3732,4 +3732,49 @@ XML
         $this->assertContains('name', $fieldNames);
         $this->assertContains('age', $fieldNames);
     }
+
+    public function testExplainQuery(): void
+    {
+        $db = self::$db;
+        
+        // Insert test data
+        $db->find()->table('users')->insert(['name' => 'Alice', 'age' => 25]);
+        $db->find()->table('users')->insert(['name' => 'Bob', 'age' => 30]);
+        
+        // Test EXPLAIN
+        $explainResult = $db->explain('SELECT * FROM users WHERE age > ?', [20]);
+        
+        $this->assertIsArray($explainResult);
+        $this->assertNotEmpty($explainResult);
+        $this->assertArrayHasKey('id', $explainResult[0]);
+        $this->assertArrayHasKey('select_type', $explainResult[0]);
+        $this->assertArrayHasKey('table', $explainResult[0]);
+        $this->assertArrayHasKey('type', $explainResult[0]);
+        $this->assertArrayHasKey('possible_keys', $explainResult[0]);
+        $this->assertArrayHasKey('key', $explainResult[0]);
+        $this->assertArrayHasKey('key_len', $explainResult[0]);
+        $this->assertArrayHasKey('ref', $explainResult[0]);
+        $this->assertArrayHasKey('rows', $explainResult[0]);
+        $this->assertArrayHasKey('Extra', $explainResult[0]);
+    }
+
+    public function testExplainAnalyzeQuery(): void
+    {
+        $db = self::$db;
+        
+        // Insert test data
+        $db->find()->table('users')->insert(['name' => 'Alice', 'age' => 25]);
+        $db->find()->table('users')->insert(['name' => 'Bob', 'age' => 30]);
+        
+        // Test EXPLAIN ANALYZE (MySQL 8.0+)
+        $explainAnalyzeResult = $db->explainAnalyze('SELECT * FROM users WHERE age > ?', [20]);
+        
+        $this->assertIsArray($explainAnalyzeResult);
+        $this->assertNotEmpty($explainAnalyzeResult);
+        
+        // MySQL EXPLAIN ANALYZE includes additional columns
+        $this->assertArrayHasKey('id', $explainAnalyzeResult[0]);
+        $this->assertArrayHasKey('select_type', $explainAnalyzeResult[0]);
+        $this->assertArrayHasKey('table', $explainAnalyzeResult[0]);
+    }
 }

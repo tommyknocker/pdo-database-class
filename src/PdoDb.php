@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb;
 
+use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Throwable;
@@ -14,6 +15,10 @@ use tommyknocker\pdodb\query\QueryBuilder;
 
 class PdoDb
 {
+    public const LOCK_WRITE = 'WRITE';
+    public const LOCK_READ = 'READ';
+
+
     /** @var DialectInterface Current dialect instance */
     public DialectInterface $dialect;
 
@@ -184,6 +189,35 @@ class PdoDb
         }
     }
 
+    /**
+     * Checks if a transaction is currently active.
+     *
+     * @return bool True if a transaction is active, false otherwise.
+     */
+    public function inTransaction(): bool
+    {
+        return $this->connection->inTransaction();
+    }
+
+    /**
+     * Executes a callback within a transaction.
+     *
+     * @param callable $callback The callback to be executed.
+     * @return mixed The result of the callback.
+     * @throws Throwable If the callback throws an exception, it will be rethrown after rolling back the transaction.
+     */
+    public function transaction(callable $callback): mixed
+    {
+        $this->startTransaction();
+        try {
+            $result = $callback($this);
+            $this->commit();
+            return $result;
+        } catch (Throwable $e) {
+            $this->rollback();
+            throw $e;
+        }
+    }
 
     /* ---------------- LOCKING ---------------- */
 
@@ -226,20 +260,33 @@ class PdoDb
      */
     public function setLockMethod(string $method): self
     {
-        $this->lockMethod = strtoupper($method);
+        $upper = strtoupper($method);
+        if (!in_array($upper, [self::LOCK_WRITE, self::LOCK_READ], true)) {
+            throw new InvalidArgumentException("Invalid lock method: $method");
+        }
+        $this->lockMethod = $upper;
         return $this;
     }
 
     /**
      * Disconnects from the database.
      *
+     * @param string|null $name The name of the connection to disconnect.
+     *                          Pass null to disconnect all connections.
      * @return void
      */
-    public function disconnect(): void
+    public function disconnect(?string $name = null): void
     {
-        $this->connectionStorage = null;
+        if ($name === null) {
+            $this->connectionStorage = null;
+            $this->connections = [];
+        } elseif (isset($this->connections[$name])) {
+            if ($this->connectionStorage === $this->connections[$name]) {
+                $this->connectionStorage = null;
+            }
+            unset($this->connections[$name]);
+        }
     }
-
     /**
      * Pings the database.
      *
@@ -282,6 +329,17 @@ class PdoDb
     }
 
     /**
+     * Checks if a connection exists in the connection pool.
+     *
+     * @param string $name The name of the connection.
+     * @return bool True if the connection exists, false otherwise.
+     */
+    public function hasConnection(string $name): bool
+    {
+        return isset($this->connections[$name]);
+    }
+
+    /**
      * Returns a connection from the connection pool.
      *
      * @param string $name The name of the connection.
@@ -295,6 +353,8 @@ class PdoDb
         $this->connectionStorage = $this->connections[$name];
         return $this;
     }
+
+    /* ---------------- INTROSPECT ---------------- */
 
     /**
      * Describes a table.
