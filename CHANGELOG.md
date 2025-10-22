@@ -9,6 +9,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.5.1] - 2025-10-22
+
+### Added
+- **Db::inc() and Db::dec() support in onDuplicate()**: Now you can use convenient helpers for UPSERT increments
+  - Works across all dialects: MySQL, PostgreSQL, SQLite
+  - Example: `->onDuplicate(['counter' => Db::inc(5)])`
+  - Automatically generates dialect-specific SQL (e.g., `counter = counter + 5`)
+- **CI testing for examples**: All 21 examples now tested in GitHub Actions
+  - SQLite: 21/21 examples verified
+  - MySQL: 20/20 examples verified (if database available)
+  - PostgreSQL: 20/20 examples verified (if database available)
+- **New tests** for UPSERT functionality:
+  - `testUpsertWithRawIncrement()` - tests `Db::raw('age + 5')` in onDuplicate
+  - `testUpsertWithIncHelper()` - tests `Db::inc(5)` in onDuplicate
+  - `testGroupByWithQualifiedNames()` - verifies qualified column names in GROUP BY
+
+### Changed
+- **All examples migrated to QueryBuilder API**:
+  - Replaced 15+ `rawQuery()` calls with fluent QueryBuilder methods
+  - `rawQuery()` now used ONLY for DDL (CREATE/ALTER/DROP TABLE)
+  - Examples demonstrate best practices with `Db::` helpers
+- **Enhanced buildUpsertClause() signature** (backwards compatible):
+  - Added optional `$tableName` parameter for PostgreSQL ambiguous column resolution
+  - Enables proper `Db::inc()` and `Db::raw()` support in UPSERT operations
+- **Improved test-examples.sh script**:
+  - Fixed PostgreSQL port detection in connection checks
+  - Now correctly detects all 3 database dialects when available
+- **JSON column handling**: Examples automatically use JSONB for PostgreSQL, TEXT for MySQL/SQLite
+
+### Fixed
+- **CRITICAL: groupBy() and orderBy() with qualified column names** (`u.id`, `t.name`):
+  - **Bug**: Qualified names quoted as single identifier `` `u.id` `` instead of `` `u`.`id` ``
+  - **Impact**: Broke on MySQL/PostgreSQL with "Unknown column 'u.id'" error
+  - **Fix**: Changed to use `quoteQualifiedIdentifier()` instead of `quoteIdentifier()`
+  - **Tests**: Added `testGroupByWithQualifiedNames()` for all 3 dialects
+- **CRITICAL: Db::inc()/Db::dec() ignored in onDuplicate()**:
+  - **Bug**: Dialects didn't handle `['__op' => 'inc']` array format in UPSERT
+  - **Impact**: UPSERT replaced value instead of incrementing
+  - **Fix**: Added `is_array($expr) && isset($expr['__op'])` handling in all dialects
+- **PostgreSQL UPSERT "ambiguous column" errors**:
+  - **Bug**: `Db::raw('age + 5')` in onDuplicate caused "column reference ambiguous"
+  - **Impact**: PostgreSQL couldn't distinguish old vs new column values
+  - **Fix**: Auto-qualify column references with table name (`user_stats."age" + 5`)
+- **PostgreSQL lastInsertId() exception for non-SERIAL tables**:
+  - **Bug**: Crash when inserting into tables without auto-increment
+  - **Fix**: Added try-catch in `executeInsert()` to gracefully handle missing sequence
+- **String literal quoting in SQL expressions**:
+  - Fixed PostgreSQL compatibility (uses `'string'` not `"string"`)
+  - Fixed CASE WHEN conditions to use single quotes for string literals
+  - Examples now properly escape string values in Db::raw() expressions
+- **Examples multi-dialect compatibility**:
+  - JSON columns: Use JSONB for PostgreSQL, TEXT for MySQL/SQLite
+  - String concatenation: Dialect-aware (`||` vs `CONCAT()`)
+  - Date/time functions: Dialect-specific interval syntax
+  - All 21 examples verified on all 3 dialects
+
+### Technical Details
+- **All tests passing**: 343 tests, 1544 assertions (up from 334 tests)
+  - Added 9 new tests across MySQL, PostgreSQL, SQLite
+  - Zero failures, zero errors, zero warnings
+- **All examples passing**: 61/61 total runs (21 examples × ~3 dialects each)
+  - SQLite: 21/21 ✅
+  - MySQL: 20/20 ✅ (01-connection.php uses SQLite only)
+  - PostgreSQL: 20/20 ✅
+- **PHPStan Level 8**: Zero errors across entire codebase
+- **Full backwards compatibility**: Optional parameter with default value
+
+---
+
 ## [2.5.0] - 2025-10-19
 
 ### Added
@@ -308,7 +377,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.5.1...HEAD
+[2.5.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.4.3...v2.5.0
 [2.4.3]: https://github.com/tommyknocker/pdo-database-class/compare/v2.4.2...v2.4.3
 [2.4.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.4.1...v2.4.2
