@@ -10,6 +10,8 @@ use PDOStatement;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\exceptions\DatabaseException;
+use tommyknocker\pdodb\exceptions\ExceptionFactory;
 use tommyknocker\pdodb\helpers\ConcatValue;
 use tommyknocker\pdodb\helpers\ConfigValue;
 use tommyknocker\pdodb\helpers\CurDateValue;
@@ -954,6 +956,15 @@ class QueryBuilder implements QueryBuilderInterface
             if ($this->connection->inTransaction()) {
                 $this->connection->rollback();
             }
+            
+            // Convert to specialized exception and re-throw
+            $dbException = ExceptionFactory::createFromPdoException(
+                $e,
+                $this->connection->getDriverName(),
+                $sql,
+                ['operation' => 'loadCsv', 'file' => $filePath]
+            );
+            throw $dbException;
         }
         return false;
     }
@@ -986,6 +997,15 @@ class QueryBuilder implements QueryBuilderInterface
             if ($this->connection->inTransaction()) {
                 $this->connection->rollback();
             }
+            
+            // Convert to specialized exception and re-throw
+            $dbException = ExceptionFactory::createFromPdoException(
+                $e,
+                $this->connection->getDriverName(),
+                $sql,
+                ['operation' => 'loadXml', 'file' => $filePath, 'rowTag' => $rowTag]
+            );
+            throw $dbException;
         }
         return false;
     }
@@ -1545,6 +1565,16 @@ class QueryBuilder implements QueryBuilderInterface
             return $id > 0 ? $id : 1;
         } catch (PDOException $e) {
             // PostgreSQL: lastval is not yet defined (no SERIAL column)
+            // Convert to specialized exception for better error handling
+            $dbException = ExceptionFactory::createFromPdoException(
+                $e,
+                $this->connection->getDriverName(),
+                $sql,
+                ['operation' => 'getLastInsertId', 'fallback' => true]
+            );
+            
+            // For this specific case, we return 1 as fallback instead of throwing
+            // This maintains backward compatibility
             return 1;
         }
     }

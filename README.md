@@ -118,6 +118,8 @@ Comprehensive, runnable examples are available in the [`examples/`](examples/) d
 - **[Helper Functions](examples/05-helpers/)** - String, math, date/time helpers
 - **[Real-World](examples/06-real-world/)** - Blog system, user auth, search, multi-tenant
 - **[README Examples](examples/07-readme-examples/)** - Examples extracted from this README
+- **[Connection Retry](examples/08-connection-retry/)** - Retry mechanism with logging
+- **[Exception Handling](examples/09-exception-handling/)** - Comprehensive error handling
 
 Each example is self-contained with setup instructions. See [`examples/README.md`](examples/README.md) for the full catalog.
 
@@ -809,10 +811,31 @@ $data = $db->find()
 
 ## Error Handling
 
-### Connection Errors
+PDOdb provides a comprehensive exception hierarchy for better error handling and debugging. All exceptions extend `PDOException` for backward compatibility.
+
+### Exception Hierarchy
+
+```php
+use tommyknocker\pdodb\exceptions\{
+    DatabaseException,           // Base exception class
+    ConnectionException,         // Connection-related errors
+    QueryException,             // Query execution errors
+    ConstraintViolationException, // Constraint violations
+    TransactionException,       // Transaction errors
+    AuthenticationException,     // Authentication errors
+    TimeoutException,           // Timeout errors
+    ResourceException           // Resource exhaustion
+};
+```
+
+### Specific Error Handling
+
+#### Connection Errors
 
 ```php
 use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\exceptions\ConnectionException;
+use tommyknocker\pdodb\exceptions\AuthenticationException;
 
 try {
     $db = new PdoDb('mysql', [
@@ -821,41 +844,243 @@ try {
         'password' => 'pass',
         'dbname' => 'db'
     ]);
-} catch (\PDOException $e) {
-    error_log("Database connection failed: " . $e->getMessage());
-    // Handle error appropriately
+} catch (ConnectionException $e) {
+    error_log("Connection failed: " . $e->getMessage());
+    // Connection errors are retryable
+    if ($e->isRetryable()) {
+        // Implement retry logic
+    }
+} catch (AuthenticationException $e) {
+    error_log("Authentication failed: " . $e->getMessage());
+    // Authentication errors are not retryable
 }
 ```
 
-### Query Errors
+#### Query Errors
 
 ```php
+use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\exceptions\ConstraintViolationException;
+
 try {
     $users = $db->find()
         ->from('users')
         ->where('invalid_column', 1)
         ->get();
-} catch (\PDOException $e) {
-    // Check error code for specific errors
-    if ($e->getCode() === '42S22') {
-        // Unknown column error
-        error_log("Column not found: " . $e->getMessage());
-    }
+} catch (QueryException $e) {
+    error_log("Query error: " . $e->getMessage());
+    error_log("SQL: " . $e->getQuery());
+} catch (ConstraintViolationException $e) {
+    error_log("Constraint violation: " . $e->getMessage());
+    error_log("Constraint: " . $e->getConstraintName());
+    error_log("Table: " . $e->getTableName());
+    error_log("Column: " . $e->getColumnName());
 }
 ```
 
-### Transaction with Proper Rollback
+#### Transaction Errors
 
 ```php
+use tommyknocker\pdodb\exceptions\TransactionException;
+
 $db->startTransaction();
 try {
     $userId = $db->find()->table('users')->insert(['name' => 'Alice']);
     $db->find()->table('orders')->insert(['user_id' => $userId, 'total' => 100]);
     $db->commit();
-} catch (\Throwable $e) {
+} catch (TransactionException $e) {
     $db->rollBack();
     error_log("Transaction failed: " . $e->getMessage());
+    
+    if ($e->isRetryable()) {
+        // Implement retry logic for deadlocks, etc.
+    }
     throw $e;
+}
+```
+
+### Retry Logic with Exception Types
+
+```php
+function executeWithRetry(callable $operation, int $maxRetries = 3): mixed
+{
+    $attempt = 0;
+    $lastException = null;
+    
+    while ($attempt < $maxRetries) {
+        try {
+            return $operation();
+        } catch (ConnectionException $e) {
+            $lastException = $e;
+            $attempt++;
+            
+            if ($attempt < $maxRetries) {
+                sleep(2 ** $attempt); // Exponential backoff
+            }
+        } catch (TimeoutException $e) {
+            $lastException = $e;
+            $attempt++;
+            
+            if ($attempt < $maxRetries) {
+                sleep(2 ** $attempt);
+            }
+        } catch (ResourceException $e) {
+            $lastException = $e;
+            $attempt++;
+            
+            if ($attempt < $maxRetries) {
+                sleep(2 ** $attempt);
+            }
+        } catch (DatabaseException $e) {
+            // Non-retryable errors
+            throw $e;
+        }
+    }
+    
+    throw $lastException;
+}
+
+// Usage
+$result = executeWithRetry(function() use ($db) {
+    return $db->find()->from('users')->get();
+});
+```
+
+### Error Monitoring and Logging
+
+```php
+use tommyknocker\pdodb\exceptions\DatabaseException;
+
+function handleDatabaseError(DatabaseException $e): void
+{
+    $errorData = $e->toArray();
+    
+    // Log structured error data
+    error_log(json_encode([
+        'timestamp' => date('c'),
+        'exception_type' => $errorData['exception'],
+        'message' => $errorData['message'],
+        'code' => $errorData['code'],
+        'driver' => $errorData['driver'],
+        'category' => $errorData['category'],
+        'retryable' => $errorData['retryable'],
+        'query' => $errorData['query'],
+        'context' => $errorData['context']
+    ]));
+    
+    // Send alerts for critical errors
+    if ($e instanceof AuthenticationException || 
+        $e instanceof ResourceException) {
+        sendCriticalAlert($e);
+    }
+}
+
+try {
+    $users = $db->find()->from('users')->get();
+} catch (DatabaseException $e) {
+    handleDatabaseError($e);
+    throw $e;
+}
+```
+
+### Exception Properties
+
+All exceptions provide rich context information:
+
+```php
+catch (DatabaseException $e) {
+    // Basic properties
+    echo "Message: " . $e->getMessage() . "\n";
+    echo "Code: " . $e->getCode() . "\n";
+    echo "Driver: " . $e->getDriver() . "\n";
+    echo "Query: " . $e->getQuery() . "\n";
+    echo "Category: " . $e->getCategory() . "\n";
+    echo "Retryable: " . ($e->isRetryable() ? 'Yes' : 'No') . "\n";
+    
+    // Context information
+    $context = $e->getContext();
+    echo "Context: " . json_encode($context) . "\n";
+    
+    // Add custom context
+    $e->addContext('user_id', 123);
+    
+    // Convert to array for logging
+    $errorData = $e->toArray();
+}
+```
+
+### Constraint Violation Details
+
+```php
+catch (ConstraintViolationException $e) {
+    echo "Constraint: " . $e->getConstraintName() . "\n";
+    echo "Table: " . $e->getTableName() . "\n";
+    echo "Column: " . $e->getColumnName() . "\n";
+    
+    // Handle specific constraint violations
+    if ($e->getConstraintName() === 'unique_email') {
+        // Handle duplicate email
+        $existingUser = $db->find()
+            ->from('users')
+            ->where('email', $email)
+            ->getOne();
+        
+        if ($existingUser) {
+            // Update existing user instead
+            $db->find()
+                ->table('users')
+                ->where('email', $email)
+                ->update(['last_login' => date('Y-m-d H:i:s')]);
+        }
+    }
+}
+```
+
+### Timeout and Resource Details
+
+```php
+catch (TimeoutException $e) {
+    echo "Timeout: " . $e->getTimeoutSeconds() . "s\n";
+    
+    // Implement timeout-specific handling
+    if ($e->getTimeoutSeconds() > 30) {
+        // Long timeout - might be a complex query
+        logSlowQuery($e->getQuery());
+    }
+}
+
+catch (ResourceException $e) {
+    echo "Resource Type: " . $e->getResourceType() . "\n";
+    
+    // Handle resource exhaustion
+    if ($e->getResourceType() === 'connections') {
+        // Implement connection pooling or queuing
+        queueRequest();
+    }
+}
+```
+
+### Backward Compatibility
+
+All new exceptions extend `PDOException`, so existing code continues to work:
+
+```php
+// Old way (still works)
+try {
+    $result = $db->query('SELECT * FROM users');
+} catch (PDOException $e) {
+    // Generic error handling
+}
+
+// New way (recommended)
+try {
+    $result = $db->query('SELECT * FROM users');
+} catch (ConnectionException $e) {
+    // Handle connection issues specifically
+} catch (QueryException $e) {
+    // Handle query issues specifically
+} catch (DatabaseException $e) {
+    // Handle any other database issues
 }
 ```
 

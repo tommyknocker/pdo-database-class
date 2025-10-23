@@ -16,23 +16,35 @@ class DbError
     public const MYSQL_CONNECTION_LOST = 2006;
     public const MYSQL_CANNOT_CONNECT = 2002;
     public const MYSQL_CONNECTION_KILLED = 2013;
+    public const MYSQL_CONNECTION_REFUSED = 2003;
+    public const MYSQL_COMMANDS_OUT_OF_SYNC = 2014;
     public const MYSQL_LOCK_WAIT_TIMEOUT = 1205;
     public const MYSQL_DEADLOCK = 1213;
     public const MYSQL_DUPLICATE_KEY = 1062;
+    public const MYSQL_FOREIGN_KEY_DELETE = 1451;
+    public const MYSQL_FOREIGN_KEY_INSERT = 1452;
+    public const MYSQL_FOREIGN_KEY_INSERT_CHILD = 1216;
+    public const MYSQL_FOREIGN_KEY_DELETE_PARENT = 1217;
     public const MYSQL_TABLE_EXISTS = 1050;
     public const MYSQL_TABLE_NOT_EXISTS = 1146;
     public const MYSQL_COLUMN_NOT_EXISTS = 1054;
     public const MYSQL_SYNTAX_ERROR = 1064;
     public const MYSQL_ACCESS_DENIED = 1045;
+    public const MYSQL_ACCESS_DENIED_USER = 1044;
     public const MYSQL_DATABASE_NOT_EXISTS = 1049;
     public const MYSQL_TOO_MANY_CONNECTIONS = 1040;
+    public const MYSQL_OUT_OF_MEMORY = 1041;
     public const MYSQL_QUERY_INTERRUPTED = 1317;
 
     // PostgreSQL Error Codes (SQLSTATE)
     public const POSTGRESQL_CONNECTION_FAILURE = '08006';
     public const POSTGRESQL_CONNECTION_DOES_NOT_EXIST = '08003';
     public const POSTGRESQL_CONNECTION_FAILURE_SQLSERVER = '08001';
+    public const POSTGRESQL_CONNECTION_EXCEPTION = '08000';
+    public const POSTGRESQL_TRANSACTION_RESOLUTION_UNKNOWN = '08007';
     public const POSTGRESQL_CONNECTION_FAILURE_AUTH = '28P01';
+    public const POSTGRESQL_INVALID_PASSWORD = '28P02';
+    public const POSTGRESQL_INVALID_AUTHORIZATION_SPEC = '28P03';
     public const POSTGRESQL_CONNECTION_FAILURE_DB = '3D000';
     public const POSTGRESQL_DEADLOCK_DETECTED = '40P01';
     public const POSTGRESQL_LOCK_NOT_AVAILABLE = '55P03';
@@ -40,11 +52,15 @@ class DbError
     public const POSTGRESQL_FOREIGN_KEY_VIOLATION = '23503';
     public const POSTGRESQL_NOT_NULL_VIOLATION = '23502';
     public const POSTGRESQL_CHECK_VIOLATION = '23514';
+    public const POSTGRESQL_EXCLUSION_VIOLATION = '23506';
+    public const POSTGRESQL_TRANSACTION_ABORTED = '25P02';
+    public const POSTGRESQL_TRANSACTION_NOT_IN_PROGRESS = '25P03';
     public const POSTGRESQL_UNDEFINED_TABLE = '42P01';
     public const POSTGRESQL_UNDEFINED_COLUMN = '42703';
     public const POSTGRESQL_SYNTAX_ERROR = '42601';
     public const POSTGRESQL_INSUFFICIENT_PRIVILEGE = '42501';
     public const POSTGRESQL_TOO_MANY_CONNECTIONS = '53300';
+    public const POSTGRESQL_CONFIGURATION_FILE_ERROR = '53400';
     public const POSTGRESQL_QUERY_CANCELED = '57014';
 
     // SQLite Error Codes
@@ -202,16 +218,24 @@ class DbError
             self::MYSQL_CONNECTION_LOST => 'MySQL server has gone away',
             self::MYSQL_CANNOT_CONNECT => 'Can\'t connect to MySQL server',
             self::MYSQL_CONNECTION_KILLED => 'Connection was killed',
+            self::MYSQL_CONNECTION_REFUSED => 'Can\'t connect to MySQL server on host',
+            self::MYSQL_COMMANDS_OUT_OF_SYNC => 'Commands out of sync',
             self::MYSQL_LOCK_WAIT_TIMEOUT => 'Lock wait timeout exceeded',
             self::MYSQL_DEADLOCK => 'Deadlock found when trying to get lock',
             self::MYSQL_DUPLICATE_KEY => 'Duplicate entry',
+            self::MYSQL_FOREIGN_KEY_DELETE => 'Cannot delete or update a parent row',
+            self::MYSQL_FOREIGN_KEY_INSERT => 'Cannot add or update a child row',
+            self::MYSQL_FOREIGN_KEY_INSERT_CHILD => 'Cannot add or update a child row',
+            self::MYSQL_FOREIGN_KEY_DELETE_PARENT => 'Cannot delete or update a parent row',
             self::MYSQL_TABLE_EXISTS => 'Table already exists',
             self::MYSQL_TABLE_NOT_EXISTS => 'Table doesn\'t exist',
             self::MYSQL_COLUMN_NOT_EXISTS => 'Unknown column',
             self::MYSQL_SYNTAX_ERROR => 'Syntax error',
             self::MYSQL_ACCESS_DENIED => 'Access denied',
+            self::MYSQL_ACCESS_DENIED_USER => 'Access denied for user',
             self::MYSQL_DATABASE_NOT_EXISTS => 'Unknown database',
             self::MYSQL_TOO_MANY_CONNECTIONS => 'Too many connections',
+            self::MYSQL_OUT_OF_MEMORY => 'Out of memory',
             self::MYSQL_QUERY_INTERRUPTED => 'Query execution was interrupted',
         ];
     }
@@ -227,7 +251,11 @@ class DbError
         $descriptions[self::POSTGRESQL_CONNECTION_FAILURE] = 'Connection failure';
         $descriptions[self::POSTGRESQL_CONNECTION_DOES_NOT_EXIST] = 'Connection does not exist';
         $descriptions[self::POSTGRESQL_CONNECTION_FAILURE_SQLSERVER] = 'SQL server connection failure';
+        $descriptions[self::POSTGRESQL_CONNECTION_EXCEPTION] = 'Connection exception';
+        $descriptions[self::POSTGRESQL_TRANSACTION_RESOLUTION_UNKNOWN] = 'Transaction resolution unknown';
         $descriptions[self::POSTGRESQL_CONNECTION_FAILURE_AUTH] = 'Authentication failed';
+        $descriptions[self::POSTGRESQL_INVALID_PASSWORD] = 'Invalid password';
+        $descriptions[self::POSTGRESQL_INVALID_AUTHORIZATION_SPEC] = 'Invalid authorization specification';
         $descriptions[self::POSTGRESQL_CONNECTION_FAILURE_DB] = 'Database does not exist';
         $descriptions[self::POSTGRESQL_DEADLOCK_DETECTED] = 'Deadlock detected';
         $descriptions[self::POSTGRESQL_LOCK_NOT_AVAILABLE] = 'Lock not available';
@@ -235,11 +263,15 @@ class DbError
         $descriptions[self::POSTGRESQL_FOREIGN_KEY_VIOLATION] = 'Foreign key violation';
         $descriptions[self::POSTGRESQL_NOT_NULL_VIOLATION] = 'Not null violation';
         $descriptions[self::POSTGRESQL_CHECK_VIOLATION] = 'Check constraint violation';
+        $descriptions[self::POSTGRESQL_EXCLUSION_VIOLATION] = 'Exclusion violation';
+        $descriptions[self::POSTGRESQL_TRANSACTION_ABORTED] = 'Transaction is aborted';
+        $descriptions[self::POSTGRESQL_TRANSACTION_NOT_IN_PROGRESS] = 'Transaction is not in progress';
         $descriptions[self::POSTGRESQL_UNDEFINED_TABLE] = 'Undefined table';
         $descriptions[self::POSTGRESQL_UNDEFINED_COLUMN] = 'Undefined column';
         $descriptions[self::POSTGRESQL_SYNTAX_ERROR] = 'Syntax error';
         $descriptions[self::POSTGRESQL_INSUFFICIENT_PRIVILEGE] = 'Insufficient privilege';
         $descriptions[self::POSTGRESQL_TOO_MANY_CONNECTIONS] = 'Too many connections';
+        $descriptions[self::POSTGRESQL_CONFIGURATION_FILE_ERROR] = 'Configuration file error';
         $descriptions[self::POSTGRESQL_QUERY_CANCELED] = 'Query canceled';
         
         // @phpstan-ignore-next-line

@@ -9,6 +9,8 @@ use PDOStatement;
 use Psr\Log\LoggerInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\DbError;
+use tommyknocker\pdodb\exceptions\DatabaseException;
+use tommyknocker\pdodb\exceptions\ExceptionFactory;
 
 /**
  * RetryableConnection
@@ -208,6 +210,14 @@ class RetryableConnection extends Connection
                 
                 return $result;
             } catch (PDOException $e) {
+                // Convert PDOException to specialized exception
+                $dbException = ExceptionFactory::createFromPdoException(
+                    $e,
+                    $this->getDialect()->getDriverName(),
+                    $this->getLastQuery(),
+                    ['method' => $method, 'attempt' => $this->currentAttempt]
+                );
+                
                 // Log attempt failure
                 if ($this->logger) {
                     $this->logger->warning('connection.retry.attempt_failed', [
@@ -216,7 +226,10 @@ class RetryableConnection extends Connection
                         'max_attempts' => $this->retryConfig['max_attempts'],
                         'error_code' => $e->getCode(),
                         'error_message' => $e->getMessage(),
-                        'driver' => $this->getDialect()->getDriverName()
+                        'driver' => $this->getDialect()->getDriverName(),
+                        'exception_type' => $dbException::class,
+                        'category' => $dbException->getCategory(),
+                        'retryable' => $dbException->isRetryable()
                     ]);
                 }
                 
@@ -227,10 +240,12 @@ class RetryableConnection extends Connection
                             'attempt' => $this->currentAttempt,
                             'error_code' => $e->getCode(),
                             'error_message' => $e->getMessage(),
+                            'exception_type' => $dbException::class,
+                            'category' => $dbException->getCategory(),
                             'reason' => 'Error not in retryable list'
                         ]);
                     }
-                    throw $e;
+                    throw $dbException;
                 }
                 
                 if ($this->currentAttempt >= $this->retryConfig['max_attempts']) {
@@ -241,10 +256,12 @@ class RetryableConnection extends Connection
                             'max_attempts' => $this->retryConfig['max_attempts'],
                             'error_code' => $e->getCode(),
                             'error_message' => $e->getMessage(),
+                            'exception_type' => $dbException::class,
+                            'category' => $dbException->getCategory(),
                             'final_error' => true
                         ]);
                     }
-                    throw $e;
+                    throw $dbException;
                 }
                 
                 // Log retry decision and wait
