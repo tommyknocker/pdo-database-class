@@ -25,9 +25,7 @@ class AuthenticationException extends DatabaseException
 
     public function getDescription(): string
     {
-        $description = parent::getDescription();
-
         // Don't include query details for security
-        return $description;
+        return parent::getDescription();
     }
 }

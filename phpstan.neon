@@ -6,15 +6,19 @@ parameters:
     paths:
         - src
     
-    # Исключаем vendor, примеры и тесты из анализа
+    # Exclude vendor, examples and tests from analysis
     excludePaths:
         - vendor
         - examples
         - tests
     
-    # Для PHP 8.4
+    # For PHP 8.4
     phpVersion: 80400
     
-    # Включаем строгие проверки
+    # Enable strict checks
     treatPhpDocTypesAsCertain: false
-
+    
+    # Additional strict checks for detecting redundant code
+    checkMissingCallableSignature: true
+    checkUninitializedProperties: true
+    checkDynamicProperties: true

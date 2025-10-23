@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\dialects;
 
 use InvalidArgumentException;
 use PDO;
+use RuntimeException;
 use tommyknocker\pdodb\helpers\RawValue;
 
 class MySQLDialect extends DialectAbstract
@@ -298,9 +299,14 @@ class MySQLDialect extends DialectAbstract
         ];
         $options = array_merge($defaults, $options);
 
-        return 'LOAD XML LOCAL INFILE ' . $this->pdo->quote($filePath) .
+        if ($this->pdo === null) {
+            throw new RuntimeException('PDO instance not set. Call setPdo() first.');
+        }
+        $pdo = $this->pdo;
+
+        return 'LOAD XML LOCAL INFILE ' . $pdo->quote($filePath) .
             ' INTO TABLE ' . $this->quoteTableWithAlias($table) .
-            ' ROWS IDENTIFIED BY ' . $this->pdo->quote($options['rowTag']) .
+            ' ROWS IDENTIFIED BY ' . $pdo->quote($options['rowTag']) .
             ($options['linesToIgnore'] ? sprintf(' IGNORE %d LINES', $options['linesToIgnore']) : '');
     }
 
@@ -320,8 +326,13 @@ class MySQLDialect extends DialectAbstract
         ];
         $options = array_merge($defaults, $options);
 
+        if ($this->pdo === null) {
+            throw new RuntimeException('PDO instance not set. Call setPdo() first.');
+        }
+        $pdo = $this->pdo;
+
         $localPrefix = $options['local'] ? 'LOCAL ' : '';
-        $quotedPath = $this->pdo->quote($filePath);
+        $quotedPath = $pdo->quote($filePath);
 
         $sql = "LOAD DATA {$localPrefix}INFILE {$quotedPath} INTO TABLE {$table}";
 

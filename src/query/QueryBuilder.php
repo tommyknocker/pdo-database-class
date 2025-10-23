@@ -49,6 +49,7 @@ class QueryBuilder implements QueryBuilderInterface
     /** @var DialectInterface Dialect instance for database-specific SQL */
     protected DialectInterface $dialect;
 
+    /** @var string|null table name */
     protected ?string $table = null {
         get {
             if (!$this->table) {
@@ -193,11 +194,11 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Adds columns to the SELECT clause.
      *
-     * @param RawValue|string|array<int|string, string|RawValue|callable> $cols The columns to add.
+     * @param RawValue|string|array<int|string, string|callable(QueryBuilder): void> $cols The columns to add.
      *
      * @return self The current instance.
      */
-    public function select(RawValue|string|array $cols): self
+    public function select(RawValue|callable|string|array $cols): self
     {
         if (!is_array($cols)) {
             $cols = [$cols];
@@ -227,7 +228,6 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Execute SELECT statement and return all rows.
      *
-     *
      * @return array<int, array<string, mixed>>
      * @throws PDOException
      */
@@ -240,7 +240,6 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Execute SELECT statement and return first row.
      *
-     *
      * @return mixed
      * @throws PDOException
      */
@@ -252,7 +251,6 @@ class QueryBuilder implements QueryBuilderInterface
 
     /**
      * Execute SELECT statement and return column values.
-     *
      *
      * @return array<int, mixed>
      * @throws PDOException
@@ -269,7 +267,6 @@ class QueryBuilder implements QueryBuilderInterface
 
     /**
      * Execute SELECT statement and return single value.
-     *
      *
      * @return mixed
      * @throws PDOException
@@ -422,7 +419,6 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Execute DELETE statement.
      *
-     *
      * @return int
      * @throws PDOException
      */
@@ -437,7 +433,6 @@ class QueryBuilder implements QueryBuilderInterface
 
     /**
      * Execute TRUNCATE statement.
-     *
      *
      * @return bool
      * @throws PDOException
@@ -533,7 +528,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Add WHERE IN clause with subquery.
      *
      * @param string $column The column to check
-     * @param callable $subquery The subquery callback
+     * @param callable(QueryBuilder): void $subquery The subquery callback
      *
      * @return self The current instance
      */
@@ -546,7 +541,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Add WHERE NOT IN clause with subquery.
      *
      * @param string $column The column to check
-     * @param callable $subquery The subquery callback
+     * @param callable(QueryBuilder): void $subquery The subquery callback
      *
      * @return self The current instance
      */
@@ -558,15 +553,15 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add WHERE EXISTS clause.
      *
-     * @param callable $subquery The subquery callback
+     * @param callable(QueryBuilder): void $subquery The subquery callback
      *
      * @return self The current instance
      */
     public function whereExists(callable $subquery): self
     {
-        $subQuery = new self($this->connection, $this->prefix ?? '');
-        $subquery($subQuery);
-        $sub = $subQuery->toSQL();
+        $instance = new self($this->connection, $this->prefix ?? '');
+        $subquery($instance);
+        $sub = $instance->toSQL();
         $map = $this->mergeSubParams($sub['params'], 'sq');
         $subSql = $this->replacePlaceholdersInSql($sub['sql'], $map);
         $this->where[] = ['sql' => "EXISTS ({$subSql})", 'cond' => 'AND'];
@@ -576,15 +571,15 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add WHERE NOT EXISTS clause.
      *
-     * @param callable $subquery The subquery callback
+     * @param callable(QueryBuilder): void $subquery The subquery callback
      *
      * @return self The current instance
      */
     public function whereNotExists(callable $subquery): self
     {
-        $subQuery = new self($this->connection, $this->prefix ?? '');
-        $subquery($subQuery);
-        $sub = $subQuery->toSQL();
+        $instance = new self($this->connection, $this->prefix ?? '');
+        $subquery($instance);
+        $sub = $instance->toSQL();
         $map = $this->mergeSubParams($sub['params'], 'sq');
         $subSql = $this->replacePlaceholdersInSql($sub['sql'], $map);
         $this->where[] = ['sql' => "NOT EXISTS ({$subSql})", 'cond' => 'AND'];
@@ -1376,7 +1371,6 @@ class QueryBuilder implements QueryBuilderInterface
     protected function buildUpdateSql(): array
     {
         $setParts = [];
-        $params = [];
         $options = $this->options ? implode(',', $this->options) . ' ' : '';
 
         foreach ($this->data as $col => $val) {

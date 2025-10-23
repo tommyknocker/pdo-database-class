@@ -57,7 +57,7 @@ interface QueryBuilderInterface
 
     // Select / projection
     /**
-     * @param RawValue|string|array<int|string, string|RawValue|callable> $cols
+     * @param RawValue|string|array<int|string, string|RawValue|callable(QueryBuilder): void> $cols
      *
      * @return self
      */
@@ -172,7 +172,7 @@ interface QueryBuilderInterface
     // New Query Builder methods
     /**
      * @param string $column
-     * @param callable $subquery
+     * @param callable(QueryBuilder): void $subquery
      *
      * @return self
      */
@@ -180,21 +180,21 @@ interface QueryBuilderInterface
 
     /**
      * @param string $column
-     * @param callable $subquery
+     * @param callable(QueryBuilder): void $subquery
      *
      * @return self
      */
     public function whereNotIn(string $column, callable $subquery): self;
 
     /**
-     * @param callable $subquery
+     * @param callable(QueryBuilder): void $subquery
      *
      * @return self
      */
     public function whereExists(callable $subquery): self;
 
     /**
-     * @param callable $subquery
+     * @param callable(QueryBuilder): void $subquery
      *
      * @return self
      */

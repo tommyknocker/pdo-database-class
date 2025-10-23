@@ -19,9 +19,6 @@ class PdoDb
     public const LOCK_WRITE = 'WRITE';
     public const LOCK_READ = 'READ';
 
-    /** @var DialectInterface Current dialect instance */
-    public DialectInterface $dialect;
-
     /** @var ConnectionInterface Current active connection */
     public ConnectionInterface $connection {
         get {
@@ -199,7 +196,7 @@ class PdoDb
     /**
      * Executes a callback within a transaction.
      *
-     * @param callable $callback The callback to be executed.
+     * @param callable(PdoDb): mixed $callback The callback to be executed.
      *
      * @return mixed The result of the callback.
      * @throws Throwable If the callback throws an exception, it will be rethrown after rolling back the transaction.

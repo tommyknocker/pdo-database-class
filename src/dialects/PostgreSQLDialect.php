@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\dialects;
 
 use InvalidArgumentException;
 use PDO;
+use RuntimeException;
 use tommyknocker\pdodb\helpers\RawValue;
 
 class PostgreSQLDialect extends DialectAbstract
@@ -92,7 +93,7 @@ class PostgreSQLDialect extends DialectAbstract
                     $sql,
                     1
                 );
-                $sql = $result !== null ? $result : $sql;
+                $sql = $result ?? $sql;
             } elseif (str_starts_with($u, 'OVERRIDING')) {
                 // insert before VALUES
                 $beforeValues[] = $opt;
@@ -107,7 +108,7 @@ class PostgreSQLDialect extends DialectAbstract
 
         if (!empty($beforeValues)) {
             $result = preg_replace('/\)\s+VALUES\s+/i', ') ' . implode(' ', $beforeValues) . ' VALUES ', $sql, 1);
-            $sql = $result !== null ? $result : $sql;
+            $sql = $result ?? $sql;
         }
 
         if (!empty($tail)) {
@@ -159,16 +160,11 @@ class PostgreSQLDialect extends DialectAbstract
                     $op = $expr['__op'];
                     // For inc/dec we reference the old table value
                     $tableRef = $tableName ? $this->quoteTable($tableName) . '.' : '';
-                    switch ($op) {
-                        case 'inc':
-                            $parts[] = "{$colSql} = {$tableRef}{$colSql} + " . (int)$expr['val'];
-                            break;
-                        case 'dec':
-                            $parts[] = "{$colSql} = {$tableRef}{$colSql} - " . (int)$expr['val'];
-                            break;
-                        default:
-                            $parts[] = "{$colSql} = EXCLUDED.{$colSql}";
-                    }
+                    $parts[] = match ($op) {
+                        'inc' => "{$colSql} = {$tableRef}{$colSql} + " . (int)$expr['val'],
+                        'dec' => "{$colSql} = {$tableRef}{$colSql} - " . (int)$expr['val'],
+                        default => "{$colSql} = EXCLUDED.{$colSql}",
+                    };
                     continue;
                 }
 
@@ -182,7 +178,7 @@ class PostgreSQLDialect extends DialectAbstract
 
                         $safeExpr = preg_replace_callback(
                             '/\b' . preg_quote((string)$col, '/') . '\b/i',
-                            function ($m) use ($exprStr, $replacement) {
+                            static function ($m) use ($exprStr, $replacement) {
                                 $pos = strpos($exprStr, $m[0]);
                                 if ($pos === false) {
                                     return $m[0];
@@ -218,7 +214,7 @@ class PostgreSQLDialect extends DialectAbstract
 
                 $safeExpr = preg_replace_callback(
                     '/\b' . preg_quote((string)$col, '/') . '\b/i',
-                    function ($m) use ($exprStr, $replacement) {
+                    static function ($m) use ($exprStr, $replacement) {
                         $pos = strpos($exprStr, $m[0]);
                         if ($pos === false) {
                             return $m[0];
@@ -276,7 +272,7 @@ class PostgreSQLDialect extends DialectAbstract
             $valsSql = implode(',', $rows);
         } else {
             // single insert: ensure parentheses around the list
-            $stringPlaceholders = array_map(fn ($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
+            $stringPlaceholders = array_map(static fn ($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
             $phList = implode(',', $stringPlaceholders);
             $valsSql = '(' . $phList . ')';
         }
@@ -406,8 +402,13 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string
     {
+        if ($this->pdo === null) {
+            throw new RuntimeException('PDO instance not set. Call setPdo() first.');
+        }
+        $pdo = $this->pdo;
+
         $tableSql = $this->quoteIdentifier($table);
-        $quotedPath = $this->pdo->quote($filePath);
+        $quotedPath = $pdo->quote($filePath);
 
         $delimiter = $options['fieldChar'] ?? ',';
         $quoteChar = $options['fieldEnclosure'] ?? '"';
@@ -450,17 +451,16 @@ class PostgreSQLDialect extends DialectAbstract
     }
 
     /**
-     * {@inheritDoc}
+     * Quote parameter or literal for JSON path array.
      *
-     * @param string|int $p
+     * @param string|int $param
+     *
+     * @return string
      */
-    protected function connectionQuoteParamOrLiteral(string|int $p): string
+    protected function connectionQuoteParamOrLiteral(string|int $param): string
     {
-        // numeric index should be unquoted integer in array
-        if (preg_match('/^\d+$/', (string)$p)) {
-            return "'" . $p . "'";
-        }
-        return "'" . $p . "'";
+        // All array elements for JSON path must be quoted strings in PostgreSQL
+        return "'" . $param . "'";
     }
 
     /**
@@ -520,7 +520,7 @@ class PostgreSQLDialect extends DialectAbstract
 
         $param = ':' . substr(md5($col . '|' . $pgPath), 0, 8);
 
-        // produce json text to bind exactly once (use as-is if already looks like JSON)
+        // produce json text to bind exactly once (use as-is if it already looks like JSON)
         if (is_string($value)) {
             $trim = trim($value);
             $looksLikeJson = $trim === 'null'
@@ -673,14 +673,15 @@ class PostgreSQLDialect extends DialectAbstract
         $colQuoted = $this->quoteIdentifier($col);
 
         if ($path === null) {
-            // Return JSON array of keys (simplified - in practice would need aggregation)
-            return "'{}'::jsonb";
+            // PostgreSQL doesn't have a simple JSON_KEYS function, return a placeholder
+            return "'[keys]'";
         }
 
         $parts = $this->normalizeJsonPath($path);
         $arr = 'ARRAY[' . implode(',', array_map(fn ($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . ']';
 
-        return "'{}'::jsonb";
+        // PostgreSQL doesn't have a simple JSON_KEYS function, return a placeholder
+        return "'[keys]'";
     }
 
     /**

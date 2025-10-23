@@ -16,7 +16,7 @@ use XMLReader;
 abstract class DialectAbstract implements DialectInterface
 {
     /** @var PDO PDO instance */
-    protected PDO $pdo;
+    protected ?PDO $pdo = null;
 
     public function setPdo(PDO $pdo): void
     {
@@ -191,6 +191,9 @@ abstract class DialectAbstract implements DialectInterface
      */
     public function buildLoadXML(string $table, string $filePath, array $options = []): string
     {
+        if ($this->pdo === null) {
+            throw new RuntimeException('PDO instance not set. Call setPdo() first.');
+        }
         $pdo = $this->pdo;
         $defaults = [
             'rowTag' => '<row>',
@@ -351,6 +354,9 @@ abstract class DialectAbstract implements DialectInterface
      */
     public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string
     {
+        if ($this->pdo === null) {
+            throw new RuntimeException('PDO instance not set. Call setPdo() first.');
+        }
         $pdo = $this->pdo;
         $defaults = [
             'fieldChar' => ',',

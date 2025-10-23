@@ -39,27 +39,27 @@ class ExceptionFactory
         $messageLower = strtolower($message);
 
         // Check in order of specificity (most specific first)
-        if (self::isConstraintError($codeStr, $messageLower, $driver)) {
+        if (self::isConstraintError($codeStr, $messageLower)) {
             return self::createConstraintException($e, $driver, $query, $context, $code, $message);
         }
 
-        if (self::isAuthenticationError($codeStr, $messageLower, $driver)) {
+        if (self::isAuthenticationError($codeStr, $messageLower)) {
             return new AuthenticationException($message, $code, $e, $driver, $query, $context);
         }
 
-        if (self::isTimeoutError($codeStr, $messageLower, $driver)) {
+        if (self::isTimeoutError($codeStr, $messageLower)) {
             return new TimeoutException($message, $code, $e, $driver, $query, $context);
         }
 
-        if (self::isResourceError($codeStr, $messageLower, $driver)) {
+        if (self::isResourceError($codeStr, $messageLower)) {
             return new ResourceException($message, $code, $e, $driver, $query, $context);
         }
 
-        if (self::isTransactionError($codeStr, $messageLower, $driver)) {
+        if (self::isTransactionError($codeStr, $messageLower)) {
             return new TransactionException($message, $code, $e, $driver, $query, $context);
         }
 
-        if (self::isConnectionError($codeStr, $messageLower, $driver)) {
+        if (self::isConnectionError($codeStr, $messageLower)) {
             return new ConnectionException($message, $code, $e, $driver, $query, $context);
         }
 
@@ -70,10 +70,9 @@ class ExceptionFactory
     /**
      * Check if error is a connection error.
      */
-    private static function isConnectionError(
+    protected static function isConnectionError(
         string $code,
-        string $message,
-        string $driver
+        string $message
     ): bool {
         $connectionErrors = [
             // MySQL connection errors
@@ -123,10 +122,9 @@ class ExceptionFactory
     /**
      * Check if error is a constraint violation.
      */
-    private static function isConstraintError(
+    protected static function isConstraintError(
         string $code,
-        string $message,
-        string $driver
+        string $message
     ): bool {
         $constraintErrors = [
             // MySQL constraint errors
@@ -173,10 +171,9 @@ class ExceptionFactory
     /**
      * Check if error is a transaction error.
      */
-    private static function isTransactionError(
+    protected static function isTransactionError(
         string $code,
-        string $message,
-        string $driver
+        string $message
     ): bool {
         $transactionErrors = [
             // MySQL transaction errors
@@ -218,10 +215,9 @@ class ExceptionFactory
     /**
      * Check if error is an authentication error.
      */
-    private static function isAuthenticationError(
+    protected static function isAuthenticationError(
         string $code,
-        string $message,
-        string $driver
+        string $message
     ): bool {
         $authErrors = [
             // MySQL auth errors
@@ -263,10 +259,9 @@ class ExceptionFactory
     /**
      * Check if error is a timeout error.
      */
-    private static function isTimeoutError(
+    protected static function isTimeoutError(
         string $code,
-        string $message,
-        string $driver
+        string $message
     ): bool {
         $timeoutErrors = [
             // MySQL timeout errors
@@ -302,10 +297,9 @@ class ExceptionFactory
     /**
      * Check if error is a resource error.
      */
-    private static function isResourceError(
+    protected static function isResourceError(
         string $code,
-        string $message,
-        string $driver
+        string $message
     ): bool {
         $resourceErrors = [
             // MySQL resource errors
@@ -347,7 +341,7 @@ class ExceptionFactory
      *
      * @param array<string, mixed> $context
      */
-    private static function createConstraintException(
+    protected static function createConstraintException(
         PDOException $e,
         string $driver,
         ?string $query,

@@ -471,9 +471,8 @@ class SqliteDialect extends DialectAbstract
         $colQuoted = $this->quoteIdentifier($col);
 
         if ($path === null) {
-            // Return '["key1","key2",...]' - JSON array of keys
-            // Note: SQLite doesn't have a simple function for this, so we return a descriptive placeholder
-            return "'[keys]'"; // Simplified - in real usage would need subquery
+            // SQLite doesn't have a direct JSON_KEYS function, return a placeholder
+            return "'[keys]'";
         }
 
         $parts = $this->normalizeJsonPath($path);
@@ -486,7 +485,8 @@ class SqliteDialect extends DialectAbstract
             }
         }
 
-        return "'[keys]'"; // Simplified - in real usage would need subquery
+        // SQLite doesn't have a direct JSON_KEYS function, return a placeholder
+        return "'[keys]'";
     }
 
     /**
