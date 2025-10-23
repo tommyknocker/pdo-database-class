@@ -48,6 +48,73 @@ class RetryableConnection extends Connection
             'max_delay_ms' => 10000,
             'retryable_errors' => []
         ], $retryConfig);
+        
+        $this->validateRetryConfig();
+    }
+
+    /**
+     * Validates the retry configuration parameters.
+     *
+     * @throws \InvalidArgumentException If configuration is invalid.
+     */
+    protected function validateRetryConfig(): void
+    {
+        // Validate enabled flag
+        if (!is_bool($this->retryConfig['enabled'])) {
+            throw new \InvalidArgumentException('retry.enabled must be a boolean');
+        }
+
+        // Validate max_attempts
+        if (!is_int($this->retryConfig['max_attempts']) || $this->retryConfig['max_attempts'] < 1) {
+            throw new \InvalidArgumentException('retry.max_attempts must be a positive integer');
+        }
+
+        if ($this->retryConfig['max_attempts'] > 100) {
+            throw new \InvalidArgumentException('retry.max_attempts cannot exceed 100');
+        }
+
+        // Validate delay_ms
+        if (!is_int($this->retryConfig['delay_ms']) || $this->retryConfig['delay_ms'] < 0) {
+            throw new \InvalidArgumentException('retry.delay_ms must be a non-negative integer');
+        }
+
+        if ($this->retryConfig['delay_ms'] > 300000) { // 5 minutes
+            throw new \InvalidArgumentException('retry.delay_ms cannot exceed 300000ms (5 minutes)');
+        }
+
+        // Validate backoff_multiplier
+        if (!is_numeric($this->retryConfig['backoff_multiplier']) || $this->retryConfig['backoff_multiplier'] < 1.0) {
+            throw new \InvalidArgumentException('retry.backoff_multiplier must be a number >= 1.0');
+        }
+
+        if ($this->retryConfig['backoff_multiplier'] > 10.0) {
+            throw new \InvalidArgumentException('retry.backoff_multiplier cannot exceed 10.0');
+        }
+
+        // Validate max_delay_ms
+        if (!is_int($this->retryConfig['max_delay_ms']) || $this->retryConfig['max_delay_ms'] < 0) {
+            throw new \InvalidArgumentException('retry.max_delay_ms must be a non-negative integer');
+        }
+
+        if ($this->retryConfig['max_delay_ms'] > 300000) { // 5 minutes
+            throw new \InvalidArgumentException('retry.max_delay_ms cannot exceed 300000ms (5 minutes)');
+        }
+
+        // Validate retryable_errors
+        if (!is_array($this->retryConfig['retryable_errors'])) {
+            throw new \InvalidArgumentException('retry.retryable_errors must be an array');
+        }
+
+        foreach ($this->retryConfig['retryable_errors'] as $error) {
+            if (!is_int($error) && !is_string($error)) {
+                throw new \InvalidArgumentException('retry.retryable_errors must contain only integers or strings');
+            }
+        }
+
+        // Validate logical constraints
+        if ($this->retryConfig['max_delay_ms'] < $this->retryConfig['delay_ms']) {
+            throw new \InvalidArgumentException('retry.max_delay_ms cannot be less than retry.delay_ms');
+        }
     }
 
     /**
@@ -106,24 +173,89 @@ class RetryableConnection extends Connection
     {
         $this->currentAttempt = 0;
         
+        // Log initial attempt
+        if ($this->logger) {
+            $this->logger->info('connection.retry.start', [
+                'method' => $method,
+                'max_attempts' => $this->retryConfig['max_attempts'],
+                'retry_enabled' => $this->retryConfig['enabled']
+            ]);
+        }
+        
         while ($this->currentAttempt < $this->retryConfig['max_attempts']) {
+            $this->currentAttempt++;
+            
+            // Log attempt start
+            if ($this->logger) {
+                $this->logger->info('connection.retry.attempt', [
+                    'method' => $method,
+                    'attempt' => $this->currentAttempt,
+                    'max_attempts' => $this->retryConfig['max_attempts']
+                ]);
+            }
+            
             try {
-                return parent::$method(...$args);
-            } catch (PDOException $e) { // @phpstan-ignore-line
+                $result = parent::$method(...$args);
+                
+                // Log successful attempt
+                if ($this->logger) {
+                    $this->logger->info('connection.retry.success', [
+                        'method' => $method,
+                        'attempt' => $this->currentAttempt,
+                        'total_attempts' => $this->currentAttempt
+                    ]);
+                }
+                
+                return $result;
+            } catch (PDOException $e) {
+                // Log attempt failure
+                if ($this->logger) {
+                    $this->logger->warning('connection.retry.attempt_failed', [
+                        'method' => $method,
+                        'attempt' => $this->currentAttempt,
+                        'max_attempts' => $this->retryConfig['max_attempts'],
+                        'error_code' => $e->getCode(),
+                        'error_message' => $e->getMessage(),
+                        'driver' => $this->getDialect()->getDriverName()
+                    ]);
+                }
+                
                 if (!$this->shouldRetry($e)) {
+                    if ($this->logger) {
+                        $this->logger->error('connection.retry.not_retryable', [
+                            'method' => $method,
+                            'attempt' => $this->currentAttempt,
+                            'error_code' => $e->getCode(),
+                            'error_message' => $e->getMessage(),
+                            'reason' => 'Error not in retryable list'
+                        ]);
+                    }
                     throw $e;
                 }
                 
-                $this->currentAttempt++;
                 if ($this->currentAttempt >= $this->retryConfig['max_attempts']) {
-                    $this->logger?->error('connection.retry.failed', [
-                        'method' => $method,
-                        'attempts' => $this->currentAttempt,
-                        'max_attempts' => $this->retryConfig['max_attempts'],
-                        'error_code' => $e->getCode(),
-                        'error_message' => $e->getMessage()
-                    ]);
+                    if ($this->logger) {
+                        $this->logger->error('connection.retry.exhausted', [
+                            'method' => $method,
+                            'total_attempts' => $this->currentAttempt,
+                            'max_attempts' => $this->retryConfig['max_attempts'],
+                            'error_code' => $e->getCode(),
+                            'error_message' => $e->getMessage(),
+                            'final_error' => true
+                        ]);
+                    }
                     throw $e;
+                }
+                
+                // Log retry decision and wait
+                if ($this->logger) {
+                    $this->logger->info('connection.retry.retrying', [
+                        'method' => $method,
+                        'attempt' => $this->currentAttempt,
+                        'next_attempt' => $this->currentAttempt + 1,
+                        'error_code' => $e->getCode(),
+                        'retryable' => true
+                    ]);
                 }
                 
                 $this->waitBeforeRetry();
@@ -165,17 +297,25 @@ class RetryableConnection extends Connection
      */
     protected function waitBeforeRetry(): void
     {
-        $delay = $this->retryConfig['delay_ms'] * 
-                 pow($this->retryConfig['backoff_multiplier'], $this->currentAttempt - 1);
+        $baseDelay = $this->retryConfig['delay_ms'];
+        $multiplier = $this->retryConfig['backoff_multiplier'];
+        $attempt = $this->currentAttempt - 1; // Previous attempt number
         
-        $delay = min($delay, $this->retryConfig['max_delay_ms']);
+        $calculatedDelay = $baseDelay * pow($multiplier, $attempt);
+        $delay = min($calculatedDelay, $this->retryConfig['max_delay_ms']);
         
-        $this->logger?->info('connection.retry.attempt', [
-            'attempt' => $this->currentAttempt,
-            'max_attempts' => $this->retryConfig['max_attempts'],
-            'delay_ms' => $delay,
-            'next_attempt_in' => $delay . 'ms'
-        ]);
+        // Log delay calculation details
+        if ($this->logger) {
+            $this->logger->info('connection.retry.wait', [
+                'attempt' => $this->currentAttempt,
+                'base_delay_ms' => $baseDelay,
+                'backoff_multiplier' => $multiplier,
+                'calculated_delay_ms' => $calculatedDelay,
+                'max_delay_ms' => $this->retryConfig['max_delay_ms'],
+                'actual_delay_ms' => $delay,
+                'delay_capped' => $calculatedDelay > $this->retryConfig['max_delay_ms']
+            ]);
+        }
         
         usleep($delay * 1000); // usleep accepts microseconds
     }

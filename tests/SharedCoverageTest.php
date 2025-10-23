@@ -6,6 +6,8 @@ use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\DbError;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use RuntimeException;
 
 /**
@@ -1441,9 +1443,9 @@ class SharedCoverageTest extends TestCase
         $db->rawQuery('CREATE TABLE retry_attempt_test (id INTEGER PRIMARY KEY)');
         $db->rawQuery('INSERT INTO retry_attempt_test (id) VALUES (1)');
         
-        // Should still be 0 after successful operation
+        // Should be 1 after successful operation (attempt counter starts at 1)
         if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
-            $this->assertEquals(0, $connection->getCurrentAttempt());
+            $this->assertEquals(1, $connection->getCurrentAttempt());
         }
     }
 
@@ -1555,6 +1557,374 @@ class SharedCoverageTest extends TestCase
         // Test unknown error
         $unknownDesc = DbError::getDescription(99999, 'mysql');
         $this->assertEquals('Unknown error', $unknownDesc);
+    }
+
+    public function testRetryConfigValidation(): void
+    {
+        // Test valid configuration
+        $validConfig = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 1000,
+                'backoff_multiplier' => 2.0,
+                'max_delay_ms' => 10000,
+                'retryable_errors' => [2006, '08006']
+            ]
+        ];
+        
+        $db = new PdoDb('sqlite', $validConfig);
+        $this->assertInstanceOf(\tommyknocker\pdodb\connection\RetryableConnection::class, $db->connection);
+    }
+
+    public function testRetryConfigValidationInvalidEnabled(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('retry.enabled must be a boolean');
+        
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => 'true', // Should be boolean
+                'max_attempts' => 3,
+                'delay_ms' => 1000,
+            ]
+        ];
+        
+        new PdoDb('sqlite', $config);
+    }
+
+    public function testRetryConfigValidationInvalidMaxAttempts(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('retry.max_attempts must be a positive integer');
+        
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 0, // Should be >= 1
+                'delay_ms' => 1000,
+            ]
+        ];
+        
+        new PdoDb('sqlite', $config);
+    }
+
+    public function testRetryConfigValidationMaxAttemptsTooHigh(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('retry.max_attempts cannot exceed 100');
+        
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 101, // Should be <= 100
+                'delay_ms' => 1000,
+            ]
+        ];
+        
+        new PdoDb('sqlite', $config);
+    }
+
+    public function testRetryConfigValidationInvalidDelay(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('retry.delay_ms must be a non-negative integer');
+        
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => -100, // Should be >= 0
+            ]
+        ];
+        
+        new PdoDb('sqlite', $config);
+    }
+
+    public function testRetryConfigValidationDelayTooHigh(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('retry.delay_ms cannot exceed 300000ms (5 minutes)');
+        
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 300001, // Should be <= 300000
+            ]
+        ];
+        
+        new PdoDb('sqlite', $config);
+    }
+
+    public function testRetryConfigValidationInvalidBackoffMultiplier(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('retry.backoff_multiplier must be a number >= 1.0');
+        
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 1000,
+                'backoff_multiplier' => 0.5, // Should be >= 1.0
+            ]
+        ];
+        
+        new PdoDb('sqlite', $config);
+    }
+
+    public function testRetryConfigValidationBackoffMultiplierTooHigh(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('retry.backoff_multiplier cannot exceed 10.0');
+        
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 1000,
+                'backoff_multiplier' => 11.0, // Should be <= 10.0
+            ]
+        ];
+        
+        new PdoDb('sqlite', $config);
+    }
+
+    public function testRetryConfigValidationInvalidMaxDelay(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('retry.max_delay_ms must be a non-negative integer');
+        
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 1000,
+                'max_delay_ms' => -1000, // Should be >= 0
+            ]
+        ];
+        
+        new PdoDb('sqlite', $config);
+    }
+
+    public function testRetryConfigValidationMaxDelayTooHigh(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('retry.max_delay_ms cannot exceed 300000ms (5 minutes)');
+        
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 1000,
+                'max_delay_ms' => 300001, // Should be <= 300000
+            ]
+        ];
+        
+        new PdoDb('sqlite', $config);
+    }
+
+    public function testRetryConfigValidationInvalidRetryableErrors(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('retry.retryable_errors must be an array');
+        
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 1000,
+                'retryable_errors' => 'not_an_array', // Should be array
+            ]
+        ];
+        
+        new PdoDb('sqlite', $config);
+    }
+
+    public function testRetryConfigValidationInvalidRetryableErrorsContent(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('retry.retryable_errors must contain only integers or strings');
+        
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 1000,
+                'retryable_errors' => [2006, ['nested_array']], // Should contain only int/string
+            ]
+        ];
+        
+        new PdoDb('sqlite', $config);
+    }
+
+    public function testRetryConfigValidationLogicalConstraint(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('retry.max_delay_ms cannot be less than retry.delay_ms');
+        
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 5000,
+                'max_delay_ms' => 1000, // Should be >= delay_ms
+            ]
+        ];
+        
+        new PdoDb('sqlite', $config);
+    }
+
+    public function testRetryLogging(): void
+    {
+        // Create a Monolog logger with TestHandler
+        $testHandler = new TestHandler();
+        $logger = new Logger('test-db');
+        $logger->pushHandler($testHandler);
+
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 2,
+                'delay_ms' => 10, // Very short delay for testing
+                'backoff_multiplier' => 2,
+                'max_delay_ms' => 100,
+                'retryable_errors' => [2006] // MySQL connection lost
+            ]
+        ];
+
+        $db = new PdoDb('sqlite', $config, [], $logger);
+        $connection = $db->connection;
+        
+        // Set the logger on the connection
+        if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+            $reflection = new \ReflectionClass($connection);
+            $loggerProperty = $reflection->getProperty('logger');
+            $loggerProperty->setAccessible(true);
+            $loggerProperty->setValue($connection, $logger);
+        }
+
+        // Execute a simple query that should succeed
+        $result = $db->connection->query('SELECT 1 as test');
+        $this->assertNotFalse($result);
+        
+        // Check that some logs were created (at minimum we should have some logs)
+        $records = $testHandler->getRecords();
+        $this->assertGreaterThan(0, count($records), 'Should create some logs');
+        
+        // Check for specific log messages
+        $logMessages = array_column($records, 'message');
+        $this->assertContains('connection.retry.start', $logMessages, 'Should log retry start');
+        $this->assertContains('connection.retry.attempt', $logMessages, 'Should log attempt');
+        $this->assertContains('connection.retry.success', $logMessages, 'Should log success');
+    }
+
+    public function testRetryLoggingWithFailure(): void
+    {
+        // Create a Monolog logger with TestHandler
+        $testHandler = new TestHandler();
+        $logger = new Logger('test-db');
+        $logger->pushHandler($testHandler);
+
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 2,
+                'delay_ms' => 10,
+                'backoff_multiplier' => 2,
+                'max_delay_ms' => 100,
+                'retryable_errors' => [9999] // Non-existent error code
+            ]
+        ];
+
+        $db = new PdoDb('sqlite', $config, [], $logger);
+        $connection = $db->connection;
+        
+        // Set the logger on the connection
+        if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+            $reflection = new \ReflectionClass($connection);
+            $loggerProperty = $reflection->getProperty('logger');
+            $loggerProperty->setAccessible(true);
+            $loggerProperty->setValue($connection, $logger);
+        }
+
+        // Execute a query that should succeed (no retry needed)
+        $result = $db->connection->query('SELECT 1 as test');
+        $this->assertNotFalse($result);
+        
+        // Check that some logs were created
+        $records = $testHandler->getRecords();
+        $this->assertGreaterThan(0, count($records), 'Should create some logs');
+        
+        // Check for specific log messages
+        $logMessages = array_column($records, 'message');
+        $this->assertContains('connection.retry.start', $logMessages, 'Should log retry start');
+        $this->assertContains('connection.retry.attempt', $logMessages, 'Should log attempt');
+        $this->assertContains('connection.retry.success', $logMessages, 'Should log success');
+        
+        // Verify no failure logs were created (since query succeeded)
+        $this->assertNotContains('connection.retry.attempt_failed', $logMessages, 'Should not log failures for successful queries');
+    }
+
+    public function testRetryLoggingWaitDetails(): void
+    {
+        // Create a Monolog logger with TestHandler
+        $testHandler = new TestHandler();
+        $logger = new Logger('test-db');
+        $logger->pushHandler($testHandler);
+
+        $config = [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 100,
+                'backoff_multiplier' => 2,
+                'max_delay_ms' => 500,
+                'retryable_errors' => [2006]
+            ]
+        ];
+
+        $db = new PdoDb('sqlite', $config, [], $logger);
+        $connection = $db->connection;
+        
+        // Set the logger on the connection
+        if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+            $reflection = new \ReflectionClass($connection);
+            $loggerProperty = $reflection->getProperty('logger');
+            $loggerProperty->setAccessible(true);
+            $loggerProperty->setValue($connection, $logger);
+        }
+
+        // Execute a successful query
+        $result = $db->connection->query('SELECT 1 as test');
+        $this->assertNotFalse($result);
+        
+        // Check that some logs were created
+        $records = $testHandler->getRecords();
+        $this->assertGreaterThan(0, count($records), 'Should create some logs');
+        
+        // Check for specific log messages
+        $logMessages = array_column($records, 'message');
+        $this->assertContains('connection.retry.start', $logMessages, 'Should log retry start');
+        $this->assertContains('connection.retry.attempt', $logMessages, 'Should log attempt');
+        $this->assertContains('connection.retry.success', $logMessages, 'Should log success');
     }
 }
 

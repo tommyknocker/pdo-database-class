@@ -218,4 +218,174 @@ if ($dbErrorConnection instanceof RetryableConnection) {
 }
 echo "\n";
 
-echo "=== Example Complete ===\n";
+// Example 9: Configuration Validation
+echo "9. Configuration Validation Examples:\n";
+
+// Valid configuration
+echo "Valid configuration works:\n";
+try {
+    $validDb = new PdoDb('sqlite', [
+        'path' => ':memory:',
+        'retry' => [
+            'enabled' => true,
+            'max_attempts' => 5,
+            'delay_ms' => 1000,
+            'backoff_multiplier' => 2.0,
+            'max_delay_ms' => 10000,
+            'retryable_errors' => [2006, '08006']
+        ]
+    ]);
+    echo "✓ Valid configuration accepted\n";
+} catch (Exception $e) {
+    echo "✗ Unexpected error: " . $e->getMessage() . "\n";
+}
+
+// Invalid configuration examples
+$invalidConfigs = [
+    [
+        'name' => 'Invalid enabled type',
+        'config' => [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => 'true', // Should be boolean
+                'max_attempts' => 3,
+                'delay_ms' => 1000,
+            ]
+        ],
+        'expected_error' => 'retry.enabled must be a boolean'
+    ],
+    [
+        'name' => 'Negative max_attempts',
+        'config' => [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 0, // Should be >= 1
+                'delay_ms' => 1000,
+            ]
+        ],
+        'expected_error' => 'retry.max_attempts must be a positive integer'
+    ],
+    [
+        'name' => 'Negative delay_ms',
+        'config' => [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => -100, // Should be >= 0
+            ]
+        ],
+        'expected_error' => 'retry.delay_ms must be a non-negative integer'
+    ],
+    [
+        'name' => 'Invalid backoff_multiplier',
+        'config' => [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 1000,
+                'backoff_multiplier' => 0.5, // Should be >= 1.0
+            ]
+        ],
+        'expected_error' => 'retry.backoff_multiplier must be a number >= 1.0'
+    ],
+    [
+        'name' => 'Logical constraint violation',
+        'config' => [
+            'path' => ':memory:',
+            'retry' => [
+                'enabled' => true,
+                'max_attempts' => 3,
+                'delay_ms' => 5000,
+                'max_delay_ms' => 1000, // Should be >= delay_ms
+            ]
+        ],
+        'expected_error' => 'retry.max_delay_ms cannot be less than retry.delay_ms'
+    ]
+];
+
+foreach ($invalidConfigs as $test) {
+    echo "\nTesting: " . $test['name'] . "\n";
+    try {
+        new PdoDb('sqlite', $test['config']);
+        echo "✗ Expected validation error but none occurred\n";
+    } catch (InvalidArgumentException $e) {
+        if (str_contains($e->getMessage(), $test['expected_error'])) {
+            echo "✓ Correctly caught validation error: " . $e->getMessage() . "\n";
+        } else {
+            echo "✗ Unexpected error message: " . $e->getMessage() . "\n";
+        }
+    } catch (Exception $e) {
+        echo "✗ Unexpected exception type: " . get_class($e) . " - " . $e->getMessage() . "\n";
+    }
+}
+
+// Example 10: Retry Logging
+echo "\n10. Retry Logging Example:\n";
+
+// Create a Monolog logger with TestHandler for demonstration
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
+
+$testHandler = new TestHandler();
+$logger = new Logger('database');
+$logger->pushHandler($testHandler);
+
+$dbWithLogging = new PdoDb('sqlite', [
+    'path' => ':memory:',
+    'retry' => [
+        'enabled' => true,
+        'max_attempts' => 3,
+        'delay_ms' => 100,
+        'backoff_multiplier' => 2,
+        'max_delay_ms' => 1000,
+        'retryable_errors' => [2006, '08006']
+    ]
+], [], $logger);
+
+// Set the logger on the connection
+$connection = $dbWithLogging->connection;
+if ($connection instanceof RetryableConnection) {
+    $reflection = new \ReflectionClass($connection);
+    $loggerProperty = $reflection->getProperty('logger');
+    $loggerProperty->setAccessible(true);
+    $loggerProperty->setValue($connection, $logger);
+}
+
+// Execute a successful query
+echo "Executing successful query with logging...\n";
+$result = $dbWithLogging->connection->query('SELECT 1 as test');
+echo "Query result: " . ($result ? 'Success' : 'Failed') . "\n";
+
+// Display captured logs
+echo "\nCaptured logs:\n";
+$records = $testHandler->getRecords();
+foreach ($records as $record) {
+    $context = empty($record['context']) ? '' : ' (' . json_encode($record['context']) . ')';
+    echo "- [{$record['level_name']}] {$record['message']}{$context}\n";
+}
+
+echo "\nLog analysis:\n";
+$startLogs = array_filter($records, fn($log) => $log['message'] === 'connection.retry.start');
+$attemptLogs = array_filter($records, fn($log) => $log['message'] === 'connection.retry.attempt');
+$successLogs = array_filter($records, fn($log) => $log['message'] === 'connection.retry.success');
+
+echo "Retry start logs: " . count($startLogs) . "\n";
+echo "Attempt logs: " . count($attemptLogs) . "\n";
+echo "Success logs: " . count($successLogs) . "\n";
+
+if (!empty($startLogs)) {
+    $startLog = $startLogs[0];
+    echo "First retry start context: " . json_encode($startLog['context']) . "\n";
+}
+
+if (!empty($successLogs)) {
+    $successLog = array_values($successLogs)[0];
+    echo "Success log context: " . json_encode($successLog['context']) . "\n";
+} else {
+    echo "No success logs found\n";
+}
+
+echo "\n=== Example Complete ===\n";

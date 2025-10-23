@@ -74,8 +74,8 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - `pdo_sqlite` for SQLite
 - **Supported Databases**:
   - MySQL 5.7+ / MariaDB 10.3+
-  - PostgreSQL 12+
-  - SQLite 3.32+
+  - PostgreSQL 9.4+
+  - SQLite 3.38+
 
 **For JSON support:**
 - MySQL 5.7+ / MariaDB 10.2+ (JSON functions available)
@@ -1500,7 +1500,7 @@ use tommyknocker\pdodb\helpers\DbError;
 // MySQL error codes
 DbError::MYSQL_CONNECTION_LOST        // 2006
 DbError::MYSQL_CANNOT_CONNECT         // 2002
-DbError::MYSQL_CONNECTION_KILLED      // 2013
+DbError::MYSQL_CONNECTION_KILLED      // 2013   
 DbError::MYSQL_DUPLICATE_KEY          // 1062
 DbError::MYSQL_TABLE_EXISTS           // 1050
 
@@ -1568,6 +1568,109 @@ $db = new PdoDb('mysql', [
     ]
 ]);
 ```
+
+### Configuration Validation
+
+The retry mechanism includes comprehensive validation to prevent invalid configurations:
+
+```php
+// Valid configuration
+$db = new PdoDb('mysql', [
+    'host' => 'localhost',
+    'dbname' => 'test',
+    'retry' => [
+        'enabled' => true,
+        'max_attempts' => 3,        // Must be 1-100
+        'delay_ms' => 1000,         // Must be 0-300000ms (5 minutes)
+        'backoff_multiplier' => 2.0, // Must be 1.0-10.0
+        'max_delay_ms' => 10000,    // Must be >= delay_ms, max 300000ms
+        'retryable_errors' => [2006, '08006'] // Must be array of int/string
+    ]
+]);
+
+// Invalid configurations will throw InvalidArgumentException:
+try {
+    $db = new PdoDb('mysql', [
+        'retry' => [
+            'enabled' => 'true',     // ❌ Must be boolean
+            'max_attempts' => 0,     // ❌ Must be >= 1
+            'delay_ms' => -100,      // ❌ Must be >= 0
+            'backoff_multiplier' => 0.5, // ❌ Must be >= 1.0
+            'max_delay_ms' => 500,   // ❌ Must be >= delay_ms
+        ]
+    ]);
+} catch (InvalidArgumentException $e) {
+    echo "Configuration error: " . $e->getMessage();
+}
+```
+
+**Validation Rules:**
+- `enabled`: Must be boolean
+- `max_attempts`: Must be integer 1-100
+- `delay_ms`: Must be integer 0-300000ms (5 minutes)
+- `backoff_multiplier`: Must be number 1.0-10.0
+- `max_delay_ms`: Must be integer 0-300000ms, >= delay_ms
+- `retryable_errors`: Must be array of integers or strings
+
+### Retry Logging
+
+The retry mechanism provides comprehensive logging for monitoring connection attempts in production:
+
+```php
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
+
+// Create a logger (e.g., Monolog)
+$testHandler = new TestHandler();
+$logger = new Logger('database');
+$logger->pushHandler($testHandler);
+
+$db = new PdoDb('mysql', [
+    'host' => 'localhost',
+    'dbname' => 'test',
+    'retry' => [
+        'enabled' => true,
+        'max_attempts' => 3,
+        'delay_ms' => 1000,
+    ]
+], [], $logger);
+
+// Set logger on the connection
+$connection = $db->connection;
+if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+    $reflection = new \ReflectionClass($connection);
+    $loggerProperty = $reflection->getProperty('logger');
+    $loggerProperty->setAccessible(true);
+    $loggerProperty->setValue($connection, $logger);
+}
+
+// Execute queries - logs will be captured
+$result = $db->connection->query('SELECT 1 as test');
+
+// Access captured logs
+$records = $testHandler->getRecords();
+foreach ($records as $record) {
+    echo "[{$record['level_name']}] {$record['message']}\n";
+}
+```
+
+**Log Messages:**
+
+- `connection.retry.start` - Retry operation begins
+- `connection.retry.attempt` - Individual attempt starts
+- `connection.retry.success` - Successful operation
+- `connection.retry.attempt_failed` - Attempt failed (retryable)
+- `connection.retry.not_retryable` - Error not in retryable list
+- `connection.retry.exhausted` - All retry attempts failed
+- `connection.retry.retrying` - Decision to retry
+- `connection.retry.wait` - Wait delay calculation details
+
+**Log Context Includes:**
+- Method name (`query`, `execute`, `prepare`, `transaction`)
+- Attempt number and max attempts
+- Error codes and messages
+- Driver information
+- Delay calculations and backoff details
 
 ---
 
