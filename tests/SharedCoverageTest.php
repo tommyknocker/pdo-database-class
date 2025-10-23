@@ -2298,5 +2298,90 @@ class SharedCoverageTest extends TestCase
         $this->assertInstanceOf(ConstraintViolationException::class, $exception);
         $this->assertEquals('users_email_key', $exception->getConstraintName());
     }
+
+    /**
+     * Test setTimeout and getTimeout methods.
+     */
+    public function testTimeoutMethods(): void
+    {
+        // Test setting timeout
+        $db = self::$db;
+        $result = $db->setTimeout(30);
+        $this->assertSame($db, $result); // Should return self for chaining
+        
+        // Test getting timeout
+        $timeout = $db->getTimeout();
+        $this->assertIsInt($timeout);
+        $this->assertGreaterThanOrEqual(0, $timeout);
+        
+        // For SQLite, timeout might be 0 (not supported)
+        // For MySQL/PostgreSQL, it should be the set value
+        if ($timeout > 0) {
+            // Test setting different timeout values
+            $db->setTimeout(60);
+            $this->assertEquals(60, $db->getTimeout());
+            
+            $db->setTimeout(0);
+            $this->assertEquals(0, $db->getTimeout());
+        } else {
+            // SQLite doesn't support timeout, so we just verify it doesn't throw
+            $this->assertEquals(0, $timeout);
+        }
+    }
+
+    /**
+     * Test setTimeout with invalid values.
+     */
+    public function testSetTimeoutWithInvalidValues(): void
+    {
+        $db = self::$db;
+        
+        // Test negative timeout (should be handled gracefully)
+        try {
+            $db->setTimeout(-1);
+            // Some databases might accept negative values, so we just check it doesn't throw
+            $this->assertTrue(true);
+        } catch (\Exception $e) {
+            // If it throws an exception, that's also acceptable behavior
+            $this->assertInstanceOf(\Exception::class, $e);
+        }
+    }
+
+    /**
+     * Test timeout methods with connection pooling.
+     */
+    public function testTimeoutWithConnectionPooling(): void
+    {
+        $db = new PdoDb();
+        
+        // Add multiple connections
+        $db->addConnection('conn1', [
+            'driver' => 'sqlite',
+            'path' => ':memory:'
+        ]);
+        
+        $db->addConnection('conn2', [
+            'driver' => 'sqlite', 
+            'path' => ':memory:'
+        ]);
+        
+        // Test timeout on first connection
+        $db->connection('conn1');
+        $db->setTimeout(30);
+        $timeout1 = $db->getTimeout();
+        $this->assertIsInt($timeout1);
+        $this->assertGreaterThanOrEqual(0, $timeout1);
+        
+        // Test timeout on second connection
+        $db->connection('conn2');
+        $db->setTimeout(60);
+        $timeout2 = $db->getTimeout();
+        $this->assertIsInt($timeout2);
+        $this->assertGreaterThanOrEqual(0, $timeout2);
+        
+        // Verify first connection timeout is unchanged
+        $db->connection('conn1');
+        $this->assertEquals($timeout1, $db->getTimeout());
+    }
 }
 

@@ -268,43 +268,6 @@ class PdoDb
         return $this;
     }
 
-    /**
-     * Disconnects from the database.
-     *
-     * @param string|null $name The name of the connection to disconnect.
-     *                          Pass null to disconnect all connections.
-     * @return void
-     */
-    public function disconnect(?string $name = null): void
-    {
-        if ($name === null) {
-            $this->connectionStorage = null;
-            $this->connections = [];
-        } elseif (isset($this->connections[$name])) {
-            if ($this->connectionStorage === $this->connections[$name]) {
-                $this->connectionStorage = null;
-            }
-            unset($this->connections[$name]);
-        }
-    }
-    /**
-     * Pings the database.
-     *
-     * @return bool True if the ping was successful, false otherwise.
-     */
-    public function ping(): bool
-    {
-        try {
-            $stmt = $this->connection->query('SELECT 1');
-            if ($stmt !== false) {
-                $stmt->execute();
-            }
-            return true;
-        } catch (Throwable) {
-            return false;
-        }
-    }
-
     /* ---------------- CONNECTIONS ---------------- */
 
     /**
@@ -352,6 +315,88 @@ class PdoDb
         }
         $this->connectionStorage = $this->connections[$name];
         return $this;
+    }
+
+    /**
+     * Disconnects from the database.
+     *
+     * @param string|null $name The name of the connection to disconnect.
+     *                          Pass null to disconnect all connections.
+     * @return void
+     */
+    public function disconnect(?string $name = null): void
+    {
+        if ($name === null) {
+            $this->connectionStorage = null;
+            $this->connections = [];
+        } elseif (isset($this->connections[$name])) {
+            if ($this->connectionStorage === $this->connections[$name]) {
+                $this->connectionStorage = null;
+            }
+            unset($this->connections[$name]);
+        }
+    }
+    /**
+     * Pings the database.
+     *
+     * @return bool True if the ping was successful, false otherwise.
+     */
+    public function ping(): bool
+    {
+        try {
+            $stmt = $this->connection->query('SELECT 1');
+            if ($stmt !== false) {
+                $stmt->execute();
+            }
+            return true;
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Sets the query timeout for the current connection.
+     *
+     * @param int $seconds The timeout in seconds.
+     * @return self The current object.
+     * @throws RuntimeException If the timeout cannot be set.
+     */
+    public function setTimeout(int $seconds): self
+    {
+        try {
+            $this->connection->setAttribute(\PDO::ATTR_TIMEOUT, $seconds);
+            return $this;
+        } catch (\PDOException $e) {
+            // Some drivers (like SQLite) don't support ATTR_TIMEOUT
+            if (str_contains($e->getMessage(), 'does not support this function') ||
+                str_contains($e->getMessage(), 'driver does not support that attribute')) {
+                // Silently ignore for unsupported drivers
+                return $this;
+            }
+            throw new RuntimeException("Failed to set timeout: " . $e->getMessage(), 0, $e);
+        }
+    }
+
+    /**
+     * Gets the current query timeout.
+     *
+     * @return int The timeout in seconds.
+     * @throws RuntimeException If the timeout cannot be retrieved.
+     */
+    public function getTimeout(): int
+    {
+        try {
+            $timeout = $this->connection->getAttribute(\PDO::ATTR_TIMEOUT);
+            return (int) $timeout;
+        } catch (\PDOException $e) {
+            // Some drivers (like SQLite) don't support ATTR_TIMEOUT
+            if (str_contains($e->getMessage(), 'does not support this function') ||
+                str_contains($e->getMessage(), 'driver does not support that attribute')) {
+                // Return 0 for unsupported drivers
+                return 0;
+            }
+            throw new RuntimeException("Failed to get timeout: " . $e->getMessage(), 0, $e);
+        }
     }
 
     /* ---------------- INTROSPECT ---------------- */

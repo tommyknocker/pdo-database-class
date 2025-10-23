@@ -433,4 +433,27 @@ class Connection implements ConnectionInterface
         return $this->lastErrno;
     }
 
+    /**
+     * Set a PDO attribute.
+     *
+     * @param int $attribute The attribute to set.
+     * @param mixed $value The value to set.
+     * @return bool True on success, false on failure.
+     */
+    public function setAttribute(int $attribute, mixed $value): bool
+    {
+        return $this->pdo->setAttribute($attribute, $value);
+    }
+
+    /**
+     * Get a PDO attribute.
+     *
+     * @param int $attribute The attribute to get.
+     * @return mixed The attribute value.
+     */
+    public function getAttribute(int $attribute): mixed
+    {
+        return $this->pdo->getAttribute($attribute);
+    }
+
 }

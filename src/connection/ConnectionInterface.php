@@ -121,4 +121,19 @@ interface ConnectionInterface
      * @return bool|null
      */
     public function getExecuteState(): ?bool;
+
+    /**
+     * Set a PDO attribute
+     * @param int $attribute
+     * @param mixed $value
+     * @return bool
+     */
+    public function setAttribute(int $attribute, mixed $value): bool;
+
+    /**
+     * Get a PDO attribute
+     * @param int $attribute
+     * @return mixed
+     */
+    public function getAttribute(int $attribute): mixed;
 }

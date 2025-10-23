@@ -311,7 +311,22 @@ echo "Parameters: " . json_encode($query['params']) . "\n";
 $structure = $db->find()->table('users')->describe();
 echo "Table structure columns: " . count($structure) . "\n";
 
-echo "\n12. Bulk Operations\n";
+echo "\n12. Connection Management\n";
+echo "------------------------\n";
+
+// Test timeout methods
+$currentTimeout = $db->getTimeout();
+echo "Current timeout: {$currentTimeout} seconds\n";
+
+// Set new timeout
+$db->setTimeout(30);
+echo "New timeout set to: " . $db->getTimeout() . " seconds\n";
+
+// Test ping
+$isAlive = $db->ping();
+echo "Database connection alive: " . ($isAlive ? 'Yes' : 'No') . "\n";
+
+echo "\n13. Bulk Operations\n";
 echo "------------------\n";
 
 // UPSERT example (works differently on SQLite)

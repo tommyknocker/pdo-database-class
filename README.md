@@ -1132,7 +1132,26 @@ $users = $db->connection('main')->find()->from('users')->get();
 $orders = $db->connection('main')->find()->from('orders')->get();
 ```
 
-### 5. Prepared Statements (Automatic)
+### 5. Query Timeouts
+
+Set appropriate timeouts for different operations:
+
+```php
+// Set timeout for long-running queries
+$db->setTimeout(60); // 60 seconds
+
+// Check current timeout
+$currentTimeout = $db->getTimeout();
+
+// Different timeouts for different connections
+$db->addConnection('fast', $fastConfig);
+$db->addConnection('slow', $slowConfig);
+
+$db->connection('fast')->setTimeout(5);   // Quick queries
+$db->connection('slow')->setTimeout(300); // Long-running reports
+```
+
+### 6. Prepared Statements (Automatic)
 
 All queries automatically use prepared statements - no action needed!
 
@@ -1378,6 +1397,8 @@ Db::jsonType('tags')                        // Value type
 | `explainAnalyze(string, array)` | Analyze query with execution |
 | `ping()` | Check database connection |
 | `disconnect()` | Close connection |
+| `setTimeout(int)` | Set query timeout in seconds |
+| `getTimeout()` | Get current query timeout |
 | `addConnection(name, config, options, logger)` | Add connection to pool |
 | `connection(name)` | Switch to named connection |
 
