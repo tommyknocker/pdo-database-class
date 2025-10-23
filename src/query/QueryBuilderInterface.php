@@ -232,6 +232,26 @@ interface QueryBuilderInterface
      */
     public function tableExists(): bool;
 
+    // Batch processing methods
+    /**
+     * @param int $batchSize
+     *
+     * @return \Generator<int, array<int, array<string, mixed>>, mixed, void>
+     */
+    public function batch(int $batchSize = 100): \Generator;
+
+    /**
+     * @param int $batchSize
+     *
+     * @return \Generator<int, array<string, mixed>, mixed, void>
+     */
+    public function each(int $batchSize = 100): \Generator;
+
+    /**
+     * @return \Generator<int, array<string, mixed>, mixed, void>
+     */
+    public function cursor(): \Generator;
+
     // Joins
     /**
      * @param string $tableAlias

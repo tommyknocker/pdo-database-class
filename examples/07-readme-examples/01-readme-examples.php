@@ -95,13 +95,13 @@ $db->find()->table('orders')->insertMulti([
     ['user_id' => $userId + 1, 'amount' => 99.99]  // Bob's ID
 ]);
 
-// JOIN with aggregation
+// JOIN with aggregation using helper functions
 $stats = $db->find()
     ->from('users AS u')
-    ->select(['u.id', 'u.name', Db::raw('SUM(o.amount) AS total')])
+    ->select(['u.id', 'u.name', 'total' => Db::sum('o.amount')])
     ->leftJoin('orders AS o', 'o.user_id = u.id')
     ->groupBy('u.id', 'u.name')
-    ->having(Db::raw('SUM(o.amount)'), 100, '>')
+    ->having(Db::sum('o.amount'), 100, '>')
     ->orderBy('total', 'DESC')
     ->get();
 echo "Users with orders > 100: " . count($stats) . "\n";
@@ -168,15 +168,15 @@ $users = $db->rawQuery(
 );
 echo "Raw query returned " . count($users) . " users\n";
 
-// Raw SQL fragments
+// Using helper functions where possible
 $db->find()
     ->table('users')
     ->where('id', $userId)
     ->update([
-        'age' => Db::raw('age + :inc', ['inc' => 5]),
-        'name' => Db::raw('CONCAT(name, :suffix)', ['suffix' => '_updated'])
+        'age' => Db::raw('age + :inc', ['inc' => 5]), // No helper for arithmetic
+        'name' => Db::concat('name', '_updated')      // Using CONCAT helper
     ]);
-echo "Updated user with raw SQL\n";
+echo "Updated user with helper functions\n";
 
 echo "\n6. Complex Conditions\n";
 echo "---------------------\n";
@@ -190,10 +190,14 @@ $users = $db->find()
     ->get();
 echo "Complex condition query returned " . count($users) . " users\n";
 
-// Subquery
+// Subquery using QueryBuilder methods
 $users = $db->find()
     ->from('users')
-    ->where(Db::raw('id IN (SELECT user_id FROM orders WHERE amount > 100)'))
+    ->whereIn('id', function($query) {
+        $query->from('orders')
+            ->select('user_id')
+            ->where('amount', 100, '>');
+    })
     ->get();
 echo "Subquery returned " . count($users) . " users\n";
 
@@ -326,8 +330,37 @@ echo "New timeout set to: " . $db->getTimeout() . " seconds\n";
 $isAlive = $db->ping();
 echo "Database connection alive: " . ($isAlive ? 'Yes' : 'No') . "\n";
 
-echo "\n13. Bulk Operations\n";
-echo "------------------\n";
+echo "\n13. Batch Processing (New Feature)\n";
+echo "-----------------------------------\n";
+
+// Process data in batches
+$batchCount = 0;
+$totalProcessed = 0;
+
+foreach ($db->find()->from('users')->orderBy('id')->batch(2) as $batch) {
+    $batchCount++;
+    $totalProcessed += count($batch);
+    echo "Batch {$batchCount}: Processing " . count($batch) . " users\n";
+}
+
+echo "Processed {$totalProcessed} users in {$batchCount} batches\n";
+
+// Process one record at a time
+$processedCount = 0;
+foreach ($db->find()
+    ->from('users')
+    ->where('status', 'active')
+    ->orderBy('id')
+    ->each(3) as $user) {
+    
+    $processedCount++;
+    // Process individual user
+}
+
+echo "Processed {$processedCount} active users individually\n";
+
+echo "\n14. Bulk Operations\n";
+echo "-------------------\n";
 
 // UPSERT example (works differently on SQLite)
 try {

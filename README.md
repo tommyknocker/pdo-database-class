@@ -16,6 +16,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - Automatic SQL dialect handling for cross-database compatibility
 - Native JSON support with consistent API across all databases
 - Production-ready features: transactions, bulk operations, connection pooling
+- Efficient batch processing with generators for large datasets
 - Fully tested with comprehensive test coverage
 - Type-safe code validated with PHPStan level 8
 
@@ -52,6 +53,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - [Complex Conditions](#complex-conditions)
   - [Subqueries](#subqueries)
   - [Schema Support](#schema-support-postgresql)
+  - [Batch Processing](#batch-processing)
 - [Error Handling](#error-handling)
 - [Performance Tips](#performance-tips)
 - [Debugging](#debugging)
@@ -370,10 +372,10 @@ use tommyknocker\pdodb\helpers\Db;
 
 $stats = $db->find()
     ->from('users AS u')
-    ->select(['u.id', 'u.name', Db::raw('SUM(o.amount) AS total')])
+    ->select(['u.id', 'u.name', 'total' => Db::sum('o.amount')])
     ->leftJoin('orders AS o', 'o.user_id = u.id')
     ->groupBy('u.id')
-    ->having(Db::raw('SUM(o.amount)'), 1000, '>')
+    ->having(Db::sum('o.amount'), 1000, '>')
     ->orderBy('total', 'DESC')
     ->limit(20)
     ->get();
@@ -726,13 +728,13 @@ $count = $db->rawQueryValue(
 ```php
 use tommyknocker\pdodb\helpers\Db;
 
-// Raw SQL fragments
+// Using helper functions where possible
 $db->find()
     ->table('users')
     ->where('id', 5)
     ->update([
-        'age' => Db::raw('age + :inc', ['inc' => 5]),
-        'name' => Db::raw('CONCAT(name, :suffix)', ['suffix' => '_updated'])
+        'age' => Db::raw('age + :inc', ['inc' => 5]), // No helper for arithmetic
+        'name' => Db::concat('name', '_updated')      // Using CONCAT helper
     ]);
 ```
 
@@ -774,22 +776,77 @@ $users = $db->find()
 ### Subqueries
 
 ```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Subquery in WHERE
+// Method 1: Using callable functions
 $users = $db->find()
     ->from('users')
-    ->where(Db::raw('id IN (SELECT user_id FROM orders WHERE total > 1000)'))
+    ->whereIn('id', function($query) {
+        $query->from('orders')
+            ->select('user_id')
+            ->where('total', 1000, '>');
+    })
     ->get();
 
-// Subquery in SELECT
+// Method 2: Using QueryBuilder instance directly
+$orderSubquery = $db->find()
+    ->from('orders')
+    ->select('user_id')
+    ->where('total', 1000, '>');
+
+$users = $db->find()
+    ->from('users')
+    ->where('id', $orderSubquery, 'IN')
+    ->get();
+
+// Method 3: WHERE EXISTS with callable
+$users = $db->find()
+    ->from('users')
+    ->whereExists(function($query) {
+        $query->from('orders')
+            ->where('user_id', Db::raw('users.id'))
+            ->where('status', 'completed');
+    })
+    ->get();
+
+// Method 4: WHERE EXISTS with QueryBuilder instance
+$orderExistsQuery = $db->find()
+    ->from('orders')
+    ->where('user_id', Db::raw('users.id'))
+    ->where('status', 'completed');
+
+$users = $db->find()
+    ->from('users')
+    ->whereExists($orderExistsQuery)
+    ->get();
+
+// Method 5: Complex subquery in SELECT (using helper functions)
 $users = $db->find()
     ->from('users AS u')
     ->select([
         'u.id',
         'u.name',
-        'order_count' => Db::raw('(SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id)')
+        'order_count' => Db::raw('(SELECT ' . Db::count()->getValue() . ' FROM orders o WHERE o.user_id = u.id)')
     ])
+    ->get();
+
+// Method 6: Multiple subqueries with different approaches
+$highValueOrders = $db->find()
+    ->from('orders')
+    ->select('user_id')
+    ->where('total', 1000, '>');
+
+$bannedUsers = $db->find()
+    ->from('bans')
+    ->select('user_id')
+    ->where('active', 1);
+
+$users = $db->find()
+    ->from('users')
+    ->where('id', $highValueOrders, 'IN')
+    ->whereNotExists(function($query) use ($bannedUsers) {
+        $query->from('bans')
+            ->where('user_id', Db::raw('users.id'))
+            ->where('active', 1);
+    })
     ->get();
 ```
 
@@ -806,6 +863,89 @@ $data = $db->find()
     ->leftJoin('archive.orders AS o', 'o.user_id = u.id')
     ->get();
 ```
+
+### Batch Processing
+
+For processing large datasets efficiently, PDOdb provides three generator-based methods:
+
+#### Processing in Batches
+
+```php
+// Process data in chunks of 100 records
+foreach ($db->find()->from('users')->orderBy('id')->batch(100) as $batch) {
+    echo "Processing batch of " . count($batch) . " users\n";
+    
+    foreach ($batch as $user) {
+        // Process each user in the batch
+        processUser($user);
+    }
+}
+```
+
+#### Processing One Record at a Time
+
+```php
+// Process records individually with internal buffering
+foreach ($db->find()
+    ->from('users')
+    ->where('active', 1)
+    ->orderBy('id')
+    ->each(50) as $user) {
+    
+    // Process individual user
+    sendEmail($user['email']);
+}
+```
+
+#### Streaming with Cursor
+
+```php
+// Most memory-efficient for very large datasets
+foreach ($db->find()
+    ->from('users')
+    ->where('age', 18, '>=')
+    ->cursor() as $user) {
+    
+    // Stream processing with minimal memory usage
+    exportUser($user);
+}
+```
+
+#### Real-world Example: Data Export
+
+```php
+function exportUsersToCsv($db, $filename) {
+    $file = fopen($filename, 'w');
+    fputcsv($file, ['ID', 'Name', 'Email', 'Age']);
+    
+    foreach ($db->find()
+        ->from('users')
+        ->orderBy('id')
+        ->cursor() as $user) {
+        
+        fputcsv($file, [
+            $user['id'],
+            $user['name'],
+            $user['email'],
+            $user['age']
+        ]);
+    }
+    
+    fclose($file);
+}
+
+// Export 1M+ users without memory issues
+exportUsersToCsv($db, 'users_export.csv');
+```
+
+#### Performance Comparison
+
+| Method | Memory Usage | Best For |
+|--------|-------------|----------|
+| `get()` | High (loads all data) | Small datasets, complex processing |
+| `batch()` | Medium (configurable chunks) | Bulk operations, parallel processing |
+| `each()` | Medium (internal buffering) | Individual record processing |
+| `cursor()` | Low (streaming) | Large datasets, simple processing |
 
 ---
 
@@ -1220,9 +1360,11 @@ echo "Memory used: " . memory_get_usage(true) / 1024 / 1024 . " MB\n";
 ```php
 use tommyknocker\pdodb\helpers\Db;
 
-// Raw SQL expressions
-Db::raw('CONCAT(first_name, " ", last_name)')
+// Raw SQL expressions (when no helper available)
 Db::raw('age + :years', ['years' => 5])
+
+// Using helper functions when available
+Db::concat('first_name', ' ', 'last_name')
 
 // Escape strings
 Db::escape("O'Reilly")
@@ -1417,6 +1559,9 @@ Db::jsonType('tags')                        // Value type
 | Method | Description |
 |--------|-------------|
 | `where(...)` / `andWhere(...)` / `orWhere(...)` | Add WHERE conditions |
+| `whereIn(column, callable\|QueryBuilder)` / `whereNotIn(column, callable\|QueryBuilder)` | Add WHERE IN/NOT IN with subquery |
+| `whereExists(callable\|QueryBuilder)` / `whereNotExists(callable\|QueryBuilder)` | Add WHERE EXISTS/NOT EXISTS with subquery |
+| `where(column, QueryBuilder, operator)` | Add WHERE condition with QueryBuilder subquery |
 | `join(...)` / `leftJoin(...)` / `rightJoin(...)` / `innerJoin(...)` | Add JOIN clauses |
 | `groupBy(...)` | Add GROUP BY clause |
 | `having(...)` / `orHaving(...)` | Add HAVING conditions |
@@ -1460,6 +1605,14 @@ Db::jsonType('tags')                        // Value type
 | `exists()` | Check if any rows match conditions |
 | `notExists()` | Check if no rows match conditions |
 | `tableExists(string)` | Check if table exists |
+
+#### Batch Processing
+
+| Method | Description |
+|--------|-------------|
+| `batch(int $batchSize = 100)` | Process data in batches using Generator |
+| `each(int $batchSize = 100)` | Process one record at a time using Generator |
+| `cursor()` | Stream results with minimal memory usage using Generator |
 
 #### Query Analysis
 

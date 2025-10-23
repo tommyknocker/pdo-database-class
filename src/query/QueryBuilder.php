@@ -446,6 +446,119 @@ class QueryBuilder implements QueryBuilderInterface
         return $this->connection->getLastErrno() === 0;
     }
 
+    /* ---------------- Batch processing methods ---------------- */
+
+    /**
+     * Execute query and return iterator for batch processing.
+     *
+     * Processes data in batches of specified size, yielding arrays of records.
+     * Useful for processing large datasets without loading everything into memory.
+     *
+     * @param int $batchSize Number of records per batch (default: 100)
+     *
+     * @return \Generator<int, array<int, array<string, mixed>>, mixed, void>
+     * @throws InvalidArgumentException If batch size is invalid
+     * @throws PDOException
+     */
+    public function batch(int $batchSize = 100): \Generator
+    {
+        if ($batchSize <= 0) {
+            throw new InvalidArgumentException('Batch size must be greater than 0');
+        }
+
+        $offset = 0;
+        $sql = $this->buildSelectSql();
+        $params = $this->params ?? [];
+
+        while (true) {
+            // Add LIMIT and OFFSET to the query
+            $batchSql = $sql . " LIMIT {$batchSize} OFFSET {$offset}";
+
+            $rows = $this->fetchAll($batchSql, $params);
+
+            if (empty($rows)) {
+                break; // No more data
+            }
+
+            yield $rows;
+
+            // If we got less than batchSize, we're done
+            if (count($rows) < $batchSize) {
+                break;
+            }
+
+            $offset += $batchSize;
+        }
+    }
+
+    /**
+     * Execute query and return iterator for individual record processing.
+     *
+     * Processes data one record at a time, but loads them from database in batches
+     * for efficiency. Useful when you need to process each record individually
+     * but want to avoid memory issues with large datasets.
+     *
+     * @param int $batchSize Internal batch size for database queries (default: 100)
+     *
+     * @return \Generator<int, array<string, mixed>, mixed, void>
+     * @throws InvalidArgumentException If batch size is invalid
+     * @throws PDOException
+     */
+    public function each(int $batchSize = 100): \Generator
+    {
+        if ($batchSize <= 0) {
+            throw new InvalidArgumentException('Batch size must be greater than 0');
+        }
+
+        $offset = 0;
+        $sql = $this->buildSelectSql();
+        $params = $this->params ?? [];
+        $buffer = [];
+
+        while (true) {
+            // Refill buffer if empty
+            if (empty($buffer)) {
+                $batchSql = $sql . " LIMIT {$batchSize} OFFSET {$offset}";
+                $buffer = $this->fetchAll($batchSql, $params);
+
+                if (empty($buffer)) {
+                    break; // No more data
+                }
+
+                $offset += $batchSize;
+            }
+
+            // Yield one record from buffer
+            yield array_shift($buffer);
+        }
+    }
+
+    /**
+     * Execute query and return iterator for individual record processing with cursor.
+     *
+     * Most memory efficient method for very large datasets. Uses database cursor
+     * to stream results without loading them into memory. Best for simple
+     * sequential processing of large datasets.
+     *
+     * @return \Generator<int, array<string, mixed>, mixed, void>
+     * @throws PDOException
+     */
+    public function cursor(): \Generator
+    {
+        $sql = $this->buildSelectSql();
+        $params = $this->normalizeParams($this->params ?? []);
+
+        // Use executeStatement which returns PDOStatement directly
+        $stmt = $this->executeStatement($sql, $params);
+        $stmt->setFetchMode(PDO::FETCH_ASSOC);
+
+        while ($row = $stmt->fetch()) {
+            yield $row;
+        }
+
+        $stmt->closeCursor();
+    }
+
     /* ---------------- Conditions: where / having / logical variants ---------------- */
 
     /**

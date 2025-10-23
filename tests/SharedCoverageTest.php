@@ -2386,4 +2386,244 @@ class SharedCoverageTest extends TestCase
         $db->connection('conn1');
         $this->assertEquals($timeout1, $db->getTimeout());
     }
+
+    /**
+     * Test batch processing method.
+     */
+    public function testBatchProcessing(): void
+    {
+        $db = self::$db;
+
+        // Insert test data
+        $testData = [];
+        for ($i = 1; $i <= 25; $i++) {
+            $testData[] = [
+                'name' => "User {$i}",
+                'value' => $i * 10,
+                'meta' => json_encode(['id' => $i, 'active' => $i % 2 === 0]),
+            ];
+        }
+        $db->find()->table('test_coverage')->insertMulti($testData);
+
+        // Test batch processing with batch size 10
+        $batches = [];
+        $totalRecords = 0;
+
+        foreach ($db->find()->from('test_coverage')->orderBy('id')->batch(10) as $batch) {
+            $batches[] = $batch;
+            $totalRecords += count($batch);
+        }
+
+        $this->assertCount(3, $batches); // 10 + 10 + 5 records
+        $this->assertEquals(25, $totalRecords);
+        $this->assertCount(10, $batches[0]); // First batch
+        $this->assertCount(10, $batches[1]); // Second batch
+        $this->assertCount(5, $batches[2]);  // Last batch
+
+        // Test batch processing with batch size 7
+        $batches = [];
+        foreach ($db->find()->from('test_coverage')->orderBy('id')->batch(7) as $batch) {
+            $batches[] = $batch;
+        }
+
+        $this->assertCount(4, $batches); // 7 + 7 + 7 + 4 records
+        $this->assertCount(7, $batches[0]);
+        $this->assertCount(7, $batches[1]);
+        $this->assertCount(7, $batches[2]);
+        $this->assertCount(4, $batches[3]);
+    }
+
+    /**
+     * Test each processing method.
+     */
+    public function testEachProcessing(): void
+    {
+        $db = self::$db;
+
+        // Clear and insert test data
+        $db->find()->table('test_coverage')->delete();
+        $testData = [];
+        for ($i = 1; $i <= 15; $i++) {
+            $testData[] = [
+                'name' => "Item {$i}",
+                'value' => $i * 5,
+                'meta' => json_encode(['category' => $i % 3]),
+            ];
+        }
+        $db->find()->table('test_coverage')->insertMulti($testData);
+
+        // Test each processing
+        $records = [];
+        $count = 0;
+
+        foreach ($db->find()->from('test_coverage')->orderBy('id')->each(5) as $record) {
+            $records[] = $record;
+            $count++;
+        }
+
+        $this->assertEquals(15, $count);
+        $this->assertCount(15, $records);
+
+        // Verify order is maintained
+        $this->assertEquals('Item 1', $records[0]['name']);
+        $this->assertEquals('Item 15', $records[14]['name']);
+        $this->assertEquals(5, $records[0]['value']);
+        $this->assertEquals(75, $records[14]['value']);
+    }
+
+    /**
+     * Test cursor processing method.
+     */
+    public function testCursorProcessing(): void
+    {
+        $db = self::$db;
+
+        // Clear and insert test data
+        $db->find()->table('test_coverage')->delete();
+        $testData = [];
+        for ($i = 1; $i <= 20; $i++) {
+            $testData[] = [
+                'name' => "Record {$i}",
+                'value' => $i * 3,
+                'meta' => json_encode(['type' => 'test']),
+            ];
+        }
+        $db->find()->table('test_coverage')->insertMulti($testData);
+
+        // Test cursor processing
+        $records = [];
+        $count = 0;
+
+        foreach ($db->find()->from('test_coverage')->orderBy('id')->cursor() as $record) {
+            $records[] = $record;
+            $count++;
+        }
+
+        $this->assertEquals(20, $count);
+        $this->assertCount(20, $records);
+
+        // Verify data integrity
+        $this->assertEquals('Record 1', $records[0]['name']);
+        $this->assertEquals('Record 20', $records[19]['name']);
+        $this->assertEquals(3, $records[0]['value']);
+        $this->assertEquals(60, $records[19]['value']);
+    }
+
+    /**
+     * Test batch processing with WHERE conditions.
+     */
+    public function testBatchWithConditions(): void
+    {
+        $db = self::$db;
+
+        // Clear and insert test data
+        $db->find()->table('test_coverage')->delete();
+        $testData = [];
+        for ($i = 1; $i <= 30; $i++) {
+            $testData[] = [
+                'name' => "User {$i}",
+                'value' => $i,
+                'meta' => json_encode(['active' => $i % 2 === 0]),
+            ];
+        }
+        $db->find()->table('test_coverage')->insertMulti($testData);
+
+        // Test batch with WHERE condition
+        $batches = [];
+        foreach ($db->find()
+            ->from('test_coverage')
+            ->where('value', 20, '<=')
+            ->orderBy('id')
+            ->batch(8) as $batch) {
+            $batches[] = $batch;
+        }
+
+        $this->assertCount(3, $batches); // 8 + 8 + 4 records (values 1-20)
+        $this->assertCount(8, $batches[0]);
+        $this->assertCount(8, $batches[1]);
+        $this->assertCount(4, $batches[2]);
+
+        // Verify all records have value <= 20
+        foreach ($batches as $batch) {
+            foreach ($batch as $record) {
+                $this->assertLessThanOrEqual(20, $record['value']);
+            }
+        }
+    }
+
+    /**
+     * Test error handling for invalid batch sizes.
+     */
+    public function testBatchErrorHandling(): void
+    {
+        $db = self::$db;
+
+        // Test zero batch size - need to iterate to trigger the exception
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Batch size must be greater than 0');
+        foreach ($db->find()->from('test_coverage')->batch(0) as $batch) {
+            // This should not execute due to exception
+        }
+
+        // Test negative batch size - need to iterate to trigger the exception
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Batch size must be greater than 0');
+        foreach ($db->find()->from('test_coverage')->batch(-5) as $batch) {
+            // This should not execute due to exception
+        }
+    }
+
+    /**
+     * Test each error handling for invalid batch sizes.
+     */
+    public function testEachErrorHandling(): void
+    {
+        $db = self::$db;
+
+        // Test zero batch size - need to iterate to trigger the exception
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Batch size must be greater than 0');
+        foreach ($db->find()->from('test_coverage')->each(0) as $record) {
+            // This should not execute due to exception
+        }
+
+        // Test negative batch size - need to iterate to trigger the exception
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Batch size must be greater than 0');
+        foreach ($db->find()->from('test_coverage')->each(-10) as $record) {
+            // This should not execute due to exception
+        }
+    }
+
+    /**
+     * Test empty result sets.
+     */
+    public function testEmptyResultSets(): void
+    {
+        $db = self::$db;
+
+        // Clear table
+        $db->find()->table('test_coverage')->delete();
+
+        // Test batch with empty results
+        $batches = [];
+        foreach ($db->find()->from('test_coverage')->batch(10) as $batch) {
+            $batches[] = $batch;
+        }
+        $this->assertEmpty($batches);
+
+        // Test each with empty results
+        $records = [];
+        foreach ($db->find()->from('test_coverage')->each(10) as $record) {
+            $records[] = $record;
+        }
+        $this->assertEmpty($records);
+
+        // Test cursor with empty results
+        $records = [];
+        foreach ($db->find()->from('test_coverage')->cursor() as $record) {
+            $records[] = $record;
+        }
+        $this->assertEmpty($records);
+    }
 }
