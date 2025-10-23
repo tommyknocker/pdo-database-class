@@ -9,7 +9,7 @@ declare(strict_types=1);
  * for better error handling in your applications.
  */
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\exceptions\AuthenticationException;
@@ -28,20 +28,26 @@ echo "1. Basic Exception Handling\n";
 echo "----------------------------\n";
 
 try {
-    // This will fail with a connection error (assuming invalid config)
-    $db = new PdoDb('mysql', [
-        'host' => 'invalid-host',
-        'username' => 'invalid-user',
-        'password' => 'invalid-pass',
-        'dbname' => 'invalid-db'
-    ]);
+    // Use SQLite for demonstration
+    $db = new PdoDb('sqlite', ['path' => ':memory:']);
     
-    $users = $db->find()->from('users')->get();
-} catch (ConnectionException $e) {
-    echo "Connection Error: {$e->getMessage()}\n";
+    // Create a table with unique constraint
+    $db->connection->query("CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT UNIQUE, name TEXT)");
+    
+    // Insert first user
+    $db->find()->from('users')->insert(['email' => 'test@example.com', 'name' => 'Test User']);
+    
+    // Try to insert duplicate email - this will cause constraint violation
+    $db->find()->from('users')->insert(['email' => 'test@example.com', 'name' => 'Another User']);
+} catch (ConstraintViolationException $e) {
+    echo "Constraint Violation: {$e->getMessage()}\n";
     echo "Driver: {$e->getDriver()}\n";
     echo "Retryable: " . ($e->isRetryable() ? 'Yes' : 'No') . "\n";
     echo "Category: {$e->getCategory()}\n";
+    echo "Constraint: " . ($e->getConstraintName() ?? 'Unknown') . "\n";
+    echo "Table: " . ($e->getTableName() ?? 'Unknown') . "\n";
+    echo "Column: " . ($e->getColumnName() ?? 'Unknown') . "\n";
+    echo "Context: " . json_encode($e->getContext()) . "\n";
 } catch (AuthenticationException $e) {
     echo "Authentication Error: {$e->getMessage()}\n";
     echo "Driver: {$e->getDriver()}\n";
@@ -354,17 +360,6 @@ try {
     $db = new PdoDb('sqlite', ['path' => ':memory:']);
     $db->rawQuery('SELECT * FROM nonexistent_table');
 } catch (QueryException $e) {
-    $monitor->handleError($e);
-}
-
-try {
-    $db = new PdoDb('mysql', [
-        'host' => 'invalid-host',
-        'username' => 'invalid-user',
-        'password' => 'invalid-pass',
-        'dbname' => 'invalid-db'
-    ]);
-} catch (ConnectionException $e) {
     $monitor->handleError($e);
 }
 

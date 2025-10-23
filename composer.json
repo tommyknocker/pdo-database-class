@@ -74,9 +74,11 @@
   "scripts": {
     "test": "phpunit",
     "phpstan": "phpstan analyse",
+    "test-examples": "bash scripts/test-examples.sh",
     "check": [
       "@phpstan",
-      "@test"
+      "@test",
+      "@test-examples"
     ]
   }
 }
