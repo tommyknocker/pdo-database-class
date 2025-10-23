@@ -15,6 +15,9 @@ class TimeoutException extends DatabaseException
 {
     protected ?float $timeoutSeconds = null;
 
+    /**
+     * @param array<string, mixed> $context
+     */
     public function __construct(
         string $message = '',
         int|string $code = 0,
@@ -56,6 +59,9 @@ class TimeoutException extends DatabaseException
         return $description;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         $data = parent::toArray();

@@ -1321,6 +1321,45 @@ final class PdoDbSqliteTest extends TestCase
         $this->assertContains($id2, $ids);
     }
 
+    public function testWhereInNamedPlaceholdersConflict(): void
+    {
+        $db = self::$db;
+
+        // Insert test data
+        $db->find()->table('users')->insert(['name' => 'Alice', 'age' => 25, 'status' => 'active']);
+        $db->find()->table('users')->insert(['name' => 'Bob', 'age' => 30, 'status' => 'inactive']);
+        $db->find()->table('users')->insert(['name' => 'Charlie', 'age' => 35, 'status' => 'active']);
+        $db->find()->table('users')->insert(['name' => 'David', 'age' => 40, 'status' => 'pending']);
+
+        // Test multiple whereIn calls with different columns - this should work without conflicts
+        $rows = $db->find()
+            ->from('users')
+            ->where('status', ['active'], 'IN')  // First whereIn with status
+            ->where('age', [25, 35], 'IN')       // Second whereIn with age - different column
+            ->get();
+
+        // Should return Alice (active, age 25) and Charlie (active, age 35)
+        $this->assertCount(2, $rows);
+        $names = array_column($rows, 'name');
+        $this->assertContains('Alice', $names);
+        $this->assertContains('Charlie', $names);
+
+        // Test with OR logic using orWhere
+        $rows = $db->find()
+            ->from('users')
+            ->where('age', [25, 30], 'IN')       // First whereIn with age
+            ->orWhere('age', [35, 40], 'IN')     // Second whereIn with same column using OR
+            ->get();
+
+        // Should return all users (Alice, Bob, Charlie, David)
+        $this->assertCount(4, $rows);
+        $names = array_column($rows, 'name');
+        $this->assertContains('Alice', $names);
+        $this->assertContains('Bob', $names);
+        $this->assertContains('Charlie', $names);
+        $this->assertContains('David', $names);
+    }
+
     public function testHavingAndOrHaving(): void
     {
         $db = self::$db;

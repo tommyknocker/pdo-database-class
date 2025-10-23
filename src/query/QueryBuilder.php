@@ -942,6 +942,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function loadCsv(string $filePath, array $options = []): bool
     {
+        $sql = null;
         if (!$this->connection->inTransaction()) {
             $this->connection->transaction();
         }
@@ -966,7 +967,6 @@ class QueryBuilder implements QueryBuilderInterface
             );
             throw $dbException;
         }
-        return false;
     }
 
     /**
@@ -979,6 +979,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function loadXml(string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool
     {
+        $sql = null;
         if (!$this->connection->inTransaction()) {
             $this->connection->transaction();
         }
@@ -1007,7 +1008,6 @@ class QueryBuilder implements QueryBuilderInterface
             );
             throw $dbException;
         }
-        return false;
     }
 
     /* ---------------- JSON methods ---------------- */

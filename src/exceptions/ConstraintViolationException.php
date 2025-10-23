@@ -18,6 +18,9 @@ class ConstraintViolationException extends DatabaseException
     protected ?string $tableName = null;
     protected ?string $columnName = null;
 
+    /**
+     * @param array<string, mixed> $context
+     */
     public function __construct(
         string $message = '',
         int|string $code = 0,
@@ -81,6 +84,9 @@ class ConstraintViolationException extends DatabaseException
         return $description;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         $data = parent::toArray();

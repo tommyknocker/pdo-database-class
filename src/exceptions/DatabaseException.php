@@ -16,9 +16,13 @@ abstract class DatabaseException extends PDOException
 {
     protected string $driver;
     protected ?string $query = null;
+    /** @var array<string, mixed> */
     protected array $context = [];
     protected int|string $originalCode;
 
+    /**
+     * @param array<string, mixed> $context
+     */
     public function __construct(
         string $message = '',
         int|string $code = 0,
@@ -63,6 +67,7 @@ abstract class DatabaseException extends PDOException
 
     /**
      * Get additional context information.
+     * @return array<string, mixed>
      */
     public function getContext(): array
     {
@@ -101,6 +106,7 @@ abstract class DatabaseException extends PDOException
 
     /**
      * Convert to array for logging.
+     * @return array<string, mixed>
      */
     public function toArray(): array
     {

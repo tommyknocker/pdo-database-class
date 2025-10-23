@@ -17,6 +17,7 @@ class ExceptionFactory
 {
     /**
      * Create a specialized exception from PDOException.
+     * @param array<string, mixed> $context
      */
     public static function createFromPdoException(
         PDOException $e,
@@ -343,6 +344,7 @@ class ExceptionFactory
 
     /**
      * Create a constraint violation exception with parsed details.
+     * @param array<string, mixed> $context
      */
     private static function createConstraintException(
         PDOException $e,
