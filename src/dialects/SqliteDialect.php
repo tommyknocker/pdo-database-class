@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects;
@@ -9,7 +10,7 @@ use RuntimeException;
 use tommyknocker\pdodb\helpers\ConfigValue;
 use tommyknocker\pdodb\helpers\RawValue;
 
-class SqliteDialect extends DialectAbstract implements DialectInterface
+class SqliteDialect extends DialectAbstract
 {
     /**
      * {@inheritDoc}
@@ -40,7 +41,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         return [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false
+            PDO::ATTR_EMULATE_PREPARES => false,
         ];
     }
 
@@ -62,6 +63,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     *
      * @param array<int|string, mixed> $flags
      */
     public function insertKeywords(array $flags): string
@@ -85,6 +87,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     *
      * @param array<string, mixed> $options
      */
     public function formatSelectOptions(string $sql, array $options): string
@@ -194,6 +197,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     *
      * @param array<int, string> $columns
      * @param array<int, string|array<int, string>> $placeholders
      */
@@ -204,15 +208,15 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         bool $isMultiple = false
     ): string {
         $colsSql = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
-        
+
         if ($isMultiple) {
-            $valsSql = implode(',', array_map(function($p) {
+            $valsSql = implode(',', array_map(function ($p) {
                 return is_array($p) ? '(' . implode(',', $p) . ')' : $p;
             }, $placeholders));
             return sprintf('REPLACE INTO %s (%s) VALUES %s', $table, $colsSql, $valsSql);
         }
-        
-        $stringPlaceholders = array_map(fn($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
+
+        $stringPlaceholders = array_map(fn ($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
         $valsSql = implode(',', $stringPlaceholders);
         return sprintf('REPLACE INTO %s (%s) VALUES (%s)', $table, $colsSql, $valsSql);
     }
@@ -233,7 +237,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
      */
     public function config(ConfigValue $value): RawValue
     {
-        $sql = "PRAGMA " . strtoupper($value->getValue())
+        $sql = 'PRAGMA ' . strtoupper($value->getValue())
             . ($value->getUseEqualSign() ? ' = ' : ' ')
             . ($value->getQuoteValue() ? '\'' . $value->getParams()[0] . '\'' : $value->getParams()[0]);
         return new RawValue($sql);
@@ -242,12 +246,9 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function buildExplainSql(string $query, bool $analyze = false): string
+    public function buildExplainSql(string $query): string
     {
-        if ($analyze) {
-            return "EXPLAIN QUERY PLAN " . $query;
-        }
-        return "EXPLAIN " . $query;
+        return 'EXPLAIN ' . $query;
     }
 
     /**
@@ -255,7 +256,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
      */
     public function buildExplainAnalyzeSql(string $query): string
     {
-        return "EXPLAIN QUERY PLAN " . $query;
+        return 'EXPLAIN QUERY PLAN ' . $query;
     }
 
     /**
@@ -321,7 +322,6 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         return $asText ? "({$base} || '')" : $base;
     }
 
-
     /**
      * {@inheritDoc}
      */
@@ -383,7 +383,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         }
         $param = ':jsonset';
         // Use json() to parse the JSON-encoded value properly
-        $expr = "JSON_SET(" . $this->quoteIdentifier($col) . ", '{$jsonPath}', json({$param}))";
+        $expr = 'JSON_SET(' . $this->quoteIdentifier($col) . ", '{$jsonPath}', json({$param}))";
         return [$expr, [$param => json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)]];
     }
 
@@ -495,11 +495,11 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
     public function formatJsonType(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         if ($path === null) {
             return "json_type({$colQuoted})";
         }
-        
+
         $parts = $this->normalizeJsonPath($path);
         $jsonPath = '$';
         foreach ($parts as $p) {
@@ -509,7 +509,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
                 $jsonPath .= '.' . $p;
             }
         }
-        
+
         return "json_type(json_extract({$colQuoted}, '{$jsonPath}'))";
     }
 
@@ -523,7 +523,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
-     * SQLite doesn't have GREATEST, use MAX
+     * SQLite doesn't have GREATEST, use MAX.
      */
     public function formatGreatest(array $values): string
     {
@@ -532,7 +532,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
-     * SQLite doesn't have LEAST, use MIN
+     * SQLite doesn't have LEAST, use MIN.
      */
     public function formatLeast(array $values): string
     {
@@ -553,7 +553,7 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
-     * SQLite doesn't have MOD function, use % operator
+     * SQLite doesn't have MOD function, use % operator.
      */
     public function formatMod(string|RawValue $dividend, string|RawValue $divisor): string
     {
@@ -624,4 +624,3 @@ class SqliteDialect extends DialectAbstract implements DialectInterface
         return "CAST(STRFTIME('%S', {$this->resolveValue($value)}) AS INTEGER)";
     }
 }
-

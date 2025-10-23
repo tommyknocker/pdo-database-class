@@ -8,7 +8,7 @@ use PDOException;
 
 /**
  * Timeout exceptions.
- * 
+ *
  * Thrown when database operations exceed timeout limits.
  */
 class TimeoutException extends DatabaseException
@@ -28,7 +28,7 @@ class TimeoutException extends DatabaseException
         ?float $timeoutSeconds = null
     ) {
         parent::__construct($message, $code, $previous, $driver, $query, $context);
-        
+
         $this->timeoutSeconds = $timeoutSeconds;
     }
 
@@ -51,11 +51,11 @@ class TimeoutException extends DatabaseException
     public function getDescription(): string
     {
         $description = parent::getDescription();
-        
+
         if ($this->timeoutSeconds) {
             $description .= " (Timeout: {$this->timeoutSeconds}s)";
         }
-        
+
         return $description;
     }
 
@@ -66,7 +66,7 @@ class TimeoutException extends DatabaseException
     {
         $data = parent::toArray();
         $data['timeout_seconds'] = $this->timeoutSeconds;
-        
+
         return $data;
     }
 }

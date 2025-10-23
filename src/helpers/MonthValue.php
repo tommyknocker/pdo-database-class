@@ -1,10 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * MONTH extraction value (dialect-specific)
+ * MONTH extraction value (dialect-specific).
  */
 class MonthValue extends RawValue
 {

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects;
@@ -7,7 +8,7 @@ use InvalidArgumentException;
 use PDO;
 use tommyknocker\pdodb\helpers\RawValue;
 
-class PostgreSQLDialect extends DialectAbstract implements DialectInterface
+class PostgreSQLDialect extends DialectAbstract
 {
     /**
      * {@inheritDoc}
@@ -49,7 +50,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         return [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false
+            PDO::ATTR_EMULATE_PREPARES => false,
         ];
     }
 
@@ -118,6 +119,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     *
      * @param array<string, mixed> $options
      */
     public function formatSelectOptions(string $sql, array $options): string
@@ -177,7 +179,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
                         $quotedCol = $this->quoteIdentifier((string)$col);
                         $tableRef = $this->quoteTable($tableName);
                         $replacement = $tableRef . '.' . $quotedCol;
-                        
+
                         $safeExpr = preg_replace_callback(
                             '/\b' . preg_quote((string)$col, '/') . '\b/i',
                             function ($m) use ($exprStr, $replacement) {
@@ -243,6 +245,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     *
      * @param array<int, string> $columns
      * @param array<int, string|array<int, string>> $placeholders
      */
@@ -273,7 +276,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
             $valsSql = implode(',', $rows);
         } else {
             // single insert: ensure parentheses around the list
-            $stringPlaceholders = array_map(fn($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
+            $stringPlaceholders = array_map(fn ($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
             $phList = implode(',', $stringPlaceholders);
             $valsSql = '(' . $phList . ')';
         }
@@ -307,7 +310,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     public function now(?string $diff = '', bool $asTimestamp = false): string
     {
         if (!$diff) {
-            return $asTimestamp ? "EXTRACT(EPOCH FROM NOW())" : "NOW()";
+            return $asTimestamp ? 'EXTRACT(EPOCH FROM NOW())' : 'NOW()';
         }
 
         $trimmedDif = trim($diff);
@@ -341,9 +344,9 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function buildExplainSql(string $query, bool $analyze = false): string
+    public function buildExplainSql(string $query): string
     {
-        return "EXPLAIN " . ($analyze ? "ANALYZE " : "") . $query;
+        return 'EXPLAIN ' . $query;
     }
 
     /**
@@ -351,7 +354,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
      */
     public function buildExplainAnalyzeSql(string $query): string
     {
-        return "EXPLAIN ANALYZE " . $query;
+        return 'EXPLAIN ANALYZE ' . $query;
     }
 
     /**
@@ -377,7 +380,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
      */
     public function buildLockSql(array $tables, string $prefix, string $lockMethod): string
     {
-        $list = implode(', ', array_map(fn($t) => $this->quoteIdentifier($prefix . $t), $tables));
+        $list = implode(', ', array_map(fn ($t) => $this->quoteIdentifier($prefix . $t), $tables));
         return "LOCK TABLE {$list} IN ACCESS EXCLUSIVE MODE";
     }
 
@@ -436,18 +439,19 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     {
         $parts = $this->normalizeJsonPath($path);
         if (empty($parts)) {
-            return $asText ? $this->quoteIdentifier($col) . "::text" : $this->quoteIdentifier($col);
+            return $asText ? $this->quoteIdentifier($col) . '::text' : $this->quoteIdentifier($col);
         }
-        $arr = "ARRAY[" . implode(',', array_map(fn($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . "]";
+        $arr = 'ARRAY[' . implode(',', array_map(fn ($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . ']';
         // build #> or #>> with array literal
         if ($asText) {
-            return $this->quoteIdentifier($col) . " #>> " . $arr;
+            return $this->quoteIdentifier($col) . ' #>> ' . $arr;
         }
-        return $this->quoteIdentifier($col) . " #> " . $arr;
+        return $this->quoteIdentifier($col) . ' #> ' . $arr;
     }
 
     /**
      * {@inheritDoc}
+     *
      * @param string|int $p
      */
     protected function connectionQuoteParamOrLiteral(string|int $p): string
@@ -461,6 +465,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     *
      * @throws \JsonException
      */
     public function formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
@@ -475,7 +480,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
             return [$sql, [$paramJson => $json]];
         }
 
-        $arr = "ARRAY[" . implode(',', array_map(fn($p) => "'" . str_replace("'", "''", (string)$p) . "'", $parts)) . "]";
+        $arr = 'ARRAY[' . implode(',', array_map(fn ($p) => "'" . str_replace("'", "''", (string)$p) . "'", $parts)) . ']';
         $extracted = "{$colQuoted}::jsonb #> {$arr}";
 
         if (is_string($value)) {
@@ -493,6 +498,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     *
      * @throws \JsonException
      */
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
@@ -501,11 +507,11 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         $colQuoted = $this->quoteIdentifier($col);
 
         // build pg path for full path and for parent path
-        $pgPath = '{' . implode(',', array_map(fn($p) => str_replace('}', '\\}', (string)$p), $parts)) . '}';
+        $pgPath = '{' . implode(',', array_map(fn ($p) => str_replace('}', '\\}', (string)$p), $parts)) . '}';
         if (count($parts) > 1) {
             $parentParts = $parts;
             array_pop($parentParts);
-            $pgParentPath = '{' . implode(',', array_map(fn($p) => str_replace('}', '\\}', (string)$p), $parentParts)) . '}';
+            $pgParentPath = '{' . implode(',', array_map(fn ($p) => str_replace('}', '\\}', (string)$p), $parentParts)) . '}';
             $lastKey = (string)end($parts);
         } else {
             $pgParentPath = null;
@@ -551,7 +557,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         $colQuoted = $this->quoteIdentifier($col);
 
         // Build pg path array literal for functions that need it
-        $pgPathArr = '{' . implode(',', array_map(fn($p) => str_replace('}', '\\}', (string)$p), $parts)) . '}';
+        $pgPathArr = '{' . implode(',', array_map(fn ($p) => str_replace('}', '\\}', (string)$p), $parts)) . '}';
 
         // If last segment is numeric -> treat as array index: set that element to JSON null (preserve indices)
         $last = end($parts);
@@ -592,7 +598,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         $checks = ["jsonb_path_exists({$colQuoted}::jsonb, '{$jsonPath}')"];
 
         // Build prefix existence checks without using the ? operator to avoid PDO positional placeholder issues
-        $prefixExpr = $colQuoted . "::jsonb";
+        $prefixExpr = $colQuoted . '::jsonb';
         $accum = [];
         foreach ($parts as $i => $p) {
             $isIndex = preg_match('/^\d+$/', (string)$p);
@@ -615,7 +621,7 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         }
 
         // Final fallback: #> path not null. Build pg path array literal safely.
-        $pgPathArr = '{' . implode(',', array_map(fn($p) => str_replace('}', '\\}', (string)$p), $parts)) . '}';
+        $pgPathArr = '{' . implode(',', array_map(fn ($p) => str_replace('}', '\\}', (string)$p), $parts)) . '}';
         $checks[] = "({$colQuoted}::jsonb #> '{$pgPathArr}') IS NOT NULL";
 
         return '(' . implode(' OR ', $checks) . ')';
@@ -629,10 +635,10 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
         $parts = $this->normalizeJsonPath($path);
         if (empty($parts)) {
             // whole column: cast text to numeric when possible
-            $expr = $this->quoteIdentifier($col) . "::text";
+            $expr = $this->quoteIdentifier($col) . '::text';
         } else {
-            $arr = "ARRAY[" . implode(',', array_map(fn($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . "]";
-            $expr = $this->quoteIdentifier($col) . " #>> " . $arr;
+            $arr = 'ARRAY[' . implode(',', array_map(fn ($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . ']';
+            $expr = $this->quoteIdentifier($col) . ' #>> ' . $arr;
         }
 
         // CASE expression: if text looks like a number, cast to numeric for ordering, otherwise NULL
@@ -646,16 +652,16 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     public function formatJsonLength(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         if ($path === null) {
             // For whole column, use jsonb_array_length for arrays, return 0 for others
             return "CASE WHEN jsonb_typeof({$colQuoted}::jsonb) = 'array' THEN jsonb_array_length({$colQuoted}::jsonb) ELSE 0 END";
         }
-        
+
         $parts = $this->normalizeJsonPath($path);
-        $arr = "ARRAY[" . implode(',', array_map(fn($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . "]";
+        $arr = 'ARRAY[' . implode(',', array_map(fn ($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . ']';
         $extracted = "{$colQuoted}::jsonb #> {$arr}";
-        
+
         return "CASE WHEN jsonb_typeof({$extracted}) = 'array' THEN jsonb_array_length({$extracted}) ELSE 0 END";
     }
 
@@ -665,15 +671,15 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     public function formatJsonKeys(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         if ($path === null) {
             // Return JSON array of keys (simplified - in practice would need aggregation)
             return "'{}'::jsonb";
         }
-        
+
         $parts = $this->normalizeJsonPath($path);
-        $arr = "ARRAY[" . implode(',', array_map(fn($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . "]";
-        
+        $arr = 'ARRAY[' . implode(',', array_map(fn ($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . ']';
+
         return "'{}'::jsonb";
     }
 
@@ -683,15 +689,15 @@ class PostgreSQLDialect extends DialectAbstract implements DialectInterface
     public function formatJsonType(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         if ($path === null) {
             return "jsonb_typeof({$colQuoted}::jsonb)";
         }
-        
+
         $parts = $this->normalizeJsonPath($path);
-        $arr = "ARRAY[" . implode(',', array_map(fn($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . "]";
+        $arr = 'ARRAY[' . implode(',', array_map(fn ($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . ']';
         $extracted = "{$colQuoted}::jsonb #> {$arr}";
-        
+
         return "jsonb_typeof({$extracted})";
     }
 

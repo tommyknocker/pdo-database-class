@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query;
@@ -16,17 +17,17 @@ interface QueryBuilderInterface
      * @param string $prefix
      */
     public function __construct(ConnectionInterface $connection, string $prefix = '');
-    
+
     /**
      * @return ConnectionInterface
      */
     public function getConnection(): ConnectionInterface;
-    
+
     /**
      * @return DialectInterface
      */
     public function getDialect(): DialectInterface;
-    
+
     /**
      * @return string|null
      */
@@ -35,18 +36,21 @@ interface QueryBuilderInterface
     // Table / source
     /**
      * @param string $table
+     *
      * @return self
      */
     public function table(string $table): self;
-    
+
     /**
      * @param string $table
+     *
      * @return self
      */
     public function from(string $table): self;
-    
+
     /**
      * @param string $prefix
+     *
      * @return self
      */
     public function prefix(string $prefix): self;
@@ -54,25 +58,26 @@ interface QueryBuilderInterface
     // Select / projection
     /**
      * @param RawValue|string|array<int|string, string|RawValue|callable> $cols
+     *
      * @return self
      */
     public function select(RawValue|string|array $cols): self;
-    
+
     /**
      * @return array<int, array<string, mixed>>
      */
     public function get(): array;
-    
+
     /**
      * @return mixed
      */
     public function getOne(): mixed;
-    
+
     /**
      * @return array<int, mixed>
      */
     public function getColumn(): array;
-    
+
     /**
      * @return mixed
      */
@@ -82,42 +87,47 @@ interface QueryBuilderInterface
     /**
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate
+     *
      * @return int
      */
     public function insert(array $data, array $onDuplicate = []): int;
-    
+
     /**
      * @param array<int, array<string, string|int|float|bool|null|RawValue>> $rows
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate
+     *
      * @return int
      */
     public function insertMulti(array $rows, array $onDuplicate = []): int;
-    
+
     /**
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate
+     *
      * @return int
      */
     public function replace(array $data, array $onDuplicate = []): int;
-    
+
     /**
      * @param array<int, array<string, string|int|float|bool|null|RawValue>> $rows
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate
+     *
      * @return int
      */
     public function replaceMulti(array $rows, array $onDuplicate = []): int;
-    
+
     /**
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data
+     *
      * @return int
      */
     public function update(array $data): int;
-    
+
     /**
      * @return int
      */
     public function delete(): int;
-    
+
     /**
      * @return bool
      */
@@ -126,30 +136,35 @@ interface QueryBuilderInterface
     // Conditions: where / having / logical variants
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
+     *
      * @return self
      */
     public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
-    
+
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
+     *
      * @return self
      */
     public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
-    
+
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
+     *
      * @return self
      */
     public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
-    
+
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
+     *
      * @return self
      */
     public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
-    
+
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
+     *
      * @return self
      */
     public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
@@ -158,6 +173,7 @@ interface QueryBuilderInterface
     /**
      * @param string $column
      * @param callable $subquery
+     *
      * @return self
      */
     public function whereIn(string $column, callable $subquery): self;
@@ -165,18 +181,21 @@ interface QueryBuilderInterface
     /**
      * @param string $column
      * @param callable $subquery
+     *
      * @return self
      */
     public function whereNotIn(string $column, callable $subquery): self;
 
     /**
      * @param callable $subquery
+     *
      * @return self
      */
     public function whereExists(callable $subquery): self;
 
     /**
      * @param callable $subquery
+     *
      * @return self
      */
     public function whereNotExists(callable $subquery): self;
@@ -184,6 +203,7 @@ interface QueryBuilderInterface
     /**
      * @param string $sql
      * @param array<string, mixed> $params
+     *
      * @return self
      */
     public function whereRaw(string $sql, array $params = []): self;
@@ -191,6 +211,7 @@ interface QueryBuilderInterface
     /**
      * @param string $sql
      * @param array<string, mixed> $params
+     *
      * @return self
      */
     public function havingRaw(string $sql, array $params = []): self;
@@ -200,12 +221,12 @@ interface QueryBuilderInterface
      * @return bool
      */
     public function exists(): bool;
-    
+
     /**
      * @return bool
      */
     public function notExists(): bool;
-    
+
     /**
      * @return bool
      */
@@ -216,27 +237,31 @@ interface QueryBuilderInterface
      * @param string $tableAlias
      * @param string|RawValue $condition
      * @param string $type
+     *
      * @return self
      */
     public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): self;
-    
+
     /**
      * @param string $tableAlias
      * @param string|RawValue $condition
+     *
      * @return self
      */
     public function leftJoin(string $tableAlias, string|RawValue $condition): self;
-    
+
     /**
      * @param string $tableAlias
      * @param string|RawValue $condition
+     *
      * @return self
      */
     public function rightJoin(string $tableAlias, string|RawValue $condition): self;
-    
+
     /**
      * @param string $tableAlias
      * @param string|RawValue $condition
+     *
      * @return self
      */
     public function innerJoin(string $tableAlias, string|RawValue $condition): self;
@@ -245,34 +270,39 @@ interface QueryBuilderInterface
     /**
      * @param string|RawValue $expr
      * @param string $direction
+     *
      * @return self
      */
     public function orderBy(string|RawValue $expr, string $direction = 'ASC'): self;
-    
+
     /**
      * @param string|array<int, string>|RawValue $cols
+     *
      * @return self
      */
     public function groupBy(string|array|RawValue $cols): self;
-    
+
     /**
      * @param int $number
+     *
      * @return self
      */
     public function limit(int $number): self;
-    
+
     /**
      * @param int $number
+     *
      * @return self
      */
     public function offset(int $number): self;
-    
+
     /**
      * @param string|array<int, string> $options
+     *
      * @return self
      */
     public function option(string|array $options): self;
-    
+
     /**
      * @return self
      */
@@ -281,6 +311,7 @@ interface QueryBuilderInterface
     // ON DUPLICATE / upsert helpers
     /**
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate
+     *
      * @return self
      */
     public function onDuplicate(array $onDuplicate): self;
@@ -288,42 +319,49 @@ interface QueryBuilderInterface
     // JSON helpers
     /**
      * @param array<int, string|int>|string $path
+     *
      * @return self
      */
     public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): self;
-    
+
     /**
      * @param array<int, string|int>|string $path
+     *
      * @return self
      */
     public function whereJsonPath(string $col, array|string $path, string $operator, mixed $value, string $cond = 'AND'): self;
-    
+
     /**
      * @param array<int, string|int>|string|null $path
+     *
      * @return self
      */
     public function whereJsonContains(string $col, mixed $value, array|string|null $path = null, string $cond = 'AND'): self;
-    
+
     /**
      * @param array<int, string|int>|string $path
+     *
      * @return RawValue
      */
     public function jsonSet(string $col, array|string $path, mixed $value): RawValue;
-    
+
     /**
      * @param array<int, string|int>|string $path
+     *
      * @return RawValue
      */
     public function jsonRemove(string $col, array|string $path): RawValue;
-    
+
     /**
      * @param array<int, string|int>|string $path
+     *
      * @return self
      */
     public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): self;
-    
+
     /**
      * @param array<int, string|int>|string $path
+     *
      * @return self
      */
     public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): self;
@@ -348,29 +386,32 @@ interface QueryBuilderInterface
      * @return array<int, array<string, mixed>>
      */
     public function describe(): array;
-    
 
     // Execution primitives (pass-through helpers)
     /**
      * @param array<int|string, string|int|float|bool|null> $params
+     *
      * @return PDOStatement
      */
     public function executeStatement(string|RawValue $sql, array $params = []): PDOStatement;
-    
+
     /**
      * @param array<int|string, string|int|float|bool|null> $params
+     *
      * @return array<int, array<string, mixed>>
      */
     public function fetchAll(string|RawValue $sql, array $params = []): array;
-    
+
     /**
      * @param array<int|string, string|int|float|bool|null> $params
+     *
      * @return mixed
      */
     public function fetchColumn(string|RawValue $sql, array $params = []): mixed;
-    
+
     /**
      * @param array<int|string, string|int|float|bool|null> $params
+     *
      * @return mixed
      */
     public function fetch(string|RawValue $sql, array $params = []): mixed;
@@ -379,14 +420,16 @@ interface QueryBuilderInterface
     /**
      * @param string $filePath
      * @param array<string, mixed> $options
+     *
      * @return bool
      */
     public function loadCsv(string $filePath, array $options = []): bool;
-    
+
     /**
      * @param string $filePath
      * @param string $rowTag
      * @param int|null $linesToIgnore
+     *
      * @return bool
      */
     public function loadXml(string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool;

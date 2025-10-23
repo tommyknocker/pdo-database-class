@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\connection;
@@ -12,7 +13,7 @@ use tommyknocker\pdodb\dialects\PostgreSQLDialect;
 use tommyknocker\pdodb\dialects\SqliteDialect;
 
 /**
- * ConnectionFactory
+ * ConnectionFactory.
  *
  * Build DSN, create PDO and wire Dialect -> Connection.
  */
@@ -23,6 +24,7 @@ class ConnectionFactory
      *
      * @param array<string, mixed> $config Configuration array.
      * @param LoggerInterface|null $logger Logger instance.
+     *
      * @return Connection The created Connection instance.
      * @throws InvalidArgumentException If the driver is not specified or unsupported.
      */
@@ -39,13 +41,13 @@ class ConnectionFactory
             $pdo = new PDO($dsn, $user, $pass, $options);
         }
         $dialect->setPdo($pdo);
-        
+
         // Use RetryableConnection if retry is enabled
         $retryConfig = $config['retry'] ?? [];
         if (!empty($retryConfig['enabled'])) {
             return new RetryableConnection($pdo, $dialect, $logger, $retryConfig);
         }
-        
+
         return new Connection($pdo, $dialect, $logger);
     }
 
@@ -53,6 +55,7 @@ class ConnectionFactory
      * Resolve the dialect based on the driver name.
      *
      * @param string $driver The driver name.
+     *
      * @return DialectInterface The resolved dialect instance.
      * @throws InvalidArgumentException If the driver is unsupported.
      */

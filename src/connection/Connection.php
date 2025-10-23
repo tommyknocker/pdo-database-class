@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\connection;
@@ -8,11 +9,10 @@ use PDOException;
 use PDOStatement;
 use Psr\Log\LoggerInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\exceptions\DatabaseException;
 use tommyknocker\pdodb\exceptions\ExceptionFactory;
 
 /**
- * Connection
+ * Connection.
  *
  * Thin wrapper around PDO. Responsible for lifecycle, tracing and error normalization.
  */
@@ -20,25 +20,25 @@ class Connection implements ConnectionInterface
 {
     /** @var PDO PDO instance */
     protected PDO $pdo;
-    
+
     /** @var DialectInterface Dialect instance for database-specific SQL */
     protected DialectInterface $dialect;
-    
+
     /** @var LoggerInterface|null Logger instance for query logging */
     protected ?LoggerInterface $logger;
-    
+
     /** @var PDOStatement|null Last prepared statement */
     protected ?PDOStatement $stmt = null;
-    
+
     /** @var string|null Last executed query */
     protected ?string $lastQuery = null;
-    
+
     /** @var string|null Last error message */
     protected ?string $lastError = null;
-    
+
     /** @var int Last error code */
     protected int $lastErrno = 0;
-    
+
     /** @var mixed Last execute state (success/failure) */
     protected mixed $executeState = null;
 
@@ -88,8 +88,6 @@ class Connection implements ConnectionInterface
 
     /**
      * Resets the state.
-     *
-     * @return void
      */
     public function resetState(): void
     {
@@ -99,9 +97,11 @@ class Connection implements ConnectionInterface
     }
 
     /**
-     * Prepare SQL query
+     * Prepare SQL query.
+     *
      * @param string $sql
      * @param array<int|string, string|int|float|bool|null> $params
+     *
      * @return $this
      */
     public function prepare(string $sql, array $params = []): static
@@ -110,8 +110,9 @@ class Connection implements ConnectionInterface
             'operation' => 'prepare',
             'driver' => $this->getDriverName(),
             'sql' => $sql,
-            'timestamp' => microtime(true)
+            'timestamp' => microtime(true),
         ]);
+
         try {
             $this->stmt = $this->pdo->prepare($sql, $params);
             $this->logger?->debug('operation.end', [
@@ -124,14 +125,14 @@ class Connection implements ConnectionInterface
         } catch (PDOException $e) {
             $this->lastError = $e->getMessage();
             $this->lastErrno = (int)$e->getCode();
-            
+
             $dbException = ExceptionFactory::createFromPdoException(
                 $e,
                 $this->getDriverName(),
                 $this->stmt?->queryString,
                 ['operation' => 'prepare']
             );
-            
+
             $this->logger?->error('operation.error', [
                 'operation' => 'prepare',
                 'driver' => $this->getDriverName(),
@@ -140,8 +141,9 @@ class Connection implements ConnectionInterface
                 'exception' => $e,
                 'exception_type' => $dbException::class,
                 'category' => $dbException->getCategory(),
-                'retryable' => $dbException->isRetryable()
+                'retryable' => $dbException->isRetryable(),
             ]);
+
             throw $dbException;
         }
     }
@@ -150,13 +152,14 @@ class Connection implements ConnectionInterface
      * Executes a SQL statement.
      *
      * @param array<int|string, string|int|float|bool|null> $params
+     *
      * @return PDOStatement The PDOStatement instance.
      */
     public function execute(array $params = []): PDOStatement
     {
         $this->resetState();
         $stmt = $this->stmt;
-        
+
         if ($stmt === null) {
             throw new \RuntimeException('No statement prepared. Call prepare() first.');
         }
@@ -164,8 +167,9 @@ class Connection implements ConnectionInterface
             'operation' => 'execute',
             'driver' => $this->getDriverName(),
             'sql' => $stmt->queryString,
-            'timestamp' => microtime(true)
+            'timestamp' => microtime(true),
         ]);
+
         try {
             $this->executeState = $stmt->execute($params);
             $this->lastQuery = $stmt->queryString;
@@ -182,14 +186,14 @@ class Connection implements ConnectionInterface
         } catch (PDOException $e) {
             $this->lastError = $e->getMessage();
             $this->lastErrno = (int)$e->getCode();
-            
+
             $dbException = ExceptionFactory::createFromPdoException(
                 $e,
                 $this->getDriverName(),
                 $stmt->queryString,
                 ['operation' => 'execute', 'params' => $params]
             );
-            
+
             $this->logger?->error('operation.error', [
                 'operation' => 'execute',
                 'driver' => $this->getDriverName(),
@@ -198,8 +202,9 @@ class Connection implements ConnectionInterface
                 'exception' => $e,
                 'exception_type' => $dbException::class,
                 'category' => $dbException->getCategory(),
-                'retryable' => $dbException->isRetryable()
+                'retryable' => $dbException->isRetryable(),
             ]);
+
             throw $dbException;
         }
     }
@@ -208,6 +213,7 @@ class Connection implements ConnectionInterface
      * Executes a SQL query.
      *
      * @param string $sql The SQL query to execute.
+     *
      * @return PDOStatement|false The PDOStatement instance or false on failure.
      */
     public function query(string $sql): PDOStatement|false
@@ -219,6 +225,7 @@ class Connection implements ConnectionInterface
             'timestamp' => microtime(true),
             'sql' => $sql,
         ]);
+
         try {
             $stmt = $this->pdo->query($sql);
             $this->lastQuery = $sql;
@@ -232,14 +239,14 @@ class Connection implements ConnectionInterface
         } catch (PDOException $e) {
             $this->lastError = $e->getMessage();
             $this->lastErrno = (int)$e->getCode();
-            
+
             $dbException = ExceptionFactory::createFromPdoException(
                 $e,
                 $this->getDriverName(),
                 $sql,
                 ['operation' => 'query']
             );
-            
+
             $this->logger?->error('operation.error', [
                 'operation' => 'query',
                 'driver' => $this->getDriverName(),
@@ -248,8 +255,9 @@ class Connection implements ConnectionInterface
                 'exception' => $e,
                 'exception_type' => $dbException::class,
                 'category' => $dbException->getCategory(),
-                'retryable' => $dbException->isRetryable()
+                'retryable' => $dbException->isRetryable(),
             ]);
+
             throw $dbException;
         }
     }
@@ -258,6 +266,7 @@ class Connection implements ConnectionInterface
      * Quotes a string for use in a query.
      *
      * @param mixed $value The value to quote.
+     *
      * @return string|false The quoted string or false on failure.
      */
     public function quote(mixed $value): string|false
@@ -275,8 +284,9 @@ class Connection implements ConnectionInterface
         $this->logger?->debug('operation.start', [
             'operation' => 'transaction.begin',
             'driver' => $this->getDriverName(),
-            'timestamp' => microtime(true)
+            'timestamp' => microtime(true),
         ]);
+
         try {
             return $this->pdo->beginTransaction();
         } catch (PDOException $e) {
@@ -286,7 +296,7 @@ class Connection implements ConnectionInterface
                 null,
                 ['operation' => 'transaction.begin']
             );
-            
+
             $this->logger?->error('operation.error', [
                 'operation' => 'transaction.begin',
                 'driver' => $this->getDriverName(),
@@ -294,8 +304,9 @@ class Connection implements ConnectionInterface
                 'exception' => $e,
                 'exception_type' => $dbException::class,
                 'category' => $dbException->getCategory(),
-                'retryable' => $dbException->isRetryable()
+                'retryable' => $dbException->isRetryable(),
             ]);
+
             throw $dbException;
         }
     }
@@ -322,7 +333,7 @@ class Connection implements ConnectionInterface
                 null,
                 ['operation' => 'transaction.commit']
             );
-            
+
             $this->logger?->error('operation.error', [
                 'operation' => 'transaction.commit',
                 'driver' => $this->getDriverName(),
@@ -330,8 +341,9 @@ class Connection implements ConnectionInterface
                 'exception' => $e,
                 'exception_type' => $dbException::class,
                 'category' => $dbException->getCategory(),
-                'retryable' => $dbException->isRetryable()
+                'retryable' => $dbException->isRetryable(),
             ]);
+
             throw $dbException;
         }
     }
@@ -348,7 +360,7 @@ class Connection implements ConnectionInterface
             $this->logger?->debug('operation.end', [
                 'operation' => 'transaction.rollback',
                 'driver' => $this->getDriverName(),
-                'timestamp' => microtime(true)
+                'timestamp' => microtime(true),
             ]);
             return $res;
         } catch (PDOException $e) {
@@ -358,7 +370,7 @@ class Connection implements ConnectionInterface
                 null,
                 ['operation' => 'transaction.rollback']
             );
-            
+
             $this->logger?->error('operation.error', [
                 'operation' => 'transaction.rollback',
                 'driver' => $this->getDriverName(),
@@ -366,8 +378,9 @@ class Connection implements ConnectionInterface
                 'exception' => $e,
                 'exception_type' => $dbException::class,
                 'category' => $dbException->getCategory(),
-                'retryable' => $dbException->isRetryable()
+                'retryable' => $dbException->isRetryable(),
             ]);
+
             throw $dbException;
         }
     }
@@ -396,6 +409,7 @@ class Connection implements ConnectionInterface
      * Returns the last insert ID.
      *
      * @param string|null $name The name of the sequence to use.
+     *
      * @return false|string The last insert ID or false on failure.
      */
     public function getLastInsertId(?string $name = null): false|string
@@ -438,6 +452,7 @@ class Connection implements ConnectionInterface
      *
      * @param int $attribute The attribute to set.
      * @param mixed $value The value to set.
+     *
      * @return bool True on success, false on failure.
      */
     public function setAttribute(int $attribute, mixed $value): bool
@@ -449,11 +464,11 @@ class Connection implements ConnectionInterface
      * Get a PDO attribute.
      *
      * @param int $attribute The attribute to get.
+     *
      * @return mixed The attribute value.
      */
     public function getAttribute(int $attribute): mixed
     {
         return $this->pdo->getAttribute($attribute);
     }
-
 }

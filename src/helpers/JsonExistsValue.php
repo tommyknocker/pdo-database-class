@@ -1,16 +1,17 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * JSON path existence check value
+ * JSON path existence check value.
  */
 class JsonExistsValue extends RawValue
 {
     /** @var string JSON column name */
     protected string $column;
-    
+
     /** @var array<int, string|int>|string JSON path */
     protected array|string $path;
 

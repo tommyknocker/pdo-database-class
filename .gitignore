@@ -15,3 +15,5 @@ coverage/
 examples/**/*.db
 examples/**/*.sqlite
 examples/**/*.sql
+
+.php-cs-fixer.cache

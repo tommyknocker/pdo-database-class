@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\exceptions;
 
-use PDOException;
-
 /**
  * Query execution exceptions.
- * 
+ *
  * Thrown when there are issues executing SQL queries,
  * such as syntax errors, missing tables, etc.
  */
@@ -28,11 +26,11 @@ class QueryException extends DatabaseException
     public function getDescription(): string
     {
         $description = parent::getDescription();
-        
+
         if ($this->query) {
             $description .= " (Query: {$this->query})";
         }
-        
+
         return $description;
     }
 }

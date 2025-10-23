@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * Database error codes constants for different dialects
- * 
+ * Database error codes constants for different dialects.
+ *
  * This class provides standardized error codes for MySQL, PostgreSQL, and SQLite
  * to improve code readability and maintainability.
  */
@@ -96,8 +96,8 @@ class DbError
     public const SQLITE_DONE = 101;
 
     /**
-     * Get retryable error codes for MySQL
-     * 
+     * Get retryable error codes for MySQL.
+     *
      * @return array<int>
      */
     public static function getMysqlRetryableErrors(): array
@@ -114,8 +114,8 @@ class DbError
     }
 
     /**
-     * Get retryable error codes for PostgreSQL
-     * 
+     * Get retryable error codes for PostgreSQL.
+     *
      * @return array<string>
      */
     public static function getPostgresqlRetryableErrors(): array
@@ -132,8 +132,8 @@ class DbError
     }
 
     /**
-     * Get retryable error codes for SQLite
-     * 
+     * Get retryable error codes for SQLite.
+     *
      * @return array<int>
      */
     public static function getSqliteRetryableErrors(): array
@@ -161,9 +161,10 @@ class DbError
     }
 
     /**
-     * Get retryable error codes for a specific driver
-     * 
+     * Get retryable error codes for a specific driver.
+     *
      * @param string $driver
+     *
      * @return array<int|string>
      */
     public static function getRetryableErrors(string $driver): array
@@ -177,10 +178,11 @@ class DbError
     }
 
     /**
-     * Check if an error code is retryable for a specific driver
-     * 
+     * Check if an error code is retryable for a specific driver.
+     *
      * @param int|string $errorCode
      * @param string $driver
+     *
      * @return bool
      */
     public static function isRetryable(int|string $errorCode, string $driver): bool
@@ -189,10 +191,11 @@ class DbError
     }
 
     /**
-     * Get human-readable error description
-     * 
+     * Get human-readable error description.
+     *
      * @param int|string $errorCode
      * @param string $driver
+     *
      * @return string
      */
     public static function getDescription(int|string $errorCode, string $driver): string
@@ -208,8 +211,8 @@ class DbError
     }
 
     /**
-     * Get MySQL error descriptions
-     * 
+     * Get MySQL error descriptions.
+     *
      * @return array<int, string>
      */
     private static function getMysqlDescriptions(): array
@@ -241,8 +244,8 @@ class DbError
     }
 
     /**
-     * Get PostgreSQL error descriptions
-     * 
+     * Get PostgreSQL error descriptions.
+     *
      * @return array<string, string>
      */
     private static function getPostgresqlDescriptions(): array
@@ -273,14 +276,14 @@ class DbError
         $descriptions[self::POSTGRESQL_TOO_MANY_CONNECTIONS] = 'Too many connections';
         $descriptions[self::POSTGRESQL_CONFIGURATION_FILE_ERROR] = 'Configuration file error';
         $descriptions[self::POSTGRESQL_QUERY_CANCELED] = 'Query canceled';
-        
+
         // @phpstan-ignore-next-line
         return $descriptions;
     }
 
     /**
-     * Get SQLite error descriptions
-     * 
+     * Get SQLite error descriptions.
+     *
      * @return array<int, string>
      */
     private static function getSqliteDescriptions(): array

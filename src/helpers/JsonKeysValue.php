@@ -1,16 +1,17 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * JSON keys extraction value
+ * JSON keys extraction value.
  */
 class JsonKeysValue extends RawValue
 {
     /** @var string JSON column name */
     protected string $column;
-    
+
     /** @var array<int, string|int>|string|null JSON path */
     protected array|string|null $path;
 

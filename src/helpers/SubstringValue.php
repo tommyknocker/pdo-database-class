@@ -1,19 +1,20 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * SUBSTRING / SUBSTR value (dialect-specific)
+ * SUBSTRING / SUBSTR value (dialect-specific).
  */
 class SubstringValue extends RawValue
 {
     /** @var string|RawValue Source string */
     protected string|RawValue $source;
-    
+
     /** @var int Start position */
     protected int $start;
-    
+
     /** @var int|null Substring length */
     protected ?int $length;
 

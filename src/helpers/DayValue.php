@@ -1,10 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * DAY extraction value (dialect-specific)
+ * DAY extraction value (dialect-specific).
  */
 class DayValue extends RawValue
 {

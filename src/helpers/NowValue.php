@@ -1,11 +1,12 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
  * NOW() value e.g. NOW(), NOW() + INTERVAL
- * or timestamp when $asTimestamp = true
+ * or timestamp when $asTimestamp = true.
  */
 class NowValue extends RawValue
 {
@@ -13,7 +14,7 @@ class NowValue extends RawValue
     protected bool $asTimestamp;
 
     /**
-     * Constructor
+     * Constructor.
      *
      * @param string|null $diff Optional difference to apply to NOW(), e.g. ' + INTERVAL 1 DAY'
      * @param bool $asTimestamp Whether to return the value as a timestamp (true) or as NOW() expression (false).
@@ -25,7 +26,7 @@ class NowValue extends RawValue
     }
 
     /**
-     * Get whether to return as timestamp
+     * Get whether to return as timestamp.
      *
      * @return bool True if the value should be returned as timestamp, false for NOW() expression.
      */

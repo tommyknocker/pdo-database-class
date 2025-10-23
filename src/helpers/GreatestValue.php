@@ -1,10 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * GREATEST / MAX value (dialect-specific)
+ * GREATEST / MAX value (dialect-specific).
  */
 class GreatestValue extends RawValue
 {

@@ -1,16 +1,17 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * MOD / modulo operation (dialect-specific)
+ * MOD / modulo operation (dialect-specific).
  */
 class ModValue extends RawValue
 {
     /** @var string|RawValue Dividend value */
     protected string|RawValue $dividend;
-    
+
     /** @var string|RawValue Divisor value */
     protected string|RawValue $divisor;
 

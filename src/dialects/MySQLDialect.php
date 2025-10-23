@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects;
@@ -7,7 +8,7 @@ use InvalidArgumentException;
 use PDO;
 use tommyknocker\pdodb\helpers\RawValue;
 
-class MySQLDialect extends DialectAbstract implements DialectInterface
+class MySQLDialect extends DialectAbstract
 {
     /**
      * {@inheritDoc}
@@ -46,7 +47,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
-            PDO::MYSQL_ATTR_LOCAL_INFILE => true
+            PDO::MYSQL_ATTR_LOCAL_INFILE => true,
         ];
     }
 
@@ -71,7 +72,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         $alias = $parts[1] ?? null;
 
         $segments = explode('.', $name);
-        $quotedSegments = array_map(static fn($s) => '`' . str_replace('`', '``', $s) . '`', $segments);
+        $quotedSegments = array_map(static fn ($s) => '`' . str_replace('`', '``', $s) . '`', $segments);
         $quoted = implode('.', $quotedSegments);
 
         if ($alias) {
@@ -93,6 +94,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
 
     /**
      * {@inheritDoc}
+     *
      * @param array<string, mixed> $options
      */
     public function formatSelectOptions(string $sql, array $options): string
@@ -165,7 +167,6 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         return 'ON DUPLICATE KEY UPDATE ' . implode(', ', $updates);
     }
 
-
     /**
      * {@inheritDoc}
      */
@@ -184,14 +185,14 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
 
         if ($isMultiple) {
             // placeholders already contain grouped row expressions like "(...),(...)" or ["(...)", "(...)"]
-            $valsSql = implode(',', array_map(function($p) {
+            $valsSql = implode(',', array_map(function ($p) {
                 return is_array($p) ? '(' . implode(',', $p) . ')' : $p;
             }, $placeholders));
             return sprintf('REPLACE INTO %s (%s) VALUES %s', $tableSql, $colsSql, $valsSql);
         }
 
         // Single row: placeholders are scalar fragments matching columns
-        $stringPlaceholders = array_map(fn($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
+        $stringPlaceholders = array_map(fn ($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
         $valsSql = implode(',', $stringPlaceholders);
         return sprintf('REPLACE INTO %s (%s) VALUES (%s)', $tableSql, $colsSql, $valsSql);
     }
@@ -225,17 +226,12 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         return "NOW() + INTERVAL {$trimmedDif}";
     }
 
-
-
     /**
      * {@inheritDoc}
      */
-    public function buildExplainSql(string $query, bool $analyze = false): string
+    public function buildExplainSql(string $query): string
     {
-        // Note: EXPLAIN ANALYZE in MySQL 8.0+ returns a different format (tree/JSON)
-        // which is not compatible with the traditional table format
-        // For now, we ignore the $analyze flag to maintain compatibility
-        return "EXPLAIN " . $query;
+        return 'EXPLAIN ' . $query;
     }
 
     /**
@@ -244,7 +240,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     public function buildExplainAnalyzeSql(string $query): string
     {
         // MySQL 8.0+ supports EXPLAIN ANALYZE with JSON format
-        return "EXPLAIN FORMAT=JSON " . $query;
+        return 'EXPLAIN FORMAT=JSON ' . $query;
     }
 
     /**
@@ -272,7 +268,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         foreach ($tables as $t) {
             $parts[] = $this->quoteIdentifier($prefix . $t) . " {$lockMethod}";
         }
-        return "LOCK TABLES " . implode(', ', $parts);
+        return 'LOCK TABLES ' . implode(', ', $parts);
     }
 
     /**
@@ -280,7 +276,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
      */
     public function buildUnlockSql(): string
     {
-        return "UNLOCK TABLES";
+        return 'UNLOCK TABLES';
     }
 
     /**
@@ -298,13 +294,13 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     {
         $defaults = [
             'rowTag' => '<row>',
-            'linesToIgnore' => null
+            'linesToIgnore' => null,
         ];
         $options = array_merge($defaults, $options);
 
-        return "LOAD XML LOCAL INFILE " . $this->pdo->quote($filePath) .
-            " INTO TABLE " . $this->quoteTableWithAlias($table) .
-            " ROWS IDENTIFIED BY " . $this->pdo->quote($options['rowTag']) .
+        return 'LOAD XML LOCAL INFILE ' . $this->pdo->quote($filePath) .
+            ' INTO TABLE ' . $this->quoteTableWithAlias($table) .
+            ' ROWS IDENTIFIED BY ' . $this->pdo->quote($options['rowTag']) .
             ($options['linesToIgnore'] ? sprintf(' IGNORE %d LINES', $options['linesToIgnore']) : '');
     }
 
@@ -314,13 +310,13 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string
     {
         $defaults = [
-            "fieldChar" => ';',
-            "fieldEnclosure" => null,
-            "fields" => [],
-            "lineChar" => null,
-            "linesToIgnore" => null,
-            "lineStarting" => null,
-            "local" => false,
+            'fieldChar' => ';',
+            'fieldEnclosure' => null,
+            'fields' => [],
+            'lineChar' => null,
+            'linesToIgnore' => null,
+            'lineStarting' => null,
+            'local' => false,
         ];
         $options = array_merge($defaults, $options);
 
@@ -330,22 +326,22 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         $sql = "LOAD DATA {$localPrefix}INFILE {$quotedPath} INTO TABLE {$table}";
 
         // FIELDS
-        $sql .= sprintf(" FIELDS TERMINATED BY '%s'", $options["fieldChar"]);
-        if ($options["fieldEnclosure"]) {
-            $sql .= sprintf(" ENCLOSED BY '%s'", $options["fieldEnclosure"]);
+        $sql .= sprintf(" FIELDS TERMINATED BY '%s'", $options['fieldChar']);
+        if ($options['fieldEnclosure']) {
+            $sql .= sprintf(" ENCLOSED BY '%s'", $options['fieldEnclosure']);
         }
 
         // LINES
         if ($options['lineChar']) {
-            $sql .= sprintf(" LINES TERMINATED BY '%s'", $options["lineChar"]);
+            $sql .= sprintf(" LINES TERMINATED BY '%s'", $options['lineChar']);
         }
-        if ($options["lineStarting"]) {
-            $sql .= sprintf(" STARTING BY '%s'", $options["lineStarting"]);
+        if ($options['lineStarting']) {
+            $sql .= sprintf(" STARTING BY '%s'", $options['lineStarting']);
         }
 
         // IGNORE LINES
-        if ($options["linesToIgnore"]) {
-            $sql .= sprintf(" IGNORE %d LINES", $options["linesToIgnore"]);
+        if ($options['linesToIgnore']) {
+            $sql .= sprintf(' IGNORE %d LINES', $options['linesToIgnore']);
         }
 
         // FIELDS LIST (in the end!)
@@ -375,9 +371,9 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
             }
         }
 
-        $expr = "JSON_EXTRACT(" . $this->quoteIdentifier($col) . ", '" . $jsonPath . "')";
+        $expr = 'JSON_EXTRACT(' . $this->quoteIdentifier($col) . ", '" . $jsonPath . "')";
         if ($asText) {
-            return "JSON_UNQUOTE(" . $expr . ")";
+            return 'JSON_UNQUOTE(' . $expr . ')';
         }
         return $expr;
     }
@@ -409,7 +405,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         }
 
         $colQuoted = $this->quoteIdentifier($col);
-        $param = ':' .  substr(md5($col . '|' . $jsonPath), 0, 8);
+        $param = ':' . substr(md5($col . '|' . $jsonPath), 0, 8);
 
         // single json_encode call, avoid double-encoding
         $jsonText = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
@@ -439,8 +435,6 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         // Return numeric array [sql, params] to match places in QueryBuilder that unpack by index
         return [$sql, [$param => $jsonText]];
     }
-
-
 
     /**
      * {@inheritDoc}
@@ -472,7 +466,6 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         return "JSON_REMOVE({$colQuoted}, '{$jsonPath}')";
     }
 
-
     /**
      * {@inheritDoc}
      */
@@ -497,14 +490,12 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         // 2) JSON_SEARCH finds a scalar/string value inside arrays/objects
         // 3) JSON_EXTRACT(...) IS NOT NULL picks up non-NULL extraction results
         // Any one true -> path considered present
-        return "("
+        return '('
             . "JSON_CONTAINS_PATH({$colQuoted}, 'one', '{$jsonPath}')"
             . " OR JSON_SEARCH({$colQuoted}, 'one', JSON_UNQUOTE(JSON_EXTRACT({$colQuoted}, '{$jsonPath}'))) IS NOT NULL"
             . " OR JSON_EXTRACT({$colQuoted}, '{$jsonPath}') IS NOT NULL"
-            . ")";
+            . ')';
     }
-
-
 
     /**
      * {@inheritDoc}
@@ -537,11 +528,11 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     public function formatJsonLength(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         if ($path === null) {
             return "JSON_LENGTH({$colQuoted})";
         }
-        
+
         $parts = $this->normalizeJsonPath($path);
         $jsonPath = '$';
         foreach ($parts as $p) {
@@ -551,7 +542,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
                 $jsonPath .= '.' . $p;
             }
         }
-        
+
         return "JSON_LENGTH({$colQuoted}, '{$jsonPath}')";
     }
 
@@ -561,11 +552,11 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     public function formatJsonKeys(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         if ($path === null) {
             return "JSON_KEYS({$colQuoted})";
         }
-        
+
         $parts = $this->normalizeJsonPath($path);
         $jsonPath = '$';
         foreach ($parts as $p) {
@@ -575,7 +566,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
                 $jsonPath .= '.' . $p;
             }
         }
-        
+
         return "JSON_KEYS({$colQuoted}, '{$jsonPath}')";
     }
 
@@ -585,11 +576,11 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
     public function formatJsonType(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         if ($path === null) {
             return "JSON_TYPE({$colQuoted})";
         }
-        
+
         $parts = $this->normalizeJsonPath($path);
         $jsonPath = '$';
         foreach ($parts as $p) {
@@ -599,7 +590,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
                 $jsonPath .= '.' . $p;
             }
         }
-        
+
         return "JSON_TYPE(JSON_EXTRACT({$colQuoted}, '{$jsonPath}'))";
     }
 
@@ -689,6 +680,7 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
 
     /**
      * @param array<int, string|int>|string $path
+     *
      * @return string
      */
     private function buildJsonPath(array|string $path): string
@@ -709,5 +701,4 @@ class MySQLDialect extends DialectAbstract implements DialectInterface
         }
         return $json;
     }
-
 }

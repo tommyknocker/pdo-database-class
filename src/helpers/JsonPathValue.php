@@ -1,22 +1,23 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * JSON path comparison value
+ * JSON path comparison value.
  */
 class JsonPathValue extends RawValue
 {
     /** @var string JSON column name */
     protected string $column;
-    
+
     /** @var array<int, string|int>|string JSON path */
     protected array|string $path;
-    
+
     /** @var string Comparison operator (e.g., '=', '>', '<') */
     protected string $operator;
-    
+
     /** @var mixed Value to compare against */
     protected mixed $compareValue;
 

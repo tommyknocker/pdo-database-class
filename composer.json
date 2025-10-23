@@ -59,7 +59,8 @@
     "phpunit/phpunit": "^11.0",
     "monolog/monolog": "^3.9",
     "phpstan/phpstan": "^2.0",
-    "phpstan/phpstan-phpunit": "^2.0"
+    "phpstan/phpstan-phpunit": "^2.0",
+    "friendsofphp/php-cs-fixer": "^3.89"
   },
   "autoload": {
     "psr-4": {
@@ -74,11 +75,24 @@
   "scripts": {
     "test": "phpunit",
     "phpstan": "phpstan analyse",
+    "cs-fix": "php-cs-fixer fix",
+    "cs-check": "php-cs-fixer fix --dry-run --diff",
     "test-examples": "bash scripts/test-examples.sh",
+    "quality-check": "bash scripts/quality-check.sh",
     "check": [
       "@phpstan",
       "@test",
       "@test-examples"
+    ],
+    "check-all": [
+      "@phpstan",
+      "@cs-check",
+      "@test",
+      "@test-examples"
+    ],
+    "fix-all": [
+      "@cs-fix",
+      "@test"
     ]
   }
 }

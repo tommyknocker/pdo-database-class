@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * Concatenated value e.g. CONCAT(value1, value2, ...)
+ * Concatenated value e.g. CONCAT(value1, value2, ...).
  */
 class ConcatValue extends RawValue
 {
@@ -33,6 +35,7 @@ class ConcatValue extends RawValue
     /**
      * Override getValue() to prevent incorrect usage.
      * ConcatValue must be processed by dialect's concat() method, not used directly.
+     *
      *
      * @return string
      * @throws \RuntimeException

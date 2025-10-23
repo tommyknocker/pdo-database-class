@@ -1,19 +1,20 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * JSON get/extract value
+ * JSON get/extract value.
  */
 class JsonGetValue extends RawValue
 {
     /** @var string JSON column name */
     protected string $column;
-    
+
     /** @var array<int, string|int>|string JSON path */
     protected array|string $path;
-    
+
     /** @var bool Whether to extract as text */
     protected bool $asText;
 

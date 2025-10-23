@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * Database helpers
+ * Database helpers.
  */
 class Db
 {
@@ -14,6 +16,7 @@ class Db
      *
      * @param string $sql The SQL to execute.
      * @param array<int|string, string|int|float|bool|null> $params The parameters to bind to the SQL.
+     *
      * @return RawValue The raw value.
      */
     public static function raw(string $sql, array $params = []): RawValue
@@ -25,6 +28,7 @@ class Db
      * Escapes a string for use in a SQL query.
      *
      * @param string $str The string to escape.
+     *
      * @return EscapeValue The EscapeValue instance
      */
     public static function escape(string $str): EscapeValue
@@ -34,12 +38,13 @@ class Db
 
     /**
      * Returns a ConfigValue instance representing a SET statement.
-     * e.g. SET FOREIGN_KEY_CHECKS = 1 OR SET NAMES 'utf8mb4' in MySQL and PostgreSQL or PRAGMA statements in SQLite
+     * e.g. SET FOREIGN_KEY_CHECKS = 1 OR SET NAMES 'utf8mb4' in MySQL and PostgreSQL or PRAGMA statements in SQLite.
      *
      * @param string $key The column name.
      * @param mixed $value The value to set.
      * @param bool $useEqualSign Whether to use an equal sign (=) in the statement. Default is true.
      * @param bool $quoteValue Whether to quote value or not.
+     *
      * @return ConfigValue The ConfigValue instance for the SET/PRAGMA operation.
      */
     public static function config(
@@ -65,7 +70,9 @@ class Db
 
     /**
      * Returns a RawValue instance representing an IS NULL condition.
+     *
      * @param string $column The column name.
+     *
      * @return RawValue
      */
     public static function isNull(string $column): RawValue
@@ -75,7 +82,9 @@ class Db
 
     /**
      * Returns a RawValue instance representing an IS NOT NULL condition.
+     *
      * @param string $column The column name.
+     *
      * @return RawValue
      */
     public static function isNotNull(string $column): RawValue
@@ -87,6 +96,7 @@ class Db
      * Returns first non-NULL value from arguments.
      *
      * @param mixed ...$values The values to check.
+     *
      * @return RawValue The RawValue instance for COALESCE.
      */
     public static function coalesce(...$values): RawValue
@@ -109,6 +119,7 @@ class Db
      *
      * @param string $expr The expression to check.
      * @param mixed $default The default value if NULL.
+     *
      * @return IfNullValue The IfNullValue instance.
      */
     public static function ifNull(string $expr, mixed $default): IfNullValue
@@ -121,6 +132,7 @@ class Db
      *
      * @param mixed $expr1 The first expression.
      * @param mixed $expr2 The second expression.
+     *
      * @return RawValue The RawValue instance for NULLIF.
      */
     public static function nullIf(mixed $expr1, mixed $expr2): RawValue
@@ -168,6 +180,7 @@ class Db
      * Returns an array with an increment operation.
      *
      * @param int|float $num The number to increment by.
+     *
      * @return array<string, string|int|float> The array with the increment operation.
      */
     public static function inc(int|float $num = 1): array
@@ -179,6 +192,7 @@ class Db
      * Returns an array with a decrement operation.
      *
      * @param int|float $num The number to decrement by.
+     *
      * @return array<string, string|int|float> The array with the decrement operation.
      */
     public static function dec(int|float $num = 1): array
@@ -190,6 +204,7 @@ class Db
      * Returns absolute value.
      *
      * @param string|RawValue $value The value.
+     *
      * @return RawValue The RawValue instance for ABS.
      */
     public static function abs(string|RawValue $value): RawValue
@@ -203,6 +218,7 @@ class Db
      *
      * @param string|RawValue $value The value to round.
      * @param int $precision The number of decimal places.
+     *
      * @return RawValue The RawValue instance for ROUND.
      */
     public static function round(string|RawValue $value, int $precision = 0): RawValue
@@ -216,6 +232,7 @@ class Db
      *
      * @param string|RawValue $dividend The dividend.
      * @param string|RawValue $divisor The divisor.
+     *
      * @return ModValue The ModValue instance.
      */
     public static function mod(string|RawValue $dividend, string|RawValue $divisor): ModValue
@@ -229,6 +246,7 @@ class Db
      * Returns a ConcatValue instance representing a concatenation of values.
      *
      * @param string|int|float|RawValue ...$args The values to concatenate.
+     *
      * @return ConcatValue The ConcatValue instance.
      */
     public static function concat(string|int|float|RawValue ...$args): ConcatValue
@@ -240,6 +258,7 @@ class Db
      * Converts string to uppercase.
      *
      * @param string|RawValue $value The value to convert.
+     *
      * @return RawValue The RawValue instance for UPPER.
      */
     public static function upper(string|RawValue $value): RawValue
@@ -252,6 +271,7 @@ class Db
      * Converts string to lowercase.
      *
      * @param string|RawValue $value The value to convert.
+     *
      * @return RawValue The RawValue instance for LOWER.
      */
     public static function lower(string|RawValue $value): RawValue
@@ -264,6 +284,7 @@ class Db
      * Trims whitespace from both sides.
      *
      * @param string|RawValue $value The value to trim.
+     *
      * @return RawValue The RawValue instance for TRIM.
      */
     public static function trim(string|RawValue $value): RawValue
@@ -276,6 +297,7 @@ class Db
      * Trims whitespace from the left side.
      *
      * @param string|RawValue $value The value to trim.
+     *
      * @return RawValue The RawValue instance for LTRIM.
      */
     public static function ltrim(string|RawValue $value): RawValue
@@ -288,6 +310,7 @@ class Db
      * Trims whitespace from the right side.
      *
      * @param string|RawValue $value The value to trim.
+     *
      * @return RawValue The RawValue instance for RTRIM.
      */
     public static function rtrim(string|RawValue $value): RawValue
@@ -300,6 +323,7 @@ class Db
      * Returns string length.
      *
      * @param string|RawValue $value The value.
+     *
      * @return RawValue The RawValue instance for LENGTH.
      */
     public static function length(string|RawValue $value): RawValue
@@ -314,6 +338,7 @@ class Db
      * @param string|RawValue $value The source string.
      * @param int $start The starting position (1-based).
      * @param int|null $length The length of substring.
+     *
      * @return SubstringValue The SubstringValue instance.
      */
     public static function substring(string|RawValue $value, int $start, ?int $length = null): SubstringValue
@@ -327,6 +352,7 @@ class Db
      * @param string|RawValue $value The source string.
      * @param string $search The string to search for.
      * @param string $replace The replacement string.
+     *
      * @return RawValue The RawValue instance for REPLACE.
      */
     public static function replace(string|RawValue $value, string $search, string $replace): RawValue
@@ -342,6 +368,7 @@ class Db
      *
      * @param string $column The column name.
      * @param string $pattern The pattern to match.
+     *
      * @return RawValue The RawValue instance.
      */
     public static function like(string $column, string $pattern): RawValue
@@ -354,6 +381,7 @@ class Db
      *
      * @param string $column The column name.
      * @param string $pattern The pattern to match.
+     *
      * @return RawValue The RawValue instance for the case-insensitive LIKE condition.
      */
     public static function ilike(string $column, string $pattern): RawValue
@@ -365,11 +393,12 @@ class Db
      * Inverses a RawValue condition using NOT.
      *
      * @param RawValue $value The RawValue to negate.
+     *
      * @return RawValue The RawValue instance for the NOT condition.
      */
     public static function not(RawValue $value): RawValue
     {
-        return new RawValue("NOT (" . $value->getValue() . ")", $value->getParams());
+        return new RawValue('NOT (' . $value->getValue() . ')', $value->getParams());
     }
 
     /**
@@ -378,6 +407,7 @@ class Db
      * @param string $column The column name.
      * @param mixed $min The minimum value.
      * @param mixed $max The maximum value.
+     *
      * @return RawValue The RawValue instance for the BETWEEN condition.
      */
     public static function between(string $column, mixed $min, mixed $max): RawValue
@@ -391,6 +421,7 @@ class Db
      * @param string $column The column name.
      * @param mixed $min The minimum value.
      * @param mixed $max The maximum value.
+     *
      * @return RawValue The RawValue instance for the NOT BETWEEN condition.
      */
     public static function notBetween(string $column, mixed $min, mixed $max): RawValue
@@ -403,6 +434,7 @@ class Db
      *
      * @param string $column The column name.
      * @param array<int, string|int|float|bool|null> $values The array of values for the IN condition.
+     *
      * @return RawValue The RawValue instance for the IN condition.
      */
     public static function in(string $column, array $values): RawValue
@@ -416,7 +448,7 @@ class Db
             $placeholders[] = ":$key";
         }
 
-        return new RawValue("$column IN (" . implode(', ', $placeholders) . ")", $params);
+        return new RawValue("$column IN (" . implode(', ', $placeholders) . ')', $params);
     }
 
     /**
@@ -424,6 +456,7 @@ class Db
      *
      * @param string $column The column name.
      * @param array<int, string|int|float|bool|null> $values The array of values for the NOT IN condition.
+     *
      * @return RawValue The RawValue instance for the NOT IN condition.
      */
     public static function notIn(string $column, array $values): RawValue
@@ -437,7 +470,7 @@ class Db
             $placeholders[] = ":$key";
         }
 
-        return new RawValue("$column NOT IN (" . implode(', ', $placeholders) . ")", $params);
+        return new RawValue("$column NOT IN (" . implode(', ', $placeholders) . ')', $params);
     }
 
     /* ---------------- Conditional logic ---------------- */
@@ -447,6 +480,7 @@ class Db
      *
      * @param array<string, string> $cases An associative array where keys are WHEN conditions and values are THEN results.
      * @param string|null $else An optional ELSE result.
+     *
      * @return RawValue The RawValue instance for the CASE statement.
      */
     public static function case(array $cases, string|null $else = null): RawValue
@@ -470,6 +504,7 @@ class Db
      *
      * @param string|null $diff An optional time difference (e.g., '+1 day', '-2 hours').
      * @param bool $asTimestamp Whether to return as Unix timestamp.
+     *
      * @return NowValue The NowValue instance.
      */
     public static function now(?string $diff = null, bool $asTimestamp = false): NowValue
@@ -481,6 +516,7 @@ class Db
      * Returns a NowValue instance representing the current timestamp as a Unix timestamp.
      *
      * @param string|null $diff An optional time difference (e.g., '+1 day', '-2 hours').
+     *
      * @return NowValue The NowValue instance representing the timestamp.
      */
     public static function ts(?string $diff = null): NowValue
@@ -512,6 +548,7 @@ class Db
      * Extracts date part from datetime.
      *
      * @param string|RawValue $value The datetime value.
+     *
      * @return RawValue The RawValue instance for DATE.
      */
     public static function date(string|RawValue $value): RawValue
@@ -524,6 +561,7 @@ class Db
      * Extracts time part from datetime.
      *
      * @param string|RawValue $value The datetime value.
+     *
      * @return RawValue The RawValue instance for TIME.
      */
     public static function time(string|RawValue $value): RawValue
@@ -536,6 +574,7 @@ class Db
      * Extracts year from date (dialect-specific).
      *
      * @param string|RawValue $value The date value.
+     *
      * @return YearValue The YearValue instance.
      */
     public static function year(string|RawValue $value): YearValue
@@ -547,6 +586,7 @@ class Db
      * Extracts month from date (dialect-specific).
      *
      * @param string|RawValue $value The date value.
+     *
      * @return MonthValue The MonthValue instance.
      */
     public static function month(string|RawValue $value): MonthValue
@@ -558,6 +598,7 @@ class Db
      * Extracts day from date (dialect-specific).
      *
      * @param string|RawValue $value The date value.
+     *
      * @return DayValue The DayValue instance.
      */
     public static function day(string|RawValue $value): DayValue
@@ -569,6 +610,7 @@ class Db
      * Extracts hour from time (dialect-specific).
      *
      * @param string|RawValue $value The time value.
+     *
      * @return HourValue The HourValue instance.
      */
     public static function hour(string|RawValue $value): HourValue
@@ -580,6 +622,7 @@ class Db
      * Extracts minute from time (dialect-specific).
      *
      * @param string|RawValue $value The time value.
+     *
      * @return MinuteValue The MinuteValue instance.
      */
     public static function minute(string|RawValue $value): MinuteValue
@@ -591,6 +634,7 @@ class Db
      * Extracts second from time (dialect-specific).
      *
      * @param string|RawValue $value The time value.
+     *
      * @return SecondValue The SecondValue instance.
      */
     public static function second(string|RawValue $value): SecondValue
@@ -604,6 +648,7 @@ class Db
      * Returns COUNT expression.
      *
      * @param string|RawValue $expr The expression to count (use '*' for all rows).
+     *
      * @return RawValue The RawValue instance for COUNT.
      */
     public static function count(string|RawValue $expr = '*'): RawValue
@@ -616,6 +661,7 @@ class Db
      * Returns SUM expression.
      *
      * @param string|RawValue $column The column to sum.
+     *
      * @return RawValue The RawValue instance for SUM.
      */
     public static function sum(string|RawValue $column): RawValue
@@ -628,6 +674,7 @@ class Db
      * Returns AVG expression.
      *
      * @param string|RawValue $column The column to average.
+     *
      * @return RawValue The RawValue instance for AVG.
      */
     public static function avg(string|RawValue $column): RawValue
@@ -640,6 +687,7 @@ class Db
      * Returns MIN expression.
      *
      * @param string|RawValue $column The column.
+     *
      * @return RawValue The RawValue instance for MIN.
      */
     public static function min(string|RawValue $column): RawValue
@@ -652,6 +700,7 @@ class Db
      * Returns MAX expression.
      *
      * @param string|RawValue $column The column.
+     *
      * @return RawValue The RawValue instance for MAX.
      */
     public static function max(string|RawValue $column): RawValue
@@ -667,6 +716,7 @@ class Db
      *
      * @param mixed $value The value to cast.
      * @param string $type The target type.
+     *
      * @return RawValue The RawValue instance for CAST.
      */
     public static function cast(mixed $value, string $type): RawValue
@@ -679,6 +729,7 @@ class Db
      * Returns greatest (maximum) value from arguments (dialect-specific).
      *
      * @param string|int|float|RawValue ...$values The values to compare.
+     *
      * @return GreatestValue The GreatestValue instance.
      */
     public static function greatest(string|int|float|RawValue ...$values): GreatestValue
@@ -690,6 +741,7 @@ class Db
      * Returns least (minimum) value from arguments (dialect-specific).
      *
      * @param string|int|float|RawValue ...$values The values to compare.
+     *
      * @return LeastValue The LeastValue instance.
      */
     public static function least(string|int|float|RawValue ...$values): LeastValue
@@ -706,6 +758,7 @@ class Db
      * @param array<int, string|int>|string $path The JSON path.
      * @param string $operator The comparison operator.
      * @param mixed $value The value to compare.
+     *
      * @return JsonPathValue The JsonPathValue instance.
      */
     public static function jsonPath(string $column, array|string $path, string $operator, mixed $value): JsonPathValue
@@ -719,6 +772,7 @@ class Db
      * @param string $column The JSON column name.
      * @param mixed $value The value to check for.
      * @param array<int, string|int>|string|null $path Optional JSON path.
+     *
      * @return JsonContainsValue The JsonContainsValue instance.
      */
     public static function jsonContains(string $column, mixed $value, array|string|null $path = null): JsonContainsValue
@@ -731,6 +785,7 @@ class Db
      *
      * @param string $column The JSON column name.
      * @param array<int, string|int>|string $path The JSON path to check.
+     *
      * @return JsonExistsValue The JsonExistsValue instance.
      */
     public static function jsonExists(string $column, array|string $path): JsonExistsValue
@@ -745,6 +800,7 @@ class Db
      * @param string $column The JSON column name.
      * @param array<int, string|int>|string $path The JSON path.
      * @param bool $asText Whether to return as text (default true).
+     *
      * @return JsonGetValue The JsonGetValue instance.
      */
     public static function jsonGet(string $column, array|string $path, bool $asText = true): JsonGetValue
@@ -758,6 +814,7 @@ class Db
      * @param string $column The JSON column name.
      * @param array<int, string|int>|string $path The JSON path.
      * @param bool $asText Whether to return as text (default true).
+     *
      * @return JsonGetValue The JsonGetValue instance.
      */
     public static function jsonExtract(string $column, array|string $path, bool $asText = true): JsonGetValue
@@ -770,6 +827,7 @@ class Db
      *
      * @param string $column The JSON column name.
      * @param array<int, string|int>|string|null $path Optional JSON path.
+     *
      * @return JsonLengthValue The JsonLengthValue instance.
      */
     public static function jsonLength(string $column, array|string|null $path = null): JsonLengthValue
@@ -782,6 +840,7 @@ class Db
      *
      * @param string $column The JSON column name.
      * @param array<int, string|int>|string|null $path Optional JSON path.
+     *
      * @return JsonKeysValue The JsonKeysValue instance.
      */
     public static function jsonKeys(string $column, array|string|null $path = null): JsonKeysValue
@@ -794,6 +853,7 @@ class Db
      *
      * @param string $column The JSON column name.
      * @param array<int, string|int>|string|null $path Optional JSON path.
+     *
      * @return JsonTypeValue The JsonTypeValue instance.
      */
     public static function jsonType(string $column, array|string|null $path = null): JsonTypeValue
@@ -805,6 +865,7 @@ class Db
      * Returns a JSON-encoded array string.
      *
      * @param mixed ...$values The values to include in array.
+     *
      * @return string The JSON-encoded array string.
      */
     public static function jsonArray(...$values): string
@@ -816,6 +877,7 @@ class Db
      * Returns a JSON-encoded object string.
      *
      * @param array<string, mixed> $pairs Associative array of key-value pairs.
+     *
      * @return string The JSON-encoded object string.
      */
     public static function jsonObject(array $pairs): string

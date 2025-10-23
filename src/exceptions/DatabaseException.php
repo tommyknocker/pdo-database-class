@@ -8,7 +8,7 @@ use PDOException;
 
 /**
  * Base exception class for all database-related errors.
- * 
+ *
  * Extends PDOException to maintain compatibility while providing
  * additional context and structured error handling.
  */
@@ -34,7 +34,7 @@ abstract class DatabaseException extends PDOException
         // Convert string codes to int for PDOException compatibility
         $intCode = is_string($code) ? 0 : $code;
         parent::__construct($message, $intCode, $previous);
-        
+
         $this->driver = $driver;
         $this->query = $query;
         $this->context = $context;
@@ -67,6 +67,7 @@ abstract class DatabaseException extends PDOException
 
     /**
      * Get additional context information.
+     *
      * @return array<string, mixed>
      */
     public function getContext(): array
@@ -106,6 +107,7 @@ abstract class DatabaseException extends PDOException
 
     /**
      * Convert to array for logging.
+     *
      * @return array<string, mixed>
      */
     public function toArray(): array

@@ -1,14 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * ILIKE value representation
+ * ILIKE value representation.
  */
 class ILikeValue extends RawValue
 {
     /**
-     * Constructor
+     * Constructor.
      *
      * @param string $column The column name to apply the ILIKE pattern matching.
      * @param string $pattern The pattern to match against.

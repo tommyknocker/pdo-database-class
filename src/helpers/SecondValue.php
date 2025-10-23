@@ -1,10 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * SECOND extraction value (dialect-specific)
+ * SECOND extraction value (dialect-specific).
  */
 class SecondValue extends RawValue
 {

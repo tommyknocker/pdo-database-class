@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb;
@@ -18,7 +19,6 @@ class PdoDb
     public const LOCK_WRITE = 'WRITE';
     public const LOCK_READ = 'READ';
 
-
     /** @var DialectInterface Current dialect instance */
     public DialectInterface $dialect;
 
@@ -33,7 +33,7 @@ class PdoDb
             return $this->connectionStorage;
         }
     }
-    
+
     /** @var ConnectionInterface|null Internal connection storage */
     protected ?ConnectionInterface $connectionStorage = null;
 
@@ -42,34 +42,33 @@ class PdoDb
 
     /** @var string Table prefix for queries */
     public string $prefix;
-    
+
     public ?string $lastQuery {
         get {
             return $this->connection->getLastQuery();
         }
     }
-    
+
     public ?string $lastError {
         get {
             return $this->connection->getLastError();
         }
     }
-    
+
     public int $lastErrNo {
         get {
             return $this->connection->getLastErrno();
         }
     }
-    
+
     public ?bool $executeState {
         get {
             return $this->connection->getExecuteState();
         }
     }
-    
+
     /** @var string Lock method for table locking (WRITE/READ) */
     protected string $lockMethod = 'WRITE';
-    
 
     /**
      * Initializes a new PdoDb object.
@@ -78,6 +77,7 @@ class PdoDb
      * @param array<string, mixed> $config An array of configuration options for the database connection.
      * @param array<int|string, mixed> $pdoOptions An array of PDO options to use to connect to the database.
      * @param LoggerInterface|null $logger The logger to use to log the queries.
+     *
      * @see /README.md for details
      */
     public function __construct(
@@ -92,7 +92,7 @@ class PdoDb
         if ($driver !== null) {
             $this->addConnection('default', [
                 'driver' => $driver,
-                ...$config
+                ...$config,
             ], $pdoOptions, $logger);
 
             // use default connection
@@ -117,6 +117,7 @@ class PdoDb
      *
      * @param string|RawValue $query The raw query to be executed.
      * @param array<int|string, string|int|float|bool|null> $params The parameters to be bound to the query.
+     *
      * @return array<int, array<string, mixed>> The result of the query.
      */
     public function rawQuery(string|RawValue $query, array $params = []): array
@@ -129,6 +130,7 @@ class PdoDb
      *
      * @param string|RawValue $query The raw query to be executed.
      * @param array<int|string, string|int|float|bool|null> $params The parameters to be bound to the query.
+     *
      * @return mixed The first row of the result.
      */
     public function rawQueryOne(string|RawValue $query, array $params = []): mixed
@@ -141,6 +143,7 @@ class PdoDb
      *
      * @param string|RawValue $query The raw query to be executed.
      * @param array<int|string, string|int|float|bool|null> $params The parameters to be bound to the query.
+     *
      * @return mixed The value of the first column of the first row.
      */
     public function rawQueryValue(string|RawValue $query, array $params = []): mixed
@@ -152,8 +155,6 @@ class PdoDb
 
     /**
      * Starts a transaction.
-     *
-     * @return void
      */
     public function startTransaction(): void
     {
@@ -165,8 +166,6 @@ class PdoDb
 
     /**
      * Commits the transaction.
-     *
-     * @return void
      */
     public function commit(): void
     {
@@ -178,8 +177,6 @@ class PdoDb
 
     /**
      * Rolls back the transaction.
-     *
-     * @return void
      */
     public function rollback(): void
     {
@@ -203,18 +200,21 @@ class PdoDb
      * Executes a callback within a transaction.
      *
      * @param callable $callback The callback to be executed.
+     *
      * @return mixed The result of the callback.
      * @throws Throwable If the callback throws an exception, it will be rethrown after rolling back the transaction.
      */
     public function transaction(callable $callback): mixed
     {
         $this->startTransaction();
+
         try {
             $result = $callback($this);
             $this->commit();
             return $result;
         } catch (Throwable $e) {
             $this->rollback();
+
             throw $e;
         }
     }
@@ -225,6 +225,7 @@ class PdoDb
      * Locks the specified tables.
      *
      * @param string|array<int, string> $tables The tables to lock.
+     *
      * @return bool True if the lock was successful, false otherwise.
      */
     public function lock(string|array $tables): bool
@@ -256,6 +257,7 @@ class PdoDb
      * Sets the lock method.
      *
      * @param string $method The lock method to use.
+     *
      * @return self The current object.
      */
     public function setLockMethod(string $method): self
@@ -277,7 +279,6 @@ class PdoDb
      * @param array<string, mixed> $params The parameters to use to connect to the database.
      * @param array<int|string, mixed> $pdoOptions The PDO options to use to connect to the database.
      * @param LoggerInterface|null $logger The logger to use to log the queries.
-     * @return void
      */
     public function addConnection(
         string $name,
@@ -295,6 +296,7 @@ class PdoDb
      * Checks if a connection exists in the connection pool.
      *
      * @param string $name The name of the connection.
+     *
      * @return bool True if the connection exists, false otherwise.
      */
     public function hasConnection(string $name): bool
@@ -306,6 +308,7 @@ class PdoDb
      * Returns a connection from the connection pool.
      *
      * @param string $name The name of the connection.
+     *
      * @return self The connection.
      */
     public function connection(string $name): self
@@ -322,7 +325,6 @@ class PdoDb
      *
      * @param string|null $name The name of the connection to disconnect.
      *                          Pass null to disconnect all connections.
-     * @return void
      */
     public function disconnect(?string $name = null): void
     {
@@ -336,6 +338,7 @@ class PdoDb
             unset($this->connections[$name]);
         }
     }
+
     /**
      * Pings the database.
      *
@@ -358,6 +361,7 @@ class PdoDb
      * Sets the query timeout for the current connection.
      *
      * @param int $seconds The timeout in seconds.
+     *
      * @return self The current object.
      * @throws RuntimeException If the timeout cannot be set.
      */
@@ -373,7 +377,8 @@ class PdoDb
                 // Silently ignore for unsupported drivers
                 return $this;
             }
-            throw new RuntimeException("Failed to set timeout: " . $e->getMessage(), 0, $e);
+
+            throw new RuntimeException('Failed to set timeout: ' . $e->getMessage(), 0, $e);
         }
     }
 
@@ -387,7 +392,7 @@ class PdoDb
     {
         try {
             $timeout = $this->connection->getAttribute(\PDO::ATTR_TIMEOUT);
-            return (int) $timeout;
+            return (int)$timeout;
         } catch (\PDOException $e) {
             // Some drivers (like SQLite) don't support ATTR_TIMEOUT
             if (str_contains($e->getMessage(), 'does not support this function') ||
@@ -395,7 +400,8 @@ class PdoDb
                 // Return 0 for unsupported drivers
                 return 0;
             }
-            throw new RuntimeException("Failed to get timeout: " . $e->getMessage(), 0, $e);
+
+            throw new RuntimeException('Failed to get timeout: ' . $e->getMessage(), 0, $e);
         }
     }
 
@@ -405,6 +411,7 @@ class PdoDb
      * Describes a table.
      *
      * @param string $table The table to describe.
+     *
      * @return array<int, array<string, mixed>> The table description.
      */
     public function describe(string $table): array
@@ -418,11 +425,12 @@ class PdoDb
      *
      * @param string $query The query to explain.
      * @param array<int|string, string|int|float|bool|null> $params The parameters to use to explain the query.
+     *
      * @return array<int, array<string, mixed>> The query explanation.
      */
     public function explain(string $query, array $params = []): array
     {
-        $sql = $this->connection->getDialect()->buildExplainSql($query, false);
+        $sql = $this->connection->getDialect()->buildExplainSql($query);
         return $this->rawQuery($sql, $params);
     }
 
@@ -431,11 +439,12 @@ class PdoDb
      *
      * @param string $query The query to explain and analyze.
      * @param array<int|string, string|int|float|bool|null> $params The parameters to use to explain and analyze the query.
+     *
      * @return array<int, array<string, mixed>> The query explanation and analysis.
      */
     public function explainAnalyze(string $query, array $params = []): array
     {
-        $sql = $this->connection->getDialect()->buildExplainSql($query, true);
+        $sql = $this->connection->getDialect()->buildExplainAnalyzeSql($query);
         return $this->rawQuery($sql, $params);
     }
 }

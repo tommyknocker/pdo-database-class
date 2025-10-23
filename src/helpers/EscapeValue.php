@@ -1,14 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * $pdo->quote() value representation
+ * $pdo->quote() value representation.
  */
 class EscapeValue extends RawValue
 {
     /**
-     * Constructor
+     * Constructor.
      *
      * @param string $value The value to be escaped.
      */

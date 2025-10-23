@@ -1,19 +1,20 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * JSON contains check value
+ * JSON contains check value.
  */
 class JsonContainsValue extends RawValue
 {
     /** @var string JSON column name */
     protected string $column;
-    
+
     /** @var mixed Value to search for */
     protected mixed $searchValue;
-    
+
     /** @var array<int, string|int>|string|null JSON path */
     protected array|string|null $path;
 

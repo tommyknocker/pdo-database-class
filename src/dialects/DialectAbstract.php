@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects;
@@ -21,23 +22,28 @@ abstract class DialectAbstract implements DialectInterface
     {
         $this->pdo = $pdo;
     }
-    
+
     /**
-     * Get the driver name
+     * Get the driver name.
+     *
      * @return string
      */
     abstract public function getDriverName(): string;
-    
+
     /**
-     * Quote identifier (column/table name)
+     * Quote identifier (column/table name).
+     *
      * @param string $name
+     *
      * @return string
      */
     abstract public function quoteIdentifier(string $name): string;
 
     /**
-     * Quote table name with optional alias
+     * Quote table name with optional alias.
+     *
      * @param string $table
+     *
      * @return string
      */
     protected function quoteTableWithAlias(string $table): string
@@ -72,9 +78,11 @@ abstract class DialectAbstract implements DialectInterface
     }
 
     /**
-     * Case-insensitive LIKE expression
+     * Case-insensitive LIKE expression.
+     *
      * @param string $column
      * @param string $pattern
+     *
      * @return RawValue
      */
     public function ilike(string $column, string $pattern): RawValue
@@ -84,21 +92,25 @@ abstract class DialectAbstract implements DialectInterface
 
     /**
      * SET/PRAGMA statement syntax.
-     * e.g. SET FOREIGN_KEY_CHECKS = 1 OR SET NAMES 'utf8mb4' in MySQL and PostgreSQL or PRAGMA statements in SQLite
+     * e.g. SET FOREIGN_KEY_CHECKS = 1 OR SET NAMES 'utf8mb4' in MySQL and PostgreSQL or PRAGMA statements in SQLite.
+     *
      * @param ConfigValue $value
+     *
      * @return RawValue
      */
     public function config(ConfigValue $value): RawValue
     {
-        $sql = "SET " . strtoupper($value->getValue())
+        $sql = 'SET ' . strtoupper($value->getValue())
             . ($value->getUseEqualSign() ? ' = ' : ' ')
             . ($value->getQuoteValue() ? '\'' . $value->getParams()[0] . '\'' : $value->getParams()[0]);
         return new RawValue($sql);
     }
 
     /**
-     * Concatenate values
+     * Concatenate values.
+     *
      * @param ConcatValue $value
+     *
      * @return RawValue
      */
     public function concat(ConcatValue $value): RawValue
@@ -127,7 +139,7 @@ abstract class DialectAbstract implements DialectInterface
             }
 
             // Check if it's a simple string literal:
-            // - Contains spaces OR special chars like : ; ! ? etc (but not SQL operators)
+            // - Contains spaces OR special chars like : ; ! ? etc. (but not SQL operators)
             // - Does NOT contain SQL operators or parentheses
             // - Does NOT look like SQL keywords
             if (
@@ -139,7 +151,7 @@ abstract class DialectAbstract implements DialectInterface
                 continue;
             }
 
-            // contains parentheses, math/comparison operators — treat as raw SQL  
+            // contains parentheses, math/comparison operators — treat as raw SQL
             if (preg_match('/[()%<>=]/', $s)) {
                 $mapped[] = $s;
                 continue;
@@ -148,18 +160,17 @@ abstract class DialectAbstract implements DialectInterface
             // simple identifier (maybe schema.table or table.column) — quote each part
             $pieces = explode('.', $s);
             foreach ($pieces as &$p) {
-                match($dialect) {
+                match ($dialect) {
                     'pgsql', 'sqlite' => $p = '"' . str_replace('"', '""', $p) . '"',
                     default => $p = '`' . str_replace('`', '``', $p) . '`'
                 };
-
             }
             $mapped[] = implode('.', $pieces);
         }
 
         // choose concatenation style
         if ($dialect === 'sqlite') {
-            $sql = implode(" || ", $mapped);
+            $sql = implode(' || ', $mapped);
         } else {
             // default to CONCAT(); PostgreSQL and MySQL support CONCAT()
             // if only two parts and dialect explicitly sqlite was requested, we already handled above
@@ -169,12 +180,13 @@ abstract class DialectAbstract implements DialectInterface
         return new RawValue($sql);
     }
 
-
     /**
-     * Build SQL for loading data from XML file
+     * Build SQL for loading data from XML file.
+     *
      * @param string $table
      * @param string $filePath
      * @param array<string, mixed> $options
+     *
      * @return string
      */
     public function buildLoadXML(string $table, string $filePath, array $options = []): string
@@ -245,7 +257,7 @@ abstract class DialectAbstract implements DialectInterface
             }
 
             $xml = $reader->readOuterXml();
-            if ($xml === false || $xml === '') {
+            if ($xml === '') {
                 $reader->next();
                 continue;
             }
@@ -299,8 +311,8 @@ abstract class DialectAbstract implements DialectInterface
                     $columns
                 );
 
-                $batchesSql[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ',
-                        $colsEscaped) . ') VALUES ' . implode(', ', $batch) . ';';
+                $batchesSql[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ')'
+                    . ' VALUES ' . implode(', ', $batch) . ';';
                 $batch = [];
             }
 
@@ -317,8 +329,8 @@ abstract class DialectAbstract implements DialectInterface
                 $columns
             );
 
-            $batchesSql[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ') VALUES ' . implode(', ',
-                    $batch) . ';';
+            $batchesSql[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ')'
+                . ' VALUES ' . implode(', ', $batch) . ';';
         }
 
         if ($rowsProcessed === 0) {
@@ -328,12 +340,13 @@ abstract class DialectAbstract implements DialectInterface
         return implode("\n", $batchesSql);
     }
 
-
     /**
-     * Build SQL for loading data from CSV file
+     * Build SQL for loading data from CSV file.
+     *
      * @param string $table
      * @param string $filePath
      * @param array<string, mixed> $options
+     *
      * @return string
      */
     public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string
@@ -380,7 +393,7 @@ abstract class DialectAbstract implements DialectInterface
                 if ($isBlank) {
                     continue;
                 }
-                $columns = array_map(fn($v) => trim((string)($v ?? '')), $row);
+                $columns = array_map(fn ($v) => trim((string)($v ?? '')), $row);
                 break;
             }
         }
@@ -486,8 +499,10 @@ abstract class DialectAbstract implements DialectInterface
     }
 
     /**
-     * Normalize JSON path input
+     * Normalize JSON path input.
+     *
      * @param array<int, string|int>|string $path
+     *
      * @return array<int, string|int>
      */
     protected function normalizeJsonPath(array|string $path): array
@@ -506,8 +521,10 @@ abstract class DialectAbstract implements DialectInterface
     /* ---------------- Helper methods for value resolution ---------------- */
 
     /**
-     * Resolve RawValue or return value as-is
+     * Resolve RawValue or return value as-is.
+     *
      * @param string|RawValue $value
+     *
      * @return string
      */
     protected function resolveValue(string|RawValue $value): string
@@ -516,18 +533,22 @@ abstract class DialectAbstract implements DialectInterface
     }
 
     /**
-     * Resolve array of values (handle RawValue instances)
+     * Resolve array of values (handle RawValue instances).
+     *
      * @param array<int, string|int|float|RawValue> $values
+     *
      * @return array<int, string|int|float>
      */
     protected function resolveValues(array $values): array
     {
-        return array_map(fn($v) => $v instanceof RawValue ? $v->getValue() : $v, $values);
+        return array_map(fn ($v) => $v instanceof RawValue ? $v->getValue() : $v, $values);
     }
 
     /**
-     * Format default value for IFNULL/COALESCE
+     * Format default value for IFNULL/COALESCE.
+     *
      * @param mixed $default
+     *
      * @return string
      */
     protected function formatDefaultValue(mixed $default): string
@@ -545,8 +566,10 @@ abstract class DialectAbstract implements DialectInterface
 
     /**
      * Format GREATEST expression (default implementation)
-     * Override in specific dialects if needed (e.g., SQLite uses MAX)
+     * Override in specific dialects if needed (e.g., SQLite uses MAX).
+     *
      * @param array<int, string|int|float|RawValue> $values
+     *
      * @return string
      */
     public function formatGreatest(array $values): string
@@ -557,8 +580,10 @@ abstract class DialectAbstract implements DialectInterface
 
     /**
      * Format LEAST expression (default implementation)
-     * Override in specific dialects if needed (e.g., SQLite uses MIN)
+     * Override in specific dialects if needed (e.g., SQLite uses MIN).
+     *
      * @param array<int, string|int|float|RawValue> $values
+     *
      * @return string
      */
     public function formatLeast(array $values): string
@@ -569,9 +594,11 @@ abstract class DialectAbstract implements DialectInterface
 
     /**
      * Format MOD expression (default implementation)
-     * Override in specific dialects if needed (e.g., SQLite uses %)
+     * Override in specific dialects if needed (e.g., SQLite uses %).
+     *
      * @param string|RawValue $dividend
      * @param string|RawValue $divisor
+     *
      * @return string
      */
     public function formatMod(string|RawValue $dividend, string|RawValue $divisor): string
@@ -580,5 +607,4 @@ abstract class DialectAbstract implements DialectInterface
         $d2 = $this->resolveValue($divisor);
         return "MOD($d1, $d2)";
     }
-
 }

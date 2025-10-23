@@ -1,10 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * LEAST / MIN value (dialect-specific)
+ * LEAST / MIN value (dialect-specific).
  */
 class LeastValue extends RawValue
 {

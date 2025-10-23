@@ -8,7 +8,7 @@ use PDOException;
 
 /**
  * Resource exhaustion exceptions.
- * 
+ *
  * Thrown when database resources are exhausted,
  * such as too many connections, memory limits, etc.
  */
@@ -29,7 +29,7 @@ class ResourceException extends DatabaseException
         ?string $resourceType = null
     ) {
         parent::__construct($message, $code, $previous, $driver, $query, $context);
-        
+
         $this->resourceType = $resourceType;
     }
 
@@ -52,11 +52,11 @@ class ResourceException extends DatabaseException
     public function getDescription(): string
     {
         $description = parent::getDescription();
-        
+
         if ($this->resourceType) {
             $description .= " (Resource: {$this->resourceType})";
         }
-        
+
         return $description;
     }
 
@@ -67,7 +67,7 @@ class ResourceException extends DatabaseException
     {
         $data = parent::toArray();
         $data['resource_type'] = $this->resourceType;
-        
+
         return $data;
     }
 }

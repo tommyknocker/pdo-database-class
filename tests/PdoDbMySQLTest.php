@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests;
@@ -25,7 +26,7 @@ final class PdoDbMySQLTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        /**
+        /*
          * CREATE DATABASE testdb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
          * CREATE USER 'testuser'@'127.0.0.1' IDENTIFIED BY 'testpass';
          * GRANT ALL PRIVILEGES ON testdb.* TO 'testuser'@'127.0.0.1';
@@ -47,7 +48,7 @@ final class PdoDbMySQLTest extends TestCase
         self::$db->rawQuery('DROP TABLE IF EXISTS orders');
         self::$db->rawQuery('DROP TABLE IF EXISTS users');
 
-        self::$db->rawQuery("CREATE TABLE users (
+        self::$db->rawQuery('CREATE TABLE users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(100),
             company VARCHAR(100),
@@ -57,30 +58,30 @@ final class PdoDbMySQLTest extends TestCase
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT NULL,
             UNIQUE KEY uniq_name (name)
-        ) ENGINE=InnoDB");
+        ) ENGINE=InnoDB');
 
-        self::$db->rawQuery("CREATE TABLE orders (
+        self::$db->rawQuery('CREATE TABLE orders (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id INT NOT NULL,
             amount DECIMAL(10,2) NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
-        ) ENGINE=InnoDB;");
+        ) ENGINE=InnoDB;');
 
-        self::$db->rawQuery("
+        self::$db->rawQuery('
         CREATE TABLE archive_users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             user_id INT
         )
-    ");
+    ');
     }
 
     public function setUp(): void
     {
-        self::$db->rawQuery("SET FOREIGN_KEY_CHECKS=0");
-        self::$db->rawQuery("TRUNCATE TABLE orders");
-        self::$db->rawQuery("TRUNCATE TABLE users");
-        self::$db->rawQuery("TRUNCATE TABLE archive_users");
-        self::$db->rawQuery("SET FOREIGN_KEY_CHECKS=1");
+        self::$db->rawQuery('SET FOREIGN_KEY_CHECKS=0');
+        self::$db->rawQuery('TRUNCATE TABLE orders');
+        self::$db->rawQuery('TRUNCATE TABLE users');
+        self::$db->rawQuery('TRUNCATE TABLE archive_users');
+        self::$db->rawQuery('SET FOREIGN_KEY_CHECKS=1');
         parent::setUp();
     }
 
@@ -199,7 +200,7 @@ final class PdoDbMySQLTest extends TestCase
                 'name' => 'NullUser',
                 'company' => 'Acme',
                 'age' => 25,
-                'status' => Db::null()
+                'status' => Db::null(),
             ]);
 
         $this->assertIsInt($id);
@@ -304,7 +305,7 @@ final class PdoDbMySQLTest extends TestCase
             'name' => 'Grace',
             'company' => 'NullCorp',
             'age' => 33,
-            'status' => Db::null()
+            'status' => Db::null(),
         ]);
         $this->assertIsInt($idNull);
 
@@ -312,7 +313,7 @@ final class PdoDbMySQLTest extends TestCase
             'name' => 'Helen',
             'company' => 'LiveCorp',
             'age' => 35,
-            'status' => 'active'
+            'status' => 'active',
         ]);
         $this->assertIsInt($idNotNull);
 
@@ -341,7 +342,7 @@ final class PdoDbMySQLTest extends TestCase
             'name' => 'Nina',
             'company' => 'DefaultCorp',
             'age' => 31,
-            'status' => 'active'
+            'status' => 'active',
         ]);
 
         $db->find()
@@ -366,7 +367,7 @@ final class PdoDbMySQLTest extends TestCase
 
         $case = Db::case([
             'age < 30' => "'young'",
-            'age >= 30' => "'adult'"
+            'age >= 30' => "'adult'",
         ]);
 
         $results = $db->find()
@@ -376,8 +377,10 @@ final class PdoDbMySQLTest extends TestCase
             ->get();
 
         $lastQuery = $db->lastQuery ?? '';
-        $this->assertStringContainsString("CASE WHEN age < 30 THEN 'young' WHEN age >= 30 THEN 'adult' END AS category",
-            $lastQuery);
+        $this->assertStringContainsString(
+            "CASE WHEN age < 30 THEN 'young' WHEN age >= 30 THEN 'adult' END AS category",
+            $lastQuery
+        );
 
         $this->assertEquals('young', $results[0]['category']);
         $this->assertEquals('adult', $results[1]['category']);
@@ -393,13 +396,13 @@ final class PdoDbMySQLTest extends TestCase
         $db->find()->table('users')->insert([
             'name' => 'Eve',
             'company' => 'E',
-            'age' => null
+            'age' => null,
         ]); // does not match any WHEN
 
         // CASE with ELSE
         $case = Db::case([
             'age < 30' => '1',
-            'age >= 30' => '0'
+            'age >= 30' => '0',
         ], '2'); // ELSE → 2
 
         // WHERE CASE = 2 should return Eve
@@ -427,7 +430,7 @@ final class PdoDbMySQLTest extends TestCase
 
         $orderCase = Db::case([
             'age < 30' => '1',
-            'age >= 30' => '2'
+            'age >= 30' => '2',
         ]);
 
         $results = $db->find()
@@ -451,7 +454,7 @@ final class PdoDbMySQLTest extends TestCase
 
         $case = Db::case([
             'AVG(age) < 30' => '1',
-            'AVG(age) >= 30' => '0'
+            'AVG(age) >= 30' => '0',
         ]);
 
         $results = $db->find()
@@ -477,7 +480,7 @@ final class PdoDbMySQLTest extends TestCase
 
         $case = Db::case([
             'age < 30' => "'junior'",
-            'age >= 30' => "'senior'"
+            'age >= 30' => "'senior'",
         ]);
 
         $db->find()
@@ -486,8 +489,10 @@ final class PdoDbMySQLTest extends TestCase
             ->update(['status' => $case]);
 
         $lastQuery = $db->lastQuery ?? '';
-        $this->assertStringContainsString("CASE WHEN age < 30 THEN 'junior' WHEN age >= 30 THEN 'senior'",
-            $lastQuery);
+        $this->assertStringContainsString(
+            "CASE WHEN age < 30 THEN 'junior' WHEN age >= 30 THEN 'senior'",
+            $lastQuery
+        );
 
         $user1 = $db->find()->from('users')->where('id', $id1)->getOne();
         $user2 = $db->find()->from('users')->where('id', $id2)->getOne();
@@ -504,14 +509,14 @@ final class PdoDbMySQLTest extends TestCase
             'name' => 'TrueUser',
             'company' => 'BoolCorp',
             'age' => 30,
-            'is_active' => 1
+            'is_active' => 1,
         ]);
 
         $db->find()->table('users')->insert([
             'name' => 'FalseUser',
             'company' => 'BoolCorp',
             'age' => 35,
-            'is_active' => 0
+            'is_active' => 0,
         ]);
 
         $trueResults = $db->find()
@@ -549,7 +554,7 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertEquals('John C1', $results['full']);
 
         // 2) RawValue + literal + column
-        $raw = Db::raw("UPPER(name)");
+        $raw = Db::raw('UPPER(name)');
         $results = $db->find()
             ->select(['x' => Db::concat($raw, "' - '", 'company')])
             ->from('users')
@@ -582,12 +587,12 @@ final class PdoDbMySQLTest extends TestCase
         $db = self::$db;
 
         $db->rawQuery('DROP TABLE IF EXISTS tmp_timestamps;');
-        $db->rawQuery("CREATE TABLE tmp_timestamps (
+        $db->rawQuery('CREATE TABLE tmp_timestamps (
         id INTEGER PRIMARY KEY AUTO_INCREMENT,
         ts INTEGER NOT NULL,
         ts_diff INTEGER NOT NULL,
-        ts_diff2 INTEGER NOT NULL          
-    );");
+        ts_diff2 INTEGER NOT NULL
+    );');
 
         // Insert using Db::now as timestamp: Db::now(null, true)
         $ts = time();
@@ -627,10 +632,10 @@ final class PdoDbMySQLTest extends TestCase
 
         // ON DUPLICATE with RawValue increment for age
         $db->find()->table('users')->onDuplicate([
-            'age' => Db::raw('age + 100')
+            'age' => Db::raw('age + 100'),
         ])->insert([
             'name' => 'multi_raw_1',
-            'age' => 20
+            'age' => 20,
         ]);
 
         $row = $db->find()->from('users')->where('name', 'multi_raw_1')->getOne();
@@ -638,7 +643,7 @@ final class PdoDbMySQLTest extends TestCase
     }
 
     /**
-     * Test all cases of RawValue with parameters usage
+     * Test all cases of RawValue with parameters usage.
      */
     public function testRawValueWithParameters(): void
     {
@@ -648,9 +653,9 @@ final class PdoDbMySQLTest extends TestCase
         $id = $db->find()->table('users')->insert([
             'name' => Db::raw('CONCAT(:prefix, :name)', [
                 ':prefix' => 'Mr_',
-                ':name' => 'John'
+                ':name' => 'John',
             ]),
-            'age' => 30
+            'age' => 30,
         ]);
 
         $this->assertIsInt($id);
@@ -663,7 +668,7 @@ final class PdoDbMySQLTest extends TestCase
             ->where('id', $id)
             ->update([
                 'age' => Db::raw('age + :inc', [':inc' => 5]),
-                'name' => Db::raw('CONCAT(name, :suffix)', [':suffix' => '_updated'])
+                'name' => Db::raw('CONCAT(name, :suffix)', [':suffix' => '_updated']),
             ]);
 
         $this->assertEquals(1, $rowCount);
@@ -676,7 +681,7 @@ final class PdoDbMySQLTest extends TestCase
             ->from('users')
             ->where(Db::raw('age BETWEEN :min AND :max', [
                 ':min' => 30,
-                ':max' => 40
+                ':max' => 40,
             ]))
             ->get();
 
@@ -687,14 +692,14 @@ final class PdoDbMySQLTest extends TestCase
         // 4. JOIN condition with RawValue parameters
         $orderId = $db->find()->table('orders')->insert([
             'user_id' => $id,
-            'amount' => 100
+            'amount' => 100,
         ]);
         $this->assertIsInt($orderId);
 
         $result = $db->find()
             ->from('users u')
             ->join('orders o', Db::raw('o.user_id = u.id AND o.amount > :min_amount', [
-                ':min_amount' => 50
+                ':min_amount' => 50,
             ]))
             ->where('u.id', $id)
             ->getOne();
@@ -709,7 +714,7 @@ final class PdoDbMySQLTest extends TestCase
             ->groupBy('user_id')
             ->having(Db::raw('total > :min_total AND total < :max_total', [
                 ':min_total' => 50,
-                ':max_total' => 150
+                ':max_total' => 150,
             ]))
             ->get();
 
@@ -722,7 +727,7 @@ final class PdoDbMySQLTest extends TestCase
             ->table('orders')
             ->where(Db::raw('amount BETWEEN :min AND :max', [
                 ':min' => 90,
-                ':max' => 110
+                ':max' => 110,
             ]))
             ->delete();
 
@@ -739,7 +744,6 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertGreaterThan(30, $rows[0]['age']);
         $this->assertStringContainsString('updated', $rows[0]['name']);
     }
-
 
     public function testSelectWithQueryOption(): void
     {
@@ -795,7 +799,6 @@ final class PdoDbMySQLTest extends TestCase
             ->insert(['name' => 'Vasiliy', 'age' => 30]);
         $this->assertIsInt($id);
 
-
         self::$db->find()
             ->table('users')
             ->where('id', $id)
@@ -806,7 +809,6 @@ final class PdoDbMySQLTest extends TestCase
             ->getOne();
         $this->assertIsArray($row);
         $this->assertEquals('31', $row['age']);
-
     }
 
     public function testUpdateWithQueryOption(): void
@@ -839,7 +841,6 @@ final class PdoDbMySQLTest extends TestCase
     {
         $db = self::$db;
 
-
         for ($i = 1; $i <= 7; $i++) {
             $db->find()->table('users')->insert([
                 'name' => "Cnt{$i}",
@@ -871,7 +872,7 @@ final class PdoDbMySQLTest extends TestCase
             $db->find()->table('users')->insert([
                 'name' => $name,
                 'company' => 'TestCorp',
-                'age' => 20 + $i
+                'age' => 20 + $i,
             ]);
         }
 
@@ -1000,7 +1001,7 @@ final class PdoDbMySQLTest extends TestCase
                 ['name' => 'UserB', 'age' => 20],
                 ['name' => 'UserC', 'age' => 30],
                 ['name' => 'UserD', 'age' => 40],
-                ['name' => 'UserE', 'age' => 50]
+                ['name' => 'UserE', 'age' => 50],
             ]);
         $this->assertEquals(5, $rowCount);
 
@@ -1027,7 +1028,7 @@ final class PdoDbMySQLTest extends TestCase
                 ['id' => 2, 'name' => 'UserB', 'age' => 20],
                 ['id' => 3, 'name' => 'UserC', 'age' => 30],
                 ['id' => 4, 'name' => 'UserD', 'age' => 40],
-                ['id' => 5, 'name' => 'UserE', 'age' => 50]
+                ['id' => 5, 'name' => 'UserE', 'age' => 50],
             ]);
         $this->assertEquals(5, $rowCount);
 
@@ -1039,7 +1040,6 @@ final class PdoDbMySQLTest extends TestCase
             ]);
         $this->assertEquals(2, $rowCount);
 
-
         $subQuery = $db->find()
             ->from('orders')
             ->select('user_id')
@@ -1050,14 +1050,12 @@ final class PdoDbMySQLTest extends TestCase
             ->where('id', $subQuery, 'IN')
             ->delete();
 
-
         $lastQuery = $db->lastQuery ?? '';
         $this->assertStringContainsString(
             'DELETE FROM `users` WHERE `id` IN (SELECT `user_id` FROM `orders` WHERE `amount` >=',
             $lastQuery
         );
         $this->assertStringContainsString(')', $lastQuery);
-
 
         $rows = $db->find()
             ->table('users')
@@ -1102,7 +1100,7 @@ final class PdoDbMySQLTest extends TestCase
             ->insert(['name' => 'Test', 'age' => 42]);
         $this->assertEquals(1, $id);
 
-        $row = self::$db->rawQueryOne("SELECT * FROM users WHERE name = ?", ['Test']);
+        $row = self::$db->rawQueryOne('SELECT * FROM users WHERE name = ?', ['Test']);
         $this->assertEquals(42, $row['age']);
     }
 
@@ -1115,8 +1113,7 @@ final class PdoDbMySQLTest extends TestCase
             ->insert(['name' => 'RawVal', 'age' => 55]);
         $this->assertEquals(1, $id);
 
-
-        $age = self::$db->rawQueryValue("SELECT age FROM users WHERE name = ?", ['RawVal']);
+        $age = self::$db->rawQueryValue('SELECT age FROM users WHERE name = ?', ['RawVal']);
         $this->assertEquals(55, $age);
     }
 
@@ -1179,7 +1176,6 @@ final class PdoDbMySQLTest extends TestCase
             ->insert(['name' => 'JoinUser', 'age' => 40]);
         $this->assertEquals(1, $uid);
 
-
         self::$db->find()
             ->table('orders')
             ->insert(['user_id' => $uid, 'amount' => 100]);
@@ -1203,7 +1199,7 @@ final class PdoDbMySQLTest extends TestCase
                 ['name' => 'UserA', 'age' => 20],
                 ['name' => 'UserB', 'age' => 30],
                 ['name' => 'UserC', 'age' => 40],
-                ['name' => 'UserD', 'age' => 50]
+                ['name' => 'UserD', 'age' => 50],
             ]);
         $this->assertEquals(4, $rowCount);
 
@@ -1553,7 +1549,6 @@ final class PdoDbMySQLTest extends TestCase
     {
         $db = self::$db;
 
-
         $u1 = $db->find()->table('users')->insert(['name' => 'User1', 'age' => 20]);
         $u2 = $db->find()->table('users')->insert(['name' => 'User2', 'age' => 30]);
         $u3 = $db->find()->table('users')->insert(['name' => 'User3', 'age' => 40]);
@@ -1653,7 +1648,7 @@ final class PdoDbMySQLTest extends TestCase
         $db->find()->table('users')->insertMulti([
             ['name' => 'GQAlice', 'age' => 30],
             ['name' => 'GQBob', 'age' => 25],
-            ['name' => 'GQCarol', 'age' => 30]
+            ['name' => 'GQCarol', 'age' => 30],
         ]);
 
         $u1 = $db->find()->from('users')->where('name', 'GQAlice')->getOne()['id'];
@@ -1664,7 +1659,7 @@ final class PdoDbMySQLTest extends TestCase
             ['user_id' => $u1, 'amount' => 100.00],
             ['user_id' => $u1, 'amount' => 200.00],
             ['user_id' => $u2, 'amount' => 150.00],
-            ['user_id' => $u3, 'amount' => 300.00]
+            ['user_id' => $u3, 'amount' => 300.00],
         ]);
 
         // Test groupBy with qualified column names (table.column)
@@ -1674,7 +1669,7 @@ final class PdoDbMySQLTest extends TestCase
             ->leftJoin('orders AS o', 'o.user_id = u.id')
             ->select([
                 'u.name',
-                'total' => Db::sum('o.amount')
+                'total' => Db::sum('o.amount'),
             ])
             ->groupBy(['u.id', 'u.name'])
             ->orderBy('u.id')
@@ -1752,7 +1747,7 @@ final class PdoDbMySQLTest extends TestCase
             ->table('users')
             ->insert([
                 'name' => Db::escape("O'Reilly"),
-                'age' => 30
+                'age' => 30,
             ]);
         $this->assertIsInt($id);
 
@@ -1862,7 +1857,7 @@ final class PdoDbMySQLTest extends TestCase
         // UPSERT with raw increment expression
         $db->find()->table('users')
             ->onDuplicate([
-                'age' => Db::raw('age + 5')
+                'age' => Db::raw('age + 5'),
             ])
             ->insert(['name' => 'UpsertTest', 'age' => 20]);
 
@@ -1880,14 +1875,13 @@ final class PdoDbMySQLTest extends TestCase
         // UPSERT with Db::inc() helper
         $db->find()->table('users')
             ->onDuplicate([
-                'age' => Db::inc(25)
+                'age' => Db::inc(25),
             ])
             ->insert(['name' => 'IncTest', 'age' => 999]);
 
         $row = $db->find()->from('users')->where('name', 'IncTest')->getOne();
         $this->assertEquals(125, $row['age'], 'Age should be incremented by 25 (100 + 25), not replaced with 999');
     }
-
 
     public function testSubQueryInWhere(): void
     {
@@ -1900,7 +1894,7 @@ final class PdoDbMySQLTest extends TestCase
                 ['name' => 'UserB', 'age' => 20],
                 ['name' => 'UserC', 'age' => 30],
                 ['name' => 'UserD', 'age' => 40],
-                ['name' => 'UserE', 'age' => 50]
+                ['name' => 'UserE', 'age' => 50],
             ]);
         $this->assertEquals(5, $rowCount);
 
@@ -1924,7 +1918,6 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertIsArray($rows);
         $this->assertCount(2, $rows);
     }
-
 
     public function testDisconnectAndPing(): void
     {
@@ -1950,7 +1943,7 @@ final class PdoDbMySQLTest extends TestCase
             'name' => 'Existy',
             'company' => 'CheckCorp',
             'age' => 42,
-            'status' => 'active'
+            'status' => 'active',
         ]);
 
         // Check exists() - should return true
@@ -1992,7 +1985,6 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertFalse(self::$db->find()->table('nonexistent')->tableExists());
     }
 
-
     public function testInvalidSqlLogsErrorAndException(): void
     {
         $sql = 'INSERT INTO users (non_existing_column) VALUES (:v)';
@@ -2012,7 +2004,9 @@ final class PdoDbMySQLTest extends TestCase
                 'password' => self::DB_PASSWORD,
                 'dbname' => self::DB_NAME,
                 'charset' => self::DB_CHARSET,
-            ], [], $logger
+            ],
+            [],
+            $logger
         );
 
         try {
@@ -2049,7 +2043,9 @@ final class PdoDbMySQLTest extends TestCase
                 'password' => self::DB_PASSWORD,
                 'dbname' => self::DB_NAME,
                 'charset' => self::DB_CHARSET,
-            ], [], $logger
+            ],
+            [],
+            $logger
         );
 
         // Begin
@@ -2120,7 +2116,6 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertSame(self::$db, $pdoDb);
     }
 
-
     public function testLoadCsv(): void
     {
         $db = self::$db;
@@ -2132,7 +2127,7 @@ final class PdoDbMySQLTest extends TestCase
             $ok = $db->find()->table('users')->loadCsv($tmpFile, [
                 'fieldChar' => ',',
                 'fields' => ['id', 'name', 'status'],
-                'local' => true
+                'local' => true,
             ]);
         } catch (\PDOException $e) {
             $this->markTestSkipped(
@@ -2153,7 +2148,9 @@ final class PdoDbMySQLTest extends TestCase
     public function testLoadXml(): void
     {
         $file = sys_get_temp_dir() . '/users.xml';
-        file_put_contents($file, <<<XML
+        file_put_contents(
+            $file,
+            <<<XML
             <users>
              <user>
                 <name>XMLUser 1</name>
@@ -2175,7 +2172,7 @@ XML
                 'Error: ' . $e->getMessage()
             );
         }
-        
+
         $this->assertTrue($ok);
 
         $row = self::$db->find()->from('users')->where('name', 'XMLUser 2')->getOne();
@@ -2238,7 +2235,13 @@ XML
         $db = self::$db;
         $plan = $db->explainAnalyze('SELECT * FROM users WHERE status = "active"');
         $this->assertNotEmpty($plan);
-        $this->assertArrayHasKey('select_type', $plan[0]);
+
+        // MySQL EXPLAIN FORMAT=JSON returns array with 'EXPLAIN' key containing JSON string
+        $this->assertArrayHasKey('EXPLAIN', $plan[0]);
+        $this->assertIsString($plan[0]['EXPLAIN']);
+        $jsonData = json_decode($plan[0]['EXPLAIN'], true);
+        $this->assertIsArray($jsonData);
+        $this->assertArrayHasKey('query_block', $jsonData);
     }
 
     public function testDescribeUsers(): void
@@ -2303,10 +2306,10 @@ XML
 
         $queryBuilder = $db->find()->prefix('test_')->from('users');
 
-        $db->rawQuery("CREATE TABLE IF NOT EXISTS test_prefixed_table (
+        $db->rawQuery('CREATE TABLE IF NOT EXISTS test_prefixed_table (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(100)
-        )");
+        )');
 
         $id = $queryBuilder->table('prefixed_table')->insert(['name' => 'Test User']);
         $this->assertIsInt($id);
@@ -2317,7 +2320,7 @@ XML
         $lastQuery = $db->lastQuery ?? '';
         $this->assertStringContainsString('`test_prefixed_table`', $lastQuery);
 
-        $db->rawQuery("DROP TABLE IF EXISTS test_prefixed_table");
+        $db->rawQuery('DROP TABLE IF EXISTS test_prefixed_table');
     }
 
     public function testLeftJoin(): void
@@ -2367,16 +2370,16 @@ XML
         $db = self::$db; // configured for MySQL in suite setup
 
         // prepare table
-        $db->rawQuery("DROP TABLE IF EXISTS t_json");
-        $db->rawQuery("CREATE TABLE t_json (id INT AUTO_INCREMENT PRIMARY KEY, meta JSON)");
+        $db->rawQuery('DROP TABLE IF EXISTS t_json');
+        $db->rawQuery('CREATE TABLE t_json (id INT AUTO_INCREMENT PRIMARY KEY, meta JSON)');
 
         // insert initial rows
-        $payload1 = ['a' => ['b' => 1], 'tags' => ['x','y'], 'score' => 10];
+        $payload1 = ['a' => ['b' => 1], 'tags' => ['x', 'y'], 'score' => 10];
         $id1 = $db->find()->table('t_json')->insert(['meta' => json_encode($payload1, JSON_UNESCAPED_UNICODE)]);
         $this->assertIsInt($id1);
         $this->assertGreaterThan(0, $id1);
 
-        $payload2 = ['a' => ['b' => 2], 'tags' => ['y','z'], 'score' => 5];
+        $payload2 = ['a' => ['b' => 2], 'tags' => ['y', 'z'], 'score' => 5];
         $id2 = $db->find()->table('t_json')->insert(['meta' => json_encode($payload2, JSON_UNESCAPED_UNICODE)]);
         $this->assertIsInt($id2);
         $this->assertGreaterThan(0, $id2);
@@ -2384,7 +2387,7 @@ XML
         // --- selectJson: fetch meta.a.b for id1 via QueryBuilder::selectJson
         $row = $db->find()
             ->table('t_json')
-            ->selectJson('meta', ['a','b'], 'ab')
+            ->selectJson('meta', ['a', 'b'], 'ab')
             ->where('id', $id1)
             ->getOne();
         $this->assertNotNull($row);
@@ -2401,7 +2404,7 @@ XML
         // --- whereJsonExists: check that path $.a.b exists for id1
         $exists = $db->find()
             ->table('t_json')
-            ->whereJsonExists('meta', ['a','b'])
+            ->whereJsonExists('meta', ['a', 'b'])
             ->where('id', $id1)
             ->exists();
         $this->assertTrue($exists);
@@ -2409,31 +2412,31 @@ XML
         // --- whereJsonPath: check $.a.b = 1 for id1
         $matches = $db->find()
             ->table('t_json')
-            ->whereJsonPath('meta', ['a','b'], '=', 1)
+            ->whereJsonPath('meta', ['a', 'b'], '=', 1)
             ->where('id', $id1)
             ->exists();
         $this->assertTrue($matches);
 
         // --- jsonSet: set meta.a.c = 42 for id1 using QueryBuilder::jsonSet
         $qb = $db->find()->table('t_json')->where('id', $id1);
-        $rawSet = $qb->jsonSet('meta', ['a','c'], 42);
+        $rawSet = $qb->jsonSet('meta', ['a', 'c'], 42);
         $qb->update(['meta' => $rawSet]);
 
         $val = $db->find()
             ->table('t_json')
-            ->selectJson('meta', ['a','c'], 'ac')
+            ->selectJson('meta', ['a', 'c'], 'ac')
             ->where('id', $id1)
             ->getOne();
         $this->assertEquals(42, (int)$val['ac']);
 
         // --- jsonRemove: remove meta.a.b for id1 using QueryBuilder::jsonRemove
         $qb2 = $db->find()->table('t_json')->where('id', $id1);
-        $rawRemove = $qb2->jsonRemove('meta', ['a','b']);
+        $rawRemove = $qb2->jsonRemove('meta', ['a', 'b']);
         $qb2->update(['meta' => $rawRemove]);
 
         $after = $db->find()
             ->table('t_json')
-            ->selectJson('meta', ['a','b'], 'ab')
+            ->selectJson('meta', ['a', 'b'], 'ab')
             ->where('id', $id1)
             ->getOne();
         $this->assertNull($after['ab']);
@@ -2449,7 +2452,7 @@ XML
         $this->assertCount(2, $list);
         // After all operations, id2 should still have score=5, id1 should still have score=10
         // So in ASC order: id2 (5) first, then id1 (10)
-        $scores = array_map(fn($r) => (int)$r['score'], $list);
+        $scores = array_map(fn ($r) => (int)$r['score'], $list);
         sort($scores);
         $this->assertEquals(5, $scores[0]);
         $this->assertEquals(10, $scores[1]);
@@ -2460,20 +2463,20 @@ XML
         $db = self::$db;
 
         $db->rawQuery('DROP TABLE IF EXISTS t_json_edge');
-        $db->rawQuery("CREATE TABLE t_json_edge (id INT AUTO_INCREMENT PRIMARY KEY, meta JSON)");
+        $db->rawQuery('CREATE TABLE t_json_edge (id INT AUTO_INCREMENT PRIMARY KEY, meta JSON)');
 
         // Insert rows covering a variety of JSON shapes and types
         $rows = [
             // basic numeric scalar and nested object
-            ['a' => ['b' => 1], 'tags' => ['x','y'], 'score' => 10, 'maybe' => null],
+            ['a' => ['b' => 1], 'tags' => ['x', 'y'], 'score' => 10, 'maybe' => null],
             // numeric as string, nested array, array order changed
-            ['a' => ['b' => '1'], 'tags' => ['y','x'], 'score' => '5', 'extra' => ['z', ['k' => 7]]],
+            ['a' => ['b' => '1'], 'tags' => ['y', 'x'], 'score' => '5', 'extra' => ['z', ['k' => 7]]],
             // deeper nesting and floats
-            ['a' => ['b' => 1.0], 'tags' => ['x','z'], 'score' => 2.5, 'list' => [1,2,3]],
+            ['a' => ['b' => 1.0], 'tags' => ['x', 'z'], 'score' => 2.5, 'list' => [1, 2, 3]],
             // arrays with duplicate elements and nulls
-            ['a' => ['b' => null], 'tags' => ['x','x'], 'score' => 0, 'list' => [null, '0', 0]],
+            ['a' => ['b' => null], 'tags' => ['x', 'x'], 'score' => 0, 'list' => [null, '0', 0]],
             // object with mixed types and an array of objects
-            ['a' => ['b' => 42], 'tags' => [], 'score' => 100, 'items' => [['id'=>1], ['id'=>2]]],
+            ['a' => ['b' => 42], 'tags' => [], 'score' => 100, 'items' => [['id' => 1], ['id' => 2]]],
         ];
 
         $ids = [];
@@ -2488,7 +2491,7 @@ XML
         // 1) whereJsonPath: numeric equality and string numeric equality (should find appropriate rows)
         $foundNum = $db->find()
             ->table('t_json_edge')
-            ->whereJsonPath('meta', ['a','b'], '=', 1)
+            ->whereJsonPath('meta', ['a', 'b'], '=', 1)
             ->get();
         // should find rows where a.b is numeric 1 or numeric 1.0 (rows 0 and 2)
         $this->assertNotEmpty($foundNum);
@@ -2496,13 +2499,13 @@ XML
         // 2) whereJsonPath: compare numeric-as-string -> ensure equality semantics allow distinguishing strings vs numbers
         $foundStrNum = $db->find()
             ->table('t_json_edge')
-            ->whereJsonPath('meta', ['a','b'], '=', '1')
+            ->whereJsonPath('meta', ['a', 'b'], '=', '1')
             ->get();
         $this->assertNotEmpty($foundStrNum);
 
         // Ensure at least one row differs between numeric vs string match
-        $idsNum = array_map(fn($r) => (int)$r['id'], $foundNum);
-        $idsStr = array_map(fn($r) => (int)$r['id'], $foundStrNum);
+        $idsNum = array_map(fn ($r) => (int)$r['id'], $foundNum);
+        $idsStr = array_map(fn ($r) => (int)$r['id'], $foundStrNum);
         $this->assertTrue(count(array_unique(array_merge($idsNum, $idsStr))) >= 2);
 
         // 3) whereJsonContains: array membership for scalars and duplicates
@@ -2522,24 +2525,24 @@ XML
         // 5) jsonSet: set nested scalar and nested object fields
         $id0 = $ids[0];
         $qb = $db->find()->table('t_json_edge')->where('id', $id0);
-        $rawSet = $qb->jsonSet('meta', ['a','c'], 'newval');
+        $rawSet = $qb->jsonSet('meta', ['a', 'c'], 'newval');
         $qb->update(['meta' => $rawSet]);
 
         $val = $db->find()
             ->table('t_json_edge')
-            ->selectJson('meta', ['a','c'], 'ac')
+            ->selectJson('meta', ['a', 'c'], 'ac')
             ->where('id', $id0)
             ->getOne();
         $this->assertEquals('newval', $val['ac'] ?? null);
 
         // 6) jsonSet: set numeric value and ensure numeric comparisons still work
         $qb2 = $db->find()->table('t_json_edge')->where('id', $ids[4]);
-        $rawSet2 = $qb2->jsonSet('meta', ['a','b'], 999);
+        $rawSet2 = $qb2->jsonSet('meta', ['a', 'b'], 999);
         $qb2->update(['meta' => $rawSet2]);
 
         $numCheck = $db->find()
             ->table('t_json_edge')
-            ->whereJsonPath('meta', ['a','b'], '=', 999)
+            ->whereJsonPath('meta', ['a', 'b'], '=', 999)
             ->where('id', $ids[4])
             ->exists();
         $this->assertTrue($numCheck);
@@ -2565,7 +2568,7 @@ XML
             ->orderByJson('meta', ['score'], 'ASC')
             ->get();
         $this->assertCount(count($rows), $list);
-        $scores = array_map(fn($r) => is_null($r['score']) ? null : (float)$r['score'], $list);
+        $scores = array_map(fn ($r) => is_null($r['score']) ? null : (float)$r['score'], $list);
         $sorted = $scores;
         sort($sorted, SORT_NUMERIC);
         $this->assertEquals($sorted, $scores);
@@ -2573,47 +2576,47 @@ XML
         // 9) whereJsonExists: check existing vs non-existing paths
         $existsA = $db->find()
             ->table('t_json_edge')
-            ->whereJsonExists('meta', ['a','b'])
+            ->whereJsonExists('meta', ['a', 'b'])
             ->get();
         $this->assertNotEmpty($existsA);
 
         $notExists = $db->find()
             ->table('t_json_edge')
-            ->whereJsonExists('meta', ['non','existent'])
+            ->whereJsonExists('meta', ['non', 'existent'])
             ->get();
         $this->assertEmpty($notExists);
 
         // 10) Combine JSON operations: set, then remove, then check contains/exists
         $id3 = $ids[2];
         $qb4 = $db->find()->table('t_json_edge')->where('id', $id3);
-        $qb4->update(['meta' => $qb4->jsonSet('meta', ['compound','value'], ['x' => 1])]);
+        $qb4->update(['meta' => $qb4->jsonSet('meta', ['compound', 'value'], ['x' => 1])]);
 
         $hasCompound = $db->find()
             ->table('t_json_edge')
-            ->whereJsonExists('meta', ['compound','value'])
+            ->whereJsonExists('meta', ['compound', 'value'])
             ->where('id', $id3)
             ->exists();
         $this->assertTrue($hasCompound);
 
         $qb4b = $db->find()->table('t_json_edge')->where('id', $id3);
-        $qb4b->update(['meta' => $qb4b->jsonRemove('meta', ['compound','value'])]);
+        $qb4b->update(['meta' => $qb4b->jsonRemove('meta', ['compound', 'value'])]);
 
         $hasCompoundAfter = $db->find()
             ->table('t_json_edge')
-            ->whereJsonExists('meta', ['compound','value'])
+            ->whereJsonExists('meta', ['compound', 'value'])
             ->where('id', $id3)
             ->exists();
         $this->assertFalse($hasCompoundAfter);
 
         // 11) Json contains for arrays: check that checking multiple items works (subset)
         // Insert a row with tags ['alpha','beta','gamma'] for explicit test
-        $special = ['tags' => ['alpha','beta','gamma']];
+        $special = ['tags' => ['alpha', 'beta', 'gamma']];
         $specId = $db->find()->table('t_json_edge')->insert(['meta' => json_encode($special, JSON_UNESCAPED_UNICODE)]);
         $this->assertIsInt($specId);
 
         $containsSubset = $db->find()
             ->table('t_json_edge')
-            ->whereJsonContains('meta', ['alpha','gamma'], ['tags'])
+            ->whereJsonContains('meta', ['alpha', 'gamma'], ['tags'])
             ->where('id', $specId)
             ->exists();
         $this->assertTrue($containsSubset);
@@ -2625,16 +2628,16 @@ XML
 
         // Create test table
         $db->rawQuery('DROP TABLE IF EXISTS t_json_helpers');
-        $db->rawQuery("CREATE TABLE t_json_helpers (id INT AUTO_INCREMENT PRIMARY KEY, data JSON)");
+        $db->rawQuery('CREATE TABLE t_json_helpers (id INT AUTO_INCREMENT PRIMARY KEY, data JSON)');
 
         // Insert test data using Db::jsonObject and Db::jsonArray
         $id1 = $db->find()->table('t_json_helpers')->insert([
-            'data' => Db::jsonObject(['name' => 'Alice', 'age' => 30, 'tags' => ['php', 'mysql']])
+            'data' => Db::jsonObject(['name' => 'Alice', 'age' => 30, 'tags' => ['php', 'mysql']]),
         ]);
         $this->assertIsInt($id1);
 
         $id2 = $db->find()->table('t_json_helpers')->insert([
-            'data' => Db::jsonObject(['name' => 'Bob', 'age' => 25, 'items' => [1, 2, 3, 4, 5]])
+            'data' => Db::jsonObject(['name' => 'Bob', 'age' => 25, 'items' => [1, 2, 3, 4, 5]]),
         ]);
         $this->assertIsInt($id2);
 
@@ -2715,20 +2718,20 @@ XML
     {
         $db = self::$db;
         $db->rawQuery('DROP TABLE IF EXISTS t_helpers');
-        $db->rawQuery("CREATE TABLE t_helpers (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), age INT, created_at DATETIME, description TEXT)");
+        $db->rawQuery('CREATE TABLE t_helpers (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), age INT, created_at DATETIME, description TEXT)');
 
         // Test ifNull, coalesce
         $id1 = $db->find()->table('t_helpers')->insert([
             'name' => 'Alice',
             'age' => 30,
             'created_at' => date('Y-m-d H:i:s'),
-            'description' => null
+            'description' => null,
         ]);
 
         $row = $db->find()->table('t_helpers')
             ->select([
                 'name',
-                'description_text' => Db::ifNull('description', 'No description')
+                'description_text' => Db::ifNull('description', 'No description'),
             ])
             ->where('id', $id1)
             ->getOne();
@@ -2738,7 +2741,7 @@ XML
         $row = $db->find()->table('t_helpers')
             ->select([
                 'upper' => Db::upper('name'),
-                'lower' => Db::lower('name')
+                'lower' => Db::lower('name'),
             ])
             ->where('id', $id1)
             ->getOne();
@@ -2749,12 +2752,12 @@ XML
         $id2 = $db->find()->table('t_helpers')->insert([
             'name' => 'Bob',
             'age' => -5,
-            'created_at' => date('Y-m-d H:i:s')
+            'created_at' => date('Y-m-d H:i:s'),
         ]);
 
         $row = $db->find()->table('t_helpers')
             ->select([
-                'abs_age' => Db::abs('age')
+                'abs_age' => Db::abs('age'),
             ])
             ->where('id', $id2)
             ->getOne();
@@ -2763,7 +2766,7 @@ XML
         // Test mod
         $row = $db->find()->table('t_helpers')
             ->select([
-                'mod_result' => Db::mod('age', '3')
+                'mod_result' => Db::mod('age', '3'),
             ])
             ->where('id', $id1)
             ->getOne();
@@ -2773,7 +2776,7 @@ XML
         $row = $db->find()->table('t_helpers')
             ->select([
                 'max_val' => Db::greatest('10', '5', '20'),
-                'min_val' => Db::least('10', '5', '20')
+                'min_val' => Db::least('10', '5', '20'),
             ])
             ->getOne();
         $this->assertEquals(20, (int)$row['max_val']);
@@ -2782,7 +2785,7 @@ XML
         // Test substring
         $row = $db->find()->table('t_helpers')
             ->select([
-                'substr' => Db::substring('name', 1, 3)
+                'substr' => Db::substring('name', 1, 3),
             ])
             ->where('id', $id1)
             ->getOne();
@@ -2791,7 +2794,7 @@ XML
         // Test length
         $row = $db->find()->table('t_helpers')
             ->select([
-                'len' => Db::length('name')
+                'len' => Db::length('name'),
             ])
             ->where('id', $id1)
             ->getOne();
@@ -2801,12 +2804,12 @@ XML
         $id3 = $db->find()->table('t_helpers')->insert([
             'name' => '  Charlie  ',
             'age' => 25,
-            'created_at' => date('Y-m-d H:i:s')
+            'created_at' => date('Y-m-d H:i:s'),
         ]);
 
         $row = $db->find()->table('t_helpers')
             ->select([
-                'trimmed' => Db::trim('name')
+                'trimmed' => Db::trim('name'),
             ])
             ->where('id', $id3)
             ->getOne();
@@ -2816,7 +2819,7 @@ XML
         $row = $db->find()->table('t_helpers')
             ->select([
                 'cur_date' => Db::curDate(),
-                'cur_time' => Db::curTime()
+                'cur_time' => Db::curTime(),
             ])
             ->getOne();
         $this->assertNotEmpty($row['cur_date']);
@@ -2827,7 +2830,7 @@ XML
             ->select([
                 'year' => Db::year('created_at'),
                 'month' => Db::month('created_at'),
-                'day' => Db::day('created_at')
+                'day' => Db::day('created_at'),
             ])
             ->where('id', $id1)
             ->getOne();
@@ -2842,7 +2845,7 @@ XML
                 'sum_age' => Db::sum('age'),
                 'avg_age' => Db::avg('age'),
                 'min_age' => Db::min('age'),
-                'max_age' => Db::max('age')
+                'max_age' => Db::max('age'),
             ])
             ->getOne();
         $this->assertEquals(3, (int)$row['count']);
@@ -2852,7 +2855,7 @@ XML
         // Test cast
         $row = $db->find()->table('t_helpers')
             ->select([
-                'age_str' => Db::cast('age', 'CHAR')
+                'age_str' => Db::cast('age', 'CHAR'),
             ])
             ->where('id', $id1)
             ->getOne();
@@ -2861,7 +2864,7 @@ XML
         // Test concat
         $row = $db->find()->table('t_helpers')
             ->select([
-                'full_info' => Db::concat('name', Db::raw("' - '"), Db::cast('age', 'CHAR'))
+                'full_info' => Db::concat('name', Db::raw("' - '"), Db::cast('age', 'CHAR')),
             ])
             ->where('id', $id1)
             ->getOne();
@@ -2873,7 +2876,7 @@ XML
     {
         $db = self::$db;
         $db->rawQuery('DROP TABLE IF EXISTS t_edge');
-        $db->rawQuery("CREATE TABLE t_edge (id INT AUTO_INCREMENT PRIMARY KEY, val1 VARCHAR(255), val2 VARCHAR(255), num1 INT, num2 DECIMAL(10,5), dt DATETIME)");
+        $db->rawQuery('CREATE TABLE t_edge (id INT AUTO_INCREMENT PRIMARY KEY, val1 VARCHAR(255), val2 VARCHAR(255), num1 INT, num2 DECIMAL(10,5), dt DATETIME)');
 
         // Test replace() function - not tested before
         $id1 = $db->find()->table('t_edge')->insert(['val1' => 'Hello World']);
@@ -2888,7 +2891,7 @@ XML
         $row = $db->find()->table('t_edge')
             ->select([
                 'date_part' => Db::date('dt'),
-                'time_part' => Db::time('dt')
+                'time_part' => Db::time('dt'),
             ])
             ->where('id', $id2)
             ->getOne();
@@ -2915,7 +2918,7 @@ XML
             ->select([
                 'round0' => Db::round('num2'),
                 'round2' => Db::round('num2', 2),
-                'round4' => Db::round('num2', 4)
+                'round4' => Db::round('num2', 4),
             ])
             ->where('id', $id4)
             ->getOne();
@@ -2959,7 +2962,7 @@ XML
         $row = $db->find()->table('t_edge')
             ->select([
                 'upper_utf8' => Db::upper('val1'),
-                'lower_utf8' => Db::lower('val1')
+                'lower_utf8' => Db::lower('val1'),
             ])
             ->where('id', $id8)
             ->getOne();
@@ -2971,7 +2974,7 @@ XML
         $row = $db->find()->table('t_edge')
             ->select([
                 'val_or_default' => Db::ifNull('val2', 'DefaultValue'),
-                'concat_result' => Db::concat('val1', Db::raw("' - '"), Db::raw("'End'"))
+                'concat_result' => Db::concat('val1', Db::raw("' - '"), Db::raw("'End'")),
             ])
             ->where('id', $id9)
             ->getOne();
@@ -2991,7 +2994,7 @@ XML
         $db->find()->table('t_edge')->insert(['val1' => '10']);
         $db->find()->table('t_edge')->insert(['val1' => '2']);
         $db->find()->table('t_edge')->insert(['val1' => '100']);
-        
+
         $results = $db->find()->table('t_edge')
             ->select(['val1'])
             ->where('val1', ['2', '10', '100'], 'IN')
@@ -3004,7 +3007,7 @@ XML
         $row = $db->find()->table('t_edge')
             ->select([
                 'upper_val' => Db::upper('val1'),
-                'substr_val' => Db::substring('val1', 1, 5)
+                'substr_val' => Db::substring('val1', 1, 5),
             ])
             ->where('id', $id11)
             ->getOne();
@@ -3023,7 +3026,7 @@ XML
         $db->find()->table('t_edge')->insert(['val1' => null, 'num1' => 1]);
         $db->find()->table('t_edge')->insert(['val1' => 'B', 'num1' => 2]);
         $db->find()->table('t_edge')->insert(['val1' => 'A', 'num1' => 3]);
-        
+
         $results = $db->find()->table('t_edge')
             ->select(['num1'])
             ->where('num1', [1, 2, 3], 'IN')
@@ -3038,7 +3041,7 @@ XML
             ->select([
                 'h' => Db::hour('dt'),
                 'm' => Db::minute('dt'),
-                's' => Db::second('dt')
+                's' => Db::second('dt'),
             ])
             ->where('id', $id13)
             ->getOne();
@@ -3050,7 +3053,7 @@ XML
         $row = $db->find()->table('t_edge')
             ->select([
                 'today' => Db::curDate(),
-                'now_time' => Db::curTime()
+                'now_time' => Db::curTime(),
             ])
             ->getOne();
         $this->assertNotEmpty($row['today']);
@@ -3063,7 +3066,7 @@ XML
     {
         $db = self::$db;
         $db->rawQuery('DROP TABLE IF EXISTS t_dialect');
-        $db->rawQuery("CREATE TABLE t_dialect (id INT AUTO_INCREMENT PRIMARY KEY, str VARCHAR(255), num INT)");
+        $db->rawQuery('CREATE TABLE t_dialect (id INT AUTO_INCREMENT PRIMARY KEY, str VARCHAR(255), num INT)');
 
         // Test SUBSTRING (MySQL) vs SUBSTR (SQLite)
         $id1 = $db->find()->table('t_dialect')->insert(['str' => 'MySQL']);
@@ -3101,7 +3104,7 @@ XML
         $row = $db->find()->table('t_dialect')
             ->select([
                 'max_val' => Db::greatest('5', '10', '3'),
-                'min_val' => Db::least('5', '10', '3')
+                'min_val' => Db::least('5', '10', '3'),
             ])
             ->getOne();
         $this->assertEquals(10, (int)$row['max_val']);
@@ -3118,34 +3121,34 @@ XML
         $connection = self::$db->connection;
         assert($connection !== null);
         $dialect = $connection->getDialect();
-        
+
         // Create temp file for testing
         $tempFile = tempnam(sys_get_temp_dir(), 'csv_');
         file_put_contents($tempFile, "id,name\n1,John\n");
-        
+
         // Test basic CSV load SQL generation
         $sql = $dialect->buildLoadCsvSql('users', $tempFile, []);
-        
+
         $this->assertNotEmpty($sql);
         $this->assertStringContainsString('LOAD DATA', $sql);
         $this->assertStringContainsString('users', $sql);
-        
+
         // Test with options
         $tempFile2 = tempnam(sys_get_temp_dir(), 'csv_');
         file_put_contents($tempFile2, "id;name;price\n1;Product;99.99\n");
-        
+
         $sql2 = $dialect->buildLoadCsvSql('products', $tempFile2, [
             'fieldChar' => ';',
             'fieldEnclosure' => '"',
             'fields' => ['id', 'name', 'price'],
             'local' => true,
-            'linesToIgnore' => 1
+            'linesToIgnore' => 1,
         ]);
-        
+
         $this->assertStringContainsString('LOAD DATA LOCAL INFILE', $sql2);
         $this->assertStringContainsString('FIELDS TERMINATED BY', $sql2);
         $this->assertStringContainsString('IGNORE 1 LINES', $sql2);
-        
+
         // Cleanup
         unlink($tempFile);
         unlink($tempFile2);
@@ -3156,31 +3159,31 @@ XML
         $connection = self::$db->connection;
         assert($connection !== null);
         $dialect = $connection->getDialect();
-        
+
         // Create temp XML file for testing
         $tempFile = tempnam(sys_get_temp_dir(), 'xml_');
-        file_put_contents($tempFile, "<users><user><id>1</id><name>John</name></user></users>");
-        
+        file_put_contents($tempFile, '<users><user><id>1</id><name>John</name></user></users>');
+
         $sql = $dialect->buildLoadXML('users', $tempFile, [
             'rowTag' => '<user>',
-            'linesToIgnore' => 0
+            'linesToIgnore' => 0,
         ]);
-        
+
         $this->assertNotEmpty($sql);
         $this->assertStringContainsString('LOAD XML', $sql);
         $this->assertStringContainsString('users', $sql);
-        
+
         // Test with different options
         $tempFile2 = tempnam(sys_get_temp_dir(), 'xml_');
-        file_put_contents($tempFile2, "<products><product><id>1</id></product></products>");
-        
+        file_put_contents($tempFile2, '<products><product><id>1</id></product></products>');
+
         $sql2 = $dialect->buildLoadXML('products', $tempFile2, [
             'rowTag' => '<product>',
-            'linesToIgnore' => 2
+            'linesToIgnore' => 2,
         ]);
-        
+
         $this->assertStringContainsString('LOAD XML', $sql2);
-        
+
         // Cleanup
         unlink($tempFile);
         unlink($tempFile2);
@@ -3191,17 +3194,17 @@ XML
         $connection = self::$db->connection;
         assert($connection !== null);
         $dialect = $connection->getDialect();
-        
-        $baseSql = "SELECT * FROM users";
-        
+
+        $baseSql = 'SELECT * FROM users';
+
         // Test with DISTINCT
         $withDistinct = $dialect->formatSelectOptions($baseSql, ['DISTINCT']);
         $this->assertStringContainsString('DISTINCT', $withDistinct);
-        
+
         // Test with SQL_NO_CACHE
         $withNoCache = $dialect->formatSelectOptions($baseSql, ['SQL_NO_CACHE']);
         $this->assertStringContainsString('SQL_NO_CACHE', $withNoCache);
-        
+
         // Test with multiple options
         $withMultiple = $dialect->formatSelectOptions($baseSql, ['DISTINCT', 'SQL_CALC_FOUND_ROWS']);
         $this->assertStringContainsString('DISTINCT', $withMultiple);
@@ -3213,14 +3216,14 @@ XML
         $connection = self::$db->connection;
         assert($connection !== null);
         $dialect = $connection->getDialect();
-        
-        $query = "SELECT * FROM users WHERE age > 18";
-        
+
+        $query = 'SELECT * FROM users WHERE age > 18';
+
         // Test basic EXPLAIN
         $explain = $dialect->buildExplainSql($query, false);
         $this->assertStringContainsString('EXPLAIN', $explain);
         $this->assertStringContainsString($query, $explain);
-        
+
         // Test with analyze flag (MySQL currently ignores it for compatibility)
         $analyze = $dialect->buildExplainSql($query, true);
         $this->assertStringContainsString('EXPLAIN', $analyze);
@@ -3232,17 +3235,17 @@ XML
     public function testInsertWithOnDuplicateParameter(): void
     {
         $db = self::$db;
-        
+
         // First insert
         $db->find()->table('users')->insert(['name' => 'TestUser', 'age' => 25]);
-        
+
         // Insert with onDuplicate as second parameter (MySQL uses ON DUPLICATE KEY UPDATE)
         // @phpstan-ignore argument.type
         $db->find()->table('users')->insert(['name' => 'TestUser', 'age' => 30], ['age']);
-        
+
         $lastQuery = $db->lastQuery ?? '';
         $this->assertStringContainsString('ON DUPLICATE KEY UPDATE', $lastQuery);
-        
+
         $row = $db->find()->table('users')->where('name', 'TestUser')->getOne();
         $this->assertEquals(30, $row['age']);
     }
@@ -3250,29 +3253,29 @@ XML
     public function testInsertMultiWithOnDuplicateParameter(): void
     {
         $db = self::$db;
-        
+
         // Initial data
         $db->find()->table('users')->insert(['name' => 'MultiTest1', 'age' => 20]);
-        
+
         // insertMulti with onDuplicate as second parameter
         $db->find()->table('users')->insertMulti([
             ['name' => 'MultiTest1', 'age' => 25],
-            ['name' => 'MultiTest2', 'age' => 30]
+            ['name' => 'MultiTest2', 'age' => 30],
         ], ['age']); // @phpstan-ignore argument.type
-        
+
         $lastQuery = $db->lastQuery ?? '';
         $this->assertStringContainsString('ON DUPLICATE KEY UPDATE', $lastQuery);
-        
+
         $row1 = $db->find()->table('users')->where('name', 'MultiTest1')->getOne();
         $this->assertEquals(25, $row1['age']);
-        
+
         $row2 = $db->find()->table('users')->where('name', 'MultiTest2')->getOne();
         $this->assertEquals(30, $row2['age']);
     }
 
     /**
      * Comprehensive QueryBuilder API test - covers all parameter passing variants
-     * Goal: Find edge cases and bugs in QueryBuilder methods
+     * Goal: Find edge cases and bugs in QueryBuilder methods.
      */
     public function testQueryBuilderAllParameterVariants(): void
     {
@@ -3283,11 +3286,11 @@ XML
             ['name' => 'APITest1', 'age' => 20],
             ['name' => 'APITest2', 'age' => 30],
             ['name' => 'APITest3', 'age' => 40],
-            ['name' => 'APITest4', 'age' => null]
+            ['name' => 'APITest4', 'age' => null],
         ]);
 
         // WHERE variants
-        
+
         // 1. where('column', value)
         $r1 = $db->find()->from('users')->where('name', 'APITest1')->getOne();
         $this->assertEquals('APITest1', $r1['name']);
@@ -3336,7 +3339,7 @@ XML
         $this->assertCount(1, $r10); // APITest2 (age=30)
 
         // SELECT variants
-        
+
         // 11. select() with string
         $r11 = $db->find()->from('users')->select('name')->where('name', 'APITest1')->getOne();
         $this->assertArrayHasKey('name', $r11);
@@ -3360,7 +3363,7 @@ XML
             ->select([
                 'total' => Db::count(),
                 'avg_age' => Db::avg('age'),
-                'max_age' => Db::max('age')
+                'max_age' => Db::max('age'),
             ])
             ->where(Db::isNotNull('age'))
             ->getOne();
@@ -3453,7 +3456,7 @@ XML
         // Test callback in where clause
         $results = $db->find()
             ->from('users')
-            ->where('id', function($q) {
+            ->where('id', function ($q) {
                 $q->from('orders')
                   ->select('user_id')
                   ->where('amount', 50, '>');
@@ -3484,7 +3487,7 @@ XML
         $results = $db->find()
             ->from('users')
             ->where('age', 30, '>=')
-            ->orWhere('id', function($q) {
+            ->orWhere('id', function ($q) {
                 $q->from('orders')
                   ->select('user_id')
                   ->where('amount', 100, '>');
@@ -3503,7 +3506,7 @@ XML
             ->from('users')
             ->select(['name'])
             ->groupBy('name')
-            ->having('COUNT(*)', function($q) {
+            ->having('COUNT(*)', function ($q) {
                 $q->from('orders')
                   ->select('COUNT(*)')
                   ->where('user_id', 1);
@@ -3523,7 +3526,7 @@ XML
             ->select(['name'])
             ->groupBy('name')
             ->having('COUNT(*)', 1, '>')
-            ->orHaving('COUNT(*)', function($q) {
+            ->orHaving('COUNT(*)', function ($q) {
                 $q->from('orders')
                   ->select('COUNT(*)')
                   ->where('user_id', 1);
@@ -3541,12 +3544,12 @@ XML
         $results = $db->find()
             ->from('users')
             ->where('status', 'active')
-            ->where('id', function($q) {
+            ->where('id', function ($q) {
                 $q->from('orders')
                   ->select('user_id')
                   ->where('amount', 50, '>');
             }, 'IN')
-            ->orWhere('age', function($q) {
+            ->orWhere('age', function ($q) {
                 $q->from('orders')
                   ->select('AVG(amount)')
                   ->where('user_id', 1);
@@ -3580,7 +3583,7 @@ XML
         // Test whereIn with subquery
         $users = $db->find()
             ->from('users')
-            ->whereIn('id', function($q) {
+            ->whereIn('id', function ($q) {
                 $q->from('orders')
                   ->select('user_id')
                   ->where('amount', 100, '>');
@@ -3594,7 +3597,7 @@ XML
         // Test whereNotIn with subquery
         $users = $db->find()
             ->from('users')
-            ->whereNotIn('id', function($q) {
+            ->whereNotIn('id', function ($q) {
                 $q->from('orders')
                   ->select('user_id')
                   ->where('amount', 100, '>');
@@ -3607,7 +3610,7 @@ XML
         // Test whereExists
         $users = $db->find()
             ->from('users')
-            ->whereExists(function($q) {
+            ->whereExists(function ($q) {
                 $q->from('orders')
                   ->where('user_id', Db::raw('users.id'), '=')
                   ->where('amount', 100, '>');
@@ -3619,7 +3622,7 @@ XML
         // Test whereNotExists - users without orders > 200
         $users = $db->find()
             ->from('users')
-            ->whereNotExists(function($q) {
+            ->whereNotExists(function ($q) {
                 $q->from('orders')
                   ->where('user_id', Db::raw('users.id'), '=')
                   ->where('amount', 200, '>');
@@ -3629,7 +3632,7 @@ XML
         // Debug: let's see what we get
         $this->assertGreaterThanOrEqual(1, count($users));
         $this->assertLessThanOrEqual(2, count($users));
-        
+
         // At least Charlie should be in the result
         $userNames = array_column($users, 'name');
         $this->assertContains('Charlie', $userNames);
@@ -3637,7 +3640,7 @@ XML
         // Test whereNotExists with higher threshold - should return all users
         $users = $db->find()
             ->from('users')
-            ->whereNotExists(function($q) {
+            ->whereNotExists(function ($q) {
                 $q->from('orders')
                   ->where('user_id', Db::raw('users.id'), '=')
                   ->where('amount', 300, '>');
@@ -3690,16 +3693,16 @@ XML
             ->select([
                 'id',
                 'name',
-                'order_count' => function($q) {
+                'order_count' => function ($q) {
                     $q->from('orders')
                       ->select(Db::raw('COUNT(*)'))
                       ->where('user_id', Db::raw('users.id'), '=');
                 },
-                'total_amount' => function($q) {
+                'total_amount' => function ($q) {
                     $q->from('orders')
                       ->select(Db::raw('SUM(amount)'))
                       ->where('user_id', Db::raw('users.id'), '=');
-                }
+                },
             ])
             ->get();
 
@@ -3711,7 +3714,7 @@ XML
     }
 
     /**
-     * Test query analysis methods: explain(), explainAnalyze(), describe()
+     * Test query analysis methods: explain(), explainAnalyze(), describe().
      */
     public function testQueryAnalysisMethods(): void
     {
@@ -3775,14 +3778,14 @@ XML
     public function testExplainQuery(): void
     {
         $db = self::$db;
-        
+
         // Insert test data
         $db->find()->table('users')->insert(['name' => 'Alice', 'age' => 25]);
         $db->find()->table('users')->insert(['name' => 'Bob', 'age' => 30]);
-        
+
         // Test EXPLAIN
         $explainResult = $db->explain('SELECT * FROM users WHERE age > ?', [20]);
-        
+
         $this->assertIsArray($explainResult);
         $this->assertNotEmpty($explainResult);
         $this->assertArrayHasKey('id', $explainResult[0]);
@@ -3800,20 +3803,22 @@ XML
     public function testExplainAnalyzeQuery(): void
     {
         $db = self::$db;
-        
+
         // Insert test data
         $db->find()->table('users')->insert(['name' => 'Alice', 'age' => 25]);
         $db->find()->table('users')->insert(['name' => 'Bob', 'age' => 30]);
-        
+
         // Test EXPLAIN ANALYZE (MySQL 8.0+)
         $explainAnalyzeResult = $db->explainAnalyze('SELECT * FROM users WHERE age > ?', [20]);
-        
+
         $this->assertIsArray($explainAnalyzeResult);
         $this->assertNotEmpty($explainAnalyzeResult);
-        
-        // MySQL EXPLAIN ANALYZE includes additional columns
-        $this->assertArrayHasKey('id', $explainAnalyzeResult[0]);
-        $this->assertArrayHasKey('select_type', $explainAnalyzeResult[0]);
-        $this->assertArrayHasKey('table', $explainAnalyzeResult[0]);
+
+        // MySQL EXPLAIN FORMAT=JSON returns array with 'EXPLAIN' key containing JSON string
+        $this->assertArrayHasKey('EXPLAIN', $explainAnalyzeResult[0]);
+        $this->assertIsString($explainAnalyzeResult[0]['EXPLAIN']);
+        $jsonData = json_decode($explainAnalyzeResult[0]['EXPLAIN'], true);
+        $this->assertIsArray($jsonData);
+        $this->assertArrayHasKey('query_block', $jsonData);
     }
 }

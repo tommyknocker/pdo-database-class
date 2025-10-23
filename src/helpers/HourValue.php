@@ -1,10 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * HOUR extraction value (dialect-specific)
+ * HOUR extraction value (dialect-specific).
  */
 class HourValue extends RawValue
 {

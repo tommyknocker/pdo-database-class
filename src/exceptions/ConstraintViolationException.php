@@ -8,7 +8,7 @@ use PDOException;
 
 /**
  * Constraint violation exceptions.
- * 
+ *
  * Thrown when database constraints are violated,
  * such as unique key violations, foreign key violations, etc.
  */
@@ -33,7 +33,7 @@ class ConstraintViolationException extends DatabaseException
         ?string $columnName = null
     ) {
         parent::__construct($message, $code, $previous, $driver, $query, $context);
-        
+
         $this->constraintName = $constraintName;
         $this->tableName = $tableName;
         $this->columnName = $columnName;
@@ -68,19 +68,19 @@ class ConstraintViolationException extends DatabaseException
     public function getDescription(): string
     {
         $description = parent::getDescription();
-        
+
         if ($this->constraintName) {
             $description .= " (Constraint: {$this->constraintName})";
         }
-        
+
         if ($this->tableName) {
             $description .= " (Table: {$this->tableName})";
         }
-        
+
         if ($this->columnName) {
             $description .= " (Column: {$this->columnName})";
         }
-        
+
         return $description;
     }
 
@@ -93,7 +93,7 @@ class ConstraintViolationException extends DatabaseException
         $data['constraint_name'] = $this->constraintName;
         $data['table_name'] = $this->tableName;
         $data['column_name'] = $this->columnName;
-        
+
         return $data;
     }
 }

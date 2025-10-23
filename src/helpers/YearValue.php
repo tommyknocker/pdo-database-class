@@ -1,10 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
 
 /**
- * YEAR extraction value (dialect-specific)
+ * YEAR extraction value (dialect-specific).
  */
 class YearValue extends RawValue
 {

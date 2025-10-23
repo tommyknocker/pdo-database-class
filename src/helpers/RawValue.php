@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers;
@@ -10,12 +11,12 @@ class RawValue
 {
     /** @var string Raw SQL expression */
     protected string $value;
-    
+
     /** @var array<int|string, string|int|float|bool|null> Parameters for prepared statements */
     protected array $params = [];
 
     /**
-     * Constructor
+     * Constructor.
      *
      * @param string $value The raw SQL value.
      * @param array<int|string, string|int|float|bool|null> $params Optional parameters for prepared statements.

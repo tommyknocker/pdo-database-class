@@ -9,7 +9,7 @@ use tommyknocker\pdodb\helpers\DbError;
 
 /**
  * Factory for creating specialized database exceptions from PDOException.
- * 
+ *
  * Analyzes PDOException error codes and messages to determine
  * the appropriate specialized exception type.
  */
@@ -17,6 +17,7 @@ class ExceptionFactory
 {
     /**
      * Create a specialized exception from PDOException.
+     *
      * @param array<string, mixed> $context
      */
     public static function createFromPdoException(
@@ -27,45 +28,44 @@ class ExceptionFactory
     ): DatabaseException {
         $code = $e->getCode();
         $message = $e->getMessage();
-        
+
         // For PostgreSQL, get the SQLSTATE from errorInfo if available
         if ($driver === 'pgsql' && isset($e->errorInfo[0])) {
             $code = $e->errorInfo[0];
         }
-        
+
         // Determine exception type based on error code and message
         $codeStr = (string) $code;
         $messageLower = strtolower($message);
-        
+
         // Check in order of specificity (most specific first)
         if (self::isConstraintError($codeStr, $messageLower, $driver)) {
             return self::createConstraintException($e, $driver, $query, $context, $code, $message);
         }
-        
+
         if (self::isAuthenticationError($codeStr, $messageLower, $driver)) {
             return new AuthenticationException($message, $code, $e, $driver, $query, $context);
         }
-        
+
         if (self::isTimeoutError($codeStr, $messageLower, $driver)) {
             return new TimeoutException($message, $code, $e, $driver, $query, $context);
         }
-        
+
         if (self::isResourceError($codeStr, $messageLower, $driver)) {
             return new ResourceException($message, $code, $e, $driver, $query, $context);
         }
-        
+
         if (self::isTransactionError($codeStr, $messageLower, $driver)) {
             return new TransactionException($message, $code, $e, $driver, $query, $context);
         }
-        
+
         if (self::isConnectionError($codeStr, $messageLower, $driver)) {
             return new ConnectionException($message, $code, $e, $driver, $query, $context);
         }
-        
+
         // Default to query error
         return new QueryException($message, $code, $e, $driver, $query, $context);
     }
-
 
     /**
      * Check if error is a connection error.
@@ -94,11 +94,11 @@ class ExceptionFactory
             (string) DbError::SQLITE_CORRUPT,
             (string) DbError::SQLITE_PROTOCOL,
         ];
-        
+
         if (in_array($code, $connectionErrors)) {
             return true;
         }
-        
+
         // Check message patterns
         $connectionPatterns = [
             'connection',
@@ -110,13 +110,13 @@ class ExceptionFactory
             'connection reset',
             'broken pipe',
         ];
-        
+
         foreach ($connectionPatterns as $pattern) {
             if (str_contains($message, $pattern)) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -144,11 +144,11 @@ class ExceptionFactory
             // SQLite constraint errors
             (string) DbError::SQLITE_CONSTRAINT,
         ];
-        
+
         if (in_array($code, $constraintErrors)) {
             return true;
         }
-        
+
         // Check message patterns
         $constraintPatterns = [
             'duplicate entry',
@@ -160,13 +160,13 @@ class ExceptionFactory
             'duplicate key',
             'integrity constraint',
         ];
-        
+
         foreach ($constraintPatterns as $pattern) {
             if (str_contains($message, $pattern)) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -190,11 +190,11 @@ class ExceptionFactory
             (string) DbError::SQLITE_BUSY,
             (string) DbError::SQLITE_LOCKED,
         ];
-        
+
         if (in_array($code, $transactionErrors)) {
             return true;
         }
-        
+
         // Check message patterns
         $transactionPatterns = [
             'deadlock',
@@ -205,13 +205,13 @@ class ExceptionFactory
             'lock',
             'concurrent update',
         ];
-        
+
         foreach ($transactionPatterns as $pattern) {
             if (str_contains($message, $pattern)) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -236,11 +236,11 @@ class ExceptionFactory
             (string) DbError::SQLITE_AUTH,
             (string) DbError::SQLITE_PERM,
         ];
-        
+
         if (in_array($code, $authErrors)) {
             return true;
         }
-        
+
         // Check message patterns
         $authPatterns = [
             'access denied',
@@ -250,13 +250,13 @@ class ExceptionFactory
             'permission denied',
             'insufficient privilege',
         ];
-        
+
         foreach ($authPatterns as $pattern) {
             if (str_contains($message, $pattern)) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -276,11 +276,11 @@ class ExceptionFactory
             // SQLite timeout errors
             (string) DbError::SQLITE_INTERRUPT,
         ];
-        
+
         if (in_array($code, $timeoutErrors)) {
             return true;
         }
-        
+
         // Check message patterns
         $timeoutPatterns = [
             'timeout',
@@ -289,13 +289,13 @@ class ExceptionFactory
             'connection timeout',
             'lock timeout',
         ];
-        
+
         foreach ($timeoutPatterns as $pattern) {
             if (str_contains($message, $pattern)) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -318,11 +318,11 @@ class ExceptionFactory
             (string) DbError::SQLITE_NOMEM,
             (string) DbError::SQLITE_FULL,
         ];
-        
+
         if (in_array($code, $resourceErrors)) {
             return true;
         }
-        
+
         // Check message patterns
         $resourcePatterns = [
             'too many connections',
@@ -332,18 +332,19 @@ class ExceptionFactory
             'resource limit',
             'memory allocation',
         ];
-        
+
         foreach ($resourcePatterns as $pattern) {
             if (str_contains($message, $pattern)) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
     /**
      * Create a constraint violation exception with parsed details.
+     *
      * @param array<string, mixed> $context
      */
     private static function createConstraintException(
@@ -357,7 +358,7 @@ class ExceptionFactory
         $constraintName = null;
         $tableName = null;
         $columnName = null;
-        
+
         // Parse constraint details from message
         if (preg_match('/for key \'([^\']+)\'/i', $message, $matches)) {
             $constraintName = $matches[1];
@@ -366,17 +367,17 @@ class ExceptionFactory
         } elseif (preg_match('/constraint `?([^`\s]+)`?/i', $message, $matches)) {
             $constraintName = $matches[1];
         }
-        
+
         if (preg_match('/in table \'([^\']+)\'/i', $message, $matches)) {
             $tableName = $matches[1];
         } elseif (preg_match('/table `?([^`\s]+)`?/i', $message, $matches)) {
             $tableName = $matches[1];
         }
-        
+
         if (preg_match('/column `?([^`\s]+)`?/i', $message, $matches)) {
             $columnName = $matches[1];
         }
-        
+
         return new ConstraintViolationException(
             $message,
             $code,
