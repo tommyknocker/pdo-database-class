@@ -77,11 +77,6 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - PostgreSQL 9.4+
   - SQLite 3.38+
 
-**For JSON support:**
-- MySQL 5.7+ / MariaDB 10.2+ (JSON functions available)
-- PostgreSQL 9.4+ (JSONB available)
-- SQLite 3.38+ (compiled with JSON1 extension)
-
 Check if your SQLite has JSON support:
 ```bash
 sqlite3 :memory: "SELECT json_valid('{}')"
