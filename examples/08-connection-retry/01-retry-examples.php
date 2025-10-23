@@ -8,8 +8,10 @@
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use tommyknocker\pdodb\connection\RetryableConnection;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\helpers\DbError;
 
 echo "=== Connection Retry Example ===\n\n";
 
@@ -24,8 +26,11 @@ $db = new PdoDb('sqlite', [
         'backoff_multiplier' => 2,
         'max_delay_ms' => 10000,
         'retryable_errors' => [
-            2002, 2003, 2006,  // MySQL connection errors
-            '57P01', '57P03',  // PostgreSQL connection errors
+            DbError::MYSQL_CANNOT_CONNECT,
+            DbError::MYSQL_CONNECTION_KILLED,
+            DbError::MYSQL_CONNECTION_LOST,
+            DbError::POSTGRESQL_CONNECTION_FAILURE,
+            DbError::POSTGRESQL_CONNECTION_DOES_NOT_EXIST,
         ]
     ]
 ]);
@@ -34,7 +39,7 @@ $db = new PdoDb('sqlite', [
 $connection = $db->connection;
 echo "Connection type: " . get_class($connection) . "\n";
 
-if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+if ($connection instanceof RetryableConnection) {
     echo "Retry enabled: " . ($connection->getRetryConfig()['enabled'] ? 'Yes' : 'No') . "\n";
     echo "Max attempts: " . $connection->getRetryConfig()['max_attempts'] . "\n";
     echo "Delay: " . $connection->getRetryConfig()['delay_ms'] . "ms\n";
@@ -95,13 +100,17 @@ $aggressiveConfig = [
         'delay_ms' => 100,
         'backoff_multiplier' => 1.5,
         'max_delay_ms' => 2000,
-        'retryable_errors' => [2002, 2003, 2006]
+        'retryable_errors' => [
+            DbError::MYSQL_CANNOT_CONNECT,
+            DbError::MYSQL_CONNECTION_KILLED,
+            DbError::MYSQL_CONNECTION_LOST,
+        ]
     ]
 ];
 
 $aggressiveDb = new PdoDb('sqlite', $aggressiveConfig);
 $aggressiveConnection = $aggressiveDb->connection;
-if ($aggressiveConnection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+if ($aggressiveConnection instanceof RetryableConnection) {
     echo "Aggressive retry: " . $aggressiveConnection->getRetryConfig()['max_attempts'] . " attempts, " . 
          $aggressiveConnection->getRetryConfig()['delay_ms'] . "ms delay\n";
 }
@@ -115,13 +124,17 @@ $conservativeConfig = [
         'delay_ms' => 5000,
         'backoff_multiplier' => 3,
         'max_delay_ms' => 30000,
-        'retryable_errors' => [2002, 2003, 2006]
+        'retryable_errors' => [
+            DbError::MYSQL_CANNOT_CONNECT,
+            DbError::MYSQL_CONNECTION_KILLED,
+            DbError::MYSQL_CONNECTION_LOST,
+        ]
     ]
 ];
 
 $conservativeDb = new PdoDb('sqlite', $conservativeConfig);
 $conservativeConnection = $conservativeDb->connection;
-if ($conservativeConnection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+if ($conservativeConnection instanceof RetryableConnection) {
     echo "Conservative retry: " . $conservativeConnection->getRetryConfig()['max_attempts'] . " attempts, " . 
          $conservativeConnection->getRetryConfig()['delay_ms'] . "ms delay\n";
 }
@@ -134,14 +147,18 @@ $noRetryConfig = [
     'retry' => [
         'enabled' => false,
         'max_attempts' => 3,
-        'retryable_errors' => [2002, 2003, 2006]
+        'retryable_errors' => [
+            DbError::MYSQL_CANNOT_CONNECT,
+            DbError::MYSQL_CONNECTION_KILLED,
+            DbError::MYSQL_CONNECTION_LOST,
+        ]
     ]
 ];
 
 $noRetryDb = new PdoDb('sqlite', $noRetryConfig);
 $noRetryConnection = $noRetryDb->connection;
 echo "Retry disabled - connection type: " . get_class($noRetryConnection) . "\n";
-if ($noRetryConnection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+if ($noRetryConnection instanceof RetryableConnection) {
     echo "Retry enabled: " . ($noRetryConnection->getRetryConfig()['enabled'] ? 'Yes' : 'No') . "\n";
 } else {
     echo "Retry not available on this connection type\n";
@@ -157,5 +174,48 @@ $defaultConfig = [
 $defaultDb = new PdoDb('sqlite', $defaultConfig);
 $defaultConnection = $defaultDb->connection;
 echo "No retry config - connection type: " . get_class($defaultConnection) . "\n\n";
+
+// Example 7: Using DbError constants and helper methods
+echo "7. DbError Constants and Helper Methods:\n";
+
+// Get retryable errors for different drivers
+$mysqlRetryableErrors = DbError::getMysqlRetryableErrors();
+$postgresqlRetryableErrors = DbError::getPostgresqlRetryableErrors();
+$sqliteRetryableErrors = DbError::getSqliteRetryableErrors();
+
+echo "MySQL retryable errors: " . implode(', ', $mysqlRetryableErrors) . "\n";
+echo "PostgreSQL retryable errors: " . implode(', ', $postgresqlRetryableErrors) . "\n";
+echo "SQLite retryable errors: " . implode(', ', $sqliteRetryableErrors) . "\n";
+
+// Check if specific error codes are retryable
+echo "Is MySQL error 2006 retryable? " . (DbError::isRetryable(2006, 'mysql') ? 'Yes' : 'No') . "\n";
+echo "Is PostgreSQL error '08006' retryable? " . (DbError::isRetryable('08006', 'pgsql') ? 'Yes' : 'No') . "\n";
+echo "Is SQLite error 5 retryable? " . (DbError::isRetryable(5, 'sqlite') ? 'Yes' : 'No') . "\n";
+
+// Get error descriptions
+echo "MySQL error 2006 description: " . DbError::getDescription(2006, 'mysql') . "\n";
+echo "PostgreSQL error '08006' description: " . DbError::getDescription('08006', 'pgsql') . "\n";
+echo "SQLite error 5 description: " . DbError::getDescription(5, 'sqlite') . "\n";
+
+// Example using DbError constants in configuration
+echo "\n8. Using DbError Constants in Configuration:\n";
+$dbWithDbError = new PdoDb('sqlite', [
+    'path' => ':memory:',
+    'retry' => [
+        'enabled' => true,
+        'max_attempts' => 3,
+        'delay_ms' => 100,
+        'retryable_errors' => DbError::getRetryableErrors('sqlite'), // Use helper method
+    ]
+]);
+
+$dbErrorConnection = $dbWithDbError->connection;
+echo "Connection with DbError constants: " . get_class($dbErrorConnection) . "\n";
+if ($dbErrorConnection instanceof RetryableConnection) {
+    $config = $dbErrorConnection->getRetryConfig();
+    echo "Retryable errors count: " . count($config['retryable_errors']) . "\n";
+    echo "First few retryable errors: " . implode(', ', array_slice($config['retryable_errors'], 0, 5)) . "\n";
+}
+echo "\n";
 
 echo "=== Example Complete ===\n";

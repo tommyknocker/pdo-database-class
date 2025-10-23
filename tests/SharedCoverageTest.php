@@ -5,6 +5,7 @@ namespace tommyknocker\pdodb\tests;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\helpers\DbError;
 use RuntimeException;
 
 /**
@@ -1310,7 +1311,11 @@ class SharedCoverageTest extends TestCase
                 'enabled' => true,
                 'max_attempts' => 3,
                 'delay_ms' => 100,
-                'retryable_errors' => [2002, 2003, 2006]
+                'retryable_errors' => [
+                    DbError::MYSQL_CANNOT_CONNECT,
+                    DbError::MYSQL_CONNECTION_KILLED,
+                    DbError::MYSQL_CONNECTION_LOST,
+                ]
             ]
         ];
         
@@ -1338,7 +1343,12 @@ class SharedCoverageTest extends TestCase
                 'delay_ms' => 200,
                 'backoff_multiplier' => 3,
                 'max_delay_ms' => 5000,
-                'retryable_errors' => [2002, 2003, 2006, 2013]
+                'retryable_errors' => [
+                    DbError::MYSQL_CANNOT_CONNECT,
+                    DbError::MYSQL_CONNECTION_KILLED,
+                    DbError::MYSQL_CONNECTION_LOST,
+                    DbError::MYSQL_CONNECTION_KILLED,
+                ]
             ]
         ];
         
@@ -1354,7 +1364,12 @@ class SharedCoverageTest extends TestCase
             $this->assertEquals(200, $retryConfig['delay_ms']);
             $this->assertEquals(3, $retryConfig['backoff_multiplier']);
             $this->assertEquals(5000, $retryConfig['max_delay_ms']);
-            $this->assertEquals([2002, 2003, 2006, 2013], $retryConfig['retryable_errors']);
+            $this->assertEquals([
+                DbError::MYSQL_CANNOT_CONNECT,
+                DbError::MYSQL_CONNECTION_KILLED,
+                DbError::MYSQL_CONNECTION_LOST,
+                DbError::MYSQL_CONNECTION_KILLED,
+            ], $retryConfig['retryable_errors']);
         }
     }
 
@@ -1365,7 +1380,11 @@ class SharedCoverageTest extends TestCase
             'retry' => [
                 'enabled' => false,
                 'max_attempts' => 3,
-                'retryable_errors' => [2002, 2003, 2006]
+                'retryable_errors' => [
+                    DbError::MYSQL_CANNOT_CONNECT,
+                    DbError::MYSQL_CONNECTION_KILLED,
+                    DbError::MYSQL_CONNECTION_LOST,
+                ]
             ]
         ];
         
@@ -1400,7 +1419,11 @@ class SharedCoverageTest extends TestCase
                 'enabled' => true,
                 'max_attempts' => 3,
                 'delay_ms' => 10, // Very short delay for testing
-                'retryable_errors' => [2002, 2003, 2006]
+                'retryable_errors' => [
+                    DbError::MYSQL_CANNOT_CONNECT,
+                    DbError::MYSQL_CONNECTION_KILLED,
+                    DbError::MYSQL_CONNECTION_LOST,
+                ]
             ]
         ];
         
@@ -1422,6 +1445,116 @@ class SharedCoverageTest extends TestCase
         if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
             $this->assertEquals(0, $connection->getCurrentAttempt());
         }
+    }
+
+    public function testDbErrorConstants(): void
+    {
+        // Test MySQL constants
+        $this->assertEquals(2006, DbError::MYSQL_CONNECTION_LOST);
+        $this->assertEquals(2002, DbError::MYSQL_CANNOT_CONNECT);
+        $this->assertEquals(2013, DbError::MYSQL_CONNECTION_KILLED);
+        $this->assertEquals(1062, DbError::MYSQL_DUPLICATE_KEY);
+        $this->assertEquals(1050, DbError::MYSQL_TABLE_EXISTS);
+
+        // Test PostgreSQL constants
+        $this->assertEquals('08006', DbError::POSTGRESQL_CONNECTION_FAILURE);
+        $this->assertEquals('08003', DbError::POSTGRESQL_CONNECTION_DOES_NOT_EXIST);
+        $this->assertEquals('23505', DbError::POSTGRESQL_UNIQUE_VIOLATION);
+        $this->assertEquals('42P01', DbError::POSTGRESQL_UNDEFINED_TABLE);
+
+        // Test SQLite constants
+        $this->assertEquals(1, DbError::SQLITE_ERROR);
+        $this->assertEquals(5, DbError::SQLITE_BUSY);
+        $this->assertEquals(6, DbError::SQLITE_LOCKED);
+        $this->assertEquals(19, DbError::SQLITE_CONSTRAINT);
+        $this->assertEquals(100, DbError::SQLITE_ROW);
+        $this->assertEquals(101, DbError::SQLITE_DONE);
+    }
+
+    public function testDbErrorHelperMethods(): void
+    {
+        // Test getMysqlRetryableErrors
+        $mysqlErrors = DbError::getMysqlRetryableErrors();
+        $this->assertIsArray($mysqlErrors);
+        $this->assertContains(DbError::MYSQL_CONNECTION_LOST, $mysqlErrors);
+        $this->assertContains(DbError::MYSQL_CANNOT_CONNECT, $mysqlErrors);
+        $this->assertContains(DbError::MYSQL_CONNECTION_KILLED, $mysqlErrors);
+
+        // Test getPostgresqlRetryableErrors
+        $postgresqlErrors = DbError::getPostgresqlRetryableErrors();
+        $this->assertIsArray($postgresqlErrors);
+        $this->assertContains(DbError::POSTGRESQL_CONNECTION_FAILURE, $postgresqlErrors);
+        $this->assertContains(DbError::POSTGRESQL_CONNECTION_DOES_NOT_EXIST, $postgresqlErrors);
+
+        // Test getSqliteRetryableErrors
+        $sqliteErrors = DbError::getSqliteRetryableErrors();
+        $this->assertIsArray($sqliteErrors);
+        $this->assertContains(DbError::SQLITE_BUSY, $sqliteErrors);
+        $this->assertContains(DbError::SQLITE_LOCKED, $sqliteErrors);
+        $this->assertContains(DbError::SQLITE_CONSTRAINT, $sqliteErrors);
+
+        // Test getRetryableErrors with driver parameter
+        $mysqlErrorsFromMethod = DbError::getRetryableErrors('mysql');
+        $this->assertEquals($mysqlErrors, $mysqlErrorsFromMethod);
+
+        $postgresqlErrorsFromMethod = DbError::getRetryableErrors('pgsql');
+        $this->assertEquals($postgresqlErrors, $postgresqlErrorsFromMethod);
+
+        $sqliteErrorsFromMethod = DbError::getRetryableErrors('sqlite');
+        $this->assertEquals($sqliteErrors, $sqliteErrorsFromMethod);
+
+        // Test unknown driver
+        $unknownErrors = DbError::getRetryableErrors('unknown');
+        $this->assertEquals([], $unknownErrors);
+    }
+
+    public function testDbErrorIsRetryable(): void
+    {
+        // Test MySQL errors
+        $this->assertTrue(DbError::isRetryable(DbError::MYSQL_CONNECTION_LOST, 'mysql'));
+        $this->assertTrue(DbError::isRetryable(DbError::MYSQL_CANNOT_CONNECT, 'mysql'));
+        $this->assertFalse(DbError::isRetryable(DbError::MYSQL_DUPLICATE_KEY, 'mysql'));
+
+        // Test PostgreSQL errors
+        $this->assertTrue(DbError::isRetryable(DbError::POSTGRESQL_CONNECTION_FAILURE, 'pgsql'));
+        $this->assertTrue(DbError::isRetryable(DbError::POSTGRESQL_CONNECTION_DOES_NOT_EXIST, 'pgsql'));
+        $this->assertFalse(DbError::isRetryable(DbError::POSTGRESQL_UNIQUE_VIOLATION, 'pgsql'));
+
+        // Test SQLite errors
+        $this->assertTrue(DbError::isRetryable(DbError::SQLITE_BUSY, 'sqlite'));
+        $this->assertTrue(DbError::isRetryable(DbError::SQLITE_LOCKED, 'sqlite'));
+        $this->assertFalse(DbError::isRetryable(DbError::SQLITE_ROW, 'sqlite'));
+
+        // Test unknown driver
+        $this->assertFalse(DbError::isRetryable(2006, 'unknown'));
+    }
+
+    public function testDbErrorDescriptions(): void
+    {
+        // Test MySQL descriptions
+        $mysqlDesc = DbError::getDescription(DbError::MYSQL_CONNECTION_LOST, 'mysql');
+        $this->assertStringContainsString('gone away', $mysqlDesc);
+
+        $mysqlDesc2 = DbError::getDescription(DbError::MYSQL_DUPLICATE_KEY, 'mysql');
+        $this->assertStringContainsString('Duplicate', $mysqlDesc2);
+
+        // Test PostgreSQL descriptions
+        $postgresqlDesc = DbError::getDescription(DbError::POSTGRESQL_CONNECTION_FAILURE, 'pgsql');
+        $this->assertStringContainsString('Connection failure', $postgresqlDesc);
+
+        $postgresqlDesc2 = DbError::getDescription(DbError::POSTGRESQL_UNIQUE_VIOLATION, 'pgsql');
+        $this->assertStringContainsString('Unique', $postgresqlDesc2);
+
+        // Test SQLite descriptions
+        $sqliteDesc = DbError::getDescription(DbError::SQLITE_BUSY, 'sqlite');
+        $this->assertStringContainsString('locked', $sqliteDesc);
+
+        $sqliteDesc2 = DbError::getDescription(DbError::SQLITE_CONSTRAINT, 'sqlite');
+        $this->assertStringContainsString('constraint', $sqliteDesc2);
+
+        // Test unknown error
+        $unknownDesc = DbError::getDescription(99999, 'mysql');
+        $this->assertEquals('Unknown error', $unknownDesc);
     }
 }
 

@@ -1490,6 +1490,87 @@ Tests are designed to run in containers or against local instances. Recommended 
 
 ---
 
+## Database Error Codes
+
+The library provides standardized error codes for all supported database dialects through the `DbError` class:
+
+```php
+use tommyknocker\pdodb\helpers\DbError;
+
+// MySQL error codes
+DbError::MYSQL_CONNECTION_LOST        // 2006
+DbError::MYSQL_CANNOT_CONNECT         // 2002
+DbError::MYSQL_CONNECTION_KILLED      // 2013
+DbError::MYSQL_DUPLICATE_KEY          // 1062
+DbError::MYSQL_TABLE_EXISTS           // 1050
+
+// PostgreSQL error codes (SQLSTATE)
+DbError::POSTGRESQL_CONNECTION_FAILURE        // '08006'
+DbError::POSTGRESQL_CONNECTION_DOES_NOT_EXIST  // '08003'
+DbError::POSTGRESQL_UNIQUE_VIOLATION          // '23505'
+DbError::POSTGRESQL_UNDEFINED_TABLE           // '42P01'
+
+// SQLite error codes
+DbError::SQLITE_ERROR      // 1
+DbError::SQLITE_BUSY       // 5
+DbError::SQLITE_LOCKED     // 6
+DbError::SQLITE_CONSTRAINT // 19
+DbError::SQLITE_ROW        // 100
+DbError::SQLITE_DONE       // 101
+```
+
+### Helper Methods
+
+```php
+// Get retryable error codes for specific driver
+$mysqlErrors = DbError::getMysqlRetryableErrors();
+$postgresqlErrors = DbError::getPostgresqlRetryableErrors();
+$sqliteErrors = DbError::getSqliteRetryableErrors();
+
+// Get retryable errors for any driver
+$errors = DbError::getRetryableErrors('mysql');
+
+// Check if error is retryable
+$isRetryable = DbError::isRetryable(2006, 'mysql'); // true
+
+// Get human-readable error description
+$description = DbError::getDescription(2006, 'mysql');
+// Returns: "MySQL server has gone away"
+```
+
+### Usage in Connection Retry
+
+```php
+use tommyknocker\pdodb\helpers\DbError;
+
+$db = new PdoDb('mysql', [
+    'host' => 'localhost',
+    'dbname' => 'test',
+    'retry' => [
+        'enabled' => true,
+        'max_attempts' => 3,
+        'delay_ms' => 1000,
+        'retryable_errors' => DbError::getRetryableErrors('mysql'), // Use helper method
+    ]
+]);
+
+// Or specify individual error codes
+$db = new PdoDb('mysql', [
+    'host' => 'localhost',
+    'dbname' => 'test',
+    'retry' => [
+        'enabled' => true,
+        'retryable_errors' => [
+            DbError::MYSQL_CONNECTION_LOST,
+            DbError::MYSQL_CANNOT_CONNECT,
+            DbError::MYSQL_CONNECTION_KILLED,
+        ]
+    ]
+]);
+```
+
+---
+
 ## Contributing
 
 Contributions are welcome! Please follow these guidelines:

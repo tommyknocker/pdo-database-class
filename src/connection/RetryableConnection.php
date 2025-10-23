@@ -8,6 +8,7 @@ use PDOException;
 use PDOStatement;
 use Psr\Log\LoggerInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\helpers\DbError;
 
 /**
  * RetryableConnection
@@ -145,7 +146,15 @@ class RetryableConnection extends Connection
             return false;
         }
         
-        $errorCode = (int)$e->getCode();
+        $errorCode = $e->getCode();
+        $driver = $this->getDialect()->getDriverName();
+        
+        // Use DbError constants if no custom retryable_errors are configured
+        if (empty($this->retryConfig['retryable_errors'])) {
+            return DbError::isRetryable($errorCode, $driver);
+        }
+        
+        // Use custom retryable_errors if configured
         return in_array($errorCode, $this->retryConfig['retryable_errors'], true);
     }
 
