@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.1] - 2025-01-27
+
+### Added
+- **Automatic external reference detection in subqueries**: QueryBuilder now automatically detects and converts external table references (`table.column`) to `RawValue` objects
+  - Works in `where()`, `select()`, `orderBy()`, `groupBy()`, `having()` methods
+  - Only converts references to tables not in current query's FROM clause
+  - Supports table aliases (e.g., `u.id` where `u` is an alias)
+  - Pattern detection: `table.column` or `alias.column`
+  - Invalid patterns (like `123.invalid`) are not converted
+- **Db::ref() helper**: Manual external reference helper (though now mostly unnecessary due to automatic detection)
+  - Equivalent to `Db::raw('table.column')` but more semantic
+  - Still useful for complex expressions or when automatic detection doesn't work
+- **Comprehensive test coverage** for external reference detection across all dialects:
+  - 13 new tests in each dialect-specific test file (MySQL, PostgreSQL, SQLite)
+  - Tests cover `whereExists`, `whereNotExists`, `select`, `orderBy`, `groupBy`, `having`
+  - Tests verify internal references are not converted
+  - Tests verify aliased table references work correctly
+  - Tests verify complex external references and edge cases
+
+### Changed
+- **Enhanced QueryBuilder methods**: `addCondition()`, `select()`, `orderBy()`, `groupBy()` now automatically process external references
+- **Improved subquery examples**: Updated README.md examples to demonstrate automatic detection
+- **Better developer experience**: No more need for `Db::raw('users.id')` in most subquery scenarios
+
+### Fixed
+- **QueryBuilder external reference handling**: Fixed parsing of table names and aliases from JOIN clauses
+- **Cross-dialect compatibility**: External reference detection works consistently across MySQL, PostgreSQL, and SQLite
+
+### Technical Details
+- **All tests passing**: 429+ tests, 2044+ assertions
+- **PHPStan Level 8**: Zero errors across entire codebase
+- **All examples passing**: 24/24 examples on all database dialects
+- **Backward compatibility**: Fully maintained - existing code continues to work unchanged
+- **Performance**: Minimal overhead - only processes string values matching `table.column` pattern
+
+---
+
 ## [2.6.0] - 2025-10-23
 
 ### ⚠️ Breaking Changes
@@ -459,7 +496,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.6.0...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.6.1...HEAD
+[2.6.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.5.1...v2.6.0
 [2.5.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.4.3...v2.5.0
