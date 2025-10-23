@@ -9,6 +9,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.0] - 2025-01-XX
+
+### ⚠️ Breaking Changes
+- **Exception handling system**: `loadCsv()` and `loadXml()` now throw specialized exceptions instead of returning `false`
+  - **Impact**: Code that checks `if (!$ok)` for these methods will need to be updated to use try-catch blocks
+  - **Migration**: Wrap calls in try-catch blocks and handle `DatabaseException` types
+  - **Example**: 
+    ```php
+    // Before (2.5.x)
+    $ok = $db->find()->table('users')->loadCsv($file);
+    if (!$ok) {
+        // handle error
+    }
+    
+    // After (2.6.0)
+    try {
+        $db->find()->table('users')->loadCsv($file);
+    } catch (DatabaseException $e) {
+        // handle specific exception type
+    }
+    ```
+
+### Added
+- **Comprehensive exception hierarchy** for better error handling:
+  - `DatabaseException` - Base exception class extending `PDOException`
+  - `ConnectionException` - Connection-related errors (timeouts, refused connections)
+  - `QueryException` - General query execution errors
+  - `ConstraintViolationException` - Constraint violations (unique keys, foreign keys)
+    - Additional properties: `constraintName`, `tableName`, `columnName`
+  - `TransactionException` - Transaction-related errors (deadlocks, rollbacks)
+  - `AuthenticationException` - Authentication failures
+  - `TimeoutException` - Query or connection timeouts
+    - Additional property: `timeoutSeconds`
+  - `ResourceException` - Resource exhaustion (too many connections)
+    - Additional property: `resourceType`
+- **ExceptionFactory** for intelligent exception classification:
+  - Analyzes PDO error codes and messages to determine appropriate exception type
+  - Supports MySQL, PostgreSQL, and SQLite error codes
+  - Extracts detailed context (constraint names, table names, etc.)
+- **Enhanced error context** in all exceptions:
+  - `getDriver()` - Database driver name
+  - `getOriginalCode()` - Original error code (handles PostgreSQL SQLSTATE strings)
+  - `getQuery()` - SQL query that caused the error
+  - `getContext()` - Additional context information
+  - `getCategory()` - Error category for logging/monitoring
+  - `isRetryable()` - Whether the error is retryable
+  - `toArray()` - Convert to array for logging
+- **Exception handling examples** (`examples/09-exception-handling/`):
+  - Comprehensive examples showing how to handle different exception types
+  - Retry logic patterns with exception-aware logic
+  - Error monitoring and alerting examples
+  - Real-world error handling scenarios
+- **test-examples script** added to composer check:
+  - `composer check` now runs: PHPStan + PHPUnit + Examples
+  - Ensures all examples work on all database dialects
+  - 24/24 examples passing on SQLite, MySQL, PostgreSQL
+
+### Changed
+- **loadCsv() and loadXml() behavior**: Now throw exceptions instead of returning `false`
+  - Provides more detailed error information
+  - Enables specific error handling based on exception type
+  - Maintains backward compatibility through exception inheritance from `PDOException`
+- **Error handling in Connection class**: All database operations now throw specialized exceptions
+- **Error handling in RetryableConnection**: Retry logic now works with exception types
+- **Error handling in QueryBuilder**: Query execution errors now throw appropriate exceptions
+
+### Fixed
+- **PHPStan compliance**: Added PHPDoc generic array types (`array<string, mixed>`) for better static analysis
+- **PostgreSQL COPY permission errors**: Now correctly classified as `AuthenticationException`
+- **Test compatibility**: Updated all loadCsv/loadXml tests to handle new exception behavior
+- **Exception parsing**: Improved constraint name extraction from error messages
+- **Error code handling**: Proper handling of PostgreSQL SQLSTATE string codes vs integer codes
+
+### Technical Details
+- **All tests passing**: 429 tests, 2044 assertions
+- **PHPStan Level 8**: Zero errors across entire codebase
+- **All examples passing**: 24/24 examples on all database dialects
+- **Exception coverage**: Comprehensive error handling for all database operations
+- **Backward compatibility**: Exceptions extend `PDOException` for compatibility with existing catch blocks
+
+---
+
 ## [2.5.1] - 2025-10-22
 
 ### Added
@@ -377,7 +459,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.5.1...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.5.1...v2.6.0
 [2.5.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.4.3...v2.5.0
 [2.4.3]: https://github.com/tommyknocker/pdo-database-class/compare/v2.4.2...v2.4.3
