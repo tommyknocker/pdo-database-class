@@ -1970,40 +1970,36 @@ final class PdoDbPostgreSQLTest extends TestCase
         $tmpFile = sys_get_temp_dir() . '/users.csv';
         file_put_contents($tmpFile, "4,Dave,new,30\n5,Eve,new,40\n");
 
-        $ok = $db->find()->table('users')->loadCsv($tmpFile, [
-            'fieldChar' => ',',
-            'fields' => ['id', 'name', 'status', 'age'],
-            'header' => false
-        ]);
-        
-        // Check if loadCsv failed due to Docker/CI file access limitations
-        if (!$ok) {
-            $lastError = $db->lastError;
-            $lastErrno = $db->lastErrNo;
+        try {
+            $ok = $db->find()->table('users')->loadCsv($tmpFile, [
+                'fieldChar' => ',',
+                'fields' => ['id', 'name', 'status', 'age'],
+                'header' => false
+            ]);
             
-            // PostgreSQL error codes for file access issues:
-            // 58P01 - could not open file
+            $this->assertTrue($ok, 'loadData() returned false');
+
+            $names = array_column($db->find()->from('users')->get(), 'name');
+            $this->assertContains('Dave', $names);
+            $this->assertContains('Eve', $names);
+        } catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
             // Check if it's the expected COPY permission/access issue
-            if ($lastError !== null && 
-                (str_contains($lastError, 'COPY') || 
-                 str_contains($lastError, 'could not open file') ||
-                 str_contains($lastError, 'No such file') ||
-                 $lastErrno === 58 || // PostgreSQL file access error class
-                 str_contains($lastError, 'must be superuser') ||
-                 str_contains($lastError, 'permission denied'))) {
+            if (str_contains($e->getMessage(), 'COPY') || 
+                str_contains($e->getMessage(), 'could not open file') ||
+                str_contains($e->getMessage(), 'No such file') ||
+                str_contains($e->getMessage(), 'must be superuser') ||
+                str_contains($e->getMessage(), 'permission denied') ||
+                str_contains($e->getMessage(), 'Insufficient privilege')) {
                 $this->markTestSkipped(
                     'PostgreSQL COPY FROM requires file access from database server. ' .
                     'In Docker/CI environments, the file is on the host but PostgreSQL runs in container. ' .
-                    'This is a known limitation. Error: ' . $lastError
+                    'This is a known limitation. Error: ' . $e->getMessage()
                 );
             }
+            
+            // If it's not a file access issue, re-throw the exception
+            throw $e;
         }
-
-        $this->assertTrue($ok, 'loadData() returned false');
-
-        $names = array_column($db->find()->from('users')->get(), 'name');
-        $this->assertContains('Dave', $names);
-        $this->assertContains('Eve', $names);
 
         unlink($tmpFile);
     }
@@ -2025,12 +2021,31 @@ final class PdoDbPostgreSQLTest extends TestCase
 XML
         );
 
-        $ok = self::$db->find()->table('users')->loadXml($file, '<user>', 1);
-        $this->assertTrue($ok);
+        try {
+            $ok = self::$db->find()->table('users')->loadXml($file, '<user>', 1);
+            $this->assertTrue($ok);
 
-        $row = self::$db->find()->from('users')->where('name', 'XMLUser 2')->getOne();
-        $this->assertEquals('XMLUser 2', $row['name']);
-        $this->assertEquals(44, $row['age']);
+            $row = self::$db->find()->from('users')->where('name', 'XMLUser 2')->getOne();
+            $this->assertEquals('XMLUser 2', $row['name']);
+            $this->assertEquals(44, $row['age']);
+        } catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
+            // Check if it's the expected COPY permission/access issue
+            if (str_contains($e->getMessage(), 'COPY') || 
+                str_contains($e->getMessage(), 'could not open file') ||
+                str_contains($e->getMessage(), 'No such file') ||
+                str_contains($e->getMessage(), 'must be superuser') ||
+                str_contains($e->getMessage(), 'permission denied') ||
+                str_contains($e->getMessage(), 'Insufficient privilege')) {
+                $this->markTestSkipped(
+                    'PostgreSQL COPY FROM requires file access from database server. ' .
+                    'In Docker/CI environments, the file is on the host but PostgreSQL runs in container. ' .
+                    'This is a known limitation. Error: ' . $e->getMessage()
+                );
+            }
+            
+            // If it's not a file access issue, re-throw the exception
+            throw $e;
+        }
 
         unlink($file);
     }
