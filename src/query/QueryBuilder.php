@@ -360,7 +360,7 @@ class QueryBuilder implements QueryBuilderInterface
             $colStr = (string)$col;
             $result = $this->processValueForSql($this->data[$col], $colStr);
             $placeholders[] = $result['sql'];
-            $params = array_merge($params, $result['params']);
+            $params += $result['params'];
         }
         $tableName = $this->table; // Use getter to ensure not null
         assert(is_string($tableName)); // PHPStan assertion
@@ -398,7 +398,7 @@ class QueryBuilder implements QueryBuilderInterface
             foreach ($columns as $col) {
                 $result = $this->processValueForSql($row[$col], (string)$col, (string)$col . '_' . $i . '_');
                 $placeholders[] = $result['sql'];
-                $params = array_merge($params, $result['params']);
+                $params += $result['params'];
             }
             // collect per-row group WITHOUT adding outer parentheses here
             // because dialect will assemble VALUES list and must accept both modes
@@ -1434,7 +1434,7 @@ class QueryBuilder implements QueryBuilderInterface
         foreach ($columns as $col) {
             $result = $this->processValueForSql($this->data[$col], $col);
             $placeholders[] = $result['sql'];
-            $params = array_merge($params, $result['params']);
+            $params += $result['params'];
         }
 
         $sql = $this->dialect->buildInsertSql($this->normalizeTable(), $columns, $placeholders, $this->options);
