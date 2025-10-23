@@ -797,20 +797,20 @@ $users = $db->find()
     ->where('id', $orderSubquery, 'IN')
     ->get();
 
-// Method 3: WHERE EXISTS with callable
+// Method 3: WHERE EXISTS with callable (automatic external reference detection)
 $users = $db->find()
     ->from('users')
     ->whereExists(function($query) {
         $query->from('orders')
-            ->where('user_id', Db::raw('users.id'))
+            ->where('user_id', 'users.id')  // Automatically detected as external reference
             ->where('status', 'completed');
     })
     ->get();
 
-// Method 4: WHERE EXISTS with QueryBuilder instance
+// Method 4: WHERE EXISTS with QueryBuilder instance (automatic external reference detection)
 $orderExistsQuery = $db->find()
     ->from('orders')
-    ->where('user_id', Db::raw('users.id'))
+    ->where('user_id', 'users.id')  // Automatically detected as external reference
     ->where('status', 'completed');
 
 $users = $db->find()
@@ -849,6 +849,69 @@ $users = $db->find()
     })
     ->get();
 ```
+
+#### Automatic External Reference Detection
+
+The library automatically detects external table references in subqueries and converts them to `RawValue` objects. This means you can write natural SQL without manually wrapping external references:
+
+```php
+// ✅ Automatic detection - no need for Db::raw()
+$users = $db->find()
+    ->from('users')
+    ->whereExists(function($query) {
+        $query->from('orders')
+            ->where('user_id', 'users.id')        // Automatically detected
+            ->where('created_at', 'users.created_at', '>')  // Automatically detected
+            ->where('status', 'completed');
+    })
+    ->get();
+
+// ✅ Works in SELECT expressions
+$users = $db->find()
+    ->from('users')
+    ->select([
+        'id',
+        'name',
+        'total_orders' => 'COUNT(orders.id)',     // Automatically detected
+        'last_order' => 'MAX(orders.created_at)' // Automatically detected
+    ])
+    ->leftJoin('orders', 'orders.user_id = users.id')
+    ->groupBy('users.id', 'users.name')
+    ->get();
+
+// ✅ Works in ORDER BY
+$users = $db->find()
+    ->from('users')
+    ->select(['users.id', 'users.name', 'total' => 'SUM(orders.amount)'])
+    ->leftJoin('orders', 'orders.user_id = users.id')
+    ->groupBy('users.id', 'users.name')
+    ->orderBy('total', 'DESC')  // Automatically detected
+    ->get();
+
+// ✅ Works in GROUP BY
+$results = $db->find()
+    ->from('orders')
+    ->select(['user_id', 'total' => 'SUM(amount)'])
+    ->groupBy('user_id')  // Internal reference - not converted
+    ->get();
+
+// ✅ Works with table aliases
+$users = $db->find()
+    ->from('users AS u')
+    ->whereExists(function($query) {
+        $query->from('orders AS o')
+            ->where('o.user_id', 'u.id')  // Automatically detected with aliases
+            ->where('o.status', 'completed');
+    })
+    ->get();
+```
+
+**Detection Rules:**
+- Pattern: `table.column` or `alias.column`
+- Only converts if the table/alias is not in the current query's FROM clause
+- Works in: `where()`, `select()`, `orderBy()`, `groupBy()`, `having()`
+- Internal references (tables in current query) are not converted
+- Invalid patterns (like `123.invalid`) are not converted
 
 ### Schema Support (PostgreSQL)
 
@@ -1362,6 +1425,9 @@ use tommyknocker\pdodb\helpers\Db;
 
 // Raw SQL expressions (when no helper available)
 Db::raw('age + :years', ['years' => 5])
+
+// External table references in subqueries (manual)
+Db::ref('users.id')  // Equivalent to Db::raw('users.id')
 
 // Using helper functions when available
 Db::concat('first_name', ' ', 'last_name')

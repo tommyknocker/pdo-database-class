@@ -217,9 +217,21 @@ class QueryBuilder implements QueryBuilderInterface
                 $subSql = $this->replacePlaceholdersInSql($sub['sql'], $map);
                 $this->select[] = is_string($index) ? "({$subSql}) AS {$index}" : "({$subSql})";
             } elseif (is_string($index)) { // ['total' => 'SUM(amount)] Treat it as SUM(amount) AS total
-                $this->select[] = $col . ' AS ' . $index;
+                // Process external references in column expressions
+                $processedCol = $this->processExternalReferences($col);
+                if ($processedCol instanceof RawValue) {
+                    $this->select[] = $this->resolveRawValue($processedCol) . ' AS ' . $index;
+                } else {
+                    $this->select[] = $col . ' AS ' . $index;
+                }
             } else {
-                $this->select[] = $col;
+                // Process external references in column names
+                $processedCol = $this->processExternalReferences($col);
+                if ($processedCol instanceof RawValue) {
+                    $this->select[] = $this->resolveRawValue($processedCol);
+                } else {
+                    $this->select[] = $col;
+                }
             }
         }
         return $this;
@@ -872,7 +884,13 @@ class QueryBuilder implements QueryBuilderInterface
         } elseif (preg_match('/^[a-z0-9]+\s+(ASC|DESC)/iu', $expr)) {
             $this->order[] = $expr;
         } else {
-            $this->order[] = $this->quoteQualifiedIdentifier($expr) . ' ' . $dir;
+            // Process external references
+            $processedExpr = $this->processExternalReferences($expr);
+            if ($processedExpr instanceof RawValue) {
+                $this->order[] = $this->resolveRawValue($processedExpr) . ' ' . $dir;
+            } else {
+                $this->order[] = $this->quoteQualifiedIdentifier($expr) . ' ' . $dir;
+            }
         }
 
         return $this;
@@ -895,7 +913,13 @@ class QueryBuilder implements QueryBuilderInterface
             if ($col instanceof RawValue) {
                 $groups[] = $this->resolveRawValue($col);
             } else {
-                $groups[] = $this->quoteQualifiedIdentifier((string)$col);
+                // Process external references
+                $processedCol = $this->processExternalReferences($col);
+                if ($processedCol instanceof RawValue) {
+                    $groups[] = $this->resolveRawValue($processedCol);
+                } else {
+                    $groups[] = $this->quoteQualifiedIdentifier((string)$col);
+                }
             }
         }
         $this->group = implode(', ', $groups);
@@ -1633,6 +1657,9 @@ class QueryBuilder implements QueryBuilderInterface
 
         $exprQuoted = $this->quoteQualifiedIdentifier((string)$exprOrColumn);
 
+        // Process external references
+        $value = $this->processExternalReferences($value);
+
         // subquery handling
         if ($value instanceof self) {
             $sub = $value->toSQL();
@@ -2080,5 +2107,103 @@ class QueryBuilder implements QueryBuilderInterface
         }
 
         return $res;
+    }
+
+    /**
+     * Check if a string represents an external table reference.
+     *
+     * @param string $reference The reference to check (e.g., 'users.id')
+     *
+     * @return bool True if it's an external reference
+     */
+    private function isExternalReference(string $reference): bool
+    {
+        // Check if it matches table.column pattern
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*$/', $reference)) {
+            return false;
+        }
+
+        $table = explode('.', $reference)[0];
+        return !$this->isTableInCurrentQuery($table);
+    }
+
+    /**
+     * Check if a table is referenced in the current query.
+     *
+     * @param string $tableName The table name to check
+     *
+     * @return bool True if table is in current query
+     */
+    private function isTableInCurrentQuery(string $tableName): bool
+    {
+        $currentTables = $this->getCurrentTables();
+
+        foreach ($currentTables as $table) {
+            // Handle aliases (e.g., 'users AS u' -> 'u')
+            $alias = $this->extractTableAlias($table);
+            if ($alias === $tableName || $table === $tableName) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Get all tables referenced in the current query.
+     *
+     * @return array<string> Array of table names/aliases
+     */
+    private function getCurrentTables(): array
+    {
+        $tables = [];
+
+        // Main table
+        if ($this->table) {
+            $tables[] = $this->table;
+        }
+
+        // JOIN tables
+        foreach ($this->joins as $join) {
+            // Extract table name from JOIN string (e.g., "LEFT JOIN users ON ..." -> "users")
+            if (preg_match('/JOIN\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\s+AS\s+[a-zA-Z_][a-zA-Z0-9_]*)?)/i', $join, $matches)) {
+                $tables[] = trim($matches[1]);
+            }
+        }
+
+        return $tables;
+    }
+
+    /**
+     * Extract table alias from table reference.
+     *
+     * @param string $tableReference The table reference (e.g., 'users AS u', 'users')
+     *
+     * @return string The alias or table name
+     */
+    private function extractTableAlias(string $tableReference): string
+    {
+        // Handle 'table AS alias' pattern
+        if (preg_match('/^(.+?)\s+AS\s+(.+)$/i', trim($tableReference), $matches)) {
+            return trim($matches[2]);
+        }
+
+        return trim($tableReference);
+    }
+
+    /**
+     * Automatically convert external references to RawValue.
+     *
+     * @param mixed $value The value to process
+     *
+     * @return mixed Processed value
+     */
+    private function processExternalReferences(mixed $value): mixed
+    {
+        if (is_string($value) && $this->isExternalReference($value)) {
+            return new RawValue($value);
+        }
+
+        return $value;
     }
 }
