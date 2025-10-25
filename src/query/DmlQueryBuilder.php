@@ -8,17 +8,20 @@ use InvalidArgumentException;
 use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
-use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\DmlQueryBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
+use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
+use tommyknocker\pdodb\query\traits\CommonDependenciesTrait;
+use tommyknocker\pdodb\query\traits\RawValueResolutionTrait;
+use tommyknocker\pdodb\query\traits\TableManagementTrait;
 
 class DmlQueryBuilder implements DmlQueryBuilderInterface
 {
-    protected ConnectionInterface $connection;
-    protected DialectInterface $dialect;
-    protected ParameterManagerInterface $parameterManager;
-    protected ExecutionEngineInterface $executionEngine;
-    protected ConditionBuilderInterface $conditionBuilder;
-    protected RawValueResolver $rawValueResolver;
+    use CommonDependenciesTrait;
+    use RawValueResolutionTrait;
+    use TableManagementTrait;
 
     /** @var string|null table name */
     protected ?string $table = null {
@@ -39,14 +42,13 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
     /** @var array<string, string|int|float|bool|null|RawValue> */
     protected array $onDuplicate = [];
 
-    /** @var string|null Table prefix */
-    protected ?string $prefix = null;
-
     /** @var array<int|string, mixed> Query options (e.g., FOR UPDATE, IGNORE) */
     protected array $options = [];
 
     /** @var int|null LIMIT value */
     protected ?int $limit = null;
+
+    protected ConditionBuilderInterface $conditionBuilder;
 
     public function __construct(
         ConnectionInterface $connection,
@@ -55,12 +57,8 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
         ConditionBuilderInterface $conditionBuilder,
         RawValueResolver $rawValueResolver
     ) {
-        $this->connection = $connection;
-        $this->dialect = $connection->getDialect();
-        $this->parameterManager = $parameterManager;
-        $this->executionEngine = $executionEngine;
+        $this->initializeCommonDependencies($connection, $parameterManager, $executionEngine, $rawValueResolver);
         $this->conditionBuilder = $conditionBuilder;
-        $this->rawValueResolver = $rawValueResolver;
     }
 
     /**
@@ -470,30 +468,5 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
         $paramName = $prefix === '' ? ':' . $columnName : ':' . $prefix . $columnName;
         $this->parameterManager->setParam($paramName, $value);
         return ['sql' => $paramName, 'params' => []];
-    }
-
-    /**
-     * Resolve RawValue instances.
-     *
-     * @param string|RawValue $value
-     *
-     * @return string
-     */
-    protected function resolveRawValue(string|RawValue $value): string
-    {
-        return $this->rawValueResolver->resolveRawValue($value);
-    }
-
-    /**
-     * Normalizes a table name by prefixing it with the database prefix if it is set.
-     *
-     * @param string|null $table
-     *
-     * @return string The normalized table name.
-     */
-    protected function normalizeTable(?string $table = null): string
-    {
-        $table = $table ?: $this->table;
-        return $this->dialect->quoteTable($this->prefix . $table);
     }
 }

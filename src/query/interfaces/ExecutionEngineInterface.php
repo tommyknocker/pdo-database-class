@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\query;
+namespace tommyknocker\pdodb\query\interfaces;
 
 use PDOStatement;
 use tommyknocker\pdodb\helpers\RawValue;

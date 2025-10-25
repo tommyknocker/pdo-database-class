@@ -6,47 +6,25 @@ namespace tommyknocker\pdodb\query;
 
 use PDOException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\exceptions\ExceptionFactory;
+use tommyknocker\pdodb\query\interfaces\FileLoaderInterface;
+use tommyknocker\pdodb\query\traits\TableManagementTrait;
 
 class FileLoader implements FileLoaderInterface
 {
+    use TableManagementTrait;
+
     protected ConnectionInterface $connection;
+    protected DialectInterface $dialect;
 
     /** @var string|null table name */
     protected ?string $table = null;
 
-    /** @var string|null Table prefix */
-    protected ?string $prefix = null;
-
     public function __construct(ConnectionInterface $connection)
     {
         $this->connection = $connection;
-    }
-
-    /**
-     * Set table name.
-     *
-     * @param string $table
-     *
-     * @return self
-     */
-    public function setTable(string $table): self
-    {
-        $this->table = $table;
-        return $this;
-    }
-
-    /**
-     * Set table prefix.
-     *
-     * @param string|null $prefix
-     *
-     * @return self
-     */
-    public function setPrefix(?string $prefix): self
-    {
-        $this->prefix = $prefix;
-        return $this;
+        $this->dialect = $connection->getDialect();
     }
 
     /**

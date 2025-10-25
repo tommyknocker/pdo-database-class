@@ -7,16 +7,23 @@ namespace tommyknocker\pdodb\query;
 use InvalidArgumentException;
 use PDOException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
-use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
+use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
+use tommyknocker\pdodb\query\traits\CommonDependenciesTrait;
+use tommyknocker\pdodb\query\traits\ExternalReferenceProcessingTrait;
+use tommyknocker\pdodb\query\traits\IdentifierQuotingTrait;
+use tommyknocker\pdodb\query\traits\RawValueResolutionTrait;
+use tommyknocker\pdodb\query\traits\TableManagementTrait;
 
 class ConditionBuilder implements ConditionBuilderInterface
 {
-    protected ConnectionInterface $connection;
-    protected DialectInterface $dialect;
-    protected ParameterManagerInterface $parameterManager;
-    protected ExecutionEngineInterface $executionEngine;
-    protected RawValueResolver $rawValueResolver;
+    use CommonDependenciesTrait;
+    use RawValueResolutionTrait;
+    use TableManagementTrait;
+    use IdentifierQuotingTrait;
+    use ExternalReferenceProcessingTrait;
 
     /** @var array<int, string|array<string, mixed>> */
     protected array $where = [];
@@ -26,9 +33,6 @@ class ConditionBuilder implements ConditionBuilderInterface
 
     /** @var string|null table name */
     protected ?string $table = null;
-
-    /** @var string|null Table prefix */
-    protected ?string $prefix = null;
 
     /** @var array<int, string> ORDER BY expressions */
     protected array $order = [];
@@ -42,37 +46,7 @@ class ConditionBuilder implements ConditionBuilderInterface
         ExecutionEngineInterface $executionEngine,
         RawValueResolver $rawValueResolver
     ) {
-        $this->connection = $connection;
-        $this->dialect = $connection->getDialect();
-        $this->parameterManager = $parameterManager;
-        $this->executionEngine = $executionEngine;
-        $this->rawValueResolver = $rawValueResolver;
-    }
-
-    /**
-     * Set table name.
-     *
-     * @param string $table
-     *
-     * @return self
-     */
-    public function setTable(string $table): self
-    {
-        $this->table = $table;
-        return $this;
-    }
-
-    /**
-     * Set table prefix.
-     *
-     * @param string|null $prefix
-     *
-     * @return self
-     */
-    public function setPrefix(?string $prefix): self
-    {
-        $this->prefix = $prefix;
-        return $this;
+        $this->initializeCommonDependencies($connection, $parameterManager, $executionEngine, $rawValueResolver);
     }
 
     /**
@@ -548,37 +522,6 @@ class ConditionBuilder implements ConditionBuilderInterface
     }
 
     /**
-     * Quote qualified identifier.
-     *
-     * @param string $name
-     *
-     * @return string
-     */
-    protected function quoteQualifiedIdentifier(string $name): string
-    {
-        // If looks like an expression (contains spaces, parentheses, commas or quotes)
-        // treat as raw expression but DO NOT accept suspicious unquoted parts silently.
-        if (preg_match('/[`\["\'\s\(\),]/', $name)) {
-            // allow already-quoted or complex expressions to pass through,
-            // but still protect obvious injection attempts by checking for dangerous tokens
-            if (preg_match('/;|--|\bDROP\b|\bDELETE\b|\bINSERT\b|\bUPDATE\b|\bSELECT\b|\bUNION\b/i', $name)) {
-                throw new InvalidArgumentException('Unsafe SQL expression provided as identifier/expression.');
-            }
-            return $name;
-        }
-
-        $parts = explode('.', $name);
-        foreach ($parts as $p) {
-            // require valid simple identifier parts
-            if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $p)) {
-                throw new InvalidArgumentException("Invalid identifier part: {$p}");
-            }
-        }
-        $quoted = array_map(fn ($p) => $this->dialect->quoteIdentifier($p), $parts);
-        return implode('.', $quoted);
-    }
-
-    /**
      * Normalize operator (trim and uppercase).
      *
      * @param string $operator
@@ -588,76 +531,5 @@ class ConditionBuilder implements ConditionBuilderInterface
     protected function normalizeOperator(string $operator): string
     {
         return strtoupper(trim($operator));
-    }
-
-    /**
-     * Resolve RawValue instances.
-     *
-     * @param string|RawValue $value
-     *
-     * @return string
-     */
-    protected function resolveRawValue(string|RawValue $value): string
-    {
-        return $this->rawValueResolver->resolveRawValue($value);
-    }
-
-    /**
-     * Normalizes a table name by prefixing it with the database prefix if it is set.
-     *
-     * @param string|null $table
-     *
-     * @return string The normalized table name.
-     */
-    protected function normalizeTable(?string $table = null): string
-    {
-        $table = $table ?: $this->table;
-        return $this->dialect->quoteTable($this->prefix . $table);
-    }
-
-    /**
-     * Check if a string represents an external table reference.
-     *
-     * @param string $reference The reference to check (e.g., 'users.id')
-     *
-     * @return bool True if it's an external reference
-     */
-    protected function isExternalReference(string $reference): bool
-    {
-        // Check if it matches table.column pattern
-        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*$/', $reference)) {
-            return false;
-        }
-
-        $table = explode('.', $reference)[0];
-        return !$this->isTableInCurrentQuery($table);
-    }
-
-    /**
-     * Check if a table is referenced in the current query.
-     *
-     * @param string $tableName The table name to check
-     *
-     * @return bool True if table is in current query
-     */
-    protected function isTableInCurrentQuery(string $tableName): bool
-    {
-        return $this->table === $tableName;
-    }
-
-    /**
-     * Automatically convert external references to RawValue.
-     *
-     * @param mixed $value The value to process
-     *
-     * @return mixed Processed value
-     */
-    protected function processExternalReferences(mixed $value): mixed
-    {
-        if (is_string($value) && $this->isExternalReference($value)) {
-            return new RawValue($value);
-        }
-
-        return $value;
     }
 }

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\query;
+namespace tommyknocker\pdodb\query\interfaces;
 
 use tommyknocker\pdodb\helpers\RawValue;
 
@@ -67,7 +67,7 @@ interface ConditionBuilderInterface
      * Add WHERE IN clause with subquery.
      *
      * @param string $column The column to check
-     * @param callable(QueryBuilder): void $subquery The subquery callback
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery The subquery callback
      *
      * @return self The current instance
      */
@@ -77,7 +77,7 @@ interface ConditionBuilderInterface
      * Add WHERE NOT IN clause with subquery.
      *
      * @param string $column The column to check
-     * @param callable(QueryBuilder): void $subquery The subquery callback
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery The subquery callback
      *
      * @return self The current instance
      */
@@ -86,7 +86,7 @@ interface ConditionBuilderInterface
     /**
      * Add WHERE EXISTS clause.
      *
-     * @param callable(QueryBuilder): void $subquery The subquery callback
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery The subquery callback
      *
      * @return self The current instance
      */
@@ -95,7 +95,7 @@ interface ConditionBuilderInterface
     /**
      * Add WHERE NOT EXISTS clause.
      *
-     * @param callable(QueryBuilder): void $subquery The subquery callback
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery The subquery callback
      *
      * @return self The current instance
      */

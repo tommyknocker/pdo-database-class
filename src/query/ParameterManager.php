@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query;
 
+use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
+
 class ParameterManager implements ParameterManagerInterface
 {
     /** @var array<string, string|int|float|bool|null> */

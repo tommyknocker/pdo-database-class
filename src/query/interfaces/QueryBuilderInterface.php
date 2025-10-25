@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\query;
+namespace tommyknocker\pdodb\query\interfaces;
 
 use Generator;
 use PDOStatement;
@@ -58,7 +58,7 @@ interface QueryBuilderInterface
 
     // Select / projection
     /**
-     * @param RawValue|string|array<int|string, string|RawValue|callable(QueryBuilder): void> $cols
+     * @param RawValue|string|array<int|string, string|RawValue|callable(\tommyknocker\pdodb\query\QueryBuilder): void> $cols
      *
      * @return self
      */
@@ -184,7 +184,7 @@ interface QueryBuilderInterface
     // New Query Builder methods
     /**
      * @param string $column
-     * @param callable(QueryBuilder): void $subquery
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery
      *
      * @return self
      */
@@ -192,21 +192,21 @@ interface QueryBuilderInterface
 
     /**
      * @param string $column
-     * @param callable(QueryBuilder): void $subquery
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery
      *
      * @return self
      */
     public function whereNotIn(string $column, callable $subquery): self;
 
     /**
-     * @param callable(QueryBuilder): void $subquery
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery
      *
      * @return self
      */
     public function whereExists(callable $subquery): self;
 
     /**
-     * @param callable(QueryBuilder): void $subquery
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery
      *
      * @return self
      */

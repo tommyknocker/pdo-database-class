@@ -32,6 +32,7 @@ use tommyknocker\pdodb\helpers\RawValue;
 use tommyknocker\pdodb\helpers\SecondValue;
 use tommyknocker\pdodb\helpers\SubstringValue;
 use tommyknocker\pdodb\helpers\YearValue;
+use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
 
 class RawValueResolver
 {

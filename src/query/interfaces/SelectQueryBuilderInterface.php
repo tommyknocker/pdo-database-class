@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\query;
+namespace tommyknocker\pdodb\query\interfaces;
 
 use tommyknocker\pdodb\helpers\RawValue;
 
@@ -11,7 +11,7 @@ interface SelectQueryBuilderInterface
     /**
      * Add columns to the SELECT clause.
      *
-     * @param RawValue|callable(QueryBuilder): void|string|array<int|string, string|RawValue|callable(QueryBuilder): void> $cols The columns to add.
+     * @param RawValue|callable(\tommyknocker\pdodb\query\QueryBuilder): void|string|array<int|string, string|RawValue|callable(\tommyknocker\pdodb\query\QueryBuilder): void> $cols The columns to add.
      *
      * @return self The current instance.
      */

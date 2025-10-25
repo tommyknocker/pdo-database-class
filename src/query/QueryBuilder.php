@@ -12,6 +12,16 @@ use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\query\interfaces\BatchProcessorInterface;
+use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\DmlQueryBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
+use tommyknocker\pdodb\query\interfaces\FileLoaderInterface;
+use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\JsonQueryBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
+use tommyknocker\pdodb\query\interfaces\QueryBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\SelectQueryBuilderInterface;
 
 class QueryBuilder implements QueryBuilderInterface
 {
@@ -196,7 +206,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Adds columns to the SELECT clause.
      *
-     * @param RawValue|callable(QueryBuilder): void|string|array<int|string, string|RawValue|callable(QueryBuilder): void> $cols The columns to add.
+     * @param RawValue|callable(QueryBuilderInterface): void|string|array<int|string, string|RawValue|callable(QueryBuilderInterface): void> $cols The columns to add.
      *
      * @return self The current instance.
      */
@@ -569,7 +579,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Add WHERE IN clause with subquery.
      *
      * @param string $column The column to check
-     * @param callable(QueryBuilder): void $subquery The subquery callback
+     * @param callable(QueryBuilderInterface): void $subquery The subquery callback
      *
      * @return self The current instance
      */
@@ -583,7 +593,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Add WHERE NOT IN clause with subquery.
      *
      * @param string $column The column to check
-     * @param callable(QueryBuilder): void $subquery The subquery callback
+     * @param callable(QueryBuilderInterface): void $subquery The subquery callback
      *
      * @return self The current instance
      */
@@ -596,7 +606,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add WHERE EXISTS clause.
      *
-     * @param callable(QueryBuilder): void $subquery The subquery callback
+     * @param callable(QueryBuilderInterface): void $subquery The subquery callback
      *
      * @return self The current instance
      */
@@ -609,7 +619,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add WHERE NOT EXISTS clause.
      *
-     * @param callable(QueryBuilder): void $subquery The subquery callback
+     * @param callable(QueryBuilderInterface): void $subquery The subquery callback
      *
      * @return self The current instance
      */

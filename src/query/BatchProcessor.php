@@ -9,6 +9,9 @@ use InvalidArgumentException;
 use PDO;
 use PDOException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\query\interfaces\BatchProcessorInterface;
+use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
+use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
 
 class BatchProcessor implements BatchProcessorInterface
 {

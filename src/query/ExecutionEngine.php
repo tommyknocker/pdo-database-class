@@ -10,6 +10,8 @@ use PDOStatement;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\exceptions\ExceptionFactory;
 use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
+use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
 
 class ExecutionEngine implements ExecutionEngineInterface
 {

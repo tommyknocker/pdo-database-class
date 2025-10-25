@@ -4,23 +4,29 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query;
 
-use InvalidArgumentException;
 use PDO;
 use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
-use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
+use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
+use tommyknocker\pdodb\query\interfaces\SelectQueryBuilderInterface;
+use tommyknocker\pdodb\query\traits\CommonDependenciesTrait;
+use tommyknocker\pdodb\query\traits\ExternalReferenceProcessingTrait;
+use tommyknocker\pdodb\query\traits\IdentifierQuotingTrait;
+use tommyknocker\pdodb\query\traits\RawValueResolutionTrait;
+use tommyknocker\pdodb\query\traits\TableManagementTrait;
 
 class SelectQueryBuilder implements SelectQueryBuilderInterface
 {
-    protected ConnectionInterface $connection;
-    protected DialectInterface $dialect;
-    protected ParameterManagerInterface $parameterManager;
-    protected ExecutionEngineInterface $executionEngine;
-    protected ConditionBuilderInterface $conditionBuilder;
-    protected JoinBuilderInterface $joinBuilder;
-    protected RawValueResolver $rawValueResolver;
+    use CommonDependenciesTrait;
+    use RawValueResolutionTrait;
+    use TableManagementTrait;
+    use IdentifierQuotingTrait;
+    use ExternalReferenceProcessingTrait;
 
     /** @var string|null table name */
     protected ?string $table = null {
@@ -47,14 +53,14 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /** @var int|null OFFSET value */
     protected ?int $offset = null;
 
-    /** @var string|null Table prefix */
-    protected ?string $prefix = null;
-
     /** @var int PDO fetch mode */
     protected int $fetchMode = PDO::FETCH_ASSOC;
 
     /** @var array<int|string, mixed> Query options (e.g., FOR UPDATE, IGNORE) */
     protected array $options = [];
+
+    protected ConditionBuilderInterface $conditionBuilder;
+    protected JoinBuilderInterface $joinBuilder;
 
     public function __construct(
         ConnectionInterface $connection,
@@ -64,13 +70,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         JoinBuilderInterface $joinBuilder,
         RawValueResolver $rawValueResolver
     ) {
-        $this->connection = $connection;
-        $this->dialect = $connection->getDialect();
-        $this->parameterManager = $parameterManager;
-        $this->executionEngine = $executionEngine;
+        $this->initializeCommonDependencies($connection, $parameterManager, $executionEngine, $rawValueResolver);
         $this->conditionBuilder = $conditionBuilder;
         $this->joinBuilder = $joinBuilder;
-        $this->rawValueResolver = $rawValueResolver;
     }
 
     /**
@@ -489,80 +491,6 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     }
 
     /**
-     * Quote qualified identifier.
-     *
-     * @param string $name
-     *
-     * @return string
-     */
-    protected function quoteQualifiedIdentifier(string $name): string
-    {
-        // If it looks like an expression (contains spaces, parentheses, commas or quotes)
-        // treat as raw expression but DO NOT accept suspicious unquoted parts silently.
-        if (preg_match('/[`\["\'\s\(\),]/', $name)) {
-            // allow already-quoted or complex expressions to pass through,
-            // but still protect obvious injection attempts by checking for dangerous tokens
-            if (preg_match('/;|--|\bDROP\b|\bDELETE\b|\bINSERT\b|\bUPDATE\b|\bSELECT\b|\bUNION\b/i', $name)) {
-                throw new InvalidArgumentException('Unsafe SQL expression provided as identifier/expression.');
-            }
-            return $name;
-        }
-
-        $parts = explode('.', $name);
-        foreach ($parts as $p) {
-            // require valid simple identifier parts
-            if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $p)) {
-                throw new InvalidArgumentException("Invalid identifier part: {$p}");
-            }
-        }
-        $quoted = array_map(fn ($p) => $this->dialect->quoteIdentifier($p), $parts);
-        return implode('.', $quoted);
-    }
-
-    /**
-     * Resolve RawValue instances.
-     *
-     * @param string|RawValue $value
-     *
-     * @return string
-     */
-    protected function resolveRawValue(string|RawValue $value): string
-    {
-        return $this->rawValueResolver->resolveRawValue($value);
-    }
-
-    /**
-     * Normalizes a table name by prefixing it with the database prefix if it is set.
-     *
-     * @param string|null $table
-     *
-     * @return string The normalized table name.
-     */
-    protected function normalizeTable(?string $table = null): string
-    {
-        $table = $table ?: $this->table;
-        return $this->dialect->quoteTable($this->prefix . $table);
-    }
-
-    /**
-     * Check if a string represents an external table reference.
-     *
-     * @param string $reference The reference to check (e.g., 'users.id')
-     *
-     * @return bool True if it's an external reference
-     */
-    protected function isExternalReference(string $reference): bool
-    {
-        // Check if it matches table.column pattern
-        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*$/', $reference)) {
-            return false;
-        }
-
-        $table = explode('.', $reference)[0];
-        return !$this->isTableInCurrentQuery($table);
-    }
-
-    /**
      * Check if a table is referenced in the current query.
      *
      * @param string $tableName The table name to check
@@ -624,21 +552,5 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         }
 
         return trim($tableReference);
-    }
-
-    /**
-     * Automatically convert external references to RawValue.
-     *
-     * @param mixed $value The value to process
-     *
-     * @return mixed Processed value
-     */
-    protected function processExternalReferences(mixed $value): mixed
-    {
-        if (is_string($value) && $this->isExternalReference($value)) {
-            return new RawValue($value);
-        }
-
-        return $value;
     }
 }

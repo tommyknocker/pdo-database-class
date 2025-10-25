@@ -7,37 +7,30 @@ namespace tommyknocker\pdodb\query;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
+use tommyknocker\pdodb\query\traits\RawValueResolutionTrait;
+use tommyknocker\pdodb\query\traits\TableManagementTrait;
 
 class JoinBuilder implements JoinBuilderInterface
 {
+    use RawValueResolutionTrait;
+    use TableManagementTrait;
+
     protected ConnectionInterface $connection;
     protected DialectInterface $dialect;
     protected RawValueResolver $rawValueResolver;
 
+    /** @var string|null table name */
+    protected ?string $table = null;
+
     /** @var array<int, string> */
     protected array $joins = [];
-
-    /** @var string|null Table prefix */
-    protected ?string $prefix = null;
 
     public function __construct(ConnectionInterface $connection, RawValueResolver $rawValueResolver)
     {
         $this->connection = $connection;
         $this->dialect = $connection->getDialect();
         $this->rawValueResolver = $rawValueResolver;
-    }
-
-    /**
-     * Set table prefix.
-     *
-     * @param string|null $prefix
-     *
-     * @return self
-     */
-    public function setPrefix(?string $prefix): self
-    {
-        $this->prefix = $prefix;
-        return $this;
     }
 
     /**
@@ -108,29 +101,5 @@ class JoinBuilder implements JoinBuilderInterface
     public function getJoins(): array
     {
         return $this->joins;
-    }
-
-    /**
-     * Resolve RawValue instances.
-     *
-     * @param string|RawValue $value
-     *
-     * @return string
-     */
-    protected function resolveRawValue(string|RawValue $value): string
-    {
-        return $this->rawValueResolver->resolveRawValue($value);
-    }
-
-    /**
-     * Normalizes a table name by prefixing it with the database prefix if it is set.
-     *
-     * @param string $table
-     *
-     * @return string The normalized table name.
-     */
-    protected function normalizeTable(string $table): string
-    {
-        return $this->dialect->quoteTable($this->prefix . $table);
     }
 }

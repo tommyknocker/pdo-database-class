@@ -7,9 +7,15 @@ namespace tommyknocker\pdodb\query;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\JsonQueryBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
+use tommyknocker\pdodb\query\traits\RawValueResolutionTrait;
 
 class JsonQueryBuilder implements JsonQueryBuilderInterface
 {
+    use RawValueResolutionTrait;
+
     protected ConnectionInterface $connection;
     protected DialectInterface $dialect;
     protected ParameterManagerInterface $parameterManager;
@@ -240,17 +246,5 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
     {
         $this->order = [];
         return $this;
-    }
-
-    /**
-     * Resolve RawValue instances.
-     *
-     * @param string|RawValue $value
-     *
-     * @return string
-     */
-    protected function resolveRawValue(string|RawValue $value): string
-    {
-        return $this->rawValueResolver->resolveRawValue($value);
     }
 }
