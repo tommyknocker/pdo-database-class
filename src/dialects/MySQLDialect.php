@@ -7,10 +7,14 @@ namespace tommyknocker\pdodb\dialects;
 use InvalidArgumentException;
 use PDO;
 use RuntimeException;
+use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
+use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 class MySQLDialect extends DialectAbstract
 {
+    use JsonPathBuilderTrait;
+    use UpsertBuilderTrait;
     /**
      * {@inheritDoc}
      */
@@ -129,43 +133,54 @@ class MySQLDialect extends DialectAbstract
             return '';
         }
 
-        $updates = [];
-
-        foreach ($updateColumns as $key => $val) {
-            if (is_int($key)) {
-                $col = $val;
+        $isAssoc = $this->isAssociativeArray($updateColumns);
+        
+        if ($isAssoc) {
+            $updates = $this->buildUpsertExpressions($updateColumns, $tableName);
+        } else {
+            $updates = [];
+            foreach ($updateColumns as $col) {
                 $qid = $this->quoteIdentifier($col);
                 $updates[] = "{$qid} = VALUES({$qid})";
-            } else {
-                $col = $key;
-                $qid = $this->quoteIdentifier($col);
-
-                // Handle Db::inc() / Db::dec()
-                if (is_array($val) && isset($val['__op'])) {
-                    $op = $val['__op'];
-                    switch ($op) {
-                        case 'inc':
-                            $updates[] = "{$qid} = {$qid} + " . (int)$val['val'];
-                            break;
-                        case 'dec':
-                            $updates[] = "{$qid} = {$qid} - " . (int)$val['val'];
-                            break;
-                        default:
-                            $updates[] = "{$qid} = VALUES({$qid})";
-                    }
-                } elseif ($val instanceof RawValue) {
-                    $updates[] = "{$qid} = {$val->getValue()}";
-                } elseif ($val === true) {
-                    $updates[] = "{$qid} = VALUES({$qid})";
-                } elseif (is_string($val)) {
-                    $updates[] = "{$qid} = {$val}";
-                } else {
-                    $updates[] = "{$qid} = VALUES({$qid})";
-                }
             }
         }
 
         return 'ON DUPLICATE KEY UPDATE ' . implode(', ', $updates);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildIncrementExpression(string $colSql, array $expr, string $tableName): string
+    {
+        $op = $expr['__op'];
+        return match ($op) {
+            'inc' => "{$colSql} = {$colSql} + " . (int)$expr['val'],
+            'dec' => "{$colSql} = {$colSql} - " . (int)$expr['val'],
+            default => "{$colSql} = VALUES({$colSql})",
+        };
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildRawValueExpression(string $colSql, RawValue $expr, string $tableName, string $col): string
+    {
+        return "{$colSql} = {$expr->getValue()}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildDefaultExpression(string $colSql, mixed $expr, string $col): string
+    {
+        if ($expr === true) {
+            return "{$colSql} = VALUES({$colSql})";
+        }
+        if (is_string($expr)) {
+            return "{$colSql} = {$expr}";
+        }
+        return "{$colSql} = VALUES({$colSql})";
     }
 
     /**
@@ -369,18 +384,7 @@ class MySQLDialect extends DialectAbstract
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string
     {
         $parts = $this->normalizeJsonPath($path);
-
-        // build JSON path: start with $
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                // numeric index -> [N]
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                // object key -> .key   (no quotes; if keys need quoting, handle separately)
-                $jsonPath .= '.' . $p;
-            }
-        }
+        $jsonPath = $this->buildJsonPathString($parts);
 
         $expr = 'JSON_EXTRACT(' . $this->quoteIdentifier($col) . ", '" . $jsonPath . "')";
         if ($asText) {
@@ -394,10 +398,10 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
     {
-        $jsonPath = $path === null ? '$' : $this->buildJsonPath($path);
+        $jsonPath = $path === null ? '$' : $this->buildJsonPathString($this->normalizeJsonPath($path));
         $colQuoted = $this->quoteIdentifier($col);
-        $param = ':' . 'jsonc_' . substr(md5($col . '|' . $jsonPath), 0, 8);
-        $jsonText = $this->toJsonText($value);
+        $param = $this->generateParameterName('jsonc', $col . '|' . $jsonPath);
+        $jsonText = $this->encodeToJson($value);
 
         $sql = "JSON_CONTAINS({$colQuoted}, {$param}, '{$jsonPath}')";
         return [$sql, [$param => $jsonText]];
@@ -408,31 +412,19 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
     {
-        // normalize path -> array
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            $jsonPath .= preg_match('/^\d+$/', (string)$p) ? "[$p]" : ".{$p}";
-        }
+        $jsonPath = $this->buildJsonPathString($parts);
 
         $colQuoted = $this->quoteIdentifier($col);
-        $param = ':' . substr(md5($col . '|' . $jsonPath), 0, 8);
+        $param = $this->generateParameterName('jsonset', $col . '|' . $jsonPath);
 
-        // single json_encode call, avoid double-encoding
-        $jsonText = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-        if ($jsonText === false) {
-            $jsonText = json_encode((string)$value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-        }
+        $jsonText = $this->encodeToJson($value);
 
         // If nested path, ensure parent exists as object before setting child
         if (count($parts) > 1) {
-            $parentParts = $parts;
-            array_pop($parentParts);
-            $parentPath = '$';
-            foreach ($parentParts as $pp) {
-                $parentPath .= preg_match('/^\d+$/', (string)$pp) ? "[$pp]" : ".{$pp}";
-            }
-            $lastKey = array_pop($parts); // the final key to set inside parent
+            $parentParts = $this->getParentPathParts($parts);
+            $parentPath = $this->buildJsonPathString($parentParts);
+            $lastKey = $this->getLastSegment($parts);
 
             // Build expression: set the parent to JSON_SET(COALESCE(JSON_EXTRACT(col,parent), {}) , '$.<last>', CAST(:param AS JSON))
             // then write that parent back into the document
@@ -443,7 +435,6 @@ class MySQLDialect extends DialectAbstract
             $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', CAST({$param} AS JSON))";
         }
 
-        // Return numeric array [sql, params] to match places in QueryBuilder that unpack by index
         return [$sql, [$param => $jsonText]];
     }
 
@@ -453,22 +444,12 @@ class MySQLDialect extends DialectAbstract
     public function formatJsonRemove(string $col, array|string $path): string
     {
         $parts = $this->normalizeJsonPath($path);
-
-        // build JSON path: keys as .key, numeric indexes as [N]
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                $jsonPath .= '.' . $p;
-            }
-        }
-
+        $jsonPath = $this->buildJsonPathString($parts);
         $colQuoted = $this->quoteIdentifier($col);
 
         // If last segment is numeric — replace that array slot with JSON null to preserve array length semantics
-        $last = end($parts);
-        if (preg_match('/^\d+$/', (string)$last)) {
+        $last = $this->getLastSegment($parts);
+        if ($this->isNumericIndex($last)) {
             // JSON_SET(column, '$.path[index]', CAST('null' AS JSON))
             return "JSON_SET({$colQuoted}, '{$jsonPath}', CAST('null' AS JSON))";
         }
@@ -483,17 +464,7 @@ class MySQLDialect extends DialectAbstract
     public function formatJsonExists(string $col, array|string $path): string
     {
         $parts = $this->normalizeJsonPath($path);
-
-        // build JSON path: start with $
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                $jsonPath .= '.' . $p;
-            }
-        }
-
+        $jsonPath = $this->buildJsonPathString($parts);
         $colQuoted = $this->quoteIdentifier($col);
 
         // Combined check to cover multiple edge cases:
@@ -514,15 +485,7 @@ class MySQLDialect extends DialectAbstract
     public function formatJsonOrderExpr(string $col, array|string $path): string
     {
         $parts = $this->normalizeJsonPath($path);
-
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                $jsonPath .= '.' . $p;
-            }
-        }
+        $jsonPath = $this->buildJsonPathString($parts);
 
         $colQuoted = $this->quoteIdentifier($col);
         $base = "JSON_EXTRACT({$colQuoted}, '{$jsonPath}')";
@@ -545,14 +508,7 @@ class MySQLDialect extends DialectAbstract
         }
 
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                $jsonPath .= '.' . $p;
-            }
-        }
+        $jsonPath = $this->buildJsonPathString($parts);
 
         return "JSON_LENGTH({$colQuoted}, '{$jsonPath}')";
     }
@@ -569,14 +525,7 @@ class MySQLDialect extends DialectAbstract
         }
 
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                $jsonPath .= '.' . $p;
-            }
-        }
+        $jsonPath = $this->buildJsonPathString($parts);
 
         return "JSON_KEYS({$colQuoted}, '{$jsonPath}')";
     }
@@ -593,14 +542,7 @@ class MySQLDialect extends DialectAbstract
         }
 
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                $jsonPath .= '.' . $p;
-            }
-        }
+        $jsonPath = $this->buildJsonPathString($parts);
 
         return "JSON_TYPE(JSON_EXTRACT({$colQuoted}, '{$jsonPath}'))";
     }
@@ -689,27 +631,4 @@ class MySQLDialect extends DialectAbstract
         return "SECOND({$this->resolveValue($value)})";
     }
 
-    /**
-     * @param array<int, string|int>|string $path
-     *
-     * @return string
-     */
-    private function buildJsonPath(array|string $path): string
-    {
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            $jsonPath .= preg_match('/^\d+$/', (string)$p) ? "[$p]" : ".{$p}";
-        }
-        return $jsonPath;
-    }
-
-    private function toJsonText(mixed $value): string
-    {
-        $json = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-        if ($json === false) {
-            return json_encode((string)$value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-        }
-        return $json;
-    }
 }

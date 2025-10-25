@@ -7,10 +7,14 @@ namespace tommyknocker\pdodb\dialects;
 use InvalidArgumentException;
 use PDO;
 use RuntimeException;
+use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
+use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 class PostgreSQLDialect extends DialectAbstract
 {
+    use JsonPathBuilderTrait;
+    use UpsertBuilderTrait;
     /**
      * {@inheritDoc}
      */
@@ -148,95 +152,72 @@ class PostgreSQLDialect extends DialectAbstract
             return '';
         }
 
-        $parts = [];
-        $isAssoc = array_keys($updateColumns) !== range(0, count($updateColumns) - 1);
+        $isAssoc = $this->isAssociativeArray($updateColumns);
 
         if ($isAssoc) {
-            foreach ($updateColumns as $col => $expr) {
-                $colSql = $this->quoteIdentifier((string)$col);
-
-                // Handle Db::inc() / Db::dec()
-                if (is_array($expr) && isset($expr['__op'])) {
-                    $op = $expr['__op'];
-                    // For inc/dec we reference the old table value
-                    $tableRef = $tableName ? $this->quoteTable($tableName) . '.' : '';
-                    $parts[] = match ($op) {
-                        'inc' => "{$colSql} = {$tableRef}{$colSql} + " . (int)$expr['val'],
-                        'dec' => "{$colSql} = {$tableRef}{$colSql} - " . (int)$expr['val'],
-                        default => "{$colSql} = EXCLUDED.{$colSql}",
-                    };
-                    continue;
-                }
-
-                if ($expr instanceof RawValue) {
-                    // For RawValue with column references, replace with table.column
-                    $exprStr = $expr->getValue();
-                    if ($tableName) {
-                        $quotedCol = $this->quoteIdentifier((string)$col);
-                        $tableRef = $this->quoteTable($tableName);
-                        $replacement = $tableRef . '.' . $quotedCol;
-
-                        $safeExpr = preg_replace_callback(
-                            '/\b' . preg_quote((string)$col, '/') . '\b/i',
-                            static function ($m) use ($exprStr, $replacement) {
-                                $pos = strpos($exprStr, $m[0]);
-                                if ($pos === false) {
-                                    return $m[0];
-                                }
-                                $left = $pos > 0 ? substr($exprStr, max(0, $pos - 9), 9) : '';
-                                if (str_contains($left, '.') || stripos($left, 'excluded') !== false) {
-                                    return $m[0];
-                                }
-                                return $replacement;
-                            },
-                            $exprStr
-                        );
-                        $parts[] = "{$colSql} = {$safeExpr}";
-                    } else {
-                        $parts[] = "{$colSql} = {$exprStr}";
-                    }
-                    continue;
-                }
-
-                $exprStr = trim((string)$expr);
-
-                if (preg_match('/^(?:EXCLUDED\.)?[A-Za-z_][A-Za-z0-9_]*$/i', $exprStr)) {
-                    if (stripos($exprStr, 'EXCLUDED.') === 0) {
-                        $parts[] = "{$colSql} = {$exprStr}";
-                    } else {
-                        $parts[] = "{$colSql} = EXCLUDED.{$this->quoteIdentifier($exprStr)}";
-                    }
-                    continue;
-                }
-
-                $quotedCol = $this->quoteIdentifier((string)$col); // e.g. "age"
-                $replacement = 'excluded.' . $quotedCol;   // excluded."age" (lowercase excluded)
-
-                $safeExpr = preg_replace_callback(
-                    '/\b' . preg_quote((string)$col, '/') . '\b/i',
-                    static function ($m) use ($exprStr, $replacement) {
-                        $pos = strpos($exprStr, $m[0]);
-                        if ($pos === false) {
-                            return $m[0];
-                        }
-                        $left = $pos > 0 ? substr($exprStr, max(0, $pos - 9), 9) : '';
-                        if (str_contains($left, '.') || stripos($left, 'excluded') !== false) {
-                            return $m[0];
-                        }
-                        return $replacement;
-                    },
-                    $exprStr
-                );
-
-                $parts[] = "{$colSql} = {$safeExpr}";
-            }
+            $parts = $this->buildUpsertExpressions($updateColumns, $tableName);
         } else {
+            $parts = [];
             foreach ($updateColumns as $c) {
                 $parts[] = "{$this->quoteIdentifier($c)} = EXCLUDED.{$this->quoteIdentifier($c)}";
             }
         }
 
         return "ON CONFLICT ({$this->quoteIdentifier($defaultConflictTarget)}) DO UPDATE SET " . implode(', ', $parts);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildIncrementExpression(string $colSql, array $expr, string $tableName): string
+    {
+        $op = $expr['__op'];
+        // For inc/dec we reference the old table value
+        $tableRef = $tableName ? $this->quoteTable($tableName) . '.' : '';
+        return match ($op) {
+            'inc' => "{$colSql} = {$tableRef}{$colSql} + " . (int)$expr['val'],
+            'dec' => "{$colSql} = {$tableRef}{$colSql} - " . (int)$expr['val'],
+            default => "{$colSql} = EXCLUDED.{$colSql}",
+        };
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildRawValueExpression(string $colSql, RawValue $expr, string $tableName, string $col): string
+    {
+        // For RawValue with column references, replace with table.column
+        $exprStr = $expr->getValue();
+        if ($tableName) {
+            $quotedCol = $this->quoteIdentifier($col);
+            $tableRef = $this->quoteTable($tableName);
+            $replacement = $tableRef . '.' . $quotedCol;
+
+            $safeExpr = $this->replaceColumnReferences($exprStr, $col, $replacement);
+            return "{$colSql} = {$safeExpr}";
+        }
+        return "{$colSql} = {$exprStr}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildDefaultExpression(string $colSql, mixed $expr, string $col): string
+    {
+        $exprStr = trim((string)$expr);
+
+        if (preg_match('/^(?:EXCLUDED\.)?[A-Za-z_][A-Za-z0-9_]*$/i', $exprStr)) {
+            if (stripos($exprStr, 'EXCLUDED.') === 0) {
+                return "{$colSql} = {$exprStr}";
+            }
+            return "{$colSql} = EXCLUDED.{$this->quoteIdentifier($exprStr)}";
+        }
+
+        $quotedCol = $this->quoteIdentifier($col);
+        $replacement = 'excluded.' . $quotedCol;
+
+        $safeExpr = $this->replaceColumnReferences($exprStr, $col, $replacement);
+        return "{$colSql} = {$safeExpr}";
     }
 
     /**
@@ -442,7 +423,7 @@ class PostgreSQLDialect extends DialectAbstract
         if (empty($parts)) {
             return $asText ? $this->quoteIdentifier($col) . '::text' : $this->quoteIdentifier($col);
         }
-        $arr = 'ARRAY[' . implode(',', array_map(fn ($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . ']';
+        $arr = $this->buildPostgreSqlJsonPath($parts);
         // build #> or #>> with array literal
         if ($asText) {
             return $this->quoteIdentifier($col) . ' #>> ' . $arr;
@@ -450,18 +431,6 @@ class PostgreSQLDialect extends DialectAbstract
         return $this->quoteIdentifier($col) . ' #> ' . $arr;
     }
 
-    /**
-     * Quote parameter or literal for JSON path array.
-     *
-     * @param string|int $param
-     *
-     * @return string
-     */
-    protected function connectionQuoteParamOrLiteral(string|int $param): string
-    {
-        // All array elements for JSON path must be quoted strings in PostgreSQL
-        return "'" . $param . "'";
-    }
 
     /**
      * {@inheritDoc}
@@ -472,21 +441,21 @@ class PostgreSQLDialect extends DialectAbstract
     {
         $colQuoted = $this->quoteIdentifier($col);
         $parts = $this->normalizeJsonPath($path ?? []);
-        $paramJson = ':jsonc';
-        $json = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $paramJson = $this->generateParameterName('jsonc', $col);
+        $json = $this->encodeToJson($value);
 
         if (empty($parts)) {
             $sql = "{$colQuoted}::jsonb @> {$paramJson}::jsonb";
             return [$sql, [$paramJson => $json]];
         }
 
-        $arr = 'ARRAY[' . implode(',', array_map(fn ($p) => "'" . str_replace("'", "''", (string)$p) . "'", $parts)) . ']';
+        $arr = $this->buildPostgreSqlJsonPath($parts);
         $extracted = "{$colQuoted}::jsonb #> {$arr}";
 
         if (is_string($value)) {
             // Avoid using the '?' operator because PDO treats '?' as positional placeholder.
             // Use EXISTS with jsonb_array_elements_text to check presence of string element.
-            $tokenParam = ':jsonc_token';
+            $tokenParam = $this->generateParameterName('jsonc_token', $col);
             $sql = "EXISTS (SELECT 1 FROM jsonb_array_elements_text({$extracted}) AS _e(val) WHERE _e.val = {$tokenParam})";
             return [$sql, [$tokenParam => (string)$value]];
         }
@@ -507,32 +476,23 @@ class PostgreSQLDialect extends DialectAbstract
         $colQuoted = $this->quoteIdentifier($col);
 
         // build pg path for full path and for parent path
-        $pgPath = '{' . implode(',', array_map(fn ($p) => str_replace('}', '\\}', (string)$p), $parts)) . '}';
+        $pgPath = $this->buildPostgreSqlJsonbPath($parts);
         if (count($parts) > 1) {
-            $parentParts = $parts;
-            array_pop($parentParts);
-            $pgParentPath = '{' . implode(',', array_map(fn ($p) => str_replace('}', '\\}', (string)$p), $parentParts)) . '}';
-            $lastKey = (string)end($parts);
+            $parentParts = $this->getParentPathParts($parts);
+            $pgParentPath = $this->buildPostgreSqlJsonbPath($parentParts);
+            $lastKey = $this->getLastSegment($parts);
         } else {
             $pgParentPath = null;
-            $lastKey = (string)$parts[0];
+            $lastKey = $parts[0];
         }
 
-        $param = ':' . substr(md5($col . '|' . $pgPath), 0, 8);
+        $param = $this->generateParameterName('jsonset', $col . '|' . $pgPath);
 
         // produce json text to bind exactly once (use as-is if it already looks like JSON)
         if (is_string($value)) {
-            $trim = trim($value);
-            $looksLikeJson = $trim === 'null'
-                || $trim === 'true'
-                || $trim === 'false'
-                || (strlen($trim) > 0 && ($trim[0] === '{' || $trim[0] === '[' || $trim[0] === '"'));
-            $jsonText = $looksLikeJson ? $value : json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+            $jsonText = $this->looksLikeJson($value) ? $value : $this->encodeToJson($value);
         } else {
-            $jsonText = json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-        }
-        if ($jsonText === false) {
-            $jsonText = json_encode((string)$value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+            $jsonText = $this->encodeToJson($value);
         }
 
         // If there is a parent path, first ensure parent exists as object: set(parentPath, COALESCE(col->parent, {}))
@@ -557,11 +517,11 @@ class PostgreSQLDialect extends DialectAbstract
         $colQuoted = $this->quoteIdentifier($col);
 
         // Build pg path array literal for functions that need it
-        $pgPathArr = '{' . implode(',', array_map(fn ($p) => str_replace('}', '\\}', (string)$p), $parts)) . '}';
+        $pgPathArr = $this->buildPostgreSqlJsonbPath($parts);
 
         // If last segment is numeric -> treat as array index: set that element to JSON null (preserve indices)
-        $last = end($parts);
-        if (is_string($last) && preg_match('/^\d+$/', $last)) {
+        $last = $this->getLastSegment($parts);
+        if ($this->isNumericIndex($last)) {
             // Use jsonb_set to assign JSON null at exact path; create parents if needed
             return "jsonb_set({$colQuoted}::jsonb, '{$pgPathArr}', 'null'::jsonb, true)::jsonb";
         }
@@ -581,19 +541,7 @@ class PostgreSQLDialect extends DialectAbstract
         $colQuoted = $this->quoteIdentifier($col);
 
         // Build jsonpath for jsonb_path_exists
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', (string)$p)) {
-                    $jsonPath .= '.' . $p;
-                } else {
-                    $escaped = str_replace('"', '\\"', (string)$p);
-                    $jsonPath .= '.\"' . $escaped . '\"';
-                }
-            }
-        }
+        $jsonPath = $this->buildJsonPathString($parts);
 
         $checks = ["jsonb_path_exists({$colQuoted}::jsonb, '{$jsonPath}')"];
 
@@ -601,7 +549,7 @@ class PostgreSQLDialect extends DialectAbstract
         $prefixExpr = $colQuoted . '::jsonb';
         $accum = [];
         foreach ($parts as $i => $p) {
-            $isIndex = preg_match('/^\d+$/', (string)$p);
+            $isIndex = $this->isNumericIndex($p);
             if ($isIndex) {
                 $idx = (int)$p;
                 $lenCheck = "(jsonb_typeof({$prefixExpr}) = 'array' AND jsonb_array_length({$prefixExpr}) > {$idx})";
@@ -621,7 +569,7 @@ class PostgreSQLDialect extends DialectAbstract
         }
 
         // Final fallback: #> path not null. Build pg path array literal safely.
-        $pgPathArr = '{' . implode(',', array_map(fn ($p) => str_replace('}', '\\}', (string)$p), $parts)) . '}';
+        $pgPathArr = $this->buildPostgreSqlJsonbPath($parts);
         $checks[] = "({$colQuoted}::jsonb #> '{$pgPathArr}') IS NOT NULL";
 
         return '(' . implode(' OR ', $checks) . ')';
@@ -637,7 +585,7 @@ class PostgreSQLDialect extends DialectAbstract
             // whole column: cast text to numeric when possible
             $expr = $this->quoteIdentifier($col) . '::text';
         } else {
-            $arr = 'ARRAY[' . implode(',', array_map(fn ($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . ']';
+            $arr = $this->buildPostgreSqlJsonPath($parts);
             $expr = $this->quoteIdentifier($col) . ' #>> ' . $arr;
         }
 
@@ -659,7 +607,7 @@ class PostgreSQLDialect extends DialectAbstract
         }
 
         $parts = $this->normalizeJsonPath($path);
-        $arr = 'ARRAY[' . implode(',', array_map(fn ($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . ']';
+        $arr = $this->buildPostgreSqlJsonPath($parts);
         $extracted = "{$colQuoted}::jsonb #> {$arr}";
 
         return "CASE WHEN jsonb_typeof({$extracted}) = 'array' THEN jsonb_array_length({$extracted}) ELSE 0 END";
@@ -678,7 +626,7 @@ class PostgreSQLDialect extends DialectAbstract
         }
 
         $parts = $this->normalizeJsonPath($path);
-        $arr = 'ARRAY[' . implode(',', array_map(fn ($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . ']';
+        $arr = $this->buildPostgreSqlJsonPath($parts);
 
         // PostgreSQL doesn't have a simple JSON_KEYS function, return a placeholder
         return "'[keys]'";
@@ -696,7 +644,7 @@ class PostgreSQLDialect extends DialectAbstract
         }
 
         $parts = $this->normalizeJsonPath($path);
-        $arr = 'ARRAY[' . implode(',', array_map(fn ($p) => $this->connectionQuoteParamOrLiteral($p), $parts)) . ']';
+        $arr = $this->buildPostgreSqlJsonPath($parts);
         $extracted = "{$colQuoted}::jsonb #> {$arr}";
 
         return "jsonb_typeof({$extracted})";

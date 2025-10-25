@@ -7,11 +7,15 @@ namespace tommyknocker\pdodb\dialects;
 use InvalidArgumentException;
 use PDO;
 use RuntimeException;
+use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
+use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 class SqliteDialect extends DialectAbstract
 {
+    use JsonPathBuilderTrait;
+    use UpsertBuilderTrait;
     /**
      * {@inheritDoc}
      */
@@ -121,71 +125,12 @@ class SqliteDialect extends DialectAbstract
             return '';
         }
 
-        $parts = [];
-        $isAssoc = array_keys($updateColumns) !== range(0, count($updateColumns) - 1);
+        $isAssoc = $this->isAssociativeArray($updateColumns);
 
         if ($isAssoc) {
-            foreach ($updateColumns as $col => $expr) {
-                $colSql = $this->quoteIdentifier((string)$col);
-
-                // Handle Db::inc() / Db::dec()
-                if (is_array($expr) && isset($expr['__op'])) {
-                    $op = $expr['__op'];
-                    // SQLite uses column (unqualified) for old values
-                    switch ($op) {
-                        case 'inc':
-                            $parts[] = "{$colSql} = {$colSql} + " . (int)$expr['val'];
-                            break;
-                        case 'dec':
-                            $parts[] = "{$colSql} = {$colSql} - " . (int)$expr['val'];
-                            break;
-                        default:
-                            $parts[] = "{$colSql} = excluded.{$colSql}";
-                    }
-                    continue;
-                }
-
-                // RawValue is inserted as-is
-                if ($expr instanceof RawValue) {
-                    $parts[] = "{$colSql} = {$expr->getValue()}";
-                    continue;
-                }
-
-                $exprStr = trim((string)$expr);
-
-                // Simple name or EXCLUDED.name
-                if (preg_match('/^(?:excluded\.)?[A-Za-z_][A-Za-z0-9_]*$/i', $exprStr)) {
-                    if (stripos($exprStr, 'excluded.') === 0) {
-                        $parts[] = "{$colSql} = {$exprStr}";
-                    } else {
-                        $parts[] = "{$colSql} = excluded.{$this->quoteIdentifier($exprStr)}";
-                    }
-                    continue;
-                }
-
-                // Auto-qualify for typical expressions: replace only "bare" occurrences of column name with excluded."col"
-                $quotedCol = $this->quoteIdentifier((string)$col);
-                $replacement = 'excluded.' . $quotedCol;
-
-                $safeExpr = preg_replace_callback(
-                    '/\b' . preg_quote((string)$col, '/') . '\b/i',
-                    static function ($m) use ($exprStr, $replacement) {
-                        $pos = strpos($exprStr, $m[0]);
-                        if ($pos === false) {
-                            return $m[0];
-                        }
-                        $left = $pos > 0 ? substr($exprStr, max(0, $pos - 9), 9) : '';
-                        if (strpos($left, '.') !== false || stripos($left, 'excluded') !== false) {
-                            return $m[0];
-                        }
-                        return $replacement;
-                    },
-                    $exprStr
-                );
-
-                $parts[] = "{$colSql} = {$safeExpr}";
-            }
+            $parts = $this->buildUpsertExpressions($updateColumns, $tableName);
         } else {
+            $parts = [];
             foreach ($updateColumns as $c) {
                 $parts[] = "{$this->quoteIdentifier($c)} = excluded.{$this->quoteIdentifier($c)}";
             }
@@ -193,6 +138,51 @@ class SqliteDialect extends DialectAbstract
 
         $target = $this->quoteIdentifier($defaultConflictTarget);
         return "ON CONFLICT ({$target}) DO UPDATE SET " . implode(', ', $parts);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildIncrementExpression(string $colSql, array $expr, string $tableName): string
+    {
+        $op = $expr['__op'];
+        // SQLite uses column (unqualified) for old values
+        return match ($op) {
+            'inc' => "{$colSql} = {$colSql} + " . (int)$expr['val'],
+            'dec' => "{$colSql} = {$colSql} - " . (int)$expr['val'],
+            default => "{$colSql} = excluded.{$colSql}",
+        };
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildRawValueExpression(string $colSql, RawValue $expr, string $tableName, string $col): string
+    {
+        return "{$colSql} = {$expr->getValue()}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildDefaultExpression(string $colSql, mixed $expr, string $col): string
+    {
+        $exprStr = trim((string)$expr);
+
+        // Simple name or EXCLUDED.name
+        if (preg_match('/^(?:excluded\.)?[A-Za-z_][A-Za-z0-9_]*$/i', $exprStr)) {
+            if (stripos($exprStr, 'excluded.') === 0) {
+                return "{$colSql} = {$exprStr}";
+            }
+            return "{$colSql} = excluded.{$this->quoteIdentifier($exprStr)}";
+        }
+
+        // Auto-qualify for typical expressions: replace only "bare" occurrences of column name with excluded."col"
+        $quotedCol = $this->quoteIdentifier($col);
+        $replacement = 'excluded.' . $quotedCol;
+
+        $safeExpr = $this->replaceColumnReferences($exprStr, $col, $replacement);
+        return "{$colSql} = {$safeExpr}";
     }
 
     /**
@@ -307,16 +297,7 @@ class SqliteDialect extends DialectAbstract
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string
     {
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                // Numeric index -> [N]
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                // Object key -> .key
-                $jsonPath .= '.' . $p;
-            }
-        }
+        $jsonPath = $this->buildJsonPathString($parts);
         $colQuoted = $this->quoteIdentifier($col);
         $base = "json_extract({$colQuoted}, '{$jsonPath}')";
         return $asText ? "({$base} || '')" : $base;
@@ -328,16 +309,7 @@ class SqliteDialect extends DialectAbstract
     public function formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
     {
         $parts = $this->normalizeJsonPath($path ?? []);
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                // Numeric index -> [N]
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                // Object key -> .key
-                $jsonPath .= '.' . $p;
-            }
-        }
+        $jsonPath = $this->buildJsonPathString($parts);
         $quotedCol = $this->quoteIdentifier($col);
 
         // If value is an array, check that all elements are present in the JSON array
@@ -346,9 +318,9 @@ class SqliteDialect extends DialectAbstract
             $params = [];
 
             foreach ($value as $idx => $item) {
-                $param = ':jsonc_' . $idx;
+                $param = $this->generateParameterName('jsonc', $col . '_' . $idx);
                 $conditions[] = "EXISTS (SELECT 1 FROM json_each({$quotedCol}, '{$jsonPath}') WHERE json_each.value = {$param})";
-                $params[$param] = is_string($item) ? $item : json_encode($item, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+                $params[$param] = is_string($item) ? $item : $this->encodeToJson($item);
             }
 
             $sql = '(' . implode(' AND ', $conditions) . ')';
@@ -356,11 +328,11 @@ class SqliteDialect extends DialectAbstract
         }
 
         // For scalar values, use simple json_each check
-        $param = ':jsonc';
+        $param = $this->generateParameterName('jsonc', $col);
         $sql = "EXISTS (SELECT 1 FROM json_each({$quotedCol}, '{$jsonPath}') WHERE json_each.value = {$param})";
 
         // Encode value as JSON if not a simple scalar
-        $paramValue = is_string($value) ? $value : json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $paramValue = is_string($value) ? $value : $this->encodeToJson($value);
 
         return [$sql, [$param => $paramValue]];
     }
@@ -371,20 +343,11 @@ class SqliteDialect extends DialectAbstract
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
     {
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                // Numeric index -> [N]
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                // Object key -> .key
-                $jsonPath .= '.' . $p;
-            }
-        }
-        $param = ':jsonset';
+        $jsonPath = $this->buildJsonPathString($parts);
+        $param = $this->generateParameterName('jsonset', $col);
         // Use json() to parse the JSON-encoded value properly
         $expr = 'JSON_SET(' . $this->quoteIdentifier($col) . ", '{$jsonPath}', json({$param}))";
-        return [$expr, [$param => json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)]];
+        return [$expr, [$param => $this->encodeToJson($value)]];
     }
 
     /**
@@ -393,22 +356,12 @@ class SqliteDialect extends DialectAbstract
     public function formatJsonRemove(string $col, array|string $path): string
     {
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                // Numeric index -> [N]
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                // Object key -> .key
-                $jsonPath .= '.' . $p;
-            }
-        }
-
+        $jsonPath = $this->buildJsonPathString($parts);
         $colQuoted = $this->quoteIdentifier($col);
 
         // If last segment is numeric, replace array element with JSON null to preserve indices
-        $last = end($parts);
-        if (preg_match('/^\d+$/', (string)$last)) {
+        $last = $this->getLastSegment($parts);
+        if ($this->isNumericIndex($last)) {
             // Use JSON_SET to set the element to JSON null (using json('null'))
             return "JSON_SET({$colQuoted}, '{$jsonPath}', json('null'))";
         }
@@ -450,14 +403,7 @@ class SqliteDialect extends DialectAbstract
         }
 
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                $jsonPath .= '.' . $p;
-            }
-        }
+        $jsonPath = $this->buildJsonPathString($parts);
 
         $extracted = "json_extract({$colQuoted}, '{$jsonPath}')";
         return "COALESCE(json_array_length({$extracted}), 0)";
@@ -476,14 +422,7 @@ class SqliteDialect extends DialectAbstract
         }
 
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                $jsonPath .= '.' . $p;
-            }
-        }
+        $jsonPath = $this->buildJsonPathString($parts);
 
         // SQLite doesn't have a direct JSON_KEYS function, return a placeholder
         return "'[keys]'";
@@ -501,14 +440,7 @@ class SqliteDialect extends DialectAbstract
         }
 
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = '$';
-        foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
-                $jsonPath .= '[' . $p . ']';
-            } else {
-                $jsonPath .= '.' . $p;
-            }
-        }
+        $jsonPath = $this->buildJsonPathString($parts);
 
         return "json_type(json_extract({$colQuoted}, '{$jsonPath}'))";
     }
