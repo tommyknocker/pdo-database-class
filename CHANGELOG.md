@@ -9,6 +9,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.6.2] - 2025-10-25
+
+### Added
+- **Comprehensive examples expansion**: Added 5 new comprehensive example files demonstrating all library functionality:
+  - `05-comparison-helpers.php` - LIKE, BETWEEN, IN, NOT operations with practical scenarios
+  - `06-conditional-helpers.php` - CASE statements with complex conditional logic
+  - `07-boolean-helpers.php` - TRUE/FALSE/DEFAULT values and boolean operations
+  - `08-type-helpers.php` - CAST, GREATEST, LEAST type conversion and comparison functions
+  - `04-subqueries.php` - Complete subquery examples (EXISTS, NOT EXISTS, scalar subqueries)
+- **Enhanced existing examples**: Significantly expanded all helper function examples with real-world scenarios
+- **Complete CONTRIBUTING.md**: Added comprehensive development guidelines (413 lines) covering:
+  - Development setup and testing procedures
+  - Code style requirements and commit conventions
+  - Pull request guidelines and templates
+  - Release process and maintainer information
+  - Security reporting and communication channels
+
+### Changed
+- **Major architectural refactoring** following SOLID principles:
+  - **Connection architecture**: Extracted ConnectionLogger, ConnectionState, DialectRegistry, RetryConfigValidator
+  - **Strategy pattern for exception handling**: Replaced monolithic ExceptionFactory with 7 specialized strategies
+  - **Dialect refactoring**: Extracted common functionality into reusable traits (JsonPathBuilderTrait, UpsertBuilderTrait, FileLoader)
+  - **Helper system refactoring**: Converted all helper classes to traits organized by functionality
+  - **QueryBuilder refactoring**: Split monolithic QueryBuilder into focused components with proper interfaces
+- **Code organization improvements**:
+  - Moved helper classes to `src/helpers/traits/` directory
+  - Moved query interfaces to `src/query/interfaces/` directory
+  - Split DbError into dialect-specific traits (MysqlErrorTrait, PostgresqlErrorTrait, SqliteErrorTrait)
+  - Created utility classes: ParameterManager, FileLoader, ConstraintParser, ErrorCodeRegistry
+- **Enhanced examples**: Replaced `Db::raw()` calls with helper functions where possible for better educational value
+
+### Fixed
+- **Cross-database compatibility**: Fixed all examples to work consistently on SQLite, MySQL, and PostgreSQL
+- **Code duplication elimination**: Removed ~1000+ lines of duplicate code through trait extraction
+- **Type safety improvements**: Added proper PHPDoc annotations and null safety checks
+
+### Technical Details
+- **All tests passing**: 478 tests, 2198 assertions
+- **All examples passing**: 90/90 examples (30 files × 3 dialects each)
+- **PHPStan Level 8**: Zero errors across entire codebase
+- **Backward compatibility**: 100% maintained - no breaking changes to public API
+- **Performance**: Improved through reduced code duplication and better architecture
+- **Maintainability**: Significantly improved through SOLID principles and trait-based organization
+
+---
+
 ## [2.6.1] - 2025-01-27
 
 ### Added
@@ -496,7 +542,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.6.1...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.6.2...HEAD
+[2.6.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.5.1...v2.6.0
 [2.5.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.5.0...v2.5.1
