@@ -16,7 +16,8 @@ class FileLoader
 
     public function __construct(
         private PDO $pdo
-    ) {}
+    ) {
+    }
 
     /**
      * Load data from CSV file.

@@ -168,6 +168,7 @@ class PostgreSQLDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
+     *
      * @param array<string, mixed> $expr
      */
     protected function buildIncrementExpression(string $colSql, array $expr, string $tableName): string
@@ -175,7 +176,7 @@ class PostgreSQLDialect extends DialectAbstract
         if (!isset($expr['__op']) || !isset($expr['val'])) {
             return "{$colSql} = EXCLUDED.{$colSql}";
         }
-        
+
         $op = $expr['__op'];
         // For inc/dec we reference the old table value
         $tableRef = $tableName ? $this->quoteTable($tableName) . '.' : '';
@@ -435,7 +436,6 @@ class PostgreSQLDialect extends DialectAbstract
         }
         return $this->quoteIdentifier($col) . ' #> ' . $arr;
     }
-
 
     /**
      * {@inheritDoc}

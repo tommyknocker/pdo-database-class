@@ -106,6 +106,7 @@ trait JsonPathBuilderTrait
      * Get parent path parts (all except last).
      *
      * @param array<int, string|int> $parts
+     *
      * @return array<int, string|int>
      */
     protected function getParentPathParts(array $parts): array

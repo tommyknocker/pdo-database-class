@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects;
 
-use InvalidArgumentException;
 use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
@@ -17,7 +16,7 @@ abstract class DialectAbstract implements DialectInterface
 {
     /** @var PDO PDO instance */
     protected ?PDO $pdo = null;
-    
+
     private ?FileLoader $fileLoader = null;
     private ?ParameterManager $parameterManager = null;
 

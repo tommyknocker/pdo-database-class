@@ -12,15 +12,16 @@ trait UpsertBuilderTrait
      * Build upsert update expressions for associative array.
      *
      * @param array<int|string, mixed> $updateColumns
+     *
      * @return array<int, string>
      */
     protected function buildUpsertExpressions(array $updateColumns, string $tableName = ''): array
     {
         $parts = [];
-        
+
         foreach ($updateColumns as $col => $expr) {
             $colSql = $this->quoteIdentifier((string)$col);
-            
+
             if (is_array($expr) && isset($expr['__op'])) {
                 $parts[] = $this->buildIncrementExpression($colSql, $expr, $tableName);
             } elseif ($expr instanceof RawValue) {
@@ -29,7 +30,7 @@ trait UpsertBuilderTrait
                 $parts[] = $this->buildDefaultExpression($colSql, $expr, (string)$col);
             }
         }
-        
+
         return $parts;
     }
 
@@ -73,18 +74,18 @@ trait UpsertBuilderTrait
                 if ($pos === false) {
                     return $matches[0];
                 }
-                
+
                 // Check if it's already qualified (has a dot or excluded prefix)
                 $left = $pos > 0 ? substr($expression, max(0, $pos - 9), 9) : '';
                 if (str_contains($left, '.') || stripos($left, 'excluded') !== false) {
                     return $matches[0];
                 }
-                
+
                 return $replacement;
             },
             $expression
         );
-        
+
         return $result ?? $expression;
     }
 }

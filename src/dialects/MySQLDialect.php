@@ -134,7 +134,7 @@ class MySQLDialect extends DialectAbstract
         }
 
         $isAssoc = $this->isAssociativeArray($updateColumns);
-        
+
         if ($isAssoc) {
             $updates = $this->buildUpsertExpressions($updateColumns, $tableName);
         } else {
@@ -150,6 +150,7 @@ class MySQLDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
+     *
      * @param array<string, mixed> $expr
      */
     protected function buildIncrementExpression(string $colSql, array $expr, string $tableName): string
@@ -157,7 +158,7 @@ class MySQLDialect extends DialectAbstract
         if (!isset($expr['__op']) || !isset($expr['val'])) {
             return "{$colSql} = VALUES({$colSql})";
         }
-        
+
         $op = $expr['__op'];
         return match ($op) {
             'inc' => "{$colSql} = {$colSql} + " . (int)$expr['val'],
@@ -635,5 +636,4 @@ class MySQLDialect extends DialectAbstract
     {
         return "SECOND({$this->resolveValue($value)})";
     }
-
 }

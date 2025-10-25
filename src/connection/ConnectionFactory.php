@@ -7,15 +7,12 @@ namespace tommyknocker\pdodb\connection;
 use InvalidArgumentException;
 use PDO;
 use Psr\Log\LoggerInterface;
-use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\dialects\MySQLDialect;
-use tommyknocker\pdodb\dialects\PostgreSQLDialect;
-use tommyknocker\pdodb\dialects\SqliteDialect;
 
 /**
  * ConnectionFactory.
  *
  * Build DSN, create PDO and wire Dialect -> Connection.
+ * Uses DialectRegistry for extensible dialect resolution.
  */
 class ConnectionFactory
 {
@@ -31,8 +28,9 @@ class ConnectionFactory
     public function create(array $config, ?LoggerInterface $logger): Connection
     {
         $driver = $config['driver'] ?? throw new InvalidArgumentException('driver is required');
-        $dialect = $this->resolveDialect($driver);
+        $dialect = DialectRegistry::resolve($driver);
         $pdo = $config['pdo'] ?? null;
+
         if (!$pdo) {
             $dsn = $dialect->buildDsn($config);
             $user = $config['username'] ?? '';
@@ -40,6 +38,7 @@ class ConnectionFactory
             $options = $dialect->defaultPdoOptions() + ($config['options'] ?? []);
             $pdo = new PDO($dsn, $user, $pass, $options);
         }
+
         $dialect->setPdo($pdo);
 
         // Use RetryableConnection if retry is enabled
@@ -49,23 +48,5 @@ class ConnectionFactory
         }
 
         return new Connection($pdo, $dialect, $logger);
-    }
-
-    /**
-     * Resolve the dialect based on the driver name.
-     *
-     * @param string $driver The driver name.
-     *
-     * @return DialectInterface The resolved dialect instance.
-     * @throws InvalidArgumentException If the driver is unsupported.
-     */
-    protected function resolveDialect(string $driver): DialectInterface
-    {
-        return match ($driver) {
-            'mysql' => new MySQLDialect(),
-            'sqlite' => new SqliteDialect(),
-            'pgsql' => new PostgreSQLDialect(),
-            default => throw new InvalidArgumentException('Unsupported driver: ' . $driver),
-        };
     }
 }
