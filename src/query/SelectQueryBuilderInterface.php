@@ -1,0 +1,128 @@
+<?php
+
+declare(strict_types=1);
+
+namespace tommyknocker\pdodb\query;
+
+use tommyknocker\pdodb\helpers\RawValue;
+
+interface SelectQueryBuilderInterface
+{
+    /**
+     * Add columns to the SELECT clause.
+     *
+     * @param RawValue|callable|string|array $cols The columns to add.
+     *
+     * @return self The current instance.
+     */
+    public function select(RawValue|callable|string|array $cols): self;
+
+    /**
+     * Execute SELECT statement and return all rows.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function get(): array;
+
+    /**
+     * Execute SELECT statement and return first row.
+     *
+     * @return mixed
+     */
+    public function getOne(): mixed;
+
+    /**
+     * Execute SELECT statement and return column values.
+     *
+     * @return array<int, mixed>
+     */
+    public function getColumn(): array;
+
+    /**
+     * Execute SELECT statement and return single value.
+     *
+     * @return mixed
+     */
+    public function getValue(): mixed;
+
+    /**
+     * Add ORDER BY clause.
+     *
+     * @param string|RawValue $expr The expression to order by.
+     * @param string $direction The direction of the ordering (ASC or DESC).
+     *
+     * @return self The current instance.
+     */
+    public function orderBy(string|RawValue $expr, string $direction = 'ASC'): self;
+
+    /**
+     * Add GROUP BY clause.
+     *
+     * @param string|array<int, string|RawValue>|RawValue $cols The columns to group by.
+     *
+     * @return self The current instance.
+     */
+    public function groupBy(string|array|RawValue $cols): self;
+
+    /**
+     * Add LIMIT clause.
+     *
+     * @param int $number The number of rows to limit.
+     *
+     * @return self The current instance.
+     */
+    public function limit(int $number): self;
+
+    /**
+     * Add OFFSET clause.
+     *
+     * @param int $number The number of rows to offset.
+     *
+     * @return self The current instance.
+     */
+    public function offset(int $number): self;
+
+    /**
+     * Sets the query options.
+     *
+     * @param string|array<int|string, mixed> $options The query options.
+     *
+     * @return self The current object.
+     */
+    public function option(string|array $options): self;
+
+    /**
+     * Set fetch mode to return objects.
+     *
+     * @return self
+     */
+    public function asObject(): self;
+
+    /**
+     * Convert query to SQL string and parameters.
+     *
+     * @return array{sql: string, params: array<string, string|int|float|bool|null>}
+     */
+    public function toSQL(): array;
+
+    /**
+     * Execute EXPLAIN query to analyze query execution plan.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function explain(): array;
+
+    /**
+     * Execute EXPLAIN ANALYZE query (PostgreSQL) or EXPLAIN FORMAT=JSON (MySQL).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function explainAnalyze(): array;
+
+    /**
+     * Execute DESCRIBE query to get table structure.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function describe(): array;
+}
