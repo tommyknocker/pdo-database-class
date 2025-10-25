@@ -73,7 +73,7 @@ $deleted = $db->find()
 echo "✓ Deleted $deleted row(s)\n\n";
 
 // Verify deletion
-$count = $db->find()->from('users')->select(Db::raw('COUNT(*)'))->getValue();
+$count = $db->find()->from('users')->select([Db::count()])->getValue();
 echo "  Remaining users: $count\n\n";
 
 echo "All CRUD operations completed successfully on $driver!\n";

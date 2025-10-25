@@ -120,27 +120,59 @@ foreach ($results as $row) {
 }
 echo "\n";
 
-// Example 6: Combining math functions
-echo "6. Complex calculation - Normalized scores...\n";
+// Example 6: INC and DEC operations (for UPDATE)
+echo "6. INC and DEC operations (for UPDATE)...\n";
+// Show current values
+$before = $db->find()
+    ->from('measurements')
+    ->select(['name', 'value'])
+    ->limit(2)
+    ->get();
+
+echo "  Before update:\n";
+foreach ($before as $row) {
+    echo "  • {$row['name']}: {$row['value']}\n";
+}
+
+// Update using INC and DEC
+$db->find()->table('measurements')->where('id', 1)->update(['value' => Db::inc(5)]);
+$db->find()->table('measurements')->where('id', 2)->update(['value' => Db::dec(2)]);
+
+// Show updated values
+$after = $db->find()
+    ->from('measurements')
+    ->select(['name', 'value'])
+    ->limit(2)
+    ->get();
+
+echo "  After update:\n";
+foreach ($after as $row) {
+    echo "  • {$row['name']}: {$row['value']}\n";
+}
+echo "\n";
+
+// Example 7: Combining math functions
+echo "7. Complex calculation - Normalized scores...\n";
 $results = $db->find()
     ->from('measurements')
     ->select([
         'name',
         'value',
         'abs_value' => Db::abs('value'),
-        'normalized' => Db::round(Db::abs('value'), 1)
+        'normalized' => Db::round(Db::abs('value'), 1),
+        'modulo_10' => Db::mod('reading', 10)
     ])
     ->orderBy(Db::abs('value'), 'DESC')
     ->get();
 
 echo "  Measurements ordered by absolute value:\n";
 foreach ($results as $row) {
-    echo "  • {$row['name']}: {$row['value']} → {$row['normalized']}\n";
+    echo "  • {$row['name']}: {$row['value']} → abs: {$row['abs_value']}, normalized: {$row['normalized']}, mod 10: {$row['modulo_10']}\n";
 }
 echo "\n";
 
-// Example 7: Using math in WHERE clause
-echo "7. Filtering by math operations...\n";
+// Example 8: Using math in WHERE clause
+echo "8. Filtering by math operations...\n";
 $filtered = $db->find()
     ->from('measurements')
     ->select(['name', 'value'])
@@ -151,6 +183,30 @@ echo "  Measurements with |value| > 10:\n";
 foreach ($filtered as $row) {
     echo "  • {$row['name']}: {$row['value']}\n";
 }
+echo "\n";
+
+// Example 9: Advanced mathematical operations
+echo "9. Advanced mathematical operations...\n";
+$driver = getCurrentDriver($db);
+$rangeCheckFunc = $driver === 'sqlite' ? 'MAX(MIN(value, 100), -100)' : 'GREATEST(LEAST(value, 100), -100)';
+
+$results = $db->find()
+    ->from('measurements')
+    ->select([
+        'name',
+        'value',
+        'reading',
+        'percentage' => Db::round(Db::raw('(value / 100) * 100'), 1),
+        'is_even' => Db::mod('reading', 2),
+        'range_check' => Db::raw($rangeCheckFunc)
+    ])
+    ->get();
+
+foreach ($results as $row) {
+    $isEven = $row['is_even'] == 0 ? 'even' : 'odd';
+    echo "  • {$row['name']}: value={$row['value']}, reading={$row['reading']} ({$isEven})\n";
+    echo "    percentage={$row['percentage']}%, range_check={$row['range_check']}\n";
+}
 
 echo "\nMath helper functions example completed!\n";
 echo "\nKey Takeaways:\n";
@@ -158,4 +214,6 @@ echo "  • Use ABS for absolute values\n";
 echo "  • Use ROUND to control precision\n";
 echo "  • Use MOD for modulo operations (even/odd, cycles)\n";
 echo "  • Use GREATEST/LEAST to compare multiple values\n";
+echo "  • Use INC/DEC for increment/decrement operations\n";
+echo "  • Combine functions for complex calculations\n";
 

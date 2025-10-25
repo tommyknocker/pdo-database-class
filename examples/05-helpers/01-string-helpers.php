@@ -120,15 +120,39 @@ foreach ($users as $user) {
 }
 echo "\n";
 
-// Example 7: Combine multiple string functions
-echo "7. Combining string functions with raw SQL...\n";
+// Example 7: LTRIM and RTRIM operations
+echo "7. LTRIM and RTRIM operations...\n";
+$users = $db->find()
+    ->from('users')
+    ->select([
+        'bio',
+        'left_trimmed' => Db::ltrim('bio'),
+        'right_trimmed' => Db::rtrim('bio'),
+        'both_trimmed' => Db::trim('bio')
+    ])
+    ->where(Db::like('bio', '% %'))
+    ->get();
+
+foreach ($users as $user) {
+    echo "  Original: \"{$user['bio']}\"\n";
+    echo "  LTRIM:    \"{$user['left_trimmed']}\"\n";
+    echo "  RTRIM:    \"{$user['right_trimmed']}\"\n";
+    echo "  TRIM:     \"{$user['both_trimmed']}\"\n";
+}
+echo "\n";
+
+// Example 8: Combine multiple string functions
+echo "8. Combining string functions...\n";
+$driver = getCurrentDriver($db);
+$concatFunc = $driver === 'pgsql' ? 'first_name || \' \' || last_name' : 'CONCAT(first_name, " ", last_name)';
 $users = $db->find()
     ->from('users')
     ->select([
         'first_name',
         'last_name',
-        'full_name_upper' => Db::raw(getCurrentDriver($db) === 'pgsql' ? "UPPER(first_name || ' ' || last_name)" : "UPPER(CONCAT(first_name, ' ', last_name))"),
-        'email_lower' => Db::lower('email')
+        'full_name_upper' => Db::raw("UPPER($concatFunc)"),
+        'email_lower' => Db::lower('email'),
+        'name_length' => Db::raw("LENGTH($concatFunc)")
     ])
     ->limit(2)
     ->get();
@@ -138,6 +162,25 @@ foreach ($users as $user) {
     echo "  • Original: {$user['first_name']} {$user['last_name']}\n";
     echo "    Full name (UPPER): {$user['full_name_upper']}\n";
     echo "    Email (lower): {$user['email_lower']}\n";
+    echo "    Name length: {$user['name_length']} characters\n";
+}
+echo "\n";
+
+// Example 9: Advanced string operations
+echo "9. Advanced string operations...\n";
+$driver = getCurrentDriver($db);
+$substringFunc = $driver === 'pgsql' ? 'SUBSTR' : 'SUBSTRING';
+$users = $db->find()
+    ->from('users')
+    ->select([
+        'email',
+        'email_domain' => Db::raw("$substringFunc(email, LENGTH(email) - LENGTH(REPLACE(email, '@', '')) + 2)"),
+        'email_user' => Db::raw("$substringFunc(email, 1, LENGTH(email) - LENGTH(REPLACE(email, '@', '')) - 1)")
+    ])
+    ->get();
+
+foreach ($users as $user) {
+    echo "  • {$user['email']} → user: {$user['email_user']}, domain: {$user['email_domain']}\n";
 }
 
 echo "\nString helper functions example completed!\n";

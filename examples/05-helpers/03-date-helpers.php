@@ -98,7 +98,7 @@ foreach ($morningEvents as $event) {
 }
 echo "\n";
 
-// Example 6: Current date and time
+// Example 6: Current date and time functions
 echo "6. Using current date/time functions...\n";
 $db->find()->table('events')->insert([
     'title' => 'Auto Event',
@@ -106,20 +106,21 @@ $db->find()->table('events')->insert([
     'event_time' => Db::curTime()
 ]);
 
-$driver = getCurrentDriver($db);
 $autoEvent = $db->find()
     ->from('events')
     ->select([
         'title',
-        'cur_date' => Db::raw($driver === 'mysql' ? 'CURDATE()' : ($driver === 'pgsql' ? 'CURRENT_DATE' : "DATE('now')")),
-        'cur_time' => Db::raw($driver === 'mysql' ? 'CURTIME()' : ($driver === 'pgsql' ? 'CURRENT_TIME' : "TIME('now')"))
+        'cur_date' => Db::curDate(),
+        'cur_time' => Db::curTime(),
+        'now_timestamp' => Db::now()
     ])
     ->where('title', 'Auto Event')
     ->getOne();
 
 echo "  • Event: {$autoEvent['title']}\n";
 echo "  • Current date: {$autoEvent['cur_date']}\n";
-echo "  • Current time: {$autoEvent['cur_time']}\n\n";
+echo "  • Current time: {$autoEvent['cur_time']}\n";
+echo "  • Current timestamp: {$autoEvent['now_timestamp']}\n\n";
 
 // Example 7: Group by month
 echo "7. Grouping events by month...\n";
@@ -151,6 +152,112 @@ echo "  Events chronologically:\n";
 foreach ($sorted as $event) {
     echo "  • {$event['event_time']} - {$event['title']}\n";
 }
+echo "\n";
+
+// Example 9: Date arithmetic and time differences
+echo "9. Date arithmetic and time differences...\n";
+$events = $db->find()
+    ->from('events')
+    ->select([
+        'title',
+        'event_date',
+        'created_at'
+    ])
+    ->limit(3)
+    ->get();
+
+foreach ($events as $event) {
+    echo "  • {$event['title']}: {$event['event_date']}\n";
+    echo "    Created: {$event['created_at']}\n";
+}
+echo "\n";
+
+// Example 10: Time zone and timestamp operations
+echo "10. Time zone and timestamp operations...\n";
+$driver = getCurrentDriver($db);
+$futureFunc = $driver === 'sqlite' ? 'DATETIME("now", "+1 day")' : 
+              ($driver === 'mysql' ? 'DATE_ADD(NOW(), INTERVAL 1 DAY)' : 
+              'NOW() + INTERVAL \'1 day\'');
+$pastFunc = $driver === 'sqlite' ? 'DATETIME("now", "-2 hours")' : 
+             ($driver === 'mysql' ? 'DATE_SUB(NOW(), INTERVAL 2 HOUR)' : 
+             'NOW() - INTERVAL \'2 hours\'');
+
+$events = $db->find()
+    ->from('events')
+    ->select([
+        'title',
+        'created_at',
+        'unix_timestamp' => Db::ts(),
+        'future_timestamp' => Db::raw($futureFunc),
+        'past_timestamp' => Db::raw($pastFunc)
+    ])
+    ->limit(2)
+    ->get();
+
+foreach ($events as $event) {
+    echo "  • {$event['title']}\n";
+    echo "    Created: {$event['created_at']}\n";
+    echo "    Unix timestamp: {$event['unix_timestamp']}\n";
+    echo "    Future (+1 day): {$event['future_timestamp']}\n";
+    echo "    Past (-2 hours): {$event['past_timestamp']}\n";
+}
+echo "\n";
+
+// Example 11: Complex date filtering
+echo "11. Complex date filtering...\n";
+$driver = getCurrentDriver($db);
+$yearFunc = $driver === 'sqlite' ? 'strftime("%Y", event_date) = strftime("%Y", "now")' : 
+            ($driver === 'mysql' ? 'YEAR(event_date) = YEAR(NOW())' : 
+            'EXTRACT(YEAR FROM event_date) = EXTRACT(YEAR FROM NOW())');
+$monthFunc = $driver === 'sqlite' ? 'strftime("%m", event_date) >= strftime("%m", "now")' : 
+             ($driver === 'mysql' ? 'MONTH(event_date) >= MONTH(NOW())' : 
+             'EXTRACT(MONTH FROM event_date) >= EXTRACT(MONTH FROM NOW())');
+
+$recentEvents = $db->find()
+    ->from('events')
+    ->select(['title', 'event_date', 'event_time'])
+    ->where(Db::raw($yearFunc))
+    ->andWhere(Db::raw($monthFunc))
+    ->orderBy('event_date')
+    ->orderBy('event_time')
+    ->get();
+
+echo "  Events in current year, current month or later:\n";
+foreach ($recentEvents as $event) {
+    echo "  • {$event['event_date']} {$event['event_time']} - {$event['title']}\n";
+}
+echo "\n";
+
+// Example 12: Date and time extraction combinations
+echo "12. Date and time extraction combinations...\n";
+$driver = getCurrentDriver($db);
+$timeFormatFunc = $driver === 'sqlite' ? 'strftime("%H:%M", event_time)' : 
+                  ($driver === 'mysql' ? 'TIME_FORMAT(event_time, "%H:%i")' : 
+                  'TO_CHAR(event_time, \'HH24:MI\')');
+
+$events = $db->find()
+    ->from('events')
+    ->select([
+        'title',
+        'event_date',
+        'event_time',
+        'date_only' => Db::raw($driver === 'pgsql' ? 'created_at::DATE' : 'DATE(created_at)'),
+        'time_only' => Db::raw($driver === 'pgsql' ? 'created_at::TIME' : 'TIME(created_at)'),
+    ])
+    ->get();
+
+foreach ($events as $event) {
+    echo "  • {$event['title']}\n";
+    echo "    Date: {$event['date_only']}, Time: {$event['time_only']}\n";
+    echo "    Event time: {$event['event_time']}\n";
+}
 
 echo "\nDate and time helpers example completed!\n";
+echo "\nKey Takeaways:\n";
+echo "  • Use YEAR, MONTH, DAY to extract date parts\n";
+echo "  • Use HOUR, MINUTE, SECOND to extract time parts\n";
+echo "  • Use NOW() for current timestamp with optional differences\n";
+echo "  • Use CURDATE() and CURTIME() for current date/time\n";
+echo "  • Use DATE() and TIME() to extract date/time from datetime\n";
+echo "  • Combine date functions for complex filtering and grouping\n";
 

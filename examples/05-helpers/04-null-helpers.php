@@ -155,6 +155,88 @@ echo "  • Missing email: {$stats['missing_email']}\n";
 echo "  • Missing phone: {$stats['missing_phone']}\n";
 echo "  • Missing address: {$stats['missing_address']}\n";
 echo "  • Missing bio: {$stats['missing_bio']}\n";
+echo "\n";
+
+// Example 9: Advanced COALESCE scenarios
+echo "9. Advanced COALESCE scenarios...\n";
+$users = $db->find()
+    ->from('users')
+    ->select([
+        'name',
+        'display_name' => Db::coalesce('name', "'Anonymous'"),
+        'contact_info' => Db::coalesce('phone', 'email', 'address', "'No contact info'"),
+        'profile_summary' => Db::coalesce('bio', Db::raw('CONCAT(\'Name: \', name)'), "'No profile'")
+    ])
+    ->get();
+
+foreach ($users as $user) {
+    echo "  • {$user['name']}\n";
+    echo "    Display: {$user['display_name']}\n";
+    echo "    Contact: {$user['contact_info']}\n";
+    echo "    Summary: {$user['profile_summary']}\n";
+}
+echo "\n";
+
+// Example 10: NULLIF with different data types
+echo "10. NULLIF with different data types...\n";
+$db->find()->table('users')->insertMulti([
+    ['name' => 'Frank', 'email' => '0', 'phone' => '0', 'address' => 'N/A'],
+    ['name' => 'Grace', 'email' => 'NULL', 'phone' => 'NULL', 'address' => 'NULL']
+]);
+
+$users = $db->find()
+    ->from('users')
+    ->select([
+        'name',
+        'email',
+        'clean_email' => Db::nullIf('email', "'0'"),
+        'clean_phone' => Db::nullIf('phone', "'0'"),
+        'clean_address' => Db::nullIf('address', "'N/A'")
+    ])
+    ->where('name', ['Frank', 'Grace'])
+    ->get();
+
+foreach ($users as $user) {
+    echo "  • {$user['name']}:\n";
+    echo "    Email: '{$user['email']}' → " . ($user['clean_email'] ?? 'NULL') . "\n";
+    echo "    Phone: '{$user['phone']}' → " . ($user['clean_phone'] ?? 'NULL') . "\n";
+    echo "    Address: '{$user['address']}' → " . ($user['clean_address'] ?? 'NULL') . "\n";
+}
+echo "\n";
+
+// Example 11: Complex NULL handling in WHERE clauses
+echo "11. Complex NULL handling in WHERE clauses...\n";
+$users = $db->find()
+    ->from('users')
+    ->select(['name', 'email', 'phone'])
+    ->where('email', 'IS NOT NULL')
+    ->orWhere('phone', 'IS NOT NULL')
+    ->get();
+
+echo "  Users with valid contact info:\n";
+foreach ($users as $user) {
+    $contact = $user['email'] ?? $user['phone'] ?? 'None';
+    echo "  • {$user['name']}: {$contact}\n";
+}
+echo "\n";
+
+// Example 12: NULL handling in aggregations
+echo "12. NULL handling in aggregations...\n";
+$stats = $db->find()
+    ->from('users')
+    ->select([
+        'avg_name_length' => Db::avg(Db::length('name')),
+        'max_contact_length' => Db::max(Db::length(Db::coalesce('email', 'phone', "'N/A'"))),
+        'users_with_complete_info' => Db::count(Db::case([
+            'email IS NOT NULL AND phone IS NOT NULL AND address IS NOT NULL' => '1'
+        ], null))
+    ])
+    ->getOne();
+
+echo "  Aggregation statistics:\n";
+echo "  • Average name length: " . round($stats['avg_name_length'], 2) . " characters\n";
+echo "  • Max contact info length: {$stats['max_contact_length']} characters\n";
+echo "  • Users with complete info: {$stats['users_with_complete_info']}\n";
 
 echo "\nNULL handling helpers example completed!\n";
 echo "\nKey Takeaways:\n";
@@ -162,4 +244,6 @@ echo "  • Use isNull/isNotNull for filtering\n";
 echo "  • Use ifNull for simple default values\n";
 echo "  • Use coalesce for fallback chain (first non-NULL)\n";
 echo "  • Use nullIf to convert values to NULL\n";
+echo "  • Combine NULL functions for complex data cleaning\n";
+echo "  • Use NULL functions in aggregations and statistics\n";
 
