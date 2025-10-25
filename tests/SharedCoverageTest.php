@@ -11,7 +11,6 @@ use RuntimeException;
 use tommyknocker\pdodb\exceptions\AuthenticationException;
 use tommyknocker\pdodb\exceptions\ConnectionException;
 use tommyknocker\pdodb\exceptions\ConstraintViolationException;
-use tommyknocker\pdodb\exceptions\DatabaseException;
 use tommyknocker\pdodb\exceptions\ExceptionFactory;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\ResourceException;
@@ -583,8 +582,8 @@ class SharedCoverageTest extends TestCase
         $trueVal = Db::true();
         $falseVal = Db::false();
 
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\RawValue::class, $trueVal);
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\RawValue::class, $falseVal);
+        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\RawValue::class, $trueVal);
+        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\RawValue::class, $falseVal);
         $this->assertEquals('TRUE', $trueVal->getValue());
         $this->assertEquals('FALSE', $falseVal->getValue());
 

@@ -10,7 +10,7 @@ use RuntimeException;
 use Throwable;
 use tommyknocker\pdodb\connection\ConnectionFactory;
 use tommyknocker\pdodb\connection\ConnectionInterface;
-use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\QueryBuilder;
 
 class PdoDb

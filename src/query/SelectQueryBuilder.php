@@ -8,7 +8,7 @@ use PDO;
 use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
-use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;

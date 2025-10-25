@@ -7,7 +7,7 @@ namespace tommyknocker\pdodb\dialects;
 use InvalidArgumentException;
 use PDO;
 use RuntimeException;
-use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\helpers\values\RawValue;
 
 class MySQLDialect extends DialectAbstract
 {

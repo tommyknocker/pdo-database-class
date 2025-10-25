@@ -6,7 +6,7 @@ namespace tommyknocker\pdodb\query;
 
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
 use tommyknocker\pdodb\query\traits\RawValueResolutionTrait;
 use tommyknocker\pdodb\query\traits\TableManagementTrait;

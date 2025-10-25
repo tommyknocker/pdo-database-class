@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\dialects;
 
 use PDO;
-use tommyknocker\pdodb\helpers\ConcatValue;
-use tommyknocker\pdodb\helpers\ConfigValue;
-use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\helpers\values\ConcatValue;
+use tommyknocker\pdodb\helpers\values\ConfigValue;
+use tommyknocker\pdodb\helpers\values\RawValue;
 
 interface DialectInterface
 {

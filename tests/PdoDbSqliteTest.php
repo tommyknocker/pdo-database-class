@@ -3956,7 +3956,7 @@ XML
             ->from('users')
             ->whereExists(function ($query) {
                 $query->from('orders')
-                    ->where('user_id', new \tommyknocker\pdodb\helpers\RawValue('users.id'))  // Explicit RawValue
+                    ->where('user_id', new \tommyknocker\pdodb\helpers\values\RawValue('users.id'))  // Explicit RawValue
                     ->where('amount', 50, '>');
             })
             ->get();

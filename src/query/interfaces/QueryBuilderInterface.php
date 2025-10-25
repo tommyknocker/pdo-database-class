@@ -8,7 +8,7 @@ use Generator;
 use PDOStatement;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\helpers\values\RawValue;
 
 interface QueryBuilderInterface
 {

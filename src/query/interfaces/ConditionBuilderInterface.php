@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query\interfaces;
 
-use tommyknocker\pdodb\helpers\RawValue;
+use tommyknocker\pdodb\helpers\values\RawValue;
 
 interface ConditionBuilderInterface
 {
