@@ -36,8 +36,6 @@ trait UpsertBuilderTrait
     /**
      * Build increment/decrement expression.
      * Must be implemented by each dialect.
-     *
-     * @param array{__op: string, val: int} $expr
      */
     abstract protected function buildIncrementExpression(string $colSql, array $expr, string $tableName): string;
 
@@ -68,7 +66,7 @@ trait UpsertBuilderTrait
      */
     protected function replaceColumnReferences(string $expression, string $column, string $replacement): string
     {
-        return preg_replace_callback(
+        $result = preg_replace_callback(
             '/\b' . preg_quote($column, '/') . '\b/i',
             static function ($matches) use ($expression, $replacement) {
                 $pos = strpos($expression, $matches[0]);
@@ -86,5 +84,7 @@ trait UpsertBuilderTrait
             },
             $expression
         );
+        
+        return $result ?? $expression;
     }
 }

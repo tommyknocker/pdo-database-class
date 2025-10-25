@@ -142,9 +142,14 @@ class SqliteDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
+     * @param array<string, mixed> $expr
      */
     protected function buildIncrementExpression(string $colSql, array $expr, string $tableName): string
     {
+        if (!isset($expr['__op']) || !isset($expr['val'])) {
+            return "{$colSql} = excluded.{$colSql}";
+        }
+        
         $op = $expr['__op'];
         // SQLite uses column (unqualified) for old values
         return match ($op) {

@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\dialects\utils;
 
 class ParameterManager
 {
+    /** @var array<int, string> */
     private array $usedNames = [];
 
     /**

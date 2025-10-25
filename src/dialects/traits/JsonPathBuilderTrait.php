@@ -95,7 +95,11 @@ trait JsonPathBuilderTrait
      */
     protected function getLastSegment(array $parts): string|int
     {
-        return end($parts);
+        $last = end($parts);
+        if ($last === false) {
+            throw new \InvalidArgumentException('Cannot get last segment from empty array');
+        }
+        return $last;
     }
 
     /**
