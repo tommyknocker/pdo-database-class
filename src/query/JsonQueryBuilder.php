@@ -138,6 +138,8 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
             $key = ltrim($old, ':');
             if (isset($params[$key])) {
                 $rawParams[$new] = $params[$key];
+            } elseif (isset($params[$old])) {
+                $rawParams[$new] = $params[$old];
             }
         }
         return new RawValue($sql, $rawParams);
@@ -217,6 +219,17 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
     public function clearJsonSelects(): self
     {
         $this->select = [];
+        return $this;
+    }
+
+    /**
+     * Clear JSON order expressions.
+     *
+     * @return self
+     */
+    public function clearJsonOrders(): self
+    {
+        $this->order = [];
         return $this;
     }
 

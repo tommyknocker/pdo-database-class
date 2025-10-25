@@ -13,7 +13,7 @@ interface BatchProcessorInterface
      * Useful for processing large datasets without loading everything into memory.
      *
      * @param string $sql The SQL query to execute
-     * @param array $params The parameters for the query
+     * @param array<string, mixed> $params The parameters for the query
      * @param int $batchSize Number of records per batch (default: 100)
      *
      * @return \Generator<int, array<int, array<string, mixed>>, mixed, void>
@@ -28,7 +28,7 @@ interface BatchProcessorInterface
      * but want to avoid memory issues with large datasets.
      *
      * @param string $sql The SQL query to execute
-     * @param array $params The parameters for the query
+     * @param array<string, mixed> $params The parameters for the query
      * @param int $batchSize Internal batch size for database queries (default: 100)
      *
      * @return \Generator<int, array<string, mixed>, mixed, void>
@@ -43,7 +43,7 @@ interface BatchProcessorInterface
      * sequential processing of large datasets.
      *
      * @param string $sql The SQL query to execute
-     * @param array $params The parameters for the query
+     * @param array<string, mixed> $params The parameters for the query
      *
      * @return \Generator<int, array<string, mixed>, mixed, void>
      */

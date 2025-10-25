@@ -177,8 +177,6 @@ class QueryBuilder implements QueryBuilderInterface
      * Set prefix for all components.
      *
      * @param string|null $prefix
-     *
-     * @return void
      */
     protected function setPrefix(?string $prefix): void
     {
@@ -194,7 +192,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Adds columns to the SELECT clause.
      *
-     * @param RawValue|callable|string|array $cols The columns to add.
+     * @param RawValue|callable(QueryBuilder): void|string|array<int|string, string|RawValue|callable(QueryBuilder): void> $cols The columns to add.
      *
      * @return self The current instance.
      */
@@ -219,7 +217,18 @@ class QueryBuilder implements QueryBuilderInterface
             // Clear JSON selections after integration to avoid duplication
             $this->jsonQueryBuilder->clearJsonSelects();
         }
-        
+
+        // Integrate JSON order expressions before executing query
+        $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
+        if (!empty($jsonOrders)) {
+            foreach ($jsonOrders as $orderExpr) {
+                // JSON order expressions already contain direction, so add them directly
+                $this->selectQueryBuilder->addOrderExpression($orderExpr);
+            }
+            // Clear JSON orders after integration to avoid duplication
+            $this->jsonQueryBuilder->clearJsonOrders();
+        }
+
         return $this->selectQueryBuilder->get();
     }
 
@@ -238,7 +247,18 @@ class QueryBuilder implements QueryBuilderInterface
             // Clear JSON selections after integration to avoid duplication
             $this->jsonQueryBuilder->clearJsonSelects();
         }
-        
+
+        // Integrate JSON order expressions before executing query
+        $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
+        if (!empty($jsonOrders)) {
+            foreach ($jsonOrders as $orderExpr) {
+                // JSON order expressions already contain direction, so add them directly
+                $this->selectQueryBuilder->addOrderExpression($orderExpr);
+            }
+            // Clear JSON orders after integration to avoid duplication
+            $this->jsonQueryBuilder->clearJsonOrders();
+        }
+
         return $this->selectQueryBuilder->getOne();
     }
 
@@ -257,7 +277,18 @@ class QueryBuilder implements QueryBuilderInterface
             // Clear JSON selections after integration to avoid duplication
             $this->jsonQueryBuilder->clearJsonSelects();
         }
-        
+
+        // Integrate JSON order expressions before executing query
+        $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
+        if (!empty($jsonOrders)) {
+            foreach ($jsonOrders as $orderExpr) {
+                // JSON order expressions already contain direction, so add them directly
+                $this->selectQueryBuilder->addOrderExpression($orderExpr);
+            }
+            // Clear JSON orders after integration to avoid duplication
+            $this->jsonQueryBuilder->clearJsonOrders();
+        }
+
         return $this->selectQueryBuilder->getColumn();
     }
 
@@ -276,7 +307,18 @@ class QueryBuilder implements QueryBuilderInterface
             // Clear JSON selections after integration to avoid duplication
             $this->jsonQueryBuilder->clearJsonSelects();
         }
-        
+
+        // Integrate JSON order expressions before executing query
+        $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
+        if (!empty($jsonOrders)) {
+            foreach ($jsonOrders as $orderExpr) {
+                // JSON order expressions already contain direction, so add them directly
+                $this->selectQueryBuilder->addOrderExpression($orderExpr);
+            }
+            // Clear JSON orders after integration to avoid duplication
+            $this->jsonQueryBuilder->clearJsonOrders();
+        }
+
         return $this->selectQueryBuilder->getValue();
     }
 

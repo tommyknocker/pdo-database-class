@@ -11,7 +11,7 @@ interface SelectQueryBuilderInterface
     /**
      * Add columns to the SELECT clause.
      *
-     * @param RawValue|callable|string|array $cols The columns to add.
+     * @param RawValue|callable(QueryBuilder): void|string|array<int|string, string|RawValue|callable(QueryBuilder): void> $cols The columns to add.
      *
      * @return self The current instance.
      */
@@ -54,6 +54,15 @@ interface SelectQueryBuilderInterface
      * @return self The current instance.
      */
     public function orderBy(string|RawValue $expr, string $direction = 'ASC'): self;
+
+    /**
+     * Add ORDER BY expression directly (for JSON expressions that already contain direction).
+     *
+     * @param string $expr The complete ORDER BY expression.
+     *
+     * @return self The current instance.
+     */
+    public function addOrderExpression(string $expr): self;
 
     /**
      * Add GROUP BY clause.
@@ -125,4 +134,29 @@ interface SelectQueryBuilderInterface
      * @return array<int, array<string, mixed>>
      */
     public function describe(): array;
+
+    /**
+     * Set the table name for the select query builder.
+     *
+     * @param string $table The table name.
+     *
+     * @return self The current instance.
+     */
+    public function setTable(string $table): self;
+
+    /**
+     * Set the prefix for the select query builder.
+     *
+     * @param string|null $prefix The prefix to set.
+     *
+     * @return self The current instance.
+     */
+    public function setPrefix(?string $prefix): self;
+
+    /**
+     * Get the query array with SQL and parameters.
+     *
+     * @return array{sql: string, params: array<string, string|int|float|bool|null>}
+     */
+    public function getQuery(): array;
 }

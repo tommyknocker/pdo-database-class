@@ -141,4 +141,55 @@ interface ConditionBuilderInterface
      * @return bool True if the table exists, false otherwise.
      */
     public function tableExists(): bool;
+
+    /**
+     * Set the table name for the condition builder.
+     *
+     * @param string $table The table name.
+     *
+     * @return self The current instance.
+     */
+    public function setTable(string $table): self;
+
+    /**
+     * Set the prefix for the condition builder.
+     *
+     * @param string|null $prefix The prefix to set.
+     *
+     * @return self The current instance.
+     */
+    public function setPrefix(?string $prefix): self;
+
+    /**
+     * Set the limit for the condition builder.
+     *
+     * @param int|null $limit The limit to set.
+     *
+     * @return self The current instance.
+     */
+    public function setLimit(?int $limit): self;
+
+    /**
+     * Build conditions clause from items.
+     *
+     * @param array<int, mixed> $items The condition items.
+     * @param string $keyword The keyword (WHERE, HAVING, etc.).
+     *
+     * @return string The built conditions clause.
+     */
+    public function buildConditionsClause(array $items, string $keyword): string;
+
+    /**
+     * Get WHERE conditions.
+     *
+     * @return array<int, mixed> The WHERE conditions.
+     */
+    public function getWhere(): array;
+
+    /**
+     * Get HAVING conditions.
+     *
+     * @return array<int, mixed> The HAVING conditions.
+     */
+    public function getHaving(): array;
 }

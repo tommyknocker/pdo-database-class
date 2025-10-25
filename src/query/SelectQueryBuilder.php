@@ -104,7 +104,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /**
      * Add columns to the SELECT clause.
      *
-     * @param RawValue|callable|string|array $cols The columns to add.
+     * @param RawValue|callable(QueryBuilder): void|string|array<int|string, string|RawValue|callable(QueryBuilder): void> $cols The columns to add.
      *
      * @return self The current instance.
      */
@@ -238,6 +238,19 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     }
 
     /**
+     * Add ORDER BY expression directly (for JSON expressions that already contain direction).
+     *
+     * @param string $expr The complete ORDER BY expression.
+     *
+     * @return self The current instance.
+     */
+    public function addOrderExpression(string $expr): self
+    {
+        $this->order[] = $expr;
+        return $this;
+    }
+
+    /**
      * Add GROUP BY clause.
      *
      * @param string|array<int, string|RawValue>|RawValue $cols The columns to group by.
@@ -337,7 +350,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     public function toSQL(): array
     {
         $sql = $this->buildSelectSql();
-        $params = $this->parameterManager->getParams() ?? [];
+        $params = $this->parameterManager->getParams();
         return ['sql' => $sql, 'params' => $params];
     }
 
@@ -389,7 +402,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     public function getQuery(): array
     {
         $sql = $this->buildSelectSql();
-        $params = $this->parameterManager->getParams() ?? [];
+        $params = $this->parameterManager->getParams();
         return ['sql' => $sql, 'params' => $params];
     }
 

@@ -108,4 +108,11 @@ interface JsonQueryBuilderInterface
      * @return self
      */
     public function clearJsonSelects(): self;
+
+    /**
+     * Clear JSON order expressions.
+     *
+     * @return self
+     */
+    public function clearJsonOrders(): self;
 }

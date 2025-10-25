@@ -6,7 +6,6 @@ namespace tommyknocker\pdodb\query;
 
 use InvalidArgumentException;
 use PDOException;
-use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\RawValue;

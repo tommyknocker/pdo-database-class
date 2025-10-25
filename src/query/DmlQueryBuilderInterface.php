@@ -97,4 +97,31 @@ interface DmlQueryBuilderInterface
      * @return self The current instance.
      */
     public function onDuplicate(array $onDuplicate): self;
+
+    /**
+     * Set the table name for the DML query builder.
+     *
+     * @param string $table The table name.
+     *
+     * @return self The current instance.
+     */
+    public function setTable(string $table): self;
+
+    /**
+     * Set the prefix for the DML query builder.
+     *
+     * @param string|null $prefix The prefix to set.
+     *
+     * @return self The current instance.
+     */
+    public function setPrefix(?string $prefix): self;
+
+    /**
+     * Set the limit for the DML query builder.
+     *
+     * @param int|null $limit The limit to set.
+     *
+     * @return self The current instance.
+     */
+    public function setLimit(?int $limit): self;
 }

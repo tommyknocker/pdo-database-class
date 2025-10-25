@@ -26,4 +26,22 @@ interface FileLoaderInterface
      * @return bool True on success, false on failure.
      */
     public function loadXml(string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool;
+
+    /**
+     * Set the table name for the file loader.
+     *
+     * @param string $table The table name.
+     *
+     * @return self The current instance.
+     */
+    public function setTable(string $table): self;
+
+    /**
+     * Set the prefix for the file loader.
+     *
+     * @param string|null $prefix The prefix to set.
+     *
+     * @return self The current instance.
+     */
+    public function setPrefix(?string $prefix): self;
 }

@@ -48,4 +48,20 @@ interface JoinBuilderInterface
      * @return self The current instance.
      */
     public function innerJoin(string $tableAlias, string|RawValue $condition): self;
+
+    /**
+     * Set the prefix for the join builder.
+     *
+     * @param string|null $prefix The prefix to set.
+     *
+     * @return self The current instance.
+     */
+    public function setPrefix(?string $prefix): self;
+
+    /**
+     * Get all joins.
+     *
+     * @return array<int, string> The joins array.
+     */
+    public function getJoins(): array;
 }

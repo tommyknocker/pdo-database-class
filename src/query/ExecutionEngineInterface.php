@@ -59,4 +59,13 @@ interface ExecutionEngineInterface
      * @return int
      */
     public function executeInsert(string $sql, array $params, bool $isMulty = false): int;
+
+    /**
+     * Set fetch mode.
+     *
+     * @param int $mode The fetch mode.
+     *
+     * @return self The current instance.
+     */
+    public function setFetchMode(int $mode): self;
 }
