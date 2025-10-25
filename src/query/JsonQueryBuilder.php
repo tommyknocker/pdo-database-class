@@ -67,9 +67,14 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
      *
      * @return self
      */
-    public function whereJsonPath(string $col, array|string $path, string $operator, mixed $value, string $cond = 'AND'): self
-    {
-        $expr = $this->dialect->formatJsonGet($col, $path, true);
+    public function whereJsonPath(
+        string $col,
+        array|string $path,
+        string $operator,
+        mixed $value,
+        string $cond = 'AND'
+    ): self {
+        $expr = $this->dialect->formatJsonGet($col, $path);
 
         if ($value instanceof RawValue) {
             $right = $this->resolveRawValue($value);
@@ -92,8 +97,12 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
      *
      * @return self
      */
-    public function whereJsonContains(string $col, mixed $value, array|string|null $path = null, string $cond = 'AND'): self
-    {
+    public function whereJsonContains(
+        string $col,
+        mixed $value,
+        array|string|null $path = null,
+        string $cond = 'AND'
+    ): self {
         $res = $this->dialect->formatJsonContains($col, $value, $path);
         if (is_array($res)) {
             [$sql, $params] = $res;

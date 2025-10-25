@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query;
 
+use Generator;
 use InvalidArgumentException;
 use PDO;
 use PDOException;
@@ -38,11 +39,11 @@ class BatchProcessor implements BatchProcessorInterface
      * @param array<string, mixed> $params The parameters for the query
      * @param int $batchSize Number of records per batch (default: 100)
      *
-     * @return \Generator<int, array<int, array<string, mixed>>, mixed, void>
+     * @return Generator<int, array<int, array<string, mixed>>, mixed, void>
      * @throws InvalidArgumentException If batch size is invalid
      * @throws PDOException
      */
-    public function batch(string $sql, array $params, int $batchSize = 100): \Generator
+    public function batch(string $sql, array $params, int $batchSize = 100): Generator
     {
         if ($batchSize <= 0) {
             throw new InvalidArgumentException('Batch size must be greater than 0');
@@ -82,11 +83,11 @@ class BatchProcessor implements BatchProcessorInterface
      * @param array<string, mixed> $params The parameters for the query
      * @param int $batchSize Internal batch size for database queries (default: 100)
      *
-     * @return \Generator<int, array<string, mixed>, mixed, void>
+     * @return Generator<int, array<string, mixed>, mixed, void>
      * @throws InvalidArgumentException If batch size is invalid
      * @throws PDOException
      */
-    public function each(string $sql, array $params, int $batchSize = 100): \Generator
+    public function each(string $sql, array $params, int $batchSize = 100): Generator
     {
         if ($batchSize <= 0) {
             throw new InvalidArgumentException('Batch size must be greater than 0');
@@ -123,10 +124,10 @@ class BatchProcessor implements BatchProcessorInterface
      * @param string $sql The SQL query to execute
      * @param array<string, mixed> $params The parameters for the query
      *
-     * @return \Generator<int, array<string, mixed>, mixed, void>
+     * @return Generator<int, array<string, mixed>, mixed, void>
      * @throws PDOException
      */
-    public function cursor(string $sql, array $params): \Generator
+    public function cursor(string $sql, array $params): Generator
     {
         $normalizedParams = $this->parameterManager->normalizeParams($params);
 

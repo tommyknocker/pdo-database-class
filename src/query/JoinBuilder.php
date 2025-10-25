@@ -96,7 +96,7 @@ class JoinBuilder implements JoinBuilderInterface
      */
     public function innerJoin(string $tableAlias, string|RawValue $condition): self
     {
-        $this->join($tableAlias, $condition, 'INNER');
+        $this->join($tableAlias, $condition);
         return $this;
     }
 
@@ -108,17 +108,6 @@ class JoinBuilder implements JoinBuilderInterface
     public function getJoins(): array
     {
         return $this->joins;
-    }
-
-    /**
-     * Clear all joins.
-     *
-     * @return self
-     */
-    public function clearJoins(): self
-    {
-        $this->joins = [];
-        return $this;
     }
 
     /**

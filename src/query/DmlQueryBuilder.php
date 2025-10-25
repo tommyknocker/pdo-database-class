@@ -186,7 +186,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
         foreach ($rows as $row) {
             $placeholders = [];
             foreach ($columns as $col) {
-                $result = $this->processValueForSql($row[$col], (string)$col, (string)$col . '_' . $i . '_');
+                $result = $this->processValueForSql($row[$col], (string)$col, $col . '_' . $i . '_');
                 $placeholders[] = $result['sql'];
             }
             // collect per-row group WITHOUT adding outer parentheses here
@@ -198,7 +198,12 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
         // Pass isMultiple = true so dialect will not add extra parentheses
         $tableName = $this->table; // Use getter to ensure not null
         assert(is_string($tableName)); // PHPStan assertion
-        $sql = $this->dialect->buildReplaceSql($tableName, array_values(array_map('strval', $columns)), $valuesList, true);
+        $sql = $this->dialect->buildReplaceSql(
+            $tableName,
+            array_values(array_map('strval', $columns)),
+            $valuesList,
+            true
+        );
         return $this->executionEngine->executeInsert($sql, $this->parameterManager->getParams());
     }
 

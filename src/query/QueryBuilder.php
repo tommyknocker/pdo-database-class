@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query;
 
+use Generator;
+use InvalidArgumentException;
+use PDOException;
 use PDOStatement;
+use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\RawValue;
@@ -23,7 +27,7 @@ class QueryBuilder implements QueryBuilderInterface
     protected ?string $table = null {
         get {
             if (!$this->table) {
-                throw new \RuntimeException('You must define table first. Use table() or from() methods');
+                throw new RuntimeException('You must define table first. Use table() or from() methods');
             }
             return $this->table;
         }
@@ -206,7 +210,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Execute SELECT statement and return all rows.
      *
      * @return array<int, array<string, mixed>>
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function get(): array
     {
@@ -236,7 +240,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Execute SELECT statement and return first row.
      *
      * @return mixed
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function getOne(): mixed
     {
@@ -266,7 +270,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Execute SELECT statement and return column values.
      *
      * @return array<int, mixed>
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function getColumn(): array
     {
@@ -296,7 +300,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Execute SELECT statement and return single value.
      *
      * @return mixed
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function getValue(): mixed
     {
@@ -382,7 +386,7 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data
      *
      * @return int
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function update(array $data): int
     {
@@ -393,7 +397,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Execute DELETE statement.
      *
      * @return int
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function delete(): int
     {
@@ -404,7 +408,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Execute TRUNCATE statement.
      *
      * @return bool
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function truncate(): bool
     {
@@ -421,11 +425,11 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param int $batchSize Number of records per batch (default: 100)
      *
-     * @return \Generator<int, array<int, array<string, mixed>>, mixed, void>
-     * @throws \InvalidArgumentException If batch size is invalid
-     * @throws \PDOException
+     * @return Generator<int, array<int, array<string, mixed>>, mixed, void>
+     * @throws InvalidArgumentException If batch size is invalid
+     * @throws PDOException
      */
-    public function batch(int $batchSize = 100): \Generator
+    public function batch(int $batchSize = 100): Generator
     {
         $query = $this->selectQueryBuilder->getQuery();
         return $this->batchProcessor->batch($query['sql'], $query['params'], $batchSize);
@@ -440,11 +444,11 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param int $batchSize Internal batch size for database queries (default: 100)
      *
-     * @return \Generator<int, array<string, mixed>, mixed, void>
-     * @throws \InvalidArgumentException If batch size is invalid
-     * @throws \PDOException
+     * @return Generator<int, array<string, mixed>, mixed, void>
+     * @throws InvalidArgumentException If batch size is invalid
+     * @throws PDOException
      */
-    public function each(int $batchSize = 100): \Generator
+    public function each(int $batchSize = 100): Generator
     {
         $query = $this->selectQueryBuilder->getQuery();
         return $this->batchProcessor->each($query['sql'], $query['params'], $batchSize);
@@ -457,10 +461,10 @@ class QueryBuilder implements QueryBuilderInterface
      * to stream results without loading them into memory. Best for simple
      * sequential processing of large datasets.
      *
-     * @return \Generator<int, array<string, mixed>, mixed, void>
-     * @throws \PDOException
+     * @return Generator<int, array<string, mixed>, mixed, void>
+     * @throws PDOException
      */
-    public function cursor(): \Generator
+    public function cursor(): Generator
     {
         $query = $this->selectQueryBuilder->getQuery();
         return $this->batchProcessor->cursor($query['sql'], $query['params']);
@@ -490,7 +494,7 @@ class QueryBuilder implements QueryBuilderInterface
                     $this->conditionBuilder->whereRaw("{$column} = {$placeholder}");
                 } else {
                     // Regular array condition
-                    $this->conditionBuilder->where($column, $placeholder, '=');
+                    $this->conditionBuilder->where($column, $placeholder);
                 }
             }
             return $this;
@@ -649,7 +653,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Return true if at least one row matches the current WHERE conditions.
      *
      * @return bool
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function exists(): bool
     {
@@ -660,7 +664,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Return true if no rows match the current WHERE conditions.
      *
      * @return bool
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function notExists(): bool
     {
@@ -851,7 +855,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Execute EXPLAIN query to analyze query execution plan.
      *
      * @return array<int, array<string, mixed>>
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function explain(): array
     {
@@ -862,7 +866,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Execute EXPLAIN ANALYZE query (PostgreSQL) or EXPLAIN FORMAT=JSON (MySQL).
      *
      * @return array<int, array<string, mixed>>
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function explainAnalyze(): array
     {
@@ -873,7 +877,7 @@ class QueryBuilder implements QueryBuilderInterface
      * Execute DESCRIBE query to get table structure.
      *
      * @return array<int, array<string, mixed>>
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function describe(): array
     {
@@ -889,7 +893,7 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<int|string, string|int|float|bool|null> $params
      *
      * @return PDOStatement
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function executeStatement(string|RawValue $sql, array $params = []): PDOStatement
     {
@@ -903,7 +907,7 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<int|string, string|int|float|bool|null> $params
      *
      * @return array<int, array<string, mixed>>
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function fetchAll(string|RawValue $sql, array $params = []): array
     {
@@ -917,7 +921,7 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<int|string, string|int|float|bool|null> $params
      *
      * @return mixed
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function fetchColumn(string|RawValue $sql, array $params = []): mixed
     {
@@ -931,7 +935,7 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<int|string, string|int|float|bool|null> $params
      *
      * @return mixed
-     * @throws \PDOException
+     * @throws PDOException
      */
     public function fetch(string|RawValue $sql, array $params = []): mixed
     {

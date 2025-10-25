@@ -77,14 +77,12 @@ class FileLoader implements FileLoaderInterface
             }
 
             // Convert to specialized exception and re-throw
-            $dbException = ExceptionFactory::createFromPdoException(
+            throw ExceptionFactory::createFromPdoException(
                 $e,
                 $this->connection->getDriverName(),
                 $sql,
                 ['operation' => 'loadCsv', 'file' => $filePath]
             );
-
-            throw $dbException;
         }
     }
 
@@ -121,14 +119,12 @@ class FileLoader implements FileLoaderInterface
             }
 
             // Convert to specialized exception and re-throw
-            $dbException = ExceptionFactory::createFromPdoException(
+            throw ExceptionFactory::createFromPdoException(
                 $e,
                 $this->connection->getDriverName(),
                 $sql,
                 ['operation' => 'loadXml', 'file' => $filePath, 'rowTag' => $rowTag]
             );
-
-            throw $dbException;
         }
     }
 }

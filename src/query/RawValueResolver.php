@@ -64,7 +64,7 @@ class RawValueResolver
         $result = match (true) {
             $value instanceof NowValue => $this->dialect->now($value->getValue(), $value->getAsTimestamp()),
             $value instanceof ILikeValue => $this->resolveRawValue($this->dialect->ilike($value->getValue(), (string)$value->getParams()[0])),
-            $value instanceof EscapeValue => $this->connection->quote($value->getValue()) ?: "'" . addslashes((string)$value->getValue()) . "'",
+            $value instanceof EscapeValue => $this->connection->quote($value->getValue()) ?: "'" . addslashes($value->getValue()) . "'",
             $value instanceof ConfigValue => $this->dialect->config($value),
             $value instanceof ConcatValue => $this->dialect->concat($value),
             $value instanceof JsonGetValue => $this->dialect->formatJsonGet($value->getColumn(), $value->getPath(), $value->getAsText()),
@@ -129,7 +129,7 @@ class RawValueResolver
      */
     protected function resolveJsonPathValue(JsonPathValue $value): string
     {
-        $expr = $this->dialect->formatJsonGet($value->getColumn(), $value->getPath(), true);
+        $expr = $this->dialect->formatJsonGet($value->getColumn(), $value->getPath());
         $compareValue = $value->getCompareValue();
 
         if ($compareValue instanceof RawValue) {
@@ -155,7 +155,7 @@ class RawValueResolver
         if (is_array($res)) {
             [$sql, $params] = $res;
             foreach ($params as $k => $v) {
-                $old = strpos($k, ':') === 0 ? $k : ':' . $k;
+                $old = str_starts_with($k, ':') ? $k : ':' . $k;
                 $new = $this->parameterManager->makeParam('jsonc_' . ltrim($old, ':'));
                 $this->parameterManager->setParam($new, $v);
                 $sql = strtr($sql, [$old => $new]);

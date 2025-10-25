@@ -18,8 +18,11 @@ class ExecutionEngine implements ExecutionEngineInterface
     protected ParameterManagerInterface $parameterManager;
     protected int $fetchMode = PDO::FETCH_ASSOC;
 
-    public function __construct(ConnectionInterface $connection, RawValueResolver $rawValueResolver, ParameterManagerInterface $parameterManager)
-    {
+    public function __construct(
+        ConnectionInterface $connection,
+        RawValueResolver $rawValueResolver,
+        ParameterManagerInterface $parameterManager
+    ) {
         $this->connection = $connection;
         $this->rawValueResolver = $rawValueResolver;
         $this->parameterManager = $parameterManager;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query;
 
+use Generator;
 use PDOStatement;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
@@ -134,8 +135,11 @@ interface QueryBuilderInterface
     public function truncate(): bool;
 
     // Conditions: where / having / logical variants
+
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
+     * @param mixed|null $value
+     * @param string $operator
      *
      * @return self
      */
@@ -143,6 +147,8 @@ interface QueryBuilderInterface
 
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
+     * @param mixed|null $value
+     * @param string $operator
      *
      * @return self
      */
@@ -150,6 +156,8 @@ interface QueryBuilderInterface
 
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
+     * @param mixed|null $value
+     * @param string $operator
      *
      * @return self
      */
@@ -157,6 +165,8 @@ interface QueryBuilderInterface
 
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
+     * @param mixed|null $value
+     * @param string $operator
      *
      * @return self
      */
@@ -164,6 +174,8 @@ interface QueryBuilderInterface
 
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
+     * @param mixed|null $value
+     * @param string $operator
      *
      * @return self
      */
@@ -236,21 +248,21 @@ interface QueryBuilderInterface
     /**
      * @param int $batchSize
      *
-     * @return \Generator<int, array<int, array<string, mixed>>, mixed, void>
+     * @return Generator<int, array<int, array<string, mixed>>, mixed, void>
      */
-    public function batch(int $batchSize = 100): \Generator;
+    public function batch(int $batchSize = 100): Generator;
 
     /**
      * @param int $batchSize
      *
-     * @return \Generator<int, array<string, mixed>, mixed, void>
+     * @return Generator<int, array<string, mixed>, mixed, void>
      */
-    public function each(int $batchSize = 100): \Generator;
+    public function each(int $batchSize = 100): Generator;
 
     /**
-     * @return \Generator<int, array<string, mixed>, mixed, void>
+     * @return Generator<int, array<string, mixed>, mixed, void>
      */
-    public function cursor(): \Generator;
+    public function cursor(): Generator;
 
     // Joins
     /**
@@ -337,35 +349,49 @@ interface QueryBuilderInterface
     public function onDuplicate(array $onDuplicate): self;
 
     // JSON helpers
+
     /**
+     * @param string $col
      * @param array<int, string|int>|string $path
+     * @param string|null $alias
+     * @param bool $asText
      *
      * @return self
      */
     public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): self;
 
     /**
+     * @param string $col
      * @param array<int, string|int>|string $path
+     * @param string $operator
+     * @param mixed $value
+     * @param string $cond
      *
      * @return self
      */
     public function whereJsonPath(string $col, array|string $path, string $operator, mixed $value, string $cond = 'AND'): self;
 
     /**
+     * @param string $col
+     * @param mixed $value
      * @param array<int, string|int>|string|null $path
+     * @param string $cond
      *
      * @return self
      */
     public function whereJsonContains(string $col, mixed $value, array|string|null $path = null, string $cond = 'AND'): self;
 
     /**
+     * @param string $col
      * @param array<int, string|int>|string $path
+     * @param mixed $value
      *
      * @return RawValue
      */
     public function jsonSet(string $col, array|string $path, mixed $value): RawValue;
 
     /**
+     * @param string $col
      * @param array<int, string|int>|string $path
      *
      * @return RawValue
@@ -373,14 +399,18 @@ interface QueryBuilderInterface
     public function jsonRemove(string $col, array|string $path): RawValue;
 
     /**
+     * @param string $col
      * @param array<int, string|int>|string $path
+     * @param string $direction
      *
      * @return self
      */
     public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): self;
 
     /**
+     * @param string $col
      * @param array<int, string|int>|string $path
+     * @param string $cond
      *
      * @return self
      */
@@ -408,7 +438,9 @@ interface QueryBuilderInterface
     public function describe(): array;
 
     // Execution primitives (pass-through helpers)
+
     /**
+     * @param string|RawValue $sql
      * @param array<int|string, string|int|float|bool|null> $params
      *
      * @return PDOStatement
@@ -423,6 +455,7 @@ interface QueryBuilderInterface
     public function fetchAll(string|RawValue $sql, array $params = []): array;
 
     /**
+     * @param string|RawValue $sql
      * @param array<int|string, string|int|float|bool|null> $params
      *
      * @return mixed
@@ -430,6 +463,7 @@ interface QueryBuilderInterface
     public function fetchColumn(string|RawValue $sql, array $params = []): mixed;
 
     /**
+     * @param string|RawValue $sql
      * @param array<int|string, string|int|float|bool|null> $params
      *
      * @return mixed
