@@ -12,10 +12,10 @@ use XMLReader;
 
 class FileLoader
 {
-    private const int DEFAULT_BATCH_SIZE = 500;
+    protected const int DEFAULT_BATCH_SIZE = 500;
 
     public function __construct(
-        private PDO $pdo
+        protected PDO $pdo
     ) {
     }
 
@@ -279,7 +279,7 @@ class FileLoader
     /**
      * Quote identifier for SQL.
      */
-    private function quoteIdentifier(string $ident): string
+    protected function quoteIdentifier(string $ident): string
     {
         $parts = explode('.', $ident);
         $parts = array_map(static function ($p) {
@@ -292,7 +292,7 @@ class FileLoader
     /**
      * Quote column name for SQL.
      */
-    private function quoteColumnName(string $col): string
+    protected function quoteColumnName(string $col): string
     {
         return preg_match('/^[A-Za-z0-9_]+$/', $col) ? "\"{$col}\"" : $col;
     }
@@ -300,7 +300,7 @@ class FileLoader
     /**
      * Quote value for SQL.
      */
-    private function quoteValue(mixed $value): string
+    protected function quoteValue(mixed $value): string
     {
         if ($value === null) {
             return 'NULL';

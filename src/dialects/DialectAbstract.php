@@ -7,7 +7,6 @@ namespace tommyknocker\pdodb\dialects;
 use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
-use tommyknocker\pdodb\dialects\utils\ParameterManager;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -17,8 +16,7 @@ abstract class DialectAbstract implements DialectInterface
     /** @var PDO PDO instance */
     protected ?PDO $pdo = null;
 
-    private ?FileLoader $fileLoader = null;
-    private ?ParameterManager $parameterManager = null;
+    protected ?FileLoader $fileLoader = null;
 
     public function setPdo(PDO $pdo): void
     {
@@ -37,17 +35,6 @@ abstract class DialectAbstract implements DialectInterface
             $this->fileLoader = new FileLoader($this->pdo);
         }
         return $this->fileLoader;
-    }
-
-    /**
-     * Get parameter manager instance.
-     */
-    protected function getParameterManager(): ParameterManager
-    {
-        if ($this->parameterManager === null) {
-            $this->parameterManager = new ParameterManager();
-        }
-        return $this->parameterManager;
     }
 
     /**

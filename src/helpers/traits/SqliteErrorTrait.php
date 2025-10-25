@@ -75,7 +75,7 @@ trait SqliteErrorTrait
      *
      * @return array<int, string>
      */
-    private static function getSqliteDescriptions(): array
+    protected static function getSqliteDescriptions(): array
     {
         return [
             self::SQLITE_ERROR => 'SQL error or missing database',

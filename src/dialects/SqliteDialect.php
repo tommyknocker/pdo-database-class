@@ -34,7 +34,7 @@ class SqliteDialect extends DialectAbstract
         }
         return "sqlite:{$params['path']}"
             . (!empty($params['mode']) ? ";mode={$params['mode']}" : '')       // ex. ro/rw/rwc/memory
-            . (!empty($params['cache']) ? ";cache={$params['cache']}" : '');    // shared/private
+            . (!empty($params['cache']) ? ";cache={$params['cache']}" : '');    // shared/protected
     }
 
     /**

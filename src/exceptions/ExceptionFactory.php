@@ -17,9 +17,9 @@ use tommyknocker\pdodb\exceptions\strategies\ErrorDetectionStrategyInterface;
 class ExceptionFactory
 {
     /** @var ErrorDetectionStrategyInterface[] */
-    private static array $strategies = [];
+    protected static array $strategies = [];
 
-    private static bool $initialized = false;
+    protected static bool $initialized = false;
 
     /**
      * Create a specialized exception from PDOException.
@@ -54,7 +54,7 @@ class ExceptionFactory
     /**
      * Initialize the error detection strategies.
      */
-    private static function initialize(): void
+    protected static function initialize(): void
     {
         if (self::$initialized) {
             return;
@@ -79,7 +79,7 @@ class ExceptionFactory
     /**
      * Extract error code from PDOException, handling driver-specific cases.
      */
-    private static function extractErrorCode(PDOException $e, string $driver): string
+    protected static function extractErrorCode(PDOException $e, string $driver): string
     {
         // For PostgreSQL, get the SQLSTATE from errorInfo if available
         if ($driver === 'pgsql' && isset($e->errorInfo[0])) {
@@ -92,7 +92,7 @@ class ExceptionFactory
     /**
      * Find the first strategy that matches the error code and message.
      */
-    private static function findMatchingStrategy(string $code, string $message): ErrorDetectionStrategyInterface
+    protected static function findMatchingStrategy(string $code, string $message): ErrorDetectionStrategyInterface
     {
         $messageLower = strtolower($message);
 
@@ -111,7 +111,7 @@ class ExceptionFactory
      *
      * @param array<string, mixed> $context
      */
-    private static function createException(
+    protected static function createException(
         string $exceptionClass,
         string $message,
         string $code,
@@ -135,7 +135,7 @@ class ExceptionFactory
      *
      * @param array<string, mixed> $context
      */
-    private static function createConstraintException(
+    protected static function createConstraintException(
         PDOException $e,
         string $driver,
         ?string $query,

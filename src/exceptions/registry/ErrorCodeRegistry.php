@@ -14,22 +14,22 @@ use tommyknocker\pdodb\helpers\DbError;
 class ErrorCodeRegistry
 {
     /** @var array<string, array<int|string>> */
-    private static array $constraintErrors = [];
+    protected static array $constraintErrors = [];
 
     /** @var array<string, array<int|string>> */
-    private static array $connectionErrors = [];
+    protected static array $connectionErrors = [];
 
     /** @var array<string, array<int|string>> */
-    private static array $transactionErrors = [];
+    protected static array $transactionErrors = [];
 
     /** @var array<string, array<int|string>> */
-    private static array $authenticationErrors = [];
+    protected static array $authenticationErrors = [];
 
     /** @var array<string, array<int|string>> */
-    private static array $timeoutErrors = [];
+    protected static array $timeoutErrors = [];
 
     /** @var array<string, array<int|string>> */
-    private static array $resourceErrors = [];
+    protected static array $resourceErrors = [];
 
     /**
      * Get constraint violation error codes by driver.

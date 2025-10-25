@@ -56,7 +56,7 @@ trait MysqlErrorTrait
      *
      * @return array<int, string>
      */
-    private static function getMysqlDescriptions(): array
+    protected static function getMysqlDescriptions(): array
     {
         return [
             self::MYSQL_CONNECTION_LOST => 'MySQL server has gone away',

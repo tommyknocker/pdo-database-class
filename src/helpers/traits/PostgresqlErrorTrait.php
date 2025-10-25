@@ -59,7 +59,7 @@ trait PostgresqlErrorTrait
      *
      * @return array<string, string>
      */
-    private static function getPostgresqlDescriptions(): array
+    protected static function getPostgresqlDescriptions(): array
     {
         $descriptions = [];
         $descriptions[self::POSTGRESQL_CONNECTION_FAILURE] = 'Connection failure';

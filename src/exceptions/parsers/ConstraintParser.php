@@ -35,7 +35,7 @@ class ConstraintParser
      *
      * @return string|null The constraint name or null if not found
      */
-    private function extractConstraintName(string $message): ?string
+    protected function extractConstraintName(string $message): ?string
     {
         $patterns = [
             '/for key \'([^\']+)\'/i',
@@ -59,7 +59,7 @@ class ConstraintParser
      *
      * @return string|null The table name or null if not found
      */
-    private function extractTableName(string $message): ?string
+    protected function extractTableName(string $message): ?string
     {
         $patterns = [
             '/in table \'([^\']+)\'/i',
@@ -82,7 +82,7 @@ class ConstraintParser
      *
      * @return string|null The column name or null if not found
      */
-    private function extractColumnName(string $message): ?string
+    protected function extractColumnName(string $message): ?string
     {
         if (preg_match('/column `?([^`\s]+)`?/i', $message, $matches)) {
             return $matches[1];
