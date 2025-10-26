@@ -55,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.6.1] - 2025-01-27
+## [2.6.1] - 2025-10-23
 
 ### Added
 - **Automatic external reference detection in subqueries**: QueryBuilder now automatically detects and converts external table references (`table.column`) to `RawValue` objects
