@@ -209,6 +209,20 @@ abstract class DialectAbstract implements DialectInterface
     }
 
     /**
+     * Build SQL generator for loading data from XML file.
+     *
+     * @param string $table
+     * @param string $filePath
+     * @param array<string, mixed> $options
+     *
+     * @return \Generator<string>
+     */
+    public function buildLoadXMLGenerator(string $table, string $filePath, array $options = []): \Generator
+    {
+        return $this->getFileLoader()->loadFromXmlGenerator($table, $filePath, $options);
+    }
+
+    /**
      * Build SQL for loading data from CSV file.
      *
      * @param string $table
@@ -220,6 +234,20 @@ abstract class DialectAbstract implements DialectInterface
     public function buildLoadCsvSql(string $table, string $filePath, array $options = []): string
     {
         return $this->getFileLoader()->loadFromCsv($table, $filePath, $options);
+    }
+
+    /**
+     * Build SQL generator for loading data from CSV file.
+     *
+     * @param string $table
+     * @param string $filePath
+     * @param array<string, mixed> $options
+     *
+     * @return \Generator<string>
+     */
+    public function buildLoadCsvSqlGenerator(string $table, string $filePath, array $options = []): \Generator
+    {
+        return $this->getFileLoader()->loadFromCsvGenerator($table, $filePath, $options);
     }
 
     /**

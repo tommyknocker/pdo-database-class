@@ -43,8 +43,17 @@ class FileLoader implements FileLoaderInterface
         }
 
         try {
-            $sql = $this->connection->getDialect()->buildLoadCsvSql($this->prefix . $this->table, $filePath, $options);
-            $this->connection->prepare($sql)->execute();
+            $generator = $this->connection->getDialect()->buildLoadCsvSqlGenerator(
+                $this->prefix . $this->table,
+                $filePath,
+                $options
+            );
+
+            foreach ($generator as $batchSql) {
+                $sql = $batchSql;
+                $this->connection->prepare($sql)->execute();
+            }
+
             if ($this->connection->inTransaction()) {
                 $this->connection->commit();
             }
@@ -85,8 +94,18 @@ class FileLoader implements FileLoaderInterface
                 'rowTag' => $rowTag,
                 'linesToIgnore' => $linesToIgnore,
             ];
-            $sql = $this->connection->getDialect()->buildLoadXML($this->prefix . $this->table, $filePath, $options);
-            $this->connection->prepare($sql)->execute();
+
+            $generator = $this->connection->getDialect()->buildLoadXMLGenerator(
+                $this->prefix . $this->table,
+                $filePath,
+                $options
+            );
+
+            foreach ($generator as $batchSql) {
+                $sql = $batchSql;
+                $this->connection->prepare($sql)->execute();
+            }
+
             if ($this->connection->inTransaction()) {
                 $this->connection->commit();
             }

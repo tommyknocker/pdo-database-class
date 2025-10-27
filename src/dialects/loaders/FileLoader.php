@@ -26,6 +26,21 @@ class FileLoader
      */
     public function loadFromCsv(string $table, string $filePath, array $options = []): string
     {
+        $sqlParts = [];
+        foreach ($this->loadFromCsvGenerator($table, $filePath, $options) as $sql) {
+            $sqlParts[] = $sql;
+        }
+        return $sqlParts === [] ? '' : implode("\n", $sqlParts);
+    }
+
+    /**
+     * Load data from CSV file using generator for memory efficiency.
+     *
+     * @param array<string, mixed> $options
+     * @return \Generator<string>
+     */
+    public function loadFromCsvGenerator(string $table, string $filePath, array $options = []): \Generator
+    {
         $defaults = [
             'fieldChar' => ',',
             'fieldEnclosure' => null,
@@ -90,8 +105,6 @@ class FileLoader
 
         $batchSize = self::DEFAULT_BATCH_SIZE;
         $batch = [];
-        $sqlParts = [];
-        $rows = 0;
 
         // Read and build batches
         while (!$file->eof()) {
@@ -133,25 +146,18 @@ class FileLoader
             }
 
             $batch[] = '(' . implode(', ', $vals) . ')';
-            $rows++;
 
             if (count($batch) >= $batchSize) {
-                $sqlParts[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
+                yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
                     . ' VALUES ' . implode(', ', $batch) . ';';
                 $batch = [];
             }
         }
 
         if (!empty($batch)) {
-            $sqlParts[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
+            yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
                 . ' VALUES ' . implode(', ', $batch) . ';';
         }
-
-        if ($rows === 0) {
-            return '';
-        }
-
-        return implode("\n", $sqlParts);
     }
 
     /**
@@ -160,6 +166,21 @@ class FileLoader
      * @param array<string, mixed> $options
      */
     public function loadFromXml(string $table, string $filePath, array $options = []): string
+    {
+        $sqlParts = [];
+        foreach ($this->loadFromXmlGenerator($table, $filePath, $options) as $sql) {
+            $sqlParts[] = $sql;
+        }
+        return $sqlParts === [] ? '' : implode("\n", $sqlParts);
+    }
+
+    /**
+     * Load data from XML file using generator for memory efficiency.
+     *
+     * @param array<string, mixed> $options
+     * @return \Generator<string>
+     */
+    public function loadFromXmlGenerator(string $table, string $filePath, array $options = []): \Generator
     {
         $defaults = [
             'rowTag' => '<row>',
@@ -181,99 +202,92 @@ class FileLoader
         $tableQ = $this->quoteIdentifier($table);
         $columns = [];
         $batch = [];
-        $batchesSql = [];
         $batchSize = self::DEFAULT_BATCH_SIZE;
-        $rowsProcessed = 0;
         $skipped = 0;
 
-        while ($reader->read()) {
-            if ($reader->nodeType !== XMLReader::ELEMENT) {
-                continue;
-            }
-
-            if ($reader->localName !== $rowTag) {
-                continue;
-            }
-
-            // Skip first N logical row elements if requested
-            if ($skipped < $skipRows) {
-                $skipped++;
-                $reader->next();
-                continue;
-            }
-
-            $xml = $reader->readOuterXml();
-            if ($xml === '') {
-                $reader->next();
-                continue;
-            }
-
-            $elem = simplexml_load_string($xml);
-            if ($elem === false) {
-                $reader->next();
-                continue;
-            }
-
-            // Determine columns from the first encountered row
-            if ($columns === []) {
-                foreach ($elem->children() as $child) {
-                    $columns[] = (string)$child->getName();
+        try {
+            while ($reader->read()) {
+                if ($reader->nodeType !== XMLReader::ELEMENT) {
+                    continue;
                 }
 
-                // fallback to attributes if no child elements
+                if ($reader->localName !== $rowTag) {
+                    continue;
+                }
+
+                // Skip first N logical row elements if requested
+                if ($skipped < $skipRows) {
+                    $skipped++;
+                    $reader->next();
+                    continue;
+                }
+
+                $xml = $reader->readOuterXml();
+                if ($xml === '') {
+                    $reader->next();
+                    continue;
+                }
+
+                $elem = simplexml_load_string($xml);
+                if ($elem === false) {
+                    $reader->next();
+                    continue;
+                }
+
+                // Determine columns from the first encountered row
                 if ($columns === []) {
-                    foreach ($elem->attributes() as $name => $val) {
-                        $columns[] = (string)$name;
+                    foreach ($elem->children() as $child) {
+                        $columns[] = (string)$child->getName();
+                    }
+
+                    // fallback to attributes if no child elements
+                    if ($columns === []) {
+                        foreach ($elem->attributes() as $name => $val) {
+                            $columns[] = (string)$name;
+                        }
+                    }
+
+                    if ($columns === []) {
+                        $reader->close();
+                        return;
                     }
                 }
 
-                if ($columns === []) {
-                    $reader->close();
-                    return '';
-                }
-            }
+                $values = [];
+                foreach ($columns as $col) {
+                    $val = null;
 
-            $values = [];
-            foreach ($columns as $col) {
-                $val = null;
+                    if (isset($elem->{$col}) && (string)$elem->{$col} !== '') {
+                        $val = (string)$elem->{$col};
+                    } elseif ($elem->attributes()->{$col} !== null) {
+                        $val = (string)$elem->attributes()->{$col};
+                    }
 
-                if (isset($elem->{$col}) && (string)$elem->{$col} !== '') {
-                    $val = (string)$elem->{$col};
-                } elseif ($elem->attributes()->{$col} !== null) {
-                    $val = (string)$elem->attributes()->{$col};
+                    $values[] = $this->quoteValue($val);
                 }
 
-                $values[] = $this->quoteValue($val);
+                $batch[] = '(' . implode(', ', $values) . ')';
+
+                if (count($batch) >= $batchSize) {
+                    $colsEscaped = array_map(fn ($c) => $this->quoteColumnName($c), $columns);
+
+                    yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ')'
+                        . ' VALUES ' . implode(', ', $batch) . ';';
+                    $batch = [];
+                }
+
+                $reader->next();
             }
 
-            $batch[] = '(' . implode(', ', $values) . ')';
-            $rowsProcessed++;
-
-            if (count($batch) >= $batchSize) {
+            if ($batch !== []) {
                 $colsEscaped = array_map(fn ($c) => $this->quoteColumnName($c), $columns);
 
-                $batchesSql[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ')'
+                yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ')'
                     . ' VALUES ' . implode(', ', $batch) . ';';
-                $batch = [];
             }
-
-            $reader->next();
+        } finally {
+            $reader->close();
         }
-
-        $reader->close();
-
-        if ($batch !== []) {
-            $colsEscaped = array_map(fn ($c) => $this->quoteColumnName($c), $columns);
-
-            $batchesSql[] = 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ')'
-                . ' VALUES ' . implode(', ', $batch) . ';';
-        }
-
-        if ($rowsProcessed === 0) {
-            return '';
-        }
-
-        return implode("\n", $batchesSql);
     }
 
     /**

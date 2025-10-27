@@ -423,6 +423,15 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function buildLoadCsvSqlGenerator(string $table, string $filePath, array $options = []): \Generator
+    {
+        // PostgreSQL uses native COPY which loads entire file at once
+        yield $this->buildLoadCsvSql($table, $filePath, $options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string
     {
         $parts = $this->normalizeJsonPath($path);
