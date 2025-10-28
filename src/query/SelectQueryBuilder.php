@@ -8,12 +8,17 @@ use PDO;
 use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
 use tommyknocker\pdodb\query\interfaces\SelectQueryBuilderInterface;
+use tommyknocker\pdodb\query\pagination\Cursor;
+use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
+use tommyknocker\pdodb\query\pagination\PaginationResult;
+use tommyknocker\pdodb\query\pagination\SimplePaginationResult;
 use tommyknocker\pdodb\query\traits\CommonDependenciesTrait;
 use tommyknocker\pdodb\query\traits\ExternalReferenceProcessingTrait;
 use tommyknocker\pdodb\query\traits\IdentifierQuotingTrait;
@@ -591,5 +596,192 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         }
 
         return trim($tableReference);
+    }
+
+    /* ---------------- Pagination methods ---------------- */
+
+    /**
+     * Paginate the query results with full metadata.
+     *
+     * Performs two queries: COUNT(*) for total and SELECT for items.
+     * Best for traditional page-number pagination.
+     *
+     * @param int $perPage Items per page
+     * @param int|null $page Current page (null = auto-detect from $_GET['page'])
+     * @param array<string, mixed> $options Additional options (path, query)
+     *
+     * @return PaginationResult
+     * @throws PDOException
+     */
+    public function paginate(int $perPage = 15, ?int $page = null, array $options = []): PaginationResult
+    {
+        // Auto-detect page from query string if not provided
+        if ($page === null) {
+            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        }
+
+        $page = max(1, $page);
+
+        // Build count SQL
+        $countSql = $this->buildSelectSql();
+        $countSql = (string) preg_replace('/^SELECT\s+.*?\s+FROM/is', 'SELECT COUNT(*) as total FROM', $countSql);
+        $countSql = (string) preg_replace('/\s+(ORDER BY|LIMIT|OFFSET)\s+.*/is', '', $countSql);
+
+        // Get copy of params for count query
+        $countParams = $this->parameterManager->getParams();
+
+        // Build items SQL with pagination
+        $savedLimit = $this->limit;
+        $savedOffset = $this->offset;
+        $offset = ($page - 1) * $perPage;
+        $this->limit($perPage)->offset($offset);
+        $itemsSql = $this->buildSelectSql();
+        $itemsParams = $this->parameterManager->getParams();
+
+        // Restore original state
+        if ($savedLimit !== null) {
+            $this->limit($savedLimit);
+        } else {
+            $this->limit = null;
+        }
+        if ($savedOffset !== null) {
+            $this->offset($savedOffset);
+        } else {
+            $this->offset = null;
+        }
+
+        // Execute both queries
+        $totalResult = $this->executionEngine->fetch($countSql, $countParams);
+        $total = (int)($totalResult['total'] ?? 0);
+
+        $items = $this->executionEngine->fetchAll($itemsSql, $itemsParams);
+
+        return new PaginationResult($items, $total, $perPage, $page, $options);
+    }
+
+    /**
+     * Simple pagination without total count.
+     *
+     * Performs only one query, making it faster than paginate().
+     * Best for infinite scroll or when total count is not needed.
+     *
+     * @param int $perPage Items per page
+     * @param int|null $page Current page (null = auto-detect)
+     * @param array<string, mixed> $options Additional options
+     *
+     * @return SimplePaginationResult
+     * @throws PDOException
+     */
+    public function simplePaginate(int $perPage = 15, ?int $page = null, array $options = []): SimplePaginationResult
+    {
+        if ($page === null) {
+            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        }
+
+        $page = max(1, $page);
+
+        // Fetch one extra item to check if there are more pages
+        $offset = ($page - 1) * $perPage;
+        $items = $this->limit($perPage + 1)->offset($offset)->get();
+
+        $hasMore = count($items) > $perPage;
+        if ($hasMore) {
+            array_pop($items); // Remove the extra item
+        }
+
+        return new SimplePaginationResult($items, $perPage, $page, $hasMore, $options);
+    }
+
+    /**
+     * Cursor-based pagination.
+     *
+     * Most efficient for large datasets and real-time data.
+     * Requires ORDER BY clause to determine cursor columns.
+     *
+     * @param int $perPage Items per page
+     * @param string|Cursor|null $cursor Current cursor (null = first page)
+     * @param array<string, mixed> $options Additional options
+     *
+     * @return CursorPaginationResult
+     * @throws PDOException
+     */
+    public function cursorPaginate(
+        int $perPage = 15,
+        string|Cursor|null $cursor = null,
+        array $options = []
+    ): CursorPaginationResult {
+        // Decode cursor if string
+        if (is_string($cursor)) {
+            $cursor = Cursor::decode($cursor);
+        }
+
+        // Auto-detect cursor from query string
+        if ($cursor === null && isset($_GET['cursor'])) {
+            $cursor = Cursor::decode($_GET['cursor']);
+        }
+
+        // Determine cursor columns from ORDER BY
+        $cursorColumns = $this->getCursorColumns();
+        if (empty($cursorColumns)) {
+            throw new RuntimeException('Cursor pagination requires ORDER BY clause');
+        }
+
+        // Apply cursor conditions if provided
+        if ($cursor !== null) {
+            $this->applyCursorConditions($cursor, $cursorColumns);
+        }
+
+        // Fetch items
+        $items = $this->limit($perPage + 1)->get();
+        $hasMore = count($items) > $perPage;
+
+        if ($hasMore) {
+            array_pop($items); // Remove extra item
+        }
+
+        // Create cursors
+        $previousCursor = null;
+        $nextCursor = $hasMore && count($items) > 0
+            ? Cursor::fromItem($items[count($items) - 1], $cursorColumns)
+            : null;
+
+        return new CursorPaginationResult($items, $perPage, $previousCursor, $nextCursor, $options);
+    }
+
+    /**
+     * Get cursor columns from ORDER BY clause.
+     *
+     * @return array<int, string>
+     */
+    protected function getCursorColumns(): array
+    {
+        $columns = [];
+        foreach ($this->order as $orderExpr) {
+            // Extract column name from "column ASC" or "column DESC"
+            if (preg_match('/^([^\s]+)/', $orderExpr, $matches)) {
+                $columns[] = trim($matches[1], '"`');
+            }
+        }
+        return $columns;
+    }
+
+    /**
+     * Apply cursor conditions to query.
+     *
+     * @param Cursor $cursor
+     * @param array<int, string> $columns
+     */
+    protected function applyCursorConditions(Cursor $cursor, array $columns): void
+    {
+        $params = $cursor->parameters();
+
+        // For simplicity, build individual column comparisons
+        // More advanced: composite key comparison for better performance
+        foreach ($columns as $col) {
+            if (isset($params[$col])) {
+                $paramName = 'cursor_' . $col;
+                $this->conditionBuilder->where($col, $params[$col], '>');
+            }
+        }
     }
 }

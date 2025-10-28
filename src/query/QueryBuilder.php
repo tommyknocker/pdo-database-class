@@ -1140,4 +1140,85 @@ class QueryBuilder implements QueryBuilderInterface
         $this->jsonQueryBuilder->whereJsonExists($col, $path, $cond);
         return $this;
     }
+
+    /* ---------------- Pagination methods ---------------- */
+
+    /**
+     * Paginate query results with metadata.
+     *
+     * @param int $perPage
+     * @param int|null $page
+     * @param array<string, mixed> $options
+     *
+     * @return pagination\PaginationResult
+     * @throws PDOException
+     */
+    public function paginate(int $perPage = 15, ?int $page = null, array $options = []): pagination\PaginationResult
+    {
+        // Integrate JSON selections and orders before paginating
+        $this->integrateJsonSelectionsAndOrders();
+
+        return $this->selectQueryBuilder->paginate($perPage, $page, $options);
+    }
+
+    /**
+     * Simple pagination without total count.
+     *
+     * @param int $perPage
+     * @param int|null $page
+     * @param array<string, mixed> $options
+     *
+     * @return pagination\SimplePaginationResult
+     * @throws PDOException
+     */
+    public function simplePaginate(int $perPage = 15, ?int $page = null, array $options = []): pagination\SimplePaginationResult
+    {
+        // Integrate JSON selections and orders before paginating
+        $this->integrateJsonSelectionsAndOrders();
+
+        return $this->selectQueryBuilder->simplePaginate($perPage, $page, $options);
+    }
+
+    /**
+     * Cursor-based pagination.
+     *
+     * @param int $perPage
+     * @param string|pagination\Cursor|null $cursor
+     * @param array<string, mixed> $options
+     *
+     * @return pagination\CursorPaginationResult
+     * @throws PDOException
+     */
+    public function cursorPaginate(
+        int $perPage = 15,
+        string|pagination\Cursor|null $cursor = null,
+        array $options = []
+    ): pagination\CursorPaginationResult {
+        // Integrate JSON selections and orders before paginating
+        $this->integrateJsonSelectionsAndOrders();
+
+        return $this->selectQueryBuilder->cursorPaginate($perPage, $cursor, $options);
+    }
+
+    /**
+     * Integrate JSON selections and orders into select query builder.
+     */
+    protected function integrateJsonSelectionsAndOrders(): void
+    {
+        // Integrate JSON selections
+        $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
+        if (!empty($jsonSelects)) {
+            $this->selectQueryBuilder->select($jsonSelects);
+            $this->jsonQueryBuilder->clearJsonSelects();
+        }
+
+        // Integrate JSON order expressions
+        $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
+        if (!empty($jsonOrders)) {
+            foreach ($jsonOrders as $orderExpr) {
+                $this->selectQueryBuilder->addOrderExpression($orderExpr);
+            }
+            $this->jsonQueryBuilder->clearJsonOrders();
+        }
+    }
 }

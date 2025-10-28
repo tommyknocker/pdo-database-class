@@ -2768,4 +2768,216 @@ class SharedCoverageTest extends TestCase
         $this->assertIsArray($decoded[0]['tags']);
         $this->assertCount(2, $decoded[0]['tags']);
     }
+
+    /**
+     * Test paginate method.
+     */
+    public function testPaginate(): void
+    {
+        // Insert test data
+        $testData = [];
+        for ($i = 1; $i <= 50; $i++) {
+            $testData[] = ['name' => "Item $i", 'value' => $i];
+        }
+        self::$db->find()->table('test_coverage')->insertMulti($testData);
+
+        // Test first page
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->orderBy('id')
+            ->paginate(10, 1);
+
+        $this->assertInstanceOf(\tommyknocker\pdodb\query\pagination\PaginationResult::class, $result);
+        $this->assertCount(10, $result->items());
+        $this->assertEquals(50, $result->total());
+        $this->assertEquals(1, $result->currentPage());
+        $this->assertEquals(10, $result->perPage());
+        $this->assertEquals(5, $result->lastPage());
+        $this->assertEquals(1, $result->from());
+        $this->assertEquals(10, $result->to());
+        $this->assertTrue($result->hasMorePages());
+        $this->assertTrue($result->onFirstPage());
+        $this->assertFalse($result->onLastPage());
+
+        // Test second page
+        $result2 = self::$db->find()
+            ->from('test_coverage')
+            ->orderBy('id')
+            ->paginate(10, 2);
+
+        $this->assertEquals(2, $result2->currentPage());
+        $this->assertEquals(11, $result2->from());
+        $this->assertEquals(20, $result2->to());
+        $this->assertFalse($result2->onFirstPage());
+
+        // Test last page
+        $result3 = self::$db->find()
+            ->from('test_coverage')
+            ->orderBy('id')
+            ->paginate(10, 5);
+
+        $this->assertEquals(5, $result3->currentPage());
+        $this->assertEquals(41, $result3->from());
+        $this->assertEquals(50, $result3->to());
+        $this->assertFalse($result3->hasMorePages());
+        $this->assertTrue($result3->onLastPage());
+
+        // Test JSON serialization
+        $json = json_encode($result);
+        $decoded = json_decode($json, true);
+        $this->assertIsArray($decoded);
+        $this->assertArrayHasKey('data', $decoded);
+        $this->assertArrayHasKey('meta', $decoded);
+        $this->assertArrayHasKey('links', $decoded);
+        $this->assertEquals(10, count($decoded['data']));
+        $this->assertEquals(50, $decoded['meta']['total']);
+    }
+
+    /**
+     * Test simplePaginate method.
+     */
+    public function testSimplePaginate(): void
+    {
+        // Insert test data
+        $testData = [];
+        for ($i = 1; $i <= 30; $i++) {
+            $testData[] = ['name' => "Item $i", 'value' => $i];
+        }
+        self::$db->find()->table('test_coverage')->insertMulti($testData);
+
+        // Test first page
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->orderBy('id')
+            ->simplePaginate(10, 1);
+
+        $this->assertInstanceOf(\tommyknocker\pdodb\query\pagination\SimplePaginationResult::class, $result);
+        $this->assertCount(10, $result->items());
+        $this->assertEquals(1, $result->currentPage());
+        $this->assertEquals(10, $result->perPage());
+        $this->assertTrue($result->hasMorePages());
+        $this->assertTrue($result->onFirstPage());
+
+        // Test last page
+        $result2 = self::$db->find()
+            ->from('test_coverage')
+            ->orderBy('id')
+            ->simplePaginate(10, 3);
+
+        $this->assertEquals(3, $result2->currentPage());
+        $this->assertFalse($result2->hasMorePages());
+        $this->assertFalse($result2->onFirstPage());
+
+        // Test JSON serialization
+        $json = json_encode($result);
+        $decoded = json_decode($json, true);
+        $this->assertIsArray($decoded);
+        $this->assertArrayHasKey('data', $decoded);
+        $this->assertArrayHasKey('meta', $decoded);
+        $this->assertArrayHasKey('links', $decoded);
+        $this->assertEquals(10, count($decoded['data']));
+        $this->assertTrue($decoded['meta']['has_more']);
+        $this->assertArrayNotHasKey('total', $decoded['meta']); // No total in simple pagination
+    }
+
+    /**
+     * Test cursorPaginate method.
+     */
+    public function testCursorPaginate(): void
+    {
+        // Insert test data
+        $testData = [];
+        for ($i = 1; $i <= 25; $i++) {
+            $testData[] = ['name' => "Item $i", 'value' => $i];
+        }
+        self::$db->find()->table('test_coverage')->insertMulti($testData);
+
+        // Test first page
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->orderBy('id')
+            ->cursorPaginate(10);
+
+        $this->assertInstanceOf(\tommyknocker\pdodb\query\pagination\CursorPaginationResult::class, $result);
+        $this->assertCount(10, $result->items());
+        $this->assertEquals(10, $result->perPage());
+        $this->assertTrue($result->hasMorePages());
+        $this->assertNotNull($result->nextCursor());
+
+        // Test next page with cursor
+        $cursor = $result->nextCursor();
+        $this->assertNotNull($cursor);
+
+        $result2 = self::$db->find()
+            ->from('test_coverage')
+            ->orderBy('id')
+            ->cursorPaginate(10, $cursor);
+
+        $this->assertCount(10, $result2->items());
+        $this->assertTrue($result2->hasMorePages());
+
+        // Test JSON serialization
+        $json = json_encode($result);
+        $decoded = json_decode($json, true);
+        $this->assertIsArray($decoded);
+        $this->assertArrayHasKey('data', $decoded);
+        $this->assertArrayHasKey('meta', $decoded);
+        $this->assertArrayHasKey('cursor', $decoded);
+        $this->assertArrayHasKey('links', $decoded);
+        $this->assertTrue($decoded['meta']['has_more']);
+        $this->assertNotNull($decoded['cursor']['next']);
+    }
+
+    /**
+     * Test pagination with URL options.
+     */
+    public function testPaginationWithUrlOptions(): void
+    {
+        // Insert test data
+        $testData = [];
+        for ($i = 1; $i <= 20; $i++) {
+            $testData[] = ['name' => "Item $i", 'value' => $i];
+        }
+        self::$db->find()->table('test_coverage')->insertMulti($testData);
+
+        $result = self::$db->find()
+            ->from('test_coverage')
+            ->orderBy('id')
+            ->paginate(5, 2, [
+                'path' => '/api/items',
+                'query' => ['filter' => 'active'],
+            ]);
+
+        $this->assertStringContainsString('/api/items?', $result->url(1));
+        $this->assertStringContainsString('filter=active', $result->url(1));
+        $this->assertStringContainsString('page=1', $result->url(1));
+        $this->assertStringContainsString('page=3', $result->nextPageUrl() ?? ''); // Next page from page 2 is page 3
+    }
+
+    /**
+     * Test Cursor encode and decode.
+     */
+    public function testCursorEncodeAndDecode(): void
+    {
+        $cursor = new \tommyknocker\pdodb\query\pagination\Cursor(['id' => 42, 'created_at' => '2025-10-28']);
+        $encoded = $cursor->encode();
+        $this->assertIsString($encoded);
+
+        $decoded = \tommyknocker\pdodb\query\pagination\Cursor::decode($encoded);
+        $this->assertInstanceOf(\tommyknocker\pdodb\query\pagination\Cursor::class, $decoded);
+        $this->assertEquals(['id' => 42, 'created_at' => '2025-10-28'], $decoded->parameters());
+        $this->assertTrue($decoded->pointsToNextItems());
+        $this->assertFalse($decoded->pointsToPreviousItems());
+    }
+
+    /**
+     * Test Cursor from item.
+     */
+    public function testCursorFromItem(): void
+    {
+        $item = ['id' => 123, 'name' => 'Test', 'created_at' => '2025-10-28'];
+        $cursor = \tommyknocker\pdodb\query\pagination\Cursor::fromItem($item, ['id', 'created_at']);
+
+        $this->assertEquals(['id' => 123, 'created_at' => '2025-10-28'], $cursor->parameters());
+    }
 }

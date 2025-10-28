@@ -53,6 +53,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - [Complex Conditions](#complex-conditions)
   - [Subqueries](#subqueries)
   - [Schema Support](#schema-support-postgresql)
+  - [Pagination](#pagination)
   - [Batch Processing](#batch-processing)
 - [Error Handling](#error-handling)
 - [Performance Tips](#performance-tips)
@@ -964,6 +965,93 @@ $data = $db->find()
     ->leftJoin('archive.orders AS o', 'o.user_id = u.id')
     ->get();
 ```
+
+### Pagination
+
+PDOdb offers three pagination styles for different use cases:
+
+#### Full Pagination (with total count)
+
+```php
+// Traditional page-number pagination
+$result = $db->find()
+    ->from('posts')
+    ->orderBy('created_at', 'DESC')
+    ->paginate(20, 1); // 20 per page, page 1
+
+echo "Page {$result->currentPage()} of {$result->lastPage()}\n";
+echo "Total: {$result->total()} items\n";
+echo "Showing: {$result->from()}-{$result->to()}\n";
+
+// JSON API response
+header('Content-Type: application/json');
+echo json_encode($result);
+```
+
+#### Simple Pagination (without total count - faster)
+
+```php
+// Infinite scroll / "Load More" pattern
+$result = $db->find()
+    ->from('posts')
+    ->orderBy('created_at', 'DESC')
+    ->simplePaginate(20, 1);
+
+if ($result->hasMorePages()) {
+    echo '<button data-page="' . ($result->currentPage() + 1) . '">Load More</button>';
+}
+
+// JSON response (no COUNT query)
+echo json_encode($result);
+```
+
+#### Cursor Pagination (most efficient for large datasets)
+
+```php
+// Stable pagination for millions of rows
+$result = $db->find()
+    ->from('posts')
+    ->orderBy('id', 'DESC')
+    ->cursorPaginate(20); // First page
+
+// Next page using cursor
+if ($result->hasMorePages()) {
+    $result2 = $db->find()
+        ->from('posts')
+        ->orderBy('id', 'DESC')
+        ->cursorPaginate(20, $result->nextCursor());
+}
+
+// JSON response with encoded cursors
+echo json_encode($result);
+```
+
+#### Pagination with URL Options
+
+```php
+$result = $db->find()
+    ->from('posts')
+    ->where('status', 'published')
+    ->paginate(20, 2, [
+        'path' => '/api/posts',
+        'query' => ['status' => 'published']
+    ]);
+
+echo $result->nextPageUrl();
+// Output: /api/posts?status=published&page=3
+```
+
+#### Performance Comparison
+
+| Type | Queries | Performance (1M rows) | Use Case |
+|------|---------|----------------------|----------|
+| **Full** | 2 (COUNT + SELECT) | ~200ms | Page numbers needed |
+| **Simple** | 1 (SELECT +1) | ~50ms | Infinite scroll |
+| **Cursor** | 1 (SELECT WHERE) | ~30ms | Large datasets, real-time |
+
+See [Pagination Documentation](documentation/05-advanced-features/pagination.md) for more details.
+
+---
 
 ### Batch Processing
 

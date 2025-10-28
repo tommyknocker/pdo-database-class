@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\query\interfaces;
 
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\pagination\Cursor;
+use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
+use tommyknocker\pdodb\query\pagination\PaginationResult;
+use tommyknocker\pdodb\query\pagination\SimplePaginationResult;
 
 interface SelectQueryBuilderInterface
 {
@@ -180,4 +184,41 @@ interface SelectQueryBuilderInterface
      * @return array{sql: string, params: array<string, string|int|float|bool|null>}
      */
     public function getQuery(): array;
+
+    /**
+     * Paginate query results with metadata.
+     *
+     * @param int $perPage
+     * @param int|null $page
+     * @param array<string, mixed> $options
+     *
+     * @return PaginationResult
+     */
+    public function paginate(int $perPage = 15, ?int $page = null, array $options = []): PaginationResult;
+
+    /**
+     * Simple pagination without total count.
+     *
+     * @param int $perPage
+     * @param int|null $page
+     * @param array<string, mixed> $options
+     *
+     * @return SimplePaginationResult
+     */
+    public function simplePaginate(int $perPage = 15, ?int $page = null, array $options = []): SimplePaginationResult;
+
+    /**
+     * Cursor-based pagination.
+     *
+     * @param int $perPage
+     * @param string|Cursor|null $cursor
+     * @param array<string, mixed> $options
+     *
+     * @return CursorPaginationResult
+     */
+    public function cursorPaginate(
+        int $perPage = 15,
+        string|Cursor|null $cursor = null,
+        array $options = []
+    ): CursorPaginationResult;
 }
