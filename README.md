@@ -14,6 +14,7 @@
 Built on top of PDO with **zero external dependencies**, it offers:
 - **Fluent Query Builder** - Intuitive, chainable API for all database operations
 - **Cross-Database Compatibility** - Automatic SQL dialect handling (MySQL, PostgreSQL, SQLite)
+- **Read/Write Splitting** - Horizontal scaling with master-replica architecture and load balancing
 - **JSON Operations** - Native JSON support with consistent API across all databases
 - **Query Caching** - PSR-16 integration for result caching (10-1000x faster queries)
 - **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
@@ -42,6 +43,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - [PostgreSQL Configuration](#postgresql-configuration)
   - [SQLite Configuration](#sqlite-configuration)
   - [Connection Pooling](#connection-pooling)
+  - [Read/Write Splitting](#readwrite-splitting)
 - [Quick Start](#quick-start)
   - [Basic CRUD Operations](#basic-crud-operations)
   - [Filtering and Joining](#filtering-and-joining)
@@ -313,6 +315,81 @@ $db->addConnection('pgsql_analytics', [
 $users = $db->connection('mysql_main')->find()->from('users')->get();
 $stats = $db->connection('pgsql_analytics')->find()->from('stats')->get();
 ```
+
+### Read/Write Splitting
+
+Scale horizontally with master-replica architecture. Automatically route reads to replicas and writes to master:
+
+```php
+use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer;
+
+$db = new PdoDb();
+
+// Enable read/write splitting with load balancer
+$db->enableReadWriteSplitting(new RoundRobinLoadBalancer());
+
+// Add write connection (master)
+$db->addConnection('master', [
+    'driver' => 'mysql',
+    'host' => 'master.db.local',
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'myapp',
+    'type' => 'write',
+]);
+
+// Add read connections (replicas)
+$db->addConnection('replica-1', [
+    'driver' => 'mysql',
+    'host' => 'replica1.db.local',
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'myapp',
+    'type' => 'read',
+]);
+
+$db->addConnection('replica-2', [
+    'driver' => 'mysql',
+    'host' => 'replica2.db.local',
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'myapp',
+    'type' => 'read',
+]);
+
+$db->connection('master');
+
+// SELECT queries automatically go to read replicas
+$users = $db->find()->from('users')->get();
+
+// INSERT/UPDATE/DELETE automatically go to write master
+$id = $db->find()->table('users')->insert(['name' => 'John', 'email' => 'john@example.com']);
+
+// Force a SELECT to read from master
+$user = $db->find()->from('users')->forceWrite()->where('id', $id)->getOne();
+
+// Enable sticky writes (reads go to master for 60s after writes)
+$db->enableStickyWrites(60);
+```
+
+**Load Balancing Strategies:**
+- `RoundRobinLoadBalancer` - Distributes requests evenly in circular order
+- `RandomLoadBalancer` - Randomly selects a replica
+- `WeightedLoadBalancer` - Distributes proportionally based on weights
+
+**Key Features:**
+- Automatic query routing (SELECTs → replicas, DML → master)
+- Sticky writes for read-after-write consistency
+- Multiple load balancing strategies
+- Health checks and automatic failover
+- Transaction support (always uses master)
+
+See:
+- [Documentation: Read/Write Splitting](documentation/05-advanced-features/read-write-splitting.md)
+- [Example: Basic Setup](examples/15-read-write-splitting/01-basic-setup.php)
+- [Example: Sticky Writes](examples/15-read-write-splitting/02-sticky-writes.php)
+- [Example: Load Balancers](examples/15-read-write-splitting/03-load-balancers.php)
 
 ---
 

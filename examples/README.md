@@ -1,6 +1,6 @@
 # PDOdb Examples
 
-Complete collection of **21 runnable examples** demonstrating PDOdb features across **all 3 database dialects** (MySQL, PostgreSQL, SQLite).
+Complete collection of **24 runnable examples** demonstrating PDOdb features across **all 3 database dialects** (MySQL, PostgreSQL, SQLite).
 
 ## 🚀 Quick Start
 
@@ -107,6 +107,13 @@ Complete applications and patterns.
 - **[02-user-auth.php](06-real-world/02-user-auth.php)** - User authentication system
 - **[03-search-filters.php](06-real-world/03-search-filters.php)** - Advanced search with filters
 - **[04-multi-tenant.php](06-real-world/04-multi-tenant.php)** - Multi-tenant architecture
+
+### 15. Read/Write Splitting
+Horizontal database scaling with master-replica architecture.
+
+- **[01-basic-setup.php](15-read-write-splitting/01-basic-setup.php)** - Setting up read/write splitting
+- **[02-sticky-writes.php](15-read-write-splitting/02-sticky-writes.php)** - Read-after-write consistency
+- **[03-load-balancers.php](15-read-write-splitting/03-load-balancers.php)** - Load balancing strategies
 
 ## 💡 Tips
 

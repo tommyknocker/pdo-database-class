@@ -2959,7 +2959,7 @@ class SharedCoverageTest extends TestCase
             ->orderBy('id')
             ->paginate(5, 2, [
                 'path' => '/api/items',
-                'query' => ['filter' => 'active']
+                'query' => ['filter' => 'active'],
             ]);
 
         $this->assertStringContainsString('/api/items?', $result->url(1));
@@ -3200,5 +3200,232 @@ class SharedCoverageTest extends TestCase
 
         $this->assertCount(1, $data);
         $this->assertEquals('Test', $data[0]['name']);
+    }
+
+    /* ---------------- Read/Write Splitting Tests ---------------- */
+
+    public function testEnableReadWriteSplitting(): void
+    {
+        $db = new PdoDb();
+
+        // Enable read/write splitting first
+        $db->enableReadWriteSplitting();
+
+        // Then add connections
+        $db->addConnection('write', ['driver' => 'sqlite', 'path' => ':memory:']);
+        $db->addConnection('read', ['driver' => 'sqlite', 'path' => ':memory:', 'type' => 'read']);
+
+        $router = $db->getConnectionRouter();
+        $this->assertNotNull($router);
+        $this->assertCount(1, $router->getWriteConnections());
+        $this->assertCount(1, $router->getReadConnections());
+    }
+
+    public function testDisableReadWriteSplitting(): void
+    {
+        $db = new PdoDb();
+        $db->enableReadWriteSplitting();
+        $this->assertNotNull($db->getConnectionRouter());
+
+        $db->disableReadWriteSplitting();
+        $this->assertNull($db->getConnectionRouter());
+    }
+
+    public function testEnableStickyWritesWithoutRouter(): void
+    {
+        $db = new PdoDb();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Read/write splitting must be enabled first');
+        $db->enableStickyWrites(60);
+    }
+
+    public function testEnableStickyWrites(): void
+    {
+        $db = new PdoDb();
+        $db->enableReadWriteSplitting();
+        $db->enableStickyWrites(60);
+
+        $router = $db->getConnectionRouter();
+        $this->assertTrue($router->isStickyWritesEnabled());
+    }
+
+    public function testDisableStickyWrites(): void
+    {
+        $db = new PdoDb();
+        $db->enableReadWriteSplitting();
+        $db->enableStickyWrites(60);
+
+        $db->disableStickyWrites();
+
+        $router = $db->getConnectionRouter();
+        $this->assertFalse($router->isStickyWritesEnabled());
+    }
+
+    public function testConnectionRouterAddConnections(): void
+    {
+        $db = new PdoDb();
+        $db->enableReadWriteSplitting();
+
+        $db->addConnection('master', ['driver' => 'sqlite', 'path' => ':memory:', 'type' => 'write']);
+        $db->addConnection('slave1', ['driver' => 'sqlite', 'path' => ':memory:', 'type' => 'read']);
+        $db->addConnection('slave2', ['driver' => 'sqlite', 'path' => ':memory:', 'type' => 'read']);
+
+        $router = $db->getConnectionRouter();
+        $this->assertCount(1, $router->getWriteConnections());
+        $this->assertCount(2, $router->getReadConnections());
+    }
+
+    public function testConnectionRouterDefaultTypeIsWrite(): void
+    {
+        $db = new PdoDb();
+        $db->enableReadWriteSplitting();
+
+        // Without 'type' parameter, should default to write
+        $db->addConnection('default', ['driver' => 'sqlite', 'path' => ':memory:']);
+
+        $router = $db->getConnectionRouter();
+        $this->assertCount(1, $router->getWriteConnections());
+        $this->assertCount(0, $router->getReadConnections());
+    }
+
+    public function testForceWriteMode(): void
+    {
+        $db = new PdoDb();
+        $db->enableReadWriteSplitting();
+
+        $db->addConnection('write', ['driver' => 'sqlite', 'path' => ':memory:']);
+        $db->addConnection('read', ['driver' => 'sqlite', 'path' => ':memory:', 'type' => 'read']);
+
+        $router = $db->getConnectionRouter();
+        $router->enableForceWrite();
+
+        $this->assertTrue($router->isForceWriteMode());
+
+        $router->disableForceWrite();
+        $this->assertFalse($router->isForceWriteMode());
+    }
+
+    public function testConnectionRouterHealthCheck(): void
+    {
+        $db = new PdoDb();
+        $db->addConnection('test', ['driver' => 'sqlite', 'path' => ':memory:']);
+        $db->connection('test');
+
+        $router = $db->getConnectionRouter();
+        if ($router) {
+            $this->assertTrue($router->healthCheck($db->connection));
+        } else {
+            $this->markTestSkipped('Router not available');
+        }
+    }
+
+    public function testTransactionStateUpdateInRouter(): void
+    {
+        $db = new PdoDb();
+        $db->enableReadWriteSplitting();
+        $db->addConnection('write', ['driver' => 'sqlite', 'path' => ':memory:']);
+        $db->connection('write');
+
+        $router = $db->getConnectionRouter();
+        $this->assertFalse($router->isInTransaction());
+
+        $db->startTransaction();
+        $this->assertTrue($router->isInTransaction());
+
+        $db->commit();
+        $this->assertFalse($router->isInTransaction());
+    }
+
+    public function testTransactionStateOnRollback(): void
+    {
+        $db = new PdoDb();
+        $db->enableReadWriteSplitting();
+        $db->addConnection('write', ['driver' => 'sqlite', 'path' => ':memory:']);
+        $db->connection('write');
+
+        $router = $db->getConnectionRouter();
+
+        $db->startTransaction();
+        $this->assertTrue($router->isInTransaction());
+
+        $db->rollback();
+        $this->assertFalse($router->isInTransaction());
+    }
+
+    public function testQueryBuilderForceWrite(): void
+    {
+        $db = new PdoDb();
+        $db->enableReadWriteSplitting();
+        $db->addConnection('write', ['driver' => 'sqlite', 'path' => ':memory:']);
+        $db->addConnection('read', ['driver' => 'sqlite', 'path' => ':memory:', 'type' => 'read']);
+        $db->connection('write');
+
+        // Create table on write connection
+        $db->rawQuery('CREATE TABLE test_rw (id INTEGER PRIMARY KEY, name TEXT)');
+
+        $qb = $db->find()->from('test_rw');
+        $result = $qb->forceWrite();
+
+        $this->assertSame($qb, $result); // Should return self for chaining
+    }
+
+    public function testLoadBalancers(): void
+    {
+        $db = new PdoDb();
+
+        // Test with RoundRobin
+        $db->enableReadWriteSplitting(new \tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer());
+        $this->assertInstanceOf(
+            \tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer::class,
+            $db->getConnectionRouter()->getLoadBalancer()
+        );
+
+        // Test with Random
+        $db->enableReadWriteSplitting(new \tommyknocker\pdodb\connection\loadbalancer\RandomLoadBalancer());
+        $this->assertInstanceOf(
+            \tommyknocker\pdodb\connection\loadbalancer\RandomLoadBalancer::class,
+            $db->getConnectionRouter()->getLoadBalancer()
+        );
+
+        // Test with Weighted
+        $weighted = new \tommyknocker\pdodb\connection\loadbalancer\WeightedLoadBalancer();
+        $weighted->setWeights(['read-1' => 2, 'read-2' => 1]);
+        $db->enableReadWriteSplitting($weighted);
+        $this->assertInstanceOf(
+            \tommyknocker\pdodb\connection\loadbalancer\WeightedLoadBalancer::class,
+            $db->getConnectionRouter()->getLoadBalancer()
+        );
+    }
+
+    public function testLoadBalancerMarkFailedAndHealthy(): void
+    {
+        $balancer = new \tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer();
+
+        $balancer->markFailed('read-1');
+        $balancer->markHealthy('read-1');
+
+        // Should not throw exceptions
+        $this->assertTrue(true);
+    }
+
+    public function testLoadBalancerReset(): void
+    {
+        $balancer = new \tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer();
+
+        $balancer->markFailed('read-1');
+        $balancer->reset();
+
+        // Should not throw exceptions
+        $this->assertTrue(true);
+    }
+
+    public function testConnectionTypeEnum(): void
+    {
+        $readType = \tommyknocker\pdodb\connection\ConnectionType::READ;
+        $writeType = \tommyknocker\pdodb\connection\ConnectionType::WRITE;
+
+        $this->assertEquals('read', $readType->value);
+        $this->assertEquals('write', $writeType->value);
     }
 }

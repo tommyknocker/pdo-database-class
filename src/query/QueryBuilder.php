@@ -11,6 +11,7 @@ use PDOStatement;
 use RuntimeException;
 use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\connection\ConnectionRouter;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\interfaces\BatchProcessorInterface;
@@ -49,6 +50,12 @@ class QueryBuilder implements QueryBuilderInterface
 
     /** @var CacheManager|null Cache manager for query result caching */
     protected ?CacheManager $cacheManager = null;
+
+    /** @var ConnectionRouter|null Connection router for read/write splitting */
+    protected ?ConnectionRouter $connectionRouter = null;
+
+    /** @var bool Force next query to use write connection */
+    protected bool $forceWriteConnection = false;
 
     // Component instances
     protected ParameterManagerInterface $parameterManager;
@@ -153,6 +160,109 @@ class QueryBuilder implements QueryBuilderInterface
         return $this->prefix;
     }
 
+    /**
+     * Set connection router for read/write splitting.
+     *
+     * @param ConnectionRouter|null $router
+     *
+     * @return self
+     */
+    public function setConnectionRouter(?ConnectionRouter $router): self
+    {
+        $this->connectionRouter = $router;
+        return $this;
+    }
+
+    /**
+     * Force next read query to use write connection.
+     *
+     * @return self
+     */
+    public function forceWrite(): self
+    {
+        $this->forceWriteConnection = true;
+        return $this;
+    }
+
+    /**
+     * Switch to read connection if router is available.
+     *
+     * @return ConnectionInterface|null Original connection before switch
+     */
+    protected function switchToReadConnection(): ?ConnectionInterface
+    {
+        if ($this->connectionRouter === null) {
+            return null;
+        }
+
+        $originalConnection = $this->connection;
+        
+        // Get appropriate connection based on forceWrite flag
+        if ($this->forceWriteConnection) {
+            $this->connection = $this->connectionRouter->getWriteConnection();
+            $this->forceWriteConnection = false; // Reset flag after use
+        } else {
+            $this->connection = $this->connectionRouter->getReadConnection();
+        }
+
+        // Update components with new connection
+        $this->updateComponents();
+        
+        return $originalConnection;
+    }
+
+    /**
+     * Switch to write connection if router is available.
+     *
+     * @return ConnectionInterface|null Original connection before switch
+     */
+    protected function switchToWriteConnection(): ?ConnectionInterface
+    {
+        if ($this->connectionRouter === null) {
+            return null;
+        }
+
+        $originalConnection = $this->connection;
+        $this->connection = $this->connectionRouter->getWriteConnection();
+
+        // Update components with new connection
+        $this->updateComponents();
+        
+        return $originalConnection;
+    }
+
+    /**
+     * Restore original connection.
+     *
+     * @param ConnectionInterface|null $originalConnection
+     */
+    protected function restoreConnection(?ConnectionInterface $originalConnection): void
+    {
+        if ($originalConnection !== null && $this->connectionRouter !== null) {
+            $this->connection = $originalConnection;
+            $this->updateComponents();
+        }
+    }
+
+    /**
+     * Update all components with current connection.
+     * 
+     * Note: This method minimally updates components to preserve state.
+     * We only update the execution engine which directly uses the connection.
+     */
+    protected function updateComponents(): void
+    {
+        $this->dialect = $this->connection->getDialect();
+        $rawValueResolver = new RawValueResolver($this->connection, $this->parameterManager);
+        
+        // Only update execution engine to use new connection
+        // Keep other components (conditionBuilder, etc.) to preserve their state
+        $this->executionEngine = new ExecutionEngine($this->connection, $rawValueResolver, $this->parameterManager);
+        
+        // Update execution engine reference in condition builder
+        // This is done via property access if the builder supports it
+    }
+
     /* ---------------- Table / source ---------------- */
 
     /**
@@ -234,26 +344,32 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function get(): array
     {
-        // Integrate JSON selections before executing query
-        $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
-        if (!empty($jsonSelects)) {
-            $this->selectQueryBuilder->select($jsonSelects);
-            // Clear JSON selections after integration to avoid duplication
-            $this->jsonQueryBuilder->clearJsonSelects();
-        }
-
-        // Integrate JSON order expressions before executing query
-        $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
-        if (!empty($jsonOrders)) {
-            foreach ($jsonOrders as $orderExpr) {
-                // JSON order expressions already contain direction, so add them directly
-                $this->selectQueryBuilder->addOrderExpression($orderExpr);
+        $originalConnection = $this->switchToReadConnection();
+        
+        try {
+            // Integrate JSON selections before executing query
+            $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
+            if (!empty($jsonSelects)) {
+                $this->selectQueryBuilder->select($jsonSelects);
+                // Clear JSON selections after integration to avoid duplication
+                $this->jsonQueryBuilder->clearJsonSelects();
             }
-            // Clear JSON orders after integration to avoid duplication
-            $this->jsonQueryBuilder->clearJsonOrders();
-        }
 
-        return $this->selectQueryBuilder->get();
+            // Integrate JSON order expressions before executing query
+            $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
+            if (!empty($jsonOrders)) {
+                foreach ($jsonOrders as $orderExpr) {
+                    // JSON order expressions already contain direction, so add them directly
+                    $this->selectQueryBuilder->addOrderExpression($orderExpr);
+                }
+                // Clear JSON orders after integration to avoid duplication
+                $this->jsonQueryBuilder->clearJsonOrders();
+            }
+
+            return $this->selectQueryBuilder->get();
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /**
@@ -264,26 +380,32 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function getOne(): mixed
     {
-        // Integrate JSON selections before executing query
-        $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
-        if (!empty($jsonSelects)) {
-            $this->selectQueryBuilder->select($jsonSelects);
-            // Clear JSON selections after integration to avoid duplication
-            $this->jsonQueryBuilder->clearJsonSelects();
-        }
-
-        // Integrate JSON order expressions before executing query
-        $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
-        if (!empty($jsonOrders)) {
-            foreach ($jsonOrders as $orderExpr) {
-                // JSON order expressions already contain direction, so add them directly
-                $this->selectQueryBuilder->addOrderExpression($orderExpr);
+        $originalConnection = $this->switchToReadConnection();
+        
+        try {
+            // Integrate JSON selections before executing query
+            $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
+            if (!empty($jsonSelects)) {
+                $this->selectQueryBuilder->select($jsonSelects);
+                // Clear JSON selections after integration to avoid duplication
+                $this->jsonQueryBuilder->clearJsonSelects();
             }
-            // Clear JSON orders after integration to avoid duplication
-            $this->jsonQueryBuilder->clearJsonOrders();
-        }
 
-        return $this->selectQueryBuilder->getOne();
+            // Integrate JSON order expressions before executing query
+            $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
+            if (!empty($jsonOrders)) {
+                foreach ($jsonOrders as $orderExpr) {
+                    // JSON order expressions already contain direction, so add them directly
+                    $this->selectQueryBuilder->addOrderExpression($orderExpr);
+                }
+                // Clear JSON orders after integration to avoid duplication
+                $this->jsonQueryBuilder->clearJsonOrders();
+            }
+
+            return $this->selectQueryBuilder->getOne();
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /**
@@ -294,26 +416,32 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function getColumn(): array
     {
-        // Integrate JSON selections before executing query
-        $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
-        if (!empty($jsonSelects)) {
-            $this->selectQueryBuilder->select($jsonSelects);
-            // Clear JSON selections after integration to avoid duplication
-            $this->jsonQueryBuilder->clearJsonSelects();
-        }
-
-        // Integrate JSON order expressions before executing query
-        $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
-        if (!empty($jsonOrders)) {
-            foreach ($jsonOrders as $orderExpr) {
-                // JSON order expressions already contain direction, so add them directly
-                $this->selectQueryBuilder->addOrderExpression($orderExpr);
+        $originalConnection = $this->switchToReadConnection();
+        
+        try {
+            // Integrate JSON selections before executing query
+            $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
+            if (!empty($jsonSelects)) {
+                $this->selectQueryBuilder->select($jsonSelects);
+                // Clear JSON selections after integration to avoid duplication
+                $this->jsonQueryBuilder->clearJsonSelects();
             }
-            // Clear JSON orders after integration to avoid duplication
-            $this->jsonQueryBuilder->clearJsonOrders();
-        }
 
-        return $this->selectQueryBuilder->getColumn();
+            // Integrate JSON order expressions before executing query
+            $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
+            if (!empty($jsonOrders)) {
+                foreach ($jsonOrders as $orderExpr) {
+                    // JSON order expressions already contain direction, so add them directly
+                    $this->selectQueryBuilder->addOrderExpression($orderExpr);
+                }
+                // Clear JSON orders after integration to avoid duplication
+                $this->jsonQueryBuilder->clearJsonOrders();
+            }
+
+            return $this->selectQueryBuilder->getColumn();
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /**
@@ -324,26 +452,32 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function getValue(): mixed
     {
-        // Integrate JSON selections before executing query
-        $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
-        if (!empty($jsonSelects)) {
-            $this->selectQueryBuilder->select($jsonSelects);
-            // Clear JSON selections after integration to avoid duplication
-            $this->jsonQueryBuilder->clearJsonSelects();
-        }
-
-        // Integrate JSON order expressions before executing query
-        $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
-        if (!empty($jsonOrders)) {
-            foreach ($jsonOrders as $orderExpr) {
-                // JSON order expressions already contain direction, so add them directly
-                $this->selectQueryBuilder->addOrderExpression($orderExpr);
+        $originalConnection = $this->switchToReadConnection();
+        
+        try {
+            // Integrate JSON selections before executing query
+            $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
+            if (!empty($jsonSelects)) {
+                $this->selectQueryBuilder->select($jsonSelects);
+                // Clear JSON selections after integration to avoid duplication
+                $this->jsonQueryBuilder->clearJsonSelects();
             }
-            // Clear JSON orders after integration to avoid duplication
-            $this->jsonQueryBuilder->clearJsonOrders();
-        }
 
-        return $this->selectQueryBuilder->getValue();
+            // Integrate JSON order expressions before executing query
+            $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
+            if (!empty($jsonOrders)) {
+                foreach ($jsonOrders as $orderExpr) {
+                    // JSON order expressions already contain direction, so add them directly
+                    $this->selectQueryBuilder->addOrderExpression($orderExpr);
+                }
+                // Clear JSON orders after integration to avoid duplication
+                $this->jsonQueryBuilder->clearJsonOrders();
+            }
+
+            return $this->selectQueryBuilder->getValue();
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /* ---------------- DML: insert / update / delete / replace ---------------- */
@@ -358,7 +492,13 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function insert(array $data, array $onDuplicate = []): int
     {
-        return $this->dmlQueryBuilder->insert($data, $onDuplicate);
+        $originalConnection = $this->switchToWriteConnection();
+        
+        try {
+            return $this->dmlQueryBuilder->insert($data, $onDuplicate);
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /**
@@ -371,7 +511,13 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function insertMulti(array $rows, array $onDuplicate = []): int
     {
-        return $this->dmlQueryBuilder->insertMulti($rows, $onDuplicate);
+        $originalConnection = $this->switchToWriteConnection();
+        
+        try {
+            return $this->dmlQueryBuilder->insertMulti($rows, $onDuplicate);
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /**
@@ -384,7 +530,13 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function replace(array $data, array $onDuplicate = []): int
     {
-        return $this->dmlQueryBuilder->replace($data, $onDuplicate);
+        $originalConnection = $this->switchToWriteConnection();
+        
+        try {
+            return $this->dmlQueryBuilder->replace($data, $onDuplicate);
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /**
@@ -397,7 +549,13 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function replaceMulti(array $rows, array $onDuplicate = []): int
     {
-        return $this->dmlQueryBuilder->replaceMulti($rows, $onDuplicate);
+        $originalConnection = $this->switchToWriteConnection();
+        
+        try {
+            return $this->dmlQueryBuilder->replaceMulti($rows, $onDuplicate);
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /**
@@ -410,7 +568,13 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function update(array $data): int
     {
-        return $this->dmlQueryBuilder->update($data);
+        $originalConnection = $this->switchToWriteConnection();
+        
+        try {
+            return $this->dmlQueryBuilder->update($data);
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /**
@@ -421,7 +585,13 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function delete(): int
     {
-        return $this->dmlQueryBuilder->delete();
+        $originalConnection = $this->switchToWriteConnection();
+        
+        try {
+            return $this->dmlQueryBuilder->delete();
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /**

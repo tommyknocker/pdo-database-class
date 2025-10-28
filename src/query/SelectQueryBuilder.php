@@ -9,22 +9,22 @@ use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
 use tommyknocker\pdodb\query\interfaces\SelectQueryBuilderInterface;
+use tommyknocker\pdodb\query\pagination\Cursor;
+use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
+use tommyknocker\pdodb\query\pagination\PaginationResult;
+use tommyknocker\pdodb\query\pagination\SimplePaginationResult;
 use tommyknocker\pdodb\query\traits\CommonDependenciesTrait;
 use tommyknocker\pdodb\query\traits\ExternalReferenceProcessingTrait;
 use tommyknocker\pdodb\query\traits\IdentifierQuotingTrait;
 use tommyknocker\pdodb\query\traits\RawValueResolutionTrait;
 use tommyknocker\pdodb\query\traits\TableManagementTrait;
-use tommyknocker\pdodb\query\pagination\PaginationResult;
-use tommyknocker\pdodb\query\pagination\SimplePaginationResult;
-use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
-use tommyknocker\pdodb\query\pagination\Cursor;
-use tommyknocker\pdodb\helpers\Db;
 
 class SelectQueryBuilder implements SelectQueryBuilderInterface
 {
@@ -289,9 +289,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      * Add ORDER BY clause.
      *
      * @param string|array<int|string, string>|RawValue $expr The expression(s) to order by.
-     *                                                          - string: 'column' or 'column ASC' or 'column1 ASC, column2 DESC'
-     *                                                          - array: ['column1', 'column2'] or ['column1' => 'ASC', 'column2' => 'DESC']
-     *                                                          - RawValue: raw SQL expression
+     *                                                        - string: 'column' or 'column ASC' or 'column1 ASC, column2 DESC'
+     *                                                        - array: ['column1', 'column2'] or ['column1' => 'ASC', 'column2' => 'DESC']
+     *                                                        - RawValue: raw SQL expression
      * @param string $direction The direction of the ordering (ASC or DESC). Ignored when expr is array.
      *
      * @return self The current instance.

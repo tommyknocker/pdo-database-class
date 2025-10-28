@@ -12,6 +12,8 @@ use Throwable;
 use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionFactory;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\connection\ConnectionRouter;
+use tommyknocker\pdodb\connection\loadbalancer\LoadBalancerInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\QueryBuilder;
 
@@ -71,6 +73,12 @@ class PdoDb
     /** @var CacheManager|null Cache manager for query result caching */
     protected ?CacheManager $cacheManager = null;
 
+    /** @var ConnectionRouter|null Connection router for read/write splitting */
+    protected ?ConnectionRouter $connectionRouter = null;
+
+    /** @var bool Whether read/write splitting is enabled */
+    protected bool $readWriteSplittingEnabled = false;
+
     /**
      * Initializes a new PdoDb object.
      *
@@ -117,7 +125,14 @@ class PdoDb
      */
     public function find(): QueryBuilder
     {
-        return new QueryBuilder($this->connection, $this->prefix, $this->cacheManager);
+        $queryBuilder = new QueryBuilder($this->connection, $this->prefix, $this->cacheManager);
+
+        // Set connection router if read/write splitting is enabled
+        if ($this->readWriteSplittingEnabled && $this->connectionRouter !== null) {
+            $queryBuilder->setConnectionRouter($this->connectionRouter);
+        }
+
+        return $queryBuilder;
     }
 
     /**
@@ -181,6 +196,9 @@ class PdoDb
         $conn = $this->connection;
         if (!$conn->inTransaction()) {
             $conn->transaction();
+            if ($this->connectionRouter !== null) {
+                $this->connectionRouter->setTransactionState(true);
+            }
         }
     }
 
@@ -192,6 +210,9 @@ class PdoDb
         $conn = $this->connection;
         if ($conn->inTransaction()) {
             $conn->commit();
+            if ($this->connectionRouter !== null) {
+                $this->connectionRouter->setTransactionState(false);
+            }
         }
     }
 
@@ -203,6 +224,9 @@ class PdoDb
         $conn = $this->connection;
         if ($conn->inTransaction()) {
             $conn->rollBack();
+            if ($this->connectionRouter !== null) {
+                $this->connectionRouter->setTransactionState(false);
+            }
         }
     }
 
@@ -310,6 +334,16 @@ class PdoDb
         $connectionFactory = new ConnectionFactory();
         $connection = $connectionFactory->create($params, $logger);
         $this->connections[$name] = $connection;
+
+        // Register with router if read/write splitting is enabled
+        if ($this->readWriteSplittingEnabled && $this->connectionRouter !== null) {
+            $type = $params['type'] ?? 'write';
+            if ($type === 'read') {
+                $this->connectionRouter->addReadConnection($name, $connection);
+            } else {
+                $this->connectionRouter->addWriteConnection($name, $connection);
+            }
+        }
     }
 
     /**
@@ -502,5 +536,72 @@ class PdoDb
     public function constraints(string $table): array
     {
         return $this->find()->from($table)->constraints();
+    }
+
+    /* ---------------- READ/WRITE SPLITTING ---------------- */
+
+    /**
+     * Enable read/write connection splitting.
+     *
+     * @param LoadBalancerInterface|null $loadBalancer Load balancer strategy
+     *
+     * @return self
+     */
+    public function enableReadWriteSplitting(?LoadBalancerInterface $loadBalancer = null): self
+    {
+        $this->connectionRouter = new ConnectionRouter($loadBalancer);
+        $this->readWriteSplittingEnabled = true;
+        return $this;
+    }
+
+    /**
+     * Disable read/write connection splitting.
+     *
+     * @return self
+     */
+    public function disableReadWriteSplitting(): self
+    {
+        $this->readWriteSplittingEnabled = false;
+        $this->connectionRouter = null;
+        return $this;
+    }
+
+    /**
+     * Enable sticky writes (read from master after write for N seconds).
+     *
+     * @param int $durationSeconds Duration in seconds
+     *
+     * @return self
+     */
+    public function enableStickyWrites(int $durationSeconds): self
+    {
+        if ($this->connectionRouter === null) {
+            throw new RuntimeException('Read/write splitting must be enabled first');
+        }
+        $this->connectionRouter->enableStickyWrites($durationSeconds);
+        return $this;
+    }
+
+    /**
+     * Disable sticky writes.
+     *
+     * @return self
+     */
+    public function disableStickyWrites(): self
+    {
+        if ($this->connectionRouter !== null) {
+            $this->connectionRouter->disableStickyWrites();
+        }
+        return $this;
+    }
+
+    /**
+     * Get the connection router.
+     *
+     * @return ConnectionRouter|null
+     */
+    public function getConnectionRouter(): ?ConnectionRouter
+    {
+        return $this->connectionRouter;
     }
 }
