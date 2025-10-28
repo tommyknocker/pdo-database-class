@@ -53,10 +53,11 @@
   "suggest": {
     "monolog/monolog": "If you need robust logging capabilities.",
     "ext-simplexml": "For bulk XML insert support",
-    "ext-xmlreader": "For bulk XML insert support"
+    "ext-xmlreader": "For bulk XML insert support",
+    "ext-xmlwriter": "For XML export support"
   },
   "require-dev": {
-    "phpunit/phpunit": "^11.0",
+    "phpunit/phpunit": "^12.0",
     "monolog/monolog": "^3.9",
     "phpstan/phpstan": "^2.0",
     "phpstan/phpstan-phpunit": "^2.0",

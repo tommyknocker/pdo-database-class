@@ -4119,4 +4119,30 @@ XML
 
         $this->assertCount(2, $users);
     }
+
+    /* ---------------- Schema Introspection Tests ---------------- */
+
+    public function testGetIndexes(): void
+    {
+        $indexes = self::$db->getIndexes('users');
+        $this->assertIsArray($indexes);
+    }
+
+    public function testGetForeignKeys(): void
+    {
+        $foreignKeys = self::$db->getForeignKeys('orders');
+        $this->assertIsArray($foreignKeys);
+    }
+
+    public function testGetConstraints(): void
+    {
+        $constraints = self::$db->getConstraints('users');
+        $this->assertIsArray($constraints);
+    }
+
+    public function testFulltextMatchHelper(): void
+    {
+        $fulltext = Db::fulltextMatch('title, content', 'search term', 'natural');
+        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\FulltextMatchValue::class, $fulltext);
+    }
 }

@@ -1623,6 +1623,40 @@ $csv = Db::toCsv($data, ';');              // Semicolon delimiter
 $xml = Db::toXml($data, 'users', 'user');   // Custom elements
 ```
 
+### Full-Text Search
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Full-text search (requires FTS indexes)
+$results = $db->find()
+    ->from('articles')
+    ->where(Db::fulltextMatch('title, content', 'database tutorial'))
+    ->get();
+
+// Single column search
+$results = $db->find()
+    ->from('articles')
+    ->where(Db::fulltextMatch('title', 'PHP'))
+    ->get();
+```
+
+### Schema Introspection
+
+```php
+// Get table structure
+$structure = $db->describe('users');
+
+// Get indexes
+$indexes = $db->getIndexes('users');
+
+// Get foreign keys
+$foreignKeys = $db->getForeignKeys('orders');
+
+// Get all constraints
+$constraints = $db->getConstraints('users');
+```
+
 ---
 
 ## Public API Reference
@@ -1642,6 +1676,9 @@ $xml = Db::toXml($data, 'users', 'user');   // Custom elements
 | `unlock()` | Unlock tables |
 | `setLockMethod(string)` | Set lock method (READ/WRITE) |
 | `describe(string)` | Get table structure |
+| `getIndexes(string)` | Get all indexes for a table |
+| `getForeignKeys(string)` | Get foreign key constraints |
+| `getConstraints(string)` | Get all constraints (PK, UNIQUE, FK, CHECK) |
 | `explain(string, array)` | Analyze query execution plan |
 | `explainAnalyze(string, array)` | Analyze query with execution |
 | `ping()` | Check database connection |

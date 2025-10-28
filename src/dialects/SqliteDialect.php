@@ -561,4 +561,43 @@ class SqliteDialect extends DialectAbstract
     {
         return "CAST(STRFTIME('%S', {$this->resolveValue($value)}) AS INTEGER)";
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string
+    {
+        $cols = is_array($columns) ? $columns : [$columns];
+        $quotedCols = array_map([$this, 'quoteIdentifier'], $cols);
+        $colList = implode(', ', $quotedCols);
+
+        $ph = ':fulltext_search_term';
+        $sql = "$colList MATCH $ph";
+        
+        return [$sql, [$ph => $searchTerm]];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildShowIndexesSql(string $table): string
+    {
+        return "SELECT name, tbl_name as table_name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = '{$table}'";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildShowForeignKeysSql(string $table): string
+    {
+        return "PRAGMA foreign_key_list('{$table}')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildShowConstraintsSql(string $table): string
+    {
+        return "SELECT sql, type FROM sqlite_master WHERE type IN ('table', 'index') AND tbl_name = '{$table}'";
+    }
 }

@@ -748,4 +748,67 @@ class PostgreSQLDialect extends DialectAbstract
     {
         return "EXTRACT(SECOND FROM {$this->resolveValue($value)})";
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string
+    {
+        $cols = is_array($columns) ? $columns : [$columns];
+        $quotedCols = array_map([$this, 'quoteIdentifier'], $cols);
+        $colList = implode(' || ', $quotedCols);
+
+        $ph = ':fulltext_search_term';
+        $sql = "$colList @@ to_tsquery('english', $ph)";
+        
+        return [$sql, [$ph => $searchTerm]];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildShowIndexesSql(string $table): string
+    {
+        return "SELECT
+            indexname as index_name,
+            tablename as table_name,
+            indexdef as definition
+            FROM pg_indexes
+            WHERE tablename = '{$table}'";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildShowForeignKeysSql(string $table): string
+    {
+        return "SELECT
+            tc.constraint_name,
+            kcu.column_name,
+            ccu.table_name AS referenced_table_name,
+            ccu.column_name AS referenced_column_name
+            FROM information_schema.table_constraints AS tc
+            JOIN information_schema.key_column_usage AS kcu
+                ON tc.constraint_name = kcu.constraint_name
+            JOIN information_schema.constraint_column_usage AS ccu
+                ON ccu.constraint_name = tc.constraint_name
+            WHERE tc.constraint_type = 'FOREIGN KEY'
+            AND tc.table_name = '{$table}'";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildShowConstraintsSql(string $table): string
+    {
+        return "SELECT
+            tc.constraint_name,
+            tc.constraint_type,
+            tc.table_name,
+            kcu.column_name
+            FROM information_schema.table_constraints tc
+            LEFT JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+            WHERE tc.table_name = '{$table}'";
+    }
 }

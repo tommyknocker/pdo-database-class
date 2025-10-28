@@ -654,4 +654,93 @@ class MySQLDialect extends DialectAbstract
     {
         return "SECOND({$this->resolveValue($value)})";
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string
+    {
+        $cols = is_array($columns) ? $columns : [$columns];
+        $quotedCols = array_map([$this, 'quoteIdentifier'], $cols);
+        $colList = implode(', ', $quotedCols);
+
+        $modeClause = '';
+        if ($mode !== null) {
+            $validModes = ['natural', 'boolean', 'natural language', 'boolean'];
+            if (!in_array(strtolower($mode), $validModes, true)) {
+                $mode = 'natural';
+            }
+            $modeClause = ' IN ' . strtoupper($mode) . ' MODE';
+        }
+
+        $expansionClause = $withQueryExpansion ? ' WITH QUERY EXPANSION' : '';
+
+        $ph = ':fulltext_search_term';
+        $sql = "MATCH ($colList) AGAINST ($ph$modeClause$expansionClause)";
+        
+        return [$sql, [$ph => $searchTerm]];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildShowIndexesSql(string $table): string
+    {
+        return "SHOW INDEXES FROM {$this->quoteTable($table)}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildShowForeignKeysSql(string $table): string
+    {
+        $dbName = $this->getCurrentDatabase();
+        return "SELECT 
+            CONSTRAINT_NAME,
+            COLUMN_NAME,
+            REFERENCED_TABLE_NAME,
+            REFERENCED_COLUMN_NAME
+            FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA = '$dbName'
+            AND TABLE_NAME = '{$table}'
+            AND REFERENCED_TABLE_NAME IS NOT NULL";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildShowConstraintsSql(string $table): string
+    {
+        $dbName = $this->getCurrentDatabase();
+        return "SELECT 
+            tc.CONSTRAINT_NAME,
+            tc.CONSTRAINT_TYPE,
+            tc.TABLE_NAME,
+            kcu.COLUMN_NAME
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+            LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+            ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+            AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
+            AND tc.TABLE_NAME = kcu.TABLE_NAME
+            WHERE tc.TABLE_SCHEMA = '$dbName'
+            AND tc.TABLE_NAME = '{$table}'";
+    }
+
+    /**
+     * Get current database name.
+     *
+     * @return string
+     */
+    protected function getCurrentDatabase(): string
+    {
+        if ($this->pdo === null) {
+            return '';
+        }
+        $stmt = $this->pdo->query('SELECT DATABASE()');
+        if ($stmt === false) {
+            return '';
+        }
+        $result = $stmt->fetchColumn();
+        return (string)($result ?: '');
+    }
 }

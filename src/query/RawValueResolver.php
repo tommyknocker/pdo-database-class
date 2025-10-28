@@ -12,6 +12,7 @@ use tommyknocker\pdodb\helpers\values\CurDateValue;
 use tommyknocker\pdodb\helpers\values\CurTimeValue;
 use tommyknocker\pdodb\helpers\values\DayValue;
 use tommyknocker\pdodb\helpers\values\EscapeValue;
+use tommyknocker\pdodb\helpers\values\FulltextMatchValue;
 use tommyknocker\pdodb\helpers\values\GreatestValue;
 use tommyknocker\pdodb\helpers\values\HourValue;
 use tommyknocker\pdodb\helpers\values\IfNullValue;
@@ -66,6 +67,7 @@ class RawValueResolver
             $value instanceof NowValue => $this->dialect->now($value->getValue(), $value->getAsTimestamp()),
             $value instanceof ILikeValue => $this->resolveRawValue($this->dialect->ilike($value->getValue(), (string)$value->getParams()[0])),
             $value instanceof EscapeValue => $this->connection->quote($value->getValue()) ?: "'" . addslashes($value->getValue()) . "'",
+            $value instanceof FulltextMatchValue => $this->resolveFulltextMatchValue($value),
             $value instanceof ConfigValue => $this->dialect->config($value),
             $value instanceof ConcatValue => $this->dialect->concat($value),
             $value instanceof JsonGetValue => $this->dialect->formatJsonGet($value->getColumn(), $value->getPath(), $value->getAsText()),
@@ -158,6 +160,36 @@ class RawValueResolver
             foreach ($params as $k => $v) {
                 $old = str_starts_with($k, ':') ? $k : ':' . $k;
                 $new = $this->parameterManager->makeParam('jsonc_' . ltrim($old, ':'));
+                $this->parameterManager->setParam($new, $v);
+                $sql = strtr($sql, [$old => $new]);
+            }
+            return $sql;
+        }
+
+        return $res;
+    }
+
+    /**
+     * Resolve FulltextMatchValue - build full-text search expression.
+     *
+     * @param FulltextMatchValue $value
+     *
+     * @return string
+     */
+    protected function resolveFulltextMatchValue(FulltextMatchValue $value): string
+    {
+        $columns = $value->getColumns();
+        $searchTerm = $value->getSearchTerm();
+        $mode = $value->getMode();
+        $withQueryExpansion = $value->isWithQueryExpansion();
+
+        $res = $this->dialect->formatFulltextMatch($columns, $searchTerm, $mode, $withQueryExpansion);
+
+        if (is_array($res)) {
+            [$sql, $params] = $res;
+            foreach ($params as $k => $v) {
+                $old = str_starts_with($k, ':') ? $k : ':' . $k;
+                $new = $this->parameterManager->makeParam('fulltext_' . ltrim($old, ':'));
                 $this->parameterManager->setParam($new, $v);
                 $sql = strtr($sql, [$old => $new]);
             }

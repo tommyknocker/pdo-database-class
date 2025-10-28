@@ -329,6 +329,18 @@ interface DialectInterface
      */
     public function formatSecond(string|RawValue $value): string;
 
+    /**
+     * Format FULLTEXT MATCH expression.
+     *
+     * @param string|array<string> $columns Column name(s) to search in.
+     * @param string $searchTerm The search term.
+     * @param string|null $mode Search mode: 'natural', 'boolean', 'expansion' (MySQL only).
+     * @param bool $withQueryExpansion Enable query expansion (MySQL only).
+     *
+     * @return array<int|string, mixed>|string Array with [sql, params] or just sql string.
+     */
+    public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string;
+
     /* ---------------- Original SQL helpers and dialect-specific expressions ---------------- */
 
     /**
@@ -407,6 +419,33 @@ interface DialectInterface
      * @return string
      */
     public function buildDescribeSql(string $table): string;
+
+    /**
+     * Get indexes for a table.
+     *
+     * @param string $table
+     *
+     * @return string
+     */
+    public function buildShowIndexesSql(string $table): string;
+
+    /**
+     * Get foreign keys for a table.
+     *
+     * @param string $table
+     *
+     * @return string
+     */
+    public function buildShowForeignKeysSql(string $table): string;
+
+    /**
+     * Get constraints for a table.
+     *
+     * @param string $table
+     *
+     * @return string
+     */
+    public function buildShowConstraintsSql(string $table): string;
 
     /**
      * LOCK syntax.
