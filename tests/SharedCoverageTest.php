@@ -15,6 +15,10 @@ use ReflectionClass;
 use RuntimeException;
 use tommyknocker\pdodb\connection\Connection;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\connection\ConnectionType;
+use tommyknocker\pdodb\connection\loadbalancer\RandomLoadBalancer;
+use tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer;
+use tommyknocker\pdodb\connection\loadbalancer\WeightedLoadBalancer;
 use tommyknocker\pdodb\connection\RetryableConnection;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\exceptions\AuthenticationException;
@@ -3375,32 +3379,32 @@ class SharedCoverageTest extends TestCase
         $db = new PdoDb();
 
         // Test with RoundRobin
-        $db->enableReadWriteSplitting(new \tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer());
+        $db->enableReadWriteSplitting(new RoundRobinLoadBalancer());
         $this->assertInstanceOf(
-            \tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer::class,
+            RoundRobinLoadBalancer::class,
             $db->getConnectionRouter()->getLoadBalancer()
         );
 
         // Test with Random
-        $db->enableReadWriteSplitting(new \tommyknocker\pdodb\connection\loadbalancer\RandomLoadBalancer());
+        $db->enableReadWriteSplitting(new RandomLoadBalancer());
         $this->assertInstanceOf(
-            \tommyknocker\pdodb\connection\loadbalancer\RandomLoadBalancer::class,
+            RandomLoadBalancer::class,
             $db->getConnectionRouter()->getLoadBalancer()
         );
 
         // Test with Weighted
-        $weighted = new \tommyknocker\pdodb\connection\loadbalancer\WeightedLoadBalancer();
+        $weighted = new WeightedLoadBalancer();
         $weighted->setWeights(['read-1' => 2, 'read-2' => 1]);
         $db->enableReadWriteSplitting($weighted);
         $this->assertInstanceOf(
-            \tommyknocker\pdodb\connection\loadbalancer\WeightedLoadBalancer::class,
+            WeightedLoadBalancer::class,
             $db->getConnectionRouter()->getLoadBalancer()
         );
     }
 
     public function testLoadBalancerMarkFailedAndHealthy(): void
     {
-        $balancer = new \tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer();
+        $balancer = new RoundRobinLoadBalancer();
 
         $balancer->markFailed('read-1');
         $balancer->markHealthy('read-1');
@@ -3411,7 +3415,7 @@ class SharedCoverageTest extends TestCase
 
     public function testLoadBalancerReset(): void
     {
-        $balancer = new \tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer();
+        $balancer = new RoundRobinLoadBalancer();
 
         $balancer->markFailed('read-1');
         $balancer->reset();
@@ -3422,8 +3426,8 @@ class SharedCoverageTest extends TestCase
 
     public function testConnectionTypeEnum(): void
     {
-        $readType = \tommyknocker\pdodb\connection\ConnectionType::READ;
-        $writeType = \tommyknocker\pdodb\connection\ConnectionType::WRITE;
+        $readType = ConnectionType::READ;
+        $writeType = ConnectionType::WRITE;
 
         $this->assertEquals('read', $readType->value);
         $this->assertEquals('write', $writeType->value);
