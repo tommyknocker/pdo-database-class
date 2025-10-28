@@ -12,13 +12,19 @@
 **PDOdb** is a lightweight, framework-agnostic PHP database library providing a **unified API** across MySQL, PostgreSQL, and SQLite.
 
 Built on top of PDO with **zero external dependencies**, it offers:
-- Fluent query builder with intuitive syntax
-- Automatic SQL dialect handling for cross-database compatibility
-- Native JSON support with consistent API across all databases
-- Production-ready features: transactions, bulk operations, connection pooling
-- Efficient batch processing with generators for large datasets
-- Fully tested with comprehensive test coverage
-- Type-safe code validated with PHPStan level 8
+- **Fluent Query Builder** - Intuitive, chainable API for all database operations
+- **Cross-Database Compatibility** - Automatic SQL dialect handling (MySQL, PostgreSQL, SQLite)
+- **JSON Operations** - Native JSON support with consistent API across all databases
+- **Query Caching** - PSR-16 integration for result caching (10-1000x faster queries)
+- **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
+- **Bulk Operations** - CSV/XML/JSON loaders, multi-row inserts, UPSERT support
+- **Transactions & Locking** - Full transaction support with table locking
+- **Batch Processing** - Memory-efficient generators for large datasets
+- **Exception Hierarchy** - Typed exceptions for precise error handling
+- **Connection Retry** - Automatic retry with exponential backoff
+- **Helper Functions** - 80+ SQL helpers for strings, dates, math, JSON, aggregations
+- **Fully Tested** - Comprehensive test coverage across all dialects
+- **Type-Safe** - PHPStan level 8 validated code
 
 Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class)
 
