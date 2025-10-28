@@ -4,10 +4,19 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests;
 
+use Exception;
+use InvalidArgumentException;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
+use PDO;
+use PDOException;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 use RuntimeException;
+use tommyknocker\pdodb\connection\Connection;
+use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\connection\RetryableConnection;
+use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\exceptions\AuthenticationException;
 use tommyknocker\pdodb\exceptions\ConnectionException;
 use tommyknocker\pdodb\exceptions\ConstraintViolationException;
@@ -18,7 +27,12 @@ use tommyknocker\pdodb\exceptions\TimeoutException;
 use tommyknocker\pdodb\exceptions\TransactionException;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\DbError;
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\query\pagination\Cursor;
+use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
+use tommyknocker\pdodb\query\pagination\PaginationResult;
+use tommyknocker\pdodb\query\pagination\SimplePaginationResult;
 
 /**
  * Shared coverage tests for dialect-independent code
@@ -148,19 +162,19 @@ class SharedCoverageTest extends TestCase
 
     public function testInvalidSqlError(): void
     {
-        $this->expectException(\PDOException::class);
+        $this->expectException(PDOException::class);
         self::$db->rawQuery('THIS IS NOT VALID SQL SYNTAX');
     }
 
     public function testQueryNonexistentTable(): void
     {
-        $this->expectException(\PDOException::class);
+        $this->expectException(PDOException::class);
         self::$db->rawQuery('SELECT * FROM absolutely_nonexistent_table_xyz_123');
     }
 
     public function testInsertIntoNonexistentTable(): void
     {
-        $this->expectException(\PDOException::class);
+        $this->expectException(PDOException::class);
         self::$db->find()->table('nonexistent_xyz')->insert(['name' => 'test']);
     }
 
@@ -582,8 +596,8 @@ class SharedCoverageTest extends TestCase
         $trueVal = Db::true();
         $falseVal = Db::false();
 
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\RawValue::class, $trueVal);
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\RawValue::class, $falseVal);
+        $this->assertInstanceOf(RawValue::class, $trueVal);
+        $this->assertInstanceOf(RawValue::class, $falseVal);
         $this->assertEquals('TRUE', $trueVal->getValue());
         $this->assertEquals('FALSE', $falseVal->getValue());
 
@@ -629,8 +643,8 @@ class SharedCoverageTest extends TestCase
             self::$db->find()->table('test_coverage')->insert(['name' => 'Before Error']);
 
             // Intentionally cause error
-            throw new \Exception('Simulated error');
-        } catch (\Exception $e) {
+            throw new Exception('Simulated error');
+        } catch (Exception $e) {
             self::$db->rollback();
         }
 
@@ -666,7 +680,7 @@ class SharedCoverageTest extends TestCase
         $connection = self::$db->connection;
         $pdo = $connection->getPdo();
 
-        $this->assertInstanceOf(\PDO::class, $pdo);
+        $this->assertInstanceOf(PDO::class, $pdo);
     }
 
     public function testGetLastError(): void
@@ -679,7 +693,7 @@ class SharedCoverageTest extends TestCase
         // After error, should be set
         try {
             self::$db->rawQuery('SELECT * FROM nonexistent_table');
-        } catch (\PDOException $e) {
+        } catch (PDOException $e) {
             $lastError = $connection->getLastError();
             $this->assertNotNull($lastError);
             $this->assertStringContainsString('nonexistent_table', $lastError);
@@ -691,10 +705,10 @@ class SharedCoverageTest extends TestCase
         $qb = self::$db->find()->table('test_coverage');
 
         // Test getConnection
-        $this->assertInstanceOf(\tommyknocker\pdodb\connection\ConnectionInterface::class, $qb->getConnection());
+        $this->assertInstanceOf(ConnectionInterface::class, $qb->getConnection());
 
         // Test getDialect
-        $this->assertInstanceOf(\tommyknocker\pdodb\dialects\DialectInterface::class, $qb->getDialect());
+        $this->assertInstanceOf(DialectInterface::class, $qb->getDialect());
 
         // Test getPrefix (returns empty string when no prefix set)
         $prefix = $qb->getPrefix();
@@ -795,7 +809,7 @@ class SharedCoverageTest extends TestCase
     {
         $id = self::$db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 10]);
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage("Missing 'val' for operation");
 
         // Test unknown operation without val
@@ -826,11 +840,11 @@ class SharedCoverageTest extends TestCase
         $connection = self::$db->connection;
 
         // Test that prepare() exception is caught and re-thrown
-        $this->expectException(\PDOException::class);
+        $this->expectException(PDOException::class);
 
         try {
             $connection->prepare('INVALID SQL SYNTAX HERE @#$%');
-        } catch (\PDOException $e) {
+        } catch (PDOException $e) {
             // Verify lastError is set
             $this->assertNotNull($connection->getLastError());
             $this->assertGreaterThanOrEqual(0, $connection->getLastErrno());
@@ -843,11 +857,11 @@ class SharedCoverageTest extends TestCase
     {
         $connection = self::$db->connection;
 
-        $this->expectException(\PDOException::class);
+        $this->expectException(PDOException::class);
 
         try {
             $connection->query('SELECT * FROM nonexistent_table_xyz');
-        } catch (\PDOException $e) {
+        } catch (PDOException $e) {
             // Verify lastError and lastErrno are set
             $this->assertNotNull($connection->getLastError());
             $this->assertStringContainsString('nonexistent_table_xyz', $connection->getLastError());
@@ -860,7 +874,7 @@ class SharedCoverageTest extends TestCase
     {
         $connection = self::$db->connection;
 
-        $this->expectException(\PDOException::class);
+        $this->expectException(PDOException::class);
 
         try {
             // Create a constraint violation
@@ -869,7 +883,7 @@ class SharedCoverageTest extends TestCase
             // Try to insert same id again
             $connection->prepare('INSERT INTO test_coverage (id, name) VALUES (?, ?)')
                 ->execute([999, 'test2']);
-        } catch (\PDOException $e) {
+        } catch (PDOException $e) {
             $this->assertNotNull($connection->getLastError());
 
             throw $e;
@@ -881,7 +895,7 @@ class SharedCoverageTest extends TestCase
         // SQLite throws exception on nested transactions
         self::$db->startTransaction();
 
-        $this->expectException(\PDOException::class);
+        $this->expectException(PDOException::class);
 
         try {
             // Try to start nested transaction - should fail
@@ -904,7 +918,7 @@ class SharedCoverageTest extends TestCase
         }
 
         // Try to commit without active transaction
-        $this->expectException(\PDOException::class);
+        $this->expectException(PDOException::class);
 
         $connection->commit();
     }
@@ -919,7 +933,7 @@ class SharedCoverageTest extends TestCase
         }
 
         // Try to rollback without active transaction
-        $this->expectException(\PDOException::class);
+        $this->expectException(PDOException::class);
 
         $connection->rollBack();
     }
@@ -1178,16 +1192,16 @@ class SharedCoverageTest extends TestCase
 
     public function testTransactionCallbackRollback(): void
     {
-        $this->expectException(\Exception::class);
+        $this->expectException(Exception::class);
         $this->expectExceptionMessage('Test rollback');
 
         try {
             self::$db->transaction(function ($db) {
                 $db->find()->table('test_coverage')->insert(['name' => 'test', 'value' => 42]);
 
-                throw new \Exception('Test rollback');
+                throw new Exception('Test rollback');
             });
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Verify data was rolled back
             $count = self::$db->rawQueryValue('SELECT COUNT(*) FROM test_coverage WHERE name = ?', ['test']);
             $this->assertEquals(0, $count);
@@ -1231,7 +1245,7 @@ class SharedCoverageTest extends TestCase
 
     public function testSetLockMethodInvalid(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid lock method: INVALID');
 
         self::$db->setLockMethod('INVALID');
@@ -1336,7 +1350,7 @@ class SharedCoverageTest extends TestCase
 
         // Verify we get a RetryableConnection
         $connection = $db->connection;
-        $this->assertInstanceOf(\tommyknocker\pdodb\connection\RetryableConnection::class, $connection);
+        $this->assertInstanceOf(RetryableConnection::class, $connection);
 
         // Test basic functionality still works
         $db->rawQuery('CREATE TABLE retry_test (id INTEGER PRIMARY KEY, name TEXT)');
@@ -1368,9 +1382,9 @@ class SharedCoverageTest extends TestCase
         $db = new PdoDb('sqlite', $config);
         $connection = $db->connection;
 
-        $this->assertInstanceOf(\tommyknocker\pdodb\connection\RetryableConnection::class, $connection);
+        $this->assertInstanceOf(RetryableConnection::class, $connection);
 
-        if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+        if ($connection instanceof RetryableConnection) {
             $retryConfig = $connection->getRetryConfig();
             $this->assertTrue($retryConfig['enabled']);
             $this->assertEquals(5, $retryConfig['max_attempts']);
@@ -1405,8 +1419,8 @@ class SharedCoverageTest extends TestCase
         $connection = $db->connection;
 
         // Should get regular Connection when retry is disabled
-        $this->assertInstanceOf(\tommyknocker\pdodb\connection\Connection::class, $connection);
-        $this->assertNotInstanceOf(\tommyknocker\pdodb\connection\RetryableConnection::class, $connection);
+        $this->assertInstanceOf(Connection::class, $connection);
+        $this->assertNotInstanceOf(RetryableConnection::class, $connection);
     }
 
     public function testRetryableConnectionWithoutConfig(): void
@@ -1420,8 +1434,8 @@ class SharedCoverageTest extends TestCase
         $connection = $db->connection;
 
         // Should get regular Connection when no retry config
-        $this->assertInstanceOf(\tommyknocker\pdodb\connection\Connection::class, $connection);
-        $this->assertNotInstanceOf(\tommyknocker\pdodb\connection\RetryableConnection::class, $connection);
+        $this->assertInstanceOf(Connection::class, $connection);
+        $this->assertNotInstanceOf(RetryableConnection::class, $connection);
     }
 
     public function testRetryableConnectionCurrentAttempt(): void
@@ -1443,10 +1457,10 @@ class SharedCoverageTest extends TestCase
         $db = new PdoDb('sqlite', $config);
         $connection = $db->connection;
 
-        $this->assertInstanceOf(\tommyknocker\pdodb\connection\RetryableConnection::class, $connection);
+        $this->assertInstanceOf(RetryableConnection::class, $connection);
 
         // Initially should be 0
-        if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+        if ($connection instanceof RetryableConnection) {
             $this->assertEquals(0, $connection->getCurrentAttempt());
         }
 
@@ -1455,7 +1469,7 @@ class SharedCoverageTest extends TestCase
         $db->rawQuery('INSERT INTO retry_attempt_test (id) VALUES (1)');
 
         // Should be 1 after successful operation (attempt counter starts at 1)
-        if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
+        if ($connection instanceof RetryableConnection) {
             $this->assertEquals(1, $connection->getCurrentAttempt());
         }
     }
@@ -1586,12 +1600,12 @@ class SharedCoverageTest extends TestCase
         ];
 
         $db = new PdoDb('sqlite', $validConfig);
-        $this->assertInstanceOf(\tommyknocker\pdodb\connection\RetryableConnection::class, $db->connection);
+        $this->assertInstanceOf(RetryableConnection::class, $db->connection);
     }
 
     public function testRetryConfigValidationInvalidEnabled(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('retry.enabled must be a boolean');
 
         $config = [
@@ -1608,7 +1622,7 @@ class SharedCoverageTest extends TestCase
 
     public function testRetryConfigValidationInvalidMaxAttempts(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('retry.max_attempts must be a positive integer');
 
         $config = [
@@ -1625,7 +1639,7 @@ class SharedCoverageTest extends TestCase
 
     public function testRetryConfigValidationMaxAttemptsTooHigh(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('retry.max_attempts cannot exceed 100');
 
         $config = [
@@ -1642,7 +1656,7 @@ class SharedCoverageTest extends TestCase
 
     public function testRetryConfigValidationInvalidDelay(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('retry.delay_ms must be a non-negative integer');
 
         $config = [
@@ -1659,7 +1673,7 @@ class SharedCoverageTest extends TestCase
 
     public function testRetryConfigValidationDelayTooHigh(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('retry.delay_ms cannot exceed 300000ms (5 minutes)');
 
         $config = [
@@ -1676,7 +1690,7 @@ class SharedCoverageTest extends TestCase
 
     public function testRetryConfigValidationInvalidBackoffMultiplier(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('retry.backoff_multiplier must be a number >= 1.0');
 
         $config = [
@@ -1694,7 +1708,7 @@ class SharedCoverageTest extends TestCase
 
     public function testRetryConfigValidationBackoffMultiplierTooHigh(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('retry.backoff_multiplier cannot exceed 10.0');
 
         $config = [
@@ -1712,7 +1726,7 @@ class SharedCoverageTest extends TestCase
 
     public function testRetryConfigValidationInvalidMaxDelay(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('retry.max_delay_ms must be a non-negative integer');
 
         $config = [
@@ -1730,7 +1744,7 @@ class SharedCoverageTest extends TestCase
 
     public function testRetryConfigValidationMaxDelayTooHigh(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('retry.max_delay_ms cannot exceed 300000ms (5 minutes)');
 
         $config = [
@@ -1748,7 +1762,7 @@ class SharedCoverageTest extends TestCase
 
     public function testRetryConfigValidationInvalidRetryableErrors(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('retry.retryable_errors must be an array');
 
         $config = [
@@ -1766,7 +1780,7 @@ class SharedCoverageTest extends TestCase
 
     public function testRetryConfigValidationInvalidRetryableErrorsContent(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('retry.retryable_errors must contain only integers or strings');
 
         $config = [
@@ -1784,7 +1798,7 @@ class SharedCoverageTest extends TestCase
 
     public function testRetryConfigValidationLogicalConstraint(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('retry.max_delay_ms cannot be less than retry.delay_ms');
 
         $config = [
@@ -1823,8 +1837,8 @@ class SharedCoverageTest extends TestCase
         $connection = $db->connection;
 
         // Set the logger on the connection
-        if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
-            $reflection = new \ReflectionClass($connection);
+        if ($connection instanceof RetryableConnection) {
+            $reflection = new ReflectionClass($connection);
             $loggerProperty = $reflection->getProperty('logger');
             $loggerProperty->setAccessible(true);
             $loggerProperty->setValue($connection, $logger);
@@ -1868,8 +1882,8 @@ class SharedCoverageTest extends TestCase
         $connection = $db->connection;
 
         // Set the logger on the connection
-        if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
-            $reflection = new \ReflectionClass($connection);
+        if ($connection instanceof RetryableConnection) {
+            $reflection = new ReflectionClass($connection);
             $loggerProperty = $reflection->getProperty('logger');
             $loggerProperty->setAccessible(true);
             $loggerProperty->setValue($connection, $logger);
@@ -1916,8 +1930,8 @@ class SharedCoverageTest extends TestCase
         $connection = $db->connection;
 
         // Set the logger on the connection
-        if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
-            $reflection = new \ReflectionClass($connection);
+        if ($connection instanceof RetryableConnection) {
+            $reflection = new ReflectionClass($connection);
             $loggerProperty = $reflection->getProperty('logger');
             $loggerProperty->setAccessible(true);
             $loggerProperty->setValue($connection, $logger);
@@ -1945,7 +1959,7 @@ class SharedCoverageTest extends TestCase
      */
     public function testDatabaseException(): void
     {
-        $pdoException = new \PDOException('Test error', 12345);
+        $pdoException = new PDOException('Test error', 12345);
         $exception = new QueryException(
             'Test error',
             12345,
@@ -2121,20 +2135,20 @@ class SharedCoverageTest extends TestCase
     public function testExceptionFactoryConnectionErrors(): void
     {
         // MySQL connection errors
-        $mysqlConnectionError = new \PDOException('MySQL server has gone away', 2006);
+        $mysqlConnectionError = new PDOException('MySQL server has gone away', 2006);
         $exception = ExceptionFactory::createFromPdoException($mysqlConnectionError, 'mysql');
         $this->assertInstanceOf(ConnectionException::class, $exception);
         $this->assertTrue($exception->isRetryable());
 
         // PostgreSQL connection errors
-        $pgsqlConnectionError = new \PDOException('Connection refused', 0);
+        $pgsqlConnectionError = new PDOException('Connection refused', 0);
         $pgsqlConnectionError->errorInfo = ['08006', '08006', 'Connection refused'];
         $exception = ExceptionFactory::createFromPdoException($pgsqlConnectionError, 'pgsql');
         $this->assertInstanceOf(ConnectionException::class, $exception);
         $this->assertTrue($exception->isRetryable());
 
         // SQLite connection errors
-        $sqliteConnectionError = new \PDOException('Unable to open database file', 14);
+        $sqliteConnectionError = new PDOException('Unable to open database file', 14);
         $exception = ExceptionFactory::createFromPdoException($sqliteConnectionError, 'sqlite');
         $this->assertInstanceOf(ConnectionException::class, $exception);
         $this->assertTrue($exception->isRetryable());
@@ -2146,20 +2160,20 @@ class SharedCoverageTest extends TestCase
     public function testExceptionFactoryConstraintViolations(): void
     {
         // MySQL duplicate key
-        $mysqlDuplicate = new \PDOException('Duplicate entry \'test@example.com\' for key \'unique_email\'', 1062);
+        $mysqlDuplicate = new PDOException('Duplicate entry \'test@example.com\' for key \'unique_email\'', 1062);
         $exception = ExceptionFactory::createFromPdoException($mysqlDuplicate, 'mysql');
         $this->assertInstanceOf(ConstraintViolationException::class, $exception);
         $this->assertFalse($exception->isRetryable());
 
         // PostgreSQL unique violation
-        $pgsqlUnique = new \PDOException('duplicate key value violates unique constraint "users_email_key"', 0);
+        $pgsqlUnique = new PDOException('duplicate key value violates unique constraint "users_email_key"', 0);
         $pgsqlUnique->errorInfo = ['23505', '23505', 'duplicate key value violates unique constraint "users_email_key"'];
         $exception = ExceptionFactory::createFromPdoException($pgsqlUnique, 'pgsql');
         $this->assertInstanceOf(ConstraintViolationException::class, $exception);
         $this->assertFalse($exception->isRetryable());
 
         // SQLite constraint
-        $sqliteConstraint = new \PDOException('UNIQUE constraint failed: users.email', 19);
+        $sqliteConstraint = new PDOException('UNIQUE constraint failed: users.email', 19);
         $exception = ExceptionFactory::createFromPdoException($sqliteConstraint, 'sqlite');
         $this->assertInstanceOf(ConstraintViolationException::class, $exception);
         $this->assertFalse($exception->isRetryable());
@@ -2171,14 +2185,14 @@ class SharedCoverageTest extends TestCase
     public function testExceptionFactoryTransactionErrors(): void
     {
         // PostgreSQL deadlock
-        $pgsqlDeadlock = new \PDOException('deadlock detected', 0);
+        $pgsqlDeadlock = new PDOException('deadlock detected', 0);
         $pgsqlDeadlock->errorInfo = ['40001', '40001', 'deadlock detected'];
         $exception = ExceptionFactory::createFromPdoException($pgsqlDeadlock, 'pgsql');
         $this->assertInstanceOf(TransactionException::class, $exception);
         $this->assertTrue($exception->isRetryable());
 
         // SQLite busy
-        $sqliteBusy = new \PDOException('database is locked', 5);
+        $sqliteBusy = new PDOException('database is locked', 5);
         $exception = ExceptionFactory::createFromPdoException($sqliteBusy, 'sqlite');
         $this->assertInstanceOf(TransactionException::class, $exception);
         $this->assertTrue($exception->isRetryable());
@@ -2190,13 +2204,13 @@ class SharedCoverageTest extends TestCase
     public function testExceptionFactoryAuthenticationErrors(): void
     {
         // MySQL access denied
-        $mysqlAuth = new \PDOException('Access denied for user \'testuser\'@\'localhost\'', 1045);
+        $mysqlAuth = new PDOException('Access denied for user \'testuser\'@\'localhost\'', 1045);
         $exception = ExceptionFactory::createFromPdoException($mysqlAuth, 'mysql');
         $this->assertInstanceOf(AuthenticationException::class, $exception);
         $this->assertFalse($exception->isRetryable());
 
         // PostgreSQL authentication failed
-        $pgsqlAuth = new \PDOException('password authentication failed for user "testuser"', 0);
+        $pgsqlAuth = new PDOException('password authentication failed for user "testuser"', 0);
         $pgsqlAuth->errorInfo = ['28P01', '28P01', 'password authentication failed for user "testuser"'];
         $exception = ExceptionFactory::createFromPdoException($pgsqlAuth, 'pgsql');
         $this->assertInstanceOf(AuthenticationException::class, $exception);
@@ -2209,14 +2223,14 @@ class SharedCoverageTest extends TestCase
     public function testExceptionFactoryTimeoutErrors(): void
     {
         // PostgreSQL timeout
-        $pgsqlTimeout = new \PDOException('canceling statement due to statement timeout', 0);
+        $pgsqlTimeout = new PDOException('canceling statement due to statement timeout', 0);
         $pgsqlTimeout->errorInfo = ['57014', '57014', 'canceling statement due to statement timeout'];
         $exception = ExceptionFactory::createFromPdoException($pgsqlTimeout, 'pgsql');
         $this->assertInstanceOf(TimeoutException::class, $exception);
         $this->assertTrue($exception->isRetryable());
 
         // MySQL timeout (this is actually a connection error)
-        $mysqlTimeout = new \PDOException('Lost connection to MySQL server during query', 2006);
+        $mysqlTimeout = new PDOException('Lost connection to MySQL server during query', 2006);
         $exception = ExceptionFactory::createFromPdoException($mysqlTimeout, 'mysql');
         $this->assertInstanceOf(ConnectionException::class, $exception);
         $this->assertTrue($exception->isRetryable());
@@ -2228,13 +2242,13 @@ class SharedCoverageTest extends TestCase
     public function testExceptionFactoryResourceErrors(): void
     {
         // MySQL too many connections
-        $mysqlResource = new \PDOException('Too many connections', 1040);
+        $mysqlResource = new PDOException('Too many connections', 1040);
         $exception = ExceptionFactory::createFromPdoException($mysqlResource, 'mysql');
         $this->assertInstanceOf(ResourceException::class, $exception);
         $this->assertTrue($exception->isRetryable());
 
         // PostgreSQL too many connections
-        $pgsqlResource = new \PDOException('too many connections for role "testuser"', 0);
+        $pgsqlResource = new PDOException('too many connections for role "testuser"', 0);
         $pgsqlResource->errorInfo = ['53300', '53300', 'too many connections for role "testuser"'];
         $exception = ExceptionFactory::createFromPdoException($pgsqlResource, 'pgsql');
         $this->assertInstanceOf(ResourceException::class, $exception);
@@ -2247,14 +2261,14 @@ class SharedCoverageTest extends TestCase
     public function testExceptionFactoryQueryErrors(): void
     {
         // Unknown column error
-        $unknownColumn = new \PDOException('Unknown column \'invalid_column\' in \'field list\'', 0);
+        $unknownColumn = new PDOException('Unknown column \'invalid_column\' in \'field list\'', 0);
         $unknownColumn->errorInfo = ['42S22', '42S22', 'Unknown column \'invalid_column\' in \'field list\''];
         $exception = ExceptionFactory::createFromPdoException($unknownColumn, 'mysql');
         $this->assertInstanceOf(QueryException::class, $exception);
         $this->assertFalse($exception->isRetryable());
 
         // Table doesn't exist
-        $tableNotFound = new \PDOException('Table \'testdb.nonexistent_table\' doesn\'t exist', 0);
+        $tableNotFound = new PDOException('Table \'testdb.nonexistent_table\' doesn\'t exist', 0);
         $tableNotFound->errorInfo = ['42S02', '42S02', 'Table \'testdb.nonexistent_table\' doesn\'t exist'];
         $exception = ExceptionFactory::createFromPdoException($tableNotFound, 'mysql');
         $this->assertInstanceOf(QueryException::class, $exception);
@@ -2266,7 +2280,7 @@ class SharedCoverageTest extends TestCase
      */
     public function testExceptionFactoryWithContext(): void
     {
-        $pdoException = new \PDOException('Test error', 12345);
+        $pdoException = new PDOException('Test error', 12345);
         $exception = ExceptionFactory::createFromPdoException(
             $pdoException,
             'mysql',
@@ -2285,7 +2299,7 @@ class SharedCoverageTest extends TestCase
     public function testConstraintViolationParsing(): void
     {
         // Test MySQL constraint parsing
-        $mysqlError = new \PDOException('Duplicate entry \'test@example.com\' for key \'unique_email\' in table \'users\'', 1062);
+        $mysqlError = new PDOException('Duplicate entry \'test@example.com\' for key \'unique_email\' in table \'users\'', 1062);
         $exception = ExceptionFactory::createFromPdoException($mysqlError, 'mysql');
 
         $this->assertInstanceOf(ConstraintViolationException::class, $exception);
@@ -2293,7 +2307,7 @@ class SharedCoverageTest extends TestCase
         $this->assertEquals('users', $exception->getTableName());
 
         // Test PostgreSQL constraint parsing
-        $pgsqlError = new \PDOException('duplicate key value violates unique constraint "users_email_key"', 0);
+        $pgsqlError = new PDOException('duplicate key value violates unique constraint "users_email_key"', 0);
         $pgsqlError->errorInfo = ['23505', '23505', 'duplicate key value violates unique constraint "users_email_key"'];
         $exception = ExceptionFactory::createFromPdoException($pgsqlError, 'pgsql');
 
@@ -2343,9 +2357,9 @@ class SharedCoverageTest extends TestCase
             $db->setTimeout(-1);
             // Some databases might accept negative values, so we just check it doesn't throw
             $this->assertTrue(true);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // If it throws an exception, that's also acceptable behavior
-            $this->assertInstanceOf(\Exception::class, $e);
+            $this->assertInstanceOf(Exception::class, $e);
         }
     }
 
@@ -2558,14 +2572,14 @@ class SharedCoverageTest extends TestCase
         $db = self::$db;
 
         // Test zero batch size - need to iterate to trigger the exception
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Batch size must be greater than 0');
         foreach ($db->find()->from('test_coverage')->batch(0) as $batch) {
             // This should not execute due to exception
         }
 
         // Test negative batch size - need to iterate to trigger the exception
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Batch size must be greater than 0');
         foreach ($db->find()->from('test_coverage')->batch(-5) as $batch) {
             // This should not execute due to exception
@@ -2580,14 +2594,14 @@ class SharedCoverageTest extends TestCase
         $db = self::$db;
 
         // Test zero batch size - need to iterate to trigger the exception
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Batch size must be greater than 0');
         foreach ($db->find()->from('test_coverage')->each(0) as $record) {
             // This should not execute due to exception
         }
 
         // Test negative batch size - need to iterate to trigger the exception
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Batch size must be greater than 0');
         foreach ($db->find()->from('test_coverage')->each(-10) as $record) {
             // This should not execute due to exception
@@ -2787,7 +2801,7 @@ class SharedCoverageTest extends TestCase
             ->orderBy('id')
             ->paginate(10, 1);
 
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\pagination\PaginationResult::class, $result);
+        $this->assertInstanceOf(PaginationResult::class, $result);
         $this->assertCount(10, $result->items());
         $this->assertEquals(50, $result->total());
         $this->assertEquals(1, $result->currentPage());
@@ -2851,7 +2865,7 @@ class SharedCoverageTest extends TestCase
             ->orderBy('id')
             ->simplePaginate(10, 1);
 
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\pagination\SimplePaginationResult::class, $result);
+        $this->assertInstanceOf(SimplePaginationResult::class, $result);
         $this->assertCount(10, $result->items());
         $this->assertEquals(1, $result->currentPage());
         $this->assertEquals(10, $result->perPage());
@@ -2898,7 +2912,7 @@ class SharedCoverageTest extends TestCase
             ->orderBy('id')
             ->cursorPaginate(10);
 
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\pagination\CursorPaginationResult::class, $result);
+        $this->assertInstanceOf(CursorPaginationResult::class, $result);
         $this->assertCount(10, $result->items());
         $this->assertEquals(10, $result->perPage());
         $this->assertTrue($result->hasMorePages());
@@ -2945,7 +2959,7 @@ class SharedCoverageTest extends TestCase
             ->orderBy('id')
             ->paginate(5, 2, [
                 'path' => '/api/items',
-                'query' => ['filter' => 'active'],
+                'query' => ['filter' => 'active']
             ]);
 
         $this->assertStringContainsString('/api/items?', $result->url(1));
@@ -2959,12 +2973,12 @@ class SharedCoverageTest extends TestCase
      */
     public function testCursorEncodeAndDecode(): void
     {
-        $cursor = new \tommyknocker\pdodb\query\pagination\Cursor(['id' => 42, 'created_at' => '2025-10-28']);
+        $cursor = new Cursor(['id' => 42, 'created_at' => '2025-10-28']);
         $encoded = $cursor->encode();
         $this->assertIsString($encoded);
 
-        $decoded = \tommyknocker\pdodb\query\pagination\Cursor::decode($encoded);
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\pagination\Cursor::class, $decoded);
+        $decoded = Cursor::decode($encoded);
+        $this->assertInstanceOf(Cursor::class, $decoded);
         $this->assertEquals(['id' => 42, 'created_at' => '2025-10-28'], $decoded->parameters());
         $this->assertTrue($decoded->pointsToNextItems());
         $this->assertFalse($decoded->pointsToPreviousItems());
@@ -2976,7 +2990,7 @@ class SharedCoverageTest extends TestCase
     public function testCursorFromItem(): void
     {
         $item = ['id' => 123, 'name' => 'Test', 'created_at' => '2025-10-28'];
-        $cursor = \tommyknocker\pdodb\query\pagination\Cursor::fromItem($item, ['id', 'created_at']);
+        $cursor = Cursor::fromItem($item, ['id', 'created_at']);
 
         $this->assertEquals(['id' => 123, 'created_at' => '2025-10-28'], $cursor->parameters());
     }
@@ -3051,5 +3065,140 @@ class SharedCoverageTest extends TestCase
             ->orderBy('name', 'ASC')
             ->getColumn();
         $this->assertEquals(['Alice', 'Charlie', 'David', 'Bob'], $result7);
+    }
+
+    /**
+     * Test query result caching.
+     */
+    public function testQueryCaching(): void
+    {
+        $cache = new ArrayCache();
+
+        // Create a new database instance with cache
+        $db = new PdoDb(
+            'sqlite',
+            ['path' => ':memory:'],
+            [],
+            null,
+            $cache
+        );
+
+        // Create test table
+        $db->rawQuery('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, age INTEGER)');
+
+        // Insert test data
+        $db->find()->table('users')->insertMulti([
+            ['name' => 'Alice', 'age' => 30],
+            ['name' => 'Bob', 'age' => 25],
+            ['name' => 'Charlie', 'age' => 35],
+        ]);
+
+        // Test 1: Cache miss on first query
+        $this->assertEquals(0, $cache->count());
+
+        $result1 = $db->find()
+            ->from('users')
+            ->where('age', 25, '>')
+            ->cache(3600)
+            ->get();
+
+        $this->assertCount(2, $result1);
+        $this->assertEquals(1, $cache->count());
+
+        // Test 2: Cache hit on second query (same query)
+        $result2 = $db->find()
+            ->from('users')
+            ->where('age', 25, '>')
+            ->cache(3600)
+            ->get();
+
+        $this->assertEquals($result1, $result2);
+        $this->assertEquals(1, $cache->count()); // Still only 1 cache entry
+
+        // Test 3: Different query creates different cache entry
+        $result3 = $db->find()
+            ->from('users')
+            ->where('age', 30, '>=')
+            ->cache(3600)
+            ->get();
+
+        $this->assertCount(2, $result3);
+        $this->assertEquals(2, $cache->count()); // Now 2 cache entries
+
+        // Test 4: Custom cache key
+        $result4 = $db->find()
+            ->from('users')
+            ->cache(3600, 'my_custom_key')
+            ->get();
+
+        $this->assertCount(3, $result4);
+        $this->assertEquals(3, $cache->count());
+        $this->assertTrue($cache->has('my_custom_key'));
+
+        // Test 5: Cache with getOne()
+        $result5 = $db->find()
+            ->from('users')
+            ->where('name', 'Alice')
+            ->cache(3600)
+            ->getOne();
+
+        $this->assertEquals('Alice', $result5['name']);
+        $this->assertEquals(4, $cache->count());
+
+        // Test 6: Cache with getValue()
+        $result6 = $db->find()
+            ->from('users')
+            ->select('name')
+            ->where('name', 'Bob')
+            ->cache(3600)
+            ->getValue();
+
+        $this->assertEquals('Bob', $result6);
+        $this->assertEquals(5, $cache->count());
+
+        // Test 7: Cache with getColumn()
+        $result7 = $db->find()
+            ->from('users')
+            ->select('name')
+            ->orderBy('age', 'ASC')
+            ->cache(3600)
+            ->getColumn();
+
+        $this->assertEquals(['Bob', 'Alice', 'Charlie'], $result7);
+        $this->assertEquals(6, $cache->count());
+
+        // Test 8: noCache() disables caching
+        $countBefore = $cache->count();
+        $result8 = $db->find()
+            ->from('users')
+            ->cache(3600) // Enable cache
+            ->noCache()   // But then disable it
+            ->get();
+
+        $this->assertCount(3, $result8);
+        $this->assertEquals($countBefore, $cache->count()); // No new cache entry
+    }
+
+    /**
+     * Test caching without cache manager (should work normally).
+     */
+    public function testNoCacheManager(): void
+    {
+        // Use the existing database without cache
+        $result = self::$db->find()
+            ->table('test_coverage')
+            ->insert(['name' => 'Test', 'value' => 100]);
+
+        $this->assertGreaterThan(0, $result);
+
+        // Try to use cache methods (should be no-op)
+        $data = self::$db->find()
+            ->from('test_coverage')
+            ->where('value', 100)
+            ->cache(3600) // This should be ignored since no cache manager
+            ->get();
+
+        $this->assertCount(1, $data);
+        $this->assertEquals('Test', $data[0]['name']);
     }
 }

@@ -48,10 +48,15 @@
   "require": {
     "php": "^8.4",
     "ext-pdo": "*",
-    "psr/log": "^3.0"
+    "psr/log": "^3.0",
+    "psr/simple-cache": "^3.0"
   },
   "suggest": {
     "monolog/monolog": "If you need robust logging capabilities.",
+    "symfony/cache": "For query result caching (PSR-16 implementation)",
+    "cache/filesystem-adapter": "Filesystem-based cache implementation",
+    "ext-apcu": "For APCu-based query caching",
+    "ext-redis": "For Redis-based query caching",
     "ext-simplexml": "For bulk XML insert support",
     "ext-xmlreader": "For bulk XML insert support",
     "ext-xmlwriter": "For XML export support"

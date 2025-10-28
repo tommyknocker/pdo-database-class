@@ -6,8 +6,10 @@ namespace tommyknocker\pdodb;
 
 use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
+use Psr\SimpleCache\CacheInterface;
 use RuntimeException;
 use Throwable;
+use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionFactory;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -66,6 +68,9 @@ class PdoDb
     /** @var string Lock method for table locking (WRITE/READ) */
     protected string $lockMethod = 'WRITE';
 
+    /** @var CacheManager|null Cache manager for query result caching */
+    protected ?CacheManager $cacheManager = null;
+
     /**
      * Initializes a new PdoDb object.
      *
@@ -73,6 +78,7 @@ class PdoDb
      * @param array<string, mixed> $config An array of configuration options for the database connection.
      * @param array<int|string, mixed> $pdoOptions An array of PDO options to use to connect to the database.
      * @param LoggerInterface|null $logger The logger to use to log the queries.
+     * @param CacheInterface|null $cache PSR-16 cache implementation for query result caching.
      *
      * @see /README.md for details
      */
@@ -80,9 +86,17 @@ class PdoDb
         ?string $driver = null,
         array $config = [],
         array $pdoOptions = [],
-        ?LoggerInterface $logger = null
+        ?LoggerInterface $logger = null,
+        ?CacheInterface $cache = null
     ) {
-        $this->prefix = $config['prefix'] ?? '';
+        $prefix = $config['prefix'] ?? '';
+        $this->prefix = is_string($prefix) ? $prefix : '';
+
+        // Initialize cache manager if cache is provided
+        if ($cache !== null) {
+            $cacheConfig = isset($config['cache']) && is_array($config['cache']) ? $config['cache'] : [];
+            $this->cacheManager = new CacheManager($cache, $cacheConfig);
+        }
 
         // Only create default connection if driver is provided
         if ($driver !== null) {
@@ -103,7 +117,17 @@ class PdoDb
      */
     public function find(): QueryBuilder
     {
-        return new QueryBuilder($this->connection, $this->prefix);
+        return new QueryBuilder($this->connection, $this->prefix, $this->cacheManager);
+    }
+
+    /**
+     * Get the cache manager instance.
+     *
+     * @return CacheManager|null The cache manager or null if caching is not configured.
+     */
+    public function getCacheManager(): ?CacheManager
+    {
+        return $this->cacheManager;
     }
 
     /* ---------------- RAW ---------------- */

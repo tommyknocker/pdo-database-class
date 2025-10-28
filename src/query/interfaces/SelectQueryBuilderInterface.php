@@ -69,6 +69,23 @@ interface SelectQueryBuilderInterface
     public function addOrderExpression(string $expr): self;
 
     /**
+     * Enable caching for this query.
+     *
+     * @param int $ttl Time-to-live in seconds
+     * @param string|null $key Custom cache key (null = auto-generate)
+     *
+     * @return self The current instance.
+     */
+    public function cache(int $ttl = 3600, ?string $key = null): self;
+
+    /**
+     * Disable caching for this query.
+     *
+     * @return self The current instance.
+     */
+    public function noCache(): self;
+
+    /**
      * Add GROUP BY clause.
      *
      * @param string|array<int, string|RawValue>|RawValue $cols The columns to group by.

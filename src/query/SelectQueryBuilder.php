@@ -7,23 +7,24 @@ namespace tommyknocker\pdodb\query;
 use PDO;
 use PDOException;
 use RuntimeException;
+use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionInterface;
-use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
 use tommyknocker\pdodb\query\interfaces\SelectQueryBuilderInterface;
-use tommyknocker\pdodb\query\pagination\Cursor;
-use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
-use tommyknocker\pdodb\query\pagination\PaginationResult;
-use tommyknocker\pdodb\query\pagination\SimplePaginationResult;
 use tommyknocker\pdodb\query\traits\CommonDependenciesTrait;
 use tommyknocker\pdodb\query\traits\ExternalReferenceProcessingTrait;
 use tommyknocker\pdodb\query\traits\IdentifierQuotingTrait;
 use tommyknocker\pdodb\query\traits\RawValueResolutionTrait;
 use tommyknocker\pdodb\query\traits\TableManagementTrait;
+use tommyknocker\pdodb\query\pagination\PaginationResult;
+use tommyknocker\pdodb\query\pagination\SimplePaginationResult;
+use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
+use tommyknocker\pdodb\query\pagination\Cursor;
+use tommyknocker\pdodb\helpers\Db;
 
 class SelectQueryBuilder implements SelectQueryBuilderInterface
 {
@@ -64,6 +65,18 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /** @var array<int|string, mixed> Query options (e.g., FOR UPDATE, IGNORE) */
     protected array $options = [];
 
+    /** @var CacheManager|null Cache manager instance */
+    protected ?CacheManager $cacheManager = null;
+
+    /** @var bool Whether caching is enabled for this query */
+    protected bool $cacheEnabled = false;
+
+    /** @var int|null Cache TTL in seconds */
+    protected ?int $cacheTtl = null;
+
+    /** @var string|null Custom cache key */
+    protected ?string $cacheKey = null;
+
     protected ConditionBuilderInterface $conditionBuilder;
     protected JoinBuilderInterface $joinBuilder;
 
@@ -73,11 +86,13 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         ExecutionEngineInterface $executionEngine,
         ConditionBuilderInterface $conditionBuilder,
         JoinBuilderInterface $joinBuilder,
-        RawValueResolver $rawValueResolver
+        RawValueResolver $rawValueResolver,
+        ?CacheManager $cacheManager = null
     ) {
         $this->initializeCommonDependencies($connection, $parameterManager, $executionEngine, $rawValueResolver);
         $this->conditionBuilder = $conditionBuilder;
         $this->joinBuilder = $joinBuilder;
+        $this->cacheManager = $cacheManager;
     }
 
     /**
@@ -140,7 +155,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 if ($processedCol instanceof RawValue) {
                     $this->select[] = $this->resolveRawValue($processedCol) . ' AS ' . $index;
                 } else {
-                    $this->select[] = $col . ' AS ' . $index;
+                    $colStr = is_string($col) ? $col : (string)$col;
+                    $this->select[] = $colStr . ' AS ' . $index;
                 }
             } else {
                 // Process external references in column names
@@ -163,8 +179,21 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      */
     public function get(): array
     {
+        if ($this->shouldUseCache()) {
+            $cached = $this->getFromCache();
+            if (is_array($cached)) {
+                return $cached;
+            }
+        }
+
         $sql = $this->buildSelectSql();
-        return $this->executionEngine->fetchAll($sql, $this->parameterManager->getParams());
+        $result = $this->executionEngine->fetchAll($sql, $this->parameterManager->getParams());
+
+        if ($this->shouldUseCache()) {
+            $this->saveToCache($result);
+        }
+
+        return $result;
     }
 
     /**
@@ -175,8 +204,21 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      */
     public function getOne(): mixed
     {
+        if ($this->shouldUseCache()) {
+            $cached = $this->getFromCache();
+            if ($cached !== null) {
+                return $cached;
+            }
+        }
+
         $sql = $this->buildSelectSql();
-        return $this->executionEngine->fetch($sql, $this->parameterManager->getParams());
+        $result = $this->executionEngine->fetch($sql, $this->parameterManager->getParams());
+
+        if ($this->shouldUseCache()) {
+            $this->saveToCache($result);
+        }
+
+        return $result;
     }
 
     /**
@@ -190,9 +232,23 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         if (count($this->select) !== 1) {
             return [];
         }
+
+        if ($this->shouldUseCache()) {
+            $cached = $this->getFromCache();
+            if ($cached !== null) {
+                return $cached;
+            }
+        }
+
         $key = $this->resolveSelectedKey();
         $rows = $this->get();
-        return array_column($rows, $key);
+        $result = array_column($rows, $key);
+
+        if ($this->shouldUseCache()) {
+            $this->saveToCache($result);
+        }
+
+        return $result;
     }
 
     /**
@@ -206,21 +262,36 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         if (count($this->select) !== 1) {
             return false;
         }
+
+        if ($this->shouldUseCache()) {
+            $cached = $this->getFromCache();
+            if ($cached !== null) {
+                return $cached;
+            }
+        }
+
         $row = $this->getOne();
         $key = $this->resolveSelectedKey();
         if (count($row) === 1 && !isset($row[$key])) {
-            return array_shift($row);
+            $result = array_shift($row);
+        } else {
+            $result = $row[$key] ?? null;
         }
-        return $row[$key] ?? null;
+
+        if ($this->shouldUseCache()) {
+            $this->saveToCache($result);
+        }
+
+        return $result;
     }
 
     /**
      * Add ORDER BY clause.
      *
      * @param string|array<int|string, string>|RawValue $expr The expression(s) to order by.
-     *                                                        - string: 'column' or 'column ASC' or 'column1 ASC, column2 DESC'
-     *                                                        - array: ['column1', 'column2'] or ['column1' => 'ASC', 'column2' => 'DESC']
-     *                                                        - RawValue: raw SQL expression
+     *                                                          - string: 'column' or 'column ASC' or 'column1 ASC, column2 DESC'
+     *                                                          - array: ['column1', 'column2'] or ['column1' => 'ASC', 'column2' => 'DESC']
+     *                                                          - RawValue: raw SQL expression
      * @param string $direction The direction of the ordering (ASC or DESC). Ignored when expr is array.
      *
      * @return self The current instance.
@@ -297,6 +368,35 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     public function addOrderExpression(string $expr): self
     {
         $this->order[] = $expr;
+        return $this;
+    }
+
+    /**
+     * Enable caching for this query.
+     *
+     * @param int $ttl Time-to-live in seconds
+     * @param string|null $key Custom cache key (null = auto-generate)
+     *
+     * @return self The current instance.
+     */
+    public function cache(int $ttl = 3600, ?string $key = null): self
+    {
+        $this->cacheEnabled = true;
+        $this->cacheTtl = $ttl;
+        $this->cacheKey = $key;
+        return $this;
+    }
+
+    /**
+     * Disable caching for this query.
+     *
+     * @return self The current instance.
+     */
+    public function noCache(): self
+    {
+        $this->cacheEnabled = false;
+        $this->cacheTtl = null;
+        $this->cacheKey = null;
         return $this;
     }
 
@@ -825,5 +925,66 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 $this->conditionBuilder->where($col, $params[$col], '>');
             }
         }
+    }
+
+    /* ---------------- Cache helpers ---------------- */
+
+    /**
+     * Check if caching should be used for this query.
+     */
+    protected function shouldUseCache(): bool
+    {
+        return $this->cacheEnabled && $this->cacheManager !== null;
+    }
+
+    /**
+     * Get cached result if available.
+     *
+     * @return mixed|null Cached result or null if not found
+     */
+    protected function getFromCache(): mixed
+    {
+        if ($this->cacheManager === null) {
+            return null;
+        }
+
+        $key = $this->generateCacheKey();
+        return $this->cacheManager->get($key);
+    }
+
+    /**
+     * Save result to cache.
+     *
+     * @param mixed $result The result to cache
+     */
+    protected function saveToCache(mixed $result): void
+    {
+        if ($this->cacheManager === null) {
+            return;
+        }
+
+        $key = $this->generateCacheKey();
+        $ttl = $this->cacheTtl ?? $this->cacheManager->getConfig()->getDefaultTtl();
+        $this->cacheManager->set($key, $result, $ttl);
+    }
+
+    /**
+     * Generate cache key for current query.
+     */
+    protected function generateCacheKey(): string
+    {
+        if ($this->cacheKey !== null) {
+            return $this->cacheKey;
+        }
+
+        if ($this->cacheManager === null) {
+            return '';
+        }
+
+        $sql = $this->buildSelectSql();
+        $params = $this->parameterManager->getParams();
+        $driver = $this->connection->getDialect()->getDriverName();
+
+        return $this->cacheManager->generateKey($sql, $params, $driver);
     }
 }

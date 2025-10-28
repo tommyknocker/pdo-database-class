@@ -28,6 +28,8 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [📖 Documentation](#-documentation)
+- [📚 Examples](#-examples)
 - [Quick Example](#quick-example)
 - [Configuration](#configuration)
   - [MySQL Configuration](#mysql-configuration)
@@ -53,8 +55,10 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - [Complex Conditions](#complex-conditions)
   - [Subqueries](#subqueries)
   - [Schema Support](#schema-support-postgresql)
+  - [Ordering](#ordering)
   - [Pagination](#pagination)
   - [Batch Processing](#batch-processing)
+  - [Query Caching](#query-caching)
 - [Error Handling](#error-handling)
 - [Performance Tips](#performance-tips)
 - [Debugging](#debugging)
@@ -63,8 +67,10 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 - [Dialect Differences](#dialect-differences)
 - [Troubleshooting](#troubleshooting)
 - [Testing](#testing)
+- [Database Error Codes](#database-error-codes)
 - [Contributing](#contributing)
 - [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 ---
 
@@ -1173,6 +1179,108 @@ exportUsersToCsv($db, 'users_export.csv');
 | `batch()` | Medium (configurable chunks) | Bulk operations, parallel processing |
 | `each()` | Medium (internal buffering) | Individual record processing |
 | `cursor()` | Low (streaming) | Large datasets, simple processing |
+
+### Query Caching
+
+PDOdb supports PSR-16 (Simple Cache) for caching query results to improve performance.
+
+#### Setup
+
+```php
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+use Symfony\Component\Cache\Psr16Cache;
+use tommyknocker\pdodb\PdoDb;
+
+// Create PSR-16 cache
+$adapter = new FilesystemAdapter();
+$cache = new Psr16Cache($adapter);
+
+// Pass cache to PdoDb
+$db = new PdoDb(
+    'mysql',
+    [
+        'host' => 'localhost',
+        'dbname' => 'myapp',
+        'username' => 'user',
+        'password' => 'pass',
+        'cache' => [
+            'prefix' => 'myapp_',        // Optional: cache key prefix
+            'default_ttl' => 3600,       // Optional: default TTL in seconds
+            'enabled' => true,           // Optional: enable/disable
+        ],
+    ],
+    [],
+    null,
+    $cache  // PSR-16 cache instance
+);
+```
+
+#### Basic Usage
+
+```php
+// Cache for 1 hour (3600 seconds)
+$products = $db->find()
+    ->from('products')
+    ->where('category', 'Electronics')
+    ->cache(3600)  // Enable caching
+    ->get();
+
+// Custom cache key
+$featured = $db->find()
+    ->from('products')
+    ->where('featured', 1)
+    ->cache(3600, 'featured_products')  // Custom key
+    ->get();
+
+// Disable caching for specific query
+$fresh = $db->find()
+    ->from('products')
+    ->cache(3600)
+    ->noCache()  // Override and disable
+    ->get();
+```
+
+#### Works with All Fetch Methods
+
+```php
+// Cache get() - all rows
+$all = $db->find()->from('users')->cache(600)->get();
+
+// Cache getOne() - single row
+$user = $db->find()->from('users')->where('id', 1)->cache(600)->getOne();
+
+// Cache getValue() - single value
+$count = $db->find()->from('users')->select([Db::count()])->cache(600)->getValue();
+
+// Cache getColumn() - column values
+$names = $db->find()->from('users')->select('name')->cache(600)->getColumn();
+```
+
+#### Cache Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `prefix` | `string` | `'pdodb_'` | Cache key prefix for namespacing |
+| `default_ttl` | `int` | `3600` | Default time-to-live in seconds |
+| `enabled` | `bool` | `true` | Global cache enable/disable |
+
+#### Supported PSR-16 Implementations
+
+- **Symfony Cache** (recommended): `symfony/cache`
+- **Redis**: Via Symfony Redis adapter
+- **APCu**: Via Symfony APCu adapter
+- **Memcached**: Via Symfony Memcached adapter
+- **Filesystem**: Via Symfony Filesystem adapter
+
+#### Performance Impact
+
+| Operation | Database | Cached | Speedup |
+|-----------|----------|--------|---------|
+| Simple SELECT | 5-10ms | 0.1-0.5ms | 10-100x |
+| Complex JOIN | 50-500ms | 0.1-0.5ms | 100-1000x |
+| Aggregation | 100-1000ms | 0.1-0.5ms | 200-2000x |
+
+**See**: [Query Caching Documentation](documentation/05-advanced-features/query-caching.md) and [Examples](examples/14-caching/)
 
 ---
 

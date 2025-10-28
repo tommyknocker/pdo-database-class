@@ -9,6 +9,7 @@ use InvalidArgumentException;
 use PDOException;
 use PDOStatement;
 use RuntimeException;
+use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -46,6 +47,9 @@ class QueryBuilder implements QueryBuilderInterface
     /** @var string|null Table prefix */
     protected ?string $prefix = null;
 
+    /** @var CacheManager|null Cache manager for query result caching */
+    protected ?CacheManager $cacheManager = null;
+
     // Component instances
     protected ParameterManagerInterface $parameterManager;
     protected ExecutionEngineInterface $executionEngine;
@@ -62,12 +66,17 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param ConnectionInterface $connection
      * @param string $prefix
+     * @param CacheManager|null $cacheManager
      */
-    public function __construct(ConnectionInterface $connection, string $prefix = '')
-    {
+    public function __construct(
+        ConnectionInterface $connection,
+        string $prefix = '',
+        ?CacheManager $cacheManager = null
+    ) {
         $this->connection = $connection;
         $this->dialect = $connection->getDialect();
         $this->prefix = $prefix;
+        $this->cacheManager = $cacheManager;
 
         // Initialize components with shared parameter manager and raw value resolver
         $this->parameterManager = new ParameterManager();
@@ -86,7 +95,8 @@ class QueryBuilder implements QueryBuilderInterface
             $this->executionEngine,
             $this->conditionBuilder,
             $this->joinBuilder,
-            $rawValueResolver
+            $rawValueResolver,
+            $cacheManager
         );
         $this->dmlQueryBuilder = new DmlQueryBuilder(
             $connection,
@@ -776,6 +786,31 @@ class QueryBuilder implements QueryBuilderInterface
     public function groupBy(string|array|RawValue $cols): self
     {
         $this->selectQueryBuilder->groupBy($cols);
+        return $this;
+    }
+
+    /**
+     * Enable caching for this query.
+     *
+     * @param int $ttl Time-to-live in seconds
+     * @param string|null $key Custom cache key (null = auto-generate)
+     *
+     * @return self The current instance.
+     */
+    public function cache(int $ttl = 3600, ?string $key = null): self
+    {
+        $this->selectQueryBuilder->cache($ttl, $key);
+        return $this;
+    }
+
+    /**
+     * Disable caching for this query.
+     *
+     * @return self The current instance.
+     */
+    public function noCache(): self
+    {
+        $this->selectQueryBuilder->noCache();
         return $this;
     }
 
