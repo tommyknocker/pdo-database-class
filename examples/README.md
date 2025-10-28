@@ -65,6 +65,7 @@ Essential operations to get started.
 - **[02-simple-crud.php](01-basic/02-simple-crud.php)** - Create, Read, Update, Delete
 - **[03-where-conditions.php](01-basic/03-where-conditions.php)** - WHERE clauses and conditions
 - **[04-insert-update.php](01-basic/04-insert-update.php)** - Data manipulation
+- **[05-ordering.php](01-basic/05-ordering.php)** - Ordering results (single, multiple, array, comma-separated)
 
 ### 02. Intermediate Examples
 Common patterns and operations.

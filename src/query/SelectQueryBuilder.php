@@ -217,20 +217,62 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /**
      * Add ORDER BY clause.
      *
-     * @param string|RawValue $expr The expression to order by.
-     * @param string $direction The direction of the ordering (ASC or DESC).
+     * @param string|array<int|string, string>|RawValue $expr The expression(s) to order by.
+     *                                                        - string: 'column' or 'column ASC' or 'column1 ASC, column2 DESC'
+     *                                                        - array: ['column1', 'column2'] or ['column1' => 'ASC', 'column2' => 'DESC']
+     *                                                        - RawValue: raw SQL expression
+     * @param string $direction The direction of the ordering (ASC or DESC). Ignored when expr is array.
      *
      * @return self The current instance.
      */
-    public function orderBy(string|RawValue $expr, string $direction = 'ASC'): self
+    public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): self
     {
+        // Handle array of columns
+        if (is_array($expr)) {
+            foreach ($expr as $col => $dir) {
+                if (is_int($col)) {
+                    // Numeric key: ['column1', 'column2'] - use default direction
+                    $this->orderBy($dir, $direction);
+                } else {
+                    // Associative: ['column1' => 'ASC', 'column2' => 'DESC']
+                    $this->orderBy($col, $dir);
+                }
+            }
+            return $this;
+        }
+
         $dir = strtoupper(trim($direction));
         if ($dir !== 'ASC' && $dir !== 'DESC') {
             $dir = 'ASC';
         }
+
         if ($expr instanceof RawValue) {
             $this->order[] = $this->resolveRawValue($expr) . ' ' . $dir;
-        } elseif (preg_match('/^[a-z0-9]+\s+(ASC|DESC)/iu', $expr)) {
+        } elseif (str_contains($expr, ',')) {
+            // Handle comma-separated: 'column1 ASC, column2 DESC'
+            $parts = array_map('trim', explode(',', $expr));
+            foreach ($parts as $part) {
+                if (preg_match('/^(.+?)\s+(ASC|DESC)$/i', $part, $matches)) {
+                    $col = trim($matches[1]);
+                    $partDir = strtoupper($matches[2]);
+                    $processedExpr = $this->processExternalReferences($col);
+                    if ($processedExpr instanceof RawValue) {
+                        $this->order[] = $this->resolveRawValue($processedExpr) . ' ' . $partDir;
+                    } else {
+                        $this->order[] = $this->quoteQualifiedIdentifier($col) . ' ' . $partDir;
+                    }
+                } else {
+                    // No direction specified, use default
+                    $processedExpr = $this->processExternalReferences($part);
+                    if ($processedExpr instanceof RawValue) {
+                        $this->order[] = $this->resolveRawValue($processedExpr) . ' ' . $dir;
+                    } else {
+                        $this->order[] = $this->quoteQualifiedIdentifier($part) . ' ' . $dir;
+                    }
+                }
+            }
+        } elseif (preg_match('/^[a-z0-9._`"]+\s+(ASC|DESC)$/iu', $expr)) {
+            // Single column with direction: 'column ASC'
             $this->order[] = $expr;
         } else {
             // Process external references

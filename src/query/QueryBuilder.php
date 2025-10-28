@@ -755,12 +755,12 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add ORDER BY clause.
      *
-     * @param string|RawValue $expr The expression to order by.
+     * @param string|array<int|string, string>|RawValue $expr The expression(s) to order by.
      * @param string $direction The direction of the ordering (ASC or DESC).
      *
      * @return self The current instance.
      */
-    public function orderBy(string|RawValue $expr, string $direction = 'ASC'): self
+    public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): self
     {
         $this->selectQueryBuilder->orderBy($expr, $direction);
         return $this;

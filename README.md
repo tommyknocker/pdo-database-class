@@ -966,6 +966,44 @@ $data = $db->find()
     ->get();
 ```
 
+### Ordering
+
+PDOdb supports multiple convenient ways to order results:
+
+```php
+// Single column
+$users = $db->find()->from('users')->orderBy('name', 'ASC')->get();
+
+// Multiple columns (chained)
+$users = $db->find()
+    ->from('users')
+    ->orderBy('status', 'ASC')
+    ->orderBy('created_at', 'DESC')
+    ->get();
+
+// Array with explicit directions
+$users = $db->find()
+    ->from('users')
+    ->orderBy(['status' => 'ASC', 'created_at' => 'DESC'])
+    ->get();
+
+// Array with default direction
+$users = $db->find()
+    ->from('users')
+    ->orderBy(['status', 'name'], 'DESC')
+    ->get();
+
+// Comma-separated string
+$users = $db->find()
+    ->from('users')
+    ->orderBy('status ASC, created_at DESC, name ASC')
+    ->get();
+```
+
+See [Ordering & Pagination Documentation](documentation/03-query-builder/ordering-pagination.md) for more examples.
+
+---
+
 ### Pagination
 
 PDOdb offers three pagination styles for different use cases:
@@ -1829,7 +1867,7 @@ $constraints = $db->constraints('users');
 
 | Method | Description |
 |--------|-------------|
-| `orderBy(...)` | Add ORDER BY clause |
+| `orderBy(string\|array\|RawValue, direction = 'ASC')` | Add ORDER BY clause. Supports: single column, array of columns, comma-separated string |
 | `limit(int)` | Set LIMIT |
 | `offset(int)` | Set OFFSET |
 | `option(string\|array)` | Add query options (e.g., DISTINCT, SQL_CALC_FOUND_ROWS) |

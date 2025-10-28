@@ -300,12 +300,12 @@ interface QueryBuilderInterface
 
     // Ordering / grouping / pagination / options
     /**
-     * @param string|RawValue $expr
+     * @param string|array<int|string, string>|RawValue $expr
      * @param string $direction
      *
      * @return self
      */
-    public function orderBy(string|RawValue $expr, string $direction = 'ASC'): self;
+    public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): self;
 
     /**
      * @param string|array<int, string>|RawValue $cols

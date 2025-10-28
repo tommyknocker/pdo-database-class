@@ -23,11 +23,40 @@ $users = $db->find()
 ### Multiple Columns
 
 ```php
+// Method 1: Multiple chained orderBy() calls
 $users = $db->find()
     ->from('users')
     ->orderBy('status', 'ASC')
     ->orderBy('created_at', 'DESC')
     ->orderBy('name', 'ASC')
+    ->get();
+
+// Method 2: Array with explicit directions
+$users = $db->find()
+    ->from('users')
+    ->orderBy([
+        'status' => 'ASC',
+        'created_at' => 'DESC',
+        'name' => 'ASC'
+    ])
+    ->get();
+
+// Method 3: Array with default direction
+$users = $db->find()
+    ->from('users')
+    ->orderBy(['status', 'created_at', 'name'], 'DESC')
+    ->get();
+
+// Method 4: Comma-separated string
+$users = $db->find()
+    ->from('users')
+    ->orderBy('status ASC, created_at DESC, name ASC')
+    ->get();
+
+// Method 5: Comma-separated with partial directions (missing directions use default ASC)
+$users = $db->find()
+    ->from('users')
+    ->orderBy('status, created_at DESC, name')
     ->get();
 ```
 

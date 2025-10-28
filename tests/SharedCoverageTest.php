@@ -2980,4 +2980,76 @@ class SharedCoverageTest extends TestCase
 
         $this->assertEquals(['id' => 123, 'created_at' => '2025-10-28'], $cursor->parameters());
     }
+
+    /**
+     * Test orderBy with array and comma-separated values.
+     */
+    public function testOrderByArrayAndCommaSeparated(): void
+    {
+        // Insert test data
+        self::$db->find()->table('test_coverage')->insertMulti([
+            ['name' => 'Alice', 'value' => 30],
+            ['name' => 'Bob', 'value' => 10],
+            ['name' => 'Charlie', 'value' => 20],
+            ['name' => 'David', 'value' => 20],
+        ]);
+
+        // Test 1: Array with numeric keys (default direction)
+        $result1 = self::$db->find()
+            ->from('test_coverage')
+            ->select('name')
+            ->orderBy(['value', 'name'], 'ASC')
+            ->getColumn();
+        $this->assertEquals(['Bob', 'Charlie', 'David', 'Alice'], $result1);
+
+        // Test 2: Array with associative keys (explicit directions)
+        $result2 = self::$db->find()
+            ->from('test_coverage')
+            ->select('name')
+            ->orderBy(['value' => 'DESC', 'name' => 'ASC'])
+            ->getColumn();
+        $this->assertEquals(['Alice', 'Charlie', 'David', 'Bob'], $result2);
+
+        // Test 3: Comma-separated string with directions
+        $result3 = self::$db->find()
+            ->from('test_coverage')
+            ->select('name')
+            ->orderBy('value ASC, name DESC')
+            ->getColumn();
+        $this->assertEquals(['Bob', 'David', 'Charlie', 'Alice'], $result3);
+
+        // Test 4: Comma-separated string without directions (uses default)
+        $result4 = self::$db->find()
+            ->from('test_coverage')
+            ->select('name')
+            ->orderBy('value, name', 'DESC')
+            ->getColumn();
+        $this->assertEquals(['Alice', 'David', 'Charlie', 'Bob'], $result4);
+
+        // Test 5: Mix of formats (array then single)
+        $result5 = self::$db->find()
+            ->from('test_coverage')
+            ->select(['name'])
+            ->orderBy(['value' => 'ASC'])
+            ->orderBy('name', 'DESC')
+            ->getColumn();
+        $this->assertEquals(['Bob', 'David', 'Charlie', 'Alice'], $result5);
+
+        // Test 6: Comma-separated with mixed formats (name defaults to ASC)
+        $result6 = self::$db->find()
+            ->from('test_coverage')
+            ->select(['name'])
+            ->orderBy('value DESC, name')
+            ->getColumn();
+        $this->assertEquals(['Alice', 'Charlie', 'David', 'Bob'], $result6);
+
+        // Test 7: Multiple chained orderBy calls
+        $result7 = self::$db->find()
+            ->from('test_coverage')
+            ->select(['name'])
+            ->orderBy('value', 'DESC')
+            ->orderBy('name', 'ASC')
+            ->getColumn();
+        $this->assertEquals(['Alice', 'Charlie', 'David', 'Bob'], $result7);
+    }
 }

@@ -8,22 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Enhanced Pagination**: Three pagination types for different use cases
-  - `paginate()`: Full pagination with total count and page numbers (best for traditional pagination UI)
-  - `simplePaginate()`: Fast pagination without total count (best for infinite scroll, 2-4x faster)
-  - `cursorPaginate()`: Most efficient cursor-based pagination for large datasets (millions of rows)
-- **Pagination Result Classes**: JsonSerializable result objects with rich metadata
-  - `PaginationResult`: Full pagination with total count, page numbers, and navigation links
-  - `SimplePaginationResult`: Simple pagination without total count, only has_more flag
-  - `CursorPaginationResult`: Cursor-based pagination with encoded cursors
-  - `Cursor`: Helper class for encoding/decoding cursor parameters
-- **JSON Serialization**: All pagination results implement JsonSerializable for easy API responses
-- **URL Generation**: Built-in support for generating pagination URLs with query parameters
-- **Performance Optimizations**: 
-  - Simple pagination uses only 1 SQL query (vs 2 for full pagination)
-  - Cursor pagination uses WHERE clauses instead of OFFSET for better performance on large datasets
-- **Documentation**: Comprehensive pagination documentation with examples and best practices
-- **Examples**: Real-world pagination examples demonstrating all three pagination types
+- Enhanced `orderBy()` method with multiple input formats:
+  - Array with explicit directions: `orderBy(['col1' => 'ASC', 'col2' => 'DESC'])`
+  - Array with default direction: `orderBy(['col1', 'col2'], 'DESC')`
+  - Comma-separated string: `orderBy('col1 ASC, col2 DESC, col3')`
+  - Full backward compatibility with existing `orderBy(column, direction)` syntax
+- Comprehensive tests for all `orderBy()` formats
+- New example `examples/01-basic/05-ordering.php` demonstrating all ordering methods
+- Updated documentation with new ordering syntax examples
 
 ---
 
