@@ -99,6 +99,80 @@ $users = $db->find()
     ->get();
 ```
 
+## From Yii2
+
+### Before (Yii2 ActiveRecord)
+
+```php
+use yii\db\ActiveRecord;
+
+class User extends ActiveRecord
+{
+    public static function tableName()
+    {
+        return 'users';
+    }
+}
+
+// Query using ActiveRecord
+$users = User::find()
+    ->where(['>', 'age', 18])
+    ->andWhere(['active' => 1])
+    ->orderBy('created_at DESC')
+    ->limit(10)
+    ->all();
+```
+
+### After (PDOdb)
+
+```php
+use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\helpers\Db;
+
+$db = new PdoDb('mysql', [
+    'host' => 'localhost',
+    'dbname' => 'test',
+    'username' => 'user',
+    'password' => 'pass'
+]);
+
+$users = $db->find()
+    ->from('users')
+    ->where('age', 18, '>')
+    ->where('active', 1)
+    ->orderBy('created_at', 'DESC')
+    ->limit(10)
+    ->get();
+```
+
+### Before (Yii2 Query Builder)
+
+```php
+use Yii;
+
+$users = (new \yii\db\Query())
+    ->from('users')
+    ->where(['>', 'age', 18])
+    ->andWhere(['active' => 1])
+    ->orderBy('created_at DESC')
+    ->limit(10)
+    ->all(Yii::$app->db);
+```
+
+### After (PDOdb)
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+$users = $db->find()
+    ->from('users')
+    ->where('age', 18, '>')
+    ->where('active', 1)
+    ->orderBy('created_at', 'DESC')
+    ->limit(10)
+    ->get();
+```
+
 ## Key Differences
 
 ### Configuration

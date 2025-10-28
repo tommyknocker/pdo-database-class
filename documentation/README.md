@@ -59,6 +59,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [Comparison Helpers](07-helper-functions/comparison-helpers.md) - like(), between(), in()
 - [JSON Helpers](07-helper-functions/json-helpers.md) - jsonObject(), jsonArray()
 - [Aggregate Helpers](07-helper-functions/aggregate-helpers.md) - count(), sum(), avg()
+- [Export Helpers](07-helper-functions/export-helpers.md) - toJson(), toCsv(), toXml()
 
 ### Best Practices
 - [Security](08-best-practices/security.md) - SQL injection prevention

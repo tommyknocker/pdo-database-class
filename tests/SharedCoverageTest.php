@@ -2625,4 +2625,147 @@ class SharedCoverageTest extends TestCase
         }
         $this->assertEmpty($records);
     }
+
+    /**
+     * Test JSON export helper.
+     */
+    public function testJsonExport(): void
+    {
+        $db = self::$db;
+
+        // Insert test data
+        $db->find()->table('test_coverage')->insert([
+            'name' => 'Alice',
+            'value' => 100,
+        ]);
+
+        $data = $db->find()->from('test_coverage')->get();
+
+        // Export to JSON
+        $json = Db::toJson($data);
+
+        $this->assertIsString($json);
+        $this->assertJson($json);
+
+        // Verify data
+        $decoded = json_decode($json, true);
+        $this->assertCount(1, $decoded);
+        $this->assertEquals('Alice', $decoded[0]['name']);
+        $this->assertEquals(100, $decoded[0]['value']);
+    }
+
+    /**
+     * Test CSV export helper.
+     */
+    public function testCsvExport(): void
+    {
+        $db = self::$db;
+
+        // Insert test data
+        $db->find()->table('test_coverage')->insertMulti([
+            ['name' => 'Alice', 'value' => 100],
+            ['name' => 'Bob', 'value' => 200],
+        ]);
+
+        $data = $db->find()->from('test_coverage')->get();
+
+        // Export to CSV
+        $csv = Db::toCsv($data);
+
+        $this->assertIsString($csv);
+        $this->assertStringContainsString('name', $csv);
+        $this->assertStringContainsString('value', $csv);
+        $this->assertStringContainsString('Alice', $csv);
+        $this->assertStringContainsString('Bob', $csv);
+    }
+
+    /**
+     * Test XML export helper.
+     */
+    public function testXmlExport(): void
+    {
+        $db = self::$db;
+
+        // Insert test data
+        $db->find()->table('test_coverage')->insert([
+            'name' => 'Alice',
+            'value' => 100,
+        ]);
+
+        $data = $db->find()->from('test_coverage')->get();
+
+        // Export to XML
+        $xml = Db::toXml($data);
+
+        $this->assertIsString($xml);
+        $this->assertStringContainsString('<?xml', $xml);
+        $this->assertStringContainsString('<data>', $xml);
+        $this->assertStringContainsString('Alice', $xml);
+    }
+
+    /**
+     * Test export with custom options.
+     */
+    public function testExportWithCustomOptions(): void
+    {
+        $db = self::$db;
+
+        $data = [
+            ['id' => 1, 'name' => 'Alice'],
+            ['id' => 2, 'name' => 'Bob'],
+        ];
+
+        // Test JSON with custom flags
+        $json = Db::toJson($data, JSON_UNESCAPED_SLASHES);
+        $this->assertIsString($json);
+        $this->assertJson($json);
+
+        // Test CSV with custom delimiter
+        $csv = Db::toCsv($data, ';');
+        $this->assertStringContainsString(';', $csv);
+
+        // Test XML with custom elements
+        $xml = Db::toXml($data, 'users', 'user');
+        $this->assertStringContainsString('<users>', $xml);
+        $this->assertStringContainsString('<user>', $xml);
+    }
+
+    /**
+     * Test export of empty data.
+     */
+    public function testExportEmptyData(): void
+    {
+        $emptyData = [];
+
+        // Test empty JSON
+        $json = Db::toJson($emptyData);
+        $this->assertEquals('[]', $json);
+
+        // Test empty CSV
+        $csv = Db::toCsv($emptyData);
+        $this->assertEquals('', $csv);
+
+        // Test empty XML
+        $xml = Db::toXml($emptyData);
+        $this->assertStringContainsString('<?xml', $xml);
+        $this->assertStringContainsString('<data', $xml);
+    }
+
+    /**
+     * Test JSON export with nested arrays.
+     */
+    public function testJsonExportWithNestedArrays(): void
+    {
+        $data = [
+            ['id' => 1, 'tags' => ['php', 'mysql']],
+            ['id' => 2, 'tags' => ['python', 'sql']],
+        ];
+
+        $json = Db::toJson($data);
+        $this->assertIsString($json);
+
+        $decoded = json_decode($json, true);
+        $this->assertIsArray($decoded[0]['tags']);
+        $this->assertCount(2, $decoded[0]['tags']);
+    }
 }

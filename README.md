@@ -137,6 +137,7 @@ Comprehensive, runnable examples are available in the [`examples/`](examples/) d
 - **[Advanced](examples/03-advanced/)** - Connection pooling, bulk operations, UPSERT
 - **[JSON Operations](examples/04-json/)** - Complete guide to JSON features
 - **[Helper Functions](examples/05-helpers/)** - String, math, date/time helpers
+- **[Export Helpers](examples/11-export-helpers/)** - Export data to JSON, CSV, XML
 - **[Real-World](examples/06-real-world/)** - Blog system, user auth, search, multi-tenant
 - **[README Examples](examples/07-readme-examples/)** - Examples extracted from this README
 - **[Connection Retry](examples/08-connection-retry/)** - Retry mechanism with logging
@@ -1599,6 +1600,27 @@ Db::jsonExtract('meta', ['city'])           // Alias for jsonGet
 Db::jsonLength('tags')                      // Array/object length
 Db::jsonKeys('meta')                        // Object keys
 Db::jsonType('tags')                        // Value type
+```
+
+### Export Helpers
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Export to JSON
+$data = $db->find()->from('users')->get();
+$json = Db::toJson($data);
+
+// Export to CSV
+$csv = Db::toCsv($data);
+
+// Export to XML
+$xml = Db::toXml($data);
+
+// Custom options
+$json = Db::toJson($data, JSON_UNESCAPED_SLASHES);
+$csv = Db::toCsv($data, ';');              // Semicolon delimiter
+$xml = Db::toXml($data, 'users', 'user');   // Custom elements
 ```
 
 ---

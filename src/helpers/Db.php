@@ -10,6 +10,7 @@ use tommyknocker\pdodb\helpers\traits\ComparisonHelpersTrait;
 use tommyknocker\pdodb\helpers\traits\ConditionalHelpersTrait;
 use tommyknocker\pdodb\helpers\traits\CoreHelpersTrait;
 use tommyknocker\pdodb\helpers\traits\DateTimeHelpersTrait;
+use tommyknocker\pdodb\helpers\traits\ExportHelpersTrait;
 use tommyknocker\pdodb\helpers\traits\JsonHelpersTrait;
 use tommyknocker\pdodb\helpers\traits\NullHelpersTrait;
 use tommyknocker\pdodb\helpers\traits\NumericHelpersTrait;
@@ -27,6 +28,7 @@ class Db
     use ConditionalHelpersTrait;
     use CoreHelpersTrait;
     use DateTimeHelpersTrait;
+    use ExportHelpersTrait;
     use JsonHelpersTrait;
     use NullHelpersTrait;
     use NumericHelpersTrait;
