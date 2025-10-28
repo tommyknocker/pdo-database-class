@@ -28,6 +28,16 @@ interface FileLoaderInterface
     public function loadXml(string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool;
 
     /**
+     * Loads data from a JSON file into a table.
+     *
+     * @param string $filePath The path to the JSON file.
+     * @param array<string, mixed> $options The options to use to load the data.
+     *
+     * @return bool True on success, false on failure.
+     */
+    public function loadJson(string $filePath, array $options = []): bool;
+
+    /**
      * Set the table name for the file loader.
      *
      * @param string $table The table name.

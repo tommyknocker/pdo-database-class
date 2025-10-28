@@ -1011,6 +1011,19 @@ class QueryBuilder implements QueryBuilderInterface
         return $this->fileLoader->loadXml($filePath, $rowTag, $linesToIgnore);
     }
 
+    /**
+     * Loads data from a JSON file into a table.
+     *
+     * @param string $filePath The path to the JSON file.
+     * @param array<string, mixed> $options The options to use to load the data.
+     *
+     * @return bool True on success, false on failure.
+     */
+    public function loadJson(string $filePath, array $options = []): bool
+    {
+        return $this->fileLoader->loadJson($filePath, $options);
+    }
+
     /* ---------------- JSON methods ---------------- */
 
     /**
@@ -1127,5 +1140,4 @@ class QueryBuilder implements QueryBuilderInterface
         $this->jsonQueryBuilder->whereJsonExists($col, $path, $cond);
         return $this;
     }
-
 }

@@ -445,6 +445,24 @@ $db->find()->table('users')->loadXml('/path/to/file.xml', [
 ]);
 ```
 
+#### JSON Loader
+
+```php
+// Array format
+$db->find()->table('products')->loadJson('/path/to/products.json');
+
+// NDJSON format (newline-delimited)
+$db->find()->table('products')->loadJson('/path/to/products.ndjson', [
+    'format' => 'lines',
+]);
+
+// With options
+$db->find()->table('products')->loadJson('/path/to/products.json', [
+    'columns' => ['name', 'price', 'stock'],
+    'batchSize' => 1000,
+]);
+```
+
 ### Transactions
 
 ```php
@@ -1746,6 +1764,7 @@ $constraints = $db->constraints('users');
 |--------|-------------|
 | `loadCsv(file, options)` | CSV loader (uses COPY/LOAD DATA when available) |
 | `loadXml(file, options)` | XML loader |
+| `loadJson(file, options)` | JSON loader (supports array and NDJSON formats) |
 
 #### Execution
 

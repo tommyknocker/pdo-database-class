@@ -314,6 +314,139 @@ class FileLoader
     }
 
     /**
+     * Load data from JSON file.
+     *
+     * @param array<string, mixed> $options
+     */
+    public function loadFromJson(string $table, string $filePath, array $options = []): string
+    {
+        $sqlParts = [];
+        foreach ($this->loadFromJsonGenerator($table, $filePath, $options) as $sql) {
+            $sqlParts[] = $sql;
+        }
+        return $sqlParts === [] ? '' : implode("\n", $sqlParts);
+    }
+
+    /**
+     * Load data from JSON file using generator for memory efficiency.
+     *
+     * @param array<string, mixed> $options
+     *
+     * @return \Generator<string>
+     */
+    public function loadFromJsonGenerator(string $table, string $filePath, array $options = []): \Generator
+    {
+        $defaults = [
+            'batchSize' => self::DEFAULT_BATCH_SIZE,
+            'format' => 'auto',
+            'columns' => [],
+        ];
+        $opts = $options + $defaults;
+
+        if (!is_readable($filePath)) {
+            throw new InvalidArgumentException("JSON file is not readable: {$filePath}");
+        }
+
+        $tableQ = $this->quoteIdentifier($table);
+        $batchSize = (int)$opts['batchSize'];
+        $batch = [];
+        $columns = $opts['columns'];
+
+        // Detect format
+        $content = file_get_contents($filePath);
+        if ($content === false) {
+            throw new RuntimeException("Unable to read JSON file: {$filePath}");
+        }
+
+        $format = $opts['format'];
+        if ($format === 'auto') {
+            $format = str_starts_with(trim($content), '[') ? 'array' : 'lines';
+        }
+
+        if ($format === 'array') {
+            // Array of objects format
+            $data = json_decode($content, true);
+            if (!is_array($data)) {
+                throw new RuntimeException("Invalid JSON array in file: {$filePath}");
+            }
+
+            foreach ($data as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+
+                // Determine columns from first row if not provided
+                if (empty($columns)) {
+                    $columns = array_keys($row);
+                }
+
+                $colsQ = array_map(fn ($c) => $this->quoteColumnName($c), $columns);
+                $values = [];
+                foreach ($columns as $col) {
+                    $val = $row[$col] ?? null;
+                    if (is_array($val) || is_object($val)) {
+                        $val = json_encode($val);
+                    }
+                    $values[] = $this->quoteValue($val);
+                }
+
+                $batch[] = '(' . implode(', ', $values) . ')';
+
+                if (count($batch) >= $batchSize) {
+                    yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
+                        . ' VALUES ' . implode(', ', $batch) . ';';
+                    $batch = [];
+                }
+            }
+        } else {
+            // NDJSON format (newline-delimited JSON)
+            $file = new SplFileObject($filePath, 'r');
+            $colsQ = [];
+
+            while (!$file->eof()) {
+                $line = trim($file->fgets());
+                if (empty($line)) {
+                    continue;
+                }
+
+                $row = json_decode($line, true);
+                if (!is_array($row)) {
+                    continue;
+                }
+
+                // Determine columns from first row if not provided
+                if (empty($columns)) {
+                    $columns = array_keys($row);
+                }
+
+                $colsQ = array_map(fn ($c) => $this->quoteColumnName($c), $columns);
+                $values = [];
+                foreach ($columns as $col) {
+                    $val = $row[$col] ?? null;
+                    if (is_array($val) || is_object($val)) {
+                        $val = json_encode($val);
+                    }
+                    $values[] = $this->quoteValue($val);
+                }
+
+                $batch[] = '(' . implode(', ', $values) . ')';
+
+                if (count($batch) >= $batchSize) {
+                    yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
+                        . ' VALUES ' . implode(', ', $batch) . ';';
+                    $batch = [];
+                }
+            }
+        }
+
+        if (!empty($batch)) {
+            $colsQ = array_map(fn ($c) => $this->quoteColumnName($c), $columns);
+            yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
+                . ' VALUES ' . implode(', ', $batch) . ';';
+        }
+    }
+
+    /**
      * Quote value for SQL.
      */
     protected function quoteValue(mixed $value): string

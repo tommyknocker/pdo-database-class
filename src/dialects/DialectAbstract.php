@@ -251,6 +251,34 @@ abstract class DialectAbstract implements DialectInterface
     }
 
     /**
+     * Build SQL for loading data from JSON file.
+     *
+     * @param string $table
+     * @param string $filePath
+     * @param array<string, mixed> $options
+     *
+     * @return string
+     */
+    public function buildLoadJson(string $table, string $filePath, array $options = []): string
+    {
+        return $this->getFileLoader()->loadFromJson($table, $filePath, $options);
+    }
+
+    /**
+     * Build SQL generator for loading data from JSON file.
+     *
+     * @param string $table
+     * @param string $filePath
+     * @param array<string, mixed> $options
+     *
+     * @return \Generator<string>
+     */
+    public function buildLoadJsonGenerator(string $table, string $filePath, array $options = []): \Generator
+    {
+        return $this->getFileLoader()->loadFromJsonGenerator($table, $filePath, $options);
+    }
+
+    /**
      * Normalize JSON path input.
      *
      * @param array<int, string|int>|string $path

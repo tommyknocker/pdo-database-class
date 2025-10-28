@@ -487,4 +487,12 @@ interface QueryBuilderInterface
      * @return bool
      */
     public function loadXml(string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool;
+
+    /**
+     * @param string $filePath
+     * @param array<string, mixed> $options
+     *
+     * @return bool
+     */
+    public function loadJson(string $filePath, array $options = []): bool;
 }

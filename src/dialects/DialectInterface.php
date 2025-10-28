@@ -519,4 +519,26 @@ interface DialectInterface
      * @return \Generator<string>
      */
     public function buildLoadCsvSqlGenerator(string $table, string $filePath, array $options = []): \Generator;
+
+    /**
+     * Build SQL for loading data from JSON file.
+     *
+     * @param string $table
+     * @param string $filePath
+     * @param array<string, mixed> $options
+     *
+     * @return string
+     */
+    public function buildLoadJson(string $table, string $filePath, array $options = []): string;
+
+    /**
+     * Build SQL generator for loading data from JSON file.
+     *
+     * @param string $table
+     * @param string $filePath
+     * @param array<string, mixed> $options
+     *
+     * @return \Generator<string>
+     */
+    public function buildLoadJsonGenerator(string $table, string $filePath, array $options = []): \Generator;
 }

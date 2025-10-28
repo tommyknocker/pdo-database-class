@@ -3073,6 +3073,72 @@ XML
         @unlink($tempFile4);
     }
 
+    public function testBuildLoadJsonSql(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+
+        // Test 1: Basic JSON array format
+        $tempFile = tempnam(sys_get_temp_dir(), 'json_');
+        file_put_contents($tempFile, '[{"id":1,"name":"John","age":30},{"id":2,"name":"Alice","age":25}]');
+
+        $sql = $dialect->buildLoadJson('users', $tempFile, []);
+
+        $this->assertNotEmpty($sql);
+        $this->assertStringContainsString('INSERT', $sql);
+        $this->assertStringContainsString('users', $sql);
+
+        // Test 2: NDJSON format (newline-delimited)
+        $tempFile2 = tempnam(sys_get_temp_dir(), 'json_');
+        file_put_contents($tempFile2, '{"id":1,"name":"Bob","age":35}' . "\n" . '{"id":2,"name":"Carol","age":28}');
+
+        $sql2 = $dialect->buildLoadJson('users', $tempFile2, [
+            'format' => 'lines',
+        ]);
+
+        $this->assertNotEmpty($sql2);
+        $this->assertStringContainsString('INSERT', $sql2);
+
+        // Test 3: JSON with nested objects
+        $tempFile3 = tempnam(sys_get_temp_dir(), 'json_');
+        file_put_contents($tempFile3, '[{"id":1,"name":"Test","meta":{"city":"NYC","status":"active"}}]');
+
+        $sql3 = $dialect->buildLoadJson('users', $tempFile3, []);
+
+        $this->assertNotEmpty($sql3);
+
+        // Test 4: Empty JSON file
+        $tempFile4 = tempnam(sys_get_temp_dir(), 'json_');
+        file_put_contents($tempFile4, '[]');
+
+        $sql4 = $dialect->buildLoadJson('users', $tempFile4, []);
+
+        $this->assertEquals('', $sql4);
+
+        // Test 5: JSON with specified columns
+        $tempFile5 = tempnam(sys_get_temp_dir(), 'json_');
+        file_put_contents($tempFile5, '[{"id":1,"extra":"ignored"},{"id":2,"extra":"ignored"}]');
+
+        $sql5 = $dialect->buildLoadJson('users', $tempFile5, [
+            'columns' => ['id'],
+        ]);
+
+        $this->assertNotEmpty($sql5);
+        $this->assertStringContainsString('"id"', $sql5);
+
+        // Test 6: Unreadable file
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('not readable');
+
+        $dialect->buildLoadJson('users', '/nonexistent/path/file.json', []);
+
+        // Cleanup (after exception, these won't run, but PHPUnit handles it)
+        @unlink($tempFile);
+        @unlink($tempFile2);
+        @unlink($tempFile3);
+        @unlink($tempFile4);
+        @unlink($tempFile5);
+    }
+
     public function testFormatSelectOptions(): void
     {
         $dialect = self::$db->connection->getDialect();

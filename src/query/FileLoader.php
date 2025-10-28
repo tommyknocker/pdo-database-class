@@ -124,4 +124,50 @@ class FileLoader implements FileLoaderInterface
             );
         }
     }
+
+    /**
+     * Loads data from a JSON file into a table.
+     *
+     * @param string $filePath The path to the JSON file.
+     * @param array<string, mixed> $options The options to use to load the data.
+     *
+     * @return bool True on success, false on failure.
+     */
+    public function loadJson(string $filePath, array $options = []): bool
+    {
+        $sql = null;
+        if (!$this->connection->inTransaction()) {
+            $this->connection->transaction();
+        }
+
+        try {
+            $generator = $this->connection->getDialect()->buildLoadJsonGenerator(
+                $this->prefix . $this->table,
+                $filePath,
+                $options
+            );
+
+            foreach ($generator as $batchSql) {
+                $sql = $batchSql;
+                $this->connection->prepare($sql)->execute();
+            }
+
+            if ($this->connection->inTransaction()) {
+                $this->connection->commit();
+            }
+            return $this->connection->getExecuteState() !== false;
+        } catch (PDOException $e) {
+            if ($this->connection->inTransaction()) {
+                $this->connection->rollback();
+            }
+
+            // Convert to specialized exception and re-throw
+            throw ExceptionFactory::createFromPdoException(
+                $e,
+                $this->connection->getDriverName(),
+                $sql,
+                ['operation' => 'loadJson', 'file' => $filePath]
+            );
+        }
+    }
 }
