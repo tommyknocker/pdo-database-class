@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Enhanced `orderBy()` method with multiple input formats:
-  - Array with explicit directions: `orderBy(['col1' => 'ASC', 'col2' => 'DESC'])`
-  - Array with default direction: `orderBy(['col1', 'col2'], 'DESC')`
-  - Comma-separated string: `orderBy('col1 ASC, col2 DESC, col3')`
-  - Full backward compatibility with existing `orderBy(column, direction)` syntax
-- Comprehensive tests for all `orderBy()` formats
-- New example `examples/01-basic/05-ordering.php` demonstrating all ordering methods
-- Updated documentation with new ordering syntax examples
 
 ---
 
