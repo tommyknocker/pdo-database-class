@@ -37,6 +37,7 @@ class FileLoader
      * Load data from CSV file using generator for memory efficiency.
      *
      * @param array<string, mixed> $options
+     *
      * @return \Generator<string>
      */
     public function loadFromCsvGenerator(string $table, string $filePath, array $options = []): \Generator
@@ -178,6 +179,7 @@ class FileLoader
      * Load data from XML file using generator for memory efficiency.
      *
      * @param array<string, mixed> $options
+     *
      * @return \Generator<string>
      */
     public function loadFromXmlGenerator(string $table, string $filePath, array $options = []): \Generator

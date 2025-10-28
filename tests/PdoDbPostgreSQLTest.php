@@ -1909,7 +1909,7 @@ final class PdoDbPostgreSQLTest extends TestCase
         $this->assertTrue($foundBegin, 'transaction.begin not logged');
 
         // Commit
-        $db->connection->commit();
+        $db->commit();
         $foundCommit = false;
         foreach ($testHandler->getRecords() as $rec) {
             if (($rec['message'] ?? '') === 'operation.end'
@@ -1922,8 +1922,8 @@ final class PdoDbPostgreSQLTest extends TestCase
         $this->assertTrue($foundCommit, 'transaction.commit not logged');
 
         // Rollback
-        $db->connection->transaction();
-        $db->connection->rollBack();
+        $db->startTransaction();
+        $db->rollback();
         $foundRollback = false;
         foreach ($testHandler->getRecords() as $rec) {
             if (($rec['message'] ?? '') === 'operation.end'

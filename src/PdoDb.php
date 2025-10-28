@@ -15,8 +15,8 @@ use tommyknocker\pdodb\query\QueryBuilder;
 
 class PdoDb
 {
-    public const LOCK_WRITE = 'WRITE';
-    public const LOCK_READ = 'READ';
+    public const string LOCK_WRITE = 'WRITE';
+    public const string LOCK_READ = 'READ';
 
     /** @var ConnectionInterface Current active connection */
     public ConnectionInterface $connection {

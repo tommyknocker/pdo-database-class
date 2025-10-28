@@ -109,6 +109,25 @@ composer require tommyknocker/pdo-database-class:dev-master
 
 ---
 
+## 📖 Documentation
+
+Complete documentation is available in the [`documentation/`](documentation/) directory with 56+ detailed guides covering all features:
+
+- **[Getting Started](documentation/01-getting-started/)** - Installation, configuration, your first connection
+- **[Core Concepts](documentation/02-core-concepts/)** - Connection management, query builder, parameter binding, dialects
+- **[Query Builder](documentation/03-query-builder/)** - SELECT, DML, filtering, joins, aggregations, subqueries
+- **[JSON Operations](documentation/04-json-operations/)** - Working with JSON across all databases
+- **[Advanced Features](documentation/05-advanced-features/)** - Transactions, batch processing, bulk operations, UPSERT
+- **[Error Handling](documentation/06-error-handling/)** - Exception hierarchy, retry logic, logging, monitoring
+- **[Helper Functions](documentation/07-helper-functions/)** - Complete reference for all helper functions
+- **[Best Practices](documentation/08-best-practices/)** - Security, performance, memory management, code organization
+- **[API Reference](documentation/09-reference/)** - Complete API documentation
+- **[Cookbook](documentation/10-cookbook/)** - Common patterns, real-world examples, troubleshooting
+
+Each guide includes working code examples, dialect-specific notes, security considerations, and best practices.
+
+Start here: [Documentation Index](documentation/README.md)
+
 ## 📚 Examples
 
 Comprehensive, runnable examples are available in the [`examples/`](examples/) directory:

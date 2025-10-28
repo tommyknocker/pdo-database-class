@@ -1831,8 +1831,8 @@ class SharedCoverageTest extends TestCase
         }
 
         // Execute a simple query that should succeed
-        $result = $db->connection->query('SELECT 1 as test');
-        $this->assertNotFalse($result);
+        $result = $db->rawQuery('SELECT 1 as test');
+        $this->assertNotEmpty($result);
 
         // Check that some logs were created (at minimum we should have some logs)
         $records = $testHandler->getRecords();
@@ -1876,8 +1876,8 @@ class SharedCoverageTest extends TestCase
         }
 
         // Execute a query that should succeed (no retry needed)
-        $result = $db->connection->query('SELECT 1 as test');
-        $this->assertNotFalse($result);
+        $result = $db->rawQuery('SELECT 1 as test');
+        $this->assertNotEmpty($result);
 
         // Check that some logs were created
         $records = $testHandler->getRecords();
@@ -1924,8 +1924,8 @@ class SharedCoverageTest extends TestCase
         }
 
         // Execute a successful query
-        $result = $db->connection->query('SELECT 1 as test');
-        $this->assertNotFalse($result);
+        $result = $db->rawQuery('SELECT 1 as test');
+        $this->assertNotEmpty($result);
 
         // Check that some logs were created
         $records = $testHandler->getRecords();

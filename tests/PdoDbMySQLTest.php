@@ -2064,9 +2064,7 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertTrue($foundBegin, 'transaction.begin not logged');
 
         // Commit
-        $connection = $db->connection;
-        assert($connection !== null);
-        $connection->commit();
+        $db->commit();
         $foundCommit = false;
         foreach ($testHandler->getRecords() as $rec) {
             $context = $rec['context'] ?? [];
@@ -2081,8 +2079,8 @@ final class PdoDbMySQLTest extends TestCase
         $this->assertTrue($foundCommit, 'transaction.commit not logged');
 
         // Rollback
-        $connection->transaction();
-        $connection->rollBack();
+        $db->startTransaction();
+        $db->rollback();
         $foundRollback = false;
         foreach ($testHandler->getRecords() as $rec) {
             $context = $rec['context'] ?? [];
