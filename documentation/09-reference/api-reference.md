@@ -181,3 +181,4 @@ new PdoDb(?string $driver = null, array $config = [], array $pdoOptions = [], ?L
 
 - [Query Builder Methods](query-builder-methods.md) - Detailed QueryBuilder reference
 - [Helper Functions Reference](helper-functions-reference.md) - Complete helper functions
+

@@ -185,3 +185,4 @@ $users = $db->find()
 - [SELECT Operations](select-operations.md) - SELECT queries
 - [Joins](joins.md) - JOIN operations
 - [Aggregations](aggregations.md) - GROUP BY, HAVING
+

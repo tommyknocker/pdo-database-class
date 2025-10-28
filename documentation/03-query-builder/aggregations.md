@@ -160,3 +160,4 @@ $monthlySales = $db->find()
 - [SELECT Operations](select-operations.md) - SELECT queries
 - [Joins](joins.md) - JOIN operations
 - [Filtering Conditions](filtering-conditions.md) - WHERE clauses
+

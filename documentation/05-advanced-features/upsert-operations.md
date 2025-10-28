@@ -219,3 +219,4 @@ $db->find()->table('users')
 - [Data Manipulation](../03-query-builder/data-manipulation.md) - INSERT, UPDATE, DELETE
 - [Batch Operations](bulk-operations.md) - Bulk inserts
 - [Transactions](transactions.md) - Transaction management
+

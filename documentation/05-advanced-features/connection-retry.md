@@ -198,3 +198,4 @@ $db = new PdoDb('mysql', [
 - [Exception Hierarchy](../06-error-handling/exception-hierarchy.md) - Error handling
 - [Transactions](transactions.md) - Transaction management
 - [Error Codes](../06-error-handling/error-codes.md) - Error constants
+

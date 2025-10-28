@@ -297,3 +297,4 @@ Db::max('price');
 - [API Reference](api-reference.md) - Complete API
 - [Query Builder Methods](query-builder-methods.md) - Query builder methods
 - [PdoDb Methods](pdo-db-methods.md) - PdoDb methods
+

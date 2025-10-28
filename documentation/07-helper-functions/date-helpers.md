@@ -159,3 +159,4 @@ $inactive = $db->find()
 - [String Helpers](string-helpers.md) - String operations
 - [Numeric Helpers](numeric-helpers.md) - Math functions
 - [Core Helpers](core-helpers.md) - Essential helpers
+

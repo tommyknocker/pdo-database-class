@@ -403,3 +403,4 @@ $db->find()
 - [SELECT Operations](../03-query-builder/select-operations.md) - Detailed SELECT documentation
 - [Data Manipulation](../03-query-builder/data-manipulation.md) - INSERT, UPDATE, DELETE
 - [Parameter Binding](parameter-binding.md) - Prepared statements and security
+

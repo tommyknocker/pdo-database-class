@@ -122,3 +122,4 @@ If this returns `1`, JSON support is enabled. If it returns an error, you need t
 - [Configuration](configuration.md) - Configure your database connection
 - [First Connection](first-connection.md) - Make your first connection
 - [Hello World](hello-world.md) - Build your first query
+

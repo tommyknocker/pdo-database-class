@@ -70,3 +70,4 @@ class XmlExporter
         return preg_replace('/[^a-zA-Z0-9_\-]/', '_', $name) ?? $name;
     }
 }
+

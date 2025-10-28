@@ -211,3 +211,4 @@ $users = $db->find()
 - [Numeric Helpers](numeric-helpers.md) - Math operations
 - [Comparison Helpers](comparison-helpers.md) - WHERE conditions
 - [Core Helpers](core-helpers.md) - Essential helpers
+
