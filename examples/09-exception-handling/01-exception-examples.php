@@ -10,6 +10,7 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\exceptions\AuthenticationException;
@@ -21,18 +22,27 @@ use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\exceptions\TimeoutException;
 use tommyknocker\pdodb\exceptions\TransactionException;
 
-echo "=== Exception Handling Examples ===\n\n";
+$driver = getenv('PDODB_DRIVER') ?: 'sqlite';
+echo "=== Exception Handling Examples (on {$driver}) ===\n\n";
 
 // Example 1: Basic exception handling with specific types
 echo "1. Basic Exception Handling\n";
 echo "----------------------------\n";
 
 try {
-    // Use SQLite for demonstration
-    $db = new PdoDb('sqlite', ['path' => ':memory:']);
+    $db = createExampleDb();
     
-    // Create a table with unique constraint
-    $db->connection->query("CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT UNIQUE, name TEXT)");
+    // Drop table if exists (for idempotency)
+    $db->rawQuery("DROP TABLE IF EXISTS users");
+    
+    // Create a table with unique constraint (dialect-specific)
+    if ($driver === 'mysql') {
+        $db->rawQuery("CREATE TABLE users (id INT PRIMARY KEY AUTO_INCREMENT, email VARCHAR(255) UNIQUE, name VARCHAR(255))");
+    } elseif ($driver === 'pgsql') {
+        $db->rawQuery("CREATE TABLE users (id SERIAL PRIMARY KEY, email VARCHAR(255) UNIQUE, name VARCHAR(255))");
+    } else {
+        $db->rawQuery("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, name TEXT)");
+    }
     
     // Insert first user
     $db->find()->from('users')->insert(['email' => 'test@example.com', 'name' => 'Test User']);
@@ -66,14 +76,31 @@ echo "2. Constraint Violation Handling\n";
 echo "--------------------------------\n";
 
 try {
-    $db = new PdoDb('sqlite', ['path' => ':memory:']);
+    $db = createExampleDb();
     
-    // Create table with unique constraint
-    $db->rawQuery('CREATE TABLE users (
-        id INTEGER PRIMARY KEY,
-        email TEXT UNIQUE NOT NULL,
-        name TEXT NOT NULL
-    )');
+    // Drop table if exists (for idempotency)
+    $db->rawQuery('DROP TABLE IF EXISTS users');
+    
+    // Create table with unique constraint (dialect-specific)
+    if ($driver === 'mysql') {
+        $db->rawQuery('CREATE TABLE users (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            name VARCHAR(255) NOT NULL
+        )');
+    } elseif ($driver === 'pgsql') {
+        $db->rawQuery('CREATE TABLE users (
+            id SERIAL PRIMARY KEY,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            name VARCHAR(255) NOT NULL
+        )');
+    } else {
+        $db->rawQuery('CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL
+        )');
+    }
     
     // Insert first user
     $db->find()->table('users')->insert([
@@ -114,13 +141,28 @@ echo "3. Transaction Error Handling\n";
 echo "-----------------------------\n";
 
 try {
-    $db = new PdoDb('sqlite', ['path' => ':memory:']);
+    $db = createExampleDb();
     
-    // Create table
-    $db->rawQuery('CREATE TABLE accounts (
-        id INTEGER PRIMARY KEY,
-        balance DECIMAL(10,2) NOT NULL DEFAULT 0
-    )');
+    // Drop table if exists (for idempotency)
+    $db->rawQuery('DROP TABLE IF EXISTS accounts');
+    
+    // Create table (dialect-specific)
+    if ($driver === 'mysql') {
+        $db->rawQuery('CREATE TABLE accounts (
+            id INT PRIMARY KEY AUTO_INCREMENT,
+            balance DECIMAL(10,2) NOT NULL DEFAULT 0
+        )');
+    } elseif ($driver === 'pgsql') {
+        $db->rawQuery('CREATE TABLE accounts (
+            id SERIAL PRIMARY KEY,
+            balance DECIMAL(10,2) NOT NULL DEFAULT 0
+        )');
+    } else {
+        $db->rawQuery('CREATE TABLE accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            balance DECIMAL(10,2) NOT NULL DEFAULT 0
+        )');
+    }
     
     // Insert test account
     $db->find()->table('accounts')->insert(['balance' => 1000]);
@@ -202,7 +244,7 @@ function handleDatabaseError(DatabaseException $e): void
 }
 
 try {
-    $db = new PdoDb('sqlite', ['path' => ':memory:']);
+    $db = createExampleDb();
     
     // This will fail with a query error
     $db->rawQuery('SELECT * FROM nonexistent_table');
@@ -276,7 +318,7 @@ function executeWithRetry(callable $operation, int $maxRetries = 3): mixed
 
 try {
     $result = executeWithRetry(function() {
-        $db = new PdoDb('sqlite', ['path' => ':memory:']);
+        $db = createExampleDb();
         return $db->rawQuery('SELECT 1 as test');
     });
     
@@ -357,7 +399,7 @@ $monitor = new DatabaseErrorMonitor();
 
 // Simulate various errors
 try {
-    $db = new PdoDb('sqlite', ['path' => ':memory:']);
+    $db = createExampleDb();
     $db->rawQuery('SELECT * FROM nonexistent_table');
 } catch (QueryException $e) {
     $monitor->handleError($e);
