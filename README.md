@@ -1647,14 +1647,23 @@ $results = $db->find()
 // Get table structure
 $structure = $db->describe('users');
 
-// Get indexes
-$indexes = $db->getIndexes('users');
+// Get indexes via QueryBuilder
+$indexes = $db->find()->from('users')->indexes();
 
-// Get foreign keys
-$foreignKeys = $db->getForeignKeys('orders');
+// Get indexes via direct call
+$indexes = $db->indexes('users');
 
-// Get all constraints
-$constraints = $db->getConstraints('users');
+// Get foreign keys via QueryBuilder
+$foreignKeys = $db->find()->from('orders')->keys();
+
+// Get foreign keys via direct call
+$foreignKeys = $db->keys('orders');
+
+// Get constraints via QueryBuilder
+$constraints = $db->find()->from('users')->constraints();
+
+// Get constraints via direct call
+$constraints = $db->constraints('users');
 ```
 
 ---
@@ -1676,9 +1685,9 @@ $constraints = $db->getConstraints('users');
 | `unlock()` | Unlock tables |
 | `setLockMethod(string)` | Set lock method (READ/WRITE) |
 | `describe(string)` | Get table structure |
-| `getIndexes(string)` | Get all indexes for a table |
-| `getForeignKeys(string)` | Get foreign key constraints |
-| `getConstraints(string)` | Get all constraints (PK, UNIQUE, FK, CHECK) |
+| `indexes(string)` | Get all indexes for a table |
+| `keys(string)` | Get foreign key constraints |
+| `constraints(string)` | Get all constraints (PK, UNIQUE, FK, CHECK) |
 | `explain(string, array)` | Analyze query execution plan |
 | `explainAnalyze(string, array)` | Analyze query with execution |
 | `ping()` | Check database connection |

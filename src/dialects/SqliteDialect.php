@@ -573,7 +573,7 @@ class SqliteDialect extends DialectAbstract
 
         $ph = ':fulltext_search_term';
         $sql = "$colList MATCH $ph";
-        
+
         return [$sql, [$ph => $searchTerm]];
     }
 

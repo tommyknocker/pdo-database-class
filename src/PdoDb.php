@@ -451,10 +451,9 @@ class PdoDb
      *
      * @return array<int, array<string, mixed>> The indexes.
      */
-    public function getIndexes(string $table): array
+    public function indexes(string $table): array
     {
-        $sql = $this->connection->getDialect()->buildShowIndexesSql($this->prefix . $table);
-        return $this->rawQuery($sql);
+        return $this->find()->from($table)->indexes();
     }
 
     /**
@@ -464,10 +463,9 @@ class PdoDb
      *
      * @return array<int, array<string, mixed>> The foreign keys.
      */
-    public function getForeignKeys(string $table): array
+    public function keys(string $table): array
     {
-        $sql = $this->connection->getDialect()->buildShowForeignKeysSql($this->prefix . $table);
-        return $this->rawQuery($sql);
+        return $this->find()->from($table)->keys();
     }
 
     /**
@@ -477,9 +475,8 @@ class PdoDb
      *
      * @return array<int, array<string, mixed>> The constraints.
      */
-    public function getConstraints(string $table): array
+    public function constraints(string $table): array
     {
-        $sql = $this->connection->getDialect()->buildShowConstraintsSql($this->prefix . $table);
-        return $this->rawQuery($sql);
+        return $this->find()->from($table)->constraints();
     }
 }

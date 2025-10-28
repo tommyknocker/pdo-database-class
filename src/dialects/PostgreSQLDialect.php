@@ -760,7 +760,7 @@ class PostgreSQLDialect extends DialectAbstract
 
         $ph = ':fulltext_search_term';
         $sql = "$colList @@ to_tsquery('english', $ph)";
-        
+
         return [$sql, [$ph => $searchTerm]];
     }
 

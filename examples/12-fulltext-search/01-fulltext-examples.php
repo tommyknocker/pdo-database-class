@@ -178,7 +178,7 @@ echo "\n";
 // Get indexes
 echo "2. Indexes:\n";
 try {
-    $indexes = $db->getIndexes('articles');
+    $indexes = $db->find()->from('articles')->indexes();
     foreach ($indexes as $index) {
         $name = $index['Key_name'] ?? $index['index_name'] ?? $index['name'] ?? 'unknown';
         echo "- Index: $name\n";

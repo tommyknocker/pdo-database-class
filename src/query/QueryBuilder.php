@@ -894,6 +894,36 @@ class QueryBuilder implements QueryBuilderInterface
         return $this->selectQueryBuilder->describe();
     }
 
+    /**
+     * Get indexes for the current table.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function indexes(): array
+    {
+        return $this->selectQueryBuilder->indexes();
+    }
+
+    /**
+     * Get foreign keys for the current table.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function keys(): array
+    {
+        return $this->selectQueryBuilder->keys();
+    }
+
+    /**
+     * Get constraints for the current table.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function constraints(): array
+    {
+        return $this->selectQueryBuilder->constraints();
+    }
+
     /* ---------------- Execution primitives (pass-through helpers) ---------------- */
 
     /**
@@ -1097,4 +1127,5 @@ class QueryBuilder implements QueryBuilderInterface
         $this->jsonQueryBuilder->whereJsonExists($col, $path, $cond);
         return $this;
     }
+
 }

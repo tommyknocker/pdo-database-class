@@ -27,8 +27,11 @@ foreach ($structure as $column) {
 ## Get Indexes
 
 ```php
-// Get all indexes for a table
-$indexes = $db->getIndexes('users');
+// Get indexes via QueryBuilder
+$indexes = $db->find()->from('users')->indexes();
+
+// Get indexes via direct call
+$indexes = $db->indexes('users');
 
 foreach ($indexes as $index) {
     echo "Index: " . $index['name'] . "\n";
@@ -40,8 +43,11 @@ foreach ($indexes as $index) {
 ## Get Foreign Keys
 
 ```php
-// Get foreign key constraints
-$foreignKeys = $db->getForeignKeys('orders');
+// Get foreign keys via QueryBuilder
+$foreignKeys = $db->find()->from('orders')->keys();
+
+// Get foreign keys via direct call
+$foreignKeys = $db->keys('orders');
 
 foreach ($foreignKeys as $fk) {
     echo "FK: " . $fk['column_name'] 
@@ -53,8 +59,11 @@ foreach ($foreignKeys as $fk) {
 ## Get Constraints
 
 ```php
-// Get all constraints (primary key, unique, check, foreign key)
-$constraints = $db->getConstraints('users');
+// Get constraints via QueryBuilder
+$constraints = $db->find()->from('users')->constraints();
+
+// Get constraints via direct call
+$constraints = $db->constraints('users');
 
 foreach ($constraints as $constraint) {
     echo "Type: " . $constraint['constraint_type'] . "\n";
@@ -117,7 +126,7 @@ function validateTableExists($db, $tableName): bool
 ```php
 function checkIndexes($db, $tableName): array
 {
-    $indexes = $db->getIndexes($tableName);
+    $indexes = $db->indexes($tableName);
     $indexNames = array_column($indexes, 'name');
     return $indexNames;
 }
@@ -128,7 +137,7 @@ function checkIndexes($db, $tableName): array
 ```php
 function getReferencedTables($db, $tableName): array
 {
-    $foreignKeys = $db->getForeignKeys($tableName);
+    $foreignKeys = $db->keys($tableName);
     return array_unique(array_column($foreignKeys, 'referenced_table_name'));
 }
 ```

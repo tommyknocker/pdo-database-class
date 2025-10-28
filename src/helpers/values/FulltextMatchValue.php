@@ -80,4 +80,3 @@ class FulltextMatchValue extends RawValue
         return $this->withQueryExpansion;
     }
 }
-

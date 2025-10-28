@@ -136,6 +136,27 @@ interface SelectQueryBuilderInterface
     public function describe(): array;
 
     /**
+     * Get indexes for the current table.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function indexes(): array;
+
+    /**
+     * Get foreign keys for the current table.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function keys(): array;
+
+    /**
+     * Get constraints for the current table.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function constraints(): array;
+
+    /**
      * Set the table name for the select query builder.
      *
      * @param string $table The table name.

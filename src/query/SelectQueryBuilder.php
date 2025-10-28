@@ -398,6 +398,45 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     }
 
     /**
+     * Get indexes for the current table.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function indexes(): array
+    {
+        $tableName = $this->table;
+        assert(is_string($tableName));
+        $sql = $this->dialect->buildShowIndexesSql($tableName);
+        return $this->executionEngine->fetchAll($sql);
+    }
+
+    /**
+     * Get foreign keys for the current table.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function keys(): array
+    {
+        $tableName = $this->table;
+        assert(is_string($tableName));
+        $sql = $this->dialect->buildShowForeignKeysSql($tableName);
+        return $this->executionEngine->fetchAll($sql);
+    }
+
+    /**
+     * Get constraints for the current table.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function constraints(): array
+    {
+        $tableName = $this->table;
+        assert(is_string($tableName));
+        $sql = $this->dialect->buildShowConstraintsSql($tableName);
+        return $this->executionEngine->fetchAll($sql);
+    }
+
+    /**
      * Get the current query SQL and parameters.
      *
      * @return array{sql: string, params: array<string, mixed>}

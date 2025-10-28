@@ -677,7 +677,7 @@ class MySQLDialect extends DialectAbstract
 
         $ph = ':fulltext_search_term';
         $sql = "MATCH ($colList) AGAINST ($ph$modeClause$expansionClause)";
-        
+
         return [$sql, [$ph => $searchTerm]];
     }
 
@@ -695,7 +695,7 @@ class MySQLDialect extends DialectAbstract
     public function buildShowForeignKeysSql(string $table): string
     {
         $dbName = $this->getCurrentDatabase();
-        return "SELECT 
+        return "SELECT
             CONSTRAINT_NAME,
             COLUMN_NAME,
             REFERENCED_TABLE_NAME,
@@ -712,7 +712,7 @@ class MySQLDialect extends DialectAbstract
     public function buildShowConstraintsSql(string $table): string
     {
         $dbName = $this->getCurrentDatabase();
-        return "SELECT 
+        return "SELECT
             tc.CONSTRAINT_NAME,
             tc.CONSTRAINT_TYPE,
             tc.TABLE_NAME,

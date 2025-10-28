@@ -26,4 +26,3 @@ trait FulltextSearchHelpersTrait
         return new FulltextMatchValue($columns, $searchTerm, $mode, $withQueryExpansion);
     }
 }
-

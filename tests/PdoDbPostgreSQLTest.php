@@ -3933,21 +3933,39 @@ XML
 
     /* ---------------- Schema Introspection Tests ---------------- */
 
-    public function testGetIndexes(): void
+    public function testIndexesViaPdoDb(): void
     {
-        $indexes = self::$db->getIndexes('users');
+        $indexes = self::$db->indexes('users');
         $this->assertIsArray($indexes);
     }
 
-    public function testGetForeignKeys(): void
+    public function testKeysViaPdoDb(): void
     {
-        $foreignKeys = self::$db->getForeignKeys('orders');
+        $foreignKeys = self::$db->keys('orders');
         $this->assertIsArray($foreignKeys);
     }
 
-    public function testGetConstraints(): void
+    public function testConstraintsViaPdoDb(): void
     {
-        $constraints = self::$db->getConstraints('users');
+        $constraints = self::$db->constraints('users');
+        $this->assertIsArray($constraints);
+    }
+
+    public function testIndexesViaQueryBuilder(): void
+    {
+        $indexes = self::$db->find()->from('users')->indexes();
+        $this->assertIsArray($indexes);
+    }
+
+    public function testKeysViaQueryBuilder(): void
+    {
+        $foreignKeys = self::$db->find()->from('orders')->keys();
+        $this->assertIsArray($foreignKeys);
+    }
+
+    public function testConstraintsViaQueryBuilder(): void
+    {
+        $constraints = self::$db->find()->from('users')->constraints();
         $this->assertIsArray($constraints);
     }
 
