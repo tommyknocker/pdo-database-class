@@ -14,18 +14,21 @@
 Built on top of PDO with **zero external dependencies**, it offers:
 - **Fluent Query Builder** - Intuitive, chainable API for all database operations
 - **Cross-Database Compatibility** - Automatic SQL dialect handling (MySQL, PostgreSQL, SQLite)
-- **Read/Write Splitting** - Horizontal scaling with master-replica architecture and load balancing
-- **JSON Operations** - Native JSON support with consistent API across all databases
 - **Query Caching** - PSR-16 integration for result caching (10-1000x faster queries)
+- **Read/Write Splitting** - Horizontal scaling with master-replica architecture and load balancing
+- **Full-Text Search** - Cross-database FTS with unified API (MySQL FULLTEXT, PostgreSQL tsvector, SQLite FTS5)
+- **Schema Introspection** - Query indexes, foreign keys, and constraints programmatically
 - **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
+- **JSON Operations** - Native JSON support with consistent API across all databases
 - **Bulk Operations** - CSV/XML/JSON loaders, multi-row inserts, UPSERT support
+- **Export Helpers** - Export results to JSON, CSV, and XML formats
 - **Transactions & Locking** - Full transaction support with table locking
 - **Batch Processing** - Memory-efficient generators for large datasets
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Connection Retry** - Automatic retry with exponential backoff
-- **Helper Functions** - 80+ SQL helpers for strings, dates, math, JSON, aggregations
-- **Fully Tested** - Comprehensive test coverage across all dialects
-- **Type-Safe** - PHPStan level 8 validated code
+- **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more
+- **Fully Tested** - 533 tests, 2397 assertions across all dialects
+- **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
 
 Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class)
 
