@@ -17,6 +17,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Query Caching** - PSR-16 integration for result caching (10-1000x faster queries)
 - **Read/Write Splitting** - Horizontal scaling with master-replica architecture and load balancing
 - **Window Functions** - Advanced analytics with ROW_NUMBER, RANK, LAG, LEAD, running totals, moving averages
+- **Common Table Expressions (CTEs)** - WITH clauses for complex queries, recursive CTEs for hierarchical data
 - **Full-Text Search** - Cross-database FTS with unified API (MySQL FULLTEXT, PostgreSQL tsvector, SQLite FTS5)
 - **Schema Introspection** - Query indexes, foreign keys, and constraints programmatically
 - **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
@@ -49,6 +50,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - [Connection Pooling](#connection-pooling)
   - [Read/Write Splitting](#readwrite-splitting)
   - [Window Functions](#window-functions)
+  - [Common Table Expressions (CTEs)](#common-table-expressions-ctes)
 - [Quick Start](#quick-start)
   - [Basic CRUD Operations](#basic-crud-operations)
   - [Filtering and Joining](#filtering-and-joining)
@@ -496,6 +498,98 @@ See:
 - [Documentation: Window Functions](documentation/03-query-builder/window-functions.md)
 - [Documentation: Window Helpers](documentation/07-helper-functions/window-helpers.md)
 - [Example: Complete Demo](examples/16-window-functions/01-window-functions.php)
+
+### Common Table Expressions (CTEs)
+
+Define temporary named result sets using WITH clauses for better query organization and support for hierarchical data.
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Basic CTE with closure
+$products = $pdoDb->find()
+    ->with('expensive_products', function ($q) {
+        $q->from('products')->where('price', 1000, '>');
+    })
+    ->from('expensive_products')
+    ->orderBy('price', 'DESC')
+    ->get();
+
+// Multiple CTEs
+$analysis = $pdoDb->find()
+    ->with('electronics', function ($q) {
+        $q->from('products')->where('category', 'Electronics');
+    })
+    ->with('furniture', function ($q) {
+        $q->from('products')->where('category', 'Furniture');
+    })
+    ->with('combined', Db::raw('
+        SELECT * FROM electronics
+        UNION ALL
+        SELECT * FROM furniture
+    '))
+    ->from('combined')
+    ->orderBy('price')
+    ->get();
+
+// Recursive CTE - hierarchical data
+$hierarchy = $pdoDb->find()
+    ->withRecursive('category_tree', Db::raw('
+        SELECT id, name, parent_id, 0 as level
+        FROM categories
+        WHERE parent_id IS NULL
+        UNION ALL
+        SELECT c.id, c.name, c.parent_id, ct.level + 1
+        FROM categories c
+        INNER JOIN category_tree ct ON c.parent_id = ct.id
+    '), ['id', 'name', 'parent_id', 'level'])
+    ->from('category_tree')
+    ->orderBy('level')
+    ->get();
+
+// CTE with QueryBuilder instance
+$subQuery = $pdoDb->find()
+    ->from('orders')
+    ->select(['customer_id', 'total' => Db::sum('amount')])
+    ->groupBy('customer_id');
+
+$results = $pdoDb->find()
+    ->with('customer_totals', $subQuery)
+    ->from('customers')
+    ->join('customer_totals', 'customers.id = customer_totals.customer_id')
+    ->select(['customers.name', 'customer_totals.total'])
+    ->get();
+
+// CTE with column list
+$results = $pdoDb->find()
+    ->with('product_summary', function ($q) {
+        $q->from('products')->select(['name', 'price']);
+    }, ['product_name', 'product_price'])
+    ->from('product_summary')
+    ->where('product_price', 100, '>')
+    ->get();
+```
+
+**Key Features:**
+- **Basic CTEs** - Temporary named result sets for query organization
+- **Recursive CTEs** - Process hierarchical or tree-structured data
+- **Multiple CTEs** - Chain and combine multiple WITH clauses
+- **Flexible Definition** - Use closures, QueryBuilder instances, or raw SQL
+- **Column Lists** - Explicit column naming for cleaner queries
+- **Cross-Database** - Works seamlessly on MySQL 8.0+, PostgreSQL 8.4+, SQLite 3.8.3+
+
+**Common Use Cases:**
+- Simplifying complex queries into logical components
+- Organizational charts and reporting hierarchies  
+- Category trees and nested menus
+- Bill of materials and part assemblies
+- Graph traversal and pathfinding
+- Recursive data aggregation
+
+See:
+- [Documentation: CTEs](documentation/03-query-builder/cte.md)
+- [Example: Basic CTEs](examples/17-cte/01-basic-cte.php)
+- [Example: Recursive CTEs](examples/17-cte/02-recursive-cte.php)
 
 ---
 

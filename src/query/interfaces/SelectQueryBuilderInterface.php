@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\query\interfaces;
 
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\query\pagination\Cursor;
 use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
 use tommyknocker\pdodb\query\pagination\PaginationResult;
@@ -238,4 +239,13 @@ interface SelectQueryBuilderInterface
         string|Cursor|null $cursor = null,
         array $options = []
     ): CursorPaginationResult;
+
+    /**
+     * Set CTE manager.
+     *
+     * @param CteManager|null $cteManager
+     *
+     * @return self
+     */
+    public function setCteManager(?CteManager $cteManager): self;
 }

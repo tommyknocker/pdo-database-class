@@ -1,6 +1,6 @@
 # PDOdb Examples
 
-Complete collection of **24 runnable examples** demonstrating PDOdb features across **all 3 database dialects** (MySQL, PostgreSQL, SQLite).
+Complete collection of **26 runnable examples** demonstrating PDOdb features across **all 3 database dialects** (MySQL, PostgreSQL, SQLite).
 
 ## 🚀 Quick Start
 
@@ -129,6 +129,22 @@ Advanced analytics with window functions (MySQL 8.0+, PostgreSQL 9.4+, SQLite 3.
   - **FIRST_VALUE() / LAST_VALUE()** - First and last values in window
   - **NTILE()** - Divide into buckets/quartiles
   - **Multiple window functions** - Combining window functions
+
+### 17. Common Table Expressions (CTEs)
+WITH clauses for complex queries and hierarchical data (MySQL 8.0+, PostgreSQL 8.4+, SQLite 3.8.3+).
+
+- **[01-basic-cte.php](17-cte/01-basic-cte.php)** - Basic CTE usage:
+  - **Simple CTE** - Temporary result sets with Closure
+  - **CTE with QueryBuilder** - Using query builder instances
+  - **CTE with raw SQL** - Direct SQL in CTEs
+  - **Multiple CTEs** - Combining multiple CTEs
+  - **Column lists** - Explicit column definitions
+  - **CTE with JOIN** - Joining CTEs with tables
+- **[02-recursive-cte.php](17-cte/02-recursive-cte.php)** - Recursive CTE usage:
+  - **Category hierarchy** - Tree traversal
+  - **Employee chain** - Management hierarchy
+  - **Depth limits** - Controlling recursion depth
+  - **Subordinate counts** - Aggregating hierarchical data
 
 ## 💡 Tips
 

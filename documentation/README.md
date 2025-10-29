@@ -24,6 +24,10 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [Aggregations](03-query-builder/aggregations.md) - GROUP BY, HAVING, aggregates
 - [Ordering & Pagination](03-query-builder/ordering-pagination.md) - ORDER BY, LIMIT, OFFSET
 - [Subqueries](03-query-builder/subqueries.md) - Subqueries and EXISTS
+- [Common Table Expressions (CTEs)](03-query-builder/cte.md) - WITH clauses and recursive CTEs
+- [Window Functions](03-query-builder/window-functions.md) - ROW_NUMBER, RANK, LAG, LEAD
+- [Full-Text Search](03-query-builder/fulltext-search.md) - Cross-database FTS
+- [Schema Introspection](03-query-builder/schema-introspection.md) - Query indexes, foreign keys
 - [Raw Queries](03-query-builder/raw-queries.md) - Raw SQL with binding
 
 ### JSON Operations
@@ -42,6 +46,9 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [File Loading](05-advanced-features/file-loading.md) - CSV/XML loaders
 - [Connection Retry](05-advanced-features/connection-retry.md) - Retry mechanism
 - [Query Analysis](05-advanced-features/query-analysis.md) - EXPLAIN, EXPLAIN ANALYZE
+- [Query Caching](05-advanced-features/query-caching.md) - PSR-16 result caching
+- [Pagination](05-advanced-features/pagination.md) - Full, simple, and cursor-based pagination
+- [Read/Write Splitting](05-advanced-features/read-write-splitting.md) - Master-replica architecture
 
 ### Error Handling
 - [Exception Hierarchy](06-error-handling/exception-hierarchy.md) - Exception types
@@ -59,6 +66,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [Comparison Helpers](07-helper-functions/comparison-helpers.md) - like(), between(), in()
 - [JSON Helpers](07-helper-functions/json-helpers.md) - jsonObject(), jsonArray()
 - [Aggregate Helpers](07-helper-functions/aggregate-helpers.md) - count(), sum(), avg()
+- [Window Helpers](07-helper-functions/window-helpers.md) - rowNumber(), rank(), lag(), lead()
 - [Export Helpers](07-helper-functions/export-helpers.md) - toJson(), toCsv(), toXml()
 
 ### Best Practices
@@ -111,7 +119,14 @@ $users = $db->find()
 
 - **Fluent Query Builder** - Intuitive chainable API
 - **Cross-Database Support** - Works with MySQL, PostgreSQL, SQLite
+- **Query Caching** - PSR-16 integration for 10-1000x faster queries
+- **Read/Write Splitting** - Horizontal scaling with master-replica architecture
+- **Window Functions** - Advanced analytics with ROW_NUMBER, RANK, LAG, LEAD
+- **Common Table Expressions (CTEs)** - WITH clauses for complex queries, recursive CTEs
+- **Full-Text Search** - Cross-database FTS with unified API
+- **Schema Introspection** - Query indexes, foreign keys, and constraints
 - **JSON Operations** - Unified JSON API across all databases
+- **Advanced Pagination** - Full, simple, and cursor-based pagination
 - **Prepared Statements** - Automatic parameter binding for security
 - **Transactions** - Full transaction support
 - **Batch Processing** - Handle large datasets efficiently

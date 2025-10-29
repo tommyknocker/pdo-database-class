@@ -3658,4 +3658,209 @@ class SharedCoverageTest extends TestCase
         $this->assertEquals(10, $results[2]['first_val']);
         $this->assertEquals(30, $results[2]['last_val']);
     }
+
+    /* ---------------- CTE (Common Table Expressions) Tests ---------------- */
+
+    public function testSimpleCte(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_cte (id INTEGER PRIMARY KEY, value INTEGER)');
+        $db->find()->table('test_cte')->insertMulti([
+            ['id' => 1, 'value' => 100],
+            ['id' => 2, 'value' => 200],
+            ['id' => 3, 'value' => 300],
+        ]);
+
+        $results = $db->find()
+            ->with('high_values', function ($q) {
+                $q->from('test_cte')->where('value', 150, '>');
+            })
+            ->from('high_values')
+            ->orderBy('value')
+            ->get();
+
+        $this->assertCount(2, $results);
+        $this->assertEquals(200, $results[0]['value']);
+        $this->assertEquals(300, $results[1]['value']);
+    }
+
+    public function testCteWithQueryBuilder(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_cte_qb (id INTEGER PRIMARY KEY, amount INTEGER)');
+        $db->find()->table('test_cte_qb')->insertMulti([
+            ['id' => 1, 'amount' => 50],
+            ['id' => 2, 'amount' => 150],
+            ['id' => 3, 'amount' => 250],
+        ]);
+
+        $subQuery = $db->find()->from('test_cte_qb')->where('amount', 100, '>');
+
+        $results = $db->find()
+            ->with('filtered', $subQuery)
+            ->from('filtered')
+            ->get();
+
+        $this->assertCount(2, $results);
+        $this->assertEquals(150, $results[0]['amount']);
+        $this->assertEquals(250, $results[1]['amount']);
+    }
+
+    public function testCteWithRawSql(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_cte_raw (id INTEGER PRIMARY KEY, num INTEGER)');
+        $db->find()->table('test_cte_raw')->insertMulti([
+            ['id' => 1, 'num' => 10],
+            ['id' => 2, 'num' => 20],
+        ]);
+
+        $results = $db->find()
+            ->with('doubled', Db::raw('SELECT id, num * 2 as num FROM test_cte_raw'))
+            ->from('doubled')
+            ->get();
+
+        $this->assertCount(2, $results);
+        $this->assertEquals(20, $results[0]['num']);
+        $this->assertEquals(40, $results[1]['num']);
+    }
+
+    public function testMultipleCtes(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_multi_cte (id INTEGER PRIMARY KEY, category TEXT, value INTEGER)');
+        $db->find()->table('test_multi_cte')->insertMulti([
+            ['id' => 1, 'category' => 'A', 'value' => 100],
+            ['id' => 2, 'category' => 'A', 'value' => 200],
+            ['id' => 3, 'category' => 'B', 'value' => 150],
+            ['id' => 4, 'category' => 'B', 'value' => 250],
+        ]);
+
+        $results = $db->find()
+            ->with('cat_a', function ($q) {
+                $q->from('test_multi_cte')->where('category', 'A');
+            })
+            ->with('cat_b', function ($q) {
+                $q->from('test_multi_cte')->where('category', 'B');
+            })
+            ->with('combined', Db::raw('SELECT * FROM cat_a UNION ALL SELECT * FROM cat_b'))
+            ->from('combined')
+            ->orderBy('value')
+            ->get();
+
+        $this->assertCount(4, $results);
+        $this->assertEquals(100, $results[0]['value']);
+        $this->assertEquals(250, $results[3]['value']);
+    }
+
+    public function testCteWithColumnList(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_cte_cols (id INTEGER PRIMARY KEY, val INTEGER)');
+        $db->find()->table('test_cte_cols')->insertMulti([
+            ['id' => 1, 'val' => 10],
+            ['id' => 2, 'val' => 20],
+        ]);
+
+        $results = $db->find()
+            ->with('renamed', function ($q) {
+                $q->from('test_cte_cols')->select(['id', 'val']);
+            }, ['record_id', 'value'])
+            ->from('renamed')
+            ->get();
+
+        $this->assertCount(2, $results);
+        $this->assertArrayHasKey('record_id', $results[0]);
+        $this->assertArrayHasKey('value', $results[0]);
+    }
+
+    public function testRecursiveCte(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_hierarchy (id INTEGER PRIMARY KEY, parent_id INTEGER, name TEXT)');
+        $db->find()->table('test_hierarchy')->insertMulti([
+            ['id' => 1, 'parent_id' => null, 'name' => 'Root'],
+            ['id' => 2, 'parent_id' => 1, 'name' => 'Child 1'],
+            ['id' => 3, 'parent_id' => 1, 'name' => 'Child 2'],
+            ['id' => 4, 'parent_id' => 2, 'name' => 'Grandchild'],
+        ]);
+
+        $results = $db->find()
+            ->withRecursive(
+                'tree',
+                Db::raw('SELECT id, parent_id, name, 1 as level FROM test_hierarchy WHERE parent_id IS NULL ' .
+                    'UNION ALL ' .
+                    'SELECT t.id, t.parent_id, t.name, tree.level + 1 ' .
+                    'FROM test_hierarchy t JOIN tree ON t.parent_id = tree.id'),
+                ['id', 'parent_id', 'name', 'level']
+            )
+            ->from('tree')
+            ->orderBy('level')
+            ->get();
+
+        $this->assertCount(4, $results);
+        $this->assertEquals(1, $results[0]['level']);
+        $this->assertEquals('Root', $results[0]['name']);
+        $this->assertEquals(2, $results[1]['level']);
+        $this->assertEquals(3, $results[3]['level']);
+        $this->assertEquals('Grandchild', $results[3]['name']);
+    }
+
+    public function testCteManagerGetters(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_cte_mgr (id INTEGER PRIMARY KEY)');
+
+        $query = $db->find()
+            ->with('test1', function ($q) {
+                $q->from('test_cte_mgr');
+            })
+            ->withRecursive('test2', Db::raw('SELECT * FROM test_cte_mgr'), ['id'])
+            ->from('test1');
+
+        $cteManager = $query->getCteManager();
+        $this->assertNotNull($cteManager);
+        $this->assertFalse($cteManager->isEmpty());
+        $this->assertTrue($cteManager->hasRecursive());
+        $this->assertCount(2, $cteManager->getAll());
+    }
+
+    public function testCteWithJoins(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_cte_users (id INTEGER PRIMARY KEY, name TEXT)');
+        $db->rawQuery('CREATE TABLE test_cte_orders (id INTEGER PRIMARY KEY, user_id INTEGER, amount INTEGER)');
+
+        $db->find()->table('test_cte_users')->insertMulti([
+            ['id' => 1, 'name' => 'Alice'],
+            ['id' => 2, 'name' => 'Bob'],
+        ]);
+
+        $db->find()->table('test_cte_orders')->insertMulti([
+            ['id' => 1, 'user_id' => 1, 'amount' => 100],
+            ['id' => 2, 'user_id' => 1, 'amount' => 200],
+            ['id' => 3, 'user_id' => 2, 'amount' => 150],
+        ]);
+
+        $results = $db->find()
+            ->with('user_totals', function ($q) {
+                $q->from('test_cte_orders')
+                    ->select([
+                        'user_id',
+                        'total' => Db::sum('amount'),
+                    ])
+                    ->groupBy('user_id');
+            })
+            ->from('test_cte_users')
+            ->join('user_totals', 'test_cte_users.id = user_totals.user_id')
+            ->select(['test_cte_users.name', 'user_totals.total'])
+            ->orderBy('name')
+            ->get();
+
+        $this->assertCount(2, $results);
+        $this->assertEquals('Alice', $results[0]['name']);
+        $this->assertEquals(300, $results[0]['total']);
+        $this->assertEquals('Bob', $results[1]['name']);
+        $this->assertEquals(150, $results[1]['total']);
+    }
 }

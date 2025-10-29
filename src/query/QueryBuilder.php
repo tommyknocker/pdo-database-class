@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query;
 
+use Closure;
 use Generator;
 use InvalidArgumentException;
 use PDOException;
@@ -14,6 +15,8 @@ use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\connection\ConnectionRouter;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\cte\CteDefinition;
+use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\query\interfaces\BatchProcessorInterface;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\DmlQueryBuilderInterface;
@@ -56,6 +59,9 @@ class QueryBuilder implements QueryBuilderInterface
 
     /** @var bool Force next query to use write connection */
     protected bool $forceWriteConnection = false;
+
+    /** @var CteManager|null CTE manager for Common Table Expressions */
+    protected ?CteManager $cteManager = null;
 
     // Component instances
     protected ParameterManagerInterface $parameterManager;
@@ -294,6 +300,74 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
+     * Add a Common Table Expression (CTE) to the query.
+     *
+     * @param string $name CTE name
+     * @param QueryBuilder|Closure(QueryBuilder): void|string|RawValue $query Query builder, closure, or raw SQL
+     * @param array<string> $columns Optional explicit column list
+     *
+     * @return self The current instance.
+     */
+    public function with(
+        string $name,
+        QueryBuilder|Closure|string|RawValue $query,
+        array $columns = []
+    ): self {
+        if ($this->cteManager === null) {
+            $this->cteManager = new CteManager($this->connection);
+        }
+
+        // Convert RawValue to string
+        if ($query instanceof RawValue) {
+            $query = $query->getValue();
+        }
+
+        $cte = new CteDefinition($name, $query, false, $columns);
+        $this->cteManager->add($cte);
+
+        return $this;
+    }
+
+    /**
+     * Add a recursive Common Table Expression (CTE) to the query.
+     *
+     * @param string $name CTE name
+     * @param QueryBuilder|Closure(QueryBuilder): void|string|RawValue $query Query with UNION ALL structure
+     * @param array<string> $columns Explicit column list (recommended for recursive CTEs)
+     *
+     * @return self The current instance.
+     */
+    public function withRecursive(
+        string $name,
+        QueryBuilder|Closure|string|RawValue $query,
+        array $columns = []
+    ): self {
+        if ($this->cteManager === null) {
+            $this->cteManager = new CteManager($this->connection);
+        }
+
+        // Convert RawValue to string
+        if ($query instanceof RawValue) {
+            $query = $query->getValue();
+        }
+
+        $cte = new CteDefinition($name, $query, true, $columns);
+        $this->cteManager->add($cte);
+
+        return $this;
+    }
+
+    /**
+     * Get CTE manager instance.
+     *
+     * @return CteManager|null CTE manager or null if not initialized.
+     */
+    public function getCteManager(): ?CteManager
+    {
+        return $this->cteManager;
+    }
+
+    /**
      * Sets the prefix for table names.
      *
      * @param string $prefix The prefix for table names.
@@ -366,6 +440,11 @@ class QueryBuilder implements QueryBuilderInterface
                 $this->jsonQueryBuilder->clearJsonOrders();
             }
 
+            // Set CTE manager before building query
+            if ($this->cteManager !== null) {
+                $this->selectQueryBuilder->setCteManager($this->cteManager);
+            }
+
             return $this->selectQueryBuilder->get();
         } finally {
             $this->restoreConnection($originalConnection);
@@ -400,6 +479,11 @@ class QueryBuilder implements QueryBuilderInterface
                 }
                 // Clear JSON orders after integration to avoid duplication
                 $this->jsonQueryBuilder->clearJsonOrders();
+            }
+
+            // Set CTE manager before building query
+            if ($this->cteManager !== null) {
+                $this->selectQueryBuilder->setCteManager($this->cteManager);
             }
 
             return $this->selectQueryBuilder->getOne();
@@ -438,6 +522,11 @@ class QueryBuilder implements QueryBuilderInterface
                 $this->jsonQueryBuilder->clearJsonOrders();
             }
 
+            // Set CTE manager before building query
+            if ($this->cteManager !== null) {
+                $this->selectQueryBuilder->setCteManager($this->cteManager);
+            }
+
             return $this->selectQueryBuilder->getColumn();
         } finally {
             $this->restoreConnection($originalConnection);
@@ -472,6 +561,11 @@ class QueryBuilder implements QueryBuilderInterface
                 }
                 // Clear JSON orders after integration to avoid duplication
                 $this->jsonQueryBuilder->clearJsonOrders();
+            }
+
+            // Set CTE manager before building query
+            if ($this->cteManager !== null) {
+                $this->selectQueryBuilder->setCteManager($this->cteManager);
             }
 
             return $this->selectQueryBuilder->getValue();
@@ -1063,6 +1157,11 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function toSQL(): array
     {
+        // Set CTE manager before building SQL
+        if ($this->cteManager !== null) {
+            $this->selectQueryBuilder->setCteManager($this->cteManager);
+        }
+
         return $this->selectQueryBuilder->toSQL();
     }
 

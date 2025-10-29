@@ -11,6 +11,7 @@ use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
@@ -77,6 +78,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /** @var string|null Custom cache key */
     protected ?string $cacheKey = null;
 
+    /** @var CteManager|null CTE manager for WITH clauses */
+    protected ?CteManager $cteManager = null;
+
     protected ConditionBuilderInterface $conditionBuilder;
     protected JoinBuilderInterface $joinBuilder;
 
@@ -121,6 +125,19 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         $this->prefix = $prefix;
         $this->conditionBuilder->setPrefix($prefix);
         $this->joinBuilder->setPrefix($prefix);
+        return $this;
+    }
+
+    /**
+     * Set CTE manager.
+     *
+     * @param CteManager|null $cteManager
+     *
+     * @return self
+     */
+    public function setCteManager(?CteManager $cteManager): self
+    {
+        $this->cteManager = $cteManager;
         return $this;
     }
 
@@ -186,8 +203,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             }
         }
 
-        $sql = $this->buildSelectSql();
-        $result = $this->executionEngine->fetchAll($sql, $this->parameterManager->getParams());
+        $sqlData = $this->toSQL();
+        $result = $this->executionEngine->fetchAll($sqlData['sql'], $sqlData['params']);
 
         if ($this->shouldUseCache()) {
             $this->saveToCache($result);
@@ -211,8 +228,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             }
         }
 
-        $sql = $this->buildSelectSql();
-        $result = $this->executionEngine->fetch($sql, $this->parameterManager->getParams());
+        $sqlData = $this->toSQL();
+        $result = $this->executionEngine->fetch($sqlData['sql'], $sqlData['params']);
 
         if ($this->shouldUseCache()) {
             $this->saveToCache($result);
@@ -501,6 +518,13 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     {
         $sql = $this->buildSelectSql();
         $params = $this->parameterManager->getParams();
+
+        // Merge CTE parameters if CTE manager exists
+        if ($this->cteManager && !$this->cteManager->isEmpty()) {
+            $cteParams = $this->cteManager->getParams();
+            $params = array_merge($cteParams, $params);
+        }
+
         return ['sql' => $sql, 'params' => $params];
     }
 
@@ -512,9 +536,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      */
     public function explain(): array
     {
-        $sql = $this->buildSelectSql();
-        $explainSql = $this->dialect->buildExplainSql($sql);
-        return $this->executionEngine->fetchAll($explainSql, $this->parameterManager->getParams());
+        $sqlData = $this->toSQL();
+        $explainSql = $this->dialect->buildExplainSql($sqlData['sql']);
+        return $this->executionEngine->fetchAll($explainSql, $sqlData['params']);
     }
 
     /**
@@ -525,9 +549,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      */
     public function explainAnalyze(): array
     {
-        $sql = $this->buildSelectSql();
-        $explainSql = $this->dialect->buildExplainAnalyzeSql($sql);
-        return $this->executionEngine->fetchAll($explainSql, $this->parameterManager->getParams());
+        $sqlData = $this->toSQL();
+        $explainSql = $this->dialect->buildExplainAnalyzeSql($sqlData['sql']);
+        return $this->executionEngine->fetchAll($explainSql, $sqlData['params']);
     }
 
     /**
@@ -590,9 +614,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      */
     public function getQuery(): array
     {
-        $sql = $this->buildSelectSql();
-        $params = $this->parameterManager->getParams();
-        return ['sql' => $sql, 'params' => $params];
+        return $this->toSQL();
     }
 
     /**
@@ -602,6 +624,13 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      */
     public function buildSelectSql(): string
     {
+        $sql = '';
+
+        // Add WITH clause if CTEs exist
+        if ($this->cteManager && !$this->cteManager->isEmpty()) {
+            $sql = $this->cteManager->buildSql() . ' ';
+        }
+
         // build base select (no DB-specific option handling)
         if (empty($this->select)) {
             $select = '*';
@@ -616,7 +645,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         }
 
         $from = $this->normalizeTable();
-        $sql = "SELECT {$select} FROM {$from}";
+        $sql .= "SELECT {$select} FROM {$from}";
 
         if (!empty($this->joinBuilder->getJoins())) {
             $sql .= ' ' . implode(' ', $this->joinBuilder->getJoins());
@@ -764,13 +793,19 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
 
         $page = max(1, $page);
 
+        // Get CTE parameters (same for both queries)
+        $cteParams = [];
+        if ($this->cteManager && !$this->cteManager->isEmpty()) {
+            $cteParams = $this->cteManager->getParams();
+        }
+
         // Build count SQL
         $countSql = $this->buildSelectSql();
         $countSql = (string) preg_replace('/^SELECT\s+.*?\s+FROM/is', 'SELECT COUNT(*) as total FROM', $countSql);
         $countSql = (string) preg_replace('/\s+(ORDER BY|LIMIT|OFFSET)\s+.*/is', '', $countSql);
 
-        // Get copy of params for count query
-        $countParams = $this->parameterManager->getParams();
+        // Get copy of params for count query (merge with CTE params)
+        $countParams = array_merge($cteParams, $this->parameterManager->getParams());
 
         // Build items SQL with pagination
         $savedLimit = $this->limit;
@@ -778,7 +813,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         $offset = ($page - 1) * $perPage;
         $this->limit($perPage)->offset($offset);
         $itemsSql = $this->buildSelectSql();
-        $itemsParams = $this->parameterManager->getParams();
+        $itemsParams = array_merge($cteParams, $this->parameterManager->getParams());
 
         // Restore original state
         if ($savedLimit !== null) {
@@ -981,10 +1016,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             return '';
         }
 
-        $sql = $this->buildSelectSql();
-        $params = $this->parameterManager->getParams();
+        $sqlData = $this->toSQL();
         $driver = $this->connection->getDialect()->getDriverName();
 
-        return $this->cacheManager->generateKey($sql, $params, $driver);
+        return $this->cacheManager->generateKey($sqlData['sql'], $sqlData['params'], $driver);
     }
 }
