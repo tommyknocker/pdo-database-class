@@ -163,6 +163,52 @@ $detailed = $db->find()
 foreach ($detailed as $row) {
     echo "  • {$row['category']} ({$row['region']}): {$row['sales']} sales, \$" . number_format($row['revenue'], 2) . "\n";
 }
+echo "\n";
+
+// Example 8: FILTER clause - Conditional aggregates
+echo "8. FILTER clause - Separate aggregates for North and South...\n";
+$filtered = $db->find()
+    ->from('sales')
+    ->select([
+        'category',
+        'total_sales' => Db::count('*'),
+        'north_sales' => Db::count('*')->filter('region', 'North'),
+        'south_sales' => Db::count('*')->filter('region', 'South'),
+        'total_revenue' => Db::sum('amount'),
+        'north_revenue' => Db::sum('amount')->filter('region', 'North'),
+        'south_revenue' => Db::sum('amount')->filter('region', 'South'),
+    ])
+    ->groupBy('category')
+    ->orderBy('category')
+    ->get();
+
+echo "  Category breakdown by region:\n";
+foreach ($filtered as $row) {
+    echo "  • {$row['category']}:\n";
+    echo "    Total: {$row['total_sales']} sales, \$" . number_format($row['total_revenue'], 2) . "\n";
+    echo "    North: {$row['north_sales']} sales, \$" . number_format($row['north_revenue'], 2) . "\n";
+    echo "    South: {$row['south_sales']} sales, \$" . number_format($row['south_revenue'], 2) . "\n";
+}
+echo "\n";
+
+// Example 9: FILTER with multiple conditions
+echo "9. FILTER - High-value sales (> $200)...\n";
+$highValue = $db->find()
+    ->from('sales')
+    ->select([
+        'region',
+        'all_sales' => Db::count('*'),
+        'high_value_sales' => Db::count('*')->filter('amount', 200, '>'),
+        'high_value_total' => Db::sum('amount')->filter('amount', 200, '>'),
+    ])
+    ->groupBy('region')
+    ->orderBy('region')
+    ->get();
+
+foreach ($highValue as $row) {
+    $highValueTotal = $row['high_value_total'] ?? 0;
+    echo "  • {$row['region']}: {$row['high_value_sales']}/{$row['all_sales']} high-value sales, \$" . number_format($highValueTotal, 2) . "\n";
+}
 
 echo "\nAggregations example completed!\n";
 echo "\nKey Takeaways:\n";
@@ -170,4 +216,6 @@ echo "  • Use aggregate functions: COUNT, SUM, AVG, MIN, MAX\n";
 echo "  • GROUP BY groups rows by column values\n";
 echo "  • HAVING filters grouped results (like WHERE for groups)\n";
 echo "  • Can group by multiple columns\n";
+echo "  • FILTER clause allows conditional aggregation without subqueries\n";
+echo "  • FILTER works with all aggregate functions (COUNT, SUM, AVG, etc.)\n";
 

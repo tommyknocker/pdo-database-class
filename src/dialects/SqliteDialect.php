@@ -641,6 +641,22 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function supportsFilterClause(): bool
+    {
+        return true; // SQLite 3.30+ supports FILTER clause
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsDistinctOn(): bool
+    {
+        return false; // SQLite does not support DISTINCT ON
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildShowIndexesSql(string $table): string
     {
         return "SELECT name, tbl_name as table_name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = '{$table}'";

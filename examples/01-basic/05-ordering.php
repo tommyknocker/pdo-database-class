@@ -173,6 +173,37 @@ $paginated = $db->find()
 foreach ($paginated as $p) {
     echo "  • {$p['name']}: {$p['rating']} ⭐\n";
 }
+echo "\n";
+
+// Example 11: DISTINCT - Get unique categories
+echo "11. DISTINCT - Unique categories...\n";
+$categories = $db->find()
+    ->from('products')
+    ->select(['category'])
+    ->distinct()
+    ->orderBy('category')
+    ->get();
+
+echo "  Available categories:\n";
+foreach ($categories as $cat) {
+    echo "  • {$cat['category']}\n";
+}
+echo "\n";
+
+// Example 12: DISTINCT with multiple columns
+echo "12. DISTINCT - Unique category + high stock combinations...\n";
+$uniqueCombinations = $db->find()
+    ->from('products')
+    ->select(['category', 'stock'])
+    ->where('stock', 10, '>')
+    ->distinct()
+    ->orderBy('category')
+    ->orderBy('stock')
+    ->get();
+
+foreach ($uniqueCombinations as $combo) {
+    echo "  • {$combo['category']}: {$combo['stock']} in stock\n";
+}
 
 echo "\nAll ordering examples completed!\n";
 

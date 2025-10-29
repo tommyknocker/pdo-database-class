@@ -1,6 +1,6 @@
 # PDOdb Examples
 
-Complete collection of **26 runnable examples** demonstrating PDOdb features across **all 3 database dialects** (MySQL, PostgreSQL, SQLite).
+Complete collection of **47 runnable examples** demonstrating PDOdb features across **all 3 database dialects** (MySQL, PostgreSQL, SQLite).
 
 ## 🚀 Quick Start
 
@@ -145,6 +145,18 @@ WITH clauses for complex queries and hierarchical data (MySQL 8.0+, PostgreSQL 8
   - **Employee chain** - Management hierarchy
   - **Depth limits** - Controlling recursion depth
   - **Subordinate counts** - Aggregating hierarchical data
+
+### 18. Set Operations
+SQL set operations for combining query results (MySQL 8.0+, PostgreSQL, SQLite 3.8.3+).
+
+- **[01-set-operations.php](18-set-operations/01-set-operations.php)** - Set operations:
+  - **UNION** - Combine queries, remove duplicates
+  - **UNION ALL** - Combine queries, keep duplicates
+  - **INTERSECT** - Find common rows
+  - **EXCEPT** - Find rows in first query not in second
+  - **Multiple UNION** - Chaining set operations
+  - **UNION with aggregation** - Combining aggregated results
+  - **UNION with filters** - Complex filtering
 
 ## 💡 Tips
 

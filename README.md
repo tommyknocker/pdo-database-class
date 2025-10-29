@@ -18,6 +18,9 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Read/Write Splitting** - Horizontal scaling with master-replica architecture and load balancing
 - **Window Functions** - Advanced analytics with ROW_NUMBER, RANK, LAG, LEAD, running totals, moving averages
 - **Common Table Expressions (CTEs)** - WITH clauses for complex queries, recursive CTEs for hierarchical data
+- **Set Operations** - UNION, INTERSECT, EXCEPT for combining query results with automatic deduplication
+- **DISTINCT & DISTINCT ON** - Remove duplicates with full PostgreSQL DISTINCT ON support  
+- **FILTER Clause** - Conditional aggregates (SQL:2003 standard) with automatic MySQL fallback to CASE WHEN
 - **Full-Text Search** - Cross-database FTS with unified API (MySQL FULLTEXT, PostgreSQL tsvector, SQLite FTS5)
 - **Schema Introspection** - Query indexes, foreign keys, and constraints programmatically
 - **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata

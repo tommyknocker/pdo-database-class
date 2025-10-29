@@ -712,7 +712,7 @@ class MySQLDialect extends DialectAbstract
         // Add PARTITION BY
         if (!empty($partitionBy)) {
             $quotedPartitions = array_map(
-                fn ($col) => $this->quoteIdentifier($col),
+                fn($col) => $this->quoteIdentifier($col),
                 $partitionBy
             );
             $sql .= 'PARTITION BY ' . implode(', ', $quotedPartitions);
@@ -740,6 +740,22 @@ class MySQLDialect extends DialectAbstract
         $sql .= ')';
 
         return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsFilterClause(): bool
+    {
+        return false; // MySQL does not support FILTER clause
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsDistinctOn(): bool
+    {
+        return false; // MySQL does not support DISTINCT ON
     }
 
     /**

@@ -3863,4 +3863,191 @@ class SharedCoverageTest extends TestCase
         $this->assertEquals('Bob', $results[1]['name']);
         $this->assertEquals(150, $results[1]['total']);
     }
+
+    /* ---------------- UNION/INTERSECT/EXCEPT Tests ---------------- */
+
+    public function testSimpleUnion(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_union_a (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->rawQuery('CREATE TABLE test_union_b (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->find()->table('test_union_a')->insertMulti([
+            ['id' => 1, 'value' => 'A'],
+            ['id' => 2, 'value' => 'B'],
+        ]);
+        $db->find()->table('test_union_b')->insertMulti([
+            ['id' => 3, 'value' => 'C'],
+            ['id' => 2, 'value' => 'B'], // Duplicate
+        ]);
+
+        $results = $db->find()
+            ->from('test_union_a')
+            ->select(['id', 'value'])
+            ->union(function ($qb) {
+                $qb->from('test_union_b')->select(['id', 'value']);
+            })
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(3, $results); // UNION removes duplicates
+        $this->assertEquals(1, $results[0]['id']);
+        $this->assertEquals(2, $results[1]['id']);
+        $this->assertEquals(3, $results[2]['id']);
+    }
+
+    public function testUnionAll(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_union_all_a (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->rawQuery('CREATE TABLE test_union_all_b (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->find()->table('test_union_all_a')->insertMulti([
+            ['id' => 1, 'value' => 'A'],
+            ['id' => 2, 'value' => 'B'],
+        ]);
+        $db->find()->table('test_union_all_b')->insertMulti([
+            ['id' => 3, 'value' => 'C'],
+            ['id' => 2, 'value' => 'B'], // Duplicate
+        ]);
+
+        $results = $db->find()
+            ->from('test_union_all_a')
+            ->select(['value'])
+            ->unionAll(function ($qb) {
+                $qb->from('test_union_all_b')->select(['value']);
+            })
+            ->get();
+
+        $this->assertCount(4, $results); // UNION ALL keeps duplicates
+    }
+
+    public function testIntersect(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_intersect_a (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->rawQuery('CREATE TABLE test_intersect_b (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->find()->table('test_intersect_a')->insertMulti([
+            ['id' => 1, 'value' => 'A'],
+            ['id' => 2, 'value' => 'B'],
+        ]);
+        $db->find()->table('test_intersect_b')->insertMulti([
+            ['id' => 3, 'value' => 'B'],
+            ['id' => 4, 'value' => 'C'],
+        ]);
+
+        $results = $db->find()
+            ->from('test_intersect_a')
+            ->select(['value'])
+            ->intersect(function ($qb) {
+                $qb->from('test_intersect_b')->select(['value']);
+            })
+            ->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals('B', $results[0]['value']);
+    }
+
+    public function testExcept(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_except_a (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->rawQuery('CREATE TABLE test_except_b (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->find()->table('test_except_a')->insertMulti([
+            ['id' => 1, 'value' => 'A'],
+            ['id' => 2, 'value' => 'B'],
+        ]);
+        $db->find()->table('test_except_b')->insertMulti([
+            ['id' => 3, 'value' => 'B'],
+        ]);
+
+        $results = $db->find()
+            ->from('test_except_a')
+            ->select(['value'])
+            ->except(function ($qb) {
+                $qb->from('test_except_b')->select(['value']);
+            })
+            ->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals('A', $results[0]['value']);
+    }
+
+    /* ---------------- DISTINCT Tests ---------------- */
+
+    public function testDistinct(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_distinct (id INTEGER PRIMARY KEY, category TEXT, value INTEGER)');
+        $db->find()->table('test_distinct')->insertMulti([
+            ['id' => 1, 'category' => 'A', 'value' => 100],
+            ['id' => 2, 'category' => 'A', 'value' => 200],
+            ['id' => 3, 'category' => 'B', 'value' => 100],
+        ]);
+
+        $results = $db->find()
+            ->from('test_distinct')
+            ->select(['category'])
+            ->distinct()
+            ->orderBy('category')
+            ->get();
+
+        $this->assertCount(2, $results);
+        $this->assertEquals('A', $results[0]['category']);
+        $this->assertEquals('B', $results[1]['category']);
+    }
+
+    /* ---------------- FILTER Clause Tests ---------------- */
+
+    public function testFilterClause(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_filter (id INTEGER PRIMARY KEY, category TEXT, amount INTEGER)');
+        $db->find()->table('test_filter')->insertMulti([
+            ['id' => 1, 'category' => 'A', 'amount' => 100],
+            ['id' => 2, 'category' => 'A', 'amount' => 200],
+            ['id' => 3, 'category' => 'B', 'amount' => 150],
+        ]);
+
+        $results = $db->find()
+            ->from('test_filter')
+            ->select([
+                'total' => Db::count('*'),
+                'count_a' => Db::count('*')->filter('category', 'A'),
+                'sum_a' => Db::sum('amount')->filter('category', 'A'),
+            ])
+            ->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals(3, $results[0]['total']);
+        $this->assertEquals(2, $results[0]['count_a']);
+        $this->assertEquals(300, $results[0]['sum_a']);
+    }
+
+    public function testFilterClauseWithGroupBy(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_filter_group (id INTEGER PRIMARY KEY, user_id INTEGER, status TEXT, amount INTEGER)');
+        $db->find()->table('test_filter_group')->insertMulti([
+            ['id' => 1, 'user_id' => 1, 'status' => 'paid', 'amount' => 100],
+            ['id' => 2, 'user_id' => 1, 'status' => 'pending', 'amount' => 50],
+            ['id' => 3, 'user_id' => 2, 'status' => 'paid', 'amount' => 200],
+        ]);
+
+        $results = $db->find()
+            ->from('test_filter_group')
+            ->select([
+                'user_id',
+                'total_orders' => Db::count('*'),
+                'paid_orders' => Db::count('*')->filter('status', 'paid'),
+                'pending_amount' => Db::sum('amount')->filter('status', 'pending'),
+            ])
+            ->groupBy('user_id')
+            ->orderBy('user_id')
+            ->get();
+
+        $this->assertCount(2, $results);
+        $this->assertEquals(1, $results[0]['user_id']);
+        $this->assertEquals(2, $results[0]['total_orders']);
+        $this->assertEquals(1, $results[0]['paid_orders']);
+        $this->assertEquals(50, $results[0]['pending_amount']);
+    }
 }

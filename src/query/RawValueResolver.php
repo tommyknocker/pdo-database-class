@@ -12,6 +12,7 @@ use tommyknocker\pdodb\helpers\values\CurDateValue;
 use tommyknocker\pdodb\helpers\values\CurTimeValue;
 use tommyknocker\pdodb\helpers\values\DayValue;
 use tommyknocker\pdodb\helpers\values\EscapeValue;
+use tommyknocker\pdodb\helpers\values\FilterValue;
 use tommyknocker\pdodb\helpers\values\FulltextMatchValue;
 use tommyknocker\pdodb\helpers\values\GreatestValue;
 use tommyknocker\pdodb\helpers\values\HourValue;
@@ -92,6 +93,7 @@ class RawValueResolver
             $value instanceof MinuteValue => $this->dialect->formatMinute($value->getSource()),
             $value instanceof SecondValue => $this->dialect->formatSecond($value->getSource()),
             $value instanceof WindowFunctionValue => $this->resolveWindowFunctionValue($value),
+            $value instanceof FilterValue => $this->resolveFilterValue($value),
             default => $value,
         };
 
@@ -217,5 +219,74 @@ class RawValueResolver
             $value->getOrderBy(),
             $value->getFrameClause()
         );
+    }
+
+    /**
+     * Resolve FilterValue - build aggregate function with FILTER clause.
+     *
+     * @param FilterValue $value
+     *
+     * @return string
+     */
+    protected function resolveFilterValue(FilterValue $value): string
+    {
+        $aggregateFunc = $value->getAggregateFunc();
+
+        if (!$value->hasFilter()) {
+            return $aggregateFunc;
+        }
+
+        $filterConditions = $value->getFilterConditions();
+        $whereParts = [];
+
+        foreach ($filterConditions as $condition) {
+            $column = $this->dialect->quoteIdentifier($condition['column']);
+            $operator = $condition['operator'];
+            $paramKey = ':filter_' . uniqid();
+
+            $this->parameterManager->setParam($paramKey, $condition['value']);
+            $whereParts[] = "{$column} {$operator} {$paramKey}";
+        }
+
+        $whereClause = implode(' AND ', $whereParts);
+
+        // Check if database supports FILTER clause
+        if ($this->dialect->supportsFilterClause()) {
+            return "{$aggregateFunc} FILTER (WHERE {$whereClause})";
+        }
+
+        // Fallback to CASE WHEN for databases without FILTER support (MySQL)
+        return $this->buildCaseFallback($aggregateFunc, $whereClause);
+    }
+
+    /**
+     * Build CASE WHEN fallback for FILTER clause.
+     *
+     * @param string $aggregateFunc Aggregate function.
+     * @param string $whereClause WHERE condition.
+     *
+     * @return string
+     */
+    protected function buildCaseFallback(string $aggregateFunc, string $whereClause): string
+    {
+        // Extract function name and argument
+        if (preg_match('/^(\w+)\((.*)\)$/', $aggregateFunc, $matches)) {
+            $func = $matches[1];
+            $arg = $matches[2];
+
+            // For COUNT, we need to return 1 or NULL
+            if (strtoupper($func) === 'COUNT') {
+                return "{$func}(CASE WHEN {$whereClause} THEN 1 END)";
+            }
+
+            // For SUM, AVG, etc., use the original argument
+            if ($arg === '*') {
+                return "{$func}(CASE WHEN {$whereClause} THEN 1 END)";
+            }
+
+            return "{$func}(CASE WHEN {$whereClause} THEN {$arg} END)";
+        }
+
+        return $aggregateFunc;
     }
 }

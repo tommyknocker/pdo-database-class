@@ -9,9 +9,9 @@ use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\values\RawValue;
-use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
@@ -81,6 +81,15 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /** @var CteManager|null CTE manager for WITH clauses */
     protected ?CteManager $cteManager = null;
 
+    /** @var array<UnionQuery> Array of UNION/INTERSECT/EXCEPT operations */
+    protected array $unions = [];
+
+    /** @var bool Whether to use DISTINCT */
+    protected bool $distinct = false;
+
+    /** @var array<string> Columns for DISTINCT ON (PostgreSQL) */
+    protected array $distinctOn = [];
+
     protected ConditionBuilderInterface $conditionBuilder;
     protected JoinBuilderInterface $joinBuilder;
 
@@ -138,6 +147,45 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     public function setCteManager(?CteManager $cteManager): self
     {
         $this->cteManager = $cteManager;
+        return $this;
+    }
+
+    /**
+     * Set UNION operations.
+     *
+     * @param array<UnionQuery> $unions Array of union operations.
+     *
+     * @return self
+     */
+    public function setUnions(array $unions): self
+    {
+        $this->unions = $unions;
+        return $this;
+    }
+
+    /**
+     * Set DISTINCT flag.
+     *
+     * @param bool $distinct Whether to use DISTINCT.
+     *
+     * @return self
+     */
+    public function setDistinct(bool $distinct): self
+    {
+        $this->distinct = $distinct;
+        return $this;
+    }
+
+    /**
+     * Set DISTINCT ON columns.
+     *
+     * @param array<string> $columns Columns for DISTINCT ON.
+     *
+     * @return self
+     */
+    public function setDistinctOn(array $columns): self
+    {
+        $this->distinctOn = $columns;
         return $this;
     }
 
@@ -518,13 +566,13 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     {
         $sql = $this->buildSelectSql();
         $params = $this->parameterManager->getParams();
-
+        
         // Merge CTE parameters if CTE manager exists
         if ($this->cteManager && !$this->cteManager->isEmpty()) {
             $cteParams = $this->cteManager->getParams();
             $params = array_merge($cteParams, $params);
         }
-
+        
         return ['sql' => $sql, 'params' => $params];
     }
 
@@ -644,8 +692,26 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             }, $this->select));
         }
 
+        // Add DISTINCT or DISTINCT ON
+        $distinctClause = '';
+        if (!empty($this->distinctOn)) {
+            // DISTINCT ON - verify dialect support
+            if (!$this->dialect->supportsDistinctOn()) {
+                throw new RuntimeException(
+                    'DISTINCT ON is not supported by ' . get_class($this->dialect)
+                );
+            }
+            $columns = array_map(
+                fn($col) => $this->dialect->quoteIdentifier($col),
+                $this->distinctOn
+            );
+            $distinctClause = 'DISTINCT ON (' . implode(', ', $columns) . ') ';
+        } elseif ($this->distinct) {
+            $distinctClause = 'DISTINCT ';
+        }
+
         $from = $this->normalizeTable();
-        $sql .= "SELECT {$select} FROM {$from}";
+        $sql .= "SELECT {$distinctClause}{$select} FROM {$from}";
 
         if (!empty($this->joinBuilder->getJoins())) {
             $sql .= ' ' . implode(' ', $this->joinBuilder->getJoins());
@@ -659,21 +725,81 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
 
         $sql .= $this->conditionBuilder->buildConditionsClause($this->conditionBuilder->getHaving(), 'HAVING');
 
-        if (!empty($this->order)) {
-            $sql .= ' ORDER BY ' . implode(', ', $this->order);
-        }
+        // If there are UNION operations, add ORDER BY/LIMIT/OFFSET after UNION
+        if (empty($this->unions)) {
+            if (!empty($this->order)) {
+                $sql .= ' ORDER BY ' . implode(', ', $this->order);
+            }
 
-        if ($this->limit !== null) {
-            $sql .= ' LIMIT ' . (int)$this->limit;
-        }
+            if ($this->limit !== null) {
+                $sql .= ' LIMIT ' . (int)$this->limit;
+            }
 
-        if ($this->offset !== null) {
-            $sql .= ' OFFSET ' . (int)$this->offset;
-        }
+            if ($this->offset !== null) {
+                $sql .= ' OFFSET ' . (int)$this->offset;
+            }
 
-        $sql = $this->dialect->formatSelectOptions($sql, $this->options);
+            $sql = $this->dialect->formatSelectOptions($sql, $this->options);
+        } else {
+            // For UNION, format options first, then add UNION, then ORDER BY/LIMIT/OFFSET
+            $sql = $this->dialect->formatSelectOptions($sql, $this->options);
+            $sql = $this->buildUnionSql($sql);
+
+            // Add ORDER BY/LIMIT/OFFSET after UNION operations
+            if (!empty($this->order)) {
+                $sql .= ' ORDER BY ' . implode(', ', $this->order);
+            }
+
+            if ($this->limit !== null) {
+                $sql .= ' LIMIT ' . (int)$this->limit;
+            }
+
+            if ($this->offset !== null) {
+                $sql .= ' OFFSET ' . (int)$this->offset;
+            }
+        }
 
         return trim($sql);
+    }
+
+    /**
+     * Build SQL for UNION operations.
+     *
+     * @param string $baseSql Base SELECT SQL.
+     *
+     * @return string Complete SQL with UNION operations.
+     */
+    protected function buildUnionSql(string $baseSql): string
+    {
+        $sql = $baseSql;
+
+        foreach ($this->unions as $union) {
+            $query = $union->getQuery();
+            $type = $union->getType();
+
+            if ($query instanceof \Closure) {
+                $qb = new QueryBuilder($this->connection);
+                $query($qb);
+                $unionSqlData = $qb->toSQL();
+                $unionSql = $unionSqlData['sql'];
+                // Merge parameters from union query
+                foreach ($unionSqlData['params'] as $key => $value) {
+                    $this->parameterManager->setParam($key, $value);
+                }
+            } else {
+                // QueryBuilder instance
+                $unionSqlData = $query->toSQL();
+                $unionSql = $unionSqlData['sql'];
+                // Merge parameters from union query
+                foreach ($unionSqlData['params'] as $key => $value) {
+                    $this->parameterManager->setParam($key, $value);
+                }
+            }
+
+            $sql .= " {$type} {$unionSql}";
+        }
+
+        return $sql;
     }
 
     /**

@@ -360,6 +360,20 @@ interface DialectInterface
         ?string $frameClause
     ): string;
 
+    /**
+     * Check if database supports FILTER clause for aggregate functions.
+     *
+     * @return bool
+     */
+    public function supportsFilterClause(): bool;
+
+    /**
+     * Check if database supports DISTINCT ON clause.
+     *
+     * @return bool
+     */
+    public function supportsDistinctOn(): bool;
+
     /* ---------------- Original SQL helpers and dialect-specific expressions ---------------- */
 
     /**

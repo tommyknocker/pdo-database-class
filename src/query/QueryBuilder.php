@@ -63,6 +63,15 @@ class QueryBuilder implements QueryBuilderInterface
     /** @var CteManager|null CTE manager for Common Table Expressions */
     protected ?CteManager $cteManager = null;
 
+    /** @var array<UnionQuery> Array of UNION/INTERSECT/EXCEPT operations */
+    protected array $unions = [];
+
+    /** @var bool Whether to use DISTINCT */
+    protected bool $distinct = false;
+
+    /** @var array<string> Columns for DISTINCT ON (PostgreSQL) */
+    protected array $distinctOn = [];
+
     // Component instances
     protected ParameterManagerInterface $parameterManager;
     protected ExecutionEngineInterface $executionEngine;
@@ -368,6 +377,120 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
+     * Add UNION operation.
+     *
+     * @param QueryBuilder|Closure(QueryBuilder): void $query Query to union.
+     *
+     * @return self The current instance.
+     */
+    public function union(QueryBuilder|Closure $query): self
+    {
+        $this->unions[] = new UnionQuery('UNION', $query);
+        return $this;
+    }
+
+    /**
+     * Add UNION ALL operation.
+     *
+     * @param QueryBuilder|Closure(QueryBuilder): void $query Query to union.
+     *
+     * @return self The current instance.
+     */
+    public function unionAll(QueryBuilder|Closure $query): self
+    {
+        $this->unions[] = new UnionQuery('UNION ALL', $query);
+        return $this;
+    }
+
+    /**
+     * Add INTERSECT operation.
+     *
+     * @param QueryBuilder|Closure(QueryBuilder): void $query Query to intersect.
+     *
+     * @return self The current instance.
+     */
+    public function intersect(QueryBuilder|Closure $query): self
+    {
+        $this->unions[] = new UnionQuery('INTERSECT', $query);
+        return $this;
+    }
+
+    /**
+     * Add EXCEPT operation.
+     *
+     * @param QueryBuilder|Closure(QueryBuilder): void $query Query to except.
+     *
+     * @return self The current instance.
+     */
+    public function except(QueryBuilder|Closure $query): self
+    {
+        $this->unions[] = new UnionQuery('EXCEPT', $query);
+        return $this;
+    }
+
+    /**
+     * Get union operations.
+     *
+     * @return array<UnionQuery>
+     */
+    public function getUnions(): array
+    {
+        return $this->unions;
+    }
+
+    /**
+     * Enable DISTINCT for the query.
+     *
+     * @return self The current instance.
+     */
+    public function distinct(): self
+    {
+        $this->distinct = true;
+        return $this;
+    }
+
+    /**
+     * Enable DISTINCT ON for specific columns.
+     * Note: Currently supported only in PostgreSQL. Will throw exception for other databases.
+     *
+     * @param string|array<string> $columns Column(s) for DISTINCT ON.
+     *
+     * @return self The current instance.
+     * @throws RuntimeException If database does not support DISTINCT ON.
+     */
+    public function distinctOn(string|array $columns): self
+    {
+        if (!$this->dialect->supportsDistinctOn()) {
+            throw new RuntimeException(
+                'DISTINCT ON is not supported by ' . get_class($this->dialect)
+            );
+        }
+
+        $this->distinctOn = is_array($columns) ? $columns : [$columns];
+        return $this;
+    }
+
+    /**
+     * Check if DISTINCT is enabled.
+     *
+     * @return bool
+     */
+    public function isDistinct(): bool
+    {
+        return $this->distinct;
+    }
+
+    /**
+     * Get DISTINCT ON columns.
+     *
+     * @return array<string>
+     */
+    public function getDistinctOn(): array
+    {
+        return $this->distinctOn;
+    }
+
+    /**
      * Sets the prefix for table names.
      *
      * @param string $prefix The prefix for table names.
@@ -443,6 +566,21 @@ class QueryBuilder implements QueryBuilderInterface
             // Set CTE manager before building query
             if ($this->cteManager !== null) {
                 $this->selectQueryBuilder->setCteManager($this->cteManager);
+            }
+
+            // Set UNION operations
+            if (!empty($this->unions)) {
+                $this->selectQueryBuilder->setUnions($this->unions);
+            }
+
+            // Set DISTINCT
+            if ($this->distinct) {
+                $this->selectQueryBuilder->setDistinct(true);
+            }
+
+            // Set DISTINCT ON
+            if (!empty($this->distinctOn)) {
+                $this->selectQueryBuilder->setDistinctOn($this->distinctOn);
             }
 
             return $this->selectQueryBuilder->get();

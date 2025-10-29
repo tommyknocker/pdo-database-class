@@ -10,6 +10,7 @@ use tommyknocker\pdodb\query\pagination\Cursor;
 use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
 use tommyknocker\pdodb\query\pagination\PaginationResult;
 use tommyknocker\pdodb\query\pagination\SimplePaginationResult;
+use tommyknocker\pdodb\query\UnionQuery;
 
 interface SelectQueryBuilderInterface
 {
@@ -248,4 +249,31 @@ interface SelectQueryBuilderInterface
      * @return self
      */
     public function setCteManager(?CteManager $cteManager): self;
+
+    /**
+     * Set UNION operations.
+     *
+     * @param array<UnionQuery> $unions
+     *
+     * @return self
+     */
+    public function setUnions(array $unions): self;
+
+    /**
+     * Set DISTINCT flag.
+     *
+     * @param bool $distinct
+     *
+     * @return self
+     */
+    public function setDistinct(bool $distinct): self;
+
+    /**
+     * Set DISTINCT ON columns.
+     *
+     * @param array<string> $columns
+     *
+     * @return self
+     */
+    public function setDistinctOn(array $columns): self;
 }
