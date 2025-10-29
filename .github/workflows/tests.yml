@@ -53,7 +53,7 @@ jobs:
           DB_PASS="testpass" \
           vendor/bin/phpunit tests/PdoDbMySQLTest.php --coverage-clover coverage-mysql.xml
       - name: Test MySQL Examples
-        run: ./scripts/test-examples.sh
+        run: ./scripts/test-examples.sh --verbose
       - name: Upload MySQL coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -98,7 +98,7 @@ jobs:
           DB_PASS="testpass" \
           vendor/bin/phpunit tests/PdoDbPostgreSQLTest.php --coverage-clover coverage-postgres.xml
       - name: Test PostgreSQL Examples
-        run: ./scripts/test-examples.sh
+        run: ./scripts/test-examples.sh --verbose
       - name: Upload PostgreSQL coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -122,7 +122,7 @@ jobs:
           DB_DSN="sqlite::memory:" \
           vendor/bin/phpunit tests/PdoDbSqliteTest.php --coverage-clover coverage-sqlite.xml
       - name: Test SQLite Examples
-        run: ./scripts/test-examples.sh
+        run: ./scripts/test-examples.sh  --verbose
       - name: Upload SQLite coverage to Codecov
         uses: codecov/codecov-action@v4
         with:

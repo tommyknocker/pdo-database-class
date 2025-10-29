@@ -145,7 +145,25 @@ if ($driver === 'pgsql') {
         ->orderBy('level')
         ->orderBy('name')
         ->get();
+} elseif ($driver === 'mysql') {
+    // MySQL uses CONCAT() instead of || operator
+    $results = $pdoDb->find()
+        ->withRecursive('emp_hierarchy', Db::raw('
+            SELECT id, name, manager_id, salary, 0 as level, name as path
+            FROM employees_hierarchy
+            WHERE manager_id IS NULL
+            UNION ALL
+            SELECT e.id, e.name, e.manager_id, e.salary, eh.level + 1,
+                   CONCAT(eh.path, \' -> \', e.name) as path
+            FROM employees_hierarchy e
+            INNER JOIN emp_hierarchy eh ON e.manager_id = eh.id
+        '), ['id', 'name', 'manager_id', 'salary', 'level', 'path'])
+        ->from('emp_hierarchy')
+        ->orderBy('level')
+        ->orderBy('name')
+        ->get();
 } else {
+    // SQLite uses || operator
     $results = $pdoDb->find()
         ->withRecursive('emp_hierarchy', Db::raw('
             SELECT id, name, manager_id, salary, 0 as level, name as path
