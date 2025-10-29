@@ -17,6 +17,7 @@ use tommyknocker\pdodb\helpers\traits\NullHelpersTrait;
 use tommyknocker\pdodb\helpers\traits\NumericHelpersTrait;
 use tommyknocker\pdodb\helpers\traits\StringHelpersTrait;
 use tommyknocker\pdodb\helpers\traits\TypeHelpersTrait;
+use tommyknocker\pdodb\helpers\traits\WindowHelpersTrait;
 
 /**
  * Database helpers facade - delegates to specialized helper traits.
@@ -36,4 +37,5 @@ class Db
     use NumericHelpersTrait;
     use StringHelpersTrait;
     use TypeHelpersTrait;
+    use WindowHelpersTrait;
 }

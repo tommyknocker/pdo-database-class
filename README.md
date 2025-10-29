@@ -16,6 +16,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Cross-Database Compatibility** - Automatic SQL dialect handling (MySQL, PostgreSQL, SQLite)
 - **Query Caching** - PSR-16 integration for result caching (10-1000x faster queries)
 - **Read/Write Splitting** - Horizontal scaling with master-replica architecture and load balancing
+- **Window Functions** - Advanced analytics with ROW_NUMBER, RANK, LAG, LEAD, running totals, moving averages
 - **Full-Text Search** - Cross-database FTS with unified API (MySQL FULLTEXT, PostgreSQL tsvector, SQLite FTS5)
 - **Schema Introspection** - Query indexes, foreign keys, and constraints programmatically
 - **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
@@ -27,7 +28,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Connection Retry** - Automatic retry with exponential backoff
 - **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more
-- **Fully Tested** - 533 tests, 2397 assertions across all dialects
+- **Fully Tested** - 541 tests, 2469 assertions across all dialects
 - **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
 
 Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class)
@@ -47,6 +48,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - [SQLite Configuration](#sqlite-configuration)
   - [Connection Pooling](#connection-pooling)
   - [Read/Write Splitting](#readwrite-splitting)
+  - [Window Functions](#window-functions)
 - [Quick Start](#quick-start)
   - [Basic CRUD Operations](#basic-crud-operations)
   - [Filtering and Joining](#filtering-and-joining)
@@ -393,6 +395,107 @@ See:
 - [Example: Basic Setup](examples/15-read-write-splitting/01-basic-setup.php)
 - [Example: Sticky Writes](examples/15-read-write-splitting/02-sticky-writes.php)
 - [Example: Load Balancers](examples/15-read-write-splitting/03-load-balancers.php)
+
+### Window Functions
+
+Perform advanced analytics with window functions (MySQL 8.0+, PostgreSQL 9.4+, SQLite 3.25+):
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// ROW_NUMBER - Sequential numbering within partitions
+$results = $db->find()
+    ->from('sales')
+    ->select([
+        'product',
+        'region',
+        'amount',
+        'row_num' => Db::rowNumber()
+            ->partitionBy('region')
+            ->orderBy('amount', 'DESC')
+    ])
+    ->get();
+
+// RANK - Ranking with gaps for ties
+$results = $db->find()
+    ->from('students')
+    ->select([
+        'name',
+        'score',
+        'student_rank' => Db::rank()->orderBy('score', 'DESC')
+    ])
+    ->get();
+
+// LAG/LEAD - Access previous/next row data
+$results = $db->find()
+    ->from('monthly_sales')
+    ->select([
+        'month',
+        'revenue',
+        'prev_month' => Db::lag('revenue', 1, 0)->orderBy('month'),
+        'next_month' => Db::lead('revenue', 1, 0)->orderBy('month')
+    ])
+    ->get();
+
+// Running totals
+$results = $db->find()
+    ->from('transactions')
+    ->select([
+        'date',
+        'amount',
+        'running_total' => Db::windowAggregate('SUM', 'amount')
+            ->orderBy('date')
+            ->rows('ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW')
+    ])
+    ->get();
+
+// Moving averages (7-day)
+$results = $db->find()
+    ->from('metrics')
+    ->select([
+        'date',
+        'value',
+        'moving_avg_7' => Db::windowAggregate('AVG', 'value')
+            ->orderBy('date')
+            ->rows('ROWS BETWEEN 6 PRECEDING AND CURRENT ROW')
+    ])
+    ->get();
+
+// NTILE - Divide into quartiles
+$results = $db->find()
+    ->from('products')
+    ->select([
+        'name',
+        'price',
+        'quartile' => Db::ntile(4)->orderBy('price')
+    ])
+    ->get();
+```
+
+**Available Functions:**
+- `Db::rowNumber()` - Sequential numbering
+- `Db::rank()` - Ranking with gaps
+- `Db::denseRank()` - Ranking without gaps
+- `Db::ntile(n)` - Divide into n buckets
+- `Db::lag()` - Access previous row
+- `Db::lead()` - Access next row
+- `Db::firstValue()` - First value in window
+- `Db::lastValue()` - Last value in window
+- `Db::nthValue(n)` - Nth value in window
+- `Db::windowAggregate(func, col)` - Aggregate functions (SUM, AVG, MIN, MAX, COUNT)
+
+**Common Use Cases:**
+- Rankings and leaderboards
+- Running totals and balances
+- Moving averages and smoothing
+- Period-over-period comparisons (MoM, YoY)
+- Percentile and quartile analysis
+- Gap detection and trend analysis
+
+See:
+- [Documentation: Window Functions](documentation/03-query-builder/window-functions.md)
+- [Documentation: Window Helpers](documentation/07-helper-functions/window-helpers.md)
+- [Example: Complete Demo](examples/16-window-functions/01-window-functions.php)
 
 ---
 

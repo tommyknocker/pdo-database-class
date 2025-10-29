@@ -196,7 +196,7 @@ class QueryBuilder implements QueryBuilderInterface
         }
 
         $originalConnection = $this->connection;
-        
+
         // Get appropriate connection based on forceWrite flag
         if ($this->forceWriteConnection) {
             $this->connection = $this->connectionRouter->getWriteConnection();
@@ -207,7 +207,7 @@ class QueryBuilder implements QueryBuilderInterface
 
         // Update components with new connection
         $this->updateComponents();
-        
+
         return $originalConnection;
     }
 
@@ -227,7 +227,7 @@ class QueryBuilder implements QueryBuilderInterface
 
         // Update components with new connection
         $this->updateComponents();
-        
+
         return $originalConnection;
     }
 
@@ -246,7 +246,7 @@ class QueryBuilder implements QueryBuilderInterface
 
     /**
      * Update all components with current connection.
-     * 
+     *
      * Note: This method minimally updates components to preserve state.
      * We only update the execution engine which directly uses the connection.
      */
@@ -254,11 +254,11 @@ class QueryBuilder implements QueryBuilderInterface
     {
         $this->dialect = $this->connection->getDialect();
         $rawValueResolver = new RawValueResolver($this->connection, $this->parameterManager);
-        
+
         // Only update execution engine to use new connection
         // Keep other components (conditionBuilder, etc.) to preserve their state
         $this->executionEngine = new ExecutionEngine($this->connection, $rawValueResolver, $this->parameterManager);
-        
+
         // Update execution engine reference in condition builder
         // This is done via property access if the builder supports it
     }
@@ -345,7 +345,7 @@ class QueryBuilder implements QueryBuilderInterface
     public function get(): array
     {
         $originalConnection = $this->switchToReadConnection();
-        
+
         try {
             // Integrate JSON selections before executing query
             $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
@@ -381,7 +381,7 @@ class QueryBuilder implements QueryBuilderInterface
     public function getOne(): mixed
     {
         $originalConnection = $this->switchToReadConnection();
-        
+
         try {
             // Integrate JSON selections before executing query
             $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
@@ -417,7 +417,7 @@ class QueryBuilder implements QueryBuilderInterface
     public function getColumn(): array
     {
         $originalConnection = $this->switchToReadConnection();
-        
+
         try {
             // Integrate JSON selections before executing query
             $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
@@ -453,7 +453,7 @@ class QueryBuilder implements QueryBuilderInterface
     public function getValue(): mixed
     {
         $originalConnection = $this->switchToReadConnection();
-        
+
         try {
             // Integrate JSON selections before executing query
             $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
@@ -493,7 +493,7 @@ class QueryBuilder implements QueryBuilderInterface
     public function insert(array $data, array $onDuplicate = []): int
     {
         $originalConnection = $this->switchToWriteConnection();
-        
+
         try {
             return $this->dmlQueryBuilder->insert($data, $onDuplicate);
         } finally {
@@ -512,7 +512,7 @@ class QueryBuilder implements QueryBuilderInterface
     public function insertMulti(array $rows, array $onDuplicate = []): int
     {
         $originalConnection = $this->switchToWriteConnection();
-        
+
         try {
             return $this->dmlQueryBuilder->insertMulti($rows, $onDuplicate);
         } finally {
@@ -531,7 +531,7 @@ class QueryBuilder implements QueryBuilderInterface
     public function replace(array $data, array $onDuplicate = []): int
     {
         $originalConnection = $this->switchToWriteConnection();
-        
+
         try {
             return $this->dmlQueryBuilder->replace($data, $onDuplicate);
         } finally {
@@ -550,7 +550,7 @@ class QueryBuilder implements QueryBuilderInterface
     public function replaceMulti(array $rows, array $onDuplicate = []): int
     {
         $originalConnection = $this->switchToWriteConnection();
-        
+
         try {
             return $this->dmlQueryBuilder->replaceMulti($rows, $onDuplicate);
         } finally {
@@ -569,7 +569,7 @@ class QueryBuilder implements QueryBuilderInterface
     public function update(array $data): int
     {
         $originalConnection = $this->switchToWriteConnection();
-        
+
         try {
             return $this->dmlQueryBuilder->update($data);
         } finally {
@@ -586,7 +586,7 @@ class QueryBuilder implements QueryBuilderInterface
     public function delete(): int
     {
         $originalConnection = $this->switchToWriteConnection();
-        
+
         try {
             return $this->dmlQueryBuilder->delete();
         } finally {

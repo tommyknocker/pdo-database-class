@@ -32,6 +32,7 @@ use tommyknocker\pdodb\helpers\values\NowValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\helpers\values\SecondValue;
 use tommyknocker\pdodb\helpers\values\SubstringValue;
+use tommyknocker\pdodb\helpers\values\WindowFunctionValue;
 use tommyknocker\pdodb\helpers\values\YearValue;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
 
@@ -90,6 +91,7 @@ class RawValueResolver
             $value instanceof HourValue => $this->dialect->formatHour($value->getSource()),
             $value instanceof MinuteValue => $this->dialect->formatMinute($value->getSource()),
             $value instanceof SecondValue => $this->dialect->formatSecond($value->getSource()),
+            $value instanceof WindowFunctionValue => $this->resolveWindowFunctionValue($value),
             default => $value,
         };
 
@@ -197,5 +199,23 @@ class RawValueResolver
         }
 
         return $res;
+    }
+
+    /**
+     * Resolve WindowFunctionValue - build window function expression.
+     *
+     * @param WindowFunctionValue $value
+     *
+     * @return string
+     */
+    protected function resolveWindowFunctionValue(WindowFunctionValue $value): string
+    {
+        return $this->dialect->formatWindowFunction(
+            $value->getFunction(),
+            $value->getArgs(),
+            $value->getPartitionBy(),
+            $value->getOrderBy(),
+            $value->getFrameClause()
+        );
     }
 }

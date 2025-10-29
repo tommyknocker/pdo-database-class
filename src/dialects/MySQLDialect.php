@@ -684,6 +684,67 @@ class MySQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatWindowFunction(
+        string $function,
+        array $args,
+        array $partitionBy,
+        array $orderBy,
+        ?string $frameClause
+    ): string {
+        $sql = strtoupper($function) . '(';
+
+        // Add function arguments
+        if (!empty($args)) {
+            $formattedArgs = array_map(function ($arg) {
+                if (is_string($arg) && !is_numeric($arg)) {
+                    return $this->quoteIdentifier($arg);
+                }
+                if (is_null($arg)) {
+                    return 'NULL';
+                }
+                return (string)$arg;
+            }, $args);
+            $sql .= implode(', ', $formattedArgs);
+        }
+
+        $sql .= ') OVER (';
+
+        // Add PARTITION BY
+        if (!empty($partitionBy)) {
+            $quotedPartitions = array_map(
+                fn ($col) => $this->quoteIdentifier($col),
+                $partitionBy
+            );
+            $sql .= 'PARTITION BY ' . implode(', ', $quotedPartitions);
+        }
+
+        // Add ORDER BY
+        if (!empty($orderBy)) {
+            if (!empty($partitionBy)) {
+                $sql .= ' ';
+            }
+            $orderClauses = [];
+            foreach ($orderBy as $order) {
+                foreach ($order as $col => $dir) {
+                    $orderClauses[] = $this->quoteIdentifier($col) . ' ' . strtoupper($dir);
+                }
+            }
+            $sql .= 'ORDER BY ' . implode(', ', $orderClauses);
+        }
+
+        // Add frame clause
+        if ($frameClause !== null) {
+            $sql .= ' ' . $frameClause;
+        }
+
+        $sql .= ')';
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildShowIndexesSql(string $table): string
     {
         return "SHOW INDEXES FROM {$this->quoteTable($table)}";

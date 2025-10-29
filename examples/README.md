@@ -115,6 +115,21 @@ Horizontal database scaling with master-replica architecture.
 - **[02-sticky-writes.php](15-read-write-splitting/02-sticky-writes.php)** - Read-after-write consistency
 - **[03-load-balancers.php](15-read-write-splitting/03-load-balancers.php)** - Load balancing strategies
 
+### 16. Window Functions
+Advanced analytics with window functions (MySQL 8.0+, PostgreSQL 9.4+, SQLite 3.25+).
+
+- **[01-window-functions.php](16-window-functions/01-window-functions.php)** - Complete window functions demo:
+  - **ROW_NUMBER()** - Sequential numbering within partitions
+  - **RANK()** - Ranking with gaps for ties
+  - **DENSE_RANK()** - Ranking without gaps
+  - **LAG()** - Access previous row data
+  - **LEAD()** - Access next row data
+  - **Running totals** - Cumulative sums
+  - **Moving averages** - Rolling statistics
+  - **FIRST_VALUE() / LAST_VALUE()** - First and last values in window
+  - **NTILE()** - Divide into buckets/quartiles
+  - **Multiple window functions** - Combining window functions
+
 ## 💡 Tips
 
 - All examples are self-contained and runnable

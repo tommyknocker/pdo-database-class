@@ -3313,15 +3313,13 @@ class SharedCoverageTest extends TestCase
     public function testConnectionRouterHealthCheck(): void
     {
         $db = new PdoDb();
-        $db->addConnection('test', ['driver' => 'sqlite', 'path' => ':memory:']);
+        $db->enableReadWriteSplitting();
+        $db->addConnection('test', ['driver' => 'sqlite', 'path' => ':memory:', 'type' => 'write']);
         $db->connection('test');
 
         $router = $db->getConnectionRouter();
-        if ($router) {
-            $this->assertTrue($router->healthCheck($db->connection));
-        } else {
-            $this->markTestSkipped('Router not available');
-        }
+        $this->assertNotNull($router);
+        $this->assertTrue($router->healthCheck($db->connection));
     }
 
     public function testTransactionStateUpdateInRouter(): void
@@ -3431,5 +3429,233 @@ class SharedCoverageTest extends TestCase
 
         $this->assertEquals('read', $readType->value);
         $this->assertEquals('write', $writeType->value);
+    }
+
+    /* ---------------- Window Functions Tests ---------------- */
+
+    public function testWindowFunctionRowNumber(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_window (id INTEGER PRIMARY KEY, category TEXT, value INTEGER)');
+        $db->find()->table('test_window')->insertMulti([
+            ['id' => 1, 'category' => 'A', 'value' => 100],
+            ['id' => 2, 'category' => 'A', 'value' => 200],
+            ['id' => 3, 'category' => 'B', 'value' => 150],
+            ['id' => 4, 'category' => 'B', 'value' => 250],
+        ]);
+
+        $results = $db->find()
+            ->from('test_window')
+            ->select([
+                'id',
+                'category',
+                'value',
+                'row_num' => Db::rowNumber()->partitionBy('category')->orderBy('value', 'ASC'),
+            ])
+            ->orderBy('category')
+            ->orderBy('value')
+            ->get();
+
+        $this->assertCount(4, $results);
+        $this->assertEquals(1, $results[0]['row_num']);
+        $this->assertEquals(2, $results[1]['row_num']);
+        $this->assertEquals(1, $results[2]['row_num']);
+        $this->assertEquals(2, $results[3]['row_num']);
+    }
+
+    public function testWindowFunctionRank(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_rank (id INTEGER PRIMARY KEY, score INTEGER)');
+        $db->find()->table('test_rank')->insertMulti([
+            ['id' => 1, 'score' => 100],
+            ['id' => 2, 'score' => 100],
+            ['id' => 3, 'score' => 90],
+            ['id' => 4, 'score' => 80],
+        ]);
+
+        $results = $db->find()
+            ->from('test_rank')
+            ->select([
+                'id',
+                'score',
+                'rank' => Db::rank()->orderBy('score', 'DESC'),
+            ])
+            ->orderBy('score', 'DESC')
+            ->get();
+
+        $this->assertCount(4, $results);
+        $this->assertEquals(1, $results[0]['rank']);
+        $this->assertEquals(1, $results[1]['rank']); // Same rank for tie
+        $this->assertEquals(3, $results[2]['rank']); // Gap after tie
+        $this->assertEquals(4, $results[3]['rank']);
+    }
+
+    public function testWindowFunctionDenseRank(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_dense_rank (id INTEGER PRIMARY KEY, score INTEGER)');
+        $db->find()->table('test_dense_rank')->insertMulti([
+            ['id' => 1, 'score' => 100],
+            ['id' => 2, 'score' => 100],
+            ['id' => 3, 'score' => 90],
+            ['id' => 4, 'score' => 80],
+        ]);
+
+        $results = $db->find()
+            ->from('test_dense_rank')
+            ->select([
+                'id',
+                'score',
+                'dense_rank' => Db::denseRank()->orderBy('score', 'DESC'),
+            ])
+            ->orderBy('score', 'DESC')
+            ->get();
+
+        $this->assertCount(4, $results);
+        $this->assertEquals(1, $results[0]['dense_rank']);
+        $this->assertEquals(1, $results[1]['dense_rank']); // Same rank for tie
+        $this->assertEquals(2, $results[2]['dense_rank']); // No gap
+        $this->assertEquals(3, $results[3]['dense_rank']);
+    }
+
+    public function testWindowFunctionLag(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_lag (id INTEGER PRIMARY KEY, value INTEGER)');
+        $db->find()->table('test_lag')->insertMulti([
+            ['id' => 1, 'value' => 10],
+            ['id' => 2, 'value' => 20],
+            ['id' => 3, 'value' => 30],
+        ]);
+
+        $results = $db->find()
+            ->from('test_lag')
+            ->select([
+                'id',
+                'value',
+                'prev_value' => Db::lag('value', 1, 0)->orderBy('id'),
+            ])
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(3, $results);
+        $this->assertEquals(0, $results[0]['prev_value']); // Default value for first row
+        $this->assertEquals(10, $results[1]['prev_value']);
+        $this->assertEquals(20, $results[2]['prev_value']);
+    }
+
+    public function testWindowFunctionLead(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_lead (id INTEGER PRIMARY KEY, value INTEGER)');
+        $db->find()->table('test_lead')->insertMulti([
+            ['id' => 1, 'value' => 10],
+            ['id' => 2, 'value' => 20],
+            ['id' => 3, 'value' => 30],
+        ]);
+
+        $results = $db->find()
+            ->from('test_lead')
+            ->select([
+                'id',
+                'value',
+                'next_value' => Db::lead('value', 1, 0)->orderBy('id'),
+            ])
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(3, $results);
+        $this->assertEquals(20, $results[0]['next_value']);
+        $this->assertEquals(30, $results[1]['next_value']);
+        $this->assertEquals(0, $results[2]['next_value']); // Default value for last row
+    }
+
+    public function testWindowFunctionRunningTotal(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_running_total (id INTEGER PRIMARY KEY, amount INTEGER)');
+        $db->find()->table('test_running_total')->insertMulti([
+            ['id' => 1, 'amount' => 100],
+            ['id' => 2, 'amount' => 200],
+            ['id' => 3, 'amount' => 150],
+        ]);
+
+        $results = $db->find()
+            ->from('test_running_total')
+            ->select([
+                'id',
+                'amount',
+                'running_total' => Db::windowAggregate('SUM', 'amount')
+                    ->orderBy('id')
+                    ->rows('ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW'),
+            ])
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(3, $results);
+        $this->assertEquals(100, $results[0]['running_total']);
+        $this->assertEquals(300, $results[1]['running_total']);
+        $this->assertEquals(450, $results[2]['running_total']);
+    }
+
+    public function testWindowFunctionMultiplePartitions(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_multi_part (id INTEGER PRIMARY KEY, dept TEXT, team TEXT, salary INTEGER)');
+        $db->find()->table('test_multi_part')->insertMulti([
+            ['id' => 1, 'dept' => 'IT', 'team' => 'Backend', 'salary' => 5000],
+            ['id' => 2, 'dept' => 'IT', 'team' => 'Backend', 'salary' => 6000],
+            ['id' => 3, 'dept' => 'IT', 'team' => 'Frontend', 'salary' => 5500],
+        ]);
+
+        $results = $db->find()
+            ->from('test_multi_part')
+            ->select([
+                'id',
+                'dept',
+                'team',
+                'salary',
+                'rank_in_team' => Db::rank()->partitionBy(['dept', 'team'])->orderBy('salary', 'DESC'),
+            ])
+            ->orderBy('dept')
+            ->orderBy('team')
+            ->orderBy('salary', 'DESC')
+            ->get();
+
+        $this->assertCount(3, $results);
+        $this->assertEquals(1, $results[0]['rank_in_team']);
+        $this->assertEquals(2, $results[1]['rank_in_team']);
+        $this->assertEquals(1, $results[2]['rank_in_team']);
+    }
+
+    public function testWindowFunctionFirstAndLastValue(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_first_last (id INTEGER PRIMARY KEY, value INTEGER)');
+        $db->find()->table('test_first_last')->insertMulti([
+            ['id' => 1, 'value' => 10],
+            ['id' => 2, 'value' => 20],
+            ['id' => 3, 'value' => 30],
+        ]);
+
+        $results = $db->find()
+            ->from('test_first_last')
+            ->select([
+                'id',
+                'value',
+                'first_val' => Db::firstValue('value')->orderBy('id'),
+                'last_val' => Db::lastValue('value')
+                    ->orderBy('id')
+                    ->rows('ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING'),
+            ])
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(3, $results);
+        $this->assertEquals(10, $results[0]['first_val']);
+        $this->assertEquals(30, $results[0]['last_val']);
+        $this->assertEquals(10, $results[2]['first_val']);
+        $this->assertEquals(30, $results[2]['last_val']);
     }
 }

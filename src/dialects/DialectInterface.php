@@ -341,6 +341,25 @@ interface DialectInterface
      */
     public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string;
 
+    /**
+     * Format window function expression.
+     *
+     * @param string $function Window function name (ROW_NUMBER, RANK, etc.).
+     * @param array<mixed> $args Function arguments (for LAG, LEAD, etc.).
+     * @param array<string> $partitionBy PARTITION BY columns.
+     * @param array<array<string, string>> $orderBy ORDER BY expressions.
+     * @param string|null $frameClause Frame clause (ROWS BETWEEN, RANGE BETWEEN).
+     *
+     * @return string Formatted window function SQL.
+     */
+    public function formatWindowFunction(
+        string $function,
+        array $args,
+        array $partitionBy,
+        array $orderBy,
+        ?string $frameClause
+    ): string;
+
     /* ---------------- Original SQL helpers and dialect-specific expressions ---------------- */
 
     /**
