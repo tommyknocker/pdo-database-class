@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers\traits;
 
-use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\helpers\values\FilterValue;
+use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
  * Trait for aggregate operations.

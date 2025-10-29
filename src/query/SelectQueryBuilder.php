@@ -9,9 +9,9 @@ use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionInterface;
-use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
@@ -566,13 +566,13 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     {
         $sql = $this->buildSelectSql();
         $params = $this->parameterManager->getParams();
-        
+
         // Merge CTE parameters if CTE manager exists
         if ($this->cteManager && !$this->cteManager->isEmpty()) {
             $cteParams = $this->cteManager->getParams();
             $params = array_merge($cteParams, $params);
         }
-        
+
         return ['sql' => $sql, 'params' => $params];
     }
 
@@ -702,7 +702,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 );
             }
             $columns = array_map(
-                fn($col) => $this->dialect->quoteIdentifier($col),
+                fn ($col) => $this->dialect->quoteIdentifier($col),
                 $this->distinctOn
             );
             $distinctClause = 'DISTINCT ON (' . implode(', ', $columns) . ') ';

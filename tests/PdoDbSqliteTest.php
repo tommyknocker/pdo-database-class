@@ -4073,4 +4073,16 @@ XML
         $fulltext = Db::fulltextMatch('title, content', 'search term', 'natural');
         $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\FulltextMatchValue::class, $fulltext);
     }
+
+    // Edge case: DISTINCT ON not supported on SQLite
+    public function testDistinctOnThrowsExceptionOnSQLite(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('DISTINCT ON is not supported');
+
+        self::$db->find()
+            ->from('test_users')
+            ->distinctOn('email')
+            ->get();
+    }
 }

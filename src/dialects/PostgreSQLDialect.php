@@ -795,7 +795,7 @@ class PostgreSQLDialect extends DialectAbstract
         // Add PARTITION BY
         if (!empty($partitionBy)) {
             $quotedPartitions = array_map(
-                fn($col) => $this->quoteIdentifier($col),
+                fn ($col) => $this->quoteIdentifier($col),
                 $partitionBy
             );
             $sql .= 'PARTITION BY ' . implode(', ', $quotedPartitions);

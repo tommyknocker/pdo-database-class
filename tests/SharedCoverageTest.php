@@ -4050,4 +4050,353 @@ class SharedCoverageTest extends TestCase
         $this->assertEquals(1, $results[0]['paid_orders']);
         $this->assertEquals(50, $results[0]['pending_amount']);
     }
+
+    /* ---------------- Edge Case Tests ---------------- */
+
+    // CTE Edge Cases
+    public function testCteWithEmptyResult(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_cte_empty (id INTEGER PRIMARY KEY, value INTEGER)');
+
+        $results = $db->find()
+            ->with('empty_cte', function ($qb) {
+                $qb->from('test_cte_empty')->select(['id', 'value'])->where('id', -999);
+            })
+            ->from('empty_cte')
+            ->get();
+
+        $this->assertCount(0, $results);
+    }
+
+    public function testCteWithNullValues(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_cte_nulls (id INTEGER PRIMARY KEY, value INTEGER)');
+        $db->find()->table('test_cte_nulls')->insertMulti([
+            ['id' => 1, 'value' => 100],
+            ['id' => 2, 'value' => null],
+            ['id' => 3, 'value' => 300],
+        ]);
+
+        $results = $db->find()
+            ->with('null_cte', function ($qb) {
+                $qb->from('test_cte_nulls')->select(['id', 'value']);
+            })
+            ->from('null_cte')
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(3, $results);
+        $this->assertNull($results[1]['value']);
+    }
+
+    public function testRecursiveCteWithComplexData(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_recursive_complex (id INTEGER PRIMARY KEY, parent_id INTEGER, value INTEGER)');
+        $db->find()->table('test_recursive_complex')->insertMulti([
+            ['id' => 1, 'parent_id' => null, 'value' => 100],
+            ['id' => 2, 'parent_id' => 1, 'value' => 200],
+            ['id' => 3, 'parent_id' => 1, 'value' => 300],
+        ]);
+
+        // Simple recursive CTE
+        $results = $db->find()
+            ->withRecursive('tree', function ($qb) {
+                $qb->from('test_recursive_complex')
+                    ->select(['id', 'parent_id', 'value'])
+                    ->where('parent_id', null)
+                    ->unionAll(function ($union) {
+                        $union->from('test_recursive_complex')
+                            ->join('tree', 'test_recursive_complex.parent_id = tree.id')
+                            ->select(['test_recursive_complex.id', 'test_recursive_complex.parent_id', 'test_recursive_complex.value']);
+                    });
+            })
+            ->from('tree')
+            ->orderBy('id')
+            ->get();
+
+        $this->assertGreaterThanOrEqual(1, count($results)); // At least root
+        $this->assertLessThanOrEqual(3, count($results)); // At most all 3
+    }
+
+    // UNION Edge Cases
+    public function testUnionWithEmptyResults(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_union_empty1 (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->rawQuery('CREATE TABLE test_union_empty2 (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->find()->table('test_union_empty1')->insertMulti([
+            ['id' => 1, 'value' => 'A'],
+        ]);
+        // test_union_empty2 is empty
+
+        $results = $db->find()
+            ->from('test_union_empty1')
+            ->select(['value'])
+            ->union(function ($qb) {
+                $qb->from('test_union_empty2')->select(['value']);
+            })
+            ->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals('A', $results[0]['value']);
+    }
+
+    public function testUnionAllEmptyTables(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_union_all_empty1 (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->rawQuery('CREATE TABLE test_union_all_empty2 (id INTEGER PRIMARY KEY, value TEXT)');
+
+        $results = $db->find()
+            ->from('test_union_all_empty1')
+            ->select(['value'])
+            ->union(function ($qb) {
+                $qb->from('test_union_all_empty2')->select(['value']);
+            })
+            ->get();
+
+        $this->assertCount(0, $results);
+    }
+
+    public function testUnionWithNulls(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_union_nulls1 (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->rawQuery('CREATE TABLE test_union_nulls2 (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->find()->table('test_union_nulls1')->insertMulti([
+            ['id' => 1, 'value' => 'A'],
+            ['id' => 2, 'value' => null],
+        ]);
+        $db->find()->table('test_union_nulls2')->insertMulti([
+            ['id' => 3, 'value' => null],
+            ['id' => 4, 'value' => 'B'],
+        ]);
+
+        $results = $db->find()
+            ->from('test_union_nulls1')
+            ->select(['value'])
+            ->unionAll(function ($qb) {
+                $qb->from('test_union_nulls2')->select(['value']);
+            })
+            ->get();
+
+        $this->assertCount(4, $results);
+        $nullCount = count(array_filter($results, fn ($r) => $r['value'] === null));
+        $this->assertEquals(2, $nullCount);
+    }
+
+    public function testIntersectWithNoCommonValues(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_intersect_none1 (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->rawQuery('CREATE TABLE test_intersect_none2 (id INTEGER PRIMARY KEY, value TEXT)');
+        $db->find()->table('test_intersect_none1')->insertMulti([
+            ['id' => 1, 'value' => 'A'],
+        ]);
+        $db->find()->table('test_intersect_none2')->insertMulti([
+            ['id' => 2, 'value' => 'B'],
+        ]);
+
+        $results = $db->find()
+            ->from('test_intersect_none1')
+            ->select(['value'])
+            ->intersect(function ($qb) {
+                $qb->from('test_intersect_none2')->select(['value']);
+            })
+            ->get();
+
+        $this->assertCount(0, $results);
+    }
+
+    // FILTER Edge Cases
+    public function testFilterWithNoMatches(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_filter_nomatch (id INTEGER PRIMARY KEY, status TEXT, amount INTEGER)');
+        $db->find()->table('test_filter_nomatch')->insertMulti([
+            ['id' => 1, 'status' => 'pending', 'amount' => 100],
+            ['id' => 2, 'status' => 'pending', 'amount' => 200],
+        ]);
+
+        $results = $db->find()
+            ->from('test_filter_nomatch')
+            ->select([
+                'total' => Db::count('*'),
+                'paid' => Db::count('*')->filter('status', 'paid'),
+                'paid_sum' => Db::sum('amount')->filter('status', 'paid'),
+            ])
+            ->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals(2, $results[0]['total']);
+        $this->assertEquals(0, $results[0]['paid']);
+        $this->assertNull($results[0]['paid_sum']); // SUM of empty set is NULL
+    }
+
+    public function testFilterWithAllNulls(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_filter_allnulls (id INTEGER PRIMARY KEY, status TEXT, amount INTEGER)');
+        $db->find()->table('test_filter_allnulls')->insertMulti([
+            ['id' => 1, 'status' => 'paid', 'amount' => null],
+            ['id' => 2, 'status' => 'paid', 'amount' => null],
+        ]);
+
+        $results = $db->find()
+            ->from('test_filter_allnulls')
+            ->select([
+                'count_paid' => Db::count('*')->filter('status', 'paid'),
+                'sum_paid' => Db::sum('amount')->filter('status', 'paid'),
+                'avg_paid' => Db::avg('amount')->filter('status', 'paid'),
+            ])
+            ->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals(2, $results[0]['count_paid']);
+        $this->assertNull($results[0]['sum_paid']); // SUM of NULLs is NULL
+        $this->assertNull($results[0]['avg_paid']); // AVG of NULLs is NULL
+    }
+
+    public function testFilterOnEmptyTable(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_filter_empty (id INTEGER PRIMARY KEY, status TEXT, amount INTEGER)');
+
+        $results = $db->find()
+            ->from('test_filter_empty')
+            ->select([
+                'total' => Db::count('*'),
+                'paid' => Db::count('*')->filter('status', 'paid'),
+            ])
+            ->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals(0, $results[0]['total']);
+        $this->assertEquals(0, $results[0]['paid']);
+    }
+
+    // DISTINCT Edge Cases
+    public function testDistinctOnEmptyTable(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_distinct_empty (id INTEGER PRIMARY KEY, category TEXT)');
+
+        $results = $db->find()
+            ->from('test_distinct_empty')
+            ->select(['category'])
+            ->distinct()
+            ->get();
+
+        $this->assertCount(0, $results);
+    }
+
+    public function testDistinctWithAllNulls(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_distinct_nulls (id INTEGER PRIMARY KEY, category TEXT)');
+        $db->find()->table('test_distinct_nulls')->insertMulti([
+            ['id' => 1, 'category' => null],
+            ['id' => 2, 'category' => null],
+            ['id' => 3, 'category' => null],
+        ]);
+
+        $results = $db->find()
+            ->from('test_distinct_nulls')
+            ->select(['category'])
+            ->distinct()
+            ->get();
+
+        $this->assertCount(1, $results); // DISTINCT treats NULLs as one unique value
+        $this->assertNull($results[0]['category']);
+    }
+
+    public function testDistinctWithMixedNulls(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_distinct_mixed (id INTEGER PRIMARY KEY, category TEXT)');
+        $db->find()->table('test_distinct_mixed')->insertMulti([
+            ['id' => 1, 'category' => 'A'],
+            ['id' => 2, 'category' => null],
+            ['id' => 3, 'category' => 'A'],
+            ['id' => 4, 'category' => null],
+            ['id' => 5, 'category' => 'B'],
+        ]);
+
+        $results = $db->find()
+            ->from('test_distinct_mixed')
+            ->select(['category'])
+            ->distinct()
+            ->orderBy('category')
+            ->get();
+
+        $this->assertCount(3, $results); // null, A, B
+    }
+
+    // Window Functions Edge Cases
+    public function testWindowFunctionOnEmptyTable(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_window_empty (id INTEGER PRIMARY KEY, value INTEGER)');
+
+        $results = $db->find()
+            ->from('test_window_empty')
+            ->select([
+                'id',
+                'row_num' => Db::rowNumber()->orderBy('id'),
+            ])
+            ->get();
+
+        $this->assertCount(0, $results);
+    }
+
+    public function testWindowFunctionWithAllNullPartitions(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_window_null_partition (id INTEGER PRIMARY KEY, category TEXT, value INTEGER)');
+        $db->find()->table('test_window_null_partition')->insertMulti([
+            ['id' => 1, 'category' => null, 'value' => 100],
+            ['id' => 2, 'category' => null, 'value' => 200],
+            ['id' => 3, 'category' => null, 'value' => 150],
+        ]);
+
+        $results = $db->find()
+            ->from('test_window_null_partition')
+            ->select([
+                'id',
+                'value',
+                'row_num' => Db::rowNumber()->partitionBy('category')->orderBy('value'),
+            ])
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(3, $results);
+        // All NULLs in same partition, should get row numbers 1, 2, 3
+        $this->assertEquals(1, $results[0]['row_num']);
+        $this->assertEquals(3, $results[1]['row_num']); // value 200 is highest
+        $this->assertEquals(2, $results[2]['row_num']); // value 150 is middle
+    }
+
+    public function testWindowFunctionWithSingleRow(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE test_window_single (id INTEGER PRIMARY KEY, value INTEGER)');
+        $db->find()->table('test_window_single')->insert(['id' => 1, 'value' => 100]);
+
+        $results = $db->find()
+            ->from('test_window_single')
+            ->select([
+                'id',
+                'value',
+                'row_num' => Db::rowNumber()->orderBy('id'),
+                'rank_val' => Db::rank()->orderBy('value'),
+            ])
+            ->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals(1, $results[0]['row_num']);
+        $this->assertEquals(1, $results[0]['rank_val']);
+    }
 }
