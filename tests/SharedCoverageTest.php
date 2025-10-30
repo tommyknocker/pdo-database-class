@@ -3183,6 +3183,96 @@ class SharedCoverageTest extends TestCase
         $this->assertEquals($countBefore, $cache->count()); // No new cache entry
     }
 
+    public function testDialectRegistryAndCacheManagerCoverage(): void
+    {
+        // DialectRegistry
+        $drivers = \tommyknocker\pdodb\connection\DialectRegistry::getSupportedDrivers();
+        $this->assertNotEmpty($drivers);
+        $this->assertTrue(\tommyknocker\pdodb\connection\DialectRegistry::isSupported('sqlite'));
+        $dialect = \tommyknocker\pdodb\connection\DialectRegistry::resolve('sqlite');
+        $this->assertEquals('sqlite', $dialect->getDriverName());
+
+        // CacheManager basic ops
+        $cache = new ArrayCache();
+        $cm = new \tommyknocker\pdodb\cache\CacheManager($cache, ['enabled' => true, 'default_ttl' => 60, 'prefix' => 'p']);
+        $key = $cm->generateKey('SELECT 1', ['a' => 1], 'sqlite');
+        $this->assertIsString($key);
+        $this->assertFalse($cm->has($key));
+        $this->assertTrue($cm->set($key, 'val'));
+        $this->assertTrue($cm->has($key));
+        $this->assertEquals('val', $cm->get($key));
+        $this->assertTrue($cm->delete($key));
+        $this->assertTrue($cm->clear());
+    }
+
+    public function testIdentifierQuotingAndUnsafeDetection(): void
+    {
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+        $db->rawQuery('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INT)');
+
+        // Quoting of qualified identifier
+        $db->find()->from('users')->select(['users.name'])->get();
+        $this->assertStringContainsString('"users"."name"', $db->lastQuery);
+
+        // Pass-through expression
+        $db->find()->from('users')->select(['SUM(age)'])->get();
+        $this->assertStringContainsString('SUM(age)', $db->lastQuery);
+
+        // Unsafe token should throw
+        $this->expectException(\InvalidArgumentException::class);
+        $db->find()->from('users')->select(['name; DROP TABLE'])->get();
+    }
+
+    public function testExplainDescribeAndIndexes(): void
+    {
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+        $db->rawQuery('CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT, age INT)');
+        $db->rawQuery('CREATE INDEX idx_t_name ON t(name)');
+
+        $report = $db->find()->from('t')->where('name', 'Alice')->explain();
+        $this->assertIsArray($report);
+
+        $reportAnalyze = $db->find()->from('t')->where('name', 'Alice')->explainAnalyze();
+        $this->assertIsArray($reportAnalyze);
+
+        $desc = $db->find()->from('t')->describe();
+        $this->assertIsArray($desc);
+
+        $idx = $db->find()->from('t')->indexes();
+        $this->assertIsArray($idx);
+
+        $keys = $db->find()->from('t')->keys();
+        $this->assertIsArray($keys);
+
+        $constraints = $db->find()->from('t')->constraints();
+        $this->assertIsArray($constraints);
+    }
+
+    public function testFilterValueAndWindowFunctionResolution(): void
+    {
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+        $db->rawQuery('CREATE TABLE s (id INTEGER PRIMARY KEY, grp INT, val INT)');
+        $db->find()->table('s')->insertMulti([
+            ['grp' => 1, 'val' => 10],
+            ['grp' => 1, 'val' => 20],
+            ['grp' => 2, 'val' => 30],
+        ]);
+
+        // FilterValue COUNT(*) where val > 10 -> in SQLite fallback to CASE WHEN form
+        $fv = new \tommyknocker\pdodb\helpers\values\FilterValue('COUNT(*)');
+        $fv->filter('val', 10, '>');
+        $db->find()->from('s')->select(['cnt' => $fv])->get();
+        $this->assertTrue(
+            str_contains($db->lastQuery, ' FILTER (WHERE')
+            || str_contains($db->lastQuery, 'COUNT(CASE WHEN')
+        );
+
+        // Window function example: ROW_NUMBER() OVER (PARTITION BY grp ORDER BY val)
+        $wf = new \tommyknocker\pdodb\helpers\values\WindowFunctionValue('ROW_NUMBER');
+        $db->find()->from('s')->select(['rn' => $wf])->get();
+        $this->assertStringContainsString('ROW_NUMBER', $db->lastQuery);
+    }
+
     /**
      * Ensure wildcard selections work uniformly across input forms.
      * - select(['*']) behaves like select('*')
@@ -3226,6 +3316,75 @@ class SharedCoverageTest extends TestCase
         $this->assertCount(1, $rows3);
         $this->assertEquals($rows2[0]['name'], $rows3[0]['name']);
         $this->assertEquals($rows2[0]['amount'], $rows3[0]['amount']);
+    }
+
+    public function testRoundRobinAndWeightedLoadBalancers(): void
+    {
+        // Minimal ConnectionInterface stub
+        $makeConn = function (string $driver): \tommyknocker\pdodb\connection\ConnectionInterface {
+            return new class($driver) implements \tommyknocker\pdodb\connection\ConnectionInterface {
+                public function __construct(private string $driver) {}
+                public function getPdo(): \PDO { return new \PDO('sqlite::memory:'); }
+                public function getDriverName(): string { return $this->driver; }
+                public function getDialect(): \tommyknocker\pdodb\dialects\DialectInterface { throw new \RuntimeException('not used'); }
+                public function resetState(): void {}
+                public function prepare(string $sql, array $params = []): static { return $this; }
+                public function execute(array $params = []): \PDOStatement { throw new \RuntimeException('not used'); }
+                public function query(string $sql): \PDOStatement|false { return false; }
+                public function quote(mixed $value): string|false { return (string)$value; }
+                public function transaction(): bool { return true; }
+                public function commit(): bool { return true; }
+                public function rollBack(): bool { return true; }
+                public function inTransaction(): bool { return false; }
+                public function getLastInsertId(?string $name = null): false|string { return '0'; }
+                public function getLastQuery(): ?string { return null; }
+                public function getLastError(): ?string { return null; }
+                public function getLastErrno(): int { return 0; }
+                public function getExecuteState(): ?bool { return true; }
+                public function setAttribute(int $attribute, mixed $value): bool { return true; }
+                public function getAttribute(int $attribute): mixed { return null; }
+            };
+        };
+
+        $connections = [
+            'a' => $makeConn('sqlite'),
+            'b' => $makeConn('sqlite'),
+            'c' => $makeConn('sqlite'),
+        ];
+
+        // RoundRobin
+        $rr = new \tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer();
+        $first = $rr->select($connections);
+        $second = $rr->select($connections);
+        $this->assertContains($first, array_values($connections));
+        $this->assertContains($second, array_values($connections));
+        $this->assertNotSame($first, $second);
+        $rr->markFailed('b');
+        $third = $rr->select($connections);
+        $this->assertContains($third, array_values($connections));
+        $rr->reset();
+        $fourth = $rr->select($connections);
+        $this->assertContains($fourth, array_values($connections));
+
+        // Weighted: ensure failed nodes excluded and selection returns healthy names
+        $wlb = new \tommyknocker\pdodb\connection\loadbalancer\WeightedLoadBalancer();
+        $wlb->setWeights(['a' => 1, 'b' => 5, 'c' => 1]);
+        $wlb->markFailed('b');
+        $seen = [];
+        for ($i = 0; $i < 20; $i++) {
+            $picked = $wlb->select($connections);
+            $this->assertContains($picked, [$connections['a'], $connections['c']]);
+            $seen[spl_object_hash($picked)] = true;
+        }
+        // Both a and c appeared at least once
+        $this->assertCount(2, $seen);
+        // After reset failure, 'b' can be selected
+        $wlb->markHealthy('b');
+        $foundB = false;
+        for ($i = 0; $i < 50; $i++) {
+            if ($wlb->select($connections) === $connections['b']) { $foundB = true; break; }
+        }
+        $this->assertTrue($foundB);
     }
 
     /**
