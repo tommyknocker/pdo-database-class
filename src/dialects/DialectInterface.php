@@ -330,6 +330,22 @@ interface DialectInterface
     public function formatSecond(string|RawValue $value): string;
 
     /**
+     * Format DATE(value) extraction.
+     *
+     * @param string|RawValue $value
+     * @return string
+     */
+    public function formatDateOnly(string|RawValue $value): string;
+
+    /**
+     * Format TIME(value) extraction.
+     *
+     * @param string|RawValue $value
+     * @return string
+     */
+    public function formatTimeOnly(string|RawValue $value): string;
+
+    /**
      * Format DATE_ADD / DATE_SUB interval expression.
      *
      * @param string|RawValue $expr Source date/datetime expression

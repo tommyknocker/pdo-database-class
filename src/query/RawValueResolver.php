@@ -34,6 +34,8 @@ use tommyknocker\pdodb\helpers\values\ModValue;
 use tommyknocker\pdodb\helpers\values\MonthValue;
 use tommyknocker\pdodb\helpers\values\NowValue;
 use tommyknocker\pdodb\helpers\values\PadValue;
+use tommyknocker\pdodb\helpers\values\DateOnlyValue;
+use tommyknocker\pdodb\helpers\values\TimeOnlyValue;
 use tommyknocker\pdodb\helpers\values\PositionValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\helpers\values\RepeatValue;
@@ -140,6 +142,12 @@ class RawValueResolver
                 $value->getLength(),
                 $value->getPadString(),
                 $value->isLeft()
+            ),
+            $value instanceof DateOnlyValue => $this->dialect->formatDateOnly(
+                $value->getSourceValue()
+            ),
+            $value instanceof TimeOnlyValue => $this->dialect->formatTimeOnly(
+                $value->getSourceValue()
             ),
             $value instanceof WindowFunctionValue => $this->resolveWindowFunctionValue($value),
             $value instanceof FilterValue => $this->resolveFilterValue($value),

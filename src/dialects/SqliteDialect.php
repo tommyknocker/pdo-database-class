@@ -565,6 +565,22 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatDateOnly(string|RawValue $value): string
+    {
+        return 'DATE(' . $this->resolveValue($value) . ')';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatTimeOnly(string|RawValue $value): string
+    {
+        return 'TIME(' . $this->resolveValue($value) . ')';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
     {
         $e = $this->resolveValue($expr);

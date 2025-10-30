@@ -223,9 +223,11 @@ $users = $db->find()
     ->select([
         'first_name',
         'last_name',
-        'full_name_upper' => Db::upper(Db::concat('first_name', ' ', 'last_name')),
+        // Use helpers without nesting ConcatValue inside other helpers
+        'full_name_upper' => Db::concat(Db::upper('first_name'), ' ', Db::upper('last_name')),
         'email_lower' => Db::lower('email'),
-        'name_length' => Db::length(Db::concat('first_name', ' ', 'last_name'))
+        // Length of concatenation via raw as a necessary fallback
+        'name_length' => Db::raw('LENGTH(first_name) + 1 + LENGTH(last_name)')
     ])
     ->limit(2)
     ->get();

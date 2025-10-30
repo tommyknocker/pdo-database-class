@@ -822,6 +822,22 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatDateOnly(string|RawValue $value): string
+    {
+        return $this->resolveValue($value) . '::DATE';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatTimeOnly(string|RawValue $value): string
+    {
+        return $this->resolveValue($value) . '::TIME';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string
     {
         $cols = is_array($columns) ? $columns : [$columns];

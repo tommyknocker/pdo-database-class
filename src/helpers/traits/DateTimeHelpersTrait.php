@@ -15,6 +15,8 @@ use tommyknocker\pdodb\helpers\values\NowValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\helpers\values\SecondValue;
 use tommyknocker\pdodb\helpers\values\YearValue;
+use tommyknocker\pdodb\helpers\values\DateOnlyValue;
+use tommyknocker\pdodb\helpers\values\TimeOnlyValue;
 
 /**
  * Trait for date/time operations.
@@ -71,12 +73,11 @@ trait DateTimeHelpersTrait
      *
      * @param string|RawValue $value The datetime value.
      *
-     * @return RawValue The RawValue instance for DATE.
+     * @return DateOnlyValue The DateOnlyValue instance.
      */
-    public static function date(string|RawValue $value): RawValue
+    public static function date(string|RawValue $value): DateOnlyValue
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return new RawValue("DATE($val)");
+        return new DateOnlyValue($value);
     }
 
     /**
@@ -84,12 +85,11 @@ trait DateTimeHelpersTrait
      *
      * @param string|RawValue $value The datetime value.
      *
-     * @return RawValue The RawValue instance for TIME.
+     * @return TimeOnlyValue The TimeOnlyValue instance.
      */
-    public static function time(string|RawValue $value): RawValue
+    public static function time(string|RawValue $value): TimeOnlyValue
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return new RawValue("TIME($val)");
+        return new TimeOnlyValue($value);
     }
 
     /**

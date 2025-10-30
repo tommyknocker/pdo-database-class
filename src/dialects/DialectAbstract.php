@@ -528,4 +528,20 @@ abstract class DialectAbstract implements DialectInterface
         $func = $isLeft ? 'LPAD' : 'RPAD';
         return "{$func}($val, $length, '$pad')";
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatDateOnly(string|RawValue $value): string
+    {
+        return 'DATE(' . $this->resolveValue($value) . ')';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatTimeOnly(string|RawValue $value): string
+    {
+        return 'TIME(' . $this->resolveValue($value) . ')';
+    }
 }

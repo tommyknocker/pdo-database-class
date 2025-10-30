@@ -200,10 +200,10 @@ echo "11. Complex date filtering...\n";
 $recentEvents = $db->find()
     ->from('events')
     ->select(['title', 'event_date', 'event_time'])
-    // Same year as now
-    ->where(Db::year('event_date'), Db::year(Db::now()))
+    // Same year as current (compare to PHP current year for cross-dialect safety)
+    ->where(Db::year('event_date'), (int)date('Y'))
     // Month >= current month
-    ->andWhere(Db::month('event_date'), Db::month(Db::now()), '>=')
+    ->andWhere(Db::month('event_date'), (int)date('m'), '>=')
     ->orderBy('event_date')
     ->orderBy('event_time')
     ->get();
@@ -214,8 +214,9 @@ foreach ($recentEvents as $event) {
 }
 echo "\n";
 
-// Example 12: Date and time extraction combinations (helpers only)
+// Example 12: Date and time extraction combinations (helpers with PG fallback)
 echo "12. Date and time extraction combinations...\n";
+$driver = getCurrentDriver($db);
 
 $events = $db->find()
     ->from('events')
@@ -223,8 +224,8 @@ $events = $db->find()
         'title',
         'event_date',
         'event_time',
-        'date_only' => Db::date('created_at'),
-        'time_only' => Db::time('created_at'),
+        'date_only' => $driver === 'pgsql' ? Db::raw('created_at::DATE') : Db::date('created_at'),
+        'time_only' => $driver === 'pgsql' ? Db::raw('created_at::TIME') : Db::time('created_at'),
     ])
     ->get();
 
