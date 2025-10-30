@@ -3184,6 +3184,51 @@ class SharedCoverageTest extends TestCase
     }
 
     /**
+     * Ensure wildcard selections work uniformly across input forms.
+     * - select(['*']) behaves like select('*')
+     * - select(['u.*', 'o.*']) behaves like select('u.*, o.*').
+     */
+    public function testSelectWildcardForms(): void
+    {
+        $db = new PdoDb('sqlite', ['path' => ':memory:']);
+
+        // Schema
+        $db->rawQuery('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)');
+        $db->rawQuery('CREATE TABLE orders (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER)');
+
+        $uid = $db->find()->table('users')->insert(['name' => 'Alice']);
+        $db->find()->table('orders')->insert(['user_id' => $uid, 'amount' => 100]);
+
+        // select(['*'])
+        $rows1 = $db->find()
+            ->from('users')
+            ->select(['*'])
+            ->get();
+        $this->assertCount(1, $rows1);
+        $this->assertEquals('Alice', $rows1[0]['name']);
+
+        // select(['u.*', 'o.*']) with join
+        $rows2 = $db->find()
+            ->from('users u')
+            ->join('orders o', 'o.user_id = u.id')
+            ->select(['u.*', 'o.*'])
+            ->get();
+        $this->assertCount(1, $rows2);
+        $this->assertArrayHasKey('name', $rows2[0]);
+        $this->assertArrayHasKey('amount', $rows2[0]);
+
+        // select('u.*, o.*') should work the same
+        $rows3 = $db->find()
+            ->from('users u')
+            ->join('orders o', 'o.user_id = u.id')
+            ->select('u.*, o.*')
+            ->get();
+        $this->assertCount(1, $rows3);
+        $this->assertEquals($rows2[0]['name'], $rows3[0]['name']);
+        $this->assertEquals($rows2[0]['amount'], $rows3[0]['amount']);
+    }
+
+    /**
      * Test caching without cache manager (should work normally).
      */
     public function testNoCacheManager(): void

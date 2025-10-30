@@ -393,15 +393,23 @@ class ConditionBuilder implements ConditionBuilderInterface
 
         // handle NULL comparisons
         if ($value === null) {
-            $opUpper = $this->normalizeOperator($operator);
+            // When a raw expression is provided without a right-hand value,
+            // treat it as a complete condition and insert as-is.
             if ($exprOrColumn instanceof RawValue) {
-                $left = $this->resolveRawValue($exprOrColumn);
-                $nullSql = ($opUpper === 'IS NOT' || $opUpper === '!=' || $opUpper === '<>') ? 'IS NOT NULL' : 'IS NULL';
-                $this->{$prop}[] = ['sql' => "{$left} {$nullSql}", 'cond' => $cond];
+                $resolved = $this->resolveRawValue($exprOrColumn);
+                $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
                 return $this;
             }
 
-            $exprQuoted = $this->quoteQualifiedIdentifier((string)$exprOrColumn);
+            // If plain string condition provided (e.g., "age = 50"), use as-is
+            $exprStr = (string)$exprOrColumn;
+            if (preg_match('/[\s<>=()]/', $exprStr) === 1) {
+                $this->{$prop}[] = ['sql' => $exprStr, 'cond' => $cond];
+                return $this;
+            }
+
+            $opUpper = $this->normalizeOperator($operator);
+            $exprQuoted = $this->quoteQualifiedIdentifier($exprStr);
             $nullSql = ($opUpper === 'IS NOT' || $opUpper === '!=' || $opUpper === '<>') ? 'IS NOT NULL' : 'IS NULL';
             $this->{$prop}[] = ['sql' => "{$exprQuoted} {$nullSql}", 'cond' => $cond];
             return $this;

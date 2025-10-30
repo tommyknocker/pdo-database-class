@@ -688,6 +688,23 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 if (str_starts_with($value, '(')) {
                     return $value;
                 }
+                // Allow wildcards and preformatted lists/expressions:
+                // - "*"
+                // - "alias.*"
+                // - lists like "a.*, b.*"
+                // - any expression containing commas or '*' should pass through
+                if ($value === '*') {
+                    return $value;
+                }
+                // alias.*
+                if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*\\.\*$/', $value) === 1) {
+                    return $value;
+                }
+                // multiple alias.* segments separated by comma: a.*, b.*
+                if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*\\.\*(\s*,\s*[A-Za-z_][A-Za-z0-9_]*\\.\*)+$/', $value) === 1) {
+                    return $value;
+                }
+
                 return $this->quoteQualifiedIdentifier($value);
             }, $this->select));
         }
