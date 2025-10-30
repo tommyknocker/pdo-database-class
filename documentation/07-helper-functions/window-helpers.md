@@ -548,3 +548,4 @@ For moving averages, specify exact window size:
 - [Examples: Window Functions](../../examples/16-window-functions/)
 - [API Reference](../09-reference/helper-functions-reference.md)
 
+

@@ -330,6 +330,18 @@ interface DialectInterface
     public function formatSecond(string|RawValue $value): string;
 
     /**
+     * Format DATE_ADD / DATE_SUB interval expression.
+     *
+     * @param string|RawValue $expr Source date/datetime expression
+     * @param string $value Interval value
+     * @param string $unit Interval unit (DAY, MONTH, YEAR, HOUR, MINUTE, SECOND, etc.)
+     * @param bool $isAdd Whether to add (true) or subtract (false) the interval
+     *
+     * @return string
+     */
+    public function formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string;
+
+    /**
      * Format FULLTEXT MATCH expression.
      *
      * @param string|array<string> $columns Column name(s) to search in.
@@ -373,6 +385,88 @@ interface DialectInterface
      * @return bool
      */
     public function supportsDistinctOn(): bool;
+
+    /**
+     * Format GROUP_CONCAT / STRING_AGG expression.
+     *
+     * @param string|RawValue $column Column or expression to concatenate.
+     * @param string $separator Separator string.
+     * @param bool $distinct Whether to use DISTINCT.
+     *
+     * @return string
+     */
+    public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string;
+
+    /**
+     * Format TRUNCATE / TRUNC expression.
+     *
+     * @param string|RawValue $value Value to truncate.
+     * @param int $precision Precision (number of decimal places).
+     *
+     * @return string
+     */
+    public function formatTruncate(string|RawValue $value, int $precision): string;
+
+    /**
+     * Format POSITION / LOCATE / INSTR expression.
+     *
+     * @param string|RawValue $substring Substring to search for.
+     * @param string|RawValue $value Source string.
+     *
+     * @return string
+     */
+    public function formatPosition(string|RawValue $substring, string|RawValue $value): string;
+
+    /**
+     * Format LEFT expression.
+     *
+     * @param string|RawValue $value Source string.
+     * @param int $length Number of characters to extract.
+     *
+     * @return string
+     */
+    public function formatLeft(string|RawValue $value, int $length): string;
+
+    /**
+     * Format RIGHT expression.
+     *
+     * @param string|RawValue $value Source string.
+     * @param int $length Number of characters to extract.
+     *
+     * @return string
+     */
+    public function formatRight(string|RawValue $value, int $length): string;
+
+    /**
+     * Format REPEAT expression.
+     *
+     * @param string|RawValue $value Source string.
+     * @param int $count Number of times to repeat.
+     *
+     * @return string
+     */
+    public function formatRepeat(string|RawValue $value, int $count): string;
+
+    /**
+     * Format REVERSE expression.
+     *
+     * @param string|RawValue $value Source string.
+     *
+     * @return string
+     */
+    public function formatReverse(string|RawValue $value): string;
+
+    /**
+     * Format LPAD/RPAD expression.
+     *
+     * @param string|RawValue $value Source string.
+     * @param int $length Target length.
+     * @param string $padString Padding string.
+     * @param bool $isLeft Whether to pad on the left.
+     *
+     * @return string
+     */
+    public function formatPad(string|RawValue $value, int $length, string $padString, bool $isLeft): string;
 
     /* ---------------- Original SQL helpers and dialect-specific expressions ---------------- */
 

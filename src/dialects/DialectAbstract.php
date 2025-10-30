@@ -387,4 +387,145 @@ abstract class DialectAbstract implements DialectInterface
         $d2 = $this->resolveValue($divisor);
         return "MOD($d1, $d2)";
     }
+
+    /**
+     * Format interval expression (default implementation).
+     * Should be overridden in specific dialects.
+     *
+     * @param string|RawValue $expr
+     * @param string $value
+     * @param string $unit
+     * @param bool $isAdd
+     *
+     * @return string
+     */
+    public function formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+    {
+        // Default implementation - should be overridden
+        $e = $this->resolveValue($expr);
+        $sign = $isAdd ? '+' : '-';
+        return "$e $sign INTERVAL $value $unit";
+    }
+
+    /**
+     * Format GROUP_CONCAT expression (default implementation).
+     * Should be overridden in specific dialects.
+     *
+     * @param string|RawValue $column
+     * @param string $separator
+     * @param bool $distinct
+     *
+     * @return string
+     */
+    public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string
+    {
+        $col = $this->resolveValue($column);
+        $sep = addslashes($separator);
+        $dist = $distinct ? 'DISTINCT ' : '';
+        return "GROUP_CONCAT($dist$col SEPARATOR '$sep')";
+    }
+
+    /**
+     * Format TRUNCATE expression (default implementation).
+     * Should be overridden in specific dialects.
+     *
+     * @param string|RawValue $value
+     * @param int $precision
+     *
+     * @return string
+     */
+    public function formatTruncate(string|RawValue $value, int $precision): string
+    {
+        $val = $this->resolveValue($value);
+        return "TRUNCATE($val, $precision)";
+    }
+
+    /**
+     * Format POSITION expression (default implementation).
+     * Should be overridden in specific dialects.
+     *
+     * @param string|RawValue $substring
+     * @param string|RawValue $value
+     *
+     * @return string
+     */
+    public function formatPosition(string|RawValue $substring, string|RawValue $value): string
+    {
+        $sub = $substring instanceof RawValue ? $substring->getValue() : "'" . addslashes((string)$substring) . "'";
+        $val = $this->resolveValue($value);
+        return "POSITION($sub IN $val)";
+    }
+
+    /**
+     * Format LEFT expression (default implementation).
+     *
+     * @param string|RawValue $value
+     * @param int $length
+     *
+     * @return string
+     */
+    public function formatLeft(string|RawValue $value, int $length): string
+    {
+        $val = $this->resolveValue($value);
+        return "LEFT($val, $length)";
+    }
+
+    /**
+     * Format RIGHT expression (default implementation).
+     *
+     * @param string|RawValue $value
+     * @param int $length
+     *
+     * @return string
+     */
+    public function formatRight(string|RawValue $value, int $length): string
+    {
+        $val = $this->resolveValue($value);
+        return "RIGHT($val, $length)";
+    }
+
+    /**
+     * Format REPEAT expression (default implementation).
+     *
+     * @param string|RawValue $value
+     * @param int $count
+     *
+     * @return string
+     */
+    public function formatRepeat(string|RawValue $value, int $count): string
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : "'" . addslashes((string)$value) . "'";
+        return "REPEAT($val, $count)";
+    }
+
+    /**
+     * Format REVERSE expression (default implementation).
+     *
+     * @param string|RawValue $value
+     *
+     * @return string
+     */
+    public function formatReverse(string|RawValue $value): string
+    {
+        $val = $this->resolveValue($value);
+        return "REVERSE($val)";
+    }
+
+    /**
+     * Format LPAD/RPAD expression (default implementation).
+     *
+     * @param string|RawValue $value
+     * @param int $length
+     * @param string $padString
+     * @param bool $isLeft
+     *
+     * @return string
+     */
+    public function formatPad(string|RawValue $value, int $length, string $padString, bool $isLeft): string
+    {
+        $val = $this->resolveValue($value);
+        $pad = addslashes($padString);
+        $func = $isLeft ? 'LPAD' : 'RPAD';
+        return "{$func}($val, $length, '$pad')";
+    }
 }

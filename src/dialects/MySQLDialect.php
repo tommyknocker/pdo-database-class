@@ -658,6 +658,46 @@ class MySQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+    {
+        $e = $this->resolveValue($expr);
+        $func = $isAdd ? 'DATE_ADD' : 'DATE_SUB';
+        return "{$func}({$e}, INTERVAL {$value} {$unit})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string
+    {
+        $col = $this->resolveValue($column);
+        $sep = addslashes($separator);
+        $dist = $distinct ? 'DISTINCT ' : '';
+        return "GROUP_CONCAT($dist$col SEPARATOR '$sep')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatTruncate(string|RawValue $value, int $precision): string
+    {
+        $val = $this->resolveValue($value);
+        return "TRUNCATE($val, $precision)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatPosition(string|RawValue $substring, string|RawValue $value): string
+    {
+        $sub = $substring instanceof RawValue ? $substring->getValue() : "'" . addslashes((string)$substring) . "'";
+        $val = $this->resolveValue($value);
+        return "POSITION($sub IN $val)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string
     {
         $cols = is_array($columns) ? $columns : [$columns];

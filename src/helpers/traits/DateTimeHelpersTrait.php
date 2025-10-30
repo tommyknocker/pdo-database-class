@@ -8,6 +8,7 @@ use tommyknocker\pdodb\helpers\values\CurDateValue;
 use tommyknocker\pdodb\helpers\values\CurTimeValue;
 use tommyknocker\pdodb\helpers\values\DayValue;
 use tommyknocker\pdodb\helpers\values\HourValue;
+use tommyknocker\pdodb\helpers\values\IntervalValue;
 use tommyknocker\pdodb\helpers\values\MinuteValue;
 use tommyknocker\pdodb\helpers\values\MonthValue;
 use tommyknocker\pdodb\helpers\values\NowValue;
@@ -161,5 +162,33 @@ trait DateTimeHelpersTrait
     public static function second(string|RawValue $value): SecondValue
     {
         return new SecondValue($value);
+    }
+
+    /**
+     * Adds an interval to a date/datetime expression (dialect-specific).
+     *
+     * @param string|RawValue $expr The date/datetime expression.
+     * @param string $value Interval value (e.g., "1", "7").
+     * @param string $unit Interval unit (e.g., "DAY", "MONTH", "YEAR", "HOUR", "MINUTE", "SECOND").
+     *
+     * @return IntervalValue The IntervalValue instance.
+     */
+    public static function addInterval(string|RawValue $expr, string $value, string $unit): IntervalValue
+    {
+        return new IntervalValue($expr, $value, $unit, true);
+    }
+
+    /**
+     * Subtracts an interval from a date/datetime expression (dialect-specific).
+     *
+     * @param string|RawValue $expr The date/datetime expression.
+     * @param string $value Interval value (e.g., "1", "7").
+     * @param string $unit Interval unit (e.g., "DAY", "MONTH", "YEAR", "HOUR", "MINUTE", "SECOND").
+     *
+     * @return IntervalValue The IntervalValue instance.
+     */
+    public static function subInterval(string|RawValue $expr, string $value, string $unit): IntervalValue
+    {
+        return new IntervalValue($expr, $value, $unit, false);
     }
 }

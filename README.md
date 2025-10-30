@@ -1997,6 +1997,36 @@ Db::escape("O'Reilly")
 Db::config('FOREIGN_KEY_CHECKS', 1)
 ```
 
+Additional frequently used helpers:
+
+```php
+// Strings
+Db::left('name', 2);
+Db::right('name', 2);
+Db::position(Db::raw("'@'"), 'email');
+Db::repeat(Db::raw("'-'"), 5);
+Db::reverse('name');
+Db::padLeft('name', 8, ' ');
+Db::padRight('name', 8, '.');
+
+// Numbers
+Db::ceil('price');
+Db::floor('price');
+Db::power('score', 2);
+Db::sqrt('distance');
+Db::exp(1);
+Db::ln('value');
+Db::log('value');
+Db::trunc('price', 1);
+
+// Dates
+Db::addInterval('created_at', '1', 'DAY');
+Db::subInterval('created_at', '2', 'HOUR');
+
+// Aggregates
+Db::groupConcat('name', ', ', true);
+```
+
 ### NULL Handling
 
 ```php

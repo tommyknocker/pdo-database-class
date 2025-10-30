@@ -5,7 +5,13 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\helpers\traits;
 
 use tommyknocker\pdodb\helpers\values\ConcatValue;
+use tommyknocker\pdodb\helpers\values\LeftValue;
+use tommyknocker\pdodb\helpers\values\PadValue;
+use tommyknocker\pdodb\helpers\values\PositionValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\helpers\values\RepeatValue;
+use tommyknocker\pdodb\helpers\values\ReverseValue;
+use tommyknocker\pdodb\helpers\values\RightValue;
 use tommyknocker\pdodb\helpers\values\SubstringValue;
 
 /**
@@ -129,6 +135,144 @@ trait StringHelpersTrait
     public static function replace(string|RawValue $value, string $search, string $replace): RawValue
     {
         $val = $value instanceof RawValue ? $value->getValue() : $value;
-        return new RawValue("REPLACE($val, '$search', '$replace')");
+        $searchEscaped = addslashes($search);
+        $replaceEscaped = addslashes($replace);
+        return new RawValue("REPLACE($val, '$searchEscaped', '$replaceEscaped')");
+    }
+
+    /**
+     * Returns left part of string (first N characters).
+     *
+     * @param string|RawValue $value The source string.
+     * @param int $length Number of characters to extract.
+     *
+     * @return LeftValue The LeftValue instance for LEFT.
+     */
+    public static function left(string|RawValue $value, int $length): LeftValue
+    {
+        return new LeftValue($value, $length);
+    }
+
+    /**
+     * Returns right part of string (last N characters).
+     *
+     * @param string|RawValue $value The source string.
+     * @param int $length Number of characters to extract.
+     *
+     * @return RightValue The RightValue instance for RIGHT.
+     */
+    public static function right(string|RawValue $value, int $length): RightValue
+    {
+        return new RightValue($value, $length);
+    }
+
+    /**
+     * Returns position of substring in string (1-indexed, or 0 if not found).
+     *
+     * @param string|RawValue $substring The substring to search for.
+     * @param string|RawValue $value The source string.
+     *
+     * @return PositionValue The PositionValue instance for POSITION/INSTR/LOCATE.
+     */
+    public static function position(string|RawValue $substring, string|RawValue $value): PositionValue
+    {
+        return new PositionValue($substring, $value);
+    }
+
+    /**
+     * Returns repeated string.
+     *
+     * @param string|RawValue $value The string to repeat.
+     * @param int $count Number of times to repeat.
+     *
+     * @return RepeatValue The RepeatValue instance for REPEAT.
+     */
+    public static function repeat(string|RawValue $value, int $count): RepeatValue
+    {
+        return new RepeatValue($value, $count);
+    }
+
+    /**
+     * Returns reversed string.
+     *
+     * @param string|RawValue $value The string to reverse.
+     *
+     * @return ReverseValue The ReverseValue instance for REVERSE.
+     */
+    public static function reverse(string|RawValue $value): ReverseValue
+    {
+        return new ReverseValue($value);
+    }
+
+    /**
+     * Returns string padded on the left to specified length.
+     *
+     * @param string|RawValue $value The source string.
+     * @param int $length Target length.
+     * @param string $padString The padding string (default is space).
+     *
+     * @return PadValue The PadValue instance for LPAD.
+     */
+    public static function padLeft(string|RawValue $value, int $length, string $padString = ' '): PadValue
+    {
+        return new PadValue($value, $length, $padString, true);
+    }
+
+    /**
+     * Returns string padded on the right to specified length.
+     *
+     * @param string|RawValue $value The source string.
+     * @param int $length Target length.
+     * @param string $padString The padding string (default is space).
+     *
+     * @return PadValue The PadValue instance for RPAD.
+     */
+    public static function padRight(string|RawValue $value, int $length, string $padString = ' '): PadValue
+    {
+        return new PadValue($value, $length, $padString, false);
+    }
+
+    /**
+     * Alias for padLeft.
+     *
+     * @param string|RawValue $value
+     * @param int $length
+     * @param string $padString
+     *
+     * @return PadValue
+     */
+    public static function lpad(string|RawValue $value, int $length, string $padString = ' '): PadValue
+    {
+        return self::padLeft($value, $length, $padString);
+    }
+
+    /**
+     * Alias for padRight.
+     *
+     * @param string|RawValue $value
+     * @param int $length
+     * @param string $padString
+     *
+     * @return PadValue
+     */
+    public static function rpad(string|RawValue $value, int $length, string $padString = ' '): PadValue
+    {
+        return self::padRight($value, $length, $padString);
+    }
+
+    /**
+     * Returns regexp match result (dialect-specific).
+     * Note: Implementation varies by database. Returns boolean expression.
+     *
+     * @param string|RawValue $value The source string.
+     * @param string $pattern The regex pattern.
+     *
+     * @return RawValue The RawValue instance for REGEXP/RLIKE.
+     */
+    public static function regexpMatch(string|RawValue $value, string $pattern): RawValue
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        $pat = addslashes($pattern);
+        return new RawValue("($val REGEXP '$pat')");
     }
 }

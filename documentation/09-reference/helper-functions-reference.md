@@ -78,6 +78,62 @@ LENGTH function.
 Db::length('name');
 ```
 
+### `Db::left(string|RawValue $value, int $length): CallableInterface`
+
+Left substring.
+
+```php
+Db::left('name', 2);
+```
+
+### `Db::right(string|RawValue $value, int $length): CallableInterface`
+
+Right substring.
+
+```php
+Db::right('name', 2);
+```
+
+### `Db::position(string|RawValue $substring, string|RawValue $value): CallableInterface`
+
+Substring position (1-based).
+
+```php
+Db::position(Db::raw("'@'"), 'email');
+```
+
+### `Db::repeat(string|RawValue $value, int $count): CallableInterface`
+
+Repeat string.
+
+```php
+Db::repeat(Db::raw("'-'"), 5);
+```
+
+### `Db::reverse(string|RawValue $value): CallableInterface`
+
+Reverse string.
+
+```php
+Db::reverse('name');
+```
+
+### `Db::padLeft(string|RawValue $value, int $length, string $padString = ' '): CallableInterface`
+
+Left pad.
+
+```php
+Db::padLeft('name', 8, ' ');
+```
+
+### `Db::padRight(string|RawValue $value, int $length, string $padString = ' '): CallableInterface`
+
+Right pad.
+
+```php
+Db::padRight('name', 8, '.');
+```
+
 ## Numeric Helpers
 
 ### `Db::inc(int|float $value, int|float $step = 1): CallableInterface`
@@ -113,6 +169,71 @@ Round value.
 Db::round('price', 2);
 ```
 
+### `Db::ceil(string|RawValue $value): CallableInterface`
+
+Ceiling (round up).
+
+```php
+Db::ceil('price');
+```
+
+### `Db::floor(string|RawValue $value): CallableInterface`
+
+Floor (round down).
+
+```php
+Db::floor('price');
+```
+
+### `Db::power(string|RawValue $value, string|int|float|RawValue $exponent): CallableInterface`
+
+Exponentiation.
+
+```php
+Db::power('score', 2);
+```
+
+### `Db::sqrt(string|RawValue $value): CallableInterface`
+
+Square root.
+
+```php
+Db::sqrt('distance');
+```
+
+### `Db::exp(string|RawValue $value): CallableInterface`
+
+Exponential function.
+
+```php
+Db::exp(1);
+```
+
+### `Db::ln(string|RawValue $value): CallableInterface`
+
+Natural logarithm.
+
+```php
+Db::ln('value');
+```
+
+### `Db::log(string|RawValue $value, string|int|float|RawValue|null $base = null): CallableInterface`
+
+Logarithm (base 10 by default).
+
+```php
+Db::log('value');
+Db::log('value', 2);
+```
+
+### `Db::trunc(string|RawValue $value, int $precision = 0): CallableInterface`
+
+Truncate without rounding.
+
+```php
+Db::trunc('price', 1);
+```
+
 ## Date Helpers
 
 ### `Db::now(): RawValue`
@@ -139,20 +260,20 @@ Current time.
 Db::curTime();
 ```
 
-### `Db::addInterval(string $expr, string $unit): CallableInterface`
+### `Db::addInterval(string|RawValue $expr, string $value, string $unit): CallableInterface`
 
 Add interval.
 
 ```php
-Db::addInterval('created_at', '1 DAY');
+Db::addInterval('created_at', '1', 'DAY');
 ```
 
-### `Db::subInterval(string $expr, string $unit): CallableInterface`
+### `Db::subInterval(string|RawValue $expr, string $value, string $unit): CallableInterface`
 
 Subtract interval.
 
 ```php
-Db::subInterval('created_at', '1 MONTH');
+Db::subInterval('created_at', '1', 'MONTH');
 ```
 
 ## NULL Helpers
@@ -290,6 +411,14 @@ MAX aggregate.
 
 ```php
 Db::max('price');
+```
+
+### `Db::groupConcat(string|RawValue $column, string $separator = ',', bool $distinct = false): CallableInterface`
+
+Concatenate values per group (dialect-specific: GROUP_CONCAT/STRING_AGG).
+
+```php
+Db::groupConcat('name', ', ', true);
 ```
 
 ## Next Steps

@@ -15,9 +15,11 @@ use tommyknocker\pdodb\helpers\values\EscapeValue;
 use tommyknocker\pdodb\helpers\values\FilterValue;
 use tommyknocker\pdodb\helpers\values\FulltextMatchValue;
 use tommyknocker\pdodb\helpers\values\GreatestValue;
+use tommyknocker\pdodb\helpers\values\GroupConcatValue;
 use tommyknocker\pdodb\helpers\values\HourValue;
 use tommyknocker\pdodb\helpers\values\IfNullValue;
 use tommyknocker\pdodb\helpers\values\ILikeValue;
+use tommyknocker\pdodb\helpers\values\IntervalValue;
 use tommyknocker\pdodb\helpers\values\JsonContainsValue;
 use tommyknocker\pdodb\helpers\values\JsonExistsValue;
 use tommyknocker\pdodb\helpers\values\JsonGetValue;
@@ -26,13 +28,20 @@ use tommyknocker\pdodb\helpers\values\JsonLengthValue;
 use tommyknocker\pdodb\helpers\values\JsonPathValue;
 use tommyknocker\pdodb\helpers\values\JsonTypeValue;
 use tommyknocker\pdodb\helpers\values\LeastValue;
+use tommyknocker\pdodb\helpers\values\LeftValue;
 use tommyknocker\pdodb\helpers\values\MinuteValue;
 use tommyknocker\pdodb\helpers\values\ModValue;
 use tommyknocker\pdodb\helpers\values\MonthValue;
 use tommyknocker\pdodb\helpers\values\NowValue;
+use tommyknocker\pdodb\helpers\values\PadValue;
+use tommyknocker\pdodb\helpers\values\PositionValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\helpers\values\RepeatValue;
+use tommyknocker\pdodb\helpers\values\ReverseValue;
+use tommyknocker\pdodb\helpers\values\RightValue;
 use tommyknocker\pdodb\helpers\values\SecondValue;
 use tommyknocker\pdodb\helpers\values\SubstringValue;
+use tommyknocker\pdodb\helpers\values\TruncValue;
 use tommyknocker\pdodb\helpers\values\WindowFunctionValue;
 use tommyknocker\pdodb\helpers\values\YearValue;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
@@ -92,6 +101,46 @@ class RawValueResolver
             $value instanceof HourValue => $this->dialect->formatHour($value->getSource()),
             $value instanceof MinuteValue => $this->dialect->formatMinute($value->getSource()),
             $value instanceof SecondValue => $this->dialect->formatSecond($value->getSource()),
+            $value instanceof IntervalValue => $this->dialect->formatInterval(
+                $value->getExpr(),
+                $value->getIntervalValue(),
+                $value->getUnit(),
+                $value->isAdd()
+            ),
+            $value instanceof GroupConcatValue => $this->dialect->formatGroupConcat(
+                $value->getColumn(),
+                $value->getSeparator(),
+                $value->isDistinct()
+            ),
+            $value instanceof TruncValue => $this->dialect->formatTruncate(
+                $value->getTruncateValue(),
+                $value->getPrecision()
+            ),
+            $value instanceof PositionValue => $this->dialect->formatPosition(
+                $value->getSubstring(),
+                $value->getSourceValue()
+            ),
+            $value instanceof LeftValue => $this->dialect->formatLeft(
+                $value->getSourceValue(),
+                $value->getLength()
+            ),
+            $value instanceof RightValue => $this->dialect->formatRight(
+                $value->getSourceValue(),
+                $value->getLength()
+            ),
+            $value instanceof RepeatValue => $this->dialect->formatRepeat(
+                $value->getSourceValue(),
+                $value->getCount()
+            ),
+            $value instanceof ReverseValue => $this->dialect->formatReverse(
+                $value->getSourceValue()
+            ),
+            $value instanceof PadValue => $this->dialect->formatPad(
+                $value->getSourceValue(),
+                $value->getLength(),
+                $value->getPadString(),
+                $value->isLeft()
+            ),
             $value instanceof WindowFunctionValue => $this->resolveWindowFunctionValue($value),
             $value instanceof FilterValue => $this->resolveFilterValue($value),
             default => $value,

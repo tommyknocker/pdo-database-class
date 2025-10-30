@@ -41,6 +41,81 @@ foreach ($users as $user) {
 }
 echo "\n";
 
+// Example 10: LEFT and RIGHT
+echo "10. LEFT and RIGHT - Extract edges of strings...\n";
+$sides = $db->find()
+    ->from('users')
+    ->select([
+        'first_name',
+        'left2' => Db::left('first_name', 2),
+        'right2' => Db::right('first_name', 2)
+    ])
+    ->limit(3)
+    ->get();
+
+foreach ($sides as $row) {
+    echo "  • {$row['first_name']} → LEFT(2)={$row['left2']}, RIGHT(2)={$row['right2']}\n";
+}
+echo "\n";
+
+// Example 11: POSITION - Find substring index (1-based)
+echo "11. POSITION - Find '@' in email...\n";
+$positions = $db->find()
+    ->from('users')
+    ->select([
+        'email',
+        'at_pos' => Db::position('@', 'email')
+    ])
+    ->limit(3)
+    ->get();
+
+foreach ($positions as $row) {
+    echo "  • {$row['email']} → '@' at position {$row['at_pos']}\n";
+}
+echo "\n";
+
+// Example 12: REPEAT and REVERSE (skip unsupported on SQLite)
+echo "12. REPEAT and REVERSE - Banner formatting...\n";
+if ($driver === 'sqlite') {
+    echo "  • Skipped on SQLite (REPEAT/REVERSE not available)\n\n";
+} else {
+    $banners = $db->find()
+        ->from('users')
+        ->select([
+            'first_name',
+            'banner' => Db::repeat('-', 3),
+            'reversed' => Db::reverse('first_name')
+        ])
+        ->limit(2)
+        ->get();
+
+    foreach ($banners as $row) {
+        echo "  • {$row['first_name']} → banner={$row['banner']}, reversed={$row['reversed']}\n";
+    }
+    echo "\n";
+}
+
+// Example 13: LPAD and RPAD (skip on SQLite where not supported)
+echo "13. LPAD and RPAD - Align strings...\n";
+if ($driver === 'sqlite') {
+    echo "  • Skipped on SQLite (LPAD/RPAD not available)\n\n";
+} else {
+    $padded = $db->find()
+        ->from('users')
+        ->select([
+            'first_name',
+            'left_padded' => Db::padLeft('first_name', 8, ' '),
+            'right_padded' => Db::padRight('first_name', 8, '.')
+        ])
+        ->limit(3)
+        ->get();
+
+    foreach ($padded as $row) {
+        echo "  • '{$row['left_padded']}' | '{$row['right_padded']}'\n";
+    }
+    echo "\n";
+}
+
 // Example 2: UPPER and LOWER
 echo "2. UPPER and LOWER - Case conversion...\n";
 $users = $db->find()
@@ -143,16 +218,14 @@ echo "\n";
 
 // Example 8: Combine multiple string functions
 echo "8. Combining string functions...\n";
-$driver = getCurrentDriver($db);
-$concatFunc = $driver === 'pgsql' ? 'first_name || \' \' || last_name' : 'CONCAT(first_name, " ", last_name)';
 $users = $db->find()
     ->from('users')
     ->select([
         'first_name',
         'last_name',
-        'full_name_upper' => Db::raw("UPPER($concatFunc)"),
+        'full_name_upper' => Db::upper(Db::concat('first_name', ' ', 'last_name')),
         'email_lower' => Db::lower('email'),
-        'name_length' => Db::raw("LENGTH($concatFunc)")
+        'name_length' => Db::length(Db::concat('first_name', ' ', 'last_name'))
     ])
     ->limit(2)
     ->get();

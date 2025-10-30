@@ -88,3 +88,4 @@ PDODB_DRIVER=pgsql php 01-window-functions.php
 - [API Reference: Window Helper Functions](../../documentation/07-helper-functions/window-helpers.md)
 - [Best Practices: Performance](../../documentation/08-best-practices/performance.md)
 
+

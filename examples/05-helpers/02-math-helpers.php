@@ -82,6 +82,24 @@ foreach ($results as $row) {
 }
 echo "\n";
 
+// Example 3b: CEIL and FLOOR
+echo "3b. CEIL and FLOOR - Rounding up/down...\n";
+$rounding = $db->find()
+    ->from('measurements')
+    ->select([
+        'name',
+        'value',
+        'ceil_val' => Db::ceil('value'),
+        'floor_val' => Db::floor('value')
+    ])
+    ->limit(2)
+    ->get();
+
+foreach ($rounding as $row) {
+    echo "  • {$row['name']}: value={$row['value']}, CEIL={$row['ceil_val']}, FLOOR={$row['floor_val']}\n";
+}
+echo "\n";
+
 // Example 4: GREATEST - Maximum of multiple values
 echo "4. GREATEST - Maximum of multiple columns...\n";
 $db->rawQuery("ALTER TABLE measurements ADD COLUMN alt_reading INTEGER DEFAULT 0");
@@ -103,6 +121,27 @@ foreach ($results as $row) {
 }
 echo "\n";
 
+// Example 5b: POWER, SQRT, EXP, LN/LOG
+echo "5b. POWER/SQRT/EXP/LN/LOG - Advanced math...\n";
+$adv = $db->find()
+    ->from('measurements')
+    ->select([
+        'name',
+        'reading',
+        'pow2' => Db::power('reading', 2),
+        'sqrt_abs' => Db::sqrt(Db::abs('value')),
+        'exp1' => Db::exp(1),
+        'ln_abs' => Db::ln(Db::abs('value')),
+        'log10_abs' => Db::log(Db::abs('value'))
+    ])
+    ->limit(2)
+    ->get();
+
+foreach ($adv as $row) {
+    echo "  • {$row['name']}: pow(reading,2)={$row['pow2']}, sqrt(|value|)={$row['sqrt_abs']}\n";
+}
+echo "\n";
+
 // Example 5: LEAST - Minimum of multiple values
 echo "5. LEAST - Minimum of multiple columns...\n";
 $results = $db->find()
@@ -117,6 +156,24 @@ $results = $db->find()
 
 foreach ($results as $row) {
     echo "  • {$row['name']}: reading={$row['reading']}, alt={$row['alt_reading']}, min={$row['min_reading']}\n";
+}
+echo "\n";
+
+// Example 10: TRUNC - Truncate numeric values
+echo "10. TRUNC - Truncate values without rounding...\n";
+$tr = $db->find()
+    ->from('measurements')
+    ->select([
+        'name',
+        'value',
+        'trunc_0' => Db::trunc('value', 0),
+        'trunc_1' => Db::trunc('value', 1)
+    ])
+    ->limit(2)
+    ->get();
+
+foreach ($tr as $row) {
+    echo "  • {$row['name']}: {$row['value']} → trunc0={$row['trunc_0']}, trunc1={$row['trunc_1']}\n";
 }
 echo "\n";
 

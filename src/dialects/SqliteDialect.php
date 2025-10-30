@@ -565,6 +565,100 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+    {
+        $e = $this->resolveValue($expr);
+        $sign = $isAdd ? '+' : '-';
+        // SQLite uses datetime(expr, '±value unit') or date(expr, '±value unit') syntax
+        // Normalize unit names for SQLite (it uses lowercase: day, month, year, hour, minute, second)
+        $unitLower = strtolower($unit);
+        return "datetime({$e}, '{$sign}{$value} {$unitLower}')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string
+    {
+        $col = $this->resolveValue($column);
+        $sep = addslashes($separator);
+        $dist = $distinct ? 'DISTINCT ' : '';
+        return "GROUP_CONCAT($dist$col, '$sep')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatRepeat(string|RawValue $value, int $count): string
+    {
+        throw new \RuntimeException('REPEAT is not supported by SQLite dialect.');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatReverse(string|RawValue $value): string
+    {
+        throw new \RuntimeException('REVERSE is not supported by SQLite dialect.');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatPad(string|RawValue $value, int $length, string $padString, bool $isLeft): string
+    {
+        throw new \RuntimeException('LPAD/RPAD are not supported by SQLite dialect.');
+    }
+
+    /**
+     * {@inheritDoc}
+     * SQLite doesn't have TRUNCATE function, use ROUND(value - 0.5, precision) for positive numbers.
+     */
+    public function formatTruncate(string|RawValue $value, int $precision): string
+    {
+        $val = $this->resolveValue($value);
+        if ($precision === 0) {
+            return "CAST($val AS INTEGER)";
+        }
+        // For non-zero precision, use multiplication/division trick: ROUND(value * power, 0) / power
+        $power = pow(10, $precision);
+        return "ROUND($val * $power - 0.5, 0) / $power";
+    }
+
+    /**
+     * {@inheritDoc}
+     * SQLite uses INSTR(string, substring) instead of POSITION(substring IN string).
+     */
+    public function formatPosition(string|RawValue $substring, string|RawValue $value): string
+    {
+        $sub = $substring instanceof RawValue ? $substring->getValue() : "'" . addslashes((string)$substring) . "'";
+        $val = $this->resolveValue($value);
+        return "INSTR($val, $sub)";
+    }
+
+    /**
+     * {@inheritDoc}
+     * SQLite doesn't have LEFT function, use SUBSTR(value, 1, length).
+     */
+    public function formatLeft(string|RawValue $value, int $length): string
+    {
+        $val = $this->resolveValue($value);
+        return "SUBSTR($val, 1, $length)";
+    }
+
+    /**
+     * {@inheritDoc}
+     * SQLite doesn't have RIGHT function, use SUBSTR(value, -length) or SUBSTR(value, LENGTH(value) - length + 1).
+     */
+    public function formatRight(string|RawValue $value, int $length): string
+    {
+        $val = $this->resolveValue($value);
+        return "SUBSTR($val, -$length)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string
     {
         $cols = is_array($columns) ? $columns : [$columns];

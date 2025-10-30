@@ -165,6 +165,26 @@ foreach ($detailed as $row) {
 }
 echo "\n";
 
+// Example 7b: GROUP_CONCAT / STRING_AGG
+echo "7b. GROUP_CONCAT / STRING_AGG - Products by category...\n";
+$concat = $db->find()
+    ->from('sales')
+    ->select([
+        'category',
+        // SQLite DISTINCT in GROUP_CONCAT may not be available in older versions
+        'products' => ($driver === 'sqlite')
+            ? Db::groupConcat('product', ', ', false)
+            : Db::groupConcat('product', ', ', true)
+    ])
+    ->groupBy('category')
+    ->orderBy('category')
+    ->get();
+
+foreach ($concat as $row) {
+    echo "  • {$row['category']}: {$row['products']}\n";
+}
+echo "\n";
+
 // Example 8: FILTER clause - Conditional aggregates
 echo "8. FILTER clause - Separate aggregates for North and South...\n";
 $filtered = $db->find()

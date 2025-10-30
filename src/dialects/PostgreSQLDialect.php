@@ -752,6 +752,76 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+    {
+        $e = $this->resolveValue($expr);
+        $sign = $isAdd ? '+' : '-';
+        // PostgreSQL uses INTERVAL 'value unit' syntax
+        return "{$e} {$sign} INTERVAL '{$value} {$unit}'";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string
+    {
+        $col = $this->resolveValue($column);
+        $sep = addslashes($separator);
+        $dist = $distinct ? 'DISTINCT ' : '';
+        return "STRING_AGG($dist$col, '$sep')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatTruncate(string|RawValue $value, int $precision): string
+    {
+        $val = $this->resolveValue($value);
+        return "TRUNC($val, $precision)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatPosition(string|RawValue $substring, string|RawValue $value): string
+    {
+        $sub = $substring instanceof RawValue ? $substring->getValue() : "'" . addslashes((string)$substring) . "'";
+        $val = $this->resolveValue($value);
+        return "POSITION($sub IN $val)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatRepeat(string|RawValue $value, int $count): string
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : "'" . addslashes((string)$value) . "'";
+        return "REPEAT($val, $count)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatReverse(string|RawValue $value): string
+    {
+        $val = $this->resolveValue($value);
+        return "REVERSE($val)";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatPad(string|RawValue $value, int $length, string $padString, bool $isLeft): string
+    {
+        $val = $this->resolveValue($value);
+        $pad = addslashes($padString);
+        $func = $isLeft ? 'LPAD' : 'RPAD';
+        return "{$func}($val, $length, '$pad')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string
     {
         $cols = is_array($columns) ? $columns : [$columns];

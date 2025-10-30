@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\helpers\traits;
 
 use tommyknocker\pdodb\helpers\values\ModValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\helpers\values\TruncValue;
 
 /**
  * Trait for numeric operations.
@@ -74,5 +75,116 @@ trait NumericHelpersTrait
     public static function mod(string|RawValue $dividend, string|RawValue $divisor): ModValue
     {
         return new ModValue($dividend, $divisor);
+    }
+
+    /**
+     * Returns ceiling value (round up).
+     *
+     * @param string|RawValue $value The value.
+     *
+     * @return RawValue The RawValue instance for CEIL/CEILING.
+     */
+    public static function ceil(string|RawValue $value): RawValue
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        return new RawValue("CEIL($val)");
+    }
+
+    /**
+     * Returns floor value (round down).
+     *
+     * @param string|RawValue $value The value.
+     *
+     * @return RawValue The RawValue instance for FLOOR.
+     */
+    public static function floor(string|RawValue $value): RawValue
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        return new RawValue("FLOOR($val)");
+    }
+
+    /**
+     * Returns power operation (value raised to the power of exponent).
+     *
+     * @param string|RawValue $value The base value.
+     * @param string|int|float|RawValue $exponent Always exponent value.
+     *
+     * @return RawValue The RawValue instance for POWER.
+     */
+    public static function power(string|RawValue $value, string|int|float|RawValue $exponent): RawValue
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        $exp = $exponent instanceof RawValue ? $exponent->getValue() : (string)$exponent;
+        return new RawValue("POWER($val, $exp)");
+    }
+
+    /**
+     * Returns square root.
+     *
+     * @param string|RawValue $value The value.
+     *
+     * @return RawValue The RawValue instance for SQRT.
+     */
+    public static function sqrt(string|RawValue $value): RawValue
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        return new RawValue("SQRT($val)");
+    }
+
+    /**
+     * Returns exponential function (e raised to the power of value).
+     *
+     * @param string|RawValue $value The value.
+     *
+     * @return RawValue The RawValue instance for EXP.
+     */
+    public static function exp(string|RawValue $value): RawValue
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        return new RawValue("EXP($val)");
+    }
+
+    /**
+     * Returns natural logarithm (base e).
+     *
+     * @param string|RawValue $value The value.
+     *
+     * @return RawValue The RawValue instance for LN.
+     */
+    public static function ln(string|RawValue $value): RawValue
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        return new RawValue("LN($val)");
+    }
+
+    /**
+     * Returns logarithm (base specified or base 10 if not specified).
+     *
+     * @param string|RawValue $value The value.
+     * @param string|int|float|RawValue|null $base The logarithm base (default is 10).
+     *
+     * @return RawValue The RawValue instance for LOG.
+     */
+    public static function log(string|RawValue $value, string|int|float|RawValue|null $base = null): RawValue
+    {
+        $val = $value instanceof RawValue ? $value->getValue() : $value;
+        if ($base === null) {
+            return new RawValue("LOG10($val)");
+        }
+        $b = $base instanceof RawValue ? $base->getValue() : (string)$base;
+        return new RawValue("LOG($b, $val)");
+    }
+
+    /**
+     * Returns truncated value (remove fractional part or truncate to specified precision).
+     *
+     * @param string|RawValue $value The value to truncate.
+     * @param int $precision The number of decimal places to keep (default is 0).
+     *
+     * @return TruncValue The TruncValue instance for TRUNCATE/TRUNC.
+     */
+    public static function trunc(string|RawValue $value, int $precision = 0): TruncValue
+    {
+        return new TruncValue($value, $precision);
     }
 }

@@ -347,3 +347,4 @@ See [examples/02-intermediate/02-aggregations.php](../../examples/02-intermediat
 - [Conditional Logic](../../examples/02-intermediate/02-aggregations.php) - GROUP BY and HAVING
 - [Performance Tips](../08-best-practices/performance.md) - Query optimization
 
+

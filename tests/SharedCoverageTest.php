@@ -4184,7 +4184,7 @@ class SharedCoverageTest extends TestCase
             ->get();
 
         $this->assertCount(4, $results);
-        $nullCount = count(array_filter($results, fn($r) => $r['value'] === null));
+        $nullCount = count(array_filter($results, fn ($r) => $r['value'] === null));
         $this->assertEquals(2, $nullCount);
     }
 

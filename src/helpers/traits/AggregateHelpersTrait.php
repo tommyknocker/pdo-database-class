@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\helpers\traits;
 
 use tommyknocker\pdodb\helpers\values\FilterValue;
+use tommyknocker\pdodb\helpers\values\GroupConcatValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
@@ -75,5 +76,46 @@ trait AggregateHelpersTrait
     {
         $val = $column instanceof RawValue ? $column->getValue() : $column;
         return new FilterValue("MAX($val)");
+    }
+
+    /**
+     * Returns GROUP_CONCAT / STRING_AGG expression (dialect-specific).
+     *
+     * @param string|RawValue $column Column or expression to concatenate.
+     * @param string $separator Separator string (default: ',').
+     * @param bool $distinct Whether to use DISTINCT.
+     *
+     * @return GroupConcatValue The GroupConcatValue instance.
+     */
+    public static function groupConcat(string|RawValue $column, string $separator = ',', bool $distinct = false): GroupConcatValue
+    {
+        return new GroupConcatValue($column, $separator, $distinct);
+    }
+
+    /**
+     * Returns ARRAY_AGG expression (PostgreSQL only).
+     * Returns JSON_ARRAYAGG for MySQL/SQLite.
+     *
+     * @param string|RawValue $column Column or expression to aggregate.
+     *
+     * @return RawValue The RawValue instance for ARRAY_AGG.
+     */
+    public static function arrayAgg(string|RawValue $column): RawValue
+    {
+        $val = $column instanceof RawValue ? $column->getValue() : $column;
+        return new RawValue("ARRAY_AGG($val)");
+    }
+
+    /**
+     * Returns JSON_ARRAYAGG expression (aggregates values into JSON array).
+     *
+     * @param string|RawValue $column Column or expression to aggregate.
+     *
+     * @return RawValue The RawValue instance for JSON_ARRAYAGG.
+     */
+    public static function jsonArrayAgg(string|RawValue $column): RawValue
+    {
+        $val = $column instanceof RawValue ? $column->getValue() : $column;
+        return new RawValue("JSON_ARRAYAGG($val)");
     }
 }
