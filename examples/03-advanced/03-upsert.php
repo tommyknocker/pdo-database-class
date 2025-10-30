@@ -29,7 +29,7 @@ echo "✓ Table created\n\n";
 echo "1. First UPSERT for user 1 (will INSERT)...\n";
 $db->find()->table('user_stats')
     ->onDuplicate([
-        'login_count' => Db::raw('login_count + 1')
+        'login_count' => Db::inc(1)
     ])
     ->insert([
         'user_id' => 1,
@@ -43,7 +43,7 @@ echo "  ✓ User 1 stats: login_count={$stats['login_count']}, points={$stats['t
 echo "2. Second UPSERT for user 1 (will UPDATE)...\n";
 $db->find()->table('user_stats')
     ->onDuplicate([
-        'login_count' => Db::raw('login_count + 1')
+        'login_count' => Db::inc(1)
     ])
     ->insert([
         'user_id' => 1,
@@ -57,8 +57,8 @@ echo "  ✓ User 1 stats: login_count={$stats['login_count']} (incremented!)\n\n
 echo "3. UPSERT with multiple field updates...\n";
 $db->find()->table('user_stats')
     ->onDuplicate([
-        'login_count' => Db::raw('login_count + 1'),
-        'total_points' => Db::raw('total_points + 100')
+        'login_count' => Db::inc(1),
+        'total_points' => Db::inc(100)
     ])
     ->insert([
         'user_id' => 1,
@@ -74,8 +74,8 @@ echo "4. UPSERT for multiple users...\n";
 for ($userId = 2; $userId <= 5; $userId++) {
     $db->find()->table('user_stats')
         ->onDuplicate([
-            'login_count' => Db::raw('login_count + 1'),
-            'total_points' => Db::raw('total_points + 10')
+            'login_count' => Db::inc(1),
+            'total_points' => Db::inc(10)
         ])
         ->insert([
             'user_id' => $userId,
@@ -94,7 +94,7 @@ $userIds = [1, 2, 1, 3, 1, 4, 2];
 foreach ($userIds as $userId) {
     $db->find()->table('user_stats')
         ->onDuplicate([
-            'login_count' => Db::raw('login_count + 1')
+            'login_count' => Db::inc(1)
         ])
         ->insert([
             'user_id' => $userId,
@@ -123,7 +123,9 @@ echo "7. UPSERT with bonus points for frequent users...\n";
 $db->find()->table('user_stats')
     ->onDuplicate([
         'login_count' => Db::inc(1),
-        'total_points' => Db::raw('CASE WHEN user_stats.login_count >= 3 THEN user_stats.total_points + 50 ELSE user_stats.total_points + 10 END')
+        'total_points' => Db::case([
+            'user_stats.login_count >= 3' => 'user_stats.total_points + 50'
+        ], 'user_stats.total_points + 10')
     ])
     ->insert([
         'user_id' => 1,

@@ -391,20 +391,33 @@ class ConditionBuilder implements ConditionBuilderInterface
             return $this;
         }
 
-        // if RawValue is provided and there is no value — insert it as is
+        // handle NULL comparisons
         if ($value === null) {
+            $opUpper = $this->normalizeOperator($operator);
             if ($exprOrColumn instanceof RawValue) {
-                $resolved = $this->resolveRawValue($exprOrColumn);
-                $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
-            } else {
-                $this->{$prop}[] = ['sql' => $exprOrColumn, 'cond' => $cond];
+                $left = $this->resolveRawValue($exprOrColumn);
+                $nullSql = ($opUpper === 'IS NOT' || $opUpper === '!=' || $opUpper === '<>') ? 'IS NOT NULL' : 'IS NULL';
+                $this->{$prop}[] = ['sql' => "{$left} {$nullSql}", 'cond' => $cond];
+                return $this;
             }
+
+            $exprQuoted = $this->quoteQualifiedIdentifier((string)$exprOrColumn);
+            $nullSql = ($opUpper === 'IS NOT' || $opUpper === '!=' || $opUpper === '<>') ? 'IS NOT NULL' : 'IS NULL';
+            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$nullSql}", 'cond' => $cond];
             return $this;
         }
 
         if ($exprOrColumn instanceof RawValue) {
             $left = $this->resolveRawValue($exprOrColumn);
-            $this->{$prop}[] = ['sql' => "{$left} {$operator} {$value}", 'cond' => $cond];
+            if ($value instanceof RawValue) {
+                $right = $this->resolveRawValue($value);
+                $this->{$prop}[] = ['sql' => "{$left} {$operator} {$right}", 'cond' => $cond];
+                return $this;
+            }
+
+            // Inline literal on the right side to avoid driver-specific parameter casting issues
+            $right = $this->literalFromValue($value);
+            $this->{$prop}[] = ['sql' => "{$left} {$operator} {$right}", 'cond' => $cond];
             return $this;
         }
 
@@ -531,5 +544,29 @@ class ConditionBuilder implements ConditionBuilderInterface
     protected function normalizeOperator(string $operator): string
     {
         return strtoupper(trim($operator));
+    }
+
+    /**
+     * Convert a PHP value into a safe SQL literal.
+     * Note: Use only for right-hand side of expressions when left side is a RawValue.
+     *
+     * @param mixed $value
+     *
+     * @return string
+     */
+    protected function literalFromValue(mixed $value): string
+    {
+        if ($value === null) {
+            return 'NULL';
+        }
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+        if (is_int($value) || is_float($value)) {
+            return (string)$value;
+        }
+        // Fallback: quote single quotes inside and wrap with quotes
+        $s = (string)$value;
+        return "'" . str_replace("'", "''", $s) . "'";
     }
 }

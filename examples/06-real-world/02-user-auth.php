@@ -134,7 +134,7 @@ function loginUser($db, $username, $password) {
         'user_id' => $user['id'],
         'ip_address' => '127.0.0.1',
         'user_agent' => 'Mozilla/5.0',
-        'expires_at' => Db::raw(getCurrentDriver($db) === 'mysql' ? 'DATE_ADD(NOW(), INTERVAL 7 DAY)' : (getCurrentDriver($db) === 'pgsql' ? "NOW() + INTERVAL '7 days'" : "DATETIME('now', '+7 days')"))
+        'expires_at' => Db::now('+7 days')
     ]);
     
     return [

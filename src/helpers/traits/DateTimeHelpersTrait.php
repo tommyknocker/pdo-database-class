@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\helpers\traits;
 
 use tommyknocker\pdodb\helpers\values\CurDateValue;
 use tommyknocker\pdodb\helpers\values\CurTimeValue;
+use tommyknocker\pdodb\helpers\values\DateOnlyValue;
 use tommyknocker\pdodb\helpers\values\DayValue;
 use tommyknocker\pdodb\helpers\values\HourValue;
 use tommyknocker\pdodb\helpers\values\IntervalValue;
@@ -14,9 +15,8 @@ use tommyknocker\pdodb\helpers\values\MonthValue;
 use tommyknocker\pdodb\helpers\values\NowValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\helpers\values\SecondValue;
-use tommyknocker\pdodb\helpers\values\YearValue;
-use tommyknocker\pdodb\helpers\values\DateOnlyValue;
 use tommyknocker\pdodb\helpers\values\TimeOnlyValue;
+use tommyknocker\pdodb\helpers\values\YearValue;
 
 /**
  * Trait for date/time operations.

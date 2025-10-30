@@ -229,10 +229,23 @@ class MySQLDialect extends DialectAbstract
         }
 
         $trimmedDif = trim($diff);
-        if (preg_match('/^([+-]?)(\d+)\s+([A-Za-z]+)$/', $trimmedDif, $matches)) {
-            $sign = $matches[1] === '-' ? '-' : '+';
+        if (preg_match('/^([+-] ?)?(\d+)\s+([A-Za-z]+)$/', $trimmedDif, $matches)) {
+            $signRaw = trim((string)$matches[1]);
+            if ($signRaw === '') {
+                $signRaw = '+';
+            }
+            $sign = $signRaw === '-' ? '-' : '+';
             $value = $matches[2];
-            $unit = strtoupper($matches[3]);
+            $unitRaw = strtolower($matches[3]);
+            $map = [
+                'day' => 'DAY', 'days' => 'DAY',
+                'month' => 'MONTH', 'months' => 'MONTH',
+                'year' => 'YEAR', 'years' => 'YEAR',
+                'hour' => 'HOUR', 'hours' => 'HOUR',
+                'minute' => 'MINUTE', 'minutes' => 'MINUTE',
+                'second' => 'SECOND', 'seconds' => 'SECOND',
+            ];
+            $unit = $map[$unitRaw] ?? strtoupper($unitRaw);
 
             if ($asTimestamp) {
                 return "UNIX_TIMESTAMP(NOW() {$sign} INTERVAL {$value} {$unit})";

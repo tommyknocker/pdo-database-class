@@ -23,5 +23,3 @@ class DateOnlyValue extends RawValue
         return $this->sourceValue;
     }
 }
-
-

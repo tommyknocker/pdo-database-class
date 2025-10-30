@@ -23,5 +23,3 @@ class TimeOnlyValue extends RawValue
         return $this->sourceValue;
     }
 }
-
-

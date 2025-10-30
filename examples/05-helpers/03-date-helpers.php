@@ -224,8 +224,8 @@ $events = $db->find()
         'title',
         'event_date',
         'event_time',
-        'date_only' => $driver === 'pgsql' ? Db::raw('created_at::DATE') : Db::date('created_at'),
-        'time_only' => $driver === 'pgsql' ? Db::raw('created_at::TIME') : Db::time('created_at'),
+        'date_only' => Db::date('created_at'),
+        'time_only' => Db::time('created_at'),
     ])
     ->get();
 

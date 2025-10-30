@@ -40,7 +40,7 @@ $elapsed = round((microtime(true) - $start) * 1000, 2);
 echo "✗ Inserted 100 rows in {$elapsed}ms (SLOW)\n\n";
 
 // Clear for comparison
-$db->find()->table('users')->where(Db::raw('1=1'))->delete();
+$db->find()->table('users')->truncate();
 
 // Example 2: Bulk insert (fast)
 echo "2. Bulk insert with insertMulti (RECOMMENDED)...\n";
@@ -62,7 +62,7 @@ echo "  Performance improvement: ~" . round(100 / $elapsed, 1) . "x faster\n\n";
 
 // Example 3: Bulk insert in batches
 echo "3. Bulk insert in batches (for very large datasets)...\n";
-$db->find()->table('users')->where(Db::raw('1=1'))->delete();
+$db->find()->table('users')->truncate();
 
 $totalUsers = 1000;
 $batchSize = 100;
@@ -95,7 +95,7 @@ echo "  Average per batch: " . round($elapsed / $batches, 2) . "ms\n\n";
 
 // Example 4: Bulk insert with transactions
 echo "4. Bulk insert with transaction (even faster)...\n";
-$db->find()->table('users')->where(Db::raw('1=1'))->delete();
+$db->find()->table('users')->truncate();
 
 $users = [];
 for ($i = 1; $i <= 500; $i++) {

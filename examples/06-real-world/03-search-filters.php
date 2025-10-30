@@ -220,23 +220,21 @@ echo "6. Price range distribution:\n";
 $priceRanges = $db->find()
     ->from('products')
     ->select([
-        'price_range' => Db::raw("CASE 
-            WHEN price < 100 THEN 'Under $100'
-            WHEN price < 500 THEN '$100-$500'
-            WHEN price < 1000 THEN '$500-$1000'
-            WHEN price < 2000 THEN '$1000-$2000'
-            ELSE 'Over $2000'
-        END"),
+        'price_range' => Db::case([
+            'price < 100' => "'Under $100'",
+            'price < 500' => "'$100-$500'",
+            'price < 1000' => "'$500-$1000'",
+            'price < 2000' => "'$1000-$2000'",
+        ], "'Over $2000'"),
         'count' => Db::count(),
         'avg_rating' => Db::avg('rating')
     ])
-    ->groupBy(Db::raw("CASE 
-        WHEN price < 100 THEN 'Under $100'
-        WHEN price < 500 THEN '$100-$500'
-        WHEN price < 1000 THEN '$500-$1000'
-        WHEN price < 2000 THEN '$1000-$2000'
-        ELSE 'Over $2000'
-    END"))
+    ->groupBy(Db::case([
+        'price < 100' => "'Under $100'",
+        'price < 500' => "'$100-$500'",
+        'price < 1000' => "'$500-$1000'",
+        'price < 2000' => "'$1000-$2000'",
+    ], "'Over $2000'"))
     ->orderBy('count', 'DESC')
     ->get();
 
@@ -291,7 +289,7 @@ echo "9. JSON specs filtering: Products with 16GB RAM\n";
 
 $withRam = $db->find()
     ->from('products')
-    ->where(Db::raw("specs LIKE '%\"ram\":\"16GB\"%'"))
+    ->where('specs', '%"ram":"16GB"%', 'LIKE')
     ->select(['name', 'brand', 'specs'])
     ->get();
 
@@ -312,8 +310,8 @@ $suggestions = $db->find()
         'type' => Db::raw("'product'"),
         'category'
     ])
-    ->where(Db::raw('LOWER(name) LIKE ' . $db->connection->quote($term)))
-    ->orWhere(Db::raw('LOWER(brand) LIKE ' . $db->connection->quote($term)))
+    ->where(Db::lower('name'), strtolower($term), 'LIKE')
+    ->orWhere(Db::lower('brand'), strtolower($term), 'LIKE')
     ->limit(5)
     ->get();
 

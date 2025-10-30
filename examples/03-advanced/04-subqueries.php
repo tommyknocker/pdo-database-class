@@ -71,8 +71,16 @@ $results = $db->find()
         'name',
         'department',
         'salary',
-        'total_orders' => Db::raw('(SELECT COUNT(*) FROM orders WHERE user_id = users.id)'),
-        'total_amount' => Db::raw('(SELECT COALESCE(SUM(amount), 0) FROM orders WHERE user_id = users.id)')
+        'total_orders' => function ($q) {
+            $q->from('orders')
+              ->select([Db::count()])
+              ->where('user_id', Db::raw('users.id'));
+        },
+        'total_amount' => function ($q) {
+            $q->from('orders')
+              ->select([Db::coalesce(Db::sum('amount'), 0)])
+              ->where('user_id', Db::raw('users.id'));
+        }
     ])
     ->get();
 
@@ -86,7 +94,9 @@ echo "\n";
 echo "2. Subquery in WHERE...\n";
 $results = $db->find()
     ->from('users')
-    ->where('salary', Db::raw('(SELECT AVG(salary) FROM users)'), '>')
+    ->where('salary', function ($q) {
+        $q->from('users')->select([Db::avg('salary')]);
+    }, '>')
     ->select(['name', 'salary'])
     ->get();
 
@@ -113,7 +123,9 @@ echo "\n";
 echo "4. EXISTS subquery...\n";
 $results = $db->find()
     ->from('users')
-    ->where(Db::raw('EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)'))
+    ->whereExists(function ($q) {
+        $q->from('orders')->where('orders.user_id', Db::raw('users.id'));
+    })
     ->select(['name', 'department'])
     ->get();
 
@@ -127,7 +139,9 @@ echo "\n";
 echo "5. NOT EXISTS subquery...\n";
 $results = $db->find()
     ->from('users')
-    ->where(Db::raw('NOT EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)'))
+    ->whereNotExists(function ($q) {
+        $q->from('orders')->where('orders.user_id', Db::raw('users.id'));
+    })
     ->select(['name', 'department'])
     ->get();
 
@@ -139,11 +153,14 @@ echo "\n";
 
 // Example 6: IN subquery
 echo "6. IN subquery...\n";
-$driver = getCurrentDriver($db);
-$quote = $driver === 'pgsql' ? "'" : '"';
 $results = $db->find()
     ->from('users')
-    ->where('id', Db::raw("(SELECT DISTINCT user_id FROM orders WHERE status = {$quote}completed{$quote})"), 'IN')
+    ->whereIn('id', function ($q) {
+        $q->from('orders')
+          ->select(['user_id'])
+          ->where('status', 'completed')
+          ->groupBy('user_id');
+    })
     ->select(['name', 'department'])
     ->get();
 
@@ -161,7 +178,11 @@ $results = $db->find()
         'name',
         'department',
         'salary',
-        'dept_avg_salary' => Db::raw('(SELECT AVG(salary) FROM users u2 WHERE u2.department = users.department)'),
+        'dept_avg_salary' => function ($q) {
+            $q->from('users u2')
+              ->select([Db::avg('salary')])
+              ->where('u2.department', Db::raw('users.department'));
+        },
         'salary_vs_dept' => Db::raw('(salary - (SELECT AVG(salary) FROM users u2 WHERE u2.department = users.department))')
     ])
     ->get();
@@ -196,10 +217,21 @@ $results = $db->find()
         'name',
         'department',
         'salary',
-        'salary_rank' => Db::raw('(SELECT COUNT(*) + 1 FROM users u2 WHERE u2.salary > users.salary)'),
-        'dept_rank' => Db::raw('(SELECT COUNT(*) + 1 FROM users u2 WHERE u2.department = users.department AND u2.salary > users.salary)'),
-        'total_users' => Db::raw('(SELECT COUNT(*) FROM users)'),
-        'dept_users' => Db::raw('(SELECT COUNT(*) FROM users u2 WHERE u2.department = users.department)')
+        'salary_rank' => function ($q) {
+            $q->from('users u2')->select([Db::raw('COUNT(*) + 1')])->where('u2.salary', Db::raw('users.salary'), '>');
+        },
+        'dept_rank' => function ($q) {
+            $q->from('users u2')
+              ->select([Db::raw('COUNT(*) + 1')])
+              ->where('u2.department', Db::raw('users.department'))
+              ->andWhere('u2.salary', Db::raw('users.salary'), '>');
+        },
+        'total_users' => function ($q) {
+            $q->from('users')->select([Db::count()]);
+        },
+        'dept_users' => function ($q) {
+            $q->from('users u2')->select([Db::count()])->where('u2.department', Db::raw('users.department'));
+        }
     ])
     ->orderBy('salary', 'DESC')
     ->get();
@@ -239,8 +271,12 @@ $results = $db->find()
             WHEN SUM(amount) > 1000 THEN \'Good Performer\'
             ELSE \'Average Performer\'
         END FROM orders WHERE orders.user_id = users.id)'),
-        'order_count' => Db::raw('(SELECT COUNT(*) FROM orders WHERE orders.user_id = users.id)'),
-        'total_revenue' => Db::raw('(SELECT COALESCE(SUM(amount), 0) FROM orders WHERE orders.user_id = users.id)')
+        'order_count' => function ($q) {
+            $q->from('orders')->select([Db::count()])->where('orders.user_id', Db::raw('users.id'));
+        },
+        'total_revenue' => function ($q) {
+            $q->from('orders')->select([Db::coalesce(Db::sum('amount'), 0)])->where('orders.user_id', Db::raw('users.id'));
+        }
     ])
     ->get();
 

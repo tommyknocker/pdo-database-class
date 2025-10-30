@@ -333,6 +333,7 @@ interface DialectInterface
      * Format DATE(value) extraction.
      *
      * @param string|RawValue $value
+     *
      * @return string
      */
     public function formatDateOnly(string|RawValue $value): string;
@@ -341,6 +342,7 @@ interface DialectInterface
      * Format TIME(value) extraction.
      *
      * @param string|RawValue $value
+     *
      * @return string
      */
     public function formatTimeOnly(string|RawValue $value): string;

@@ -107,7 +107,8 @@ $db->find()
     ->where('name', 'page_views')
     ->update([
         'value' => Db::inc(50),
-        'name' => Db::raw(getCurrentDriver($db) === 'pgsql' ? "name || '_total'" : "CONCAT(name, '_total')"),
+        // Use helper-based concatenation; quote literal via raw as a minimal fallback
+        'name' => Db::concat('name', Db::raw("'_total'")),
         'updated_at' => Db::now()
     ]);
 

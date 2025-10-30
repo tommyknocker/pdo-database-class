@@ -137,7 +137,7 @@ echo "8. Order by custom priority (Electronics first, then Furniture)...\n";
 $byPriority = $db->find()
     ->from('products')
     ->select(['name', 'category', 'price'])
-    ->orderBy(Db::raw("CASE WHEN category = 'Electronics' THEN 1 ELSE 2 END"))
+    ->orderBy(Db::case(["category = 'Electronics'" => '1'], '2'))
     ->orderBy('price', 'DESC')
     ->get();
 

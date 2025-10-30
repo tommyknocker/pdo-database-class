@@ -105,15 +105,16 @@ $pdoDb->find()->table('employees_hierarchy')->insertMulti([
 // Example 1: Recursive CTE - Category hierarchy
 echo "1. Recursive CTE - Full category tree from 'Electronics':\n";
 $results = $pdoDb->find()
-    ->withRecursive('category_tree', Db::raw('
-        SELECT id, name, parent_id, 0 as level
-        FROM categories
-        WHERE parent_id IS NULL
-        UNION ALL
-        SELECT c.id, c.name, c.parent_id, ct.level + 1
-        FROM categories c
-        INNER JOIN category_tree ct ON c.parent_id = ct.id
-    '), ['id', 'name', 'parent_id', 'level'])
+    ->withRecursive('category_tree', function ($q) {
+        $q->from('categories')
+          ->select(['id', 'name', 'parent_id', Db::raw('0 as level')])
+          ->where('parent_id', null, 'IS')
+          ->unionAll(function ($r) {
+              $r->from('categories c')
+                ->select(['c.id', 'c.name', 'c.parent_id', Db::raw('ct.level + 1')])
+                ->join('category_tree ct', 'c.parent_id = ct.id');
+          });
+    }, ['id', 'name', 'parent_id', 'level'])
     ->from('category_tree')
     ->orderBy('level')
     ->orderBy('name')
@@ -128,58 +129,24 @@ echo "\n";
 // Example 2: Recursive CTE - Employee hierarchy chain
 echo "2. Recursive CTE - Management chain from CEO down:\n";
 
-// PostgreSQL requires explicit type casting for concatenated paths
-if ($driver === 'pgsql') {
-    $results = $pdoDb->find()
-        ->withRecursive('emp_hierarchy', Db::raw('
-            SELECT id, name, manager_id, salary, 0 as level, CAST(name AS TEXT) as path
-            FROM employees_hierarchy
-            WHERE manager_id IS NULL
-            UNION ALL
-            SELECT e.id, e.name, e.manager_id, e.salary, eh.level + 1,
-                   CAST(eh.path || \' -> \' || e.name AS TEXT) as path
-            FROM employees_hierarchy e
-            INNER JOIN emp_hierarchy eh ON e.manager_id = eh.id
-        '), ['id', 'name', 'manager_id', 'salary', 'level', 'path'])
-        ->from('emp_hierarchy')
-        ->orderBy('level')
-        ->orderBy('name')
-        ->get();
-} elseif ($driver === 'mysql') {
-    // MySQL uses CONCAT() instead of || operator
-    $results = $pdoDb->find()
-        ->withRecursive('emp_hierarchy', Db::raw('
-            SELECT id, name, manager_id, salary, 0 as level, name as path
-            FROM employees_hierarchy
-            WHERE manager_id IS NULL
-            UNION ALL
-            SELECT e.id, e.name, e.manager_id, e.salary, eh.level + 1,
-                   CONCAT(eh.path, \' -> \', e.name) as path
-            FROM employees_hierarchy e
-            INNER JOIN emp_hierarchy eh ON e.manager_id = eh.id
-        '), ['id', 'name', 'manager_id', 'salary', 'level', 'path'])
-        ->from('emp_hierarchy')
-        ->orderBy('level')
-        ->orderBy('name')
-        ->get();
-} else {
-    // SQLite uses || operator
-    $results = $pdoDb->find()
-        ->withRecursive('emp_hierarchy', Db::raw('
-            SELECT id, name, manager_id, salary, 0 as level, name as path
-            FROM employees_hierarchy
-            WHERE manager_id IS NULL
-            UNION ALL
-            SELECT e.id, e.name, e.manager_id, e.salary, eh.level + 1,
-                   eh.path || \' -> \' || e.name as path
-            FROM employees_hierarchy e
-            INNER JOIN emp_hierarchy eh ON e.manager_id = eh.id
-        '), ['id', 'name', 'manager_id', 'salary', 'level', 'path'])
-        ->from('emp_hierarchy')
-        ->orderBy('level')
-        ->orderBy('name')
-        ->get();
-}
+$results = $pdoDb->find()
+    ->withRecursive('emp_hierarchy', function ($q) {
+        $q->from('employees_hierarchy')
+          ->select(['id', 'name', 'manager_id', 'salary', Db::raw('0 as level'), 'path' => 'name'])
+          ->where('manager_id', null, 'IS')
+          ->unionAll(function ($r) {
+              $r->from('employees_hierarchy e')
+                ->select([
+                    'e.id', 'e.name', 'e.manager_id', 'e.salary', Db::raw('eh.level + 1'),
+                    'path' => Db::concat('eh.path', Db::raw("' -> '"), 'e.name')
+                ])
+                ->join('emp_hierarchy eh', 'e.manager_id = eh.id');
+          });
+    }, ['id', 'name', 'manager_id', 'salary', 'level', 'path'])
+    ->from('emp_hierarchy')
+    ->orderBy('level')
+    ->orderBy('name')
+    ->get();
 
 foreach ($results as $employee) {
     printf("Level %d: %s (Salary: $%s)\n  Path: %s\n", 
@@ -194,16 +161,17 @@ echo "\n";
 // Example 3: Recursive CTE with depth limit
 echo "3. Recursive CTE - Two levels deep from root:\n";
 $results = $pdoDb->find()
-    ->withRecursive('limited_tree', Db::raw('
-        SELECT id, name, parent_id, 0 as depth
-        FROM categories
-        WHERE parent_id IS NULL
-        UNION ALL
-        SELECT c.id, c.name, c.parent_id, lt.depth + 1
-        FROM categories c
-        INNER JOIN limited_tree lt ON c.parent_id = lt.id
-        WHERE lt.depth < 2
-    '), ['id', 'name', 'parent_id', 'depth'])
+    ->withRecursive('limited_tree', function ($q) {
+        $q->from('categories')
+          ->select(['id', 'name', 'parent_id', Db::raw('0 as depth')])
+          ->where('parent_id', null, 'IS')
+          ->unionAll(function ($r) {
+              $r->from('categories c')
+                ->select(['c.id', 'c.name', 'c.parent_id', Db::raw('lt.depth + 1')])
+                ->join('limited_tree lt', 'c.parent_id = lt.id')
+                ->where(Db::raw('lt.depth'), 2, '<');
+          });
+    }, ['id', 'name', 'parent_id', 'depth'])
     ->from('limited_tree')
     ->orderBy('depth')
     ->orderBy('name')
@@ -220,15 +188,16 @@ echo "4. Recursive CTE - Employee count per manager:\n";
 
 // First, get the hierarchy
 $hierarchyResults = $pdoDb->find()
-    ->withRecursive('emp_tree', Db::raw('
-        SELECT id, name, manager_id, 1 as sub_count
-        FROM employees_hierarchy
-        WHERE manager_id IS NOT NULL
-        UNION ALL
-        SELECT e.id, e.name, e.manager_id, et.sub_count + 1
-        FROM employees_hierarchy e
-        INNER JOIN emp_tree et ON e.id = et.manager_id
-    '), ['id', 'name', 'manager_id', 'sub_count'])
+    ->withRecursive('emp_tree', function ($q) {
+        $q->from('employees_hierarchy')
+          ->select(['id', 'name', 'manager_id', Db::raw('1 as sub_count')])
+          ->where('manager_id', null, 'IS NOT')
+          ->unionAll(function ($r) {
+              $r->from('employees_hierarchy e')
+                ->select(['e.id', 'e.name', 'e.manager_id', Db::raw('et.sub_count + 1')])
+                ->join('emp_tree et', 'e.id = et.manager_id');
+          });
+    }, ['id', 'name', 'manager_id', 'sub_count'])
     ->from('emp_tree')
     ->get();
 
