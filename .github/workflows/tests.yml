@@ -51,7 +51,7 @@ jobs:
           DB_DSN="mysql:host=127.0.0.1;port=3306;dbname=testdb;charset=utf8mb4" \
           DB_USER="testuser" \
           DB_PASS="testpass" \
-          vendor/bin/phpunit tests/PdoDbMySQLTest.php --coverage-clover coverage-mysql.xml
+          vendor/bin/phpunit --testsuite="MySQL Tests" --coverage-clover coverage-mysql.xml
       - name: Test MySQL Examples
         run: ./scripts/test-examples.sh --verbose
       - name: Upload MySQL coverage to Codecov
@@ -96,7 +96,7 @@ jobs:
           DB_DSN="pgsql:host=localhost;port=5433;dbname=testdb" \
           DB_USER="testuser" \
           DB_PASS="testpass" \
-          vendor/bin/phpunit tests/PdoDbPostgreSQLTest.php --coverage-clover coverage-postgres.xml
+          vendor/bin/phpunit --testsuite="PostgreSQL Tests" --coverage-clover coverage-postgres.xml
       - name: Test PostgreSQL Examples
         run: ./scripts/test-examples.sh --verbose
       - name: Upload PostgreSQL coverage to Codecov
@@ -120,7 +120,7 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - run: |
           DB_DSN="sqlite::memory:" \
-          vendor/bin/phpunit tests/PdoDbSqliteTest.php --coverage-clover coverage-sqlite.xml
+          vendor/bin/phpunit --testsuite="SQLite Tests" --coverage-clover coverage-sqlite.xml
       - name: Test SQLite Examples
         run: ./scripts/test-examples.sh  --verbose
       - name: Upload SQLite coverage to Codecov
@@ -142,7 +142,7 @@ jobs:
           extensions: pdo_sqlite
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
-      - run: vendor/bin/phpunit tests/SharedCoverageTest.php --coverage-clover coverage-shared.xml
+      - run: vendor/bin/phpunit --testsuite="Shared Tests" --coverage-clover coverage-shared.xml
       - name: Upload Shared coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
