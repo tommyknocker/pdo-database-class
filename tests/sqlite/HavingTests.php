@@ -67,4 +67,3 @@ final class HavingTests extends BaseSqliteTestCase
         $this->assertEquals([300, 500, 700], $totals);
     }
 }
-

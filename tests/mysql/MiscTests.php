@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mysql;
 
-use tommyknocker\pdodb\helpers\Db;
 use RuntimeException;
+use tommyknocker\pdodb\helpers\Db;
 
 /**
  * MiscTests for mysql.
@@ -93,4 +93,3 @@ final class MiscTests extends BaseMySQLTestCase
             ->get();
     }
 }
-

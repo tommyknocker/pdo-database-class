@@ -4,15 +4,6 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\sqlite;
 
-
-use InvalidArgumentException;
-use Monolog\Handler\TestHandler;
-use Monolog\Logger;
-use PHPUnit\Framework\TestCase;
-use RuntimeException;
-use tommyknocker\pdodb\helpers\Db;
-use tommyknocker\pdodb\PdoDb;
-
 /**
  * FileLoadTests tests for sqlite.
  */
@@ -20,10 +11,10 @@ final class FileLoadTests extends BaseSqliteTestCase
 {
     public function testLoadXml(): void
     {
-    $file = sys_get_temp_dir() . '/users.xml';
-    file_put_contents(
-    $file,
-    <<<XML
+        $file = sys_get_temp_dir() . '/users.xml';
+        file_put_contents(
+            $file,
+            <<<XML
     <users>
     <user>
     <name>XMLUser 1</name>
@@ -35,55 +26,55 @@ final class FileLoadTests extends BaseSqliteTestCase
     </user>
     </users>
     XML
-    );
-    
-    try {
-    $ok = self::$db->find()->table('users')->loadXml($file, '<user>', 1);
-    $this->assertTrue($ok);
-    
-    $row = self::$db->find()->from('users')->where('name', 'XMLUser 2')->getOne();
-    $this->assertEquals('XMLUser 2', $row['name']);
-    $this->assertEquals(44, $row['age']);
-    } catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
-    // SQLite doesn't support LOAD XML, so this should be skipped
-    $this->markTestSkipped(
-    'SQLite does not support LOAD XML. Error: ' . $e->getMessage()
-    );
-    }
-    
-    unlink($file);
+        );
+
+        try {
+            $ok = self::$db->find()->table('users')->loadXml($file, '<user>', 1);
+            $this->assertTrue($ok);
+
+            $row = self::$db->find()->from('users')->where('name', 'XMLUser 2')->getOne();
+            $this->assertEquals('XMLUser 2', $row['name']);
+            $this->assertEquals(44, $row['age']);
+        } catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
+            // SQLite doesn't support LOAD XML, so this should be skipped
+            $this->markTestSkipped(
+                'SQLite does not support LOAD XML. Error: ' . $e->getMessage()
+            );
+        }
+
+        unlink($file);
     }
 
     public function testLoadCsv(): void
     {
-    $db = self::$db;
-    
-    $tmpFile = sys_get_temp_dir() . '/users.csv';
-    file_put_contents($tmpFile, "4,Dave,new,30\n5,Eve,new,40\n");
-    
-    try {
-    $ok = $db->find()->table('users')->loadCsv($tmpFile, [
-    'fieldChar' => ',',
-    'fields' => ['id', 'name', 'status', 'age'],
-    'local' => true,
-    ]);
-    
-    $this->assertTrue($ok, 'loadData() returned false');
-    
-    $names = $db->find()
-    ->from('users')
-    ->select(['name'])
-    ->getColumn();
-    
-    $this->assertContains('Dave', $names);
-    $this->assertContains('Eve', $names);
-    } catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
-    // SQLite doesn't support LOAD DATA INFILE, so this should be skipped
-    $this->markTestSkipped(
-    'SQLite does not support LOAD DATA INFILE. Error: ' . $e->getMessage()
-    );
-    }
-    
-    unlink($tmpFile);
+        $db = self::$db;
+
+        $tmpFile = sys_get_temp_dir() . '/users.csv';
+        file_put_contents($tmpFile, "4,Dave,new,30\n5,Eve,new,40\n");
+
+        try {
+            $ok = $db->find()->table('users')->loadCsv($tmpFile, [
+            'fieldChar' => ',',
+            'fields' => ['id', 'name', 'status', 'age'],
+            'local' => true,
+            ]);
+
+            $this->assertTrue($ok, 'loadData() returned false');
+
+            $names = $db->find()
+            ->from('users')
+            ->select(['name'])
+            ->getColumn();
+
+            $this->assertContains('Dave', $names);
+            $this->assertContains('Eve', $names);
+        } catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
+            // SQLite doesn't support LOAD DATA INFILE, so this should be skipped
+            $this->markTestSkipped(
+                'SQLite does not support LOAD DATA INFILE. Error: ' . $e->getMessage()
+            );
+        }
+
+        unlink($tmpFile);
     }
 }

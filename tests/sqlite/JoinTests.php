@@ -73,4 +73,3 @@ final class JoinTests extends BaseSqliteTestCase
         $this->assertStringContainsString('RIGHT JOIN', $db->lastQuery);
     }
 }
-

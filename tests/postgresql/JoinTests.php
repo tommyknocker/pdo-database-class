@@ -73,4 +73,3 @@ final class JoinTests extends BasePostgreSQLTestCase
         $this->assertStringContainsString('RIGHT JOIN', $db->lastQuery);
     }
 }
-

@@ -38,7 +38,7 @@ abstract class BaseSqliteTestCase extends TestCase
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           user_id INTEGER
         );');
-        
+
         parent::setUp();
     }
 }

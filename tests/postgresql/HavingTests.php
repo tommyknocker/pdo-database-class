@@ -67,4 +67,3 @@ final class HavingTests extends BasePostgreSQLTestCase
         $this->assertEquals([300, 500, 700], $totals);
     }
 }
-

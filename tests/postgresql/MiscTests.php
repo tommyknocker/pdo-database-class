@@ -80,4 +80,3 @@ final class MiscTests extends BasePostgreSQLTestCase
         $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\FulltextMatchValue::class, $fulltext);
     }
 }
-

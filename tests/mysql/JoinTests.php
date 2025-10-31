@@ -75,4 +75,3 @@ final class JoinTests extends BaseMySQLTestCase
         $this->assertStringContainsString('RIGHT JOIN', $lastQuery);
     }
 }
-

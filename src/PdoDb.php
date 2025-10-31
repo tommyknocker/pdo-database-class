@@ -16,8 +16,8 @@ use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\connection\ConnectionRouter;
 use tommyknocker\pdodb\connection\loadbalancer\LoadBalancerInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
-use tommyknocker\pdodb\query\QueryBuilder;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
+use tommyknocker\pdodb\query\QueryBuilder;
 
 class PdoDb
 {

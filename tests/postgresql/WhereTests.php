@@ -274,4 +274,3 @@ final class WhereTests extends BasePostgreSQLTestCase
         $this->assertEquals([20, 30, 40], $ages);
     }
 }
-

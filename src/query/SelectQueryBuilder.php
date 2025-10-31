@@ -11,12 +11,12 @@ use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
-use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\interfaces\SelectQueryBuilderInterface;
 use tommyknocker\pdodb\query\pagination\Cursor;
 use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
@@ -273,7 +273,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
 
         // Cache miss: use cached SQL data if available (from getFromCache call)
         $sqlData = $this->cachedSqlData ?? $this->toSQL();
-        
+
         $result = $this->executionEngine->fetchAll($sqlData['sql'], $sqlData['params']);
 
         // Save to cache (uses cached key if available)
@@ -311,7 +311,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
 
         // Cache miss: use cached SQL data if available (from getFromCache call)
         $sqlData = $this->cachedSqlData ?? $this->toSQL();
-        
+
         $result = $this->executionEngine->fetch($sqlData['sql'], $sqlData['params']);
 
         // Save to cache (uses cached key if available)
@@ -373,11 +373,21 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             if ($cached !== null) {
                 // Clear cached SQL data since we didn't execute
                 $this->cachedSqlData = null;
+                $this->cachedCacheKey = null;
                 return $cached;
             }
         }
 
+        // Temporarily disable cache for getOne() call to avoid double caching
+        // We'll cache the final value ourselves
+        $wasCacheEnabled = $this->cacheEnabled;
+        $this->cacheEnabled = false;
+        
         $row = $this->getOne();
+        
+        // Restore cache setting
+        $this->cacheEnabled = $wasCacheEnabled;
+        
         $key = $this->resolveSelectedKey();
         if (count($row) === 1 && !isset($row[$key])) {
             $result = array_shift($row);

@@ -122,4 +122,3 @@ final class GroupByTests extends BaseSqliteTestCase
         $this->assertEquals(300.00, (float)$results[2]['total']);
     }
 }
-
