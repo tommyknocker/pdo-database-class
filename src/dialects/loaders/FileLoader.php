@@ -297,10 +297,18 @@ class FileLoader
      */
     protected function quoteIdentifier(string $ident): string
     {
+        $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        $quoteChar = match ($driver) {
+            'mysql' => '`',
+            'pgsql' => '"',
+            'sqlite' => '"',
+            default => '"',
+        };
+
         $parts = explode('.', $ident);
-        $parts = array_map(static function ($p) {
+        $parts = array_map(static function ($p) use ($quoteChar) {
             $p = trim($p);
-            return preg_match('/^[A-Za-z0-9_]+$/', $p) ? "\"{$p}\"" : $p;
+            return preg_match('/^[A-Za-z0-9_]+$/', $p) ? $quoteChar . $p . $quoteChar : $p;
         }, $parts);
         return implode('.', $parts);
     }
@@ -310,7 +318,15 @@ class FileLoader
      */
     protected function quoteColumnName(string $col): string
     {
-        return preg_match('/^[A-Za-z0-9_]+$/', $col) ? "\"{$col}\"" : $col;
+        $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        $quoteChar = match ($driver) {
+            'mysql' => '`',
+            'pgsql' => '"',
+            'sqlite' => '"',
+            default => '"',
+        };
+
+        return preg_match('/^[A-Za-z0-9_]+$/', $col) ? $quoteChar . $col . $quoteChar : $col;
     }
 
     /**

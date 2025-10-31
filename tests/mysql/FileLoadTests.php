@@ -74,4 +74,43 @@ final class FileLoadTests extends BaseMySQLTestCase
 
         unlink($file);
     }
+
+    public function testLoadJson(): void
+    {
+        $file = sys_get_temp_dir() . '/users.json';
+        file_put_contents(
+            $file,
+            json_encode([
+                ['id' => 10, 'name' => 'JSONUser 1', 'age' => 25],
+                ['id' => 11, 'name' => 'JSONUser 2', 'age' => 30],
+            ], JSON_THROW_ON_ERROR)
+        );
+
+        try {
+            $ok = self::$db->find()->table('users')->loadJson($file, [
+                'fields' => ['id', 'name', 'age'],
+            ]);
+
+            $this->assertTrue($ok);
+
+            $row = self::$db->find()->from('users')->where('name', 'JSONUser 1')->getOne();
+            $this->assertEquals('JSONUser 1', $row['name']);
+            $this->assertEquals(25, $row['age']);
+        } catch (\PDOException | \tommyknocker\pdodb\exceptions\DatabaseException $e) {
+            // Check if it's actually a local_infile issue
+            if (str_contains($e->getMessage(), 'local_infile') ||
+                str_contains($e->getMessage(), 'LOAD DATA') ||
+                str_contains($e->getMessage(), 'The used command is not allowed')) {
+                $this->markTestSkipped(
+                    'LoadJson test requires MySQL configured with local_infile enabled. ' .
+                    'Error: ' . $e->getMessage()
+                );
+            }
+
+            // If it's a different error, re-throw it
+            throw $e;
+        }
+
+        unlink($file);
+    }
 }

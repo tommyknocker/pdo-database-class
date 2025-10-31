@@ -388,6 +388,11 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         // Restore cache setting
         $this->cacheEnabled = $wasCacheEnabled;
 
+        // Check if row is valid array
+        if (!is_array($row) || empty($row)) {
+            return null;
+        }
+
         $key = $this->resolveSelectedKey();
         if (count($row) === 1 && !isset($row[$key])) {
             $result = array_shift($row);

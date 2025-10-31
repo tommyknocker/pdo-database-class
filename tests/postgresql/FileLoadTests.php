@@ -97,4 +97,45 @@ final class FileLoadTests extends BasePostgreSQLTestCase
 
         unlink($file);
     }
+
+    public function testLoadJson(): void
+    {
+        $file = sys_get_temp_dir() . '/users.json';
+        file_put_contents(
+            $file,
+            json_encode([
+                ['id' => 10, 'name' => 'JSONUser 1', 'age' => 25],
+                ['id' => 11, 'name' => 'JSONUser 2', 'age' => 30],
+            ], JSON_THROW_ON_ERROR)
+        );
+
+        try {
+            $ok = self::$db->find()->table('users')->loadJson($file, [
+                'fields' => ['id', 'name', 'age'],
+            ]);
+
+            $this->assertTrue($ok);
+
+            $row = self::$db->find()->from('users')->where('name', 'JSONUser 1')->getOne();
+            $this->assertEquals('JSONUser 1', $row['name']);
+            $this->assertEquals(25, $row['age']);
+        } catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
+            if (str_contains($e->getMessage(), 'COPY') ||
+                str_contains($e->getMessage(), 'could not open file') ||
+                str_contains($e->getMessage(), 'No such file') ||
+                str_contains($e->getMessage(), 'must be superuser') ||
+                str_contains($e->getMessage(), 'permission denied') ||
+                str_contains($e->getMessage(), 'Insufficient privilege')) {
+                $this->markTestSkipped(
+                    'PostgreSQL COPY FROM requires file access from database server. ' .
+                    'In Docker/CI environments, the file is on the host but PostgreSQL runs in container. ' .
+                    'This is a known limitation. Error: ' . $e->getMessage()
+                );
+            }
+
+            throw $e;
+        }
+
+        unlink($file);
+    }
 }

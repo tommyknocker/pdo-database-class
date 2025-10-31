@@ -501,17 +501,17 @@ final class ValidatorTests extends BaseSharedTestCase
         $this->assertTrue($model->save());
     }
 
-    public function testModelValidationSkipOnSave(): void
+    public function testModelValidationBypassOnSave(): void
     {
         ValidatorTestModel::setDb(self::$db);
 
-        // Test that validation can be skipped - use valid data but skip validation check
+        // Test that validation can be bypassed - use valid data but bypass validation check
         $model = new ValidatorTestModelSingleRule();
         $model->name = 'Test';
         $model->email = 'test@example.com';
 
-        // Save with validation skipped - should work
-        $this->assertTrue($model->save(false)); // Skip validation
+        // Save with validation bypassed - should work
+        $this->assertTrue($model->save(false)); // Bypass validation
 
         // Verify validation errors are cleared after successful save
         $this->assertFalse($model->hasValidationErrors());

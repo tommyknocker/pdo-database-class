@@ -188,7 +188,7 @@ final class DialectTests extends BaseMySQLTestCase
         ]);
 
         $this->assertNotEmpty($sql5);
-        $this->assertStringContainsString('"id"', $sql5);
+        $this->assertStringContainsString('`id`', $sql5);
 
         // Cleanup
         unlink($tempFile);
