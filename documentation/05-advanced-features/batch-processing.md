@@ -8,7 +8,7 @@ PDOdb provides three methods for processing large datasets:
 
 1. **`batch()`** - Process data in configurable chunks
 2. **`each()`** - Process one record at a time with internal buffering
-3. **`cursor()`** - Stream results with minimal memory usage
+3. **`stream()`** - Stream results with minimal memory usage
 
 ## batch() - Process in Batches
 
@@ -98,7 +98,7 @@ foreach ($db->find()
 }
 ```
 
-## cursor() - Stream with Minimal Memory
+## stream() - Stream with Minimal Memory
 
 Most memory-efficient method for very large datasets:
 
@@ -108,7 +108,7 @@ foreach ($db->find()
     ->from('users')
     ->where('age', 18, '>=')
     ->orderBy('id')
-    ->cursor() as $user) {
+    ->stream() as $user) {
     
     // Stream processing with minimal memory usage
     exportUser($user);
@@ -125,7 +125,7 @@ function exportUsersToCsv($db, $filename) {
     foreach ($db->find()
         ->from('users')
         ->orderBy('id')
-        ->cursor() as $user) {
+        ->stream() as $user) {
         
         fputcsv($file, [
             $user['id'],
@@ -149,7 +149,7 @@ exportUsersToCsv($db, 'users_export.csv');
 | `get()` | High (loads all) | Fast | Small datasets, complex processing |
 | `batch()` | Medium (configurable) | Medium | Bulk operations, parallel processing |
 | `each()` | Medium (internal buffering) | Medium | Individual record processing |
-| `cursor()` | Low (streaming) | Slow | Large datasets, simple processing |
+| `stream()` | Low (streaming) | Slow | Large datasets, simple processing |
 
 ## Common Use Cases
 
@@ -166,7 +166,7 @@ function exportToCsv($db, $table, $filename) {
     }
     
     // Stream data
-    foreach ($db->find()->from($table)->cursor() as $row) {
+    foreach ($db->find()->from($table)->stream() as $row) {
         fputcsv($file, $row);
     }
     
@@ -234,7 +234,7 @@ function generateReport($db, $date) {
         ->from('sales')
         ->where('date', $date)
         ->orderBy('product_id')
-        ->cursor() as $sale) {
+        ->stream() as $sale) {
         
         $productId = $sale['product_id'];
         
@@ -267,8 +267,8 @@ foreach ($db->find()->from('users')->batch(1000) as $batch) {
     processBatch($batch);
 }
 
-// Large dataset - use cursor()
-foreach ($db->find()->from('users')->cursor() as $user) {
+// Large dataset - use stream()
+foreach ($db->find()->from('users')->stream() as $user) {
     processUser($user);
 }
 ```
@@ -293,7 +293,7 @@ foreach ($db->find()->from('users')->batch(100) as $batch) {
 
 ```php
 // ✅ Good: Process and discard
-foreach ($db->find()->from('users')->cursor() as $user) {
+foreach ($db->find()->from('users')->stream() as $user) {
     $result = expensiveOperation($user);
     saveResult($result);
     // $user is discarded automatically
@@ -301,7 +301,7 @@ foreach ($db->find()->from('users')->cursor() as $user) {
 
 // ❌ Bad: Accumulate in memory
 $results = [];
-foreach ($db->find()->from('users')->cursor() as $user) {
+foreach ($db->find()->from('users')->stream() as $user) {
     $results[] = expensiveOperation($user);
 }
 ```
@@ -332,7 +332,7 @@ foreach ($db->find()
 foreach ($db->find()
     ->from('users')
     ->orderBy('id')
-    ->cursor() as $user) {
+    ->stream() as $user) {
     
     processUser($user);
     

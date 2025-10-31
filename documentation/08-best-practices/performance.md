@@ -228,7 +228,7 @@ try {
 foreach ($db->find()
     ->from('users')
     ->orderBy('id')
-    ->cursor() as $user) {
+    ->stream() as $user) {
     
     processUser($user);
 }

@@ -2,7 +2,7 @@
 /**
  * Example 10: Batch Processing
  * 
- * Demonstrates batch(), each(), and cursor() methods for efficient processing
+ * Demonstrates batch(), each(), and stream() methods for efficient processing
  * of large datasets without loading everything into memory.
  */
 
@@ -82,26 +82,26 @@ foreach ($db->find()
 echo "✓ Processed {$processedCount} active users\n";
 echo "✓ Found {$activeUsers} users over 40\n\n";
 
-// Example 3: Cursor processing (most memory efficient)
-echo "4. Cursor processing (streaming results)...\n";
-$cursorCount = 0;
+// Example 3: Stream processing (most memory efficient)
+echo "4. Stream processing (streaming results)...\n";
+$streamCount = 0;
 $totalAge = 0;
 
 foreach ($db->find()
     ->from('users')
     ->where('age', 30, '>=')
     ->orderBy('age', 'DESC')
-    ->cursor() as $user) {
+    ->stream() as $user) {
     
-    $cursorCount++;
+    $streamCount++;
     $totalAge += $user['age'];
     
     // Process user with minimal memory usage
     // echo "  User: {$user['name']}, Age: {$user['age']}\n";
 }
 
-$averageAge = $cursorCount > 0 ? round($totalAge / $cursorCount, 2) : 0;
-echo "✓ Processed {$cursorCount} users aged 30+\n";
+$averageAge = $streamCount > 0 ? round($totalAge / $streamCount, 2) : 0;
+echo "✓ Processed {$streamCount} users aged 30+\n";
 echo "✓ Average age: {$averageAge}\n\n";
 
 // Example 4: Complex batch processing with conditions
@@ -156,18 +156,18 @@ echo "  Batch processing: {$batchCount} users\n";
 echo "  Time: " . round($batchTime * 1000, 2) . "ms\n";
 echo "  Memory: " . round($batchMemory / 1024 / 1024, 2) . "MB\n\n";
 
-// Cursor processing
+// Stream processing
 $start = microtime(true);
-$cursorCount = 0;
-foreach ($db->find()->from('users')->cursor() as $user) {
-    $cursorCount++;
+$streamCount = 0;
+foreach ($db->find()->from('users')->stream() as $user) {
+    $streamCount++;
 }
-$cursorTime = microtime(true) - $start;
-$cursorMemory = memory_get_peak_usage(true);
+$streamTime = microtime(true) - $start;
+$streamMemory = memory_get_peak_usage(true);
 
-echo "  Cursor processing: {$cursorCount} users\n";
-echo "  Time: " . round($cursorTime * 1000, 2) . "ms\n";
-echo "  Memory: " . round($cursorMemory / 1024 / 1024, 2) . "MB\n\n";
+echo "  Stream processing: {$streamCount} users\n";
+echo "  Time: " . round($streamTime * 1000, 2) . "ms\n";
+echo "  Memory: " . round($streamMemory / 1024 / 1024, 2) . "MB\n\n";
 
 // Example 6: Real-world use case - data export
 echo "7. Real-world use case: Data export...\n";
@@ -185,7 +185,7 @@ function exportUsersToCsv($db, $filename) {
     foreach ($db->find()
         ->from('users')
         ->orderBy('id')
-        ->cursor() as $user) {
+        ->stream() as $user) {
         
         fputcsv($file, [
             $user['id'],
@@ -214,6 +214,6 @@ echo "Batch processing examples completed!\n";
 echo "\nKey Takeaways:\n";
 echo "  • batch() - Process data in chunks, good for bulk operations\n";
 echo "  • each() - Process one record at a time, good for individual processing\n";
-echo "  • cursor() - Most memory efficient, good for large datasets\n";
+echo "  • stream() - Most memory efficient, good for large datasets\n";
 echo "  • All methods work with WHERE conditions and ORDER BY\n";
 echo "  • Generators provide lazy evaluation and memory efficiency\n";

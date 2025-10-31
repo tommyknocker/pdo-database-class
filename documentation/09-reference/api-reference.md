@@ -110,7 +110,7 @@ new PdoDb(?string $driver = null, array $config = [], array $pdoOptions = [], ?L
 
 - `batch(int)` - Process in batches (returns Generator)
 - `each(int)` - Process one at a time (returns Generator)
-- `cursor()` - Stream results (returns Generator)
+- `stream()` - Stream results (returns Generator)
 
 ### Query Analysis
 

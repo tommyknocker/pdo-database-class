@@ -38,14 +38,14 @@ foreach ($db->find()
 }
 ```
 
-### cursor() - Streaming
+### stream() - Streaming
 
 ```php
 // Stream results with minimal memory
 foreach ($db->find()
     ->from('users')
     ->orderBy('id')
-    ->cursor() as $user) {
+    ->stream() as $user) {
     
     processUser($user);
     
@@ -70,7 +70,7 @@ foreach ($users as $user) {
 
 ```php
 // Streams one at a time
-foreach ($db->find()->from('users')->cursor() as $user) {
+foreach ($db->find()->from('users')->stream() as $user) {
     processUser($user);  // Only one user in memory
 }
 ```
@@ -104,7 +104,7 @@ function exportUsersToCsv($filename) {
     foreach ($db->find()
         ->from('users')
         ->orderBy('id')
-        ->cursor() as $user) {
+        ->stream() as $user) {
         
         fputcsv($file, [$user['id'], $user['name'], $user['email']]);
     }
@@ -139,7 +139,7 @@ foreach ($db->find()
 ```php
 $initialMemory = memory_get_usage(true);
 
-foreach ($db->find()->from('users')->cursor() as $user) {
+foreach ($db->find()->from('users')->stream() as $user) {
     processUser($user);
 }
 

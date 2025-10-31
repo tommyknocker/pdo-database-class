@@ -240,7 +240,7 @@ exit;
 
 ```php
 // For large datasets, use batch processing
-foreach ($db->find()->from('users')->cursor() as $user) {
+foreach ($db->find()->from('users')->stream() as $user) {
     // Process individual records without loading all into memory
 }
 

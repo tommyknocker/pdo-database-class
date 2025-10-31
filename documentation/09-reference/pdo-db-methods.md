@@ -122,12 +122,12 @@ $db->find()->from('users')->each(function($user) {
 });
 ```
 
-### `cursor(): \Generator`
+### `stream(): \Generator`
 
-Get cursor.
+Stream query results without loading into memory.
 
 ```php
-foreach ($db->find()->from('users')->cursor() as $user) {
+foreach ($db->find()->from('users')->stream() as $user) {
     // Process user
 }
 ```

@@ -1418,14 +1418,14 @@ foreach ($db->find()
 }
 ```
 
-#### Streaming with Cursor
+#### Streaming Results
 
 ```php
 // Most memory-efficient for very large datasets
 foreach ($db->find()
     ->from('users')
     ->where('age', 18, '>=')
-    ->cursor() as $user) {
+    ->stream() as $user) {
     
     // Stream processing with minimal memory usage
     exportUser($user);
@@ -1442,7 +1442,7 @@ function exportUsersToCsv($db, $filename) {
     foreach ($db->find()
         ->from('users')
         ->orderBy('id')
-        ->cursor() as $user) {
+        ->stream() as $user) {
         
         fputcsv($file, [
             $user['id'],
@@ -1466,7 +1466,7 @@ exportUsersToCsv($db, 'users_export.csv');
 | `get()` | High (loads all data) | Small datasets, complex processing |
 | `batch()` | Medium (configurable chunks) | Bulk operations, parallel processing |
 | `each()` | Medium (internal buffering) | Individual record processing |
-| `cursor()` | Low (streaming) | Large datasets, simple processing |
+| `stream()` | Low (streaming) | Large datasets, simple processing |
 
 ### Query Caching
 
@@ -2505,7 +2505,7 @@ $constraints = $db->constraints('users');
 |--------|-------------|
 | `batch(int $batchSize = 100)` | Process data in batches using Generator |
 | `each(int $batchSize = 100)` | Process one record at a time using Generator |
-| `cursor()` | Stream results with minimal memory usage using Generator |
+| `stream()` | Stream results with minimal memory usage using Generator |
 
 #### Query Analysis
 

@@ -122,7 +122,7 @@ $users = $db->find()->from('users')->get();  // 1M users = 1GB+ RAM
 ### ✅ Good: Use Generators
 
 ```php
-foreach ($db->find()->from('users')->cursor() as $user) {
+foreach ($db->find()->from('users')->stream() as $user) {
     processUser($user);  // Minimal memory usage
 }
 ```

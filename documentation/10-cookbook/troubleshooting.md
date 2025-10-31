@@ -127,10 +127,10 @@ foreach ($db->find()
     processBatch($batch);
 }
 
-// ✅ Use cursor for streaming
+// ✅ Use stream for streaming
 foreach ($db->find()
     ->from('users')
-    ->cursor() as $user) {
+    ->stream() as $user) {
     
     processUser($user);
 }

@@ -877,19 +877,49 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
-     * Execute query and return iterator for individual record processing with cursor.
+     * Stream query results without loading into memory.
      *
      * Most memory efficient method for very large datasets. Uses database cursor
-     * to stream results without loading them into memory. Best for simple
+     * to stream results row by row without loading them into memory. Best for simple
      * sequential processing of large datasets.
      *
      * @return Generator<int, array<string, mixed>, mixed, void>
      * @throws PDOException
      */
-    public function cursor(): Generator
+    public function stream(): Generator
     {
-        $query = $this->selectQueryBuilder->getQuery();
-        return $this->batchProcessor->cursor($query['sql'], $query['params']);
+        $originalConnection = $this->switchToReadConnection();
+
+        try {
+            // Integrate JSON selections before executing query
+            $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
+            if (!empty($jsonSelects)) {
+                $this->selectQueryBuilder->select($jsonSelects);
+                // Clear JSON selections after integration to avoid duplication
+                $this->jsonQueryBuilder->clearJsonSelects();
+            }
+
+            // Integrate JSON order expressions before executing query
+            $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
+            if (!empty($jsonOrders)) {
+                foreach ($jsonOrders as $orderExpr) {
+                    // JSON order expressions already contain direction, so add them directly
+                    $this->selectQueryBuilder->addOrderExpression($orderExpr);
+                }
+                // Clear JSON orders after integration to avoid duplication
+                $this->jsonQueryBuilder->clearJsonOrders();
+            }
+
+            // Set CTE manager before building query
+            if ($this->cteManager !== null) {
+                $this->selectQueryBuilder->setCteManager($this->cteManager);
+            }
+
+            $query = $this->selectQueryBuilder->getQuery();
+            return $this->batchProcessor->stream($query['sql'], $query['params']);
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /* ---------------- Conditions: where / having / logical variants ---------------- */

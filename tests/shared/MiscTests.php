@@ -1870,7 +1870,7 @@ final class MiscTests extends BaseSharedTestCase
     $this->assertEquals(75, $records[14]['value']);
     }
 
-    public function testCursorProcessing(): void
+    public function testStreamProcessing(): void
     {
     $db = self::$db;
     
@@ -1886,11 +1886,11 @@ final class MiscTests extends BaseSharedTestCase
     }
     $db->find()->table('test_coverage')->insertMulti($testData);
     
-    // Test cursor processing
+    // Test stream processing
     $records = [];
     $count = 0;
     
-    foreach ($db->find()->from('test_coverage')->orderBy('id')->cursor() as $record) {
+    foreach ($db->find()->from('test_coverage')->orderBy('id')->stream() as $record) {
     $records[] = $record;
     $count++;
     }
@@ -2003,9 +2003,9 @@ final class MiscTests extends BaseSharedTestCase
     }
     $this->assertEmpty($records);
     
-    // Test cursor with empty results
+    // Test stream with empty results
     $records = [];
-    foreach ($db->find()->from('test_coverage')->cursor() as $record) {
+    foreach ($db->find()->from('test_coverage')->stream() as $record) {
     $records[] = $record;
     }
     $this->assertEmpty($records);

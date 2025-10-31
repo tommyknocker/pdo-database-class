@@ -260,9 +260,11 @@ interface QueryBuilderInterface
     public function each(int $batchSize = 100): Generator;
 
     /**
+     * Stream query results without loading into memory.
+     *
      * @return Generator<int, array<string, mixed>, mixed, void>
      */
-    public function cursor(): Generator;
+    public function stream(): Generator;
 
     // Joins
     /**

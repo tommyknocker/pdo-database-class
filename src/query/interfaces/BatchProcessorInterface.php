@@ -36,10 +36,10 @@ interface BatchProcessorInterface
     public function each(string $sql, array $params, int $batchSize = 100): \Generator;
 
     /**
-     * Execute query and return iterator for individual record processing with cursor.
+     * Stream query results without loading into memory.
      *
      * Most memory efficient method for very large datasets. Uses database cursor
-     * to stream results without loading them into memory. Best for simple
+     * to stream results row by row without loading them into memory. Best for simple
      * sequential processing of large datasets.
      *
      * @param string $sql The SQL query to execute
@@ -47,5 +47,5 @@ interface BatchProcessorInterface
      *
      * @return \Generator<int, array<string, mixed>, mixed, void>
      */
-    public function cursor(string $sql, array $params): \Generator;
+    public function stream(string $sql, array $params): \Generator;
 }
