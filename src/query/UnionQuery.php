@@ -11,6 +11,7 @@ use Closure;
  */
 class UnionQuery
 {
+    /** @var string Operation type: UNION, UNION ALL, INTERSECT, EXCEPT */
     protected string $type;
 
     /** @var QueryBuilder|Closure(QueryBuilder): void */

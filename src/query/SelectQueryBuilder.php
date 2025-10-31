@@ -9,7 +9,6 @@ use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionInterface;
-use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\analysis\ExplainAnalyzer;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;

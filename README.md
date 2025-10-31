@@ -33,6 +33,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Export Helpers** - Export results to JSON, CSV, and XML formats
 - **Transactions & Locking** - Full transaction support with table locking
 - **Batch Processing** - Memory-efficient generators for large datasets with zero memory leaks
+- **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Connection Retry** - Automatic retry with exponential backoff
 - **PSR-14 Event Dispatcher** - Event-driven architecture for monitoring, auditing, and middleware
@@ -59,6 +60,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - [Read/Write Splitting](#readwrite-splitting)
   - [Window Functions](#window-functions)
   - [Common Table Expressions (CTEs)](#common-table-expressions-ctes)
+- [ActiveRecord Pattern](#activerecord-pattern)
 - [Quick Start](#quick-start)
   - [Basic CRUD Operations](#basic-crud-operations)
   - [Filtering and Joining](#filtering-and-joining)
@@ -620,6 +622,72 @@ See:
 - [Example: Basic CTEs](examples/17-cte/01-basic-cte.php)
 - [Example: Recursive CTEs](examples/17-cte/02-recursive-cte.php)
 - [Example: Materialized CTEs](examples/17-cte/03-materialized-cte.php)
+
+---
+
+### ActiveRecord Pattern
+
+Optional lightweight ORM pattern for object-based database operations. Works seamlessly with QueryBuilder API.
+
+```php
+use tommyknocker\pdodb\orm\Model;
+use tommyknocker\pdodb\PdoDb;
+
+// Define model
+class User extends Model
+{
+    public static function tableName(): string
+    {
+        return 'users';
+    }
+}
+
+// Set database connection
+$db = new PdoDb('mysql', $config);
+User::setDb($db);
+
+// Create new record
+$user = new User();
+$user->name = 'Alice';
+$user->email = 'alice@example.com';
+$user->save();
+
+// Find records
+$user = User::findOne(1);
+$users = User::findAll(['status' => 'active']);
+
+// Using ActiveQuery (full QueryBuilder API)
+$users = User::find()
+    ->where('status', 'active')
+    ->where('age', 18, '>=')
+    ->orderBy('created_at', 'DESC')
+    ->all();
+
+// Update
+$user->name = 'Bob';
+$user->save();
+
+// Delete
+$user->delete();
+```
+
+**Key Features:**
+- **Object-Based** - Work with objects instead of arrays
+- **Magic Accessors** - Access attributes via `$model->attribute`
+- **Dirty Tracking** - Automatically tracks changed attributes
+- **Full QueryBuilder API** - All QueryBuilder methods available through `ActiveQuery`
+- **Flexible Finding** - Find by ID, condition, or composite keys
+- **Cross-Database** - Works with MySQL, PostgreSQL, and SQLite
+
+**When to Use:**
+- Prefer working with objects over arrays
+- Need automatic dirty tracking
+- Building MVC-style applications
+- Want simple CRUD operations
+
+See:
+- [Documentation: ActiveRecord](documentation/05-advanced-features/active-record.md)
+- [Example: ActiveRecord Usage](examples/23-active-record/01-active-record-examples.php)
 
 ---
 

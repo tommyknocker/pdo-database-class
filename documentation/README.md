@@ -50,6 +50,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [Query Caching](05-advanced-features/query-caching.md) - PSR-16 result caching
 - [Pagination](05-advanced-features/pagination.md) - Full, simple, and cursor-based pagination
 - [Read/Write Splitting](05-advanced-features/read-write-splitting.md) - Master-replica architecture
+- [ActiveRecord](05-advanced-features/active-record.md) - Lightweight ORM pattern for object-based database operations
 
 ### Error Handling
 - [Exception Hierarchy](06-error-handling/exception-hierarchy.md) - Exception types
@@ -132,6 +133,7 @@ $users = $db->find()
 - **Transactions** - Full transaction support
 - **Batch Processing** - Handle large datasets efficiently
 - **Connection Pooling** - Manage multiple connections
+- **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations
 - **Comprehensive Error Handling** - Detailed exception hierarchy
 - **Zero Dependencies** - Lightweight and fast
 - **Well Tested** - Comprehensive test coverage
