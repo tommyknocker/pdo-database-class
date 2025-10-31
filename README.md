@@ -26,6 +26,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **FILTER Clause** - Conditional aggregates (SQL:2003 standard) with automatic MySQL fallback to CASE WHEN
 - **Full-Text Search** - Cross-database FTS with unified API (MySQL FULLTEXT, PostgreSQL tsvector, SQLite FTS5)
 - **Schema Introspection** - Query indexes, foreign keys, and constraints programmatically
+- **Enhanced EXPLAIN** - Automatic detection of full table scans, missing indexes, and optimization recommendations
 - **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
 - **JSON Operations** - Native JSON support with consistent API across all databases
 - **Bulk Operations** - CSV/XML/JSON loaders, multi-row inserts, UPSERT support
@@ -827,6 +828,41 @@ $analysis = $db->find()
 // - MySQL: EXPLAIN FORMAT=JSON with detailed cost analysis
 // - SQLite: EXPLAIN QUERY PLAN with query optimization details
 ```
+
+#### Enhanced EXPLAIN with Recommendations
+
+```php
+// Get EXPLAIN analysis with optimization recommendations
+$analysis = $db->find()
+    ->table('users')
+    ->where('status', 'active')
+    ->explainAdvice();
+
+// Access parsed plan
+echo "Access Type: " . $analysis->plan->accessType . "\n";
+echo "Used Index: " . ($analysis->plan->usedIndex ?? 'None') . "\n";
+echo "Estimated Rows: " . $analysis->plan->estimatedRows . "\n";
+
+// Check for full table scans
+if (!empty($analysis->plan->tableScans)) {
+    echo "Full table scans: " . implode(', ', $analysis->plan->tableScans) . "\n";
+}
+
+// Get optimization recommendations
+foreach ($analysis->recommendations as $rec) {
+    echo "[{$rec->severity}] {$rec->type}: {$rec->message}\n";
+    if ($rec->suggestion) {
+        echo "  {$rec->suggestion}\n";
+    }
+}
+```
+
+**Features:**
+- ✅ **Automatic detection** of full table scans
+- ✅ **Missing index identification** with SQL suggestions
+- ✅ **Filesort and temporary table** warnings
+- ✅ **Dialect-aware parsing** (MySQL, PostgreSQL, SQLite)
+- ✅ **Structured recommendations** with severity levels
 
 ### Table Structure Analysis
 
@@ -2730,6 +2766,7 @@ $constraints = $db->constraints('users');
 |--------|-------------|
 | `explain()` | Execute EXPLAIN query to analyze execution plan |
 | `explainAnalyze()` | Execute EXPLAIN ANALYZE (PostgreSQL) or EXPLAIN FORMAT=JSON (MySQL) |
+| `explainAdvice()` | Analyze EXPLAIN output with optimization recommendations and suggestions |
 | `describe()` | Execute DESCRIBE to get table structure |
 | `toSQL()` | Convert query to SQL string and parameters |
 

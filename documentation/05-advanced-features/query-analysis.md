@@ -56,6 +56,101 @@ $result = $db->find()
 // Returns actual execution time
 ```
 
+## EXPLAIN with Recommendations
+
+Get optimization recommendations automatically:
+
+```php
+$analysis = $db->find()
+    ->from('users')
+    ->where('status', 'active')
+    ->explainAdvice();
+
+// Returns ExplainAnalysis object with:
+// - rawExplain: Original EXPLAIN output
+// - plan: Parsed execution plan
+// - issues: Detected issues
+// - recommendations: Optimization suggestions
+```
+
+### Analyzing Results
+
+```php
+$analysis = $db->find()
+    ->from('users')
+    ->where('email', 'user@example.com')
+    ->explainAdvice('users');
+
+// Check plan details
+echo "Access Type: " . $analysis->plan->accessType . "\n";
+echo "Used Index: " . ($analysis->plan->usedIndex ?? 'None') . "\n";
+echo "Estimated Rows: " . $analysis->plan->estimatedRows . "\n";
+
+// Check for issues
+if (!empty($analysis->plan->tableScans)) {
+    echo "Full table scans detected: " . implode(', ', $analysis->plan->tableScans) . "\n";
+}
+
+// Get recommendations
+foreach ($analysis->recommendations as $rec) {
+    echo "[{$rec->severity}] {$rec->type}: {$rec->message}\n";
+    if ($rec->suggestion) {
+        echo "  Suggestion: {$rec->suggestion}\n";
+    }
+}
+```
+
+### Detecting Full Table Scans
+
+```php
+$analysis = $db->find()
+    ->from('orders')
+    ->where('status', 'pending')
+    ->explainAdvice();
+
+// Check for full table scans
+if (!empty($analysis->plan->tableScans)) {
+    foreach ($analysis->plan->tableScans as $table) {
+        echo "Full table scan on: $table\n";
+    }
+}
+```
+
+### Getting Index Recommendations
+
+```php
+$analysis = $db->find()
+    ->from('users')
+    ->where('email', 'user@example.com')
+    ->explainAdvice('users');
+
+// Recommendations include SQL suggestions
+foreach ($analysis->recommendations as $rec) {
+    if ($rec->type === 'missing_index' && $rec->suggestion) {
+        // Execute suggestion to create index
+        // $db->rawQuery($rec->suggestion);
+        echo $rec->suggestion . "\n";
+    }
+}
+```
+
+### Checking for Critical Issues
+
+```php
+$analysis = $db->find()
+    ->from('users')
+    ->where('age', 25, '>')
+    ->explainAdvice();
+
+if ($analysis->hasCriticalIssues()) {
+    echo "⚠ Critical performance issues detected!\n";
+}
+
+if ($analysis->hasRecommendations()) {
+    echo "ℹ Optimization recommendations available\n";
+}
+```
+
 ## DESCRIBE
 
 ### Describe Table

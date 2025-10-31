@@ -11,6 +11,7 @@ use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\ExplainAnalyzer;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
@@ -659,6 +660,25 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         $sqlData = $this->toSQL();
         $explainSql = $this->dialect->buildExplainAnalyzeSql($sqlData['sql']);
         return $this->executionEngine->fetchAll($explainSql, $sqlData['params']);
+    }
+
+    /**
+     * Analyze EXPLAIN output with optimization recommendations.
+     *
+     * @param string|null $tableName Optional table name for index suggestions
+     *
+     * @return \tommyknocker\pdodb\query\analysis\ExplainAnalysis Analysis result with recommendations
+     */
+    public function explainAdvice(?string $tableName = null): \tommyknocker\pdodb\query\analysis\ExplainAnalysis
+    {
+        $sqlData = $this->toSQL();
+        $explainSql = $this->dialect->buildExplainSql($sqlData['sql']);
+        $explainResults = $this->executionEngine->fetchAll($explainSql, $sqlData['params']);
+
+        $analyzer = new ExplainAnalyzer($this->dialect, $this->executionEngine);
+        $targetTable = $tableName ?? $this->table;
+
+        return $analyzer->analyze($explainResults, $targetTable);
     }
 
     /**

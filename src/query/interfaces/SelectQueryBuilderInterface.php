@@ -152,6 +152,15 @@ interface SelectQueryBuilderInterface
     public function explainAnalyze(): array;
 
     /**
+     * Analyze EXPLAIN output with optimization recommendations.
+     *
+     * @param string|null $tableName Optional table name for index suggestions
+     *
+     * @return \tommyknocker\pdodb\query\analysis\ExplainAnalysis Analysis result with recommendations
+     */
+    public function explainAdvice(?string $tableName = null): \tommyknocker\pdodb\query\analysis\ExplainAnalysis;
+
+    /**
      * Execute DESCRIBE query to get table structure.
      *
      * @return array<int, array<string, mixed>>
