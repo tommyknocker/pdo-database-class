@@ -105,7 +105,13 @@ class ExecutionEngine implements ExecutionEngineInterface
      */
     public function fetchAll(string|RawValue $sql, array $params = []): array
     {
-        return $this->executeStatement($sql, $params)->fetchAll($this->fetchMode);
+        $stmt = $this->executeStatement($sql, $params);
+
+        try {
+            return $stmt->fetchAll($this->fetchMode);
+        } finally {
+            $stmt->closeCursor();
+        }
     }
 
     /**
@@ -119,7 +125,13 @@ class ExecutionEngine implements ExecutionEngineInterface
      */
     public function fetchColumn(string|RawValue $sql, array $params = []): mixed
     {
-        return $this->executeStatement($sql, $params)->fetchColumn();
+        $stmt = $this->executeStatement($sql, $params);
+
+        try {
+            return $stmt->fetchColumn();
+        } finally {
+            $stmt->closeCursor();
+        }
     }
 
     /**
@@ -133,7 +145,13 @@ class ExecutionEngine implements ExecutionEngineInterface
      */
     public function fetch(string|RawValue $sql, array $params = []): mixed
     {
-        return $this->executeStatement($sql, $params)->fetch($this->fetchMode);
+        $stmt = $this->executeStatement($sql, $params);
+
+        try {
+            return $stmt->fetch($this->fetchMode);
+        } finally {
+            $stmt->closeCursor();
+        }
     }
 
     /**
@@ -149,26 +167,31 @@ class ExecutionEngine implements ExecutionEngineInterface
     public function executeInsert(string $sql, array $params, bool $isMulty = false): int
     {
         $stmt = $this->executeStatement($sql, $params);
-        if ($isMulty) {
-            return $stmt->rowCount();
-        }
 
         try {
-            $id = (int)$this->connection->getLastInsertId();
-            return $id > 0 ? $id : 1;
-        } catch (PDOException $e) {
-            // PostgreSQL: lastval is not yet defined (no SERIAL column)
-            // Convert to specialized exception for better error handling
-            $dbException = ExceptionFactory::createFromPdoException(
-                $e,
-                $this->connection->getDriverName(),
-                $sql,
-                ['operation' => 'getLastInsertId', 'fallback' => true]
-            );
+            if ($isMulty) {
+                return $stmt->rowCount();
+            }
 
-            // For this specific case, we return 1 as fallback instead of throwing
-            // This maintains backward compatibility
-            return 1;
+            try {
+                $id = (int)$this->connection->getLastInsertId();
+                return $id > 0 ? $id : 1;
+            } catch (PDOException $e) {
+                // PostgreSQL: lastval is not yet defined (no SERIAL column)
+                // Convert to specialized exception for better error handling
+                $dbException = ExceptionFactory::createFromPdoException(
+                    $e,
+                    $this->connection->getDriverName(),
+                    $sql,
+                    ['operation' => 'getLastInsertId', 'fallback' => true]
+                );
+
+                // For this specific case, we return 1 as fallback instead of throwing
+                // This maintains backward compatibility
+                return 1;
+            }
+        } finally {
+            $stmt->closeCursor();
         }
     }
 

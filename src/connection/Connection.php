@@ -281,6 +281,10 @@ class Connection implements ConnectionInterface
                 false
             ));
 
+            // Clear statement reference to allow GC (statement is returned to caller)
+            // Note: We return the statement, caller should close cursor when done
+            // For pooled statements, closeCursor() can be called safely - it only closes
+            // the result set cursor, not the statement itself, so pooled statements can be reused
             $this->stmt = null;
             return $stmt;
         } catch (PDOException $e) {
