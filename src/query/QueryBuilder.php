@@ -54,6 +54,9 @@ class QueryBuilder implements QueryBuilderInterface
     /** @var CacheManager|null Cache manager for query result caching */
     protected ?CacheManager $cacheManager = null;
 
+    /** @var \tommyknocker\pdodb\query\cache\QueryCompilationCache|null Query compilation cache */
+    protected ?\tommyknocker\pdodb\query\cache\QueryCompilationCache $compilationCache = null;
+
     /** @var ConnectionRouter|null Connection router for read/write splitting */
     protected ?ConnectionRouter $connectionRouter = null;
 
@@ -89,16 +92,19 @@ class QueryBuilder implements QueryBuilderInterface
      * @param ConnectionInterface $connection
      * @param string $prefix
      * @param CacheManager|null $cacheManager
+     * @param \tommyknocker\pdodb\query\cache\QueryCompilationCache|null $compilationCache
      */
     public function __construct(
         ConnectionInterface $connection,
         string $prefix = '',
-        ?CacheManager $cacheManager = null
+        ?CacheManager $cacheManager = null,
+        ?\tommyknocker\pdodb\query\cache\QueryCompilationCache $compilationCache = null
     ) {
         $this->connection = $connection;
         $this->dialect = $connection->getDialect();
         $this->prefix = $prefix;
         $this->cacheManager = $cacheManager;
+        $this->compilationCache = $compilationCache;
 
         // Initialize components with shared parameter manager and raw value resolver
         $this->parameterManager = new ParameterManager();
@@ -118,7 +124,8 @@ class QueryBuilder implements QueryBuilderInterface
             $this->conditionBuilder,
             $this->joinBuilder,
             $rawValueResolver,
-            $cacheManager
+            $cacheManager,
+            $this->compilationCache
         );
         $this->dmlQueryBuilder = new DmlQueryBuilder(
             $connection,

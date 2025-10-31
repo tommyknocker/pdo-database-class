@@ -17,6 +17,7 @@ use tommyknocker\pdodb\connection\ConnectionRouter;
 use tommyknocker\pdodb\connection\loadbalancer\LoadBalancerInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\QueryBuilder;
+use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 
 class PdoDb
 {
@@ -74,6 +75,9 @@ class PdoDb
     /** @var CacheManager|null Cache manager for query result caching */
     protected ?CacheManager $cacheManager = null;
 
+    /** @var QueryCompilationCache|null Query compilation cache */
+    protected ?QueryCompilationCache $compilationCache = null;
+
     /** @var ConnectionRouter|null Connection router for read/write splitting */
     protected ?ConnectionRouter $connectionRouter = null;
 
@@ -108,6 +112,17 @@ class PdoDb
         if ($cache !== null) {
             $cacheConfig = isset($config['cache']) && is_array($config['cache']) ? $config['cache'] : [];
             $this->cacheManager = new CacheManager($cache, $cacheConfig);
+
+            // Initialize compilation cache using the same cache backend
+            $this->compilationCache = new QueryCompilationCache($cache);
+            if (isset($config['compilation_cache']) && is_array($config['compilation_cache'])) {
+                if (isset($config['compilation_cache']['enabled'])) {
+                    $this->compilationCache->setEnabled((bool)$config['compilation_cache']['enabled']);
+                }
+                if (isset($config['compilation_cache']['ttl'])) {
+                    $this->compilationCache->setDefaultTtl((int)$config['compilation_cache']['ttl']);
+                }
+            }
         }
 
         // Only create default connection if driver is provided
@@ -129,7 +144,7 @@ class PdoDb
      */
     public function find(): QueryBuilder
     {
-        $queryBuilder = new QueryBuilder($this->connection, $this->prefix, $this->cacheManager);
+        $queryBuilder = new QueryBuilder($this->connection, $this->prefix, $this->cacheManager, $this->compilationCache);
 
         // Set connection router if read/write splitting is enabled
         if ($this->readWriteSplittingEnabled && $this->connectionRouter !== null) {
@@ -169,13 +184,36 @@ class PdoDb
     }
 
     /**
-     * Get the cache manager instance.
+     * Get cache manager instance.
      *
-     * @return CacheManager|null The cache manager or null if caching is not configured.
+     * @return CacheManager|null
      */
     public function getCacheManager(): ?CacheManager
     {
         return $this->cacheManager;
+    }
+
+    /**
+     * Set query compilation cache.
+     *
+     * @param QueryCompilationCache|null $compilationCache Compilation cache instance
+     *
+     * @return self
+     */
+    public function setCompilationCache(?QueryCompilationCache $compilationCache): self
+    {
+        $this->compilationCache = $compilationCache;
+        return $this;
+    }
+
+    /**
+     * Get query compilation cache instance.
+     *
+     * @return QueryCompilationCache|null
+     */
+    public function getCompilationCache(): ?QueryCompilationCache
+    {
+        return $this->compilationCache;
     }
 
     /* ---------------- RAW ---------------- */

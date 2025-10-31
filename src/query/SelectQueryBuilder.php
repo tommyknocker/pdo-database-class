@@ -16,6 +16,7 @@ use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
+use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\interfaces\SelectQueryBuilderInterface;
 use tommyknocker\pdodb\query\pagination\Cursor;
 use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
@@ -69,6 +70,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /** @var CacheManager|null Cache manager instance */
     protected ?CacheManager $cacheManager = null;
 
+    /** @var QueryCompilationCache|null Query compilation cache instance */
+    protected ?QueryCompilationCache $compilationCache = null;
+
     /** @var bool Whether caching is enabled for this query */
     protected bool $cacheEnabled = false;
 
@@ -90,6 +94,12 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /** @var array<string> Columns for DISTINCT ON (PostgreSQL) */
     protected array $distinctOn = [];
 
+    /** @var array{sql: string, params: array<string, mixed>}|null Cached SQL data to avoid double compilation */
+    protected ?array $cachedSqlData = null;
+
+    /** @var string|null Cached cache key to avoid regenerating it */
+    protected ?string $cachedCacheKey = null;
+
     protected ConditionBuilderInterface $conditionBuilder;
     protected JoinBuilderInterface $joinBuilder;
 
@@ -100,12 +110,14 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         ConditionBuilderInterface $conditionBuilder,
         JoinBuilderInterface $joinBuilder,
         RawValueResolver $rawValueResolver,
-        ?CacheManager $cacheManager = null
+        ?CacheManager $cacheManager = null,
+        ?QueryCompilationCache $compilationCache = null
     ) {
         $this->initializeCommonDependencies($connection, $parameterManager, $executionEngine, $rawValueResolver);
         $this->conditionBuilder = $conditionBuilder;
         $this->joinBuilder = $joinBuilder;
         $this->cacheManager = $cacheManager;
+        $this->compilationCache = $compilationCache;
     }
 
     /**
@@ -244,19 +256,32 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      */
     public function get(): array
     {
-        if ($this->shouldUseCache()) {
-            $cached = $this->getFromCache();
-            if (is_array($cached)) {
-                return $cached;
-            }
+        // Fast path: if cache is disabled, skip all cache operations
+        if (!$this->shouldUseCache()) {
+            $sqlData = $this->toSQL();
+            return $this->executionEngine->fetchAll($sqlData['sql'], $sqlData['params']);
         }
 
-        $sqlData = $this->toSQL();
+        // Cache enabled: try to get from cache first
+        $cached = $this->getFromCache();
+        if (is_array($cached)) {
+            // Cache hit: return immediately, no SQL compilation needed
+            $this->cachedSqlData = null;
+            $this->cachedCacheKey = null;
+            return $cached;
+        }
+
+        // Cache miss: use cached SQL data if available (from getFromCache call)
+        $sqlData = $this->cachedSqlData ?? $this->toSQL();
+        
         $result = $this->executionEngine->fetchAll($sqlData['sql'], $sqlData['params']);
 
-        if ($this->shouldUseCache()) {
-            $this->saveToCache($result);
-        }
+        // Save to cache (uses cached key if available)
+        $this->saveToCache($result);
+
+        // Clear cache after use
+        $this->cachedSqlData = null;
+        $this->cachedCacheKey = null;
 
         return $result;
     }
@@ -269,19 +294,32 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      */
     public function getOne(): mixed
     {
-        if ($this->shouldUseCache()) {
-            $cached = $this->getFromCache();
-            if ($cached !== null) {
-                return $cached;
-            }
+        // Fast path: if cache is disabled, skip all cache operations
+        if (!$this->shouldUseCache()) {
+            $sqlData = $this->toSQL();
+            return $this->executionEngine->fetch($sqlData['sql'], $sqlData['params']);
         }
 
-        $sqlData = $this->toSQL();
+        // Cache enabled: try to get from cache first
+        $cached = $this->getFromCache();
+        if ($cached !== null) {
+            // Cache hit: return immediately, no SQL compilation needed
+            $this->cachedSqlData = null;
+            $this->cachedCacheKey = null;
+            return $cached;
+        }
+
+        // Cache miss: use cached SQL data if available (from getFromCache call)
+        $sqlData = $this->cachedSqlData ?? $this->toSQL();
+        
         $result = $this->executionEngine->fetch($sqlData['sql'], $sqlData['params']);
 
-        if ($this->shouldUseCache()) {
-            $this->saveToCache($result);
-        }
+        // Save to cache (uses cached key if available)
+        $this->saveToCache($result);
+
+        // Clear cache after use
+        $this->cachedSqlData = null;
+        $this->cachedCacheKey = null;
 
         return $result;
     }
@@ -301,6 +339,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         if ($this->shouldUseCache()) {
             $cached = $this->getFromCache();
             if ($cached !== null) {
+                // Clear cached SQL data since we didn't execute
+                $this->cachedSqlData = null;
                 return $cached;
             }
         }
@@ -331,6 +371,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         if ($this->shouldUseCache()) {
             $cached = $this->getFromCache();
             if ($cached !== null) {
+                // Clear cached SQL data since we didn't execute
+                $this->cachedSqlData = null;
                 return $cached;
             }
         }
@@ -439,16 +481,23 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /**
      * Enable caching for this query.
      *
-     * @param int $ttl Time-to-live in seconds
+     * @param int $ttl Time-to-live in seconds (0 = disable cache for this query)
      * @param string|null $key Custom cache key (null = auto-generate)
      *
      * @return self The current instance.
      */
     public function cache(int $ttl = 3600, ?string $key = null): self
     {
-        $this->cacheEnabled = true;
-        $this->cacheTtl = $ttl;
-        $this->cacheKey = $key;
+        if ($ttl <= 0) {
+            // TTL of 0 or negative means disable cache for this query
+            $this->cacheEnabled = false;
+            $this->cacheTtl = null;
+            $this->cacheKey = null;
+        } else {
+            $this->cacheEnabled = true;
+            $this->cacheTtl = $ttl;
+            $this->cacheKey = $key;
+        }
         return $this;
     }
 
@@ -672,6 +721,59 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      */
     public function buildSelectSql(): string
     {
+        // Try to get from compilation cache if enabled
+        if ($this->compilationCache !== null && $this->compilationCache->isEnabled()) {
+            $structure = $this->getQueryStructure();
+            $driver = $this->connection->getDriverName();
+
+            return $this->compilationCache->getOrCompile(
+                fn (): string => $this->compileSelectSql(),
+                $structure,
+                $driver
+            );
+        }
+
+        return $this->compileSelectSql();
+    }
+
+    /**
+     * Get query structure for caching purposes.
+     *
+     * @return array<string, mixed>
+     */
+    protected function getQueryStructure(): array
+    {
+        $where = $this->conditionBuilder->getWhere();
+        $having = $this->conditionBuilder->getHaving();
+
+        // Extract CTE info
+        $hasCte = $this->cteManager !== null && !$this->cteManager->isEmpty();
+
+        return [
+            'table' => $this->table,
+            'select' => $this->select,
+            'distinct' => $this->distinct,
+            'distinct_on' => $this->distinctOn,
+            'joins' => $this->joinBuilder->getJoins(),
+            'where' => $where,
+            'group_by' => $this->group,
+            'having' => $having,
+            'order_by' => $this->order,
+            'limit' => $this->limit,
+            'offset' => $this->offset,
+            'options' => $this->options,
+            'unions' => $this->unions,
+            'cte' => $hasCte ? true : null,
+        ];
+    }
+
+    /**
+     * Compile SELECT SQL (internal method, called directly or via cache).
+     *
+     * @return string
+     */
+    protected function compileSelectSql(): string
+    {
         $sql = '';
 
         // Add WITH clause if CTEs exist
@@ -777,6 +879,19 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         }
 
         return trim($sql);
+    }
+
+    /**
+     * Set query compilation cache.
+     *
+     * @param QueryCompilationCache|null $cache Compilation cache instance
+     *
+     * @return self
+     */
+    public function setCompilationCache(?QueryCompilationCache $cache): self
+    {
+        $this->compilationCache = $cache;
+        return $this;
     }
 
     /**
@@ -1126,8 +1241,29 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             return null;
         }
 
-        $key = $this->generateCacheKey();
-        return $this->cacheManager->get($key);
+        // If custom cache key provided, use it directly (no SQL compilation needed)
+        if ($this->cacheKey !== null) {
+            $this->cachedCacheKey = $this->cacheKey;
+            $cached = $this->cacheManager->get($this->cacheKey);
+            // If cache hit, we don't need to compile SQL
+            if ($cached !== null) {
+                return $cached;
+            }
+            // Cache miss, but we'll need SQL later anyway, so continue
+        }
+
+        // For auto-generated keys, we need SQL to generate the key
+        // Generate SQL once and cache it for potential reuse
+        if ($this->cachedSqlData === null) {
+            $this->cachedSqlData = $this->toSQL();
+        }
+
+        // Generate cache key once and reuse it
+        if ($this->cachedCacheKey === null) {
+            $this->cachedCacheKey = $this->generateCacheKeyFromSqlData($this->cachedSqlData);
+        }
+
+        return $this->cacheManager->get($this->cachedCacheKey);
     }
 
     /**
@@ -1141,9 +1277,20 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             return;
         }
 
-        $key = $this->generateCacheKey();
+        // Use cached cache key if available (generated in getFromCache)
+        if ($this->cachedCacheKey === null) {
+            // If custom key provided, use it
+            if ($this->cacheKey !== null) {
+                $this->cachedCacheKey = $this->cacheKey;
+            } else {
+                // Generate key from SQL
+                $sqlData = $this->cachedSqlData ?? $this->toSQL();
+                $this->cachedCacheKey = $this->generateCacheKeyFromSqlData($sqlData);
+            }
+        }
+
         $ttl = $this->cacheTtl ?? $this->cacheManager->getConfig()->getDefaultTtl();
-        $this->cacheManager->set($key, $result, $ttl);
+        $this->cacheManager->set($this->cachedCacheKey, $result, $ttl);
     }
 
     /**
@@ -1159,9 +1306,25 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             return '';
         }
 
-        $sqlData = $this->toSQL();
-        $driver = $this->connection->getDialect()->getDriverName();
+        // Use cached SQL data if available
+        $sqlData = $this->cachedSqlData ?? $this->toSQL();
+        return $this->generateCacheKeyFromSqlData($sqlData);
+    }
 
+    /**
+     * Generate cache key from SQL data.
+     *
+     * @param array{sql: string, params: array<string, mixed>} $sqlData
+     *
+     * @return string
+     */
+    protected function generateCacheKeyFromSqlData(array $sqlData): string
+    {
+        if ($this->cacheManager === null) {
+            return '';
+        }
+
+        $driver = $this->connection->getDialect()->getDriverName();
         return $this->cacheManager->generateKey($sqlData['sql'], $sqlData['params'], $driver);
     }
 }

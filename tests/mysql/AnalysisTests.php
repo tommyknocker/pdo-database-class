@@ -4,16 +4,6 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mysql;
 
-
-use InvalidArgumentException;
-use Monolog\Handler\TestHandler;
-use Monolog\Logger;
-use PDOException;
-use PHPUnit\Framework\TestCase;
-use StdClass;
-use tommyknocker\pdodb\helpers\Db;
-use tommyknocker\pdodb\PdoDb;
-
 /**
  * AnalysisTests tests for mysql.
  */

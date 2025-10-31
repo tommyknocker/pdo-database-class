@@ -41,6 +41,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [Transactions](05-advanced-features/transactions.md) - Transaction management
 - [Table Locking](05-advanced-features/table-locking.md) - Lock tables
 - [Batch Processing](05-advanced-features/batch-processing.md) - batch(), each(), stream()
+- [Query Compilation Cache](05-advanced-features/query-compilation-cache.md) - Cache compiled SQL strings
 - [Bulk Operations](05-advanced-features/bulk-operations.md) - insertMulti, bulk updates
 - [Upsert Operations](05-advanced-features/upsert-operations.md) - onDuplicate/INSERT...ON CONFLICT
 - [File Loading](05-advanced-features/file-loading.md) - CSV/XML loaders
