@@ -1641,7 +1641,7 @@ Benchmark results on MySQL with 10,000 rows:
 - Best for applications with **repetitive query patterns** and high query volume
 - Minimal overhead (0-5%) even when not providing significant benefit
 
-**See**: [Query Compilation Cache Documentation](documentation/05-advanced-features/query-compilation-cache.md) and [Examples](examples/21-query-compilation-cache/)
+**See**: [Query Compilation Cache Documentation](documentation/05-advanced-features/query-compilation-cache.md) and [Examples](examples/20-query-compilation-cache/)
 
 ### Prepared Statement Pool
 

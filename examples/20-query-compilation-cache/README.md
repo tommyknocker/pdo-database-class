@@ -10,13 +10,13 @@ This directory contains examples demonstrating query compilation caching functio
 
 ```bash
 # Run with SQLite (default)
-php examples/21-query-compilation-cache/01-compilation-cache-examples.php
+php examples/20-query-compilation-cache/01-compilation-cache-examples.php
 
 # Run with MySQL
-PDODB_DRIVER=mysql php examples/21-query-compilation-cache/01-compilation-cache-examples.php
+PDODB_DRIVER=mysql php examples/20-query-compilation-cache/01-compilation-cache-examples.php
 
 # Run with PostgreSQL
-PDODB_DRIVER=pgsql php examples/21-query-compilation-cache/01-compilation-cache-examples.php
+PDODB_DRIVER=pgsql php examples/20-query-compilation-cache/01-compilation-cache-examples.php
 ```
 
 ## What's Demonstrated
