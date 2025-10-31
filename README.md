@@ -1627,13 +1627,13 @@ $db->getCompilationCache()?->setEnabled(false);
 
 Benchmark results on MySQL with 10,000 rows:
 
-| Test Scenario | No Cache | Compilation Cache | Improvement |
-|---------------|----------|-------------------|-------------|
-| **Complex Structure** | 177ms | 186ms | -4.8% (overhead) |
-| **Simple Structure** | 733ms | 716ms | **2.3% faster** |
-| **Complex Repeated** | 1273ms | 1185ms | **6.9% faster** |
-| **Very Complex Query** | 130ms | 127ms | **1.9% faster** |
-| **Average** | 804ms | 784ms | **2.7% faster** |
+| Test Scenario | No Cache | Compilation Cache | Improvement | Speedup |
+|---------------|----------|-------------------|-------------|---------|
+| **Complex Structure** | 177ms | 186ms | -4.8% (overhead) | 0.95x |
+| **Simple Structure** | 733ms | 716ms | **2.3% faster** | **1.02x** |
+| **Complex Repeated** | 1273ms | 1185ms | **6.9% faster** | **1.07x** |
+| **Very Complex Query** | 130ms | 127ms | **1.9% faster** | **1.02x** |
+| **Average** | 804ms | 784ms | **2.7% faster** | **1.03x** |
 
 **Key Insights:**
 - Compilation cache provides **2-7% improvement** for complex queries
