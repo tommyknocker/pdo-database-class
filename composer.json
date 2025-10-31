@@ -1,6 +1,6 @@
 {
   "name": "tommyknocker/pdo-database-class",
-  "description": "Lightweight PHP database library with unified API for MySQL, PostgreSQL & SQLite. Features fluent QueryBuilder, query caching (10-1000x faster), prepared statement pool (20-50% faster), read/write splitting, window functions, CTEs, JSON operations, advanced pagination, ActiveRecord pattern with declarative validation, and 80+ SQL helpers.",
+  "description": "Lightweight PHP database library with unified API for MySQL, PostgreSQL & SQLite. QueryBuilder, caching, window functions, CTEs, JSON, ActiveRecord with validation, 80+ helpers.",
   "type": "library",
   "keywords": [
     "pdo",

@@ -115,8 +115,13 @@ abstract class Model
 
         // If condition is an array, check if it's an associative array (condition) or indexed array (composite key)
         if (is_array($condition)) {
+            // Empty array - return null without querying
+            if (empty($condition)) {
+                return null;
+            }
+
             // Check if it's an associative array (has string keys) - treat as condition
-            if (!empty($condition) && array_keys($condition) !== range(0, count($condition) - 1)) {
+            if (array_keys($condition) !== range(0, count($condition) - 1)) {
                 // Associative array - treat as condition
                 $query = static::find();
                 foreach ($condition as $key => $value) {
