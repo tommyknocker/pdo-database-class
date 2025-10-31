@@ -180,6 +180,27 @@ $pdoOptions = [
 $db = new PdoDb('mysql', $config, $pdoOptions);
 ```
 
+## Prepared Statement Pool
+
+Enable automatic prepared statement caching for better performance:
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+$db = new PdoDb('mysql', [
+    'host' => 'localhost',
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'mydb',
+    'stmt_pool' => [
+        'enabled' => true,      // Enable statement pooling
+        'capacity' => 256       // Maximum cached statements (default: 256)
+    ]
+]);
+```
+
+**See**: [Connection Management - Prepared Statement Pool](02-core-concepts/connection-management.md#prepared-statement-pool) for detailed documentation.
+
 ## Connection Pooling
 
 You can manage multiple database connections:

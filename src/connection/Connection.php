@@ -32,6 +32,9 @@ class Connection implements ConnectionInterface
     /** @var ConnectionState Connection state manager */
     protected ConnectionState $state;
 
+    /** @var PreparedStatementPool|null Prepared statement pool */
+    protected ?PreparedStatementPool $statementPool = null;
+
     /**
      * Connection constructor.
      *
@@ -86,6 +89,26 @@ class Connection implements ConnectionInterface
     }
 
     /**
+     * Set the prepared statement pool.
+     *
+     * @param PreparedStatementPool|null $pool The pool instance or null to disable
+     */
+    public function setStatementPool(?PreparedStatementPool $pool): void
+    {
+        $this->statementPool = $pool;
+    }
+
+    /**
+     * Get the prepared statement pool.
+     *
+     * @return PreparedStatementPool|null The pool instance or null if not set
+     */
+    public function getStatementPool(): ?PreparedStatementPool
+    {
+        return $this->statementPool;
+    }
+
+    /**
      * Handle PDO exceptions with consistent error processing.
      *
      * @param PDOException $e The PDO exception
@@ -132,12 +155,42 @@ class Connection implements ConnectionInterface
         $this->logOperationStart('prepare', $sql);
 
         try {
+            $pool = $this->statementPool;
+            if ($pool !== null && $pool->isEnabled()) {
+                $key = $this->buildStatementKey($sql);
+                $cachedStmt = $pool->get($key);
+                if ($cachedStmt !== null) {
+                    $this->stmt = $cachedStmt;
+                    $this->logOperationEnd('prepare', $this->stmt->queryString, ['cached' => true]);
+                    return $this;
+                }
+                // Prepare new statement and cache it
+                $this->stmt = $this->pdo->prepare($sql, $params);
+                $pool->put($key, $this->stmt);
+                $this->logOperationEnd('prepare', $this->stmt->queryString);
+                return $this;
+            }
+
             $this->stmt = $this->pdo->prepare($sql, $params);
             $this->logOperationEnd('prepare', $this->stmt->queryString);
             return $this;
         } catch (PDOException $e) {
             $this->handlePdoException($e, 'prepare', $this->stmt?->queryString);
         }
+    }
+
+    /**
+     * Build a stable cache key for prepared statements.
+     *
+     * @param string $sql The SQL query
+     *
+     * @return string The cache key
+     */
+    protected function buildStatementKey(string $sql): string
+    {
+        // Include driver name to avoid collisions between dialects
+        // Hash the SQL for stable, short keys
+        return sha1($this->getDriverName() . '|' . $sql);
     }
 
     /**

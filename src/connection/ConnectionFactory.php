@@ -43,10 +43,21 @@ class ConnectionFactory
 
         // Use RetryableConnection if retry is enabled
         $retryConfig = $config['retry'] ?? [];
+        $connection = null;
         if (!empty($retryConfig['enabled'])) {
-            return new RetryableConnection($pdo, $dialect, $logger, $retryConfig);
+            $connection = new RetryableConnection($pdo, $dialect, $logger, $retryConfig);
+        } else {
+            $connection = new Connection($pdo, $dialect, $logger);
         }
 
-        return new Connection($pdo, $dialect, $logger);
+        // Configure prepared statement pool if enabled
+        $poolConfig = $config['stmt_pool'] ?? [];
+        if (!empty($poolConfig['enabled'])) {
+            $capacity = (int)($poolConfig['capacity'] ?? 256);
+            $pool = new PreparedStatementPool($capacity, true);
+            $connection->setStatementPool($pool);
+        }
+
+        return $connection;
     }
 }
