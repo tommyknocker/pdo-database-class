@@ -10,10 +10,34 @@
          displayDetailsOnTestsThatTriggerNotices="true"
          displayDetailsOnTestsThatTriggerWarnings="true"
          displayDetailsOnPhpunitDeprecations="true"
+         defaultTestSuite="PdoDb Test Suite"
 >
     <testsuites>
         <testsuite name="PdoDb Test Suite">
-            <directory>./tests</directory>
+            <directory suffix="Tests.php">./tests/mysql</directory>
+            <directory suffix="Tests.php">./tests/postgresql</directory>
+            <directory suffix="Tests.php">./tests/sqlite</directory>
+            <directory suffix="Tests.php">./tests/shared</directory>
+            <exclude>./tests/mysql/Base*.php</exclude>
+            <exclude>./tests/postgresql/Base*.php</exclude>
+            <exclude>./tests/sqlite/Base*.php</exclude>
+            <exclude>./tests/shared/Base*.php</exclude>
+        </testsuite>
+        <testsuite name="MySQL Tests">
+            <directory suffix="Tests.php">./tests/mysql</directory>
+            <exclude>./tests/mysql/Base*.php</exclude>
+        </testsuite>
+        <testsuite name="PostgreSQL Tests">
+            <directory suffix="Tests.php">./tests/postgresql</directory>
+            <exclude>./tests/postgresql/Base*.php</exclude>
+        </testsuite>
+        <testsuite name="SQLite Tests">
+            <directory suffix="Tests.php">./tests/sqlite</directory>
+            <exclude>./tests/sqlite/Base*.php</exclude>
+        </testsuite>
+        <testsuite name="Shared Tests">
+            <directory suffix="Tests.php">./tests/shared</directory>
+            <exclude>./tests/shared/Base*.php</exclude>
         </testsuite>
     </testsuites>
     <source>
