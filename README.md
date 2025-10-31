@@ -1566,14 +1566,14 @@ $names = $db->find()->from('users')->select('name')->cache(600)->getColumn();
 
 Benchmark results on MySQL with 10,000 rows (50-600 query iterations):
 
-| Test Scenario | No Cache | Result Cache | Improvement |
-|---------------|----------|-------------|-------------|
-| **Repeated Queries** (cache hits) | 1712ms | 56ms | **96.7% faster** |
-| **Complex Structure** | 177ms | 60ms | **65.9% faster** |
-| **Complex Repeated** | 1273ms | 94ms | **92.6% faster** |
-| **Simple Structure** | 733ms | 204ms | **72.1% faster** |
-| **Very Complex Query** | 130ms | 28ms | **78.8% faster** |
-| **Average** | 805ms | 89ms | **89% faster** |
+| Test Scenario | No Cache | Result Cache | Improvement | Speedup |
+|---------------|----------|-------------|-------------|--------|
+| **Repeated Queries** (cache hits) | 1712ms | 56ms | **96.7% faster** | **30.4x** |
+| **Complex Structure** | 177ms | 60ms | **65.9% faster** | **2.9x** |
+| **Complex Repeated** | 1273ms | 94ms | **92.6% faster** | **13.6x** |
+| **Simple Structure** | 733ms | 204ms | **72.1% faster** | **3.6x** |
+| **Very Complex Query** | 130ms | 28ms | **78.8% faster** | **4.7x** |
+| **Average** | 805ms | 89ms | **89% faster** | **9.1x** |
 
 **Key Insights:**
 - Result cache provides **65-97% performance improvement** depending on query complexity
