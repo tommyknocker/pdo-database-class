@@ -32,9 +32,16 @@ class SqliteDialect extends DialectAbstract
         if (!isset($params['path'])) {
             throw new InvalidArgumentException("Missing 'path' parameter");
         }
+        // SQLite cache parameter is a string (shared/protected), not an array
+        // Filter out cache config arrays used for query result caching
+        $sqliteCache = null;
+        if (isset($params['cache']) && is_string($params['cache'])) {
+            $sqliteCache = $params['cache'];
+        }
+
         return "sqlite:{$params['path']}"
             . (!empty($params['mode']) ? ";mode={$params['mode']}" : '')       // ex. ro/rw/rwc/memory
-            . (!empty($params['cache']) ? ";cache={$params['cache']}" : '');    // shared/protected
+            . ($sqliteCache !== null ? ";cache={$sqliteCache}" : '');          // shared/protected (only if string)
     }
 
     /**

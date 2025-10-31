@@ -16,6 +16,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Cross-Database Compatibility** - Automatic SQL dialect handling (MySQL, PostgreSQL, SQLite)
 - **Query Caching** - PSR-16 integration for result caching (10-1000x faster queries)
 - **Query Compilation Cache** - Cache compiled SQL strings (10-30% performance improvement)
+- **Query Performance Profiling** - Built-in profiler for tracking execution times, memory usage, and slow query detection
 - **Prepared Statement Pool** - Automatic statement caching with LRU eviction (20-50% faster repeated queries)
 - **Read/Write Splitting** - Horizontal scaling with master-replica architecture and load balancing
 - **Window Functions** - Advanced analytics with ROW_NUMBER, RANK, LAG, LEAD, running totals, moving averages
@@ -81,6 +82,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - [Batch Processing](#batch-processing)
   - [Query Caching](#query-caching)
   - [Query Compilation Cache](#query-compilation-cache)
+  - [Query Performance Profiling](#query-performance-profiling)
 - [Error Handling](#error-handling)
 - [Performance Tips](#performance-tips)
 - [Debugging](#debugging)
@@ -1642,6 +1644,86 @@ Benchmark results on MySQL with 10,000 rows:
 - Minimal overhead (0-5%) even when not providing significant benefit
 
 **See**: [Query Compilation Cache Documentation](documentation/05-advanced-features/query-compilation-cache.md) and [Examples](examples/20-query-compilation-cache/)
+
+### Query Performance Profiling
+
+PDOdb includes a built-in query profiler for performance analysis. It automatically tracks execution times, memory usage, and detects slow queries.
+
+#### Basic Usage
+
+```php
+// Enable profiling with slow query threshold (default: 1.0 second)
+$db->enableProfiling();
+
+// Custom threshold (0.5 seconds)
+$db->enableProfiling(0.5);
+
+// Execute queries (automatically tracked)
+$users = $db->find()->from('users')->where('active', 1)->get();
+$orders = $db->find()->from('orders')->where('status', 'pending')->get();
+
+// Get aggregated statistics
+$stats = $db->getProfilerStats(true);
+echo "Total queries: {$stats['total_queries']}\n";
+echo "Average time: " . round($stats['avg_time'] * 1000, 2) . " ms\n";
+echo "Slow queries: {$stats['slow_queries']}\n";
+
+// Get slowest queries
+$slowest = $db->getSlowestQueries(10);
+foreach ($slowest as $query) {
+    echo "Query: {$query['sql']}\n";
+    echo "  Avg time: " . round($query['avg_time'] * 1000, 2) . " ms\n";
+}
+
+// Disable profiling
+$db->disableProfiling();
+```
+
+#### Features
+
+- **Automatic tracking** of all query executions
+- **Execution time** measurement (total, average, min, max)
+- **Memory usage** tracking per query
+- **Slow query detection** with configurable threshold
+- **Query grouping** by SQL structure (same query pattern grouped together)
+- **PSR-3 logger integration** for slow query logging
+- **Statistics reset** for new measurement periods
+
+#### Statistics Structure
+
+```php
+$stats = $db->getProfilerStats(true);
+// Returns:
+[
+    'total_queries' => 150,
+    'total_time' => 2.345,      // seconds
+    'avg_time' => 0.0156,      // seconds
+    'min_time' => 0.0012,      // seconds
+    'max_time' => 0.1250,      // seconds
+    'total_memory' => 2048000, // bytes
+    'avg_memory' => 13653,     // bytes
+    'slow_queries' => 5,
+]
+```
+
+#### Slow Query Detection
+
+Queries exceeding the threshold are automatically logged (if logger provided):
+
+```php
+use Psr\Log\LoggerInterface;
+
+$logger = new YourLoggerImplementation();
+$db = new PdoDb('mysql', $config, [], $logger);
+
+// Enable with 100ms threshold
+$db->enableProfiling(0.1);
+
+// Slow queries logged with warning level
+// Log includes: SQL, parameters, execution time, memory usage
+```
+
+**See**: [Query Profiling Documentation](documentation/05-advanced-features/query-profiling.md) and [Examples](examples/21-query-profiling/)
 
 ### Prepared Statement Pool
 

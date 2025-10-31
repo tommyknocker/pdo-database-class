@@ -19,15 +19,41 @@ class ExecutionEngine implements ExecutionEngineInterface
     protected RawValueResolver $rawValueResolver;
     protected ParameterManagerInterface $parameterManager;
     protected int $fetchMode = PDO::FETCH_ASSOC;
+    protected ?QueryProfiler $profiler = null;
 
     public function __construct(
         ConnectionInterface $connection,
         RawValueResolver $rawValueResolver,
-        ParameterManagerInterface $parameterManager
+        ParameterManagerInterface $parameterManager,
+        ?QueryProfiler $profiler = null
     ) {
         $this->connection = $connection;
         $this->rawValueResolver = $rawValueResolver;
         $this->parameterManager = $parameterManager;
+        $this->profiler = $profiler;
+    }
+
+    /**
+     * Set query profiler.
+     *
+     * @param QueryProfiler|null $profiler
+     *
+     * @return self
+     */
+    public function setProfiler(?QueryProfiler $profiler): self
+    {
+        $this->profiler = $profiler;
+        return $this;
+    }
+
+    /**
+     * Get query profiler.
+     *
+     * @return QueryProfiler|null
+     */
+    public function getProfiler(): ?QueryProfiler
+    {
+        return $this->profiler;
     }
 
     /**
@@ -41,16 +67,31 @@ class ExecutionEngine implements ExecutionEngineInterface
      */
     public function executeStatement(string|RawValue $sql, array $params = []): PDOStatement
     {
-        $sql = $this->resolveRawValue($sql);
-        // Only normalize params if they're not from ParameterManager (empty array means use ParameterManager params)
-        if (!empty($params)) {
-            $params = $this->normalizeParams($params);
-        } else {
-            $params = $this->parameterManager->getParams();
+        $sqlString = $this->resolveRawValue($sql);
+
+        // Start profiling
+        $queryId = $this->profiler?->startQuery($sqlString, $params) ?? -1;
+
+        try {
+            // Only normalize params if they're not from ParameterManager (empty array means use ParameterManager params)
+            if (!empty($params)) {
+                $params = $this->normalizeParams($params);
+            } else {
+                $params = $this->parameterManager->getParams();
+            }
+            $result = $this->connection->prepare($sqlString)->execute($params);
+            $this->parameterManager->clearParams();
+
+            // End profiling
+            $this->profiler?->endQuery($queryId);
+
+            return $result;
+        } catch (PDOException $e) {
+            // End profiling even on error
+            $this->profiler?->endQuery($queryId);
+
+            throw $e;
         }
-        $result = $this->connection->prepare($sql)->execute($params);
-        $this->parameterManager->clearParams();
-        return $result;
     }
 
     /**

@@ -93,12 +93,14 @@ class QueryBuilder implements QueryBuilderInterface
      * @param string $prefix
      * @param CacheManager|null $cacheManager
      * @param \tommyknocker\pdodb\query\cache\QueryCompilationCache|null $compilationCache
+     * @param QueryProfiler|null $profiler
      */
     public function __construct(
         ConnectionInterface $connection,
         string $prefix = '',
         ?CacheManager $cacheManager = null,
-        ?\tommyknocker\pdodb\query\cache\QueryCompilationCache $compilationCache = null
+        ?\tommyknocker\pdodb\query\cache\QueryCompilationCache $compilationCache = null,
+        ?QueryProfiler $profiler = null
     ) {
         $this->connection = $connection;
         $this->dialect = $connection->getDialect();
@@ -109,7 +111,7 @@ class QueryBuilder implements QueryBuilderInterface
         // Initialize components with shared parameter manager and raw value resolver
         $this->parameterManager = new ParameterManager();
         $rawValueResolver = new RawValueResolver($connection, $this->parameterManager);
-        $this->executionEngine = new ExecutionEngine($connection, $rawValueResolver, $this->parameterManager);
+        $this->executionEngine = new ExecutionEngine($connection, $rawValueResolver, $this->parameterManager, $profiler);
         $this->conditionBuilder = new ConditionBuilder(
             $connection,
             $this->parameterManager,

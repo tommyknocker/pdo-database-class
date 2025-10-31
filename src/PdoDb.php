@@ -18,6 +18,7 @@ use tommyknocker\pdodb\connection\loadbalancer\LoadBalancerInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\QueryBuilder;
+use tommyknocker\pdodb\query\QueryProfiler;
 
 class PdoDb
 {
@@ -78,6 +79,12 @@ class PdoDb
     /** @var QueryCompilationCache|null Query compilation cache */
     protected ?QueryCompilationCache $compilationCache = null;
 
+    /** @var QueryProfiler|null Query profiler for performance analysis */
+    protected ?QueryProfiler $profiler = null;
+
+    /** @var LoggerInterface|null Logger instance */
+    protected ?LoggerInterface $logger = null;
+
     /** @var ConnectionRouter|null Connection router for read/write splitting */
     protected ?ConnectionRouter $connectionRouter = null;
 
@@ -107,6 +114,7 @@ class PdoDb
     ) {
         $prefix = $config['prefix'] ?? '';
         $this->prefix = is_string($prefix) ? $prefix : '';
+        $this->logger = $logger;
 
         // Initialize cache manager if cache is provided
         if ($cache !== null) {
@@ -138,13 +146,116 @@ class PdoDb
     }
 
     /**
+     * Enable query profiling.
+     *
+     * @param float $slowQueryThreshold Slow query threshold in seconds (default: 1.0)
+     *
+     * @return self
+     */
+    public function enableProfiling(float $slowQueryThreshold = 1.0): self
+    {
+        if ($this->profiler === null) {
+            $this->profiler = new QueryProfiler();
+            $this->profiler->setLogger($this->logger);
+        }
+
+        $this->profiler->enable();
+        $this->profiler->setSlowQueryThreshold($slowQueryThreshold);
+
+        return $this;
+    }
+
+    /**
+     * Disable query profiling.
+     *
+     * @return self
+     */
+    public function disableProfiling(): self
+    {
+        $this->profiler?->disable();
+        return $this;
+    }
+
+    /**
+     * Check if profiling is enabled.
+     *
+     * @return bool
+     */
+    public function isProfilingEnabled(): bool
+    {
+        return $this->profiler?->isEnabled() ?? false;
+    }
+
+    /**
+     * Get profiler statistics.
+     *
+     * @param bool $aggregated If true, return aggregated stats; if false, return per-query stats
+     *
+     * @return array<string, mixed> Profiler statistics
+     */
+    public function getProfilerStats(bool $aggregated = false): array
+    {
+        if ($this->profiler === null) {
+            return [];
+        }
+
+        return $aggregated ? $this->profiler->getAggregatedStats() : $this->profiler->getStats();
+    }
+
+    /**
+     * Get slowest queries.
+     *
+     * @param int $limit Number of queries to return
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getSlowestQueries(int $limit = 10): array
+    {
+        return $this->profiler?->getSlowestQueries($limit) ?? [];
+    }
+
+    /**
+     * Reset profiler statistics.
+     *
+     * @return self
+     */
+    public function resetProfiler(): self
+    {
+        $this->profiler?->reset();
+        return $this;
+    }
+
+    /**
+     * Get query profiler instance.
+     *
+     * @return QueryProfiler|null
+     */
+    public function getProfiler(): ?QueryProfiler
+    {
+        return $this->profiler;
+    }
+
+    /**
+     * Set query profiler instance.
+     *
+     * @param QueryProfiler|null $profiler
+     *
+     * @return self
+     */
+    public function setProfiler(?QueryProfiler $profiler): self
+    {
+        $this->profiler = $profiler;
+        return $this;
+    }
+
+    /**
      * Returns a new QueryBuilder instance.
      *
      * @return QueryBuilder The new QueryBuilder instance.
      */
     public function find(): QueryBuilder
     {
-        $queryBuilder = new QueryBuilder($this->connection, $this->prefix, $this->cacheManager, $this->compilationCache);
+        $queryBuilder = new QueryBuilder($this->connection, $this->prefix, $this->cacheManager, $this->compilationCache, $this->profiler);
 
         // Set connection router if read/write splitting is enabled
         if ($this->readWriteSplittingEnabled && $this->connectionRouter !== null) {
