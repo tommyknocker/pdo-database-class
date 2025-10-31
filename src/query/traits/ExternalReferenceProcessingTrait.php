@@ -23,6 +23,8 @@ trait ExternalReferenceProcessingTrait
         }
 
         $table = explode('.', $reference)[0];
+        // If table is not in current query (FROM clause), it's an external reference
+        // In LATERAL JOIN subqueries, tables from outer query are automatically external
         return !$this->isTableInCurrentQuery($table);
     }
 

@@ -27,6 +27,15 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function supportsLateralJoin(): bool
+    {
+        // SQLite does not support LATERAL JOINs
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildDsn(array $params): string
     {
         if (!isset($params['path'])) {

@@ -319,7 +319,7 @@ $users = $db->find()
     ->from('users')
     ->whereExists(function($query) {
         $query->from('orders')
-            ->where('user_id', Db::raw('users.id'))
+            ->where('user_id', 'users.id')
             ->where('status', 'completed');
     })
     ->get();

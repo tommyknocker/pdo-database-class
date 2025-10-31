@@ -64,4 +64,24 @@ interface JoinBuilderInterface
      * @return array<int, string> The joins array.
      */
     public function getJoins(): array;
+
+    /**
+     * Add LATERAL JOIN clause.
+     *
+     * LATERAL JOINs allow correlated subqueries in FROM clause,
+     * where the subquery can reference columns from preceding tables.
+     *
+     * @param string|callable(\tommyknocker\pdodb\query\QueryBuilder): void $tableOrSubquery Table name or callable that returns a query builder for subquery
+     * @param string|RawValue|null $condition Optional ON condition (not always required for LATERAL)
+     * @param string $type JOIN type, e.g. INNER, LEFT (default: LEFT)
+     * @param string|null $alias Optional alias for LATERAL subquery/table
+     *
+     * @return self The current instance.
+     */
+    public function lateralJoin(
+        string|callable $tableOrSubquery,
+        string|RawValue|null $condition = null,
+        string $type = 'LEFT',
+        ?string $alias = null
+    ): self;
 }

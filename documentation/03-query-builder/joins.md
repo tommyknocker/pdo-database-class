@@ -287,6 +287,123 @@ $results = $db->find()
     ->get();
 ```
 
+## LATERAL JOINs
+
+LATERAL JOINs allow correlated subqueries in the FROM clause, where the subquery can reference columns from preceding tables. This is useful for complex data transformations.
+
+**Note:** External table references (like `u.id` referencing a table from the outer query) are automatically detected and converted to raw SQL. You don't need to use `Db::raw()` for these references.
+
+### Supported Databases
+
+- **PostgreSQL**: Native support (version 9.3+)
+- **MySQL**: Native support (version 8.0.14+)
+- **SQLite**: Not supported (throws exception)
+
+### Basic LATERAL JOIN
+
+```php
+// LATERAL JOIN with subquery
+$results = $db->find()
+    ->from('users AS u')
+    ->select([
+        'u.id',
+        'u.name',
+        'latest_order.order_id',
+        'latest_order.total'
+    ])
+    ->lateralJoin(function ($q) {
+        $q->from('orders AS o')
+          ->where('o.user_id', 'u.id')
+          ->orderBy('o.created_at', 'DESC')
+          ->limit(1);
+    }, null, 'LEFT', 'latest_order')
+    ->get();
+
+// SQL (PostgreSQL/MySQL):
+// SELECT u.id, u.name, latest_order.order_id, latest_order.total
+// FROM users u
+// LEFT JOIN LATERAL (
+//     SELECT o.order_id, o.total
+//     FROM orders o
+//     WHERE o.user_id = u.id
+//     ORDER BY o.created_at DESC
+//     LIMIT 1
+// ) AS latest_order
+```
+
+### LATERAL JOIN with ON Condition
+
+```php
+$results = $db->find()
+    ->from('users AS u')
+    ->select(['u.id', 'stats.order_count', 'stats.total_amount'])
+    ->lateralJoin(function ($q) {
+        $q->from('orders AS o')
+          ->select([
+              'order_count' => 'COUNT(*)',
+              'total_amount' => 'SUM(o.amount)'
+          ])
+          ->where('o.user_id', 'u.id')
+          ->where('o.status', 'completed');
+    }, 'stats.user_id = u.id', 'LEFT', 'stats')
+    ->get();
+```
+
+### LATERAL JOIN with Table-Valued Function (PostgreSQL)
+
+```php
+// PostgreSQL table-valued function example
+$results = $db->find()
+    ->from('users AS u')
+    ->select(['u.id', 'u.name', 'f.value'])
+    ->lateralJoin('generate_series(1, u.order_count) AS f', null, 'LEFT')
+    ->get();
+```
+
+### Multiple LATERAL JOINs
+
+```php
+$results = $db->find()
+    ->from('users AS u')
+    ->select([
+        'u.name',
+        'latest_order.order_id',
+        'latest_order.total',
+        'favorite_category.category_name'
+    ])
+    ->lateralJoin(function ($q) {
+        $q->from('orders AS o')
+          ->where('o.user_id', 'u.id')
+          ->orderBy('o.created_at', 'DESC')
+          ->limit(1);
+    }, null, 'LEFT', 'latest_order')
+    ->lateralJoin(function ($q) {
+        $q->from('orders AS o')
+          ->join('order_items AS oi', 'oi.order_id = o.id')
+          ->join('products AS p', 'p.id = oi.product_id')
+          ->join('categories AS c', 'c.id = p.category_id')
+          ->where('o.user_id', 'u.id')
+          ->select(['category_name' => 'c.name'])
+          ->groupBy('c.id', 'c.name')
+          ->orderBy(['count' => 'COUNT(*)'], 'DESC')
+          ->limit(1);
+    }, null, 'LEFT', 'favorite_category')
+    ->get();
+```
+
+### When to Use LATERAL JOINs
+
+**Use LATERAL JOINs when:**
+- You need to reference columns from preceding tables in a subquery
+- You want to get top-N results per group efficiently
+- You need to call table-valued functions that depend on row data
+- You want to avoid multiple separate queries
+
+**Avoid LATERAL JOINs when:**
+- The subquery doesn't reference columns from preceding tables (use regular JOIN instead)
+- Using SQLite (not supported)
+- Performance is critical and the correlated subquery is expensive
+
 ## Next Steps
 
 - [SELECT Operations](select-operations.md) - SELECT queries

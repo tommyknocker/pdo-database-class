@@ -56,7 +56,7 @@ $users = $db->find()
     ->from('users')
     ->whereExists(function($query) {
         $query->from('orders')
-            ->where('user_id', Db::raw('users.id'))
+            ->where('user_id', 'users.id')
             ->where('status', 'completed');
     })
     ->get();
@@ -70,7 +70,7 @@ $users = $db->find()
     ->from('users')
     ->whereNotExists(function($query) {
         $query->from('orders')
-            ->where('user_id', Db::raw('users.id'));
+            ->where('user_id', 'users.id');
     })
     ->get();
 ```
@@ -85,8 +85,8 @@ $users = $db->find()
     ->from('users')
     ->whereExists(function($query) {
         $query->from('orders')
-            ->where('user_id', 'users.id')  // Auto-detected
-            ->where('total', Db::raw('users.balance'), '>')  // Auto-detected
+            ->where('user_id', 'users.id')
+            ->where('total', 'users.balance', '>')
             ->where('status', 'completed');
     })
     ->get();
@@ -106,7 +106,7 @@ $users = $db->find()
         'order_count' => function($q) {
             $q->from('orders')
               ->select(Db::count())
-              ->where('user_id', Db::raw('u.id'));
+              ->where('user_id', 'u.id');
         }
     ])
     ->get();
@@ -142,7 +142,7 @@ $products = $db->find()
     ->from('products AS p')
     ->whereExists(function($query) {
         $query->from('order_items AS oi')
-            ->where('oi.product_id', Db::raw('p.id'))
+            ->where('oi.product_id', 'p.id')
             ->where('oi.created_at', Db::now('-30 DAYS'), '>');
     })
     ->get();
@@ -177,7 +177,7 @@ $products = $db->find()
     ->from('products')
     ->whereNotExists(function($query) {
         $query->from('order_items')
-            ->where('product_id', Db::raw('products.id'));
+            ->where('product_id', 'products.id');
     })
     ->get();
 ```

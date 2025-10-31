@@ -21,6 +21,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Read/Write Splitting** - Horizontal scaling with master-replica architecture and load balancing
 - **Window Functions** - Advanced analytics with ROW_NUMBER, RANK, LAG, LEAD, running totals, moving averages
 - **Common Table Expressions (CTEs)** - WITH clauses for complex queries, recursive CTEs for hierarchical data, materialized CTEs for performance optimization
+- **LATERAL JOINs** - Correlated subqueries in FROM clause for PostgreSQL and MySQL
 - **Set Operations** - UNION, INTERSECT, EXCEPT for combining query results with automatic deduplication
 - **DISTINCT & DISTINCT ON** - Remove duplicates with full PostgreSQL DISTINCT ON support
 - **FILTER Clause** - Conditional aggregates (SQL:2003 standard) with automatic MySQL fallback to CASE WHEN
@@ -822,6 +823,35 @@ $stats = $db->find()
     ->get();
 ```
 
+#### LATERAL JOIN (PostgreSQL/MySQL only)
+
+LATERAL JOINs allow correlated subqueries in the FROM clause, where the subquery can reference columns from preceding tables:
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Get latest order per user
+$latestOrders = $db->find()
+    ->from('users AS u')
+    ->select([
+        'u.name',
+        'latest.order_id',
+        'latest.total'
+    ])
+    ->lateralJoin(function ($q) {
+        $q->from('orders')
+          ->where('user_id', 'u.id')
+          ->orderBy('created_at', 'DESC')
+          ->limit(1);
+    }, null, 'LEFT', 'latest')
+    ->get();
+
+// Supported: PostgreSQL 9.3+, MySQL 8.0.14+
+// Not supported: SQLite (throws exception)
+```
+
+See [JOIN Operations Documentation](documentation/03-query-builder/joins.md#lateral-joins) for more examples.
+
 ### Bulk Operations
 
 #### UPSERT (INSERT or UPDATE)
@@ -1338,7 +1368,7 @@ $users = $db->find()
     ->where('id', $highValueOrders, 'IN')
     ->whereNotExists(function($query) use ($bannedUsers) {
         $query->from('bans')
-            ->where('user_id', Db::raw('users.id'))
+            ->where('user_id', 'users.id')
             ->where('active', 1);
     })
     ->get();

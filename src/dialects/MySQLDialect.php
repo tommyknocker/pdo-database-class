@@ -26,6 +26,15 @@ class MySQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function supportsLateralJoin(): bool
+    {
+        // MySQL supports LATERAL JOINs since version 8.0.14
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildDsn(array $params): string
     {
         foreach (['host', 'dbname', 'username', 'password'] as $requiredParam) {

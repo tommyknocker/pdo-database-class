@@ -693,4 +693,14 @@ interface DialectInterface
      * @return \Generator<string>
      */
     public function buildLoadJsonGenerator(string $table, string $filePath, array $options = []): \Generator;
+
+    /**
+     * Check if the dialect supports LATERAL JOINs.
+     *
+     * LATERAL JOINs allow correlated subqueries in FROM clause,
+     * where the subquery can reference columns from preceding tables.
+     *
+     * @return bool True if LATERAL JOINs are supported
+     */
+    public function supportsLateralJoin(): bool;
 }

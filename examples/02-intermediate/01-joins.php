@@ -137,5 +137,43 @@ foreach ($results as $row) {
     echo "  • {$row['name']} ({$row['city']}): {$row['order_count']} orders, \$" . number_format($row['total'], 2) . "\n";
 }
 
-echo "\nJOIN operations example completed!\n";
+echo "\n";
+
+// Example 6: LATERAL JOIN (PostgreSQL/MySQL only)
+$dialect = $db->find()->getConnection()->getDialect();
+if ($dialect->supportsLateralJoin()) {
+    echo "6. LATERAL JOIN - Latest order per user...\n";
+    echo "   (LATERAL JOIN allows subqueries to reference columns from preceding tables)\n";
+    
+    // Get latest order per user using LATERAL JOIN
+    $results = $db->find()
+        ->from('users AS u')
+        ->select([
+            'u.name',
+            'latest.product',
+            'latest.amount'
+        ])
+        ->lateralJoin(function ($q) {
+            $q->from('orders')
+              ->select(['product', 'amount'])
+              ->where('user_id', 'u.id')
+              ->orderBy('id', 'DESC')
+              ->limit(1);
+        }, null, 'LEFT', 'latest')
+        ->get();
+    
+    echo "  Latest order per user:\n";
+    foreach ($results as $row) {
+        if ($row['product']) {
+            echo "  • {$row['name']}: {$row['product']} (\${$row['amount']})\n";
+        } else {
+            echo "  • {$row['name']}: (no orders)\n";
+        }
+    }
+    echo "\n";
+} else {
+    echo "6. LATERAL JOIN - Skipped (not supported by {$driver})\n\n";
+}
+
+echo "JOIN operations example completed!\n";
 

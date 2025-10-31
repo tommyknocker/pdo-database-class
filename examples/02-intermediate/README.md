@@ -15,6 +15,7 @@ JOIN operations across different join types.
 - Join conditions with complex expressions
 - Selecting columns from joined tables
 - Alias usage in joins
+- LATERAL JOIN - correlated subqueries (PostgreSQL/MySQL only)
 
 ### 02-aggregations.php
 GROUP BY, HAVING, and aggregate functions.

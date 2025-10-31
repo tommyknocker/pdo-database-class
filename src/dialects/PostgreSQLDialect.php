@@ -26,6 +26,15 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function supportsLateralJoin(): bool
+    {
+        // PostgreSQL has native LATERAL JOIN support since version 9.3
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildDsn(array $params): string
     {
         foreach (['host', 'dbname', 'username', 'password'] as $requiredParam) {

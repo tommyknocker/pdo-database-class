@@ -300,6 +300,23 @@ interface QueryBuilderInterface
      */
     public function innerJoin(string $tableAlias, string|RawValue $condition): self;
 
+    /**
+     * Add LATERAL JOIN clause.
+     *
+     * @param string|callable(\tommyknocker\pdodb\query\QueryBuilder): void $tableOrSubquery Table name or callable for subquery
+     * @param string|RawValue|null $condition Optional ON condition
+     * @param string $type JOIN type (default: LEFT)
+     * @param string|null $alias Optional alias for LATERAL subquery
+     *
+     * @return self
+     */
+    public function lateralJoin(
+        string|callable $tableOrSubquery,
+        string|RawValue|null $condition = null,
+        string $type = 'LEFT',
+        ?string $alias = null
+    ): self;
+
     // Ordering / grouping / pagination / options
     /**
      * @param string|array<int|string, string>|RawValue $expr

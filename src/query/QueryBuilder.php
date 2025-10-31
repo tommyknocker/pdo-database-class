@@ -118,7 +118,7 @@ class QueryBuilder implements QueryBuilderInterface
             $this->executionEngine,
             $rawValueResolver
         );
-        $this->joinBuilder = new JoinBuilder($connection, $rawValueResolver);
+        $this->joinBuilder = new JoinBuilder($connection, $rawValueResolver, $this->parameterManager);
         $this->selectQueryBuilder = new SelectQueryBuilder(
             $connection,
             $this->parameterManager,
@@ -1236,6 +1236,29 @@ class QueryBuilder implements QueryBuilderInterface
     public function innerJoin(string $tableAlias, string|RawValue $condition): self
     {
         $this->joinBuilder->innerJoin($tableAlias, $condition);
+        return $this;
+    }
+
+    /**
+     * Add LATERAL JOIN clause.
+     *
+     * LATERAL JOINs allow correlated subqueries in FROM clause,
+     * where the subquery can reference columns from preceding tables.
+     *
+     * @param string|callable(\tommyknocker\pdodb\query\QueryBuilder): void $tableOrSubquery Table name or callable for subquery
+     * @param string|RawValue|null $condition Optional ON condition
+     * @param string $type JOIN type (default: LEFT)
+     * @param string|null $alias Optional alias for LATERAL subquery
+     *
+     * @return self
+     */
+    public function lateralJoin(
+        string|callable $tableOrSubquery,
+        string|RawValue|null $condition = null,
+        string $type = 'LEFT',
+        ?string $alias = null
+    ): self {
+        $this->joinBuilder->lateralJoin($tableOrSubquery, $condition, $type, $alias);
         return $this;
     }
 
