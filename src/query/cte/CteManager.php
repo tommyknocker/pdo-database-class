@@ -93,7 +93,9 @@ class CteManager
         // Clear parameters before rebuilding
         $this->cteParams = [];
 
+        // Determine base keyword
         $keyword = $this->hasRecursive() ? 'WITH RECURSIVE' : 'WITH';
+
         $cteParts = [];
 
         foreach ($this->ctes as $index => $cte) {
@@ -113,6 +115,18 @@ class CteManager
      */
     protected function buildCteSql(CteDefinition $cte, int $index): string
     {
+        // Check for materialized CTE support
+        if ($cte->isMaterialized() && !$this->dialect->supportsMaterializedCte()) {
+            $driverName = $this->dialect->getDriverName();
+
+            throw new \RuntimeException(
+                sprintf(
+                    'Materialized CTE is not supported by %s dialect. Use regular CTE instead.',
+                    $driverName
+                )
+            );
+        }
+
         $name = $this->dialect->quoteIdentifier($cte->getName());
 
         // Add column list if specified
@@ -148,7 +162,48 @@ class CteManager
             $sql = $query;
         }
 
-        return $name . ' AS (' . $sql . ')';
+        // Apply materialization
+        $materializedKeyword = '';
+        if ($cte->isMaterialized()) {
+            $driverName = $this->dialect->getDriverName();
+
+            if ($driverName === 'pgsql') {
+                // PostgreSQL 12+: MATERIALIZED goes after AS
+                $materializedKeyword = ' MATERIALIZED';
+            } elseif ($driverName === 'mysql') {
+                // MySQL: Use optimizer hint in the query
+                $sql = $this->applyMySQLMaterializationHint($sql);
+            }
+        }
+
+        return $name . ' AS' . $materializedKeyword . ' (' . $sql . ')';
+    }
+
+    /**
+     * Apply MySQL optimizer hints for materialization.
+     *
+     * @param string $sql Original SQL query
+     *
+     * @return string SQL with optimizer hint
+     */
+    protected function applyMySQLMaterializationHint(string $sql): string
+    {
+        // For MySQL, we add a comment hint to encourage materialization
+        // This is best-effort; MySQL optimizer may still choose not to materialize
+        if (preg_match('/^\s*SELECT\s+/i', $sql)) {
+            // Add optimizer hint after SELECT
+            $replaced = preg_replace(
+                '/^\s*(SELECT\s+)/i',
+                '$1/*+ MATERIALIZE */ ',
+                $sql,
+                1
+            );
+
+            // preg_replace returns null on failure, but we know pattern matches
+            return $replaced ?? $sql;
+        }
+
+        return $sql;
     }
 
     /**

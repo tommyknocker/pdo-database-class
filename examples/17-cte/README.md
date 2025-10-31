@@ -20,12 +20,23 @@ Demonstrates recursive CTE usage:
 - Depth-limited recursion
 - Counting subordinates in hierarchy
 
+### 03-materialized-cte.php
+Demonstrates materialized CTE usage:
+- Basic materialized CTE with performance optimization
+- Materialized CTE with multiple references
+- Materialized CTE with explicit column list
+- Multiple materialized CTEs
+- Performance benefits and use cases
+
+**Note:** Materialized CTE is only supported on PostgreSQL (12+) and MySQL (8.0+). SQLite does not support this feature.
+
 ## Running Examples
 
 ### SQLite (default)
 ```bash
 php 01-basic-cte.php
 php 02-recursive-cte.php
+php 03-materialized-cte.php  # Only works on PostgreSQL and MySQL
 ```
 
 ### MySQL
@@ -38,6 +49,7 @@ PDODB_MYSQL_PASSWORD=secret \
 php 01-basic-cte.php
 
 PDODB_DRIVER=mysql php 02-recursive-cte.php
+PDODB_DRIVER=mysql php 03-materialized-cte.php
 ```
 
 ### PostgreSQL
@@ -50,6 +62,7 @@ PDODB_PGSQL_PASSWORD=secret \
 php 01-basic-cte.php
 
 PDODB_DRIVER=pgsql php 02-recursive-cte.php
+PDODB_DRIVER=pgsql php 03-materialized-cte.php
 ```
 
 ## Key Concepts
@@ -63,6 +76,14 @@ PDODB_DRIVER=pgsql php 02-recursive-cte.php
 - Process hierarchical or tree-structured data
 - Consist of anchor (base) query and recursive query
 - Useful for organizational charts, category trees, graphs
+
+### Materialized CTEs
+- Cache the result set for performance optimization
+- Computed once and stored in memory, then reused
+- PostgreSQL: Uses `MATERIALIZED` keyword (PostgreSQL 12+)
+- MySQL: Uses optimizer hints (MySQL 8.0+)
+- SQLite: Not supported
+- Best for expensive queries referenced multiple times
 
 ## Learn More
 

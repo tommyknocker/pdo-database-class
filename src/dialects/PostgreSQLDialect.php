@@ -930,6 +930,14 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function supportsMaterializedCte(): bool
+    {
+        return true; // PostgreSQL supports MATERIALIZED CTE (12+)
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildShowIndexesSql(string $table): string
     {
         return "SELECT

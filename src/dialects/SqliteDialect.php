@@ -774,6 +774,14 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function supportsMaterializedCte(): bool
+    {
+        return false; // SQLite does not support MATERIALIZED CTE
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildShowIndexesSql(string $table): string
     {
         return "SELECT name, tbl_name as table_name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = '{$table}'";

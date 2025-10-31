@@ -92,4 +92,18 @@ final class MiscTests extends BaseSqliteTestCase
             ->distinctOn('email')
             ->get();
     }
+
+    // Edge case: Materialized CTE not supported on SQLite
+    public function testMaterializedCteThrowsExceptionOnSQLite(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Materialized CTE is not supported by sqlite dialect');
+
+        self::$db->find()
+            ->withMaterialized('test_cte', function ($q) {
+                $q->from('users')->where('age', 30, '>');
+            })
+            ->from('test_cte')
+            ->get();
+    }
 }

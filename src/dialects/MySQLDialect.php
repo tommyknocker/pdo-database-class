@@ -830,6 +830,14 @@ class MySQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function supportsMaterializedCte(): bool
+    {
+        return true; // MySQL 8.0+ can use optimizer hints for materialization
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildShowIndexesSql(string $table): string
     {
         return "SHOW INDEXES FROM {$this->quoteTable($table)}";

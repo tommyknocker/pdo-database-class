@@ -340,7 +340,7 @@ class QueryBuilder implements QueryBuilderInterface
             $query = $query->getValue();
         }
 
-        $cte = new CteDefinition($name, $query, false, $columns);
+        $cte = new CteDefinition($name, $query, false, false, $columns);
         $this->cteManager->add($cte);
 
         return $this;
@@ -369,7 +369,45 @@ class QueryBuilder implements QueryBuilderInterface
             $query = $query->getValue();
         }
 
-        $cte = new CteDefinition($name, $query, true, $columns);
+        $cte = new CteDefinition($name, $query, true, false, $columns);
+        $this->cteManager->add($cte);
+
+        return $this;
+    }
+
+    /**
+     * Add a materialized Common Table Expression (CTE) to the query.
+     *
+     * Materialized CTEs cache the result set, improving performance for expensive queries
+     * that are referenced multiple times. The result is computed once and stored in memory.
+     *
+     * Supported databases:
+     * - PostgreSQL: Uses MATERIALIZED keyword (PostgreSQL 12+)
+     * - MySQL: Uses optimizer hints (MySQL 8.0+)
+     * - SQLite: Not supported (throws RuntimeException)
+     *
+     * @param string $name CTE name
+     * @param QueryBuilder|Closure(QueryBuilder): void|string|RawValue $query Query builder, closure, or raw SQL
+     * @param array<string> $columns Explicit column list (optional)
+     *
+     * @return self The current instance.
+     * @throws \RuntimeException If database dialect does not support materialized CTEs
+     */
+    public function withMaterialized(
+        string $name,
+        QueryBuilder|Closure|string|RawValue $query,
+        array $columns = []
+    ): self {
+        if ($this->cteManager === null) {
+            $this->cteManager = new CteManager($this->connection);
+        }
+
+        // Convert RawValue to string
+        if ($query instanceof RawValue) {
+            $query = $query->getValue();
+        }
+
+        $cte = new CteDefinition($name, $query, false, true, $columns);
         $this->cteManager->add($cte);
 
         return $this;

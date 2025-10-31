@@ -20,7 +20,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Prepared Statement Pool** - Automatic statement caching with LRU eviction (20-50% faster repeated queries)
 - **Read/Write Splitting** - Horizontal scaling with master-replica architecture and load balancing
 - **Window Functions** - Advanced analytics with ROW_NUMBER, RANK, LAG, LEAD, running totals, moving averages
-- **Common Table Expressions (CTEs)** - WITH clauses for complex queries, recursive CTEs for hierarchical data
+- **Common Table Expressions (CTEs)** - WITH clauses for complex queries, recursive CTEs for hierarchical data, materialized CTEs for performance optimization
 - **Set Operations** - UNION, INTERSECT, EXCEPT for combining query results with automatic deduplication
 - **DISTINCT & DISTINCT ON** - Remove duplicates with full PostgreSQL DISTINCT ON support
 - **FILTER Clause** - Conditional aggregates (SQL:2003 standard) with automatic MySQL fallback to CASE WHEN
@@ -578,11 +578,29 @@ $results = $pdoDb->find()
     ->from('product_summary')
     ->where('product_price', 100, '>')
     ->get();
+
+// Materialized CTE - performance optimization for expensive queries
+// PostgreSQL: Uses MATERIALIZED keyword, MySQL: Uses optimizer hints
+$results = $pdoDb->find()
+    ->withMaterialized('customer_stats', function ($q) {
+        $q->from('orders')
+          ->select([
+              'customer_id',
+              'order_count' => Db::count('*'),
+              'total_spent' => Db::sum('amount'),
+          ])
+          ->groupBy('customer_id');
+    })
+    ->from('customers')
+    ->join('customer_stats', 'customers.id = customer_stats.customer_id')
+    ->where('customer_stats.total_spent', 1000, '>')
+    ->get();
 ```
 
 **Key Features:**
 - **Basic CTEs** - Temporary named result sets for query organization
 - **Recursive CTEs** - Process hierarchical or tree-structured data
+- **Materialized CTEs** - Cache expensive computations for performance (PostgreSQL 12+, MySQL 8.0+)
 - **Multiple CTEs** - Chain and combine multiple WITH clauses
 - **Flexible Definition** - Use closures, QueryBuilder instances, or raw SQL
 - **Column Lists** - Explicit column naming for cleaner queries
@@ -595,11 +613,13 @@ $results = $pdoDb->find()
 - Bill of materials and part assemblies
 - Graph traversal and pathfinding
 - Recursive data aggregation
+- Performance optimization with materialized CTEs for expensive aggregations
 
 See:
 - [Documentation: CTEs](documentation/03-query-builder/cte.md)
 - [Example: Basic CTEs](examples/17-cte/01-basic-cte.php)
 - [Example: Recursive CTEs](examples/17-cte/02-recursive-cte.php)
+- [Example: Materialized CTEs](examples/17-cte/03-materialized-cte.php)
 
 ---
 

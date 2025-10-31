@@ -291,22 +291,92 @@ $results = $pdoDb->find()
     ->get();
 ```
 
+## Materialized CTEs
+
+Materialized CTEs cache the result set, improving performance for expensive queries that are referenced multiple times. The result is computed once and stored in memory.
+
+### When to Use Materialized CTEs
+
+Materialized CTEs are beneficial when:
+- An expensive computation is referenced multiple times in the query
+- Complex aggregations need to be reused
+- Performance optimization is critical for large datasets
+
+### Syntax
+
+```php
+$pdoDb->find()
+    ->withMaterialized('cte_name', $query)  // Materialized CTE
+    ->from('cte_name')
+    ->get();
+```
+
+### Example: Expensive Aggregation
+
+```php
+// Materialize expensive aggregation for reuse
+$results = $pdoDb->find()
+    ->withMaterialized('customer_stats', function ($q) {
+        $q->from('orders')
+          ->select([
+              'customer_id',
+              'order_count' => Db::count('*'),
+              'total_spent' => Db::sum('amount'),
+          ])
+          ->groupBy('customer_id');
+    })
+    ->from('customers')
+    ->join('customer_stats', 'customers.id = customer_stats.customer_id')
+    ->select([
+        'customers.name',
+        'customer_stats.order_count',
+        'customer_stats.total_spent',
+    ])
+    ->where('customer_stats.total_spent', 1000, '>')
+    ->get();
+```
+
+### Database Support for Materialized CTEs
+
+- **PostgreSQL**: ✅ Supported (PostgreSQL 12+) - Uses `MATERIALIZED` keyword
+- **MySQL**: ✅ Supported (MySQL 8.0+) - Uses optimizer hints
+- **SQLite**: ❌ Not supported - Throws `RuntimeException`
+
+### Multiple Materialized CTEs
+
+```php
+$results = $pdoDb->find()
+    ->withMaterialized('expensive_cte1', function ($q) {
+        // Complex computation
+    })
+    ->withMaterialized('expensive_cte2', function ($q) {
+        // Another complex computation
+    })
+    ->from('main_table')
+    ->join('expensive_cte1', 'main_table.id = expensive_cte1.id')
+    ->join('expensive_cte2', 'main_table.id = expensive_cte2.id')
+    ->get();
+```
+
 ## Database Support
 
 ### MySQL 8.0+
 - Basic CTEs: ✅ Supported
 - Recursive CTEs: ✅ Supported
+- Materialized CTEs: ✅ Supported (using optimizer hints)
 - Notes: Requires MySQL 8.0.1 or higher
 
 ### PostgreSQL 8.4+
 - Basic CTEs: ✅ Supported
 - Recursive CTEs: ✅ Supported
-- Notes: Best CTE implementation, supports MATERIALIZED/NOT MATERIALIZED hints
+- Materialized CTEs: ✅ Supported (PostgreSQL 12+) - Uses `MATERIALIZED` keyword
+- Notes: Best CTE implementation, native MATERIALIZED support since PostgreSQL 12
 
 ### SQLite 3.8.3+
 - Basic CTEs: ✅ Supported
 - Recursive CTEs: ✅ Supported
-- Notes: Excellent CTE support since version 3.8.3
+- Materialized CTEs: ❌ Not supported
+- Notes: Excellent CTE support since version 3.8.3, but materialization not available
 
 ## Best Practices
 

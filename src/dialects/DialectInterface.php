@@ -405,6 +405,13 @@ interface DialectInterface
     public function supportsDistinctOn(): bool;
 
     /**
+     * Check if database supports MATERIALIZED CTE clause.
+     *
+     * @return bool
+     */
+    public function supportsMaterializedCte(): bool;
+
+    /**
      * Format GROUP_CONCAT / STRING_AGG expression.
      *
      * @param string|RawValue $column Column or expression to concatenate.
