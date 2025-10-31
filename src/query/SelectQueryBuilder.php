@@ -382,12 +382,12 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         // We'll cache the final value ourselves
         $wasCacheEnabled = $this->cacheEnabled;
         $this->cacheEnabled = false;
-        
+
         $row = $this->getOne();
-        
+
         // Restore cache setting
         $this->cacheEnabled = $wasCacheEnabled;
-        
+
         $key = $this->resolveSelectedKey();
         if (count($row) === 1 && !isset($row[$key])) {
             $result = array_shift($row);

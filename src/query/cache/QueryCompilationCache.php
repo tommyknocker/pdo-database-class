@@ -200,15 +200,29 @@ class QueryCompilationCache
         $normalized = [];
         foreach ($conditions as $condition) {
             if (is_array($condition)) {
+                // Conditions are stored as ['sql' => '...', 'cond' => 'AND'|'OR']
+                // We need to normalize the SQL structure, not parameter values
+                // For now, keep the SQL string but remove parameter placeholders from it
+                // This ensures same column/operator structure produces same hash
+                $sql = $condition['sql'] ?? '';
+                $cond = $condition['cond'] ?? null;
+
+                // Normalize SQL by replacing parameter placeholders with placeholder indicators
+                // This ensures same structure (columns, operators) gets same hash
+                // but different parameter values still produce different result cache keys
+                $normalizedSql = preg_replace('/:[a-zA-Z0-9_]+/', ':placeholder', $sql);
+
                 $normalized[] = [
-                    'type' => $condition['type'] ?? null,
-                    'column' => $condition['column'] ?? null,
-                    'operator' => $condition['operator'] ?? null,
-                    'has_value' => isset($condition['value']),
-                    // Remove actual value - keep structure only for hash
+                    'sql_structure' => $normalizedSql,
+                    'cond' => $cond,
                 ];
             } else {
-                $normalized[] = $condition;
+                // String conditions (raw SQL) - normalize placeholders
+                if (is_string($condition)) {
+                    $normalized[] = preg_replace('/:[a-zA-Z0-9_]+/', ':placeholder', $condition);
+                } else {
+                    $normalized[] = $condition;
+                }
             }
         }
         return $normalized;

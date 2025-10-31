@@ -311,4 +311,74 @@ final class CacheTests extends BaseSharedTestCase
         $this->assertEquals('Test 1', $result1[0]['name']);
         $this->assertEquals('Test 2', $result2[0]['name']);
     }
+
+    public function testQueryCompilationCacheDifferentColumns(): void
+    {
+        // Test that compilation cache correctly distinguishes queries with different columns
+        // even if they have the same structure (one WHERE condition with same operator)
+        // This is a regression test for the bug where compilation cache was returning
+        // cached SQL from a previous query with different column names
+
+        $cache = new ArrayCache();
+        $compilationCache = new QueryCompilationCache($cache);
+        $compilationCache->setEnabled(true);
+
+        $db = new PdoDb('sqlite', ['path' => ':memory:'], [], null, $cache);
+        $db->setCompilationCache($compilationCache);
+
+        // Create test table
+        $db->rawQuery('
+            CREATE TABLE products (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                category TEXT,
+                price REAL,
+                stock INTEGER
+            )
+        ');
+
+        // Insert test data
+        $db->find()->table('products')->insertMulti([
+            ['name' => 'Laptop', 'category' => 'Electronics', 'price' => 1299.99, 'stock' => 15],
+            ['name' => 'Mouse', 'category' => 'Electronics', 'price' => 29.99, 'stock' => 50],
+            ['name' => 'Desk', 'category' => 'Furniture', 'price' => 499.99, 'stock' => 5],
+        ]);
+
+        // Query 1: WHERE category = 'Electronics'
+        $query1 = $db->find()
+            ->from('products')
+            ->where('category', 'Electronics');
+        $sql1 = $query1->toSQL();
+        $result1 = $query1->get();
+
+        // Query 2: WHERE price > 100 (different column, same structure: one WHERE condition)
+        // This should NOT use the cached SQL from query1, because the column is different
+        $query2 = $db->find()
+            ->from('products')
+            ->where('price', 100, '>');
+        $sql2 = $query2->toSQL();
+
+        // Verify that SQL contains the correct column name
+        $this->assertStringContainsString('category', $sql1['sql']);
+        $this->assertStringNotContainsString('price', $sql1['sql']);
+        $this->assertStringContainsString('price', $sql2['sql']);
+        $this->assertStringNotContainsString('category', $sql2['sql']);
+
+        // Verify parameters match SQL placeholders
+        $this->assertArrayHasKey(':category_1', $sql1['params']);
+        $this->assertEquals('Electronics', $sql1['params'][':category_1']);
+        $this->assertArrayHasKey(':price_1', $sql2['params']);
+        $this->assertEquals(100, $sql2['params'][':price_1']);
+
+        // Verify queries execute correctly (no "column index out of range" error)
+        $result2 = $query2->get();
+        $this->assertCount(2, $result1); // Laptop and Mouse
+        $this->assertCount(2, $result2); // Laptop and Desk (price > 100)
+
+        // Verify results are correct
+        $this->assertEquals('Laptop', $result1[0]['name']);
+        $this->assertEquals('Mouse', $result1[1]['name']);
+        $this->assertEquals('Laptop', $result2[0]['name']);
+        $this->assertEquals('Desk', $result2[1]['name']);
+    }
 }
