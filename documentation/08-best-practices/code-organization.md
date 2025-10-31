@@ -141,4 +141,3 @@ class DatabaseManager {
 - [Security](security.md) - Security best practices
 - [Performance](performance.md) - Query optimization
 - [Common Pitfalls](common-pitfalls.md) - Mistakes to avoid
-

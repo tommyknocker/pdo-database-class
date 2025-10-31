@@ -1,0 +1,28 @@
+{
+    "$schema": "https://raw.githubusercontent.com/infection/infection/master/resources/schema.json",
+    "source": {
+        "directories": [
+            "src"
+        ]
+    },
+    "timeout": 15,
+    "logs": {
+        "text": "infection.log",
+        "html": "infection-report.html",
+        "summary": "infection-summary.txt",
+        "json": "infection-report.json"
+    },
+    "mutators": {
+        "@default": true,
+        "@function_signature": true
+    },
+    "testFramework": "phpunit",
+    "bootstrap": "./vendor/autoload.php",
+    "phpUnit": {
+        "configDir": "."
+    },
+    "minMsi": 70,
+    "minCoveredMsi": 75,
+    "ignoreMsiWithNoMutations": true,
+    "initialTestsPhpOptions": "-d zend.enable_gc=0"
+}

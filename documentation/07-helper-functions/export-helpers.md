@@ -291,5 +291,3 @@ Db::toXml(array $data, string $rootElement = 'data', string $itemElement = 'item
 - [Core Helpers](core-helpers.md) - Basic helpers
 - [Real-World Examples](../10-cookbook/real-world-examples.md) - Practical examples
 - [Common Patterns](../10-cookbook/common-patterns.md) - Common patterns
-
-

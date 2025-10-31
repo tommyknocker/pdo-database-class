@@ -201,4 +201,3 @@ $exists = $db->find()->from('users')->where('id', 1)->exists();
 - [API Reference](api-reference.md) - Complete API
 - [PdoDb Methods](pdo-db-methods.md) - PdoDb methods
 - [Helper Functions Reference](helper-functions-reference.md) - Helpers
-

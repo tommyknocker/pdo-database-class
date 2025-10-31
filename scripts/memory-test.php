@@ -733,7 +733,7 @@ for ($i = 0; $i < $cacheQueries; $i++) {
     // Get cache key if available to track cache memory
     $sqlData = $query->toSQL();
     if (isset($sqlData['sql'])) {
-        $cacheKeys[] = md5($sqlData['sql'] . serialize($sqlData['params']));
+        $cacheKeys[] = hash('sha256', $sqlData['sql'] . serialize($sqlData['params']));
     }
 
     // Track peak memory during execution (measure after storing all data)

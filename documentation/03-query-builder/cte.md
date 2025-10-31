@@ -476,5 +476,3 @@ $results = $pdoDb->find()
 - [Query Builder](../03-query-builder/README.md)
 - [Window Functions](./window-functions.md)
 - [Subqueries](./subqueries.md)
-
-

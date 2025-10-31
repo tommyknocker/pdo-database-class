@@ -99,7 +99,8 @@
     "monolog/monolog": "^3.9",
     "phpstan/phpstan": "^2.0",
     "phpstan/phpstan-phpunit": "^2.0",
-    "friendsofphp/php-cs-fixer": "^3.89"
+    "friendsofphp/php-cs-fixer": "^3.89",
+    "infection/infection": "^0.31"
   },
   "autoload": {
     "psr-4": {
@@ -122,6 +123,9 @@
     "cs-check": "php-cs-fixer fix --dry-run --diff",
     "test-examples": "bash scripts/test-examples.sh",
     "quality-check": "bash scripts/quality-check.sh",
+    "infection": "infection",
+    "infection:quick": "infection --min-msi=50 --min-covered-msi=60 --threads=4",
+    "infection:ci": "infection --min-msi=70 --min-covered-msi=75 --logger-github",
     "check": [
       "@phpstan",
       "@test",
@@ -131,11 +135,25 @@
       "@phpstan",
       "@cs-check",
       "@test",
-      "@test-examples"
+      "@test-examples",
+      "@fix-markdown"
+    ],
+    "check-all-with-infection": [
+      "@phpstan",
+      "@cs-check",
+      "@test",
+      "@test-examples",
+      "@infection:ci"
     ],
     "fix-all": [
       "@cs-fix",
       "@test"
-    ]
+    ],
+    "fix-markdown": "bash scripts/fix-markdown-eof.sh"
+  },
+  "config": {
+    "allow-plugins": {
+      "infection/extension-installer": true
+    }
   }
 }

@@ -171,4 +171,3 @@ foreach ($db->find()->from('users')->batch(1000) as $batch) {
 - [Performance](performance.md) - Query optimization
 - [Security](security.md) - Best security practices
 - [Batch Processing](../05-advanced-features/batch-processing.md) - Batch operations
-

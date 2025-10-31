@@ -522,4 +522,3 @@ $db->enableStickyWrites(120); // Increase to 2 minutes
 - [Transactions](transactions.md)
 - [Connection Retry](connection-retry.md)
 - [Performance Best Practices](../08-best-practices/performance.md)
-

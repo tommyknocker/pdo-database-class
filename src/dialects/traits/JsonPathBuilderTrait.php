@@ -51,7 +51,7 @@ trait JsonPathBuilderTrait
      */
     protected function generateParameterName(string $prefix, string $context): string
     {
-        return ':' . $prefix . '_' . substr(md5($context), 0, 8);
+        return ':' . $prefix . '_' . substr(hash('sha256', $context), 0, 16);
     }
 
     /**

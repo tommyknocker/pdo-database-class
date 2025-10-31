@@ -334,4 +334,3 @@ if ($duration > 1.0) {
 - [Security](security.md) - Security best practices
 - [Memory Management](memory-management.md) - Handle large datasets
 - [Common Pitfalls](common-pitfalls.md) - Mistakes to avoid
-

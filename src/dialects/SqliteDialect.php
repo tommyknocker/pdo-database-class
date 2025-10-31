@@ -41,16 +41,33 @@ class SqliteDialect extends DialectAbstract
         if (!isset($params['path'])) {
             throw new InvalidArgumentException("Missing 'path' parameter");
         }
-        // SQLite cache parameter is a string (shared/protected), not an array
+        // SQLite cache parameter is a string (shared/private), not an array
         // Filter out cache config arrays used for query result caching
         $sqliteCache = null;
         if (isset($params['cache']) && is_string($params['cache'])) {
+            $validCacheModes = ['shared', 'private'];
+            if (!in_array(strtolower($params['cache']), $validCacheModes, true)) {
+                throw new InvalidArgumentException(
+                    'Invalid SQLite cache parameter. Must be one of: ' . implode(', ', $validCacheModes)
+                );
+            }
             $sqliteCache = $params['cache'];
         }
 
+        $sqliteMode = null;
+        if (!empty($params['mode']) && is_string($params['mode'])) {
+            $validModes = ['ro', 'rw', 'rwc', 'memory'];
+            if (!in_array(strtolower($params['mode']), $validModes, true)) {
+                throw new InvalidArgumentException(
+                    'Invalid SQLite mode parameter. Must be one of: ' . implode(', ', $validModes)
+                );
+            }
+            $sqliteMode = $params['mode'];
+        }
+
         return "sqlite:{$params['path']}"
-            . (!empty($params['mode']) ? ";mode={$params['mode']}" : '')       // ex. ro/rw/rwc/memory
-            . ($sqliteCache !== null ? ";cache={$sqliteCache}" : '');          // shared/protected (only if string)
+            . ($sqliteMode !== null ? ";mode={$sqliteMode}" : '')
+            . ($sqliteCache !== null ? ";cache={$sqliteCache}" : '');
     }
 
     /**

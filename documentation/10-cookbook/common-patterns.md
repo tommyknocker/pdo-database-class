@@ -189,4 +189,3 @@ safeTransaction($db, function($db) use ($userId, $orderData) {
 - [Real-World Examples](real-world-examples.md) - Complete applications
 - [Migration Guide](migration-guide.md) - Migrating from other libraries
 - [Troubleshooting](troubleshooting.md) - Common issues
-

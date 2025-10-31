@@ -270,4 +270,3 @@ function searchUsers($filters) {
 - [Joins](joins.md) - Joining tables
 - [Aggregations](aggregations.md) - GROUP BY, HAVING
 - [Subqueries](subqueries.md) - Complex subqueries
-

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\cache\CacheConfig;
 use tommyknocker\pdodb\cache\CacheManager;
+use tommyknocker\pdodb\cache\QueryCacheKey;
 use tommyknocker\pdodb\connection\DialectRegistry;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
@@ -380,5 +382,165 @@ final class CacheTests extends BaseSharedTestCase
         $this->assertEquals('Mouse', $result1[1]['name']);
         $this->assertEquals('Laptop', $result2[0]['name']);
         $this->assertEquals('Desk', $result2[1]['name']);
+    }
+
+    public function testCacheConfigConstructorDefaults(): void
+    {
+        $config = new CacheConfig();
+        $this->assertEquals('pdodb_', $config->getPrefix());
+        $this->assertEquals(3600, $config->getDefaultTtl());
+        $this->assertTrue($config->isEnabled());
+    }
+
+    public function testCacheConfigConstructorCustomValues(): void
+    {
+        $config = new CacheConfig('custom_', 7200, false);
+        $this->assertEquals('custom_', $config->getPrefix());
+        $this->assertEquals(7200, $config->getDefaultTtl());
+        $this->assertFalse($config->isEnabled());
+    }
+
+    public function testCacheConfigFromArrayWithDefaults(): void
+    {
+        $config = CacheConfig::fromArray([]);
+        $this->assertEquals('pdodb_', $config->getPrefix());
+        $this->assertEquals(3600, $config->getDefaultTtl());
+        $this->assertTrue($config->isEnabled());
+    }
+
+    public function testCacheConfigFromArrayWithCustomValues(): void
+    {
+        $config = CacheConfig::fromArray([
+            'prefix' => 'myprefix_',
+            'default_ttl' => 1800,
+            'enabled' => false,
+        ]);
+        $this->assertEquals('myprefix_', $config->getPrefix());
+        $this->assertEquals(1800, $config->getDefaultTtl());
+        $this->assertFalse($config->isEnabled());
+    }
+
+    public function testCacheConfigFromArrayWithInvalidPrefixType(): void
+    {
+        $config = CacheConfig::fromArray([
+            'prefix' => 12345,
+        ]);
+        $this->assertEquals('pdodb_', $config->getPrefix());
+    }
+
+    public function testCacheConfigFromArrayWithInvalidTtlType(): void
+    {
+        $config = CacheConfig::fromArray([
+            'default_ttl' => 'invalid',
+        ]);
+        $this->assertEquals(3600, $config->getDefaultTtl());
+    }
+
+    public function testCacheConfigFromArrayWithNumericStringTtl(): void
+    {
+        $config = CacheConfig::fromArray([
+            'default_ttl' => '7200',
+        ]);
+        $this->assertEquals(7200, $config->getDefaultTtl());
+    }
+
+    public function testCacheConfigFromArrayWithInvalidEnabledType(): void
+    {
+        $config = CacheConfig::fromArray([
+            'enabled' => 'yes',
+        ]);
+        $this->assertTrue($config->isEnabled());
+    }
+
+    public function testCacheConfigFromArrayWithFalseEnabledString(): void
+    {
+        $config = CacheConfig::fromArray([
+            'enabled' => '0',
+        ]);
+        $this->assertFalse($config->isEnabled());
+    }
+
+    public function testCacheManagerSetWithNullTtlUsesDefault(): void
+    {
+        $cache = new ArrayCache();
+        $cm = new CacheManager($cache, ['default_ttl' => 120]);
+        $key = 'test_key';
+        $cm->set($key, 'value', null);
+        $this->assertEquals('value', $cm->get($key));
+    }
+
+    public function testCacheManagerSetWithExplicitTtl(): void
+    {
+        $cache = new ArrayCache();
+        $cm = new CacheManager($cache, ['default_ttl' => 120]);
+        $key = 'test_key';
+        $cm->set($key, 'value', 60);
+        $this->assertEquals('value', $cm->get($key));
+    }
+
+    public function testQueryCacheKeyGenerateWithDifferentDrivers(): void
+    {
+        $key1 = QueryCacheKey::generate('SELECT 1', [], 'mysql');
+        $key2 = QueryCacheKey::generate('SELECT 1', [], 'sqlite');
+        $this->assertNotEquals($key1, $key2);
+    }
+
+    public function testQueryCacheKeyGenerateWithDifferentSql(): void
+    {
+        $key1 = QueryCacheKey::generate('SELECT 1', [], 'mysql');
+        $key2 = QueryCacheKey::generate('SELECT 2', [], 'mysql');
+        $this->assertNotEquals($key1, $key2);
+    }
+
+    public function testQueryCacheKeyGenerateWithDifferentParams(): void
+    {
+        $key1 = QueryCacheKey::generate('SELECT ?', ['a' => 1], 'mysql');
+        $key2 = QueryCacheKey::generate('SELECT ?', ['a' => 2], 'mysql');
+        $this->assertNotEquals($key1, $key2);
+    }
+
+    public function testQueryCacheKeyGenerateWithCustomPrefix(): void
+    {
+        $key = QueryCacheKey::generate('SELECT 1', [], 'mysql', 'custom_');
+        $this->assertStringStartsWith('custom_', $key);
+    }
+
+    public function testQueryCacheKeyGenerateIdempotency(): void
+    {
+        // Same inputs should produce same key (cache consistency)
+        $key1 = QueryCacheKey::generate('SELECT 1', ['id' => 1], 'mysql');
+        $key2 = QueryCacheKey::generate('SELECT 1', ['id' => 1], 'mysql');
+        $this->assertEquals($key1, $key2);
+
+        // Verify hash part is consistent (should be 64 hex chars for SHA-256)
+        $this->assertEquals(64, strlen(substr($key1, strlen('pdodb_'))));
+    }
+
+    public function testQueryCacheKeyTablePattern(): void
+    {
+        $pattern = QueryCacheKey::tablePattern('users');
+        $this->assertEquals('pdodb_table_users_*', $pattern);
+    }
+
+    public function testQueryCacheKeyTablePatternWithCustomPrefix(): void
+    {
+        $pattern = QueryCacheKey::tablePattern('users', 'custom_');
+        $this->assertEquals('custom_table_users_*', $pattern);
+    }
+
+    public function testPdoDbCacheConfigWithInvalidStringCacheThrows(): void
+    {
+        $cache = new ArrayCache();
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid SQLite cache parameter');
+        new PdoDb('sqlite', ['path' => ':memory:', 'cache' => 'not_an_array'], [], null, $cache);
+    }
+
+    public function testPdoDbCacheConfigWithArrayConfig(): void
+    {
+        $cache = new ArrayCache();
+        // Array cache config is for query result caching, not SQLite DSN cache parameter
+        $db = new PdoDb('sqlite', ['path' => ':memory:', 'cache' => ['prefix' => 'test_']], [], null, $cache);
+        $this->assertNotNull($db);
     }
 }

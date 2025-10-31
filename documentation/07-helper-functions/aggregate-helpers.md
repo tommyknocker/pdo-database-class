@@ -116,4 +116,3 @@ $stats = $db->find()
 - [Aggregations](../03-query-builder/aggregations.md) - GROUP BY, HAVING
 - [Core Helpers](core-helpers.md) - Essential helpers
 - [Numeric Helpers](numeric-helpers.md) - Math functions
-

@@ -689,4 +689,3 @@ These limitations are intentional to keep the library lightweight and optional. 
 ## Examples
 
 See the [ActiveRecord examples](../../examples/23-active-record/) for complete working examples.
-

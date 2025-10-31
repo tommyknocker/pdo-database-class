@@ -507,7 +507,7 @@ $result = $db->find()
 
 ```php
 // Cache expensive COUNT(*) queries
-$cacheKey = 'posts_total_' . md5(serialize($filters));
+$cacheKey = 'posts_total_' . hash('sha256', serialize($filters));
 $total = $cache->get($cacheKey);
 
 if ($total === null) {
@@ -656,4 +656,3 @@ class GraphQLResolver
 - [Query Builder Basics](../02-core-concepts/query-builder-basics.md)
 - [Query Builder Methods Reference](../09-reference/query-builder-methods.md)
 - [Pagination Examples](../../examples/13-pagination/)
-

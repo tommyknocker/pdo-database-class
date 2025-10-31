@@ -109,4 +109,3 @@ $stats = $db->find()
 - [JSON Basics](json-basics.md) - JSON fundamentals
 - [JSON Querying](json-querying.md) - Query JSON
 - [JSON Modification](json-modification.md) - Update JSON
-

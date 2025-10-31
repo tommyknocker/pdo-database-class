@@ -218,4 +218,3 @@ PDOdb handles this automatically.
 - [JSON Basics](json-basics.md) - Creating JSON data
 - [JSON Filtering](json-filtering.md) - Advanced JSON queries
 - [JSON Modification](json-modification.md) - Update JSON values
-

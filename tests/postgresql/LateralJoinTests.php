@@ -136,4 +136,121 @@ final class LateralJoinTests extends BasePostgreSQLTestCase
         $this->assertStringContainsString('LEFT', $query['sql']);
         $this->assertStringContainsString('latest', $query['sql']);
     }
+
+    public function testLateralJoinWithSubqueryAndAlias(): void
+    {
+        // Test SQL generation
+        $query = self::$db->find()
+            ->from('test_users_lateral AS u')
+            ->select([
+                'u.id',
+                'u.name',
+                'latest_order.amount',
+            ])
+            ->lateralJoin(function ($q) {
+                $q->from('test_orders_lateral')
+                  ->select(['amount'])
+                  ->where('user_id', 'u.id')
+                  ->limit(1);
+            }, null, 'LEFT', 'latest_order')
+            ->toSQL();
+
+        $this->assertStringContainsString('LATERAL', $query['sql']);
+        $this->assertStringContainsString('latest_order', $query['sql']);
+        $this->assertStringContainsString('test_orders_lateral', $query['sql']);
+    }
+
+    public function testLateralJoinWithOnCondition(): void
+    {
+        // Test SQL generation with ON condition
+        $query = self::$db->find()
+            ->from('test_users_lateral AS u')
+            ->select([
+                'u.id',
+                'u.name',
+                'order_stats.total',
+            ])
+            ->lateralJoin(function ($q) {
+                $q->from('test_orders_lateral')
+                  ->select(['total' => 'SUM(amount)']);
+            }, 'order_stats.user_id = u.id', 'INNER', 'order_stats')
+            ->toSQL();
+
+        $this->assertStringContainsString('LATERAL', $query['sql']);
+        $this->assertStringContainsString('ON', $query['sql']);
+        $this->assertStringContainsString('order_stats', $query['sql']);
+    }
+
+    public function testLateralJoinWithoutAliasGeneratesOne(): void
+    {
+        // Test that alias is auto-generated when not provided
+        $query = self::$db->find()
+            ->from('test_users_lateral AS u')
+            ->select(['u.id', 'u.name'])
+            ->lateralJoin(function ($q) {
+                $q->from('test_orders_lateral')
+                  ->select(['order_id' => 'id'])
+                  ->where('user_id', 'u.id')
+                  ->limit(1);
+            })
+            ->toSQL();
+
+        $this->assertStringContainsString('LATERAL', $query['sql']);
+        // Should contain auto-generated alias (starts with lateral_)
+        // MySQL uses backticks, PostgreSQL uses double quotes
+        $this->assertMatchesRegularExpression('/AS\s+[`"]?lateral_[a-f0-9]+[`"]?/i', $query['sql']);
+    }
+
+    public function testLateralJoinExternalReferenceWithoutDbRaw(): void
+    {
+        // Test that u.id works automatically without Db::raw()
+        // This verifies that ExternalReferenceProcessingTrait correctly detects
+        // external table references in LATERAL JOIN subqueries
+
+        // First, verify SQL generation
+        $query = self::$db->find()
+            ->from('test_users_lateral AS u')
+            ->select(['u.id', 'u.name'])
+            ->lateralJoin(function ($q) {
+                $q->from('test_orders_lateral')
+                  ->select(['order_amount' => 'amount'])
+                  ->where('user_id', 'u.id') // No Db::raw() needed!
+                  ->orderBy('created_at', 'DESC')
+                  ->limit(1);
+            }, null, 'LEFT', 'latest_order')
+            ->toSQL();
+
+        $this->assertStringContainsString('LATERAL', $query['sql']);
+        $this->assertStringContainsString('latest_order', $query['sql']);
+        // Verify that u.id is used as raw SQL (not as a parameter)
+        $this->assertStringContainsString('u.id', $query['sql']);
+        $this->assertStringNotContainsString(':u_id', $query['sql']);
+
+        // Now execute the query to verify it works correctly
+        $results = self::$db->find()
+            ->from('test_users_lateral AS u')
+            ->select([
+                'u.id',
+                'u.name',
+                'latest_order.amount',
+            ])
+            ->lateralJoin(function ($q) {
+                $q->from('test_orders_lateral')
+                  ->select(['amount'])
+                  ->where('user_id', 'u.id') // External reference works without Db::raw()
+                  ->orderBy('created_at', 'DESC')
+                  ->limit(1);
+            }, null, 'LEFT', 'latest_order')
+            ->get();
+
+        $this->assertIsArray($results);
+        $this->assertNotEmpty($results);
+
+        // Verify structure - each user should have columns from both tables
+        foreach ($results as $row) {
+            $this->assertArrayHasKey('id', $row);
+            $this->assertArrayHasKey('name', $row);
+            $this->assertArrayHasKey('amount', $row);
+        }
+    }
 }

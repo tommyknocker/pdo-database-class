@@ -285,4 +285,3 @@ $db->resetProfiler();
 - [Query Caching](./query-caching.md) - Cache query results for better performance
 - [Query Compilation Cache](./query-compilation-cache.md) - Cache compiled SQL
 - [Examples](../../examples/21-query-profiling/) - Working examples
-

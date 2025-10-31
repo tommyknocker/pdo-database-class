@@ -104,4 +104,3 @@ CREATE VIRTUAL TABLE articles USING fts5(title, content);
 - [Filtering Conditions](filtering-conditions.md) - WHERE clauses
 - [Helper Functions Reference](../09-reference/helper-functions-reference.md) - Complete helpers
 - [Performance](../08-best-practices/performance.md) - Query optimization
-

@@ -399,4 +399,3 @@ var_dump($result);
 - [Query Builder Basics](query-builder-basics.md) - Fluent API overview
 - [Dialect Support](dialect-support.md) - Database differences
 - [SELECT Operations](../03-query-builder/select-operations.md) - Detailed SELECT documentation
-

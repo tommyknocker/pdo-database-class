@@ -105,4 +105,3 @@ $db = new PdoDb('mysql', [
 - [Exception Hierarchy](exception-hierarchy.md) - Error handling
 - [Retry Logic](retry-logic.md) - Build retry mechanisms
 - [Connection Retry](../05-advanced-features/connection-retry.md) - Automatic retry
-

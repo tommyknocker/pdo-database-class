@@ -152,7 +152,7 @@ class JoinBuilder implements JoinBuilderInterface
 
             // Use provided alias or generate one
             if ($alias === null) {
-                $alias = 'lateral_' . substr(md5($subquerySql), 0, 8);
+                $alias = 'lateral_' . substr(hash('sha256', $subquerySql), 0, 16);
             }
             $aliasQuoted = $this->dialect->quoteIdentifier($alias);
             $tableSql = "LATERAL ({$subquerySql}) AS {$aliasQuoted}";

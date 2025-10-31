@@ -6,7 +6,7 @@ composer.lock
 .phpunit.result.cache
 
 # Coverage reports
-coverage-*.xml
+coverage*.xml
 coverage/
 .coverage
 
@@ -17,3 +17,8 @@ examples/**/*.sqlite
 examples/**/*.sql
 
 .php-cs-fixer.cache
+
+infection.log
+infection-report.html
+infection-report.json
+infection-summary.txt

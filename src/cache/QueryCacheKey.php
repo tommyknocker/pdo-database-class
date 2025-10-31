@@ -24,7 +24,7 @@ class QueryCacheKey
         string $prefix = 'pdodb_'
     ): string {
         $paramString = json_encode($params, JSON_THROW_ON_ERROR);
-        $hash = md5($sql . $paramString . $driver);
+        $hash = hash('sha256', $sql . $paramString . $driver);
 
         return $prefix . $hash;
     }
