@@ -32,6 +32,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Batch Processing** - Memory-efficient generators for large datasets
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Connection Retry** - Automatic retry with exponential backoff
+- **PSR-14 Event Dispatcher** - Event-driven architecture for monitoring, auditing, and middleware
 - **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more
 - **Fully Tested** - 596 tests, 2687 assertions across all dialects
 - **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
@@ -1653,6 +1654,90 @@ if ($pool !== null) {
 ```
 
 **See**: [Connection Management Documentation](documentation/02-core-concepts/connection-management.md)
+
+### PSR-14 Event Dispatcher
+
+PDOdb integrates with PSR-14 Event Dispatcher to provide event-driven monitoring, auditing, and middleware capabilities.
+
+#### Setup
+
+```php
+use tommyknocker\pdodb\PdoDb;
+use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\EventDispatcher\EventDispatcher; // Or any PSR-14 implementation
+
+$dispatcher = new EventDispatcher();
+
+$db = new PdoDb('mysql', [
+    'host' => 'localhost',
+    'dbname' => 'myapp',
+    'username' => 'user',
+    'password' => 'pass'
+]);
+
+$db->setEventDispatcher($dispatcher);
+```
+
+#### Available Events
+
+| Event | When Fired | Use Cases |
+|-------|------------|-----------|
+| `ConnectionOpenedEvent` | When a connection is opened | Connection monitoring, DSN logging |
+| `QueryExecutedEvent` | After successful query execution | Query logging, performance monitoring, metrics |
+| `QueryErrorEvent` | When a query error occurs | Error tracking, alerting, debugging |
+| `TransactionStartedEvent` | When a transaction begins | Transaction monitoring, audit logs |
+| `TransactionCommittedEvent` | When a transaction is committed | Audit trails, performance metrics |
+| `TransactionRolledBackEvent` | When a transaction is rolled back | Error tracking, audit logs |
+
+#### Example: Query Logging
+
+```php
+use tommyknocker\pdodb\events\QueryExecutedEvent;
+
+$dispatcher->addListener(QueryExecutedEvent::class, function (QueryExecutedEvent $event) {
+    echo sprintf(
+        "Query: %s (%.2f ms, %d rows)\n",
+        substr($event->getSql(), 0, 50),
+        $event->getExecutionTime(),
+        $event->getRowsAffected()
+    );
+});
+```
+
+#### Example: Transaction Monitoring
+
+```php
+use tommyknocker\pdodb\events\TransactionStartedEvent;
+use tommyknocker\pdodb\events\TransactionCommittedEvent;
+
+$dispatcher->addListener(TransactionStartedEvent::class, function ($event) {
+    error_log("Transaction started on " . $event->getDriver());
+});
+
+$dispatcher->addListener(TransactionCommittedEvent::class, function ($event) {
+    error_log(sprintf(
+        "Transaction committed (duration: %.2f ms)",
+        $event->getDuration()
+    ));
+});
+```
+
+#### Benefits
+
+- **Monitoring**: Track all database operations in real-time
+- **Auditing**: Maintain complete audit trails of database activity
+- **Middleware**: Implement cross-cutting concerns (logging, metrics, caching)
+- **Debugging**: Capture query details for troubleshooting
+- **Performance Analysis**: Measure execution times and identify slow queries
+
+#### Compatibility
+
+Works with any PSR-14 compatible event dispatcher:
+- Symfony EventDispatcher
+- League Event
+- Custom implementations
+
+**See**: [Event Dispatcher Example](examples/19-events/01-event-dispatcher.php)
 
 ---
 

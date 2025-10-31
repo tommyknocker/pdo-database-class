@@ -7,8 +7,14 @@ namespace tommyknocker\pdodb\connection;
 use PDO;
 use PDOException;
 use PDOStatement;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\events\QueryErrorEvent;
+use tommyknocker\pdodb\events\QueryExecutedEvent;
+use tommyknocker\pdodb\events\TransactionCommittedEvent;
+use tommyknocker\pdodb\events\TransactionRolledBackEvent;
+use tommyknocker\pdodb\events\TransactionStartedEvent;
 use tommyknocker\pdodb\exceptions\ExceptionFactory;
 
 /**
@@ -34,6 +40,9 @@ class Connection implements ConnectionInterface
 
     /** @var PreparedStatementPool|null Prepared statement pool */
     protected ?PreparedStatementPool $statementPool = null;
+
+    /** @var EventDispatcherInterface|null Event dispatcher */
+    protected ?EventDispatcherInterface $eventDispatcher = null;
 
     /**
      * Connection constructor.
@@ -109,6 +118,36 @@ class Connection implements ConnectionInterface
     }
 
     /**
+     * Set the event dispatcher.
+     *
+     * @param EventDispatcherInterface|null $dispatcher The dispatcher instance or null to disable
+     */
+    public function setEventDispatcher(?EventDispatcherInterface $dispatcher): void
+    {
+        $this->eventDispatcher = $dispatcher;
+    }
+
+    /**
+     * Get the event dispatcher.
+     *
+     * @return EventDispatcherInterface|null The dispatcher instance or null if not set
+     */
+    public function getEventDispatcher(): ?EventDispatcherInterface
+    {
+        return $this->eventDispatcher;
+    }
+
+    /**
+     * Dispatch an event if dispatcher is available.
+     *
+     * @param object $event The event to dispatch
+     */
+    protected function dispatch(object $event): void
+    {
+        $this->eventDispatcher?->dispatch($event);
+    }
+
+    /**
      * Handle PDO exceptions with consistent error processing.
      *
      * @param PDOException $e The PDO exception
@@ -138,6 +177,14 @@ class Connection implements ConnectionInterface
             'category' => $dbException->getCategory(),
             'retryable' => $dbException->isRetryable(),
         ]);
+
+        // Dispatch error event
+        $this->dispatch(new QueryErrorEvent(
+            $sql ?? '',
+            $context['params'] ?? [],
+            $dbException,
+            $this->getDriverName()
+        ));
 
         throw $dbException;
     }
@@ -210,14 +257,30 @@ class Connection implements ConnectionInterface
         }
 
         $this->logOperationStart('execute', $stmt->queryString);
+        $startTime = microtime(true);
 
         try {
             $this->state->setExecuteState($stmt->execute($params));
             $this->state->setLastQuery($stmt->queryString);
+            $executionTime = (microtime(true) - $startTime) * 1000; // milliseconds
+            $rowsAffected = $stmt->rowCount();
+
             $this->logOperationEnd('execute', $stmt->queryString, [
-                'rows_affected' => $stmt->rowCount(),
+                'rows_affected' => $rowsAffected,
                 'success' => (bool)$this->state->getExecuteState(),
+                'execution_time_ms' => $executionTime,
             ]);
+
+            // Dispatch query executed event
+            $this->dispatch(new QueryExecutedEvent(
+                $stmt->queryString,
+                $params,
+                $executionTime,
+                $rowsAffected,
+                $this->getDriverName(),
+                false
+            ));
+
             $this->stmt = null;
             return $stmt;
         } catch (PDOException $e) {
@@ -236,11 +299,30 @@ class Connection implements ConnectionInterface
     {
         $this->resetState();
         $this->logOperationStart('query', $sql);
+        $startTime = microtime(true);
 
         try {
             $stmt = $this->pdo->query($sql);
-            $this->state->setLastQuery($sql);
-            $this->logOperationEnd('query', $sql);
+            if ($stmt !== false) {
+                $executionTime = (microtime(true) - $startTime) * 1000; // milliseconds
+                $rowsAffected = $stmt->rowCount();
+
+                $this->state->setLastQuery($sql);
+                $this->logOperationEnd('query', $sql, [
+                    'rows_affected' => $rowsAffected,
+                    'execution_time_ms' => $executionTime,
+                ]);
+
+                // Dispatch query executed event
+                $this->dispatch(new QueryExecutedEvent(
+                    $sql,
+                    [],
+                    $executionTime,
+                    $rowsAffected,
+                    $this->getDriverName(),
+                    false
+                ));
+            }
             return $stmt;
         } catch (PDOException $e) {
             $this->handlePdoException($e, 'query', $sql);
@@ -269,7 +351,11 @@ class Connection implements ConnectionInterface
         $this->logOperationStart('transaction.begin');
 
         try {
-            return $this->pdo->beginTransaction();
+            $result = $this->pdo->beginTransaction();
+            if ($result) {
+                $this->dispatch(new TransactionStartedEvent($this->getDriverName()));
+            }
+            return $result;
         } catch (PDOException $e) {
             $this->handlePdoException($e, 'transaction.begin');
         }
@@ -283,7 +369,12 @@ class Connection implements ConnectionInterface
     public function commit(): bool
     {
         try {
+            $startTime = microtime(true);
             $res = $this->pdo->commit();
+            if ($res) {
+                $duration = (microtime(true) - $startTime) * 1000; // milliseconds
+                $this->dispatch(new TransactionCommittedEvent($this->getDriverName(), $duration));
+            }
             $this->logOperationEnd('transaction.commit');
             return $res;
         } catch (PDOException $e) {
@@ -299,7 +390,12 @@ class Connection implements ConnectionInterface
     public function rollBack(): bool
     {
         try {
+            $startTime = microtime(true);
             $res = $this->pdo->rollBack();
+            if ($res) {
+                $duration = (microtime(true) - $startTime) * 1000; // milliseconds
+                $this->dispatch(new TransactionRolledBackEvent($this->getDriverName(), $duration));
+            }
             $this->logOperationEnd('transaction.rollback');
             return $res;
         } catch (PDOException $e) {

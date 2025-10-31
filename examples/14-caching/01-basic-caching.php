@@ -9,7 +9,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
-use tommyknocker\pdodb\tests\ArrayCache; // Using test cache for demonstration
+use tommyknocker\pdodb\tests\fixtures\ArrayCache; // Using test cache for demonstration
 
 echo "=== Basic Query Caching Examples ===\n\n";
 

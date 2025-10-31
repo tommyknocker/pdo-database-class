@@ -244,6 +244,189 @@ if ($pool !== null) {
 }
 ```
 
+## PSR-14 Event Dispatcher
+
+PDOdb integrates with PSR-14 Event Dispatcher to provide event-driven monitoring, auditing, and middleware capabilities. This enables you to track all database operations, log queries, monitor transactions, and implement cross-cutting concerns.
+
+### Setup
+
+```php
+use tommyknocker\pdodb\PdoDb;
+use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\EventDispatcher\EventDispatcher; // Or any PSR-14 implementation
+
+$dispatcher = new EventDispatcher();
+
+$db = new PdoDb('mysql', [
+    'host' => 'localhost',
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'mydb'
+]);
+
+$db->setEventDispatcher($dispatcher);
+```
+
+### Available Events
+
+| Event | When Fired | Use Cases |
+|-------|------------|-----------|
+| `ConnectionOpenedEvent` | When a connection is opened | Connection monitoring, DSN logging |
+| `QueryExecutedEvent` | After successful query execution | Query logging, performance monitoring, metrics |
+| `QueryErrorEvent` | When a query error occurs | Error tracking, alerting, debugging |
+| `TransactionStartedEvent` | When a transaction begins | Transaction monitoring, audit logs |
+| `TransactionCommittedEvent` | When a transaction is committed | Audit trails, performance metrics |
+| `TransactionRolledBackEvent` | When a transaction is rolled back | Error tracking, audit logs |
+
+### Query Execution Events
+
+Listen to all executed queries:
+
+```php
+use tommyknocker\pdodb\events\QueryExecutedEvent;
+
+$dispatcher->addListener(QueryExecutedEvent::class, function (QueryExecutedEvent $event) {
+    echo sprintf(
+        "Query: %s (%.2f ms, %d rows, driver: %s)\n",
+        substr($event->getSql(), 0, 60),
+        $event->getExecutionTime(),
+        $event->getRowsAffected(),
+        $event->getDriver()
+    );
+});
+```
+
+### Transaction Events
+
+Monitor transaction lifecycle:
+
+```php
+use tommyknocker\pdodb\events\TransactionStartedEvent;
+use tommyknocker\pdodb\events\TransactionCommittedEvent;
+use tommyknocker\pdodb\events\TransactionRolledBackEvent;
+
+$dispatcher->addListener(TransactionStartedEvent::class, function (TransactionStartedEvent $event) {
+    error_log("Transaction started on " . $event->getDriver());
+});
+
+$dispatcher->addListener(TransactionCommittedEvent::class, function (TransactionCommittedEvent $event) {
+    error_log(sprintf(
+        "Transaction committed (duration: %.2f ms)",
+        $event->getDuration()
+    ));
+});
+
+$dispatcher->addListener(TransactionRolledBackEvent::class, function (TransactionRolledBackEvent $event) {
+    error_log(sprintf(
+        "Transaction rolled back (duration: %.2f ms)",
+        $event->getDuration()
+    ));
+    if ($event->getException() !== null) {
+        error_log("Exception: " . $event->getException()->getMessage());
+    }
+});
+```
+
+### Error Events
+
+Track query errors:
+
+```php
+use tommyknocker\pdodb\events\QueryErrorEvent;
+
+$dispatcher->addListener(QueryErrorEvent::class, function (QueryErrorEvent $event) {
+    error_log(sprintf(
+        "Query error: %s - %s",
+        substr($event->getSql(), 0, 50),
+        $event->getException()->getMessage()
+    ));
+});
+```
+
+### Connection Events
+
+Monitor connection establishment:
+
+```php
+use tommyknocker\pdodb\events\ConnectionOpenedEvent;
+
+$dispatcher->addListener(ConnectionOpenedEvent::class, function (ConnectionOpenedEvent $event) {
+    echo sprintf(
+        "Connection opened: %s (DSN: %s)\n",
+        $event->getDriver(),
+        $event->getDsn()
+    );
+});
+```
+
+### Use Cases
+
+**Monitoring**: Track all database operations in real-time for application performance monitoring (APM) tools.
+
+**Auditing**: Maintain complete audit trails of database activity for compliance and security.
+
+**Logging**: Centralized query logging without modifying application code.
+
+**Performance Analysis**: Measure execution times and identify slow queries for optimization.
+
+**Middleware**: Implement cross-cutting concerns like caching, rate limiting, or query rewriting.
+
+**Debugging**: Capture detailed query information for troubleshooting in development.
+
+### Compatibility
+
+Works with any PSR-14 compatible event dispatcher:
+- Symfony EventDispatcher
+- League Event
+- Custom implementations
+
+### Runtime Control
+
+```php
+// Get event dispatcher
+$dispatcher = $db->getEventDispatcher();
+
+// Set event dispatcher
+$db->setEventDispatcher($dispatcher);
+
+// Disable events (set to null)
+$db->setEventDispatcher(null);
+```
+
+### Example: Complete Monitoring Setup
+
+```php
+use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\events\QueryExecutedEvent;
+use tommyknocker\pdodb\events\QueryErrorEvent;
+use Symfony\Component\EventDispatcher\EventDispatcher;
+
+$dispatcher = new EventDispatcher();
+
+// Log all queries
+$dispatcher->addListener(QueryExecutedEvent::class, function (QueryExecutedEvent $event) {
+    // Send to monitoring service
+    MonitoringService::recordQuery([
+        'sql' => $event->getSql(),
+        'duration' => $event->getExecutionTime(),
+        'rows' => $event->getRowsAffected(),
+        'driver' => $event->getDriver()
+    ]);
+});
+
+// Alert on errors
+$dispatcher->addListener(QueryErrorEvent::class, function (QueryErrorEvent $event) {
+    AlertingService::sendAlert([
+        'type' => 'query_error',
+        'sql' => $event->getSql(),
+        'error' => $event->getException()->getMessage()
+    ]);
+});
+
+$db = new PdoDb('mysql', $config);
+$db->setEventDispatcher($dispatcher);
+```
+
 ## Table Prefix
 
 Add a prefix to all table names:

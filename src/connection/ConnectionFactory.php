@@ -6,7 +6,9 @@ namespace tommyknocker\pdodb\connection;
 
 use InvalidArgumentException;
 use PDO;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
+use tommyknocker\pdodb\events\ConnectionOpenedEvent;
 
 /**
  * ConnectionFactory.
@@ -16,6 +18,19 @@ use Psr\Log\LoggerInterface;
  */
 class ConnectionFactory
 {
+    /** @var EventDispatcherInterface|null Event dispatcher */
+    protected ?EventDispatcherInterface $eventDispatcher = null;
+
+    /**
+     * Set the event dispatcher.
+     *
+     * @param EventDispatcherInterface|null $dispatcher
+     */
+    public function setEventDispatcher(?EventDispatcherInterface $dispatcher): void
+    {
+        $this->eventDispatcher = $dispatcher;
+    }
+
     /**
      * Create a new Connection instance.
      *
@@ -30,6 +45,8 @@ class ConnectionFactory
         $driver = $config['driver'] ?? throw new InvalidArgumentException('driver is required');
         $dialect = DialectRegistry::resolve($driver);
         $pdo = $config['pdo'] ?? null;
+        $dsn = '';
+        $options = [];
 
         if (!$pdo) {
             $dsn = $dialect->buildDsn($config);
@@ -37,6 +54,10 @@ class ConnectionFactory
             $pass = $config['password'] ?? '';
             $options = $dialect->defaultPdoOptions() + ($config['options'] ?? []);
             $pdo = new PDO($dsn, $user, $pass, $options);
+        } else {
+            // If PDO is provided, use DSN from config if available, otherwise use empty string
+            $dsn = $config['dsn'] ?? '';
+            $options = $config['options'] ?? [];
         }
 
         $dialect->setPdo($pdo);
@@ -56,6 +77,20 @@ class ConnectionFactory
             $capacity = (int)($poolConfig['capacity'] ?? 256);
             $pool = new PreparedStatementPool($capacity, true);
             $connection->setStatementPool($pool);
+        }
+
+        // Configure event dispatcher if available
+        if ($this->eventDispatcher !== null) {
+            $connection->setEventDispatcher($this->eventDispatcher);
+        }
+
+        // Dispatch connection opened event
+        if ($this->eventDispatcher !== null && $dsn !== '') {
+            $this->eventDispatcher->dispatch(new ConnectionOpenedEvent(
+                $driver,
+                $dsn,
+                $options
+            ));
         }
 
         return $connection;

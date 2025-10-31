@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\tests;
+namespace tommyknocker\pdodb\tests\fixtures;
 
 use DateInterval;
 use DateTime;

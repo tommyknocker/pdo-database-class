@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb;
 
 use InvalidArgumentException;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\SimpleCache\CacheInterface;
 use RuntimeException;
@@ -79,6 +80,9 @@ class PdoDb
     /** @var bool Whether read/write splitting is enabled */
     protected bool $readWriteSplittingEnabled = false;
 
+    /** @var EventDispatcherInterface|null Event dispatcher */
+    protected ?EventDispatcherInterface $eventDispatcher = null;
+
     /**
      * Initializes a new PdoDb object.
      *
@@ -133,6 +137,35 @@ class PdoDb
         }
 
         return $queryBuilder;
+    }
+
+    /**
+     * Set event dispatcher.
+     *
+     * @param EventDispatcherInterface|null $dispatcher The dispatcher instance or null to disable
+     *
+     * @return self
+     */
+    public function setEventDispatcher(?EventDispatcherInterface $dispatcher): self
+    {
+        $this->eventDispatcher = $dispatcher;
+
+        // Update existing connections with the new dispatcher
+        foreach ($this->connections as $connection) {
+            $connection->setEventDispatcher($dispatcher);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Get event dispatcher.
+     *
+     * @return EventDispatcherInterface|null The dispatcher instance or null if not set
+     */
+    public function getEventDispatcher(): ?EventDispatcherInterface
+    {
+        return $this->eventDispatcher;
     }
 
     /**
@@ -332,6 +365,12 @@ class PdoDb
     ): void {
         $params['options'] = $pdoOptions;
         $connectionFactory = new ConnectionFactory();
+
+        // Pass event dispatcher to factory if available
+        if ($this->eventDispatcher !== null) {
+            $connectionFactory->setEventDispatcher($this->eventDispatcher);
+        }
+
         $connection = $connectionFactory->create($params, $logger);
         $this->connections[$name] = $connection;
 

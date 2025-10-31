@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\connection;
 
 use PDO;
 use PDOStatement;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 
 /**
@@ -161,4 +162,18 @@ interface ConnectionInterface
      * @return mixed
      */
     public function getAttribute(int $attribute): mixed;
+
+    /**
+     * Set the event dispatcher.
+     *
+     * @param EventDispatcherInterface|null $dispatcher The dispatcher instance or null to disable
+     */
+    public function setEventDispatcher(?EventDispatcherInterface $dispatcher): void;
+
+    /**
+     * Get the event dispatcher.
+     *
+     * @return EventDispatcherInterface|null The dispatcher instance or null if not set
+     */
+    public function getEventDispatcher(): ?EventDispatcherInterface;
 }

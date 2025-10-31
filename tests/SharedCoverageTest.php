@@ -12,6 +12,7 @@ use PDO;
 use PDOException;
 use PDOStatement;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use ReflectionClass;
 use RuntimeException;
 use tommyknocker\pdodb\cache\CacheManager;
@@ -25,6 +26,12 @@ use tommyknocker\pdodb\connection\loadbalancer\WeightedLoadBalancer;
 use tommyknocker\pdodb\connection\PreparedStatementPool;
 use tommyknocker\pdodb\connection\RetryableConnection;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\events\ConnectionOpenedEvent;
+use tommyknocker\pdodb\events\QueryErrorEvent;
+use tommyknocker\pdodb\events\QueryExecutedEvent;
+use tommyknocker\pdodb\events\TransactionCommittedEvent;
+use tommyknocker\pdodb\events\TransactionRolledBackEvent;
+use tommyknocker\pdodb\events\TransactionStartedEvent;
 use tommyknocker\pdodb\exceptions\AuthenticationException;
 use tommyknocker\pdodb\exceptions\ConnectionException;
 use tommyknocker\pdodb\exceptions\ConstraintViolationException;
@@ -43,6 +50,7 @@ use tommyknocker\pdodb\query\pagination\Cursor;
 use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
 use tommyknocker\pdodb\query\pagination\PaginationResult;
 use tommyknocker\pdodb\query\pagination\SimplePaginationResult;
+use tommyknocker\pdodb\tests\fixtures\ArrayCache;
 
 /**
  * Shared coverage tests for dialect-independent code
@@ -3407,6 +3415,13 @@ class SharedCoverageTest extends TestCase
                 {
                     return null;
                 }
+                public function setEventDispatcher(?\Psr\EventDispatcher\EventDispatcherInterface $dispatcher): void
+                {
+                }
+                public function getEventDispatcher(): ?\Psr\EventDispatcher\EventDispatcherInterface
+                {
+                    return null;
+                }
             };
         };
 
@@ -4991,5 +5006,202 @@ class SharedCoverageTest extends TestCase
         $pool = $db->connection->getStatementPool();
         $this->assertNotNull($pool);
         $this->assertEquals(256, $pool->capacity());
+    }
+
+    /**
+     * Test event dispatching for query execution.
+     */
+    public function testQueryExecutedEvent(): void
+    {
+        $events = [];
+        $dispatcher = $this->createMockDispatcher($events);
+
+        $db = new PdoDb('sqlite', ['path' => ':memory:']);
+        $db->setEventDispatcher($dispatcher);
+
+        $db->rawQuery('CREATE TABLE test_events (id INTEGER PRIMARY KEY, name TEXT)');
+        $db->find()->table('test_events')->insert(['name' => 'Test']);
+
+        $this->assertGreaterThan(0, count($events));
+        $queryEvents = array_filter($events, static fn ($e) => $e instanceof QueryExecutedEvent);
+        $this->assertGreaterThan(0, count($queryEvents));
+
+        // Find INSERT query event
+        $insertEvent = null;
+        foreach ($queryEvents as $event) {
+            if (str_contains($event->getSql(), 'INSERT')) {
+                $insertEvent = $event;
+                break;
+            }
+        }
+
+        $this->assertNotNull($insertEvent, 'INSERT query event should be dispatched');
+        $this->assertStringContainsString('INSERT', $insertEvent->getSql());
+        $this->assertGreaterThan(0, $insertEvent->getExecutionTime());
+        $this->assertEquals('sqlite', $insertEvent->getDriver());
+    }
+
+    /**
+     * Test transaction events.
+     */
+    public function testTransactionEvents(): void
+    {
+        $events = [];
+        $dispatcher = $this->createMockDispatcher($events);
+
+        $db = new PdoDb('sqlite', ['path' => ':memory:']);
+        $db->setEventDispatcher($dispatcher);
+
+        $db->startTransaction();
+        $db->commit();
+
+        $startedEvents = array_filter($events, static fn ($e) => $e instanceof TransactionStartedEvent);
+        $committedEvents = array_filter($events, static fn ($e) => $e instanceof TransactionCommittedEvent);
+
+        $this->assertCount(1, $startedEvents);
+        $this->assertCount(1, $committedEvents);
+
+        /** @var TransactionStartedEvent $started */
+        $started = array_values($startedEvents)[0];
+        $this->assertEquals('sqlite', $started->getDriver());
+
+        /** @var TransactionCommittedEvent $committed */
+        $committed = array_values($committedEvents)[0];
+        $this->assertEquals('sqlite', $committed->getDriver());
+        $this->assertGreaterThanOrEqual(0, $committed->getDuration());
+    }
+
+    /**
+     * Test transaction rollback event.
+     */
+    public function testTransactionRollbackEvent(): void
+    {
+        $events = [];
+        $dispatcher = $this->createMockDispatcher($events);
+
+        $db = new PdoDb('sqlite', ['path' => ':memory:']);
+        $db->setEventDispatcher($dispatcher);
+
+        $db->startTransaction();
+        $db->rollback();
+
+        $rollbackEvents = array_filter($events, static fn ($e) => $e instanceof TransactionRolledBackEvent);
+
+        $this->assertCount(1, $rollbackEvents);
+
+        /** @var TransactionRolledBackEvent $event */
+        $event = array_values($rollbackEvents)[0];
+        $this->assertEquals('sqlite', $event->getDriver());
+        $this->assertGreaterThanOrEqual(0, $event->getDuration());
+    }
+
+    /**
+     * Test query error event.
+     */
+    public function testQueryErrorEvent(): void
+    {
+        $events = [];
+        $dispatcher = $this->createMockDispatcher($events);
+
+        $db = new PdoDb('sqlite', ['path' => ':memory:']);
+        $db->setEventDispatcher($dispatcher);
+
+        try {
+            $db->rawQuery('SELECT * FROM nonexistent_table');
+        } catch (Exception $e) {
+            // Expected
+        }
+
+        $errorEvents = array_filter($events, static fn ($e) => $e instanceof QueryErrorEvent);
+        $this->assertGreaterThan(0, count($errorEvents));
+
+        /** @var QueryErrorEvent $event */
+        $event = array_values($errorEvents)[0];
+        // SQL might be empty if error occurs during query() execution
+        if ($event->getSql() !== '') {
+            $this->assertStringContainsString('SELECT', $event->getSql());
+        }
+        $this->assertEquals('sqlite', $event->getDriver());
+        $this->assertNotNull($event->getException());
+    }
+
+    /**
+     * Test connection opened event.
+     */
+    public function testConnectionOpenedEvent(): void
+    {
+        $events = [];
+        $dispatcher = $this->createMockDispatcher($events);
+
+        // Set dispatcher before creating connection to catch ConnectionOpenedEvent
+        $db = new PdoDb();
+        $db->setEventDispatcher($dispatcher);
+
+        // Add connection - this should trigger ConnectionOpenedEvent
+        $db->addConnection('default', [
+            'driver' => 'sqlite',
+            'path' => ':memory:',
+        ]);
+
+        // Trigger connection usage
+        $db->connection('default')->rawQuery('SELECT 1');
+
+        $connectionEvents = array_filter($events, static fn ($e) => $e instanceof ConnectionOpenedEvent);
+        $this->assertGreaterThan(0, count($connectionEvents), 'ConnectionOpenedEvent should be dispatched');
+
+        /** @var ConnectionOpenedEvent $event */
+        $event = array_values($connectionEvents)[0];
+        $this->assertEquals('sqlite', $event->getDriver());
+        $this->assertNotEmpty($event->getDsn());
+    }
+
+    /**
+     * Test event dispatcher getter/setter.
+     */
+    public function testEventDispatcherGetterSetter(): void
+    {
+        $db = new PdoDb('sqlite', ['path' => ':memory:']);
+        $this->assertNull($db->getEventDispatcher());
+
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $db->setEventDispatcher($dispatcher);
+        $this->assertSame($dispatcher, $db->getEventDispatcher());
+
+        $db->setEventDispatcher(null);
+        $this->assertNull($db->getEventDispatcher());
+    }
+
+    /**
+     * Test that events are not dispatched when dispatcher is not set.
+     */
+    public function testNoDispatcherNoEvents(): void
+    {
+        $db = new PdoDb('sqlite', ['path' => ':memory:']);
+        // No dispatcher set
+
+        // Should not throw or error
+        $db->rawQuery('CREATE TABLE test (id INTEGER)');
+        $db->find()->table('test')->insert(['id' => 1]);
+
+        $this->assertTrue(true); // Test passes if no exceptions
+    }
+
+    /**
+     * Create a mock event dispatcher that collects events.
+     *
+     * @param array<object> $events Array to collect events in
+     *
+     * @return EventDispatcherInterface
+     */
+    protected function createMockDispatcher(array &$events): EventDispatcherInterface
+    {
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')
+            ->willReturnCallback(function (object $event) use (&$events) {
+                $events[] = $event;
+                return $event;
+            });
+
+        return $dispatcher;
     }
 }

@@ -74,7 +74,8 @@
     "php": "^8.4",
     "ext-pdo": "*",
     "psr/log": "^3.0",
-    "psr/simple-cache": "^3.0"
+    "psr/simple-cache": "^3.0",
+    "psr/event-dispatcher": "^1.0"
   },
   "suggest": {
     "monolog/monolog": "If you need robust logging capabilities.",
