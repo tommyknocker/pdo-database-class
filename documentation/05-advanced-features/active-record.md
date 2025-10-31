@@ -483,32 +483,133 @@ $db = new PdoDb('mysql', $config);
 User::setDb($db);
 ```
 
-### 3. Validation (Optional)
+### 3. Validation
+
+ActiveRecord supports declarative validation using rules. Define validation rules in the `rules()` method:
 
 ```php
 class User extends Model
 {
-    public function validate(): bool
+    public static function rules(): array
     {
-        if (empty($this->name)) {
-            return false;
-        }
-        
-        if (!filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
-            return false;
-        }
-        
-        return true;
+        return [
+            [['name', 'email'], 'required'],
+            ['email', 'email'],
+            ['age', 'integer', 'min' => 1, 'max' => 150],
+            ['name', 'string', 'min' => 2, 'max' => 100],
+        ];
     }
 }
 
 $user = new User();
-$user->name = 'Alice';
 $user->email = 'invalid-email';
+$user->age = 200;
 
 if (!$user->save()) {
-    echo "Validation failed";
+    $errors = $user->getValidationErrors();
+    foreach ($errors as $attribute => $messages) {
+        foreach ($messages as $message) {
+            echo "{$attribute}: {$message}\n";
+        }
+    }
 }
+```
+
+#### Built-in Validators
+
+- **`required`**: Attribute must not be empty
+- **`email`**: Attribute must be a valid email address
+- **`integer`**: Attribute must be an integer (supports `min`, `max` params)
+- **`string`**: Attribute must be a string (supports `min`, `max`, `length` params)
+
+#### Validation Rules Format
+
+```php
+public static function rules(): array
+{
+    return [
+        // Multiple attributes with same validator
+        [['name', 'email'], 'required'],
+        
+        // Single attribute with validator
+        ['email', 'email'],
+        
+        // Validator with parameters
+        ['age', 'integer', 'min' => 1, 'max' => 150],
+        ['name', 'string', 'min' => 2, 'max' => 100],
+        
+        // Custom error message
+        ['name', 'required', 'message' => 'Name is mandatory'],
+    ];
+}
+```
+
+#### Getting Validation Errors
+
+```php
+$user = new User();
+if (!$user->validate()) {
+    // Get all errors
+    $errors = $user->getValidationErrors();
+    
+    // Get errors for specific attribute
+    $nameErrors = $user->getValidationErrorsForAttribute('name');
+    
+    // Check if has errors
+    if ($user->hasValidationErrors()) {
+        // Handle errors
+    }
+    
+    // Clear errors
+    $user->clearValidationErrors();
+}
+```
+
+#### Custom Validators
+
+You can create custom validators by implementing `ValidatorInterface`:
+
+```php
+use tommyknocker\pdodb\orm\validators\AbstractValidator;
+use tommyknocker\pdodb\orm\validators\ValidatorFactory;
+
+class CustomValidator extends AbstractValidator
+{
+    public function validate(Model $model, string $attribute, mixed $value, array $params = []): bool
+    {
+        // Your validation logic
+        return true; // or false
+    }
+
+    protected function getDefaultMessage(string $attribute, array $params): string
+    {
+        return "Attribute '{$attribute}' validation failed.";
+    }
+}
+
+// Register custom validator
+ValidatorFactory::register('custom', CustomValidator::class);
+
+// Use in rules
+class User extends Model
+{
+    public static function rules(): array
+    {
+        return [
+            ['field', 'custom'],
+        ];
+    }
+}
+```
+
+#### Skipping Validation
+
+You can skip validation when saving:
+
+```php
+$user = new User();
+// Skip validation
+$user->save(false);
 ```
 
 ### 4. Safe Attributes

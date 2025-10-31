@@ -30,6 +30,16 @@ class User extends Model
     {
         return ['id'];
     }
+
+    public static function rules(): array
+    {
+        return [
+            [['name', 'email'], 'required'],
+            ['email', 'email'],
+            ['age', 'integer', 'min' => 1, 'max' => 150],
+            ['name', 'string', 'min' => 2, 'max' => 100],
+        ];
+    }
 }
 
 // Get database from environment or default to SQLite
@@ -332,5 +342,62 @@ echo "\n";
 
 // Clean up
 $connection->setEventDispatcher(null);
+
+// Example 14: Validation
+echo "14. Validation\n";
+echo "    -----------\n";
+
+// Try to save invalid data
+$invalidUser = new User();
+$invalidUser->email = 'invalid-email'; // Invalid email format
+$invalidUser->age = 200; // Out of range
+
+if (!$invalidUser->save()) {
+    echo "    Validation failed as expected\n";
+    $errors = $invalidUser->getValidationErrors();
+    foreach ($errors as $attribute => $messages) {
+        foreach ($messages as $message) {
+            echo "    - {$attribute}: {$message}\n";
+        }
+    }
+}
+
+// Fix errors and save
+$invalidUser->name = 'Valid User';
+$invalidUser->email = 'valid@example.com';
+$invalidUser->age = 30;
+
+if ($invalidUser->save()) {
+    echo "    ✓ User saved after fixing validation errors\n";
+    echo "    User ID: {$invalidUser->id}\n";
+}
+
+// Validate manually
+$testUser = new User();
+$testUser->name = 'Test';
+$testUser->email = 'test@example.com';
+$testUser->age = 25;
+
+if ($testUser->validate()) {
+    echo "    ✓ Manual validation passed\n";
+} else {
+    echo "    ✗ Manual validation failed\n";
+    foreach ($testUser->getValidationErrors() as $attribute => $messages) {
+        foreach ($messages as $message) {
+            echo "    - {$attribute}: {$message}\n";
+        }
+    }
+}
+
+// Check validation errors for specific attribute
+$userWithErrors = new User();
+$userWithErrors->name = 'A'; // Too short
+$userWithErrors->validate();
+$nameErrors = $userWithErrors->getValidationErrorsForAttribute('name');
+if (!empty($nameErrors)) {
+    echo "    Name validation errors: " . implode(', ', $nameErrors) . "\n";
+}
+
+echo "\n";
 
 echo "=== All examples completed successfully ===\n";

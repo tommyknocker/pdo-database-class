@@ -13,6 +13,7 @@ use tommyknocker\pdodb\events\ModelBeforeDeleteEvent;
 use tommyknocker\pdodb\events\ModelBeforeInsertEvent;
 use tommyknocker\pdodb\events\ModelBeforeSaveEvent;
 use tommyknocker\pdodb\events\ModelBeforeUpdateEvent;
+use tommyknocker\pdodb\orm\validators\ValidatorFactory;
 
 /**
  * ActiveRecord trait provides ORM functionality for model classes.
@@ -33,6 +34,9 @@ trait ActiveRecord
 
     /** @var bool Whether this is a new record */
     protected bool $isNewRecord = true;
+
+    /** @var array<string, array<int, string>> Validation errors (attribute => [messages]) */
+    protected array $validationErrors = [];
 
     /**
      * Get attribute value.
@@ -433,13 +437,111 @@ trait ActiveRecord
     }
 
     /**
-     * Validate model (override in subclasses).
+     * Validate model using rules.
+     *
+     * Override this method for custom validation logic.
+     * This implementation uses rules() method to validate attributes.
      *
      * @return bool True if valid, false otherwise
      */
     public function validate(): bool
     {
-        return true; // Default: no validation
+        $this->validationErrors = [];
+
+        $rules = static::rules();
+
+        if (empty($rules)) {
+            return true; // No rules = always valid
+        }
+
+        foreach ($rules as $rule) {
+            if (!is_array($rule) || count($rule) < 2) {
+                continue;
+            }
+
+            $attributes = (array) $rule[0];
+            $validatorName = $rule[1];
+            $params = array_slice($rule, 2);
+
+            // Convert params array if needed (handle both associative and indexed)
+            $paramsArray = [];
+            foreach ($params as $key => $value) {
+                if (is_int($key)) {
+                    // Indexed param - could be a string key or just a value
+                    if (is_string($value) && str_contains($value, '=')) {
+                        // Try to parse as key=value
+                        [$paramKey, $paramValue] = explode('=', $value, 2);
+                        $paramsArray[$paramKey] = $paramValue;
+                    } else {
+                        // Just a value, use as-is or skip
+                        continue;
+                    }
+                } else {
+                    $paramsArray[$key] = $value;
+                }
+            }
+
+            try {
+                $validator = ValidatorFactory::create($validatorName);
+            } catch (RuntimeException $e) {
+                // Validator not found - skip this rule
+                continue;
+            }
+
+            foreach ($attributes as $attribute) {
+                // Check if attribute exists in model
+                $value = $this->attributes[$attribute] ?? null;
+
+                if (!$validator->validate($this, $attribute, $value, $paramsArray)) {
+                    if (!isset($this->validationErrors[$attribute])) {
+                        $this->validationErrors[$attribute] = [];
+                    }
+                    $this->validationErrors[$attribute][] = $validator->getMessage($this, $attribute, $paramsArray);
+                }
+            }
+        }
+
+        return empty($this->validationErrors);
+    }
+
+    /**
+     * Get validation errors.
+     *
+     * @return array<string, array<int, string>> Validation errors (attribute => [messages])
+     */
+    public function getValidationErrors(): array
+    {
+        return $this->validationErrors;
+    }
+
+    /**
+     * Get validation errors for a specific attribute.
+     *
+     * @param string $attribute Attribute name
+     *
+     * @return array<int, string> Error messages for the attribute
+     */
+    public function getValidationErrorsForAttribute(string $attribute): array
+    {
+        return $this->validationErrors[$attribute] ?? [];
+    }
+
+    /**
+     * Check if model has validation errors.
+     *
+     * @return bool True if has errors
+     */
+    public function hasValidationErrors(): bool
+    {
+        return !empty($this->validationErrors);
+    }
+
+    /**
+     * Clear validation errors.
+     */
+    public function clearValidationErrors(): void
+    {
+        $this->validationErrors = [];
     }
 
     /**

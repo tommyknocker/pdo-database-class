@@ -70,6 +70,29 @@ abstract class Model
     }
 
     /**
+     * Get validation rules.
+     *
+     * Format: [
+     *   [['attribute1', 'attribute2'], 'validator', 'param1' => 'value1', ...],
+     *   ['attribute', 'validator', 'param1' => 'value1', ...],
+     * ]
+     *
+     * Built-in validators:
+     * - 'required': Attribute must not be empty
+     * - 'email': Attribute must be a valid email address
+     * - 'integer': Attribute must be an integer (supports 'min', 'max' params)
+     * - 'string': Attribute must be a string (supports 'min', 'max', 'length' params)
+     *
+     * Override this method to define validation rules for the model.
+     *
+     * @return array<int, array<int|string, mixed>> Validation rules
+     */
+    public static function rules(): array
+    {
+        return [];
+    }
+
+    /**
      * Find records (returns ActiveQuery).
      *
      * @return ActiveQuery Query builder instance

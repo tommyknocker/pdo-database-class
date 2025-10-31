@@ -629,16 +629,33 @@ See:
 
 Optional lightweight ORM pattern for object-based database operations. Works seamlessly with QueryBuilder API.
 
+Features:
+- **Magic attribute access** - `$user->name`, `$user->email`
+- **Automatic CRUD** - `save()`, `delete()`, `refresh()`
+- **Dirty tracking** - Track changed attributes automatically
+- **Declarative validation** - Rules-based validation with extensible validators
+- **Lifecycle events** - PSR-14 events for save, insert, update, delete
+- **ActiveQuery builder** - Full QueryBuilder API through `find()` method
+
 ```php
 use tommyknocker\pdodb\orm\Model;
 use tommyknocker\pdodb\PdoDb;
 
-// Define model
+// Define model with validation rules
 class User extends Model
 {
     public static function tableName(): string
     {
         return 'users';
+    }
+
+    public static function rules(): array
+    {
+        return [
+            [['name', 'email'], 'required'],
+            ['email', 'email'],
+            ['age', 'integer', 'min' => 1, 'max' => 150],
+        ];
     }
 }
 
@@ -650,7 +667,20 @@ User::setDb($db);
 $user = new User();
 $user->name = 'Alice';
 $user->email = 'alice@example.com';
+$user->age = 30;
 $user->save();
+
+// Validation example
+$invalidUser = new User();
+$invalidUser->email = 'invalid-email';
+if (!$invalidUser->save()) {
+    $errors = $invalidUser->getValidationErrors();
+    foreach ($errors as $attribute => $messages) {
+        foreach ($messages as $message) {
+            echo "{$attribute}: {$message}\n";
+        }
+    }
+}
 
 // Find records
 $user = User::findOne(1);
@@ -675,6 +705,8 @@ $user->delete();
 - **Object-Based** - Work with objects instead of arrays
 - **Magic Accessors** - Access attributes via `$model->attribute`
 - **Dirty Tracking** - Automatically tracks changed attributes
+- **Declarative Validation** - Rules-based validation with built-in validators (required, email, integer, string)
+- **Extensible Validators** - Create custom validators with `ValidatorInterface`
 - **Lifecycle Events** - PSR-14 event dispatcher integration (beforeSave, afterSave, etc.)
 - **Full QueryBuilder API** - All QueryBuilder methods available through `ActiveQuery`
 - **Flexible Finding** - Find by ID, condition, or composite keys
