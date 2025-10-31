@@ -269,4 +269,68 @@ unset($attrUser->email);
 echo '    After unset email: ' . (isset($attrUser->email) ? 'Yes' : 'No') . "\n";
 echo "\n";
 
+// Example 13: Lifecycle Events
+echo "13. Lifecycle Events\n";
+echo "    -----------------\n";
+
+// Simple event dispatcher implementation
+class SimpleEventDispatcher implements \Psr\EventDispatcher\EventDispatcherInterface
+{
+    /** @var array<string, array<callable>> */
+    protected array $listeners = [];
+
+    public function listen(string $eventClass, callable $listener): void
+    {
+        $this->listeners[$eventClass][] = $listener;
+    }
+
+    public function dispatch(object $event): object
+    {
+        $eventClass = $event::class;
+        if (isset($this->listeners[$eventClass])) {
+            foreach ($this->listeners[$eventClass] as $listener) {
+                $listener($event);
+            }
+        }
+        return $event;
+    }
+}
+
+use tommyknocker\pdodb\events\ModelAfterSaveEvent;
+use tommyknocker\pdodb\events\ModelBeforeSaveEvent;
+
+$dispatcher = new SimpleEventDispatcher();
+$eventCount = 0;
+
+// Listen to beforeSave events
+$dispatcher->listen(ModelBeforeSaveEvent::class, function (ModelBeforeSaveEvent $event) use (&$eventCount) {
+    $eventCount++;
+    $model = $event->getModel();
+    echo "    BeforeSave: {$model->name} (new record: " . ($event->isNewRecord() ? 'Yes' : 'No') . ")\n";
+});
+
+// Listen to afterSave events
+$dispatcher->listen(ModelAfterSaveEvent::class, function (ModelAfterSaveEvent $event) use (&$eventCount) {
+    $eventCount++;
+    $model = $event->getModel();
+    echo "    AfterSave: {$model->name} (was new: " . ($event->isNewRecord() ? 'Yes' : 'No') . ")\n";
+});
+
+// Set dispatcher on connection
+$queryBuilder = $db->find();
+$connection = $queryBuilder->getConnection();
+$connection->setEventDispatcher($dispatcher);
+
+// Create user with events
+$eventUser = new User();
+$eventUser->name = 'EventUser';
+$eventUser->email = 'eventuser@example.com';
+$eventUser->save();
+
+echo "    Events dispatched: {$eventCount}\n";
+echo "\n";
+
+// Clean up
+$connection->setEventDispatcher(null);
+
 echo "=== All examples completed successfully ===\n";

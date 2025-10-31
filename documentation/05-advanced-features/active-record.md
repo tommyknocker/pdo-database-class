@@ -271,6 +271,188 @@ $query = User::find()->getQueryBuilder();
 $sql = $query->toSQL();
 ```
 
+## Lifecycle Events
+
+ActiveRecord supports PSR-14 event dispatcher integration for lifecycle events. You can listen to events that fire before and after save, insert, update, and delete operations.
+
+### Available Events
+
+- **ModelBeforeSaveEvent** - Fired before save() (insert or update)
+- **ModelAfterSaveEvent** - Fired after successful save()
+- **ModelBeforeInsertEvent** - Fired before insert operation
+- **ModelAfterInsertEvent** - Fired after successful insert
+- **ModelBeforeUpdateEvent** - Fired before update operation
+- **ModelAfterUpdateEvent** - Fired after successful update
+- **ModelBeforeDeleteEvent** - Fired before delete operation
+- **ModelAfterDeleteEvent** - Fired after successful delete
+
+### Setting Up Event Dispatcher
+
+```php
+use Psr\EventDispatcher\EventDispatcherInterface;
+use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\events\ModelBeforeSaveEvent;
+use tommyknocker\pdodb\events\ModelAfterSaveEvent;
+
+// Create your event dispatcher (e.g., Symfony EventDispatcher)
+$dispatcher = new YourEventDispatcher();
+
+// Set dispatcher on connection
+$db = new PdoDb('mysql', $config);
+$queryBuilder = $db->find();
+$connection = $queryBuilder->getConnection();
+$connection->setEventDispatcher($dispatcher);
+
+// Or use PdoDb method if available
+// $db->setEventDispatcher($dispatcher);
+```
+
+### Listening to Events
+
+```php
+use tommyknocker\pdodb\events\ModelBeforeSaveEvent;
+use tommyknocker\pdodb\events\ModelAfterSaveEvent;
+use tommyknocker\pdodb\events\ModelBeforeDeleteEvent;
+
+// Listen to beforeSave events
+$dispatcher->addListener(ModelBeforeSaveEvent::class, function (ModelBeforeSaveEvent $event) {
+    $model = $event->getModel();
+    echo "Saving model: {$model->name}\n";
+    
+    // Access model attributes
+    if ($event->isNewRecord()) {
+        echo "This is a new record (insert)\n";
+    } else {
+        echo "This is an update\n";
+    }
+});
+
+// Listen to afterSave events
+$dispatcher->addListener(ModelAfterSaveEvent::class, function (ModelAfterSaveEvent $event) {
+    $model = $event->getModel();
+    echo "Model saved: {$model->name}\n";
+});
+
+// Listen to beforeDelete events
+$dispatcher->addListener(ModelBeforeDeleteEvent::class, function (ModelBeforeDeleteEvent $event) {
+    $model = $event->getModel();
+    echo "Deleting model: {$model->name}\n";
+});
+```
+
+### Stopping Event Propagation
+
+Before-events support stopping propagation to prevent the operation:
+
+```php
+$dispatcher->addListener(ModelBeforeSaveEvent::class, function (ModelBeforeSaveEvent $event) {
+    $model = $event->getModel();
+    
+    // Prevent save if validation fails
+    if (empty($model->name)) {
+        $event->stopPropagation();
+    }
+});
+
+$user = new User();
+$user->email = 'test@example.com';
+$result = $user->save(); // Returns false, save was prevented
+```
+
+### Event Information
+
+Events provide access to model data and operation context:
+
+```php
+// BeforeUpdateEvent provides dirty attributes
+$dispatcher->addListener(ModelBeforeUpdateEvent::class, function (ModelBeforeUpdateEvent $event) {
+    $dirty = $event->getDirtyAttributes();
+    echo "Changed attributes: " . implode(', ', array_keys($dirty)) . "\n";
+});
+
+// AfterInsertEvent provides inserted ID
+$dispatcher->addListener(ModelAfterInsertEvent::class, function (ModelAfterInsertEvent $event) {
+    $insertId = $event->getInsertId();
+    echo "Inserted with ID: {$insertId}\n";
+});
+
+// AfterUpdateEvent provides rows affected
+$dispatcher->addListener(ModelAfterUpdateEvent::class, function (ModelAfterUpdateEvent $event) {
+    $rowsAffected = $event->getRowsAffected();
+    echo "Updated {$rowsAffected} row(s)\n";
+});
+
+// AfterDeleteEvent provides rows affected
+$dispatcher->addListener(ModelAfterDeleteEvent::class, function (ModelAfterDeleteEvent $event) {
+    $rowsAffected = $event->getRowsAffected();
+    echo "Deleted {$rowsAffected} row(s)\n";
+});
+```
+
+### Complete Example
+
+```php
+use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\orm\Model;
+use tommyknocker\pdodb\events\ModelBeforeSaveEvent;
+use tommyknocker\pdodb\events\ModelAfterSaveEvent;
+
+class User extends Model
+{
+    public static function tableName(): string
+    {
+        return 'users';
+    }
+}
+
+$db = new PdoDb('mysql', $config);
+User::setDb($db);
+
+// Simple event dispatcher
+class SimpleDispatcher implements \Psr\EventDispatcher\EventDispatcherInterface
+{
+    protected array $listeners = [];
+    
+    public function addListener(string $eventClass, callable $listener): void
+    {
+        $this->listeners[$eventClass][] = $listener;
+    }
+    
+    public function dispatch(object $event): object
+    {
+        $eventClass = $event::class;
+        if (isset($this->listeners[$eventClass])) {
+            foreach ($this->listeners[$eventClass] as $listener) {
+                $listener($event);
+            }
+        }
+        return $event;
+    }
+}
+
+$dispatcher = new SimpleDispatcher();
+
+// Log all saves
+$dispatcher->addListener(ModelBeforeSaveEvent::class, function (ModelBeforeSaveEvent $event) {
+    error_log("Before save: " . $event->getModel()->name);
+});
+
+$dispatcher->addListener(ModelAfterSaveEvent::class, function (ModelAfterSaveEvent $event) {
+    error_log("After save: " . $event->getModel()->name);
+});
+
+// Set dispatcher
+$queryBuilder = $db->find();
+$connection = $queryBuilder->getConnection();
+$connection->setEventDispatcher($dispatcher);
+
+// Now all save operations will trigger events
+$user = new User();
+$user->name = 'Alice';
+$user->email = 'alice@example.com';
+$user->save(); // Events will fire
+```
+
 ## Best Practices
 
 ### 1. Model Organization

@@ -4,7 +4,16 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use Psr\EventDispatcher\EventDispatcherInterface;
 use RuntimeException;
+use tommyknocker\pdodb\events\ModelAfterDeleteEvent;
+use tommyknocker\pdodb\events\ModelAfterInsertEvent;
+use tommyknocker\pdodb\events\ModelAfterSaveEvent;
+use tommyknocker\pdodb\events\ModelAfterUpdateEvent;
+use tommyknocker\pdodb\events\ModelBeforeDeleteEvent;
+use tommyknocker\pdodb\events\ModelBeforeInsertEvent;
+use tommyknocker\pdodb\events\ModelBeforeSaveEvent;
+use tommyknocker\pdodb\events\ModelBeforeUpdateEvent;
 use tommyknocker\pdodb\orm\ActiveRecord;
 use tommyknocker\pdodb\orm\Model;
 
@@ -49,6 +58,14 @@ final class ActiveRecordTests extends BaseSharedTestCase
         // Clear test_users table
         self::$db->rawQuery('DELETE FROM test_users');
         self::$db->rawQuery("DELETE FROM sqlite_sequence WHERE name='test_users'");
+
+        // Clear event dispatcher to ensure clean state between tests
+        $queryBuilder = self::$db->find();
+        $connection = $queryBuilder->getConnection();
+        $connection->setEventDispatcher(null);
+
+        // Ensure model has db connection set
+        TestUserModel::setDb(self::$db);
     }
 
     public function testModelCreation(): void
@@ -335,5 +352,139 @@ final class ActiveRecordTests extends BaseSharedTestCase
 
         // Restore
         TestUserModel::setDb($originalDb);
+    }
+
+    public function testLifecycleEvents(): void
+    {
+        // Create mock event dispatcher that filters only model events
+        $modelEvents = [];
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')
+            ->willReturnCallback(function (object $event) use (&$modelEvents) {
+                // Only track model lifecycle events
+                if (str_starts_with($event::class, 'tommyknocker\\pdodb\\events\\Model')) {
+                    $modelEvents[] = $event;
+                }
+                return $event;
+            });
+
+        // Set dispatcher on connection
+        $queryBuilder = self::$db->find();
+        $connection = $queryBuilder->getConnection();
+        $connection->setEventDispatcher($dispatcher);
+
+        // Test insert events
+        $user = new TestUserModel();
+        $user->name = 'EventTest';
+        $user->email = 'event@example.com';
+        $user->save();
+
+        $this->assertCount(4, $modelEvents);
+        $this->assertInstanceOf(ModelBeforeSaveEvent::class, $modelEvents[0]);
+        $this->assertInstanceOf(ModelBeforeInsertEvent::class, $modelEvents[1]);
+        $this->assertInstanceOf(ModelAfterInsertEvent::class, $modelEvents[2]);
+        $this->assertInstanceOf(ModelAfterSaveEvent::class, $modelEvents[3]);
+
+        $this->assertTrue($modelEvents[0]->isNewRecord());
+        $this->assertTrue($modelEvents[1]->getModel() === $user);
+        $this->assertNotNull($modelEvents[2]->getInsertId());
+
+        // Test update events
+        $modelEvents = [];
+        $user->name = 'UpdatedEvent';
+        $user->save();
+
+        $this->assertCount(4, $modelEvents);
+        $this->assertInstanceOf(ModelBeforeSaveEvent::class, $modelEvents[0]);
+        $this->assertInstanceOf(ModelBeforeUpdateEvent::class, $modelEvents[1]);
+        $this->assertInstanceOf(ModelAfterUpdateEvent::class, $modelEvents[2]);
+        $this->assertInstanceOf(ModelAfterSaveEvent::class, $modelEvents[3]);
+
+        $this->assertFalse($modelEvents[0]->isNewRecord());
+        $this->assertArrayHasKey('name', $modelEvents[1]->getDirtyAttributes());
+
+        // Test delete events
+        $modelEvents = [];
+        $user->delete();
+
+        $this->assertCount(2, $modelEvents);
+        $this->assertInstanceOf(ModelBeforeDeleteEvent::class, $modelEvents[0]);
+        $this->assertInstanceOf(ModelAfterDeleteEvent::class, $modelEvents[1]);
+        $this->assertEquals(1, $modelEvents[1]->getRowsAffected());
+
+        // Clean up
+        $connection->setEventDispatcher(null);
+    }
+
+    public function testEventStopPropagation(): void
+    {
+        // Create mock event dispatcher that stops propagation on beforeSave
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')
+            ->willReturnCallback(function (object $event) {
+                if ($event instanceof ModelBeforeSaveEvent) {
+                    $event->stopPropagation();
+                }
+                return $event;
+            });
+
+        // Set dispatcher on connection
+        $queryBuilder = self::$db->find();
+        $connection = $queryBuilder->getConnection();
+        $connection->setEventDispatcher($dispatcher);
+
+        $user = new TestUserModel();
+        $user->name = 'StopTest';
+        $user->email = 'stop@example.com';
+
+        // Save should fail due to stopped propagation
+        $result = $user->save();
+        $this->assertFalse($result);
+        $this->assertTrue($user->getIsNewRecord()); // Still new, save was prevented
+
+        // Clean up
+        $connection->setEventDispatcher(null);
+    }
+
+    public function testEventStopPropagationOnDelete(): void
+    {
+        // Ensure model has db connection set
+        TestUserModel::setDb(self::$db);
+
+        // Create user first (without event dispatcher to ensure it's created)
+        $user = new TestUserModel();
+        $user->name = 'DeleteStopTest';
+        $user->email = 'deletestop@example.com';
+        $result = $user->save();
+        $this->assertTrue($result, 'User should be created successfully');
+
+        $userId = $user->id;
+        $this->assertNotNull($userId, 'User ID should be set');
+
+        // Create mock event dispatcher that stops propagation on beforeDelete
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')
+            ->willReturnCallback(function (object $event) {
+                if ($event instanceof ModelBeforeDeleteEvent) {
+                    $event->stopPropagation();
+                }
+                return $event;
+            });
+
+        // Set dispatcher on connection
+        $queryBuilder = self::$db->find();
+        $connection = $queryBuilder->getConnection();
+        $connection->setEventDispatcher($dispatcher);
+
+        // Delete should fail due to stopped propagation
+        $result = $user->delete();
+        $this->assertFalse($result);
+
+        // Verify user still exists
+        $found = TestUserModel::findOne($userId);
+        $this->assertNotNull($found);
+
+        // Clean up
+        $connection->setEventDispatcher(null);
     }
 }

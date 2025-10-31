@@ -19,6 +19,7 @@ Demonstrates:
 - Tracking dirty attributes
 - Populating models from arrays
 - Converting models to arrays
+- Lifecycle events with PSR-14 event dispatcher
 
 ## Running Examples
 
@@ -97,5 +98,6 @@ $rawData = User::find()->get();
 - **Dirty Tracking**: Automatically tracks changed attributes
 - **Query Building**: Full QueryBuilder API through ActiveQuery
 - **Flexible Finding**: Find by ID, condition, or composite keys
+- **Lifecycle Events**: PSR-14 event dispatcher integration for before/after hooks
 - **Database Agnostic**: Works with MySQL, PostgreSQL, and SQLite
 

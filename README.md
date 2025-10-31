@@ -675,6 +675,7 @@ $user->delete();
 - **Object-Based** - Work with objects instead of arrays
 - **Magic Accessors** - Access attributes via `$model->attribute`
 - **Dirty Tracking** - Automatically tracks changed attributes
+- **Lifecycle Events** - PSR-14 event dispatcher integration (beforeSave, afterSave, etc.)
 - **Full QueryBuilder API** - All QueryBuilder methods available through `ActiveQuery`
 - **Flexible Finding** - Find by ID, condition, or composite keys
 - **Cross-Database** - Works with MySQL, PostgreSQL, and SQLite

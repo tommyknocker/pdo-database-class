@@ -5,6 +5,14 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm;
 
 use RuntimeException;
+use tommyknocker\pdodb\events\ModelAfterDeleteEvent;
+use tommyknocker\pdodb\events\ModelAfterInsertEvent;
+use tommyknocker\pdodb\events\ModelAfterSaveEvent;
+use tommyknocker\pdodb\events\ModelAfterUpdateEvent;
+use tommyknocker\pdodb\events\ModelBeforeDeleteEvent;
+use tommyknocker\pdodb\events\ModelBeforeInsertEvent;
+use tommyknocker\pdodb\events\ModelBeforeSaveEvent;
+use tommyknocker\pdodb\events\ModelBeforeUpdateEvent;
 
 /**
  * ActiveRecord trait provides ORM functionality for model classes.
@@ -151,6 +159,27 @@ trait ActiveRecord
     }
 
     /**
+     * Dispatch an event if dispatcher is available.
+     *
+     * @param object $event The event to dispatch
+     */
+    protected function dispatchEvent(object $event): void
+    {
+        $db = static::getDb();
+        if ($db === null) {
+            return;
+        }
+
+        $queryBuilder = $db->find();
+        $connection = $queryBuilder->getConnection();
+        $dispatcher = $connection->getEventDispatcher();
+
+        if ($dispatcher !== null) {
+            $dispatcher->dispatch($event);
+        }
+    }
+
+    /**
      * Save model (insert or update).
      *
      * @param bool $runValidation Whether to run validation before saving
@@ -163,11 +192,31 @@ trait ActiveRecord
             return false;
         }
 
-        if ($this->isNewRecord) {
-            return $this->insert();
+        // Dispatch beforeSave event
+        $beforeSaveEvent = new ModelBeforeSaveEvent($this, $this->isNewRecord);
+        $this->dispatchEvent($beforeSaveEvent);
+
+        // Check if event propagation was stopped
+        if ($beforeSaveEvent->isPropagationStopped()) {
+            return false;
         }
 
-        return $this->update();
+        $wasNewRecord = $this->isNewRecord;
+        $success = false;
+
+        if ($this->isNewRecord) {
+            $success = $this->insert();
+        } else {
+            $success = $this->update();
+        }
+
+        if ($success) {
+            // Dispatch afterSave event
+            $afterSaveEvent = new ModelAfterSaveEvent($this, $wasNewRecord);
+            $this->dispatchEvent($afterSaveEvent);
+        }
+
+        return $success;
     }
 
     /**
@@ -177,6 +226,15 @@ trait ActiveRecord
      */
     protected function insert(): bool
     {
+        // Dispatch beforeInsert event
+        $beforeInsertEvent = new ModelBeforeInsertEvent($this);
+        $this->dispatchEvent($beforeInsertEvent);
+
+        // Check if event propagation was stopped
+        if ($beforeInsertEvent->isPropagationStopped()) {
+            return false;
+        }
+
         $db = static::getDb();
         if ($db === null) {
             throw new RuntimeException('Database connection not set. Use Model::setDb() to set connection.');
@@ -196,6 +254,8 @@ trait ActiveRecord
         $result = $db->find()->table($tableName)->insert($attributes);
 
         if ($result > 0) {
+            $insertId = null;
+
             // Set primary key if auto-increment
             if (count($pk) === 1 && (!isset($this->attributes[$pk[0]]) || ($this->attributes[$pk[0]] ?? null) === null)) {
                 // Get connection from QueryBuilder to access getLastInsertId
@@ -203,12 +263,20 @@ trait ActiveRecord
                 $connection = $queryBuilder->getConnection();
                 $lastId = $connection->getLastInsertId();
                 if ($lastId !== false && $lastId !== '0') {
-                    $this->attributes[$pk[0]] = is_numeric($lastId) ? (int)$lastId : $lastId;
+                    $insertId = is_numeric($lastId) ? (int)$lastId : $lastId;
+                    $this->attributes[$pk[0]] = $insertId;
                 }
+            } else {
+                $insertId = $this->attributes[$pk[0]] ?? null;
             }
 
             $this->oldAttributes = $this->attributes;
             $this->setIsNewRecord(false);
+
+            // Dispatch afterInsert event
+            $afterInsertEvent = new ModelAfterInsertEvent($this, $insertId);
+            $this->dispatchEvent($afterInsertEvent);
+
             return true;
         }
 
@@ -230,6 +298,15 @@ trait ActiveRecord
         $dirty = $this->getDirtyAttributes();
         if (empty($dirty)) {
             return true; // Nothing to update
+        }
+
+        // Dispatch beforeUpdate event
+        $beforeUpdateEvent = new ModelBeforeUpdateEvent($this, $dirty);
+        $this->dispatchEvent($beforeUpdateEvent);
+
+        // Check if event propagation was stopped
+        if ($beforeUpdateEvent->isPropagationStopped()) {
+            return false;
         }
 
         $pk = static::primaryKey();
@@ -257,6 +334,11 @@ trait ActiveRecord
 
         if ($result > 0) {
             $this->oldAttributes = $this->attributes;
+
+            // Dispatch afterUpdate event
+            $afterUpdateEvent = new ModelAfterUpdateEvent($this, $dirty, $result);
+            $this->dispatchEvent($afterUpdateEvent);
+
             return true;
         }
 
@@ -271,6 +353,15 @@ trait ActiveRecord
     public function delete(): bool
     {
         if ($this->isNewRecord) {
+            return false;
+        }
+
+        // Dispatch beforeDelete event
+        $beforeDeleteEvent = new ModelBeforeDeleteEvent($this);
+        $this->dispatchEvent($beforeDeleteEvent);
+
+        // Check if event propagation was stopped
+        if ($beforeDeleteEvent->isPropagationStopped()) {
             return false;
         }
 
@@ -296,6 +387,11 @@ trait ActiveRecord
         if ($result > 0) {
             $this->setIsNewRecord(true);
             $this->oldAttributes = [];
+
+            // Dispatch afterDelete event
+            $afterDeleteEvent = new ModelAfterDeleteEvent($this, $result);
+            $this->dispatchEvent($afterDeleteEvent);
+
             return true;
         }
 
