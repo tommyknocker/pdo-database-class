@@ -8,6 +8,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.9.0] - 2025-11-01
+
+### Added
+- **MariaDB Support** - Full support for MariaDB as a fourth database dialect:
+  - **New MariaDBDialect class** - Complete SQL dialect implementation for MariaDB
+  - **Comprehensive test coverage** - 171 tests, 783 assertions covering all MariaDB-specific functionality
+  - **GitHub Actions integration** - Dedicated CI job for MariaDB with coverage reporting
+  - **Example compatibility** - All 51 examples now support MariaDB (51/51 passing)
+  - **Documentation updates** - All README files and documentation updated to reflect 4-dialect support
+  - **Helper function support** - MariaDB support added to `examples/helpers.php` for CREATE TABLE normalization
+  - **Explain analysis support** - MariaDB EXPLAIN parsing uses MySQL-compatible parser
+
+- **MERGE Statement Support** - Standard SQL MERGE operations:
+  - **PostgreSQL**: Native MERGE statement with `MATCHED`/`NOT MATCHED` clauses
+  - **MySQL 8.0+**: Enhanced UPSERT via `INSERT ... ON DUPLICATE KEY UPDATE`
+  - **SQLite**: Enhanced UPSERT support
+  - **QueryBuilder::merge()** method for MERGE operations
+  - **Complex data synchronization** - Merge source data into target tables with conditional logic
+  - Examples in `examples/04-json/` and comprehensive documentation
+
+- **SQL Formatter/Pretty Printer** - Human-readable SQL output for debugging:
+  - **QueryBuilder::toSQL(bool $isFormatted = false)** - Optional formatted SQL output
+  - **Proper indentation** - Nested queries, JOINs, and subqueries properly indented
+  - **Line breaks** - Complex queries formatted across multiple lines for readability
+  - **Keyword highlighting** - Optional SQL keyword highlighting for better visualization
+  - **SqlFormatter class** - Standalone formatter for SQL queries
+  - Enhanced debugging experience for complex queries
+
+- **Query Builder IDE Autocomplete Enhancement**:
+  - **@template annotations** - Better type inference for IDE autocomplete
+  - **Improved return types** - More precise PHPDoc annotations for fluent interface methods
+  - **Better inheritance support** - Replaced `self` with `static` for fluent interface methods
+
+### Changed
+- **Fluent Interface Return Types** - Replaced `self` with `static` for better inheritance support:
+  - All fluent interface methods now return `static` instead of `self`
+  - Better support for extending QueryBuilder classes
+  - Improved IDE autocomplete in subclass contexts
+  - Applied to `QueryBuilder`, `SelectQueryBuilder`, `DmlQueryBuilder`, and all helper traits
+
+- **Documentation Improvements**:
+  - Replaced `Db::raw()` calls with QueryBuilder helpers where possible in documentation
+  - Better examples demonstrating proper helper usage
+  - Cleaner, more maintainable documentation examples
+
+### Fixed
+- **MariaDB Window Functions** - LAG/LEAD functions with default values:
+  - MariaDB doesn't support third parameter (default value) in LAG/LEAD
+  - Automatic COALESCE wrapper added for MariaDB when default value is provided
+  - Maintains API compatibility across all dialects
+
+- **MariaDB Type Casting** - CAST operations for MariaDB:
+  - Replaced `CAST(... AS REAL)` with `CAST(... AS DECIMAL(10,2))` for MariaDB/MySQL
+  - MariaDB doesn't support REAL type in CAST operations
+  - All type helper examples now work correctly on MariaDB
+
+- **MariaDB JSON Operations**:
+  - Fixed `JSON_SET` for nested paths - string values handled correctly without double-escaping
+  - Fixed `JSON_REMOVE` for array indices - uses proper JSON_REMOVE instead of JSON_SET with null
+  - MariaDB-specific JSON function handling
+
+- **MariaDB Health Check in GitHub Actions**:
+  - Fixed health check command to use built-in MariaDB healthcheck script
+  - Added `--health-start-period=40s` to allow MariaDB time to initialize
+  - Increased retries to 20 for better reliability
+
+- **Example Compatibility**:
+  - All examples updated to support MariaDB alongside MySQL, PostgreSQL, and SQLite
+  - CREATE TABLE statements normalized for MariaDB compatibility
+  - Dialect-specific logic updated in all example files
+
+### Technical Details
+- **All tests passing**: 1200 tests, 4856 assertions (+209 tests, +905 assertions from 2.8.0)
+- **All examples passing**: 204/204 examples (51 files × 4 dialects each)
+  - SQLite: 51/51 ✅
+  - MySQL: 51/51 ✅
+  - MariaDB: 51/51 ✅
+  - PostgreSQL: 51/51 ✅
+- **PHPStan Level 8**: Zero errors across entire codebase
+- **PHP-CS-Fixer**: All code complies with PSR-12 standards
+- **Full backward compatibility**: 100% maintained - all existing code continues to work
+- **Code quality**: Follows KISS, SOLID, DRY, YAGNI principles
+- **MariaDB integration**: Complete dialect support with comprehensive testing
+
 ## [2.8.0] - 2025-11-01
 
 ### Added
@@ -975,7 +1059,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.8.0...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.0...HEAD
+[2.9.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.8.0...v2.9.0
 [2.8.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.7.1...v2.8.0
 [2.7.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.6.2...v2.7.0
