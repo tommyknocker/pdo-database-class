@@ -259,7 +259,7 @@ $affected = $db->find()
         function ($q) {
             $q->table('product_updates')
               ->select('*')
-              ->where('updated_at', Db::raw('CURRENT_TIMESTAMP'), '>');
+              ->where('updated_at', Db::now(), '>');
         },
         'target.id = source.id',
         ['price' => Db::raw('source.price'), 'stock' => Db::raw('source.stock')],

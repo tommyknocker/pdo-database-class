@@ -82,7 +82,7 @@ ON CONFLICT (email) DO UPDATE SET
 // Insert or increment counter
 $db->find()->table('views')
     ->onDuplicate([
-        'count' => Db::raw('count + 1'),
+        'count' => Db::inc(1),
         'last_viewed' => Db::now()
     ])
     ->insert([

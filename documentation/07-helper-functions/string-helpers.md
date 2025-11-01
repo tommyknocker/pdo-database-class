@@ -186,10 +186,10 @@ PDOdb handles this automatically.
 ### 1. Use CONCAT for Readability
 
 ```php
-// ✅ Clear
+// ✅ Clear - use concat helper
 Db::concat('first_name', ' ', 'last_name')
 
-// ❌ Less clear
+// ❌ Less clear - avoid raw SQL for simple concatenation
 Db::raw("first_name || ' ' || last_name")
 ```
 

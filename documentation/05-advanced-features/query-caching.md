@@ -442,7 +442,7 @@ $db->getCacheManager()->delete('featured_products');
 $report = $db->find()
     ->from('orders')
     ->select([
-        Db::raw('DATE(created_at) as date'),
+        'date' => Db::date('created_at'),
         Db::count('*', 'total_orders'),
         Db::sum('total_amount', 'revenue'),
     ])

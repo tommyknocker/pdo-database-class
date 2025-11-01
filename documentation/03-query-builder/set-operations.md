@@ -67,15 +67,15 @@ You can chain multiple set operations:
 ```php
 $results = $db->find()
     ->from('sales_q1')
-    ->select(['product_id', Db::raw("'Q1' as quarter")])
+    ->select(['product_id', 'quarter' => 'Q1'])
     ->unionAll(function ($qb) {
-        $qb->from('sales_q2')->select(['product_id', Db::raw("'Q2' as quarter")]);
+        $qb->from('sales_q2')->select(['product_id', 'quarter' => 'Q2']);
     })
     ->unionAll(function ($qb) {
-        $qb->from('sales_q3')->select(['product_id', Db::raw("'Q3' as quarter")]);
+        $qb->from('sales_q3')->select(['product_id', 'quarter' => 'Q3']);
     })
     ->unionAll(function ($qb) {
-        $qb->from('sales_q4')->select(['product_id', Db::raw("'Q4' as quarter")]);
+        $qb->from('sales_q4')->select(['product_id', 'quarter' => 'Q4']);
     })
     ->orderBy('quarter')
     ->orderBy('product_id')
@@ -104,12 +104,12 @@ $results = $db->find()
 $results = $db->find()
     ->from('sales_2023')
     ->select([
-        'year' => Db::raw("'2023'"),
+        'year' => '2023',
         'total' => Db::sum('amount'),
     ])
     ->unionAll(function ($qb) {
         $qb->from('sales_2024')->select([
-            'year' => Db::raw("'2024'"),
+            'year' => '2024',
             'total' => Db::sum('amount'),
         ]);
     })
