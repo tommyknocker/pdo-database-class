@@ -42,7 +42,7 @@ interface FileLoaderInterface
      *
      * @param string $table The table name.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function setTable(string $table): self;
 
@@ -51,7 +51,7 @@ interface FileLoaderInterface
      *
      * @param string|null $prefix The prefix to set.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function setPrefix(?string $prefix): self;
 }

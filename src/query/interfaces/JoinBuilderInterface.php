@@ -15,7 +15,7 @@ interface JoinBuilderInterface
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      * @param string $type JOIN type, e.g. INNER, LEFT, RIGHT
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): self;
 
@@ -25,7 +25,7 @@ interface JoinBuilderInterface
      * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function leftJoin(string $tableAlias, string|RawValue $condition): self;
 
@@ -35,7 +35,7 @@ interface JoinBuilderInterface
      * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function rightJoin(string $tableAlias, string|RawValue $condition): self;
 
@@ -45,7 +45,7 @@ interface JoinBuilderInterface
      * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function innerJoin(string $tableAlias, string|RawValue $condition): self;
 
@@ -54,7 +54,7 @@ interface JoinBuilderInterface
      *
      * @param string|null $prefix The prefix to set.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function setPrefix(?string $prefix): self;
 
@@ -76,7 +76,7 @@ interface JoinBuilderInterface
      * @param string $type JOIN type, e.g. INNER, LEFT (default: LEFT)
      * @param string|null $alias Optional alias for LATERAL subquery/table
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function lateralJoin(
         string|callable $tableOrSubquery,

@@ -49,9 +49,9 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
      * @param string|null $alias
      * @param bool $asText
      *
-     * @return self
+     * @return static
      */
-    public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): self
+    public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): static
     {
         $expr = $this->dialect->formatJsonGet($col, $path, $asText);
         if ($alias) {
@@ -71,7 +71,7 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
      * @param mixed $value
      * @param string $cond
      *
-     * @return self
+     * @return static
      */
     public function whereJsonPath(
         string $col,
@@ -79,7 +79,7 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
         string $operator,
         mixed $value,
         string $cond = 'AND'
-    ): self {
+    ): static {
         $expr = $this->dialect->formatJsonGet($col, $path);
 
         if ($value instanceof RawValue) {
@@ -101,14 +101,14 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
      * @param array<int, string|int>|string|null $path
      * @param string $cond
      *
-     * @return self
+     * @return static
      */
     public function whereJsonContains(
         string $col,
         mixed $value,
         array|string|null $path = null,
         string $cond = 'AND'
-    ): self {
+    ): static {
         $res = $this->dialect->formatJsonContains($col, $value, $path);
         if (is_array($res)) {
             [$sql, $params] = $res;
@@ -181,9 +181,9 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
      * @param array<int, string|int>|string $path
      * @param string $direction
      *
-     * @return self
+     * @return static
      */
-    public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): self
+    public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): static
     {
         $expr = $this->dialect->formatJsonOrderExpr($col, $path);
         $this->order[] = $expr . ' ' . $direction;
@@ -197,9 +197,9 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
      * @param array<int, string|int>|string $path
      * @param string $cond
      *
-     * @return self
+     * @return static
      */
-    public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): self
+    public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): static
     {
         $expr = $this->dialect->formatJsonExists($col, $path);
         $this->conditionBuilder->whereRaw($expr);
@@ -229,9 +229,9 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
     /**
      * Clear JSON select expressions.
      *
-     * @return self
+     * @return static
      */
-    public function clearJsonSelects(): self
+    public function clearJsonSelects(): static
     {
         $this->select = [];
         return $this;
@@ -240,9 +240,9 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
     /**
      * Clear JSON order expressions.
      *
-     * @return self
+     * @return static
      */
-    public function clearJsonOrders(): self
+    public function clearJsonOrders(): static
     {
         $this->order = [];
         return $this;

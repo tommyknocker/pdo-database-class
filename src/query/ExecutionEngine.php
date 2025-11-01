@@ -38,9 +38,9 @@ class ExecutionEngine implements ExecutionEngineInterface
      *
      * @param QueryProfiler|null $profiler
      *
-     * @return self
+     * @return static
      */
-    public function setProfiler(?QueryProfiler $profiler): self
+    public function setProfiler(?QueryProfiler $profiler): static
     {
         $this->profiler = $profiler;
         return $this;
@@ -200,9 +200,9 @@ class ExecutionEngine implements ExecutionEngineInterface
      *
      * @param int $fetchMode
      *
-     * @return self
+     * @return static
      */
-    public function setFetchMode(int $fetchMode): self
+    public function setFetchMode(int $fetchMode): static
     {
         $this->fetchMode = $fetchMode;
         return $this;

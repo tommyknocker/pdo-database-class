@@ -15,7 +15,7 @@ interface ConditionBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
 
@@ -26,7 +26,7 @@ interface ConditionBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
 
@@ -37,7 +37,7 @@ interface ConditionBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
 
@@ -48,7 +48,7 @@ interface ConditionBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
 
@@ -59,7 +59,7 @@ interface ConditionBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
 
@@ -69,7 +69,7 @@ interface ConditionBuilderInterface
      * @param string $column The column to check
      * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery The subquery callback
      *
-     * @return self The current instance
+     * @return static The current instance
      */
     public function whereIn(string $column, callable $subquery): self;
 
@@ -79,7 +79,7 @@ interface ConditionBuilderInterface
      * @param string $column The column to check
      * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery The subquery callback
      *
-     * @return self The current instance
+     * @return static The current instance
      */
     public function whereNotIn(string $column, callable $subquery): self;
 
@@ -88,7 +88,7 @@ interface ConditionBuilderInterface
      *
      * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery The subquery callback
      *
-     * @return self The current instance
+     * @return static The current instance
      */
     public function whereExists(callable $subquery): self;
 
@@ -97,7 +97,7 @@ interface ConditionBuilderInterface
      *
      * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery The subquery callback
      *
-     * @return self The current instance
+     * @return static The current instance
      */
     public function whereNotExists(callable $subquery): self;
 
@@ -107,7 +107,7 @@ interface ConditionBuilderInterface
      * @param string $sql The raw SQL condition
      * @param array<string, mixed> $params The parameters for the condition
      *
-     * @return self The current instance
+     * @return static The current instance
      */
     public function whereRaw(string $sql, array $params = []): self;
 
@@ -117,7 +117,7 @@ interface ConditionBuilderInterface
      * @param string $sql The raw SQL condition
      * @param array<string, mixed> $params The parameters for the condition
      *
-     * @return self The current instance
+     * @return static The current instance
      */
     public function havingRaw(string $sql, array $params = []): self;
 
@@ -147,7 +147,7 @@ interface ConditionBuilderInterface
      *
      * @param string $table The table name.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function setTable(string $table): self;
 
@@ -156,7 +156,7 @@ interface ConditionBuilderInterface
      *
      * @param string|null $prefix The prefix to set.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function setPrefix(?string $prefix): self;
 
@@ -165,7 +165,7 @@ interface ConditionBuilderInterface
      *
      * @param int|null $limit The limit to set.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function setLimit(?int $limit): self;
 

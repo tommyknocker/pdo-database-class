@@ -54,9 +54,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @param int|null $limit
      *
-     * @return self
+     * @return static
      */
-    public function setLimit(?int $limit): self
+    public function setLimit(?int $limit): static
     {
         $this->limit = $limit;
         return $this;
@@ -67,9 +67,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @param int $number The number of rows to limit.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function limit(int $number): self
+    public function limit(int $number): static
     {
         $this->limit = $number;
         return $this;
@@ -82,9 +82,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
     {
         return $this->addCondition('where', $exprOrColumn, $value, $operator, 'AND');
     }
@@ -96,9 +96,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
     {
         return $this->where($exprOrColumn, $value, $operator);
     }
@@ -110,9 +110,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
     {
         return $this->addCondition('where', $exprOrColumn, $value, $operator, 'OR');
     }
@@ -124,9 +124,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
     {
         return $this->addCondition('having', $exprOrColumn, $value, $operator, 'AND');
     }
@@ -138,9 +138,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
     {
         return $this->addCondition('having', $exprOrColumn, $value, $operator, 'OR');
     }
@@ -151,9 +151,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      * @param string $column The column to check
      * @param callable(QueryBuilder): void $subquery The subquery callback
      *
-     * @return self The current instance
+     * @return static The current instance
      */
-    public function whereIn(string $column, callable $subquery): self
+    public function whereIn(string $column, callable $subquery): static
     {
         return $this->where($column, $subquery, 'IN');
     }
@@ -164,9 +164,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      * @param string $column The column to check
      * @param callable(QueryBuilder): void $subquery The subquery callback
      *
-     * @return self The current instance
+     * @return static The current instance
      */
-    public function whereNotIn(string $column, callable $subquery): self
+    public function whereNotIn(string $column, callable $subquery): static
     {
         return $this->where($column, $subquery, 'NOT IN');
     }
@@ -176,9 +176,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @param callable(QueryBuilder): void $subquery The subquery callback
      *
-     * @return self The current instance
+     * @return static The current instance
      */
-    public function whereExists(callable $subquery): self
+    public function whereExists(callable $subquery): static
     {
         $instance = new QueryBuilder($this->connection, $this->prefix ?? '');
         $subquery($instance);
@@ -194,9 +194,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @param callable(QueryBuilder): void $subquery The subquery callback
      *
-     * @return self The current instance
+     * @return static The current instance
      */
-    public function whereNotExists(callable $subquery): self
+    public function whereNotExists(callable $subquery): static
     {
         $instance = new QueryBuilder($this->connection, $this->prefix ?? '');
         $subquery($instance);
@@ -213,9 +213,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      * @param string $sql The raw SQL condition
      * @param array<string, mixed> $params The parameters for the condition
      *
-     * @return self The current instance
+     * @return static The current instance
      */
-    public function whereRaw(string $sql, array $params = []): self
+    public function whereRaw(string $sql, array $params = []): static
     {
         foreach ($params as $key => $value) {
             $placeholder = str_starts_with($key, ':') ? $key : ':' . $key;
@@ -231,9 +231,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      * @param string $sql The raw SQL condition
      * @param array<string, mixed> $params The parameters for the condition
      *
-     * @return self The current instance
+     * @return static The current instance
      */
-    public function havingRaw(string $sql, array $params = []): self
+    public function havingRaw(string $sql, array $params = []): static
     {
         foreach ($params as $key => $value) {
             $placeholder = str_starts_with($key, ':') ? $key : ':' . $key;
@@ -353,7 +353,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      * @param string $operator The operator to use in the condition.
      * @param string $cond The condition to use.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     protected function addCondition(
         string $prop,

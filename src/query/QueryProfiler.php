@@ -50,9 +50,9 @@ class QueryProfiler
     /**
      * Enable profiling.
      *
-     * @return self
+     * @return static
      */
-    public function enable(): self
+    public function enable(): static
     {
         $this->enabled = true;
         return $this;
@@ -61,9 +61,9 @@ class QueryProfiler
     /**
      * Disable profiling.
      *
-     * @return self
+     * @return static
      */
-    public function disable(): self
+    public function disable(): static
     {
         $this->enabled = false;
         $this->stats = [];
@@ -86,9 +86,9 @@ class QueryProfiler
      *
      * @param LoggerInterface|null $logger
      *
-     * @return self
+     * @return static
      */
-    public function setLogger(?LoggerInterface $logger): self
+    public function setLogger(?LoggerInterface $logger): static
     {
         $this->logger = $logger;
         return $this;
@@ -109,9 +109,9 @@ class QueryProfiler
      *
      * @param float $seconds Threshold in seconds
      *
-     * @return self
+     * @return static
      */
-    public function setSlowQueryThreshold(float $seconds): self
+    public function setSlowQueryThreshold(float $seconds): static
     {
         $this->slowQueryThreshold = $seconds;
         return $this;
@@ -280,9 +280,9 @@ class QueryProfiler
     /**
      * Reset all statistics.
      *
-     * @return self
+     * @return static
      */
-    public function reset(): self
+    public function reset(): static
     {
         $this->stats = [];
         $this->activeQueries = [];

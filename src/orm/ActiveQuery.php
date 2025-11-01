@@ -44,9 +44,9 @@ class ActiveQuery
      * @param string $name Method name
      * @param array<mixed> $arguments Method arguments
      *
-     * @return self ActiveQuery instance for chaining
+     * @return static ActiveQuery instance for chaining
      */
-    public function __call(string $name, array $arguments): self
+    public function __call(string $name, array $arguments): static
     {
         $result = $this->queryBuilder->$name(...$arguments);
 

@@ -76,7 +76,7 @@ interface DmlQueryBuilderInterface
      *
      * @param string|array<int|string, mixed> $option
      *
-     * @return self
+     * @return static
      */
     public function addOption(string|array $option): self;
 
@@ -85,7 +85,7 @@ interface DmlQueryBuilderInterface
      *
      * @param array<int|string, mixed> $options
      *
-     * @return self
+     * @return static
      */
     public function setOptions(array $options): self;
 
@@ -94,7 +94,7 @@ interface DmlQueryBuilderInterface
      *
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function onDuplicate(array $onDuplicate): self;
 
@@ -103,7 +103,7 @@ interface DmlQueryBuilderInterface
      *
      * @param string $table The table name.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function setTable(string $table): self;
 
@@ -112,7 +112,7 @@ interface DmlQueryBuilderInterface
      *
      * @param string|null $prefix The prefix to set.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function setPrefix(?string $prefix): self;
 
@@ -121,7 +121,7 @@ interface DmlQueryBuilderInterface
      *
      * @param int|null $limit The limit to set.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function setLimit(?int $limit): self;
 

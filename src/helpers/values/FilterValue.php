@@ -32,9 +32,9 @@ class FilterValue extends RawValue
      * @param mixed $value Value to compare.
      * @param string $operator Comparison operator.
      *
-     * @return self
+     * @return static
      */
-    public function filter(string $column, mixed $value, string $operator = '='): self
+    public function filter(string $column, mixed $value, string $operator = '='): static
     {
         $this->filterConditions[] = [
             'column' => $column,

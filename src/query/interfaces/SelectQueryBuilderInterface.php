@@ -19,7 +19,7 @@ interface SelectQueryBuilderInterface
      *
      * @param RawValue|callable(\tommyknocker\pdodb\query\QueryBuilder): void|string|array<int|string, string|RawValue|callable(\tommyknocker\pdodb\query\QueryBuilder): void> $cols The columns to add.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function select(RawValue|callable|string|array $cols): self;
 
@@ -57,7 +57,7 @@ interface SelectQueryBuilderInterface
      * @param string|array<int|string, string>|RawValue $expr The expression(s) to order by.
      * @param string $direction The direction of the ordering (ASC or DESC).
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): self;
 
@@ -66,7 +66,7 @@ interface SelectQueryBuilderInterface
      *
      * @param string $expr The complete ORDER BY expression.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function addOrderExpression(string $expr): self;
 
@@ -76,14 +76,14 @@ interface SelectQueryBuilderInterface
      * @param int $ttl Time-to-live in seconds
      * @param string|null $key Custom cache key (null = auto-generate)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function cache(int $ttl = 3600, ?string $key = null): self;
 
     /**
      * Disable caching for this query.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function noCache(): self;
 
@@ -92,7 +92,7 @@ interface SelectQueryBuilderInterface
      *
      * @param string|array<int, string|RawValue>|RawValue $cols The columns to group by.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function groupBy(string|array|RawValue $cols): self;
 
@@ -101,7 +101,7 @@ interface SelectQueryBuilderInterface
      *
      * @param int $number The number of rows to limit.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function limit(int $number): self;
 
@@ -110,7 +110,7 @@ interface SelectQueryBuilderInterface
      *
      * @param int $number The number of rows to offset.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function offset(int $number): self;
 
@@ -119,14 +119,14 @@ interface SelectQueryBuilderInterface
      *
      * @param string|array<int|string, mixed> $options The query options.
      *
-     * @return self The current object.
+     * @return static The current object.
      */
     public function option(string|array $options): self;
 
     /**
      * Set fetch mode to return objects.
      *
-     * @return self
+     * @return static
      */
     public function asObject(): self;
 
@@ -195,7 +195,7 @@ interface SelectQueryBuilderInterface
      *
      * @param string $table The table name.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function setTable(string $table): self;
 
@@ -204,7 +204,7 @@ interface SelectQueryBuilderInterface
      *
      * @param string|null $prefix The prefix to set.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function setPrefix(?string $prefix): self;
 
@@ -257,7 +257,7 @@ interface SelectQueryBuilderInterface
      *
      * @param CteManager|null $cteManager
      *
-     * @return self
+     * @return static
      */
     public function setCteManager(?CteManager $cteManager): self;
 
@@ -266,7 +266,7 @@ interface SelectQueryBuilderInterface
      *
      * @param array<UnionQuery> $unions
      *
-     * @return self
+     * @return static
      */
     public function setUnions(array $unions): self;
 
@@ -275,7 +275,7 @@ interface SelectQueryBuilderInterface
      *
      * @param bool $distinct
      *
-     * @return self
+     * @return static
      */
     public function setDistinct(bool $distinct): self;
 
@@ -284,7 +284,7 @@ interface SelectQueryBuilderInterface
      *
      * @param array<string> $columns
      *
-     * @return self
+     * @return static
      */
     public function setDistinctOn(array $columns): self;
 }

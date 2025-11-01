@@ -31,7 +31,7 @@ interface ParameterManagerInterface
      * @param string $name
      * @param mixed $value
      *
-     * @return self
+     * @return static
      */
     public function setParam(string $name, mixed $value): self;
 
@@ -76,14 +76,14 @@ interface ParameterManagerInterface
      *
      * @param array<string, string|int|float|bool|null> $params
      *
-     * @return self
+     * @return static
      */
     public function setParams(array $params): self;
 
     /**
      * Clear all parameters.
      *
-     * @return self
+     * @return static
      */
     public function clearParams(): self;
 }

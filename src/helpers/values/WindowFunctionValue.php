@@ -106,9 +106,9 @@ class WindowFunctionValue extends RawValue
      *
      * @param string|array<string> $columns Column name(s)
      *
-     * @return self
+     * @return static
      */
-    public function partitionBy(string|array $columns): self
+    public function partitionBy(string|array $columns): static
     {
         $this->partitionBy = is_array($columns) ? $columns : [$columns];
         return $this;
@@ -120,9 +120,9 @@ class WindowFunctionValue extends RawValue
      * @param string|array<string, string> $column Column name or array of columns with directions
      * @param string $direction Direction (ASC or DESC) when $column is string
      *
-     * @return self
+     * @return static
      */
-    public function orderBy(string|array $column, string $direction = 'ASC'): self
+    public function orderBy(string|array $column, string $direction = 'ASC'): static
     {
         if (is_array($column)) {
             foreach ($column as $col => $dir) {
@@ -145,9 +145,9 @@ class WindowFunctionValue extends RawValue
      *
      * @param string|null $frameClause Frame clause (e.g., 'ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW')
      *
-     * @return self
+     * @return static
      */
-    public function rows(?string $frameClause): self
+    public function rows(?string $frameClause): static
     {
         $this->frameClause = $frameClause;
         return $this;

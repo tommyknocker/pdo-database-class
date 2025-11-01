@@ -82,9 +82,9 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
      *
      * @param string $table
      *
-     * @return self
+     * @return static
      */
-    public function setTable(string $table): self
+    public function setTable(string $table): static
     {
         $this->table = $table;
         $this->conditionBuilder->setTable($table);
@@ -96,9 +96,9 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
      *
      * @param string|null $prefix
      *
-     * @return self
+     * @return static
      */
-    public function setPrefix(?string $prefix): self
+    public function setPrefix(?string $prefix): static
     {
         $this->prefix = $prefix;
         $this->conditionBuilder->setPrefix($prefix);
@@ -271,9 +271,9 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
      *
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function onDuplicate(array $onDuplicate): self
+    public function onDuplicate(array $onDuplicate): static
     {
         $this->onDuplicate = $onDuplicate;
         return $this;
@@ -284,9 +284,9 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
      *
      * @param string|array<int|string, mixed> $option
      *
-     * @return self
+     * @return static
      */
-    public function addOption(string|array $option): self
+    public function addOption(string|array $option): static
     {
         if (is_array($option)) {
             foreach ($option as $key => $value) {
@@ -307,9 +307,9 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
      *
      * @param array<int|string, mixed> $options
      *
-     * @return self
+     * @return static
      */
-    public function setOptions(array $options): self
+    public function setOptions(array $options): static
     {
         $this->options = $options;
         return $this;
@@ -320,9 +320,9 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
      *
      * @param int|null $limit
      *
-     * @return self
+     * @return static
      */
-    public function setLimit(?int $limit): self
+    public function setLimit(?int $limit): static
     {
         $this->limit = $limit;
         return $this;

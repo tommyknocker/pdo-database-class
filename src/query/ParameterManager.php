@@ -49,9 +49,9 @@ class ParameterManager implements ParameterManagerInterface
      * @param string $name
      * @param mixed $value
      *
-     * @return self
+     * @return static
      */
-    public function setParam(string $name, mixed $value): self
+    public function setParam(string $name, mixed $value): static
     {
         $this->params[$name] = $value;
         return $this;
@@ -141,9 +141,9 @@ class ParameterManager implements ParameterManagerInterface
      *
      * @param array<string, string|int|float|bool|null> $params
      *
-     * @return self
+     * @return static
      */
-    public function setParams(array $params): self
+    public function setParams(array $params): static
     {
         $this->params = $params;
         return $this;
@@ -152,9 +152,9 @@ class ParameterManager implements ParameterManagerInterface
     /**
      * Clear all parameters.
      *
-     * @return self
+     * @return static
      */
-    public function clearParams(): self
+    public function clearParams(): static
     {
         $this->params = [];
         return $this;

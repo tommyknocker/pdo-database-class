@@ -150,9 +150,9 @@ class PdoDb
      *
      * @param float $slowQueryThreshold Slow query threshold in seconds (default: 1.0)
      *
-     * @return self
+     * @return static
      */
-    public function enableProfiling(float $slowQueryThreshold = 1.0): self
+    public function enableProfiling(float $slowQueryThreshold = 1.0): static
     {
         if ($this->profiler === null) {
             $this->profiler = new QueryProfiler();
@@ -168,9 +168,9 @@ class PdoDb
     /**
      * Disable query profiling.
      *
-     * @return self
+     * @return static
      */
-    public function disableProfiling(): self
+    public function disableProfiling(): static
     {
         $this->profiler?->disable();
         return $this;
@@ -217,9 +217,9 @@ class PdoDb
     /**
      * Reset profiler statistics.
      *
-     * @return self
+     * @return static
      */
-    public function resetProfiler(): self
+    public function resetProfiler(): static
     {
         $this->profiler?->reset();
         return $this;
@@ -240,9 +240,9 @@ class PdoDb
      *
      * @param QueryProfiler|null $profiler
      *
-     * @return self
+     * @return static
      */
-    public function setProfiler(?QueryProfiler $profiler): self
+    public function setProfiler(?QueryProfiler $profiler): static
     {
         $this->profiler = $profiler;
         return $this;
@@ -270,9 +270,9 @@ class PdoDb
      *
      * @param EventDispatcherInterface|null $dispatcher The dispatcher instance or null to disable
      *
-     * @return self
+     * @return static
      */
-    public function setEventDispatcher(?EventDispatcherInterface $dispatcher): self
+    public function setEventDispatcher(?EventDispatcherInterface $dispatcher): static
     {
         $this->eventDispatcher = $dispatcher;
 
@@ -309,9 +309,9 @@ class PdoDb
      *
      * @param QueryCompilationCache|null $compilationCache Compilation cache instance
      *
-     * @return self
+     * @return static
      */
-    public function setCompilationCache(?QueryCompilationCache $compilationCache): self
+    public function setCompilationCache(?QueryCompilationCache $compilationCache): static
     {
         $this->compilationCache = $compilationCache;
         return $this;
@@ -484,9 +484,9 @@ class PdoDb
      *
      * @param string $method The lock method to use.
      *
-     * @return self The current object.
+     * @return static The current object.
      */
-    public function setLockMethod(string $method): self
+    public function setLockMethod(string $method): static
     {
         $upper = strtoupper($method);
         if (!in_array($upper, [self::LOCK_WRITE, self::LOCK_READ], true)) {
@@ -551,9 +551,9 @@ class PdoDb
      *
      * @param string $name The name of the connection.
      *
-     * @return self The connection.
+     * @return static The connection.
      */
-    public function connection(string $name): self
+    public function connection(string $name): static
     {
         if (!isset($this->connections[$name])) {
             throw new RuntimeException("Connection $name not found");
@@ -604,10 +604,10 @@ class PdoDb
      *
      * @param int $seconds The timeout in seconds.
      *
-     * @return self The current object.
+     * @return static The current object.
      * @throws RuntimeException If the timeout cannot be set.
      */
-    public function setTimeout(int $seconds): self
+    public function setTimeout(int $seconds): static
     {
         try {
             $this->connection->setAttribute(\PDO::ATTR_TIMEOUT, $seconds);
@@ -733,9 +733,9 @@ class PdoDb
      *
      * @param LoadBalancerInterface|null $loadBalancer Load balancer strategy
      *
-     * @return self
+     * @return static
      */
-    public function enableReadWriteSplitting(?LoadBalancerInterface $loadBalancer = null): self
+    public function enableReadWriteSplitting(?LoadBalancerInterface $loadBalancer = null): static
     {
         $this->connectionRouter = new ConnectionRouter($loadBalancer);
         $this->readWriteSplittingEnabled = true;
@@ -745,9 +745,9 @@ class PdoDb
     /**
      * Disable read/write connection splitting.
      *
-     * @return self
+     * @return static
      */
-    public function disableReadWriteSplitting(): self
+    public function disableReadWriteSplitting(): static
     {
         $this->readWriteSplittingEnabled = false;
         $this->connectionRouter = null;
@@ -759,9 +759,9 @@ class PdoDb
      *
      * @param int $durationSeconds Duration in seconds
      *
-     * @return self
+     * @return static
      */
-    public function enableStickyWrites(int $durationSeconds): self
+    public function enableStickyWrites(int $durationSeconds): static
     {
         if ($this->connectionRouter === null) {
             throw new RuntimeException('Read/write splitting must be enabled first');
@@ -773,9 +773,9 @@ class PdoDb
     /**
      * Disable sticky writes.
      *
-     * @return self
+     * @return static
      */
-    public function disableStickyWrites(): self
+    public function disableStickyWrites(): static
     {
         if ($this->connectionRouter !== null) {
             $this->connectionRouter->disableStickyWrites();

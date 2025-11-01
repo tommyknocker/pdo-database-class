@@ -190,9 +190,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param ConnectionRouter|null $router
      *
-     * @return self
+     * @return static
      */
-    public function setConnectionRouter(?ConnectionRouter $router): self
+    public function setConnectionRouter(?ConnectionRouter $router): static
     {
         $this->connectionRouter = $router;
         return $this;
@@ -201,9 +201,9 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Force next read query to use write connection.
      *
-     * @return self
+     * @return static
      */
-    public function forceWrite(): self
+    public function forceWrite(): static
     {
         $this->forceWriteConnection = true;
         return $this;
@@ -295,9 +295,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param string $table The table to query.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function table(string $table): self
+    public function table(string $table): static
     {
         return $this->from($table);
     }
@@ -307,9 +307,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param string $table The table to query.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function from(string $table): self
+    public function from(string $table): static
     {
         $this->table = $table;
         $this->selectQueryBuilder->setTable($table);
@@ -325,13 +325,13 @@ class QueryBuilder implements QueryBuilderInterface
      * @param QueryBuilder|Closure(QueryBuilder): void|string|RawValue $query Query builder, closure, or raw SQL
      * @param array<string> $columns Optional explicit column list
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function with(
         string $name,
         QueryBuilder|Closure|string|RawValue $query,
         array $columns = []
-    ): self {
+    ): static {
         if ($this->cteManager === null) {
             $this->cteManager = new CteManager($this->connection);
         }
@@ -354,13 +354,13 @@ class QueryBuilder implements QueryBuilderInterface
      * @param QueryBuilder|Closure(QueryBuilder): void|string|RawValue $query Query with UNION ALL structure
      * @param array<string> $columns Explicit column list (recommended for recursive CTEs)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function withRecursive(
         string $name,
         QueryBuilder|Closure|string|RawValue $query,
         array $columns = []
-    ): self {
+    ): static {
         if ($this->cteManager === null) {
             $this->cteManager = new CteManager($this->connection);
         }
@@ -391,14 +391,14 @@ class QueryBuilder implements QueryBuilderInterface
      * @param QueryBuilder|Closure(QueryBuilder): void|string|RawValue $query Query builder, closure, or raw SQL
      * @param array<string> $columns Explicit column list (optional)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      * @throws \RuntimeException If database dialect does not support materialized CTEs
      */
     public function withMaterialized(
         string $name,
         QueryBuilder|Closure|string|RawValue $query,
         array $columns = []
-    ): self {
+    ): static {
         if ($this->cteManager === null) {
             $this->cteManager = new CteManager($this->connection);
         }
@@ -429,9 +429,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param QueryBuilder|Closure(QueryBuilder): void $query Query to union.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function union(QueryBuilder|Closure $query): self
+    public function union(QueryBuilder|Closure $query): static
     {
         $this->unions[] = new UnionQuery('UNION', $query);
         return $this;
@@ -442,9 +442,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param QueryBuilder|Closure(QueryBuilder): void $query Query to union.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function unionAll(QueryBuilder|Closure $query): self
+    public function unionAll(QueryBuilder|Closure $query): static
     {
         $this->unions[] = new UnionQuery('UNION ALL', $query);
         return $this;
@@ -455,9 +455,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param QueryBuilder|Closure(QueryBuilder): void $query Query to intersect.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function intersect(QueryBuilder|Closure $query): self
+    public function intersect(QueryBuilder|Closure $query): static
     {
         $this->unions[] = new UnionQuery('INTERSECT', $query);
         return $this;
@@ -468,9 +468,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param QueryBuilder|Closure(QueryBuilder): void $query Query to except.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function except(QueryBuilder|Closure $query): self
+    public function except(QueryBuilder|Closure $query): static
     {
         $this->unions[] = new UnionQuery('EXCEPT', $query);
         return $this;
@@ -489,9 +489,9 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Enable DISTINCT for the query.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function distinct(): self
+    public function distinct(): static
     {
         $this->distinct = true;
         return $this;
@@ -503,10 +503,10 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param string|array<string> $columns Column(s) for DISTINCT ON.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      * @throws RuntimeException If database does not support DISTINCT ON.
      */
-    public function distinctOn(string|array $columns): self
+    public function distinctOn(string|array $columns): static
     {
         if (!$this->dialect->supportsDistinctOn()) {
             throw new RuntimeException(
@@ -543,9 +543,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param string $prefix The prefix for table names.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function prefix(string $prefix): self
+    public function prefix(string $prefix): static
     {
         $this->prefix = $prefix;
         $this->setPrefix($prefix);
@@ -573,9 +573,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param RawValue|callable(QueryBuilderInterface): void|string|array<int|string, string|RawValue|callable(QueryBuilderInterface): void> $cols The columns to add.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function select(RawValue|callable|string|array $cols): self
+    public function select(RawValue|callable|string|array $cols): static
     {
         $this->selectQueryBuilder->select($cols);
         return $this;
@@ -1011,9 +1011,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
     {
         // Handle the old signature: where(array $conditions, array $params)
         if (is_array($exprOrColumn) && is_array($value) && $operator === '=') {
@@ -1044,9 +1044,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
     {
         $this->conditionBuilder->andWhere($exprOrColumn, $value, $operator);
         return $this;
@@ -1059,9 +1059,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
     {
         $this->conditionBuilder->orWhere($exprOrColumn, $value, $operator);
         return $this;
@@ -1074,9 +1074,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
     {
         $this->conditionBuilder->having($exprOrColumn, $value, $operator);
         return $this;
@@ -1089,9 +1089,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self
+    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
     {
         $this->conditionBuilder->orHaving($exprOrColumn, $value, $operator);
         return $this;
@@ -1103,9 +1103,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param string $column The column to check
      * @param callable(QueryBuilderInterface): void $subquery The subquery callback
      *
-     * @return self The current instance
+     * @return static The current instance
      */
-    public function whereIn(string $column, callable $subquery): self
+    public function whereIn(string $column, callable $subquery): static
     {
         $this->conditionBuilder->whereIn($column, $subquery);
         return $this;
@@ -1117,9 +1117,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param string $column The column to check
      * @param callable(QueryBuilderInterface): void $subquery The subquery callback
      *
-     * @return self The current instance
+     * @return static The current instance
      */
-    public function whereNotIn(string $column, callable $subquery): self
+    public function whereNotIn(string $column, callable $subquery): static
     {
         $this->conditionBuilder->whereNotIn($column, $subquery);
         return $this;
@@ -1130,9 +1130,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param callable(QueryBuilderInterface): void $subquery The subquery callback
      *
-     * @return self The current instance
+     * @return static The current instance
      */
-    public function whereExists(callable $subquery): self
+    public function whereExists(callable $subquery): static
     {
         $this->conditionBuilder->whereExists($subquery);
         return $this;
@@ -1143,9 +1143,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param callable(QueryBuilderInterface): void $subquery The subquery callback
      *
-     * @return self The current instance
+     * @return static The current instance
      */
-    public function whereNotExists(callable $subquery): self
+    public function whereNotExists(callable $subquery): static
     {
         $this->conditionBuilder->whereNotExists($subquery);
         return $this;
@@ -1157,9 +1157,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param string $sql The raw SQL condition
      * @param array<string, mixed> $params The parameters for the condition
      *
-     * @return self The current instance
+     * @return static The current instance
      */
-    public function whereRaw(string $sql, array $params = []): self
+    public function whereRaw(string $sql, array $params = []): static
     {
         $this->conditionBuilder->whereRaw($sql, $params);
         return $this;
@@ -1171,9 +1171,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param string $sql The raw SQL condition
      * @param array<string, mixed> $params The parameters for the condition
      *
-     * @return self The current instance
+     * @return static The current instance
      */
-    public function havingRaw(string $sql, array $params = []): self
+    public function havingRaw(string $sql, array $params = []): static
     {
         $this->conditionBuilder->havingRaw($sql, $params);
         return $this;
@@ -1222,9 +1222,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      * @param string $type JOIN type, e.g. INNER, LEFT, RIGHT
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): self
+    public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): static
     {
         $this->joinBuilder->join($tableAlias, $condition, $type);
         return $this;
@@ -1236,9 +1236,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function leftJoin(string $tableAlias, string|RawValue $condition): self
+    public function leftJoin(string $tableAlias, string|RawValue $condition): static
     {
         $this->joinBuilder->leftJoin($tableAlias, $condition);
         return $this;
@@ -1250,9 +1250,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function rightJoin(string $tableAlias, string|RawValue $condition): self
+    public function rightJoin(string $tableAlias, string|RawValue $condition): static
     {
         $this->joinBuilder->rightJoin($tableAlias, $condition);
         return $this;
@@ -1264,9 +1264,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function innerJoin(string $tableAlias, string|RawValue $condition): self
+    public function innerJoin(string $tableAlias, string|RawValue $condition): static
     {
         $this->joinBuilder->innerJoin($tableAlias, $condition);
         return $this;
@@ -1283,14 +1283,14 @@ class QueryBuilder implements QueryBuilderInterface
      * @param string $type JOIN type (default: LEFT)
      * @param string|null $alias Optional alias for LATERAL subquery
      *
-     * @return self
+     * @return static
      */
     public function lateralJoin(
         string|callable $tableOrSubquery,
         string|RawValue|null $condition = null,
         string $type = 'LEFT',
         ?string $alias = null
-    ): self {
+    ): static {
         $this->joinBuilder->lateralJoin($tableOrSubquery, $condition, $type, $alias);
         return $this;
     }
@@ -1303,9 +1303,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param string|array<int|string, string>|RawValue $expr The expression(s) to order by.
      * @param string $direction The direction of the ordering (ASC or DESC).
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): self
+    public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): static
     {
         $this->selectQueryBuilder->orderBy($expr, $direction);
         return $this;
@@ -1316,9 +1316,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param string|array<int, string|RawValue>|RawValue $cols The columns to group by.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function groupBy(string|array|RawValue $cols): self
+    public function groupBy(string|array|RawValue $cols): static
     {
         $this->selectQueryBuilder->groupBy($cols);
         return $this;
@@ -1330,9 +1330,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param int $ttl Time-to-live in seconds
      * @param string|null $key Custom cache key (null = auto-generate)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function cache(int $ttl = 3600, ?string $key = null): self
+    public function cache(int $ttl = 3600, ?string $key = null): static
     {
         $this->selectQueryBuilder->cache($ttl, $key);
         return $this;
@@ -1341,9 +1341,9 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Disable caching for this query.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function noCache(): self
+    public function noCache(): static
     {
         $this->selectQueryBuilder->noCache();
         return $this;
@@ -1354,9 +1354,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param int $number The number of rows to limit.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function limit(int $number): self
+    public function limit(int $number): static
     {
         $this->selectQueryBuilder->limit($number);
         $this->dmlQueryBuilder->setLimit($number);
@@ -1368,9 +1368,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param int $number The number of rows to offset.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function offset(int $number): self
+    public function offset(int $number): static
     {
         $this->selectQueryBuilder->offset($number);
         return $this;
@@ -1381,9 +1381,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param string|array<int|string, mixed> $options The query options.
      *
-     * @return self The current object.
+     * @return static The current object.
      */
-    public function option(string|array $options): self
+    public function option(string|array $options): static
     {
         $this->selectQueryBuilder->option($options);
 
@@ -1396,9 +1396,9 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Set fetch mode to return objects.
      *
-     * @return self
+     * @return static
      */
-    public function asObject(): self
+    public function asObject(): static
     {
         $this->selectQueryBuilder->asObject();
         return $this;
@@ -1411,9 +1411,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function onDuplicate(array $onDuplicate): self
+    public function onDuplicate(array $onDuplicate): static
     {
         $this->dmlQueryBuilder->onDuplicate($onDuplicate);
         return $this;
@@ -1623,9 +1623,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param string|null $alias
      * @param bool $asText
      *
-     * @return self
+     * @return static
      */
-    public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): self
+    public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): static
     {
         $this->jsonQueryBuilder->selectJson($col, $path, $alias, $asText);
         return $this;
@@ -1640,7 +1640,7 @@ class QueryBuilder implements QueryBuilderInterface
      * @param mixed $value
      * @param string $cond
      *
-     * @return self
+     * @return static
      */
     public function whereJsonPath(
         string $col,
@@ -1648,7 +1648,7 @@ class QueryBuilder implements QueryBuilderInterface
         string $operator,
         mixed $value,
         string $cond = 'AND'
-    ): self {
+    ): static {
         $this->jsonQueryBuilder->whereJsonPath($col, $path, $operator, $value, $cond);
         return $this;
     }
@@ -1661,14 +1661,14 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<int, string|int>|string|null $path
      * @param string $cond
      *
-     * @return self
+     * @return static
      */
     public function whereJsonContains(
         string $col,
         mixed $value,
         array|string|null $path = null,
         string $cond = 'AND'
-    ): self {
+    ): static {
         $this->jsonQueryBuilder->whereJsonContains($col, $value, $path, $cond);
         return $this;
     }
@@ -1707,9 +1707,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<int, string|int>|string $path
      * @param string $direction
      *
-     * @return self
+     * @return static
      */
-    public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): self
+    public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): static
     {
         $this->jsonQueryBuilder->orderByJson($col, $path, $direction);
         return $this;
@@ -1722,9 +1722,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<int, string|int>|string $path
      * @param string $cond
      *
-     * @return self
+     * @return static
      */
-    public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): self
+    public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): static
     {
         $this->jsonQueryBuilder->whereJsonExists($col, $path, $cond);
         return $this;

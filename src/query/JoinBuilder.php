@@ -47,9 +47,9 @@ class JoinBuilder implements JoinBuilderInterface
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      * @param string $type JOIN type, e.g. INNER, LEFT, RIGHT
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): self
+    public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): static
     {
         $type = strtoupper(trim($type));
         $tableSql = $this->normalizeTable($tableAlias);
@@ -64,9 +64,9 @@ class JoinBuilder implements JoinBuilderInterface
      * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function leftJoin(string $tableAlias, string|RawValue $condition): self
+    public function leftJoin(string $tableAlias, string|RawValue $condition): static
     {
         $this->join($tableAlias, $condition, 'LEFT');
         return $this;
@@ -78,9 +78,9 @@ class JoinBuilder implements JoinBuilderInterface
      * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function rightJoin(string $tableAlias, string|RawValue $condition): self
+    public function rightJoin(string $tableAlias, string|RawValue $condition): static
     {
         $this->join($tableAlias, $condition, 'RIGHT');
         return $this;
@@ -92,9 +92,9 @@ class JoinBuilder implements JoinBuilderInterface
      * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
      * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function innerJoin(string $tableAlias, string|RawValue $condition): self
+    public function innerJoin(string $tableAlias, string|RawValue $condition): static
     {
         $this->join($tableAlias, $condition);
         return $this;
@@ -111,7 +111,7 @@ class JoinBuilder implements JoinBuilderInterface
      * @param string $type JOIN type, e.g. INNER, LEFT (default: LEFT)
      * @param string|null $alias Optional alias for LATERAL subquery/table
      *
-     * @return self The current instance.
+     * @return static The current instance.
      * @throws RuntimeException If LATERAL JOIN is not supported by the dialect
      */
     public function lateralJoin(
@@ -119,7 +119,7 @@ class JoinBuilder implements JoinBuilderInterface
         string|RawValue|null $condition = null,
         string $type = 'LEFT',
         ?string $alias = null
-    ): self {
+    ): static {
         if (!$this->dialect->supportsLateralJoin()) {
             throw new RuntimeException(
                 'LATERAL JOIN is not supported by ' . $this->dialect->getDriverName() . ' dialect'

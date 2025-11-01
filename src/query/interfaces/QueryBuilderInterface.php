@@ -38,21 +38,21 @@ interface QueryBuilderInterface
     /**
      * @param string $table
      *
-     * @return self
+     * @return static
      */
     public function table(string $table): self;
 
     /**
      * @param string $table
      *
-     * @return self
+     * @return static
      */
     public function from(string $table): self;
 
     /**
      * @param string $prefix
      *
-     * @return self
+     * @return static
      */
     public function prefix(string $prefix): self;
 
@@ -60,7 +60,7 @@ interface QueryBuilderInterface
     /**
      * @param RawValue|string|array<int|string, string|RawValue|callable(\tommyknocker\pdodb\query\QueryBuilder): void> $cols
      *
-     * @return self
+     * @return static
      */
     public function select(RawValue|string|array $cols): self;
 
@@ -141,7 +141,7 @@ interface QueryBuilderInterface
      * @param mixed|null $value
      * @param string $operator
      *
-     * @return self
+     * @return static
      */
     public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
 
@@ -150,7 +150,7 @@ interface QueryBuilderInterface
      * @param mixed|null $value
      * @param string $operator
      *
-     * @return self
+     * @return static
      */
     public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
 
@@ -159,7 +159,7 @@ interface QueryBuilderInterface
      * @param mixed|null $value
      * @param string $operator
      *
-     * @return self
+     * @return static
      */
     public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
 
@@ -168,7 +168,7 @@ interface QueryBuilderInterface
      * @param mixed|null $value
      * @param string $operator
      *
-     * @return self
+     * @return static
      */
     public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
 
@@ -177,7 +177,7 @@ interface QueryBuilderInterface
      * @param mixed|null $value
      * @param string $operator
      *
-     * @return self
+     * @return static
      */
     public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
 
@@ -186,7 +186,7 @@ interface QueryBuilderInterface
      * @param string $column
      * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery
      *
-     * @return self
+     * @return static
      */
     public function whereIn(string $column, callable $subquery): self;
 
@@ -194,21 +194,21 @@ interface QueryBuilderInterface
      * @param string $column
      * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery
      *
-     * @return self
+     * @return static
      */
     public function whereNotIn(string $column, callable $subquery): self;
 
     /**
      * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery
      *
-     * @return self
+     * @return static
      */
     public function whereExists(callable $subquery): self;
 
     /**
      * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery
      *
-     * @return self
+     * @return static
      */
     public function whereNotExists(callable $subquery): self;
 
@@ -216,7 +216,7 @@ interface QueryBuilderInterface
      * @param string $sql
      * @param array<string, mixed> $params
      *
-     * @return self
+     * @return static
      */
     public function whereRaw(string $sql, array $params = []): self;
 
@@ -224,7 +224,7 @@ interface QueryBuilderInterface
      * @param string $sql
      * @param array<string, mixed> $params
      *
-     * @return self
+     * @return static
      */
     public function havingRaw(string $sql, array $params = []): self;
 
@@ -272,7 +272,7 @@ interface QueryBuilderInterface
      * @param string|RawValue $condition
      * @param string $type
      *
-     * @return self
+     * @return static
      */
     public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): self;
 
@@ -280,7 +280,7 @@ interface QueryBuilderInterface
      * @param string $tableAlias
      * @param string|RawValue $condition
      *
-     * @return self
+     * @return static
      */
     public function leftJoin(string $tableAlias, string|RawValue $condition): self;
 
@@ -288,7 +288,7 @@ interface QueryBuilderInterface
      * @param string $tableAlias
      * @param string|RawValue $condition
      *
-     * @return self
+     * @return static
      */
     public function rightJoin(string $tableAlias, string|RawValue $condition): self;
 
@@ -296,7 +296,7 @@ interface QueryBuilderInterface
      * @param string $tableAlias
      * @param string|RawValue $condition
      *
-     * @return self
+     * @return static
      */
     public function innerJoin(string $tableAlias, string|RawValue $condition): self;
 
@@ -308,7 +308,7 @@ interface QueryBuilderInterface
      * @param string $type JOIN type (default: LEFT)
      * @param string|null $alias Optional alias for LATERAL subquery
      *
-     * @return self
+     * @return static
      */
     public function lateralJoin(
         string|callable $tableOrSubquery,
@@ -322,40 +322,40 @@ interface QueryBuilderInterface
      * @param string|array<int|string, string>|RawValue $expr
      * @param string $direction
      *
-     * @return self
+     * @return static
      */
     public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): self;
 
     /**
      * @param string|array<int, string>|RawValue $cols
      *
-     * @return self
+     * @return static
      */
     public function groupBy(string|array|RawValue $cols): self;
 
     /**
      * @param int $number
      *
-     * @return self
+     * @return static
      */
     public function limit(int $number): self;
 
     /**
      * @param int $number
      *
-     * @return self
+     * @return static
      */
     public function offset(int $number): self;
 
     /**
      * @param string|array<int, string> $options
      *
-     * @return self
+     * @return static
      */
     public function option(string|array $options): self;
 
     /**
-     * @return self
+     * @return static
      */
     public function asObject(): self;
 
@@ -363,7 +363,7 @@ interface QueryBuilderInterface
     /**
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate
      *
-     * @return self
+     * @return static
      */
     public function onDuplicate(array $onDuplicate): self;
 
@@ -375,7 +375,7 @@ interface QueryBuilderInterface
      * @param string|null $alias
      * @param bool $asText
      *
-     * @return self
+     * @return static
      */
     public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): self;
 
@@ -386,7 +386,7 @@ interface QueryBuilderInterface
      * @param mixed $value
      * @param string $cond
      *
-     * @return self
+     * @return static
      */
     public function whereJsonPath(string $col, array|string $path, string $operator, mixed $value, string $cond = 'AND'): self;
 
@@ -396,7 +396,7 @@ interface QueryBuilderInterface
      * @param array<int, string|int>|string|null $path
      * @param string $cond
      *
-     * @return self
+     * @return static
      */
     public function whereJsonContains(string $col, mixed $value, array|string|null $path = null, string $cond = 'AND'): self;
 
@@ -422,7 +422,7 @@ interface QueryBuilderInterface
      * @param array<int, string|int>|string $path
      * @param string $direction
      *
-     * @return self
+     * @return static
      */
     public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): self;
 
@@ -431,7 +431,7 @@ interface QueryBuilderInterface
      * @param array<int, string|int>|string $path
      * @param string $cond
      *
-     * @return self
+     * @return static
      */
     public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): self;
 

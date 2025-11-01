@@ -16,7 +16,7 @@ interface JsonQueryBuilderInterface
      * @param string|null $alias
      * @param bool $asText
      *
-     * @return self
+     * @return static
      */
     public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): self;
 
@@ -29,7 +29,7 @@ interface JsonQueryBuilderInterface
      * @param mixed $value
      * @param string $cond
      *
-     * @return self
+     * @return static
      */
     public function whereJsonPath(string $col, array|string $path, string $operator, mixed $value, string $cond = 'AND'): self;
 
@@ -41,7 +41,7 @@ interface JsonQueryBuilderInterface
      * @param array<int, string|int>|string|null $path
      * @param string $cond
      *
-     * @return self
+     * @return static
      */
     public function whereJsonContains(string $col, mixed $value, array|string|null $path = null, string $cond = 'AND'): self;
 
@@ -73,7 +73,7 @@ interface JsonQueryBuilderInterface
      * @param array<int, string|int>|string $path
      * @param string $direction
      *
-     * @return self
+     * @return static
      */
     public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): self;
 
@@ -84,7 +84,7 @@ interface JsonQueryBuilderInterface
      * @param array<int, string|int>|string $path
      * @param string $cond
      *
-     * @return self
+     * @return static
      */
     public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): self;
 
@@ -105,14 +105,14 @@ interface JsonQueryBuilderInterface
     /**
      * Clear JSON select expressions.
      *
-     * @return self
+     * @return static
      */
     public function clearJsonSelects(): self;
 
     /**
      * Clear JSON order expressions.
      *
-     * @return self
+     * @return static
      */
     public function clearJsonOrders(): self;
 }

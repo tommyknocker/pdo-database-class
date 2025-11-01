@@ -30,9 +30,9 @@ class QueryCompilationCache
      *
      * @param bool $enabled
      *
-     * @return self
+     * @return static
      */
-    public function setEnabled(bool $enabled): self
+    public function setEnabled(bool $enabled): static
     {
         $this->enabled = $enabled;
         return $this;
@@ -53,9 +53,9 @@ class QueryCompilationCache
      *
      * @param int $ttl Time-to-live in seconds
      *
-     * @return self
+     * @return static
      */
-    public function setDefaultTtl(int $ttl): self
+    public function setDefaultTtl(int $ttl): static
     {
         $this->defaultTtl = $ttl;
         return $this;
@@ -76,9 +76,9 @@ class QueryCompilationCache
      *
      * @param string $prefix
      *
-     * @return self
+     * @return static
      */
-    public function setPrefix(string $prefix): self
+    public function setPrefix(string $prefix): static
     {
         $this->prefix = $prefix;
         return $this;

@@ -14,9 +14,9 @@ trait TableManagementTrait
      *
      * @param string $table
      *
-     * @return self
+     * @return static
      */
-    public function setTable(string $table): self
+    public function setTable(string $table): static
     {
         $this->table = $table;
         return $this;
@@ -27,9 +27,9 @@ trait TableManagementTrait
      *
      * @param string|null $prefix
      *
-     * @return self
+     * @return static
      */
-    public function setPrefix(?string $prefix): self
+    public function setPrefix(?string $prefix): static
     {
         $this->prefix = $prefix;
         return $this;

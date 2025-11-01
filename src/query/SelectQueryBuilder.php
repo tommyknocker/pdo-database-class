@@ -125,9 +125,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param string $table
      *
-     * @return self
+     * @return static
      */
-    public function setTable(string $table): self
+    public function setTable(string $table): static
     {
         $this->table = $table;
         $this->conditionBuilder->setTable($table);
@@ -139,9 +139,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param string|null $prefix
      *
-     * @return self
+     * @return static
      */
-    public function setPrefix(?string $prefix): self
+    public function setPrefix(?string $prefix): static
     {
         $this->prefix = $prefix;
         $this->conditionBuilder->setPrefix($prefix);
@@ -154,9 +154,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param CteManager|null $cteManager
      *
-     * @return self
+     * @return static
      */
-    public function setCteManager(?CteManager $cteManager): self
+    public function setCteManager(?CteManager $cteManager): static
     {
         $this->cteManager = $cteManager;
         return $this;
@@ -167,9 +167,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param array<UnionQuery> $unions Array of union operations.
      *
-     * @return self
+     * @return static
      */
-    public function setUnions(array $unions): self
+    public function setUnions(array $unions): static
     {
         $this->unions = $unions;
         return $this;
@@ -180,9 +180,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param bool $distinct Whether to use DISTINCT.
      *
-     * @return self
+     * @return static
      */
-    public function setDistinct(bool $distinct): self
+    public function setDistinct(bool $distinct): static
     {
         $this->distinct = $distinct;
         return $this;
@@ -193,9 +193,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param array<string> $columns Columns for DISTINCT ON.
      *
-     * @return self
+     * @return static
      */
-    public function setDistinctOn(array $columns): self
+    public function setDistinctOn(array $columns): static
     {
         $this->distinctOn = $columns;
         return $this;
@@ -206,9 +206,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param RawValue|callable(QueryBuilder): void|string|array<int|string, string|RawValue|callable(QueryBuilder): void> $cols The columns to add.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function select(RawValue|callable|string|array $cols): self
+    public function select(RawValue|callable|string|array $cols): static
     {
         if (!is_array($cols)) {
             $cols = [$cols];
@@ -416,9 +416,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *                                                        - RawValue: raw SQL expression
      * @param string $direction The direction of the ordering (ASC or DESC). Ignored when expr is array.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): self
+    public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): static
     {
         // Handle array of columns
         if (is_array($expr)) {
@@ -485,9 +485,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param string $expr The complete ORDER BY expression.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function addOrderExpression(string $expr): self
+    public function addOrderExpression(string $expr): static
     {
         $this->order[] = $expr;
         return $this;
@@ -499,9 +499,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      * @param int $ttl Time-to-live in seconds (0 = disable cache for this query)
      * @param string|null $key Custom cache key (null = auto-generate)
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function cache(int $ttl = 3600, ?string $key = null): self
+    public function cache(int $ttl = 3600, ?string $key = null): static
     {
         if ($ttl <= 0) {
             // TTL of 0 or negative means disable cache for this query
@@ -519,9 +519,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /**
      * Disable caching for this query.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function noCache(): self
+    public function noCache(): static
     {
         $this->cacheEnabled = false;
         $this->cacheTtl = null;
@@ -534,9 +534,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param string|array<int, string|RawValue>|RawValue $cols The columns to group by.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function groupBy(string|array|RawValue $cols): self
+    public function groupBy(string|array|RawValue $cols): static
     {
         if (!is_array($cols)) {
             $cols = [$cols];
@@ -564,9 +564,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param int $number The number of rows to limit.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function limit(int $number): self
+    public function limit(int $number): static
     {
         $this->limit = $number;
         $this->conditionBuilder->setLimit($number);
@@ -578,9 +578,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param int $number The number of rows to offset.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
-    public function offset(int $number): self
+    public function offset(int $number): static
     {
         $this->offset = $number;
         return $this;
@@ -591,9 +591,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param string|array<int|string, mixed> $options The query options.
      *
-     * @return self The current object.
+     * @return static The current object.
      */
-    public function option(string|array $options): self
+    public function option(string|array $options): static
     {
         if (is_array($options)) {
             foreach ($options as $key => $value) {
@@ -612,9 +612,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /**
      * Set fetch mode to return objects.
      *
-     * @return self
+     * @return static
      */
-    public function asObject(): self
+    public function asObject(): static
     {
         $this->fetchMode = PDO::FETCH_OBJ;
         $this->executionEngine->setFetchMode(PDO::FETCH_OBJ);
@@ -932,9 +932,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param QueryCompilationCache|null $cache Compilation cache instance
      *
-     * @return self
+     * @return static
      */
-    public function setCompilationCache(?QueryCompilationCache $cache): self
+    public function setCompilationCache(?QueryCompilationCache $cache): static
     {
         $this->compilationCache = $cache;
         return $this;

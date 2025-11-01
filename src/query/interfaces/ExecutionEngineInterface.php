@@ -65,7 +65,7 @@ interface ExecutionEngineInterface
      *
      * @param int $fetchMode The fetch mode.
      *
-     * @return self The current instance.
+     * @return static The current instance.
      */
     public function setFetchMode(int $fetchMode): self;
 }
