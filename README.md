@@ -39,7 +39,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Connection Retry** - Automatic retry with exponential backoff
 - **PSR-14 Event Dispatcher** - Event-driven architecture for monitoring, auditing, and middleware
 - **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more
-- **Fully Tested** - 596 tests, 2687 assertions across all dialects
+- **Fully Tested** - 991 tests, 3951 assertions across all dialects
 - **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
 
 Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class)

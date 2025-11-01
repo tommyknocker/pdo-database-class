@@ -40,7 +40,9 @@ class ConstraintParser
         $patterns = [
             '/for key \'([^\']+)\'/i',
             '/constraint "([^"]+)"/i',
-            '/constraint `?([^`\s]+)`?/i',
+            '/CONSTRAINT\s+`([^`]+)`/i',  // Match "CONSTRAINT `name`" pattern (most specific)
+            '/CONSTRAINT\s+"([^"]+)"/i',  // Match "CONSTRAINT "name"" pattern
+            '/constraint `([^`\s]+)`/i',   // Match "constraint `name`"
         ];
 
         foreach ($patterns as $pattern) {
@@ -64,10 +66,18 @@ class ConstraintParser
         $patterns = [
             '/in table \'([^\']+)\'/i',
             '/table `?([^`\s]+)`?/i',
+            // Match `schema`.`table` or `table` format in error messages
+            '/`([^`]+)`\.`([^`]+)`/i',  // Match `schema`.`table`
+            '/`([^`]+)`(?:\s|,)/i',     // Match `table` followed by space or comma (fallback)
         ];
 
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $message, $matches)) {
+                // For `schema`.`table` format, return table name (matches[2])
+                // For single `table` format, return table name (matches[1])
+                if (count($matches) > 2) {
+                    return $matches[2];
+                }
                 return $matches[1];
             }
         }
@@ -84,8 +94,17 @@ class ConstraintParser
      */
     protected function extractColumnName(string $message): ?string
     {
-        if (preg_match('/column `?([^`\s]+)`?/i', $message, $matches)) {
-            return $matches[1];
+        $patterns = [
+            "/column '([^']+)'/i",  // Match 'column 'name''
+            '/column `?([^`\s]+)`?/i',  // Match column `name`
+            '/FOREIGN KEY \(`?([^`\)]+)`?\)/i',  // Match FOREIGN KEY (`name`)
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $message, $matches)) {
+                // Remove backticks if present
+                return trim($matches[1], '`');
+            }
         }
 
         return null;
