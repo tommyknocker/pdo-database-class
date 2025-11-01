@@ -1424,16 +1424,18 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Convert query to SQL string and parameters.
      *
+     * @param bool $formatted Whether to format SQL for readability
+     *
      * @return array{sql: string, params: array<string, string|int|float|bool|null>}
      */
-    public function toSQL(): array
+    public function toSQL(bool $formatted = false): array
     {
         // Set CTE manager before building SQL
         if ($this->cteManager !== null) {
             $this->selectQueryBuilder->setCteManager($this->cteManager);
         }
 
-        return $this->selectQueryBuilder->toSQL();
+        return $this->selectQueryBuilder->toSQL($formatted);
     }
 
     /**

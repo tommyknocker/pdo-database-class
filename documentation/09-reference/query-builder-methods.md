@@ -196,6 +196,45 @@ Check if result exists.
 $exists = $db->find()->from('users')->where('id', 1)->exists();
 ```
 
+## Query Inspection Methods
+
+### `toSQL(bool $formatted = false): array`
+
+Convert query to SQL string and parameters.
+
+```php
+// Unformatted SQL (default)
+$result = $db->find()
+    ->from('users')
+    ->where('status', 'active')
+    ->toSQL();
+
+echo $result['sql']; // SELECT * FROM users WHERE status = :param_1
+print_r($result['params']); // Array ( [:param_1] => active )
+
+// Formatted SQL for debugging
+$result = $db->find()
+    ->from('users')
+    ->join('orders', 'users.id = orders.user_id')
+    ->where('users.status', 'active')
+    ->where('orders.total', 100, '>')
+    ->toSQL(true);
+
+echo $result['sql'];
+// Output:
+// SELECT *
+// FROM users
+//     INNER JOIN orders ON users.id = orders.user_id
+// WHERE users.status = :param_1
+//     AND orders.total > :param_2
+```
+
+**Returns:**
+- `array{sql: string, params: array<string, mixed>}` - SQL string and parameters
+
+**Parameters:**
+- `$formatted` (bool) - Whether to format SQL with indentation and line breaks for readability
+
 ## Next Steps
 
 - [API Reference](api-reference.md) - Complete API

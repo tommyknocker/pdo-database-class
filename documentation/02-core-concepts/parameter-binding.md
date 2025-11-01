@@ -52,6 +52,41 @@ print_r($result['params']);
 // )
 ```
 
+### Formatted SQL Output
+
+For better readability during debugging, you can format SQL with proper indentation and line breaks:
+
+```php
+$query = $db->find()
+    ->from('users')
+    ->join('orders', 'users.id = orders.user_id')
+    ->where('users.status', 'active')
+    ->where('orders.total', 100, '>')
+    ->orderBy('users.name');
+
+// Unformatted SQL (default)
+$result = $query->toSQL(false);
+echo $result['sql'];
+// Output: SELECT * FROM users INNER JOIN orders ON users.id = orders.user_id WHERE users.status = :param_1 AND orders.total > :param_2 ORDER BY users.name ASC
+
+// Formatted SQL for debugging
+$result = $query->toSQL(true);
+echo $result['sql'];
+// Output:
+// SELECT *
+// FROM users
+//     INNER JOIN orders ON users.id = orders.user_id
+// WHERE users.status = :param_1
+//     AND orders.total > :param_2
+// ORDER BY users.name ASC
+```
+
+The formatted output provides:
+- Proper indentation for nested clauses
+- Keywords on separate lines (SELECT, FROM, WHERE, JOIN, etc.)
+- Clean formatting for AND/OR conditions
+- Better readability for complex queries
+
 ## Safe Parameter Values
 
 All values are automatically parameterized:

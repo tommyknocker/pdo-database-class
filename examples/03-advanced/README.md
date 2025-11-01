@@ -68,6 +68,18 @@ MERGE statement operations (INSERT/UPDATE/DELETE based on match conditions).
 - Synchronizing data between tables
 - Dialect-specific MERGE implementations
 
+### 06-sql-formatter.php
+SQL Formatter for pretty-printing SQL queries during debugging.
+
+**Topics covered:**
+- Unformatted SQL output (default behavior)
+- Formatted SQL with proper indentation and line breaks
+- Complex queries with JOINs, GROUP BY, ORDER BY
+- Multiple WHERE conditions formatting
+- Subquery formatting
+- CTE (Common Table Expressions) formatting
+- Human-readable SQL for debugging
+
 ## Running Examples
 
 ### SQLite (default)

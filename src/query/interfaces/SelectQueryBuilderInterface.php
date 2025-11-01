@@ -133,9 +133,11 @@ interface SelectQueryBuilderInterface
     /**
      * Convert query to SQL string and parameters.
      *
+     * @param bool $formatted Whether to format SQL for readability
+     *
      * @return array{sql: string, params: array<string, string|int|float|bool|null>}
      */
-    public function toSQL(): array;
+    public function toSQL(bool $formatted = false): array;
 
     /**
      * Execute EXPLAIN query to analyze query execution plan.

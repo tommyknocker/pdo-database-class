@@ -1,6 +1,6 @@
 # PDOdb Examples
 
-Complete collection of **50 runnable examples** demonstrating PDOdb features across **all 3 database dialects** (MySQL, PostgreSQL, SQLite).
+Complete collection of **51 runnable examples** demonstrating PDOdb features across **all 3 database dialects** (MySQL, PostgreSQL, SQLite).
 
 ## 🚀 Quick Start
 
@@ -84,6 +84,7 @@ Complex operations and patterns.
 - **[03-upsert.php](03-advanced/03-upsert.php)** - INSERT or UPDATE operations
 - **[04-subqueries.php](03-advanced/04-subqueries.php)** - Subqueries in SELECT, WHERE, FROM
 - **[05-merge.php](03-advanced/05-merge.php)** - MERGE statement (INSERT/UPDATE/DELETE based on match conditions)
+- **[06-sql-formatter.php](03-advanced/06-sql-formatter.php)** - SQL Formatter for pretty-printing queries
 
 ### 04. JSON Operations
 Working with JSON data across all databases.

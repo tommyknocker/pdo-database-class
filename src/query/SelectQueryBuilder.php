@@ -624,9 +624,11 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /**
      * Convert query to SQL string and parameters.
      *
+     * @param bool $formatted Whether to format SQL for readability
+     *
      * @return array{sql: string, params: array<string, string|int|float|bool|null>}
      */
-    public function toSQL(): array
+    public function toSQL(bool $formatted = false): array
     {
         $sql = $this->buildSelectSql();
         $params = $this->parameterManager->getParams();
@@ -635,6 +637,16 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         if ($this->cteManager && !$this->cteManager->isEmpty()) {
             $cteParams = $this->cteManager->getParams();
             $params = array_merge($cteParams, $params);
+        }
+
+        // Format SQL if requested
+        if ($formatted) {
+            $formatter = new \tommyknocker\pdodb\query\formatter\SqlFormatter(
+                highlightKeywords: false,
+                indentSize: 4,
+                indentChar: ' '
+            );
+            $sql = $formatter->format($sql);
         }
 
         return ['sql' => $sql, 'params' => $params];

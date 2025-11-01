@@ -32,6 +32,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **JSON Operations** - Native JSON support with consistent API across all databases
 - **Bulk Operations** - CSV/XML/JSON loaders, multi-row inserts, UPSERT support
 - **MERGE Statements** - INSERT/UPDATE/DELETE based on match conditions (PostgreSQL native, MySQL/SQLite emulated)
+- **SQL Formatter/Pretty Printer** - Human-readable SQL output for debugging with indentation and line breaks
 - **Export Helpers** - Export results to JSON, CSV, and XML formats
 - **Transactions & Locking** - Full transaction support with table locking
 - **Batch Processing** - Memory-efficient generators for large datasets with zero memory leaks
@@ -2904,6 +2905,12 @@ $constraints = $db->constraints('users');
 | `exists()` | Check if any rows match conditions |
 | `notExists()` | Check if no rows match conditions |
 | `tableExists(string)` | Check if table exists |
+
+#### Query Inspection
+
+| Method | Description |
+|--------|-------------|
+| `toSQL(bool $formatted = false)` | Convert query to SQL string and parameters. Set `$formatted = true` for human-readable output with indentation |
 
 #### Batch Processing
 
