@@ -8,6 +8,163 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.8.0] - 2025-11-01
+
+### Added
+- **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations:
+  - **Magic attribute access** - `$user->name`, `$user->email`
+  - **Automatic CRUD** - `save()`, `delete()`, `refresh()`
+  - **Dirty tracking** - Track changed attributes automatically
+  - **Declarative validation** - Rules-based validation with extensible validators (required, email, integer, string, custom)
+  - **Lifecycle events** - PSR-14 events for save, insert, update, delete operations
+  - **ActiveQuery builder** - Full QueryBuilder API through `find()` method
+  - `Model` base class with complete ActiveRecord implementation
+  - `ValidatorInterface` for custom validation rules
+  - Comprehensive examples in `examples/23-active-record/`
+  - Complete documentation in `documentation/05-advanced-features/active-record.md`
+  - Comprehensive test coverage with edge case testing
+
+- **Query Performance Profiling** - Built-in profiler for performance analysis:
+  - Automatic tracking of all query executions
+  - Execution time measurement (total, average, min, max)
+  - Memory usage tracking per query
+  - Slow query detection with configurable threshold
+  - Query grouping by SQL structure (same query pattern grouped together)
+  - PSR-3 logger integration for slow query logging
+  - Statistics reset for new measurement periods
+  - `enableProfiling()`, `disableProfiling()`, `getProfilerStats()`, `getSlowestQueries()` methods
+  - Complete documentation in `documentation/05-advanced-features/query-profiling.md`
+  - Examples in `examples/21-query-profiling/`
+
+- **Materialized CTE Support** - Performance optimization for expensive queries:
+  - `QueryBuilder::withMaterialized()` method for PostgreSQL and MySQL
+  - PostgreSQL: Uses `MATERIALIZED` keyword
+  - MySQL: Uses optimizer hints
+  - Automatically cached expensive CTE computations
+  - Cross-database support (PostgreSQL 12+, MySQL 8.0+)
+  - Examples in `examples/17-cte/03-materialized-cte.php`
+  - Documentation updates in `documentation/03-query-builder/cte.md`
+
+- **PSR-14 Event Dispatcher Integration** - Event-driven architecture:
+  - `ConnectionOpenedEvent` - Fired when connection is opened
+  - `QueryExecutedEvent` - Fired after successful query execution
+  - `QueryErrorEvent` - Fired when query error occurs
+  - `TransactionStartedEvent`, `TransactionCommittedEvent`, `TransactionRolledBackEvent`
+  - Works with any PSR-14 compatible event dispatcher (Symfony, League, custom)
+  - Examples in `examples/19-events/`
+  - Complete integration guide in documentation
+
+- **Enhanced EXPLAIN with Recommendations** - Automatic query optimization analysis:
+  - `QueryBuilder::explainAdvice()` method (renamed from `explainWithRecommendations`)
+  - Automatic detection of full table scans
+  - Missing index identification with SQL suggestions
+  - Filesort and temporary table warnings
+  - Dialect-aware parsing (MySQL, PostgreSQL, SQLite)
+  - Structured recommendations with severity levels
+  - Enhanced documentation and examples
+
+- **Comprehensive Exception Testing** - Full test coverage for exception handling:
+  - `ExceptionTests` - 33 tests covering all exception classes and ExceptionFactory
+  - `ErrorDetectionStrategyTests` - 36 tests for all error detection strategies
+  - `ConstraintParserTests` - 14 tests for error message parsing
+  - `ErrorCodeRegistryTests` - 30 tests for error code registry
+  - Improved `ConstraintParser` with better pattern matching:
+    - Enhanced `CONSTRAINT \`name\`` pattern matching for MySQL
+    - Improved `FOREIGN KEY (\`name\`)` pattern for column extraction
+    - Better `schema.table` format handling
+    - Filtering of invalid constraint names (e.g., "fails", "failed")
+  - All exception classes now fully tested with edge cases
+
+- **Infection Mutation Testing** - Code quality assurance:
+  - Integrated Infection mutation testing framework
+  - Configuration file `infection.json` with comprehensive settings
+  - Mutation testing scripts in `composer.json`:
+    - `composer infection` - Full mutation test run
+    - `composer infection:quick` - Quick mutation test
+    - `composer infection:ci` - CI-optimized mutation test
+  - `composer check-all-with-infection` script for complete quality checks
+  - Minimum MSI (Mutation Score Indicator) requirements configured
+
+### Changed
+- **External Reference Detection Simplification** - KISS/YAGNI refactoring:
+  - Removed `externalTables` array and `setExternalTables()` method
+  - Simplified `isTableInCurrentQuery()` to only check against current query table
+  - External references automatically detected without manual configuration
+  - Cleaner, more maintainable code following KISS principles
+
+- **Query Compilation Cache Improvements**:
+  - Fixed compilation cache normalization issues
+  - Prevented double caching in `getValue()` method
+  - Optimized result cache by avoiding double SQL compilation
+  - Renamed `21-query-compilation-cache` directory to `20-query-compilation-cache`
+  - Updated all documentation references
+
+- **Memory Management Enhancements**:
+  - Fixed memory leaks by properly closing PDOStatement cursors
+  - All fetch methods (`get()`, `getOne()`, `fetch()`, `fetchColumn()`) automatically close cursors
+  - Exception-safe cleanup using `try/finally` blocks
+  - Production-tested with 50,000+ queries without memory accumulation
+  - Added memory leak prevention documentation to README
+
+- **Method Renaming for Clarity**:
+  - `QueryBuilder::cursor()` renamed to `QueryBuilder::stream()` for better API clarity
+  - `QueryBuilder::explainWithRecommendations()` renamed to `QueryBuilder::explainAdvice()`
+  - Updated all documentation and examples
+
+- **Test Organization Improvements**:
+  - Split tests into organized groups for better CI workflow
+  - Improved PHPUnit configuration for directory-based test execution
+  - Better test isolation and structure
+
+### Fixed
+- **SQLite Cache Parameter Validation** - Prevent invalid DSN parameters:
+  - Added validation for SQLite `cache` parameter in `SqliteDialect::buildDsn()`
+  - Valid values: `shared`, `private`
+  - Throws `InvalidArgumentException` for invalid values
+  - Prevents creation of files like `:memory:;cache=Array` or `:memory:;cache=invalid`
+  - Added comprehensive tests for cache and mode parameter validation
+
+- **SQL Identifier Quoting in FileLoader** - Correct quoting for different dialects:
+  - Fixed SQL identifier quoting in `FileLoader` for MySQL, PostgreSQL, and SQLite
+  - Ensures proper quoting based on dialect-specific requirements
+  - Improved cross-dialect compatibility
+
+- **LATERAL JOIN Improvements**:
+  - Enhanced automatic external reference detection in LATERAL JOIN subqueries
+  - Removed need for `Db::raw()` in most LATERAL JOIN scenarios
+  - Better alias handling and SQL generation
+  - Updated all examples and documentation
+
+- **Removed All Skipped Tests** - Zero skipped tests policy:
+  - Moved all dialect-specific tests from shared to dialect-specific test files
+  - No more `markTestSkipped()` calls in shared tests
+  - All tests actively run and verify functionality
+
+- **Markdown EOF Formatting** - Consistent file formatting:
+  - Added `fix-markdown-eof.sh` script to ensure exactly one empty line at EOF
+  - Integrated into `composer check-all` for automatic fixing
+  - All markdown files now have consistent formatting
+
+### Technical Details
+- **All tests passing**: 991 tests, 3951 assertions (+417 tests, +1425 assertions from 2.7.1)
+- **All examples passing**: 147/147 examples (49 files × 3 dialects each)
+  - SQLite: 49/49 ✅
+  - MySQL: 49/49 ✅
+  - PostgreSQL: 49/49 ✅
+- **PHPStan Level 8**: Zero errors across entire codebase
+- **PHP-CS-Fixer**: All code complies with PSR-12 standards
+- **Full backward compatibility**: 100% maintained - all existing code continues to work
+- **Code quality**: Follows KISS, SOLID, DRY, YAGNI principles
+- **Memory safety**: Zero memory leaks verified with 50,000+ query tests
+- **SHA-256 hashing**: Replaced all MD5 usage with SHA-256 for better security:
+  - Cache key generation uses SHA-256
+  - Parameter name generation uses SHA-256 with 16-character truncation
+  - LATERAL JOIN alias generation uses SHA-256
+- **Infection mutation testing**: Integrated for code quality assurance
+- **Code statistics**: Significant additions across exception handling, ActiveRecord, and profiling features
+
+---
+
 ## [2.7.1] - 2025-10-29
 
 ### Added
@@ -818,7 +975,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.7.1...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.8.0...HEAD
+[2.8.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.7.1...v2.8.0
 [2.7.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.6.2...v2.7.0
 [2.6.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.6.1...v2.6.2
