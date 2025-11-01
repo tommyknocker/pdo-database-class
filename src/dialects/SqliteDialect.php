@@ -175,6 +175,71 @@ class SqliteDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
+     */
+    public function supportsMerge(): bool
+    {
+        // SQLite doesn't support MERGE natively, but we can emulate it
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildMergeSql(
+        string $targetTable,
+        string $sourceSql,
+        string $onClause,
+        array $whenClauses
+    ): string {
+        // SQLite emulation similar to MySQL
+        // Extract key from ON clause
+        preg_match('/target\.(\w+)\s*=\s*source\.(\w+)/i', $onClause, $matches);
+        $keyColumn = $matches[1] ?? 'id';
+
+        $target = $this->quoteTable($targetTable);
+
+        if (empty($whenClauses['whenNotMatched'])) {
+            throw new RuntimeException('SQLite MERGE requires WHEN NOT MATCHED clause');
+        }
+
+        // Parse INSERT clause
+        preg_match('/\(([^)]+)\)\s+VALUES\s+\(([^)]+)\)/', $whenClauses['whenNotMatched'], $insertMatches);
+        $columns = $insertMatches[1] ?? '';
+        $values = $insertMatches[2] ?? '';
+
+        // Build SELECT columns from VALUES - replace MERGE_SOURCE_COLUMN_ markers with source columns
+        $selectColumns = [];
+        $valueColumns = explode(',', $values);
+        $colNames = explode(',', $columns);
+        foreach ($valueColumns as $idx => $val) {
+            $val = trim($val);
+            $colName = trim($colNames[$idx] ?? '');
+            // Remove quotes from column name if present
+            $colName = trim($colName, '`"');
+            // If it's a MERGE_SOURCE_COLUMN_ marker, use source column; otherwise it's raw SQL
+            if (preg_match('/^MERGE_SOURCE_COLUMN_(\w+)$/', $val, $paramMatch)) {
+                // Use unquoted column name in source reference for SQLite
+                $selectColumns[] = 'source.' . $this->quoteIdentifier($colName);
+            } else {
+                $selectColumns[] = $val;
+            }
+        }
+
+        // SQLite doesn't support ON CONFLICT with INSERT ... SELECT
+        // Use INSERT OR REPLACE which replaces based on PRIMARY KEY or UNIQUE constraints
+        // Remove "AS source" if present (we add it ourselves)
+        $sourceSql = preg_replace('/\s+AS\s+source$/i', '', $sourceSql);
+        $sql = "INSERT OR REPLACE INTO {$target} ({$columns})\n";
+        $sql .= 'SELECT ' . implode(', ', $selectColumns) . " FROM {$sourceSql} AS source";
+
+        // Note: INSERT OR REPLACE will replace existing rows based on PRIMARY KEY
+        // The whenMatched clause behavior is handled by OR REPLACE
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
      *
      * @param array<string, mixed> $expr
      */

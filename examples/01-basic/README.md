@@ -82,6 +82,6 @@ PDODB_DRIVER=pgsql php 01-connection.php
 
 After mastering these basics, explore:
 - [Intermediate Examples](../02-intermediate/) - JOINs, aggregations, transactions
-- [Advanced Examples](../03-advanced/) - Connection pooling, bulk operations, subqueries
+- [Advanced Examples](../03-advanced/) - Connection pooling, bulk operations, subqueries, MERGE statements
 - [JSON Operations](../04-json/) - Working with JSON data
 

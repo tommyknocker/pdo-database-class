@@ -213,6 +213,103 @@ $db->find()->table('users')
     ]);
 ```
 
+## MERGE Operations (INSERT/UPDATE Based on Match Conditions)
+
+MERGE statement performs INSERT, UPDATE, or DELETE operations based on whether rows from a source match rows in a target table. This is useful for synchronizing data between tables.
+
+> **Note:** 
+> - **PostgreSQL**: Native MERGE support (PostgreSQL 15+)
+> - **MySQL**: Emulated via `INSERT ... SELECT ... ON DUPLICATE KEY UPDATE`
+> - **SQLite**: Emulated via `INSERT OR REPLACE`
+
+### Basic MERGE with Table Source
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// MERGE from source table to target table
+$affected = $db->find()
+    ->table('products')  // Target table
+    ->merge(
+        'product_updates',  // Source table
+        'target.id = source.id',  // ON condition
+        [  // WHEN MATCHED - update these columns
+            'name' => Db::raw('source.name'),
+            'price' => Db::raw('source.price'),
+            'stock' => Db::raw('source.stock')
+        ],
+        [  // WHEN NOT MATCHED - insert these columns
+            'id' => 999,
+            'name' => 'Placeholder',
+            'price' => 0,
+            'stock' => 0
+        ]
+    );
+
+echo "MERGE completed: {$affected} row(s) affected\n";
+```
+
+### MERGE with Subquery Source
+
+```php
+// MERGE using a subquery as source
+$affected = $db->find()
+    ->table('products')
+    ->merge(
+        function ($q) {
+            $q->table('product_updates')
+              ->select('*')
+              ->where('updated_at', Db::raw('CURRENT_TIMESTAMP'), '>');
+        },
+        'target.id = source.id',
+        ['price' => Db::raw('source.price'), 'stock' => Db::raw('source.stock')],
+        ['id' => 999, 'name' => 'Placeholder', 'price' => 0, 'stock' => 0]
+    );
+```
+
+### MERGE with QueryBuilder Source
+
+```php
+// MERGE using a QueryBuilder instance as source
+$sourceQuery = $db->find()
+    ->table('product_updates')
+    ->select('*')
+    ->where('status', 'pending');
+
+$affected = $db->find()
+    ->table('products')
+    ->merge(
+        $sourceQuery,
+        'target.id = source.id',
+        ['name' => Db::raw('source.name'), 'price' => Db::raw('source.price')],
+        ['id' => 999, 'name' => 'Placeholder', 'price' => 0]
+    );
+```
+
+### MERGE Parameters Explained
+
+- **Source**: Can be a table name (string), a Closure that receives a QueryBuilder, or a SelectQueryBuilderInterface instance
+- **ON conditions**: String or array of join conditions (e.g., `'target.id = source.id'` or `['target.id = source.id', 'target.status = source.status']`)
+- **When Matched**: Array of columns to update when rows match (use `Db::raw('source.column')` to reference source columns)
+- **When Not Matched**: Array of columns to insert when rows don't match (use simple values or `Db::raw()`)
+- **When Not Matched By Source Delete**: Boolean flag to delete target rows not matched by source (PostgreSQL 15+ only)
+
+### Database-Specific Behavior
+
+**PostgreSQL:**
+- Uses native `MERGE INTO ... USING ... ON ... WHEN MATCHED ... WHEN NOT MATCHED` syntax
+- Supports `WHEN NOT MATCHED BY SOURCE THEN DELETE` clause
+
+**MySQL:**
+- Emulated using `INSERT ... SELECT ... ON DUPLICATE KEY UPDATE`
+- Requires `WHEN NOT MATCHED` clause
+- Update expressions use `VALUES(column)` instead of `source.column`
+
+**SQLite:**
+- Emulated using `INSERT OR REPLACE ... SELECT`
+- Requires `WHEN NOT MATCHED` clause
+- Replaces based on PRIMARY KEY or UNIQUE constraints
+
 ## Batch Operations
 
 ### Batch INSERT

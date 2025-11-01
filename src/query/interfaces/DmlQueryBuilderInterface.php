@@ -124,4 +124,23 @@ interface DmlQueryBuilderInterface
      * @return self The current instance.
      */
     public function setLimit(?int $limit): self;
+
+    /**
+     * Execute MERGE statement (INSERT/UPDATE/DELETE based on match conditions).
+     *
+     * @param string|\Closure(\tommyknocker\pdodb\query\QueryBuilder): void|SelectQueryBuilderInterface $source Source table/subquery for MERGE
+     * @param string|array<string> $onConditions ON clause conditions
+     * @param array<string, string|int|float|bool|null|RawValue> $whenMatched Update columns when matched
+     * @param array<string, string|int|float|bool|null|RawValue> $whenNotMatched Insert columns when not matched
+     * @param bool $whenNotMatchedBySourceDelete Delete when not matched by source
+     *
+     * @return int Number of affected rows
+     */
+    public function merge(
+        string|\Closure|SelectQueryBuilderInterface $source,
+        string|array $onConditions,
+        array $whenMatched = [],
+        array $whenNotMatched = [],
+        bool $whenNotMatchedBySourceDelete = false
+    ): int;
 }

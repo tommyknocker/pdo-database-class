@@ -177,6 +177,73 @@ class PostgreSQLDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
+     */
+    public function supportsMerge(): bool
+    {
+        // PostgreSQL 15+ supports MERGE
+        // Check version if needed, or assume 15+ for now
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildMergeSql(
+        string $targetTable,
+        string $sourceSql,
+        string $onClause,
+        array $whenClauses
+    ): string {
+        $target = $this->quoteTable($targetTable);
+
+        // Ensure source has alias for PostgreSQL MERGE
+        if (!preg_match('/\s+AS\s+source$/i', $sourceSql) && !preg_match('/\s+source$/i', $sourceSql)) {
+            $sourceSql .= ' AS source';
+        }
+
+        $sql = "MERGE INTO {$target} AS target\n";
+        $sql .= "USING {$sourceSql}\n";
+        $sql .= "ON {$onClause}\n";
+
+        // WHEN MATCHED
+        if (!empty($whenClauses['whenMatched']) && is_string($whenClauses['whenMatched'])) {
+            $condition = $whenClauses['whenMatched'];
+            if (str_contains($condition, ' AND ')) {
+                [$update, $whenCondition] = explode(' AND ', $condition, 2);
+                $sql .= "WHEN MATCHED AND {$whenCondition} THEN\n";
+                $sql .= "  UPDATE SET {$update}\n";
+            } else {
+                $sql .= "WHEN MATCHED THEN\n";
+                $sql .= "  UPDATE SET {$condition}\n";
+            }
+        }
+
+        // WHEN NOT MATCHED
+        if (!empty($whenClauses['whenNotMatched']) && is_string($whenClauses['whenNotMatched'])) {
+            $condition = $whenClauses['whenNotMatched'];
+            // Replace MERGE_SOURCE_COLUMN_ markers with source.column for PostgreSQL
+            $condition = preg_replace('/MERGE_SOURCE_COLUMN_(\w+)/', 'source.$1', $condition);
+            if ($condition !== null && str_contains($condition, ' AND ')) {
+                [$insert, $whenCondition] = explode(' AND ', $condition, 2);
+                $sql .= "WHEN NOT MATCHED AND {$whenCondition} THEN\n";
+                $sql .= "  INSERT {$insert}\n";
+            } elseif ($condition !== null) {
+                $sql .= "WHEN NOT MATCHED THEN\n";
+                $sql .= "  INSERT {$condition}\n";
+            }
+        }
+
+        // WHEN NOT MATCHED BY SOURCE (PostgreSQL 15+ syntax)
+        if ($whenClauses['whenNotMatchedBySourceDelete']) {
+            $sql .= "WHEN NOT MATCHED BY SOURCE THEN\n";
+            $sql .= "  DELETE\n";
+        }
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
      *
      * @param array<string, mixed> $expr
      */

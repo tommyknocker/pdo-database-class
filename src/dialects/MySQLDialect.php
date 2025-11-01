@@ -159,6 +159,70 @@ class MySQLDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
+     */
+    public function supportsMerge(): bool
+    {
+        // MySQL doesn't support MERGE natively, but we can emulate it
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildMergeSql(
+        string $targetTable,
+        string $sourceSql,
+        string $onClause,
+        array $whenClauses
+    ): string {
+        // MySQL emulation using INSERT ... SELECT ... ON DUPLICATE KEY UPDATE
+        // Extract key from ON clause for conflict target
+        preg_match('/target\.(\w+)\s*=\s*source\.(\w+)/i', $onClause, $matches);
+        $keyColumn = $matches[1] ?? 'id';
+
+        $target = $this->quoteTable($targetTable);
+
+        if (empty($whenClauses['whenNotMatched'])) {
+            throw new RuntimeException('MySQL MERGE requires WHEN NOT MATCHED clause');
+        }
+
+        // Parse INSERT clause
+        preg_match('/\(([^)]+)\)\s+VALUES\s+\(([^)]+)\)/', $whenClauses['whenNotMatched'], $insertMatches);
+        $columns = $insertMatches[1] ?? '';
+        $values = $insertMatches[2] ?? '';
+
+        // Build SELECT columns from VALUES - replace MERGE_SOURCE_COLUMN_ markers with source columns
+        $selectColumns = [];
+        $valueColumns = explode(',', $values);
+        $colNames = explode(',', $columns);
+        foreach ($valueColumns as $idx => $val) {
+            $val = trim($val);
+            $colName = trim($colNames[$idx] ?? '');
+            // Remove quotes from column name if present
+            $colName = trim($colName, '`"');
+            // If it's a MERGE_SOURCE_COLUMN_ marker, use source column; otherwise it's raw SQL
+            if (preg_match('/^MERGE_SOURCE_COLUMN_(\w+)$/', $val, $paramMatch)) {
+                $selectColumns[] = 'source.' . $this->quoteIdentifier($colName);
+            } else {
+                $selectColumns[] = $val;
+            }
+        }
+
+        $sql = "INSERT INTO {$target} ({$columns})\n";
+        $sql .= 'SELECT ' . implode(', ', $selectColumns) . " FROM {$sourceSql} AS source\n";
+
+        // Add ON DUPLICATE KEY UPDATE if whenMatched exists
+        if (!empty($whenClauses['whenMatched'])) {
+            // Replace source.column references with VALUES(column) for MySQL
+            $updateExpr = preg_replace('/source\.([a-zA-Z_][a-zA-Z0-9_]*)/', 'VALUES($1)', $whenClauses['whenMatched']);
+            $sql .= "ON DUPLICATE KEY UPDATE {$updateExpr}\n";
+        }
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
      *
      * @param array<string, mixed> $expr
      */

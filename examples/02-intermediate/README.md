@@ -74,7 +74,7 @@ PDODB_DRIVER=pgsql php 01-joins.php
 ## Next Steps
 
 After mastering these intermediate concepts, explore:
-- [Advanced Examples](../03-advanced/) - Connection pooling, upserts, subqueries
+- [Advanced Examples](../03-advanced/) - Connection pooling, upserts, subqueries, MERGE statements
 - [Helper Functions](../05-helpers/) - SQL helper functions
 - [Real-World Examples](../06-real-world/) - Complete application patterns
 

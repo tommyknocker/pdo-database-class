@@ -53,6 +53,21 @@ Subqueries in SELECT, WHERE, and FROM clauses.
 - Multiple subqueries in one query
 - QueryBuilder subquery support
 
+### 05-merge.php
+MERGE statement operations (INSERT/UPDATE/DELETE based on match conditions).
+
+**Topics covered:**
+- MERGE with table source
+- MERGE with subquery source
+- MERGE with QueryBuilder source
+- WHEN MATCHED clause (UPDATE operations)
+- WHEN NOT MATCHED clause (INSERT operations)
+- PostgreSQL native MERGE support
+- MySQL emulation via INSERT ... ON DUPLICATE KEY UPDATE
+- SQLite emulation via INSERT OR REPLACE
+- Synchronizing data between tables
+- Dialect-specific MERGE implementations
+
 ## Running Examples
 
 ### SQLite (default)
@@ -75,6 +90,7 @@ PDODB_DRIVER=pgsql php 01-connection-pooling.php
 - **Connection pooling** reduces overhead in multi-database applications
 - **Bulk operations** are significantly faster than individual inserts
 - **Upserts** reduce the need for SELECT-then-INSERT/UPDATE patterns
+- **MERGE statements** provide atomic INSERT/UPDATE operations based on match conditions
 - **Subqueries** can sometimes be replaced with JOINs for better performance
 
 ## Next Steps

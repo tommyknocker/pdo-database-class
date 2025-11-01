@@ -31,6 +31,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
 - **JSON Operations** - Native JSON support with consistent API across all databases
 - **Bulk Operations** - CSV/XML/JSON loaders, multi-row inserts, UPSERT support
+- **MERGE Statements** - INSERT/UPDATE/DELETE based on match conditions (PostgreSQL native, MySQL/SQLite emulated)
 - **Export Helpers** - Export results to JSON, CSV, and XML formats
 - **Transactions & Locking** - Full transaction support with table locking
 - **Batch Processing** - Memory-efficient generators for large datasets with zero memory leaks
@@ -2882,6 +2883,7 @@ $constraints = $db->constraints('users');
 | `truncate()` | Truncate table |
 | `replace(array)` / `replaceMulti(array)` | MySQL REPLACE operations |
 | `onDuplicate(array)` | Build UPSERT clause (dialect-specific) |
+| `merge(source, onConditions, whenMatched, whenNotMatched, whenNotMatchedBySourceDelete)` | Execute MERGE statement (INSERT/UPDATE/DELETE based on match) |
 
 #### Bulk Loading
 

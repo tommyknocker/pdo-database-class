@@ -115,6 +115,31 @@ interface DialectInterface
      */
     public function buildReplaceSql(string $table, array $columns, array $placeholders, bool $isMultiple = false): string;
 
+    /**
+     * Check if MERGE statement is supported.
+     *
+     * @return bool
+     */
+    public function supportsMerge(): bool;
+
+    /**
+     * Build MERGE SQL statement.
+     *
+     * @param string $targetTable Target table name
+     * @param string $sourceSql Source table/subquery SQL
+     * @param string $onClause ON clause conditions
+     * @param array{whenMatched: string|null, whenNotMatched: string|null, whenNotMatchedBySourceDelete: bool} $whenClauses WHEN clauses
+     *
+     * @return string
+     * @throws \RuntimeException If MERGE is not supported
+     */
+    public function buildMergeSql(
+        string $targetTable,
+        string $sourceSql,
+        string $onClause,
+        array $whenClauses
+    ): string;
+
     /* ---------------- JSON methods ---------------- */
 
     /**

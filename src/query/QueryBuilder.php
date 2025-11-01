@@ -134,7 +134,8 @@ class QueryBuilder implements QueryBuilderInterface
             $this->parameterManager,
             $this->executionEngine,
             $this->conditionBuilder,
-            $rawValueResolver
+            $rawValueResolver,
+            $this->joinBuilder
         );
         $this->batchProcessor = new BatchProcessor(
             $connection,
@@ -882,6 +883,38 @@ class QueryBuilder implements QueryBuilderInterface
     public function truncate(): bool
     {
         return $this->dmlQueryBuilder->truncate();
+    }
+
+    /**
+     * Execute MERGE statement (INSERT/UPDATE/DELETE based on match conditions).
+     *
+     * @param string|\Closure(\tommyknocker\pdodb\query\QueryBuilder): void|SelectQueryBuilderInterface $source Source table/subquery for MERGE
+     * @param string|array<string> $onConditions ON clause conditions
+     * @param array<string, string|int|float|bool|null|RawValue> $whenMatched Update columns when matched
+     * @param array<string, string|int|float|bool|null|RawValue> $whenNotMatched Insert columns when not matched
+     * @param bool $whenNotMatchedBySourceDelete Delete when not matched by source
+     *
+     * @return int Number of affected rows
+     */
+    public function merge(
+        string|\Closure|SelectQueryBuilderInterface $source,
+        string|array $onConditions,
+        array $whenMatched = [],
+        array $whenNotMatched = [],
+        bool $whenNotMatchedBySourceDelete = false
+    ): int {
+        $originalConnection = $this->switchToWriteConnection();
+
+        try {
+            if ($this->table === null) {
+                throw new RuntimeException('Table must be set before calling merge()');
+            }
+            $this->dmlQueryBuilder->setTable($this->table);
+            $this->dmlQueryBuilder->setPrefix($this->prefix);
+            return $this->dmlQueryBuilder->merge($source, $onConditions, $whenMatched, $whenNotMatched, $whenNotMatchedBySourceDelete);
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /* ---------------- Batch processing methods ---------------- */
