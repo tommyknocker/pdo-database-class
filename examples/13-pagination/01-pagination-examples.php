@@ -21,7 +21,7 @@ $db->rawQuery('DROP TABLE IF EXISTS posts');
 
 // Create table syntax varies by dialect
 $driver = getenv('PDODB_DRIVER') ?: 'sqlite';
-if ($driver === 'mysql') {
+if ($driver === 'mysql' || $driver === 'mariadb') {
     $db->rawQuery('
         CREATE TABLE posts (
             id INT PRIMARY KEY AUTO_INCREMENT,

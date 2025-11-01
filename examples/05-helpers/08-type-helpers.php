@@ -37,9 +37,10 @@ echo "✓ Test data inserted\n\n";
 // Example 1: Type casting
 echo "1. Type casting...\n";
 $driver = getCurrentDriver($db);
-$intType = $driver === 'mysql' ? 'SIGNED' : ($driver === 'pgsql' ? 'INTEGER' : 'INTEGER');
-$realType = $driver === 'mysql' ? 'DECIMAL(10,2)' : ($driver === 'pgsql' ? 'NUMERIC' : 'REAL');
-$textType = $driver === 'mysql' ? 'CHAR(255)' : 'TEXT';
+$intType = ($driver === 'mysql' || $driver === 'mariadb') ? 'SIGNED' : ($driver === 'pgsql' ? 'INTEGER' : 'INTEGER');
+$realType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'pgsql' ? 'NUMERIC' : 'REAL');
+$textType = ($driver === 'mysql' || $driver === 'mariadb') ? 'CHAR(255)' : 'TEXT';
+$castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : 'REAL';
 
 $results = $db->find()
     ->from('data_types')
@@ -70,8 +71,8 @@ $results = $db->find()
         'numeric_value',
         'mixed_value',
         'greatest_numeric' => Db::greatest('numeric_value', '0'),
-        'greatest_mixed' => $driver === 'pgsql' ? Db::raw('GREATEST(CASE WHEN mixed_value ~ \'^[0-9]+\.?[0-9]*$\' THEN mixed_value::NUMERIC ELSE 0 END, numeric_value)') : Db::greatest(Db::cast('mixed_value', 'REAL'), 'numeric_value'),
-        'greatest_all' => $driver === 'pgsql' ? Db::raw('GREATEST(numeric_value, CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END, 0)') : Db::greatest('numeric_value', Db::cast('text_value', 'REAL'), '0')
+        'greatest_mixed' => $driver === 'pgsql' ? Db::raw('GREATEST(CASE WHEN mixed_value ~ \'^[0-9]+\.?[0-9]*$\' THEN mixed_value::NUMERIC ELSE 0 END, numeric_value)') : ($driver === 'mariadb' || $driver === 'mysql' ? Db::greatest(Db::cast('mixed_value', 'DECIMAL(10,2)'), 'numeric_value') : Db::greatest(Db::cast('mixed_value', 'REAL'), 'numeric_value')),
+        'greatest_all' => $driver === 'pgsql' ? Db::raw('GREATEST(numeric_value, CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END, 0)') : ($driver === 'mariadb' || $driver === 'mysql' ? Db::greatest('numeric_value', Db::cast('text_value', 'DECIMAL(10,2)'), '0') : Db::greatest('numeric_value', Db::cast('text_value', 'REAL'), '0'))
     ])
     ->get();
 
@@ -92,8 +93,8 @@ $results = $db->find()
         'numeric_value',
         'mixed_value',
         'least_numeric' => Db::least('numeric_value', '50'),
-        'least_mixed' => $driver === 'pgsql' ? Db::raw('LEAST(CASE WHEN mixed_value ~ \'^[0-9]+\.?[0-9]*$\' THEN mixed_value::NUMERIC ELSE 0 END, numeric_value)') : Db::least(Db::cast('mixed_value', 'REAL'), 'numeric_value'),
-        'least_all' => $driver === 'pgsql' ? Db::raw('LEAST(numeric_value, CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END, 100)') : Db::least('numeric_value', Db::cast('text_value', 'REAL'), '100')
+        'least_mixed' => $driver === 'pgsql' ? Db::raw('LEAST(CASE WHEN mixed_value ~ \'^[0-9]+\.?[0-9]*$\' THEN mixed_value::NUMERIC ELSE 0 END, numeric_value)') : ($driver === 'mariadb' || $driver === 'mysql' ? Db::least(Db::cast('mixed_value', 'DECIMAL(10,2)'), 'numeric_value') : Db::least(Db::cast('mixed_value', 'REAL'), 'numeric_value')),
+        'least_all' => $driver === 'pgsql' ? Db::raw('LEAST(numeric_value, CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END, 100)') : ($driver === 'mariadb' || $driver === 'mysql' ? Db::least('numeric_value', Db::cast('text_value', 'DECIMAL(10,2)'), '100') : Db::least('numeric_value', Db::cast('text_value', 'REAL'), '100'))
     ])
     ->get();
 
@@ -113,12 +114,12 @@ $results = $db->find()
         'text_value',
         'mixed_value',
         'is_numeric_text' => $driver === 'pgsql' ? Db::raw('CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN \'Yes\' ELSE \'No\' END') : Db::case([
-            'CAST(text_value AS REAL) IS NOT NULL' => '\'Yes\'',
-            'CAST(text_value AS REAL) IS NULL' => '\'No\''
+            ("CAST(text_value AS {$castRealType}) IS NOT NULL") => '\'Yes\'',
+            ("CAST(text_value AS {$castRealType}) IS NULL") => '\'No\''
         ], '\'Unknown\''),
         'is_numeric_mixed' => $driver === 'pgsql' ? Db::raw('CASE WHEN mixed_value ~ \'^[0-9]+\.?[0-9]*$\' THEN \'Yes\' ELSE \'No\' END') : Db::case([
-            'CAST(mixed_value AS REAL) IS NOT NULL' => '\'Yes\'',
-            'CAST(mixed_value AS REAL) IS NULL' => '\'No\''
+            ("CAST(mixed_value AS {$castRealType}) IS NOT NULL") => '\'Yes\'',
+            ("CAST(mixed_value AS {$castRealType}) IS NULL") => '\'No\''
         ], '\'Unknown\''),
         'is_date_mixed' => $driver === 'pgsql' ? Db::raw('CASE WHEN mixed_value ~ \'^[0-9]{4}-[0-9]{2}-[0-9]{2}$\' THEN \'Yes\' ELSE \'No\' END') : Db::case([
             'DATE(mixed_value) IS NOT NULL' => '\'Yes\'',
@@ -137,7 +138,7 @@ echo "\n";
 echo "5. Type conversion in WHERE clauses...\n";
 $results = $db->find()
     ->from('data_types')
-    ->where($driver === 'pgsql' ? Db::raw('CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END') : Db::cast('text_value', 'REAL'), 100, '>')
+    ->where($driver === 'pgsql' ? Db::raw('CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END') : Db::cast('text_value', $castRealType), 100, '>')
     ->select(['text_value', 'numeric_value'])
     ->get();
 
@@ -152,7 +153,7 @@ echo "6. Type conversion in ORDER BY...\n";
 $results = $db->find()
     ->from('data_types')
     ->select(['text_value', 'numeric_value', 'mixed_value'])
-    ->orderBy($driver === 'pgsql' ? Db::raw('CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END') : Db::cast('text_value', 'REAL'), 'DESC')
+    ->orderBy($driver === 'pgsql' ? Db::raw('CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END') : Db::cast('text_value', $castRealType), 'DESC')
     ->get();
 
 echo "  Records ordered by text_value as REAL (descending):\n";
@@ -169,13 +170,13 @@ $results = $db->find()
         'text_value',
         'numeric_value',
         'mixed_value',
-        'safe_numeric' => $driver === 'pgsql' ? Db::raw('COALESCE(CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END, numeric_value, 0)') : Db::coalesce(Db::cast('text_value', 'REAL'), 'numeric_value', '0'),
+        'safe_numeric' => $driver === 'pgsql' ? Db::raw('COALESCE(CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END, numeric_value, 0)') : Db::coalesce(Db::cast('text_value', $castRealType), 'numeric_value', '0'),
         'type_category' => $driver === 'pgsql' ? Db::raw('CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN \'Numeric Text\' WHEN text_value = \'true\' OR text_value = \'false\' THEN \'Boolean Text\' WHEN text_value ~ \'^[0-9]{4}-[0-9]{2}-[0-9]{2}$\' THEN \'Date Text\' ELSE \'Other Text\' END') : Db::case([
-            'CAST(text_value AS REAL) IS NOT NULL' => '"Numeric Text"',
+            ("CAST(text_value AS {$castRealType}) IS NOT NULL") => '"Numeric Text"',
             'text_value = "true" OR text_value = "false"' => '"Boolean Text"',
             'DATE(text_value) IS NOT NULL' => '"Date Text"'
         ], '"Other Text"'),
-        'converted_sum' => Db::raw($driver === 'pgsql' ? '(CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END) + (CASE WHEN mixed_value ~ \'^[0-9]+\.?[0-9]*$\' THEN mixed_value::NUMERIC ELSE 0 END)' : 'CAST(text_value AS REAL) + CAST(mixed_value AS REAL)')
+        'converted_sum' => Db::raw($driver === 'pgsql' ? '(CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END) + (CASE WHEN mixed_value ~ \'^[0-9]+\.?[0-9]*$\' THEN mixed_value::NUMERIC ELSE 0 END)' : ("CAST(text_value AS {$castRealType}) + CAST(mixed_value AS {$castRealType})"))
     ])
     ->get();
 
@@ -193,9 +194,9 @@ $stats = $db->find()
     ->select([
         'total_records' => Db::count(),
         'avg_numeric' => Db::avg('numeric_value'),
-        'avg_text_as_numeric' => $driver === 'pgsql' ? Db::raw('AVG(CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END)') : Db::avg(Db::cast('text_value', 'REAL')),
-        'max_mixed_as_numeric' => $driver === 'pgsql' ? Db::raw('MAX(CASE WHEN mixed_value ~ \'^[0-9]+\.?[0-9]*$\' THEN mixed_value::NUMERIC ELSE 0 END)') : Db::max(Db::cast('mixed_value', 'REAL')),
-        'min_text_as_numeric' => $driver === 'pgsql' ? Db::raw('MIN(CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END)') : Db::min(Db::cast('text_value', 'REAL'))
+        'avg_text_as_numeric' => $driver === 'pgsql' ? Db::raw('AVG(CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END)') : Db::avg(Db::cast('text_value', $castRealType)),
+        'max_mixed_as_numeric' => $driver === 'pgsql' ? Db::raw('MAX(CASE WHEN mixed_value ~ \'^[0-9]+\.?[0-9]*$\' THEN mixed_value::NUMERIC ELSE 0 END)') : Db::max(Db::cast('mixed_value', $castRealType)),
+        'min_text_as_numeric' => $driver === 'pgsql' ? Db::raw('MIN(CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN text_value::NUMERIC ELSE 0 END)') : Db::min(Db::cast('text_value', $castRealType))
     ])
     ->getOne();
 
@@ -235,9 +236,9 @@ $results = $db->find()
         'text_value',
         'mixed_value',
         'is_valid_numeric' => $driver === 'pgsql' ? Db::raw('CASE WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN \'Integer\' WHEN text_value ~ \'^[0-9]+\.?[0-9]*$\' THEN \'Real\' ELSE \'Not Numeric\' END') : Db::case([
-            'CAST(text_value AS REAL) IS NOT NULL AND CAST(text_value AS REAL) = CAST(text_value AS SIGNED)' => '"Integer"',
-            'CAST(text_value AS REAL) IS NOT NULL' => '"Real"',
-            'CAST(text_value AS REAL) IS NULL' => '"Not Numeric"'
+            ("CAST(text_value AS {$castRealType}) IS NOT NULL AND CAST(text_value AS {$castRealType}) = CAST(text_value AS SIGNED)") => '"Integer"',
+            ("CAST(text_value AS {$castRealType}) IS NOT NULL") => '"Real"',
+            ("CAST(text_value AS {$castRealType}) IS NULL") => '"Not Numeric"'
         ], '"Unknown"'),
         'is_valid_date' => $driver === 'pgsql' ? Db::raw('CASE WHEN mixed_value ~ \'^[0-9]{4}-[0-9]{2}-[0-9]{2}$\' THEN \'Valid Date\' ELSE \'Invalid Date\' END') : Db::case([
             'DATE(mixed_value) IS NOT NULL' => '"Valid Date"',

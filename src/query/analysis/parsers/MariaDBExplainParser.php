@@ -9,7 +9,7 @@ use tommyknocker\pdodb\query\analysis\ParsedExplainPlan;
 /**
  * Parser for MySQL EXPLAIN output.
  */
-class MySQLExplainParser implements ExplainParserInterface
+class MariaDBExplainParser implements ExplainParserInterface
 {
     public function parse(array $explainResults): ParsedExplainPlan
     {

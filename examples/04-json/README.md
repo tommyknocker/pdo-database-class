@@ -1,6 +1,6 @@
 # JSON Operations Examples
 
-Working with JSON data across all three database dialects (MySQL, PostgreSQL, SQLite).
+Working with JSON data across all four database dialects (MySQL, MariaDB, PostgreSQL, SQLite).
 
 ## Overview
 
@@ -9,7 +9,7 @@ PDOdb provides a unified API for JSON operations that works seamlessly across:
 - **PostgreSQL**: JSONB type
 - **SQLite**: TEXT type with JSON functions
 
-All examples work identically on all three databases.
+All examples work identically on all four databases.
 
 ## Examples
 

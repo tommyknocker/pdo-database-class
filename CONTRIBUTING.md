@@ -135,7 +135,7 @@ This section guides you through submitting an enhancement suggestion for PdoDb, 
 - Read the [documentation](https://github.com/tommyknocker/pdo-database-class/README.md) and check the [examples](https://github.com/tommyknocker/pdo-database-class/tree/master/examples) to see if the functionality already exists
 - Check if there's already a helper function in `Db::` that provides similar functionality
 - Perform a [search](https://github.com/tommyknocker/pdo-database-class/issues) to see if the enhancement has already been suggested
-- Consider if the feature should work across all supported databases (MySQL, PostgreSQL, SQLite)
+- Consider if the feature should work across all supported databases (MySQL, MariaDB, PostgreSQL, SQLite)
 - Evaluate if the enhancement fits with PdoDb's philosophy of being lightweight and framework-agnostic
 - Think about whether this would be useful to the majority of users or just a small subset
 
@@ -152,7 +152,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/tommyk
   - Proposed new API or functionality
   - Expected SQL output (if applicable)
 - **Explain the use case** - When would this feature be useful?
-- **Consider cross-database compatibility** - Should this work on MySQL, PostgreSQL, and SQLite?
+- **Consider cross-database compatibility** - Should this work on MySQL, MariaDB, PostgreSQL, and SQLite?
 - **Provide implementation ideas** (optional) - If you have thoughts on how this could be implemented
 - **Explain why this enhancement would be useful** to most PdoDb users
 - **Reference similar features** in other database libraries if applicable
@@ -166,7 +166,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/tommyk
 - **PHP 8.4+** - The project requires PHP 8.4 or higher
 - **Composer** - For dependency management
 - **Git** - For version control
-- **Database access** (optional) - MySQL, PostgreSQL, or SQLite for testing
+- **Database access** (optional) - MySQL, MariaDB, PostgreSQL, or SQLite for testing
 
 #### Development Setup
 
@@ -217,7 +217,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/tommyk
 #### Testing Guidelines
 
 - **Write tests for new features** - All new functionality must have corresponding tests
-- **Test across dialects** - Ensure compatibility with MySQL, PostgreSQL, and SQLite
+- **Test across dialects** - Ensure compatibility with MySQL, MariaDB, PostgreSQL, and SQLite
 - **Use SharedCoverageTest** for dialect-independent functionality
 - **Use dialect-specific tests** (PdoDbMySQLTest, PdoDbPostgreSQLTest, PdoDbSqliteTest) for dialect-specific features
 - **Test edge cases** - Include tests for error conditions and boundary cases

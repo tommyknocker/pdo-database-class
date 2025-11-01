@@ -1,6 +1,6 @@
 # Dialect Support
 
-PDOdb provides unified API across MySQL, PostgreSQL, and SQLite while handling dialect-specific differences automatically.
+PDOdb provides unified API across MySQL, MariaDB, PostgreSQL, and SQLite while handling dialect-specific differences automatically.
 
 ## Supported Databases
 

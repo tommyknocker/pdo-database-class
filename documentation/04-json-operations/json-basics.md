@@ -1,6 +1,6 @@
 # JSON Basics
 
-Learn how to work with JSON data across MySQL, PostgreSQL, and SQLite using PDOdb's unified JSON API.
+Learn how to work with JSON data across MySQL, MariaDB, PostgreSQL, and SQLite using PDOdb's unified JSON API.
 
 ## Overview
 

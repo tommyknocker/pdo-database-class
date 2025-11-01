@@ -1,6 +1,6 @@
 # Configuration
 
-Database connection configuration for MySQL, PostgreSQL, and SQLite.
+Database connection configuration for MySQL, MariaDB, PostgreSQL, and SQLite.
 
 ## MySQL Configuration
 

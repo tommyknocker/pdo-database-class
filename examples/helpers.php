@@ -1,14 +1,18 @@
 <?php
+
+use tommyknocker\pdodb\PdoDb;
+
 /**
  * Helper functions for examples to work across different database dialects
  */
+
 
 /**
  * Get database configuration based on environment or default to SQLite
  */
 function getExampleConfig(): array
 {
-    $driver = getenv('PDODB_DRIVER') ?: 'sqlite';
+    $driver = mb_strtolower(getenv('PDODB_DRIVER') ?: 'sqlite', 'UTF-8');
     $configFile = __DIR__ . "/config.{$driver}.php";
     
     if (!file_exists($configFile)) {
@@ -27,13 +31,13 @@ function getExampleConfig(): array
 /**
  * Create a PdoDb instance for examples
  */
-function createExampleDb(): \tommyknocker\pdodb\PdoDb
+function createExampleDb(): PdoDb
 {
     $config = getExampleConfig();
     $driver = $config['driver'];
     unset($config['driver']);
     
-    return new \tommyknocker\pdodb\PdoDb($driver, $config);
+    return new PdoDb($driver, $config);
 }
 
 /**
@@ -46,7 +50,7 @@ function createExampleDb(): \tommyknocker\pdodb\PdoDb
  *       'age' => 'INTEGER'
  *   ]);
  */
-function getCreateTableSql(\tommyknocker\pdodb\PdoDb $db, string $tableName, array $columns, array $options = []): string
+function getCreateTableSql(PdoDb $db, string $tableName, array $columns, array $options = []): string
 {
     $connection = $db->connection;
     if ($connection === null) {
@@ -77,8 +81,8 @@ function getCreateTableSql(\tommyknocker\pdodb\PdoDb $db, string $tableName, arr
     $allDefs = array_merge($columnDefs, $constraints);
     $sql = "CREATE TABLE $tableName (\n    " . implode(",\n    ", $allDefs) . "\n)";
     
-    // Add table options (e.g., ENGINE=InnoDB for MySQL)
-    if ($driver === 'mysql') {
+    // Add table options (e.g., ENGINE=InnoDB for MySQL/MariaDB)
+    if ($driver === 'mysql' || $driver === 'mariadb') {
         $engine = $options['engine'] ?? 'InnoDB';
         $sql .= " ENGINE=$engine";
     }
@@ -90,7 +94,7 @@ function getCreateTableSql(\tommyknocker\pdodb\PdoDb $db, string $tableName, arr
  * Drop table if exists and create new one
  * Handles foreign key constraints properly for each database
  */
-function recreateTable(\tommyknocker\pdodb\PdoDb $db, string $tableName, array $columns, array $options = []): void
+function recreateTable(PdoDb $db, string $tableName, array $columns, array $options = []): void
 {
     $connection = $db->connection;
     if ($connection === null) {
@@ -99,8 +103,8 @@ function recreateTable(\tommyknocker\pdodb\PdoDb $db, string $tableName, array $
     
     $driver = $connection->getDriverName();
     
-    // Disable foreign key checks for MySQL
-    if ($driver === 'mysql') {
+    // Disable foreign key checks for MySQL/MariaDB
+    if ($driver === 'mysql' || $driver === 'mariadb') {
         $db->rawQuery("SET FOREIGN_KEY_CHECKS=0");
     }
     
@@ -115,8 +119,8 @@ function recreateTable(\tommyknocker\pdodb\PdoDb $db, string $tableName, array $
     $sql = getCreateTableSql($db, $tableName, $columns, $options);
     $db->rawQuery($sql);
     
-    // Re-enable foreign key checks for MySQL
-    if ($driver === 'mysql') {
+    // Re-enable foreign key checks for MySQL/MariaDB
+    if ($driver === 'mysql' || $driver === 'mariadb') {
         $db->rawQuery("SET FOREIGN_KEY_CHECKS=1");
     }
 }
@@ -130,8 +134,8 @@ function normalizeColumnDef(string $driver, string $colDef): string
     $normalized = $colDef;
     
     // Handle auto-increment primary keys
-    if ($driver === 'mysql') {
-        // Convert to MySQL syntax
+    if ($driver === 'mysql' || $driver === 'mariadb') {
+        // Convert to MySQL/MariaDB syntax
         $normalized = str_replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'INT AUTO_INCREMENT PRIMARY KEY', $normalized);
         $normalized = str_replace('SERIAL PRIMARY KEY', 'INT AUTO_INCREMENT PRIMARY KEY', $normalized);
         
@@ -162,7 +166,7 @@ function normalizeColumnDef(string $driver, string $colDef): string
 /**
  * Get current database driver name
  */
-function getCurrentDriver(\tommyknocker\pdodb\PdoDb $db): string
+function getCurrentDriver(PdoDb $db): string
 {
     $connection = $db->connection;
     if ($connection === null) {

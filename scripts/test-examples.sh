@@ -19,6 +19,7 @@ echo "Checking database availability..."
 echo ""
 
 MYSQL_AVAILABLE=0
+MARIADB_AVAILABLE=0
 PGSQL_AVAILABLE=0
 SQLITE_AVAILABLE=1  # SQLite always available
 
@@ -41,6 +42,30 @@ if [ -f "examples/config.mysql.php" ]; then
     fi
 else
     echo -e "${YELLOW}⊘ MySQL config not found (examples/config.mysql.php)${NC}"
+fi
+
+# Check MariaDB
+if [ -f "examples/config.mariadb.php" ]; then
+    if php -r "
+        \$config = require 'examples/config.mariadb.php';
+        try {
+            \$dsn = 'mysql:host=' . \$config['host'] . ';dbname=' . \$config['dbname'];
+            if (isset(\$config['port'])) {
+                \$dsn .= ';port=' . \$config['port'];
+            }
+            new PDO(\$dsn, \$config['username'], \$config['password']);
+            exit(0);
+        } catch (Exception \$e) {
+            exit(1);
+        }
+    " 2>/dev/null; then
+        MARIADB_AVAILABLE=1
+        echo -e "${GREEN}✓ MariaDB available${NC}"
+    else
+        echo -e "${YELLOW}⊘ MariaDB not available (config exists but connection failed)${NC}"
+    fi
+else
+    echo -e "${YELLOW}⊘ MariaDB config not found (examples/config.mariadb.php)${NC}"
 fi
 
 # Check PostgreSQL  
@@ -73,6 +98,9 @@ declare -A RESULTS
 RESULTS["mysql_total"]=0
 RESULTS["mysql_passed"]=0
 RESULTS["mysql_failed"]=0
+RESULTS["mariadb_total"]=0
+RESULTS["mariadb_passed"]=0
+RESULTS["mariadb_failed"]=0
 RESULTS["pgsql_total"]=0
 RESULTS["pgsql_passed"]=0
 RESULTS["pgsql_failed"]=0
@@ -135,6 +163,27 @@ for file in examples/*/*.php; do
         fi
     fi
     
+    # Test on MariaDB if available
+    if [ $MARIADB_AVAILABLE -eq 1 ]; then
+        RESULTS["mariadb_total"]=$((${RESULTS["mariadb_total"]} + 1))
+        echo -n -e "${CYAN}[$category/$filename]${NC} on ${BLUE}MariaDB${NC} ... "
+        
+        export PDODB_DRIVER="mariadb"
+        if timeout 30 php "$file" > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ PASSED${NC}"
+            RESULTS["mariadb_passed"]=$((${RESULTS["mariadb_passed"]} + 1))
+        else
+            echo -e "${RED}✗ FAILED${NC}"
+            RESULTS["mariadb_failed"]=$((${RESULTS["mariadb_failed"]} + 1))
+            
+            if [ "$1" == "--verbose" ] || [ "$1" == "-v" ]; then
+                echo -e "${YELLOW}Error output:${NC}"
+                php "$file" 2>&1 | tail -10
+                echo ""
+            fi
+        fi
+    fi
+    
     # Test on PostgreSQL if available
     if [ $PGSQL_AVAILABLE -eq 1 ]; then
         RESULTS["pgsql_total"]=$((${RESULTS["pgsql_total"]} + 1))
@@ -180,6 +229,14 @@ if [ ${RESULTS["mysql_total"]} -gt 0 ]; then
     fi
 fi
 
+if [ ${RESULTS["mariadb_total"]} -gt 0 ]; then
+    echo -e "${BLUE}MariaDB:${NC} ${GREEN}${RESULTS["mariadb_passed"]}${NC}/${RESULTS["mariadb_total"]} passed"
+    if [ ${RESULTS["mariadb_failed"]} -gt 0 ]; then
+        echo -e "  Failed: ${RED}${RESULTS["mariadb_failed"]}${NC}"
+        TOTAL_FAILED=$((TOTAL_FAILED + ${RESULTS["mariadb_failed"]}))
+    fi
+fi
+
 if [ ${RESULTS["pgsql_total"]} -gt 0 ]; then
     echo -e "${BLUE}PostgreSQL:${NC} ${GREEN}${RESULTS["pgsql_passed"]}${NC}/${RESULTS["pgsql_total"]} passed"
     if [ ${RESULTS["pgsql_failed"]} -gt 0 ]; then
@@ -201,6 +258,9 @@ else
     MISSING_DBS=()
     if [ $MYSQL_AVAILABLE -eq 0 ]; then
         MISSING_DBS+=("MySQL (create examples/config.mysql.php)")
+    fi
+    if [ $MARIADB_AVAILABLE -eq 0 ]; then
+        MISSING_DBS+=("MariaDB (create examples/config.mariadb.php)")
     fi
     if [ $PGSQL_AVAILABLE -eq 0 ]; then
         MISSING_DBS+=("PostgreSQL (create examples/config.pgsql.php)")

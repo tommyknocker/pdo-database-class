@@ -1,6 +1,6 @@
 # Dialect Differences
 
-Differences between MySQL, PostgreSQL, and SQLite.
+Differences between MySQL, MariaDB, PostgreSQL, and SQLite.
 
 ## JSON Operations
 
@@ -48,7 +48,7 @@ Db::raw("json_set(data, '$.status', 'active')")
 ### SUBSTRING
 
 ```php
-// MySQL, PostgreSQL, SQLite
+// MySQL, MariaDB, PostgreSQL, SQLite
 Db::substring('name', 1, 10)
 ```
 

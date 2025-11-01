@@ -118,7 +118,7 @@ echo "✅ No Russian characters found in PHP files"
 echo ""
 
 # Run all tests (including all dialects)
-echo "🧪 Running all tests (MySQL, PostgreSQL, SQLite)..."
+echo "🧪 Running all tests (MySQL, MariaDB, PostgreSQL, SQLite)..."
 ./vendor/bin/phpunit
 
 if [ $? -ne 0 ]; then

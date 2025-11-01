@@ -33,7 +33,16 @@ if ($driver === 'sqlite') {
         amount INTEGER NOT NULL,
         sale_date DATE NOT NULL
     )');
-} else {
+} elseif ($driver === 'mariadb') {
+    $db->rawQuery('DROP TABLE IF EXISTS sales');
+    $db->rawQuery('CREATE TABLE sales (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        product VARCHAR(100) NOT NULL,
+        region VARCHAR(50) NOT NULL,
+        amount INT NOT NULL,
+        sale_date DATE NOT NULL
+    ) ENGINE=InnoDB');
+} else { // mysql
     $db->rawQuery('DROP TABLE IF EXISTS sales');
     $db->rawQuery('CREATE TABLE sales (
         id INT AUTO_INCREMENT PRIMARY KEY,

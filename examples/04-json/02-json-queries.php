@@ -184,7 +184,7 @@ echo "    specs type: {$products['specs_type']}\n";
 
 echo "\nJSON queries example completed!\n";
 echo "\nKey Takeaways:\n";
-echo "  • JSON queries work identically across MySQL, PostgreSQL, SQLite\n";
+echo "  • JSON queries work identically across MySQL, MariaDB, PostgreSQL, SQLite\n";
 echo "  • Use jsonPath() for comparisons\n";
 echo "  • Use jsonContains() for array membership\n";
 echo "  • Combine JSON queries with regular SQL conditions\n";

@@ -17,7 +17,7 @@ echo "Database: $driver\n\n";
 $pdoDb = createExampleDb($config);
 
 // Create test tables based on driver
-if ($driver === 'mysql') {
+if ($driver === 'mysql' || $driver === 'mariadb') {
     $pdoDb->rawQuery('DROP TABLE IF EXISTS products');
     $pdoDb->rawQuery('DROP TABLE IF EXISTS sales');
     $pdoDb->rawQuery('DROP TABLE IF EXISTS employees');

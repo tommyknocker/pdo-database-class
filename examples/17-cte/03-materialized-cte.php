@@ -26,7 +26,7 @@ if (!$dialect->supportsMaterializedCte()) {
 }
 
 // Create test tables based on driver
-if ($driver === 'mysql') {
+if ($driver === 'mysql' || $driver === 'mariadb') {
     $pdoDb->rawQuery('DROP TABLE IF EXISTS orders');
     $pdoDb->rawQuery('DROP TABLE IF EXISTS order_items');
     $pdoDb->rawQuery('DROP TABLE IF EXISTS customers');
@@ -176,7 +176,7 @@ if ($driver === 'pgsql') {
     if (str_contains($sqlData['sql'], 'MATERIALIZED')) {
         echo "   ✓ SQL contains MATERIALIZED keyword\n";
     }
-} elseif ($driver === 'mysql') {
+} elseif ($driver === 'mysql' || $driver === 'mariadb') {
     echo "   " . str_replace("\n", "\n   ", $sqlData['sql']) . "\n";
     if (str_contains($sqlData['sql'], 'MATERIALIZE')) {
         echo "   ✓ SQL contains MATERIALIZE optimizer hint\n";

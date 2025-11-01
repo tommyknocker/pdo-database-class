@@ -62,7 +62,7 @@ Db::windowAggregate('SUM', 'amount')
 
 ## Running the Examples
 
-Run on all three database dialects:
+Run on all four database dialects:
 
 ```bash
 # SQLite

@@ -9,11 +9,11 @@
 [![Downloads](https://img.shields.io/packagist/dt/tommyknocker/pdo-database-class.svg)](https://packagist.org/packages/tommyknocker/pdo-database-class)
 [![GitHub Stars](https://img.shields.io/github/stars/tommyknocker/pdo-database-class?style=social)](https://github.com/tommyknocker/pdo-database-class)
 
-**PDOdb** is a lightweight, framework-agnostic PHP database library providing a **unified API** across MySQL, PostgreSQL, and SQLite.
+**PDOdb** is a lightweight, framework-agnostic PHP database library providing a **unified API** across MySQL, MariaDB, PostgreSQL, and SQLite.
 
 Built on top of PDO with **zero external dependencies**, it offers:
 - **Fluent Query Builder** - Intuitive, chainable API for all database operations
-- **Cross-Database Compatibility** - Automatic SQL dialect handling (MySQL, PostgreSQL, SQLite)
+- **Cross-Database Compatibility** - Automatic SQL dialect handling (MySQL, MariaDB, PostgreSQL, SQLite)
 - **Query Caching** - PSR-16 integration for result caching (10-1000x faster queries)
 - **Query Compilation Cache** - Cache compiled SQL strings (10-30% performance improvement)
 - **Query Performance Profiling** - Built-in profiler for tracking execution times, memory usage, and slow query detection
@@ -41,7 +41,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Connection Retry** - Automatic retry with exponential backoff
 - **PSR-14 Event Dispatcher** - Event-driven architecture for monitoring, auditing, and middleware
 - **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more
-- **Fully Tested** - 991 tests, 3951 assertions across all dialects
+- **Fully Tested** - 1200 tests, 4856 assertions across all dialects
 - **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
 
 Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class)
@@ -713,7 +713,7 @@ $user->delete();
 - **Lifecycle Events** - PSR-14 event dispatcher integration (beforeSave, afterSave, etc.)
 - **Full QueryBuilder API** - All QueryBuilder methods available through `ActiveQuery`
 - **Flexible Finding** - Find by ID, condition, or composite keys
-- **Cross-Database** - Works with MySQL, PostgreSQL, and SQLite
+- **Cross-Database** - Works with MySQL, MariaDB, PostgreSQL, and SQLite
 
 **When to Use:**
 - Prefer working with objects over arrays
@@ -861,7 +861,7 @@ See [JOIN Operations Documentation](documentation/03-query-builder/joins.md#late
 ```php
 use tommyknocker\pdodb\helpers\Db;
 
-// Portable across MySQL, PostgreSQL, SQLite
+// Portable across MySQL, MariaDB, PostgreSQL, SQLite
 $db->find()->table('users')->onDuplicate([
     'age' => Db::inc(),
     'updated_at' => Db::now()
@@ -1014,7 +1014,7 @@ foreach ($analysis->recommendations as $rec) {
 - ✅ **Automatic detection** of full table scans
 - ✅ **Missing index identification** with SQL suggestions
 - ✅ **Filesort and temporary table** warnings
-- ✅ **Dialect-aware parsing** (MySQL, PostgreSQL, SQLite)
+- ✅ **Dialect-aware parsing** (MySQL, MariaDB, PostgreSQL, SQLite)
 - ✅ **Structured recommendations** with severity levels
 
 ### Table Structure Analysis
@@ -1074,7 +1074,7 @@ $ordersStructure = $db->find()->table('orders')->describe();
 
 ## JSON Operations
 
-PDOdb provides a unified JSON API that works consistently across MySQL, PostgreSQL, and SQLite.
+PDOdb provides a unified JSON API that works consistently across MySQL, MariaDB, PostgreSQL, and SQLite.
 
 ### Creating JSON Data
 
@@ -3151,7 +3151,7 @@ while (true) {
 
 ## Testing
 
-The project includes comprehensive PHPUnit tests for MySQL, PostgreSQL, and SQLite.
+The project includes comprehensive PHPUnit tests for MySQL, MariaDB, PostgreSQL, and SQLite.
 
 ### Running Tests
 
@@ -3387,7 +3387,7 @@ Contributions are welcome! Please follow these guidelines:
    - Steps to reproduce
 4. **Follow PSR-12** coding standards
 5. **Write tests** for all new functionality
-6. **Test against all three dialects** (MySQL, PostgreSQL, SQLite)
+6. **Test against all four dialects** (MySQL, MariaDB, PostgreSQL, SQLite)
 
 ### Pull Request Process
 

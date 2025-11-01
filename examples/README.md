@@ -1,6 +1,6 @@
 # PDOdb Examples
 
-Complete collection of **51 runnable examples** demonstrating PDOdb features across **all 3 database dialects** (MySQL, PostgreSQL, SQLite).
+Complete collection of **51 runnable examples** demonstrating PDOdb features across **all 4 database dialects** (MySQL, MariaDB, PostgreSQL, SQLite).
 
 ## 🚀 Quick Start
 
@@ -20,7 +20,17 @@ nano config.mysql.php
 PDODB_DRIVER=mysql php 01-basic/02-simple-crud.php
 ```
 
-### Option 3: PostgreSQL
+### Option 3: MariaDB
+```bash
+# Edit config.mariadb.php with your credentials
+# File already exists in examples/ directory
+nano config.mariadb.php
+
+# Run with MariaDB
+PDODB_DRIVER=mariadb php 01-basic/02-simple-crud.php
+```
+
+### Option 4: PostgreSQL
 ```bash
 # Edit config.pgsql.php with your credentials
 # File already exists in examples/ directory
@@ -47,11 +57,13 @@ PDOdb examples use **separate config files per database**:
 |------|----------|--------|
 | `config.sqlite.php` | SQLite | ✅ Included, ready to use (`:memory:`) |
 | `config.mysql.php` | MySQL | ✅ Included, update credentials |
+| `config.mariadb.php` | MariaDB | ✅ Included, update credentials |
 | `config.pgsql.php` | PostgreSQL | ✅ Included, update credentials |
 
 **Environment variable `PDODB_DRIVER`** controls which config to use:
 - `sqlite` (default) - loads `config.sqlite.php`
 - `mysql` - loads `config.mysql.php`
+- `mariadb` - loads `config.mariadb.php`
 - `pgsql` - loads `config.pgsql.php`
 
 **No environment variable?** Defaults to SQLite with `:memory:` database.

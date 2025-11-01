@@ -61,6 +61,7 @@ class ExplainAnalyzer
 
         return match ($driverName) {
             'mysql' => new MySQLExplainParser(),
+            'mariadb' => new MySQLExplainParser(), // MariaDB uses MySQL-compatible EXPLAIN format
             'pgsql' => new PostgreSQLExplainParser(),
             'sqlite' => new SqliteExplainParser(),
             default => throw new \RuntimeException(

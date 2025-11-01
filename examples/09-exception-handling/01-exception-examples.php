@@ -82,7 +82,7 @@ try {
     $db->rawQuery('DROP TABLE IF EXISTS users');
     
     // Create table with unique constraint (dialect-specific)
-    if ($driver === 'mysql') {
+    if ($driver === 'mysql' || $driver === 'mariadb') {
         $db->rawQuery('CREATE TABLE users (
             id INT PRIMARY KEY AUTO_INCREMENT,
             email VARCHAR(255) UNIQUE NOT NULL,

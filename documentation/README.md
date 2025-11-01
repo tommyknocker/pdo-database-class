@@ -120,7 +120,7 @@ $users = $db->find()
 ## 📚 Key Features
 
 - **Fluent Query Builder** - Intuitive chainable API
-- **Cross-Database Support** - Works with MySQL, PostgreSQL, SQLite
+- **Cross-Database Support** - Works with MySQL, MariaDB, PostgreSQL, SQLite
 - **Query Caching** - PSR-16 integration for 10-1000x faster queries
 - **Read/Write Splitting** - Horizontal scaling with master-replica architecture
 - **Window Functions** - Advanced analytics with ROW_NUMBER, RANK, LAG, LEAD

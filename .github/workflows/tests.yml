@@ -62,6 +62,49 @@ jobs:
           flags: mysql
           name: mysql-coverage
 
+  mariadb:
+    name: MariaDB Tests
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.2
+        env:
+          MYSQL_DATABASE: testdb
+          MYSQL_USER: testuser
+          MYSQL_PASSWORD: testpass
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3305:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_mysql, simplexml, xmlreader
+          coverage: xdebug
+      - run: composer install --no-interaction --prefer-dist
+      - run: |
+          DB_DSN="mariadb:host=127.0.0.1;port=3305;dbname=testdb;charset=utf8mb4" \
+          DB_USER="testuser" \
+          DB_PASS="testpass" \
+          vendor/bin/phpunit --testsuite="MariaDB Tests" --coverage-clover coverage-mariadb.xml
+      - name: Test MariaDB Examples
+        run: |
+          export PDODB_DRIVER=mariadb
+          ./scripts/test-examples.sh --verbose
+      - name: Upload MariaDB coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage-mariadb.xml
+          flags: mariadb
+          name: mariadb-coverage
+
   postgres:
     name: PostgreSQL Tests
     runs-on: ubuntu-latest
