@@ -46,7 +46,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Fully Tested** - 1200 tests, 4856 assertions across all dialects
 - **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
 
-Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class)
+Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class) and [Yii2 framework](https://github.com/yiisoft/yii2-framework)
 
 ---
 
@@ -3409,6 +3409,6 @@ This project is open source. See [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class)
+Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class) and [Yii2 framework](https://github.com/yiisoft/yii2-framework)
 
 Built with ❤️ for the PHP community.
