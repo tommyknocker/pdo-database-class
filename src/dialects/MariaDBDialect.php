@@ -10,6 +10,7 @@ use RuntimeException;
 use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
 use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class MariaDBDialect extends DialectAbstract
 {
@@ -998,5 +999,350 @@ class MariaDBDialect extends DialectAbstract
         }
         $result = $stmt->fetchColumn();
         return (string)($result ?: '');
+    }
+
+    /* ---------------- DDL Operations ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateTableSql(
+        string $table,
+        array $columns,
+        array $options = []
+    ): string {
+        $tableQuoted = $this->quoteTable($table);
+        $columnDefs = [];
+        $primaryKeyColumn = null;
+
+        foreach ($columns as $name => $def) {
+            if ($def instanceof ColumnSchema) {
+                $columnDefs[] = $this->formatColumnDefinition($name, $def);
+                // If column has AUTO_INCREMENT, it must be PRIMARY KEY in MariaDB
+                if ($def->isAutoIncrement() && $primaryKeyColumn === null) {
+                    $primaryKeyColumn = $name;
+                }
+            } elseif (is_array($def)) {
+                // Short syntax: ['type' => 'VARCHAR(255)', 'null' => false]
+                $schema = $this->parseColumnDefinition($def);
+                $columnDefs[] = $this->formatColumnDefinition($name, $schema);
+                // If column has AUTO_INCREMENT, it must be PRIMARY KEY in MariaDB
+                if ($schema->isAutoIncrement() && $primaryKeyColumn === null) {
+                    $primaryKeyColumn = $name;
+                }
+            } else {
+                // String type: 'VARCHAR(255)'
+                $schema = new ColumnSchema((string)$def);
+                $columnDefs[] = $this->formatColumnDefinition($name, $schema);
+                // If column has AUTO_INCREMENT, it must be PRIMARY KEY in MariaDB
+                if ($schema->isAutoIncrement() && $primaryKeyColumn === null) {
+                    $primaryKeyColumn = $name;
+                }
+            }
+        }
+
+        // Add PRIMARY KEY if AUTO_INCREMENT column exists
+        if ($primaryKeyColumn !== null) {
+            $columnDefs[] = 'PRIMARY KEY (' . $this->quoteIdentifier($primaryKeyColumn) . ')';
+        }
+
+        $sql = "CREATE TABLE {$tableQuoted} (\n    " . implode(",\n    ", $columnDefs) . "\n)";
+
+        // Add table options
+        if (!empty($options['engine'])) {
+            $sql .= ' ENGINE=' . $options['engine'];
+        }
+        if (!empty($options['charset'])) {
+            $sql .= ' DEFAULT CHARSET=' . $options['charset'];
+        }
+        if (!empty($options['collate'])) {
+            $sql .= ' COLLATE=' . $options['collate'];
+        }
+        if (isset($options['comment'])) {
+            $comment = addslashes((string)$options['comment']);
+            $sql .= " COMMENT='{$comment}'";
+        }
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropTableSql(string $table): string
+    {
+        return 'DROP TABLE ' . $this->quoteTable($table);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropTableIfExistsSql(string $table): string
+    {
+        return 'DROP TABLE IF EXISTS ' . $this->quoteTable($table);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddColumnSql(
+        string $table,
+        string $column,
+        ColumnSchema $schema
+    ): string {
+        $tableQuoted = $this->quoteTable($table);
+        $columnDef = $this->formatColumnDefinition($column, $schema);
+        $sql = "ALTER TABLE {$tableQuoted} ADD COLUMN {$columnDef}";
+
+        if ($schema->isFirst()) {
+            $sql .= ' FIRST';
+        } elseif ($schema->getAfter() !== null) {
+            $sql .= ' AFTER ' . $this->quoteIdentifier($schema->getAfter());
+        }
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropColumnSql(string $table, string $column): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $columnQuoted = $this->quoteIdentifier($column);
+        return "ALTER TABLE {$tableQuoted} DROP COLUMN {$columnQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAlterColumnSql(
+        string $table,
+        string $column,
+        ColumnSchema $schema
+    ): string {
+        $tableQuoted = $this->quoteTable($table);
+        $columnDef = $this->formatColumnDefinition($column, $schema);
+        return "ALTER TABLE {$tableQuoted} MODIFY COLUMN {$columnDef}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameColumnSql(string $table, string $oldName, string $newName): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $oldQuoted = $this->quoteIdentifier($oldName);
+        $newQuoted = $this->quoteIdentifier($newName);
+        // MariaDB 10.5.2+ supports RENAME COLUMN
+        // For older versions, this will fail and user should use alterColumn instead
+        return "ALTER TABLE {$tableQuoted} RENAME COLUMN {$oldQuoted} TO {$newQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateIndexSql(string $name, string $table, array $columns, bool $unique = false): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $type = $unique ? 'UNIQUE INDEX' : 'INDEX';
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        return "CREATE {$type} {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropIndexSql(string $name, string $table): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "DROP INDEX {$nameQuoted} ON {$tableQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddForeignKeySql(
+        string $name,
+        string $table,
+        array $columns,
+        string $refTable,
+        array $refColumns,
+        ?string $delete = null,
+        ?string $update = null
+    ): string {
+        $tableQuoted = $this->quoteTable($table);
+        $refTableQuoted = $this->quoteTable($refTable);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $refColsQuoted = array_map([$this, 'quoteIdentifier'], $refColumns);
+        $colsList = implode(', ', $colsQuoted);
+        $refColsList = implode(', ', $refColsQuoted);
+
+        $sql = "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted}";
+        $sql .= " FOREIGN KEY ({$colsList}) REFERENCES {$refTableQuoted} ({$refColsList})";
+
+        if ($delete !== null) {
+            $sql .= ' ON DELETE ' . strtoupper($delete);
+        }
+        if ($update !== null) {
+            $sql .= ' ON UPDATE ' . strtoupper($update);
+        }
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropForeignKeySql(string $name, string $table): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "ALTER TABLE {$tableQuoted} DROP FOREIGN KEY {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameTableSql(string $table, string $newName): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $newQuoted = $this->quoteTable($newName);
+        return "RENAME TABLE {$tableQuoted} TO {$newQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatColumnDefinition(string $name, ColumnSchema $schema): string
+    {
+        $nameQuoted = $this->quoteIdentifier($name);
+        $type = $schema->getType();
+
+        // Build type with length/scale
+        $typeDef = $type;
+        if ($schema->getLength() !== null) {
+            if ($schema->getScale() !== null) {
+                $typeDef .= '(' . $schema->getLength() . ',' . $schema->getScale() . ')';
+            } else {
+                $typeDef .= '(' . $schema->getLength() . ')';
+            }
+        }
+
+        // UNSIGNED (MySQL/MariaDB only)
+        if ($schema->isUnsigned()) {
+            $typeDef .= ' UNSIGNED';
+        }
+
+        $parts = [$nameQuoted, $typeDef];
+
+        // NOT NULL / NULL
+        if ($schema->isNotNull()) {
+            $parts[] = 'NOT NULL';
+        }
+
+        // AUTO_INCREMENT
+        if ($schema->isAutoIncrement()) {
+            $parts[] = 'AUTO_INCREMENT';
+        }
+
+        // DEFAULT
+        if ($schema->getDefaultValue() !== null) {
+            if ($schema->isDefaultExpression()) {
+                $parts[] = 'DEFAULT ' . $schema->getDefaultValue();
+            } else {
+                $default = $this->formatDefaultValue($schema->getDefaultValue());
+                $parts[] = 'DEFAULT ' . $default;
+            }
+        }
+
+        // COMMENT
+        if ($schema->getComment() !== null) {
+            $comment = addslashes($schema->getComment());
+            $parts[] = "COMMENT '{$comment}'";
+        }
+
+        // UNIQUE is handled separately (not in column definition for MySQL/MariaDB)
+        // It's created via CREATE INDEX or table constraint
+
+        return implode(' ', $parts);
+    }
+
+    /**
+     * Parse column definition from array.
+     *
+     * @param array<string, mixed> $def Definition array
+     *
+     * @return ColumnSchema
+     */
+    protected function parseColumnDefinition(array $def): ColumnSchema
+    {
+        $type = $def['type'] ?? 'VARCHAR';
+        $length = $def['length'] ?? $def['size'] ?? null;
+        $scale = $def['scale'] ?? null;
+
+        $schema = new ColumnSchema((string)$type, $length, $scale);
+
+        if (isset($def['null']) && $def['null'] === false) {
+            $schema->notNull();
+        }
+        if (isset($def['default'])) {
+            if (isset($def['defaultExpression']) && $def['defaultExpression']) {
+                $schema->defaultExpression((string)$def['default']);
+            } else {
+                $schema->defaultValue($def['default']);
+            }
+        }
+        if (isset($def['comment'])) {
+            $schema->comment((string)$def['comment']);
+        }
+        if (isset($def['unsigned']) && $def['unsigned']) {
+            $schema->unsigned();
+        }
+        if (isset($def['autoIncrement']) && $def['autoIncrement']) {
+            $schema->autoIncrement();
+        }
+        if (isset($def['unique']) && $def['unique']) {
+            $schema->unique();
+        }
+        if (isset($def['after'])) {
+            $schema->after((string)$def['after']);
+        }
+        if (isset($def['first']) && $def['first']) {
+            $schema->first();
+        }
+
+        return $schema;
+    }
+
+    /**
+     * Format default value for SQL.
+     *
+     * @param mixed $value Default value
+     *
+     * @return string SQL formatted value
+     */
+    protected function formatDefaultValue(mixed $value): string
+    {
+        if ($value instanceof \tommyknocker\pdodb\helpers\values\RawValue) {
+            return $value->getValue();
+        }
+        if ($value === null) {
+            return 'NULL';
+        }
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+        if (is_numeric($value)) {
+            return (string)$value;
+        }
+        if (is_string($value)) {
+            return "'" . addslashes($value) . "'";
+        }
+        return "'" . addslashes((string)$value) . "'";
     }
 }

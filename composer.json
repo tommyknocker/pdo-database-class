@@ -139,6 +139,12 @@
       "@test-examples",
       "@fix-markdown"
     ],
+    "migrate": "php scripts/migrate.php",
+    "migrate:create": "php scripts/migrate.php create",
+    "migrate:up": "php scripts/migrate.php migrate",
+    "migrate:down": "php scripts/migrate.php rollback",
+    "migrate:history": "php scripts/migrate.php history",
+    "migrate:new": "php scripts/migrate.php new",
     "check-all-with-infection": [
       "@phpstan",
       "@cs-check",

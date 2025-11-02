@@ -266,6 +266,19 @@ class PdoDb
     }
 
     /**
+     * Returns a new DdlQueryBuilder instance for schema operations.
+     *
+     * @return \tommyknocker\pdodb\query\DdlQueryBuilder The new DdlQueryBuilder instance.
+     */
+    public function schema(): \tommyknocker\pdodb\query\DdlQueryBuilder
+    {
+        return new \tommyknocker\pdodb\query\DdlQueryBuilder(
+            $this->connection,
+            $this->prefix
+        );
+    }
+
+    /**
      * Set event dispatcher.
      *
      * @param EventDispatcherInterface|null $dispatcher The dispatcher instance or null to disable

@@ -27,6 +27,8 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **FILTER Clause** - Conditional aggregates (SQL:2003 standard) with automatic MySQL fallback to CASE WHEN
 - **Full-Text Search** - Cross-database FTS with unified API (MySQL FULLTEXT, PostgreSQL tsvector, SQLite FTS5)
 - **Schema Introspection** - Query indexes, foreign keys, and constraints programmatically
+- **DDL Query Builder** - Fluent API for creating, altering, and managing database schema (tables, columns, indexes, foreign keys)
+- **Database Migrations** - Version-controlled schema changes with rollback support (Yii2-inspired)
 - **Enhanced EXPLAIN** - Automatic detection of full table scans, missing indexes, and optimization recommendations
 - **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
 - **JSON Operations** - Native JSON support with consistent API across all databases

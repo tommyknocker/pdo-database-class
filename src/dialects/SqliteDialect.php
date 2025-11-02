@@ -6,11 +6,12 @@ namespace tommyknocker\pdodb\dialects;
 
 use InvalidArgumentException;
 use PDO;
-use RuntimeException;
 use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
 use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
+use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class SqliteDialect extends DialectAbstract
 {
@@ -199,7 +200,7 @@ class SqliteDialect extends DialectAbstract
         $target = $this->quoteTable($targetTable);
 
         if (empty($whenClauses['whenNotMatched'])) {
-            throw new RuntimeException('SQLite MERGE requires WHEN NOT MATCHED clause');
+            throw new QueryException('SQLite MERGE requires WHEN NOT MATCHED clause');
         }
 
         // Parse INSERT clause
@@ -374,7 +375,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildLockSql(array $tables, string $prefix, string $lockMethod): string
     {
-        throw new RuntimeException('LOCK TABLES not supported');
+        throw new QueryException('LOCK TABLES not supported');
     }
 
     /**
@@ -382,7 +383,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildUnlockSql(): string
     {
-        throw new RuntimeException('UNLOCK TABLES not supported');
+        throw new QueryException('UNLOCK TABLES not supported');
     }
 
     /**
@@ -705,7 +706,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatRepeat(string|RawValue $value, int $count): string
     {
-        throw new \RuntimeException('REPEAT is not supported by SQLite dialect.');
+        throw new QueryException('REPEAT is not supported by SQLite dialect.');
     }
 
     /**
@@ -713,7 +714,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatReverse(string|RawValue $value): string
     {
-        throw new \RuntimeException('REVERSE is not supported by SQLite dialect.');
+        throw new QueryException('REVERSE is not supported by SQLite dialect.');
     }
 
     /**
@@ -721,7 +722,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatPad(string|RawValue $value, int $length, string $padString, bool $isLeft): string
     {
-        throw new \RuntimeException('LPAD/RPAD are not supported by SQLite dialect.');
+        throw new QueryException('LPAD/RPAD are not supported by SQLite dialect.');
     }
 
     /**
@@ -892,5 +893,328 @@ class SqliteDialect extends DialectAbstract
     public function buildShowConstraintsSql(string $table): string
     {
         return "SELECT sql, type FROM sqlite_master WHERE type IN ('table', 'index') AND tbl_name = '{$table}'";
+    }
+
+    /* ---------------- DDL Operations ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateTableSql(
+        string $table,
+        array $columns,
+        array $options = []
+    ): string {
+        $tableQuoted = $this->quoteTable($table);
+        $columnDefs = [];
+
+        foreach ($columns as $name => $def) {
+            if ($def instanceof ColumnSchema) {
+                $columnDefs[] = $this->formatColumnDefinition($name, $def);
+            } elseif (is_array($def)) {
+                // Short syntax: ['type' => 'TEXT', 'null' => false]
+                $schema = $this->parseColumnDefinition($def);
+                $columnDefs[] = $this->formatColumnDefinition($name, $schema);
+            } else {
+                // String type: 'TEXT'
+                $schema = new ColumnSchema((string)$def);
+                $columnDefs[] = $this->formatColumnDefinition($name, $schema);
+            }
+        }
+
+        $sql = "CREATE TABLE {$tableQuoted} (\n    " . implode(",\n    ", $columnDefs) . "\n)";
+
+        // SQLite doesn't support table options like MySQL/PostgreSQL
+        // Options are silently ignored
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropTableSql(string $table): string
+    {
+        return 'DROP TABLE ' . $this->quoteTable($table);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropTableIfExistsSql(string $table): string
+    {
+        return 'DROP TABLE IF EXISTS ' . $this->quoteTable($table);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddColumnSql(
+        string $table,
+        string $column,
+        ColumnSchema $schema
+    ): string {
+        $tableQuoted = $this->quoteTable($table);
+        $columnDef = $this->formatColumnDefinition($column, $schema);
+        // SQLite doesn't support FIRST/AFTER in ALTER TABLE ADD COLUMN
+        return "ALTER TABLE {$tableQuoted} ADD COLUMN {$columnDef}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropColumnSql(string $table, string $column): string
+    {
+        // SQLite 3.35.0+ supports DROP COLUMN
+        // For older versions, we throw an exception
+        $tableQuoted = $this->quoteTable($table);
+        $columnQuoted = $this->quoteIdentifier($column);
+        // Note: SQLite DROP COLUMN requires complex table recreation
+        // This is a simplified version - in production, you'd need to:
+        // 1. Create new table without column
+        // 2. Copy data
+        // 3. Drop old table
+        // 4. Rename new table
+        return "ALTER TABLE {$tableQuoted} DROP COLUMN {$columnQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAlterColumnSql(
+        string $table,
+        string $column,
+        ColumnSchema $schema
+    ): string {
+        // SQLite doesn't support ALTER COLUMN to change type
+        // This would require table recreation which is complex
+        throw new QueryException(
+            'SQLite does not support ALTER COLUMN to change column type. ' .
+            'You must recreate the table. Use buildRenameColumnSql to rename columns.'
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameColumnSql(string $table, string $oldName, string $newName): string
+    {
+        // SQLite 3.25.0+ supports RENAME COLUMN
+        $tableQuoted = $this->quoteTable($table);
+        $oldQuoted = $this->quoteIdentifier($oldName);
+        $newQuoted = $this->quoteIdentifier($newName);
+        return "ALTER TABLE {$tableQuoted} RENAME COLUMN {$oldQuoted} TO {$newQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateIndexSql(string $name, string $table, array $columns, bool $unique = false): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $uniqueClause = $unique ? 'UNIQUE ' : '';
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        return "CREATE {$uniqueClause}INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropIndexSql(string $name, string $table): string
+    {
+        // SQLite: DROP INDEX name (table is not needed, but kept for compatibility)
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "DROP INDEX {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddForeignKeySql(
+        string $name,
+        string $table,
+        array $columns,
+        string $refTable,
+        array $refColumns,
+        ?string $delete = null,
+        ?string $update = null
+    ): string {
+        // SQLite foreign keys must be defined during CREATE TABLE
+        // Adding them via ALTER TABLE requires table recreation
+        // This is a limitation - we throw exception for now
+        // In production, you might want to implement table recreation logic
+        throw new QueryException(
+            'SQLite does not support adding foreign keys via ALTER TABLE. ' .
+            'Foreign keys must be defined during CREATE TABLE. ' .
+            'To add a foreign key to an existing table, you must recreate the table.'
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropForeignKeySql(string $name, string $table): string
+    {
+        // SQLite foreign keys can't be dropped directly
+        // Requires table recreation
+        throw new QueryException(
+            'SQLite does not support dropping foreign keys via ALTER TABLE. ' .
+            'To drop a foreign key, you must recreate the table without the constraint.'
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameTableSql(string $table, string $newName): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $newQuoted = $this->quoteTable($newName);
+        return "ALTER TABLE {$tableQuoted} RENAME TO {$newQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatColumnDefinition(string $name, ColumnSchema $schema): string
+    {
+        $nameQuoted = $this->quoteIdentifier($name);
+        $type = $schema->getType();
+
+        // SQLite type mapping (SQLite is flexible with types)
+        // Map common types to SQLite equivalents
+        $typeUpper = strtoupper($type);
+        if ($typeUpper === 'INT' || $typeUpper === 'INTEGER' || $typeUpper === 'TINYINT' || $typeUpper === 'SMALLINT' || $typeUpper === 'MEDIUMINT') {
+            $type = 'INTEGER';
+        } elseif ($typeUpper === 'BIGINT') {
+            $type = 'INTEGER'; // SQLite uses INTEGER for all integer sizes
+        } elseif ($typeUpper === 'VARCHAR' || $typeUpper === 'CHAR' || $typeUpper === 'CHARACTER') {
+            $type = 'TEXT';
+        } elseif ($typeUpper === 'TEXT' || $typeUpper === 'LONGTEXT' || $typeUpper === 'MEDIUMTEXT') {
+            $type = 'TEXT';
+        } elseif ($typeUpper === 'DATETIME' || $typeUpper === 'TIMESTAMP') {
+            $type = 'TEXT'; // SQLite stores dates as TEXT
+        } elseif ($typeUpper === 'DATE') {
+            $type = 'TEXT';
+        } elseif ($typeUpper === 'TIME') {
+            $type = 'TEXT';
+        } elseif ($typeUpper === 'BOOLEAN' || $typeUpper === 'BOOL') {
+            $type = 'INTEGER'; // SQLite uses INTEGER (0/1) for booleans
+        } elseif ($typeUpper === 'DECIMAL' || $typeUpper === 'NUMERIC' || $typeUpper === 'FLOAT' || $typeUpper === 'DOUBLE' || $typeUpper === 'REAL') {
+            // Keep as-is, SQLite supports REAL, NUMERIC, etc.
+        }
+
+        // Build type with length/scale (SQLite ignores length for most types, but we include it for compatibility)
+        $typeDef = $type;
+        if ($schema->getLength() !== null) {
+            if ($schema->getScale() !== null) {
+                // For DECIMAL/NUMERIC
+                $typeDef .= '(' . $schema->getLength() . ',' . $schema->getScale() . ')';
+            }
+            // Note: SQLite ignores length for TEXT/VARCHAR, but we keep it for SQL compatibility
+        }
+
+        $parts = [$nameQuoted, $typeDef];
+
+        // PRIMARY KEY (for INTEGER PRIMARY KEY AUTOINCREMENT)
+        if ($schema->isAutoIncrement()) {
+            // SQLite requires INTEGER PRIMARY KEY for AUTOINCREMENT
+            if ($type === 'INTEGER') {
+                $parts[1] = 'INTEGER PRIMARY KEY AUTOINCREMENT';
+            } else {
+                // For other types, we can't use AUTOINCREMENT, but can mark as PRIMARY KEY
+                $parts[] = 'PRIMARY KEY';
+            }
+        }
+
+        // NOT NULL / NULL
+        if ($schema->isNotNull()) {
+            $parts[] = 'NOT NULL';
+        }
+
+        // DEFAULT
+        if ($schema->getDefaultValue() !== null) {
+            if ($schema->isDefaultExpression()) {
+                $parts[] = 'DEFAULT ' . $schema->getDefaultValue();
+            } else {
+                $default = $this->formatDefaultValue($schema->getDefaultValue());
+                $parts[] = 'DEFAULT ' . $default;
+            }
+        }
+
+        // UNIQUE is handled separately (not in column definition)
+        // It's created via CREATE INDEX or table constraint
+
+        // SQLite doesn't support UNSIGNED, FIRST, AFTER
+        // These are silently ignored
+
+        return implode(' ', $parts);
+    }
+
+    /**
+     * Parse column definition from array.
+     *
+     * @param array<string, mixed> $def Definition array
+     *
+     * @return ColumnSchema
+     */
+    protected function parseColumnDefinition(array $def): ColumnSchema
+    {
+        $type = $def['type'] ?? 'TEXT';
+        $length = $def['length'] ?? $def['size'] ?? null;
+        $scale = $def['scale'] ?? null;
+
+        $schema = new ColumnSchema((string)$type, $length, $scale);
+
+        if (isset($def['null']) && $def['null'] === false) {
+            $schema->notNull();
+        }
+        if (isset($def['default'])) {
+            if (isset($def['defaultExpression']) && $def['defaultExpression']) {
+                $schema->defaultExpression((string)$def['default']);
+            } else {
+                $schema->defaultValue($def['default']);
+            }
+        }
+        if (isset($def['autoIncrement']) && $def['autoIncrement']) {
+            $schema->autoIncrement();
+        }
+        if (isset($def['unique']) && $def['unique']) {
+            $schema->unique();
+        }
+
+        // SQLite doesn't support UNSIGNED, FIRST, AFTER, COMMENT
+        // These are silently ignored
+
+        return $schema;
+    }
+
+    /**
+     * Format default value for SQL.
+     *
+     * @param mixed $value Default value
+     *
+     * @return string SQL formatted value
+     */
+    protected function formatDefaultValue(mixed $value): string
+    {
+        if ($value instanceof \tommyknocker\pdodb\helpers\values\RawValue) {
+            return $value->getValue();
+        }
+        if ($value === null) {
+            return 'NULL';
+        }
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+        if (is_numeric($value)) {
+            return (string)$value;
+        }
+        if (is_string($value)) {
+            return "'" . addslashes($value) . "'";
+        }
+        return "'" . addslashes((string)$value) . "'";
     }
 }

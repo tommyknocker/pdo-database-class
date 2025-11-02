@@ -44,7 +44,10 @@ trait TableManagementTrait
      */
     protected function normalizeTable(?string $table = null): string
     {
-        $table = $table ?: $this->table;
-        return $this->dialect->quoteTable($this->prefix . $table);
+        $tableName = $table ?? $this->table;
+        if ($tableName === null) {
+            throw new \RuntimeException('Table name is required for normalization');
+        }
+        return $this->dialect->quoteTable($this->prefix . $tableName);
     }
 }

@@ -10,6 +10,7 @@ use RuntimeException;
 use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
 use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class PostgreSQLDialect extends DialectAbstract
 {
@@ -1057,5 +1058,357 @@ class PostgreSQLDialect extends DialectAbstract
             LEFT JOIN information_schema.key_column_usage kcu
                 ON tc.constraint_name = kcu.constraint_name
             WHERE tc.table_name = '{$table}'";
+    }
+
+    /* ---------------- DDL Operations ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateTableSql(
+        string $table,
+        array $columns,
+        array $options = []
+    ): string {
+        $tableQuoted = $this->quoteTable($table);
+        $columnDefs = [];
+
+        foreach ($columns as $name => $def) {
+            if ($def instanceof ColumnSchema) {
+                $columnDefs[] = $this->formatColumnDefinition($name, $def);
+            } elseif (is_array($def)) {
+                // Short syntax: ['type' => 'VARCHAR(255)', 'null' => false]
+                $schema = $this->parseColumnDefinition($def);
+                $columnDefs[] = $this->formatColumnDefinition($name, $schema);
+            } else {
+                // String type: 'VARCHAR(255)'
+                $schema = new ColumnSchema((string)$def);
+                $columnDefs[] = $this->formatColumnDefinition($name, $schema);
+            }
+        }
+
+        $sql = "CREATE TABLE {$tableQuoted} (\n    " . implode(",\n    ", $columnDefs) . "\n)";
+
+        // PostgreSQL table options (TABLESPACE, WITH, etc.)
+        if (!empty($options['tablespace'])) {
+            $sql .= ' TABLESPACE ' . $this->quoteIdentifier($options['tablespace']);
+        }
+        if (isset($options['with']) && is_array($options['with'])) {
+            $withOptions = [];
+            foreach ($options['with'] as $key => $value) {
+                $withOptions[] = $this->quoteIdentifier($key) . ' = ' . (is_numeric($value) ? $value : "'" . addslashes((string)$value) . "'");
+            }
+            if (!empty($withOptions)) {
+                $sql .= ' WITH (' . implode(', ', $withOptions) . ')';
+            }
+        }
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropTableSql(string $table): string
+    {
+        return 'DROP TABLE ' . $this->quoteTable($table);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropTableIfExistsSql(string $table): string
+    {
+        return 'DROP TABLE IF EXISTS ' . $this->quoteTable($table);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddColumnSql(
+        string $table,
+        string $column,
+        ColumnSchema $schema
+    ): string {
+        $tableQuoted = $this->quoteTable($table);
+        $columnDef = $this->formatColumnDefinition($column, $schema);
+        // PostgreSQL doesn't support FIRST/AFTER in ALTER TABLE ADD COLUMN
+        return "ALTER TABLE {$tableQuoted} ADD COLUMN {$columnDef}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropColumnSql(string $table, string $column): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $columnQuoted = $this->quoteIdentifier($column);
+        return "ALTER TABLE {$tableQuoted} DROP COLUMN {$columnQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAlterColumnSql(
+        string $table,
+        string $column,
+        ColumnSchema $schema
+    ): string {
+        $tableQuoted = $this->quoteTable($table);
+        $columnQuoted = $this->quoteIdentifier($column);
+
+        $parts = [];
+        $type = $schema->getType();
+        if ($schema->getLength() !== null) {
+            if ($schema->getScale() !== null) {
+                $type .= '(' . $schema->getLength() . ',' . $schema->getScale() . ')';
+            } else {
+                $type .= '(' . $schema->getLength() . ')';
+            }
+        }
+        if ($type !== '') {
+            $parts[] = "ALTER COLUMN {$columnQuoted} TYPE {$type}";
+        }
+        if ($schema->isNotNull()) {
+            $parts[] = "ALTER COLUMN {$columnQuoted} SET NOT NULL";
+        }
+        if ($schema->getDefaultValue() !== null) {
+            if ($schema->isDefaultExpression()) {
+                $parts[] = "ALTER COLUMN {$columnQuoted} SET DEFAULT " . $schema->getDefaultValue();
+            } else {
+                $default = $this->formatDefaultValue($schema->getDefaultValue());
+                $parts[] = "ALTER COLUMN {$columnQuoted} SET DEFAULT {$default}";
+            }
+        }
+
+        if (empty($parts)) {
+            return "ALTER TABLE {$tableQuoted} ALTER COLUMN {$columnQuoted} TYPE " . ($schema->getType() ?: 'text');
+        }
+
+        return "ALTER TABLE {$tableQuoted} " . implode(', ', $parts);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameColumnSql(string $table, string $oldName, string $newName): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $oldQuoted = $this->quoteIdentifier($oldName);
+        $newQuoted = $this->quoteIdentifier($newName);
+        return "ALTER TABLE {$tableQuoted} RENAME COLUMN {$oldQuoted} TO {$newQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateIndexSql(string $name, string $table, array $columns, bool $unique = false): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $uniqueClause = $unique ? 'UNIQUE ' : '';
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        return "CREATE {$uniqueClause}INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropIndexSql(string $name, string $table): string
+    {
+        // PostgreSQL: DROP INDEX name (table is not needed)
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "DROP INDEX {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddForeignKeySql(
+        string $name,
+        string $table,
+        array $columns,
+        string $refTable,
+        array $refColumns,
+        ?string $delete = null,
+        ?string $update = null
+    ): string {
+        $tableQuoted = $this->quoteTable($table);
+        $refTableQuoted = $this->quoteTable($refTable);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $refColsQuoted = array_map([$this, 'quoteIdentifier'], $refColumns);
+        $colsList = implode(', ', $colsQuoted);
+        $refColsList = implode(', ', $refColsQuoted);
+
+        $sql = "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted}";
+        $sql .= " FOREIGN KEY ({$colsList}) REFERENCES {$refTableQuoted} ({$refColsList})";
+
+        if ($delete !== null) {
+            $sql .= ' ON DELETE ' . strtoupper($delete);
+        }
+        if ($update !== null) {
+            $sql .= ' ON UPDATE ' . strtoupper($update);
+        }
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropForeignKeySql(string $name, string $table): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "ALTER TABLE {$tableQuoted} DROP CONSTRAINT {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameTableSql(string $table, string $newName): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $newQuoted = $this->quoteTable($newName);
+        return "ALTER TABLE {$tableQuoted} RENAME TO {$newQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatColumnDefinition(string $name, ColumnSchema $schema): string
+    {
+        $nameQuoted = $this->quoteIdentifier($name);
+        $type = $schema->getType();
+
+        // PostgreSQL type mapping
+        if ($type === 'INT' || $type === 'INTEGER') {
+            $type = 'INTEGER';
+        } elseif ($type === 'TINYINT' || $type === 'SMALLINT') {
+            $type = 'SMALLINT';
+        } elseif ($type === 'BIGINT') {
+            $type = 'BIGINT';
+        } elseif ($type === 'TEXT') {
+            $type = 'TEXT';
+        } elseif ($type === 'DATETIME' || $type === 'TIMESTAMP') {
+            $type = 'TIMESTAMP';
+        }
+
+        // Build type with length/scale
+        $typeDef = $type;
+        if ($schema->getLength() !== null) {
+            if ($schema->getScale() !== null) {
+                $typeDef .= '(' . $schema->getLength() . ',' . $schema->getScale() . ')';
+            } else {
+                // For VARCHAR and similar
+                if (in_array(strtoupper($type), ['VARCHAR', 'CHAR', 'CHARACTER VARYING', 'CHARACTER'], true)) {
+                    $typeDef .= '(' . $schema->getLength() . ')';
+                }
+            }
+        }
+
+        // SERIAL type handling (PostgreSQL auto-increment)
+        if ($schema->isAutoIncrement()) {
+            if ($type === 'INTEGER' || $type === 'INT') {
+                $typeDef = 'SERIAL';
+            } elseif ($type === 'BIGINT') {
+                $typeDef = 'BIGSERIAL';
+            } elseif ($type === 'SMALLINT') {
+                $typeDef = 'SMALLSERIAL';
+            }
+        }
+
+        $parts = [$nameQuoted, $typeDef];
+
+        // NOT NULL / NULL
+        if ($schema->isNotNull()) {
+            $parts[] = 'NOT NULL';
+        }
+
+        // DEFAULT (only if not SERIAL, as SERIAL includes auto-increment)
+        if ($schema->getDefaultValue() !== null && !$schema->isAutoIncrement()) {
+            if ($schema->isDefaultExpression()) {
+                $parts[] = 'DEFAULT ' . $schema->getDefaultValue();
+            } else {
+                $default = $this->formatDefaultValue($schema->getDefaultValue());
+                $parts[] = 'DEFAULT ' . $default;
+            }
+        }
+
+        // UNIQUE is handled separately (not in column definition)
+        // It's created via CREATE INDEX or table constraint
+
+        return implode(' ', $parts);
+    }
+
+    /**
+     * Parse column definition from array.
+     *
+     * @param array<string, mixed> $def Definition array
+     *
+     * @return ColumnSchema
+     */
+    protected function parseColumnDefinition(array $def): ColumnSchema
+    {
+        $type = $def['type'] ?? 'VARCHAR';
+        $length = $def['length'] ?? $def['size'] ?? null;
+        $scale = $def['scale'] ?? null;
+
+        $schema = new ColumnSchema((string)$type, $length, $scale);
+
+        if (isset($def['null']) && $def['null'] === false) {
+            $schema->notNull();
+        }
+        if (isset($def['default'])) {
+            if (isset($def['defaultExpression']) && $def['defaultExpression']) {
+                $schema->defaultExpression((string)$def['default']);
+            } else {
+                $schema->defaultValue($def['default']);
+            }
+        }
+        if (isset($def['comment'])) {
+            // PostgreSQL comments are set separately via COMMENT ON COLUMN
+            $schema->comment((string)$def['comment']);
+        }
+        if (isset($def['autoIncrement']) && $def['autoIncrement']) {
+            $schema->autoIncrement();
+        }
+        if (isset($def['unique']) && $def['unique']) {
+            $schema->unique();
+        }
+
+        // PostgreSQL doesn't support FIRST/AFTER in ALTER TABLE
+        // These are silently ignored
+
+        return $schema;
+    }
+
+    /**
+     * Format default value for SQL.
+     *
+     * @param mixed $value Default value
+     *
+     * @return string SQL formatted value
+     */
+    protected function formatDefaultValue(mixed $value): string
+    {
+        if ($value instanceof \tommyknocker\pdodb\helpers\values\RawValue) {
+            return $value->getValue();
+        }
+        if ($value === null) {
+            return 'NULL';
+        }
+        if (is_bool($value)) {
+            return $value ? 'TRUE' : 'FALSE';
+        }
+        if (is_numeric($value)) {
+            return (string)$value;
+        }
+        if (is_string($value)) {
+            return "'" . addslashes($value) . "'";
+        }
+        return "'" . addslashes((string)$value) . "'";
     }
 }

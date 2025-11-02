@@ -8,6 +8,7 @@ use PDO;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 interface DialectInterface
 {
@@ -728,4 +729,165 @@ interface DialectInterface
      * @return bool True if LATERAL JOINs are supported
      */
     public function supportsLateralJoin(): bool;
+
+    /* ---------------- DDL Operations ---------------- */
+
+    /**
+     * Build CREATE TABLE SQL statement.
+     *
+     * @param string $table Table name
+     * @param array<string, ColumnSchema|array<string, mixed>|string> $columns Column definitions
+     * @param array<string, mixed> $options Table options (ENGINE, CHARSET, etc.)
+     *
+     * @return string SQL statement
+     */
+    public function buildCreateTableSql(
+        string $table,
+        array $columns,
+        array $options = []
+    ): string;
+
+    /**
+     * Build DROP TABLE SQL statement.
+     *
+     * @param string $table Table name
+     *
+     * @return string SQL statement
+     */
+    public function buildDropTableSql(string $table): string;
+
+    /**
+     * Build DROP TABLE IF EXISTS SQL statement.
+     *
+     * @param string $table Table name
+     *
+     * @return string SQL statement
+     */
+    public function buildDropTableIfExistsSql(string $table): string;
+
+    /**
+     * Build ALTER TABLE ADD COLUMN SQL statement.
+     *
+     * @param string $table Table name
+     * @param string $column Column name
+     * @param ColumnSchema $schema Column schema
+     *
+     * @return string SQL statement
+     */
+    public function buildAddColumnSql(
+        string $table,
+        string $column,
+        ColumnSchema $schema
+    ): string;
+
+    /**
+     * Build ALTER TABLE DROP COLUMN SQL statement.
+     *
+     * @param string $table Table name
+     * @param string $column Column name
+     *
+     * @return string SQL statement
+     */
+    public function buildDropColumnSql(string $table, string $column): string;
+
+    /**
+     * Build ALTER TABLE ALTER COLUMN SQL statement.
+     *
+     * @param string $table Table name
+     * @param string $column Column name
+     * @param ColumnSchema $schema Column schema
+     *
+     * @return string SQL statement
+     */
+    public function buildAlterColumnSql(
+        string $table,
+        string $column,
+        ColumnSchema $schema
+    ): string;
+
+    /**
+     * Build ALTER TABLE RENAME COLUMN SQL statement.
+     *
+     * @param string $table Table name
+     * @param string $oldName Old column name
+     * @param string $newName New column name
+     *
+     * @return string SQL statement
+     */
+    public function buildRenameColumnSql(string $table, string $oldName, string $newName): string;
+
+    /**
+     * Build CREATE INDEX SQL statement.
+     *
+     * @param string $name Index name
+     * @param string $table Table name
+     * @param array<int, string> $columns Column names
+     * @param bool $unique Whether index is unique
+     *
+     * @return string SQL statement
+     */
+    public function buildCreateIndexSql(string $name, string $table, array $columns, bool $unique = false): string;
+
+    /**
+     * Build DROP INDEX SQL statement.
+     *
+     * @param string $name Index name
+     * @param string $table Table name
+     *
+     * @return string SQL statement
+     */
+    public function buildDropIndexSql(string $name, string $table): string;
+
+    /**
+     * Build ADD FOREIGN KEY SQL statement.
+     *
+     * @param string $name Foreign key name
+     * @param string $table Table name
+     * @param array<int, string> $columns Column names
+     * @param string $refTable Referenced table name
+     * @param array<int, string> $refColumns Referenced column names
+     * @param string|null $delete ON DELETE action (CASCADE, RESTRICT, SET NULL, etc.)
+     * @param string|null $update ON UPDATE action
+     *
+     * @return string SQL statement
+     */
+    public function buildAddForeignKeySql(
+        string $name,
+        string $table,
+        array $columns,
+        string $refTable,
+        array $refColumns,
+        ?string $delete = null,
+        ?string $update = null
+    ): string;
+
+    /**
+     * Build DROP FOREIGN KEY SQL statement.
+     *
+     * @param string $name Foreign key name
+     * @param string $table Table name
+     *
+     * @return string SQL statement
+     */
+    public function buildDropForeignKeySql(string $name, string $table): string;
+
+    /**
+     * Build RENAME TABLE SQL statement.
+     *
+     * @param string $table Old table name
+     * @param string $newName New table name
+     *
+     * @return string SQL statement
+     */
+    public function buildRenameTableSql(string $table, string $newName): string;
+
+    /**
+     * Format column definition for CREATE/ALTER TABLE.
+     *
+     * @param string $name Column name
+     * @param ColumnSchema $schema Column schema
+     *
+     * @return string Column definition SQL
+     */
+    public function formatColumnDefinition(string $name, ColumnSchema $schema): string;
 }

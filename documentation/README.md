@@ -28,6 +28,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [Window Functions](03-query-builder/window-functions.md) - ROW_NUMBER, RANK, LAG, LEAD
 - [Full-Text Search](03-query-builder/fulltext-search.md) - Cross-database FTS
 - [Schema Introspection](03-query-builder/schema-introspection.md) - Query indexes, foreign keys
+- [DDL Operations](03-query-builder/ddl-operations.md) - Create, alter, and manage database schema
 - [Raw Queries](03-query-builder/raw-queries.md) - Raw SQL with binding
 
 ### JSON Operations
@@ -50,6 +51,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [Query Caching](05-advanced-features/query-caching.md) - PSR-16 result caching
 - [Pagination](05-advanced-features/pagination.md) - Full, simple, and cursor-based pagination
 - [Read/Write Splitting](05-advanced-features/read-write-splitting.md) - Master-replica architecture
+- [Database Migrations](05-advanced-features/migrations.md) - Version-controlled schema changes
 - [ActiveRecord](05-advanced-features/active-record.md) - Lightweight ORM pattern for object-based database operations
 
 ### Error Handling
@@ -127,6 +129,8 @@ $users = $db->find()
 - **Common Table Expressions (CTEs)** - WITH clauses for complex queries, recursive CTEs
 - **Full-Text Search** - Cross-database FTS with unified API
 - **Schema Introspection** - Query indexes, foreign keys, and constraints
+- **DDL Query Builder** - Fluent API for schema operations without raw SQL
+- **Database Migrations** - Version-controlled schema changes with rollback support
 - **JSON Operations** - Unified JSON API across all databases
 - **Advanced Pagination** - Full, simple, and cursor-based pagination
 - **Prepared Statements** - Automatic parameter binding for security
