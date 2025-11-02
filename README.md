@@ -43,7 +43,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Connection Retry** - Automatic retry with exponential backoff
 - **PSR-14 Event Dispatcher** - Event-driven architecture for monitoring, auditing, and middleware
 - **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more
-- **Fully Tested** - 1200 tests, 4856 assertions across all dialects
+- **Fully Tested** - 1306 tests, 5139 assertions across all dialects
 - **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
 
 Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class) and [Yii2 framework](https://github.com/yiisoft/yii2-framework)
@@ -59,6 +59,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 - [Quick Example](#quick-example)
 - [Configuration](#configuration)
   - [MySQL Configuration](#mysql-configuration)
+  - [MariaDB Configuration](#mariadb-configuration)
   - [PostgreSQL Configuration](#postgresql-configuration)
   - [SQLite Configuration](#sqlite-configuration)
   - [Connection Pooling](#connection-pooling)
@@ -204,6 +205,7 @@ PDODB_DRIVER=pgsql php 01-basic/02-simple-crud.php
 **Environment variable `PDODB_DRIVER`** controls which database to use:
 - `sqlite` (default) - uses `config.sqlite.php`
 - `mysql` - uses `config.mysql.php`
+- `mariadb` - uses `config.mariadb.php`
 - `pgsql` - uses `config.pgsql.php`
 
 If config file is missing, falls back to SQLite.
@@ -258,6 +260,28 @@ $db = new PdoDb('mysql', [
     'dbname'      => 'testdb',             // Required. Database name.
     'port'        => 3306,                 // Optional. MySQL port (default is 3306).
     'prefix'      => 'my_',                // Optional. Table prefix (e.g. 'wp_').
+    'charset'     => 'utf8mb4',            // Optional. Connection charset (recommended: 'utf8mb4').
+    'unix_socket' => '/var/run/mysqld/mysqld.sock', // Optional. Path to Unix socket if used.
+    'sslca'       => '/path/ca.pem',       // Optional. Path to SSL CA certificate.
+    'sslcert'     => '/path/client-cert.pem', // Optional. Path to SSL client certificate.
+    'sslkey'      => '/path/client-key.pem',  // Optional. Path to SSL client key.
+    'compress'    => true                  // Optional. Enable protocol compression.
+]);
+```
+
+### MariaDB Configuration
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+$db = new PdoDb('mariadb', [
+    'pdo'         => null,                 // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
+    'host'        => '127.0.0.1',          // Required. MariaDB host (e.g. 'localhost' or IP address).
+    'username'    => 'testuser',           // Required. MariaDB username.
+    'password'    => 'testpass',           // Required. MariaDB password.
+    'dbname'      => 'testdb',             // Required. Database name.
+    'port'        => 3305,                 // Optional. MariaDB port (default is 3306, often 3305 to avoid conflicts with MySQL).
+    'prefix'      => 'md_',                // Optional. Table prefix (e.g. 'wp_').
     'charset'     => 'utf8mb4',            // Optional. Connection charset (recommended: 'utf8mb4').
     'unix_socket' => '/var/run/mysqld/mysqld.sock', // Optional. Path to Unix socket if used.
     'sslca'       => '/path/ca.pem',       // Optional. Path to SSL CA certificate.
