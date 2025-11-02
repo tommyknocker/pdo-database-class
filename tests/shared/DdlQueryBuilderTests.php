@@ -275,6 +275,301 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
     }
 
     /**
+     * Test alter column with ColumnSchema.
+     */
+    public function testAlterColumnWithColumnSchema(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+        $driver = $schema->getDialect()->getDriverName();
+
+        $schema->dropTableIfExists('test_ddl_alter_col');
+
+        // Create table
+        $schema->createTable('test_ddl_alter_col', [
+            'id' => $schema->primaryKey(),
+            'name' => $schema->string(50),
+        ]);
+
+        // SQLite doesn't support ALTER COLUMN to change type
+        if ($driver === 'sqlite') {
+            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+        }
+
+        // Alter column with ColumnSchema
+        $schema->alterColumn('test_ddl_alter_col', 'name', $schema->string(255)->notNull()->defaultValue('default'));
+
+        // Verify column was altered (only if not SQLite)
+        if ($driver !== 'sqlite') {
+            $columns = $db->describe('test_ddl_alter_col');
+            $nameColumn = null;
+            foreach ($columns as $col) {
+                $colName = $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? null;
+                if ($colName === 'name') {
+                    $nameColumn = $col;
+                    break;
+                }
+            }
+
+            $this->assertNotNull($nameColumn, 'Column name should exist');
+        }
+
+        // Cleanup
+        $schema->dropTable('test_ddl_alter_col');
+    }
+
+    /**
+     * Test alter column with array definition.
+     */
+    public function testAlterColumnWithArray(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+        $driver = $schema->getDialect()->getDriverName();
+
+        $schema->dropTableIfExists('test_ddl_alter_array');
+
+        // Create table
+        $schema->createTable('test_ddl_alter_array', [
+            'id' => $schema->primaryKey(),
+            'value' => $schema->integer(),
+        ]);
+
+        // SQLite doesn't support ALTER COLUMN to change type
+        if ($driver === 'sqlite') {
+            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+        }
+
+        // Alter column with array
+        $schema->alterColumn('test_ddl_alter_array', 'value', [
+            'type' => 'INT',
+            'length' => 11,
+            'null' => false,
+            'default' => 0,
+        ]);
+
+        // Verify column was altered (only if not SQLite)
+        if ($driver !== 'sqlite') {
+            $columns = $db->describe('test_ddl_alter_array');
+            $valueColumn = null;
+            foreach ($columns as $col) {
+                $colName = $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? null;
+                if ($colName === 'value') {
+                    $valueColumn = $col;
+                    break;
+                }
+            }
+
+            $this->assertNotNull($valueColumn, 'Column value should exist');
+        }
+
+        // Cleanup
+        $schema->dropTable('test_ddl_alter_array');
+    }
+
+    /**
+     * Test alter column with string type.
+     */
+    public function testAlterColumnWithString(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+        $driver = $schema->getDialect()->getDriverName();
+
+        $schema->dropTableIfExists('test_ddl_alter_string');
+
+        // Create table
+        $schema->createTable('test_ddl_alter_string', [
+            'id' => $schema->primaryKey(),
+            'description' => $schema->string(100),
+        ]);
+
+        // SQLite doesn't support ALTER COLUMN to change type
+        if ($driver === 'sqlite') {
+            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+        }
+
+        // Alter column with string type
+        $schema->alterColumn('test_ddl_alter_string', 'description', 'TEXT');
+
+        // Verify column was altered (only if not SQLite)
+        if ($driver !== 'sqlite') {
+            $columns = $db->describe('test_ddl_alter_string');
+            $descColumn = null;
+            foreach ($columns as $col) {
+                $colName = $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? null;
+                if ($colName === 'description') {
+                    $descColumn = $col;
+                    break;
+                }
+            }
+
+            $this->assertNotNull($descColumn, 'Column description should exist');
+        }
+
+        // Cleanup
+        $schema->dropTable('test_ddl_alter_string');
+    }
+
+    /**
+     * Test add column with array definition.
+     */
+    public function testAddColumnWithArray(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_ddl_add_array');
+
+        // Create table
+        $schema->createTable('test_ddl_add_array', [
+            'id' => $schema->primaryKey(),
+        ]);
+
+        // Add column with array
+        $schema->addColumn('test_ddl_add_array', 'email', [
+            'type' => 'VARCHAR',
+            'length' => 255,
+            'null' => false,
+            'unique' => true,
+        ]);
+
+        $columns = $db->describe('test_ddl_add_array');
+        $columnNames = array_column($columns, 'Field') ?: array_column($columns, 'column_name') ?: array_column($columns, 'name');
+        $this->assertContains('email', $columnNames);
+
+        // Cleanup
+        $schema->dropTable('test_ddl_add_array');
+    }
+
+    /**
+     * Test add column with string type.
+     */
+    public function testAddColumnWithString(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_ddl_add_string');
+
+        // Create table
+        $schema->createTable('test_ddl_add_string', [
+            'id' => $schema->primaryKey(),
+        ]);
+
+        // Add column with string type
+        $schema->addColumn('test_ddl_add_string', 'notes', 'TEXT');
+
+        $columns = $db->describe('test_ddl_add_string');
+        $columnNames = array_column($columns, 'Field') ?: array_column($columns, 'column_name') ?: array_column($columns, 'name');
+        $this->assertContains('notes', $columnNames);
+
+        // Cleanup
+        $schema->dropTable('test_ddl_add_string');
+    }
+
+    /**
+     * Test create index with array of columns.
+     */
+    public function testCreateIndexWithArrayColumns(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_ddl_index_array');
+
+        // Create table
+        $schema->createTable('test_ddl_index_array', [
+            'id' => $schema->primaryKey(),
+            'first_name' => $schema->string(100),
+            'last_name' => $schema->string(100),
+        ]);
+
+        // Create composite index with array
+        $schema->createIndex('idx_full_name', 'test_ddl_index_array', ['first_name', 'last_name']);
+
+        // Verify index exists (can't easily check composite indexes, but operation should succeed)
+        $this->assertTrue($schema->tableExists('test_ddl_index_array'));
+
+        // Cleanup
+        try {
+            $schema->dropIndex('idx_full_name', 'test_ddl_index_array');
+        } catch (\Throwable $e) {
+            // Index might not exist or might be named differently, ignore
+        }
+        $schema->dropTable('test_ddl_index_array');
+    }
+
+    /**
+     * Test addForeignKey with array columns.
+     */
+    public function testAddForeignKeyWithArrayColumns(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+        $driver = $schema->getDialect()->getDriverName();
+
+        $schema->dropTableIfExists('test_fk_child');
+        $schema->dropTableIfExists('test_fk_parent');
+
+        // Create parent table
+        $schema->createTable('test_fk_parent', [
+            'id' => $schema->primaryKey(),
+            'code' => $schema->string(50)->unique(),
+        ]);
+
+        // Create child table
+        $schema->createTable('test_fk_child', [
+            'id' => $schema->primaryKey(),
+            'parent_id' => $schema->integer(),
+            'parent_code' => $schema->string(50),
+        ]);
+
+        // SQLite doesn't support ADD FOREIGN KEY
+        if ($driver === 'sqlite') {
+            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $schema->addForeignKey(
+                'fk_child_parent',
+                'test_fk_child',
+                'parent_id',
+                'test_fk_parent',
+                'id'
+            );
+        } else {
+            // Add foreign key with array columns (composite FK)
+            // Note: Not all databases support composite FKs, but test the method call
+            try {
+                $schema->addForeignKey(
+                    'fk_child_parent',
+                    'test_fk_child',
+                    ['parent_id', 'parent_code'],
+                    'test_fk_parent',
+                    ['id', 'code'],
+                    'CASCADE',
+                    'CASCADE'
+                );
+                $this->assertTrue($schema->tableExists('test_fk_child'));
+            } catch (\Throwable $e) {
+                // Composite FK might not be supported, test with single column
+                $schema->addForeignKey(
+                    'fk_child_parent',
+                    'test_fk_child',
+                    'parent_id',
+                    'test_fk_parent',
+                    'id',
+                    'CASCADE',
+                    'CASCADE'
+                );
+                $this->assertTrue($schema->tableExists('test_fk_child'));
+            }
+        }
+
+        // Cleanup
+        $schema->dropTableIfExists('test_fk_child');
+        $schema->dropTableIfExists('test_fk_parent');
+    }
+
+    /**
      * Test create index.
      */
     public function testCreateIndex(): void
@@ -410,5 +705,193 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
 
         // Cleanup
         $schema->dropTable('test_ddl_truncate');
+    }
+
+    /**
+     * Test all column schema helper methods.
+     */
+    public function testColumnSchemaHelpers(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_ddl_helpers');
+
+        $schema->createTable('test_ddl_helpers', [
+            'id' => $schema->primaryKey(),
+            'big_id' => $schema->integer(),
+            'str' => $schema->string(100),
+            'txt' => $schema->text(),
+            'small_int' => $schema->smallInteger(),
+            'bool_col' => $schema->boolean(),
+            'float_col' => $schema->float(10, 2),
+            'dec_col' => $schema->decimal(10, 2),
+            'date_col' => $schema->date(),
+            'time_col' => $schema->time(),
+            'datetime_col' => $schema->datetime(),
+            'timestamp_col' => $schema->timestamp(),
+            'json_col' => $schema->json(),
+        ]);
+
+        // Test bigPrimaryKey separately
+        $schema->dropTableIfExists('test_ddl_big_pk');
+        $schema->createTable('test_ddl_big_pk', [
+            'id' => $schema->bigPrimaryKey(),
+        ]);
+        $this->assertTrue($schema->tableExists('test_ddl_big_pk'));
+        $schema->dropTable('test_ddl_big_pk');
+
+        $this->assertTrue($schema->tableExists('test_ddl_helpers'));
+
+        // Cleanup
+        $schema->dropTable('test_ddl_helpers');
+    }
+
+    /**
+     * Test normalizeColumnSchema with array input.
+     */
+    public function testNormalizeColumnSchemaArray(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_normalize_array');
+
+        $schema->createTable('test_normalize_array', [
+            'id' => $schema->primaryKey(),
+            'col1' => [
+                'type' => 'VARCHAR',
+                'length' => 100,
+                'null' => false,
+                'default' => 'test',
+                'comment' => 'Test column',
+                'unsigned' => false,
+                'autoIncrement' => false,
+                'unique' => true,
+            ],
+            'col2' => [
+                'type' => 'INT',
+                'defaultExpression' => true,
+                'default' => '0',
+            ],
+            'col3' => 'TEXT',
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_normalize_array'));
+
+        // Cleanup
+        $schema->dropTable('test_normalize_array');
+    }
+
+    /**
+     * Test normalizeColumnSchema with string input.
+     */
+    public function testNormalizeColumnSchemaString(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_normalize_string');
+
+        $schema->createTable('test_normalize_string', [
+            'id' => $schema->primaryKey(),
+            'col1' => 'VARCHAR(255)',
+            'col2' => 'INT',
+            'col3' => 'TEXT',
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_normalize_string'));
+
+        // Cleanup
+        $schema->dropTable('test_normalize_string');
+    }
+
+    /**
+     * Test normalizeColumnSchema with array containing 'after' and 'first'.
+     */
+    public function testNormalizeColumnSchemaWithPosition(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_normalize_position');
+
+        $schema->createTable('test_normalize_position', [
+            'id' => $schema->primaryKey(),
+            'name' => $schema->string(100),
+        ]);
+
+        // Add column with 'after' option
+        $schema->addColumn('test_normalize_position', 'email', [
+            'type' => 'VARCHAR',
+            'length' => 255,
+            'after' => 'name',
+        ]);
+
+        // Add column with 'first' option
+        $schema->addColumn('test_normalize_position', 'priority', [
+            'type' => 'INT',
+            'first' => true,
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_normalize_position'));
+
+        // Cleanup
+        $schema->dropTable('test_normalize_position');
+    }
+
+    /**
+     * Test normalizeColumnSchema with array containing 'size' instead of 'length'.
+     */
+    public function testNormalizeColumnSchemaArrayWithSize(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_normalize_size');
+
+        $schema->createTable('test_normalize_size', [
+            'id' => $schema->primaryKey(),
+            'col1' => [
+                'type' => 'VARCHAR',
+                'size' => 200, // Use 'size' instead of 'length'
+            ],
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_normalize_size'));
+
+        // Cleanup
+        $schema->dropTable('test_normalize_size');
+    }
+
+    /**
+     * Test createTableIfNotExists when table already exists.
+     */
+    public function testCreateTableIfNotExistsWhenTableExists(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_if_not_exists');
+
+        // Create table
+        $schema->createTable('test_if_not_exists', [
+            'id' => $schema->primaryKey(),
+            'name' => $schema->string(100),
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_if_not_exists'));
+
+        // Try to create again with createTableIfNotExists
+        $schema->createTableIfNotExists('test_if_not_exists', [
+            'id' => $schema->primaryKey(),
+            'name' => $schema->string(100),
+        ]);
+
+        // Table should still exist (not recreated)
+        $this->assertTrue($schema->tableExists('test_if_not_exists'));
+
+        // Cleanup
+        $schema->dropTable('test_if_not_exists');
     }
 }

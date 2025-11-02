@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <title>Dashboard for /home/tommyknocker/repos/tommyknocker/pdo-database-class/src/query/analysis</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="../../_css/bootstrap.min.css?v=12.4.0" rel="stylesheet" type="text/css">
+  <link href="../../_css/billboard.min.css?v=12.4.0" rel="stylesheet" type="text/css">
+  <link href="../../_css/style.css?v=12.4.0" rel="stylesheet" type="text/css">
+  <link href="../../_css/custom.css" rel="stylesheet" type="text/css">
+ </head>
+ <body>
+  <header>
+   <div class="container-fluid">
+    <div class="row">
+     <div class="col-md-12">
+      <nav aria-label="breadcrumb">
+       <ol class="breadcrumb">
+         <li class="breadcrumb-item"><a href="../../index.html">/home/tommyknocker/repos/tommyknocker/pdo-database-class/src</a></li>
+         <li class="breadcrumb-item"><a href="../index.html">query</a></li>
+         <li class="breadcrumb-item"><a href="index.html">analysis</a></li>
+         <li class="breadcrumb-item active">(Dashboard)</li>
+
+       </ol>
+      </nav>
+     </div>
+    </div>
+   </div>
+  </header>
+  <div class="container-fluid">
+   <div class="row">
+    <div class="col-md-12">
+     <h2>Classes</h2>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-6">
+     <h3>Coverage Distribution</h3>
+     <div id="classesCoverageDistribution" style="height: 300px;">
+       <svg></svg>
+     </div>
+    </div>
+    <div class="col-md-6">
+     <h3>Complexity</h3>
+     <div id="classComplexity" style="height: 300px;">
+       <svg></svg>
+     </div>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-6">
+     <h3 style="margin-top: 2rem;">Insufficient Coverage</h3>
+     <div class="scrollbox">
+      <table class="table">
+       <thead>
+        <tr>
+         <th>Class</th>
+         <th class="text-right">Coverage</th>
+        </tr>
+       </thead>
+       <tbody>
+       <tr><td><a href="parsers/MariaDBExplainParser.php.html#12">tommyknocker\pdodb\query\analysis\parsers\MariaDBExplainParser</a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="parsers/SqliteExplainParser.php.html#12">tommyknocker\pdodb\query\analysis\parsers\SqliteExplainParser</a></td><td class="text-right">64%</td></tr>
+       <tr><td><a href="parsers/PostgreSQLExplainParser.php.html#12">tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser</a></td><td class="text-right">75%</td></tr>
+       <tr><td><a href="ExplainAnalyzer.php.html#17">tommyknocker\pdodb\query\analysis\ExplainAnalyzer</a></td><td class="text-right">82%</td></tr>
+       <tr><td><a href="ExplainAnalysis.php.html#10">tommyknocker\pdodb\query\analysis\ExplainAnalysis</a></td><td class="text-right">83%</td></tr>
+       <tr><td><a href="parsers/MySQLExplainParser.php.html#12">tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser</a></td><td class="text-right">89%</td></tr>
+
+       </tbody>
+      </table>
+     </div>
+    </div>
+    <div class="col-md-6">
+     <h3 style="margin-top: 2rem;">Project Risks</h3>
+     <div class="scrollbox">
+      <table class="table">
+       <thead>
+        <tr>
+         <th>Class</th>
+         <th class="text-right">Coverage</th>
+         <th class="text-right">Complexity</th>
+         <th class="text-right"><abbr title="Change Risk Anti-Patterns (CRAP) Index">CRAP</abbr></th>
+        </tr>
+       </thead>
+       <tbody>
+       <tr><td><a href="parsers/MariaDBExplainParser.php.html#12">tommyknocker\pdodb\query\analysis\parsers\MariaDBExplainParser</a></td><td class="text-right">0.0%</td><td class="text-right">40</td><td class="text-right">1640</td></tr>
+       <tr><td><a href="parsers/MySQLExplainParser.php.html#12">tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser</a></td><td class="text-right">89.1%</td><td class="text-right">40</td><td class="text-right">42</td></tr>
+       <tr><td><a href="parsers/SqliteExplainParser.php.html#12">tommyknocker\pdodb\query\analysis\parsers\SqliteExplainParser</a></td><td class="text-right">64.1%</td><td class="text-right">21</td><td class="text-right">41</td></tr>
+       <tr><td><a href="parsers/PostgreSQLExplainParser.php.html#12">tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser</a></td><td class="text-right">75.0%</td><td class="text-right">19</td><td class="text-right">24</td></tr>
+       <tr><td><a href="ExplainAnalyzer.php.html#17">tommyknocker\pdodb\query\analysis\ExplainAnalyzer</a></td><td class="text-right">82.5%</td><td class="text-right">17</td><td class="text-right">18</td></tr>
+       <tr><td><a href="ExplainAnalysis.php.html#10">tommyknocker\pdodb\query\analysis\ExplainAnalysis</a></td><td class="text-right">83.3%</td><td class="text-right">5</td><td class="text-right">5</td></tr>
+
+       </tbody>
+      </table>
+     </div>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-12">
+     <h2 style="margin-top: 3rem;">Methods</h2>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-6">
+     <h3>Coverage Distribution</h3>
+     <div id="methodsCoverageDistribution" style="height: 300px;">
+       <svg></svg>
+     </div>
+    </div>
+    <div class="col-md-6">
+     <h3>Complexity</h3>
+     <div id="methodComplexity" style="height: 300px;">
+       <svg></svg>
+     </div>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-6">
+     <h3 style="margin-top: 2rem;">Insufficient Coverage</h3>
+     <div class="scrollbox">
+      <table class="table">
+       <thead>
+        <tr>
+         <th>Method</th>
+         <th class="text-right">Coverage</th>
+        </tr>
+       </thead>
+       <tbody>
+       <tr><td><a href="parsers/MariaDBExplainParser.php.html#14"><abbr title="tommyknocker\pdodb\query\analysis\parsers\MariaDBExplainParser::parse">parse</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="parsers/SqliteExplainParser.php.html#14"><abbr title="tommyknocker\pdodb\query\analysis\parsers\SqliteExplainParser::parse">parse</abbr></a></td><td class="text-right">64%</td></tr>
+       <tr><td><a href="ExplainAnalyzer.php.html#128"><abbr title="tommyknocker\pdodb\query\analysis\ExplainAnalyzer::extractTableFromWarning">extractTableFromWarning</abbr></a></td><td class="text-right">66%</td></tr>
+       <tr><td><a href="ExplainAnalyzer.php.html#78"><abbr title="tommyknocker\pdodb\query\analysis\ExplainAnalyzer::detectIssues">detectIssues</abbr></a></td><td class="text-right">70%</td></tr>
+       <tr><td><a href="ExplainAnalysis.php.html#29"><abbr title="tommyknocker\pdodb\query\analysis\ExplainAnalysis::hasCriticalIssues">hasCriticalIssues</abbr></a></td><td class="text-right">75%</td></tr>
+       <tr><td><a href="RecommendationGenerator.php.html#169"><abbr title="tommyknocker\pdodb\query\analysis\RecommendationGenerator::getExistingIndexes">getExistingIndexes</abbr></a></td><td class="text-right">75%</td></tr>
+       <tr><td><a href="parsers/PostgreSQLExplainParser.php.html#14"><abbr title="tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser::parse">parse</abbr></a></td><td class="text-right">75%</td></tr>
+       <tr><td><a href="RecommendationGenerator.php.html#139"><abbr title="tommyknocker\pdodb\query\analysis\RecommendationGenerator::suggestOrderByIndex">suggestOrderByIndex</abbr></a></td><td class="text-right">86%</td></tr>
+       <tr><td><a href="parsers/MySQLExplainParser.php.html#14"><abbr title="tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser::parse">parse</abbr></a></td><td class="text-right">89%</td></tr>
+
+       </tbody>
+      </table>
+     </div>
+    </div>
+    <div class="col-md-6">
+     <h3 style="margin-top: 2rem;">Project Risks</h3>
+     <div class="scrollbox">
+      <table class="table">
+       <thead>
+        <tr>
+         <th>Method</th>
+         <th class="text-right">Coverage</th>
+         <th class="text-right">Complexity</th>
+         <th class="text-right"><abbr title="Change Risk Anti-Patterns (CRAP) Index">CRAP</abbr></th>
+        </tr>
+       </thead>
+       <tbody>
+       <tr><td><a href="parsers/MariaDBExplainParser.php.html#14"><abbr title="tommyknocker\pdodb\query\analysis\parsers\MariaDBExplainParser::parse">parse</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">40</td><td class="text-right">1640</td></tr>
+       <tr><td><a href="parsers/MySQLExplainParser.php.html#14"><abbr title="tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser::parse">parse</abbr></a></td><td class="text-right">89.1%</td><td class="text-right">40</td><td class="text-right">42</td></tr>
+       <tr><td><a href="parsers/SqliteExplainParser.php.html#14"><abbr title="tommyknocker\pdodb\query\analysis\parsers\SqliteExplainParser::parse">parse</abbr></a></td><td class="text-right">64.1%</td><td class="text-right">21</td><td class="text-right">41</td></tr>
+       <tr><td><a href="parsers/PostgreSQLExplainParser.php.html#14"><abbr title="tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser::parse">parse</abbr></a></td><td class="text-right">75.0%</td><td class="text-right">19</td><td class="text-right">24</td></tr>
+       <tr><td><a href="RecommendationGenerator.php.html#169"><abbr title="tommyknocker\pdodb\query\analysis\RecommendationGenerator::getExistingIndexes">getExistingIndexes</abbr></a></td><td class="text-right">75.0%</td><td class="text-right">11</td><td class="text-right">12</td></tr>
+       <tr><td><a href="ExplainAnalyzer.php.html#78"><abbr title="tommyknocker\pdodb\query\analysis\ExplainAnalyzer::detectIssues">detectIssues</abbr></a></td><td class="text-right">70.0%</td><td class="text-right">7</td><td class="text-right">8</td></tr>
+       <tr><td><a href="ExplainAnalysis.php.html#29"><abbr title="tommyknocker\pdodb\query\analysis\ExplainAnalysis::hasCriticalIssues">hasCriticalIssues</abbr></a></td><td class="text-right">75.0%</td><td class="text-right">3</td><td class="text-right">3</td></tr>
+       <tr><td><a href="RecommendationGenerator.php.html#139"><abbr title="tommyknocker\pdodb\query\analysis\RecommendationGenerator::suggestOrderByIndex">suggestOrderByIndex</abbr></a></td><td class="text-right">86.7%</td><td class="text-right">3</td><td class="text-right">3</td></tr>
+       <tr><td><a href="ExplainAnalyzer.php.html#128"><abbr title="tommyknocker\pdodb\query\analysis\ExplainAnalyzer::extractTableFromWarning">extractTableFromWarning</abbr></a></td><td class="text-right">66.7%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+
+       </tbody>
+      </table>
+     </div>
+    </div>
+   </div>
+   <footer>
+    <hr/>
+    <p>
+     <small>Generated by <a href="https://github.com/sebastianbergmann/php-code-coverage" target="_top">php-code-coverage 12.4.0</a> using <a href="https://www.php.net/" target="_top">PHP 8.4.14</a> and <a href="https://phpunit.de/">PHPUnit 12.4.2</a> at Sun Nov 2 8:11:31 UTC 2025.</small>
+    </p>
+   </footer>
+  </div>
+  <script src="../../_js/billboard.pkgd.min.js?v=12.4.0" type="text/javascript"></script>
+  <script type="application/json" id="complexity_class">[[0,40,"parsers\/MariaDBExplainParser.php.html#12","tommyknocker\\pdodb\\query\\analysis\\parsers\\MariaDBExplainParser","1640"],[64.1025641025641,21,"parsers\/SqliteExplainParser.php.html#12","tommyknocker\\pdodb\\query\\analysis\\parsers\\SqliteExplainParser","41.40"],[75,19,"parsers\/PostgreSQLExplainParser.php.html#12","tommyknocker\\pdodb\\query\\analysis\\parsers\\PostgreSQLExplainParser","24.64"],[82.45614035087719,17,"ExplainAnalyzer.php.html#17","tommyknocker\\pdodb\\query\\analysis\\ExplainAnalyzer","18.56"],[83.33333333333334,5,"ExplainAnalysis.php.html#10","tommyknocker\\pdodb\\query\\analysis\\ExplainAnalysis","5.12"],[89.0909090909091,40,"parsers\/MySQLExplainParser.php.html#12","tommyknocker\\pdodb\\query\\analysis\\parsers\\MySQLExplainParser","42.08"],[92.23300970873787,35,"RecommendationGenerator.php.html#13","tommyknocker\\pdodb\\query\\analysis\\RecommendationGenerator","35.57"],[100,1,"Issue.php.html#10","tommyknocker\\pdodb\\query\\analysis\\Issue","1"],[100,1,"ParsedExplainPlan.php.html#10","tommyknocker\\pdodb\\query\\analysis\\ParsedExplainPlan","1"],[100,1,"Recommendation.php.html#10","tommyknocker\\pdodb\\query\\analysis\\Recommendation","1"]]</script>
+  <script type="application/json" id="complexity_method">[[0,40,"parsers\/MariaDBExplainParser.php.html#14","tommyknocker\\pdodb\\query\\analysis\\parsers\\MariaDBExplainParser::parse","1640"],[64.1025641025641,21,"parsers\/SqliteExplainParser.php.html#14","tommyknocker\\pdodb\\query\\analysis\\parsers\\SqliteExplainParser::parse","41.40"],[66.66666666666666,2,"ExplainAnalyzer.php.html#128","tommyknocker\\pdodb\\query\\analysis\\ExplainAnalyzer::extractTableFromWarning","2.15"],[70,7,"ExplainAnalyzer.php.html#78","tommyknocker\\pdodb\\query\\analysis\\ExplainAnalyzer::detectIssues","8.32"],[75,3,"ExplainAnalysis.php.html#29","tommyknocker\\pdodb\\query\\analysis\\ExplainAnalysis::hasCriticalIssues","3.14"],[75,11,"RecommendationGenerator.php.html#169","tommyknocker\\pdodb\\query\\analysis\\RecommendationGenerator::getExistingIndexes","12.89"],[75,19,"parsers\/PostgreSQLExplainParser.php.html#14","tommyknocker\\pdodb\\query\\analysis\\parsers\\PostgreSQLExplainParser::parse","24.64"],[86.66666666666667,3,"RecommendationGenerator.php.html#139","tommyknocker\\pdodb\\query\\analysis\\RecommendationGenerator::suggestOrderByIndex","3.02"],[89.0909090909091,40,"parsers\/MySQLExplainParser.php.html#14","tommyknocker\\pdodb\\query\\analysis\\parsers\\MySQLExplainParser::parse","42.08"],[91.30434782608695,6,"RecommendationGenerator.php.html#94","tommyknocker\\pdodb\\query\\analysis\\RecommendationGenerator::suggestIndexForTable","6.02"],[100,1,"ExplainAnalysis.php.html#18","tommyknocker\\pdodb\\query\\analysis\\ExplainAnalysis::__construct","1"],[100,1,"ExplainAnalysis.php.html#42","tommyknocker\\pdodb\\query\\analysis\\ExplainAnalysis::hasRecommendations","1"],[100,1,"ExplainAnalyzer.php.html#21","tommyknocker\\pdodb\\query\\analysis\\ExplainAnalyzer::__construct","1"],[100,1,"ExplainAnalyzer.php.html#39","tommyknocker\\pdodb\\query\\analysis\\ExplainAnalyzer::analyze","1"],[100,6,"ExplainAnalyzer.php.html#58","tommyknocker\\pdodb\\query\\analysis\\ExplainAnalyzer::getParser","6"],[100,1,"Issue.php.html#18","tommyknocker\\pdodb\\query\\analysis\\Issue::__construct","1"],[100,1,"ParsedExplainPlan.php.html#22","tommyknocker\\pdodb\\query\\analysis\\ParsedExplainPlan::__construct","1"],[100,1,"Recommendation.php.html#19","tommyknocker\\pdodb\\query\\analysis\\Recommendation::__construct","1"],[100,1,"RecommendationGenerator.php.html#15","tommyknocker\\pdodb\\query\\analysis\\RecommendationGenerator::__construct","1"],[100,11,"RecommendationGenerator.php.html#29","tommyknocker\\pdodb\\query\\analysis\\RecommendationGenerator::generate","11"],[100,1,"RecommendationGenerator.php.html#206","tommyknocker\\pdodb\\query\\analysis\\RecommendationGenerator::generateIndexName","1"],[100,2,"RecommendationGenerator.php.html#219","tommyknocker\\pdodb\\query\\analysis\\RecommendationGenerator::extractTableFromWarning","2"]]</script>
+  <script type="text/javascript" defer>
+  const barLabels = [
+    '0%',
+    '0-10%',
+    '10-20%',
+    '20-30%',
+    '30-40%',
+    '40-50%',
+    '50-60%',
+    '60-70%',
+    '70-80%',
+    '80-90%',
+    '90-100%',
+    '100%'
+  ];
+  const barConfig = (name, fullName, values) => ({
+    axis: {
+      x: {
+        type: "category",
+        categories: barLabels,
+      },
+      y: {
+        label: {
+          text: `#${name}`,
+          position: 'outer-top',
+        },
+      },
+    },
+    bindto: `#${name}CoverageDistribution`,
+    data: {
+      columns: [
+        [fullName].concat(values),
+      ],
+      colors: {
+        [fullName]: "rgba(69, 114, 167, 0.75)",
+      },
+      type: "bar",
+    },
+    bar: {
+      width: {
+        ratio: 0.9,
+      },
+    },
+    grid: {
+      focus: {
+        show: false,
+      },
+      x: {
+        show: true,
+      },
+      y: {
+        show: true,
+      },
+    },
+    legend: {
+      show: false,
+    },
+    tooltip: {
+      contents: function (data) {
+        return `<table class="bb-tooltip"><tbody>
+            <tr><th colspan="2">Coverage ${barLabels[data[0].x]}</th></tr>
+            <tr><td class="value">${data[0].value} ${name}</td></tr>
+          </tbody></table>`;
+      },
+      grouped: false,
+    },
+  });
+  bb.generate(
+    barConfig('classes', "Class Coverage", [1,0,0,0,0,0,0,1,1,3,1,3])
+  );
+  bb.generate(
+    barConfig('methods', "Method Coverage", [1,0,0,0,0,0,0,2,4,2,1,12])
+  );
+
+  const scatterConfig = (name, complexityData) => ({
+    axis: {
+      x: {
+        label: {
+          text: 'Code Coverage (in percent)',
+          position: 'outer-right',
+        },
+        tick: {
+          values: [0, 20, 40, 60, 80, 100],
+        },
+      },
+      y: {
+        label: {
+          text: 'Cyclomatic Complexity',
+          position: 'outer-top',
+        },
+        min: 0,
+        padding: {
+          bottom: 0,
+          top: 5,
+        },
+      },
+    },
+    bindto: `#${name}Complexity`,
+    data: {
+      columns: [
+        ["complexity_x"].concat(complexityData.map(d => d[0])),
+        ["complexity"].concat(complexityData.map(d => d[1])),
+      ],
+      onclick: function(data, element) {
+        window.location = complexityData[data.index][2];
+      },
+      type: "scatter",
+      xs: {
+        "complexity": "complexity_x",
+      },
+    },
+    grid: {
+      focus: {
+        show: true,
+        y: true,
+      },
+      x: {
+        show: true,
+      },
+      y: {
+        show: true,
+      },
+    },
+    legend: {
+      show: false,
+    },
+    tooltip: {
+      contents: function (data) {
+        const coverage = Math.round(data[0].x);
+        const complexity = data[0].value;
+        const targetName = complexityData[data[0].index][3];
+        const crap = complexityData[data[0].index][4];
+        return `<table class="bb-tooltip"><tbody>
+            <tr><th colspan="2">${targetName}</th></tr>
+            <tr class="bb-tooltip-name-complexity"><td>Coverage</td><td class="name">${coverage}%</td></tr>
+            <tr class="bb-tooltip-name-complexity"><td>Complexity</td><td class="value">${complexity}</td></tr>
+            <tr class="bb-tooltip-name-complexity"><td>Crap</td><td class="value">${crap}</td></tr>
+          </tbody></table>`;
+      },
+      grouped: false,
+    },
+  });
+  const classComplexityData = JSON.parse(document.getElementById('complexity_class').textContent);
+  bb.generate(
+    scatterConfig("class", classComplexityData)
+  );
+  const methodComplexityData = JSON.parse(document.getElementById('complexity_method').textContent);
+  bb.generate(
+    scatterConfig("method", methodComplexityData),
+  );
+  </script>
+ </body>
+</html>

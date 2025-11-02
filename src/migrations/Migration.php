@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\migrations;
 
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\QueryBuilder;
@@ -89,7 +90,7 @@ abstract class Migration implements MigrationInterface
      *
      * @param string $table Table name
      * @param array<int, string> $columns Column names
-     * @param array<int, array<string, bool|float|int|string|\tommyknocker\pdodb\helpers\values\RawValue|null>> $rows Row data
+     * @param array<int, array<string, bool|float|int|string|RawValue|null>> $rows Row data
      */
     protected function batchInsert(string $table, array $columns, array $rows): void
     {

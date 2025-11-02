@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <title>Dashboard for /home/tommyknocker/repos/tommyknocker/pdo-database-class/src/dialects</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="../_css/bootstrap.min.css?v=12.4.0" rel="stylesheet" type="text/css">
+  <link href="../_css/billboard.min.css?v=12.4.0" rel="stylesheet" type="text/css">
+  <link href="../_css/style.css?v=12.4.0" rel="stylesheet" type="text/css">
+  <link href="../_css/custom.css" rel="stylesheet" type="text/css">
+ </head>
+ <body>
+  <header>
+   <div class="container-fluid">
+    <div class="row">
+     <div class="col-md-12">
+      <nav aria-label="breadcrumb">
+       <ol class="breadcrumb">
+         <li class="breadcrumb-item"><a href="../index.html">/home/tommyknocker/repos/tommyknocker/pdo-database-class/src</a></li>
+         <li class="breadcrumb-item"><a href="index.html">dialects</a></li>
+         <li class="breadcrumb-item active">(Dashboard)</li>
+
+       </ol>
+      </nav>
+     </div>
+    </div>
+   </div>
+  </header>
+  <div class="container-fluid">
+   <div class="row">
+    <div class="col-md-12">
+     <h2>Classes</h2>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-6">
+     <h3>Coverage Distribution</h3>
+     <div id="classesCoverageDistribution" style="height: 300px;">
+       <svg></svg>
+     </div>
+    </div>
+    <div class="col-md-6">
+     <h3>Complexity</h3>
+     <div id="classComplexity" style="height: 300px;">
+       <svg></svg>
+     </div>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-6">
+     <h3 style="margin-top: 2rem;">Insufficient Coverage</h3>
+     <div class="scrollbox">
+      <table class="table">
+       <thead>
+        <tr>
+         <th>Class</th>
+         <th class="text-right">Coverage</th>
+        </tr>
+       </thead>
+       <tbody>
+       <tr><td><a href="MariaDBDialect.php.html#15">tommyknocker\pdodb\dialects\MariaDBDialect</a></td><td class="text-right">54%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#15">tommyknocker\pdodb\dialects\MySQLDialect</a></td><td class="text-right">56%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#15">tommyknocker\pdodb\dialects\PostgreSQLDialect</a></td><td class="text-right">57%</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#14">tommyknocker\pdodb\dialects\DialectAbstract</a></td><td class="text-right">77%</td></tr>
+       <tr><td><a href="loaders/FileLoader.php.html#13">tommyknocker\pdodb\dialects\loaders\FileLoader</a></td><td class="text-right">82%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#16">tommyknocker\pdodb\dialects\SqliteDialect</a></td><td class="text-right">83%</td></tr>
+       <tr><td><a href="traits/JsonPathBuilderTrait.php.html#9">tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait</a></td><td class="text-right">84%</td></tr>
+
+       </tbody>
+      </table>
+     </div>
+    </div>
+    <div class="col-md-6">
+     <h3 style="margin-top: 2rem;">Project Risks</h3>
+     <div class="scrollbox">
+      <table class="table">
+       <thead>
+        <tr>
+         <th>Class</th>
+         <th class="text-right">Coverage</th>
+         <th class="text-right">Complexity</th>
+         <th class="text-right"><abbr title="Change Risk Anti-Patterns (CRAP) Index">CRAP</abbr></th>
+        </tr>
+       </thead>
+       <tbody>
+       <tr><td><a href="PostgreSQLDialect.php.html#15">tommyknocker\pdodb\dialects\PostgreSQLDialect</a></td><td class="text-right">57.1%</td><td class="text-right">234</td><td class="text-right">4569</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#15">tommyknocker\pdodb\dialects\MariaDBDialect</a></td><td class="text-right">54.6%</td><td class="text-right">209</td><td class="text-right">4301</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#15">tommyknocker\pdodb\dialects\MySQLDialect</a></td><td class="text-right">56.6%</td><td class="text-right">203</td><td class="text-right">3579</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#16">tommyknocker\pdodb\dialects\SqliteDialect</a></td><td class="text-right">83.7%</td><td class="text-right">191</td><td class="text-right">349</td></tr>
+       <tr><td><a href="loaders/FileLoader.php.html#13">tommyknocker\pdodb\dialects\loaders\FileLoader</a></td><td class="text-right">82.8%</td><td class="text-right">100</td><td class="text-right">150</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#14">tommyknocker\pdodb\dialects\DialectAbstract</a></td><td class="text-right">78.0%</td><td class="text-right">63</td><td class="text-right">105</td></tr>
+       <tr><td><a href="traits/JsonPathBuilderTrait.php.html#9">tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait</a></td><td class="text-right">84.0%</td><td class="text-right">20</td><td class="text-right">21</td></tr>
+
+       </tbody>
+      </table>
+     </div>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-12">
+     <h2 style="margin-top: 3rem;">Methods</h2>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-6">
+     <h3>Coverage Distribution</h3>
+     <div id="methodsCoverageDistribution" style="height: 300px;">
+       <svg></svg>
+     </div>
+    </div>
+    <div class="col-md-6">
+     <h3>Complexity</h3>
+     <div id="methodComplexity" style="height: 300px;">
+       <svg></svg>
+     </div>
+    </div>
+   </div>
+   <div class="row">
+    <div class="col-md-6">
+     <h3 style="margin-top: 2rem;">Insufficient Coverage</h3>
+     <div class="scrollbox">
+      <table class="table">
+       <thead>
+        <tr>
+         <th>Method</th>
+         <th class="text-right">Coverage</th>
+        </tr>
+       </thead>
+       <tbody>
+       <tr><td><a href="DialectAbstract.php.html#334"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::formatDefaultValue">formatDefaultValue</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#402"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::formatInterval">formatInterval</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#420"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::formatGroupConcat">formatGroupConcat</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#437"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::formatTruncate">formatTruncate</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#452"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::formatPosition">formatPosition</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#535"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::formatDateOnly">formatDateOnly</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#543"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::formatTimeOnly">formatTimeOnly</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#61"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::defaultPdoOptions">defaultPdoOptions</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#257"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildDefaultExpression">buildDefaultExpression</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#643"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatJsonKeys">formatJsonKeys</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#817"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatFulltextMatch">formatFulltextMatch</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#843"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatWindowFunction">formatWindowFunction</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#920"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::supportsFilterClause">supportsFilterClause</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1009"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildCreateTableSql">buildCreateTableSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1072"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildDropTableSql">buildDropTableSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1080"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildDropTableIfExistsSql">buildDropTableIfExistsSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1088"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildAddColumnSql">buildAddColumnSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1109"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildDropColumnSql">buildDropColumnSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1119"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildAlterColumnSql">buildAlterColumnSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1132"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildRenameColumnSql">buildRenameColumnSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1145"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildCreateIndexSql">buildCreateIndexSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1158"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildDropIndexSql">buildDropIndexSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1168"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildAddForeignKeySql">buildAddForeignKeySql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1201"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildDropForeignKeySql">buildDropForeignKeySql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1211"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildRenameTableSql">buildRenameTableSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1221"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatColumnDefinition">formatColumnDefinition</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1282"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::parseColumnDefinition">parseColumnDefinition</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#255"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildDefaultExpression">buildDefaultExpression</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#630"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatJsonKeys">formatJsonKeys</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#804"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatFulltextMatch">formatFulltextMatch</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#830"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatWindowFunction">formatWindowFunction</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#891"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::supportsFilterClause">supportsFilterClause</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#980"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildCreateTableSql">buildCreateTableSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1043"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildDropTableSql">buildDropTableSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1051"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildDropTableIfExistsSql">buildDropTableIfExistsSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1059"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildAddColumnSql">buildAddColumnSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1080"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildDropColumnSql">buildDropColumnSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1090"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildAlterColumnSql">buildAlterColumnSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1104"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildRenameColumnSql">buildRenameColumnSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1117"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildCreateIndexSql">buildCreateIndexSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1130"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildDropIndexSql">buildDropIndexSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1140"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildAddForeignKeySql">buildAddForeignKeySql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1173"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildDropForeignKeySql">buildDropForeignKeySql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1183"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildRenameTableSql">buildRenameTableSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1193"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatColumnDefinition">formatColumnDefinition</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1254"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::parseColumnDefinition">parseColumnDefinition</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#910"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatTimeOnly">formatTimeOnly</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#918"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatFulltextMatch">formatFulltextMatch</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#933"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatWindowFunction">formatWindowFunction</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#994"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::supportsFilterClause">supportsFilterClause</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1002"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::supportsDistinctOn">supportsDistinctOn</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1068"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildCreateTableSql">buildCreateTableSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1112"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildDropTableSql">buildDropTableSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1120"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildDropTableIfExistsSql">buildDropTableIfExistsSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1128"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildAddColumnSql">buildAddColumnSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1142"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildDropColumnSql">buildDropColumnSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1152"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildAlterColumnSql">buildAlterColumnSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1194"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildRenameColumnSql">buildRenameColumnSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1205"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildCreateIndexSql">buildCreateIndexSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1218"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildDropIndexSql">buildDropIndexSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1228"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildAddForeignKeySql">buildAddForeignKeySql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1261"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildDropForeignKeySql">buildDropForeignKeySql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1271"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildRenameTableSql">buildRenameTableSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1281"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatColumnDefinition">formatColumnDefinition</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1353"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::parseColumnDefinition">parseColumnDefinition</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#273"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::buildDefaultExpression">buildDefaultExpression</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#696"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatGroupConcat">formatGroupConcat</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#707"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatRepeat">formatRepeat</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#715"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatReverse">formatReverse</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#777"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatFulltextMatch">formatFulltextMatch</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#984"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::buildAlterColumnSql">buildAlterColumnSql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#1035"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::buildAddForeignKeySql">buildAddForeignKeySql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#1058"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::buildDropForeignKeySql">buildDropForeignKeySql</abbr></a></td><td class="text-right">0%</td></tr>
+       <tr><td><a href="traits/JsonPathBuilderTrait.php.html#62"><abbr title="tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait::encodeToJson">encodeToJson</abbr></a></td><td class="text-right">33%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#91"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildInsertSql">buildInsertSql</abbr></a></td><td class="text-right">57%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#732"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatTruncate">formatTruncate</abbr></a></td><td class="text-right">60%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1329"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatDefaultValue">formatDefaultValue</abbr></a></td><td class="text-right">63%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1301"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatDefaultValue">formatDefaultValue</abbr></a></td><td class="text-right">63%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1395"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatDefaultValue">formatDefaultValue</abbr></a></td><td class="text-right">63%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#1201"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatDefaultValue">formatDefaultValue</abbr></a></td><td class="text-right">63%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#288"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildDefaultExpression">buildDefaultExpression</abbr></a></td><td class="text-right">66%</td></tr>
+       <tr><td><a href="traits/JsonPathBuilderTrait.php.html#112"><abbr title="tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait::getParentPathParts">getParentPathParts</abbr></a></td><td class="text-right">66%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#370"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::now">now</abbr></a></td><td class="text-right">69%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#991"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::getCurrentDatabase">getCurrentDatabase</abbr></a></td><td class="text-right">71%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#962"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::getCurrentDatabase">getCurrentDatabase</abbr></a></td><td class="text-right">71%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#192"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildMergeSql">buildMergeSql</abbr></a></td><td class="text-right">71%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#512"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonGet">formatJsonGet</abbr></a></td><td class="text-right">71%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#1163"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::parseColumnDefinition">parseColumnDefinition</abbr></a></td><td class="text-right">73%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#232"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildIncrementExpression">buildIncrementExpression</abbr></a></td><td class="text-right">75%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#685"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatSubstring">formatSubstring</abbr></a></td><td class="text-right">75%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#230"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildIncrementExpression">buildIncrementExpression</abbr></a></td><td class="text-right">75%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#672"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatSubstring">formatSubstring</abbr></a></td><td class="text-right">75%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#756"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatSubstring">formatSubstring</abbr></a></td><td class="text-right">75%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#247"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::buildIncrementExpression">buildIncrementExpression</abbr></a></td><td class="text-right">75%</td></tr>
+       <tr><td><a href="traits/JsonPathBuilderTrait.php.html#96"><abbr title="tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait::getLastSegment">getLastSegment</abbr></a></td><td class="text-right">75%</td></tr>
+       <tr><td><a href="loaders/FileLoader.php.html#185"><abbr title="tommyknocker\pdodb\dialects\loaders\FileLoader::loadFromXmlGenerator">loadFromXmlGenerator</abbr></a></td><td class="text-right">77%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#251"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildIncrementExpression">buildIncrementExpression</abbr></a></td><td class="text-right">77%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#1081"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatColumnDefinition">formatColumnDefinition</abbr></a></td><td class="text-right">78%</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#29"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::getFileLoader">getFileLoader</abbr></a></td><td class="text-right">80%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#301"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::now">now</abbr></a></td><td class="text-right">80%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#299"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::now">now</abbr></a></td><td class="text-right">80%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#629"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonExists">formatJsonExists</abbr></a></td><td class="text-right">81%</td></tr>
+       <tr><td><a href="loaders/FileLoader.php.html#353"><abbr title="tommyknocker\pdodb\dialects\loaders\FileLoader::loadFromJsonGenerator">loadFromJsonGenerator</abbr></a></td><td class="text-right">81%</td></tr>
+       <tr><td><a href="loaders/FileLoader.php.html#43"><abbr title="tommyknocker\pdodb\dialects\loaders\FileLoader::loadFromCsvGenerator">loadFromCsvGenerator</abbr></a></td><td class="text-right">82%</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#288"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::normalizeJsonPath">normalizeJsonPath</abbr></a></td><td class="text-right">83%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#497"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatJsonGet">formatJsonGet</abbr></a></td><td class="text-right">83%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#626"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatJsonLength">formatJsonLength</abbr></a></td><td class="text-right">83%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#660"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatJsonType">formatJsonType</abbr></a></td><td class="text-right">83%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#495"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatJsonGet">formatJsonGet</abbr></a></td><td class="text-right">83%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#613"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatJsonLength">formatJsonLength</abbr></a></td><td class="text-right">83%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#647"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatJsonType">formatJsonType</abbr></a></td><td class="text-right">83%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#564"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonSet">formatJsonSet</abbr></a></td><td class="text-right">83%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#672"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonOrderExpr">formatJsonOrderExpr</abbr></a></td><td class="text-right">83%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#539"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatJsonType">formatJsonType</abbr></a></td><td class="text-right">83%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#131"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatSelectOptions">formatSelectOptions</abbr></a></td><td class="text-right">84%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#691"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonLength">formatJsonLength</abbr></a></td><td class="text-right">85%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#729"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonType">formatJsonType</abbr></a></td><td class="text-right">85%</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#501"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatJsonLength">formatJsonLength</abbr></a></td><td class="text-right">85%</td></tr>
+       <tr><td><a href="traits/UpsertBuilderTrait.php.html#68"><abbr title="tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait::replaceColumnReferences">replaceColumnReferences</abbr></a></td><td class="text-right">85%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#526"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatJsonSet">formatJsonSet</abbr></a></td><td class="text-right">86%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#531"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonContains">formatJsonContains</abbr></a></td><td class="text-right">86%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#270"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildRawValueExpression">buildRawValueExpression</abbr></a></td><td class="text-right">87%</td></tr>
+       <tr><td><a href="loaders/FileLoader.php.html#319"><abbr title="tommyknocker\pdodb\dialects\loaders\FileLoader::quoteColumnName">quoteColumnName</abbr></a></td><td class="text-right">87%</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#159"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildUpsertClause">buildUpsertClause</abbr></a></td><td class="text-right">88%</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#426"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildLoadCsvSql">buildLoadCsvSql</abbr></a></td><td class="text-right">89%</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#424"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildLoadCsvSql">buildLoadCsvSql</abbr></a></td><td class="text-right">89%</td></tr>
+
+       </tbody>
+      </table>
+     </div>
+    </div>
+    <div class="col-md-6">
+     <h3 style="margin-top: 2rem;">Project Risks</h3>
+     <div class="scrollbox">
+      <table class="table">
+       <thead>
+        <tr>
+         <th>Method</th>
+         <th class="text-right">Coverage</th>
+         <th class="text-right">Complexity</th>
+         <th class="text-right"><abbr title="Change Risk Anti-Patterns (CRAP) Index">CRAP</abbr></th>
+        </tr>
+       </thead>
+       <tbody>
+       <tr><td><a href="PostgreSQLDialect.php.html#1281"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatColumnDefinition">formatColumnDefinition</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">21</td><td class="text-right">462</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#843"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatWindowFunction">formatWindowFunction</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">16</td><td class="text-right">272</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1282"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::parseColumnDefinition">parseColumnDefinition</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">16</td><td class="text-right">272</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1254"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::parseColumnDefinition">parseColumnDefinition</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">16</td><td class="text-right">272</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1009"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildCreateTableSql">buildCreateTableSql</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">15</td><td class="text-right">240</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#980"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildCreateTableSql">buildCreateTableSql</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">15</td><td class="text-right">240</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#830"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatWindowFunction">formatWindowFunction</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">11</td><td class="text-right">132</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#933"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatWindowFunction">formatWindowFunction</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">11</td><td class="text-right">132</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1353"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::parseColumnDefinition">parseColumnDefinition</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">11</td><td class="text-right">132</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1068"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildCreateTableSql">buildCreateTableSql</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">10</td><td class="text-right">110</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1221"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatColumnDefinition">formatColumnDefinition</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">9</td><td class="text-right">90</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1193"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatColumnDefinition">formatColumnDefinition</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">9</td><td class="text-right">90</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1152"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildAlterColumnSql">buildAlterColumnSql</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">9</td><td class="text-right">90</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#1081"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatColumnDefinition">formatColumnDefinition</abbr></a></td><td class="text-right">78.4%</td><td class="text-right">31</td><td class="text-right">40</td></tr>
+       <tr><td><a href="loaders/FileLoader.php.html#43"><abbr title="tommyknocker\pdodb\dialects\loaders\FileLoader::loadFromCsvGenerator">loadFromCsvGenerator</abbr></a></td><td class="text-right">82.4%</td><td class="text-right">33</td><td class="text-right">38</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#817"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatFulltextMatch">formatFulltextMatch</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">5</td><td class="text-right">30</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#804"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatFulltextMatch">formatFulltextMatch</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">5</td><td class="text-right">30</td></tr>
+       <tr><td><a href="loaders/FileLoader.php.html#353"><abbr title="tommyknocker\pdodb\dialects\loaders\FileLoader::loadFromJsonGenerator">loadFromJsonGenerator</abbr></a></td><td class="text-right">81.8%</td><td class="text-right">23</td><td class="text-right">26</td></tr>
+       <tr><td><a href="loaders/FileLoader.php.html#185"><abbr title="tommyknocker\pdodb\dialects\loaders\FileLoader::loadFromXmlGenerator">loadFromXmlGenerator</abbr></a></td><td class="text-right">77.4%</td><td class="text-right">20</td><td class="text-right">24</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#192"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildMergeSql">buildMergeSql</abbr></a></td><td class="text-right">71.4%</td><td class="text-right">12</td><td class="text-right">15</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#91"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildInsertSql">buildInsertSql</abbr></a></td><td class="text-right">57.1%</td><td class="text-right">8</td><td class="text-right">13</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#334"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::formatDefaultValue">formatDefaultValue</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">3</td><td class="text-right">12</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#257"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildDefaultExpression">buildDefaultExpression</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">3</td><td class="text-right">12</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1088"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildAddColumnSql">buildAddColumnSql</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">3</td><td class="text-right">12</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1168"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildAddForeignKeySql">buildAddForeignKeySql</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">3</td><td class="text-right">12</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#255"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildDefaultExpression">buildDefaultExpression</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">3</td><td class="text-right">12</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1059"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildAddColumnSql">buildAddColumnSql</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">3</td><td class="text-right">12</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1140"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildAddForeignKeySql">buildAddForeignKeySql</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">3</td><td class="text-right">12</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1228"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildAddForeignKeySql">buildAddForeignKeySql</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">3</td><td class="text-right">12</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#273"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::buildDefaultExpression">buildDefaultExpression</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">3</td><td class="text-right">12</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#1163"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::parseColumnDefinition">parseColumnDefinition</abbr></a></td><td class="text-right">73.3%</td><td class="text-right">10</td><td class="text-right">11</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1329"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatDefaultValue">formatDefaultValue</abbr></a></td><td class="text-right">63.6%</td><td class="text-right">7</td><td class="text-right">9</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1301"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatDefaultValue">formatDefaultValue</abbr></a></td><td class="text-right">63.6%</td><td class="text-right">7</td><td class="text-right">9</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1395"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatDefaultValue">formatDefaultValue</abbr></a></td><td class="text-right">63.6%</td><td class="text-right">7</td><td class="text-right">9</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#1201"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatDefaultValue">formatDefaultValue</abbr></a></td><td class="text-right">63.6%</td><td class="text-right">7</td><td class="text-right">9</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#301"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::now">now</abbr></a></td><td class="text-right">80.0%</td><td class="text-right">8</td><td class="text-right">8</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#426"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildLoadCsvSql">buildLoadCsvSql</abbr></a></td><td class="text-right">89.3%</td><td class="text-right">8</td><td class="text-right">8</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#299"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::now">now</abbr></a></td><td class="text-right">80.0%</td><td class="text-right">8</td><td class="text-right">8</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#424"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildLoadCsvSql">buildLoadCsvSql</abbr></a></td><td class="text-right">89.3%</td><td class="text-right">8</td><td class="text-right">8</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#370"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::now">now</abbr></a></td><td class="text-right">69.2%</td><td class="text-right">7</td><td class="text-right">8</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#251"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildIncrementExpression">buildIncrementExpression</abbr></a></td><td class="text-right">77.8%</td><td class="text-right">7</td><td class="text-right">7</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#402"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::formatInterval">formatInterval</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">2</td><td class="text-right">6</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#420"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::formatGroupConcat">formatGroupConcat</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">2</td><td class="text-right">6</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#452"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::formatPosition">formatPosition</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">2</td><td class="text-right">6</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#232"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildIncrementExpression">buildIncrementExpression</abbr></a></td><td class="text-right">75.0%</td><td class="text-right">6</td><td class="text-right">6</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#643"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatJsonKeys">formatJsonKeys</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">2</td><td class="text-right">6</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#1145"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::buildCreateIndexSql">buildCreateIndexSql</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">2</td><td class="text-right">6</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#230"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildIncrementExpression">buildIncrementExpression</abbr></a></td><td class="text-right">75.0%</td><td class="text-right">6</td><td class="text-right">6</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#630"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatJsonKeys">formatJsonKeys</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">2</td><td class="text-right">6</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#1117"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::buildCreateIndexSql">buildCreateIndexSql</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">2</td><td class="text-right">6</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#918"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatFulltextMatch">formatFulltextMatch</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">2</td><td class="text-right">6</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#1205"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildCreateIndexSql">buildCreateIndexSql</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">2</td><td class="text-right">6</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#131"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatSelectOptions">formatSelectOptions</abbr></a></td><td class="text-right">84.6%</td><td class="text-right">6</td><td class="text-right">6</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#247"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::buildIncrementExpression">buildIncrementExpression</abbr></a></td><td class="text-right">75.0%</td><td class="text-right">6</td><td class="text-right">6</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#696"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatGroupConcat">formatGroupConcat</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">2</td><td class="text-right">6</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#777"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatFulltextMatch">formatFulltextMatch</abbr></a></td><td class="text-right">0.0%</td><td class="text-right">2</td><td class="text-right">6</td></tr>
+       <tr><td><a href="loaders/FileLoader.php.html#319"><abbr title="tommyknocker\pdodb\dialects\loaders\FileLoader::quoteColumnName">quoteColumnName</abbr></a></td><td class="text-right">87.5%</td><td class="text-right">6</td><td class="text-right">6</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#564"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonSet">formatJsonSet</abbr></a></td><td class="text-right">83.3%</td><td class="text-right">5</td><td class="text-right">5</td></tr>
+       <tr><td><a href="traits/UpsertBuilderTrait.php.html#68"><abbr title="tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait::replaceColumnReferences">replaceColumnReferences</abbr></a></td><td class="text-right">85.7%</td><td class="text-right">5</td><td class="text-right">5</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#288"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::normalizeJsonPath">normalizeJsonPath</abbr></a></td><td class="text-right">83.3%</td><td class="text-right">4</td><td class="text-right">4</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#991"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::getCurrentDatabase">getCurrentDatabase</abbr></a></td><td class="text-right">71.4%</td><td class="text-right">4</td><td class="text-right">4</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#962"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::getCurrentDatabase">getCurrentDatabase</abbr></a></td><td class="text-right">71.4%</td><td class="text-right">4</td><td class="text-right">4</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#159"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildUpsertClause">buildUpsertClause</abbr></a></td><td class="text-right">88.9%</td><td class="text-right">4</td><td class="text-right">4</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#512"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonGet">formatJsonGet</abbr></a></td><td class="text-right">71.4%</td><td class="text-right">4</td><td class="text-right">4</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#629"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonExists">formatJsonExists</abbr></a></td><td class="text-right">81.8%</td><td class="text-right">4</td><td class="text-right">4</td></tr>
+       <tr><td><a href="DialectAbstract.php.html#29"><abbr title="tommyknocker\pdodb\dialects\DialectAbstract::getFileLoader">getFileLoader</abbr></a></td><td class="text-right">80.0%</td><td class="text-right">3</td><td class="text-right">3</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#526"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatJsonSet">formatJsonSet</abbr></a></td><td class="text-right">86.7%</td><td class="text-right">3</td><td class="text-right">3</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#288"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildDefaultExpression">buildDefaultExpression</abbr></a></td><td class="text-right">66.7%</td><td class="text-right">3</td><td class="text-right">3</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#531"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonContains">formatJsonContains</abbr></a></td><td class="text-right">86.7%</td><td class="text-right">3</td><td class="text-right">3</td></tr>
+       <tr><td><a href="traits/JsonPathBuilderTrait.php.html#62"><abbr title="tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait::encodeToJson">encodeToJson</abbr></a></td><td class="text-right">33.3%</td><td class="text-right">2</td><td class="text-right">3</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#497"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatJsonGet">formatJsonGet</abbr></a></td><td class="text-right">83.3%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#626"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatJsonLength">formatJsonLength</abbr></a></td><td class="text-right">83.3%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#660"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatJsonType">formatJsonType</abbr></a></td><td class="text-right">83.3%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="MariaDBDialect.php.html#685"><abbr title="tommyknocker\pdodb\dialects\MariaDBDialect::formatSubstring">formatSubstring</abbr></a></td><td class="text-right">75.0%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#495"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatJsonGet">formatJsonGet</abbr></a></td><td class="text-right">83.3%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#613"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatJsonLength">formatJsonLength</abbr></a></td><td class="text-right">83.3%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#647"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatJsonType">formatJsonType</abbr></a></td><td class="text-right">83.3%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="MySQLDialect.php.html#672"><abbr title="tommyknocker\pdodb\dialects\MySQLDialect::formatSubstring">formatSubstring</abbr></a></td><td class="text-right">75.0%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#270"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::buildRawValueExpression">buildRawValueExpression</abbr></a></td><td class="text-right">87.5%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#672"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonOrderExpr">formatJsonOrderExpr</abbr></a></td><td class="text-right">83.3%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#691"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonLength">formatJsonLength</abbr></a></td><td class="text-right">85.7%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#729"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatJsonType">formatJsonType</abbr></a></td><td class="text-right">85.7%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="PostgreSQLDialect.php.html#756"><abbr title="tommyknocker\pdodb\dialects\PostgreSQLDialect::formatSubstring">formatSubstring</abbr></a></td><td class="text-right">75.0%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#501"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatJsonLength">formatJsonLength</abbr></a></td><td class="text-right">85.7%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#539"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatJsonType">formatJsonType</abbr></a></td><td class="text-right">83.3%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="SqliteDialect.php.html#732"><abbr title="tommyknocker\pdodb\dialects\SqliteDialect::formatTruncate">formatTruncate</abbr></a></td><td class="text-right">60.0%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="traits/JsonPathBuilderTrait.php.html#96"><abbr title="tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait::getLastSegment">getLastSegment</abbr></a></td><td class="text-right">75.0%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+       <tr><td><a href="traits/JsonPathBuilderTrait.php.html#112"><abbr title="tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait::getParentPathParts">getParentPathParts</abbr></a></td><td class="text-right">66.7%</td><td class="text-right">2</td><td class="text-right">2</td></tr>
+
+       </tbody>
+      </table>
+     </div>
+    </div>
+   </div>
+   <footer>
+    <hr/>
+    <p>
+     <small>Generated by <a href="https://github.com/sebastianbergmann/php-code-coverage" target="_top">php-code-coverage 12.4.0</a> using <a href="https://www.php.net/" target="_top">PHP 8.4.14</a> and <a href="https://phpunit.de/">PHPUnit 12.4.2</a> at Sun Nov 2 8:11:31 UTC 2025.</small>
+    </p>
+   </footer>
+  </div>
+  <script src="../_js/billboard.pkgd.min.js?v=12.4.0" type="text/javascript"></script>
+  <script type="application/json" id="complexity_class">[[54.58333333333333,209,"MariaDBDialect.php.html#15","tommyknocker\\pdodb\\dialects\\MariaDBDialect","4301.03"],[56.567796610169495,203,"MySQLDialect.php.html#15","tommyknocker\\pdodb\\dialects\\MySQLDialect","3579.20"],[57.05996131528046,234,"PostgreSQLDialect.php.html#15","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect","4569.30"],[77.98165137614679,63,"DialectAbstract.php.html#14","tommyknocker\\pdodb\\dialects\\DialectAbstract","105.37"],[82.84518828451883,100,"loaders\/FileLoader.php.html#13","tommyknocker\\pdodb\\dialects\\loaders\\FileLoader","150.48"],[83.68983957219251,191,"SqliteDialect.php.html#16","tommyknocker\\pdodb\\dialects\\SqliteDialect","349.29"],[84,20,"traits\/JsonPathBuilderTrait.php.html#9","tommyknocker\\pdodb\\dialects\\traits\\JsonPathBuilderTrait","21.64"],[91.66666666666666,11,"traits\/UpsertBuilderTrait.php.html#9","tommyknocker\\pdodb\\dialects\\traits\\UpsertBuilderTrait","11.07"]]</script>
+  <script type="application/json" id="complexity_method">[[0,3,"DialectAbstract.php.html#334","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatDefaultValue","12"],[0,2,"DialectAbstract.php.html#402","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatInterval","6"],[0,2,"DialectAbstract.php.html#420","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatGroupConcat","6"],[0,1,"DialectAbstract.php.html#437","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatTruncate","2"],[0,2,"DialectAbstract.php.html#452","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatPosition","6"],[0,1,"DialectAbstract.php.html#535","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatDateOnly","2"],[0,1,"DialectAbstract.php.html#543","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatTimeOnly","2"],[0,1,"MariaDBDialect.php.html#61","tommyknocker\\pdodb\\dialects\\MariaDBDialect::defaultPdoOptions","2"],[0,3,"MariaDBDialect.php.html#257","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildDefaultExpression","12"],[0,2,"MariaDBDialect.php.html#643","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatJsonKeys","6"],[0,5,"MariaDBDialect.php.html#817","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatFulltextMatch","30"],[0,16,"MariaDBDialect.php.html#843","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatWindowFunction","272"],[0,1,"MariaDBDialect.php.html#920","tommyknocker\\pdodb\\dialects\\MariaDBDialect::supportsFilterClause","2"],[0,15,"MariaDBDialect.php.html#1009","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildCreateTableSql","240"],[0,1,"MariaDBDialect.php.html#1072","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildDropTableSql","2"],[0,1,"MariaDBDialect.php.html#1080","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildDropTableIfExistsSql","2"],[0,3,"MariaDBDialect.php.html#1088","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildAddColumnSql","12"],[0,1,"MariaDBDialect.php.html#1109","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildDropColumnSql","2"],[0,1,"MariaDBDialect.php.html#1119","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildAlterColumnSql","2"],[0,1,"MariaDBDialect.php.html#1132","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildRenameColumnSql","2"],[0,2,"MariaDBDialect.php.html#1145","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildCreateIndexSql","6"],[0,1,"MariaDBDialect.php.html#1158","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildDropIndexSql","2"],[0,3,"MariaDBDialect.php.html#1168","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildAddForeignKeySql","12"],[0,1,"MariaDBDialect.php.html#1201","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildDropForeignKeySql","2"],[0,1,"MariaDBDialect.php.html#1211","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildRenameTableSql","2"],[0,9,"MariaDBDialect.php.html#1221","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatColumnDefinition","90"],[0,16,"MariaDBDialect.php.html#1282","tommyknocker\\pdodb\\dialects\\MariaDBDialect::parseColumnDefinition","272"],[0,3,"MySQLDialect.php.html#255","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildDefaultExpression","12"],[0,2,"MySQLDialect.php.html#630","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatJsonKeys","6"],[0,5,"MySQLDialect.php.html#804","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatFulltextMatch","30"],[0,11,"MySQLDialect.php.html#830","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatWindowFunction","132"],[0,1,"MySQLDialect.php.html#891","tommyknocker\\pdodb\\dialects\\MySQLDialect::supportsFilterClause","2"],[0,15,"MySQLDialect.php.html#980","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildCreateTableSql","240"],[0,1,"MySQLDialect.php.html#1043","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildDropTableSql","2"],[0,1,"MySQLDialect.php.html#1051","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildDropTableIfExistsSql","2"],[0,3,"MySQLDialect.php.html#1059","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildAddColumnSql","12"],[0,1,"MySQLDialect.php.html#1080","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildDropColumnSql","2"],[0,1,"MySQLDialect.php.html#1090","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildAlterColumnSql","2"],[0,1,"MySQLDialect.php.html#1104","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildRenameColumnSql","2"],[0,2,"MySQLDialect.php.html#1117","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildCreateIndexSql","6"],[0,1,"MySQLDialect.php.html#1130","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildDropIndexSql","2"],[0,3,"MySQLDialect.php.html#1140","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildAddForeignKeySql","12"],[0,1,"MySQLDialect.php.html#1173","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildDropForeignKeySql","2"],[0,1,"MySQLDialect.php.html#1183","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildRenameTableSql","2"],[0,9,"MySQLDialect.php.html#1193","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatColumnDefinition","90"],[0,16,"MySQLDialect.php.html#1254","tommyknocker\\pdodb\\dialects\\MySQLDialect::parseColumnDefinition","272"],[0,1,"PostgreSQLDialect.php.html#910","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatTimeOnly","2"],[0,2,"PostgreSQLDialect.php.html#918","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatFulltextMatch","6"],[0,11,"PostgreSQLDialect.php.html#933","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatWindowFunction","132"],[0,1,"PostgreSQLDialect.php.html#994","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::supportsFilterClause","2"],[0,1,"PostgreSQLDialect.php.html#1002","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::supportsDistinctOn","2"],[0,10,"PostgreSQLDialect.php.html#1068","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildCreateTableSql","110"],[0,1,"PostgreSQLDialect.php.html#1112","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildDropTableSql","2"],[0,1,"PostgreSQLDialect.php.html#1120","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildDropTableIfExistsSql","2"],[0,1,"PostgreSQLDialect.php.html#1128","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildAddColumnSql","2"],[0,1,"PostgreSQLDialect.php.html#1142","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildDropColumnSql","2"],[0,9,"PostgreSQLDialect.php.html#1152","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildAlterColumnSql","90"],[0,1,"PostgreSQLDialect.php.html#1194","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildRenameColumnSql","2"],[0,2,"PostgreSQLDialect.php.html#1205","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildCreateIndexSql","6"],[0,1,"PostgreSQLDialect.php.html#1218","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildDropIndexSql","2"],[0,3,"PostgreSQLDialect.php.html#1228","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildAddForeignKeySql","12"],[0,1,"PostgreSQLDialect.php.html#1261","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildDropForeignKeySql","2"],[0,1,"PostgreSQLDialect.php.html#1271","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildRenameTableSql","2"],[0,21,"PostgreSQLDialect.php.html#1281","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatColumnDefinition","462"],[0,11,"PostgreSQLDialect.php.html#1353","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::parseColumnDefinition","132"],[0,3,"SqliteDialect.php.html#273","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildDefaultExpression","12"],[0,2,"SqliteDialect.php.html#696","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatGroupConcat","6"],[0,1,"SqliteDialect.php.html#707","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatRepeat","2"],[0,1,"SqliteDialect.php.html#715","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatReverse","2"],[0,2,"SqliteDialect.php.html#777","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatFulltextMatch","6"],[0,1,"SqliteDialect.php.html#984","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildAlterColumnSql","2"],[0,1,"SqliteDialect.php.html#1035","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildAddForeignKeySql","2"],[0,1,"SqliteDialect.php.html#1058","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildDropForeignKeySql","2"],[33.33333333333333,2,"traits\/JsonPathBuilderTrait.php.html#62","tommyknocker\\pdodb\\dialects\\traits\\JsonPathBuilderTrait::encodeToJson","3.19"],[57.14285714285714,8,"PostgreSQLDialect.php.html#91","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildInsertSql","13.04"],[60,2,"SqliteDialect.php.html#732","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatTruncate","2.26"],[63.63636363636363,7,"MariaDBDialect.php.html#1329","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatDefaultValue","9.36"],[63.63636363636363,7,"MySQLDialect.php.html#1301","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatDefaultValue","9.36"],[63.63636363636363,7,"PostgreSQLDialect.php.html#1395","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatDefaultValue","9.36"],[63.63636363636363,7,"SqliteDialect.php.html#1201","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatDefaultValue","9.36"],[66.66666666666666,3,"PostgreSQLDialect.php.html#288","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildDefaultExpression","3.33"],[66.66666666666666,2,"traits\/JsonPathBuilderTrait.php.html#112","tommyknocker\\pdodb\\dialects\\traits\\JsonPathBuilderTrait::getParentPathParts","2.15"],[69.23076923076923,7,"PostgreSQLDialect.php.html#370","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::now","8.43"],[71.42857142857143,4,"MariaDBDialect.php.html#991","tommyknocker\\pdodb\\dialects\\MariaDBDialect::getCurrentDatabase","4.37"],[71.42857142857143,4,"MySQLDialect.php.html#962","tommyknocker\\pdodb\\dialects\\MySQLDialect::getCurrentDatabase","4.37"],[71.42857142857143,12,"PostgreSQLDialect.php.html#192","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildMergeSql","15.36"],[71.42857142857143,4,"PostgreSQLDialect.php.html#512","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatJsonGet","4.37"],[73.33333333333333,10,"SqliteDialect.php.html#1163","tommyknocker\\pdodb\\dialects\\SqliteDialect::parseColumnDefinition","11.90"],[75,6,"MariaDBDialect.php.html#232","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildIncrementExpression","6.56"],[75,2,"MariaDBDialect.php.html#685","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatSubstring","2.06"],[75,6,"MySQLDialect.php.html#230","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildIncrementExpression","6.56"],[75,2,"MySQLDialect.php.html#672","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatSubstring","2.06"],[75,2,"PostgreSQLDialect.php.html#756","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatSubstring","2.06"],[75,6,"SqliteDialect.php.html#247","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildIncrementExpression","6.56"],[75,2,"traits\/JsonPathBuilderTrait.php.html#96","tommyknocker\\pdodb\\dialects\\traits\\JsonPathBuilderTrait::getLastSegment","2.06"],[77.41935483870968,20,"loaders\/FileLoader.php.html#185","tommyknocker\\pdodb\\dialects\\loaders\\FileLoader::loadFromXmlGenerator","24.61"],[77.77777777777779,7,"PostgreSQLDialect.php.html#251","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildIncrementExpression","7.54"],[78.37837837837837,31,"SqliteDialect.php.html#1081","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatColumnDefinition","40.71"],[80,3,"DialectAbstract.php.html#29","tommyknocker\\pdodb\\dialects\\DialectAbstract::getFileLoader","3.07"],[80,8,"MariaDBDialect.php.html#301","tommyknocker\\pdodb\\dialects\\MariaDBDialect::now","8.51"],[80,8,"MySQLDialect.php.html#299","tommyknocker\\pdodb\\dialects\\MySQLDialect::now","8.51"],[81.81818181818183,4,"PostgreSQLDialect.php.html#629","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatJsonExists","4.10"],[81.81818181818183,23,"loaders\/FileLoader.php.html#353","tommyknocker\\pdodb\\dialects\\loaders\\FileLoader::loadFromJsonGenerator","26.18"],[82.43243243243244,33,"loaders\/FileLoader.php.html#43","tommyknocker\\pdodb\\dialects\\loaders\\FileLoader::loadFromCsvGenerator","38.90"],[83.33333333333334,4,"DialectAbstract.php.html#288","tommyknocker\\pdodb\\dialects\\DialectAbstract::normalizeJsonPath","4.07"],[83.33333333333334,2,"MariaDBDialect.php.html#497","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatJsonGet","2.02"],[83.33333333333334,2,"MariaDBDialect.php.html#626","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatJsonLength","2.02"],[83.33333333333334,2,"MariaDBDialect.php.html#660","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatJsonType","2.02"],[83.33333333333334,2,"MySQLDialect.php.html#495","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatJsonGet","2.02"],[83.33333333333334,2,"MySQLDialect.php.html#613","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatJsonLength","2.02"],[83.33333333333334,2,"MySQLDialect.php.html#647","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatJsonType","2.02"],[83.33333333333334,5,"PostgreSQLDialect.php.html#564","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatJsonSet","5.12"],[83.33333333333334,2,"PostgreSQLDialect.php.html#672","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatJsonOrderExpr","2.02"],[83.33333333333334,2,"SqliteDialect.php.html#539","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatJsonType","2.02"],[84.61538461538461,6,"SqliteDialect.php.html#131","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatSelectOptions","6.13"],[85.71428571428571,2,"PostgreSQLDialect.php.html#691","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatJsonLength","2.01"],[85.71428571428571,2,"PostgreSQLDialect.php.html#729","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatJsonType","2.01"],[85.71428571428571,2,"SqliteDialect.php.html#501","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatJsonLength","2.01"],[85.71428571428571,5,"traits\/UpsertBuilderTrait.php.html#68","tommyknocker\\pdodb\\dialects\\traits\\UpsertBuilderTrait::replaceColumnReferences","5.07"],[86.66666666666667,3,"MariaDBDialect.php.html#526","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatJsonSet","3.02"],[86.66666666666667,3,"PostgreSQLDialect.php.html#531","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatJsonContains","3.02"],[87.5,2,"PostgreSQLDialect.php.html#270","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildRawValueExpression","2.01"],[87.5,6,"loaders\/FileLoader.php.html#319","tommyknocker\\pdodb\\dialects\\loaders\\FileLoader::quoteColumnName","6.07"],[88.88888888888889,4,"PostgreSQLDialect.php.html#159","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildUpsertClause","4.02"],[89.28571428571429,8,"MariaDBDialect.php.html#426","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildLoadCsvSql","8.08"],[89.28571428571429,8,"MySQLDialect.php.html#424","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildLoadCsvSql","8.08"],[90,4,"MariaDBDialect.php.html#142","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildUpsertClause","4.02"],[90,4,"MySQLDialect.php.html#140","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildUpsertClause","4.02"],[90,4,"SqliteDialect.php.html#156","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildUpsertClause","4.02"],[91.66666666666666,5,"MariaDBDialect.php.html#175","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildMergeSql","5.01"],[91.66666666666666,3,"MariaDBDialect.php.html#404","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildLoadXML","3.01"],[91.66666666666666,5,"MySQLDialect.php.html#173","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildMergeSql","5.01"],[91.66666666666666,3,"MySQLDialect.php.html#402","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildLoadXML","3.01"],[92.3076923076923,2,"MySQLDialect.php.html#524","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatJsonSet","2.00"],[92.3076923076923,6,"loaders\/FileLoader.php.html#298","tommyknocker\\pdodb\\dialects\\loaders\\FileLoader::quoteIdentifier","6.02"],[92.85714285714286,6,"DialectAbstract.php.html#63","tommyknocker\\pdodb\\dialects\\DialectAbstract::quoteTableWithAlias","6.01"],[93.54838709677419,11,"PostgreSQLDialect.php.html#312","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildReplaceSql","11.03"],[93.75,13,"DialectAbstract.php.html#130","tommyknocker\\pdodb\\dialects\\DialectAbstract::concat","13.04"],[95.45454545454545,6,"PostgreSQLDialect.php.html#467","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildLoadCsvSql","6"],[95.45454545454545,4,"SqliteDialect.php.html#189","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildMergeSql","4"],[96.55172413793103,11,"SqliteDialect.php.html#792","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatWindowFunction","11"],[100,1,"DialectAbstract.php.html#21","tommyknocker\\pdodb\\dialects\\DialectAbstract::setPdo","1"],[100,0,"DialectAbstract.php.html#45","tommyknocker\\pdodb\\dialects\\DialectAbstract::getDriverName","0"],[100,0,"DialectAbstract.php.html#54","tommyknocker\\pdodb\\dialects\\DialectAbstract::quoteIdentifier","0"],[100,1,"DialectAbstract.php.html#102","tommyknocker\\pdodb\\dialects\\DialectAbstract::ilike","1"],[100,3,"DialectAbstract.php.html#115","tommyknocker\\pdodb\\dialects\\DialectAbstract::config","3"],[100,1,"DialectAbstract.php.html#206","tommyknocker\\pdodb\\dialects\\DialectAbstract::buildLoadXML","1"],[100,1,"DialectAbstract.php.html#220","tommyknocker\\pdodb\\dialects\\DialectAbstract::buildLoadXMLGenerator","1"],[100,1,"DialectAbstract.php.html#234","tommyknocker\\pdodb\\dialects\\DialectAbstract::buildLoadCsvSql","1"],[100,1,"DialectAbstract.php.html#248","tommyknocker\\pdodb\\dialects\\DialectAbstract::buildLoadCsvSqlGenerator","1"],[100,1,"DialectAbstract.php.html#262","tommyknocker\\pdodb\\dialects\\DialectAbstract::buildLoadJson","1"],[100,1,"DialectAbstract.php.html#276","tommyknocker\\pdodb\\dialects\\DialectAbstract::buildLoadJsonGenerator","1"],[100,2,"DialectAbstract.php.html#310","tommyknocker\\pdodb\\dialects\\DialectAbstract::resolveValue","2"],[100,2,"DialectAbstract.php.html#322","tommyknocker\\pdodb\\dialects\\DialectAbstract::resolveValues","2"],[100,1,"DialectAbstract.php.html#355","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatGreatest","1"],[100,1,"DialectAbstract.php.html#369","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatLeast","1"],[100,1,"DialectAbstract.php.html#384","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatMod","1"],[100,1,"DialectAbstract.php.html#467","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatLeft","1"],[100,1,"DialectAbstract.php.html#481","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatRight","1"],[100,2,"DialectAbstract.php.html#495","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatRepeat","2"],[100,1,"DialectAbstract.php.html#508","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatReverse","1"],[100,2,"DialectAbstract.php.html#524","tommyknocker\\pdodb\\dialects\\DialectAbstract::formatPad","2"],[100,1,"MariaDBDialect.php.html#22","tommyknocker\\pdodb\\dialects\\MariaDBDialect::getDriverName","1"],[100,1,"MariaDBDialect.php.html#30","tommyknocker\\pdodb\\dialects\\MariaDBDialect::supportsLateralJoin","1"],[100,10,"MariaDBDialect.php.html#41","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildDsn","10"],[100,2,"MariaDBDialect.php.html#74","tommyknocker\\pdodb\\dialects\\MariaDBDialect::quoteIdentifier","2"],[100,2,"MariaDBDialect.php.html#82","tommyknocker\\pdodb\\dialects\\MariaDBDialect::quoteTable","2"],[100,2,"MariaDBDialect.php.html#104","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildInsertSql","2"],[100,6,"MariaDBDialect.php.html#117","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatSelectOptions","6"],[100,1,"MariaDBDialect.php.html#166","tommyknocker\\pdodb\\dialects\\MariaDBDialect::supportsMerge","1"],[100,1,"MariaDBDialect.php.html#249","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildRawValueExpression","1"],[100,4,"MariaDBDialect.php.html#275","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildReplaceSql","4"],[100,1,"MariaDBDialect.php.html#343","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildExplainSql","1"],[100,1,"MariaDBDialect.php.html#351","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildExplainAnalyzeSql","1"],[100,1,"MariaDBDialect.php.html#360","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildTableExistsSql","1"],[100,1,"MariaDBDialect.php.html#368","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildDescribeSql","1"],[100,2,"MariaDBDialect.php.html#376","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildLockSql","2"],[100,1,"MariaDBDialect.php.html#388","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildUnlockSql","1"],[100,1,"MariaDBDialect.php.html#396","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildTruncateSql","1"],[100,1,"MariaDBDialect.php.html#479","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildLoadCsvSqlGenerator","1"],[100,1,"MariaDBDialect.php.html#488","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildLoadXMLGenerator","1"],[100,2,"MariaDBDialect.php.html#512","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatJsonContains","2"],[100,2,"MariaDBDialect.php.html#566","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatJsonRemove","2"],[100,1,"MariaDBDialect.php.html#588","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatJsonExists","1"],[100,1,"MariaDBDialect.php.html#609","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatJsonOrderExpr","1"],[100,1,"MariaDBDialect.php.html#677","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatIfNull","1"],[100,1,"MariaDBDialect.php.html#697","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatCurDate","1"],[100,1,"MariaDBDialect.php.html#705","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatCurTime","1"],[100,1,"MariaDBDialect.php.html#713","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatYear","1"],[100,1,"MariaDBDialect.php.html#721","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatMonth","1"],[100,1,"MariaDBDialect.php.html#729","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatDay","1"],[100,1,"MariaDBDialect.php.html#737","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatHour","1"],[100,1,"MariaDBDialect.php.html#745","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatMinute","1"],[100,1,"MariaDBDialect.php.html#753","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatSecond","1"],[100,1,"MariaDBDialect.php.html#761","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatDateOnly","1"],[100,1,"MariaDBDialect.php.html#769","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatTimeOnly","1"],[100,2,"MariaDBDialect.php.html#777","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatInterval","2"],[100,2,"MariaDBDialect.php.html#787","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatGroupConcat","2"],[100,1,"MariaDBDialect.php.html#798","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatTruncate","1"],[100,2,"MariaDBDialect.php.html#807","tommyknocker\\pdodb\\dialects\\MariaDBDialect::formatPosition","2"],[100,1,"MariaDBDialect.php.html#928","tommyknocker\\pdodb\\dialects\\MariaDBDialect::supportsDistinctOn","1"],[100,1,"MariaDBDialect.php.html#936","tommyknocker\\pdodb\\dialects\\MariaDBDialect::supportsMaterializedCte","1"],[100,1,"MariaDBDialect.php.html#944","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildShowIndexesSql","1"],[100,1,"MariaDBDialect.php.html#952","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildShowForeignKeysSql","1"],[100,1,"MariaDBDialect.php.html#969","tommyknocker\\pdodb\\dialects\\MariaDBDialect::buildShowConstraintsSql","1"],[100,1,"MySQLDialect.php.html#22","tommyknocker\\pdodb\\dialects\\MySQLDialect::getDriverName","1"],[100,1,"MySQLDialect.php.html#30","tommyknocker\\pdodb\\dialects\\MySQLDialect::supportsLateralJoin","1"],[100,10,"MySQLDialect.php.html#39","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildDsn","10"],[100,1,"MySQLDialect.php.html#59","tommyknocker\\pdodb\\dialects\\MySQLDialect::defaultPdoOptions","1"],[100,2,"MySQLDialect.php.html#72","tommyknocker\\pdodb\\dialects\\MySQLDialect::quoteIdentifier","2"],[100,2,"MySQLDialect.php.html#80","tommyknocker\\pdodb\\dialects\\MySQLDialect::quoteTable","2"],[100,2,"MySQLDialect.php.html#102","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildInsertSql","2"],[100,6,"MySQLDialect.php.html#115","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatSelectOptions","6"],[100,1,"MySQLDialect.php.html#164","tommyknocker\\pdodb\\dialects\\MySQLDialect::supportsMerge","1"],[100,1,"MySQLDialect.php.html#247","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildRawValueExpression","1"],[100,4,"MySQLDialect.php.html#273","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildReplaceSql","4"],[100,1,"MySQLDialect.php.html#341","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildExplainSql","1"],[100,1,"MySQLDialect.php.html#349","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildExplainAnalyzeSql","1"],[100,1,"MySQLDialect.php.html#358","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildTableExistsSql","1"],[100,1,"MySQLDialect.php.html#366","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildDescribeSql","1"],[100,2,"MySQLDialect.php.html#374","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildLockSql","2"],[100,1,"MySQLDialect.php.html#386","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildUnlockSql","1"],[100,1,"MySQLDialect.php.html#394","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildTruncateSql","1"],[100,1,"MySQLDialect.php.html#477","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildLoadCsvSqlGenerator","1"],[100,1,"MySQLDialect.php.html#486","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildLoadXMLGenerator","1"],[100,2,"MySQLDialect.php.html#510","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatJsonContains","2"],[100,2,"MySQLDialect.php.html#555","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatJsonRemove","2"],[100,1,"MySQLDialect.php.html#575","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatJsonExists","1"],[100,1,"MySQLDialect.php.html#596","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatJsonOrderExpr","1"],[100,1,"MySQLDialect.php.html#664","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatIfNull","1"],[100,1,"MySQLDialect.php.html#684","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatCurDate","1"],[100,1,"MySQLDialect.php.html#692","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatCurTime","1"],[100,1,"MySQLDialect.php.html#700","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatYear","1"],[100,1,"MySQLDialect.php.html#708","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatMonth","1"],[100,1,"MySQLDialect.php.html#716","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatDay","1"],[100,1,"MySQLDialect.php.html#724","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatHour","1"],[100,1,"MySQLDialect.php.html#732","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatMinute","1"],[100,1,"MySQLDialect.php.html#740","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatSecond","1"],[100,1,"MySQLDialect.php.html#748","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatDateOnly","1"],[100,1,"MySQLDialect.php.html#756","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatTimeOnly","1"],[100,2,"MySQLDialect.php.html#764","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatInterval","2"],[100,2,"MySQLDialect.php.html#774","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatGroupConcat","2"],[100,1,"MySQLDialect.php.html#785","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatTruncate","1"],[100,2,"MySQLDialect.php.html#794","tommyknocker\\pdodb\\dialects\\MySQLDialect::formatPosition","2"],[100,1,"MySQLDialect.php.html#899","tommyknocker\\pdodb\\dialects\\MySQLDialect::supportsDistinctOn","1"],[100,1,"MySQLDialect.php.html#907","tommyknocker\\pdodb\\dialects\\MySQLDialect::supportsMaterializedCte","1"],[100,1,"MySQLDialect.php.html#915","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildShowIndexesSql","1"],[100,1,"MySQLDialect.php.html#923","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildShowForeignKeysSql","1"],[100,1,"MySQLDialect.php.html#940","tommyknocker\\pdodb\\dialects\\MySQLDialect::buildShowConstraintsSql","1"],[100,1,"PostgreSQLDialect.php.html#22","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::getDriverName","1"],[100,1,"PostgreSQLDialect.php.html#30","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::supportsLateralJoin","1"],[100,14,"PostgreSQLDialect.php.html#39","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildDsn","14"],[100,1,"PostgreSQLDialect.php.html#63","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::defaultPdoOptions","1"],[100,1,"PostgreSQLDialect.php.html#75","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::quoteIdentifier","1"],[100,1,"PostgreSQLDialect.php.html#83","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::quoteTable","1"],[100,4,"PostgreSQLDialect.php.html#140","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatSelectOptions","4"],[100,1,"PostgreSQLDialect.php.html#182","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::supportsMerge","1"],[100,1,"PostgreSQLDialect.php.html#399","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::ilike","1"],[100,1,"PostgreSQLDialect.php.html#407","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildExplainSql","1"],[100,1,"PostgreSQLDialect.php.html#415","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildExplainAnalyzeSql","1"],[100,1,"PostgreSQLDialect.php.html#423","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildTableExistsSql","1"],[100,1,"PostgreSQLDialect.php.html#431","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildDescribeSql","1"],[100,1,"PostgreSQLDialect.php.html#441","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildLockSql","1"],[100,1,"PostgreSQLDialect.php.html#450","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildUnlockSql","1"],[100,1,"PostgreSQLDialect.php.html#459","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildTruncateSql","1"],[100,1,"PostgreSQLDialect.php.html#503","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildLoadCsvSqlGenerator","1"],[100,2,"PostgreSQLDialect.php.html#605","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatJsonRemove","2"],[100,2,"PostgreSQLDialect.php.html#710","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatJsonKeys","2"],[100,1,"PostgreSQLDialect.php.html#747","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatIfNull","1"],[100,1,"PostgreSQLDialect.php.html#768","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatCurDate","1"],[100,1,"PostgreSQLDialect.php.html#776","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatCurTime","1"],[100,1,"PostgreSQLDialect.php.html#784","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatYear","1"],[100,1,"PostgreSQLDialect.php.html#792","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatMonth","1"],[100,1,"PostgreSQLDialect.php.html#800","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatDay","1"],[100,1,"PostgreSQLDialect.php.html#808","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatHour","1"],[100,1,"PostgreSQLDialect.php.html#816","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatMinute","1"],[100,1,"PostgreSQLDialect.php.html#824","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatSecond","1"],[100,2,"PostgreSQLDialect.php.html#832","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatInterval","2"],[100,2,"PostgreSQLDialect.php.html#843","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatGroupConcat","2"],[100,1,"PostgreSQLDialect.php.html#854","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatTruncate","1"],[100,2,"PostgreSQLDialect.php.html#863","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatPosition","2"],[100,2,"PostgreSQLDialect.php.html#873","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatRepeat","2"],[100,1,"PostgreSQLDialect.php.html#882","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatReverse","1"],[100,2,"PostgreSQLDialect.php.html#891","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatPad","2"],[100,1,"PostgreSQLDialect.php.html#902","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::formatDateOnly","1"],[100,1,"PostgreSQLDialect.php.html#1010","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::supportsMaterializedCte","1"],[100,1,"PostgreSQLDialect.php.html#1018","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildShowIndexesSql","1"],[100,1,"PostgreSQLDialect.php.html#1031","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildShowForeignKeysSql","1"],[100,1,"PostgreSQLDialect.php.html#1050","tommyknocker\\pdodb\\dialects\\PostgreSQLDialect::buildShowConstraintsSql","1"],[100,1,"SqliteDialect.php.html#23","tommyknocker\\pdodb\\dialects\\SqliteDialect::getDriverName","1"],[100,1,"SqliteDialect.php.html#31","tommyknocker\\pdodb\\dialects\\SqliteDialect::supportsLateralJoin","1"],[100,10,"SqliteDialect.php.html#40","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildDsn","10"],[100,1,"SqliteDialect.php.html#77","tommyknocker\\pdodb\\dialects\\SqliteDialect::defaultPdoOptions","1"],[100,1,"SqliteDialect.php.html#89","tommyknocker\\pdodb\\dialects\\SqliteDialect::quoteIdentifier","1"],[100,1,"SqliteDialect.php.html#97","tommyknocker\\pdodb\\dialects\\SqliteDialect::quoteTable","1"],[100,2,"SqliteDialect.php.html#107","tommyknocker\\pdodb\\dialects\\SqliteDialect::insertKeywords","2"],[100,1,"SqliteDialect.php.html#119","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildInsertSql","1"],[100,1,"SqliteDialect.php.html#180","tommyknocker\\pdodb\\dialects\\SqliteDialect::supportsMerge","1"],[100,1,"SqliteDialect.php.html#265","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildRawValueExpression","1"],[100,4,"SqliteDialect.php.html#299","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildReplaceSql","4"],[100,4,"SqliteDialect.php.html#322","tommyknocker\\pdodb\\dialects\\SqliteDialect::now","4"],[100,3,"SqliteDialect.php.html#333","tommyknocker\\pdodb\\dialects\\SqliteDialect::config","3"],[100,1,"SqliteDialect.php.html#344","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildExplainSql","1"],[100,1,"SqliteDialect.php.html#352","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildExplainAnalyzeSql","1"],[100,1,"SqliteDialect.php.html#360","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildTableExistsSql","1"],[100,1,"SqliteDialect.php.html#368","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildDescribeSql","1"],[100,1,"SqliteDialect.php.html#376","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildLockSql","1"],[100,1,"SqliteDialect.php.html#384","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildUnlockSql","1"],[100,1,"SqliteDialect.php.html#392","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildTruncateSql","1"],[100,2,"SqliteDialect.php.html#402","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatJsonGet","2"],[100,5,"SqliteDialect.php.html#414","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatJsonContains","5"],[100,1,"SqliteDialect.php.html#448","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatJsonSet","1"],[100,2,"SqliteDialect.php.html#461","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatJsonRemove","2"],[100,1,"SqliteDialect.php.html#481","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatJsonExists","1"],[100,1,"SqliteDialect.php.html#490","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatJsonOrderExpr","1"],[100,2,"SqliteDialect.php.html#520","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatJsonKeys","2"],[100,1,"SqliteDialect.php.html#556","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatIfNull","1"],[100,1,"SqliteDialect.php.html#565","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatGreatest","1"],[100,1,"SqliteDialect.php.html#574","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatLeast","1"],[100,2,"SqliteDialect.php.html#582","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatSubstring","2"],[100,1,"SqliteDialect.php.html#595","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatMod","1"],[100,1,"SqliteDialect.php.html#603","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatCurDate","1"],[100,1,"SqliteDialect.php.html#611","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatCurTime","1"],[100,1,"SqliteDialect.php.html#619","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatYear","1"],[100,1,"SqliteDialect.php.html#627","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatMonth","1"],[100,1,"SqliteDialect.php.html#635","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatDay","1"],[100,1,"SqliteDialect.php.html#643","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatHour","1"],[100,1,"SqliteDialect.php.html#651","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatMinute","1"],[100,1,"SqliteDialect.php.html#659","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatSecond","1"],[100,1,"SqliteDialect.php.html#667","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatDateOnly","1"],[100,1,"SqliteDialect.php.html#675","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatTimeOnly","1"],[100,2,"SqliteDialect.php.html#683","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatInterval","2"],[100,1,"SqliteDialect.php.html#723","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatPad","1"],[100,2,"SqliteDialect.php.html#747","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatPosition","2"],[100,1,"SqliteDialect.php.html#758","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatLeft","1"],[100,1,"SqliteDialect.php.html#768","tommyknocker\\pdodb\\dialects\\SqliteDialect::formatRight","1"],[100,1,"SqliteDialect.php.html#853","tommyknocker\\pdodb\\dialects\\SqliteDialect::supportsFilterClause","1"],[100,1,"SqliteDialect.php.html#861","tommyknocker\\pdodb\\dialects\\SqliteDialect::supportsDistinctOn","1"],[100,1,"SqliteDialect.php.html#869","tommyknocker\\pdodb\\dialects\\SqliteDialect::supportsMaterializedCte","1"],[100,1,"SqliteDialect.php.html#877","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildShowIndexesSql","1"],[100,1,"SqliteDialect.php.html#885","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildShowForeignKeysSql","1"],[100,1,"SqliteDialect.php.html#893","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildShowConstraintsSql","1"],[100,4,"SqliteDialect.php.html#903","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildCreateTableSql","4"],[100,1,"SqliteDialect.php.html#936","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildDropTableSql","1"],[100,1,"SqliteDialect.php.html#944","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildDropTableIfExistsSql","1"],[100,1,"SqliteDialect.php.html#952","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildAddColumnSql","1"],[100,1,"SqliteDialect.php.html#966","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildDropColumnSql","1"],[100,1,"SqliteDialect.php.html#1000","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildRenameColumnSql","1"],[100,2,"SqliteDialect.php.html#1012","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildCreateIndexSql","2"],[100,1,"SqliteDialect.php.html#1025","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildDropIndexSql","1"],[100,1,"SqliteDialect.php.html#1071","tommyknocker\\pdodb\\dialects\\SqliteDialect::buildRenameTableSql","1"],[100,1,"loaders\/FileLoader.php.html#17","tommyknocker\\pdodb\\dialects\\loaders\\FileLoader::__construct","1"],[100,3,"loaders\/FileLoader.php.html#27","tommyknocker\\pdodb\\dialects\\loaders\\FileLoader::loadFromCsv","3"],[100,3,"loaders\/FileLoader.php.html#169","tommyknocker\\pdodb\\dialects\\loaders\\FileLoader::loadFromXml","3"],[100,3,"loaders\/FileLoader.php.html#337","tommyknocker\\pdodb\\dialects\\loaders\\FileLoader::loadFromJson","3"],[100,2,"loaders\/FileLoader.php.html#468","tommyknocker\\pdodb\\dialects\\loaders\\FileLoader::quoteValue","2"],[100,3,"traits\/JsonPathBuilderTrait.php.html#16","tommyknocker\\pdodb\\dialects\\traits\\JsonPathBuilderTrait::buildJsonPathString","3"],[100,1,"traits\/JsonPathBuilderTrait.php.html#34","tommyknocker\\pdodb\\dialects\\traits\\JsonPathBuilderTrait::buildPostgreSqlJsonPath","1"],[100,1,"traits\/JsonPathBuilderTrait.php.html#44","tommyknocker\\pdodb\\dialects\\traits\\JsonPathBuilderTrait::buildPostgreSqlJsonbPath","1"],[100,1,"traits\/JsonPathBuilderTrait.php.html#52","tommyknocker\\pdodb\\dialects\\traits\\JsonPathBuilderTrait::generateParameterName","1"],[100,7,"traits\/JsonPathBuilderTrait.php.html#74","tommyknocker\\pdodb\\dialects\\traits\\JsonPathBuilderTrait::looksLikeJson","7"],[100,1,"traits\/JsonPathBuilderTrait.php.html#86","tommyknocker\\pdodb\\dialects\\traits\\JsonPathBuilderTrait::isNumericIndex","1"],[100,5,"traits\/UpsertBuilderTrait.php.html#18","tommyknocker\\pdodb\\dialects\\traits\\UpsertBuilderTrait::buildUpsertExpressions","5"],[100,0,"traits\/UpsertBuilderTrait.php.html#41","tommyknocker\\pdodb\\dialects\\traits\\UpsertBuilderTrait::buildIncrementExpression","0"],[100,0,"traits\/UpsertBuilderTrait.php.html#47","tommyknocker\\pdodb\\dialects\\traits\\UpsertBuilderTrait::buildRawValueExpression","0"],[100,0,"traits\/UpsertBuilderTrait.php.html#53","tommyknocker\\pdodb\\dialects\\traits\\UpsertBuilderTrait::buildDefaultExpression","0"],[100,1,"traits\/UpsertBuilderTrait.php.html#60","tommyknocker\\pdodb\\dialects\\traits\\UpsertBuilderTrait::isAssociativeArray","1"]]</script>
+  <script type="text/javascript" defer>
+  const barLabels = [
+    '0%',
+    '0-10%',
+    '10-20%',
+    '20-30%',
+    '30-40%',
+    '40-50%',
+    '50-60%',
+    '60-70%',
+    '70-80%',
+    '80-90%',
+    '90-100%',
+    '100%'
+  ];
+  const barConfig = (name, fullName, values) => ({
+    axis: {
+      x: {
+        type: "category",
+        categories: barLabels,
+      },
+      y: {
+        label: {
+          text: `#${name}`,
+          position: 'outer-top',
+        },
+      },
+    },
+    bindto: `#${name}CoverageDistribution`,
+    data: {
+      columns: [
+        [fullName].concat(values),
+      ],
+      colors: {
+        [fullName]: "rgba(69, 114, 167, 0.75)",
+      },
+      type: "bar",
+    },
+    bar: {
+      width: {
+        ratio: 0.9,
+      },
+    },
+    grid: {
+      focus: {
+        show: false,
+      },
+      x: {
+        show: true,
+      },
+      y: {
+        show: true,
+      },
+    },
+    legend: {
+      show: false,
+    },
+    tooltip: {
+      contents: function (data) {
+        return `<table class="bb-tooltip"><tbody>
+            <tr><th colspan="2">Coverage ${barLabels[data[0].x]}</th></tr>
+            <tr><td class="value">${data[0].value} ${name}</td></tr>
+          </tbody></table>`;
+      },
+      grouped: false,
+    },
+  });
+  bb.generate(
+    barConfig('classes', "Class Coverage", [0,0,0,0,0,0,3,0,1,3,1,0])
+  );
+  bb.generate(
+    barConfig('methods', "Method Coverage", [73,0,0,0,1,0,1,8,15,28,15,226])
+  );
+
+  const scatterConfig = (name, complexityData) => ({
+    axis: {
+      x: {
+        label: {
+          text: 'Code Coverage (in percent)',
+          position: 'outer-right',
+        },
+        tick: {
+          values: [0, 20, 40, 60, 80, 100],
+        },
+      },
+      y: {
+        label: {
+          text: 'Cyclomatic Complexity',
+          position: 'outer-top',
+        },
+        min: 0,
+        padding: {
+          bottom: 0,
+          top: 5,
+        },
+      },
+    },
+    bindto: `#${name}Complexity`,
+    data: {
+      columns: [
+        ["complexity_x"].concat(complexityData.map(d => d[0])),
+        ["complexity"].concat(complexityData.map(d => d[1])),
+      ],
+      onclick: function(data, element) {
+        window.location = complexityData[data.index][2];
+      },
+      type: "scatter",
+      xs: {
+        "complexity": "complexity_x",
+      },
+    },
+    grid: {
+      focus: {
+        show: true,
+        y: true,
+      },
+      x: {
+        show: true,
+      },
+      y: {
+        show: true,
+      },
+    },
+    legend: {
+      show: false,
+    },
+    tooltip: {
+      contents: function (data) {
+        const coverage = Math.round(data[0].x);
+        const complexity = data[0].value;
+        const targetName = complexityData[data[0].index][3];
+        const crap = complexityData[data[0].index][4];
+        return `<table class="bb-tooltip"><tbody>
+            <tr><th colspan="2">${targetName}</th></tr>
+            <tr class="bb-tooltip-name-complexity"><td>Coverage</td><td class="name">${coverage}%</td></tr>
+            <tr class="bb-tooltip-name-complexity"><td>Complexity</td><td class="value">${complexity}</td></tr>
+            <tr class="bb-tooltip-name-complexity"><td>Crap</td><td class="value">${crap}</td></tr>
+          </tbody></table>`;
+      },
+      grouped: false,
+    },
+  });
+  const classComplexityData = JSON.parse(document.getElementById('complexity_class').textContent);
+  bb.generate(
+    scatterConfig("class", classComplexityData)
+  );
+  const methodComplexityData = JSON.parse(document.getElementById('complexity_method').textContent);
+  bb.generate(
+    scatterConfig("method", methodComplexityData),
+  );
+  </script>
+ </body>
+</html>
