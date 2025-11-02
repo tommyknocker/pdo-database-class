@@ -114,49 +114,49 @@
     }
   },
   "scripts": {
-    "test": "phpunit",
-    "test:mysql": "phpunit tests/mysql/*Tests.php",
-    "test:postgresql": "phpunit tests/postgresql/*Tests.php",
-    "test:sqlite": "phpunit tests/sqlite/*Tests.php",
-    "test:shared": "phpunit tests/shared/*Tests.php",
-    "phpstan": "phpstan analyse",
-    "cs-fix": "php-cs-fixer fix",
-    "cs-check": "php-cs-fixer fix --dry-run --diff",
-    "test-examples": "bash scripts/test-examples.sh",
-    "quality-check": "bash scripts/quality-check.sh",
-    "infection": "infection",
-    "infection:quick": "infection --min-msi=50 --min-covered-msi=60 --threads=4",
-    "infection:ci": "infection --min-msi=70 --min-covered-msi=75 --logger-github",
-    "check": [
-      "@phpstan",
-      "@test",
-      "@test-examples"
+    "pdodb:test": "phpunit",
+    "pdodb:test:mysql": "phpunit tests/mysql/*Tests.php",
+    "pdodb:test:postgresql": "phpunit tests/postgresql/*Tests.php",
+    "pdodb:test:sqlite": "phpunit tests/sqlite/*Tests.php",
+    "pdodb:test:shared": "phpunit tests/shared/*Tests.php",
+    "pdodb:phpstan": "phpstan analyse",
+    "pdodb:cs-fix": "php-cs-fixer fix",
+    "pdodb:cs-check": "php-cs-fixer fix --dry-run --diff",
+    "pdodb:test-examples": "bash scripts/test-examples.sh",
+    "pdodb:quality-check": "bash scripts/quality-check.sh",
+    "pdodb:infection": "infection",
+    "pdodb:infection:quick": "infection --min-msi=50 --min-covered-msi=60 --threads=4",
+    "pdodb:infection:ci": "infection --min-msi=70 --min-covered-msi=75 --logger-github",
+    "pdodb:check": [
+      "@pdodb:phpstan",
+      "@pdodb:test",
+      "@pdodb:test-examples"
     ],
-    "check-all": [
-      "@phpstan",
-      "@cs-check",
-      "@test",
-      "@test-examples",
-      "@fix-markdown"
+    "pdodb:check-all": [
+      "@pdodb:phpstan",
+      "@pdodb:cs-check",
+      "@pdodb:test",
+      "@pdodb:test-examples",
+      "@pdodb:fix-markdown"
     ],
-    "migrate": "php scripts/migrate.php",
-    "migrate:create": "php scripts/migrate.php create",
-    "migrate:up": "php scripts/migrate.php migrate",
-    "migrate:down": "php scripts/migrate.php rollback",
-    "migrate:history": "php scripts/migrate.php history",
-    "migrate:new": "php scripts/migrate.php new",
-    "check-all-with-infection": [
-      "@phpstan",
-      "@cs-check",
-      "@test",
-      "@test-examples",
-      "@infection:ci"
+    "pdodb:migrate": "php scripts/migrate.php",
+    "pdodb:migrate:create": "php scripts/migrate.php create",
+    "pdodb:migrate:up": "php scripts/migrate.php migrate",
+    "pdodb:migrate:down": "php scripts/migrate.php rollback",
+    "pdodb:migrate:history": "php scripts/migrate.php history",
+    "pdodb:migrate:new": "php scripts/migrate.php new",
+    "pdodb:check-all-with-infection": [
+      "@pdodb:phpstan",
+      "@pdodb:cs-check",
+      "@pdodb:test",
+      "@pdodb:test-examples",
+      "@pdodb:infection:ci"
     ],
-    "fix-all": [
-      "@cs-fix",
-      "@test"
+    "pdodb:fix-all": [
+      "@pdodb:cs-fix",
+      "@pdodb:test"
     ],
-    "fix-markdown": "bash scripts/fix-markdown-eof.sh"
+    "pdodb:fix-markdown": "bash scripts/fix-markdown-eof.sh"
   },
   "config": {
     "allow-plugins": {

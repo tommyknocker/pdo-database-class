@@ -16,7 +16,7 @@ jobs:
           extensions: pdo, pdo_mysql, pdo_pgsql, pdo_sqlite
           coverage: none
       - run: composer install --no-interaction --prefer-dist
-      - run: composer phpstan
+      - run: composer pdodb:phpstan
 
   mysql:
     name: MySQL Tests

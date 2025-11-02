@@ -163,10 +163,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integrated Infection mutation testing framework
   - Configuration file `infection.json` with comprehensive settings
   - Mutation testing scripts in `composer.json`:
-    - `composer infection` - Full mutation test run
-    - `composer infection:quick` - Quick mutation test
-    - `composer infection:ci` - CI-optimized mutation test
-  - `composer check-all-with-infection` script for complete quality checks
+    - `composer pdodb:infection` - Full mutation test run
+    - `composer pdodb:infection:quick` - Quick mutation test
+    - `composer pdodb:infection:ci` - CI-optimized mutation test
+  - `composer pdodb:check-all-with-infection` script for complete quality checks
   - Minimum MSI (Mutation Score Indicator) requirements configured
 
 ### Changed
@@ -226,7 +226,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Markdown EOF Formatting** - Consistent file formatting:
   - Added `fix-markdown-eof.sh` script to ensure exactly one empty line at EOF
-  - Integrated into `composer check-all` for automatic fixing
+  - Integrated into `composer pdodb:check-all` for automatic fixing
   - All markdown files now have consistent formatting
 
 ### Technical Details
@@ -662,7 +662,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Error monitoring and alerting examples
   - Real-world error handling scenarios
 - **test-examples script** added to composer check:
-  - `composer check` now runs: PHPStan + PHPUnit + Examples
+  - `composer pdodb:check` now runs: PHPStan + PHPUnit + Examples
   - Ensures all examples work on all database dialects
   - 24/24 examples passing on SQLite, MySQL, PostgreSQL
 

@@ -44,7 +44,7 @@ A: PdoDb automatically handles dialect differences. Use helper functions like `D
 A: Yes! PdoDb is production-ready with comprehensive error handling, connection pooling, and extensive testing.
 
 **Q: How do I contribute examples?**
-A: Add new examples to the `examples/` directory and ensure they work with `composer test-examples`.
+A: Add new examples to the `examples/` directory and ensure they work with `composer pdodb:test-examples`.
 
 If you then still feel the need to ask a question and need clarification, we recommend the following:
 
@@ -183,17 +183,17 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/tommyk
 
 3. **Run tests to ensure everything works:**
    ```bash
-   composer test
+   composer pdodb:test
    ```
 
 4. **Run static analysis:**
    ```bash
-   composer phpstan
+   composer pdodb:phpstan
    ```
 
 5. **Check code style:**
    ```bash
-   composer cs-check
+   composer pdodb:cs-check
    ```
 
 #### Development Workflow
@@ -207,7 +207,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/tommyk
 
 3. **Run quality checks:**
    ```bash
-   composer check-all  # Runs PHPStan + PHPUnit + Examples
+   composer pdodb:check-all  # Runs PHPStan + PHPUnit + Examples
    ```
 
 4. **Commit your changes** with a descriptive message
@@ -221,7 +221,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/tommyk
 - **Use SharedCoverageTest** for dialect-independent functionality
 - **Use dialect-specific tests** (PdoDbMySQLTest, PdoDbPostgreSQLTest, PdoDbSqliteTest) for dialect-specific features
 - **Test edge cases** - Include tests for error conditions and boundary cases
-- **Test examples** - Run `composer test-examples` to ensure all examples work
+- **Test examples** - Run `composer pdodb:test-examples` to ensure all examples work
 - **Test performance** - For performance-critical features, include benchmarks
 
 #### Test Structure
@@ -239,7 +239,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/tommyk
 - Performance characteristics
 
 **Example tests** - Ensure all examples work:
-- Run `composer test-examples` before submitting PRs
+- Run `composer pdodb:test-examples` before submitting PRs
 - Add new examples for new features
 - Update existing examples if API changes
 
@@ -267,7 +267,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/tommyk
 
 #### Example Updates
 
-- **Test all examples** - Run `composer test-examples` to ensure they work
+- **Test all examples** - Run `composer pdodb:test-examples` to ensure they work
 - **Update for new features** - Add examples for new functionality
 - **Improve comments** - Make examples self-documenting
 - **Add real-world scenarios** - Show practical usage patterns
@@ -283,7 +283,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/tommyk
 
 ### Code Style
 
-We use **PHP CS Fixer** with PSR-12 rules. Run `composer cs-fix` to automatically format your code.
+We use **PHP CS Fixer** with PSR-12 rules. Run `composer pdodb:cs-fix` to automatically format your code.
 
 **Key style requirements:**
 - **PSR-12 compliance** - Follow PHP-FIG standards
@@ -329,7 +329,7 @@ chore: update dependencies and improve CI configuration
 2. **Write descriptive titles** - Clear, concise description
 3. **Include tests** - All new code must have tests
 4. **Update documentation** - Update README, examples, or CHANGELOG as needed
-5. **Run quality checks** - Ensure `composer check-all` passes
+5. **Run quality checks** - Ensure `composer pdodb:check-all` passes
 6. **Write clear descriptions** - Explain what changed and why
 
 **PR Template:**

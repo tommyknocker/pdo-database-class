@@ -16,31 +16,31 @@ echo ""
 
 # Check PHP CS Fixer
 echo -e "${CYAN}1. Checking code style with PHP CS Fixer...${NC}"
-if composer cs-check > /dev/null 2>&1; then
+if composer pdodb:cs-check > /dev/null 2>&1; then
     echo -e "${GREEN}✓ Code style is compliant with PSR-12${NC}"
 else
     echo -e "${RED}✗ Code style issues found${NC}"
-    echo "Run 'composer cs-fix' to fix them"
+    echo "Run 'composer pdodb:cs-fix' to fix them"
     exit 1
 fi
 
 # Check PHPStan
 echo -e "${CYAN}2. Running static analysis with PHPStan...${NC}"
-if composer phpstan > /dev/null 2>&1; then
+if composer pdodb:phpstan > /dev/null 2>&1; then
     echo -e "${GREEN}✓ Static analysis passed${NC}"
 else
     echo -e "${RED}✗ Static analysis issues found${NC}"
-    composer phpstan
+    composer pdodb:phpstan
     exit 1
 fi
 
 # Run tests
 echo -e "${CYAN}3. Running unit tests...${NC}"
-if composer test > /dev/null 2>&1; then
+if composer pdodb:test > /dev/null 2>&1; then
     echo -e "${GREEN}✓ All unit tests passed${NC}"
 else
     echo -e "${RED}✗ Unit tests failed${NC}"
-    composer test
+    composer pdodb:test
     exit 1
 fi
 
@@ -65,4 +65,4 @@ echo "• ✅ Static analysis (PHPStan level 8)"
 echo "• ✅ Unit tests (432 tests)"
 echo "• ✅ Example compatibility (all databases)"
 echo ""
-echo "Run 'composer check-all' to repeat this check anytime."
+echo "Run 'composer pdodb:check-all' to repeat this check anytime."

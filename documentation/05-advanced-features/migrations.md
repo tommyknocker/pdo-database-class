@@ -371,19 +371,19 @@ The easiest way to use migrations is through Composer scripts:
 
 ```bash
 # Create a new migration
-composer migrate:create add_email_to_users
+composer pdodb:migrate:create add_email_to_users
 
 # Apply all new migrations
-composer migrate:up
+composer pdodb:migrate:up
 
 # Rollback last migration
-composer migrate:down
+composer pdodb:migrate:down
 
 # Show migration history
-composer migrate:history
+composer pdodb:migrate:history
 
 # Show new (not applied) migrations
-composer migrate:new
+composer pdodb:migrate:new
 ```
 
 ### Direct Script Usage
