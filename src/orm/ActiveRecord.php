@@ -13,6 +13,10 @@ use tommyknocker\pdodb\events\ModelBeforeDeleteEvent;
 use tommyknocker\pdodb\events\ModelBeforeInsertEvent;
 use tommyknocker\pdodb\events\ModelBeforeSaveEvent;
 use tommyknocker\pdodb\events\ModelBeforeUpdateEvent;
+use tommyknocker\pdodb\orm\relations\BelongsTo;
+use tommyknocker\pdodb\orm\relations\HasMany;
+use tommyknocker\pdodb\orm\relations\HasOne;
+use tommyknocker\pdodb\orm\relations\RelationInterface;
 use tommyknocker\pdodb\orm\validators\ValidatorFactory;
 
 /**
@@ -38,6 +42,12 @@ trait ActiveRecord
     /** @var array<string, array<int, string>> Validation errors (attribute => [messages]) */
     protected array $validationErrors = [];
 
+    /** @var array<string, RelationInterface> Relationship instances cache */
+    protected array $relations = [];
+
+    /** @var array<string, mixed> Eager-loaded relationship data */
+    protected array $relationData = [];
+
     /**
      * Get attribute value.
      *
@@ -47,6 +57,12 @@ trait ActiveRecord
      */
     public function __get(string $name): mixed
     {
+        // Check if it's a relationship (try to load it)
+        $relation = $this->getRelationInstance($name);
+        if ($relation !== null) {
+            return $this->loadRelation($name);
+        }
+
         return $this->attributes[$name] ?? null;
     }
 
@@ -81,6 +97,37 @@ trait ActiveRecord
     public function __unset(string $name): void
     {
         unset($this->attributes[$name]);
+    }
+
+    /**
+     * Handle method calls (Yii2-like relationship query syntax).
+     *
+     * Allows calling relationships as methods to get ActiveQuery for modification:
+     * $user->posts()->where('published', 1)->all()
+     *
+     * @param string $name Method name (should be a relationship name)
+     * @param array<mixed> $arguments Method arguments (should be empty for relationships)
+     *
+     * @return mixed ActiveQuery instance if it's a relationship, otherwise throws exception
+     * @throws RuntimeException If method doesn't exist and is not a relationship
+     */
+    public function __call(string $name, array $arguments): mixed
+    {
+        // Check if it's a relationship called as method
+        $relation = $this->getRelationInstance($name);
+        if ($relation !== null) {
+            // Set model if not already set
+            if ($relation->getModel() === null) {
+                $relation->setModel($this);
+            }
+            return $relation->prepareQuery();
+        }
+
+        // Not a relationship - throw exception
+        throw new RuntimeException(
+            'Call to undefined method ' . static::class . '::' . $name . '(). ' .
+            'If ' . $name . ' is a relationship, make sure it is defined in relations() method.'
+        );
     }
 
     /**
@@ -565,5 +612,171 @@ trait ActiveRecord
     public function toArray(): array
     {
         return $this->attributes;
+    }
+
+    /**
+     * Define a has-one relationship.
+     *
+     * @param string $modelClass Related model class name
+     * @param array<string, mixed> $config Relationship configuration
+     *
+     * @return HasOne Relationship instance
+     */
+    protected function hasOne(string $modelClass, array $config = []): HasOne
+    {
+        return new HasOne($modelClass, $config);
+    }
+
+    /**
+     * Define a has-many relationship.
+     *
+     * @param string $modelClass Related model class name
+     * @param array<string, mixed> $config Relationship configuration
+     *
+     * @return HasMany Relationship instance
+     */
+    protected function hasMany(string $modelClass, array $config = []): HasMany
+    {
+        return new HasMany($modelClass, $config);
+    }
+
+    /**
+     * Define a belongs-to relationship.
+     *
+     * @param string $modelClass Related model class name
+     * @param array<string, mixed> $config Relationship configuration
+     *
+     * @return BelongsTo Relationship instance
+     */
+    protected function belongsTo(string $modelClass, array $config = []): BelongsTo
+    {
+        return new BelongsTo($modelClass, $config);
+    }
+
+    /**
+     * Get relationship instance by name.
+     *
+     * @param string $name Relationship name
+     *
+     * @return RelationInterface|null Relationship instance or null if not found
+     */
+    protected function getRelationInstance(string $name): ?RelationInterface
+    {
+        // Check if already cached
+        if (isset($this->relations[$name])) {
+            $relation = $this->relations[$name];
+            if ($relation->getModel() === null) {
+                $relation->setModel($this);
+            }
+            return $relation;
+        }
+
+        // Try to get from relations() method
+        $relations = static::relations();
+        if (!isset($relations[$name])) {
+            return null;
+        }
+
+        $relationConfig = $relations[$name];
+        if (!is_array($relationConfig) || count($relationConfig) < 1) {
+            return null;
+        }
+
+        $relationType = $relationConfig[0];
+        $relationModelClass = $relationConfig['modelClass'] ?? '';
+
+        // Extract options (everything except first element and 'modelClass')
+        $relationOptions = [];
+        foreach ($relationConfig as $key => $value) {
+            if ($key !== 0 && $key !== 'modelClass') {
+                $relationOptions[$key] = $value;
+            }
+        }
+
+        if (empty($relationModelClass)) {
+            return null;
+        }
+
+        // Create relationship instance based on type
+        $relation = match ($relationType) {
+            'hasOne' => $this->hasOne($relationModelClass, $relationOptions),
+            'hasMany' => $this->hasMany($relationModelClass, $relationOptions),
+            'belongsTo' => $this->belongsTo($relationModelClass, $relationOptions),
+            default => null,
+        };
+
+        if ($relation !== null) {
+            $relation->setModel($this);
+            $this->relations[$name] = $relation;
+        }
+
+        return $relation;
+    }
+
+    /**
+     * Load relationship data (lazy loading).
+     *
+     * @param string $name Relationship name
+     *
+     * @return mixed Related model(s) or null/empty array
+     */
+    protected function loadRelation(string $name): mixed
+    {
+        // Check if eager-loaded
+        if (isset($this->relationData[$name])) {
+            $relation = $this->getRelationInstance($name);
+            if ($relation !== null) {
+                return $relation->getEagerValue($this->relationData[$name]);
+            }
+        }
+
+        // Lazy load
+        $relation = $this->getRelationInstance($name);
+        if ($relation === null) {
+            return null;
+        }
+
+        return $relation->getValue();
+    }
+
+    /**
+     * Get relationship value (with lazy loading support).
+     *
+     * @param string $name Relationship name
+     *
+     * @return mixed Related model(s) or null/empty array
+     */
+    public function getRelation(string $name): mixed
+    {
+        return $this->loadRelation($name);
+    }
+
+    /**
+     * Set eager-loaded relationship data.
+     *
+     * @param string $name Relationship name
+     * @param mixed $data Eager-loaded data
+     */
+    public function setRelationData(string $name, mixed $data): void
+    {
+        $this->relationData[$name] = $data;
+    }
+
+    /**
+     * Get all eager-loaded relationship data.
+     *
+     * @return array<string, mixed> Relationship data
+     */
+    public function getRelationData(): array
+    {
+        return $this->relationData;
+    }
+
+    /**
+     * Clear all eager-loaded relationship data.
+     */
+    public function clearRelationData(): void
+    {
+        $this->relationData = [];
     }
 }

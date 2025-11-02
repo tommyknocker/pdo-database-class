@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm;
 
 use RuntimeException;
+use tommyknocker\pdodb\orm\relations\EagerLoader;
 use tommyknocker\pdodb\query\QueryBuilder;
 
 /**
@@ -20,6 +21,9 @@ class ActiveQuery
 
     /** @var QueryBuilder QueryBuilder instance */
     protected QueryBuilder $queryBuilder;
+
+    /** @var array<int|string, string|array<string>> Relationships to eager load */
+    protected array $eagerLoad = [];
 
     /**
      * ActiveQuery constructor.
@@ -73,7 +77,14 @@ class ActiveQuery
             return null;
         }
 
-        return $this->populateModel($data);
+        $model = $this->populateModel($data);
+
+        // Eager load relationships if requested
+        if (!empty($this->eagerLoad)) {
+            $this->loadRelations([$model], $this->eagerLoad);
+        }
+
+        return $model;
     }
 
     /**
@@ -91,6 +102,11 @@ class ActiveQuery
             if (is_array($row)) {
                 $models[] = $this->populateModel($row);
             }
+        }
+
+        // Eager load relationships if requested
+        if (!empty($this->eagerLoad) && !empty($models)) {
+            $this->loadRelations($models, $this->eagerLoad);
         }
 
         return $models;
@@ -174,5 +190,40 @@ class ActiveQuery
     public function getQueryBuilder(): QueryBuilder
     {
         return $this->queryBuilder;
+    }
+
+    /**
+     * Specify relationships to eager load.
+     *
+     * @param array<int|string, string|array<string>>|string $relations Relationship name(s) or array of relationships
+     *                                                                  Supports nested: ['posts' => ['author', 'comments']]
+     *
+     * @return static Self instance for chaining
+     */
+    public function with(array|string $relations): static
+    {
+        if (is_string($relations)) {
+            $this->eagerLoad[] = $relations;
+        } else {
+            $this->eagerLoad = array_merge($this->eagerLoad, $relations);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Load relationships for models.
+     *
+     * @param array<int, Model> $models Array of model instances
+     * @param array<int|string, string|array<string>> $relations Relationships to load
+     */
+    protected function loadRelations(array $models, array $relations): void
+    {
+        if (empty($models) || empty($relations)) {
+            return;
+        }
+
+        $loader = new EagerLoader();
+        $loader->load($models, $relations);
     }
 }

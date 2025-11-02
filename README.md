@@ -38,12 +38,12 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Export Helpers** - Export results to JSON, CSV, and XML formats
 - **Transactions & Locking** - Full transaction support with table locking
 - **Batch Processing** - Memory-efficient generators for large datasets with zero memory leaks
-- **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations
+- **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo) and eager/lazy loading
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Connection Retry** - Automatic retry with exponential backoff
 - **PSR-14 Event Dispatcher** - Event-driven architecture for monitoring, auditing, and middleware
 - **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more
-- **Fully Tested** - 1306 tests, 5139 assertions across all dialects
+- **Fully Tested** - 1320 tests, 5249 assertions across all dialects
 - **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
 
 Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class) and [Yii2 framework](https://github.com/yiisoft/yii2-framework)
@@ -738,6 +738,7 @@ $user->delete();
 - **Extensible Validators** - Create custom validators with `ValidatorInterface`
 - **Lifecycle Events** - PSR-14 event dispatcher integration (beforeSave, afterSave, etc.)
 - **Full QueryBuilder API** - All QueryBuilder methods available through `ActiveQuery`
+- **Relationships** - hasOne, hasMany, belongsTo with lazy and eager loading (Yii2-like syntax)
 - **Flexible Finding** - Find by ID, condition, or composite keys
 - **Cross-Database** - Works with MySQL, MariaDB, PostgreSQL, and SQLite
 
@@ -747,9 +748,41 @@ $user->delete();
 - Building MVC-style applications
 - Want simple CRUD operations
 
+**Relationships Example:**
+```php
+// Define relationships in model
+class User extends Model
+{
+    public static function relations(): array
+    {
+        return [
+            'profile' => ['hasOne', 'modelClass' => Profile::class],
+            'posts' => ['hasMany', 'modelClass' => Post::class],
+        ];
+    }
+}
+
+// Lazy loading
+$user = User::findOne(1);
+$profile = $user->profile;  // Loads profile on access
+$posts = $user->posts;     // Loads posts on access
+
+// Yii2-like syntax: call relationship as method
+$publishedPosts = $user->posts()
+    ->where('published', 1)
+    ->orderBy('created_at', 'DESC')
+    ->limit(10)
+    ->all();
+
+// Eager loading (prevents N+1 queries)
+$users = User::find()->with(['profile', 'posts'])->all();
+```
+
 See:
 - [Documentation: ActiveRecord](documentation/05-advanced-features/active-record.md)
+- [Documentation: ActiveRecord Relationships](documentation/05-advanced-features/active-record-relationships.md)
 - [Example: ActiveRecord Usage](examples/23-active-record/01-active-record-examples.php)
+- [Example: ActiveRecord Relationships](examples/27-active-record-relationships/01-relationships.php)
 
 ---
 

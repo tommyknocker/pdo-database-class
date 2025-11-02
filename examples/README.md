@@ -172,6 +172,45 @@ SQL set operations for combining query results (MySQL 8.0+, PostgreSQL, SQLite 3
   - **UNION with aggregation** - Combining aggregated results
   - **UNION with filters** - Complex filtering
 
+### 23. ActiveRecord
+Object-based database operations with lightweight ORM pattern.
+
+- **[01-active-record-examples.php](23-active-record/01-active-record-examples.php)** - ActiveRecord basics:
+  - **Model definition** - Extend Model base class
+  - **CRUD operations** - Create, read, update, delete
+  - **Validation** - Rules-based validation
+  - **ActiveQuery** - Full QueryBuilder API through find()
+  - **Lifecycle events** - PSR-14 events for model operations
+
+### 24. DDL Query Builder
+Fluent API for creating and managing database schema.
+
+- **[01-ddl-basics.php](24-ddl/01-ddl-basics.php)** - DDL operations:
+  - **Create tables** - With columns, indexes, foreign keys
+  - **Alter tables** - Add, drop, modify columns
+  - **Indexes** - Create and drop indexes
+  - **Foreign keys** - Define relationships between tables
+
+### 25. Database Migrations
+Version-controlled schema changes with rollback support.
+
+- **[01-migration-basics.php](25-migrations/01-migration-basics.php)** - Migration operations:
+  - **Create migrations** - Generate migration files
+  - **Apply migrations** - Migrate to latest or specific version
+  - **Rollback** - Undo migrations
+  - **History** - View applied migrations
+
+### 27. ActiveRecord Relationships
+hasOne, hasMany, belongsTo relationships with lazy and eager loading.
+
+- **[01-relationships.php](27-active-record-relationships/01-relationships.php)** - Relationship examples:
+  - **hasOne** - One-to-one relationships
+  - **hasMany** - One-to-many relationships
+  - **belongsTo** - Many-to-one relationships
+  - **Lazy loading** - On-demand relationship loading
+  - **Eager loading** - Prevent N+1 queries with with() method
+  - **Nested eager loading** - Load related relationships of related models
+
 ## 💡 Tips
 
 - All examples are self-contained and runnable

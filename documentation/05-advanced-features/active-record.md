@@ -676,15 +676,24 @@ ActiveRecord works with all supported databases:
 - ✅ PostgreSQL
 - ✅ SQLite
 
+## Relationships
+
+ActiveRecord supports relationships between models. See [ActiveRecord Relationships](active-record-relationships.md) for detailed documentation.
+
+Supported relationship types:
+- **hasOne** - One-to-one relationship
+- **hasMany** - One-to-many relationship
+- **belongsTo** - Many-to-one relationship
+
+Both lazy loading and eager loading are supported to prevent N+1 query problems.
+
 ## Limitations
 
-- No automatic relationships (1-to-1, 1-to-many, etc.)
 - No automatic schema introspection
-- No migrations
-- No automatic validation rules
+- No migrations (see [Database Migrations](migrations.md) for migration support)
 - Lightweight implementation focused on core functionality
 
-These limitations are intentional to keep the library lightweight and optional. You can extend models to add relationships and validation as needed.
+These limitations are intentional to keep the library lightweight and optional. You can extend models to add custom functionality as needed.
 
 ## Examples
 

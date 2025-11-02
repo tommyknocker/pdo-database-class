@@ -53,6 +53,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [Read/Write Splitting](05-advanced-features/read-write-splitting.md) - Master-replica architecture
 - [Database Migrations](05-advanced-features/migrations.md) - Version-controlled schema changes
 - [ActiveRecord](05-advanced-features/active-record.md) - Lightweight ORM pattern for object-based database operations
+- [ActiveRecord Relationships](05-advanced-features/active-record-relationships.md) - hasOne, hasMany, belongsTo relationships with lazy and eager loading
 
 ### Error Handling
 - [Exception Hierarchy](06-error-handling/exception-hierarchy.md) - Exception types

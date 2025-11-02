@@ -93,6 +93,24 @@ abstract class Model
     }
 
     /**
+     * Get relationship definitions.
+     *
+     * Format: [
+     *   'relationName' => ['hasOne', 'modelClass' => RelatedModel::class, 'foreignKey' => '...', 'localKey' => '...'],
+     *   'relationName' => ['hasMany', 'modelClass' => RelatedModel::class, 'foreignKey' => '...', 'localKey' => '...'],
+     *   'relationName' => ['belongsTo', 'modelClass' => RelatedModel::class, 'foreignKey' => '...', 'ownerKey' => '...'],
+     * ]
+     *
+     * Override this method to define relationships for the model.
+     *
+     * @return array<string, array<int|string, mixed>> Relationship definitions
+     */
+    public static function relations(): array
+    {
+        return [];
+    }
+
+    /**
      * Find records (returns ActiveQuery).
      *
      * @return ActiveQuery Query builder instance
