@@ -82,7 +82,7 @@ echo "=== 1. Basic Full-Text Search ===\n";
 try {
     $results = $db->find()
         ->from('articles')
-        ->where(Db::fulltextMatch('title, content', 'database'))
+        ->where(Db::match('title, content', 'database'))
         ->get();
     
     echo "Results for search 'database': " . count($results) . "\n";

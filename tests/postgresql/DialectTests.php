@@ -227,7 +227,7 @@ final class DialectTests extends BasePostgreSQLTestCase
 
     public function testFulltextMatchHelper(): void
     {
-        $fulltext = Db::fulltextMatch('title, content', 'search term', 'natural');
+        $fulltext = Db::match('title, content', 'search term', 'natural');
         $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\FulltextMatchValue::class, $fulltext);
     }
 }

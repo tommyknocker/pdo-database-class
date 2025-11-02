@@ -21,7 +21,7 @@ trait FulltextSearchHelpersTrait
      *
      * @return FulltextMatchValue The FulltextMatchValue instance.
      */
-    public static function fulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): FulltextMatchValue
+    public static function match(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): FulltextMatchValue
     {
         return new FulltextMatchValue($columns, $searchTerm, $mode, $withQueryExpansion);
     }

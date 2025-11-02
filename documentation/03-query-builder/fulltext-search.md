@@ -18,7 +18,7 @@ use tommyknocker\pdodb\helpers\Db;
 // Search across multiple columns
 $results = $db->find()
     ->from('articles')
-    ->where(Db::fulltextMatch('title, content', 'database tutorial'))
+    ->where(Db::match('title, content', 'database tutorial'))
     ->get();
 ```
 
@@ -27,7 +27,7 @@ $results = $db->find()
 ```php
 $results = $db->find()
     ->from('articles')
-    ->where(Db::fulltextMatch('title', 'PHP'))
+    ->where(Db::match('title', 'PHP'))
     ->get();
 ```
 
@@ -37,13 +37,13 @@ $results = $db->find()
 // Natural language mode (default)
 $results = $db->find()
     ->from('articles')
-    ->where(Db::fulltextMatch('title, content', 'optimization tips', 'natural'))
+    ->where(Db::match('title, content', 'optimization tips', 'natural'))
     ->get();
 
 // Boolean mode
 $results = $db->find()
     ->from('articles')
-    ->where(Db::fulltextMatch('title, content', '+optimization -security', 'boolean'))
+    ->where(Db::match('title, content', '+optimization -security', 'boolean'))
     ->get();
 ```
 
@@ -53,7 +53,7 @@ $results = $db->find()
 // Expand search with related terms
 $results = $db->find()
     ->from('articles')
-    ->where(Db::fulltextMatch('title, content', 'database', null, true))
+    ->where(Db::match('title, content', 'database', null, true))
     ->get();
 ```
 

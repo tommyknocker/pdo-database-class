@@ -358,7 +358,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.7.0] - 2025-10-28
 
 ### Added
-- **Full-Text Search** - Cross-database full-text search with `Db::fulltextMatch()` helper:
+- **Full-Text Search** - Cross-database full-text search with `Db::match()` helper:
   - **MySQL**: `MATCH AGAINST` with FULLTEXT indexes
   - **PostgreSQL**: `@@` operator with `to_tsquery()` and text search vectors
   - **SQLite**: FTS5 virtual tables support

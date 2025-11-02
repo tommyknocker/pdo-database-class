@@ -2778,13 +2778,13 @@ use tommyknocker\pdodb\helpers\Db;
 // Full-text search (requires FTS indexes)
 $results = $db->find()
     ->from('articles')
-    ->where(Db::fulltextMatch('title, content', 'database tutorial'))
+    ->where(Db::match('title, content', 'database tutorial'))
     ->get();
 
 // Single column search
 $results = $db->find()
     ->from('articles')
-    ->where(Db::fulltextMatch('title', 'PHP'))
+    ->where(Db::match('title', 'PHP'))
     ->get();
 ```
 
