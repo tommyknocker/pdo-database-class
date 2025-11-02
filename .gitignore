@@ -8,6 +8,7 @@ composer.lock
 # Coverage reports
 coverage*.xml
 coverage/
+coverage-report
 .coverage
 
 # Examples - temporary files only
