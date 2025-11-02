@@ -227,12 +227,6 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
         $db = self::getDb();
         $schema = $db->schema();
 
-        $driver = $db->connection->getDialect()->getDriverName();
-        if ($driver === 'sqlite') {
-            // SQLite DROP COLUMN may not work on older versions
-            $this->markTestSkipped('SQLite DROP COLUMN support varies by version');
-        }
-
         $schema->dropTableIfExists('test_ddl_drop_col');
 
         // Create table with column
