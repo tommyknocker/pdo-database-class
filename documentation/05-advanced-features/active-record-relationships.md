@@ -436,6 +436,82 @@ $totalViews = $user->posts()
    }
    ```
 
-## Examples
+## Many-to-Many Relationships
+
+PDOdb supports many-to-many relationships through two approaches: `viaTable` (junction table) and `via` (through existing relationship).
+
+### Using viaTable (Junction Table)
+
+`viaTable` is used when you have a dedicated junction table for the many-to-many relationship:
+
+```php
+class User extends Model
+{
+    public static function relations(): array
+    {
+        return [
+            'projects' => [
+                'hasManyThrough',
+                'modelClass' => Project::class,
+                'viaTable' => 'user_project',  // Junction table
+                'link' => ['id' => 'user_id'], // User.id -> user_project.user_id
+                'viaLink' => ['project_id' => 'id'], // user_project.project_id -> Project.id
+            ],
+        ];
+    }
+}
+
+// Usage
+$user = User::findOne(1);
+$projects = $user->projects;  // Lazy load
+
+// Yii2-like syntax
+$activeProjects = $user->projects()->where('status', 'active')->all();
+
+// Eager loading
+$users = User::find()->with('projects')->all();
+```
+
+### Using via (Through Existing Relationship)
+
+`via` is used when you want to access a relationship through another existing relationship:
+
+```php
+class User extends Model
+{
+    public static function relations(): array
+    {
+        return [
+            'posts' => ['hasMany', 'modelClass' => Post::class],
+            'comments' => [
+                'hasManyThrough',
+                'modelClass' => Comment::class,
+                'via' => 'posts',  // Use 'posts' relationship
+                'viaLink' => ['post_id' => 'id'], // Comment.post_id -> Post.id
+            ],
+        ];
+    }
+}
+
+// Usage
+$user = User::findOne(1);
+$comments = $user->comments;  // Gets all comments through user's posts
+
+// Eager loading
+$users = User::find()->with('comments')->all();
+```
+
+### Configuration Options
+
+**viaTable:**
+- `viaTable` (string): Name of the junction table
+- `link` (array): Maps owner primary key to junction table column `[owner_pk => junction_owner_key]`
+- `viaLink` (array): Maps junction table column to related primary key `[junction_related_key => related_pk]`
+
+**via:**
+- `via` (string): Name of the intermediate relationship
+- `viaLink` (array): Maps foreign key in related model to primary key in intermediate model `[foreign_key => intermediate_pk]`
+
+### Examples
 
 See [examples/27-active-record-relationships/](../examples/27-active-record-relationships/) for comprehensive examples.

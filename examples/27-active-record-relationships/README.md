@@ -40,6 +40,12 @@ This directory contains examples demonstrating ActiveRecord relationships functi
 - Example: `$user->posts()->where('published', 1)->orderBy('created_at', 'DESC')->all()`
 - Allows adding conditions, ordering, limiting, etc. to relationship queries
 
+### Many-to-Many Relationships
+- Support for many-to-many relationships through junction tables (`viaTable`)
+- Support for many-to-many through existing relationships (`via`)
+- Example: `User -> Projects` through `user_project` junction table
+- Example: `User -> Comments` through `Posts` relationship
+
 ## Running Examples
 
 ```bash

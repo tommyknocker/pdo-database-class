@@ -15,6 +15,7 @@ use tommyknocker\pdodb\events\ModelBeforeSaveEvent;
 use tommyknocker\pdodb\events\ModelBeforeUpdateEvent;
 use tommyknocker\pdodb\orm\relations\BelongsTo;
 use tommyknocker\pdodb\orm\relations\HasMany;
+use tommyknocker\pdodb\orm\relations\HasManyThrough;
 use tommyknocker\pdodb\orm\relations\HasOne;
 use tommyknocker\pdodb\orm\relations\RelationInterface;
 use tommyknocker\pdodb\orm\validators\ValidatorFactory;
@@ -654,6 +655,19 @@ trait ActiveRecord
     }
 
     /**
+     * Define a has-many-through relationship.
+     *
+     * @param string $modelClass Related model class name
+     * @param array<string, mixed> $config Relationship configuration
+     *
+     * @return HasManyThrough Relationship instance
+     */
+    protected function hasManyThrough(string $modelClass, array $config = []): HasManyThrough
+    {
+        return new HasManyThrough($modelClass, $config);
+    }
+
+    /**
      * Get relationship instance by name.
      *
      * @param string $name Relationship name
@@ -702,6 +716,7 @@ trait ActiveRecord
             'hasOne' => $this->hasOne($relationModelClass, $relationOptions),
             'hasMany' => $this->hasMany($relationModelClass, $relationOptions),
             'belongsTo' => $this->belongsTo($relationModelClass, $relationOptions),
+            'hasManyThrough' => $this->hasManyThrough($relationModelClass, $relationOptions),
             default => null,
         };
 

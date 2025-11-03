@@ -91,6 +91,120 @@ class TestComment extends Model
     }
 }
 
+class TestProject extends Model
+{
+    public static function tableName(): string
+    {
+        return 'projects';
+    }
+
+    public static function primaryKey(): array
+    {
+        return ['id'];
+    }
+
+    public static function relations(): array
+    {
+        return [
+            'users' => [
+                'hasManyThrough',
+                'modelClass' => TestUser::class,
+                'viaTable' => 'user_project',
+                'link' => ['id' => 'project_id'],
+                'viaLink' => ['user_id' => 'id'],
+            ],
+        ];
+    }
+}
+
+class TestUserWithRelations extends Model
+{
+    public static function tableName(): string
+    {
+        return 'users';
+    }
+
+    public static function primaryKey(): array
+    {
+        return ['id'];
+    }
+
+    public static function relations(): array
+    {
+        return [
+            'profile' => ['hasOne', 'modelClass' => TestProfileModel::class],
+            'posts' => ['hasMany', 'modelClass' => TestPostModel::class],
+            // Many-to-many viaTable: User -> Projects through user_project
+            'projects' => [
+                'hasManyThrough',
+                'modelClass' => TestProjectModel::class,
+                'viaTable' => 'user_project',
+                'link' => ['id' => 'user_id'],
+                'viaLink' => ['project_id' => 'id'],
+            ],
+            // Many-to-many via: User -> Comments through Posts
+            'comments' => [
+                'hasManyThrough',
+                'modelClass' => TestCommentModel::class,
+                'via' => 'posts',
+                'viaLink' => ['post_id' => 'id'],
+            ],
+        ];
+    }
+}
+
+class TestProfileModel extends Model
+{
+    public static function tableName(): string
+    {
+        return 'profiles';
+    }
+
+    public static function primaryKey(): array
+    {
+        return ['id'];
+    }
+}
+
+class TestPostModel extends Model
+{
+    public static function tableName(): string
+    {
+        return 'posts';
+    }
+
+    public static function primaryKey(): array
+    {
+        return ['id'];
+    }
+}
+
+class TestProjectModel extends Model
+{
+    public static function tableName(): string
+    {
+        return 'projects';
+    }
+
+    public static function primaryKey(): array
+    {
+        return ['id'];
+    }
+}
+
+class TestCommentModel extends Model
+{
+    public static function tableName(): string
+    {
+        return 'comments';
+    }
+
+    public static function primaryKey(): array
+    {
+        return ['id'];
+    }
+}
+
 /**
  * Shared tests for ActiveRecord relationships.
  */
@@ -143,16 +257,39 @@ final class ActiveRecordRelationsTests extends BaseSharedTestCase
             )
         ');
 
+        $db->rawQuery('
+            CREATE TABLE projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT
+            )
+        ');
+
+        $db->rawQuery('
+            CREATE TABLE user_project (
+                user_id INTEGER NOT NULL,
+                project_id INTEGER NOT NULL,
+                PRIMARY KEY (user_id, project_id)
+            )
+        ');
+
         // Set database for models
         TestUser::setDb($db);
         TestProfile::setDb($db);
         TestPost::setDb($db);
         TestComment::setDb($db);
+        TestUserWithRelations::setDb($db);
+        TestProjectModel::setDb($db);
+        TestPostModel::setDb($db);
+        TestCommentModel::setDb($db);
+        TestProfileModel::setDb($db);
     }
 
     protected function tearDown(): void
     {
         $db = self::$db;
+        $db->rawQuery('DROP TABLE IF EXISTS user_project');
+        $db->rawQuery('DROP TABLE IF EXISTS projects');
         $db->rawQuery('DROP TABLE IF EXISTS comments');
         $db->rawQuery('DROP TABLE IF EXISTS posts');
         $db->rawQuery('DROP TABLE IF EXISTS profiles');
@@ -623,5 +760,156 @@ final class ActiveRecordRelationsTests extends BaseSharedTestCase
         $posts = $query->all();
         $this->assertIsArray($posts);
         $this->assertEmpty($posts);
+    }
+
+    /**
+     * Test many-to-many relationship via viaTable (lazy loading).
+     */
+    public function testManyToManyViaTableLazyLoading(): void
+    {
+        $db = self::$db;
+
+        // Create user and projects
+        $userId = $db->find()->table('users')->insert(['name' => 'Project User', 'email' => 'project@example.com']);
+        $projectId1 = $db->find()->table('projects')->insert(['name' => 'Project 1', 'description' => 'Description 1']);
+        $projectId2 = $db->find()->table('projects')->insert(['name' => 'Project 2', 'description' => 'Description 2']);
+
+        // Link user to projects through junction table
+        $db->find()->table('user_project')->insert(['user_id' => $userId, 'project_id' => $projectId1]);
+        $db->find()->table('user_project')->insert(['user_id' => $userId, 'project_id' => $projectId2]);
+
+        $user = TestUserWithRelations::findOne($userId);
+        $this->assertNotNull($user);
+
+        // Access many-to-many relationship
+        $projects = $user->projects;
+        $this->assertIsArray($projects);
+        $this->assertCount(2, $projects);
+        $this->assertInstanceOf(TestProjectModel::class, $projects[0]);
+        $this->assertInstanceOf(TestProjectModel::class, $projects[1]);
+
+        $projectNames = array_column($projects, 'name');
+        $this->assertContains('Project 1', $projectNames);
+        $this->assertContains('Project 2', $projectNames);
+    }
+
+    /**
+     * Test many-to-many relationship via viaRelation (lazy loading).
+     */
+    public function testManyToManyViaRelationLazyLoading(): void
+    {
+        $db = self::$db;
+
+        // Create user, post, and comments
+        $userId = $db->find()->table('users')->insert(['name' => 'Via User', 'email' => 'via@example.com']);
+        $postId = $db->find()->table('posts')->insert(['user_id' => $userId, 'title' => 'Post Title', 'content' => 'Content']);
+        $commentId1 = $db->find()->table('comments')->insert(['post_id' => $postId, 'author' => 'Author 1', 'content' => 'Comment 1']);
+        $commentId2 = $db->find()->table('comments')->insert(['post_id' => $postId, 'author' => 'Author 2', 'content' => 'Comment 2']);
+
+        $user = TestUserWithRelations::findOne($userId);
+        $this->assertNotNull($user);
+
+        // Access many-to-many relationship via posts
+        $comments = $user->comments;
+        $this->assertIsArray($comments);
+        $this->assertCount(2, $comments);
+        $this->assertInstanceOf(TestCommentModel::class, $comments[0]);
+        $this->assertInstanceOf(TestCommentModel::class, $comments[1]);
+    }
+
+    /**
+     * Test many-to-many relationship via viaTable (Yii2-like method syntax).
+     */
+    public function testManyToManyViaTableAsMethod(): void
+    {
+        $db = self::$db;
+
+        $userId = $db->find()->table('users')->insert(['name' => 'Method User', 'email' => 'method@example.com']);
+        $projectId1 = $db->find()->table('projects')->insert(['name' => 'Project A', 'description' => 'Desc A']);
+        $projectId2 = $db->find()->table('projects')->insert(['name' => 'Project B', 'description' => 'Desc B']);
+
+        $db->find()->table('user_project')->insert(['user_id' => $userId, 'project_id' => $projectId1]);
+        $db->find()->table('user_project')->insert(['user_id' => $userId, 'project_id' => $projectId2]);
+
+        $user = TestUserWithRelations::findOne($userId);
+
+        // Call as method - should return ActiveQuery
+        $query = $user->projects();
+        $this->assertInstanceOf(\tommyknocker\pdodb\orm\ActiveQuery::class, $query);
+
+        // Can modify query and get result
+        $projects = $query->all();
+        $this->assertCount(2, $projects);
+
+        // Can add conditions (create new query instance for filtered query)
+        $query2 = $user->projects();
+        $projectsFiltered = $query2->where('name', 'Project A')->all();
+        $this->assertCount(1, $projectsFiltered);
+    }
+
+    /**
+     * Test many-to-many relationship eager loading (viaTable).
+     */
+    public function testManyToManyViaTableEagerLoading(): void
+    {
+        $db = self::$db;
+
+        $userId1 = $db->find()->table('users')->insert(['name' => 'User 1', 'email' => 'user1@example.com']);
+        $userId2 = $db->find()->table('users')->insert(['name' => 'User 2', 'email' => 'user2@example.com']);
+
+        $projectId1 = $db->find()->table('projects')->insert(['name' => 'Project 1', 'description' => 'Desc 1']);
+        $projectId2 = $db->find()->table('projects')->insert(['name' => 'Project 2', 'description' => 'Desc 2']);
+
+        // Link users to projects
+        $db->find()->table('user_project')->insert(['user_id' => $userId1, 'project_id' => $projectId1]);
+        $db->find()->table('user_project')->insert(['user_id' => $userId1, 'project_id' => $projectId2]);
+        $db->find()->table('user_project')->insert(['user_id' => $userId2, 'project_id' => $projectId1]);
+
+        // Eager load projects for multiple users
+        $users = TestUserWithRelations::find()->with('projects')->all();
+        $this->assertCount(2, $users);
+
+        // Check that projects are loaded
+        $user1 = $users[0]->id === $userId1 ? $users[0] : $users[1];
+        $user2 = $users[0]->id === $userId2 ? $users[0] : $users[1];
+
+        if ($user1->id === $userId1) {
+            $this->assertCount(2, $user1->projects);
+            $this->assertCount(1, $user2->projects);
+        } else {
+            $this->assertCount(1, $user1->projects);
+            $this->assertCount(2, $user2->projects);
+        }
+    }
+
+    /**
+     * Test many-to-many relationship eager loading (viaRelation).
+     */
+    public function testManyToManyViaRelationEagerLoading(): void
+    {
+        $db = self::$db;
+
+        $userId1 = $db->find()->table('users')->insert(['name' => 'User 1', 'email' => 'user1@example.com']);
+        $userId2 = $db->find()->table('users')->insert(['name' => 'User 2', 'email' => 'user2@example.com']);
+
+        $postId1 = $db->find()->table('posts')->insert(['user_id' => $userId1, 'title' => 'Post 1', 'content' => 'Content 1']);
+        $postId2 = $db->find()->table('posts')->insert(['user_id' => $userId2, 'title' => 'Post 2', 'content' => 'Content 2']);
+
+        $commentId1 = $db->find()->table('comments')->insert(['post_id' => $postId1, 'author' => 'Author 1', 'content' => 'Comment 1']);
+        $commentId2 = $db->find()->table('comments')->insert(['post_id' => $postId1, 'author' => 'Author 2', 'content' => 'Comment 2']);
+        $commentId3 = $db->find()->table('comments')->insert(['post_id' => $postId2, 'author' => 'Author 3', 'content' => 'Comment 3']);
+
+        // Eager load comments via posts
+        $users = TestUserWithRelations::find()->with('comments')->all();
+        $this->assertCount(2, $users);
+
+        // Check that comments are loaded through posts
+        foreach ($users as $user) {
+            if ($user->id === $userId1) {
+                $this->assertCount(2, $user->comments);
+            } else {
+                $this->assertCount(1, $user->comments);
+            }
+        }
     }
 }

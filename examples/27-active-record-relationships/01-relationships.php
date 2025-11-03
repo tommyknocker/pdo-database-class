@@ -333,6 +333,130 @@ echo "\nPublished posts count: {$postCount}\n";
 $db->rawQuery('ALTER TABLE posts DROP COLUMN published');
 echo "\n";
 
+    // Example 9: Many-to-Many Relationships
+    echo "9. Many-to-Many Relationships\n";
+    echo "-------------------------------\n";
+
+    // Drop tables if they exist
+    $db->schema()->dropTableIfExists('user_project');
+    $db->schema()->dropTableIfExists('projects');
+
+    // Create junction table and project table
+    $db->schema()->createTable('projects', [
+    'id' => $db->schema()->primaryKey(),
+    'name' => $db->schema()->string(100)->notNull(),
+    'description' => $db->schema()->text(),
+]);
+
+// Create junction table with composite primary key (dialect-specific)
+$driver = getCurrentDriver($db);
+if ($driver === 'sqlite') {
+    $db->rawQuery('CREATE TABLE user_project (
+        user_id INTEGER NOT NULL,
+        project_id INTEGER NOT NULL,
+        PRIMARY KEY (user_id, project_id)
+    )');
+} else {
+    $db->schema()->createTable('user_project', [
+        'user_id' => $db->schema()->integer()->notNull(),
+        'project_id' => $db->schema()->integer()->notNull(),
+    ]);
+    $db->rawQuery('ALTER TABLE user_project ADD PRIMARY KEY (user_id, project_id)');
+}
+
+// Define Project model with relation to User
+class Project extends Model
+{
+    public static function tableName(): string
+    {
+        return 'projects';
+    }
+
+    public static function primaryKey(): array
+    {
+        return ['id'];
+    }
+
+    public static function relations(): array
+    {
+        return [
+            'users' => [
+                'hasManyThrough',
+                'modelClass' => User::class,
+                'viaTable' => 'user_project',
+                'link' => ['id' => 'project_id'],
+                'viaLink' => ['user_id' => 'id'],
+            ],
+        ];
+    }
+}
+
+// Update User model to include projects relation
+class UserWithProjects extends User
+{
+    public static function relations(): array
+    {
+        $parentRelations = parent::relations();
+        return array_merge($parentRelations, [
+            'projects' => [
+                'hasManyThrough',
+                'modelClass' => Project::class,
+                'viaTable' => 'user_project',
+                'link' => ['id' => 'user_id'],
+                'viaLink' => ['project_id' => 'id'],
+            ],
+        ]);
+    }
+}
+
+// Set database for Project model
+Project::setDb($db);
+UserWithProjects::setDb($db);
+
+// Create projects
+$project1 = new Project();
+$project1->name = 'Project Alpha';
+$project1->description = 'Alpha project description';
+$project1->save();
+
+$project2 = new Project();
+$project2->name = 'Project Beta';
+$project2->description = 'Beta project description';
+$project2->save();
+
+// Link user to projects through junction table
+$user3Id = $user3->id;
+$db->find()->table('user_project')->insert(['user_id' => $user3Id, 'project_id' => $project1->id]);
+$db->find()->table('user_project')->insert(['user_id' => $user3Id, 'project_id' => $project2->id]);
+
+// Access many-to-many relationship (lazy loading)
+$userWithProjects = UserWithProjects::findOne($user3Id);
+$projects = $userWithProjects->projects;
+echo "Projects for {$userWithProjects->name}:\n";
+foreach ($projects as $project) {
+    echo "  - {$project->name}: {$project->description}\n";
+}
+
+// Yii2-like syntax for many-to-many (create fresh query)
+$projectQuery = $userWithProjects->projects();
+$betaProjects = $projectQuery->where('name', 'Project Beta')->all();
+echo "\nBeta projects:\n";
+foreach ($betaProjects as $project) {
+    echo "  - {$project->name}\n";
+}
+
+// Eager loading for many-to-many
+$usersWithProjects = UserWithProjects::find()->with('projects')->all();
+echo "\nUsers with projects (eager loaded):\n";
+foreach ($usersWithProjects as $u) {
+    echo "  {$u->name}: " . count($u->projects) . " project(s)\n";
+}
+
+// Cleanup
+$db->schema()->dropTableIfExists('user_project');
+$db->schema()->dropTableIfExists('projects');
+echo "\n";
+
 // Cleanup
 echo "Cleaning up...\n";
 $db->schema()->dropTableIfExists('comments');

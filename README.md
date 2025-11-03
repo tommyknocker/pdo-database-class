@@ -38,7 +38,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Export Helpers** - Export results to JSON, CSV, and XML formats
 - **Transactions & Locking** - Full transaction support with table locking
 - **Batch Processing** - Memory-efficient generators for large datasets with zero memory leaks
-- **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo) and eager/lazy loading
+- **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough) and eager/lazy loading
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Connection Retry** - Automatic retry with exponential backoff
 - **PSR-14 Event Dispatcher** - Event-driven architecture for monitoring, auditing, and middleware
@@ -776,6 +776,26 @@ $publishedPosts = $user->posts()
 
 // Eager loading (prevents N+1 queries)
 $users = User::find()->with(['profile', 'posts'])->all();
+
+// Many-to-many relationships
+class User extends Model
+{
+    public static function relations(): array
+    {
+        return [
+            'projects' => [
+                'hasManyThrough',
+                'modelClass' => Project::class,
+                'viaTable' => 'user_project',
+                'link' => ['id' => 'user_id'],
+                'viaLink' => ['project_id' => 'id'],
+            ],
+        ];
+    }
+}
+
+$user = User::findOne(1);
+$projects = $user->projects;  // Many-to-many via junction table
 ```
 
 See:
