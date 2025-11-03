@@ -111,6 +111,43 @@ abstract class Model
     }
 
     /**
+     * Get global scopes that are automatically applied to all queries.
+     *
+     * Global scopes are applied automatically when using Model::find().
+     * They cannot be disabled except by using withoutGlobalScope().
+     *
+     * Format: [
+     *   'scopeName' => function($query) { ... return $query; },
+     * ]
+     *
+     * Override this method to define global scopes for the model.
+     *
+     * @return array<string, callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder> Global scope definitions
+     */
+    public static function globalScopes(): array
+    {
+        return [];
+    }
+
+    /**
+     * Get local scopes that can be applied on-demand.
+     *
+     * Local scopes are applied only when explicitly called via scope() method.
+     *
+     * Format: [
+     *   'scopeName' => function($query, ...$args) { ... return $query; },
+     * ]
+     *
+     * Override this method to define local scopes for the model.
+     *
+     * @return array<string, callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder> Local scope definitions
+     */
+    public static function scopes(): array
+    {
+        return [];
+    }
+
+    /**
      * Find records (returns ActiveQuery).
      *
      * @return ActiveQuery Query builder instance

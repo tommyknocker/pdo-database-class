@@ -527,4 +527,49 @@ interface QueryBuilderInterface
      * @return bool
      */
     public function loadJson(string $filePath, array $options = []): bool;
+
+    // Query Scopes
+    /**
+     * Apply a query scope.
+     *
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder|string $scope Scope callable or scope name
+     * @param mixed ...$args Additional arguments to pass to the scope
+     *
+     * @return static
+     */
+    public function scope(callable|string $scope, mixed ...$args): self;
+
+    /**
+     * Temporarily disable a global scope.
+     *
+     * @param string $scopeName Name of the global scope to disable
+     *
+     * @return static
+     */
+    public function withoutGlobalScope(string $scopeName): self;
+
+    /**
+     * Temporarily disable multiple global scopes.
+     *
+     * @param array<string> $scopeNames Names of the global scopes to disable
+     *
+     * @return static
+     */
+    public function withoutGlobalScopes(array $scopeNames): self;
+
+    /**
+     * Check if a global scope is disabled.
+     *
+     * @param string $scopeName Name of the global scope
+     *
+     * @return bool
+     */
+    public function isGlobalScopeDisabled(string $scopeName): bool;
+
+    /**
+     * Get list of disabled global scopes.
+     *
+     * @return array<string>
+     */
+    public function getDisabledGlobalScopes(): array;
 }

@@ -38,7 +38,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Export Helpers** - Export results to JSON, CSV, and XML formats
 - **Transactions & Locking** - Full transaction support with table locking
 - **Batch Processing** - Memory-efficient generators for large datasets with zero memory leaks
-- **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough) and eager/lazy loading
+- **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Connection Retry** - Automatic retry with exponential backoff
 - **PSR-14 Event Dispatcher** - Event-driven architecture for monitoring, auditing, and middleware
@@ -157,7 +157,7 @@ Complete documentation is available in the [`documentation/`](documentation/) di
 - **[Core Concepts](documentation/02-core-concepts/)** - Connection management, query builder, parameter binding, dialects
 - **[Query Builder](documentation/03-query-builder/)** - SELECT, DML, filtering, joins, aggregations, subqueries
 - **[JSON Operations](documentation/04-json-operations/)** - Working with JSON across all databases
-- **[Advanced Features](documentation/05-advanced-features/)** - Transactions, batch processing, bulk operations, UPSERT
+- **[Advanced Features](documentation/05-advanced-features/)** - Transactions, batch processing, bulk operations, UPSERT, query scopes
 - **[Error Handling](documentation/06-error-handling/)** - Exception hierarchy, retry logic, logging, monitoring
 - **[Helper Functions](documentation/07-helper-functions/)** - Complete reference for all helper functions
 - **[Best Practices](documentation/08-best-practices/)** - Security, performance, memory management, code organization
@@ -738,7 +738,8 @@ $user->delete();
 - **Extensible Validators** - Create custom validators with `ValidatorInterface`
 - **Lifecycle Events** - PSR-14 event dispatcher integration (beforeSave, afterSave, etc.)
 - **Full QueryBuilder API** - All QueryBuilder methods available through `ActiveQuery`
-- **Relationships** - hasOne, hasMany, belongsTo with lazy and eager loading (Yii2-like syntax)
+- **Relationships** - hasOne, hasMany, belongsTo, hasManyThrough with lazy and eager loading (Yii2-like syntax)
+- **Query Scopes** - Global and local scopes for reusable query logic (soft deletes, multi-tenant, common filters)
 - **Flexible Finding** - Find by ID, condition, or composite keys
 - **Cross-Database** - Works with MySQL, MariaDB, PostgreSQL, and SQLite
 
@@ -798,11 +799,65 @@ $user = User::findOne(1);
 $projects = $user->projects;  // Many-to-many via junction table
 ```
 
+**Query Scopes Example:**
+```php
+// Option 1: Scopes in Model (ActiveRecord)
+class Post extends Model
+{
+    // Global scope: automatically applied
+    public static function globalScopes(): array
+    {
+        return [
+            'notDeleted' => function ($query) {
+                $query->whereRaw('deleted_at IS NULL');
+                return $query;
+            },
+        ];
+    }
+
+    // Local scope: applied on-demand
+    public static function scopes(): array
+    {
+        return [
+            'published' => function ($query) {
+                $query->where('status', 'published');
+                return $query;
+            },
+            'popular' => function ($query) {
+                $query->where('view_count', 1000, '>');
+                return $query;
+            },
+        ];
+    }
+}
+
+// Use scopes
+$posts = Post::find()
+    ->scope('published')      // Local scope
+    ->scope('popular')         // Chain multiple scopes
+    ->all();                   // Global scope automatically applied
+
+// Temporarily disable global scope
+$allPosts = Post::find()
+    ->withoutGlobalScope('notDeleted')
+    ->all();
+
+// Option 2: Scopes at PdoDb level (QueryBuilder)
+$db->addScope('active', function ($query) {
+    return $query->where('is_active', 1);
+});
+
+// All queries automatically apply the scope
+$items = $db->find()->from('items')->get();
+```
+
 See:
 - [Documentation: ActiveRecord](documentation/05-advanced-features/active-record.md)
 - [Documentation: ActiveRecord Relationships](documentation/05-advanced-features/active-record-relationships.md)
+- [Documentation: Query Scopes](documentation/05-advanced-features/query-scopes.md)
 - [Example: ActiveRecord Usage](examples/23-active-record/01-active-record-examples.php)
 - [Example: ActiveRecord Relationships](examples/27-active-record-relationships/01-relationships.php)
+- [Example: Query Scopes](examples/28-query-scopes/01-scopes-examples.php)
 
 ---
 

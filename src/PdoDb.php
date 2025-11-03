@@ -95,6 +95,13 @@ class PdoDb
     protected ?EventDispatcherInterface $eventDispatcher = null;
 
     /**
+     * @var array<string, callable> Scopes for all QueryBuilder instances
+     *
+     * @phpstan-var array<string, callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder>
+     */
+    protected array $scopes = [];
+
+    /**
      * Initializes a new PdoDb object.
      *
      * @param string|null $driver The database driver to use. Pass null to use connection pooling without default connection.
@@ -262,7 +269,54 @@ class PdoDb
             $queryBuilder->setConnectionRouter($this->connectionRouter);
         }
 
+        // Set scopes
+        if (!empty($this->scopes)) {
+            $queryBuilder->setGlobalScopes($this->scopes);
+        }
+
         return $queryBuilder;
+    }
+
+    /**
+     * Add a scope that will be applied to all queries.
+     *
+     * Scopes are automatically applied to all QueryBuilder instances
+     * created via find() method.
+     *
+     * @param string $name Scope name
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder $scope Scope callable
+     *
+     * @return static
+     */
+    public function addScope(string $name, callable $scope): static
+    {
+        $this->scopes[$name] = $scope;
+        return $this;
+    }
+
+    /**
+     * Remove a scope.
+     *
+     * @param string $name Scope name
+     *
+     * @return static
+     */
+    public function removeScope(string $name): static
+    {
+        unset($this->scopes[$name]);
+        return $this;
+    }
+
+    /**
+     * Get all scopes.
+     *
+     * @return array<string, callable> Scopes (callable accepts QueryBuilder and optional args, returns QueryBuilder)
+     *
+     * @phpstan-return array<string, callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder>
+     */
+    public function getScopes(): array
+    {
+        return $this->scopes;
     }
 
     /**

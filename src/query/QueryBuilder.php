@@ -15,6 +15,8 @@ use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\connection\ConnectionRouter;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
+use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\cte\CteDefinition;
 use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\query\interfaces\BatchProcessorInterface;
@@ -54,8 +56,8 @@ class QueryBuilder implements QueryBuilderInterface
     /** @var CacheManager|null Cache manager for query result caching */
     protected ?CacheManager $cacheManager = null;
 
-    /** @var \tommyknocker\pdodb\query\cache\QueryCompilationCache|null Query compilation cache */
-    protected ?\tommyknocker\pdodb\query\cache\QueryCompilationCache $compilationCache = null;
+    /** @var QueryCompilationCache|null Query compilation cache */
+    protected ?QueryCompilationCache $compilationCache = null;
 
     /** @var ConnectionRouter|null Connection router for read/write splitting */
     protected ?ConnectionRouter $connectionRouter = null;
@@ -75,6 +77,19 @@ class QueryBuilder implements QueryBuilderInterface
     /** @var array<string> Columns for DISTINCT ON (PostgreSQL) */
     protected array $distinctOn = [];
 
+    /** @var array<string> Disabled global scopes */
+    protected array $disabledGlobalScopes = [];
+
+    /**
+     * @var array<string, callable> Global scopes to apply
+     *
+     * @phpstan-var array<string, callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder>
+     */
+    protected array $globalScopes = [];
+
+    /** @var bool Whether global scopes have been applied */
+    protected bool $globalScopesApplied = false;
+
     // Component instances
     protected ParameterManagerInterface $parameterManager;
     protected ExecutionEngineInterface $executionEngine;
@@ -92,14 +107,14 @@ class QueryBuilder implements QueryBuilderInterface
      * @param ConnectionInterface $connection
      * @param string $prefix
      * @param CacheManager|null $cacheManager
-     * @param \tommyknocker\pdodb\query\cache\QueryCompilationCache|null $compilationCache
+     * @param QueryCompilationCache|null $compilationCache
      * @param QueryProfiler|null $profiler
      */
     public function __construct(
         ConnectionInterface $connection,
         string $prefix = '',
         ?CacheManager $cacheManager = null,
-        ?\tommyknocker\pdodb\query\cache\QueryCompilationCache $compilationCache = null,
+        ?QueryCompilationCache $compilationCache = null,
         ?QueryProfiler $profiler = null
     ) {
         $this->connection = $connection;
@@ -392,7 +407,7 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<string> $columns Explicit column list (optional)
      *
      * @return static The current instance.
-     * @throws \RuntimeException If database dialect does not support materialized CTEs
+     * @throws RuntimeException If database dialect does not support materialized CTEs
      */
     public function withMaterialized(
         string $name,
@@ -539,6 +554,122 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
+     * Apply a query scope.
+     *
+     * Scopes allow you to encapsulate query logic into reusable callables.
+     * Can accept either a callable directly or a scope name (requires scope registry).
+     *
+     * @param callable(QueryBuilder, mixed...): QueryBuilder|string $scope Scope callable or scope name
+     * @param mixed ...$args Additional arguments to pass to the scope
+     *
+     * @return static The current instance
+     */
+    public function scope(callable|string $scope, mixed ...$args): static
+    {
+        if (is_string($scope)) {
+            throw new RuntimeException(
+                'Named scopes are not supported directly in QueryBuilder. ' .
+                'Use scope callable or define scopes in Model class.'
+            );
+        }
+
+        // Call the scope with this query builder instance
+        $result = $scope($this, ...$args);
+
+        // Ensure we return the same instance (fluent interface)
+        if ($result instanceof static) {
+            return $result;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Temporarily disable a global scope.
+     *
+     * @param string $scopeName Name of the global scope to disable
+     *
+     * @return static The current instance
+     */
+    public function withoutGlobalScope(string $scopeName): static
+    {
+        $this->disabledGlobalScopes[] = $scopeName;
+        return $this;
+    }
+
+    /**
+     * Temporarily disable multiple global scopes.
+     *
+     * @param array<string> $scopeNames Names of the global scopes to disable
+     *
+     * @return static The current instance
+     */
+    public function withoutGlobalScopes(array $scopeNames): static
+    {
+        $this->disabledGlobalScopes = array_merge($this->disabledGlobalScopes, $scopeNames);
+        return $this;
+    }
+
+    /**
+     * Check if a global scope is disabled.
+     *
+     * @param string $scopeName Name of the global scope
+     *
+     * @return bool True if disabled
+     */
+    public function isGlobalScopeDisabled(string $scopeName): bool
+    {
+        return in_array($scopeName, $this->disabledGlobalScopes, true);
+    }
+
+    /**
+     * Get list of disabled global scopes.
+     *
+     * @return array<string> Disabled global scope names
+     */
+    public function getDisabledGlobalScopes(): array
+    {
+        return $this->disabledGlobalScopes;
+    }
+
+    /**
+     * Set global scopes for this query builder.
+     *
+     * @param array<string, callable> $scopes Global scopes (callable accepts QueryBuilder and optional args, returns QueryBuilder)
+     *
+     * @phpstan-param array<string, callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder> $scopes
+     *
+     * @return static
+     */
+    public function setGlobalScopes(array $scopes): static
+    {
+        $this->globalScopes = $scopes;
+        return $this;
+    }
+
+    /**
+     * Apply global scopes lazily when query is executed.
+     */
+    protected function applyGlobalScopes(): void
+    {
+        if ($this->globalScopesApplied || empty($this->globalScopes)) {
+            return;
+        }
+
+        foreach ($this->globalScopes as $scopeName => $scope) {
+            // Skip if this scope is disabled
+            if ($this->isGlobalScopeDisabled($scopeName)) {
+                continue;
+            }
+
+            // Apply the scope
+            $this->scope($scope);
+        }
+
+        $this->globalScopesApplied = true;
+    }
+
+    /**
      * Sets the prefix for table names.
      *
      * @param string $prefix The prefix for table names.
@@ -589,6 +720,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function get(): array
     {
+        $this->applyGlobalScopes();
         $originalConnection = $this->switchToReadConnection();
 
         try {
@@ -645,6 +777,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function getOne(): mixed
     {
+        $this->applyGlobalScopes();
         $originalConnection = $this->switchToReadConnection();
 
         try {
@@ -686,6 +819,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function getColumn(): array
     {
+        $this->applyGlobalScopes();
         $originalConnection = $this->switchToReadConnection();
 
         try {
@@ -727,6 +861,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function getValue(): mixed
     {
+        $this->applyGlobalScopes();
         $originalConnection = $this->switchToReadConnection();
 
         try {
@@ -888,7 +1023,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Execute MERGE statement (INSERT/UPDATE/DELETE based on match conditions).
      *
-     * @param string|\Closure(\tommyknocker\pdodb\query\QueryBuilder): void|SelectQueryBuilderInterface $source Source table/subquery for MERGE
+     * @param string|Closure(QueryBuilder): void|SelectQueryBuilderInterface $source Source table/subquery for MERGE
      * @param string|array<string> $onConditions ON clause conditions
      * @param array<string, string|int|float|bool|null|RawValue> $whenMatched Update columns when matched
      * @param array<string, string|int|float|bool|null|RawValue> $whenNotMatched Insert columns when not matched
@@ -897,7 +1032,7 @@ class QueryBuilder implements QueryBuilderInterface
      * @return int Number of affected rows
      */
     public function merge(
-        string|\Closure|SelectQueryBuilderInterface $source,
+        string|Closure|SelectQueryBuilderInterface $source,
         string|array $onConditions,
         array $whenMatched = [],
         array $whenNotMatched = [],
@@ -1278,7 +1413,7 @@ class QueryBuilder implements QueryBuilderInterface
      * LATERAL JOINs allow correlated subqueries in FROM clause,
      * where the subquery can reference columns from preceding tables.
      *
-     * @param string|callable(\tommyknocker\pdodb\query\QueryBuilder): void $tableOrSubquery Table name or callable for subquery
+     * @param string|callable(QueryBuilder): void $tableOrSubquery Table name or callable for subquery
      * @param string|RawValue|null $condition Optional ON condition
      * @param string $type JOIN type (default: LEFT)
      * @param string|null $alias Optional alias for LATERAL subquery
@@ -1465,9 +1600,9 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param string|null $tableName Optional table name for index suggestions
      *
-     * @return \tommyknocker\pdodb\query\analysis\ExplainAnalysis Analysis result with recommendations
+     * @return ExplainAnalysis Analysis result with recommendations
      */
-    public function explainAdvice(?string $tableName = null): \tommyknocker\pdodb\query\analysis\ExplainAnalysis
+    public function explainAdvice(?string $tableName = null): ExplainAnalysis
     {
         return $this->selectQueryBuilder->explainAdvice($tableName);
     }

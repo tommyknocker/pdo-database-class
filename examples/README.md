@@ -201,15 +201,19 @@ Version-controlled schema changes with rollback support.
   - **History** - View applied migrations
 
 ### 27. ActiveRecord Relationships
-hasOne, hasMany, belongsTo relationships with lazy and eager loading.
 
-- **[01-relationships.php](27-active-record-relationships/01-relationships.php)** - Relationship examples:
-  - **hasOne** - One-to-one relationships
-  - **hasMany** - One-to-many relationships
-  - **belongsTo** - Many-to-one relationships
-  - **Lazy loading** - On-demand relationship loading
-  - **Eager loading** - Prevent N+1 queries with with() method
-  - **Nested eager loading** - Load related relationships of related models
+- `01-relationships.php` - Demonstrates hasOne, hasMany, belongsTo, and hasManyThrough relationships with lazy and eager loading
+
+### 28. Query Scopes
+Global and local scopes for reusable query logic.
+
+- **[01-scopes-examples.php](28-query-scopes/01-scopes-examples.php)** - Scope examples:
+  - **Global scopes** - Automatically applied to all queries (soft deletes, multi-tenant)
+  - **Local scopes** - Applied on-demand (published, popular, recent)
+  - **Scope chaining** - Combine multiple scopes
+  - **Scope parameters** - Parameterized scopes for flexible filtering
+  - **Disable global scopes** - Temporarily bypass global scopes when needed
+  - **QueryBuilder scopes** - Use scopes directly with QueryBuilder (without models)
 
 ## 💡 Tips
 

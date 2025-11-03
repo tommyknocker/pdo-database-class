@@ -25,6 +25,9 @@ class ActiveQuery
     /** @var array<int|string, string|array<string>> Relationships to eager load */
     protected array $eagerLoad = [];
 
+    /** @var bool Whether global scopes have been applied */
+    protected bool $globalScopesApplied = false;
+
     /**
      * ActiveQuery constructor.
      *
@@ -43,6 +46,40 @@ class ActiveQuery
     }
 
     /**
+     * Apply global scopes defined in the model.
+     * Called lazily when query is executed.
+     */
+    protected function applyGlobalScopes(): void
+    {
+        // Only apply once
+        if ($this->globalScopesApplied) {
+            return;
+        }
+
+        $globalScopes = $this->modelClass::globalScopes();
+
+        foreach ($globalScopes as $scopeName => $scope) {
+            // Skip if this scope is disabled
+            if ($this->queryBuilder->isGlobalScopeDisabled($scopeName)) {
+                continue;
+            }
+
+            // Apply the scope
+            $this->queryBuilder->scope($scope);
+        }
+
+        $this->globalScopesApplied = true;
+    }
+
+    /**
+     * Ensure global scopes are applied before query execution.
+     */
+    protected function ensureGlobalScopes(): void
+    {
+        $this->applyGlobalScopes();
+    }
+
+    /**
      * Delegate all QueryBuilder methods.
      *
      * @param string $name Method name
@@ -52,6 +89,11 @@ class ActiveQuery
      */
     public function __call(string $name, array $arguments): static
     {
+        // Handle scope() method specially - support named scopes from model
+        if ($name === 'scope') {
+            return $this->applyScope($arguments);
+        }
+
         $result = $this->queryBuilder->$name(...$arguments);
 
         // If QueryBuilder method returns self, we return self
@@ -65,6 +107,46 @@ class ActiveQuery
     }
 
     /**
+     * Apply a scope (named or callable).
+     *
+     * @param array<mixed> $arguments Scope name or callable, plus any additional arguments
+     *
+     * @return static ActiveQuery instance for chaining
+     */
+    protected function applyScope(array $arguments): static
+    {
+        if (empty($arguments)) {
+            throw new RuntimeException('scope() method requires at least one argument.');
+        }
+
+        $scope = $arguments[0];
+        $scopeArgs = array_slice($arguments, 1);
+
+        // If it's a string, try to find it in model's local scopes
+        if (is_string($scope)) {
+            $localScopes = $this->modelClass::scopes();
+            if (isset($localScopes[$scope])) {
+                $this->queryBuilder->scope($localScopes[$scope], ...$scopeArgs);
+                return $this;
+            }
+
+            // If not found in local scopes, try as callable name (for QueryBuilder)
+            throw new RuntimeException(
+                "Scope '{$scope}' not found in model " . $this->modelClass . '. ' .
+                'Define it in scopes() method or use a callable.'
+            );
+        }
+
+        // If it's a callable, apply it directly
+        if (is_callable($scope)) {
+            $this->queryBuilder->scope($scope, ...$scopeArgs);
+            return $this;
+        }
+
+        throw new RuntimeException('scope() method requires a string (scope name) or callable.');
+    }
+
+    /**
      * Get one model instance.
      * Uses QueryBuilder::getOne() internally.
      *
@@ -72,6 +154,7 @@ class ActiveQuery
      */
     public function one(): ?Model
     {
+        $this->ensureGlobalScopes();
         $data = $this->queryBuilder->getOne();
         if (!is_array($data)) {
             return null;
@@ -95,6 +178,7 @@ class ActiveQuery
      */
     public function all(): array
     {
+        $this->ensureGlobalScopes();
         $data = $this->queryBuilder->get();
         $models = [];
 
@@ -120,6 +204,7 @@ class ActiveQuery
      */
     public function get(): array
     {
+        $this->ensureGlobalScopes();
         return $this->queryBuilder->get();
     }
 
@@ -131,6 +216,7 @@ class ActiveQuery
      */
     public function getOne(): mixed
     {
+        $this->ensureGlobalScopes();
         return $this->queryBuilder->getOne();
     }
 
@@ -142,6 +228,7 @@ class ActiveQuery
      */
     public function getColumn(): array
     {
+        $this->ensureGlobalScopes();
         return $this->queryBuilder->getColumn();
     }
 
@@ -153,6 +240,7 @@ class ActiveQuery
      */
     public function getValue(): mixed
     {
+        $this->ensureGlobalScopes();
         return $this->queryBuilder->getValue();
     }
 
@@ -190,6 +278,32 @@ class ActiveQuery
     public function getQueryBuilder(): QueryBuilder
     {
         return $this->queryBuilder;
+    }
+
+    /**
+     * Temporarily disable a global scope.
+     *
+     * @param string $scopeName Name of the global scope to disable
+     *
+     * @return static ActiveQuery instance for chaining
+     */
+    public function withoutGlobalScope(string $scopeName): static
+    {
+        $this->queryBuilder->withoutGlobalScope($scopeName);
+        return $this;
+    }
+
+    /**
+     * Temporarily disable multiple global scopes.
+     *
+     * @param array<string> $scopeNames Names of the global scopes to disable
+     *
+     * @return static ActiveQuery instance for chaining
+     */
+    public function withoutGlobalScopes(array $scopeNames): static
+    {
+        $this->queryBuilder->withoutGlobalScopes($scopeNames);
+        return $this;
     }
 
     /**
