@@ -26,7 +26,7 @@ interface SelectQueryBuilderInterface
     /**
      * Execute SELECT statement and return all rows.
      *
-     * @return array<int, array<string, mixed>>
+     * @return array<int|string, array<string, mixed>>
      */
     public function get(): array;
 
@@ -287,4 +287,13 @@ interface SelectQueryBuilderInterface
      * @return static
      */
     public function setDistinctOn(array $columns): self;
+
+    /**
+     * Set column name to index results by.
+     *
+     * @param string|null $columnName Column name to use as array keys (null = no indexing)
+     *
+     * @return static
+     */
+    public function setIndexColumn(?string $columnName): self;
 }

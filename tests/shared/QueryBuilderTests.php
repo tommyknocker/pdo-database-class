@@ -384,4 +384,74 @@ final class QueryBuilderTests extends BaseSharedTestCase
         $this->assertEquals('sqlite', $event->getDriver());
         $this->assertNotNull($event->getException());
     }
+
+    public function testFirstMethod(): void
+    {
+        // Insert test data
+        self::$db->find()->table('test_coverage')->insert(['name' => 'First', 'value' => 1]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'Second', 'value' => 2]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'Third', 'value' => 3]);
+
+        // Test first() with default 'id' field
+        $first = self::$db->find()->table('test_coverage')->first();
+        $this->assertIsArray($first);
+        $this->assertEquals('First', $first['name']);
+        $this->assertEquals(1, $first['value']);
+
+        // Test first() with custom field
+        $firstByName = self::$db->find()->table('test_coverage')->first('name');
+        $this->assertIsArray($firstByName);
+        $this->assertEquals('First', $firstByName['name']);
+
+        // Test first() with WHERE condition
+        $firstWithCondition = self::$db->find()
+            ->table('test_coverage')
+            ->where('value', 2, '>=')
+            ->first();
+        $this->assertIsArray($firstWithCondition);
+        $this->assertEquals('Second', $firstWithCondition['name']);
+        $this->assertEquals(2, $firstWithCondition['value']);
+
+        // Test first() on empty result
+        $empty = self::$db->find()
+            ->table('test_coverage')
+            ->where('id', 999)
+            ->first();
+        $this->assertNull($empty);
+    }
+
+    public function testLastMethod(): void
+    {
+        // Insert test data
+        self::$db->find()->table('test_coverage')->insert(['name' => 'First', 'value' => 1]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'Second', 'value' => 2]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'Third', 'value' => 3]);
+
+        // Test last() with default 'id' field
+        $last = self::$db->find()->table('test_coverage')->last();
+        $this->assertIsArray($last);
+        $this->assertEquals('Third', $last['name']);
+        $this->assertEquals(3, $last['value']);
+
+        // Test last() with custom field
+        $lastByName = self::$db->find()->table('test_coverage')->last('name');
+        $this->assertIsArray($lastByName);
+        $this->assertEquals('Third', $lastByName['name']);
+
+        // Test last() with WHERE condition
+        $lastWithCondition = self::$db->find()
+            ->table('test_coverage')
+            ->where('value', 2, '<')
+            ->last();
+        $this->assertIsArray($lastWithCondition);
+        $this->assertEquals('First', $lastWithCondition['name']);
+        $this->assertEquals(1, $lastWithCondition['value']);
+
+        // Test last() on empty result
+        $empty = self::$db->find()
+            ->table('test_coverage')
+            ->where('id', 999)
+            ->last();
+        $this->assertNull($empty);
+    }
 }

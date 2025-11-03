@@ -94,6 +94,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /** @var array<string> Columns for DISTINCT ON (PostgreSQL) */
     protected array $distinctOn = [];
 
+    /** @var string|null Column name to index results by (null = no indexing) */
+    protected ?string $indexColumn = null;
+
     /** @var array{sql: string, params: array<string, mixed>}|null Cached SQL data to avoid double compilation */
     protected ?array $cachedSqlData = null;
 
@@ -202,6 +205,40 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     }
 
     /**
+     * Set column name to index results by.
+     *
+     * @param string|null $columnName Column name to use as array keys (null = no indexing)
+     *
+     * @return static
+     */
+    public function setIndexColumn(?string $columnName): static
+    {
+        $this->indexColumn = $columnName;
+        return $this;
+    }
+
+    /**
+     * Index result array by specified column.
+     *
+     * @param array<int, array<string, mixed>> $result Query result
+     * @param string $columnName Column name to use as array keys
+     *
+     * @return array<int|string, array<string, mixed>> Indexed result
+     */
+    protected function indexResult(array $result, string $columnName): array
+    {
+        $indexed = [];
+        foreach ($result as $row) {
+            if (!isset($row[$columnName])) {
+                // If column doesn't exist, skip indexing for this row
+                continue;
+            }
+            $indexed[$row[$columnName]] = $row;
+        }
+        return $indexed;
+    }
+
+    /**
      * Add columns to the SELECT clause.
      *
      * @param RawValue|callable(QueryBuilder): void|string|array<int|string, string|RawValue|callable(QueryBuilder): void> $cols The columns to add.
@@ -251,7 +288,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /**
      * Execute SELECT statement and return all rows.
      *
-     * @return array<int, array<string, mixed>>
+     * @return array<int|string, array<string, mixed>>
      * @throws PDOException
      */
     public function get(): array
@@ -259,7 +296,12 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         // Fast path: if cache is disabled, skip all cache operations
         if (!$this->shouldUseCache()) {
             $sqlData = $this->toSQL();
-            return $this->executionEngine->fetchAll($sqlData['sql'], $sqlData['params']);
+            $result = $this->executionEngine->fetchAll($sqlData['sql'], $sqlData['params']);
+            // Index result by column if specified
+            if ($this->indexColumn !== null) {
+                $result = $this->indexResult($result, $this->indexColumn);
+            }
+            return $result;
         }
 
         // Cache enabled: try to get from cache first
@@ -268,6 +310,10 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             // Cache hit: return immediately, no SQL compilation needed
             $this->cachedSqlData = null;
             $this->cachedCacheKey = null;
+            // Index cached result if needed
+            if ($this->indexColumn !== null) {
+                $cached = $this->indexResult($cached, $this->indexColumn);
+            }
             return $cached;
         }
 
@@ -275,6 +321,11 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         $sqlData = $this->cachedSqlData ?? $this->toSQL();
 
         $result = $this->executionEngine->fetchAll($sqlData['sql'], $sqlData['params']);
+
+        // Index result by column if specified
+        if ($this->indexColumn !== null) {
+            $result = $this->indexResult($result, $this->indexColumn);
+        }
 
         // Save to cache (uses cached key if available)
         $this->saveToCache($result);
@@ -1137,7 +1188,11 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
 
         $items = $this->executionEngine->fetchAll($itemsSql, $itemsParams);
 
-        return new PaginationResult($items, $total, $perPage, $page, $options);
+        // For pagination, we need numeric indices, so convert indexed array back if needed
+        $numericItems = $this->indexColumn !== null ? array_values($items) : $items;
+        /** @var array<int, array<string, mixed>> $numericItems */
+
+        return new PaginationResult($numericItems, $total, $perPage, $page, $options);
     }
 
     /**
@@ -1163,14 +1218,18 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
 
         // Fetch one extra item to check if there are more pages
         $offset = ($page - 1) * $perPage;
-        $items = $this->limit($perPage + 1)->offset($offset)->get();
+        $rawItems = $this->limit($perPage + 1)->offset($offset)->get();
 
-        $hasMore = count($items) > $perPage;
+        $hasMore = count($rawItems) > $perPage;
         if ($hasMore) {
-            array_pop($items); // Remove the extra item
+            array_pop($rawItems); // Remove the extra item
         }
 
-        return new SimplePaginationResult($items, $perPage, $page, $hasMore, $options);
+        // For pagination, we need numeric indices, so convert indexed array back if needed
+        $numericItems = $this->indexColumn !== null ? array_values($rawItems) : $rawItems;
+        /** @var array<int, array<string, mixed>> $numericItems */
+
+        return new SimplePaginationResult($numericItems, $perPage, $page, $hasMore, $options);
     }
 
     /**
@@ -1213,20 +1272,23 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         }
 
         // Fetch items
-        $items = $this->limit($perPage + 1)->get();
-        $hasMore = count($items) > $perPage;
+        $rawItems = $this->limit($perPage + 1)->get();
+        $hasMore = count($rawItems) > $perPage;
 
         if ($hasMore) {
-            array_pop($items); // Remove extra item
+            array_pop($rawItems); // Remove extra item
         }
 
         // Create cursors
         $previousCursor = null;
-        $nextCursor = $hasMore && count($items) > 0
-            ? Cursor::fromItem($items[count($items) - 1], $cursorColumns)
+        // For cursor pagination, we need numeric indices, so convert indexed array back if needed
+        $numericItems = $this->indexColumn !== null ? array_values($rawItems) : $rawItems;
+        /** @var array<int, array<string, mixed>> $numericItems */
+        $nextCursor = $hasMore && count($numericItems) > 0
+            ? Cursor::fromItem($numericItems[count($numericItems) - 1], $cursorColumns)
             : null;
 
-        return new CursorPaginationResult($items, $perPage, $previousCursor, $nextCursor, $options);
+        return new CursorPaginationResult($numericItems, $perPage, $previousCursor, $nextCursor, $options);
     }
 
     /**

@@ -204,6 +204,64 @@ $uniqueCombinations = $db->find()
 foreach ($uniqueCombinations as $combo) {
     echo "  • {$combo['category']}: {$combo['stock']} in stock\n";
 }
+echo "\n";
+
+// Example 13: first() - Get first row by field
+echo "13. first() - Get first product by ID (default)...\n";
+$firstById = $db->find()
+    ->from('products')
+    ->first();
+echo "  • First product: {$firstById['name']} (ID: {$firstById['id']})\n\n";
+
+// Example 14: first() - Get first row by custom field
+echo "14. first() - Get first product by name (alphabetically)...\n";
+$firstByName = $db->find()
+    ->from('products')
+    ->first('name');
+echo "  • First by name: {$firstByName['name']}\n\n";
+
+// Example 15: first() - With WHERE condition
+echo "15. first() - Get first expensive product (price > 300)...\n";
+$firstExpensive = $db->find()
+    ->from('products')
+    ->where('price', 300, '>')
+    ->first('price');
+echo "  • First expensive: {$firstExpensive['name']} (\${$firstExpensive['price']})\n\n";
+
+// Example 16: last() - Get last row by field
+echo "16. last() - Get last product by ID (default)...\n";
+$lastById = $db->find()
+    ->from('products')
+    ->last();
+echo "  • Last product: {$lastById['name']} (ID: {$lastById['id']})\n\n";
+
+// Example 17: last() - Get last row by custom field
+echo "17. last() - Get last product by price (most expensive)...\n";
+$lastByPrice = $db->find()
+    ->from('products')
+    ->last('price');
+echo "  • Most expensive: {$lastByPrice['name']} (\${$lastByPrice['price']})\n\n";
+
+// Example 18: last() - With WHERE condition
+echo "18. last() - Get last product in Electronics category by rating...\n";
+$lastRated = $db->find()
+    ->from('products')
+    ->where('category', 'Electronics')
+    ->last('rating');
+echo "  • Last by rating: {$lastRated['name']} ({$lastRated['rating']} ⭐)\n\n";
+
+// Example 19: first() and last() - Empty result handling
+echo "19. first() and last() - Handling empty results...\n";
+$emptyFirst = $db->find()
+    ->from('products')
+    ->where('id', 9999)
+    ->first();
+$emptyLast = $db->find()
+    ->from('products')
+    ->where('id', 9999)
+    ->last();
+echo "  • Empty first() result: " . ($emptyFirst === null ? 'null' : 'not null') . "\n";
+echo "  • Empty last() result: " . ($emptyLast === null ? 'null' : 'not null') . "\n";
 
 echo "\nAll ordering examples completed!\n";
 

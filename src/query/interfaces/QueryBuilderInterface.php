@@ -65,7 +65,7 @@ interface QueryBuilderInterface
     public function select(RawValue|string|array $cols): self;
 
     /**
-     * @return array<int, array<string, mixed>>
+     * @return array<int|string, array<string, mixed>>
      */
     public function get(): array;
 
@@ -83,6 +83,33 @@ interface QueryBuilderInterface
      * @return mixed
      */
     public function getValue(): mixed;
+
+    /**
+     * Get the first row ordered by the specified field.
+     *
+     * @param string|array<int|string, string>|RawValue $orderByField Field(s) to order by (default: 'id')
+     *
+     * @return array<string, mixed>|null First row or null if no rows found
+     */
+    public function first(string|array|RawValue $orderByField = 'id'): ?array;
+
+    /**
+     * Get the last row ordered by the specified field.
+     *
+     * @param string|array<int|string, string>|RawValue $orderByField Field(s) to order by (default: 'id')
+     *
+     * @return array<string, mixed>|null Last row or null if no rows found
+     */
+    public function last(string|array|RawValue $orderByField = 'id'): ?array;
+
+    /**
+     * Index query results by the specified column.
+     *
+     * @param string $columnName Column name to use as array keys (default: 'id')
+     *
+     * @return static
+     */
+    public function index(string $columnName = 'id'): static;
 
     // DML: insert / update / delete / replace
     /**

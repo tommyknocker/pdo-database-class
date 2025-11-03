@@ -83,7 +83,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * @var array<string, callable> Global scopes to apply
      *
-     * @phpstan-var array<string, callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder>
+     * @phpstan-var array<string, callable(QueryBuilder, mixed...): QueryBuilder>
      */
     protected array $globalScopes = [];
 
@@ -637,7 +637,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @param array<string, callable> $scopes Global scopes (callable accepts QueryBuilder and optional args, returns QueryBuilder)
      *
-     * @phpstan-param array<string, callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder> $scopes
+     * @phpstan-param array<string, callable(QueryBuilder, mixed...): QueryBuilder> $scopes
      *
      * @return static
      */
@@ -715,7 +715,7 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Execute SELECT statement and return all rows.
      *
-     * @return array<int, array<string, mixed>>
+     * @return array<int|string, array<string, mixed>>
      * @throws PDOException
      */
     public function get(): array
@@ -893,6 +893,56 @@ class QueryBuilder implements QueryBuilderInterface
         } finally {
             $this->restoreConnection($originalConnection);
         }
+    }
+
+    /**
+     * Get the first row ordered by the specified field.
+     *
+     * This is an alias for orderBy($orderByField, 'ASC')->limit(1)->getOne().
+     * Returns the first row matching the query conditions, or null if no rows found.
+     *
+     * @param string|array<int|string, string>|RawValue $orderByField Field(s) to order by (default: 'id')
+     *
+     * @return array<string, mixed>|null First row or null if no rows found
+     * @throws PDOException
+     */
+    public function first(string|array|RawValue $orderByField = 'id'): ?array
+    {
+        $result = $this->orderBy($orderByField, 'ASC')->limit(1)->getOne();
+        return $result !== false ? $result : null;
+    }
+
+    /**
+     * Get the last row ordered by the specified field.
+     *
+     * This is an alias for orderBy($orderByField, 'DESC')->limit(1)->getOne().
+     * Returns the last row matching the query conditions, or null if no rows found.
+     *
+     * @param string|array<int|string, string>|RawValue $orderByField Field(s) to order by (default: 'id')
+     *
+     * @return array<string, mixed>|null Last row or null if no rows found
+     * @throws PDOException
+     */
+    public function last(string|array|RawValue $orderByField = 'id'): ?array
+    {
+        $result = $this->orderBy($orderByField, 'DESC')->limit(1)->getOne();
+        return $result !== false ? $result : null;
+    }
+
+    /**
+     * Index query results by the specified column.
+     *
+     * When calling get(), the result array will be indexed by the values of the specified column
+     * instead of using numeric keys. If multiple rows have the same column value, only the last one will be kept.
+     *
+     * @param string $columnName Column name to use as array keys (default: 'id')
+     *
+     * @return static The current instance.
+     */
+    public function index(string $columnName = 'id'): static
+    {
+        $this->selectQueryBuilder->setIndexColumn($columnName);
+        return $this;
     }
 
     /* ---------------- DML: insert / update / delete / replace ---------------- */
