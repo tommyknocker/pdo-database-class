@@ -141,7 +141,7 @@ class MigrationRunner
             $query->limit($limit);
         }
 
-        return $query->get();
+        return array_values($query->get());
     }
 
     /**

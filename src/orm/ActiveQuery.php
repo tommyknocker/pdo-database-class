@@ -205,7 +205,7 @@ class ActiveQuery
     public function get(): array
     {
         $this->ensureGlobalScopes();
-        return $this->queryBuilder->get();
+        return array_values($this->queryBuilder->get());
     }
 
     /**

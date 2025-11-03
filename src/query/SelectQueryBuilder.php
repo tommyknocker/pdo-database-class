@@ -1190,7 +1190,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
 
         // For pagination, we need numeric indices, so convert indexed array back if needed
         $numericItems = $this->indexColumn !== null ? array_values($items) : $items;
-        /** @var array<int, array<string, mixed>> $numericItems */
+        /* @var array<int, array<string, mixed>> $numericItems */
 
         return new PaginationResult($numericItems, $total, $perPage, $page, $options);
     }
@@ -1226,8 +1226,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         }
 
         // For pagination, we need numeric indices, so convert indexed array back if needed
-        $numericItems = $this->indexColumn !== null ? array_values($rawItems) : $rawItems;
-        /** @var array<int, array<string, mixed>> $numericItems */
+        $numericItems = array_values($rawItems);
+        /* @var array<int, array<string, mixed>> $numericItems */
 
         return new SimplePaginationResult($numericItems, $perPage, $page, $hasMore, $options);
     }
