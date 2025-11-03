@@ -37,6 +37,52 @@ final class CacheTests extends BaseSharedTestCase
         $this->assertEquals('val', $cm->get($key));
         $this->assertTrue($cm->delete($key));
         $this->assertTrue($cm->clear());
+
+        // Test getConfig and getCache
+        $config = $cm->getConfig();
+        $this->assertInstanceOf(CacheConfig::class, $config);
+        $this->assertEquals('p', $config->getPrefix());
+        $this->assertEquals(60, $config->getDefaultTtl());
+        $this->assertTrue($config->isEnabled());
+
+        $retrievedCache = $cm->getCache();
+        $this->assertSame($cache, $retrievedCache);
+    }
+
+    public function testCacheManagerWithDisabledCache(): void
+    {
+        $cache = new ArrayCache();
+        $cm = new CacheManager($cache, ['enabled' => false]);
+
+        $key = 'test_key';
+        $value = 'test_value';
+
+        // When cache is disabled, set should return false
+        $this->assertFalse($cm->set($key, $value));
+
+        // When cache is disabled, get should return null
+        $this->assertNull($cm->get($key));
+
+        // When cache is disabled, has should return false
+        $this->assertFalse($cm->has($key));
+
+        // delete and clear should still work (they operate on cache directly)
+        $cache->set($key, $value); // Set directly to cache
+        $this->assertTrue($cm->delete($key)); // Should work
+        $cache->set($key, $value);
+        $this->assertTrue($cm->clear()); // Should work
+    }
+
+    public function testCacheManagerWithCacheConfigInstance(): void
+    {
+        $cache = new ArrayCache();
+        $config = new CacheConfig('test_', 120, true);
+        $cm = new CacheManager($cache, $config);
+
+        $retrievedConfig = $cm->getConfig();
+        $this->assertSame($config, $retrievedConfig);
+        $this->assertEquals('test_', $retrievedConfig->getPrefix());
+        $this->assertEquals(120, $retrievedConfig->getDefaultTtl());
     }
 
     public function testNoCacheManager(): void
