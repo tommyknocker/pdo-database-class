@@ -159,7 +159,7 @@ Complete documentation is available in the [`documentation/`](documentation/) di
 - **[Query Builder](documentation/03-query-builder/)** - SELECT, DML, filtering, joins, aggregations, subqueries
 - **[JSON Operations](documentation/04-json-operations/)** - Working with JSON across all databases
 - **[Advanced Features](documentation/05-advanced-features/)** - Transactions, batch processing, bulk operations, UPSERT, query scopes
-- **[Error Handling](documentation/06-error-handling/)** - Exception hierarchy, error diagnostics, retry logic, logging, monitoring
+- **[Error Handling](documentation/06-error-handling/)** - Exception hierarchy, enhanced error diagnostics with query context, retry logic, logging, monitoring
 - **[Helper Functions](documentation/07-helper-functions/)** - Complete reference for all helper functions
 - **[Best Practices](documentation/08-best-practices/)** - Security, performance, memory management, code organization
 - **[API Reference](documentation/09-reference/)** - Complete API documentation
@@ -182,7 +182,7 @@ Comprehensive, runnable examples are available in the [`examples/`](examples/) d
 - **[Real-World](examples/06-real-world/)** - Blog system, user auth, search, multi-tenant
 - **[README Examples](examples/07-readme-examples/)** - Examples extracted from this README
 - **[Connection Retry](examples/08-connection-retry/)** - Retry mechanism with logging
-- **[Exception Handling](examples/09-exception-handling/)** - Comprehensive error handling
+- **[Exception Handling](examples/09-exception-handling/)** - Comprehensive error handling, enhanced error diagnostics with query context and debug information
 
 Each example is self-contained with setup instructions. See [`examples/README.md`](examples/README.md) for the full catalog.
 

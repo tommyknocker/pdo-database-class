@@ -3,7 +3,7 @@
  * Examples from README.md
  * 
  * This file demonstrates the main features shown in the README documentation.
- * All examples are designed to work across MySQL, PostgreSQL, and SQLite.
+ * All examples are designed to work across MySQL, MariaDB, PostgreSQL, and SQLite.
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
@@ -11,6 +11,8 @@ require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\debug\QueryDebugger;
 
 // Initialize database connection
 $config = require __DIR__ . '/../config.sqlite.php';
@@ -75,6 +77,16 @@ $user = $db->find()
     ->where('id', $userId)
     ->getOne();
 echo "User: " . json_encode($user) . "\n";
+
+// Convenience methods: first(), last(), index()
+$firstUser = $db->find()->from('users')->first('id');
+echo "First user: " . ($firstUser ? $firstUser['name'] : 'None') . "\n";
+
+$lastUser = $db->find()->from('users')->last('id');
+echo "Last user: " . ($lastUser ? $lastUser['name'] : 'None') . "\n";
+
+$usersById = $db->find()->from('users')->index('id')->get();
+echo "Users indexed by ID: " . count($usersById) . " users\n";
 
 echo "\n2. Filtering and Joining\n";
 echo "-------------------------\n";
@@ -265,14 +277,40 @@ try {
     echo "Category: " . $e->getCategory() . "\n";
 }
 
-// Demonstrate error context
+// Demonstrate Enhanced Error Diagnostics with query context
 try {
-    // Try invalid query
-    $db->find()->from('nonexistent_table')->get();
-} catch (\tommyknocker\pdodb\exceptions\QueryException $e) {
+    // Try invalid query with query context
+    $query = $db->find()
+        ->from('nonexistent_table')
+        ->where('id', 1)
+        ->where('status', 'active')
+        ->orderBy('created_at', 'DESC');
+    
+    $query->get();
+} catch (QueryException $e) {
     echo "Query error caught: " . $e->getMessage() . "\n";
     echo "Query: " . $e->getQuery() . "\n";
-    echo "Context: " . json_encode($e->getContext()) . "\n";
+    
+    // Get query context (Enhanced Error Diagnostics)
+    $queryContext = $e->getQueryContext();
+    if ($queryContext !== null) {
+        echo "Query Context available: Yes\n";
+        echo "  Table: " . ($queryContext['table'] ?? 'N/A') . "\n";
+        echo "  Operation: " . ($queryContext['operation'] ?? 'N/A') . "\n";
+        echo "  Dialect: " . ($queryContext['dialect'] ?? 'N/A') . "\n";
+        
+        // Format context for display
+        $formatted = QueryDebugger::formatContext($queryContext);
+        echo "Formatted Context:\n" . $formatted . "\n";
+    } else {
+        echo "Query Context: Not available\n";
+        echo "Context: " . json_encode($e->getContext()) . "\n";
+    }
+    
+    // Get debug info from query builder
+    $debugInfo = $query->getDebugInfo();
+    echo "Debug Info - WHERE conditions: " . (isset($debugInfo['where']['where_count']) ? $debugInfo['where']['where_count'] : '0') . "\n";
+    echo "Debug Info - ORDER BY: " . (isset($debugInfo['order_by_count']) ? $debugInfo['order_by_count'] : '0') . "\n";
 }
 
 echo "\n10. Advanced JSON Operations\n";
@@ -405,5 +443,41 @@ $exists = $db->find()
     ->where('email', 'upsert@example.com')
     ->exists();
 echo "User exists after upsert: " . ($exists ? 'Yes' : 'No') . "\n";
+
+echo "\n15. Enhanced Error Diagnostics (New in 2.9.1)\n";
+echo "-----------------------------------------------\n";
+
+// Demonstrate getDebugInfo() method
+$query = $db->find()
+    ->from('users')
+    ->select(['id', 'name', 'email'])
+    ->where('age', 25, '>')
+    ->where('status', 'active')
+    ->orderBy('created_at', 'DESC')
+    ->limit(10);
+
+$debugInfo = $query->getDebugInfo();
+echo "Query Debug Information:\n";
+echo "  Table: " . ($debugInfo['table'] ?? 'N/A') . "\n";
+echo "  Operation: " . ($debugInfo['operation'] ?? 'N/A') . "\n";
+echo "  Dialect: " . ($debugInfo['dialect'] ?? 'N/A') . "\n";
+echo "  WHERE conditions: " . (isset($debugInfo['where']['where_count']) ? $debugInfo['where']['where_count'] : '0') . "\n";
+echo "  SELECT columns: " . (isset($debugInfo['select_count']) ? $debugInfo['select_count'] : '0') . "\n";
+echo "  LIMIT: " . ($debugInfo['limit'] ?? 'N/A') . "\n";
+echo "  OFFSET: " . ($debugInfo['offset'] ?? 'N/A') . "\n";
+
+// Demonstrate parameter sanitization
+$params = [
+    'email' => 'user@example.com',
+    'password' => 'super_secret_password_123',
+    'api_key' => 'sk_live_1234567890abcdef',
+    'token' => 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+];
+
+$sanitized = QueryDebugger::sanitizeParams($params, ['password', 'token', 'api_key', 'secret']);
+echo "Parameter Sanitization:\n";
+echo "  Original password: " . $params['password'] . "\n";
+echo "  Sanitized password: " . ($sanitized['password'] ?? 'N/A') . "\n";
+echo "  Sanitized API key: " . ($sanitized['api_key'] ?? 'N/A') . "\n";
 
 echo "\n=== Demo Complete ===\n";
