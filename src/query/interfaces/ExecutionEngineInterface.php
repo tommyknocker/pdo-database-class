@@ -68,4 +68,20 @@ interface ExecutionEngineInterface
      * @return static The current instance.
      */
     public function setFetchMode(int $fetchMode): self;
+
+    /**
+     * Set query context for error reporting.
+     *
+     * @param array<string, mixed>|null $queryContext Query builder debug information
+     *
+     * @return static
+     */
+    public function setQueryContext(?array $queryContext): static;
+
+    /**
+     * Get query context.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getQueryContext(): ?array;
 }

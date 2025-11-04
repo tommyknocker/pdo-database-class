@@ -109,6 +109,9 @@ final class LoadBalancerTests extends BaseSharedTestCase
                 {
                     return null;
                 }
+                public function setTempQueryContext(?array $queryContext): void
+                {
+                }
             };
         };
 

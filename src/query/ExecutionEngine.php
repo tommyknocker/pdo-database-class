@@ -21,6 +21,9 @@ class ExecutionEngine implements ExecutionEngineInterface
     protected int $fetchMode = PDO::FETCH_ASSOC;
     protected ?QueryProfiler $profiler = null;
 
+    /** @var array<string, mixed>|null Query builder debug information for error context */
+    protected ?array $queryContext = null;
+
     public function __construct(
         ConnectionInterface $connection,
         RawValueResolver $rawValueResolver,
@@ -31,6 +34,29 @@ class ExecutionEngine implements ExecutionEngineInterface
         $this->rawValueResolver = $rawValueResolver;
         $this->parameterManager = $parameterManager;
         $this->profiler = $profiler;
+    }
+
+    /**
+     * Set query context for error reporting.
+     *
+     * @param array<string, mixed>|null $queryContext Query builder debug information
+     *
+     * @return static
+     */
+    public function setQueryContext(?array $queryContext): static
+    {
+        $this->queryContext = $queryContext;
+        return $this;
+    }
+
+    /**
+     * Get query context.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getQueryContext(): ?array
+    {
+        return $this->queryContext;
     }
 
     /**

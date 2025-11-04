@@ -296,4 +296,11 @@ interface SelectQueryBuilderInterface
      * @return static
      */
     public function setIndexColumn(?string $columnName): self;
+
+    /**
+     * Get debug information about the select query.
+     *
+     * @return array<string, mixed> Debug information about SELECT query state
+     */
+    public function getDebugInfo(): array;
 }

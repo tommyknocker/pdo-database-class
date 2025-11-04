@@ -40,6 +40,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Batch Processing** - Memory-efficient generators for large datasets with zero memory leaks
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
 - **Exception Hierarchy** - Typed exceptions for precise error handling
+- **Enhanced Error Diagnostics** - Query context, sanitized parameters, and debug information in exceptions
 - **Connection Retry** - Automatic retry with exponential backoff
 - **PSR-14 Event Dispatcher** - Event-driven architecture for monitoring, auditing, and middleware
 - **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more
@@ -158,7 +159,7 @@ Complete documentation is available in the [`documentation/`](documentation/) di
 - **[Query Builder](documentation/03-query-builder/)** - SELECT, DML, filtering, joins, aggregations, subqueries
 - **[JSON Operations](documentation/04-json-operations/)** - Working with JSON across all databases
 - **[Advanced Features](documentation/05-advanced-features/)** - Transactions, batch processing, bulk operations, UPSERT, query scopes
-- **[Error Handling](documentation/06-error-handling/)** - Exception hierarchy, retry logic, logging, monitoring
+- **[Error Handling](documentation/06-error-handling/)** - Exception hierarchy, error diagnostics, retry logic, logging, monitoring
 - **[Helper Functions](documentation/07-helper-functions/)** - Complete reference for all helper functions
 - **[Best Practices](documentation/08-best-practices/)** - Security, performance, memory management, code organization
 - **[API Reference](documentation/09-reference/)** - Complete API documentation
@@ -2266,26 +2267,48 @@ try {
 }
 ```
 
-#### Query Errors
+#### Query Errors with Enhanced Diagnostics
 
 ```php
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\debug\QueryDebugger;
 use tommyknocker\pdodb\exceptions\ConstraintViolationException;
 
 try {
     $users = $db->find()
-        ->from('users')
-        ->where('invalid_column', 1)
+        ->from('nonexistent_table')
+        ->where('id', 1)
+        ->where('status', 'active')
         ->get();
 } catch (QueryException $e) {
     error_log("Query error: " . $e->getMessage());
     error_log("SQL: " . $e->getQuery());
+    
+    // Get query context for debugging
+    $queryContext = $e->getQueryContext();
+    if ($queryContext !== null) {
+        error_log("Table: " . ($queryContext['table'] ?? 'N/A'));
+        error_log("Operation: " . ($queryContext['operation'] ?? 'N/A'));
+        error_log("Parameters: " . json_encode($queryContext['params'] ?? []));
+    }
+    
+    // Enhanced description includes context automatically
+    error_log("Description: " . $e->getDescription());
 } catch (ConstraintViolationException $e) {
     error_log("Constraint violation: " . $e->getMessage());
     error_log("Constraint: " . $e->getConstraintName());
     error_log("Table: " . $e->getTableName());
     error_log("Column: " . $e->getColumnName());
 }
+
+// Get debug information from QueryBuilder
+$query = $db->find()
+    ->from('users')
+    ->where('age', 25)
+    ->orderBy('name', 'ASC');
+
+$debugInfo = $query->getDebugInfo();
+// Contains: table, operation, sql, params, where, joins, select, etc.
 ```
 
 #### Transaction Errors
@@ -2639,6 +2662,75 @@ foreach ($db->find()->from('users')->stream() as $user) {
 
 ## Debugging
 
+### Query Debug Information
+
+Get comprehensive debug information about your query before execution:
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+$query = $db->find()
+    ->from('users')
+    ->select(['id', 'name', 'email'])
+    ->where('age', 25)
+    ->where('status', 'active')
+    ->orderBy('name', 'ASC')
+    ->limit(10);
+
+// Get debug information
+$debugInfo = $query->getDebugInfo();
+
+echo "Table: " . $debugInfo['table'] . "\n";
+echo "Operation: " . $debugInfo['operation'] . "\n";
+echo "SQL: " . $debugInfo['sql'] . "\n";
+echo "Parameters: " . json_encode($debugInfo['params']) . "\n";
+echo "WHERE conditions: " . $debugInfo['where']['where_count'] . "\n";
+```
+
+### Enhanced Error Diagnostics
+
+QueryException now includes query context automatically:
+
+```php
+use tommyknocker\pdodb\exceptions\QueryException;
+
+try {
+    $users = $db->find()
+        ->from('nonexistent_table')
+        ->where('id', 1)
+        ->get();
+} catch (QueryException $e) {
+    // Get query context
+    $queryContext = $e->getQueryContext();
+    
+    if ($queryContext !== null) {
+        echo "Table: " . ($queryContext['table'] ?? 'N/A') . "\n";
+        echo "Operation: " . ($queryContext['operation'] ?? 'N/A') . "\n";
+        echo "Parameters: " . json_encode($queryContext['params'] ?? []) . "\n";
+    }
+    
+    // Enhanced description includes context
+    echo "Description: " . $e->getDescription() . "\n";
+}
+```
+
+### QueryDebugger Helper
+
+Use `QueryDebugger` to sanitize parameters and format context:
+
+```php
+use tommyknocker\pdodb\debug\QueryDebugger;
+
+// Sanitize sensitive parameters
+$params = ['id' => 1, 'password' => 'secret123', 'token' => 'abc123'];
+$sanitized = QueryDebugger::sanitizeParams($params, ['password', 'token']);
+// Result: ['id' => 1, 'password' => '***', 'token' => '***']
+
+// Format debug context for display
+$formatted = QueryDebugger::formatContext($debugInfo);
+// Output: "Table: users | Operation: SELECT | Has WHERE conditions | Parameters: {...}"
+```
+
 ### Enable Query Logging
 
 ```php
@@ -2665,9 +2757,10 @@ $query = $db->find()
     ->from('users')
     ->where('age', 18, '>');
 
-// Get generated SQL
-$sql = $query->getLastQuery();
-echo "SQL: " . $sql . "\n";
+// Get generated SQL and parameters
+$sqlData = $query->toSQL();
+echo "SQL: " . $sqlData['sql'] . "\n";
+echo "Parameters: " . json_encode($sqlData['params']) . "\n";
 
 // Get bound parameters
 $params = $query->getLastParams();

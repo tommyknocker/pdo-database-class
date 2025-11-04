@@ -192,4 +192,11 @@ interface ConditionBuilderInterface
      * @return array<int, mixed> The HAVING conditions.
      */
     public function getHaving(): array;
+
+    /**
+     * Get debug information about conditions.
+     *
+     * @return array<string, mixed> Debug information about WHERE, HAVING, ORDER BY, and LIMIT
+     */
+    public function getDebugInfo(): array;
 }

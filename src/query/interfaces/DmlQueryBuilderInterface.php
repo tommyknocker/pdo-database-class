@@ -143,4 +143,11 @@ interface DmlQueryBuilderInterface
         array $whenNotMatched = [],
         bool $whenNotMatchedBySourceDelete = false
     ): int;
+
+    /**
+     * Get debug information about the DML query.
+     *
+     * @return array<string, mixed> Debug information about DML query state
+     */
+    public function getDebugInfo(): array;
 }

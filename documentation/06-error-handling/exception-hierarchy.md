@@ -77,16 +77,30 @@ use tommyknocker\pdodb\exceptions\QueryException;
 try {
     $users = $db->find()
         ->from('nonexistent_table')
+        ->where('id', 1)
         ->get();
 } catch (QueryException $e) {
     error_log("Query failed: {$e->getMessage()}");
     error_log("SQL: {$e->getQuery()}");
+    
+    // Get query context for debugging
+    $queryContext = $e->getQueryContext();
+    if ($queryContext !== null) {
+        error_log("Table: " . ($queryContext['table'] ?? 'N/A'));
+        error_log("Operation: " . ($queryContext['operation'] ?? 'N/A'));
+        error_log("Parameters: " . json_encode($queryContext['params'] ?? []));
+    }
+    
+    // Enhanced description includes context
+    error_log("Description: {$e->getDescription()}");
     
     if ($e->isRetryable()) {
         // Implement retry logic
     }
 }
 ```
+
+See [Error Diagnostics](error-diagnostics.md) for more details on query context and debugging.
 
 ### ConstraintViolationException
 
@@ -393,6 +407,7 @@ try {
 
 ## Next Steps
 
+- [Error Diagnostics](error-diagnostics.md) - Query context and debug information
 - [Error Codes](error-codes.md) - Standardized error codes
 - [Retry Logic](retry-logic.md) - Building retry mechanisms
 - [Logging](logging.md) - Query and error logging

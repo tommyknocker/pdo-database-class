@@ -120,9 +120,21 @@ class ExceptionFactory
         ?string $query,
         array $context
     ): DatabaseException {
+        // Extract queryContext from context if available (for QueryException)
+        $queryContext = $context['queryContext'] ?? null;
+        if ($queryContext !== null) {
+            // Remove from context to avoid duplication
+            unset($context['queryContext']);
+        }
+
         // Handle special cases that need additional parsing
         if ($exceptionClass === ConstraintViolationException::class) {
             return self::createConstraintException($e, $driver, $query, $context, $code, $message);
+        }
+
+        // For QueryException, pass queryContext
+        if ($exceptionClass === QueryException::class && $queryContext !== null) {
+            return new QueryException($message, $code, $e, $driver, $query, $context, $queryContext);
         }
 
         /** @var DatabaseException $exception */

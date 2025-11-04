@@ -191,6 +191,28 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
+     * Prepare query context for error reporting.
+     *
+     * Sets debug information in ExecutionEngine so it can be included
+     * in exception context when errors occur.
+     *
+     * @return static
+     */
+    protected function prepareQueryContext(): static
+    {
+        try {
+            $debugInfo = $this->getDebugInfo();
+            // Set in shared ExecutionEngine (used by both SelectQueryBuilder and DmlQueryBuilder)
+            $this->executionEngine->setQueryContext($debugInfo);
+        } catch (\Throwable) {
+            // If getting debug info fails, don't break the query execution
+            $this->executionEngine->setQueryContext(null);
+        }
+
+        return $this;
+    }
+
+    /**
      * Return table prefix configured for this builder.
      *
      * @return string|null
@@ -763,6 +785,9 @@ class QueryBuilder implements QueryBuilderInterface
                 $this->selectQueryBuilder->setDistinctOn($this->distinctOn);
             }
 
+            // Prepare query context for error reporting
+            $this->prepareQueryContext();
+
             return $this->selectQueryBuilder->get();
         } finally {
             $this->restoreConnection($originalConnection);
@@ -960,6 +985,7 @@ class QueryBuilder implements QueryBuilderInterface
         $originalConnection = $this->switchToWriteConnection();
 
         try {
+            $this->prepareQueryContext();
             return $this->dmlQueryBuilder->insert($data, $onDuplicate);
         } finally {
             $this->restoreConnection($originalConnection);
@@ -979,6 +1005,7 @@ class QueryBuilder implements QueryBuilderInterface
         $originalConnection = $this->switchToWriteConnection();
 
         try {
+            $this->prepareQueryContext();
             return $this->dmlQueryBuilder->insertMulti($rows, $onDuplicate);
         } finally {
             $this->restoreConnection($originalConnection);
@@ -998,6 +1025,7 @@ class QueryBuilder implements QueryBuilderInterface
         $originalConnection = $this->switchToWriteConnection();
 
         try {
+            $this->prepareQueryContext();
             return $this->dmlQueryBuilder->replace($data, $onDuplicate);
         } finally {
             $this->restoreConnection($originalConnection);
@@ -1017,6 +1045,7 @@ class QueryBuilder implements QueryBuilderInterface
         $originalConnection = $this->switchToWriteConnection();
 
         try {
+            $this->prepareQueryContext();
             return $this->dmlQueryBuilder->replaceMulti($rows, $onDuplicate);
         } finally {
             $this->restoreConnection($originalConnection);
@@ -1036,6 +1065,7 @@ class QueryBuilder implements QueryBuilderInterface
         $originalConnection = $this->switchToWriteConnection();
 
         try {
+            $this->prepareQueryContext();
             return $this->dmlQueryBuilder->update($data);
         } finally {
             $this->restoreConnection($originalConnection);
@@ -1053,6 +1083,7 @@ class QueryBuilder implements QueryBuilderInterface
         $originalConnection = $this->switchToWriteConnection();
 
         try {
+            $this->prepareQueryContext();
             return $this->dmlQueryBuilder->delete();
         } finally {
             $this->restoreConnection($originalConnection);
@@ -1994,5 +2025,104 @@ class QueryBuilder implements QueryBuilderInterface
             }
             $this->jsonQueryBuilder->clearJsonOrders();
         }
+    }
+
+    /**
+     * Get debug information about the current query state.
+     *
+     * Returns comprehensive information about the query builder state,
+     * including table, conditions, joins, parameters, and SQL structure.
+     * Useful for debugging and error diagnostics.
+     *
+     * @return array<string, mixed> Debug information including:
+     *                              - table: Table name
+     *                              - operation: Query operation type (SELECT, INSERT, UPDATE, DELETE)
+     *                              - sql: Generated SQL (if available)
+     *                              - params: Query parameters
+     *                              - where: WHERE conditions info
+     *                              - joins: JOIN information
+     *                              - select: SELECT columns
+     *                              - order: ORDER BY clauses
+     *                              - limit: LIMIT value
+     *                              - offset: OFFSET value
+     *                              - group: GROUP BY clause
+     *                              - having: HAVING conditions
+     *                              - dialect: Database dialect name
+     *                              - prefix: Table prefix
+     */
+    public function getDebugInfo(): array
+    {
+        $info = [
+            'dialect' => $this->dialect->getDriverName(),
+            'prefix' => $this->prefix,
+        ];
+
+        // Get table if set
+        try {
+            $info['table'] = $this->table;
+        } catch (RuntimeException) {
+            $info['table'] = null;
+        }
+
+        // Get SQL and params if query is built
+        try {
+            $sqlData = $this->toSQL();
+            $info['sql'] = $sqlData['sql'];
+            $info['params'] = $sqlData['params'];
+            $info['operation'] = $this->extractOperationFromSql($sqlData['sql']);
+        } catch (\Throwable) {
+            $info['sql'] = null;
+            $info['params'] = $this->parameterManager->getParams();
+            $info['operation'] = 'UNKNOWN';
+        }
+
+        // Get condition builder info
+        $whereInfo = $this->conditionBuilder->getDebugInfo();
+        if (!empty($whereInfo)) {
+            $info['where'] = $whereInfo;
+        }
+
+        // Get join info
+        $joinInfo = $this->joinBuilder->getDebugInfo();
+        if (!empty($joinInfo)) {
+            $info['joins'] = $joinInfo;
+        }
+
+        // Get select query builder info
+        $selectInfo = $this->selectQueryBuilder->getDebugInfo();
+        if (!empty($selectInfo)) {
+            $info = array_merge($info, $selectInfo);
+        }
+
+        // Get DML query builder info
+        $dmlInfo = $this->dmlQueryBuilder->getDebugInfo();
+        if (!empty($dmlInfo)) {
+            $info = array_merge($info, $dmlInfo);
+        }
+
+        return $info;
+    }
+
+    /**
+     * Extract operation type from SQL string.
+     */
+    protected function extractOperationFromSql(string $sql): string
+    {
+        $sql = trim($sql);
+        $firstToken = strtok($sql, ' ');
+        if ($firstToken === false) {
+            return 'UNKNOWN';
+        }
+        $firstWord = strtoupper($firstToken);
+
+        return match ($firstWord) {
+            'SELECT' => 'SELECT',
+            'INSERT' => 'INSERT',
+            'UPDATE' => 'UPDATE',
+            'DELETE' => 'DELETE',
+            'REPLACE' => 'REPLACE',
+            'MERGE' => 'MERGE',
+            default => 'UNKNOWN',
+        };
     }
 }

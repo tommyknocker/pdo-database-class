@@ -84,4 +84,11 @@ interface JoinBuilderInterface
         string $type = 'LEFT',
         ?string $alias = null
     ): self;
+
+    /**
+     * Get debug information about joins.
+     *
+     * @return array<string, mixed> Debug information about JOINs
+     */
+    public function getDebugInfo(): array;
 }

@@ -41,6 +41,9 @@ class Connection implements ConnectionInterface
     /** @var PreparedStatementPool|null Prepared statement pool */
     protected ?PreparedStatementPool $statementPool = null;
 
+    /** @var array<string, mixed>|null Temporary query context for error reporting */
+    protected ?array $tempQueryContext = null;
+
     /** @var EventDispatcherInterface|null Event dispatcher */
     protected ?EventDispatcherInterface $eventDispatcher = null;
 
@@ -148,6 +151,28 @@ class Connection implements ConnectionInterface
     }
 
     /**
+     * Set temporary query context for error reporting.
+     *
+     * @param array<string, mixed>|null $queryContext Query builder debug information
+     */
+    public function setTempQueryContext(?array $queryContext): void
+    {
+        $this->tempQueryContext = $queryContext;
+    }
+
+    /**
+     * Get and clear temporary query context.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function getAndClearTempQueryContext(): ?array
+    {
+        $context = $this->tempQueryContext;
+        $this->tempQueryContext = null;
+        return $context;
+    }
+
+    /**
      * Handle PDO exceptions with consistent error processing.
      *
      * @param PDOException $e The PDO exception
@@ -165,11 +190,19 @@ class Connection implements ConnectionInterface
     ): never {
         $this->state->setError($e->getMessage(), (int)$e->getCode());
 
+        // Check for queryContext in context or temporary storage
+        $finalContext = array_merge(['operation' => $operation], $context);
+        if (isset($context['queryContext'])) {
+            $finalContext['queryContext'] = $context['queryContext'];
+        } elseif ($this->tempQueryContext !== null) {
+            $finalContext['queryContext'] = $this->getAndClearTempQueryContext();
+        }
+
         $dbException = ExceptionFactory::createFromPdoException(
             $e,
             $this->getDriverName(),
             $sql,
-            array_merge(['operation' => $operation], $context)
+            $finalContext
         );
 
         $this->logOperationError($operation, $e, $sql, [

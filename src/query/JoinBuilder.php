@@ -215,4 +215,21 @@ class JoinBuilder implements JoinBuilderInterface
     {
         return $this->joins;
     }
+
+    /**
+     * Get debug information about joins.
+     *
+     * @return array<string, mixed> Debug information about JOINs
+     */
+    public function getDebugInfo(): array
+    {
+        if (empty($this->joins)) {
+            return [];
+        }
+
+        return [
+            'join_count' => count($this->joins),
+            'joins' => $this->joins,
+        ];
+    }
 }

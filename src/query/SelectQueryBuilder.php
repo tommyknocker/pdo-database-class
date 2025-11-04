@@ -296,7 +296,14 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         // Fast path: if cache is disabled, skip all cache operations
         if (!$this->shouldUseCache()) {
             $sqlData = $this->toSQL();
-            $result = $this->executionEngine->fetchAll($sqlData['sql'], $sqlData['params']);
+
+            try {
+                $result = $this->executionEngine->fetchAll($sqlData['sql'], $sqlData['params']);
+            } catch (PDOException $e) {
+                $this->enhanceExceptionWithContext($e, $sqlData['sql']);
+
+                throw $e;
+            }
             // Index result by column if specified
             if ($this->indexColumn !== null) {
                 $result = $this->indexResult($result, $this->indexColumn);
@@ -320,7 +327,13 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         // Cache miss: use cached SQL data if available (from getFromCache call)
         $sqlData = $this->cachedSqlData ?? $this->toSQL();
 
-        $result = $this->executionEngine->fetchAll($sqlData['sql'], $sqlData['params']);
+        try {
+            $result = $this->executionEngine->fetchAll($sqlData['sql'], $sqlData['params']);
+        } catch (PDOException $e) {
+            $this->enhanceExceptionWithContext($e, $sqlData['sql']);
+
+            throw $e;
+        }
 
         // Index result by column if specified
         if ($this->indexColumn !== null) {
@@ -348,7 +361,14 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         // Fast path: if cache is disabled, skip all cache operations
         if (!$this->shouldUseCache()) {
             $sqlData = $this->toSQL();
-            return $this->executionEngine->fetch($sqlData['sql'], $sqlData['params']);
+
+            try {
+                return $this->executionEngine->fetch($sqlData['sql'], $sqlData['params']);
+            } catch (PDOException $e) {
+                $this->enhanceExceptionWithContext($e, $sqlData['sql']);
+
+                throw $e;
+            }
         }
 
         // Cache enabled: try to get from cache first
@@ -363,7 +383,13 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         // Cache miss: use cached SQL data if available (from getFromCache call)
         $sqlData = $this->cachedSqlData ?? $this->toSQL();
 
-        $result = $this->executionEngine->fetch($sqlData['sql'], $sqlData['params']);
+        try {
+            $result = $this->executionEngine->fetch($sqlData['sql'], $sqlData['params']);
+        } catch (PDOException $e) {
+            $this->enhanceExceptionWithContext($e, $sqlData['sql']);
+
+            throw $e;
+        }
 
         // Save to cache (uses cached key if available)
         $this->saveToCache($result);
@@ -1434,5 +1460,80 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
 
         $driver = $this->connection->getDialect()->getDriverName();
         return $this->cacheManager->generateKey($sqlData['sql'], $sqlData['params'], $driver);
+    }
+
+    /**
+     * Get debug information about the select query.
+     *
+     * @return array<string, mixed> Debug information about SELECT query state
+     */
+    public function getDebugInfo(): array
+    {
+        $info = [];
+
+        if (!empty($this->select)) {
+            $info['select'] = $this->select;
+            $info['select_count'] = count($this->select);
+        }
+
+        if (!empty($this->order)) {
+            $info['order'] = $this->order;
+            $info['order_count'] = count($this->order);
+        }
+
+        if ($this->group !== null) {
+            $info['group'] = $this->group;
+        }
+
+        if ($this->limit !== null) {
+            $info['limit'] = $this->limit;
+        }
+
+        if ($this->offset !== null) {
+            $info['offset'] = $this->offset;
+        }
+
+        if ($this->distinct) {
+            $info['distinct'] = true;
+        }
+
+        if (!empty($this->distinctOn)) {
+            $info['distinct_on'] = $this->distinctOn;
+        }
+
+        if (!empty($this->options)) {
+            $info['options'] = $this->options;
+        }
+
+        if ($this->cacheEnabled) {
+            $info['cache_enabled'] = true;
+            if ($this->cacheTtl !== null) {
+                $info['cache_ttl'] = $this->cacheTtl;
+            }
+        }
+
+        if (!empty($this->unions)) {
+            $info['union_count'] = count($this->unions);
+        }
+
+        if ($this->cteManager !== null) {
+            $info['has_cte'] = true;
+        }
+
+        return $info;
+    }
+
+    /**
+     * Enhance PDOException with query context if available.
+     *
+     * Stores query context in Connection's temporary storage so it can be
+     * included in exception when Connection::handlePdoException is called.
+     */
+    protected function enhanceExceptionWithContext(PDOException $e, string $sql): void
+    {
+        $queryContext = $this->executionEngine->getQueryContext();
+        if ($queryContext !== null) {
+            $this->connection->setTempQueryContext($queryContext);
+        }
     }
 }

@@ -5,6 +5,7 @@ This directory contains comprehensive examples demonstrating the new exception h
 ## Files
 
 - `01-exception-examples.php` - Complete examples of exception handling patterns
+- `02-error-diagnostics.php` - Enhanced error diagnostics with query context and debug information
 
 ## Exception Types
 

@@ -176,4 +176,11 @@ interface ConnectionInterface
      * @return EventDispatcherInterface|null The dispatcher instance or null if not set
      */
     public function getEventDispatcher(): ?EventDispatcherInterface;
+
+    /**
+     * Set temporary query context for error reporting.
+     *
+     * @param array<string, mixed>|null $queryContext Query builder debug information
+     */
+    public function setTempQueryContext(?array $queryContext): void;
 }

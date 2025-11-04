@@ -120,7 +120,14 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
             $this->onDuplicate = $onDuplicate;
         }
         [$sql, $params] = $this->buildInsertSql();
-        return $this->executionEngine->executeInsert($sql, $params);
+
+        try {
+            return $this->executionEngine->executeInsert($sql, $params);
+        } catch (PDOException $e) {
+            $this->enhanceExceptionWithContext($e, $sql);
+
+            throw $e;
+        }
     }
 
     /**
@@ -141,7 +148,14 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
             $this->onDuplicate = $onDuplicate;
         }
         [$sql, $params] = $this->buildInsertMultiSql();
-        return $this->executionEngine->executeInsert($sql, $params, true);
+
+        try {
+            return $this->executionEngine->executeInsert($sql, $params, true);
+        } catch (PDOException $e) {
+            $this->enhanceExceptionWithContext($e, $sql);
+
+            throw $e;
+        }
     }
 
     /**
@@ -170,7 +184,14 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
         $tableName = $this->table; // Use getter to ensure not null
         assert(is_string($tableName)); // PHPStan assertion
         $sql = $this->dialect->buildReplaceSql($tableName, array_values(array_map('strval', $columns)), $placeholders);
-        return $this->executionEngine->executeInsert($sql, $this->parameterManager->getParams());
+
+        try {
+            return $this->executionEngine->executeInsert($sql, $this->parameterManager->getParams());
+        } catch (PDOException $e) {
+            $this->enhanceExceptionWithContext($e, $sql);
+
+            throw $e;
+        }
     }
 
     /**
@@ -218,7 +239,14 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
             $valuesList,
             true
         );
-        return $this->executionEngine->executeInsert($sql, $this->parameterManager->getParams());
+
+        try {
+            return $this->executionEngine->executeInsert($sql, $this->parameterManager->getParams());
+        } catch (PDOException $e) {
+            $this->enhanceExceptionWithContext($e, $sql);
+
+            throw $e;
+        }
     }
 
     /**
@@ -233,7 +261,14 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
     {
         $this->data = $data;
         [$sql, $params] = $this->buildUpdateSql();
-        return $this->executionEngine->executeStatement($sql, $params)->rowCount();
+
+        try {
+            return $this->executionEngine->executeStatement($sql, $params)->rowCount();
+        } catch (PDOException $e) {
+            $this->enhanceExceptionWithContext($e, $sql);
+
+            throw $e;
+        }
     }
 
     /**
@@ -248,7 +283,14 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
         $options = $this->options ? implode(',', $this->options) . ' ' : '';
         $sql = "DELETE {$options}FROM {$table}";
         $sql .= $this->conditionBuilder->buildConditionsClause($this->conditionBuilder->getWhere(), 'WHERE');
-        return $this->executionEngine->executeStatement($sql, $this->parameterManager->getParams())->rowCount();
+
+        try {
+            return $this->executionEngine->executeStatement($sql, $this->parameterManager->getParams())->rowCount();
+        } catch (PDOException $e) {
+            $this->enhanceExceptionWithContext($e, $sql);
+
+            throw $e;
+        }
     }
 
     /**
@@ -713,5 +755,60 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
             }
         }
         return $parts;
+    }
+
+    /**
+     * Get debug information about the DML query.
+     *
+     * @return array<string, mixed> Debug information about DML query state
+     */
+    public function getDebugInfo(): array
+    {
+        $info = [];
+
+        if (!empty($this->data)) {
+            $info['data'] = $this->data;
+            $info['data_count'] = count($this->data);
+        }
+
+        if (!empty($this->multiRows)) {
+            $info['multi_rows_count'] = count($this->multiRows);
+        }
+
+        if (!empty($this->onDuplicate)) {
+            $info['on_duplicate'] = $this->onDuplicate;
+        }
+
+        if (!empty($this->options)) {
+            $info['options'] = $this->options;
+        }
+
+        if ($this->limit !== null) {
+            $info['limit'] = $this->limit;
+        }
+
+        if ($this->mergeClause !== null) {
+            $info['merge'] = true;
+        }
+
+        if (!empty($this->mergeOnConditions)) {
+            $info['merge_on_conditions'] = $this->mergeOnConditions;
+        }
+
+        return $info;
+    }
+
+    /**
+     * Enhance PDOException with query context if available.
+     *
+     * Stores query context in Connection's temporary storage so it can be
+     * included in exception when Connection::handlePdoException is called.
+     */
+    protected function enhanceExceptionWithContext(PDOException $e, string $sql): void
+    {
+        $queryContext = $this->executionEngine->getQueryContext();
+        if ($queryContext !== null) {
+            $this->connection->setTempQueryContext($queryContext);
+        }
     }
 }

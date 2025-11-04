@@ -577,4 +577,35 @@ class ConditionBuilder implements ConditionBuilderInterface
         $s = (string)$value;
         return "'" . str_replace("'", "''", $s) . "'";
     }
+
+    /**
+     * Get debug information about conditions.
+     *
+     * @return array<string, mixed> Debug information about WHERE, HAVING, ORDER BY, and LIMIT
+     */
+    public function getDebugInfo(): array
+    {
+        $info = [];
+
+        if (!empty($this->where)) {
+            $info['where_count'] = count($this->where);
+            $info['where'] = $this->where;
+        }
+
+        if (!empty($this->having)) {
+            $info['having_count'] = count($this->having);
+            $info['having'] = $this->having;
+        }
+
+        if (!empty($this->order)) {
+            $info['order_count'] = count($this->order);
+            $info['order'] = $this->order;
+        }
+
+        if ($this->limit !== null) {
+            $info['limit'] = $this->limit;
+        }
+
+        return $info;
+    }
 }

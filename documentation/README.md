@@ -58,6 +58,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 ### Error Handling
 - [Exception Hierarchy](06-error-handling/exception-hierarchy.md) - Exception types
 - [Error Codes](06-error-handling/error-codes.md) - DbError constants
+- [Error Diagnostics](06-error-handling/error-diagnostics.md) - Query context and debug information
 - [Retry Logic](06-error-handling/retry-logic.md) - Building retry logic
 - [Logging](06-error-handling/logging.md) - Query and error logging
 - [Monitoring](06-error-handling/monitoring.md) - Error tracking and alerting
