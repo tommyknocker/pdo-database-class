@@ -8,6 +8,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.9.1] - 2025-11-04
+
+### Added
+- **Enhanced Error Diagnostics** - Query context and debug information in exceptions:
+  - **QueryDebugger class** - Helper class for parameter sanitization and context formatting
+  - **QueryException enhancements** - `QueryException` now includes `queryContext` property with detailed query builder state
+  - **getDebugInfo() methods** - Added to `QueryBuilder` and all component builders (`ConditionBuilder`, `JoinBuilder`, `SelectQueryBuilder`, `DmlQueryBuilder`)
+  - **Automatic context capture** - Query context automatically captured and included in exceptions when errors occur
+  - **Parameter sanitization** - Sensitive parameters (passwords, tokens, API keys) automatically masked in error messages
+  - **Comprehensive documentation** - New `error-diagnostics.md` documentation page with examples
+  - **Example** - `02-error-diagnostics.php` demonstrating new error diagnostics features
+  - Implements roadmap item 1.1: Enhanced Error Diagnostics
+
+- **ActiveRecord Relationship Enhancements**:
+  - **Many-to-many relationships** - `viaTable()` and `via()` methods for junction table relationships
+  - **Yii2-like syntax** - Support for Yii2-style relationship definitions for easier migration
+  - Enhanced relationship documentation and examples
+
+- **QueryBuilder Convenience Methods**:
+  - **first()** - Get first row from query result
+  - **last()** - Get last row from query result
+  - **index()** - Index query results by a specific column
+  - Improved developer experience with commonly used query patterns
+
+- **CLI Migration Tool** - Yii2-style migration command-line tool:
+  - Create, run, and rollback migrations via command line
+  - Yii2-compatible migration workflow
+  - Enhanced migration management capabilities
+
+- **Documentation Improvements**:
+  - **MariaDB configuration examples** - Added MariaDB configuration section to Getting Started documentation
+  - **MariaDB connection examples** - Added MariaDB connection example to first-connection.md
+  - Complete MariaDB setup guide for new users
+
+### Changed
+- **Fulltext search helper** - Renamed `Db::fulltextMatch()` to `Db::match()` for clarity and consistency
+- **Composer script namespacing** - All composer scripts now use `pdodb:` prefix for better organization
+- **PdoDb scope methods** - Renamed for better readability and consistency
+
+### Fixed
+- **LoadBalancerTests** - Fixed fatal error by implementing missing `setTempQueryContext()` method in test stub
+- **PHPStan type errors** - Fixed all type-related static analysis issues
+- **PHP-CS-Fixer issues** - Resolved all code style issues
+
+### Technical Details
+- **All tests passing**: Comprehensive test coverage with improved ActiveQuery, EagerLoader, and CacheManager tests
+- **PHPStan Level 8**: Zero errors across entire codebase
+- **PHP-CS-Fixer**: All code complies with PSR-12 standards
+- **Full backward compatibility**: 100% maintained - all existing code continues to work
+- **Code quality**: Follows KISS, SOLID, DRY, YAGNI principles
+
 ## [2.9.0] - 2025-11-01
 
 ### Added
@@ -615,14 +666,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Exception handling system**: `loadCsv()` and `loadXml()` now throw specialized exceptions instead of returning `false`
   - **Impact**: Code that checks `if (!$ok)` for these methods will need to be updated to use try-catch blocks
   - **Migration**: Wrap calls in try-catch blocks and handle `DatabaseException` types
-  - **Example**: 
+  - **Example**:
     ```php
     // Before (2.5.x)
     $ok = $db->find()->table('users')->loadCsv($file);
     if (!$ok) {
         // handle error
     }
-    
+
     // After (2.6.0)
     try {
         $db->find()->table('users')->loadCsv($file);
@@ -1059,7 +1110,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.0...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.1...HEAD
+[2.9.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.0...v2.9.1
 [2.9.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.8.0...v2.9.0
 [2.8.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.7.1...v2.8.0
 [2.7.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.7.0...v2.7.1
