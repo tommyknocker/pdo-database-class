@@ -55,6 +55,63 @@ $db = new PdoDb('mysql', [
 ]);
 ```
 
+## MariaDB Configuration
+
+MariaDB uses the same driver as MySQL (`'mysql'`) and shares the same configuration options. MariaDB is fully supported as a separate dialect with optimized SQL generation.
+
+### Basic Configuration
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+$db = new PdoDb('mysql', [
+    'host' => '127.0.0.1',
+    'username' => 'testuser',
+    'password' => 'testpass',
+    'dbname' => 'testdb'
+]);
+```
+
+### Full Configuration Options
+
+```php
+$db = new PdoDb('mysql', [
+    // Connection options
+    'pdo'         => null,                 // Optional: Existing PDO object
+    'host'        => '127.0.0.1',          // Required: MariaDB host
+    'username'    => 'testuser',           // Required: MariaDB username
+    'password'    => 'testpass',           // Required: MariaDB password
+    'dbname'      => 'testdb',             // Required: Database name
+    'port'        => 3306,                 // Optional: MariaDB port (default: 3306)
+    'prefix'      => 'my_',                // Optional: Table prefix (e.g. 'wp_')
+    'charset'     => 'utf8mb4',            // Optional: Connection charset
+    
+    // Advanced options
+    'unix_socket' => '/var/run/mysqld/mysqld.sock', // Optional: Unix socket path
+    'sslca'       => '/path/ca.pem',       // Optional: SSL CA certificate
+    'sslcert'     => '/path/client-cert.pem', // Optional: SSL client certificate
+    'sslkey'      => '/path/client-key.pem',  // Optional: SSL client key
+    'compress'    => true                  // Optional: Enable protocol compression
+]);
+```
+
+### Using Existing PDO Connection
+
+```php
+$pdo = new PDO(
+    'mysql:host=localhost;dbname=testdb',
+    'user',
+    'pass'
+);
+
+$db = new PdoDb('mysql', [
+    'pdo' => $pdo,
+    'prefix' => 'app_'
+]);
+```
+
+**Note**: MariaDB uses the same driver name (`'mysql'`) as MySQL, but PDOdb automatically detects MariaDB and uses the MariaDB dialect for optimized SQL generation.
+
 ## PostgreSQL Configuration
 
 ### Basic Configuration

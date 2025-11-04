@@ -87,6 +87,59 @@ $id = $db->find()->table('users')->insert([
 echo "Inserted user with ID: $id\n";
 ```
 
+## MariaDB Example
+
+MariaDB uses the same driver as MySQL (`'mysql'`), but PDOdb automatically detects MariaDB and uses optimized SQL generation.
+
+### 1. Create a database
+
+```sql
+CREATE DATABASE testdb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+### 2. Configure and connect
+
+```php
+<?php
+require 'vendor/autoload.php';
+
+use tommyknocker\pdodb\PdoDb;
+
+$db = new PdoDb('mysql', [
+    'host' => 'localhost',
+    'username' => 'root',
+    'password' => 'your_password',
+    'dbname' => 'testdb',
+    'charset' => 'utf8mb4'
+]);
+
+// Test the connection
+if ($db->ping()) {
+    echo "Connected to MariaDB successfully!\n";
+} else {
+    echo "Failed to connect to MariaDB\n";
+    exit(1);
+}
+
+// Create a table
+$db->rawQuery('CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,           -- SERIAL in PostgreSQL, INTEGER AUTOINCREMENT in SQLite
+    name VARCHAR(255) NOT NULL,                   -- TEXT in SQLite
+    email VARCHAR(255) NOT NULL,                  -- TEXT in SQLite
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- DATETIME in SQLite
+)');
+
+// Insert a user
+$id = $db->find()->table('users')->insert([
+    'name' => 'Alice',
+    'email' => 'alice@example.com'
+]);
+
+echo "Inserted user with ID: $id\n";
+```
+
+**Note**: MariaDB uses the same driver name (`'mysql'`) as MySQL. PDOdb automatically detects MariaDB and uses the MariaDB dialect for optimized SQL generation.
+
 ## PostgreSQL Example
 
 ### 1. Create a database
