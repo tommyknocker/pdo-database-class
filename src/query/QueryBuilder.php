@@ -2401,4 +2401,65 @@ class QueryBuilder implements QueryBuilderInterface
             default => 'UNKNOWN',
         };
     }
+
+    /* ---------------- Macros ---------------- */
+
+    /**
+     * Register a custom query method macro.
+     *
+     * Macros allow you to extend QueryBuilder with custom methods.
+     * The macro callable receives the QueryBuilder instance as the first argument,
+     * followed by any additional arguments passed when calling the macro.
+     *
+     * @param string $name Macro name (method name)
+     * @param callable $macro Macro callable that accepts QueryBuilder and optional arguments
+     *
+     * @phpstan-param callable(QueryBuilder, mixed...): mixed $macro
+     */
+    public static function macro(string $name, callable $macro): void
+    {
+        MacroRegistry::register($name, $macro);
+    }
+
+    /**
+     * Check if a macro exists.
+     *
+     * @param string $name Macro name
+     *
+     * @return bool True if macro exists, false otherwise
+     */
+    public static function hasMacro(string $name): bool
+    {
+        return MacroRegistry::has($name);
+    }
+
+    /**
+     * Handle dynamic method calls.
+     *
+     * If the method doesn't exist on QueryBuilder, it checks for registered macros
+     * and executes them if found. Otherwise, throws a RuntimeException.
+     *
+     * @param string $name Method name
+     * @param array<mixed> $arguments Method arguments
+     *
+     * @return mixed Result of macro execution or QueryBuilder instance for chaining
+     * @throws RuntimeException If method doesn't exist and is not a registered macro
+     */
+    public function __call(string $name, array $arguments): mixed
+    {
+        $macro = MacroRegistry::get($name);
+
+        if ($macro !== null) {
+            $result = $macro($this, ...$arguments);
+
+            // If macro returns QueryBuilder instance, return it for chaining
+            // Otherwise, return the result as-is
+            return $result instanceof static ? $result : $result;
+        }
+
+        throw new RuntimeException(
+            'Call to undefined method ' . static::class . '::' . $name . '(). ' .
+            'If you intended to call a macro, make sure it is registered using QueryBuilder::macro().'
+        );
+    }
 }

@@ -158,7 +158,7 @@ Complete documentation is available in the [`documentation/`](documentation/) di
 - **[Core Concepts](documentation/02-core-concepts/)** - Connection management, query builder, parameter binding, dialects
 - **[Query Builder](documentation/03-query-builder/)** - SELECT, DML, filtering, joins, aggregations, subqueries
 - **[JSON Operations](documentation/04-json-operations/)** - Working with JSON across all databases
-- **[Advanced Features](documentation/05-advanced-features/)** - Transactions, batch processing, bulk operations, UPSERT, query scopes
+- **[Advanced Features](documentation/05-advanced-features/)** - Transactions, batch processing, bulk operations, UPSERT, query scopes, query macros
 - **[Error Handling](documentation/06-error-handling/)** - Exception hierarchy, enhanced error diagnostics with query context, retry logic, logging, monitoring
 - **[Helper Functions](documentation/07-helper-functions/)** - Complete reference for all helper functions
 - **[Best Practices](documentation/08-best-practices/)** - Security, performance, memory management, code organization
@@ -852,13 +852,47 @@ $db->addScope('active', function ($query) {
 $items = $db->find()->from('items')->get();
 ```
 
+**Query Builder Macros Example:**
+```php
+use tommyknocker\pdodb\query\QueryBuilder;
+
+// Register custom macros
+QueryBuilder::macro('active', function (QueryBuilder $query) {
+    return $query->where('status', 'active');
+});
+
+QueryBuilder::macro('wherePrice', function (QueryBuilder $query, string $operator, float $price) {
+    return $query->where('price', $price, $operator);
+});
+
+QueryBuilder::macro('recent', function (QueryBuilder $query, int $days = 7) {
+    $date = date('Y-m-d H:i:s', strtotime("-{$days} days"));
+    return $query->where('created_at', $date, '>=');
+});
+
+// Use macros as methods
+$activeProducts = $db->find()
+    ->table('products')
+    ->active()
+    ->wherePrice('>', 100.00)
+    ->recent(30)
+    ->get();
+
+// Check if macro exists
+if (QueryBuilder::hasMacro('active')) {
+    // Macro is registered
+}
+```
+
 See:
 - [Documentation: ActiveRecord](documentation/05-advanced-features/active-record.md)
 - [Documentation: ActiveRecord Relationships](documentation/05-advanced-features/active-record-relationships.md)
 - [Documentation: Query Scopes](documentation/05-advanced-features/query-scopes.md)
+- [Documentation: Query Builder Macros](documentation/05-advanced-features/query-macros.md)
 - [Example: ActiveRecord Usage](examples/23-active-record/01-active-record-examples.php)
 - [Example: ActiveRecord Relationships](examples/27-active-record-relationships/01-relationships.php)
 - [Example: Query Scopes](examples/28-query-scopes/01-scopes-examples.php)
+- [Example: Query Builder Macros](examples/29-macros/01-macro-examples.php)
 
 ---
 
