@@ -22,15 +22,16 @@ recreateTable($db, 'products', [
     'category' => 'TEXT',
     'price' => 'REAL',
     'stock' => 'INTEGER',
-    'active' => 'INTEGER DEFAULT 1'
+    'active' => 'INTEGER DEFAULT 1',
+    'threshold' => 'INTEGER DEFAULT 10'
 ]);
 
 $products = [
-    ['name' => 'Laptop', 'category' => 'Electronics', 'price' => 999.99, 'stock' => 15, 'active' => 1],
-    ['name' => 'Mouse', 'category' => 'Electronics', 'price' => 29.99, 'stock' => 50, 'active' => 1],
-    ['name' => 'Keyboard', 'category' => 'Electronics', 'price' => 79.99, 'stock' => 30, 'active' => 1],
-    ['name' => 'Desk', 'category' => 'Furniture', 'price' => 299.99, 'stock' => 5, 'active' => 1],
-    ['name' => 'Chair', 'category' => 'Furniture', 'price' => 199.99, 'stock' => 0, 'active' => 0],
+    ['name' => 'Laptop', 'category' => 'Electronics', 'price' => 999.99, 'stock' => 15, 'active' => 1, 'threshold' => 20],
+    ['name' => 'Mouse', 'category' => 'Electronics', 'price' => 29.99, 'stock' => 50, 'active' => 1, 'threshold' => 30],
+    ['name' => 'Keyboard', 'category' => 'Electronics', 'price' => 79.99, 'stock' => 30, 'active' => 1, 'threshold' => 10],
+    ['name' => 'Desk', 'category' => 'Furniture', 'price' => 299.99, 'stock' => 5, 'active' => 1, 'threshold' => 10],
+    ['name' => 'Chair', 'category' => 'Furniture', 'price' => 199.99, 'stock' => 0, 'active' => 0, 'threshold' => 10],
 ];
 
 $db->find()->table('products')->insertMulti($products);
@@ -70,21 +71,35 @@ $lowStockOrInactive = $db->find()
     ->get();
 echo "  Found " . count($lowStockOrInactive) . " products (low stock OR inactive)\n\n";
 
-// Example 5: IN operator
-echo "5. IN operator...\n";
+// Example 5: IN operator (with array)
+echo "5. IN operator (with array)...\n";
 $specific = $db->find()
+    ->from('products')
+    ->whereIn('name', ['Laptop', 'Mouse', 'Keyboard'])
+    ->get();
+echo "  Found " . count($specific) . " specific products\n\n";
+
+// You can also use the helper function
+$specific2 = $db->find()
     ->from('products')
     ->where(Db::in('name', ['Laptop', 'Mouse', 'Keyboard']))
     ->get();
-echo "  Found " . count($specific) . " specific products\n\n";
+echo "  (Helper function result: " . count($specific2) . " products)\n\n";
 
 // Example 6: BETWEEN operator
 echo "6. BETWEEN operator...\n";
 $midRange = $db->find()
     ->from('products')
-    ->where(Db::between('price', 50, 300))
+    ->whereBetween('price', 50, 300)
     ->get();
 echo "  Found " . count($midRange) . " mid-range products ($50-$300)\n\n";
+
+// You can also use the helper function
+$midRange2 = $db->find()
+    ->from('products')
+    ->where(Db::between('price', 50, 300))
+    ->get();
+echo "  (Helper function result: " . count($midRange2) . " products)\n\n";
 
 // Example 7: LIKE pattern matching
 echo "7. LIKE pattern matching...\n";
@@ -98,10 +113,18 @@ echo "  Found " . count($matching) . " products with 'top' in name\n\n";
 echo "8. IS NULL / IS NOT NULL...\n";
 $hasStock = $db->find()
     ->from('products')
-    ->where(Db::isNotNull('stock'))
+    ->whereNotNull('stock')
     ->andWhere('stock', 0, '>')
     ->get();
 echo "  Found " . count($hasStock) . " products in stock\n\n";
+
+// You can also use the helper function
+$hasStock2 = $db->find()
+    ->from('products')
+    ->where(Db::isNotNull('stock'))
+    ->andWhere('stock', 0, '>')
+    ->get();
+echo "  (Helper function result: " . count($hasStock2) . " products)\n\n";
 
 // Example 9: NOT operator
 echo "9. NOT operator...\n";
@@ -124,6 +147,51 @@ echo "  Found " . count($complex) . " products (active AND (cheap OR high stock)
 foreach ($complex as $p) {
     echo "    • {$p['name']}: \${$p['price']} (stock: {$p['stock']})\n";
 }
+
+// Example 11: Enhanced WHERE methods (AND variants)
+echo "\n11. Enhanced WHERE methods (AND variants)...\n";
+$activeAndInStock = $db->find()
+    ->from('products')
+    ->where('active', 1)
+    ->andWhereNotNull('stock')
+    ->andWhereBetween('price', 50, 300)
+    ->andWhereIn('category', ['Electronics', 'Furniture'])
+    ->get();
+echo "  Found " . count($activeAndInStock) . " active products with stock in price range\n\n";
+
+// Example 12: Enhanced WHERE methods (OR variants)
+echo "12. Enhanced WHERE methods (OR variants)...\n";
+$mixedConditions = $db->find()
+    ->from('products')
+    ->where('active', 1)
+    ->orWhereNull('stock')
+    ->orWhereBetween('price', 200, 500)
+    ->orWhereIn('name', ['Laptop', 'Desk'])
+    ->get();
+echo "  Found " . count($mixedConditions) . " products matching OR conditions\n\n";
+
+// Example 13: Column comparison
+echo "13. Column comparison...\n";
+$needsRestock = $db->find()
+    ->from('products')
+    ->whereColumn('stock', '<=', 'threshold')
+    ->get();
+echo "  Found " . count($needsRestock) . " products that need restocking (stock <= threshold)\n\n";
+
+$profitable = $db->find()
+    ->from('products')
+    ->whereColumn('price', '>', 'threshold')
+    ->get();
+echo "  Found " . count($profitable) . " products with price > threshold\n\n";
+
+// Example 14: AND/OR with column comparison
+echo "14. AND/OR with column comparison...\n";
+$complex = $db->find()
+    ->from('products')
+    ->where('active', 1)
+    ->andWhereColumn('stock', '>', 'threshold')
+    ->get();
+echo "  Found " . count($complex) . " active products with stock > threshold\n\n";
 
 echo "\nAll WHERE examples completed!\n";
 

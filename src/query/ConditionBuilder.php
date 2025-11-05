@@ -146,29 +146,291 @@ class ConditionBuilder implements ConditionBuilderInterface
     }
 
     /**
-     * Add WHERE IN clause with subquery.
+     * Add WHERE IN clause with subquery or array.
      *
      * @param string $column The column to check
-     * @param callable(QueryBuilder): void $subquery The subquery callback
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
      *
      * @return static The current instance
      */
-    public function whereIn(string $column, callable $subquery): static
+    public function whereIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): static
     {
-        return $this->where($column, $subquery, 'IN');
+        return $this->addCondition('where', $column, $subqueryOrArray, 'IN', $boolean);
     }
 
     /**
-     * Add WHERE NOT IN clause with subquery.
+     * Add WHERE NOT IN clause with subquery or array.
      *
      * @param string $column The column to check
-     * @param callable(QueryBuilder): void $subquery The subquery callback
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     * @param string $boolean The boolean operator (AND or OR)
      *
      * @return static The current instance
      */
-    public function whereNotIn(string $column, callable $subquery): static
+    public function whereNotIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): static
     {
-        return $this->where($column, $subquery, 'NOT IN');
+        return $this->addCondition('where', $column, $subqueryOrArray, 'NOT IN', $boolean);
+    }
+
+    /**
+     * Add WHERE column IS NULL clause.
+     *
+     * @param string $column The column to check
+     * @param string $boolean The boolean operator (AND or OR)
+     *
+     * @return static The current instance
+     */
+    public function whereNull(string $column, string $boolean = 'AND'): static
+    {
+        return $this->addCondition('where', $column, null, '=', $boolean);
+    }
+
+    /**
+     * Add WHERE column IS NOT NULL clause.
+     *
+     * @param string $column The column to check
+     * @param string $boolean The boolean operator (AND or OR)
+     *
+     * @return static The current instance
+     */
+    public function whereNotNull(string $column, string $boolean = 'AND'): static
+    {
+        return $this->addCondition('where', $column, null, '!=', $boolean);
+    }
+
+    /**
+     * Add WHERE column BETWEEN clause.
+     *
+     * @param string $column The column to check
+     * @param mixed $min The minimum value
+     * @param mixed $max The maximum value
+     * @param string $boolean The boolean operator (AND or OR)
+     *
+     * @return static The current instance
+     */
+    public function whereBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): static
+    {
+        return $this->addCondition('where', $column, [$min, $max], 'BETWEEN', $boolean);
+    }
+
+    /**
+     * Add WHERE column NOT BETWEEN clause.
+     *
+     * @param string $column The column to check
+     * @param mixed $min The minimum value
+     * @param mixed $max The maximum value
+     * @param string $boolean The boolean operator (AND or OR)
+     *
+     * @return static The current instance
+     */
+    public function whereNotBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): static
+    {
+        return $this->addCondition('where', $column, [$min, $max], 'NOT BETWEEN', $boolean);
+    }
+
+    /**
+     * Add WHERE column comparison with another column.
+     *
+     * @param string $first The first column
+     * @param string $operator The comparison operator (=, !=, <, >, <=, >=, etc.)
+     * @param string $second The second column
+     * @param string $boolean The boolean operator (AND or OR)
+     *
+     * @return static The current instance
+     */
+    public function whereColumn(string $first, string $operator, string $second, string $boolean = 'AND'): static
+    {
+        $firstQuoted = $this->quoteQualifiedIdentifier($first);
+        $secondQuoted = $this->quoteQualifiedIdentifier($second);
+        $this->where[] = [
+            'sql' => "{$firstQuoted} {$operator} {$secondQuoted}",
+            'cond' => $boolean,
+        ];
+        return $this;
+    }
+
+    /**
+     * Add OR WHERE column IS NULL clause.
+     *
+     * @param string $column The column to check
+     *
+     * @return static The current instance
+     */
+    public function orWhereNull(string $column): static
+    {
+        return $this->whereNull($column, 'OR');
+    }
+
+    /**
+     * Add OR WHERE column IS NOT NULL clause.
+     *
+     * @param string $column The column to check
+     *
+     * @return static The current instance
+     */
+    public function orWhereNotNull(string $column): static
+    {
+        return $this->whereNotNull($column, 'OR');
+    }
+
+    /**
+     * Add OR WHERE column BETWEEN clause.
+     *
+     * @param string $column The column to check
+     * @param mixed $min The minimum value
+     * @param mixed $max The maximum value
+     *
+     * @return static The current instance
+     */
+    public function orWhereBetween(string $column, mixed $min, mixed $max): static
+    {
+        return $this->whereBetween($column, $min, $max, 'OR');
+    }
+
+    /**
+     * Add OR WHERE column NOT BETWEEN clause.
+     *
+     * @param string $column The column to check
+     * @param mixed $min The minimum value
+     * @param mixed $max The maximum value
+     *
+     * @return static The current instance
+     */
+    public function orWhereNotBetween(string $column, mixed $min, mixed $max): static
+    {
+        return $this->whereNotBetween($column, $min, $max, 'OR');
+    }
+
+    /**
+     * Add OR WHERE column IN clause.
+     *
+     * @param string $column The column to check
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     *
+     * @return static The current instance
+     */
+    public function orWhereIn(string $column, callable|array $subqueryOrArray): static
+    {
+        return $this->addCondition('where', $column, $subqueryOrArray, 'IN', 'OR');
+    }
+
+    /**
+     * Add OR WHERE column NOT IN clause.
+     *
+     * @param string $column The column to check
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     *
+     * @return static The current instance
+     */
+    public function orWhereNotIn(string $column, callable|array $subqueryOrArray): static
+    {
+        return $this->addCondition('where', $column, $subqueryOrArray, 'NOT IN', 'OR');
+    }
+
+    /**
+     * Add AND WHERE column IS NULL clause.
+     *
+     * @param string $column The column to check
+     *
+     * @return static The current instance
+     */
+    public function andWhereNull(string $column): static
+    {
+        return $this->whereNull($column, 'AND');
+    }
+
+    /**
+     * Add AND WHERE column IS NOT NULL clause.
+     *
+     * @param string $column The column to check
+     *
+     * @return static The current instance
+     */
+    public function andWhereNotNull(string $column): static
+    {
+        return $this->whereNotNull($column, 'AND');
+    }
+
+    /**
+     * Add AND WHERE column BETWEEN clause.
+     *
+     * @param string $column The column to check
+     * @param mixed $min The minimum value
+     * @param mixed $max The maximum value
+     *
+     * @return static The current instance
+     */
+    public function andWhereBetween(string $column, mixed $min, mixed $max): static
+    {
+        return $this->whereBetween($column, $min, $max, 'AND');
+    }
+
+    /**
+     * Add AND WHERE column NOT BETWEEN clause.
+     *
+     * @param string $column The column to check
+     * @param mixed $min The minimum value
+     * @param mixed $max The maximum value
+     *
+     * @return static The current instance
+     */
+    public function andWhereNotBetween(string $column, mixed $min, mixed $max): static
+    {
+        return $this->whereNotBetween($column, $min, $max, 'AND');
+    }
+
+    /**
+     * Add AND WHERE column IN clause.
+     *
+     * @param string $column The column to check
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     *
+     * @return static The current instance
+     */
+    public function andWhereIn(string $column, callable|array $subqueryOrArray): static
+    {
+        return $this->whereIn($column, $subqueryOrArray, 'AND');
+    }
+
+    /**
+     * Add AND WHERE column NOT IN clause.
+     *
+     * @param string $column The column to check
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     *
+     * @return static The current instance
+     */
+    public function andWhereNotIn(string $column, callable|array $subqueryOrArray): static
+    {
+        return $this->whereNotIn($column, $subqueryOrArray, 'AND');
+    }
+
+    /**
+     * Add AND WHERE column comparison with another column.
+     *
+     * @param string $first The first column
+     * @param string $operator The comparison operator (=, !=, <, >, <=, >=, etc.)
+     * @param string $second The second column
+     *
+     * @return static The current instance
+     */
+    public function andWhereColumn(string $first, string $operator, string $second): static
+    {
+        return $this->whereColumn($first, $operator, $second, 'AND');
+    }
+
+    /**
+     * Add OR WHERE column comparison with another column.
+     *
+     * @param string $first The first column
+     * @param string $operator The comparison operator (=, !=, <, >, <=, >=, etc.)
+     * @param string $second The second column
+     *
+     * @return static The current instance
+     */
+    public function orWhereColumn(string $first, string $operator, string $second): static
+    {
+        return $this->whereColumn($first, $operator, $second, 'OR');
     }
 
     /**

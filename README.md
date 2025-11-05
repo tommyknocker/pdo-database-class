@@ -1414,7 +1414,13 @@ $users = $db->find()
     })
     ->get();
 
-// IN condition
+// IN condition (with array)
+$users = $db->find()
+    ->from('users')
+    ->whereIn('id', [1, 2, 3, 4, 5])
+    ->get();
+
+// You can also use the helper function
 $users = $db->find()
     ->from('users')
     ->where(Db::in('id', [1, 2, 3, 4, 5]))
@@ -1423,14 +1429,30 @@ $users = $db->find()
 // BETWEEN
 $users = $db->find()
     ->from('users')
-    ->where(Db::between('age', 18, 65))
+    ->whereBetween('age', 18, 65)
     ->get();
 
 // IS NULL / IS NOT NULL
 $users = $db->find()
     ->from('users')
-    ->where(Db::isNull('deleted_at'))
-    ->andWhere(Db::isNotNull('email'))
+    ->whereNull('deleted_at')
+    ->andWhereNotNull('email')
+    ->get();
+
+// Column comparison
+$products = $db->find()
+    ->from('products')
+    ->whereColumn('quantity', '<=', 'threshold')
+    ->get();
+
+// AND/OR variants
+$users = $db->find()
+    ->from('users')
+    ->where('active', 1)
+    ->andWhereNull('deleted_at')
+    ->andWhereBetween('age', 18, 65)
+    ->andWhereIn('status', ['active', 'pending'])
+    ->orWhereNotNull('verified_at')
     ->get();
 ```
 
@@ -3084,7 +3106,17 @@ $constraints = $db->constraints('users');
 | Method | Description |
 |--------|-------------|
 | `where(...)` / `andWhere(...)` / `orWhere(...)` | Add WHERE conditions |
-| `whereIn(column, callable\|QueryBuilder)` / `whereNotIn(column, callable\|QueryBuilder)` | Add WHERE IN/NOT IN with subquery |
+| `whereNull(column, boolean='AND')` / `whereNotNull(column, boolean='AND')` | WHERE column IS NULL / IS NOT NULL |
+| `andWhereNull(column)` / `andWhereNotNull(column)` | AND variants for NULL checks |
+| `orWhereNull(column)` / `orWhereNotNull(column)` | OR variants for NULL checks |
+| `whereBetween(column, min, max, boolean='AND')` / `whereNotBetween(column, min, max, boolean='AND')` | WHERE column BETWEEN / NOT BETWEEN |
+| `andWhereBetween(column, min, max)` / `andWhereNotBetween(column, min, max)` | AND variants for BETWEEN |
+| `orWhereBetween(column, min, max)` / `orWhereNotBetween(column, min, max)` | OR variants for BETWEEN |
+| `whereIn(column, array\|callable, boolean='AND')` / `whereNotIn(column, array\|callable, boolean='AND')` | WHERE column IN / NOT IN (supports arrays and subqueries) |
+| `andWhereIn(column, array\|callable)` / `andWhereNotIn(column, array\|callable)` | AND variants for IN |
+| `orWhereIn(column, array\|callable)` / `orWhereNotIn(column, array\|callable)` | OR variants for IN |
+| `whereColumn(first, operator, second, boolean='AND')` | Compare two columns |
+| `andWhereColumn(first, operator, second)` / `orWhereColumn(first, operator, second)` | AND/OR variants for column comparison |
 | `whereExists(callable\|QueryBuilder)` / `whereNotExists(callable\|QueryBuilder)` | Add WHERE EXISTS/NOT EXISTS with subquery |
 | `where(column, QueryBuilder, operator)` | Add WHERE condition with QueryBuilder subquery |
 | `join(...)` / `leftJoin(...)` / `rightJoin(...)` / `innerJoin(...)` | Add JOIN clauses |

@@ -211,19 +211,181 @@ interface QueryBuilderInterface
     // New Query Builder methods
     /**
      * @param string $column
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
+     * @param string $boolean
      *
      * @return static
      */
-    public function whereIn(string $column, callable $subquery): self;
+    public function whereIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): self;
 
     /**
      * @param string $column
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
+     * @param string $boolean
      *
      * @return static
      */
-    public function whereNotIn(string $column, callable $subquery): self;
+    public function whereNotIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): self;
+
+    /**
+     * @param string $column
+     * @param string $boolean
+     *
+     * @return static
+     */
+    public function whereNull(string $column, string $boolean = 'AND'): self;
+
+    /**
+     * @param string $column
+     * @param string $boolean
+     *
+     * @return static
+     */
+    public function whereNotNull(string $column, string $boolean = 'AND'): self;
+
+    /**
+     * @param string $column
+     * @param mixed $min
+     * @param mixed $max
+     * @param string $boolean
+     *
+     * @return static
+     */
+    public function whereBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): self;
+
+    /**
+     * @param string $column
+     * @param mixed $min
+     * @param mixed $max
+     * @param string $boolean
+     *
+     * @return static
+     */
+    public function whereNotBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): self;
+
+    /**
+     * @param string $first
+     * @param string $operator
+     * @param string $second
+     * @param string $boolean
+     *
+     * @return static
+     */
+    public function whereColumn(string $first, string $operator, string $second, string $boolean = 'AND'): self;
+
+    /**
+     * @param string $column
+     *
+     * @return static
+     */
+    public function orWhereNull(string $column): self;
+
+    /**
+     * @param string $column
+     *
+     * @return static
+     */
+    public function orWhereNotNull(string $column): self;
+
+    /**
+     * @param string $column
+     * @param mixed $min
+     * @param mixed $max
+     *
+     * @return static
+     */
+    public function orWhereBetween(string $column, mixed $min, mixed $max): self;
+
+    /**
+     * @param string $column
+     * @param mixed $min
+     * @param mixed $max
+     *
+     * @return static
+     */
+    public function orWhereNotBetween(string $column, mixed $min, mixed $max): self;
+
+    /**
+     * @param string $column
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
+     *
+     * @return static
+     */
+    public function orWhereIn(string $column, callable|array $subqueryOrArray): self;
+
+    /**
+     * @param string $column
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
+     *
+     * @return static
+     */
+    public function orWhereNotIn(string $column, callable|array $subqueryOrArray): self;
+
+    /**
+     * @param string $column
+     *
+     * @return static
+     */
+    public function andWhereNull(string $column): self;
+
+    /**
+     * @param string $column
+     *
+     * @return static
+     */
+    public function andWhereNotNull(string $column): self;
+
+    /**
+     * @param string $column
+     * @param mixed $min
+     * @param mixed $max
+     *
+     * @return static
+     */
+    public function andWhereBetween(string $column, mixed $min, mixed $max): self;
+
+    /**
+     * @param string $column
+     * @param mixed $min
+     * @param mixed $max
+     *
+     * @return static
+     */
+    public function andWhereNotBetween(string $column, mixed $min, mixed $max): self;
+
+    /**
+     * @param string $column
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
+     *
+     * @return static
+     */
+    public function andWhereIn(string $column, callable|array $subqueryOrArray): self;
+
+    /**
+     * @param string $column
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
+     *
+     * @return static
+     */
+    public function andWhereNotIn(string $column, callable|array $subqueryOrArray): self;
+
+    /**
+     * @param string $first
+     * @param string $operator
+     * @param string $second
+     *
+     * @return static
+     */
+    public function andWhereColumn(string $first, string $operator, string $second): self;
+
+    /**
+     * @param string $first
+     * @param string $operator
+     * @param string $second
+     *
+     * @return static
+     */
+    public function orWhereColumn(string $first, string $operator, string $second): self;
 
     /**
      * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery

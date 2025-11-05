@@ -88,7 +88,16 @@ $users = $db->find()
 
 ## IN and NOT IN
 
-### Basic IN
+### Basic IN with Array
+
+```php
+$users = $db->find()
+    ->from('users')
+    ->whereIn('status', ['active', 'pending'])
+    ->get();
+```
+
+You can also use the helper function:
 
 ```php
 use tommyknocker\pdodb\helpers\Db;
@@ -99,18 +108,45 @@ $users = $db->find()
     ->get();
 ```
 
-### NOT IN
+### NOT IN with Array
 
 ```php
 $users = $db->find()
     ->from('users')
-    ->where(Db::notIn('status', ['banned', 'deleted']))
+    ->whereNotIn('status', ['banned', 'deleted'])
+    ->get();
+```
+
+### AND/OR Variants
+
+```php
+// AND variants
+$users = $db->find()
+    ->from('users')
+    ->where('active', 1)
+    ->andWhereIn('status', ['active', 'pending'])
+    ->get();
+
+// OR variants
+$users = $db->find()
+    ->from('users')
+    ->where('active', 1)
+    ->orWhereIn('status', ['pending', 'suspended'])
     ->get();
 ```
 
 ## BETWEEN
 
 ### Value Range
+
+```php
+$users = $db->find()
+    ->from('users')
+    ->whereBetween('age', 18, 65)
+    ->get();
+```
+
+You can also use the helper function:
 
 ```php
 use tommyknocker\pdodb\helpers\Db;
@@ -126,13 +162,40 @@ $users = $db->find()
 ```php
 $users = $db->find()
     ->from('users')
-    ->where(Db::notBetween('age', 0, 17))
+    ->whereNotBetween('age', 0, 17)
+    ->get();
+```
+
+### AND/OR Variants
+
+```php
+// AND variants
+$users = $db->find()
+    ->from('users')
+    ->where('active', 1)
+    ->andWhereBetween('age', 18, 65)
+    ->get();
+
+// OR variants
+$users = $db->find()
+    ->from('users')
+    ->where('active', 1)
+    ->orWhereBetween('age', 18, 65)
     ->get();
 ```
 
 ## NULL Handling
 
 ### IS NULL
+
+```php
+$users = $db->find()
+    ->from('users')
+    ->whereNull('deleted_at')
+    ->get();
+```
+
+You can also use the helper function:
 
 ```php
 use tommyknocker\pdodb\helpers\Db;
@@ -148,7 +211,68 @@ $users = $db->find()
 ```php
 $users = $db->find()
     ->from('users')
-    ->where(Db::isNotNull('email'))
+    ->whereNotNull('email')
+    ->get();
+```
+
+### AND/OR Variants
+
+```php
+// AND variants
+$users = $db->find()
+    ->from('users')
+    ->where('active', 1)
+    ->andWhereNull('deleted_at')
+    ->get();
+
+$users = $db->find()
+    ->from('users')
+    ->where('active', 1)
+    ->andWhereNotNull('email')
+    ->get();
+
+// OR variants
+$users = $db->find()
+    ->from('users')
+    ->where('active', 1)
+    ->orWhereNull('deleted_at')
+    ->get();
+
+$users = $db->find()
+    ->from('users')
+    ->where('active', 1)
+    ->orWhereNotNull('email')
+    ->get();
+```
+
+## Column Comparison
+
+### Compare Columns
+
+```php
+// Compare two columns
+$products = $db->find()
+    ->from('products')
+    ->whereColumn('quantity', '=', 'threshold')
+    ->get();
+
+// Use different operators
+$products = $db->find()
+    ->from('products')
+    ->whereColumn('price', '>', 'cost')
+    ->get();
+
+// AND/OR variants
+$products = $db->find()
+    ->from('products')
+    ->where('active', 1)
+    ->andWhereColumn('quantity', '>', 'threshold')
+    ->get();
+
+$products = $db->find()
+    ->from('products')
+    ->where('active', 1)
+    ->orWhereColumn('price', '<', 'cost')
     ->get();
 ```
 
@@ -178,6 +302,8 @@ $users = $db->find()
     })
     ->get();
 ```
+
+Note: `whereIn` and `whereNotIn` support both arrays and subqueries.
 
 ### WHERE EXISTS
 

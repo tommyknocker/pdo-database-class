@@ -64,24 +64,224 @@ interface ConditionBuilderInterface
     public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
 
     /**
-     * Add WHERE IN clause with subquery.
+     * Add WHERE IN clause with subquery or array.
      *
      * @param string $column The column to check
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery The subquery callback
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     * @param string $boolean The boolean operator (AND or OR)
      *
      * @return static The current instance
      */
-    public function whereIn(string $column, callable $subquery): self;
+    public function whereIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): self;
 
     /**
-     * Add WHERE NOT IN clause with subquery.
+     * Add WHERE NOT IN clause with subquery or array.
      *
      * @param string $column The column to check
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery The subquery callback
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     * @param string $boolean The boolean operator (AND or OR)
      *
      * @return static The current instance
      */
-    public function whereNotIn(string $column, callable $subquery): self;
+    public function whereNotIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): self;
+
+    /**
+     * Add WHERE column IS NULL clause.
+     *
+     * @param string $column The column to check
+     * @param string $boolean The boolean operator (AND or OR)
+     *
+     * @return static The current instance
+     */
+    public function whereNull(string $column, string $boolean = 'AND'): self;
+
+    /**
+     * Add WHERE column IS NOT NULL clause.
+     *
+     * @param string $column The column to check
+     * @param string $boolean The boolean operator (AND or OR)
+     *
+     * @return static The current instance
+     */
+    public function whereNotNull(string $column, string $boolean = 'AND'): self;
+
+    /**
+     * Add WHERE column BETWEEN clause.
+     *
+     * @param string $column The column to check
+     * @param mixed $min The minimum value
+     * @param mixed $max The maximum value
+     * @param string $boolean The boolean operator (AND or OR)
+     *
+     * @return static The current instance
+     */
+    public function whereBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): self;
+
+    /**
+     * Add WHERE column NOT BETWEEN clause.
+     *
+     * @param string $column The column to check
+     * @param mixed $min The minimum value
+     * @param mixed $max The maximum value
+     * @param string $boolean The boolean operator (AND or OR)
+     *
+     * @return static The current instance
+     */
+    public function whereNotBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): self;
+
+    /**
+     * Add WHERE column comparison with another column.
+     *
+     * @param string $first The first column
+     * @param string $operator The comparison operator (=, !=, <, >, <=, >=, etc.)
+     * @param string $second The second column
+     * @param string $boolean The boolean operator (AND or OR)
+     *
+     * @return static The current instance
+     */
+    public function whereColumn(string $first, string $operator, string $second, string $boolean = 'AND'): self;
+
+    /**
+     * Add OR WHERE column IS NULL clause.
+     *
+     * @param string $column The column to check
+     *
+     * @return static The current instance
+     */
+    public function orWhereNull(string $column): self;
+
+    /**
+     * Add OR WHERE column IS NOT NULL clause.
+     *
+     * @param string $column The column to check
+     *
+     * @return static The current instance
+     */
+    public function orWhereNotNull(string $column): self;
+
+    /**
+     * Add OR WHERE column BETWEEN clause.
+     *
+     * @param string $column The column to check
+     * @param mixed $min The minimum value
+     * @param mixed $max The maximum value
+     *
+     * @return static The current instance
+     */
+    public function orWhereBetween(string $column, mixed $min, mixed $max): self;
+
+    /**
+     * Add OR WHERE column NOT BETWEEN clause.
+     *
+     * @param string $column The column to check
+     * @param mixed $min The minimum value
+     * @param mixed $max The maximum value
+     *
+     * @return static The current instance
+     */
+    public function orWhereNotBetween(string $column, mixed $min, mixed $max): self;
+
+    /**
+     * Add OR WHERE column IN clause.
+     *
+     * @param string $column The column to check
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     *
+     * @return static The current instance
+     */
+    public function orWhereIn(string $column, callable|array $subqueryOrArray): self;
+
+    /**
+     * Add OR WHERE column NOT IN clause.
+     *
+     * @param string $column The column to check
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     *
+     * @return static The current instance
+     */
+    public function orWhereNotIn(string $column, callable|array $subqueryOrArray): self;
+
+    /**
+     * Add AND WHERE column IS NULL clause.
+     *
+     * @param string $column The column to check
+     *
+     * @return static The current instance
+     */
+    public function andWhereNull(string $column): self;
+
+    /**
+     * Add AND WHERE column IS NOT NULL clause.
+     *
+     * @param string $column The column to check
+     *
+     * @return static The current instance
+     */
+    public function andWhereNotNull(string $column): self;
+
+    /**
+     * Add AND WHERE column BETWEEN clause.
+     *
+     * @param string $column The column to check
+     * @param mixed $min The minimum value
+     * @param mixed $max The maximum value
+     *
+     * @return static The current instance
+     */
+    public function andWhereBetween(string $column, mixed $min, mixed $max): self;
+
+    /**
+     * Add AND WHERE column NOT BETWEEN clause.
+     *
+     * @param string $column The column to check
+     * @param mixed $min The minimum value
+     * @param mixed $max The maximum value
+     *
+     * @return static The current instance
+     */
+    public function andWhereNotBetween(string $column, mixed $min, mixed $max): self;
+
+    /**
+     * Add AND WHERE column IN clause.
+     *
+     * @param string $column The column to check
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     *
+     * @return static The current instance
+     */
+    public function andWhereIn(string $column, callable|array $subqueryOrArray): self;
+
+    /**
+     * Add AND WHERE column NOT IN clause.
+     *
+     * @param string $column The column to check
+     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     *
+     * @return static The current instance
+     */
+    public function andWhereNotIn(string $column, callable|array $subqueryOrArray): self;
+
+    /**
+     * Add AND WHERE column comparison with another column.
+     *
+     * @param string $first The first column
+     * @param string $operator The comparison operator (=, !=, <, >, <=, >=, etc.)
+     * @param string $second The second column
+     *
+     * @return static The current instance
+     */
+    public function andWhereColumn(string $first, string $operator, string $second): self;
+
+    /**
+     * Add OR WHERE column comparison with another column.
+     *
+     * @param string $first The first column
+     * @param string $operator The comparison operator (=, !=, <, >, <=, >=, etc.)
+     * @param string $second The second column
+     *
+     * @return static The current instance
+     */
+    public function orWhereColumn(string $first, string $operator, string $second): self;
 
     /**
      * Add WHERE EXISTS clause.
