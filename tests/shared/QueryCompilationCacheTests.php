@@ -331,4 +331,134 @@ final class QueryCompilationCacheTests extends BaseSharedTestCase
         // Should fallback to compilation on Throwable
         $this->assertEquals($compiled, $result);
     }
+
+    public function testHashQueryStructureWithProtectedMethod(): void
+    {
+        $cache = $this->createCache();
+        $reflection = new \ReflectionClass($cache);
+        $method = $reflection->getMethod('hashQueryStructure');
+        $method->setAccessible(true);
+
+        $structure = [
+            'table' => 'users',
+            'select' => ['id', 'name'],
+            'where' => [['sql' => 'id = :id', 'cond' => 'AND']],
+            'distinct' => false,
+            'joins' => [],
+            'group_by' => null,
+            'having' => [],
+            'order_by' => [],
+            'options' => [],
+            'unions' => [],
+            'cte' => [],
+        ];
+
+        $hash1 = $method->invoke($cache, $structure, 'mysql');
+        $hash2 = $method->invoke($cache, $structure, 'mysql');
+
+        // Same structure should produce same hash
+        $this->assertEquals($hash1, $hash2);
+        $this->assertEquals(64, strlen($hash1)); // SHA-256 produces 64 char hex string
+    }
+
+    public function testHashQueryStructureWithDifferentDrivers(): void
+    {
+        $cache = $this->createCache();
+        $reflection = new \ReflectionClass($cache);
+        $method = $reflection->getMethod('hashQueryStructure');
+        $method->setAccessible(true);
+
+        $structure = [
+            'table' => 'users',
+            'select' => ['id', 'name'],
+            'where' => [],
+            'distinct' => false,
+            'joins' => [],
+            'group_by' => null,
+            'having' => [],
+            'order_by' => [],
+            'options' => [],
+            'unions' => [],
+            'cte' => [],
+        ];
+
+        $hash1 = $method->invoke($cache, $structure, 'mysql');
+        $hash2 = $method->invoke($cache, $structure, 'pgsql');
+
+        // Different drivers should produce different hashes
+        $this->assertNotEquals($hash1, $hash2);
+    }
+
+    public function testNormalizeArray(): void
+    {
+        $cache = $this->createCache();
+        $reflection = new \ReflectionClass($cache);
+        $method = $reflection->getMethod('normalizeArray');
+        $method->setAccessible(true);
+
+        $input = ['a', 'b', 'c'];
+        $result = $method->invoke($cache, $input);
+
+        $this->assertEquals($input, $result);
+    }
+
+    public function testNormalizeConditionsWithArrayCondition(): void
+    {
+        $cache = $this->createCache();
+        $reflection = new \ReflectionClass($cache);
+        $method = $reflection->getMethod('normalizeConditions');
+        $method->setAccessible(true);
+
+        $conditions = [
+            ['sql' => 'id = :id', 'cond' => 'AND'],
+            ['sql' => 'name = :name', 'cond' => 'OR'],
+        ];
+
+        $result = $method->invoke($cache, $conditions);
+
+        $this->assertIsArray($result);
+        $this->assertCount(2, $result);
+        $this->assertArrayHasKey('sql_structure', $result[0]);
+        $this->assertStringContainsString(':placeholder', $result[0]['sql_structure']);
+    }
+
+    public function testNormalizeConditionsWithStringCondition(): void
+    {
+        $cache = $this->createCache();
+        $reflection = new \ReflectionClass($cache);
+        $method = $reflection->getMethod('normalizeConditions');
+        $method->setAccessible(true);
+
+        $conditions = ['id = :id', 'name = :name'];
+
+        $result = $method->invoke($cache, $conditions);
+
+        $this->assertIsArray($result);
+        $this->assertCount(2, $result);
+        $this->assertStringContainsString(':placeholder', $result[0]);
+    }
+
+    public function testNormalizeConditionsWithNonStringNonArray(): void
+    {
+        $cache = $this->createCache();
+        $reflection = new \ReflectionClass($cache);
+        $method = $reflection->getMethod('normalizeConditions');
+        $method->setAccessible(true);
+
+        $conditions = [123, null, true];
+
+        $result = $method->invoke($cache, $conditions);
+
+        $this->assertIsArray($result);
+        $this->assertCount(3, $result);
+        $this->assertEquals(123, $result[0]);
+        $this->assertNull($result[1]);
+        $this->assertTrue($result[2]);
+    }
+
+    public function testGetPrefix(): void
+    {
+        $cache = $this->createCache();
+        $this->assertEquals('pdodb_compiled_', $cache->getPrefix());
+    }
 }

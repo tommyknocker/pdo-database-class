@@ -61,7 +61,7 @@ class ExponentialBackoffRetryStrategy implements RetryStrategyInterface
         $attemptIndex = $attempt - 1; // Previous attempt number
 
         $calculatedDelay = $baseDelay * pow($multiplier, $attemptIndex);
-        return min($calculatedDelay, $config['max_delay_ms']);
+        return (int)min($calculatedDelay, $config['max_delay_ms']);
     }
 
     /**

@@ -333,4 +333,39 @@ final class PreparedStatementPoolTests extends BaseSharedTestCase
         $this->assertNotNull($pool);
         $this->assertEquals(256, $pool->capacity());
     }
+
+    public function testPreparedStatementPoolSetCapacityZero(): void
+    {
+        $pool = new PreparedStatementPool(10, true);
+        $conn = self::$db->connection;
+        $reflection = new ReflectionClass($conn);
+        $stmtProperty = $reflection->getProperty('stmt');
+        $stmtProperty->setAccessible(true);
+
+        $conn->prepare('SELECT 1');
+        $stmt1 = $stmtProperty->getValue($conn);
+        $conn->prepare('SELECT 2');
+        $stmt2 = $stmtProperty->getValue($conn);
+
+        $pool->put('key1', $stmt1);
+        $pool->put('key2', $stmt2);
+
+        // Setting capacity to 0 should be clamped to 1
+        $pool->setCapacity(0);
+        $this->assertEquals(1, $pool->capacity());
+        $this->assertEquals(1, $pool->size()); // Should trim to 1
+    }
+
+    public function testPreparedStatementPoolSetCapacityNegative(): void
+    {
+        $pool = new PreparedStatementPool(10, true);
+        $pool->setCapacity(-5);
+        $this->assertEquals(1, $pool->capacity()); // Should be clamped to 1
+    }
+
+    public function testPreparedStatementPoolConstructorWithZeroCapacity(): void
+    {
+        $pool = new PreparedStatementPool(0, true);
+        $this->assertEquals(1, $pool->capacity()); // Should be clamped to 1
+    }
 }
