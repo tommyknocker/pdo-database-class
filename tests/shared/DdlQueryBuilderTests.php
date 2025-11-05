@@ -894,4 +894,203 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
         // Cleanup
         $schema->dropTable('test_if_not_exists');
     }
+
+    /**
+     * Test dropForeignKey.
+     */
+    public function testDropForeignKey(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+        $driver = $schema->getDialect()->getDriverName();
+
+        $schema->dropTableIfExists('test_fk_drop_child');
+        $schema->dropTableIfExists('test_fk_drop_parent');
+
+        // Create parent table
+        $schema->createTable('test_fk_drop_parent', [
+            'id' => $schema->primaryKey(),
+        ]);
+
+        // Create child table
+        $schema->createTable('test_fk_drop_child', [
+            'id' => $schema->primaryKey(),
+            'parent_id' => $schema->integer(),
+        ]);
+
+        // SQLite doesn't support ADD FOREIGN KEY
+        if ($driver === 'sqlite') {
+            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $schema->addForeignKey(
+                'fk_drop_test',
+                'test_fk_drop_child',
+                'parent_id',
+                'test_fk_drop_parent',
+                'id'
+            );
+        } else {
+            // Add foreign key
+            $schema->addForeignKey(
+                'fk_drop_test',
+                'test_fk_drop_child',
+                'parent_id',
+                'test_fk_drop_parent',
+                'id'
+            );
+
+            // Drop foreign key
+            $schema->dropForeignKey('fk_drop_test', 'test_fk_drop_child');
+
+            $this->assertTrue($schema->tableExists('test_fk_drop_child'));
+        }
+
+        // Cleanup
+        $schema->dropTableIfExists('test_fk_drop_child');
+        $schema->dropTableIfExists('test_fk_drop_parent');
+    }
+
+    /**
+     * Test primaryKey with length parameter.
+     */
+    public function testPrimaryKeyWithLength(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_pk_length');
+
+        $schema->createTable('test_pk_length', [
+            'id' => $schema->primaryKey(11),
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_pk_length'));
+
+        // Cleanup
+        $schema->dropTable('test_pk_length');
+    }
+
+    /**
+     * Test primaryKey with null length (default).
+     */
+    public function testPrimaryKeyWithNullLength(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_pk_null');
+
+        $schema->createTable('test_pk_null', [
+            'id' => $schema->primaryKey(null),
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_pk_null'));
+
+        // Cleanup
+        $schema->dropTable('test_pk_null');
+    }
+
+    /**
+     * Test string with null length.
+     */
+    public function testStringWithNullLength(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_string_null');
+
+        $schema->createTable('test_string_null', [
+            'id' => $schema->primaryKey(),
+            'name' => $schema->string(null),
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_string_null'));
+
+        // Cleanup
+        $schema->dropTable('test_string_null');
+    }
+
+    /**
+     * Test integer with length parameter.
+     */
+    public function testIntegerWithLength(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_int_length');
+
+        $schema->createTable('test_int_length', [
+            'id' => $schema->primaryKey(),
+            'value' => $schema->integer(11),
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_int_length'));
+
+        // Cleanup
+        $schema->dropTable('test_int_length');
+    }
+
+    /**
+     * Test float with precision and scale.
+     */
+    public function testFloatWithPrecisionAndScale(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_float_params');
+
+        $schema->createTable('test_float_params', [
+            'id' => $schema->primaryKey(),
+            'price' => $schema->float(10, 2),
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_float_params'));
+
+        // Cleanup
+        $schema->dropTable('test_float_params');
+    }
+
+    /**
+     * Test float with null precision and scale.
+     */
+    public function testFloatWithNullParameters(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_float_null');
+
+        $schema->createTable('test_float_null', [
+            'id' => $schema->primaryKey(),
+            'value' => $schema->float(null, null),
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_float_null'));
+
+        // Cleanup
+        $schema->dropTable('test_float_null');
+    }
+
+    /**
+     * Test decimal with custom precision and scale.
+     */
+    public function testDecimalWithCustomPrecisionAndScale(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_decimal_custom');
+
+        $schema->createTable('test_decimal_custom', [
+            'id' => $schema->primaryKey(),
+            'amount' => $schema->decimal(15, 4),
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_decimal_custom'));
+
+        // Cleanup
+        $schema->dropTable('test_decimal_custom');
+    }
 }

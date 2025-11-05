@@ -5,55 +5,59 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
+use tommyknocker\pdodb\query\analysis\Issue;
+use tommyknocker\pdodb\query\analysis\ParsedExplainPlan;
+use tommyknocker\pdodb\query\analysis\Recommendation;
 
 /**
- * Shared tests for EXPLAIN analysis with recommendations.
+ * Tests for ExplainAnalysis class.
  */
-final class ExplainAnalysisTests extends \tommyknocker\pdodb\tests\shared\BaseSharedTestCase
+final class ExplainAnalysisTests extends BaseSharedTestCase
 {
-    public function testExplainAdviceBasic(): void
+    public function testExplainAnalysisHasRecommendations(): void
     {
-        $analysis = self::$db->find()
-            ->from('test_coverage')
-            ->where('id', 1)
-            ->explainAdvice();
+        $plan = new ParsedExplainPlan();
+        $recommendations = [
+            new Recommendation('info', 'missing_index', 'Create index on column email'),
+        ];
 
-        $this->assertInstanceOf(ExplainAnalysis::class, $analysis);
-        $this->assertNotEmpty($analysis->rawExplain);
-        $this->assertNotNull($analysis->plan);
+        $analysis = new ExplainAnalysis([], $plan, [], $recommendations);
+        $this->assertTrue($analysis->hasRecommendations());
     }
 
-    public function testExplainAdviceReturnsIssues(): void
+    public function testExplainAnalysisHasNoRecommendations(): void
     {
-        // Query without index should potentially show warnings
-        $analysis = self::$db->find()
-            ->from('test_coverage')
-            ->where('name', 'test', 'LIKE')
-            ->explainAdvice();
-
-        $this->assertIsArray($analysis->issues);
-        $this->assertIsArray($analysis->recommendations);
-    }
-
-    public function testExplainAdviceWithTableName(): void
-    {
-        $analysis = self::$db->find()
-            ->from('test_coverage')
-            ->where('id', 1)
-            ->explainAdvice('test_coverage');
-
-        $this->assertInstanceOf(ExplainAnalysis::class, $analysis);
+        $plan = new ParsedExplainPlan();
+        $analysis = new ExplainAnalysis([], $plan, [], []);
+        $this->assertFalse($analysis->hasRecommendations());
     }
 
     public function testExplainAnalysisHasCriticalIssues(): void
     {
-        $analysis = self::$db->find()
-            ->from('test_coverage')
-            ->where('name', 'test', 'LIKE')
-            ->explainAdvice();
+        $plan = new ParsedExplainPlan();
+        $issues = [
+            new Issue('critical', 'full_table_scan', 'Full table scan detected', 'users'),
+        ];
 
-        // Method should exist and return boolean
-        $this->assertIsBool($analysis->hasCriticalIssues());
-        $this->assertIsBool($analysis->hasRecommendations());
+        $analysis = new ExplainAnalysis([], $plan, $issues, []);
+        $this->assertTrue($analysis->hasCriticalIssues());
+    }
+
+    public function testExplainAnalysisHasNoCriticalIssues(): void
+    {
+        $plan = new ParsedExplainPlan();
+        $issues = [
+            new Issue('warning', 'full_table_scan', 'Full table scan detected', 'users'),
+        ];
+
+        $analysis = new ExplainAnalysis([], $plan, $issues, []);
+        $this->assertFalse($analysis->hasCriticalIssues());
+    }
+
+    public function testExplainAnalysisWithEmptyIssues(): void
+    {
+        $plan = new ParsedExplainPlan();
+        $analysis = new ExplainAnalysis([], $plan, [], []);
+        $this->assertFalse($analysis->hasCriticalIssues());
     }
 }

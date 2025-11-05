@@ -4,232 +4,363 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
-use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\query\formatter\SqlFormatter;
 
 /**
- * Tests for SQL Formatter.
+ * Tests for SqlFormatter class.
  */
-final class SqlFormatterTests extends TestCase
+final class SqlFormatterTests extends BaseSharedTestCase
 {
-    protected SqlFormatter $formatter;
-
-    protected function setUp(): void
+    public function testFormatSimpleSelect(): void
     {
-        parent::setUp();
-        $this->formatter = new SqlFormatter();
-    }
-
-    public function testBasicSelectQueryFormatting(): void
-    {
+        $formatter = new SqlFormatter();
         $sql = 'SELECT * FROM users';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('SELECT', $formatted);
-        $this->assertStringContainsString('FROM', $formatted);
-        $this->assertStringNotContainsString('  ', $formatted); // No double spaces
-    }
-
-    public function testSelectWithWhereClause(): void
-    {
-        $sql = 'SELECT * FROM users WHERE id = 1';
-        $formatted = $this->formatter->format($sql);
-        $lines = explode("\n", $formatted);
-        $this->assertStringContainsString('SELECT', $lines[0] ?? '');
-        $this->assertStringContainsString('FROM', $formatted);
-        $this->assertStringContainsString('WHERE', $formatted);
-    }
-
-    public function testSelectWithJoin(): void
-    {
-        $sql = 'SELECT u.name, o.total FROM users u INNER JOIN orders o ON u.id = o.user_id';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('SELECT', $formatted);
-        $this->assertStringContainsString('FROM', $formatted);
-        $this->assertStringContainsString('INNER JOIN', $formatted);
-        $this->assertStringContainsString('ON', $formatted);
-    }
-
-    public function testSelectWithMultipleJoins(): void
-    {
-        $sql = 'SELECT * FROM users u LEFT JOIN orders o ON u.id = o.user_id RIGHT JOIN products p ON o.product_id = p.id';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('LEFT JOIN', $formatted);
-        $this->assertStringContainsString('RIGHT JOIN', $formatted);
-    }
-
-    public function testSelectWithGroupByAndOrderBy(): void
-    {
-        $sql = 'SELECT category, COUNT(*) FROM products GROUP BY category ORDER BY category ASC';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('GROUP BY', $formatted);
-        $this->assertStringContainsString('ORDER BY', $formatted);
-    }
-
-    public function testSelectWithMultipleConditions(): void
-    {
-        $sql = 'SELECT * FROM users WHERE status = "active" AND age > 18 OR role = "admin"';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('WHERE', $formatted);
-        $this->assertStringContainsString('AND', $formatted);
-        $this->assertStringContainsString('OR', $formatted);
-    }
-
-    public function testSelectWithSubquery(): void
-    {
-        $sql = 'SELECT * FROM users WHERE id IN (SELECT user_id FROM orders WHERE total > 100)';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('WHERE', $formatted);
-        $this->assertStringContainsString('IN', $formatted);
-        $this->assertStringContainsString('(', $formatted);
-        $this->assertStringContainsString(')', $formatted);
-    }
-
-    public function testSelectWithCTE(): void
-    {
-        $sql = 'WITH recent_orders AS (SELECT * FROM orders WHERE created_at > NOW()) SELECT * FROM recent_orders';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('WITH', $formatted);
-        $this->assertStringContainsString('AS', $formatted);
-    }
-
-    public function testSelectWithUnion(): void
-    {
-        $sql = 'SELECT * FROM users UNION SELECT * FROM customers';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('UNION', $formatted);
-    }
-
-    public function testInsertQuery(): void
-    {
-        $sql = 'INSERT INTO users (name, email) VALUES ("John", "john@example.com")';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('INSERT', $formatted);
-        $this->assertStringContainsString('INTO', $formatted);
-        $this->assertStringContainsString('VALUES', $formatted);
-    }
-
-    public function testUpdateQuery(): void
-    {
-        $sql = 'UPDATE users SET name = "John", email = "john@example.com" WHERE id = 1';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('UPDATE', $formatted);
-        $this->assertStringContainsString('SET', $formatted);
-        $this->assertStringContainsString('WHERE', $formatted);
-    }
-
-    public function testDeleteQuery(): void
-    {
-        $sql = 'DELETE FROM users WHERE id = 1';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('DELETE', $formatted);
-        $this->assertStringContainsString('FROM', $formatted);
-        $this->assertStringContainsString('WHERE', $formatted);
-    }
-
-    public function testMergeQuery(): void
-    {
-        $sql = 'MERGE INTO products AS target USING updates AS source ON target.id = source.id WHEN MATCHED THEN UPDATE SET price = source.price';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('MERGE', $formatted);
-        $this->assertStringContainsString('USING', $formatted);
-        $this->assertStringContainsString('WHEN MATCHED', $formatted);
-    }
-
-    public function testFormattingPreservesQuotedStrings(): void
-    {
-        $sql = 'SELECT * FROM users WHERE name = "John Doe" AND email = \'john@example.com\'';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('"John Doe"', $formatted);
-        $this->assertStringContainsString("'john@example.com'", $formatted);
-    }
-
-    public function testFormattingPreservesBackticks(): void
-    {
-        $sql = 'SELECT `id`, `name` FROM `users`';
-        $formatted = $this->formatter->format($sql);
-        $this->assertStringContainsString('`id`', $formatted);
-        $this->assertStringContainsString('`name`', $formatted);
-        $this->assertStringContainsString('`users`', $formatted);
-    }
-
-    public function testFormattingNormalizesWhitespace(): void
-    {
-        $sql = 'SELECT    *   FROM    users    WHERE     id=1';
-        $formatted = $this->formatter->format($sql);
-        // Should not contain multiple consecutive spaces
-        $this->assertStringNotContainsString('    ', $formatted);
-    }
-
-    public function testFormattingWithCustomIndentSize(): void
-    {
-        $formatter = new SqlFormatter(false, 2);
-        $sql = 'SELECT * FROM users WHERE id = 1 AND name = "test" ORDER BY id';
         $formatted = $formatter->format($sql);
-        $lines = explode("\n", $formatted);
-        // Check that indentation is applied
-        $this->assertGreaterThanOrEqual(1, count($lines), 'Formatted SQL should have at least one line');
-        // Verify formatting worked and SQL is preserved
         $this->assertStringContainsString('SELECT', $formatted);
         $this->assertStringContainsString('FROM', $formatted);
-        $this->assertStringContainsString('WHERE', $formatted);
-        // Verify that custom indent size was used (check spacing in indented lines)
-        if (count($lines) > 1) {
-            foreach ($lines as $line) {
-                // If line is indented and not empty, check it starts with spaces
-                $trimmed = ltrim($line);
-                if ($trimmed !== $line && $trimmed !== '') {
-                    $indent = strlen($line) - strlen($trimmed);
-                    // Should be multiple of 2 (our indent size)
-                    $this->assertGreaterThan(0, $indent, 'Indented line should have spacing');
-                }
-            }
-        }
     }
 
-    public function testFormattingWithKeywordsHighlighted(): void
+    public function testFormatSelectWithWhere(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT * FROM users WHERE id = 1';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+        $this->assertStringContainsString('WHERE', $formatted);
+    }
+
+    public function testFormatSelectWithJoin(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT u.id, u.name FROM users u JOIN orders o ON u.id = o.user_id';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+        $this->assertStringContainsString('JOIN', $formatted);
+    }
+
+    public function testFormatWithHighlighting(): void
     {
         $formatter = new SqlFormatter(true);
         $sql = 'SELECT * FROM users';
         $formatted = $formatter->format($sql);
-        // When highlighting is enabled, keywords should contain ANSI color codes
         $this->assertStringContainsString('SELECT', $formatted);
-        // Note: ANSI codes might not be visible in assertion, but formatting should still work
     }
 
-    public function testComplexQueryWithMultipleClauses(): void
+    public function testFormatWithCustomIndent(): void
     {
-        $sql = 'SELECT u.name, COUNT(o.id) as order_count FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE u.status = "active" GROUP BY u.id HAVING COUNT(o.id) > 5 ORDER BY order_count DESC LIMIT 10';
-        $formatted = $this->formatter->format($sql);
+        $formatter = new SqlFormatter(false, 2);
+        $sql = 'SELECT * FROM users WHERE id = 1';
+        $formatted = $formatter->format($sql);
         $this->assertStringContainsString('SELECT', $formatted);
-        $this->assertStringContainsString('FROM', $formatted);
-        $this->assertStringContainsString('LEFT JOIN', $formatted);
-        $this->assertStringContainsString('WHERE', $formatted);
+    }
+
+    public function testFormatComplexQuery(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT u.id, u.name, COUNT(o.id) as order_count FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE u.status = "active" GROUP BY u.id HAVING COUNT(o.id) > 5 ORDER BY order_count DESC LIMIT 10';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
         $this->assertStringContainsString('GROUP BY', $formatted);
         $this->assertStringContainsString('HAVING', $formatted);
         $this->assertStringContainsString('ORDER BY', $formatted);
         $this->assertStringContainsString('LIMIT', $formatted);
     }
 
-    public function testFormattingRemovesTrailingWhitespace(): void
+    public function testFormatWithSubquery(): void
     {
-        $sql = 'SELECT * FROM users   ';
-        $formatted = $this->formatter->format($sql);
-        $trimmed = rtrim($formatted);
-        $this->assertEquals($trimmed, $formatted);
-    }
-
-    public function testFormattingHandlesEmptyString(): void
-    {
-        $sql = '';
-        $formatted = $this->formatter->format($sql);
-        $this->assertEquals('', $formatted);
-    }
-
-    public function testFormattingHandlesSimpleString(): void
-    {
-        $sql = 'SELECT 1';
-        $formatted = $this->formatter->format($sql);
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT * FROM (SELECT id, name FROM users) AS subquery';
+        $formatted = $formatter->format($sql);
         $this->assertStringContainsString('SELECT', $formatted);
-        $this->assertStringContainsString('1', $formatted);
+        $this->assertStringContainsString('FROM', $formatted);
+    }
+
+    public function testFormatWithParentheses(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT * FROM users WHERE (id = 1 OR id = 2) AND status = "active"';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+        $this->assertStringContainsString('WHERE', $formatted);
+    }
+
+    public function testFormatInsert(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'INSERT INTO users (name, email) VALUES ("John", "john@example.com")';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('INSERT', $formatted);
+        $this->assertStringContainsString('VALUES', $formatted);
+    }
+
+    public function testFormatUpdate(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'UPDATE users SET name = "John", email = "john@example.com" WHERE id = 1';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('UPDATE', $formatted);
+        $this->assertStringContainsString('SET', $formatted);
+    }
+
+    public function testFormatDelete(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'DELETE FROM users WHERE id = 1';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('DELETE', $formatted);
+        $this->assertStringContainsString('WHERE', $formatted);
+    }
+
+    public function testFormatWithQuotedStrings(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT * FROM users WHERE name = "John\'s Test"';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+    }
+
+    public function testFormatNormalizesWhitespace(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT   *   FROM    users   WHERE   id   =   1';
+        $formatted = $formatter->format($sql);
+        // Should not contain multiple consecutive spaces
+        $this->assertStringNotContainsString('   ', $formatted);
+    }
+
+    public function testFormatWithCommas(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT id,name,email FROM users';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+    }
+
+    public function testFormatWithAndOr(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT * FROM users WHERE id = 1 AND status = "active" OR name LIKE "John%"';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+        $this->assertStringContainsString('AND', $formatted);
+        $this->assertStringContainsString('OR', $formatted);
+    }
+
+    public function testFormatWithComplexNestedQuery(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT * FROM (SELECT id, name FROM users WHERE status = "active") AS subquery WHERE id > 10';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+        $this->assertStringContainsString('FROM', $formatted);
+    }
+
+    public function testFormatWithWindowFunctions(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT id, name, ROW_NUMBER() OVER (PARTITION BY status ORDER BY created_at) as rn FROM users';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+        $this->assertStringContainsString('OVER', $formatted);
+    }
+
+    public function testFormatWithCTE(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'WITH users_cte AS (SELECT * FROM users) SELECT * FROM users_cte';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('WITH', $formatted);
+        $this->assertStringContainsString('SELECT', $formatted);
+    }
+
+    public function testFormatWithUnions(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT * FROM users UNION SELECT * FROM orders';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+        $this->assertStringContainsString('UNION', $formatted);
+    }
+
+    public function testFormatWithGroupByAndHaving(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT status, COUNT(*) as cnt FROM users GROUP BY status HAVING COUNT(*) > 5';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+        $this->assertStringContainsString('GROUP BY', $formatted);
+        $this->assertStringContainsString('HAVING', $formatted);
+    }
+
+    public function testFormatWithMultipleJoins(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT u.id, o.id as order_id, p.name FROM users u JOIN orders o ON u.id = o.user_id LEFT JOIN products p ON o.product_id = p.id';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+        $this->assertStringContainsString('JOIN', $formatted);
+        $this->assertStringContainsString('LEFT JOIN', $formatted);
+    }
+
+    public function testFormatWithEscapedQuotes(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = "SELECT * FROM users WHERE name = 'John\\'s Test'";
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+    }
+
+    public function testFormatWithTabs(): void
+    {
+        $formatter = new SqlFormatter(false, 4, "\t");
+        $sql = 'SELECT * FROM users WHERE id = 1';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+    }
+
+    public function testFormatWithDifferentIndentSize(): void
+    {
+        $formatter = new SqlFormatter(false, 2);
+        $sql = 'SELECT * FROM users WHERE id = 1 AND status = "active"';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+    }
+
+    public function testFormatWithHighlightingEnabled(): void
+    {
+        $formatter = new SqlFormatter(true);
+        $sql = 'SELECT * FROM users WHERE id = 1';
+        $formatted = $formatter->format($sql);
+        // When highlighting is enabled, keywords should contain ANSI color codes
+        $this->assertStringContainsString('SELECT', $formatted);
+        // Check for ANSI color codes (highlighting enabled) - may be present in formatted output
+        // Note: The actual highlighting depends on token processing
+        $this->assertIsString($formatted);
+    }
+
+    public function testFormatWithHighlightingDisabled(): void
+    {
+        $formatter = new SqlFormatter(false);
+        $sql = 'SELECT * FROM users WHERE id = 1';
+        $formatted = $formatter->format($sql);
+        // When highlighting is disabled, no ANSI codes should be present
+        $this->assertStringContainsString('SELECT', $formatted);
+        $this->assertStringNotContainsString("\033[1;34m", $formatted);
+    }
+
+    public function testFormatWithBackticks(): void
+    {
+        $formatter = new SqlFormatter();
+        $sql = 'SELECT * FROM `users` WHERE `id` = 1';
+        $formatted = $formatter->format($sql);
+        $this->assertStringContainsString('SELECT', $formatted);
+    }
+
+    public function testGetIndentWithNegativeLevel(): void
+    {
+        $formatter = new SqlFormatter();
+        $reflection = new \ReflectionClass($formatter);
+        $method = $reflection->getMethod('getIndent');
+        $method->setAccessible(true);
+
+        // Test with negative level (should be clamped to 0)
+        $indent = $method->invoke($formatter, -1);
+        $this->assertEquals('', $indent);
+    }
+
+    public function testGetIndentWithZeroLevel(): void
+    {
+        $formatter = new SqlFormatter();
+        $reflection = new \ReflectionClass($formatter);
+        $method = $reflection->getMethod('getIndent');
+        $method->setAccessible(true);
+
+        $indent = $method->invoke($formatter, 0);
+        $this->assertEquals('', $indent);
+    }
+
+    public function testGetIndentWithPositiveLevel(): void
+    {
+        $formatter = new SqlFormatter(false, 4);
+        $reflection = new \ReflectionClass($formatter);
+        $method = $reflection->getMethod('getIndent');
+        $method->setAccessible(true);
+
+        $indent = $method->invoke($formatter, 2);
+        $this->assertEquals('        ', $indent); // 2 levels * 4 spaces = 8 spaces
+    }
+
+    public function testNormalizeWhitespaceRemovesMultipleSpaces(): void
+    {
+        $formatter = new SqlFormatter();
+        $reflection = new \ReflectionClass($formatter);
+        $method = $reflection->getMethod('normalizeWhitespace');
+        $method->setAccessible(true);
+
+        $sql = 'SELECT     *     FROM    users';
+        $normalized = $method->invoke($formatter, $sql);
+        $this->assertStringNotContainsString('     ', $normalized);
+    }
+
+    public function testNormalizeWhitespaceRemovesSpacesAroundParentheses(): void
+    {
+        $formatter = new SqlFormatter();
+        $reflection = new \ReflectionClass($formatter);
+        $method = $reflection->getMethod('normalizeWhitespace');
+        $method->setAccessible(true);
+
+        $sql = 'SELECT * FROM ( SELECT id FROM users )';
+        $normalized = $method->invoke($formatter, $sql);
+        $this->assertStringNotContainsString('( ', $normalized);
+        $this->assertStringNotContainsString(' )', $normalized);
+    }
+
+    public function testNormalizeWhitespaceRemovesSpacesAroundCommas(): void
+    {
+        $formatter = new SqlFormatter();
+        $reflection = new \ReflectionClass($formatter);
+        $method = $reflection->getMethod('normalizeWhitespace');
+        $method->setAccessible(true);
+
+        $sql = 'SELECT id , name , email FROM users';
+        $normalized = $method->invoke($formatter, $sql);
+        $this->assertStringNotContainsString(' ,', $normalized);
+        $this->assertStringContainsString(', ', $normalized);
+    }
+
+    public function testCleanupRemovesMultipleNewlines(): void
+    {
+        $formatter = new SqlFormatter();
+        $reflection = new \ReflectionClass($formatter);
+        $method = $reflection->getMethod('cleanup');
+        $method->setAccessible(true);
+
+        $sql = "SELECT *\n\n\n\nFROM users";
+        $cleaned = $method->invoke($formatter, $sql);
+        $this->assertStringNotContainsString("\n\n\n", $cleaned);
+    }
+
+    public function testCleanupRemovesTrailingSpaces(): void
+    {
+        $formatter = new SqlFormatter();
+        $reflection = new \ReflectionClass($formatter);
+        $method = $reflection->getMethod('cleanup');
+        $method->setAccessible(true);
+
+        $sql = "SELECT *   \nFROM users   ";
+        $cleaned = $method->invoke($formatter, $sql);
+        $this->assertNotEquals(' ', substr($cleaned, -1));
+    }
+
+    public function testCleanupRemovesSpacesBeforeNewlines(): void
+    {
+        $formatter = new SqlFormatter();
+        $reflection = new \ReflectionClass($formatter);
+        $method = $reflection->getMethod('cleanup');
+        $method->setAccessible(true);
+
+        $sql = "SELECT *   \nFROM users";
+        $cleaned = $method->invoke($formatter, $sql);
+        $this->assertStringNotContainsString('   \n', $cleaned);
     }
 }

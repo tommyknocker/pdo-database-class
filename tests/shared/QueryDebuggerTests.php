@@ -156,4 +156,90 @@ final class QueryDebuggerTests extends BaseSharedTestCase
         $operation = QueryDebugger::extractOperation('ALTER TABLE users');
         $this->assertEquals('UNKNOWN', $operation);
     }
+
+    public function testExtractOperationFromReplace(): void
+    {
+        $operation = QueryDebugger::extractOperation('REPLACE INTO users (name) VALUES (?)');
+        $this->assertEquals('REPLACE', $operation);
+    }
+
+    public function testExtractOperationFromMerge(): void
+    {
+        $operation = QueryDebugger::extractOperation('MERGE INTO users');
+        $this->assertEquals('MERGE', $operation);
+    }
+
+    public function testExtractOperationFromEmptyString(): void
+    {
+        $operation = QueryDebugger::extractOperation('');
+        $this->assertEquals('UNKNOWN', $operation);
+    }
+
+    public function testSanitizeParamsHandlesResources(): void
+    {
+        $resource = fopen('php://temp', 'r+');
+        if ($resource === false) {
+            $this->markTestSkipped('Could not create resource');
+        }
+        $params = ['file' => $resource];
+        $sanitized = QueryDebugger::sanitizeParams($params);
+        $this->assertEquals('[resource]', $sanitized['file']);
+        fclose($resource);
+    }
+
+    public function testSanitizeParamsHandlesNullValues(): void
+    {
+        $params = ['name' => null, 'email' => 'test@example.com'];
+        $sanitized = QueryDebugger::sanitizeParams($params);
+        $this->assertNull($sanitized['name']);
+        $this->assertEquals('test@example.com', $sanitized['email']);
+    }
+
+    public function testSanitizeParamsHandlesBooleanValues(): void
+    {
+        $params = ['active' => true, 'deleted' => false];
+        $sanitized = QueryDebugger::sanitizeParams($params);
+        $this->assertTrue($sanitized['active']);
+        $this->assertFalse($sanitized['deleted']);
+    }
+
+    public function testSanitizeParamsHandlesNumericValues(): void
+    {
+        $params = ['id' => 123, 'price' => 45.67, 'count' => 0];
+        $sanitized = QueryDebugger::sanitizeParams($params);
+        $this->assertEquals(123, $sanitized['id']);
+        $this->assertEquals(45.67, $sanitized['price']);
+        $this->assertEquals(0, $sanitized['count']);
+    }
+
+    public function testSanitizeParamsWithParameterPrefixes(): void
+    {
+        $params = [':password' => 'secret', '?password' => 'secret2'];
+        $sanitized = QueryDebugger::sanitizeParams($params, ['password']);
+        $this->assertEquals('***', $sanitized[':password']);
+        $this->assertEquals('***', $sanitized['?password']);
+    }
+
+    public function testFormatContextWithSelectOperation(): void
+    {
+        $debugInfo = [
+            'table' => 'users',
+            'operation' => 'SELECT',
+        ];
+        $formatted = QueryDebugger::formatContext($debugInfo);
+        $this->assertStringContainsString('Table: users', $formatted);
+        $this->assertStringNotContainsString('Operation: SELECT', $formatted);
+    }
+
+    public function testFormatContextWithSensitiveParams(): void
+    {
+        $debugInfo = [
+            'table' => 'users',
+            'params' => ['id' => 1, 'password' => 'secret123', 'token' => 'abc'],
+        ];
+        $formatted = QueryDebugger::formatContext($debugInfo);
+        $this->assertStringContainsString('Parameters:', $formatted);
+        $this->assertStringNotContainsString('secret123', $formatted);
+        $this->assertStringNotContainsString('abc', $formatted);
+    }
 }
