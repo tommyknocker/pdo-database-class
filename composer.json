@@ -1,6 +1,6 @@
 {
   "name": "tommyknocker/pdo-database-class",
-  "description": "Lightweight, framework-agnostic PHP database library with unified API across MySQL, MariaDB, PostgreSQL & SQLite. Features: Fluent QueryBuilder, query caching (PSR-16), prepared statement pool, read/write splitting, sharding (range/hash/modulo), window functions, CTEs, JSON operations, migrations, DDL builder, ActiveRecord with validation, query macros, batch processing, 80+ helpers, PSR-14 events. Zero external dependencies, PHPStan level 8, fully tested.",
+  "description": "Lightweight PHP database library with unified API for MySQL, MariaDB, PostgreSQL & SQLite. QueryBuilder, caching, sharding, window functions, CTEs, JSON, migrations, ActiveRecord. Zero dependencies.",
   "type": "library",
   "keywords": [
     "pdo",
