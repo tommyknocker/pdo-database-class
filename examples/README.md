@@ -1,6 +1,6 @@
 # PDOdb Examples
 
-Complete collection of **51 runnable examples** demonstrating PDOdb features across **all 4 database dialects** (MySQL, MariaDB, PostgreSQL, SQLite).
+Complete collection of **52 runnable examples** demonstrating PDOdb features across **all 4 database dialects** (MySQL, MariaDB, PostgreSQL, SQLite).
 
 ## 🚀 Quick Start
 
@@ -191,6 +191,46 @@ Fluent API for creating and managing database schema.
   - **Indexes** - Create and drop indexes
   - **Foreign keys** - Define relationships between tables
 
+### 28. Query Scopes
+Global and local scopes for reusable query logic.
+
+- **[01-scopes-examples.php](28-query-scopes/01-scopes-examples.php)** - Query scopes:
+  - **Global scopes** - Automatically applied to all queries
+  - **Local scopes** - Applied on-demand
+  - **Scope chaining** - Combine multiple scopes
+  - **Scope disabling** - Temporarily disable global scopes
+
+### 29. Query Builder Macros
+Custom query methods for extending QueryBuilder.
+
+- **[01-macro-examples.php](29-macros/01-macro-examples.php)** - Query macros:
+  - **Register macros** - Custom query methods
+  - **Macro with arguments** - Parameterized macros
+  - **Macro chaining** - Chain macros with QueryBuilder methods
+  - **Check macro existence** - Verify macro registration
+
+### 30. Sharding
+Horizontal partitioning across multiple databases.
+
+- **[01-basic-sharding.php](30-sharding/01-basic-sharding.php)** - Basic sharding:
+  - **Range strategy** - Distribute data by numeric ranges
+  - **Automatic routing** - Queries automatically route to correct shard
+  - **Shard key extraction** - Extract shard key from WHERE clauses
+- **[02-sharding-strategies.php](30-sharding/02-sharding-strategies.php)** - Sharding strategies:
+  - **Range strategy** - Numeric range-based distribution
+  - **Hash strategy** - Hash-based distribution
+  - **Modulo strategy** - Modulo-based distribution
+
+### 31. Plugin System
+Extend PdoDb with custom plugins for macros, scopes, and event listeners.
+
+- **[01-plugin-examples.php](31-plugins/01-plugin-examples.php)** - Plugin system:
+  - **Simple plugin** - Plugin with macros
+  - **Plugin with scopes** - Global scopes via plugin
+  - **Plugin with events** - Event listeners via plugin
+  - **Complex plugin** - Combining macros, scopes, and events
+  - **Plugin management** - Register, check, get, unregister plugins
+
 ### 25. Database Migrations
 Version-controlled schema changes with rollback support.
 
@@ -201,8 +241,15 @@ Version-controlled schema changes with rollback support.
   - **History** - View applied migrations
 
 ### 27. ActiveRecord Relationships
+hasOne, hasMany, belongsTo, and hasManyThrough relationships with lazy and eager loading.
 
-- `01-relationships.php` - Demonstrates hasOne, hasMany, belongsTo, and hasManyThrough relationships with lazy and eager loading
+- **[01-relationships.php](27-active-record-relationships/01-relationships.php)** - Relationship examples:
+  - **hasOne** - One-to-one relationships
+  - **hasMany** - One-to-many relationships
+  - **belongsTo** - Inverse relationships
+  - **hasManyThrough** - Many-to-many via junction table
+  - **Lazy loading** - Load relationships on access
+  - **Eager loading** - Prevent N+1 queries
 
 ### 28. Query Scopes
 Global and local scopes for reusable query logic.

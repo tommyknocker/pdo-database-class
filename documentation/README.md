@@ -56,6 +56,8 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [ActiveRecord](05-advanced-features/active-record.md) - Lightweight ORM pattern for object-based database operations
 - [ActiveRecord Relationships](05-advanced-features/active-record-relationships.md) - hasOne, hasMany, belongsTo relationships with lazy and eager loading
 - [Query Builder Macros](05-advanced-features/query-macros.md) - Custom query methods for extending QueryBuilder
+- [Query Scopes](05-advanced-features/query-scopes.md) - Global and local scopes for reusable query logic
+- [Plugin System](05-advanced-features/plugins.md) - Extend PdoDb with custom plugins for macros, scopes, and event listeners
 
 ### Error Handling
 - [Exception Hierarchy](06-error-handling/exception-hierarchy.md) - Exception types

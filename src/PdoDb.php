@@ -19,6 +19,7 @@ use tommyknocker\pdodb\connection\sharding\ShardConfig;
 use tommyknocker\pdodb\connection\sharding\ShardConfigBuilder;
 use tommyknocker\pdodb\connection\sharding\ShardRouter;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\plugin\PluginInterface;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\QueryBuilder;
 use tommyknocker\pdodb\query\QueryProfiler;
@@ -103,6 +104,9 @@ class PdoDb
      * @phpstan-var array<string, callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder>
      */
     protected array $scopes = [];
+
+    /** @var array<string, PluginInterface> Registered plugins */
+    protected array $plugins = [];
 
     /**
      * Initializes a new PdoDb object.
@@ -325,6 +329,74 @@ class PdoDb
     public function getScopes(): array
     {
         return $this->scopes;
+    }
+
+    /**
+     * Register a plugin.
+     *
+     * Plugins allow extending PdoDb functionality with custom macros, scopes, event listeners, and more.
+     * The plugin's register() method will be called immediately after registration.
+     *
+     * @param PluginInterface $plugin Plugin instance to register
+     *
+     * @return static
+     */
+    public function registerPlugin(PluginInterface $plugin): static
+    {
+        $name = $plugin->getName();
+        $this->plugins[$name] = $plugin;
+        $plugin->register($this);
+        return $this;
+    }
+
+    /**
+     * Check if a plugin is registered.
+     *
+     * @param string $name Plugin name
+     *
+     * @return bool True if plugin is registered, false otherwise
+     */
+    public function hasPlugin(string $name): bool
+    {
+        return isset($this->plugins[$name]);
+    }
+
+    /**
+     * Get a registered plugin by name.
+     *
+     * @param string $name Plugin name
+     *
+     * @return PluginInterface|null Plugin instance or null if not found
+     */
+    public function getPlugin(string $name): ?PluginInterface
+    {
+        return $this->plugins[$name] ?? null;
+    }
+
+    /**
+     * Get all registered plugins.
+     *
+     * @return array<string, PluginInterface> Registered plugins indexed by name
+     */
+    public function getPlugins(): array
+    {
+        return $this->plugins;
+    }
+
+    /**
+     * Unregister a plugin.
+     *
+     * Removes plugin from registry but does not undo any changes made by the plugin
+     * (macros, scopes, event listeners remain registered).
+     *
+     * @param string $name Plugin name
+     *
+     * @return static
+     */
+    public function unregisterPlugin(string $name): static
+    {
+        unset($this->plugins[$name]);
+        return $this;
     }
 
     /**

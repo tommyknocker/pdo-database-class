@@ -40,6 +40,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Transactions & Locking** - Full transaction support with table locking
 - **Batch Processing** - Memory-efficient generators for large datasets with zero memory leaks
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
+- **Plugin System** - Extend PdoDb with custom plugins for macros, scopes, and event listeners
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Enhanced Error Diagnostics** - Query context, sanitized parameters, and debug information in exceptions
 - **Connection Retry** - Automatic retry with exponential backoff
@@ -160,7 +161,7 @@ Complete documentation is available in the [`documentation/`](documentation/) di
 - **[Core Concepts](documentation/02-core-concepts/)** - Connection management, query builder, parameter binding, dialects
 - **[Query Builder](documentation/03-query-builder/)** - SELECT, DML, filtering, joins, aggregations, subqueries
 - **[JSON Operations](documentation/04-json-operations/)** - Working with JSON across all databases
-- **[Advanced Features](documentation/05-advanced-features/)** - Transactions, batch processing, bulk operations, UPSERT, query scopes, query macros
+- **[Advanced Features](documentation/05-advanced-features/)** - Transactions, batch processing, bulk operations, UPSERT, query scopes, query macros, plugin system
 - **[Error Handling](documentation/06-error-handling/)** - Exception hierarchy, enhanced error diagnostics with query context, retry logic, logging, monitoring
 - **[Helper Functions](documentation/07-helper-functions/)** - Complete reference for all helper functions
 - **[Best Practices](documentation/08-best-practices/)** - Security, performance, memory management, code organization
@@ -1004,15 +1005,58 @@ if (QueryBuilder::hasMacro('active')) {
 }
 ```
 
+**Plugin System Example:**
+```php
+use tommyknocker\pdodb\plugin\AbstractPlugin;
+use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\query\QueryBuilder;
+
+// Create a plugin
+class MyCustomPlugin extends AbstractPlugin
+{
+    public function register(PdoDb $db): void
+    {
+        // Register macros
+        QueryBuilder::macro('active', function (QueryBuilder $query) {
+            return $query->where('status', 'active');
+        });
+
+        // Register global scopes
+        $db->addScope('notDeleted', function (QueryBuilder $query) {
+            return $query->whereNull('deleted_at');
+        });
+
+        // Register event listeners
+        $dispatcher = $db->getEventDispatcher();
+        if ($dispatcher !== null) {
+            $dispatcher->addListener(QueryExecutedEvent::class, function ($event) {
+                // Monitor queries
+            });
+        }
+    }
+}
+
+// Register plugin
+$db->registerPlugin(new MyCustomPlugin());
+
+// Use plugin features
+$users = $db->find()
+    ->from('users')
+    ->active()
+    ->get();
+```
+
 See:
 - [Documentation: ActiveRecord](documentation/05-advanced-features/active-record.md)
 - [Documentation: ActiveRecord Relationships](documentation/05-advanced-features/active-record-relationships.md)
 - [Documentation: Query Scopes](documentation/05-advanced-features/query-scopes.md)
 - [Documentation: Query Builder Macros](documentation/05-advanced-features/query-macros.md)
+- [Documentation: Plugin System](documentation/05-advanced-features/plugins.md)
 - [Example: ActiveRecord Usage](examples/23-active-record/01-active-record-examples.php)
 - [Example: ActiveRecord Relationships](examples/27-active-record-relationships/01-relationships.php)
 - [Example: Query Scopes](examples/28-query-scopes/01-scopes-examples.php)
 - [Example: Query Builder Macros](examples/29-macros/01-macro-examples.php)
+- [Example: Plugin System](examples/31-plugins/01-plugin-examples.php)
 
 ---
 
