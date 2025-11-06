@@ -56,7 +56,7 @@ use tommyknocker\pdodb\helpers\Db;
 $users = $db->find()
     ->from('users')
     ->where('age', 18, '>')
-    ->where('active', 1)
+    ->andWhere('active', 1)
     ->orderBy('created_at')
     ->limit(10)
     ->get();
@@ -139,7 +139,7 @@ $db = new PdoDb('mysql', [
 $users = $db->find()
     ->from('users')
     ->where('age', 18, '>')
-    ->where('active', 1)
+    ->andWhere('active', 1)
     ->orderBy('created_at', 'DESC')
     ->limit(10)
     ->get();
@@ -167,7 +167,7 @@ use tommyknocker\pdodb\PdoDb;
 $users = $db->find()
     ->from('users')
     ->where('age', 18, '>')
-    ->where('active', 1)
+    ->andWhere('active', 1)
     ->orderBy('created_at', 'DESC')
     ->limit(10)
     ->get();

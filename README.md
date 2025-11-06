@@ -721,7 +721,7 @@ $users = User::findAll(['status' => 'active']);
 // Using ActiveQuery (full QueryBuilder API)
 $users = User::find()
     ->where('status', 'active')
-    ->where('age', 18, '>=')
+    ->andWhere('age', 18, '>=')
     ->orderBy('created_at', 'DESC')
     ->all();
 
@@ -2336,7 +2336,7 @@ try {
     $users = $db->find()
         ->from('nonexistent_table')
         ->where('id', 1)
-        ->where('status', 'active')
+        ->andWhere('status', 'active')
         ->get();
 } catch (QueryException $e) {
     error_log("Query error: " . $e->getMessage());
@@ -2731,7 +2731,7 @@ $query = $db->find()
     ->from('users')
     ->select(['id', 'name', 'email'])
     ->where('age', 25)
-    ->where('status', 'active')
+    ->andWhere('status', 'active')
     ->orderBy('name', 'ASC')
     ->limit(10);
 

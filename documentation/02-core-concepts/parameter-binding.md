@@ -61,7 +61,7 @@ $query = $db->find()
     ->from('users')
     ->join('orders', 'users.id = orders.user_id')
     ->where('users.status', 'active')
-    ->where('orders.total', 100, '>')
+    ->andWhere('orders.total', 100, '>')
     ->orderBy('users.name');
 
 // Unformatted SQL (default)

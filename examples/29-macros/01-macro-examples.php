@@ -167,7 +167,7 @@ echo "------------------------------------------\n";
 QueryBuilder::macro('available', function (QueryBuilder $query) {
     return $query
         ->where('status', 'active')
-        ->where('price', 0, '>');
+        ->andWhere('price', 0, '>');
 });
 
 $availableProducts = $db->find()

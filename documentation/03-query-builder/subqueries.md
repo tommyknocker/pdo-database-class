@@ -57,7 +57,7 @@ $users = $db->find()
     ->whereExists(function($query) {
         $query->from('orders')
             ->where('user_id', 'users.id')
-            ->where('status', 'completed');
+            ->andWhere('status', 'completed');
     })
     ->get();
 ```
@@ -86,8 +86,8 @@ $users = $db->find()
     ->whereExists(function($query) {
         $query->from('orders')
             ->where('user_id', 'users.id')
-            ->where('total', 'users.balance', '>')
-            ->where('status', 'completed');
+            ->andWhere('total', 'users.balance', '>')
+            ->andWhere('status', 'completed');
     })
     ->get();
 ```
@@ -143,7 +143,7 @@ $products = $db->find()
     ->whereExists(function($query) {
         $query->from('order_items AS oi')
             ->where('oi.product_id', 'p.id')
-            ->where('oi.created_at', Db::now('-30 DAYS'), '>');
+            ->andWhere('oi.created_at', Db::now('-30 DAYS'), '>');
     })
     ->get();
 ```

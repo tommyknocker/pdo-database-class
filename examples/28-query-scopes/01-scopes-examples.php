@@ -371,7 +371,7 @@ $result = $db->find()
     ->from('posts')
     ->scope(function ($query) {
         return $query->where('status', 'published')
-                    ->where('view_count', 1000, '>');
+                    ->andWhere('view_count', 1000, '>');
     })
     ->limit(5)
     ->get();

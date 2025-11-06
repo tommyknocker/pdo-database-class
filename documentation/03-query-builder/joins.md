@@ -344,7 +344,7 @@ $results = $db->find()
               'total_amount' => 'SUM(o.amount)'
           ])
           ->where('o.user_id', 'u.id')
-          ->where('o.status', 'completed');
+          ->andWhere('o.status', 'completed');
     }, 'stats.user_id = u.id', 'LEFT', 'stats')
     ->get();
 ```

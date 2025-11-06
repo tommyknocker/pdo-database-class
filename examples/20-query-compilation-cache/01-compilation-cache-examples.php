@@ -75,7 +75,7 @@ for ($i = 0; $i < 100; $i++) {
     $dbWithCache->find()
         ->from('products')
         ->where('active', 1)
-        ->where('stock', 10, '>')
+        ->andWhere('stock', 10, '>')
         ->orderBy('price', 'DESC')
         ->limit(10)
         ->toSQL(); // Only compile, don't execute
@@ -96,7 +96,7 @@ for ($i = 0; $i < 50; $i++) {
     $dbNoCache->find()
         ->from('products')
         ->where('category', 'Electronics')
-        ->where('price', 50, '>=')
+        ->andWhere('price', 50, '>=')
         ->orderBy('name')
         ->limit(20)
         ->toSQL();
@@ -109,7 +109,7 @@ for ($i = 0; $i < 50; $i++) {
     $dbWithCache->find()
         ->from('products')
         ->where('category', 'Electronics')
-        ->where('price', 50, '>=')
+        ->andWhere('price', 50, '>=')
         ->orderBy('name')
         ->limit(20)
         ->toSQL();

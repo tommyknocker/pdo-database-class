@@ -161,7 +161,7 @@ function getDashboardStats(PdoDb $db, string $date): array {
             ->from('orders')
             ->select(Db::sum('total'))
             ->where('status', 'completed')
-            ->where('created_at', $date, '>=')
+            ->andWhere('created_at', $date, '>=')
             ->getValue(),
         
         'total_orders' => $db->find()

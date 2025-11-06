@@ -110,7 +110,7 @@ $activeUsers = User::findAll(['status' => 'active']);
 // Chainable query builder
 $users = User::find()
     ->where('status', 'active')
-    ->where('age', 18, '>=')
+    ->andWhere('age', 18, '>=')
     ->orderBy('age', 'DESC')
     ->limit(10)
     ->all();

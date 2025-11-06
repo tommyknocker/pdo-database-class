@@ -110,7 +110,7 @@ $db->find()
 $db->find()
     ->from('profiling_demo')
     ->where('category', 'Electronics')
-    ->where('value', 500, '>')
+    ->andWhere('value', 500, '>')
     ->orderBy('value', 'DESC')
     ->limit(10)
     ->get();

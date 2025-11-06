@@ -57,7 +57,7 @@ try {
         ->from('debug_users')
         ->select(['id', 'name', 'email'])
         ->where('age', 25)
-        ->where('email', 'test@example.com')
+        ->andWhere('email', 'test@example.com')
         ->orderBy('name', 'ASC')
         ->limit(10)
         ->offset(0);
@@ -93,7 +93,7 @@ try {
     $query = $db->find()
         ->from('nonexistent_table')
         ->where('id', 1)
-        ->where('status', 'active')
+        ->andWhere('status', 'active')
         ->get();
 } catch (QueryException $e) {
     echo "Exception Message: " . $e->getMessage() . "\n";

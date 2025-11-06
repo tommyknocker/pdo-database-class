@@ -79,7 +79,7 @@ Macros can combine multiple conditions:
 QueryBuilder::macro('available', function (QueryBuilder $query) {
     return $query
         ->where('status', 'active')
-        ->where('price', 0, '>');
+        ->andWhere('price', 0, '>');
 });
 
 $products = $db->find()->table('products')->available()->get();

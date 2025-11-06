@@ -174,8 +174,8 @@ $result = $db->find()
 QueryBuilder::macro('available', function (QueryBuilder $query) {
     return $query
         ->where('status', 'active')
-        ->where('price', 0, '>')
-        ->whereNotNull('stock');
+        ->andWhere('price', 0, '>')
+        ->andWhereNotNull('stock');
 });
 
 $availableProducts = $db->find()->table('products')->available()->get();
@@ -194,7 +194,7 @@ QueryBuilder::macro('thisMonth', function (QueryBuilder $query) {
     $endOfMonth = date('Y-m-t 23:59:59');
     return $query
         ->where('created_at', $startOfMonth, '>=')
-        ->where('created_at', $endOfMonth, '<=');
+        ->andWhere('created_at', $endOfMonth, '<=');
 });
 
 $recentProducts = $db->find()->table('products')->recent(30)->get();

@@ -84,7 +84,7 @@ $user->delete();
 // Query builder
 $users = User::find()
     ->where('status', 'active')
-    ->where('age', 25, '>=')
+    ->andWhere('age', 25, '>=')
     ->orderBy('age', 'DESC')
     ->all();
 

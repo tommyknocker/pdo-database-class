@@ -69,7 +69,7 @@ $prev = $result->previousPageUrl();  // URL for previous page (or null)
 $result = $db->find()
     ->from('posts')
     ->where('status', 'published')
-    ->where('views', 1000, '>')
+    ->andWhere('views', 1000, '>')
     ->orderBy('views', 'DESC')
     ->paginate(15, 2); // Page 2 of published posts with >1000 views
 

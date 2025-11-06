@@ -183,7 +183,7 @@ echo "7. Using ActiveQuery Builder\n";
 echo "   --------------------------\n";
 $activeUsers = User::find()
     ->where('status', 'active')
-    ->where('age', 25, '>=')
+    ->andWhere('age', 25, '>=')
     ->orderBy('age', 'DESC')
     ->all();
 
