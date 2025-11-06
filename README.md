@@ -19,6 +19,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Query Performance Profiling** - Built-in profiler for tracking execution times, memory usage, and slow query detection
 - **Prepared Statement Pool** - Automatic statement caching with LRU eviction (20-50% faster repeated queries)
 - **Read/Write Splitting** - Horizontal scaling with master-replica architecture and load balancing
+- **Sharding** - Horizontal partitioning across multiple databases with automatic query routing (range, hash, modulo strategies)
 - **Window Functions** - Advanced analytics with ROW_NUMBER, RANK, LAG, LEAD, running totals, moving averages
 - **Common Table Expressions (CTEs)** - WITH clauses for complex queries, recursive CTEs for hierarchical data, materialized CTEs for performance optimization
 - **LATERAL JOINs** - Correlated subqueries in FROM clause for PostgreSQL and MySQL
@@ -65,6 +66,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - [SQLite Configuration](#sqlite-configuration)
   - [Connection Pooling](#connection-pooling)
   - [Read/Write Splitting](#readwrite-splitting)
+  - [Sharding](#sharding)
   - [Window Functions](#window-functions)
   - [Common Table Expressions (CTEs)](#common-table-expressions-ctes)
 - [ActiveRecord Pattern](#activerecord-pattern)

@@ -51,6 +51,8 @@ class CacheConfig
      * Create from array configuration.
      *
      * @param array<string, mixed> $config
+     *
+     * @return self
      */
     public static function fromArray(array $config): self
     {

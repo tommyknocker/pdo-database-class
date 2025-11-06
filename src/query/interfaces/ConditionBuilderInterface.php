@@ -17,7 +17,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance.
      */
-    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
+    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * Add AND WHERE clause.
@@ -28,7 +28,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance.
      */
-    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
+    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * Add OR WHERE clause.
@@ -39,7 +39,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance.
      */
-    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
+    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * Add HAVING clause.
@@ -50,7 +50,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance.
      */
-    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
+    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * Add OR HAVING clause.
@@ -61,7 +61,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance.
      */
-    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
+    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * Add WHERE IN clause with subquery or array.
@@ -72,7 +72,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): self;
+    public function whereIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): static;
 
     /**
      * Add WHERE NOT IN clause with subquery or array.
@@ -83,7 +83,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereNotIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): self;
+    public function whereNotIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): static;
 
     /**
      * Add WHERE column IS NULL clause.
@@ -93,7 +93,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereNull(string $column, string $boolean = 'AND'): self;
+    public function whereNull(string $column, string $boolean = 'AND'): static;
 
     /**
      * Add WHERE column IS NOT NULL clause.
@@ -103,7 +103,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereNotNull(string $column, string $boolean = 'AND'): self;
+    public function whereNotNull(string $column, string $boolean = 'AND'): static;
 
     /**
      * Add WHERE column BETWEEN clause.
@@ -115,7 +115,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): self;
+    public function whereBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): static;
 
     /**
      * Add WHERE column NOT BETWEEN clause.
@@ -127,7 +127,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereNotBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): self;
+    public function whereNotBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): static;
 
     /**
      * Add WHERE column comparison with another column.
@@ -139,7 +139,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereColumn(string $first, string $operator, string $second, string $boolean = 'AND'): self;
+    public function whereColumn(string $first, string $operator, string $second, string $boolean = 'AND'): static;
 
     /**
      * Add OR WHERE column IS NULL clause.
@@ -148,7 +148,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function orWhereNull(string $column): self;
+    public function orWhereNull(string $column): static;
 
     /**
      * Add OR WHERE column IS NOT NULL clause.
@@ -157,7 +157,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function orWhereNotNull(string $column): self;
+    public function orWhereNotNull(string $column): static;
 
     /**
      * Add OR WHERE column BETWEEN clause.
@@ -168,7 +168,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function orWhereBetween(string $column, mixed $min, mixed $max): self;
+    public function orWhereBetween(string $column, mixed $min, mixed $max): static;
 
     /**
      * Add OR WHERE column NOT BETWEEN clause.
@@ -179,7 +179,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function orWhereNotBetween(string $column, mixed $min, mixed $max): self;
+    public function orWhereNotBetween(string $column, mixed $min, mixed $max): static;
 
     /**
      * Add OR WHERE column IN clause.
@@ -189,7 +189,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function orWhereIn(string $column, callable|array $subqueryOrArray): self;
+    public function orWhereIn(string $column, callable|array $subqueryOrArray): static;
 
     /**
      * Add OR WHERE column NOT IN clause.
@@ -199,7 +199,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function orWhereNotIn(string $column, callable|array $subqueryOrArray): self;
+    public function orWhereNotIn(string $column, callable|array $subqueryOrArray): static;
 
     /**
      * Add AND WHERE column IS NULL clause.
@@ -208,7 +208,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function andWhereNull(string $column): self;
+    public function andWhereNull(string $column): static;
 
     /**
      * Add AND WHERE column IS NOT NULL clause.
@@ -217,7 +217,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function andWhereNotNull(string $column): self;
+    public function andWhereNotNull(string $column): static;
 
     /**
      * Add AND WHERE column BETWEEN clause.
@@ -228,7 +228,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function andWhereBetween(string $column, mixed $min, mixed $max): self;
+    public function andWhereBetween(string $column, mixed $min, mixed $max): static;
 
     /**
      * Add AND WHERE column NOT BETWEEN clause.
@@ -239,7 +239,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function andWhereNotBetween(string $column, mixed $min, mixed $max): self;
+    public function andWhereNotBetween(string $column, mixed $min, mixed $max): static;
 
     /**
      * Add AND WHERE column IN clause.
@@ -249,7 +249,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function andWhereIn(string $column, callable|array $subqueryOrArray): self;
+    public function andWhereIn(string $column, callable|array $subqueryOrArray): static;
 
     /**
      * Add AND WHERE column NOT IN clause.
@@ -259,7 +259,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function andWhereNotIn(string $column, callable|array $subqueryOrArray): self;
+    public function andWhereNotIn(string $column, callable|array $subqueryOrArray): static;
 
     /**
      * Add AND WHERE column comparison with another column.
@@ -270,7 +270,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function andWhereColumn(string $first, string $operator, string $second): self;
+    public function andWhereColumn(string $first, string $operator, string $second): static;
 
     /**
      * Add OR WHERE column comparison with another column.
@@ -281,7 +281,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function orWhereColumn(string $first, string $operator, string $second): self;
+    public function orWhereColumn(string $first, string $operator, string $second): static;
 
     /**
      * Add WHERE EXISTS clause.
@@ -290,7 +290,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereExists(callable $subquery): self;
+    public function whereExists(callable $subquery): static;
 
     /**
      * Add WHERE NOT EXISTS clause.
@@ -299,7 +299,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereNotExists(callable $subquery): self;
+    public function whereNotExists(callable $subquery): static;
 
     /**
      * Add raw WHERE clause.
@@ -309,7 +309,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereRaw(string $sql, array $params = []): self;
+    public function whereRaw(string $sql, array $params = []): static;
 
     /**
      * Add raw HAVING clause.
@@ -319,7 +319,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function havingRaw(string $sql, array $params = []): self;
+    public function havingRaw(string $sql, array $params = []): static;
 
     /**
      * Return true if at least one row matches the current WHERE conditions.
@@ -349,7 +349,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance.
      */
-    public function setTable(string $table): self;
+    public function setTable(string $table): static;
 
     /**
      * Set the prefix for the condition builder.
@@ -358,7 +358,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance.
      */
-    public function setPrefix(?string $prefix): self;
+    public function setPrefix(?string $prefix): static;
 
     /**
      * Set the limit for the condition builder.
@@ -367,7 +367,7 @@ interface ConditionBuilderInterface
      *
      * @return static The current instance.
      */
-    public function setLimit(?int $limit): self;
+    public function setLimit(?int $limit): static;
 
     /**
      * Build conditions clause from items.
@@ -399,4 +399,16 @@ interface ConditionBuilderInterface
      * @return array<string, mixed> Debug information about WHERE, HAVING, ORDER BY, and LIMIT
      */
     public function getDebugInfo(): array;
+
+    /**
+     * Extract shard key value from WHERE conditions.
+     *
+     * Searches for WHERE condition with the specified column and operator '='.
+     * Returns the value if found, null otherwise.
+     *
+     * @param string $shardKeyColumn Column name to search for
+     *
+     * @return mixed|null Shard key value or null if not found
+     */
+    public function extractShardKeyValue(string $shardKeyColumn): mixed;
 }

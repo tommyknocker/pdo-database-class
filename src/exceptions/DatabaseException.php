@@ -77,8 +77,13 @@ abstract class DatabaseException extends PDOException
 
     /**
      * Add context information.
+     *
+     * @param string $key
+     * @param mixed $value
+     *
+     * @return static
      */
-    public function addContext(string $key, mixed $value): self
+    public function addContext(string $key, mixed $value): static
     {
         $this->context[$key] = $value;
         return $this;

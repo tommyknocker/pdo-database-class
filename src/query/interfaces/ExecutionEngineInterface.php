@@ -67,7 +67,7 @@ interface ExecutionEngineInterface
      *
      * @return static The current instance.
      */
-    public function setFetchMode(int $fetchMode): self;
+    public function setFetchMode(int $fetchMode): static;
 
     /**
      * Set query context for error reporting.

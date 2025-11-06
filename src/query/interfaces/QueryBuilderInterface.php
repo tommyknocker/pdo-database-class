@@ -9,6 +9,8 @@ use PDOStatement;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
+use tommyknocker\pdodb\query\QueryBuilder;
 
 interface QueryBuilderInterface
 {
@@ -40,29 +42,29 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function table(string $table): self;
+    public function table(string $table): static;
 
     /**
      * @param string $table
      *
      * @return static
      */
-    public function from(string $table): self;
+    public function from(string $table): static;
 
     /**
      * @param string $prefix
      *
      * @return static
      */
-    public function prefix(string $prefix): self;
+    public function prefix(string $prefix): static;
 
     // Select / projection
     /**
-     * @param RawValue|string|array<int|string, string|RawValue|callable(\tommyknocker\pdodb\query\QueryBuilder): void> $cols
+     * @param RawValue|string|array<int|string, string|RawValue|callable(QueryBuilder): void> $cols
      *
      * @return static
      */
-    public function select(RawValue|string|array $cols): self;
+    public function select(RawValue|string|array $cols): static;
 
     /**
      * @return array<int|string, array<string, mixed>>
@@ -170,7 +172,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
+    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
@@ -179,7 +181,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
+    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
@@ -188,7 +190,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
+    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
@@ -197,7 +199,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
+    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * @param string|array<string, mixed>|RawValue $exprOrColumn
@@ -206,34 +208,26 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): self;
+    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     // New Query Builder methods
     /**
      * @param string $column
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
      * @param string $boolean
      *
      * @return static
      */
-    public function whereIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): self;
+    public function whereIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): static;
 
     /**
      * @param string $column
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
      * @param string $boolean
      *
      * @return static
      */
-    public function whereNotIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): self;
-
-    /**
-     * @param string $column
-     * @param string $boolean
-     *
-     * @return static
-     */
-    public function whereNull(string $column, string $boolean = 'AND'): self;
+    public function whereNotIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): static;
 
     /**
      * @param string $column
@@ -241,17 +235,15 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function whereNotNull(string $column, string $boolean = 'AND'): self;
+    public function whereNull(string $column, string $boolean = 'AND'): static;
 
     /**
      * @param string $column
-     * @param mixed $min
-     * @param mixed $max
      * @param string $boolean
      *
      * @return static
      */
-    public function whereBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): self;
+    public function whereNotNull(string $column, string $boolean = 'AND'): static;
 
     /**
      * @param string $column
@@ -261,7 +253,17 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function whereNotBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): self;
+    public function whereBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): static;
+
+    /**
+     * @param string $column
+     * @param mixed $min
+     * @param mixed $max
+     * @param string $boolean
+     *
+     * @return static
+     */
+    public function whereNotBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): static;
 
     /**
      * @param string $first
@@ -271,30 +273,21 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function whereColumn(string $first, string $operator, string $second, string $boolean = 'AND'): self;
+    public function whereColumn(string $first, string $operator, string $second, string $boolean = 'AND'): static;
 
     /**
      * @param string $column
      *
      * @return static
      */
-    public function orWhereNull(string $column): self;
+    public function orWhereNull(string $column): static;
 
     /**
      * @param string $column
      *
      * @return static
      */
-    public function orWhereNotNull(string $column): self;
-
-    /**
-     * @param string $column
-     * @param mixed $min
-     * @param mixed $max
-     *
-     * @return static
-     */
-    public function orWhereBetween(string $column, mixed $min, mixed $max): self;
+    public function orWhereNotNull(string $column): static;
 
     /**
      * @param string $column
@@ -303,37 +296,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function orWhereNotBetween(string $column, mixed $min, mixed $max): self;
-
-    /**
-     * @param string $column
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
-     *
-     * @return static
-     */
-    public function orWhereIn(string $column, callable|array $subqueryOrArray): self;
-
-    /**
-     * @param string $column
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
-     *
-     * @return static
-     */
-    public function orWhereNotIn(string $column, callable|array $subqueryOrArray): self;
-
-    /**
-     * @param string $column
-     *
-     * @return static
-     */
-    public function andWhereNull(string $column): self;
-
-    /**
-     * @param string $column
-     *
-     * @return static
-     */
-    public function andWhereNotNull(string $column): self;
+    public function orWhereBetween(string $column, mixed $min, mixed $max): static;
 
     /**
      * @param string $column
@@ -342,7 +305,37 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function andWhereBetween(string $column, mixed $min, mixed $max): self;
+    public function orWhereNotBetween(string $column, mixed $min, mixed $max): static;
+
+    /**
+     * @param string $column
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
+     *
+     * @return static
+     */
+    public function orWhereIn(string $column, callable|array $subqueryOrArray): static;
+
+    /**
+     * @param string $column
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
+     *
+     * @return static
+     */
+    public function orWhereNotIn(string $column, callable|array $subqueryOrArray): static;
+
+    /**
+     * @param string $column
+     *
+     * @return static
+     */
+    public function andWhereNull(string $column): static;
+
+    /**
+     * @param string $column
+     *
+     * @return static
+     */
+    public function andWhereNotNull(string $column): static;
 
     /**
      * @param string $column
@@ -351,23 +344,32 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function andWhereNotBetween(string $column, mixed $min, mixed $max): self;
+    public function andWhereBetween(string $column, mixed $min, mixed $max): static;
 
     /**
      * @param string $column
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
+     * @param mixed $min
+     * @param mixed $max
      *
      * @return static
      */
-    public function andWhereIn(string $column, callable|array $subqueryOrArray): self;
+    public function andWhereNotBetween(string $column, mixed $min, mixed $max): static;
 
     /**
      * @param string $column
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
      *
      * @return static
      */
-    public function andWhereNotIn(string $column, callable|array $subqueryOrArray): self;
+    public function andWhereIn(string $column, callable|array $subqueryOrArray): static;
+
+    /**
+     * @param string $column
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray
+     *
+     * @return static
+     */
+    public function andWhereNotIn(string $column, callable|array $subqueryOrArray): static;
 
     /**
      * @param string $first
@@ -376,7 +378,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function andWhereColumn(string $first, string $operator, string $second): self;
+    public function andWhereColumn(string $first, string $operator, string $second): static;
 
     /**
      * @param string $first
@@ -385,21 +387,21 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function orWhereColumn(string $first, string $operator, string $second): self;
+    public function orWhereColumn(string $first, string $operator, string $second): static;
 
     /**
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery
+     * @param callable(QueryBuilder): void $subquery
      *
      * @return static
      */
-    public function whereExists(callable $subquery): self;
+    public function whereExists(callable $subquery): static;
 
     /**
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery
+     * @param callable(QueryBuilder): void $subquery
      *
      * @return static
      */
-    public function whereNotExists(callable $subquery): self;
+    public function whereNotExists(callable $subquery): static;
 
     /**
      * @param string $sql
@@ -407,7 +409,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function whereRaw(string $sql, array $params = []): self;
+    public function whereRaw(string $sql, array $params = []): static;
 
     /**
      * @param string $sql
@@ -415,7 +417,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function havingRaw(string $sql, array $params = []): self;
+    public function havingRaw(string $sql, array $params = []): static;
 
     // Existence helpers
     /**
@@ -463,7 +465,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): self;
+    public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): static;
 
     /**
      * @param string $tableAlias
@@ -471,7 +473,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function leftJoin(string $tableAlias, string|RawValue $condition): self;
+    public function leftJoin(string $tableAlias, string|RawValue $condition): static;
 
     /**
      * @param string $tableAlias
@@ -479,7 +481,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function rightJoin(string $tableAlias, string|RawValue $condition): self;
+    public function rightJoin(string $tableAlias, string|RawValue $condition): static;
 
     /**
      * @param string $tableAlias
@@ -487,12 +489,12 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function innerJoin(string $tableAlias, string|RawValue $condition): self;
+    public function innerJoin(string $tableAlias, string|RawValue $condition): static;
 
     /**
      * Add LATERAL JOIN clause.
      *
-     * @param string|callable(\tommyknocker\pdodb\query\QueryBuilder): void $tableOrSubquery Table name or callable for subquery
+     * @param string|callable(QueryBuilder): void $tableOrSubquery Table name or callable for subquery
      * @param string|RawValue|null $condition Optional ON condition
      * @param string $type JOIN type (default: LEFT)
      * @param string|null $alias Optional alias for LATERAL subquery
@@ -504,7 +506,7 @@ interface QueryBuilderInterface
         string|RawValue|null $condition = null,
         string $type = 'LEFT',
         ?string $alias = null
-    ): self;
+    ): static;
 
     // Ordering / grouping / pagination / options
     /**
@@ -513,40 +515,40 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): self;
+    public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): static;
 
     /**
      * @param string|array<int, string>|RawValue $cols
      *
      * @return static
      */
-    public function groupBy(string|array|RawValue $cols): self;
+    public function groupBy(string|array|RawValue $cols): static;
 
     /**
      * @param int $number
      *
      * @return static
      */
-    public function limit(int $number): self;
+    public function limit(int $number): static;
 
     /**
      * @param int $number
      *
      * @return static
      */
-    public function offset(int $number): self;
+    public function offset(int $number): static;
 
     /**
      * @param string|array<int, string> $options
      *
      * @return static
      */
-    public function option(string|array $options): self;
+    public function option(string|array $options): static;
 
     /**
      * @return static
      */
-    public function asObject(): self;
+    public function asObject(): static;
 
     // ON DUPLICATE / upsert helpers
     /**
@@ -554,7 +556,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function onDuplicate(array $onDuplicate): self;
+    public function onDuplicate(array $onDuplicate): static;
 
     // JSON helpers
 
@@ -566,7 +568,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): self;
+    public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): static;
 
     /**
      * @param string $col
@@ -577,7 +579,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function whereJsonPath(string $col, array|string $path, string $operator, mixed $value, string $cond = 'AND'): self;
+    public function whereJsonPath(string $col, array|string $path, string $operator, mixed $value, string $cond = 'AND'): static;
 
     /**
      * @param string $col
@@ -587,7 +589,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function whereJsonContains(string $col, mixed $value, array|string|null $path = null, string $cond = 'AND'): self;
+    public function whereJsonContains(string $col, mixed $value, array|string|null $path = null, string $cond = 'AND'): static;
 
     /**
      * @param string $col
@@ -613,7 +615,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): self;
+    public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): static;
 
     /**
      * @param string $col
@@ -622,7 +624,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): self;
+    public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): static;
 
     // Introspect
     /**
@@ -649,9 +651,9 @@ interface QueryBuilderInterface
      *
      * @param string|null $tableName Optional table name for index suggestions
      *
-     * @return \tommyknocker\pdodb\query\analysis\ExplainAnalysis Analysis result with recommendations
+     * @return ExplainAnalysis Analysis result with recommendations
      */
-    public function explainAdvice(?string $tableName = null): \tommyknocker\pdodb\query\analysis\ExplainAnalysis;
+    public function explainAdvice(?string $tableName = null): ExplainAnalysis;
 
     /**
      * @return array<int, array<string, mixed>>
@@ -721,12 +723,12 @@ interface QueryBuilderInterface
     /**
      * Apply a query scope.
      *
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder|string $scope Scope callable or scope name
+     * @param callable(QueryBuilder, mixed...): QueryBuilder|string $scope Scope callable or scope name
      * @param mixed ...$args Additional arguments to pass to the scope
      *
      * @return static
      */
-    public function scope(callable|string $scope, mixed ...$args): self;
+    public function scope(callable|string $scope, mixed ...$args): static;
 
     /**
      * Temporarily disable a global scope.
@@ -735,7 +737,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function withoutGlobalScope(string $scopeName): self;
+    public function withoutGlobalScope(string $scopeName): static;
 
     /**
      * Temporarily disable multiple global scopes.
@@ -744,7 +746,7 @@ interface QueryBuilderInterface
      *
      * @return static
      */
-    public function withoutGlobalScopes(array $scopeNames): self;
+    public function withoutGlobalScopes(array $scopeNames): static;
 
     /**
      * Check if a global scope is disabled.

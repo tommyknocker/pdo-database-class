@@ -15,6 +15,9 @@ use tommyknocker\pdodb\connection\ConnectionFactory;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\connection\ConnectionRouter;
 use tommyknocker\pdodb\connection\loadbalancer\LoadBalancerInterface;
+use tommyknocker\pdodb\connection\sharding\ShardConfig;
+use tommyknocker\pdodb\connection\sharding\ShardConfigBuilder;
+use tommyknocker\pdodb\connection\sharding\ShardRouter;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\QueryBuilder;
@@ -267,6 +270,11 @@ class PdoDb
         // Set connection router if read/write splitting is enabled
         if ($this->readWriteSplittingEnabled && $this->connectionRouter !== null) {
             $queryBuilder->setConnectionRouter($this->connectionRouter);
+        }
+
+        // Set shard router if sharding is enabled
+        if ($this->shardRouter !== null) {
+            $queryBuilder->setShardRouter($this->shardRouter);
         }
 
         // Set scopes
@@ -614,6 +622,22 @@ class PdoDb
     }
 
     /**
+     * Get connection from pool by name.
+     *
+     * @param string $name Connection name
+     *
+     * @return ConnectionInterface
+     * @throws RuntimeException If connection not found
+     */
+    public function getConnection(string $name): ConnectionInterface
+    {
+        if (!isset($this->connections[$name])) {
+            throw new RuntimeException("Connection {$name} not found");
+        }
+        return $this->connections[$name];
+    }
+
+    /**
      * Returns a connection from the connection pool.
      *
      * @param string $name The name of the connection.
@@ -858,5 +882,47 @@ class PdoDb
     public function getConnectionRouter(): ?ConnectionRouter
     {
         return $this->connectionRouter;
+    }
+
+    /**
+     * Get logger instance.
+     *
+     * @return LoggerInterface|null
+     */
+    public function getLogger(): ?LoggerInterface
+    {
+        return $this->logger;
+    }
+
+    /* ---------------- SHARDING ---------------- */
+
+    /** @var ShardRouter|null Shard router for sharding */
+    protected ?ShardRouter $shardRouter = null;
+
+    /**
+     * Configure sharding for a table.
+     *
+     * @param string $table Table name
+     *
+     * @return ShardConfigBuilder
+     */
+    public function shard(string $table): ShardConfigBuilder
+    {
+        if ($this->shardRouter === null) {
+            $this->shardRouter = new ShardRouter();
+        }
+
+        $config = new ShardConfig($table);
+        return new ShardConfigBuilder($config, $this, $this->shardRouter);
+    }
+
+    /**
+     * Get shard router instance.
+     *
+     * @return ShardRouter|null
+     */
+    public function getShardRouter(): ?ShardRouter
+    {
+        return $this->shardRouter;
     }
 }

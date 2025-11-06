@@ -33,7 +33,7 @@ interface ParameterManagerInterface
      *
      * @return static
      */
-    public function setParam(string $name, mixed $value): self;
+    public function setParam(string $name, mixed $value): static;
 
     /**
      * Merge subquery parameters.
@@ -78,12 +78,12 @@ interface ParameterManagerInterface
      *
      * @return static
      */
-    public function setParams(array $params): self;
+    public function setParams(array $params): static;
 
     /**
      * Clear all parameters.
      *
      * @return static
      */
-    public function clearParams(): self;
+    public function clearParams(): static;
 }

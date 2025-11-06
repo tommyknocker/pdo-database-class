@@ -13,6 +13,7 @@ use RuntimeException;
 use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\connection\ConnectionRouter;
+use tommyknocker\pdodb\connection\sharding\ShardRouter;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
@@ -61,6 +62,9 @@ class QueryBuilder implements QueryBuilderInterface
 
     /** @var ConnectionRouter|null Connection router for read/write splitting */
     protected ?ConnectionRouter $connectionRouter = null;
+
+    /** @var ShardRouter|null Shard router for sharding */
+    protected ?ShardRouter $shardRouter = null;
 
     /** @var bool Force next query to use write connection */
     protected bool $forceWriteConnection = false;
@@ -236,6 +240,19 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
+     * Set shard router for sharding.
+     *
+     * @param ShardRouter|null $router
+     *
+     * @return static
+     */
+    public function setShardRouter(?ShardRouter $router): static
+    {
+        $this->shardRouter = $router;
+        return $this;
+    }
+
+    /**
      * Force next read query to use write connection.
      *
      * @return static
@@ -247,12 +264,56 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
+     * Switch to shard connection if sharding is configured.
+     *
+     * @return ConnectionInterface|null Original connection before switch, or null if no sharding
+     */
+    protected function switchToShardConnection(): ?ConnectionInterface
+    {
+        if ($this->shardRouter === null) {
+            return null;
+        }
+
+        try {
+            $shardName = $this->shardRouter->resolveShard($this);
+            if ($shardName === null) {
+                // Shard key not found in WHERE conditions - cannot determine shard
+                // This is acceptable for queries that need to scan all shards
+                return null;
+            }
+
+            $table = $this->getTableName();
+            if ($table === null) {
+                return null;
+            }
+
+            $originalConnection = $this->connection;
+            $this->connection = $this->shardRouter->getShardConnection($table, $shardName);
+
+            // Update components with new connection
+            $this->updateComponents();
+
+            return $originalConnection;
+        } catch (RuntimeException) {
+            // If shard cannot be resolved, return null to fall back to normal routing
+            return null;
+        }
+    }
+
+    /**
      * Switch to read connection if router is available.
      *
      * @return ConnectionInterface|null Original connection before switch
      */
     protected function switchToReadConnection(): ?ConnectionInterface
     {
+        // First try sharding
+        $originalConnection = $this->switchToShardConnection();
+        if ($originalConnection !== null) {
+            return $originalConnection;
+        }
+
+        // Fall back to read/write splitting
         if ($this->connectionRouter === null) {
             return null;
         }
@@ -280,6 +341,13 @@ class QueryBuilder implements QueryBuilderInterface
      */
     protected function switchToWriteConnection(): ?ConnectionInterface
     {
+        // First try sharding
+        $originalConnection = $this->switchToShardConnection();
+        if ($originalConnection !== null) {
+            return $originalConnection;
+        }
+
+        // Fall back to read/write splitting
         if ($this->connectionRouter === null) {
             return null;
         }
@@ -2431,6 +2499,32 @@ class QueryBuilder implements QueryBuilderInterface
     public static function hasMacro(string $name): bool
     {
         return MacroRegistry::has($name);
+    }
+
+    /**
+     * Get table name.
+     *
+     * @return string|null Table name or null if not set
+     */
+    public function getTableName(): ?string
+    {
+        try {
+            return $this->table;
+        } catch (RuntimeException) {
+            return null;
+        }
+    }
+
+    /**
+     * Extract shard key value from WHERE conditions.
+     *
+     * @param string $shardKeyColumn Column name to search for
+     *
+     * @return mixed|null Shard key value or null if not found
+     */
+    public function extractShardKeyValue(string $shardKeyColumn): mixed
+    {
+        return $this->conditionBuilder->extractShardKeyValue($shardKeyColumn);
     }
 
     /**

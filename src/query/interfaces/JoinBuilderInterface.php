@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\query\interfaces;
 
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\QueryBuilder;
 
 interface JoinBuilderInterface
 {
@@ -17,7 +18,7 @@ interface JoinBuilderInterface
      *
      * @return static The current instance.
      */
-    public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): self;
+    public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): static;
 
     /**
      * Add LEFT JOIN clause.
@@ -27,7 +28,7 @@ interface JoinBuilderInterface
      *
      * @return static The current instance.
      */
-    public function leftJoin(string $tableAlias, string|RawValue $condition): self;
+    public function leftJoin(string $tableAlias, string|RawValue $condition): static;
 
     /**
      * Add RIGHT JOIN clause.
@@ -37,7 +38,7 @@ interface JoinBuilderInterface
      *
      * @return static The current instance.
      */
-    public function rightJoin(string $tableAlias, string|RawValue $condition): self;
+    public function rightJoin(string $tableAlias, string|RawValue $condition): static;
 
     /**
      * Add INNER JOIN clause.
@@ -47,7 +48,7 @@ interface JoinBuilderInterface
      *
      * @return static The current instance.
      */
-    public function innerJoin(string $tableAlias, string|RawValue $condition): self;
+    public function innerJoin(string $tableAlias, string|RawValue $condition): static;
 
     /**
      * Set the prefix for the join builder.
@@ -56,7 +57,7 @@ interface JoinBuilderInterface
      *
      * @return static The current instance.
      */
-    public function setPrefix(?string $prefix): self;
+    public function setPrefix(?string $prefix): static;
 
     /**
      * Get all joins.
@@ -71,7 +72,7 @@ interface JoinBuilderInterface
      * LATERAL JOINs allow correlated subqueries in FROM clause,
      * where the subquery can reference columns from preceding tables.
      *
-     * @param string|callable(\tommyknocker\pdodb\query\QueryBuilder): void $tableOrSubquery Table name or callable that returns a query builder for subquery
+     * @param string|callable(QueryBuilder): void $tableOrSubquery Table name or callable that returns a query builder for subquery
      * @param string|RawValue|null $condition Optional ON condition (not always required for LATERAL)
      * @param string $type JOIN type, e.g. INNER, LEFT (default: LEFT)
      * @param string|null $alias Optional alias for LATERAL subquery/table
@@ -83,7 +84,7 @@ interface JoinBuilderInterface
         string|RawValue|null $condition = null,
         string $type = 'LEFT',
         ?string $alias = null
-    ): self;
+    ): static;
 
     /**
      * Get debug information about joins.

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\query\interfaces;
 
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\query\pagination\Cursor;
 use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
 use tommyknocker\pdodb\query\pagination\PaginationResult;
 use tommyknocker\pdodb\query\pagination\SimplePaginationResult;
+use tommyknocker\pdodb\query\QueryBuilder;
 use tommyknocker\pdodb\query\UnionQuery;
 
 interface SelectQueryBuilderInterface
@@ -17,11 +19,11 @@ interface SelectQueryBuilderInterface
     /**
      * Add columns to the SELECT clause.
      *
-     * @param RawValue|callable(\tommyknocker\pdodb\query\QueryBuilder): void|string|array<int|string, string|RawValue|callable(\tommyknocker\pdodb\query\QueryBuilder): void> $cols The columns to add.
+     * @param RawValue|callable(QueryBuilder): void|string|array<int|string, string|RawValue|callable(QueryBuilder): void> $cols The columns to add.
      *
      * @return static The current instance.
      */
-    public function select(RawValue|callable|string|array $cols): self;
+    public function select(RawValue|callable|string|array $cols): static;
 
     /**
      * Execute SELECT statement and return all rows.
@@ -59,7 +61,7 @@ interface SelectQueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): self;
+    public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): static;
 
     /**
      * Add ORDER BY expression directly (for JSON expressions that already contain direction).
@@ -68,7 +70,7 @@ interface SelectQueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function addOrderExpression(string $expr): self;
+    public function addOrderExpression(string $expr): static;
 
     /**
      * Enable caching for this query.
@@ -78,14 +80,14 @@ interface SelectQueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function cache(int $ttl = 3600, ?string $key = null): self;
+    public function cache(int $ttl = 3600, ?string $key = null): static;
 
     /**
      * Disable caching for this query.
      *
      * @return static The current instance.
      */
-    public function noCache(): self;
+    public function noCache(): static;
 
     /**
      * Add GROUP BY clause.
@@ -94,7 +96,7 @@ interface SelectQueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function groupBy(string|array|RawValue $cols): self;
+    public function groupBy(string|array|RawValue $cols): static;
 
     /**
      * Add LIMIT clause.
@@ -103,7 +105,7 @@ interface SelectQueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function limit(int $number): self;
+    public function limit(int $number): static;
 
     /**
      * Add OFFSET clause.
@@ -112,7 +114,7 @@ interface SelectQueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function offset(int $number): self;
+    public function offset(int $number): static;
 
     /**
      * Sets the query options.
@@ -121,14 +123,14 @@ interface SelectQueryBuilderInterface
      *
      * @return static The current object.
      */
-    public function option(string|array $options): self;
+    public function option(string|array $options): static;
 
     /**
      * Set fetch mode to return objects.
      *
      * @return static
      */
-    public function asObject(): self;
+    public function asObject(): static;
 
     /**
      * Convert query to SQL string and parameters.
@@ -158,9 +160,9 @@ interface SelectQueryBuilderInterface
      *
      * @param string|null $tableName Optional table name for index suggestions
      *
-     * @return \tommyknocker\pdodb\query\analysis\ExplainAnalysis Analysis result with recommendations
+     * @return ExplainAnalysis Analysis result with recommendations
      */
-    public function explainAdvice(?string $tableName = null): \tommyknocker\pdodb\query\analysis\ExplainAnalysis;
+    public function explainAdvice(?string $tableName = null): ExplainAnalysis;
 
     /**
      * Execute DESCRIBE query to get table structure.
@@ -197,7 +199,7 @@ interface SelectQueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function setTable(string $table): self;
+    public function setTable(string $table): static;
 
     /**
      * Set the prefix for the select query builder.
@@ -206,7 +208,7 @@ interface SelectQueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function setPrefix(?string $prefix): self;
+    public function setPrefix(?string $prefix): static;
 
     /**
      * Get the query array with SQL and parameters.
@@ -259,7 +261,7 @@ interface SelectQueryBuilderInterface
      *
      * @return static
      */
-    public function setCteManager(?CteManager $cteManager): self;
+    public function setCteManager(?CteManager $cteManager): static;
 
     /**
      * Set UNION operations.
@@ -268,7 +270,7 @@ interface SelectQueryBuilderInterface
      *
      * @return static
      */
-    public function setUnions(array $unions): self;
+    public function setUnions(array $unions): static;
 
     /**
      * Set DISTINCT flag.
@@ -277,7 +279,7 @@ interface SelectQueryBuilderInterface
      *
      * @return static
      */
-    public function setDistinct(bool $distinct): self;
+    public function setDistinct(bool $distinct): static;
 
     /**
      * Set DISTINCT ON columns.
@@ -286,7 +288,7 @@ interface SelectQueryBuilderInterface
      *
      * @return static
      */
-    public function setDistinctOn(array $columns): self;
+    public function setDistinctOn(array $columns): static;
 
     /**
      * Set column name to index results by.
@@ -295,7 +297,7 @@ interface SelectQueryBuilderInterface
      *
      * @return static
      */
-    public function setIndexColumn(?string $columnName): self;
+    public function setIndexColumn(?string $columnName): static;
 
     /**
      * Get debug information about the select query.

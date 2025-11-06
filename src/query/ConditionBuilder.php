@@ -623,7 +623,7 @@ class ConditionBuilder implements ConditionBuilderInterface
         mixed $value,
         string $operator,
         string $cond
-    ): self {
+    ): static {
         if (is_array($exprOrColumn)) {
             foreach ($exprOrColumn as $col => $val) {
                 $exprQuoted = $this->quoteQualifiedIdentifier((string)$col);
@@ -869,5 +869,60 @@ class ConditionBuilder implements ConditionBuilderInterface
         }
 
         return $info;
+    }
+
+    /**
+     * Extract shard key value from WHERE conditions.
+     *
+     * Searches for WHERE condition with the specified column and operator '='.
+     * Returns the value if found, null otherwise.
+     *
+     * @param string $shardKeyColumn Column name to search for
+     *
+     * @return mixed|null Shard key value or null if not found
+     */
+    public function extractShardKeyValue(string $shardKeyColumn): mixed
+    {
+        if (empty($this->where)) {
+            return null;
+        }
+
+        $quotedColumn = $this->quoteQualifiedIdentifier($shardKeyColumn);
+        $quotedColumnLower = strtolower($quotedColumn);
+
+        foreach ($this->where as $condition) {
+            if (!is_array($condition) || !isset($condition['sql'])) {
+                continue;
+            }
+
+            $sql = $condition['sql'];
+            $sqlLower = strtolower($sql);
+
+            // Check for equality condition: column = value or column = :param
+            if (strpos($sqlLower, $quotedColumnLower) === 0) {
+                // Extract operator and value
+                $pattern = '/^' . preg_quote($quotedColumn, '/') . '\s*=\s*(.+)$/i';
+                if (preg_match($pattern, $sql, $matches)) {
+                    $valuePart = trim($matches[1]);
+
+                    // Check if it's a parameter placeholder
+                    if (preg_match('/^:([a-z0-9_]+)$/i', $valuePart, $paramMatches)) {
+                        $paramName = $valuePart;
+                        $params = $this->parameterManager->getParams();
+                        if (isset($params[$paramName])) {
+                            return $params[$paramName];
+                        }
+                    } elseif (preg_match('/^(\d+)$/', $valuePart)) {
+                        // Numeric literal
+                        return (int)$valuePart;
+                    } elseif (preg_match("/^'([^']*)'$/", $valuePart, $strMatches)) {
+                        // String literal
+                        return $strMatches[1];
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 }

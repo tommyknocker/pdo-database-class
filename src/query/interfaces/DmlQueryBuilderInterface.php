@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query\interfaces;
 
+use Closure;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\QueryBuilder;
 
 interface DmlQueryBuilderInterface
 {
@@ -78,7 +80,7 @@ interface DmlQueryBuilderInterface
      *
      * @return static
      */
-    public function addOption(string|array $option): self;
+    public function addOption(string|array $option): static;
 
     /**
      * Set query options.
@@ -87,7 +89,7 @@ interface DmlQueryBuilderInterface
      *
      * @return static
      */
-    public function setOptions(array $options): self;
+    public function setOptions(array $options): static;
 
     /**
      * Add ON DUPLICATE clause.
@@ -96,7 +98,7 @@ interface DmlQueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function onDuplicate(array $onDuplicate): self;
+    public function onDuplicate(array $onDuplicate): static;
 
     /**
      * Set the table name for the DML query builder.
@@ -105,7 +107,7 @@ interface DmlQueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function setTable(string $table): self;
+    public function setTable(string $table): static;
 
     /**
      * Set the prefix for the DML query builder.
@@ -114,7 +116,7 @@ interface DmlQueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function setPrefix(?string $prefix): self;
+    public function setPrefix(?string $prefix): static;
 
     /**
      * Set the limit for the DML query builder.
@@ -123,12 +125,12 @@ interface DmlQueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function setLimit(?int $limit): self;
+    public function setLimit(?int $limit): static;
 
     /**
      * Execute MERGE statement (INSERT/UPDATE/DELETE based on match conditions).
      *
-     * @param string|\Closure(\tommyknocker\pdodb\query\QueryBuilder): void|SelectQueryBuilderInterface $source Source table/subquery for MERGE
+     * @param string|Closure(QueryBuilder): void|SelectQueryBuilderInterface $source Source table/subquery for MERGE
      * @param string|array<string> $onConditions ON clause conditions
      * @param array<string, string|int|float|bool|null|RawValue> $whenMatched Update columns when matched
      * @param array<string, string|int|float|bool|null|RawValue> $whenNotMatched Insert columns when not matched
@@ -137,7 +139,7 @@ interface DmlQueryBuilderInterface
      * @return int Number of affected rows
      */
     public function merge(
-        string|\Closure|SelectQueryBuilderInterface $source,
+        string|Closure|SelectQueryBuilderInterface $source,
         string|array $onConditions,
         array $whenMatched = [],
         array $whenNotMatched = [],

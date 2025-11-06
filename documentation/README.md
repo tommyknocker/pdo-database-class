@@ -51,6 +51,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [Query Caching](05-advanced-features/query-caching.md) - PSR-16 result caching
 - [Pagination](05-advanced-features/pagination.md) - Full, simple, and cursor-based pagination
 - [Read/Write Splitting](05-advanced-features/read-write-splitting.md) - Master-replica architecture
+- [Sharding](05-advanced-features/sharding.md) - Horizontal partitioning across multiple databases
 - [Database Migrations](05-advanced-features/migrations.md) - Version-controlled schema changes
 - [ActiveRecord](05-advanced-features/active-record.md) - Lightweight ORM pattern for object-based database operations
 - [ActiveRecord Relationships](05-advanced-features/active-record-relationships.md) - hasOne, hasMany, belongsTo relationships with lazy and eager loading
@@ -128,6 +129,7 @@ $users = $db->find()
 - **Cross-Database Support** - Works with MySQL, MariaDB, PostgreSQL, SQLite
 - **Query Caching** - PSR-16 integration for 10-1000x faster queries
 - **Read/Write Splitting** - Horizontal scaling with master-replica architecture
+- **Sharding** - Horizontal partitioning across multiple databases with automatic query routing
 - **Window Functions** - Advanced analytics with ROW_NUMBER, RANK, LAG, LEAD
 - **Common Table Expressions (CTEs)** - WITH clauses for complex queries, recursive CTEs
 - **Full-Text Search** - Cross-database FTS with unified API

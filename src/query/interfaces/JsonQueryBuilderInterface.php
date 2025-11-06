@@ -18,7 +18,7 @@ interface JsonQueryBuilderInterface
      *
      * @return static
      */
-    public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): self;
+    public function selectJson(string $col, array|string $path, ?string $alias = null, bool $asText = true): static;
 
     /**
      * Add WHERE condition comparing JSON value at path.
@@ -31,7 +31,7 @@ interface JsonQueryBuilderInterface
      *
      * @return static
      */
-    public function whereJsonPath(string $col, array|string $path, string $operator, mixed $value, string $cond = 'AND'): self;
+    public function whereJsonPath(string $col, array|string $path, string $operator, mixed $value, string $cond = 'AND'): static;
 
     /**
      * Add WHERE JSON contains (col contains value).
@@ -43,7 +43,7 @@ interface JsonQueryBuilderInterface
      *
      * @return static
      */
-    public function whereJsonContains(string $col, mixed $value, array|string|null $path = null, string $cond = 'AND'): self;
+    public function whereJsonContains(string $col, mixed $value, array|string|null $path = null, string $cond = 'AND'): static;
 
     /**
      * Update JSON field: set value at path (create missing).
@@ -75,7 +75,7 @@ interface JsonQueryBuilderInterface
      *
      * @return static
      */
-    public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): self;
+    public function orderByJson(string $col, array|string $path, string $direction = 'ASC'): static;
 
     /**
      * Check existence of JSON path (returns boolean condition).
@@ -86,7 +86,7 @@ interface JsonQueryBuilderInterface
      *
      * @return static
      */
-    public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): self;
+    public function whereJsonExists(string $col, array|string $path, string $cond = 'AND'): static;
 
     /**
      * Get JSON select expressions.
@@ -107,12 +107,12 @@ interface JsonQueryBuilderInterface
      *
      * @return static
      */
-    public function clearJsonSelects(): self;
+    public function clearJsonSelects(): static;
 
     /**
      * Clear JSON order expressions.
      *
      * @return static
      */
-    public function clearJsonOrders(): self;
+    public function clearJsonOrders(): static;
 }

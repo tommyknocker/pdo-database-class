@@ -44,7 +44,7 @@ interface FileLoaderInterface
      *
      * @return static The current instance.
      */
-    public function setTable(string $table): self;
+    public function setTable(string $table): static;
 
     /**
      * Set the prefix for the file loader.
@@ -53,5 +53,5 @@ interface FileLoaderInterface
      *
      * @return static The current instance.
      */
-    public function setPrefix(?string $prefix): self;
+    public function setPrefix(?string $prefix): static;
 }

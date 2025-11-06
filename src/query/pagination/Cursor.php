@@ -68,6 +68,10 @@ class Cursor
 
     /**
      * Decode cursor from string.
+     *
+     * @param string|null $encoded
+     *
+     * @return self|null
      */
     public static function decode(?string $encoded): ?self
     {
@@ -80,7 +84,7 @@ class Cursor
             throw new InvalidArgumentException('Invalid cursor format');
         }
 
-        $data = json_decode($decoded, true);
+        $data = json_decode($decoded, true, 512);
         if (!is_array($data) || !isset($data['params'], $data['direction'])) {
             throw new InvalidArgumentException('Invalid cursor data');
         }
@@ -96,6 +100,8 @@ class Cursor
      *
      * @param array<string, mixed> $item
      * @param array<int, string> $columns
+     *
+     * @return self
      */
     public static function fromItem(array $item, array $columns): self
     {
