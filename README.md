@@ -442,6 +442,124 @@ See:
 - [Example: Sticky Writes](examples/15-read-write-splitting/02-sticky-writes.php)
 - [Example: Load Balancers](examples/15-read-write-splitting/03-load-balancers.php)
 
+### Sharding
+
+Horizontal partitioning across multiple databases with automatic query routing. Automatically routes queries to the correct shard based on shard key values.
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+$db = new PdoDb();
+
+// Add shard connections to the connection pool
+$db->addConnection('shard1', [
+    'driver' => 'mysql',
+    'host' => 'shard1.db.local',
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'myapp_shard1',
+]);
+
+$db->addConnection('shard2', [
+    'driver' => 'mysql',
+    'host' => 'shard2.db.local',
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'myapp_shard2',
+]);
+
+$db->addConnection('shard3', [
+    'driver' => 'mysql',
+    'host' => 'shard3.db.local',
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'myapp_shard3',
+]);
+
+// Configure range-based sharding
+$db->shard('users')
+    ->shardKey('user_id')
+    ->strategy('range')
+    ->ranges([
+        'shard1' => [0, 1000],
+        'shard2' => [1001, 2000],
+        'shard3' => [2001, 3000],
+    ])
+    ->useConnections(['shard1', 'shard2', 'shard3'])
+    ->register();
+
+// Queries automatically route to the correct shard
+$user = $db->find()
+    ->from('users')
+    ->where('user_id', 12345)
+    ->getOne(); // Automatically routed to shard3
+
+// INSERT/UPDATE/DELETE also route automatically
+$db->find()->table('users')->insert([
+    'user_id' => 500,
+    'name' => 'Alice',
+    'email' => 'alice@example.com'
+]); // Automatically routed to shard1
+```
+
+**Sharding Strategies:**
+
+1. **Range Strategy** - Distributes data based on numeric ranges:
+```php
+$db->shard('products')
+    ->shardKey('product_id')
+    ->strategy('range')
+    ->ranges([
+        'shard1' => [0, 1000],
+        'shard2' => [1001, 2000],
+        'shard3' => [2001, 3000],
+    ])
+    ->useConnections(['shard1', 'shard2', 'shard3'])
+    ->register();
+```
+
+2. **Hash Strategy** - Distributes data based on hash of shard key:
+```php
+$db->shard('users')
+    ->shardKey('user_id')
+    ->strategy('hash')
+    ->useConnections(['shard1', 'shard2', 'shard3'])
+    ->register();
+```
+
+3. **Modulo Strategy** - Distributes data using modulo operation:
+```php
+$db->shard('orders')
+    ->shardKey('order_id')
+    ->strategy('modulo')
+    ->useConnections(['shard1', 'shard2', 'shard3'])
+    ->register();
+```
+
+**Key Features:**
+- Automatic query routing based on shard key
+- Supports INSERT, UPDATE, DELETE, SELECT operations
+- Three sharding strategies: range, hash, modulo
+- Uses existing connections from connection pool
+- Transparent to application code
+
+**How It Works:**
+1. Configure sharding for a table with `shard()` method
+2. Specify shard key column (e.g., `user_id`)
+3. Choose sharding strategy (range, hash, or modulo)
+4. Register existing connections from connection pool
+5. Queries with shard key in WHERE clause automatically route to correct shard
+
+**Requirements:**
+- Shard key must be present in WHERE clause for SELECT operations
+- Shard key must be provided for INSERT operations
+- Supports all CRUD operations (CREATE, READ, UPDATE, DELETE)
+
+See:
+- [Documentation: Sharding](documentation/05-advanced-features/sharding.md)
+- [Example: Basic Sharding](examples/30-sharding/01-basic-sharding.php)
+- [Example: Sharding Strategies](examples/30-sharding/02-sharding-strategies.php)
+
 ### Window Functions
 
 Perform advanced analytics with window functions (MySQL 8.0+, PostgreSQL 9.4+, SQLite 3.25+):
