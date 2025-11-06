@@ -8,6 +8,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.9.2] - 2025-11-06
+
+### Added
+- **Sharding Support** - Horizontal partitioning across multiple databases with automatic query routing:
+  - **Three sharding strategies** - Range, Hash, and Modulo strategies for data distribution
+    - **Range Strategy** - Distributes data based on numeric ranges (e.g., 0-1000, 1001-2000)
+    - **Hash Strategy** - Distributes data based on hash of shard key value (CRC32)
+    - **Modulo Strategy** - Distributes data based on modulo operation (`value % shard_count`)
+  - **Unified connection pool** - Uses existing connections from `PdoDb` connection pool via `useConnections()`
+  - **Automatic query routing** - Queries automatically routed to appropriate shard based on shard key in WHERE conditions
+  - **ShardConfig, ShardRouter, ShardConfigBuilder** - Complete infrastructure for sharding configuration
+  - **ShardStrategyInterface** - Extensible interface for custom sharding strategies
+  - **Fluent API** - `$db->shard('table')->shardKey('id')->strategy('range')->useConnections([...])->register()`
+  - **Comprehensive examples** - `examples/30-sharding/` with all strategies and use cases
+  - **Complete documentation** - `documentation/05-advanced-features/sharding.md` with detailed guides
+  - **Full test coverage** - 15 tests covering all sharding strategies and edge cases
+
+- **QueryBuilder Macros** - Extend QueryBuilder with custom methods:
+  - **MacroRegistry class** - Central registry for managing macro registration and storage
+  - **QueryBuilder::macro()** - Register custom query methods as macros
+  - **QueryBuilder::hasMacro()** - Check if a macro exists
+  - **Dynamic execution** - `__call()` implementation for automatic macro execution
+  - **Comprehensive examples** - `examples/29-macros/` demonstrating macro usage patterns
+  - **Complete documentation** - `documentation/05-advanced-features/query-macros.md` with examples
+  - **Full test coverage** - Comprehensive tests for macro functionality
+
+- **Enhanced WHERE Condition Methods** - Fluent methods for common WHERE patterns:
+  - **Null checks**: `whereNull()`, `whereNotNull()`, `andWhereNull()`, `orWhereNull()`, etc.
+  - **Range checks**: `whereBetween()`, `whereNotBetween()`, `andWhereBetween()`, `orWhereBetween()`, etc.
+  - **Column comparisons**: `whereColumn()`, `andWhereColumn()`, `orWhereColumn()`
+  - **Enhanced IN clauses**: `whereIn()` and `whereNotIn()` now support arrays in addition to subqueries
+  - **AND/OR variants** - All new methods have `and*` and `or*` variants for fluent chaining
+  - **27 new tests** - Comprehensive test coverage (66 assertions) in `WhereConditionMethodsTests`
+  - **Updated examples** - `examples/01-basic/03-where-conditions.php` demonstrates all new methods
+  - Improves developer experience by eliminating need for helper functions in common WHERE patterns
+
+- **Connection Management**:
+  - **PdoDb::getConnection()** - Retrieve connection from pool by name
+  - Enables sharding to reuse existing connections from connection pool
+
+### Changed
+- **Fluent Interface Return Types** - Replaced `self` with `static` in all interfaces:
+  - `ConditionBuilderInterface`, `DmlQueryBuilderInterface`, `ExecutionEngineInterface`
+  - `FileLoaderInterface`, `JoinBuilderInterface`, `JsonQueryBuilderInterface`
+  - `ParameterManagerInterface`, `QueryBuilderInterface`, `SelectQueryBuilderInterface`
+  - Better support for extending QueryBuilder classes and improved IDE autocomplete
+
+- **Composer Metadata**:
+  - **Updated description** - Full description (487 chars) with all major features including sharding, migrations, query macros
+  - **Added keywords** - 17 new keywords: `sharding`, `migrations`, `query-macros`, `macro-system`, `ddl`, `schema-builder`, `lateral-join`, `query-profiling`, `query-compilation-cache`, `batch-processing`, `merge-statements`, `sql-formatter`, `sql-pretty-printer`, `connection-retry`, `psr-14`, `event-dispatcher`, `explain-analysis`
+  - Improves discoverability on Packagist and GitHub
+
+### Technical Details
+- **All tests passing**: Comprehensive test coverage with new sharding, macro, and WHERE condition tests
+- **PHPStan Level 8**: Zero errors across entire codebase
+- **PHP-CS-Fixer**: All code complies with PSR-12 standards
+- **Full backward compatibility**: 100% maintained - all existing code continues to work
+- **Code quality**: Follows KISS, SOLID, DRY, YAGNI principles
+- **Documentation**: Added 3 new comprehensive documentation files:
+  - `documentation/05-advanced-features/sharding.md` (241 lines)
+  - `documentation/05-advanced-features/query-macros.md` (345 lines)
+  - Updated `documentation/03-query-builder/filtering-conditions.md` with enhanced WHERE methods
+- **Examples**: Added 2 new example directories:
+  - `examples/30-sharding/` (3 files, 352 lines total)
+  - `examples/29-macros/` (2 files, 470 lines total)
+
 ## [2.9.1] - 2025-11-04
 
 ### Added
@@ -1110,7 +1176,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.1...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.2...HEAD
+[2.9.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.1...v2.9.2
 [2.9.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.0...v2.9.1
 [2.9.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.8.0...v2.9.0
 [2.8.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.7.1...v2.8.0
