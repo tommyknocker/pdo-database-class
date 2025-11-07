@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\query\interfaces;
 
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\QueryBuilder;
 
 interface ConditionBuilderInterface
 {
@@ -67,7 +68,7 @@ interface ConditionBuilderInterface
      * Add WHERE IN clause with subquery or array.
      *
      * @param string $column The column to check
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
      * @param string $boolean The boolean operator (AND or OR)
      *
      * @return static The current instance
@@ -78,7 +79,7 @@ interface ConditionBuilderInterface
      * Add WHERE NOT IN clause with subquery or array.
      *
      * @param string $column The column to check
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
      * @param string $boolean The boolean operator (AND or OR)
      *
      * @return static The current instance
@@ -185,7 +186,7 @@ interface ConditionBuilderInterface
      * Add OR WHERE column IN clause.
      *
      * @param string $column The column to check
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
      *
      * @return static The current instance
      */
@@ -195,7 +196,7 @@ interface ConditionBuilderInterface
      * Add OR WHERE column NOT IN clause.
      *
      * @param string $column The column to check
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
      *
      * @return static The current instance
      */
@@ -245,7 +246,7 @@ interface ConditionBuilderInterface
      * Add AND WHERE column IN clause.
      *
      * @param string $column The column to check
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
      *
      * @return static The current instance
      */
@@ -255,7 +256,7 @@ interface ConditionBuilderInterface
      * Add AND WHERE column NOT IN clause.
      *
      * @param string $column The column to check
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
+     * @param callable(QueryBuilder): void|array<int|string, mixed> $subqueryOrArray The subquery callback or array of values
      *
      * @return static The current instance
      */
@@ -286,7 +287,7 @@ interface ConditionBuilderInterface
     /**
      * Add WHERE EXISTS clause.
      *
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery The subquery callback
+     * @param callable(QueryBuilder): void $subquery The subquery callback
      *
      * @return static The current instance
      */
@@ -295,7 +296,7 @@ interface ConditionBuilderInterface
     /**
      * Add WHERE NOT EXISTS clause.
      *
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder): void $subquery The subquery callback
+     * @param callable(QueryBuilder): void $subquery The subquery callback
      *
      * @return static The current instance
      */

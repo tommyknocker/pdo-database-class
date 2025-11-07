@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\events;
 
 use Psr\EventDispatcher\StoppableEventInterface;
+use tommyknocker\pdodb\orm\Model;
 
 /**
  * Event fired after a model is successfully inserted into the database.
@@ -12,11 +13,11 @@ use Psr\EventDispatcher\StoppableEventInterface;
 final class ModelAfterInsertEvent implements StoppableEventInterface
 {
     /**
-     * @param \tommyknocker\pdodb\orm\Model $model The model that was inserted
+     * @param Model $model The model that was inserted
      * @param mixed $insertId The inserted ID (primary key value)
      */
     public function __construct(
-        private \tommyknocker\pdodb\orm\Model $model,
+        private Model $model,
         private mixed $insertId
     ) {
     }
@@ -24,9 +25,9 @@ final class ModelAfterInsertEvent implements StoppableEventInterface
     /**
      * Get the model that was inserted.
      *
-     * @return \tommyknocker\pdodb\orm\Model
+     * @return Model
      */
-    public function getModel(): \tommyknocker\pdodb\orm\Model
+    public function getModel(): Model
     {
         return $this->model;
     }

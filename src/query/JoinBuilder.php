@@ -106,7 +106,7 @@ class JoinBuilder implements JoinBuilderInterface
      * LATERAL JOINs allow correlated subqueries in FROM clause,
      * where the subquery can reference columns from preceding tables.
      *
-     * @param string|callable(\tommyknocker\pdodb\query\QueryBuilder): void $tableOrSubquery Table name or callable that returns a query builder for subquery
+     * @param string|callable(QueryBuilder): void $tableOrSubquery Table name or callable that returns a query builder for subquery
      * @param string|RawValue|null $condition Optional ON condition (not always required for LATERAL)
      * @param string $type JOIN type, e.g. INNER, LEFT (default: LEFT)
      * @param string|null $alias Optional alias for LATERAL subquery/table

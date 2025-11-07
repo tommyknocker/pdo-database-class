@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\events;
 
 use Psr\EventDispatcher\StoppableEventInterface;
+use tommyknocker\pdodb\orm\Model;
 
 /**
  * Event fired after a model is successfully updated in the database.
@@ -12,12 +13,12 @@ use Psr\EventDispatcher\StoppableEventInterface;
 final class ModelAfterUpdateEvent implements StoppableEventInterface
 {
     /**
-     * @param \tommyknocker\pdodb\orm\Model $model The model that was updated
+     * @param Model $model The model that was updated
      * @param array<string, mixed> $changedAttributes The attributes that were changed
      * @param int $rowsAffected Number of rows affected
      */
     public function __construct(
-        private \tommyknocker\pdodb\orm\Model $model,
+        private Model $model,
         private array $changedAttributes,
         private int $rowsAffected
     ) {
@@ -26,9 +27,9 @@ final class ModelAfterUpdateEvent implements StoppableEventInterface
     /**
      * Get the model that was updated.
      *
-     * @return \tommyknocker\pdodb\orm\Model
+     * @return Model
      */
-    public function getModel(): \tommyknocker\pdodb\orm\Model
+    public function getModel(): Model
     {
         return $this->model;
     }

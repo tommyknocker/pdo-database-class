@@ -1200,7 +1200,7 @@ class SqliteDialect extends DialectAbstract
      */
     protected function formatDefaultValue(mixed $value): string
     {
-        if ($value instanceof \tommyknocker\pdodb\helpers\values\RawValue) {
+        if ($value instanceof RawValue) {
             return $value->getValue();
         }
         if ($value === null) {

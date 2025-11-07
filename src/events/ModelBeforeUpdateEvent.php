@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\events;
 
 use Psr\EventDispatcher\StoppableEventInterface;
+use tommyknocker\pdodb\orm\Model;
 
 /**
  * Event fired before a model is updated in the database.
@@ -16,11 +17,11 @@ final class ModelBeforeUpdateEvent implements StoppableEventInterface
     protected bool $stopPropagation = false;
 
     /**
-     * @param \tommyknocker\pdodb\orm\Model $model The model being updated
+     * @param Model $model The model being updated
      * @param array<string, mixed> $dirtyAttributes The attributes that changed
      */
     public function __construct(
-        private \tommyknocker\pdodb\orm\Model $model,
+        private Model $model,
         private array $dirtyAttributes
     ) {
     }
@@ -28,9 +29,9 @@ final class ModelBeforeUpdateEvent implements StoppableEventInterface
     /**
      * Get the model being updated.
      *
-     * @return \tommyknocker\pdodb\orm\Model
+     * @return Model
      */
-    public function getModel(): \tommyknocker\pdodb\orm\Model
+    public function getModel(): Model
     {
         return $this->model;
     }

@@ -21,6 +21,7 @@ use tommyknocker\pdodb\connection\sharding\ShardRouter;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\plugin\PluginInterface;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
+use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\QueryBuilder;
 use tommyknocker\pdodb\query\QueryProfiler;
 
@@ -101,7 +102,7 @@ class PdoDb
     /**
      * @var array<string, callable> Scopes for all QueryBuilder instances
      *
-     * @phpstan-var array<string, callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder>
+     * @phpstan-var array<string, callable(QueryBuilder, mixed...): QueryBuilder>
      */
     protected array $scopes = [];
 
@@ -296,7 +297,7 @@ class PdoDb
      * created via find() method.
      *
      * @param string $name Scope name
-     * @param callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder $scope Scope callable
+     * @param callable(QueryBuilder, mixed...): QueryBuilder $scope Scope callable
      *
      * @return static
      */
@@ -324,7 +325,7 @@ class PdoDb
      *
      * @return array<string, callable> Scopes (callable accepts QueryBuilder and optional args, returns QueryBuilder)
      *
-     * @phpstan-return array<string, callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder>
+     * @phpstan-return array<string, callable(QueryBuilder, mixed...): QueryBuilder>
      */
     public function getScopes(): array
     {
@@ -402,11 +403,11 @@ class PdoDb
     /**
      * Returns a new DdlQueryBuilder instance for schema operations.
      *
-     * @return \tommyknocker\pdodb\query\DdlQueryBuilder The new DdlQueryBuilder instance.
+     * @return DdlQueryBuilder The new DdlQueryBuilder instance.
      */
-    public function schema(): \tommyknocker\pdodb\query\DdlQueryBuilder
+    public function schema(): DdlQueryBuilder
     {
-        return new \tommyknocker\pdodb\query\DdlQueryBuilder(
+        return new DdlQueryBuilder(
             $this->connection,
             $this->prefix
         );

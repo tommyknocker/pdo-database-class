@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\events;
 
 use Psr\EventDispatcher\StoppableEventInterface;
+use tommyknocker\pdodb\orm\Model;
 
 /**
  * Event fired before a model is deleted from the database.
@@ -16,19 +17,19 @@ final class ModelBeforeDeleteEvent implements StoppableEventInterface
     protected bool $stopPropagation = false;
 
     /**
-     * @param \tommyknocker\pdodb\orm\Model $model The model being deleted
+     * @param Model $model The model being deleted
      */
     public function __construct(
-        private \tommyknocker\pdodb\orm\Model $model
+        private Model $model
     ) {
     }
 
     /**
      * Get the model being deleted.
      *
-     * @return \tommyknocker\pdodb\orm\Model
+     * @return Model
      */
-    public function getModel(): \tommyknocker\pdodb\orm\Model
+    public function getModel(): Model
     {
         return $this->model;
     }

@@ -10,9 +10,11 @@ use RuntimeException;
 use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\ExplainAnalyzer;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\cte\CteManager;
+use tommyknocker\pdodb\query\formatter\SqlFormatter;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
@@ -718,7 +720,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
 
         // Format SQL if requested
         if ($formatted) {
-            $formatter = new \tommyknocker\pdodb\query\formatter\SqlFormatter(
+            $formatter = new SqlFormatter(
                 highlightKeywords: false,
                 indentSize: 4,
                 indentChar: ' '
@@ -760,9 +762,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @param string|null $tableName Optional table name for index suggestions
      *
-     * @return \tommyknocker\pdodb\query\analysis\ExplainAnalysis Analysis result with recommendations
+     * @return ExplainAnalysis Analysis result with recommendations
      */
-    public function explainAdvice(?string $tableName = null): \tommyknocker\pdodb\query\analysis\ExplainAnalysis
+    public function explainAdvice(?string $tableName = null): ExplainAnalysis
     {
         $sqlData = $this->toSQL();
         $explainSql = $this->dialect->buildExplainSql($sqlData['sql']);

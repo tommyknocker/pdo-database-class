@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm;
 
 use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\query\QueryBuilder;
 
 /**
  * Base Model class implementing ActiveRecord pattern.
@@ -122,7 +123,7 @@ abstract class Model
      *
      * Override this method to define global scopes for the model.
      *
-     * @return array<string, callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder> Global scope definitions
+     * @return array<string, callable(QueryBuilder, mixed...): QueryBuilder> Global scope definitions
      */
     public static function globalScopes(): array
     {
@@ -140,7 +141,7 @@ abstract class Model
      *
      * Override this method to define local scopes for the model.
      *
-     * @return array<string, callable(\tommyknocker\pdodb\query\QueryBuilder, mixed...): \tommyknocker\pdodb\query\QueryBuilder> Local scope definitions
+     * @return array<string, callable(QueryBuilder, mixed...): QueryBuilder> Local scope definitions
      */
     public static function scopes(): array
     {

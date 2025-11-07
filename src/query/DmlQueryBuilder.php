@@ -531,7 +531,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
     /**
      * Execute MERGE statement (INSERT/UPDATE/DELETE based on match conditions).
      *
-     * @param string|\Closure(\tommyknocker\pdodb\query\QueryBuilder): void|SelectQueryBuilderInterface $source Source table/subquery for MERGE
+     * @param string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface $source Source table/subquery for MERGE
      * @param string|array<string> $onConditions ON clause conditions
      * @param array<string, string|int|float|bool|null|RawValue> $whenMatched Update columns when matched
      * @param array<string, string|int|float|bool|null|RawValue> $whenNotMatched Insert columns when not matched
@@ -602,7 +602,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
     /**
      * Build source SQL for MERGE.
      *
-     * @param string|\Closure(\tommyknocker\pdodb\query\QueryBuilder): void|SelectQueryBuilderInterface $source
+     * @param string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface $source
      *
      * @return string
      */
@@ -629,7 +629,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
 
         if ($source instanceof \Closure) {
             // Closure - create QueryBuilder instance and use its selectQueryBuilder
-            $queryBuilder = new \tommyknocker\pdodb\query\QueryBuilder(
+            $queryBuilder = new QueryBuilder(
                 $this->connection,
                 $this->prefix ?? '',
                 null,

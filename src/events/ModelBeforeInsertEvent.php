@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\events;
 
 use Psr\EventDispatcher\StoppableEventInterface;
+use tommyknocker\pdodb\orm\Model;
 
 /**
  * Event fired before a model is inserted into the database.
@@ -16,19 +17,19 @@ final class ModelBeforeInsertEvent implements StoppableEventInterface
     protected bool $stopPropagation = false;
 
     /**
-     * @param \tommyknocker\pdodb\orm\Model $model The model being inserted
+     * @param Model $model The model being inserted
      */
     public function __construct(
-        private \tommyknocker\pdodb\orm\Model $model
+        private Model $model
     ) {
     }
 
     /**
      * Get the model being inserted.
      *
-     * @return \tommyknocker\pdodb\orm\Model
+     * @return Model
      */
-    public function getModel(): \tommyknocker\pdodb\orm\Model
+    public function getModel(): Model
     {
         return $this->model;
     }

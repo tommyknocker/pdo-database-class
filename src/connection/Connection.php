@@ -15,6 +15,7 @@ use tommyknocker\pdodb\events\QueryExecutedEvent;
 use tommyknocker\pdodb\events\TransactionCommittedEvent;
 use tommyknocker\pdodb\events\TransactionRolledBackEvent;
 use tommyknocker\pdodb\events\TransactionStartedEvent;
+use tommyknocker\pdodb\exceptions\DatabaseException;
 use tommyknocker\pdodb\exceptions\ExceptionFactory;
 
 /**
@@ -180,7 +181,7 @@ class Connection implements ConnectionInterface
      * @param string|null $sql The SQL query (if applicable)
      * @param array<string, mixed> $context Additional context
      *
-     * @throws \tommyknocker\pdodb\exceptions\DatabaseException Always throws a specialized exception
+     * @throws DatabaseException Always throws a specialized exception
      */
     protected function handlePdoException(
         PDOException $e,

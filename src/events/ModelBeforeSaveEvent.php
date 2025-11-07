@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\events;
 
 use Psr\EventDispatcher\StoppableEventInterface;
+use tommyknocker\pdodb\orm\Model;
 
 /**
  * Event fired before a model is saved (insert or update).
@@ -16,11 +17,11 @@ final class ModelBeforeSaveEvent implements StoppableEventInterface
     protected bool $stopPropagation = false;
 
     /**
-     * @param \tommyknocker\pdodb\orm\Model $model The model being saved
+     * @param Model $model The model being saved
      * @param bool $isNewRecord Whether this is a new record (insert) or existing (update)
      */
     public function __construct(
-        private \tommyknocker\pdodb\orm\Model $model,
+        private Model $model,
         private bool $isNewRecord
     ) {
     }
@@ -28,9 +29,9 @@ final class ModelBeforeSaveEvent implements StoppableEventInterface
     /**
      * Get the model being saved.
      *
-     * @return \tommyknocker\pdodb\orm\Model
+     * @return Model
      */
-    public function getModel(): \tommyknocker\pdodb\orm\Model
+    public function getModel(): Model
     {
         return $this->model;
     }
