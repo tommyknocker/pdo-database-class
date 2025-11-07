@@ -34,6 +34,11 @@ PDODB_DRIVER=pgsql php 01-explain-recommendations.php
 3. **Index Recommendations**: Get suggestions for creating indexes
 4. **Query Optimization**: See how indexes improve query performance
 5. **Warnings Detection**: Identify filesort and temporary table usage
+6. **Filter Ratio Analysis**: Detect low index selectivity (MySQL/MariaDB)
+7. **Cost Analysis**: Analyze query cost (PostgreSQL)
+8. **JOIN Analysis**: Detect inefficient JOIN operations
+9. **Subquery Detection**: Identify dependent subqueries
+10. **GROUP BY Optimization**: Detect GROUP BY without index usage
 
 ## Notes
 

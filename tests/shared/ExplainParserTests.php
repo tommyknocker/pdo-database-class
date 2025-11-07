@@ -158,6 +158,123 @@ final class ExplainParserTests extends BaseSharedTestCase
         $this->assertEquals(10, $plan->estimatedRows);
     }
 
+    public function testMySQLExplainParserWithFiltered(): void
+    {
+        $parser = new MySQLExplainParser();
+        $explainResults = [
+            [
+                'table' => 'users',
+                'type' => 'ref',
+                'key' => 'idx_email',
+                'possible_keys' => 'idx_email',
+                'rows' => 1000,
+                'filtered' => 5.5,
+                'Extra' => '',
+            ],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertEquals(5.5, $plan->filtered);
+    }
+
+    public function testMySQLExplainParserWithDependentSubquery(): void
+    {
+        $parser = new MySQLExplainParser();
+        $explainResults = [
+            [
+                'table' => 'users',
+                'type' => 'ref',
+                'key' => 'idx_email',
+                'possible_keys' => 'idx_email',
+                'rows' => 10,
+                'Extra' => 'Using where; dependent subquery',
+            ],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertNotEmpty($plan->warnings);
+        $this->assertStringContainsString('Dependent subquery', $plan->warnings[0]);
+    }
+
+    public function testMySQLExplainParserWithGroupByWithoutIndex(): void
+    {
+        $parser = new MySQLExplainParser();
+        $explainResults = [
+            [
+                'table' => 'users',
+                'type' => 'ref',
+                'key' => 'idx_email',
+                'possible_keys' => 'idx_email',
+                'rows' => 10,
+                'Extra' => 'Using temporary; Using filesort',
+            ],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertNotEmpty($plan->warnings);
+        $hasGroupByWarning = false;
+        foreach ($plan->warnings as $warning) {
+            if (str_contains($warning, 'GROUP BY requires temporary table and filesort')) {
+                $hasGroupByWarning = true;
+                break;
+            }
+        }
+        $this->assertTrue($hasGroupByWarning);
+    }
+
+    public function testPostgreSQLExplainParserWithCost(): void
+    {
+        $parser = new PostgreSQLExplainParser();
+        $explainResults = [
+            ['QUERY PLAN' => 'Seq Scan on users  (cost=0.00..150000.00 rows=1000 width=4)'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertEquals(150000.0, $plan->totalCost);
+    }
+
+    public function testPostgreSQLExplainParserWithExecutionTime(): void
+    {
+        $parser = new PostgreSQLExplainParser();
+        $explainResults = [
+            ['QUERY PLAN' => 'Seq Scan on users  (cost=0.00..100.00 rows=1000 width=4) (actual time=0.123..45.678 rows=1000 loops=1)'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertEquals(45.678, $plan->executionTime);
+    }
+
+    public function testPostgreSQLExplainParserWithJoinTypes(): void
+    {
+        $parser = new PostgreSQLExplainParser();
+        $explainResults = [
+            ['QUERY PLAN' => 'Nested Loop Join  (cost=0.00..100.00 rows=1000 width=4)'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertContains('Nested Loop', $plan->joinTypes);
+    }
+
+    public function testPostgreSQLExplainParserWithDependentSubquery(): void
+    {
+        $parser = new PostgreSQLExplainParser();
+        $explainResults = [
+            ['QUERY PLAN' => 'Seq Scan on users  (cost=0.00..100.00 rows=1000 width=4)'],
+            ['QUERY PLAN' => 'SubPlan 1'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertNotEmpty($plan->warnings);
+        $hasSubqueryWarning = false;
+        foreach ($plan->warnings as $warning) {
+            if (str_contains($warning, 'Dependent subquery')) {
+                $hasSubqueryWarning = true;
+                break;
+            }
+        }
+        $this->assertTrue($hasSubqueryWarning);
+    }
+
     public function testMySQLExplainParserEmptyResults(): void
     {
         $parser = new MySQLExplainParser();

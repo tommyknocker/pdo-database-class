@@ -86,12 +86,22 @@ echo "Access Type: " . $analysis->plan->accessType . "\n";
 echo "Used Index: " . ($analysis->plan->usedIndex ?? 'None') . "\n";
 echo "Estimated Rows: " . $analysis->plan->estimatedRows . "\n";
 
+// MySQL/MariaDB specific: Filter ratio
+if ($analysis->plan->filtered < 100.0) {
+    echo "Filter Ratio: " . $analysis->plan->filtered . "%\n";
+}
+
+// PostgreSQL specific: Query cost
+if ($analysis->plan->totalCost !== null) {
+    echo "Query Cost: " . $analysis->plan->totalCost . "\n";
+}
+
 // Check for issues
 if (!empty($analysis->plan->tableScans)) {
     echo "Full table scans detected: " . implode(', ', $analysis->plan->tableScans) . "\n";
 }
 
-// Get recommendations
+// Get recommendations (sorted by severity: critical, warning, info)
 foreach ($analysis->recommendations as $rec) {
     echo "[{$rec->severity}] {$rec->type}: {$rec->message}\n";
     if ($rec->suggestion) {
@@ -132,6 +142,74 @@ foreach ($analysis->recommendations as $rec) {
         echo $rec->suggestion . "\n";
     }
 }
+```
+
+### Detected Issue Types
+
+The analyzer detects various performance issues:
+
+#### Full Table Scans
+```php
+// Detected when access type is 'ALL' (MySQL) or 'Seq Scan' (PostgreSQL)
+$analysis = $db->find()->from('users')->explainAdvice();
+// Issue type: 'full_table_scan'
+```
+
+#### Low Filter Ratio (MySQL/MariaDB)
+```php
+// Detected when filtered percentage is less than 10%
+// Indicates poor index selectivity
+$analysis = $db->find()->from('users')->explainAdvice();
+// Issue type: 'low_filter_ratio'
+```
+
+#### Unused Possible Indexes
+```php
+// Detected when possible_keys exist but no index is used
+$analysis = $db->find()->from('users')->explainAdvice();
+// Issue type: 'unused_possible_indexes'
+```
+
+#### Dependent Subqueries
+```php
+// Detected when query uses correlated subqueries
+$analysis = $db->find()->from('users')->explainAdvice();
+// Issue type: 'dependent_subquery'
+// Recommendation: Rewrite as JOIN
+```
+
+#### GROUP BY Without Index
+```php
+// Detected when GROUP BY requires temporary table and filesort
+$analysis = $db->find()
+    ->from('orders')
+    ->groupBy('status')
+    ->explainAdvice();
+// Issue type: 'group_by_without_index'
+```
+
+#### High Query Cost (PostgreSQL)
+```php
+// Detected when query cost exceeds 100,000
+$analysis = $db->find()->from('users')->explainAdvice();
+// Issue type: 'high_query_cost'
+```
+
+#### Inefficient JOINs (PostgreSQL)
+```php
+// Detected when Nested Loop join is used on large datasets
+$analysis = $db->find()
+    ->from('users')
+    ->join('orders', 'orders.user_id = users.id')
+    ->explainAdvice();
+// Issue type: 'inefficient_join'
+```
+
+#### Full Index Scans
+```php
+// Detected when full index scan is performed on large datasets
+$analysis = $db->find()->from('users')->explainAdvice();
+// Issue type: 'full_index_scan'
 ```
 
 ### Checking for Critical Issues

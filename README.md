@@ -1329,12 +1329,22 @@ echo "Access Type: " . $analysis->plan->accessType . "\n";
 echo "Used Index: " . ($analysis->plan->usedIndex ?? 'None') . "\n";
 echo "Estimated Rows: " . $analysis->plan->estimatedRows . "\n";
 
+// MySQL/MariaDB specific: Filter ratio
+if ($analysis->plan->filtered < 100.0) {
+    echo "Filter Ratio: " . $analysis->plan->filtered . "%\n";
+}
+
+// PostgreSQL specific: Query cost
+if ($analysis->plan->totalCost !== null) {
+    echo "Query Cost: " . $analysis->plan->totalCost . "\n";
+}
+
 // Check for full table scans
 if (!empty($analysis->plan->tableScans)) {
     echo "Full table scans: " . implode(', ', $analysis->plan->tableScans) . "\n";
 }
 
-// Get optimization recommendations
+// Get optimization recommendations (sorted by severity: critical, warning, info)
 foreach ($analysis->recommendations as $rec) {
     echo "[{$rec->severity}] {$rec->type}: {$rec->message}\n";
     if ($rec->suggestion) {
@@ -1347,8 +1357,13 @@ foreach ($analysis->recommendations as $rec) {
 - ✅ **Automatic detection** of full table scans
 - ✅ **Missing index identification** with SQL suggestions
 - ✅ **Filesort and temporary table** warnings
+- ✅ **Filter ratio analysis** (MySQL/MariaDB) - detect low index selectivity
+- ✅ **Query cost analysis** (PostgreSQL) - identify high-cost queries
+- ✅ **JOIN analysis** - detect inefficient JOIN operations
+- ✅ **Subquery detection** - identify dependent subqueries
+- ✅ **GROUP BY optimization** - detect GROUP BY without index usage
 - ✅ **Dialect-aware parsing** (MySQL, MariaDB, PostgreSQL, SQLite)
-- ✅ **Structured recommendations** with severity levels
+- ✅ **Structured recommendations** with severity levels (sorted by priority)
 
 ### Table Structure Analysis
 

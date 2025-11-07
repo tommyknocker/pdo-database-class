@@ -34,6 +34,16 @@ class MySQLExplainParser implements ExplainParserInterface
                 $plan->estimatedRows = max($plan->estimatedRows, $rows);
             }
 
+            // Extract filtered percentage (MySQL 5.7+)
+            $filteredValue = $row['filtered'] ?? null;
+            if ($filteredValue !== null && is_numeric($filteredValue)) {
+                $filtered = (float)$filteredValue;
+                // Use minimum filtered value (worst case)
+                if ($plan->filtered === 100.0 || $filtered < $plan->filtered) {
+                    $plan->filtered = $filtered;
+                }
+            }
+
             // Detect full table scan
             if ($type === 'ALL' && $table !== null) {
                 if (!in_array($table, $plan->tableScans, true)) {
@@ -85,6 +95,28 @@ class MySQLExplainParser implements ExplainParserInterface
             // Check for Using temporary
             if ($extra !== '' && str_contains($extra, 'Using temporary')) {
                 $plan->warnings[] = 'Query creates temporary table';
+            }
+
+            // Detect dependent subquery
+            if ($extra !== '' && str_contains($extra, 'dependent subquery')) {
+                $plan->warnings[] = 'Dependent subquery detected';
+            }
+
+            // Detect GROUP BY without index
+            // Check if both Using temporary and Using filesort are present in the same Extra field
+            if ($extra !== '' && str_contains($extra, 'Using temporary') && str_contains($extra, 'Using filesort')) {
+                // Check if we already detected this in previous rows
+                $hasGroupByWarning = false;
+                foreach ($plan->warnings as $warning) {
+                    if (str_contains($warning, 'GROUP BY requires temporary table and filesort')) {
+                        $hasGroupByWarning = true;
+                        break;
+                    }
+                }
+
+                if (!$hasGroupByWarning) {
+                    $plan->warnings[] = 'GROUP BY requires temporary table and filesort';
+                }
             }
 
             // Extract columns from WHERE conditions if available

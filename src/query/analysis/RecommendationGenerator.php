@@ -75,6 +75,96 @@ class RecommendationGenerator
             );
         }
 
+        // GROUP BY without index recommendation
+        foreach ($plan->warnings as $warning) {
+            if (str_contains($warning, 'GROUP BY requires temporary table and filesort')) {
+                $recommendations[] = new Recommendation(
+                    severity: 'warning',
+                    type: 'group_by_without_index',
+                    message: 'GROUP BY requires temporary table and filesort. Consider adding index on GROUP BY columns.',
+                    suggestion: $tableName ? $this->suggestGroupByIndex($tableName, $plan) : null
+                );
+                break;
+            }
+        }
+
+        // Dependent subquery recommendation
+        foreach ($plan->warnings as $warning) {
+            if (str_contains($warning, 'Dependent subquery')) {
+                $recommendations[] = new Recommendation(
+                    severity: 'warning',
+                    type: 'dependent_subquery',
+                    message: 'Dependent subquery detected. Consider rewriting as JOIN for better performance.',
+                    suggestion: 'Rewrite subquery as JOIN: SELECT ... FROM table1 JOIN (SELECT ...) AS subquery ON ...'
+                );
+                break;
+            }
+        }
+
+        // Low filter ratio recommendation (MySQL)
+        if ($plan->filtered < 100.0 && $plan->filtered > 0.0 && $plan->filtered < 10.0) {
+            $table = $tableName ?? (!empty($plan->tableScans) ? $plan->tableScans[0] : null);
+            if ($table !== null) {
+                $recommendations[] = new Recommendation(
+                    severity: 'warning',
+                    type: 'low_filter_ratio',
+                    message: sprintf(
+                        'Only %.1f%% of rows are filtered after index lookup on table "%s". Consider improving index selectivity or adding more selective WHERE conditions.',
+                        $plan->filtered,
+                        $table
+                    ),
+                    suggestion: $this->suggestIndexForTable($table, $plan),
+                    affectedTables: [$table]
+                );
+            }
+        }
+
+        // Unused possible indexes recommendation
+        if (!empty($plan->possibleKeys) && empty($plan->usedIndex)) {
+            $table = $tableName ?? (!empty($plan->tableScans) ? $plan->tableScans[0] : null);
+            $recommendations[] = new Recommendation(
+                severity: 'info',
+                type: 'unused_possible_indexes',
+                message: sprintf(
+                    'Query has possible indexes but none is used: %s. Consider analyzing why indexes are not being used.',
+                    implode(', ', $plan->possibleKeys)
+                ),
+                suggestion: sprintf(
+                    'Check index statistics: ANALYZE TABLE %s;',
+                    $table !== null ? $this->dialect->quoteTable($table) : 'table_name'
+                ),
+                affectedTables: $table !== null ? [$table] : null
+            );
+        }
+
+        // High query cost recommendation (PostgreSQL)
+        if ($plan->totalCost !== null && $plan->totalCost > 100000) {
+            $recommendations[] = new Recommendation(
+                severity: 'warning',
+                type: 'high_query_cost',
+                message: sprintf(
+                    'Query cost is very high (%.0f). Consider optimization.',
+                    $plan->totalCost
+                ),
+                suggestion: 'Consider adding indexes, optimizing JOINs, or rewriting query'
+            );
+        }
+
+        // Inefficient JOIN recommendation (PostgreSQL)
+        if (!empty($plan->joinTypes)) {
+            foreach ($plan->joinTypes as $joinType) {
+                if ($joinType === 'Nested Loop' && $plan->estimatedRows > 10000) {
+                    $recommendations[] = new Recommendation(
+                        severity: 'warning',
+                        type: 'inefficient_join',
+                        message: 'Nested Loop join detected on large dataset. Consider hash join or index optimization.',
+                        suggestion: 'Enable hash joins: SET enable_hashjoin = on; or add indexes on JOIN columns'
+                    );
+                    break;
+                }
+            }
+        }
+
         // Temporary table recommendation
         if (in_array('Query creates temporary table', $plan->warnings, true)) {
             $recommendations[] = new Recommendation(
@@ -86,6 +176,34 @@ class RecommendationGenerator
         }
 
         return $recommendations;
+    }
+
+    /**
+     * Suggest index for GROUP BY optimization.
+     */
+    protected function suggestGroupByIndex(string $table, ParsedExplainPlan $plan): ?string
+    {
+        if (empty($plan->usedColumns)) {
+            return null;
+        }
+
+        $existingIndexes = $this->getExistingIndexes($table);
+        $indexName = $this->generateIndexName($table, $plan->usedColumns, 'group_by');
+
+        if (in_array($indexName, $existingIndexes, true)) {
+            return null;
+        }
+
+        $columns = implode(', ', array_map(function ($col) {
+            return $this->dialect->quoteIdentifier($col);
+        }, $plan->usedColumns));
+
+        return sprintf(
+            'CREATE INDEX %s ON %s (%s);',
+            $this->dialect->quoteIdentifier($indexName),
+            $this->dialect->quoteTable($table),
+            $columns
+        );
     }
 
     /**

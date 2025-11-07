@@ -92,6 +92,255 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
         $this->assertIsArray($analysis->issues);
     }
 
+    public function testAnalyzeWithLowFilterRatio(): void
+    {
+        $analyzer = $this->createExplainAnalyzer();
+
+        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan->filtered = 5.5;
+        $plan->tableScans = ['users'];
+
+        $reflection = new \ReflectionClass($analyzer);
+        $method = $reflection->getMethod('detectIssues');
+        $method->setAccessible(true);
+
+        $issues = $method->invoke($analyzer, $plan);
+        $lowFilterIssue = null;
+        foreach ($issues as $issue) {
+            if ($issue->type === 'low_filter_ratio') {
+                $lowFilterIssue = $issue;
+                break;
+            }
+        }
+        $this->assertNotNull($lowFilterIssue);
+        $this->assertEquals('warning', $lowFilterIssue->severity);
+    }
+
+    public function testAnalyzeWithUnusedPossibleIndexes(): void
+    {
+        $analyzer = $this->createExplainAnalyzer();
+
+        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan->possibleKeys = ['idx_email', 'idx_username'];
+        $plan->usedIndex = null;
+        $plan->tableScans = ['users'];
+
+        $reflection = new \ReflectionClass($analyzer);
+        $method = $reflection->getMethod('detectIssues');
+        $method->setAccessible(true);
+
+        $issues = $method->invoke($analyzer, $plan);
+        $unusedIndexIssue = null;
+        foreach ($issues as $issue) {
+            if ($issue->type === 'unused_possible_indexes') {
+                $unusedIndexIssue = $issue;
+                break;
+            }
+        }
+        $this->assertNotNull($unusedIndexIssue);
+        $this->assertEquals('info', $unusedIndexIssue->severity);
+    }
+
+    public function testAnalyzeWithDependentSubquery(): void
+    {
+        $analyzer = $this->createExplainAnalyzer();
+
+        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan->warnings = ['Dependent subquery detected'];
+
+        $reflection = new \ReflectionClass($analyzer);
+        $method = $reflection->getMethod('detectIssues');
+        $method->setAccessible(true);
+
+        $issues = $method->invoke($analyzer, $plan);
+        $subqueryIssue = null;
+        foreach ($issues as $issue) {
+            if ($issue->type === 'dependent_subquery') {
+                $subqueryIssue = $issue;
+                break;
+            }
+        }
+        $this->assertNotNull($subqueryIssue);
+        $this->assertEquals('warning', $subqueryIssue->severity);
+    }
+
+    public function testAnalyzeWithGroupByWithoutIndex(): void
+    {
+        $analyzer = $this->createExplainAnalyzer();
+
+        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan->warnings = ['GROUP BY requires temporary table and filesort'];
+
+        $reflection = new \ReflectionClass($analyzer);
+        $method = $reflection->getMethod('detectIssues');
+        $method->setAccessible(true);
+
+        $issues = $method->invoke($analyzer, $plan);
+        $groupByIssue = null;
+        foreach ($issues as $issue) {
+            if ($issue->type === 'group_by_without_index') {
+                $groupByIssue = $issue;
+                break;
+            }
+        }
+        $this->assertNotNull($groupByIssue);
+        $this->assertEquals('warning', $groupByIssue->severity);
+    }
+
+    public function testAnalyzeWithHighQueryCost(): void
+    {
+        $analyzer = $this->createExplainAnalyzer();
+
+        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan->totalCost = 150000.0;
+
+        $reflection = new \ReflectionClass($analyzer);
+        $method = $reflection->getMethod('detectIssues');
+        $method->setAccessible(true);
+
+        $issues = $method->invoke($analyzer, $plan);
+        $costIssue = null;
+        foreach ($issues as $issue) {
+            if ($issue->type === 'high_query_cost') {
+                $costIssue = $issue;
+                break;
+            }
+        }
+        $this->assertNotNull($costIssue);
+        $this->assertEquals('warning', $costIssue->severity);
+    }
+
+    public function testAnalyzeWithInefficientJoin(): void
+    {
+        $analyzer = $this->createExplainAnalyzer();
+
+        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan->joinTypes = ['Nested Loop'];
+        $plan->estimatedRows = 15000;
+
+        $reflection = new \ReflectionClass($analyzer);
+        $method = $reflection->getMethod('detectIssues');
+        $method->setAccessible(true);
+
+        $issues = $method->invoke($analyzer, $plan);
+        $joinIssue = null;
+        foreach ($issues as $issue) {
+            if ($issue->type === 'inefficient_join') {
+                $joinIssue = $issue;
+                break;
+            }
+        }
+        $this->assertNotNull($joinIssue);
+        $this->assertEquals('warning', $joinIssue->severity);
+    }
+
+    public function testAnalyzeWithFullIndexScan(): void
+    {
+        $analyzer = $this->createExplainAnalyzer();
+
+        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan->accessType = 'index';
+        $plan->estimatedRows = 5000;
+        $plan->tableScans = ['users'];
+
+        $reflection = new \ReflectionClass($analyzer);
+        $method = $reflection->getMethod('detectIssues');
+        $method->setAccessible(true);
+
+        $issues = $method->invoke($analyzer, $plan);
+        $indexScanIssue = null;
+        foreach ($issues as $issue) {
+            if ($issue->type === 'full_index_scan') {
+                $indexScanIssue = $issue;
+                break;
+            }
+        }
+        $this->assertNotNull($indexScanIssue);
+        $this->assertEquals('info', $indexScanIssue->severity);
+    }
+
+    public function testExtractTableFromWarningWithQuotes(): void
+    {
+        $analyzer = $this->createExplainAnalyzer();
+
+        $reflection = new \ReflectionClass($analyzer);
+        $method = $reflection->getMethod('extractTableFromWarning');
+        $method->setAccessible(true);
+
+        $table = $method->invoke($analyzer, 'Full table scan on "users" without index usage');
+        $this->assertEquals('users', $table);
+    }
+
+    public function testExtractTableFromWarningWithBackticks(): void
+    {
+        $analyzer = $this->createExplainAnalyzer();
+
+        $reflection = new \ReflectionClass($analyzer);
+        $method = $reflection->getMethod('extractTableFromWarning');
+        $method->setAccessible(true);
+
+        $table = $method->invoke($analyzer, 'Full table scan on `users` without index usage');
+        $this->assertEquals('users', $table);
+    }
+
+    public function testExtractTableFromWarningWithOnKeyword(): void
+    {
+        $analyzer = $this->createExplainAnalyzer();
+
+        $reflection = new \ReflectionClass($analyzer);
+        $method = $reflection->getMethod('extractTableFromWarning');
+        $method->setAccessible(true);
+
+        $table = $method->invoke($analyzer, 'Sequential scan on users without index');
+        $this->assertEquals('users', $table);
+    }
+
+    public function testExtractTableFromWarningWithSequentialScan(): void
+    {
+        $analyzer = $this->createExplainAnalyzer();
+
+        $reflection = new \ReflectionClass($analyzer);
+        $method = $reflection->getMethod('extractTableFromWarning');
+        $method->setAccessible(true);
+
+        $table = $method->invoke($analyzer, 'Sequential scan on users');
+        $this->assertEquals('users', $table);
+    }
+
+    public function testRecommendationsSortedBySeverity(): void
+    {
+        $analyzer = $this->createExplainAnalyzer();
+
+        // Create a plan that will generate multiple recommendations
+        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan->tableScans = ['users'];
+        $plan->warnings = ['Query creates temporary table'];
+        $plan->filtered = 5.0;
+
+        $reflection = new \ReflectionClass($analyzer);
+        $recommendationGenerator = $reflection->getProperty('recommendationGenerator');
+        $recommendationGenerator->setAccessible(true);
+        $generator = $recommendationGenerator->getValue($analyzer);
+
+        $recommendations = $generator->generate($plan, 'users');
+
+        // Check that recommendations are sorted by severity
+        if (count($recommendations) > 1) {
+            $severities = array_map(fn ($r) => $r->severity, $recommendations);
+            $severityOrder = ['critical' => 0, 'warning' => 1, 'info' => 2];
+            $sorted = true;
+            for ($i = 0; $i < count($severities) - 1; $i++) {
+                $current = $severityOrder[$severities[$i]] ?? 3;
+                $next = $severityOrder[$severities[$i + 1]] ?? 3;
+                if ($current > $next) {
+                    $sorted = false;
+                    break;
+                }
+            }
+            $this->assertTrue($sorted, 'Recommendations should be sorted by severity');
+        }
+    }
+
     public function testGetParserForCurrentDialect(): void
     {
         $analyzer = $this->createExplainAnalyzer();

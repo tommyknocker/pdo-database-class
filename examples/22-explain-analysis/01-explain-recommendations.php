@@ -85,6 +85,17 @@ $analysis = $db->find()
 echo '   Access Type: ' . ($analysis->plan->accessType ?? 'N/A') . "\n";
 echo '   Used Index: ' . ($analysis->plan->usedIndex ?? 'N/A') . "\n";
 echo '   Estimated Rows: ' . $analysis->plan->estimatedRows . "\n";
+
+// MySQL/MariaDB specific: Filter ratio
+if ($analysis->plan->filtered < 100.0) {
+    echo '   Filter Ratio: ' . $analysis->plan->filtered . "%\n";
+}
+
+// PostgreSQL specific: Query cost
+if ($analysis->plan->totalCost !== null) {
+    echo '   Query Cost: ' . $analysis->plan->totalCost . "\n";
+}
+
 echo '   Issues: ' . count($analysis->issues) . "\n";
 echo '   Recommendations: ' . count($analysis->recommendations) . "\n\n";
 
