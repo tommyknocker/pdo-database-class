@@ -1081,6 +1081,30 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
+     * Insert data from a SELECT query or subquery.
+     *
+     * @param string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface|QueryBuilder $source Source query (table name, QueryBuilder, SelectQueryBuilderInterface, or Closure)
+     * @param array<string>|null $columns Column names to insert into (null = use SELECT columns)
+     * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
+     *
+     * @return int The result of the insert operation.
+     */
+    public function insertFrom(
+        string|\Closure|SelectQueryBuilderInterface|QueryBuilder $source,
+        ?array $columns = null,
+        array $onDuplicate = []
+    ): int {
+        $originalConnection = $this->switchToWriteConnection();
+
+        try {
+            $this->prepareQueryContext();
+            return $this->dmlQueryBuilder->insertFrom($source, $columns, $onDuplicate);
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
+    }
+
+    /**
      * Replace data into the table.
      *
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data The data to replace.

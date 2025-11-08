@@ -36,6 +36,112 @@ $count = $db->find()->table('users')->insertMulti($users);
 echo "Inserted $count users\n";
 ```
 
+### INSERT ... SELECT (Copy Data Between Tables)
+
+Copy data from one table to another using `insertFrom()`. This method supports table names, QueryBuilder instances, closures, and subqueries:
+
+```php
+// Copy all data from source table
+$affected = $db->find()
+    ->table('target_users')
+    ->insertFrom('source_users');
+
+echo "Copied {$affected} rows\n";
+```
+
+#### Copy Specific Columns
+
+```php
+// Copy only specific columns
+$affected = $db->find()
+    ->table('target_users')
+    ->insertFrom('source_users', ['name', 'email', 'age']);
+```
+
+#### Copy with QueryBuilder Filter
+
+```php
+// Copy filtered data using QueryBuilder
+$affected = $db->find()
+    ->table('target_users')
+    ->insertFrom(function ($query) {
+        $query->from('source_users')
+            ->where('status', 'active')
+            ->select(['name', 'email', 'age', 'status']);
+    });
+```
+
+#### Copy with JOIN
+
+```php
+// Copy data from joined tables
+$affected = $db->find()
+    ->table('target_users')
+    ->insertFrom(function ($query) {
+        $query->from('source_users')
+            ->join('user_profiles', 'source_users.id = user_profiles.user_id')
+            ->select([
+                'source_users.name',
+                'source_users.email',
+                'source_users.age'
+            ]);
+    });
+```
+
+#### Copy with CTE (Common Table Expression)
+
+```php
+// Copy data using CTE
+$affected = $db->find()
+    ->table('target_users')
+    ->insertFrom(function ($query) {
+        $query->with('filtered_source', function ($q) {
+            $q->from('source_users')
+                ->where('age', 30, '>=')
+                ->select(['name', 'email', 'age']);
+        })
+        ->from('filtered_source')
+        ->select(['name', 'email', 'age']);
+    });
+```
+
+#### Copy with Aggregation
+
+```php
+// Copy aggregated data
+$affected = $db->find()
+    ->table('target_users')
+    ->insertFrom(function ($query) {
+        $query->from('source_users')
+            ->select([
+                'name',
+                'avg_age' => Db::raw('AVG(age)'),
+                'count' => Db::raw('COUNT(*)')
+            ])
+            ->groupBy('name');
+    }, ['name', 'age', 'status']);
+```
+
+#### Copy with ON DUPLICATE Handling
+
+```php
+// Copy with upsert behavior
+$affected = $db->find()
+    ->table('target_users')
+    ->insertFrom('source_users', null, ['age', 'status']);
+```
+
+**Parameters:**
+- **Source**: Table name (string), QueryBuilder instance, SelectQueryBuilderInterface, or Closure that receives a QueryBuilder
+- **Columns**: Optional array of column names to insert into. If null, uses SELECT columns
+- **On Duplicate**: Optional array of columns to update on duplicate (upsert behavior)
+
+**Features:**
+- Automatic parameter merging from source queries
+- Support for subqueries and CTE in source
+- Automatic data type handling
+- Fluent API for complex data copying scenarios
+
 ### Insert with Helper Functions
 
 ```php

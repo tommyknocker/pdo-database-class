@@ -34,6 +34,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
 - **JSON Operations** - Native JSON support with consistent API across all databases
 - **Bulk Operations** - CSV/XML/JSON loaders, multi-row inserts, UPSERT support
+- **INSERT ... SELECT** - Fluent API for copying data between tables with QueryBuilder, subqueries, and CTE support
 - **MERGE Statements** - INSERT/UPDATE/DELETE based on match conditions (PostgreSQL native, MySQL/SQLite emulated)
 - **SQL Formatter/Pretty Printer** - Human-readable SQL output for debugging with indentation and line breaks
 - **Export Helpers** - Export results to JSON, CSV, and XML formats
@@ -1102,6 +1103,20 @@ $rows = [
     ['name' => 'Carol', 'age' => 28],
 ];
 $count = $db->find()->table('users')->insertMulti($rows);
+
+// INSERT ... SELECT (copy data between tables)
+$affected = $db->find()
+    ->table('target_users')
+    ->insertFrom('source_users');  // Copy all data
+
+// Copy filtered data using QueryBuilder
+$affected = $db->find()
+    ->table('target_users')
+    ->insertFrom(function ($query) {
+        $query->from('source_users')
+            ->where('status', 'active')
+            ->select(['name', 'email', 'age']);
+    });
 ```
 
 #### UPDATE

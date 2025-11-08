@@ -109,6 +109,23 @@ class MySQLDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
+     */
+    public function buildInsertSelectSql(
+        string $table,
+        array $columns,
+        string $selectSql,
+        array $options = []
+    ): string {
+        $prefix = 'INSERT' . ($options ? ' ' . implode(' ', $options) : '') . ' INTO';
+        $colsSql = '';
+        if (!empty($columns)) {
+            $colsSql = ' (' . implode(', ', array_map([$this, 'quoteIdentifier'], $columns)) . ')';
+        }
+        return sprintf('%s %s%s %s', $prefix, $table, $colsSql, $selectSql);
+    }
+
+    /**
+     * {@inheritDoc}
      *
      * @param array<string, mixed> $options
      */

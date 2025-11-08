@@ -125,6 +125,22 @@ class SqliteDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
+     */
+    public function buildInsertSelectSql(
+        string $table,
+        array $columns,
+        string $selectSql,
+        array $options = []
+    ): string {
+        $colsSql = '';
+        if (!empty($columns)) {
+            $colsSql = ' (' . implode(', ', array_map([$this, 'quoteIdentifier'], $columns)) . ')';
+        }
+        return $this->insertKeywords($options) . "INTO {$table}{$colsSql} {$selectSql}";
+    }
+
+    /**
+     * {@inheritDoc}
      *
      * @param array<string, mixed> $options
      */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query\interfaces;
 
+use Closure;
 use Generator;
 use PDOStatement;
 use tommyknocker\pdodb\connection\ConnectionInterface;
@@ -129,6 +130,21 @@ interface QueryBuilderInterface
      * @return int
      */
     public function insertMulti(array $rows, array $onDuplicate = []): int;
+
+    /**
+     * Insert data from a SELECT query or subquery.
+     *
+     * @param string|Closure(QueryBuilder): void|SelectQueryBuilderInterface|QueryBuilder $source Source query (table name, QueryBuilder, SelectQueryBuilderInterface, or Closure)
+     * @param array<string>|null $columns Column names to insert into (null = use SELECT columns)
+     * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
+     *
+     * @return int The result of the insert operation.
+     */
+    public function insertFrom(
+        string|Closure|SelectQueryBuilderInterface|QueryBuilder $source,
+        ?array $columns = null,
+        array $onDuplicate = []
+    ): int;
 
     /**
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data

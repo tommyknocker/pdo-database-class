@@ -134,6 +134,60 @@ class PostgreSQLDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
+     */
+    public function buildInsertSelectSql(
+        string $table,
+        array $columns,
+        string $selectSql,
+        array $options = []
+    ): string {
+        $sql = 'INSERT INTO ' . $table;
+        if (!empty($columns)) {
+            $sql .= ' (' . implode(', ', array_map([$this, 'quoteIdentifier'], $columns)) . ')';
+        }
+        $sql .= ' ' . $selectSql;
+
+        $tail = [];
+        $beforeSelect = []; // e.g., OVERRIDING ...
+        foreach ($options as $opt) {
+            $u = strtoupper(trim($opt));
+            if (str_starts_with($u, 'RETURNING')) {
+                $tail[] = $opt;
+            } elseif (str_starts_with($u, 'ONLY')) {
+                $result = preg_replace(
+                    '/^INSERT INTO\s+/i',
+                    'INSERT INTO ONLY ',
+                    $sql,
+                    1
+                );
+                $sql = $result ?? $sql;
+            } elseif (str_starts_with($u, 'OVERRIDING')) {
+                $beforeSelect[] = $opt;
+            } elseif (str_starts_with($u, 'ON CONFLICT')) {
+                $tail[] = $opt;
+            } else {
+                $tail[] = $opt;
+            }
+        }
+
+        if (!empty($beforeSelect)) {
+            $result = preg_replace('/\)\s+SELECT\s+/i', ') ' . implode(' ', $beforeSelect) . ' SELECT ', $sql, 1);
+            if ($result === null) {
+                // If no ) SELECT pattern, insert before SELECT
+                $result = preg_replace('/\s+SELECT\s+/i', ' ' . implode(' ', $beforeSelect) . ' SELECT ', $sql, 1);
+            }
+            $sql = $result ?? $sql;
+        }
+
+        if (!empty($tail)) {
+            $sql .= ' ' . implode(' ', $tail);
+        }
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
      *
      * @param array<string, mixed> $options
      */

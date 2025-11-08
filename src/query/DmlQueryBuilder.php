@@ -62,6 +62,12 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
     /** @var array<string> Join conditions for MERGE ON clause */
     protected array $mergeOnConditions = [];
 
+    /** @var string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface|QueryBuilder|null Source for INSERT ... SELECT */
+    protected string|\Closure|SelectQueryBuilderInterface|QueryBuilder|null $insertFromSource = null;
+
+    /** @var array<string>|null Column names for INSERT ... SELECT (null = use SELECT columns) */
+    protected ?array $insertFromColumns = null;
+
     protected JoinBuilderInterface $joinBuilder;
 
     public function __construct(
@@ -120,6 +126,36 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
             $this->onDuplicate = $onDuplicate;
         }
         [$sql, $params] = $this->buildInsertSql();
+
+        try {
+            return $this->executionEngine->executeInsert($sql, $params);
+        } catch (PDOException $e) {
+            $this->enhanceExceptionWithContext($e, $sql);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Insert data from a SELECT query or subquery.
+     *
+     * @param string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface|QueryBuilder $source Source query (table name, QueryBuilder, SelectQueryBuilderInterface, or Closure)
+     * @param array<string>|null $columns Column names to insert into (null = use SELECT columns)
+     * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
+     *
+     * @return int The result of the insert operation.
+     */
+    public function insertFrom(
+        string|\Closure|SelectQueryBuilderInterface|QueryBuilder $source,
+        ?array $columns = null,
+        array $onDuplicate = []
+    ): int {
+        $this->insertFromSource = $source;
+        $this->insertFromColumns = $columns;
+        if ($onDuplicate) {
+            $this->onDuplicate = $onDuplicate;
+        }
+        [$sql, $params] = $this->buildInsertSelectSql();
 
         try {
             return $this->executionEngine->executeInsert($sql, $params);
@@ -394,6 +430,113 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
         }
 
         return [$sql, $this->parameterManager->getParams()];
+    }
+
+    /**
+     * Build INSERT ... SELECT sql.
+     *
+     * @return array{string, array<string, string|int|float|bool|null>}
+     */
+    protected function buildInsertSelectSql(): array
+    {
+        if ($this->insertFromSource === null) {
+            throw new RuntimeException('insertFrom requires a source query');
+        }
+
+        $tableName = $this->table;
+        assert(is_string($tableName));
+
+        // Build source SQL
+        $sourceSql = $this->buildInsertFromSourceSql($this->insertFromSource);
+
+        // Determine columns
+        $columns = $this->insertFromColumns;
+        if ($columns === null) {
+            // If columns not specified, we need to infer from SELECT
+            // For now, we'll let the database handle it (INSERT INTO table SELECT ...)
+            $columns = [];
+        }
+
+        // Build INSERT ... SELECT SQL using dialect
+        $sql = $this->dialect->buildInsertSelectSql(
+            $this->normalizeTable(),
+            $columns,
+            $sourceSql,
+            $this->options
+        );
+
+        // Add ON DUPLICATE clause if needed
+        if (!empty($this->onDuplicate)) {
+            $defaultConflictTarget = !empty($columns) && in_array('id', $columns, true)
+                ? 'id'
+                : (!empty($columns) ? (string)($columns[0]) : 'id');
+            $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget, $tableName);
+        }
+
+        return [$sql, $this->parameterManager->getParams()];
+    }
+
+    /**
+     * Build source SQL for INSERT ... SELECT.
+     *
+     * @param string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface|QueryBuilder $source
+     *
+     * @return string
+     */
+    protected function buildInsertFromSourceSql(string|\Closure|SelectQueryBuilderInterface|QueryBuilder $source): string
+    {
+        if (is_string($source)) {
+            // Simple table name - build SELECT * FROM table
+            return 'SELECT * FROM ' . $this->dialect->quoteTable($source);
+        }
+
+        if ($source instanceof SelectQueryBuilderInterface) {
+            // SelectQueryBuilder instance - get SQL
+            $result = $source->toSQL();
+            $sql = $result['sql'] ?? $result[0] ?? '';
+            $params = $result['params'] ?? $result[1] ?? [];
+            // Merge parameters
+            foreach ($params as $key => $value) {
+                $this->parameterManager->setParam($key, $value);
+            }
+            return $sql;
+        }
+
+        if ($source instanceof QueryBuilder) {
+            // QueryBuilder instance - use its toSQL method
+            $result = $source->toSQL();
+            $sql = $result['sql'] ?? $result[0] ?? '';
+            $params = $result['params'] ?? $result[1] ?? [];
+            // Merge parameters
+            foreach ($params as $key => $value) {
+                $this->parameterManager->setParam($key, $value);
+            }
+            return $sql;
+        }
+
+        if ($source instanceof \Closure) {
+            // Closure - create QueryBuilder instance and use its selectQueryBuilder
+            $queryBuilder = new QueryBuilder(
+                $this->connection,
+                $this->prefix ?? '',
+                null,
+                null
+            );
+            $source($queryBuilder);
+            // Use QueryBuilder's toSQL method
+            $result = $queryBuilder->toSQL();
+            $sql = $result['sql'] ?? $result[0] ?? '';
+            $params = $result['params'] ?? $result[1] ?? [];
+            // Merge parameters
+            foreach ($params as $key => $value) {
+                $this->parameterManager->setParam($key, $value);
+            }
+            return $sql;
+        }
+
+        // This should never happen, but is kept for type safety
+        /* @phpstan-ignore-next-line */
+        throw new InvalidArgumentException('Invalid INSERT ... SELECT source type');
     }
 
     /**

@@ -84,6 +84,23 @@ interface DialectInterface
     ): string;
 
     /**
+     * Build INSERT ... SELECT sql.
+     *
+     * @param string $table Target table name
+     * @param array<int, string> $columns Column names to insert into (empty = use SELECT columns)
+     * @param string $selectSql SELECT query SQL
+     * @param array<int|string, mixed> $options INSERT options (e.g., IGNORE, LOW_PRIORITY)
+     *
+     * @return string
+     */
+    public function buildInsertSelectSql(
+        string $table,
+        array $columns,
+        string $selectSql,
+        array $options = []
+    ): string;
+
+    /**
      * Format select query options (e.g. SELECT SQL_NO_CACHE for MySQL).
      *
      * @param string $sql

@@ -1,6 +1,6 @@
 # PDOdb Examples
 
-Complete collection of **52 runnable examples** demonstrating PDOdb features across **all 4 database dialects** (MySQL, MariaDB, PostgreSQL, SQLite).
+Complete collection of **53 runnable examples** demonstrating PDOdb features across **all 4 database dialects** (MySQL, MariaDB, PostgreSQL, SQLite).
 
 ## 🚀 Quick Start
 
@@ -97,6 +97,11 @@ Complex operations and patterns.
 - **[04-subqueries.php](03-advanced/04-subqueries.php)** - Subqueries in SELECT, WHERE, FROM
 - **[05-merge.php](03-advanced/05-merge.php)** - MERGE statement (INSERT/UPDATE/DELETE based on match conditions)
 - **[06-sql-formatter.php](03-advanced/06-sql-formatter.php)** - SQL Formatter for pretty-printing queries
+
+### 32. INSERT ... SELECT Examples
+Copy data between tables using INSERT ... SELECT operations.
+
+- **[01-insert-from-examples.php](32-insert-select/01-insert-from-examples.php)** - INSERT ... SELECT with QueryBuilder, subqueries, CTE, and column mapping
 
 ### 04. JSON Operations
 Working with JSON data across all databases.
