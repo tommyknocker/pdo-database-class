@@ -533,6 +533,21 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatJsonReplace(string $col, array|string $path, mixed $value): array
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = $this->buildJsonPathString($parts);
+        $param = $this->generateParameterName('jsonreplace', $col);
+
+        // SQLite JSON_REPLACE only replaces if path exists
+        $expr = 'JSON_REPLACE(' . $this->quoteIdentifier($col) . ", '{$jsonPath}', json({$param}))";
+
+        return [$expr, [$param => $this->encodeToJson($value)]];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatJsonExists(string $col, array|string $path): string
     {
         $expr = $this->formatJsonGet($col, $path, false);

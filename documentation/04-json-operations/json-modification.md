@@ -27,13 +27,13 @@ $db->find()
     ->table('users')
     ->where('id', 1)
     ->update([
-        'meta' => $db->find()->jsonSet('meta', ['profile', 'address', 'city'], 'Boston')
+        'meta' => Db::jsonSet('meta', ['profile', 'address', 'city'], 'Boston')
     ]);
 ```
 
 ## Removing JSON Paths
 
-### jsonRemove()
+### Db::jsonRemove()
 
 Remove a path from JSON:
 
@@ -43,7 +43,7 @@ $db->find()
     ->table('users')
     ->where('id', 1)
     ->update([
-        'meta' => $db->find()->jsonRemove('meta', ['old_field'])
+        'meta' => Db::jsonRemove('meta', ['old_field'])
     ]);
 ```
 
@@ -55,9 +55,11 @@ $db->find()
     ->table('users')
     ->where('id', 1)
     ->update([
-        'tags' => $db->find()->jsonRemove('tags', [1])  // Remove index 1
+        'tags' => Db::jsonRemove('tags', [1])  // Remove index 1
     ]);
 ```
+
+**Note:** In SQLite, removing an array element sets it to `null` to preserve array indices.
 
 ## Adding to JSON Arrays
 
@@ -107,6 +109,54 @@ $db->find()
     ]);
 ```
 
+## Replacing JSON Values
+
+### Db::jsonReplace()
+
+Replace a JSON value at a path (only if path exists, does not create missing paths):
+
+```php
+// Replace existing value
+$db->find()
+    ->table('users')
+    ->where('id', 1)
+    ->update([
+        'meta' => Db::jsonReplace('meta', '$.status', 'inactive')
+    ]);
+
+// Try to replace non-existent path (won't create it)
+$db->find()
+    ->table('users')
+    ->where('id', 1)
+    ->update([
+        'meta' => Db::jsonReplace('meta', '$.nonexistent', 'value')
+    ]);
+// Path won't be created if it doesn't exist
+```
+
+### jsonSet vs jsonReplace
+
+- **`Db::jsonSet()`**: Creates path if missing, always sets the value
+- **`Db::jsonReplace()`**: Only replaces if path exists, does not create missing paths
+
+```php
+// jsonSet creates path if missing
+$db->find()
+    ->table('users')
+    ->where('id', 1)
+    ->update([
+        'meta' => Db::jsonSet('meta', '$.new_field', 'value')  // Creates path
+    ]);
+
+// jsonReplace only replaces if path exists
+$db->find()
+    ->table('users')
+    ->where('id', 1)
+    ->update([
+        'meta' => Db::jsonReplace('meta', '$.another_field', 'value')  // Won't create path
+    ]);
+```
+
 ## Common Patterns
 
 ### Update User Preferences
@@ -116,7 +166,7 @@ $db->find()
     ->table('users')
     ->where('id', $userId)
     ->update([
-        'preferences' => $db->find()->jsonSet('preferences', ['theme'], 'dark'),
+        'preferences' => Db::jsonSet('preferences', ['theme'], 'dark'),
         'updated_at' => Db::now()
     ]);
 ```

@@ -814,6 +814,29 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatJsonReplace(string $col, array|string $path, mixed $value): array
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $colQuoted = $this->quoteIdentifier($col);
+        $pgPath = $this->buildPostgreSqlJsonbPath($parts);
+
+        $param = $this->generateParameterName('jsonreplace', $col . '|' . $pgPath);
+
+        if (is_string($value)) {
+            $jsonText = $this->looksLikeJson($value) ? $value : $this->encodeToJson($value);
+        } else {
+            $jsonText = $this->encodeToJson($value);
+        }
+
+        // jsonb_set with create_missing=false only replaces if path exists
+        $expr = "jsonb_set({$colQuoted}::jsonb, '{$pgPath}', to_jsonb(CAST({$param} AS json)), false)::json";
+
+        return [$expr, [$param => $jsonText]];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatJsonExists(string $col, array|string $path): string
     {
         $parts = $this->normalizeJsonPath($path);

@@ -1633,12 +1633,12 @@ $users = $db->find()
 ```php
 use tommyknocker\pdodb\helpers\Db;
 
-// Update JSON field using QueryBuilder method
+// Update JSON field using Db::jsonSet() helper (creates path if missing)
 $db->find()
     ->table('users')
     ->where('id', 1)
     ->update([
-        'meta' => $db->find()->jsonSet('meta', ['city'], 'London')
+        'meta' => Db::jsonSet('meta', ['city'], 'London')
     ]);
 
 // Remove JSON field
@@ -1646,7 +1646,15 @@ $db->find()
     ->table('users')
     ->where('id', 1)
     ->update([
-        'meta' => $db->find()->jsonRemove('meta', ['old_field'])
+        'meta' => Db::jsonRemove('meta', ['old_field'])
+    ]);
+
+// Replace JSON value (only if path exists)
+$db->find()
+    ->table('users')
+    ->where('id', 1)
+    ->update([
+        'meta' => Db::jsonReplace('meta', ['status'], 'inactive')
     ]);
 ```
 
@@ -3290,6 +3298,11 @@ Db::jsonExtract('meta', ['city'])           // Alias for jsonGet
 Db::jsonLength('tags')                      // Array/object length
 Db::jsonKeys('meta')                        // Object keys
 Db::jsonType('tags')                        // Value type
+
+// Modify JSON (for UPDATE operations)
+Db::jsonSet('meta', '$.status', 'active')   // Set JSON value (creates path if missing)
+Db::jsonRemove('meta', '$.old_field')      // Remove JSON path
+Db::jsonReplace('meta', '$.status', 'inactive') // Replace JSON value (only if path exists)
 ```
 
 ### Export Helpers
@@ -3493,8 +3506,8 @@ $constraints = $db->constraints('users');
 | `whereJsonPath(col, path, operator, value, cond)` | Add JSON path condition |
 | `whereJsonContains(col, value, path, cond)` | Add JSON contains condition |
 | `whereJsonExists(col, path, cond)` | Add JSON path existence condition |
-| `jsonSet(col, path, value)` | Set JSON value |
-| `jsonRemove(col, path)` | Remove JSON path |
+| `jsonSet(col, path, value)` | Set JSON value (QueryBuilder method) |
+| `jsonRemove(col, path)` | Remove JSON path (QueryBuilder method) |
 | `orderByJson(col, path, direction)` | Order by JSON path |
 
 #### Fetch Modes

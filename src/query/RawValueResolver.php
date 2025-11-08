@@ -27,6 +27,9 @@ use tommyknocker\pdodb\helpers\values\JsonGetValue;
 use tommyknocker\pdodb\helpers\values\JsonKeysValue;
 use tommyknocker\pdodb\helpers\values\JsonLengthValue;
 use tommyknocker\pdodb\helpers\values\JsonPathValue;
+use tommyknocker\pdodb\helpers\values\JsonRemoveValue;
+use tommyknocker\pdodb\helpers\values\JsonReplaceValue;
+use tommyknocker\pdodb\helpers\values\JsonSetValue;
 use tommyknocker\pdodb\helpers\values\JsonTypeValue;
 use tommyknocker\pdodb\helpers\values\LeastValue;
 use tommyknocker\pdodb\helpers\values\LeftValue;
@@ -90,6 +93,9 @@ class RawValueResolver
             $value instanceof JsonPathValue => $this->resolveJsonPathValue($value),
             $value instanceof JsonContainsValue => $this->resolveJsonContainsValue($value),
             $value instanceof JsonExistsValue => $this->dialect->formatJsonExists($value->getColumn(), $value->getPath()),
+            $value instanceof JsonSetValue => $this->resolveJsonSetValue($value),
+            $value instanceof JsonRemoveValue => $this->resolveJsonRemoveValue($value),
+            $value instanceof JsonReplaceValue => $this->resolveJsonReplaceValue($value),
             $value instanceof IfNullValue => $this->dialect->formatIfNull($value->getExpr(), $value->getDefaultValue()),
             $value instanceof GreatestValue => $this->dialect->formatGreatest($value->getValues()),
             $value instanceof LeastValue => $this->dialect->formatLeast($value->getValues()),
@@ -228,6 +234,66 @@ class RawValueResolver
         }
 
         return $res;
+    }
+
+    /**
+     * Resolve JsonSetValue - build JSON_SET expression.
+     *
+     * @param JsonSetValue $value
+     *
+     * @return string
+     */
+    protected function resolveJsonSetValue(JsonSetValue $value): string
+    {
+        [$expr, $params] = $this->dialect->formatJsonSet($value->getColumn(), $value->getPath(), $value->getSetValue());
+
+        // Create map of old => new parameter names and merge params
+        $paramMap = [];
+        foreach ($params as $key => $val) {
+            $keyStr = (string)$key;
+            $oldParam = str_starts_with($keyStr, ':') ? $keyStr : ':' . $keyStr;
+            $newParam = $this->parameterManager->makeParam('jsonset_' . ltrim($oldParam, ':'));
+            $paramMap[$oldParam] = $newParam;
+            $this->parameterManager->setParam($newParam, $val);
+        }
+
+        return strtr($expr, $paramMap);
+    }
+
+    /**
+     * Resolve JsonRemoveValue - build JSON_REMOVE expression.
+     *
+     * @param JsonRemoveValue $value
+     *
+     * @return string
+     */
+    protected function resolveJsonRemoveValue(JsonRemoveValue $value): string
+    {
+        return $this->dialect->formatJsonRemove($value->getColumn(), $value->getPath());
+    }
+
+    /**
+     * Resolve JsonReplaceValue - build JSON_REPLACE expression.
+     *
+     * @param JsonReplaceValue $value
+     *
+     * @return string
+     */
+    protected function resolveJsonReplaceValue(JsonReplaceValue $value): string
+    {
+        [$expr, $params] = $this->dialect->formatJsonReplace($value->getColumn(), $value->getPath(), $value->getReplaceValue());
+
+        // Create map of old => new parameter names and merge params
+        $paramMap = [];
+        foreach ($params as $key => $val) {
+            $keyStr = (string)$key;
+            $oldParam = str_starts_with($keyStr, ':') ? $keyStr : ':' . $keyStr;
+            $newParam = $this->parameterManager->makeParam('jsonreplace_' . ltrim($oldParam, ':'));
+            $paramMap[$oldParam] = $newParam;
+            $this->parameterManager->setParam($newParam, $val);
+        }
+
+        return strtr($expr, $paramMap);
     }
 
     /**

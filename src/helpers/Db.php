@@ -39,6 +39,9 @@ use tommyknocker\pdodb\helpers\values\JsonGetValue;
 use tommyknocker\pdodb\helpers\values\JsonKeysValue;
 use tommyknocker\pdodb\helpers\values\JsonLengthValue;
 use tommyknocker\pdodb\helpers\values\JsonPathValue;
+use tommyknocker\pdodb\helpers\values\JsonRemoveValue;
+use tommyknocker\pdodb\helpers\values\JsonReplaceValue;
+use tommyknocker\pdodb\helpers\values\JsonSetValue;
 use tommyknocker\pdodb\helpers\values\JsonTypeValue;
 use tommyknocker\pdodb\helpers\values\LeastValue;
 use tommyknocker\pdodb\helpers\values\LeftValue;
@@ -128,6 +131,9 @@ use tommyknocker\pdodb\helpers\values\YearValue;
  * @method static JsonLengthValue jsonLength(string $column, array<int, string|int>|string|null $path = null) Returns JSON length/size.
  * @method static JsonKeysValue jsonKeys(string $column, array<int, string|int>|string|null $path = null) Returns JSON object keys.
  * @method static JsonTypeValue jsonType(string $column, array<int, string|int>|string|null $path = null) Returns JSON value type.
+ * @method static JsonSetValue jsonSet(string $column, array<int, string|int>|string $path, mixed $value) Returns JSON_SET expression for UPDATE operations (creates path if missing).
+ * @method static JsonRemoveValue jsonRemove(string $column, array<int, string|int>|string $path) Returns JSON_REMOVE expression for UPDATE operations.
+ * @method static JsonReplaceValue jsonReplace(string $column, array<int, string|int>|string $path, mixed $value) Returns JSON_REPLACE expression for UPDATE operations (only replaces if path exists).
  * @method static string jsonArray(mixed ...$values) Returns JSON-encoded array string.
  * @method static string jsonObject(array<string, mixed> $pairs) Returns JSON-encoded object string.
  *

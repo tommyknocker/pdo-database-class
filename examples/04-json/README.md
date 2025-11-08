@@ -36,6 +36,18 @@ Querying and filtering JSON data.
 - Nested JSON navigation
 - WHERE conditions with JSON
 
+### 03-json-modification.php
+Modifying JSON data using helper methods.
+
+**Topics covered:**
+- Setting JSON values with `Db::jsonSet()`
+- Removing JSON paths with `Db::jsonRemove()`
+- Replacing JSON values with `Db::jsonReplace()`
+- Creating nested paths
+- Removing array elements
+- Comparison between `jsonSet` and `jsonReplace`
+- Complex nested JSON operations
+
 ## JSON Helper Functions
 
 PDOdb provides these JSON helpers (from `Db` class):
@@ -55,9 +67,9 @@ PDOdb provides these JSON helpers (from `Db` class):
 - `jsonKeys(column, path?)` - Get object keys
 
 ### Modification
-- `jsonSet(column, path, value)` - Set JSON value
-- `jsonInsert(column, path, value)` - Insert JSON value
-- `jsonRemove(column, path)` - Remove JSON path
+- `Db::jsonSet(column, path, value)` - Set JSON value (creates path if missing)
+- `Db::jsonRemove(column, path)` - Remove JSON path
+- `Db::jsonReplace(column, path, value)` - Replace JSON value (only if path exists)
 
 ## Running Examples
 

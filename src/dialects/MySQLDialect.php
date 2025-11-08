@@ -598,15 +598,26 @@ class MySQLDialect extends DialectAbstract
         $jsonText = $this->encodeToJson($value);
 
         // If nested path, ensure parent exists as object before setting child
+        // But if last segment is numeric index, handle it differently
         if (count($parts) > 1) {
-            $parentParts = $this->getParentPathParts($parts);
-            $parentPath = $this->buildJsonPathString($parentParts);
-            $lastKey = $this->getLastSegment($parts);
+            $lastSegment = $this->getLastSegment($parts);
+            $isLastNumeric = $this->isNumericIndex($lastSegment);
 
-            // Build expression: set the parent to JSON_SET(COALESCE(JSON_EXTRACT(col,parent), {}) , '$.<last>', CAST(:param AS JSON))
-            // then write that parent back into the document
-            $parentNew = "JSON_SET(COALESCE(JSON_EXTRACT({$colQuoted}, '{$parentPath}'), CAST('{}' AS JSON)), '$.{$lastKey}', CAST({$param} AS JSON))";
-            $sql = "JSON_SET({$colQuoted}, '{$parentPath}', {$parentNew})";
+            if ($isLastNumeric) {
+                // For array indices, use direct path like '$.tags[0]'
+                // MySQL handles array indices directly in JSON path
+                $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', CAST({$param} AS JSON))";
+            } else {
+                // For object keys, ensure parent exists
+                $parentParts = $this->getParentPathParts($parts);
+                $parentPath = $this->buildJsonPathString($parentParts);
+                $lastKey = (string)$lastSegment;
+
+                // Build expression: set the parent to JSON_SET(COALESCE(JSON_EXTRACT(col,parent), {}) , '$.<last>', CAST(:param AS JSON))
+                // then write that parent back into the document
+                $parentNew = "JSON_SET(COALESCE(JSON_EXTRACT({$colQuoted}, '{$parentPath}'), CAST('{}' AS JSON)), '$.{$lastKey}', CAST({$param} AS JSON))";
+                $sql = "JSON_SET({$colQuoted}, '{$parentPath}', {$parentNew})";
+            }
         } else {
             // simple single-segment path
             $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', CAST({$param} AS JSON))";
@@ -633,6 +644,25 @@ class MySQLDialect extends DialectAbstract
 
         // otherwise remove object key
         return "JSON_REMOVE({$colQuoted}, '{$jsonPath}')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonReplace(string $col, array|string $path, mixed $value): array
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = $this->buildJsonPathString($parts);
+
+        $colQuoted = $this->quoteIdentifier($col);
+        $param = $this->generateParameterName('jsonreplace', $col . '|' . $jsonPath);
+
+        $jsonText = $this->encodeToJson($value);
+
+        // JSON_REPLACE only replaces if path exists
+        $sql = "JSON_REPLACE({$colQuoted}, '{$jsonPath}', CAST({$param} AS JSON))";
+
+        return [$sql, [$param => $jsonText]];
     }
 
     /**

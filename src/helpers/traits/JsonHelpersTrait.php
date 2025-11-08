@@ -10,6 +10,9 @@ use tommyknocker\pdodb\helpers\values\JsonGetValue;
 use tommyknocker\pdodb\helpers\values\JsonKeysValue;
 use tommyknocker\pdodb\helpers\values\JsonLengthValue;
 use tommyknocker\pdodb\helpers\values\JsonPathValue;
+use tommyknocker\pdodb\helpers\values\JsonRemoveValue;
+use tommyknocker\pdodb\helpers\values\JsonReplaceValue;
+use tommyknocker\pdodb\helpers\values\JsonSetValue;
 use tommyknocker\pdodb\helpers\values\JsonTypeValue;
 
 /**
@@ -149,5 +152,46 @@ trait JsonHelpersTrait
     public static function jsonObject(array $pairs): string
     {
         return json_encode($pairs, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Returns a JsonSetValue for setting JSON value at path (creates path if missing).
+     *
+     * @param string $column The JSON column name.
+     * @param array<int, string|int>|string $path The JSON path.
+     * @param mixed $value The value to set.
+     *
+     * @return JsonSetValue The JsonSetValue instance.
+     */
+    public static function jsonSet(string $column, array|string $path, mixed $value): JsonSetValue
+    {
+        return new JsonSetValue($column, $path, $value);
+    }
+
+    /**
+     * Returns a JsonRemoveValue for removing JSON path.
+     *
+     * @param string $column The JSON column name.
+     * @param array<int, string|int>|string $path The JSON path to remove.
+     *
+     * @return JsonRemoveValue The JsonRemoveValue instance.
+     */
+    public static function jsonRemove(string $column, array|string $path): JsonRemoveValue
+    {
+        return new JsonRemoveValue($column, $path);
+    }
+
+    /**
+     * Returns a JsonReplaceValue for replacing JSON value at path (only if path exists).
+     *
+     * @param string $column The JSON column name.
+     * @param array<int, string|int>|string $path The JSON path.
+     * @param mixed $value The value to replace.
+     *
+     * @return JsonReplaceValue The JsonReplaceValue instance.
+     */
+    public static function jsonReplace(string $column, array|string $path, mixed $value): JsonReplaceValue
+    {
+        return new JsonReplaceValue($column, $path, $value);
     }
 }

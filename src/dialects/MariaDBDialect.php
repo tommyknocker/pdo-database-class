@@ -599,31 +599,34 @@ class MariaDBDialect extends DialectAbstract
 
         $jsonText = $this->encodeToJson($value);
 
-        // If nested path, ensure parent exists as object before setting child
+        // MariaDB's JSON_SET doesn't support CAST(:param AS JSON) directly in the third argument.
+        // For nested paths, ensure parent exists as object before setting child (similar to MySQL approach).
+        // But without CAST, we need to handle it differently.
         if (count($parts) > 1) {
-            $parentParts = $this->getParentPathParts($parts);
-            $parentPath = $this->buildJsonPathString($parentParts);
-            $lastKey = $this->getLastSegment($parts);
+            $lastSegment = $this->getLastSegment($parts);
+            $isLastNumeric = $this->isNumericIndex($lastSegment);
 
-            // Build expression: set the parent to JSON_SET(COALESCE(JSON_EXTRACT(col,parent), '{}') , '$.<last>', value)
-            // then write that parent back into the document
-            // MariaDB doesn't support CAST(:param AS JSON) in nested JSON_SET
-            // For all values, pass them directly without CAST
-            // Strings will be properly escaped by MariaDB, non-strings will be stored as JSON strings
-            // This is a limitation of MariaDB's nested JSON_SET implementation
-            $parentNew = "JSON_SET(COALESCE(JSON_EXTRACT({$colQuoted}, '{$parentPath}'), '{}'), '$.{$lastKey}', {$param})";
-            // For strings, pass raw value; for non-strings, pass JSON-encoded value
-            // Note: Non-strings will be stored as JSON strings, not their native types
-            $paramValue = is_string($value) ? $value : $jsonText;
-            $sql = "JSON_SET({$colQuoted}, '{$parentPath}', {$parentNew})";
+            if ($isLastNumeric) {
+                // For array indices, use direct path
+                $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', {$param})";
+            } else {
+                // For object keys, ensure parent exists
+                $parentParts = $this->getParentPathParts($parts);
+                $parentPath = $this->buildJsonPathString($parentParts);
+                $lastKey = (string)$lastSegment;
+
+                // Build expression: set the parent to JSON_SET(COALESCE(JSON_EXTRACT(col,parent), '{}') , '$.<last>', :param)
+                // then write that parent back into the document
+                // Note: Without CAST, MariaDB may store the value as a string, but JSON_SET should handle it
+                $parentNew = "JSON_SET(COALESCE(JSON_EXTRACT({$colQuoted}, '{$parentPath}'), '{}'), '$.{$lastKey}', {$param})";
+                $sql = "JSON_SET({$colQuoted}, '{$parentPath}', {$parentNew})";
+            }
         } else {
             // simple single-segment path
-            // MariaDB accepts JSON strings directly without CAST for simple paths
-            $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', CAST({$param} AS JSON))";
-            $paramValue = $jsonText;
+            $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', {$param})";
         }
 
-        return [$sql, [$param => $paramValue]];
+        return [$sql, [$param => $jsonText]];
     }
 
     /**
@@ -651,6 +654,27 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatJsonReplace(string $col, array|string $path, mixed $value): array
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = $this->buildJsonPathString($parts);
+
+        $colQuoted = $this->quoteIdentifier($col);
+        $param = $this->generateParameterName('jsonreplace', $col . '|' . $jsonPath);
+
+        $jsonText = $this->encodeToJson($value);
+
+        // MariaDB's JSON_REPLACE doesn't support CAST(:param AS JSON) directly in the third argument.
+        // Pass the JSON string directly - MariaDB's JSON_REPLACE will parse it correctly.
+        // Note: This works correctly for objects and arrays, but strings will be stored as JSON strings (quoted).
+        $sql = "JSON_REPLACE({$colQuoted}, '{$jsonPath}', {$param})";
+
+        return [$sql, [$param => $jsonText]];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatJsonExists(string $col, array|string $path): string
     {
         $parts = $this->normalizeJsonPath($path);
@@ -661,11 +685,13 @@ class MariaDBDialect extends DialectAbstract
         // 1) JSON_CONTAINS_PATH detects presence even when value is JSON null
         // 2) JSON_SEARCH finds a scalar/string value inside arrays/objects
         // 3) JSON_EXTRACT(...) IS NOT NULL picks up non-NULL extraction results
+        // 4) JSON_TYPE(...) IS NOT NULL ensures the path exists and has a valid JSON type
         // Any one true -> path considered present
         return '('
             . "JSON_CONTAINS_PATH({$colQuoted}, 'one', '{$jsonPath}')"
             . " OR JSON_SEARCH({$colQuoted}, 'one', JSON_UNQUOTE(JSON_EXTRACT({$colQuoted}, '{$jsonPath}'))) IS NOT NULL"
             . " OR JSON_EXTRACT({$colQuoted}, '{$jsonPath}') IS NOT NULL"
+            . " OR JSON_TYPE(JSON_EXTRACT({$colQuoted}, '{$jsonPath}')) IS NOT NULL"
             . ')';
     }
 

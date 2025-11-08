@@ -249,6 +249,17 @@ interface DialectInterface
     public function formatJsonRemove(string $col, array|string $path): string;
 
     /**
+     * Format JSON_REPLACE expression (only replaces if path exists).
+     *
+     * @param string $col
+     * @param array<int, string|int>|string $path
+     * @param mixed $value
+     *
+     * @return array<int|string, mixed> [sql, [param => value]]
+     */
+    public function formatJsonReplace(string $col, array|string $path, mixed $value): array;
+
+    /**
      * Format JSON_EXISTS expression.
      *
      * @param string $col
