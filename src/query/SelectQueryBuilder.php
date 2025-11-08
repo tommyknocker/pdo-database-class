@@ -915,6 +915,11 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 if (str_starts_with($value, '(')) {
                     return $value;
                 }
+                // Check if it contains a subquery in parentheses (e.g., "alias AS (SELECT ...)")
+                // This handles cases like recursive CTEs and other subqueries
+                if (preg_match('/\s+AS\s+\(/i', $value) || preg_match('/\(SELECT\s+/i', $value)) {
+                    return $value;
+                }
                 // Allow wildcards and preformatted lists/expressions:
                 // - "*"
                 // - "alias.*"

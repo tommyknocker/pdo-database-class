@@ -165,6 +165,51 @@ $users = $db->find()
 // SQL: WHERE LOWER(email) = LOWER('test@example.com')
 ```
 
+## Db::repeat() - Repeat String
+
+Repeat a string multiple times:
+
+```php
+$users = $db->find()
+    ->from('users')
+    ->select(['banner' => Db::repeat('-', 5)])
+    ->get();
+
+// MySQL/PostgreSQL: REPEAT('-', 5)
+// SQLite: Emulated using recursive CTE
+```
+
+## Db::reverse() - Reverse String
+
+Reverse a string:
+
+```php
+$users = $db->find()
+    ->from('users')
+    ->select(['name_reversed' => Db::reverse('name')])
+    ->get();
+
+// MySQL/PostgreSQL: REVERSE(name)
+// SQLite: Emulated using recursive CTE
+```
+
+## Db::padLeft() / Db::padRight() - Pad Strings
+
+Pad strings to a specific length:
+
+```php
+$users = $db->find()
+    ->from('users')
+    ->select([
+        'left_padded' => Db::padLeft('name', 10, ' '),
+        'right_padded' => Db::padRight('name', 10, '.')
+    ])
+    ->get();
+
+// MySQL/PostgreSQL: LPAD(name, 10, ' ') / RPAD(name, 10, '.')
+// SQLite: Emulated using recursive CTE and SUBSTR
+```
+
 ## Dialect Differences
 
 ### String Concatenation
@@ -180,6 +225,19 @@ first_name || ' ' || last_name
 ```
 
 PDOdb handles this automatically.
+
+### REPEAT, REVERSE, LPAD, RPAD
+
+**MySQL/PostgreSQL/MariaDB:**
+These functions are natively supported.
+
+**SQLite:**
+These functions are emulated using recursive CTEs:
+- `REPEAT`: Uses recursive CTE to concatenate the string multiple times
+- `REVERSE`: Uses recursive CTE to reverse characters one by one
+- `LPAD/RPAD`: Uses recursive CTE to generate padding, then concatenates and truncates
+
+All functions work identically across all dialects.
 
 ## Best Practices
 

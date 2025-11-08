@@ -388,6 +388,7 @@ Returns dialect-specific execution plans.
 | Table locking | ✅ | ✅ | ✅ (BEGIN IMMEDIATE) |
 | Schema support | ❌ | ✅ | ❌ |
 | Table prefixes | ✅ | ✅ | ✅ |
+| REPEAT/REVERSE/LPAD/RPAD | ✅ | ✅ | ✅ (emulated) |
 
 ## Migration Between Databases
 

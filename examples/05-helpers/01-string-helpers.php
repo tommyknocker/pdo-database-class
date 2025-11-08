@@ -74,47 +74,39 @@ foreach ($positions as $row) {
 }
 echo "\n";
 
-// Example 12: REPEAT and REVERSE (skip unsupported on SQLite)
+// Example 12: REPEAT and REVERSE (now emulated for SQLite)
 echo "12. REPEAT and REVERSE - Banner formatting...\n";
-if ($driver === 'sqlite') {
-    echo "  • Skipped on SQLite (REPEAT/REVERSE not available)\n\n";
-} else {
-    $banners = $db->find()
-        ->from('users')
-        ->select([
-            'first_name',
-            'banner' => Db::repeat('-', 3),
-            'reversed' => Db::reverse('first_name')
-        ])
-        ->limit(2)
-        ->get();
+$banners = $db->find()
+    ->from('users')
+    ->select([
+        'first_name',
+        'banner' => Db::repeat('-', 3),
+        'reversed' => Db::reverse('first_name')
+    ])
+    ->limit(2)
+    ->get();
 
-    foreach ($banners as $row) {
-        echo "  • {$row['first_name']} → banner={$row['banner']}, reversed={$row['reversed']}\n";
-    }
-    echo "\n";
+foreach ($banners as $row) {
+    echo "  • {$row['first_name']} → banner={$row['banner']}, reversed={$row['reversed']}\n";
 }
+echo "\n";
 
-// Example 13: LPAD and RPAD (skip on SQLite where not supported)
+// Example 13: LPAD and RPAD (now emulated for SQLite)
 echo "13. LPAD and RPAD - Align strings...\n";
-if ($driver === 'sqlite') {
-    echo "  • Skipped on SQLite (LPAD/RPAD not available)\n\n";
-} else {
-    $padded = $db->find()
-        ->from('users')
-        ->select([
-            'first_name',
-            'left_padded' => Db::padLeft('first_name', 8, ' '),
-            'right_padded' => Db::padRight('first_name', 8, '.')
-        ])
-        ->limit(3)
-        ->get();
+$padded = $db->find()
+    ->from('users')
+    ->select([
+        'first_name',
+        'left_padded' => Db::padLeft('first_name', 8, ' '),
+        'right_padded' => Db::padRight('first_name', 8, '.')
+    ])
+    ->limit(3)
+    ->get();
 
-    foreach ($padded as $row) {
-        echo "  • '{$row['left_padded']}' | '{$row['right_padded']}'\n";
-    }
-    echo "\n";
+foreach ($padded as $row) {
+    echo "  • '{$row['left_padded']}' | '{$row['right_padded']}'\n";
 }
+echo "\n";
 
 // Example 2: UPPER and LOWER
 echo "2. UPPER and LOWER - Case conversion...\n";

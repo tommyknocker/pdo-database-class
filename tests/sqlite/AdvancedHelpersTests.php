@@ -57,17 +57,23 @@ final class AdvancedHelpersTests extends BaseSqliteTestCase
         'left_text' => Db::left('text_col', 5),
         'right_text' => Db::right('text_col', 5),
         'position_text' => Db::position('World', 'text_col'),
+        'repeat_text' => Db::repeat('Hi', 3),
+        'reverse_text' => Db::reverse('text_col'),
+        'pad_left' => Db::padLeft('name', 15, '*'),
+        'pad_right' => Db::padRight('name', 15, '*'),
         ])
         ->where('id', $id1)
         ->getOne();
         $this->assertEquals('Hello', $row['left_text']);
         $this->assertEquals('World', $row['right_text']);
         $this->assertGreaterThan(0, (int)$row['position_text']);
-        // Unsupported functions should throw exceptions on SQLite
-        $this->expectException(\RuntimeException::class);
-        $db->find()->table('t_advanced')
-        ->select(['x' => Db::padLeft('name', 10, '*')])
-        ->getOne();
+        // These functions are now emulated for SQLite
+        $this->assertEquals('HiHiHi', $row['repeat_text']);
+        $this->assertEquals('dlroW olleH', $row['reverse_text']);
+        $this->assertStringStartsWith('*', $row['pad_left']);
+        $this->assertStringEndsWith('*', $row['pad_right']);
+        $this->assertEquals(15, strlen($row['pad_left']));
+        $this->assertEquals(15, strlen($row['pad_right']));
 
         // Test groupConcat
         $id2 = $db->find()->table('t_advanced')->insert(['name' => 'Product 2', 'price' => 49.99]);

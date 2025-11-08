@@ -758,26 +758,91 @@ class SqliteDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
+     * Emulated using recursive CTE for SQLite.
      */
     public function formatRepeat(string|RawValue $value, int $count): string
     {
-        throw new QueryException('REPEAT is not supported by SQLite dialect.');
+        if ($count <= 0) {
+            return "''";
+        }
+
+        // Handle string literals and RawValue differently
+        // String literals should be quoted, RawValue should be used as-is
+        if ($value instanceof RawValue) {
+            $val = $value->getValue();
+        } else {
+            // Escape string literal
+            $val = "'" . str_replace("'", "''", $value) . "'";
+        }
+
+        // Use recursive CTE to repeat the string
+        // SQLite supports recursive CTEs in scalar subqueries
+        return "(SELECT result FROM (
+            WITH RECURSIVE repeat_cte(n, result) AS (
+                SELECT 1, {$val}
+                UNION ALL
+                SELECT n+1, result || {$val} FROM repeat_cte WHERE n < {$count}
+            )
+            SELECT result FROM repeat_cte WHERE n = {$count}
+        ))";
     }
 
     /**
      * {@inheritDoc}
+     * Emulated using recursive CTE for SQLite.
      */
     public function formatReverse(string|RawValue $value): string
     {
-        throw new QueryException('REVERSE is not supported by SQLite dialect.');
+        // Use resolveValue to handle both RawValue and column names
+        $val = $this->resolveValue($value);
+
+        // Use recursive CTE to reverse the string character by character
+        return "(SELECT GROUP_CONCAT(char, '') FROM (
+            WITH RECURSIVE reverse_cte(n, char) AS (
+                SELECT LENGTH({$val}), SUBSTR({$val}, LENGTH({$val}), 1)
+                UNION ALL
+                SELECT n-1, SUBSTR({$val}, n-1, 1) FROM reverse_cte WHERE n > 1
+            )
+            SELECT char FROM reverse_cte
+        ))";
     }
 
     /**
      * {@inheritDoc}
+     * Emulated using SUBSTR and REPEAT emulation for SQLite.
      */
     public function formatPad(string|RawValue $value, int $length, string $padString, bool $isLeft): string
     {
-        throw new QueryException('LPAD/RPAD are not supported by SQLite dialect.');
+        // Use resolveValue to handle both RawValue and column names
+        $val = $this->resolveValue($value);
+        $escapedPad = addslashes($padString);
+
+        // Calculate how much padding is needed
+        // Use REPEAT emulation to generate padding, then concatenate and truncate
+        $paddingCount = "MAX(0, {$length} - LENGTH({$val}))";
+        $paddingSubquery = "(SELECT result FROM (
+            WITH RECURSIVE pad_cte(n, result) AS (
+                SELECT 1, '{$escapedPad}'
+                UNION ALL
+                SELECT n+1, result || '{$escapedPad}' FROM pad_cte
+                WHERE LENGTH(result || '{$escapedPad}') <= {$paddingCount}
+            )
+            SELECT result FROM pad_cte ORDER BY n DESC LIMIT 1
+        ))";
+
+        if ($isLeft) {
+            // LPAD: pad on the left
+            return "CASE
+                WHEN LENGTH({$val}) >= {$length} THEN SUBSTR({$val}, 1, {$length})
+                ELSE SUBSTR({$paddingSubquery} || {$val}, -{$length})
+            END";
+        } else {
+            // RPAD: pad on the right
+            return "CASE
+                WHEN LENGTH({$val}) >= {$length} THEN SUBSTR({$val}, 1, {$length})
+                ELSE SUBSTR({$val} || {$paddingSubquery}, 1, {$length})
+            END";
+        }
     }
 
     /**
