@@ -167,4 +167,45 @@ interface DmlQueryBuilderInterface
      * @return array<string, mixed> Debug information about DML query state
      */
     public function getDebugInfo(): array;
+
+    /**
+     * Add JOIN clause.
+     *
+     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
+     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
+     * @param string $type JOIN type, e.g. INNER, LEFT, RIGHT
+     *
+     * @return static The current instance.
+     */
+    public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): static;
+
+    /**
+     * Add LEFT JOIN clause.
+     *
+     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
+     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
+     *
+     * @return static The current instance.
+     */
+    public function leftJoin(string $tableAlias, string|RawValue $condition): static;
+
+    /**
+     * Add RIGHT JOIN clause.
+     *
+     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
+     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
+     *
+     * @return static The current instance.
+     */
+    public function rightJoin(string $tableAlias, string|RawValue $condition): static;
+
+    /**
+     * Add INNER JOIN clause.
+     *
+     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
+     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
+     *
+     * @return static The current instance.
+     */
+    public function innerJoin(string $tableAlias, string|RawValue $condition): static;
 }

@@ -35,6 +35,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **JSON Operations** - Native JSON support with consistent API across all databases
 - **Bulk Operations** - CSV/XML/JSON loaders, multi-row inserts, UPSERT support
 - **INSERT ... SELECT** - Fluent API for copying data between tables with QueryBuilder, subqueries, and CTE support
+- **UPDATE/DELETE with JOIN** - Update and delete operations with JOIN clauses (MySQL/MariaDB/PostgreSQL only)
 - **MERGE Statements** - INSERT/UPDATE/DELETE based on match conditions (PostgreSQL native, MySQL/SQLite emulated)
 - **SQL Formatter/Pretty Printer** - Human-readable SQL output for debugging with indentation and line breaks
 - **Export Helpers** - Export results to JSON, CSV, and XML formats
@@ -1133,6 +1134,17 @@ $affected = $db->find()
     ]);
 ```
 
+#### UPDATE with JOIN
+
+```php
+// Update user balance based on order amount
+$affected = $db->find()
+    ->table('users')
+    ->join('orders', 'orders.user_id = users.id')
+    ->where('orders.status', 'completed')
+    ->update(['balance' => Db::raw('users.balance + orders.amount')]);
+```
+
 #### DELETE
 
 ```php
@@ -1141,6 +1153,19 @@ $affected = $db->find()
     ->where('age', 18, '<')
     ->delete();
 ```
+
+#### DELETE with JOIN
+
+```php
+// Delete users who have cancelled orders
+$affected = $db->find()
+    ->table('users')
+    ->join('orders', 'orders.user_id = users.id')
+    ->where('orders.status', 'cancelled')
+    ->delete();
+```
+
+> **Note:** JOIN in UPDATE/DELETE is supported in MySQL, MariaDB, and PostgreSQL. SQLite doesn't support JOIN in UPDATE/DELETE statements and will throw an exception.
 
 ### Filtering and Joining
 

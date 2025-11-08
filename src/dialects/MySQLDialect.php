@@ -36,6 +36,55 @@ class MySQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function supportsJoinInUpdateDelete(): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildUpdateWithJoinSql(
+        string $table,
+        string $setClause,
+        array $joins,
+        string $whereClause,
+        ?int $limit = null,
+        string $options = ''
+    ): string {
+        $sql = "UPDATE {$options}{$table}";
+        if (!empty($joins)) {
+            $sql .= ' ' . implode(' ', $joins);
+        }
+        $sql .= " SET {$setClause}";
+        $sql .= $whereClause;
+        if ($limit !== null) {
+            $sql .= ' LIMIT ' . (int)$limit;
+        }
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDeleteWithJoinSql(
+        string $table,
+        array $joins,
+        string $whereClause,
+        string $options = ''
+    ): string {
+        // MySQL syntax: DELETE table FROM table JOIN ...
+        $sql = "DELETE {$options}{$table} FROM {$table}";
+        if (!empty($joins)) {
+            $sql .= ' ' . implode(' ', $joins);
+        }
+        $sql .= $whereClause;
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildDsn(array $params): string
     {
         foreach (['host', 'dbname', 'username', 'password'] as $requiredParam) {

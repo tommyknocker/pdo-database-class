@@ -37,6 +37,45 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function supportsJoinInUpdateDelete(): bool
+    {
+        // SQLite does not support JOIN in UPDATE/DELETE statements
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildUpdateWithJoinSql(
+        string $table,
+        string $setClause,
+        array $joins,
+        string $whereClause,
+        ?int $limit = null,
+        string $options = ''
+    ): string {
+        // This method should not be called if supportsJoinInUpdateDelete() returns false
+        // But we implement it for interface compliance
+        throw new QueryException('JOIN in UPDATE statements is not supported by SQLite');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDeleteWithJoinSql(
+        string $table,
+        array $joins,
+        string $whereClause,
+        string $options = ''
+    ): string {
+        // This method should not be called if supportsJoinInUpdateDelete() returns false
+        // But we implement it for interface compliance
+        throw new QueryException('JOIN in DELETE statements is not supported by SQLite');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildDsn(array $params): string
     {
         if (!isset($params['path'])) {

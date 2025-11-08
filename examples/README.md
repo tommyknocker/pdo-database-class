@@ -103,6 +103,11 @@ Copy data between tables using INSERT ... SELECT operations.
 
 - **[01-insert-from-examples.php](32-insert-select/01-insert-from-examples.php)** - INSERT ... SELECT with QueryBuilder, subqueries, CTE, and column mapping
 
+### 33. UPDATE/DELETE with JOIN Examples
+Update and delete operations with JOIN clauses.
+
+- **[01-update-delete-join-examples.php](33-update-delete-join/01-update-delete-join-examples.php)** - UPDATE/DELETE with JOIN, LEFT JOIN, and multiple JOINs (MySQL/MariaDB/PostgreSQL only, SQLite throws exception)
+
 ### 04. JSON Operations
 Working with JSON data across all databases.
 

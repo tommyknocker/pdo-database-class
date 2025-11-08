@@ -158,6 +158,51 @@ interface DialectInterface
         array $whenClauses
     ): string;
 
+    /**
+     * Check if JOIN in UPDATE/DELETE statements is supported.
+     *
+     * @return bool
+     */
+    public function supportsJoinInUpdateDelete(): bool;
+
+    /**
+     * Build UPDATE SQL statement with JOIN clauses.
+     *
+     * @param string $table Main table name
+     * @param string $setClause SET clause (e.g., "column1 = value1, column2 = value2")
+     * @param array<int, string> $joins Array of JOIN clauses
+     * @param string $whereClause WHERE clause (including "WHERE" keyword)
+     * @param int|null $limit LIMIT value (null = no limit)
+     * @param string $options Query options (e.g., "IGNORE ", "LOW_PRIORITY ")
+     *
+     * @return string
+     */
+    public function buildUpdateWithJoinSql(
+        string $table,
+        string $setClause,
+        array $joins,
+        string $whereClause,
+        ?int $limit = null,
+        string $options = ''
+    ): string;
+
+    /**
+     * Build DELETE SQL statement with JOIN clauses.
+     *
+     * @param string $table Main table name
+     * @param array<int, string> $joins Array of JOIN clauses
+     * @param string $whereClause WHERE clause (including "WHERE" keyword)
+     * @param string $options Query options (e.g., "IGNORE ", "LOW_PRIORITY ")
+     *
+     * @return string
+     */
+    public function buildDeleteWithJoinSql(
+        string $table,
+        array $joins,
+        string $whereClause,
+        string $options = ''
+    ): string;
+
     /* ---------------- JSON methods ---------------- */
 
     /**

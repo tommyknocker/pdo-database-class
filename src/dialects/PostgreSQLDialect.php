@@ -36,6 +36,140 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function supportsJoinInUpdateDelete(): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildUpdateWithJoinSql(
+        string $table,
+        string $setClause,
+        array $joins,
+        string $whereClause,
+        ?int $limit = null,
+        string $options = ''
+    ): string {
+        // PostgreSQL uses FROM clause instead of JOIN in UPDATE
+        // Convert JOIN clauses to FROM clause
+        $fromTables = [];
+        $joinConditions = [];
+
+        foreach ($joins as $join) {
+            // Parse JOIN clause: "INNER JOIN table ON condition"
+            if (preg_match('/\s+(?:INNER\s+)?JOIN\s+([^\s]+(?:\s+[^\s]+)?)\s+ON\s+(.+)/i', $join, $matches)) {
+                $fromTables[] = $matches[1];
+                $joinConditions[] = $matches[2];
+            } elseif (preg_match('/\s+LEFT\s+JOIN\s+([^\s]+(?:\s+[^\s]+)?)\s+ON\s+(.+)/i', $join, $matches)) {
+                // LEFT JOIN - add to FROM with condition in WHERE
+                $fromTables[] = $matches[1];
+                $joinConditions[] = $matches[2];
+            } elseif (preg_match('/\s+RIGHT\s+JOIN\s+([^\s]+(?:\s+[^\s]+)?)\s+ON\s+(.+)/i', $join, $matches)) {
+                // RIGHT JOIN - PostgreSQL doesn't support RIGHT JOIN in UPDATE, convert to LEFT JOIN
+                $fromTables[] = $matches[1];
+                $joinConditions[] = $matches[2];
+            }
+        }
+
+        $sql = "UPDATE {$options}{$table} SET {$setClause}";
+        if (!empty($fromTables)) {
+            $sql .= ' FROM ' . implode(', ', $fromTables);
+        }
+
+        // Combine JOIN conditions with WHERE clause
+        $allConditions = [];
+        if (!empty($joinConditions)) {
+            $allConditions[] = implode(' AND ', $joinConditions);
+        }
+        if (trim($whereClause) !== '' && trim($whereClause) !== 'WHERE') {
+            // Remove WHERE keyword and add condition
+            $whereCondition = preg_replace('/^\s*WHERE\s+/i', '', $whereClause);
+            if ($whereCondition !== null && $whereCondition !== '') {
+                $allConditions[] = $whereCondition;
+            }
+        }
+
+        if (!empty($allConditions)) {
+            $sql .= ' WHERE ' . implode(' AND ', $allConditions);
+        }
+
+        if ($limit !== null) {
+            $sql .= ' LIMIT ' . (int)$limit;
+        }
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDeleteWithJoinSql(
+        string $table,
+        array $joins,
+        string $whereClause,
+        string $options = ''
+    ): string {
+        // PostgreSQL uses USING clause in DELETE
+        // Convert JOIN clauses to USING clause
+        $usingTables = [];
+        $joinConditions = [];
+
+        foreach ($joins as $join) {
+            // Parse JOIN clause: "INNER JOIN table ON condition"
+            if (preg_match('/\s+(?:INNER\s+)?JOIN\s+([^\s]+(?:\s+[^\s]+)?)\s+ON\s+(.+)/i', $join, $matches)) {
+                // Extract table name (may have alias)
+                $tablePart = trim($matches[1]);
+                // Remove alias if present
+                $tableParts = preg_split('/\s+/', $tablePart);
+                $tableName = $tableParts !== false && count($tableParts) > 0 ? $tableParts[0] : $tablePart;
+                $usingTables[] = $tableName;
+                $joinConditions[] = $matches[2];
+            } elseif (preg_match('/\s+LEFT\s+JOIN\s+([^\s]+(?:\s+[^\s]+)?)\s+ON\s+(.+)/i', $join, $matches)) {
+                $tablePart = trim($matches[1]);
+                $tableParts = preg_split('/\s+/', $tablePart);
+                $tableName = $tableParts !== false && count($tableParts) > 0 ? $tableParts[0] : $tablePart;
+                $usingTables[] = $tableName;
+                $joinConditions[] = $matches[2];
+            } elseif (preg_match('/\s+RIGHT\s+JOIN\s+([^\s]+(?:\s+[^\s]+)?)\s+ON\s+(.+)/i', $join, $matches)) {
+                // RIGHT JOIN - PostgreSQL doesn't support RIGHT JOIN in DELETE, convert to LEFT JOIN
+                $tablePart = trim($matches[1]);
+                $tableParts = preg_split('/\s+/', $tablePart);
+                $tableName = $tableParts !== false && count($tableParts) > 0 ? $tableParts[0] : $tablePart;
+                $usingTables[] = $tableName;
+                $joinConditions[] = $matches[2];
+            }
+        }
+
+        $sql = "DELETE {$options}FROM {$table}";
+        if (!empty($usingTables)) {
+            $sql .= ' USING ' . implode(', ', $usingTables);
+        }
+
+        // Combine JOIN conditions with WHERE clause
+        $allConditions = [];
+        if (!empty($joinConditions)) {
+            $allConditions[] = implode(' AND ', $joinConditions);
+        }
+        if (trim($whereClause) !== '' && trim($whereClause) !== 'WHERE') {
+            // Remove WHERE keyword and add condition
+            $whereCondition = preg_replace('/^\s*WHERE\s+/i', '', $whereClause);
+            if ($whereCondition !== null && $whereCondition !== '') {
+                $allConditions[] = $whereCondition;
+            }
+        }
+
+        if (!empty($allConditions)) {
+            $sql .= ' WHERE ' . implode(' AND ', $allConditions);
+        }
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildDsn(array $params): string
     {
         foreach (['host', 'dbname', 'username', 'password'] as $requiredParam) {

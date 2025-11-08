@@ -206,6 +206,60 @@ $affected = $db->find()
     ]);
 ```
 
+### UPDATE with JOIN
+
+Update rows based on conditions from joined tables:
+
+```php
+use tommyknocker\pdodb\helpers\Db;
+
+// Update user balance based on order amount
+$affected = $db->find()
+    ->table('users')
+    ->join('orders', 'orders.user_id = users.id')
+    ->where('orders.status', 'completed')
+    ->update(['balance' => Db::raw('users.balance + orders.amount')]);
+```
+
+**MySQL/MariaDB syntax:**
+```sql
+UPDATE users JOIN orders ON orders.user_id = users.id 
+SET users.balance = users.balance + orders.amount 
+WHERE orders.status = 'completed'
+```
+
+**PostgreSQL syntax:**
+```sql
+UPDATE users SET balance = users.balance + orders.amount 
+FROM orders 
+WHERE orders.user_id = users.id AND orders.status = 'completed'
+```
+
+**Note:** SQLite doesn't support JOIN in UPDATE statements. An exception will be thrown if JOIN is used.
+
+### UPDATE with LEFT JOIN
+
+```php
+// Update users who have orders (MySQL/MariaDB)
+$affected = $db->find()
+    ->table('users')
+    ->leftJoin('orders', 'orders.user_id = users.id')
+    ->where('orders.id', null, 'IS NOT')
+    ->update(['users.status' => 'has_orders']);
+
+// PostgreSQL - column name doesn't need table prefix
+$affected = $db->find()
+    ->table('users')
+    ->leftJoin('orders', 'orders.user_id = users.id')
+    ->where('orders.id', null, 'IS NOT')
+    ->update(['status' => 'has_orders']);
+```
+
+**Important:** When using JOIN in UPDATE:
+- **MySQL/MariaDB**: Column names in SET clause are automatically qualified with table name to avoid ambiguity
+- **PostgreSQL**: Column names in SET clause don't need table prefix (uses FROM clause)
+- **SQLite**: JOIN in UPDATE is not supported (throws exception)
+
 ## DELETE Operations
 
 ### Basic DELETE
@@ -231,6 +285,33 @@ $deleted = $db->find()
 
 echo "Deleted $deleted inactive users\n";
 ```
+
+### DELETE with JOIN
+
+Delete rows based on conditions from joined tables:
+
+```php
+// Delete users who have cancelled orders
+$deleted = $db->find()
+    ->table('users')
+    ->join('orders', 'orders.user_id = users.id')
+    ->where('orders.status', 'cancelled')
+    ->delete();
+```
+
+**MySQL/MariaDB syntax:**
+```sql
+DELETE users FROM users JOIN orders ON orders.user_id = users.id 
+WHERE orders.status = 'cancelled'
+```
+
+**PostgreSQL syntax:**
+```sql
+DELETE FROM users USING orders 
+WHERE orders.user_id = users.id AND orders.status = 'cancelled'
+```
+
+**Note:** SQLite doesn't support JOIN in DELETE statements. An exception will be thrown if JOIN is used.
 
 ### Bulk DELETE
 

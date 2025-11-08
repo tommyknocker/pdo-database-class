@@ -108,6 +108,64 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
     {
         $this->prefix = $prefix;
         $this->conditionBuilder->setPrefix($prefix);
+        $this->joinBuilder->setPrefix($prefix);
+        return $this;
+    }
+
+    /**
+     * Add JOIN clause.
+     *
+     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
+     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
+     * @param string $type JOIN type, e.g. INNER, LEFT, RIGHT
+     *
+     * @return static The current instance.
+     */
+    public function join(string $tableAlias, string|RawValue $condition, string $type = 'INNER'): static
+    {
+        $this->joinBuilder->join($tableAlias, $condition, $type);
+        return $this;
+    }
+
+    /**
+     * Add LEFT JOIN clause.
+     *
+     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
+     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
+     *
+     * @return static The current instance.
+     */
+    public function leftJoin(string $tableAlias, string|RawValue $condition): static
+    {
+        $this->joinBuilder->leftJoin($tableAlias, $condition);
+        return $this;
+    }
+
+    /**
+     * Add RIGHT JOIN clause.
+     *
+     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
+     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
+     *
+     * @return static The current instance.
+     */
+    public function rightJoin(string $tableAlias, string|RawValue $condition): static
+    {
+        $this->joinBuilder->rightJoin($tableAlias, $condition);
+        return $this;
+    }
+
+    /**
+     * Add INNER JOIN clause.
+     *
+     * @param string $tableAlias Logical table name or table + alias (e.g. "users u" or "schema.users AS u")
+     * @param string|RawValue $condition Full ON condition (either a raw SQL fragment or a plain condition string)
+     *
+     * @return static The current instance.
+     */
+    public function innerJoin(string $tableAlias, string|RawValue $condition): static
+    {
+        $this->joinBuilder->innerJoin($tableAlias, $condition);
         return $this;
     }
 
@@ -317,8 +375,30 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
     {
         $table = $this->normalizeTable();
         $options = $this->options ? implode(',', $this->options) . ' ' : '';
-        $sql = "DELETE {$options}FROM {$table}";
-        $sql .= $this->conditionBuilder->buildConditionsClause($this->conditionBuilder->getWhere(), 'WHERE');
+        $joins = $this->joinBuilder->getJoins();
+
+        // Check if JOIN is used - SQLite doesn't support JOIN in UPDATE/DELETE
+        if (!empty($joins) && !$this->dialect->supportsJoinInUpdateDelete()) {
+            throw new RuntimeException(
+                'JOIN in DELETE statements is not supported by ' . $this->dialect->getDriverName() . ' dialect'
+            );
+        }
+
+        if (!empty($joins)) {
+            // Build WHERE clause without keyword for dialect to handle
+            $whereClause = $this->conditionBuilder->buildConditionsClause($this->conditionBuilder->getWhere(), 'WHERE');
+            // Use dialect-specific method for building DELETE with JOIN
+            $sql = $this->dialect->buildDeleteWithJoinSql(
+                $table,
+                $joins,
+                $whereClause,
+                $options
+            );
+        } else {
+            // Standard DELETE without JOIN
+            $sql = "DELETE {$options}FROM {$table}";
+            $sql .= $this->conditionBuilder->buildConditionsClause($this->conditionBuilder->getWhere(), 'WHERE');
+        }
 
         try {
             return $this->executionEngine->executeStatement($sql, $this->parameterManager->getParams())->rowCount();
@@ -599,9 +679,27 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
     {
         $setParts = [];
         $options = $this->options ? implode(',', $this->options) . ' ' : '';
+        $joins = $this->joinBuilder->getJoins();
+        $hasJoins = !empty($joins);
+
+        // When JOIN is used, we need to qualify column names in SET clause with table name
+        $table = $this->normalizeTable();
+        $tableAlias = $hasJoins ? $table : null;
+        // PostgreSQL uses FROM instead of JOIN, so we don't need to qualify columns automatically
+        $isPostgreSQL = $this->dialect->getDriverName() === 'pgsql';
 
         foreach ($this->data as $col => $val) {
-            $qid = $this->dialect->quoteIdentifier($col);
+            // If JOIN is used and not PostgreSQL, qualify column name with table name to avoid ambiguity
+            // But only if column name doesn't already contain table prefix
+            // PostgreSQL uses FROM clause, so column names in SET don't need table prefix
+            if ($hasJoins && $tableAlias !== null && !$isPostgreSQL && !str_contains($col, '.')) {
+                $qid = $tableAlias . '.' . $this->dialect->quoteIdentifier($col);
+            } else {
+                // Column already qualified or no JOIN or PostgreSQL - quote as is (may contain table.column)
+                $qid = str_contains($col, '.')
+                    ? implode('.', array_map([$this->dialect, 'quoteIdentifier'], explode('.', $col, 2)))
+                    : $this->dialect->quoteIdentifier($col);
+            }
 
             if (is_array($val) && isset($val['__op'])) {
                 $op = $val['__op'];
@@ -638,12 +736,34 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
             }
         }
 
-        $table = $this->normalizeTable();
-        $sql = "UPDATE {$options}{$table} SET " . implode(', ', $setParts);
-        $sql .= $this->conditionBuilder->buildConditionsClause($this->conditionBuilder->getWhere(), 'WHERE');
-        if ($this->limit !== null) {
-            $sql .= ' LIMIT ' . (int)$this->limit;
+        // Check if JOIN is used - SQLite doesn't support JOIN in UPDATE/DELETE
+        if ($hasJoins && !$this->dialect->supportsJoinInUpdateDelete()) {
+            throw new RuntimeException(
+                'JOIN in UPDATE statements is not supported by ' . $this->dialect->getDriverName() . ' dialect'
+            );
         }
+
+        if (!empty($joins)) {
+            // Build WHERE clause without keyword for dialect to handle
+            $whereClause = $this->conditionBuilder->buildConditionsClause($this->conditionBuilder->getWhere(), 'WHERE');
+            // Use dialect-specific method for building UPDATE with JOIN
+            $sql = $this->dialect->buildUpdateWithJoinSql(
+                $table,
+                implode(', ', $setParts),
+                $joins,
+                $whereClause,
+                $this->limit,
+                $options
+            );
+        } else {
+            // Standard UPDATE without JOIN
+            $sql = "UPDATE {$options}{$table} SET " . implode(', ', $setParts);
+            $sql .= $this->conditionBuilder->buildConditionsClause($this->conditionBuilder->getWhere(), 'WHERE');
+            if ($this->limit !== null) {
+                $sql .= ' LIMIT ' . (int)$this->limit;
+            }
+        }
+
         return [$sql, $this->parameterManager->getParams()];
     }
 
