@@ -112,6 +112,7 @@ Working with JSON data across all databases.
 
 - **[01-json-basics.php](04-json/01-json-basics.php)** - Creating and storing JSON
 - **[02-json-queries.php](04-json/02-json-queries.php)** - Querying JSON data
+- **[03-json-modification.php](04-json/03-json-modification.php)** - Modifying JSON data (jsonSet, jsonRemove, jsonReplace)
 
 ### 05. Helper Functions
 SQL helper functions for common operations.

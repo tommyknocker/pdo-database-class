@@ -179,15 +179,19 @@ Start here: [Documentation Index](documentation/README.md)
 Comprehensive, runnable examples are available in the [`examples/`](examples/) directory:
 
 - **[Basic](examples/01-basic/)** - Connection, CRUD, WHERE conditions
-- **[Intermediate](examples/02-intermediate/)** - JOINs, aggregations, pagination, transactions
-- **[Advanced](examples/03-advanced/)** - Connection pooling, bulk operations, UPSERT
-- **[JSON Operations](examples/04-json/)** - Complete guide to JSON features
-- **[Helper Functions](examples/05-helpers/)** - String, math, date/time helpers
-- **[Export Helpers](examples/11-export-helpers/)** - Export data to JSON, CSV, XML
+- **[Intermediate](examples/02-intermediate/)** - JOINs, aggregations, pagination, transactions, savepoints, INSERT ... SELECT, UPDATE/DELETE with JOIN
+- **[Advanced](examples/03-advanced/)** - Connection pooling, bulk operations, UPSERT, subqueries, MERGE, window functions, CTEs, full-text search, set operations
+- **[JSON Operations](examples/04-json/)** - Complete guide to JSON features including modification (jsonSet, jsonRemove, jsonReplace)
+- **[Helper Functions](examples/05-helpers/)** - String, math, date/time, NULL, comparison, conditional, boolean, type helpers
+- **[Data Management](examples/06-data-management/)** - File loading, batch processing, export to JSON/CSV/XML
 - **[Real-World](examples/06-real-world/)** - Blog system, user auth, search, multi-tenant
-- **[README Examples](examples/07-readme-examples/)** - Examples extracted from this README
-- **[Connection Retry](examples/08-connection-retry/)** - Retry mechanism with logging
-- **[Exception Handling](examples/09-exception-handling/)** - Comprehensive error handling, enhanced error diagnostics with query context and debug information
+- **[Performance](examples/07-performance/)** - Query caching, compilation cache, profiling, EXPLAIN analysis
+- **[Architecture](examples/08-architecture/)** - Read/write splitting, sharding, load balancing
+- **[ActiveRecord](examples/09-active-record/)** - Object-based operations, relationships, scopes
+- **[Extensibility](examples/10-extensibility/)** - Macros, plugins, event dispatcher
+- **[Schema Management](examples/11-schema/)** - DDL Query Builder, migrations
+- **[Reliability](examples/12-reliability/)** - Exception handling, connection retry, error diagnostics
+- **[Miscellaneous](examples/14-misc/)** - Examples extracted from this README
 
 Each example is self-contained with setup instructions. See [`examples/README.md`](examples/README.md) for the full catalog.
 
