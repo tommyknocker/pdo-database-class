@@ -18,6 +18,7 @@ use tommyknocker\pdodb\connection\loadbalancer\LoadBalancerInterface;
 use tommyknocker\pdodb\connection\sharding\ShardConfig;
 use tommyknocker\pdodb\connection\sharding\ShardConfigBuilder;
 use tommyknocker\pdodb\connection\sharding\ShardRouter;
+use tommyknocker\pdodb\exceptions\TransactionException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\plugin\PluginInterface;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
@@ -98,6 +99,9 @@ class PdoDb
 
     /** @var EventDispatcherInterface|null Event dispatcher */
     protected ?EventDispatcherInterface $eventDispatcher = null;
+
+    /** @var array<string> Stack of active savepoint names */
+    protected array $savepointStack = [];
 
     /**
      * @var array<string, callable> Scopes for all QueryBuilder instances
@@ -525,6 +529,8 @@ class PdoDb
     {
         $conn = $this->connection;
         if (!$conn->inTransaction()) {
+            // Clear savepoint stack when starting a new transaction
+            $this->savepointStack = [];
             $conn->transaction();
             if ($this->connectionRouter !== null) {
                 $this->connectionRouter->setTransactionState(true);
@@ -540,6 +546,8 @@ class PdoDb
         $conn = $this->connection;
         if ($conn->inTransaction()) {
             $conn->commit();
+            // Clear savepoint stack when committing the main transaction
+            $this->savepointStack = [];
             if ($this->connectionRouter !== null) {
                 $this->connectionRouter->setTransactionState(false);
             }
@@ -554,6 +562,8 @@ class PdoDb
         $conn = $this->connection;
         if ($conn->inTransaction()) {
             $conn->rollBack();
+            // Clear savepoint stack when rolling back the main transaction
+            $this->savepointStack = [];
             if ($this->connectionRouter !== null) {
                 $this->connectionRouter->setTransactionState(false);
             }
@@ -591,6 +601,120 @@ class PdoDb
 
             throw $e;
         }
+    }
+
+    /**
+     * Create a savepoint within the current transaction.
+     *
+     * @param string $name Savepoint name
+     *
+     * @throws TransactionException If not in a transaction or invalid savepoint name
+     */
+    public function savepoint(string $name): void
+    {
+        if (!$this->connection->inTransaction()) {
+            throw new TransactionException('Cannot create savepoint: not in a transaction');
+        }
+
+        // Validate savepoint name (prevent SQL injection)
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) {
+            throw new TransactionException(
+                'Invalid savepoint name. Must be a valid identifier (letters, numbers, underscore, starting with letter/underscore)'
+            );
+        }
+
+        $sql = "SAVEPOINT {$name}";
+        $this->connection->query($sql);
+        $this->savepointStack[] = $name;
+    }
+
+    /**
+     * Rollback to a specific savepoint.
+     *
+     * @param string $name Savepoint name
+     *
+     * @throws TransactionException If savepoint doesn't exist or not in a transaction
+     */
+    public function rollbackToSavepoint(string $name): void
+    {
+        if (!$this->connection->inTransaction()) {
+            throw new TransactionException('Cannot rollback to savepoint: not in a transaction');
+        }
+
+        // Validate savepoint name
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) {
+            throw new TransactionException(
+                'Invalid savepoint name. Must be a valid identifier (letters, numbers, underscore, starting with letter/underscore)'
+            );
+        }
+
+        // Check if savepoint exists in stack
+        $index = array_search($name, $this->savepointStack, true);
+        if ($index === false || !is_int($index)) {
+            throw new TransactionException("Savepoint '{$name}' not found");
+        }
+
+        $sql = "ROLLBACK TO SAVEPOINT {$name}";
+        $this->connection->query($sql);
+
+        // Remove all savepoints created after this one from the stack
+        // Keep the savepoint we rolled back to (it still exists in database)
+        $this->savepointStack = array_slice($this->savepointStack, 0, $index + 1);
+    }
+
+    /**
+     * Release a savepoint (remove it without rolling back).
+     *
+     * @param string $name Savepoint name
+     *
+     * @throws TransactionException If savepoint doesn't exist or not in a transaction
+     */
+    public function releaseSavepoint(string $name): void
+    {
+        if (!$this->connection->inTransaction()) {
+            throw new TransactionException('Cannot release savepoint: not in a transaction');
+        }
+
+        // Validate savepoint name
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) {
+            throw new TransactionException(
+                'Invalid savepoint name. Must be a valid identifier (letters, numbers, underscore, starting with letter/underscore)'
+            );
+        }
+
+        // Check if savepoint exists in stack
+        $index = array_search($name, $this->savepointStack, true);
+        if ($index === false || !is_int($index)) {
+            throw new TransactionException("Savepoint '{$name}' not found");
+        }
+
+        $sql = "RELEASE SAVEPOINT {$name}";
+        $this->connection->query($sql);
+
+        // Remove this savepoint from the stack (but keep earlier savepoints)
+        array_splice($this->savepointStack, $index, 1);
+    }
+
+    /**
+     * Get the list of active savepoints.
+     *
+     * @return array<string> Array of savepoint names in creation order
+     */
+    public function getSavepoints(): array
+    {
+        return $this->savepointStack;
+    }
+
+    /**
+     * Check if a savepoint exists.
+     *
+     * @param string $name Savepoint name
+     *
+     * @return bool True if savepoint exists
+     */
+    public function hasSavepoint(string $name): bool
+    {
+        return in_array($name, $this->savepointStack, true);
     }
 
     /* ---------------- LOCKING ---------------- */

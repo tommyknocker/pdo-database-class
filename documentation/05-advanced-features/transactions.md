@@ -211,31 +211,154 @@ $db->commit();
 
 ## Savepoints
 
-For complex scenarios, you may need to use savepoints:
+PDOdb provides built-in support for savepoints, allowing you to create nested transaction-like behavior within a single transaction. Savepoints are supported by all database dialects (MySQL, MariaDB, PostgreSQL, SQLite).
+
+### Creating Savepoints
+
+Use the `savepoint()` method to create a savepoint within an active transaction:
 
 ```php
-// Start transaction
 $db->startTransaction();
 
 try {
     $userId = $db->find()->table('users')->insert(['name' => 'Alice']);
     
     // Create savepoint
-    $db->connection->query("SAVEPOINT sp1");
+    $db->savepoint('sp1');
     
     try {
         $db->find()->table('posts')->insert(['user_id' => $userId, 'title' => 'Post']);
-        
-        // Rollback to savepoint
+        $db->releaseSavepoint('sp1');
     } catch (\Exception $e) {
-        $db->connection->query("ROLLBACK TO SAVEPOINT sp1");
+        // Rollback to savepoint (undoes the post insert)
+        $db->rollbackToSavepoint('sp1');
     }
     
     $db->commit();
 } catch (\Exception $e) {
-    $db->rollBack();
+    $db->rollback();
 }
 ```
+
+### Rolling Back to a Savepoint
+
+Use `rollbackToSavepoint()` to undo all changes made after a specific savepoint:
+
+```php
+$db->startTransaction();
+
+$userId = $db->find()->table('users')->insert(['name' => 'Alice']);
+$db->savepoint('sp1');
+
+$postId = $db->find()->table('posts')->insert(['user_id' => $userId, 'title' => 'Post']);
+
+// Rollback to savepoint (removes the post, keeps the user)
+$db->rollbackToSavepoint('sp1');
+
+// User still exists, post does not
+$db->commit();
+```
+
+**Note:** Rolling back to a savepoint removes all savepoints created after it from the stack, but the savepoint you rolled back to remains active.
+
+### Releasing Savepoints
+
+Use `releaseSavepoint()` to remove a savepoint without rolling back changes:
+
+```php
+$db->startTransaction();
+
+$userId = $db->find()->table('users')->insert(['name' => 'Alice']);
+$db->savepoint('sp1');
+
+$postId = $db->find()->table('posts')->insert(['user_id' => $userId, 'title' => 'Post']);
+
+// Release savepoint (keeps changes, removes savepoint)
+$db->releaseSavepoint('sp1');
+
+// Both user and post still exist
+$db->commit();
+```
+
+### Nested Savepoints
+
+You can create multiple nested savepoints:
+
+```php
+$db->startTransaction();
+
+$id1 = $db->find()->table('users')->insert(['name' => 'Alice']);
+$db->savepoint('sp1');
+
+$id2 = $db->find()->table('users')->insert(['name' => 'Bob']);
+$db->savepoint('sp2');
+
+$id3 = $db->find()->table('users')->insert(['name' => 'Charlie']);
+
+// Rollback to sp1 (removes Bob and Charlie, keeps Alice)
+$db->rollbackToSavepoint('sp1');
+
+$db->commit();
+```
+
+### Savepoint Stack Management
+
+PDOdb tracks active savepoints in a stack. You can query the stack:
+
+```php
+$db->startTransaction();
+
+$db->savepoint('sp1');
+$db->savepoint('sp2');
+
+// Get all active savepoints
+$savepoints = $db->getSavepoints(); // ['sp1', 'sp2']
+
+// Check if a savepoint exists
+$exists = $db->hasSavepoint('sp1'); // true
+
+$db->rollback();
+```
+
+### Error Handling
+
+Savepoints are automatically cleared when you commit or rollback the main transaction:
+
+```php
+$db->startTransaction();
+
+$db->savepoint('sp1');
+$db->savepoint('sp2');
+
+// Commit clears all savepoints
+$db->commit();
+$savepoints = $db->getSavepoints(); // []
+
+// Or rollback clears all savepoints
+$db->startTransaction();
+$db->savepoint('sp1');
+$db->rollback();
+$savepoints = $db->getSavepoints(); // []
+```
+
+### Savepoint Name Validation
+
+Savepoint names must be valid SQL identifiers (letters, numbers, underscore, starting with letter/underscore). Invalid names will throw a `TransactionException`:
+
+```php
+try {
+    $db->savepoint('invalid-name'); // Throws TransactionException
+} catch (TransactionException $e) {
+    echo $e->getMessage();
+}
+```
+
+### Requirements
+
+- Savepoints can only be created within an active transaction
+- Attempting to create a savepoint without a transaction throws a `TransactionException`
+- Savepoint names must be valid SQL identifiers
+- All database dialects support savepoints natively
 
 ## Dialect-Specific Behavior
 

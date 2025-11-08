@@ -39,7 +39,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **MERGE Statements** - INSERT/UPDATE/DELETE based on match conditions (PostgreSQL native, MySQL/SQLite emulated)
 - **SQL Formatter/Pretty Printer** - Human-readable SQL output for debugging with indentation and line breaks
 - **Export Helpers** - Export results to JSON, CSV, and XML formats
-- **Transactions & Locking** - Full transaction support with table locking
+- **Transactions & Locking** - Full transaction support with table locking and savepoints for nested transactions
 - **Batch Processing** - Memory-efficient generators for large datasets with zero memory leaks
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
 - **Plugin System** - Extend PdoDb with custom plugins for macros, scopes, and event listeners
@@ -1290,6 +1290,49 @@ $db->find()->table('products')->loadJson('/path/to/products.json', [
 ```
 
 ### Transactions
+
+#### Basic Transactions
+
+```php
+$db->startTransaction();
+
+try {
+    $userId = $db->find()->table('users')->insert(['name' => 'Alice']);
+    $db->find()->table('posts')->insert(['user_id' => $userId, 'title' => 'Post']);
+    $db->commit();
+} catch (\Exception $e) {
+    $db->rollback();
+}
+```
+
+#### Savepoints (Nested Transactions)
+
+PDOdb supports savepoints for nested transaction-like behavior:
+
+```php
+$db->startTransaction();
+
+try {
+    $userId = $db->find()->table('users')->insert(['name' => 'Alice']);
+    
+    // Create savepoint
+    $db->savepoint('sp1');
+    
+    try {
+        $db->find()->table('posts')->insert(['user_id' => $userId, 'title' => 'Post']);
+        $db->releaseSavepoint('sp1');
+    } catch (\Exception $e) {
+        // Rollback to savepoint (undoes the post insert)
+        $db->rollbackToSavepoint('sp1');
+    }
+    
+    $db->commit();
+} catch (\Exception $e) {
+    $db->rollback();
+}
+```
+
+Savepoints are supported by all database dialects (MySQL, MariaDB, PostgreSQL, SQLite).
 
 ```php
 $db->startTransaction();
