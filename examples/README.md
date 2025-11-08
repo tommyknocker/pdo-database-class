@@ -85,8 +85,11 @@ Common patterns and operations.
 - **[01-joins.php](02-intermediate/01-joins.php)** - JOIN operations (INNER, LEFT, RIGHT)
 - **[02-aggregations.php](02-intermediate/02-aggregations.php)** - GROUP BY, HAVING, COUNT, SUM, AVG
 - **[03-pagination.php](02-intermediate/03-pagination.php)** - LIMIT and OFFSET for pagination
+- **[03-pagination-advanced.php](02-intermediate/03-pagination-advanced.php)** - Advanced pagination (full, simple, cursor)
 - **[04-transactions.php](02-intermediate/04-transactions.php)** - Transaction management
-- **[05-raw-queries.php](02-intermediate/05-raw-queries.php)** - Raw SQL with parameter binding
+- **[05-savepoints.php](02-intermediate/05-savepoints.php)** - Savepoints and nested transactions
+- **[06-insert-select.php](02-intermediate/06-insert-select.php)** - INSERT ... SELECT operations
+- **[07-update-delete-join.php](02-intermediate/07-update-delete-join.php)** - UPDATE/DELETE with JOIN clauses
 
 ### 03. Advanced Examples
 Complex operations and patterns.
@@ -97,24 +100,18 @@ Complex operations and patterns.
 - **[04-subqueries.php](03-advanced/04-subqueries.php)** - Subqueries in SELECT, WHERE, FROM
 - **[05-merge.php](03-advanced/05-merge.php)** - MERGE statement (INSERT/UPDATE/DELETE based on match conditions)
 - **[06-sql-formatter.php](03-advanced/06-sql-formatter.php)** - SQL Formatter for pretty-printing queries
-
-### 32. INSERT ... SELECT Examples
-Copy data between tables using INSERT ... SELECT operations.
-
-- **[01-insert-from-examples.php](32-insert-select/01-insert-from-examples.php)** - INSERT ... SELECT with QueryBuilder, subqueries, CTE, and column mapping
-
-### 33. UPDATE/DELETE with JOIN Examples
-Update and delete operations with JOIN clauses.
-
-- **[01-update-delete-join-examples.php](33-update-delete-join/01-update-delete-join-examples.php)** - UPDATE/DELETE with JOIN, LEFT JOIN, and multiple JOINs (MySQL/MariaDB/PostgreSQL only, SQLite throws exception)
+- **[07-window-functions.php](03-advanced/07-window-functions.php)** - Window functions (ROW_NUMBER, RANK, LAG, LEAD, running totals)
+- **[08-basic-cte.php](03-advanced/08-basic-cte.php)** - Basic CTE usage
+- **[09-recursive-cte.php](03-advanced/09-recursive-cte.php)** - Recursive CTEs for hierarchical data
+- **[10-materialized-cte.php](03-advanced/10-materialized-cte.php)** - Materialized CTEs for performance
+- **[11-fulltext-search.php](03-advanced/11-fulltext-search.php)** - Full-text search across all databases
+- **[12-set-operations.php](03-advanced/12-set-operations.php)** - UNION, INTERSECT, EXCEPT operations
 
 ### 04. JSON Operations
 Working with JSON data across all databases.
 
 - **[01-json-basics.php](04-json/01-json-basics.php)** - Creating and storing JSON
 - **[02-json-queries.php](04-json/02-json-queries.php)** - Querying JSON data
-- **[03-json-modifications.php](04-json/03-json-modifications.php)** - Modifying JSON values
-- **[04-json-aggregations.php](04-json/04-json-aggregations.php)** - JSON length, type, keys
 
 ### 05. Helper Functions
 SQL helper functions for common operations.
@@ -123,8 +120,62 @@ SQL helper functions for common operations.
 - **[02-math-helpers.php](05-helpers/02-math-helpers.php)** - Mathematical operations
 - **[03-date-helpers.php](05-helpers/03-date-helpers.php)** - Date and time functions
 - **[04-null-helpers.php](05-helpers/04-null-helpers.php)** - NULL handling
+- **[05-comparison-helpers.php](05-helpers/05-comparison-helpers.php)** - Comparison operations
+- **[06-conditional-helpers.php](05-helpers/06-conditional-helpers.php)** - Conditional expressions
+- **[07-boolean-helpers.php](05-helpers/07-boolean-helpers.php)** - Boolean operations
+- **[08-type-helpers.php](05-helpers/08-type-helpers.php)** - Type conversion
 
-### 06. Real-World Examples
+### 06. Data Management
+Data loading, batch processing, and export operations.
+
+- **[01-file-loading.php](06-data-management/01-file-loading.php)** - Loading data from JSON files
+- **[02-batch-processing.php](06-data-management/02-batch-processing.php)** - Memory-efficient batch processing
+- **[03-export-helpers.php](06-data-management/03-export-helpers.php)** - Export to JSON, CSV, XML
+
+### 07. Performance
+Performance optimization: caching, profiling, and EXPLAIN analysis.
+
+- **[01-caching.php](07-performance/01-caching.php)** - Query result caching
+- **[02-query-compilation-cache.php](07-performance/02-query-compilation-cache.php)** - Compiled SQL caching
+- **[03-query-profiling.php](07-performance/03-query-profiling.php)** - Query performance profiling
+- **[04-explain-analysis.php](07-performance/04-explain-analysis.php)** - EXPLAIN query analysis
+
+### 08. Architecture
+Architectural patterns: read/write splitting and sharding.
+
+- **[01-read-write-splitting.php](08-architecture/01-read-write-splitting.php)** - Master-replica architecture
+- **[02-basic-sharding.php](08-architecture/02-basic-sharding.php)** - Basic sharding setup
+- **[03-sharding-strategies.php](08-architecture/03-sharding-strategies.php)** - Sharding strategies (range, hash, modulo)
+- **[04-sticky-writes.php](08-architecture/04-sticky-writes.php)** - Read-after-write consistency
+- **[05-load-balancers.php](08-architecture/05-load-balancers.php)** - Load balancing strategies
+
+### 09. ActiveRecord
+Object-based database operations with relationships and scopes.
+
+- **[01-basics.php](09-active-record/01-basics.php)** - ActiveRecord basics and CRUD
+- **[02-relationships.php](09-active-record/02-relationships.php)** - Relationships (hasOne, hasMany, belongsTo, hasManyThrough)
+- **[03-scopes.php](09-active-record/03-scopes.php)** - Global and local query scopes
+
+### 10. Extensibility
+Extending PdoDb: macros, plugins, and events.
+
+- **[01-macros.php](10-extensibility/01-macros.php)** - Query Builder macros
+- **[02-plugins.php](10-extensibility/02-plugins.php)** - Plugin system
+- **[03-events.php](10-extensibility/03-events.php)** - Event dispatcher (PSR-14)
+
+### 11. Schema Management
+Database schema management: DDL and migrations.
+
+- **[01-ddl.php](11-schema/01-ddl.php)** - DDL Query Builder
+- **[02-migrations.php](11-schema/02-migrations.php)** - Database migrations
+
+### 12. Reliability
+Reliability features: exception handling and connection retry.
+
+- **[01-exception-handling.php](12-reliability/01-exception-handling.php)** - Typed exceptions and error diagnostics
+- **[02-connection-retry.php](12-reliability/02-connection-retry.php)** - Automatic retry with exponential backoff
+
+### 13. Real-World Examples
 Complete applications and patterns.
 
 - **[01-blog-system.php](06-real-world/01-blog-system.php)** - Full blog with posts, comments, tags
@@ -132,145 +183,10 @@ Complete applications and patterns.
 - **[03-search-filters.php](06-real-world/03-search-filters.php)** - Advanced search with filters
 - **[04-multi-tenant.php](06-real-world/04-multi-tenant.php)** - Multi-tenant architecture
 
-### 15. Read/Write Splitting
-Horizontal database scaling with master-replica architecture.
+### 14. Miscellaneous
+Various examples and demonstrations.
 
-- **[01-basic-setup.php](15-read-write-splitting/01-basic-setup.php)** - Setting up read/write splitting
-- **[02-sticky-writes.php](15-read-write-splitting/02-sticky-writes.php)** - Read-after-write consistency
-- **[03-load-balancers.php](15-read-write-splitting/03-load-balancers.php)** - Load balancing strategies
-
-### 16. Window Functions
-Advanced analytics with window functions (MySQL 8.0+, PostgreSQL 9.4+, SQLite 3.25+).
-
-- **[01-window-functions.php](16-window-functions/01-window-functions.php)** - Complete window functions demo:
-  - **ROW_NUMBER()** - Sequential numbering within partitions
-  - **RANK()** - Ranking with gaps for ties
-  - **DENSE_RANK()** - Ranking without gaps
-  - **LAG()** - Access previous row data
-  - **LEAD()** - Access next row data
-  - **Running totals** - Cumulative sums
-  - **Moving averages** - Rolling statistics
-  - **FIRST_VALUE() / LAST_VALUE()** - First and last values in window
-  - **NTILE()** - Divide into buckets/quartiles
-  - **Multiple window functions** - Combining window functions
-
-### 17. Common Table Expressions (CTEs)
-WITH clauses for complex queries and hierarchical data (MySQL 8.0+, PostgreSQL 8.4+, SQLite 3.8.3+).
-
-- **[01-basic-cte.php](17-cte/01-basic-cte.php)** - Basic CTE usage:
-  - **Simple CTE** - Temporary result sets with Closure
-  - **CTE with QueryBuilder** - Using query builder instances
-  - **CTE with raw SQL** - Direct SQL in CTEs
-  - **Multiple CTEs** - Combining multiple CTEs
-  - **Column lists** - Explicit column definitions
-  - **CTE with JOIN** - Joining CTEs with tables
-- **[02-recursive-cte.php](17-cte/02-recursive-cte.php)** - Recursive CTE usage:
-  - **Category hierarchy** - Tree traversal
-  - **Employee chain** - Management hierarchy
-  - **Depth limits** - Controlling recursion depth
-  - **Subordinate counts** - Aggregating hierarchical data
-
-### 18. Set Operations
-SQL set operations for combining query results (MySQL 8.0+, PostgreSQL, SQLite 3.8.3+).
-
-- **[01-set-operations.php](18-set-operations/01-set-operations.php)** - Set operations:
-  - **UNION** - Combine queries, remove duplicates
-  - **UNION ALL** - Combine queries, keep duplicates
-  - **INTERSECT** - Find common rows
-  - **EXCEPT** - Find rows in first query not in second
-  - **Multiple UNION** - Chaining set operations
-  - **UNION with aggregation** - Combining aggregated results
-  - **UNION with filters** - Complex filtering
-
-### 23. ActiveRecord
-Object-based database operations with lightweight ORM pattern.
-
-- **[01-active-record-examples.php](23-active-record/01-active-record-examples.php)** - ActiveRecord basics:
-  - **Model definition** - Extend Model base class
-  - **CRUD operations** - Create, read, update, delete
-  - **Validation** - Rules-based validation
-  - **ActiveQuery** - Full QueryBuilder API through find()
-  - **Lifecycle events** - PSR-14 events for model operations
-
-### 24. DDL Query Builder
-Fluent API for creating and managing database schema.
-
-- **[01-ddl-basics.php](24-ddl/01-ddl-basics.php)** - DDL operations:
-  - **Create tables** - With columns, indexes, foreign keys
-  - **Alter tables** - Add, drop, modify columns
-  - **Indexes** - Create and drop indexes
-  - **Foreign keys** - Define relationships between tables
-
-### 28. Query Scopes
-Global and local scopes for reusable query logic.
-
-- **[01-scopes-examples.php](28-query-scopes/01-scopes-examples.php)** - Query scopes:
-  - **Global scopes** - Automatically applied to all queries
-  - **Local scopes** - Applied on-demand
-  - **Scope chaining** - Combine multiple scopes
-  - **Scope disabling** - Temporarily disable global scopes
-
-### 29. Query Builder Macros
-Custom query methods for extending QueryBuilder.
-
-- **[01-macro-examples.php](29-macros/01-macro-examples.php)** - Query macros:
-  - **Register macros** - Custom query methods
-  - **Macro with arguments** - Parameterized macros
-  - **Macro chaining** - Chain macros with QueryBuilder methods
-  - **Check macro existence** - Verify macro registration
-
-### 30. Sharding
-Horizontal partitioning across multiple databases.
-
-- **[01-basic-sharding.php](30-sharding/01-basic-sharding.php)** - Basic sharding:
-  - **Range strategy** - Distribute data by numeric ranges
-  - **Automatic routing** - Queries automatically route to correct shard
-  - **Shard key extraction** - Extract shard key from WHERE clauses
-- **[02-sharding-strategies.php](30-sharding/02-sharding-strategies.php)** - Sharding strategies:
-  - **Range strategy** - Numeric range-based distribution
-  - **Hash strategy** - Hash-based distribution
-  - **Modulo strategy** - Modulo-based distribution
-
-### 31. Plugin System
-Extend PdoDb with custom plugins for macros, scopes, and event listeners.
-
-- **[01-plugin-examples.php](31-plugins/01-plugin-examples.php)** - Plugin system:
-  - **Simple plugin** - Plugin with macros
-  - **Plugin with scopes** - Global scopes via plugin
-  - **Plugin with events** - Event listeners via plugin
-  - **Complex plugin** - Combining macros, scopes, and events
-  - **Plugin management** - Register, check, get, unregister plugins
-
-### 25. Database Migrations
-Version-controlled schema changes with rollback support.
-
-- **[01-migration-basics.php](25-migrations/01-migration-basics.php)** - Migration operations:
-  - **Create migrations** - Generate migration files
-  - **Apply migrations** - Migrate to latest or specific version
-  - **Rollback** - Undo migrations
-  - **History** - View applied migrations
-
-### 27. ActiveRecord Relationships
-hasOne, hasMany, belongsTo, and hasManyThrough relationships with lazy and eager loading.
-
-- **[01-relationships.php](27-active-record-relationships/01-relationships.php)** - Relationship examples:
-  - **hasOne** - One-to-one relationships
-  - **hasMany** - One-to-many relationships
-  - **belongsTo** - Inverse relationships
-  - **hasManyThrough** - Many-to-many via junction table
-  - **Lazy loading** - Load relationships on access
-  - **Eager loading** - Prevent N+1 queries
-
-### 28. Query Scopes
-Global and local scopes for reusable query logic.
-
-- **[01-scopes-examples.php](28-query-scopes/01-scopes-examples.php)** - Scope examples:
-  - **Global scopes** - Automatically applied to all queries (soft deletes, multi-tenant)
-  - **Local scopes** - Applied on-demand (published, popular, recent)
-  - **Scope chaining** - Combine multiple scopes
-  - **Scope parameters** - Parameterized scopes for flexible filtering
-  - **Disable global scopes** - Temporarily bypass global scopes when needed
-  - **QueryBuilder scopes** - Use scopes directly with QueryBuilder (without models)
+- **[01-readme-examples.php](14-misc/01-readme-examples.php)** - Examples from main README
 
 ## 💡 Tips
 

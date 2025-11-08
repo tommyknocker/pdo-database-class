@@ -80,6 +80,70 @@ SQL Formatter for pretty-printing SQL queries during debugging.
 - CTE (Common Table Expressions) formatting
 - Human-readable SQL for debugging
 
+### 07-window-functions.php
+Advanced analytics with window functions (MySQL 8.0+, PostgreSQL 9.4+, SQLite 3.25+).
+
+**Topics covered:**
+- **ROW_NUMBER()** - Sequential numbering within partitions
+- **RANK()** - Ranking with gaps for ties
+- **DENSE_RANK()** - Ranking without gaps
+- **LAG()** - Access previous row data
+- **LEAD()** - Access next row data
+- **Running totals** - Cumulative sums
+- **Moving averages** - Rolling statistics
+- **FIRST_VALUE() / LAST_VALUE()** - First and last values in window
+- **NTILE()** - Divide into buckets/quartiles
+- **Multiple window functions** - Combining window functions
+
+### 08-basic-cte.php
+Basic CTE usage with Common Table Expressions.
+
+**Topics covered:**
+- Simple CTE - Temporary result sets with Closure
+- CTE with QueryBuilder - Using query builder instances
+- CTE with raw SQL - Direct SQL in CTEs
+- Multiple CTEs - Combining multiple CTEs
+- Column lists - Explicit column definitions
+- CTE with JOIN - Joining CTEs with tables
+
+### 09-recursive-cte.php
+Recursive CTE usage for hierarchical data.
+
+**Topics covered:**
+- Category hierarchy - Tree traversal
+- Employee chain - Management hierarchy
+- Depth limits - Controlling recursion depth
+- Subordinate counts - Aggregating hierarchical data
+
+### 10-materialized-cte.php
+Materialized CTEs for performance optimization.
+
+**Topics covered:**
+- Materialized CTEs - Cached CTE results
+- Performance optimization - Faster repeated queries
+- Dialect support - PostgreSQL native, MySQL/SQLite emulation
+
+### 11-fulltext-search.php
+Full-text search across all databases.
+
+**Topics covered:**
+- MySQL FULLTEXT - Native full-text search
+- PostgreSQL tsvector - Text search vectors
+- SQLite FTS5 - Full-text search extension
+- Cross-database FTS - Unified API across all databases
+
+### 12-set-operations.php
+SQL set operations for combining query results.
+
+**Topics covered:**
+- **UNION** - Combine queries, remove duplicates
+- **UNION ALL** - Combine queries, keep duplicates
+- **INTERSECT** - Find common rows
+- **EXCEPT** - Find rows in first query not in second
+- **Multiple UNION** - Chaining set operations
+- **UNION with aggregation** - Combining aggregated results
+- **UNION with filters** - Complex filtering
+
 ## Running Examples
 
 ### SQLite (default)
@@ -108,7 +172,8 @@ PDODB_DRIVER=pgsql php 01-connection-pooling.php
 ## Next Steps
 
 Explore more advanced topics:
-- [Batch Processing](../10-batch-processing/) - Generator-based processing for large datasets
-- [Exception Handling](../09-exception-handling/) - Robust error handling patterns
-- [Connection Retry](../08-connection-retry/) - Automatic retry logic
+- [Data Management](../06-data-management/) - File loading, batch processing, export helpers
+- [Performance](../07-performance/) - Caching, profiling, EXPLAIN analysis
+- [Architecture](../08-architecture/) - Read/write splitting, sharding
+- [Reliability](../12-reliability/) - Exception handling, connection retry
 

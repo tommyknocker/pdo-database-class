@@ -40,19 +40,50 @@ LIMIT and OFFSET for pagination.
 - Total count queries
 - Efficient pagination patterns
 
-**Note:** This example covers manual pagination. For advanced pagination features (full pagination, simple pagination, cursor pagination), see [13-pagination/](../13-pagination/).
+**Note:** This example covers manual pagination. For advanced pagination features (full pagination, simple pagination, cursor pagination), see [03-pagination-advanced.php](03-pagination-advanced.php).
 
 ### 04-transactions.php
 Transaction management for data consistency.
 
 **Topics covered:**
-- Starting transactions with `begin()`
+- Starting transactions with `startTransaction()`
 - Committing transactions with `commit()`
 - Rolling back with `rollback()`
 - Nested operations in transactions
 - Error handling in transactions
-- Savepoints (if supported by dialect)
 - Transaction isolation levels
+
+### 05-savepoints.php
+Savepoints and nested transactions.
+
+**Topics covered:**
+- Creating savepoints within transactions
+- Rolling back to specific savepoints
+- Releasing savepoints without rolling back
+- Nested savepoint management
+- Error handling with savepoints
+- Savepoint stack tracking
+
+### 06-insert-select.php
+INSERT ... SELECT operations for copying data between tables.
+
+**Topics covered:**
+- INSERT ... SELECT with QueryBuilder
+- INSERT ... SELECT with subqueries
+- INSERT ... SELECT with CTEs
+- Column mapping
+- ON DUPLICATE KEY UPDATE (MySQL/MariaDB)
+- ON CONFLICT (PostgreSQL)
+
+### 07-update-delete-join.php
+UPDATE and DELETE operations with JOIN clauses.
+
+**Topics covered:**
+- UPDATE with JOIN (MySQL/MariaDB/PostgreSQL)
+- DELETE with JOIN (MySQL/MariaDB/PostgreSQL)
+- UPDATE with LEFT JOIN
+- Multiple JOINs in UPDATE/DELETE
+- Dialect-specific syntax handling
 
 ## Running Examples
 
@@ -74,7 +105,7 @@ PDODB_DRIVER=pgsql php 01-joins.php
 ## Next Steps
 
 After mastering these intermediate concepts, explore:
-- [Advanced Examples](../03-advanced/) - Connection pooling, upserts, subqueries, MERGE statements
+- [Advanced Examples](../03-advanced/) - Connection pooling, upserts, subqueries, MERGE statements, window functions, CTEs
 - [Helper Functions](../05-helpers/) - SQL helper functions
 - [Real-World Examples](../06-real-world/) - Complete application patterns
 
