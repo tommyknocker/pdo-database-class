@@ -10,6 +10,7 @@ use tommyknocker\pdodb\dialects\loaders\FileLoader;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 
 abstract class DialectAbstract implements DialectInterface
 {
@@ -738,5 +739,51 @@ abstract class DialectAbstract implements DialectInterface
     {
         // Default: return DEFAULT as-is (most dialects support DEFAULT keyword)
         return $value;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildMigrationTableSql(string $tableName): string
+    {
+        // Default implementation for MySQL/MariaDB
+        $tableQuoted = $this->quoteTable($tableName);
+        return "CREATE TABLE {$tableQuoted} (
+            version VARCHAR(255) PRIMARY KEY,
+            apply_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            batch INTEGER NOT NULL
+        ) ENGINE=InnoDB";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildMigrationInsertSql(string $tableName, string $version, int $batch): array
+    {
+        // Default: use positional parameters (?, ?)
+        $tableQuoted = $this->quoteTable($tableName);
+        return [
+            "INSERT INTO {$tableQuoted} (version, batch) VALUES (?, ?)",
+            [$version, $batch],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function extractErrorCode(\PDOException $e): string
+    {
+        // Default: use exception code
+        return (string) $e->getCode();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getExplainParser(): ExplainParserInterface
+    {
+        throw new \RuntimeException(
+            sprintf('EXPLAIN parser not implemented for %s dialect', $this->getDriverName())
+        );
     }
 }

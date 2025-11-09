@@ -11,6 +11,7 @@ use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
 use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class MSSQLDialect extends DialectAbstract
@@ -1868,5 +1869,27 @@ class MSSQLDialect extends DialectAbstract
     {
         // MSSQL doesn't support materialized CTEs
         return $cteSql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildMigrationTableSql(string $tableName): string
+    {
+        // MSSQL requires explicit length for VARCHAR/NVARCHAR in PRIMARY KEY
+        $tableQuoted = $this->quoteTable($tableName);
+        return "CREATE TABLE {$tableQuoted} (
+            version NVARCHAR(255) PRIMARY KEY,
+            apply_time DATETIME DEFAULT GETDATE(),
+            batch INT NOT NULL
+        )";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getExplainParser(): ExplainParserInterface
+    {
+        return new \tommyknocker\pdodb\query\analysis\parsers\MSSQLExplainParser();
     }
 }

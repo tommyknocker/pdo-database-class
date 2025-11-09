@@ -10,6 +10,7 @@ use RuntimeException;
 use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
 use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class PostgreSQLDialect extends DialectAbstract
@@ -1759,5 +1760,51 @@ class PostgreSQLDialect extends DialectAbstract
             return 'MATERIALIZED:' . $cteSql;
         }
         return $cteSql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildMigrationTableSql(string $tableName): string
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+        return "CREATE TABLE {$tableQuoted} (
+            version VARCHAR(255) PRIMARY KEY,
+            apply_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            batch INTEGER NOT NULL
+        )";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildMigrationInsertSql(string $tableName, string $version, int $batch): array
+    {
+        // PostgreSQL uses named parameters
+        $tableQuoted = $this->quoteTable($tableName);
+        return [
+            "INSERT INTO {$tableQuoted} (version, batch) VALUES (:version, :batch)",
+            ['version' => $version, 'batch' => $batch],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function extractErrorCode(\PDOException $e): string
+    {
+        // PostgreSQL stores SQLSTATE in errorInfo[0]
+        if (isset($e->errorInfo[0])) {
+            return $e->errorInfo[0];
+        }
+        return (string) $e->getCode();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getExplainParser(): ExplainParserInterface
+    {
+        return new \tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser();
     }
 }

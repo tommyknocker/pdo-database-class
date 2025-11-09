@@ -8,6 +8,7 @@ use PDO;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 interface DialectInterface
@@ -1210,4 +1211,42 @@ interface DialectInterface
      * @return string Normalized value for the dialect
      */
     public function normalizeDefaultValue(string $value): string;
+
+    /**
+     * Build SQL for creating migration table.
+     *
+     * @param string $tableName Migration table name
+     *
+     * @return string CREATE TABLE SQL statement
+     */
+    public function buildMigrationTableSql(string $tableName): string;
+
+    /**
+     * Build SQL and parameters for inserting migration record.
+     *
+     * @param string $tableName Migration table name
+     * @param string $version Migration version
+     * @param int $batch Batch number
+     *
+     * @return array{string, array<int|string, mixed>} SQL statement and parameters
+     */
+    public function buildMigrationInsertSql(string $tableName, string $version, int $batch): array;
+
+    /**
+     * Extract error code from PDOException.
+     *
+     * Some dialects store error codes differently in PDOException.
+     *
+     * @param \PDOException $e The exception
+     *
+     * @return string Error code
+     */
+    public function extractErrorCode(\PDOException $e): string;
+
+    /**
+     * Get EXPLAIN parser for this dialect.
+     *
+     * @return ExplainParserInterface Parser instance
+     */
+    public function getExplainParser(): ExplainParserInterface;
 }

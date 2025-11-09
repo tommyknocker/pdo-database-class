@@ -6,10 +6,6 @@ namespace tommyknocker\pdodb\query\analysis;
 
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
-use tommyknocker\pdodb\query\analysis\parsers\MSSQLExplainParser;
-use tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser;
-use tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser;
-use tommyknocker\pdodb\query\analysis\parsers\SqliteExplainParser;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 
 /**
@@ -64,18 +60,7 @@ class ExplainAnalyzer
      */
     protected function getParser(): ExplainParserInterface
     {
-        $driverName = $this->dialect->getDriverName();
-
-        return match ($driverName) {
-            'mysql' => new MySQLExplainParser(),
-            'mariadb' => new MySQLExplainParser(), // MariaDB uses MySQL-compatible EXPLAIN format
-            'pgsql' => new PostgreSQLExplainParser(),
-            'sqlite' => new SqliteExplainParser(),
-            'sqlsrv' => new MSSQLExplainParser(),
-            default => throw new \RuntimeException(
-                sprintf('Unsupported dialect for EXPLAIN analysis: %s', $driverName)
-            ),
-        };
+        return $this->dialect->getExplainParser();
     }
 
     /**

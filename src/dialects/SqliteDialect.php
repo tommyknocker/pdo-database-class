@@ -11,6 +11,7 @@ use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class SqliteDialect extends DialectAbstract
@@ -1506,5 +1507,26 @@ class SqliteDialect extends DialectAbstract
             return 'NULL';
         }
         return $value;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildMigrationTableSql(string $tableName): string
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+        return "CREATE TABLE {$tableQuoted} (
+            version TEXT PRIMARY KEY,
+            apply_time TEXT DEFAULT CURRENT_TIMESTAMP,
+            batch INTEGER NOT NULL
+        )";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getExplainParser(): ExplainParserInterface
+    {
+        return new \tommyknocker\pdodb\query\analysis\parsers\SqliteExplainParser();
     }
 }

@@ -48,39 +48,14 @@ class MigrationRunner
     protected function ensureMigrationTable(): void
     {
         $schema = $this->db->schema();
-        $driver = $schema->getDialect()->getDriverName();
 
         // Check if table exists
         $exists = $schema->tableExists($this->migrationTable);
 
         if (!$exists) {
-            if ($driver === 'mysql' || $driver === 'mariadb') {
-                $this->db->rawQuery("CREATE TABLE {$this->migrationTable} (
-                    version VARCHAR(255) PRIMARY KEY,
-                    apply_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    batch INTEGER NOT NULL
-                ) ENGINE=InnoDB");
-            } elseif ($driver === 'pgsql') {
-                $this->db->rawQuery("CREATE TABLE {$this->migrationTable} (
-                    version VARCHAR(255) PRIMARY KEY,
-                    apply_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    batch INTEGER NOT NULL
-                )");
-            } elseif ($driver === 'sqlsrv') {
-                // MSSQL requires explicit length for VARCHAR/NVARCHAR in PRIMARY KEY
-                $this->db->rawQuery("CREATE TABLE {$this->migrationTable} (
-                    version NVARCHAR(255) PRIMARY KEY,
-                    apply_time DATETIME DEFAULT GETDATE(),
-                    batch INT NOT NULL
-                )");
-            } else {
-                // SQLite
-                $this->db->rawQuery("CREATE TABLE {$this->migrationTable} (
-                    version TEXT PRIMARY KEY,
-                    apply_time TEXT DEFAULT CURRENT_TIMESTAMP,
-                    batch INTEGER NOT NULL
-                )");
-            }
+            $dialect = $schema->getDialect();
+            $sql = $dialect->buildMigrationTableSql($this->migrationTable);
+            $this->db->rawQuery($sql);
         }
     }
 
@@ -392,19 +367,9 @@ class MigrationRunner
     protected function recordMigration(string $version, int $batch): void
     {
         $schema = $this->db->schema();
-        $driver = $schema->getDialect()->getDriverName();
-
-        if ($driver === 'pgsql') {
-            $this->db->rawQuery(
-                "INSERT INTO {$this->migrationTable} (version, batch) VALUES (:version, :batch)",
-                ['version' => $version, 'batch' => $batch]
-            );
-        } else {
-            $this->db->rawQuery(
-                "INSERT INTO {$this->migrationTable} (version, batch) VALUES (?, ?)",
-                [$version, $batch]
-            );
-        }
+        $dialect = $schema->getDialect();
+        [$sql, $params] = $dialect->buildMigrationInsertSql($this->migrationTable, $version, $batch);
+        $this->db->rawQuery($sql, $params);
     }
 
     /**

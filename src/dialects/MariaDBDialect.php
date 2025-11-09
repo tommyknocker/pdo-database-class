@@ -10,6 +10,7 @@ use RuntimeException;
 use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
 use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class MariaDBDialect extends DialectAbstract
@@ -1517,5 +1518,13 @@ class MariaDBDialect extends DialectAbstract
             }
         }
         return $cteSql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getExplainParser(): ExplainParserInterface
+    {
+        return new \tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser();
     }
 }

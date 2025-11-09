@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\exceptions;
 
 use PDOException;
+use tommyknocker\pdodb\connection\DialectRegistry;
 use tommyknocker\pdodb\exceptions\parsers\ConstraintParser;
 use tommyknocker\pdodb\exceptions\strategies\ErrorDetectionStrategyInterface;
 
@@ -34,7 +35,9 @@ class ExceptionFactory
     ): DatabaseException {
         self::initialize();
 
-        $code = self::extractErrorCode($e, $driver);
+        // Get dialect to extract error code
+        $dialect = DialectRegistry::resolve($driver);
+        $code = $dialect->extractErrorCode($e);
         $message = $e->getMessage();
 
         $strategy = self::findMatchingStrategy($code, $message);
@@ -74,19 +77,6 @@ class ExceptionFactory
         usort(self::$strategies, fn ($a, $b) => $b->getPriority() <=> $a->getPriority());
 
         self::$initialized = true;
-    }
-
-    /**
-     * Extract error code from PDOException, handling driver-specific cases.
-     */
-    protected static function extractErrorCode(PDOException $e, string $driver): string
-    {
-        // For PostgreSQL, get the SQLSTATE from errorInfo if available
-        if ($driver === 'pgsql' && isset($e->errorInfo[0])) {
-            return $e->errorInfo[0];
-        }
-
-        return (string) $e->getCode();
     }
 
     /**
