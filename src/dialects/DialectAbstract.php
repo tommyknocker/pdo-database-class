@@ -559,4 +559,36 @@ abstract class DialectAbstract implements DialectInterface
         }
         return $sql;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function executeExplain(\PDO $pdo, string $sql, array $params = []): array
+    {
+        // Default implementation: build explain SQL and execute it
+        $explainSql = $this->buildExplainSql($sql);
+        $stmt = $pdo->prepare($explainSql);
+        $stmt->execute($params);
+        $results = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $stmt->closeCursor();
+        return $results;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatUnionSelect(string $selectSql, bool $isBaseQuery = false): string
+    {
+        // Default implementation: return as-is
+        return $selectSql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function needsUnionParentheses(): bool
+    {
+        // Default implementation: no parentheses needed
+        return false;
+    }
 }

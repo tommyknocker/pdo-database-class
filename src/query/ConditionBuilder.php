@@ -513,11 +513,22 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function exists(): bool
     {
-        $this->limit(1);
+        $originalLimit = $this->limit;
+
+        // Some dialects don't support LIMIT in EXISTS subqueries
+        if ($this->dialect->supportsLimitInExists()) {
+            $this->limit(1);
+        }
+
         $subSql = $this->buildSelectSql();
         $params = $this->parameterManager->getParams();
         $params = $this->parameterManager->normalizeParams($params);
-        $sql = 'SELECT EXISTS(' . $subSql . ')';
+
+        // Restore original limit
+        $this->limit = $originalLimit;
+
+        // Build EXISTS expression using dialect-specific method
+        $sql = $this->dialect->buildExistsExpression($subSql);
         return (bool)$this->executionEngine->fetchColumn($sql, $params);
     }
 
@@ -529,10 +540,27 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function notExists(): bool
     {
-        $this->limit(1);
+        $originalLimit = $this->limit;
+
+        // Some dialects don't support LIMIT in EXISTS subqueries
+        if ($this->dialect->supportsLimitInExists()) {
+            $this->limit(1);
+        }
+
         $subSql = $this->buildSelectSql();
         $params = $this->parameterManager->getParams();
-        $sql = 'SELECT NOT EXISTS(' . $subSql . ')';
+
+        // Restore original limit
+        $this->limit = $originalLimit;
+
+        // Build NOT EXISTS expression using dialect-specific method
+        if (method_exists($this->dialect, 'buildNotExistsExpression')) {
+            $sql = $this->dialect->buildNotExistsExpression($subSql);
+        } else {
+            // Fallback: use buildExistsExpression and replace EXISTS with NOT EXISTS
+            $existsExpr = $this->dialect->buildExistsExpression($subSql);
+            $sql = str_replace('EXISTS(', 'NOT EXISTS(', $existsExpr);
+        }
         return (bool)$this->executionEngine->fetchColumn($sql, $params);
     }
 

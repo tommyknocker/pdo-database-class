@@ -79,7 +79,7 @@ final class DialectTests extends BaseMSSQLTestCase
         assert($connection !== null);
         $lastInsertId = $connection->getLastInsertId();
         $this->assertNotFalse($lastInsertId, 'Last insert ID should be available');
-        
+
         // Try to find row using the actual last insert ID instead of returned ID
         $checkRow = $db->rawQueryOne('SELECT * FROM [users] WHERE [id] = ?', [$lastInsertId]);
         if ($checkRow === false && $lastInsertId !== (string)$id) {
@@ -88,15 +88,15 @@ final class DialectTests extends BaseMSSQLTestCase
         }
         $this->assertNotFalse($checkRow, 'Row should exist after insert');
         $this->assertIsArray($checkRow);
-        
+
         // Use the ID that actually exists
         $actualId = $checkRow['id'] ?? $id;
-        
+
         $row = $db->find()
             ->from('users')
             ->where('id', $actualId ?? $id)
             ->select([
-                'concat_result' => Db::concat('Hello', ' ', 'World'),
+                'concat_result' => Db::concat(Db::raw("'Hello'"), Db::raw("' '"), Db::raw("'World'")),
             ])
             ->getOne();
         $this->assertNotFalse($row, 'Row should be found');
@@ -120,4 +120,3 @@ final class DialectTests extends BaseMSSQLTestCase
         $this->assertStringContainsString('FOR UPDATE', $withOptions);
     }
 }
-

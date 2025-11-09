@@ -43,6 +43,8 @@ abstract class BaseMSSQLTestCase extends TestCase
         $connection = self::$db->connection;
         assert($connection !== null);
 
+        // Drop constraints first, then tables
+        $connection->query('IF OBJECT_ID(\'uniq_name\', \'UQ\') IS NOT NULL BEGIN DECLARE @tableName NVARCHAR(128); SELECT @tableName = OBJECT_SCHEMA_NAME(parent_object_id) + \'.\' + OBJECT_NAME(parent_object_id) FROM sys.objects WHERE name = \'uniq_name\' AND type = \'UQ\'; EXEC(\'ALTER TABLE \' + @tableName + \' DROP CONSTRAINT uniq_name\'); END');
         $connection->query('IF OBJECT_ID(\'archive_users\', \'U\') IS NOT NULL DROP TABLE archive_users');
         $connection->query('IF OBJECT_ID(\'orders\', \'U\') IS NOT NULL DROP TABLE orders');
         $connection->query('IF OBJECT_ID(\'users\', \'U\') IS NOT NULL DROP TABLE users');
@@ -98,4 +100,3 @@ abstract class BaseMSSQLTestCase extends TestCase
         parent::setUp();
     }
 }
-

@@ -139,4 +139,3 @@ final class MergeTests extends BaseMSSQLTestCase
         $this->assertStringContainsString('WHEN NOT MATCHED', $lastQuery);
     }
 }
-

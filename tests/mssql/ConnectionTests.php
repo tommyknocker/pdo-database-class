@@ -91,4 +91,3 @@ final class ConnectionTests extends BaseMSSQLTestCase
         $this->assertSame(self::$db, $pdoDb);
     }
 }
-

@@ -713,6 +713,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     public function toSQL(bool $formatted = false): array
     {
         $sql = $this->buildSelectSql();
+        // Get params after building SQL (includes params added during UNION)
         $params = $this->parameterManager->getParams();
 
         // Merge CTE parameters if CTE manager exists
@@ -743,8 +744,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     public function explain(): array
     {
         $sqlData = $this->toSQL();
-        $explainSql = $this->dialect->buildExplainSql($sqlData['sql']);
-        return $this->executionEngine->fetchAll($explainSql, $sqlData['params']);
+        // executeExplain() will call buildExplainSql() internally
+        return $this->dialect->executeExplain($this->connection->getPdo(), $sqlData['sql'], $sqlData['params']);
     }
 
     /**
@@ -989,8 +990,25 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             $sql = $this->dialect->formatSelectOptions($sql, $this->options);
         } else {
             // For UNION, format options first, then add UNION, then ORDER BY/LIMIT/OFFSET
+            // Store original limit/offset for UNION (some dialects need to remove LIMIT from base query)
+            $originalLimit = $this->limit;
+            $originalOffset = $this->offset;
+            
+            // Format base query for UNION (remove LIMIT if needed by dialect)
+            $sql = $this->dialect->formatUnionSelect($sql, true);
+            
+            // Temporarily remove limit/offset from base query for UNION
+            $this->limit = null;
+            $this->offset = null;
+            
             $sql = $this->dialect->formatSelectOptions($sql, $this->options);
+            
+            // Build UNION SQL
             $sql = $this->buildUnionSql($sql);
+
+            // Restore limit/offset for UNION
+            $this->limit = $originalLimit;
+            $this->offset = $originalOffset;
 
             // Add ORDER BY/LIMIT/OFFSET after UNION operations
             if (!empty($this->order)) {
@@ -1026,32 +1044,42 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      */
     protected function buildUnionSql(string $baseSql): string
     {
-        $sql = $baseSql;
+        $needsParentheses = $this->dialect->needsUnionParentheses();
+        $sql = $needsParentheses ? "({$baseSql})" : $baseSql;
 
-        foreach ($this->unions as $union) {
+        // Store params before adding union params to restore them if needed
+        $paramsBeforeUnion = $this->parameterManager->getParams();
+        $paramsCountBefore = count($paramsBeforeUnion);
+
+        foreach ($this->unions as $index => $union) {
             $query = $union->getQuery();
             $type = $union->getType();
 
             if ($query instanceof \Closure) {
+                // Create QueryBuilder with same connection
+                // QueryBuilder will auto-detect dialect from connection
                 $qb = new QueryBuilder($this->connection);
                 $query($qb);
                 $unionSqlData = $qb->toSQL();
                 $unionSql = $unionSqlData['sql'];
-                // Merge parameters from union query
-                foreach ($unionSqlData['params'] as $key => $value) {
-                    $this->parameterManager->setParam($key, $value);
-                }
+                // Rename parameters to make them unique
+                $paramMap = $this->parameterManager->mergeSubParams($unionSqlData['params'], 'union' . $index);
+                $unionSql = $this->parameterManager->replacePlaceholdersInSql($unionSql, $paramMap);
             } else {
                 // QueryBuilder instance
                 $unionSqlData = $query->toSQL();
                 $unionSql = $unionSqlData['sql'];
-                // Merge parameters from union query
-                foreach ($unionSqlData['params'] as $key => $value) {
-                    $this->parameterManager->setParam($key, $value);
-                }
+                // Rename parameters to make them unique
+                $paramMap = $this->parameterManager->mergeSubParams($unionSqlData['params'], 'union' . $index);
+                $unionSql = $this->parameterManager->replacePlaceholdersInSql($unionSql, $paramMap);
             }
 
-            $sql .= " {$type} {$unionSql}";
+            // Format union query using dialect-specific method
+            $unionSql = $this->dialect->formatUnionSelect($unionSql, false);
+
+            // Wrap union query in parentheses if needed
+            $unionSqlWrapped = $needsParentheses ? "({$unionSql})" : $unionSql;
+            $sql .= " {$type} {$unionSqlWrapped}";
         }
 
         return $sql;

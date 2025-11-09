@@ -168,4 +168,3 @@ final class ErrorTests extends BaseMSSQLTestCase
             ->get();
     }
 }
-

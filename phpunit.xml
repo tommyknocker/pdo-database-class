@@ -16,11 +16,13 @@
         <testsuite name="PdoDb Test Suite">
             <directory suffix="Tests.php">./tests/mysql</directory>
             <directory suffix="Tests.php">./tests/mariadb</directory>
+            <directory suffix="Tests.php">./tests/mssql</directory>
             <directory suffix="Tests.php">./tests/postgresql</directory>
             <directory suffix="Tests.php">./tests/sqlite</directory>
             <directory suffix="Tests.php">./tests/shared</directory>
             <exclude>./tests/mysql/Base*.php</exclude>
             <exclude>./tests/mariadb/Base*.php</exclude>
+            <exclude>./tests/mssql/Base*.php</exclude>
             <exclude>./tests/postgresql/Base*.php</exclude>
             <exclude>./tests/sqlite/Base*.php</exclude>
             <exclude>./tests/shared/Base*.php</exclude>

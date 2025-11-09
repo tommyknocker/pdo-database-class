@@ -960,8 +960,9 @@ class PdoDb
      */
     public function explain(string $query, array $params = []): array
     {
-        $sql = $this->connection->getDialect()->buildExplainSql($query);
-        return $this->rawQuery($sql, $params);
+        $dialect = $this->connection->getDialect();
+        // executeExplain() will call buildExplainSql() internally
+        return $dialect->executeExplain($this->connection->getPdo(), $query, $params);
     }
 
     /**

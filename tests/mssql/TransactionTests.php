@@ -99,4 +99,3 @@ final class TransactionTests extends BaseMSSQLTestCase
         $this->assertEquals(2, $orderCount, 'Both orders should be committed');
     }
 }
-

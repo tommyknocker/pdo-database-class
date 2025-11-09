@@ -86,7 +86,7 @@ class RawValueResolver
         $result = match (true) {
             $value instanceof NowValue => $this->dialect->now($value->getValue(), $value->getAsTimestamp()),
             $value instanceof ILikeValue => $this->resolveRawValue($this->dialect->ilike($value->getValue(), (string)$value->getParams()[0])),
-            $value instanceof EscapeValue => $this->connection->quote($value->getValue()) ?: "'" . addslashes($value->getValue()) . "'",
+            $value instanceof EscapeValue => $this->connection->quote($value->getValue()) ?: "'" . str_replace("'", "''", $value->getValue()) . "'",
             $value instanceof FulltextMatchValue => $this->resolveFulltextMatchValue($value),
             $value instanceof ConfigValue => $this->dialect->config($value),
             $value instanceof ConcatValue => $this->dialect->concat($value),
@@ -193,14 +193,8 @@ class RawValueResolver
             return 'NULL';
         }
 
-        // MSSQL-specific replacements
-        if ($this->dialect->getDriverName() === 'sqlsrv') {
-            // Replace LENGTH( with LEN( but be careful not to replace in strings or identifiers
-            $sql = preg_replace('/\bLENGTH\s*\(/i', 'LEN(', $sql);
-            // MSSQL doesn't support TRUE/FALSE literals, use 1/0 for BIT type
-            $sql = preg_replace('/\bTRUE\b/i', '1', $sql);
-            $sql = preg_replace('/\bFALSE\b/i', '0', $sql);
-        }
+        // Apply dialect-specific normalization
+        $sql = $this->dialect->normalizeRawValue($sql);
 
         if (empty($params)) {
             return $sql;

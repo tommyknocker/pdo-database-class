@@ -85,7 +85,6 @@ final class JoinTests extends BaseMSSQLTestCase
         $this->assertStringContainsString('RIGHT JOIN', $lastQuery);
     }
 
-
     public function testMultipleJoins(): void
     {
         $db = self::$db;
@@ -107,4 +106,3 @@ final class JoinTests extends BaseMSSQLTestCase
         $this->assertEquals('250.00', $results[0]['amount']);
     }
 }
-

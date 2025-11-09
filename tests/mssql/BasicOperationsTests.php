@@ -28,13 +28,13 @@ final class BasicOperationsTests extends BaseMSSQLTestCase
         $allRows = $db->rawQuery('SELECT * FROM [users] ORDER BY [id]');
         $this->assertNotEmpty($allRows, 'Users table should have at least one row after insert');
         $this->assertIsArray($allRows);
-        
+
         // Check last insert ID from connection
         $connection = $db->connection;
         assert($connection !== null);
         $lastInsertId = $connection->getLastInsertId();
         $this->assertNotFalse($lastInsertId, 'Last insert ID should be available');
-        
+
         // Try to find row using the actual last insert ID instead of returned ID
         $checkRow = $db->rawQueryOne('SELECT * FROM [users] WHERE [id] = ?', [$lastInsertId]);
         if ($checkRow === false && $lastInsertId !== (string)$id) {
@@ -43,7 +43,7 @@ final class BasicOperationsTests extends BaseMSSQLTestCase
         }
         $this->assertNotFalse($checkRow, 'Row should exist after insert');
         $this->assertIsArray($checkRow);
-        
+
         // Use the ID that actually exists
         $actualId = $checkRow['id'] ?? $id;
 
@@ -216,4 +216,3 @@ final class BasicOperationsTests extends BaseMSSQLTestCase
         $this->assertEquals(55, $age);
     }
 }
-

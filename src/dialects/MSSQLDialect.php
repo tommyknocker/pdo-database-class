@@ -95,13 +95,13 @@ class MSSQLDialect extends DialectAbstract
         }
         $port = $params['port'] ?? 1433;
         $dsn = "sqlsrv:Server={$params['host']},{$port};Database={$params['dbname']}";
-        
+
         // Add SSL options (default to TrustServerCertificate=yes for self-signed certs)
         $trustCert = $params['trust_server_certificate'] ?? true;
         $encrypt = $params['encrypt'] ?? true;
         $dsn .= ';TrustServerCertificate=' . ($trustCert ? 'yes' : 'no');
         $dsn .= ';Encrypt=' . ($encrypt ? 'yes' : 'no');
-        
+
         return $dsn;
     }
 
@@ -201,40 +201,44 @@ class MSSQLDialect extends DialectAbstract
         // MSSQL doesn't support LIMIT/OFFSET syntax
         // Use TOP for LIMIT only, or OFFSET...FETCH NEXT for LIMIT+OFFSET
         // ORDER BY is required for OFFSET...FETCH NEXT
-        
+
         if ($limit !== null && $offset === null) {
             // Simple LIMIT: use TOP
             // TOP must be placed right after SELECT
             if (preg_match('/^SELECT\s+/i', $sql)) {
-                $sql = preg_replace('/^SELECT\s+/i', "SELECT TOP ({$limit}) ", $sql);
+                $replaced = preg_replace('/^SELECT\s+/i', "SELECT TOP ({$limit}) ", $sql);
+                $sql = $replaced !== null ? $replaced : $sql;
             }
         } elseif ($limit !== null && $offset !== null) {
             // LIMIT + OFFSET: use OFFSET...FETCH NEXT
             // Remove any existing LIMIT/OFFSET
-            $sql = preg_replace('/\s+LIMIT\s+\d+/i', '', $sql);
-            $sql = preg_replace('/\s+OFFSET\s+\d+/i', '', $sql);
+            $replaced = preg_replace('/\s+LIMIT\s+\d+/i', '', $sql);
+            $sql = $replaced !== null ? $replaced : $sql;
+            $replaced = preg_replace('/\s+OFFSET\s+\d+/i', '', $sql);
+            $sql = $replaced !== null ? $replaced : $sql;
             // Ensure ORDER BY exists (required for OFFSET...FETCH NEXT)
             if (!preg_match('/\s+ORDER\s+BY\s+/i', $sql)) {
                 // If no ORDER BY, add a dummy one (MSSQL requires it)
                 // Try to find a primary key or first column
                 if (preg_match('/SELECT\s+.*?\s+FROM\s+(\w+)/i', $sql, $matches)) {
                     $table = $matches[1];
-                    $sql .= " ORDER BY (SELECT NULL)";
+                    $sql .= ' ORDER BY (SELECT NULL)';
                 } else {
-                    $sql .= " ORDER BY (SELECT NULL)";
+                    $sql .= ' ORDER BY (SELECT NULL)';
                 }
             }
             $sql .= " OFFSET {$offset} ROWS FETCH NEXT {$limit} ROWS ONLY";
         } elseif ($offset !== null) {
             // OFFSET only: use OFFSET...FETCH NEXT (without limit, use a large number)
-            $sql = preg_replace('/\s+OFFSET\s+\d+/i', '', $sql);
+            $replaced = preg_replace('/\s+OFFSET\s+\d+/i', '', $sql);
+            $sql = $replaced !== null ? $replaced : $sql;
             // Ensure ORDER BY exists
             if (!preg_match('/\s+ORDER\s+BY\s+/i', $sql)) {
-                $sql .= " ORDER BY (SELECT NULL)";
+                $sql .= ' ORDER BY (SELECT NULL)';
             }
             $sql .= " OFFSET {$offset} ROWS";
         }
-        
+
         return $sql;
     }
 
@@ -293,10 +297,10 @@ class MSSQLDialect extends DialectAbstract
             // MSSQL MERGE INSERT requires: INSERT (columns) VALUES (source.columns)
             // Replace MERGE_SOURCE_COLUMN_ markers with source.column for MSSQL
             $insertClause = preg_replace('/MERGE_SOURCE_COLUMN_(\w+)/', 'source.$1', $insertClause);
-            
+
             // MSSQL MERGE INSERT format: (columns) VALUES (values)
             // Extract columns and values from the clause
-            if (preg_match('/^\(([^)]+)\)\s+VALUES\s+\(([^)]+)\)/', $insertClause, $matches)) {
+            if ($insertClause !== null && preg_match('/^\(([^)]+)\)\s+VALUES\s+\(([^)]+)\)/', $insertClause, $matches)) {
                 $columns = $matches[1];
                 $values = $matches[2];
                 $sql .= "WHEN NOT MATCHED THEN\n";
@@ -308,9 +312,12 @@ class MSSQLDialect extends DialectAbstract
             }
         }
 
-        if (!empty($whenClauses['whenNotMatchedBySourceDelete']) && $whenClauses['whenNotMatchedBySourceDelete']) {
+        if (!empty($whenClauses['whenNotMatchedBySourceDelete'])) {
             $sql .= "WHEN NOT MATCHED BY SOURCE THEN DELETE\n";
         }
+
+        // MSSQL requires semicolon after MERGE statement
+        $sql .= ';';
 
         return $sql;
     }
@@ -323,12 +330,15 @@ class MSSQLDialect extends DialectAbstract
         // MSSQL doesn't have REPLACE, use MERGE or DELETE + INSERT
         // For simplicity, use DELETE + INSERT pattern
         $cols = implode(', ', array_map([$this, 'quoteIdentifier'], $columns));
+        /** @var array<string> $placeholders */
         $vals = implode(', ', $placeholders);
         return "DELETE FROM {$table}; INSERT INTO {$table} ({$cols}) VALUES ({$vals})";
     }
 
     /**
      * {@inheritDoc}
+     *
+     * @param array<string, mixed> $expr
      */
     protected function buildIncrementExpression(string $colSql, array $expr, string $tableName): string
     {
@@ -378,14 +388,14 @@ class MSSQLDialect extends DialectAbstract
     {
         $parts = $this->normalizeJsonPath($path);
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         if (empty($parts)) {
             return $asText ? "CAST({$colQuoted} AS NVARCHAR(MAX))" : $colQuoted;
         }
-        
+
         // Build JSON path for MSSQL: $.path.to.value
         $jsonPath = $this->buildJsonPathString($parts);
-        
+
         if ($asText) {
             // JSON_VALUE returns scalar values as text
             return "JSON_VALUE({$colQuoted}, '{$jsonPath}')";
@@ -402,9 +412,9 @@ class MSSQLDialect extends DialectAbstract
         $parts = $this->normalizeJsonPath($path ?? []);
         $colQuoted = $this->quoteIdentifier($col);
         $param = $this->generateParameterName('jsoncontains', $col . '|' . json_encode($path ?? '') . '|' . json_encode($value));
-        
+
         $jsonText = $this->encodeToJson($value);
-        
+
         if ($path === null) {
             // MSSQL doesn't have JSON_CONTAINS, use OPENJSON to check if value exists
             // OPENJSON returns [key], [value], [type] for objects and arrays
@@ -412,7 +422,7 @@ class MSSQLDialect extends DialectAbstract
             $sql = "EXISTS (SELECT 1 FROM OPENJSON({$colQuoted}) WHERE [value] = {$param})";
             return [$sql, [$param => $jsonText]];
         }
-        
+
         $jsonPath = $this->buildJsonPathString($parts);
         // Extract JSON at path and check if it contains the value
         $extracted = "JSON_QUERY({$colQuoted}, '{$jsonPath}')";
@@ -430,12 +440,12 @@ class MSSQLDialect extends DialectAbstract
         $jsonPath = $this->buildJsonPathString($parts);
         $colQuoted = $this->quoteIdentifier($col);
         $param = $this->generateParameterName('jsonset', $col . '|' . $jsonPath);
-        
+
         $jsonText = $this->encodeToJson($value);
-        
+
         // MSSQL JSON_MODIFY: JSON_MODIFY(column, path, new_value)
         $sql = "JSON_MODIFY({$colQuoted}, '{$jsonPath}', {$param})";
-        
+
         return [$sql, [$param => $jsonText]];
     }
 
@@ -447,7 +457,7 @@ class MSSQLDialect extends DialectAbstract
         $parts = $this->normalizeJsonPath($path);
         $jsonPath = $this->buildJsonPathString($parts);
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         // MSSQL JSON_MODIFY with NULL removes the path
         return "JSON_MODIFY({$colQuoted}, '{$jsonPath}', NULL)";
     }
@@ -463,12 +473,12 @@ class MSSQLDialect extends DialectAbstract
         $jsonPath = $this->buildJsonPathString($parts);
         $colQuoted = $this->quoteIdentifier($col);
         $param = $this->generateParameterName('jsonreplace', $col . '|' . $jsonPath);
-        
+
         $jsonText = $this->encodeToJson($value);
-        
+
         // JSON_MODIFY replaces if path exists
         $sql = "JSON_MODIFY({$colQuoted}, '{$jsonPath}', {$param})";
-        
+
         return [$sql, [$param => $jsonText]];
     }
 
@@ -480,7 +490,7 @@ class MSSQLDialect extends DialectAbstract
         $parts = $this->normalizeJsonPath($path);
         $jsonPath = $this->buildJsonPathString($parts);
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         // MSSQL: Check if JSON path exists using ISJSON or JSON_VALUE IS NOT NULL
         return "(ISJSON(JSON_QUERY({$colQuoted}, '{$jsonPath}')) = 1 OR JSON_VALUE({$colQuoted}, '{$jsonPath}') IS NOT NULL)";
     }
@@ -493,7 +503,7 @@ class MSSQLDialect extends DialectAbstract
         $parts = $this->normalizeJsonPath($path);
         $jsonPath = $this->buildJsonPathString($parts);
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         // Use JSON_VALUE for ordering (returns text, can be cast to numeric)
         $value = "JSON_VALUE({$colQuoted}, '{$jsonPath}')";
         return "CAST({$value} AS FLOAT)";
@@ -505,15 +515,15 @@ class MSSQLDialect extends DialectAbstract
     public function formatJsonLength(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         if ($path === null) {
             // Count keys in root object or elements in root array
             return "(SELECT COUNT(*) FROM OPENJSON({$colQuoted}))";
         }
-        
+
         $parts = $this->normalizeJsonPath($path);
         $jsonPath = $this->buildJsonPathString($parts);
-        
+
         // Get JSON at path and count elements
         return "(SELECT COUNT(*) FROM OPENJSON(JSON_QUERY({$colQuoted}, '{$jsonPath}')))";
     }
@@ -524,15 +534,15 @@ class MSSQLDialect extends DialectAbstract
     public function formatJsonKeys(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         if ($path === null) {
             // Return keys from root object
             return "(SELECT [key] FROM OPENJSON({$colQuoted}) FOR JSON PATH)";
         }
-        
+
         $parts = $this->normalizeJsonPath($path);
         $jsonPath = $this->buildJsonPathString($parts);
-        
+
         // Get JSON at path and return keys
         return "(SELECT [key] FROM OPENJSON(JSON_QUERY({$colQuoted}, '{$jsonPath}')) FOR JSON PATH)";
     }
@@ -543,18 +553,18 @@ class MSSQLDialect extends DialectAbstract
     public function formatJsonType(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-        
+
         if ($path === null) {
             return "JSON_VALUE({$colQuoted}, '$')";
         }
-        
+
         $parts = $this->normalizeJsonPath($path);
         $jsonPath = $this->buildJsonPathString($parts);
-        
+
         // MSSQL doesn't have direct JSON_TYPE, use ISJSON and type detection
-        return "CASE 
-            WHEN ISJSON(JSON_QUERY({$colQuoted}, '{$jsonPath}')) = 1 THEN 
-                CASE 
+        return "CASE
+            WHEN ISJSON(JSON_QUERY({$colQuoted}, '{$jsonPath}')) = 1 THEN
+                CASE
                     WHEN JSON_VALUE({$colQuoted}, '{$jsonPath}') IS NULL THEN 'NULL'
                     WHEN JSON_VALUE({$colQuoted}, '{$jsonPath}') LIKE 'true' OR JSON_VALUE({$colQuoted}, '{$jsonPath}') LIKE 'false' THEN 'BOOLEAN'
                     WHEN ISNUMERIC(JSON_VALUE({$colQuoted}, '{$jsonPath}')) = 1 THEN 'NUMBER'
@@ -695,7 +705,7 @@ class MSSQLDialect extends DialectAbstract
             'WEEK' => 'week',
             default => 'day',
         };
-        
+
         if ($isAdd) {
             return "DATEADD({$mssqlUnit}, {$value}, {$e})";
         }
@@ -712,16 +722,16 @@ class MSSQLDialect extends DialectAbstract
         $cols = is_array($columns) ? $columns : [$columns];
         $quotedCols = array_map([$this, 'quoteIdentifier'], $cols);
         $colList = implode(', ', $quotedCols);
-        
+
         $ph = ':fulltext_search_term';
-        
+
         // Use CONTAINS for exact phrase matching, FREETEXT for natural language
         if ($mode === 'boolean' || $mode === 'natural language') {
             $sql = "CONTAINS(($colList), {$ph})";
         } else {
             $sql = "FREETEXT(($colList), {$ph})";
         }
-        
+
         return [$sql, [$ph => $searchTerm]];
     }
 
@@ -913,13 +923,13 @@ class MSSQLDialect extends DialectAbstract
             try {
                 // Check if functions exist in sys.objects
                 $stmt = $pdo->query("
-                    SELECT COUNT(*) as cnt 
-                    FROM sys.objects 
-                    WHERE name IN ('regexp_match', 'regexp_replace', 'regexp_extract') 
+                    SELECT COUNT(*) as cnt
+                    FROM sys.objects
+                    WHERE name IN ('regexp_match', 'regexp_replace', 'regexp_extract')
                     AND type = 'FN'
                     AND schema_id = SCHEMA_ID('dbo')
                 ");
-                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                $result = $stmt !== false ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
                 if ($result && (int)$result['cnt'] === 3) {
                     // Functions are already available, skip registration
                     return;
@@ -939,7 +949,7 @@ class MSSQLDialect extends DialectAbstract
         } catch (\PDOException $e) {
             // Ignore errors if function doesn't exist
         }
-        $pdo->exec("
+        $pdo->exec('
             CREATE FUNCTION dbo.regexp_match(@subject NVARCHAR(MAX), @pattern NVARCHAR(MAX))
             RETURNS BIT
             WITH EXECUTE AS CALLER
@@ -952,7 +962,7 @@ class MSSQLDialect extends DialectAbstract
                     RETURN 1;
                 RETURN 0;
             END
-        ");
+        ');
 
         // Function for regexp_replace
         try {
@@ -960,7 +970,7 @@ class MSSQLDialect extends DialectAbstract
         } catch (\PDOException $e) {
             // Ignore errors if function doesn't exist
         }
-        $pdo->exec("
+        $pdo->exec('
             CREATE FUNCTION dbo.regexp_replace(@subject NVARCHAR(MAX), @pattern NVARCHAR(MAX), @replacement NVARCHAR(MAX))
             RETURNS NVARCHAR(MAX)
             WITH EXECUTE AS CALLER
@@ -970,7 +980,7 @@ class MSSQLDialect extends DialectAbstract
                 -- For complex regex, use CLR functions
                 RETURN REPLACE(@subject, @pattern, @replacement);
             END
-        ");
+        ');
 
         // Function for regexp_extract
         try {
@@ -1043,6 +1053,7 @@ class MSSQLDialect extends DialectAbstract
      * This is a simplified conversion - full regex requires CLR functions.
      *
      * @param string $pattern Regex pattern
+     *
      * @return string SQL Server pattern
      */
     protected function convertRegexToSqlPattern(string $pattern): string
@@ -1050,27 +1061,30 @@ class MSSQLDialect extends DialectAbstract
         // Basic conversions for common regex patterns
         // Note: This is limited - full regex support requires CLR
         $sqlPattern = $pattern;
-        
+
         // Escape SQL Server special characters first
         $sqlPattern = str_replace('[', '[[]', $sqlPattern);
         $sqlPattern = str_replace(']', '[]]', $sqlPattern);
         $sqlPattern = str_replace('%', '[%]', $sqlPattern);
         $sqlPattern = str_replace('_', '[_]', $sqlPattern);
-        
+
         // Convert regex patterns to SQL Server patterns
         // . -> _ (any single character)
         $sqlPattern = str_replace('.', '_', $sqlPattern);
         // * -> % (zero or more characters) - but only if not already escaped
-        $sqlPattern = preg_replace('/(?<!\[)(?<!\[\[)\*(?!\])/', '%', $sqlPattern);
+        $replaced = preg_replace('/(?<!\[)(?<!\[\[)\*(?!\])/', '%', $sqlPattern);
+        $sqlPattern = $replaced !== null ? $replaced : $sqlPattern;
         // + -> % (one or more) - simplified
-        $sqlPattern = preg_replace('/(?<!\[)(?<!\[\[)\+(?!\])/', '%', $sqlPattern);
+        $replaced = preg_replace('/(?<!\[)(?<!\[\[)\+(?!\])/', '%', $sqlPattern);
+        $sqlPattern = $replaced !== null ? $replaced : $sqlPattern;
         // ? -> _ (zero or one) - simplified
-        $sqlPattern = preg_replace('/(?<!\[)(?<!\[\[)\?(?!\])/', '_', $sqlPattern);
-        
+        $replaced = preg_replace('/(?<!\[)(?<!\[\[)\?(?!\])/', '_', $sqlPattern);
+        $sqlPattern = $replaced !== null ? $replaced : $sqlPattern;
+
         // Remove regex anchors (^ and $) as PATINDEX searches anywhere
         $sqlPattern = str_replace('^', '', $sqlPattern);
         $sqlPattern = str_replace('$', '', $sqlPattern);
-        
+
         return $sqlPattern;
     }
 
@@ -1081,7 +1095,7 @@ class MSSQLDialect extends DialectAbstract
     {
         $parts = $value->getValues();
         $mapped = [];
-        
+
         foreach ($parts as $part) {
             if ($part instanceof RawValue) {
                 $mapped[] = $part->getValue();
@@ -1110,7 +1124,7 @@ class MSSQLDialect extends DialectAbstract
             // Simple words without spaces/special chars are treated as identifiers, not literals
             $isSimpleWord = preg_match('/^[a-zA-Z][a-zA-Z0-9]*$/', $s) && !str_contains($s, '.');
             $isSqlKeyword = preg_match('/^(SELECT|FROM|WHERE|AND|OR|JOIN|NULL|TRUE|FALSE|AS|ON|IN|IS|LIKE|BETWEEN|EXISTS|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TABLE|INDEX|PRIMARY|KEY|FOREIGN|CONSTRAINT|UNIQUE|CHECK|DEFAULT|NOT|GROUP|BY|ORDER|HAVING|LIMIT|OFFSET|DISTINCT|COUNT|SUM|AVG|MAX|MIN)$/i', $s);
-            
+
             // Only quote as string literal if it contains spaces or special chars (not operators)
             // Simple words are treated as identifiers
             if (
@@ -1154,14 +1168,14 @@ class MSSQLDialect extends DialectAbstract
             }
             return 'GETDATE()';
         }
-        
+
         // Parse diff like "+1 DAY" or "-2 MONTH"
         preg_match('/^([+-]?)\s*(\d+)\s+(\w+)$/i', $diff, $matches);
         if (count($matches) === 4) {
             $sign = $matches[1] === '-' ? '-' : '';
             $value = $matches[2];
             $unit = strtoupper($matches[3]);
-            
+
             $mssqlUnit = match ($unit) {
                 'DAY' => 'day',
                 'MONTH' => 'month',
@@ -1172,7 +1186,7 @@ class MSSQLDialect extends DialectAbstract
                 'WEEK' => 'week',
                 default => 'day',
             };
-            
+
             $dateExpr = "DATEADD({$mssqlUnit}, {$sign}{$value}, GETDATE())";
             if ($asTimestamp) {
                 // Convert to Unix timestamp
@@ -1180,7 +1194,7 @@ class MSSQLDialect extends DialectAbstract
             }
             return $dateExpr;
         }
-        
+
         if ($asTimestamp) {
             return "DATEDIFF(SECOND, '1970-01-01', GETDATE())";
         }
@@ -1192,9 +1206,10 @@ class MSSQLDialect extends DialectAbstract
      */
     public function buildExplainSql(string $query): string
     {
-        // MSSQL uses SET SHOWPLAN_ALL ON or SET STATISTICS IO ON
-        // For compatibility, return the query wrapped in SHOWPLAN
-        return "SET SHOWPLAN_ALL ON; {$query}; SET SHOWPLAN_ALL OFF";
+        // MSSQL uses SET SHOWPLAN_ALL ON
+        // Note: SET SHOWPLAN statements must be the only statements in the batch
+        // So we return just the query - the caller should handle SET SHOWPLAN separately
+        return $query;
     }
 
     /**
@@ -1204,6 +1219,106 @@ class MSSQLDialect extends DialectAbstract
     {
         // MSSQL uses SET STATISTICS IO ON and SET STATISTICS TIME ON
         return "SET STATISTICS IO ON; SET STATISTICS TIME ON; {$query}; SET STATISTICS IO OFF; SET STATISTICS TIME OFF";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function executeExplain(\PDO $pdo, string $sql, array $params = []): array
+    {
+        // MSSQL requires SET SHOWPLAN_ALL ON to be executed separately
+        // Execute SET SHOWPLAN_ALL ON separately
+        $pdo->query('SET SHOWPLAN_ALL ON');
+
+        try {
+            // Execute the query (will return plan, not results)
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $results = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            $stmt->closeCursor();
+
+            // Turn off SHOWPLAN
+            $pdo->query('SET SHOWPLAN_ALL OFF');
+
+            return $results;
+        } catch (\PDOException $e) {
+            // Make sure to turn off SHOWPLAN even on error
+            try {
+                $pdo->query('SET SHOWPLAN_ALL OFF');
+            } catch (\PDOException $ignored) {
+                // Ignore errors when turning off SHOWPLAN
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatUnionSelect(string $selectSql, bool $isBaseQuery = false): string
+    {
+        // MSSQL: Remove TOP from union queries (TOP cannot be used in UNION)
+        $selectSql = preg_replace('/^SELECT\s+TOP\s+\(\d+\)\s+/i', 'SELECT ', $selectSql);
+        return $selectSql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function needsUnionParentheses(): bool
+    {
+        // MSSQL requires parentheses around each SELECT in UNION
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeRawValue(string $sql): string
+    {
+        // Replace LENGTH( with LEN( but be careful not to replace in strings or identifiers
+        $replaced = preg_replace('/\bLENGTH\s*\(/i', 'LEN(', $sql);
+        $sql = $replaced !== null ? $replaced : $sql;
+        // Replace CEIL( with CEILING( (MSSQL uses CEILING instead of CEIL)
+        $replaced = preg_replace('/\bCEIL\s*\(/i', 'CEILING(', $sql);
+        $sql = $replaced !== null ? $replaced : $sql;
+        // MSSQL doesn't support TRUE/FALSE literals, use 1/0 for BIT type
+        $replaced = preg_replace('/\bTRUE\b/i', '1', $sql);
+        $sql = $replaced !== null ? $replaced : $sql;
+        $replaced = preg_replace('/\bFALSE\b/i', '0', $sql);
+        $sql = $replaced !== null ? $replaced : $sql;
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildExistsExpression(string $subquery): string
+    {
+        // MSSQL doesn't support SELECT EXISTS(...), use CASE WHEN EXISTS(...) THEN 1 ELSE 0 END
+        return 'SELECT CASE WHEN EXISTS(' . $subquery . ') THEN 1 ELSE 0 END';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsLimitInExists(): bool
+    {
+        // MSSQL doesn't support LIMIT in EXISTS subqueries
+        return false;
+    }
+
+    /**
+     * Build NOT EXISTS expression for MSSQL.
+     *
+     * @param string $subquery Subquery SQL
+     *
+     * @return string NOT EXISTS expression SQL
+     */
+    public function buildNotExistsExpression(string $subquery): string
+    {
+        // MSSQL doesn't support SELECT NOT EXISTS(...), use CASE WHEN NOT EXISTS(...) THEN 1 ELSE 0 END
+        return 'SELECT CASE WHEN NOT EXISTS(' . $subquery . ') THEN 1 ELSE 0 END';
     }
 
     /**
@@ -1531,10 +1646,10 @@ class MSSQLDialect extends DialectAbstract
         $quotedName = $this->quoteIdentifier($name);
         $type = $schema->getType();
         $length = $schema->getLength();
-        $precision = $schema->getPrecision();
+        $precision = $length; // In ColumnSchema, length is used for precision
         $scale = $schema->getScale();
-        $null = $schema->isNullable() ? 'NULL' : 'NOT NULL';
-        $default = $schema->getDefault();
+        $null = $schema->isNotNull() ? 'NOT NULL' : 'NULL';
+        $default = $schema->getDefaultValue();
         $autoIncrement = $schema->isAutoIncrement();
 
         // Build type with length/precision
@@ -1573,28 +1688,24 @@ class MSSQLDialect extends DialectAbstract
     protected function parseColumnDefinition(array $def): ColumnSchema
     {
         $type = $def['type'] ?? 'NVARCHAR(255)';
-        $schema = new ColumnSchema($type);
-        
+        $length = isset($def['length']) ? (int)$def['length'] : (isset($def['precision']) ? (int)$def['precision'] : null);
+        $scale = isset($def['scale']) ? (int)$def['scale'] : null;
+        $schema = new ColumnSchema($type, $length, $scale);
+
         if (isset($def['null'])) {
-            $schema->setNullable((bool)$def['null']);
+            if ((bool)$def['null']) {
+                $schema->null();
+            } else {
+                $schema->notNull();
+            }
         }
         if (isset($def['default'])) {
-            $schema->setDefault($def['default']);
+            $schema->defaultValue($def['default']);
         }
         if (isset($def['auto_increment']) || isset($def['autoIncrement'])) {
-            $schema->setAutoIncrement(true);
+            $schema->autoIncrement();
         }
-        if (isset($def['length'])) {
-            $schema->setLength((int)$def['length']);
-        }
-        if (isset($def['precision'])) {
-            $schema->setPrecision((int)$def['precision']);
-        }
-        if (isset($def['scale'])) {
-            $schema->setScale((int)$def['scale']);
-        }
-        
+
         return $schema;
     }
 }
-

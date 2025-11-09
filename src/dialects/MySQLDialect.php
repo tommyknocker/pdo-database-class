@@ -1449,4 +1449,29 @@ class MySQLDialect extends DialectAbstract
         }
         return "'" . addslashes((string)$value) . "'";
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeRawValue(string $sql): string
+    {
+        // MySQL doesn't need special normalization
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildExistsExpression(string $subquery): string
+    {
+        return 'SELECT EXISTS(' . $subquery . ')';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsLimitInExists(): bool
+    {
+        return true;
+    }
 }

@@ -346,3 +346,5 @@ See [examples/02-intermediate/02-aggregations.php](../../examples/02-intermediat
 - [Aggregations](../07-helper-functions/aggregate-helpers.md) - Aggregate helper functions
 - [Conditional Logic](../../examples/02-intermediate/02-aggregations.php) - GROUP BY and HAVING
 - [Performance Tips](../08-best-practices/performance.md) - Query optimization
+
+

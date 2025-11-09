@@ -2019,6 +2019,11 @@ class QueryBuilder implements QueryBuilderInterface
             $this->selectQueryBuilder->setCteManager($this->cteManager);
         }
 
+        // Set UNION operations before building SQL
+        if (!empty($this->unions)) {
+            $this->selectQueryBuilder->setUnions($this->unions);
+        }
+
         return $this->selectQueryBuilder->toSQL($formatted);
     }
 

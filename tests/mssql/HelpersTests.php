@@ -711,4 +711,3 @@ final class HelpersTests extends BaseMSSQLTestCase
         $this->assertNotEmpty($result['domain']);
     }
 }
-

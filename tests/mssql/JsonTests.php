@@ -128,7 +128,7 @@ final class JsonTests extends BaseMSSQLTestCase
 
         $data = [
             'user' => ['name' => 'Alice', 'age' => 30],
-            'settings' => ['theme' => 'dark', 'notifications' => true]
+            'settings' => ['theme' => 'dark', 'notifications' => true],
         ];
 
         $id = $db->find()->table('t_json_path')->insert(['data' => json_encode($data, JSON_UNESCAPED_UNICODE)]);
@@ -179,4 +179,3 @@ final class JsonTests extends BaseMSSQLTestCase
         $this->assertIsArray($rows);
     }
 }
-

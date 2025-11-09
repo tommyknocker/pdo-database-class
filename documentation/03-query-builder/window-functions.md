@@ -470,3 +470,5 @@ All window functions work identically across MySQL 8.0+, PostgreSQL 9.4+, and SQ
 - [Helper Functions Reference](../07-helper-functions/window-helpers.md)
 - [Examples: Window Functions](../../examples/16-window-functions/)
 - [Best Practices: Performance](../08-best-practices/performance.md)
+
+

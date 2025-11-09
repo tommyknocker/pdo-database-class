@@ -70,7 +70,9 @@ class ParameterManager implements ParameterManagerInterface
         $map = [];
         foreach ($subParams as $old => $val) {
             $key = ltrim($old, ':');
-            $new = ':' . $prefix . '_' . $key . '_' . count($this->params);
+            // Use paramCounter to ensure unique parameter names across multiple calls
+            $this->paramCounter++;
+            $new = ':' . $prefix . '_' . $key . '_' . $this->paramCounter;
             $this->params[$new] = $val;
             $map[$old] = $new;
         }

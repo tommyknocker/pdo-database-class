@@ -58,28 +58,29 @@ trait MSSQLErrorTrait
      */
     protected static function getMssqlDescriptions(): array
     {
-        return [
-            self::MSSQL_CONNECTION_FAILURE => 'Connection failure',
-            self::MSSQL_CONNECTION_DOES_NOT_EXIST => 'Connection does not exist',
-            self::MSSQL_CONNECTION_EXCEPTION => 'Connection exception',
-            self::MSSQL_CONNECTION_FAILURE_AUTH => 'Authentication failed',
-            self::MSSQL_INVALID_PASSWORD => 'Invalid password',
-            self::MSSQL_INVALID_AUTHORIZATION_SPEC => 'Invalid authorization specification',
-            self::MSSQL_CONNECTION_FAILURE_DB => 'Database does not exist',
-            self::MSSQL_DEADLOCK_DETECTED => 'Deadlock detected',
-            self::MSSQL_LOCK_TIMEOUT => 'Lock request time out period exceeded',
-            self::MSSQL_UNIQUE_VIOLATION => 'Unique constraint violation',
-            self::MSSQL_FOREIGN_KEY_VIOLATION => 'Foreign key violation',
-            self::MSSQL_NOT_NULL_VIOLATION => 'Not null violation',
-            self::MSSQL_CHECK_VIOLATION => 'Check constraint violation',
-            self::MSSQL_TRANSACTION_ABORTED => 'Transaction is aborted',
-            self::MSSQL_UNDEFINED_TABLE => 'Table does not exist',
-            self::MSSQL_UNDEFINED_COLUMN => 'Column does not exist',
-            self::MSSQL_SYNTAX_ERROR => 'Syntax error',
-            self::MSSQL_INSUFFICIENT_PRIVILEGE => 'Insufficient privilege',
-            self::MSSQL_TOO_MANY_CONNECTIONS => 'Too many connections',
-            self::MSSQL_QUERY_CANCELED => 'Query canceled',
-            self::MSSQL_QUERY_TIMEOUT => 'Query timeout',
-        ];
+        /** @var array<string, string> $descriptions */
+        $descriptions = [];
+        $descriptions[self::MSSQL_CONNECTION_FAILURE] = 'Connection failure';
+        $descriptions[self::MSSQL_CONNECTION_DOES_NOT_EXIST] = 'Connection does not exist';
+        $descriptions[self::MSSQL_CONNECTION_EXCEPTION] = 'Connection exception';
+        $descriptions[self::MSSQL_CONNECTION_FAILURE_AUTH] = 'Authentication failed';
+        $descriptions[self::MSSQL_INVALID_PASSWORD] = 'Invalid password';
+        $descriptions[self::MSSQL_INVALID_AUTHORIZATION_SPEC] = 'Invalid authorization specification';
+        $descriptions[self::MSSQL_CONNECTION_FAILURE_DB] = 'Database does not exist';
+        $descriptions[self::MSSQL_DEADLOCK_DETECTED] = 'Deadlock detected';
+        $descriptions[self::MSSQL_LOCK_TIMEOUT] = 'Lock request time out period exceeded';
+        $descriptions[self::MSSQL_UNIQUE_VIOLATION] = 'Unique constraint violation';
+        $descriptions[self::MSSQL_FOREIGN_KEY_VIOLATION] = 'Foreign key violation';
+        $descriptions[self::MSSQL_NOT_NULL_VIOLATION] = 'Not null violation';
+        $descriptions[self::MSSQL_CHECK_VIOLATION] = 'Check constraint violation';
+        $descriptions[self::MSSQL_TRANSACTION_ABORTED] = 'Transaction is aborted';
+        $descriptions[self::MSSQL_UNDEFINED_TABLE] = 'Table does not exist';
+        $descriptions[self::MSSQL_UNDEFINED_COLUMN] = 'Column does not exist';
+        $descriptions[self::MSSQL_SYNTAX_ERROR] = 'Syntax error';
+        $descriptions[self::MSSQL_INSUFFICIENT_PRIVILEGE] = 'Insufficient privilege';
+        $descriptions[self::MSSQL_TOO_MANY_CONNECTIONS] = 'Too many connections';
+        $descriptions[self::MSSQL_QUERY_CANCELED] = 'Query canceled';
+        $descriptions[self::MSSQL_QUERY_TIMEOUT] = 'Query timeout';
+        return $descriptions;
     }
 }

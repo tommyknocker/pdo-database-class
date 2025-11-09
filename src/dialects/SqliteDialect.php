@@ -1451,4 +1451,29 @@ class SqliteDialect extends DialectAbstract
         }
         return "'" . addslashes((string)$value) . "'";
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeRawValue(string $sql): string
+    {
+        // SQLite doesn't need special normalization
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildExistsExpression(string $subquery): string
+    {
+        return 'SELECT EXISTS(' . $subquery . ')';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsLimitInExists(): bool
+    {
+        return true;
+    }
 }

@@ -337,4 +337,3 @@ final class WhereTests extends BaseMSSQLTestCase
         $this->assertCount(2, $rows);
     }
 }
-

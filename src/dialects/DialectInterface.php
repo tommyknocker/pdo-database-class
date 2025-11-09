@@ -123,6 +123,24 @@ interface DialectInterface
     public function formatLimitOffset(string $sql, ?int $limit, ?int $offset): string;
 
     /**
+     * Format SELECT query for use in UNION operations.
+     * Some dialects require parentheses or removal of TOP/LIMIT clauses.
+     *
+     * @param string $selectSql SELECT query SQL
+     * @param bool $isBaseQuery Whether this is the base query (first in UNION)
+     *
+     * @return string Formatted SELECT query for UNION
+     */
+    public function formatUnionSelect(string $selectSql, bool $isBaseQuery = false): string;
+
+    /**
+     * Whether UNION queries require parentheses around each SELECT.
+     *
+     * @return bool
+     */
+    public function needsUnionParentheses(): bool;
+
+    /**
      * Build upsert clause.
      *
      * @param array<int, string>|array<string, mixed> $updateColumns Either array of column names or associative array with expressions
@@ -696,6 +714,46 @@ interface DialectInterface
      * @return string
      */
     public function buildExplainAnalyzeSql(string $query): string;
+
+    /**
+     * Execute EXPLAIN query with dialect-specific logic.
+     * For MSSQL, this handles SET SHOWPLAN_ALL ON/OFF separately.
+     * For other dialects, this simply executes the explain SQL.
+     *
+     * @param \PDO $pdo PDO connection instance
+     * @param string $sql SQL query to explain
+     * @param array<int|string, string|int|float|bool|null> $params Query parameters
+     *
+     * @return array<int, array<string, mixed>> Explain results
+     * @throws \PDOException
+     */
+    public function executeExplain(\PDO $pdo, string $sql, array $params = []): array;
+
+    /**
+     * Normalize raw SQL value for dialect-specific function replacements.
+     * Replaces function names like LENGTH->LEN, CEIL->CEILING, TRUE/FALSE->1/0, etc.
+     *
+     * @param string $sql Raw SQL string
+     *
+     * @return string Normalized SQL string
+     */
+    public function normalizeRawValue(string $sql): string;
+
+    /**
+     * Build EXISTS expression for dialect.
+     *
+     * @param string $subquery Subquery SQL
+     *
+     * @return string EXISTS expression SQL
+     */
+    public function buildExistsExpression(string $subquery): string;
+
+    /**
+     * Whether LIMIT can be used in EXISTS subqueries.
+     *
+     * @return bool
+     */
+    public function supportsLimitInExists(): bool;
 
     /**
      * EXISTS syntax.
