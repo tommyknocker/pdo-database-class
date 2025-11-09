@@ -276,6 +276,10 @@ class MSSQLDialect extends DialectAbstract
     ): string {
         $target = $this->quoteTable($targetTable);
         $sql = "MERGE {$target} AS target\n";
+        // For string source (table name), wrap in SELECT * FROM for MSSQL
+        if (!str_starts_with(trim($sourceSql), '(') && !str_starts_with(trim($sourceSql), 'SELECT')) {
+            $sourceSql = "SELECT * FROM {$sourceSql}";
+        }
         $sql .= "USING ({$sourceSql}) AS source\n";
         $sql .= "ON {$onClause}\n";
 
@@ -285,8 +289,23 @@ class MSSQLDialect extends DialectAbstract
         }
 
         if (!empty($whenClauses['whenNotMatched'])) {
-            $sql .= "WHEN NOT MATCHED THEN\n";
-            $sql .= "  INSERT {$whenClauses['whenNotMatched']}\n";
+            $insertClause = $whenClauses['whenNotMatched'];
+            // MSSQL MERGE INSERT requires: INSERT (columns) VALUES (source.columns)
+            // Replace MERGE_SOURCE_COLUMN_ markers with source.column for MSSQL
+            $insertClause = preg_replace('/MERGE_SOURCE_COLUMN_(\w+)/', 'source.$1', $insertClause);
+            
+            // MSSQL MERGE INSERT format: (columns) VALUES (values)
+            // Extract columns and values from the clause
+            if (preg_match('/^\(([^)]+)\)\s+VALUES\s+\(([^)]+)\)/', $insertClause, $matches)) {
+                $columns = $matches[1];
+                $values = $matches[2];
+                $sql .= "WHEN NOT MATCHED THEN\n";
+                $sql .= "  INSERT ({$columns}) VALUES ({$values})\n";
+            } else {
+                // Fallback: use as-is
+                $sql .= "WHEN NOT MATCHED THEN\n";
+                $sql .= "  INSERT {$insertClause}\n";
+            }
         }
 
         if (!empty($whenClauses['whenNotMatchedBySourceDelete']) && $whenClauses['whenNotMatchedBySourceDelete']) {
