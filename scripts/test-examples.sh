@@ -92,7 +92,29 @@ else
 fi
 
 # Check MSSQL
-if [ -f "examples/config.mssql.php" ]; then
+# First check if environment variables are set (CI), then fallback to config file
+if [ -n "$DB_USER" ] && [ -n "$DB_PASS" ]; then
+    # Use environment variables (CI)
+    if php -r "
+        \$host = getenv('DB_HOST') ?: 'localhost';
+        \$port = getenv('DB_PORT') ?: '1433';
+        \$dbname = getenv('DB_NAME') ?: 'testdb';
+        \$username = getenv('DB_USER');
+        \$password = getenv('DB_PASS');
+        try {
+            \$dsn = 'sqlsrv:Server=' . \$host . ',' . \$port . ';Database=' . \$dbname . ';TrustServerCertificate=yes';
+            new PDO(\$dsn, \$username, \$password);
+            exit(0);
+        } catch (Exception \$e) {
+            exit(1);
+        }
+    " 2>/dev/null; then
+        MSSQL_AVAILABLE=1
+        echo -e "${GREEN}✓ MSSQL available (via environment variables)${NC}"
+    else
+        echo -e "${YELLOW}⊘ MSSQL not available (environment variables set but connection failed)${NC}"
+    fi
+elif [ -f "examples/config.mssql.php" ]; then
     if php -r "
         \$config = require 'examples/config.mssql.php';
         try {
