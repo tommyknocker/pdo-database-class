@@ -472,3 +472,4 @@ All window functions work identically across MySQL 8.0+, PostgreSQL 9.4+, and SQ
 - [Best Practices: Performance](../08-best-practices/performance.md)
 
 
+

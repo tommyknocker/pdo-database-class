@@ -6,7 +6,6 @@ namespace tommyknocker\pdodb\query;
 
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\dialects\SqliteDialect;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\CurDateValue;
@@ -187,11 +186,8 @@ class RawValueResolver
         $sql = $value->getValue();
         $params = $value->getParams();
 
-        // SQLite doesn't support DEFAULT keyword in UPDATE statements
-        // Replace DEFAULT with NULL (closest equivalent behavior)
-        if (trim($sql) === 'DEFAULT' && $this->dialect instanceof SqliteDialect) {
-            return 'NULL';
-        }
+        // Normalize DEFAULT keyword for dialect-specific handling
+        $sql = $this->dialect->normalizeDefaultValue($sql);
 
         // Apply dialect-specific normalization
         $sql = $this->dialect->normalizeRawValue($sql);

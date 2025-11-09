@@ -55,8 +55,8 @@ class BatchProcessor implements BatchProcessorInterface
         $offset = 0;
 
         while (true) {
-            // Add LIMIT and OFFSET to the query
-            $batchSql = $sql . " LIMIT {$batchSize} OFFSET {$offset}";
+            // Add LIMIT and OFFSET to the query (dialect-specific)
+            $batchSql = $this->connection->getDialect()->appendLimitOffset($sql, $batchSize, $offset);
 
             $rows = $this->executionEngine->fetchAll($batchSql, $params);
 
@@ -102,7 +102,8 @@ class BatchProcessor implements BatchProcessorInterface
         while (true) {
             // Refill buffer if empty
             if (empty($buffer)) {
-                $batchSql = $sql . " LIMIT {$batchSize} OFFSET {$offset}";
+                // Add LIMIT and OFFSET to the query (dialect-specific)
+                $batchSql = $this->connection->getDialect()->appendLimitOffset($sql, $batchSize, $offset);
                 $buffer = $this->executionEngine->fetchAll($batchSql, $params);
 
                 if (empty($buffer)) {

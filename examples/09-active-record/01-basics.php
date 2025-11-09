@@ -50,7 +50,8 @@ echo "=== ActiveRecord Examples ===\n\n";
 echo "Driver: $driver\n\n";
 
 // Create users table based on driver
-if ($driver === 'mysql') {
+$driverName = $db->connection->getDriverName();
+if ($driverName === 'mysql' || $driverName === 'mariadb') {
     $db->rawQuery('DROP TABLE IF EXISTS users');
     $db->rawQuery('
         CREATE TABLE users (
@@ -62,7 +63,7 @@ if ($driver === 'mysql') {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB
     ');
-} elseif ($driver === 'pgsql') {
+} elseif ($driverName === 'pgsql') {
     $db->rawQuery('DROP TABLE IF EXISTS users CASCADE');
     $db->rawQuery('
         CREATE TABLE users (
@@ -72,6 +73,18 @@ if ($driver === 'mysql') {
             age INTEGER,
             status VARCHAR(20) DEFAULT \'active\',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ');
+} elseif ($driverName === 'sqlsrv') {
+    $db->rawQuery('DROP TABLE IF EXISTS users');
+    $db->rawQuery('
+        CREATE TABLE users (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            name NVARCHAR(100) NOT NULL,
+            email NVARCHAR(255) NOT NULL,
+            age INT,
+            status NVARCHAR(20) DEFAULT \'active\',
+            created_at DATETIME DEFAULT GETDATE()
         )
     ');
 } else { // sqlite

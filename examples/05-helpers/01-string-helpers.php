@@ -236,15 +236,27 @@ echo "\n";
 // Example 9: Advanced string operations
 echo "9. Advanced string operations...\n";
 $driver = getCurrentDriver($db);
-$substringFunc = $driver === 'pgsql' ? 'SUBSTR' : 'SUBSTRING';
-$users = $db->find()
-    ->from('users')
-    ->select([
-        'email',
-        'email_domain' => Db::raw("$substringFunc(email, LENGTH(email) - LENGTH(REPLACE(email, '@', '')) + 2)"),
-        'email_user' => Db::raw("$substringFunc(email, 1, LENGTH(email) - LENGTH(REPLACE(email, '@', '')) - 1)")
-    ])
-    ->get();
+if ($driver === 'sqlsrv') {
+    // MSSQL requires 3 arguments for SUBSTRING
+    $users = $db->find()
+        ->from('users')
+        ->select([
+            'email',
+            'email_domain' => Db::raw("SUBSTRING(email, LEN(email) - LEN(REPLACE(email, '@', '')) + 2, LEN(email))"),
+            'email_user' => Db::raw("SUBSTRING(email, 1, LEN(email) - LEN(REPLACE(email, '@', '')) - 1)")
+        ])
+        ->get();
+} else {
+    $substringFunc = $driver === 'pgsql' ? 'SUBSTR' : 'SUBSTRING';
+    $users = $db->find()
+        ->from('users')
+        ->select([
+            'email',
+            'email_domain' => Db::raw("$substringFunc(email, LENGTH(email) - LENGTH(REPLACE(email, '@', '')) + 2)"),
+            'email_user' => Db::raw("$substringFunc(email, 1, LENGTH(email) - LENGTH(REPLACE(email, '@', '')) - 1)")
+        ])
+        ->get();
+}
 
 foreach ($users as $user) {
     echo "  • {$user['email']} → user: {$user['email_user']}, domain: {$user['email_domain']}\n";

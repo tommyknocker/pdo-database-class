@@ -133,10 +133,10 @@ $results = $db->find()
     ->select([
         'user_id',
         'total_settings' => Db::count(),
-        'active_settings' => Db::sum(Db::case(['is_active = true' => '1'], '0')),
-        'default_settings' => Db::sum(Db::case(['is_default = true' => '1'], '0')),
-        'public_settings' => Db::sum(Db::case(['is_public = true' => '1'], '0')),
-        'required_settings' => Db::sum(Db::case(['is_required = true' => '1'], '0'))
+        'active_settings' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_active = 1' : 'is_active = true') => '1'], '0')),
+        'default_settings' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_default = 1' : 'is_default = true') => '1'], '0')),
+        'public_settings' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_public = 1' : 'is_public = true') => '1'], '0')),
+        'required_settings' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_required = 1' : 'is_required = true') => '1'], '0'))
     ])
     ->groupBy('user_id')
     ->orderBy('user_id')
@@ -213,11 +213,11 @@ $stats = $db->find()
     ->from('settings')
     ->select([
         'total_settings' => Db::count(),
-        'active_count' => Db::sum(Db::case(['is_active = true' => '1'], '0')),
-        'default_count' => Db::sum(Db::case(['is_default = true' => '1'], '0')),
-        'public_count' => Db::sum(Db::case(['is_public = true' => '1'], '0')),
-        'required_count' => Db::sum(Db::case(['is_required = true' => '1'], '0')),
-        'active_percentage' => Db::round(Db::raw('(SUM(CASE WHEN is_active = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*))'), 1)
+        'active_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_active = 1' : 'is_active = true') => '1'], '0')),
+        'default_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_default = 1' : 'is_default = true') => '1'], '0')),
+        'public_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_public = 1' : 'is_public = true') => '1'], '0')),
+        'required_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_required = 1' : 'is_required = true') => '1'], '0')),
+        'active_percentage' => Db::round(Db::raw($driver === 'sqlsrv' ? '(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*))' : '(SUM(CASE WHEN is_active = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*))'), 1)
     ])
     ->getOne();
 

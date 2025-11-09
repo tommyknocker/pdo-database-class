@@ -8,8 +8,9 @@ require_once __DIR__ . '/../helpers.php';
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\PdoDb;
 
-$driver = getenv('PDODB_DRIVER') ?: 'sqlite';
+$driverEnv = getenv('PDODB_DRIVER') ?: 'sqlite';
 $config = getExampleConfig();
+$driver = $config['driver'] ?? $driverEnv; // Use driver from config (converts mssql to sqlsrv)
 
 echo "=== Common Table Expressions (CTEs) Examples ===\n\n";
 echo "Database: $driver\n\n";
@@ -75,6 +76,36 @@ if ($driver === 'mysql' || $driver === 'mariadb') {
             id INTEGER PRIMARY KEY,
             name VARCHAR(100),
             manager_id INTEGER NULL
+        )
+    ');
+} elseif ($driver === 'sqlsrv') {
+    $pdoDb->rawQuery('DROP TABLE IF EXISTS products');
+    $pdoDb->rawQuery('DROP TABLE IF EXISTS sales');
+    $pdoDb->rawQuery('DROP TABLE IF EXISTS employees');
+    
+    $pdoDb->rawQuery('
+        CREATE TABLE products (
+            id INT PRIMARY KEY,
+            name NVARCHAR(100),
+            category NVARCHAR(50),
+            price DECIMAL(10,2)
+        )
+    ');
+    
+    $pdoDb->rawQuery('
+        CREATE TABLE sales (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            product_id INT,
+            quantity INT,
+            sale_date DATE
+        )
+    ');
+    
+    $pdoDb->rawQuery('
+        CREATE TABLE employees (
+            id INT PRIMARY KEY,
+            name NVARCHAR(100),
+            manager_id INT NULL
         )
     ');
 } else {

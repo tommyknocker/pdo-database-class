@@ -162,21 +162,22 @@ class CteManager
             $sql = $query;
         }
 
-        // Apply materialization
-        $materializedKeyword = '';
+        // Apply materialization using dialect-specific formatting
         if ($cte->isMaterialized()) {
-            $driverName = $this->dialect->getDriverName();
-
-            if ($driverName === 'pgsql') {
-                // PostgreSQL 12+: MATERIALIZED goes after AS
-                $materializedKeyword = ' MATERIALIZED';
-            } elseif ($driverName === 'mysql') {
-                // MySQL: Use optimizer hint in the query
-                $sql = $this->applyMySQLMaterializationHint($sql);
-            }
+            $sql = $this->dialect->formatMaterializedCte($sql, true);
         }
 
-        return $name . ' AS' . $materializedKeyword . ' (' . $sql . ')';
+        // Build CTE SQL
+        // For PostgreSQL, formatMaterializedCte returns 'MATERIALIZED:' prefix
+        // For MySQL, formatMaterializedCte modifies SQL with hints
+        // For others, formatMaterializedCte returns SQL unchanged
+        if ($cte->isMaterialized() && str_starts_with($sql, 'MATERIALIZED:')) {
+            // PostgreSQL: MATERIALIZED keyword goes after AS
+            $sql = substr($sql, 13); // Remove 'MATERIALIZED:' prefix
+            return $name . ' AS MATERIALIZED (' . $sql . ')';
+        } else {
+            return $name . ' AS (' . $sql . ')';
+        }
     }
 
     /**

@@ -1356,7 +1356,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         foreach ($this->order as $orderExpr) {
             // Extract column name from "column ASC" or "column DESC"
             if (preg_match('/^([^\s]+)/', $orderExpr, $matches)) {
-                $columns[] = trim($matches[1], '"`');
+                // Remove quotes and brackets (MySQL/MariaDB use backticks, PostgreSQL/SQLite use double quotes, MSSQL uses square brackets)
+                $column = trim($matches[1], '"`[]');
+                $columns[] = $column;
             }
         }
         return $columns;

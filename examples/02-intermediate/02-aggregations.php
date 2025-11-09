@@ -172,7 +172,8 @@ $concat = $db->find()
     ->select([
         'category',
         // SQLite DISTINCT in GROUP_CONCAT may not be available in older versions
-        'products' => ($driver === 'sqlite')
+        // MSSQL STRING_AGG DISTINCT requires SQL Server 2022+, so we skip DISTINCT for compatibility
+        'products' => ($driver === 'sqlite' || $driver === 'sqlsrv')
             ? Db::groupConcat('product', ', ', false)
             : Db::groupConcat('product', ', ', true)
     ])

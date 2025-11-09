@@ -1498,4 +1498,24 @@ class MariaDBDialect extends DialectAbstract
     {
         return true;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatMaterializedCte(string $cteSql, bool $isMaterialized): string
+    {
+        if ($isMaterialized) {
+            // MariaDB: Use optimizer hint in the query (similar to MySQL)
+            // Add a comment hint to encourage materialization
+            if (preg_match('/^\s*SELECT\s+/i', $cteSql)) {
+                // Add optimizer hint after SELECT
+                return preg_replace(
+                    '/^\s*(SELECT\s+)/i',
+                    '$1/*+ MATERIALIZE */ ',
+                    $cteSql
+                ) ?? $cteSql;
+            }
+        }
+        return $cteSql;
+    }
 }

@@ -29,18 +29,26 @@ try {
 
     // Create a test table
     $db->rawQuery('DROP TABLE IF EXISTS debug_users');
-    if ($driver === 'mysql' || $driver === 'mariadb') {
+    $driverName = getCurrentDriver($db);
+    if ($driverName === 'mysql' || $driverName === 'mariadb') {
         $db->rawQuery('CREATE TABLE debug_users (
             id INT PRIMARY KEY AUTO_INCREMENT,
             name VARCHAR(255),
             email VARCHAR(255),
             age INT
         )');
-    } elseif ($driver === 'pgsql') {
+    } elseif ($driverName === 'pgsql') {
         $db->rawQuery('CREATE TABLE debug_users (
             id SERIAL PRIMARY KEY,
             name VARCHAR(255),
             email VARCHAR(255),
+            age INT
+        )');
+    } elseif ($driverName === 'sqlsrv') {
+        $db->rawQuery('CREATE TABLE debug_users (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            name NVARCHAR(255),
+            email NVARCHAR(255),
             age INT
         )');
     } else {
@@ -127,19 +135,27 @@ try {
 
     // Create a table with constraints
     $db->rawQuery('DROP TABLE IF EXISTS debug_accounts');
-    if ($driver === 'mysql' || $driver === 'mariadb') {
+    $driverName = getCurrentDriver($db);
+    if ($driverName === 'mysql' || $driverName === 'mariadb') {
         $db->rawQuery('CREATE TABLE debug_accounts (
             id INT PRIMARY KEY AUTO_INCREMENT,
             username VARCHAR(255) UNIQUE,
             password VARCHAR(255),
             email VARCHAR(255)
         )');
-    } elseif ($driver === 'pgsql') {
+    } elseif ($driverName === 'pgsql') {
         $db->rawQuery('CREATE TABLE debug_accounts (
             id SERIAL PRIMARY KEY,
             username VARCHAR(255) UNIQUE,
             password VARCHAR(255),
             email VARCHAR(255)
+        )');
+    } elseif ($driverName === 'sqlsrv') {
+        $db->rawQuery('CREATE TABLE debug_accounts (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            username NVARCHAR(255) UNIQUE,
+            password NVARCHAR(255),
+            email NVARCHAR(255)
         )');
     } else {
         $db->rawQuery('CREATE TABLE debug_accounts (

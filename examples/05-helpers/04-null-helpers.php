@@ -222,16 +222,31 @@ echo "\n";
 
 // Example 12: NULL handling in aggregations
 echo "12. NULL handling in aggregations...\n";
-$stats = $db->find()
-    ->from('users')
-    ->select([
-        'avg_name_length' => Db::avg(Db::length('name')),
-        'max_contact_length' => Db::max(Db::length(Db::coalesce('email', 'phone', "'N/A'"))),
-        'users_with_complete_info' => Db::count(Db::case([
-            'email IS NOT NULL AND phone IS NOT NULL AND address IS NOT NULL' => '1'
-        ], null))
-    ])
-    ->getOne();
+$driver = getCurrentDriver($db);
+if ($driver === 'sqlsrv') {
+    // MSSQL uses LEN instead of LENGTH
+    $stats = $db->find()
+        ->from('users')
+        ->select([
+            'avg_name_length' => Db::avg(Db::raw('LEN(name)')),
+            'max_contact_length' => Db::max(Db::raw('LEN(COALESCE(email, phone, \'N/A\'))')),
+            'users_with_complete_info' => Db::count(Db::case([
+                'email IS NOT NULL AND phone IS NOT NULL AND address IS NOT NULL' => '1'
+            ], null))
+        ])
+        ->getOne();
+} else {
+    $stats = $db->find()
+        ->from('users')
+        ->select([
+            'avg_name_length' => Db::avg(Db::length('name')),
+            'max_contact_length' => Db::max(Db::length(Db::coalesce('email', 'phone', "'N/A'"))),
+            'users_with_complete_info' => Db::count(Db::case([
+                'email IS NOT NULL AND phone IS NOT NULL AND address IS NOT NULL' => '1'
+            ], null))
+        ])
+        ->getOne();
+}
 
 echo "  Aggregation statistics:\n";
 echo "  • Average name length: " . round($stats['avg_name_length'], 2) . " characters\n";

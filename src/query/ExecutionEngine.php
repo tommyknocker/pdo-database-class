@@ -134,7 +134,18 @@ class ExecutionEngine implements ExecutionEngineInterface
         $stmt = $this->executeStatement($sql, $params);
 
         try {
-            return $stmt->fetchAll($this->fetchMode);
+            try {
+                return $stmt->fetchAll($this->fetchMode);
+            } catch (PDOException $e) {
+                // Check if this is a "no fields" error that should be handled gracefully
+                if ($this->connection->getDialect()->isNoFieldsError($e)) {
+                    // Query returned no fields (e.g., DDL queries that don't return result sets)
+                    return [];
+                }
+
+                // Re-throw if it's a different error
+                throw $e;
+            }
         } finally {
             $stmt->closeCursor();
         }
@@ -174,7 +185,18 @@ class ExecutionEngine implements ExecutionEngineInterface
         $stmt = $this->executeStatement($sql, $params);
 
         try {
-            return $stmt->fetch($this->fetchMode);
+            try {
+                return $stmt->fetch($this->fetchMode);
+            } catch (PDOException $e) {
+                // Check if this is a "no fields" error that should be handled gracefully
+                if ($this->connection->getDialect()->isNoFieldsError($e)) {
+                    // Query returned no fields - return false (no row)
+                    return false;
+                }
+
+                // Re-throw if it's a different error
+                throw $e;
+            }
         } finally {
             $stmt->closeCursor();
         }

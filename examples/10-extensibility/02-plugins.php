@@ -52,6 +52,18 @@ if ($driver === 'sqlite') {
             deleted_at TIMESTAMP NULL
         )
     ');
+} elseif ($driver === 'sqlsrv') {
+    $db->rawQuery('
+        CREATE TABLE products (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            name NVARCHAR(255) NOT NULL,
+            price DECIMAL(10,2) NOT NULL,
+            status NVARCHAR(50) DEFAULT \'active\',
+            category_id INT,
+            created_at DATETIME DEFAULT GETDATE(),
+            deleted_at DATETIME NULL
+        )
+    ');
 } else {
     // MySQL/MariaDB
     $db->rawQuery('

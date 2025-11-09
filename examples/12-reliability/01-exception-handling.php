@@ -94,6 +94,12 @@ try {
             email VARCHAR(255) UNIQUE NOT NULL,
             name VARCHAR(255) NOT NULL
         )');
+    } elseif ($driver === 'sqlsrv') {
+        $db->rawQuery('CREATE TABLE users (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            email NVARCHAR(255) UNIQUE NOT NULL,
+            name NVARCHAR(255) NOT NULL
+        )');
     } else {
         $db->rawQuery('CREATE TABLE users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -32,6 +32,11 @@ $tableDef = match ($driver) {
         'content' => 'TEXT',
         'ts_vector' => 'TSVECTOR GENERATED ALWAYS AS (to_tsvector(\'english\', title || \' \' || content)) STORED'
     ],
+    'sqlsrv' => [
+        'id' => 'INT IDENTITY(1,1) PRIMARY KEY',
+        'title' => 'NVARCHAR(255)',
+        'content' => 'NTEXT'
+    ],
     'sqlite' => [
         'id' => 'INTEGER PRIMARY KEY',
         'title' => 'TEXT',
@@ -39,7 +44,11 @@ $tableDef = match ($driver) {
     ]
 };
 
-$autoIncrement = $driver === 'pgsql' ? 'SERIAL PRIMARY KEY' : 'INT AUTO_INCREMENT PRIMARY KEY';
+$autoIncrement = match ($driver) {
+    'pgsql' => 'SERIAL PRIMARY KEY',
+    'sqlsrv' => 'INT IDENTITY(1,1) PRIMARY KEY',
+    default => 'INT AUTO_INCREMENT PRIMARY KEY'
+};
 
 try {
     $db->rawQuery("DROP TABLE IF EXISTS articles");

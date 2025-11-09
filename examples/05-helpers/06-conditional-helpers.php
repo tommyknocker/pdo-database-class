@@ -124,9 +124,18 @@ echo "\n";
 // Example 5: CASE with date operations
 echo "5. CASE with date operations...\n";
 $driver = getCurrentDriver($db);
-$dayOfWeekFunc = $driver === 'sqlite' ? 'strftime("%w", order_date)' : 
-                 ($driver === 'mysql' ? 'WEEKDAY(order_date)' : 
-                 'EXTRACT(DOW FROM order_date::DATE)');
+if ($driver === 'sqlite') {
+    $dayOfWeekFunc = 'strftime("%w", order_date)';
+} elseif ($driver === 'mysql' || $driver === 'mariadb') {
+    $dayOfWeekFunc = 'WEEKDAY(order_date)';
+} elseif ($driver === 'sqlsrv') {
+    // MSSQL uses DATEPART(WEEKDAY, date) - returns 1 (Sunday) to 7 (Saturday)
+    // We need to adjust: DATEPART(WEEKDAY, order_date) - 1 gives 0-6 (Sunday-Saturday)
+    $dayOfWeekFunc = 'DATEPART(WEEKDAY, order_date) - 1';
+} else {
+    // PostgreSQL
+    $dayOfWeekFunc = 'EXTRACT(DOW FROM order_date::DATE)';
+}
 
 $results = $db->find()
     ->from('orders')

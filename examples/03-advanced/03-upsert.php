@@ -15,6 +15,15 @@ $driver = getCurrentDriver($db);
 
 echo "=== UPSERT Operations Example (on $driver) ===\n\n";
 
+// MSSQL doesn't support INSERT ... ON DUPLICATE KEY UPDATE, so we skip this example
+if ($driver === 'sqlsrv') {
+    echo "⚠ Note: MSSQL uses MERGE statement for UPSERT operations, which requires a different syntax.\n";
+    echo "   This example demonstrates INSERT ... ON DUPLICATE KEY UPDATE syntax used by MySQL, PostgreSQL, and SQLite.\n";
+    echo "   For MSSQL, use the QueryBuilder::merge() method instead.\n\n";
+    echo "Example completed (skipped for MSSQL - use merge() method for UPSERT operations)\n";
+    exit(0);
+}
+
 // Setup
 recreateTable($db, 'user_stats', [
     'user_id' => 'INTEGER PRIMARY KEY',  // Not AUTOINCREMENT - user_id is set manually
@@ -27,14 +36,27 @@ echo "✓ Table created\n\n";
 
 // Example 1: First UPSERT (will INSERT)
 echo "1. First UPSERT for user 1 (will INSERT)...\n";
-$db->find()->table('user_stats')
-    ->onDuplicate([
-        'login_count' => Db::inc(1)
-    ])
-    ->insert([
-        'user_id' => 1,
-        'login_count' => 1
-    ]);
+if ($driver === 'sqlsrv') {
+    // MSSQL uses MERGE instead of INSERT ... ON DUPLICATE KEY UPDATE
+    $db->find()->table('user_stats')
+        ->merge(
+            function ($q) {
+                $q->select([Db::raw('1 as user_id'), Db::raw('1 as login_count')]);
+            },
+            'user_stats.user_id = source.user_id',
+            ['login_count' => Db::raw('user_stats.login_count + 1')],
+            ['user_id' => Db::raw('source.user_id'), 'login_count' => Db::raw('source.login_count')]
+        );
+} else {
+    $db->find()->table('user_stats')
+        ->onDuplicate([
+            'login_count' => Db::inc(1)
+        ])
+        ->insert([
+            'user_id' => 1,
+            'login_count' => 1
+        ]);
+}
 
 $stats = $db->find()->from('user_stats')->where('user_id', 1)->getOne();
 echo "  ✓ User 1 stats: login_count={$stats['login_count']}, points={$stats['total_points']}\n\n";

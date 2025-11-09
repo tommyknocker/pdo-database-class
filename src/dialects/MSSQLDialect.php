@@ -872,9 +872,13 @@ class MSSQLDialect extends DialectAbstract
     {
         $col = $this->resolveValue($column);
         $sep = str_replace("'", "''", $separator);
+        // MSSQL STRING_AGG supports DISTINCT starting from SQL Server 2022
+        // For older versions, we'll use DISTINCT in a subquery if needed
+        // For now, we'll use DISTINCT directly (will fail on older versions)
         $dist = $distinct ? 'DISTINCT ' : '';
         // MSSQL uses STRING_AGG with WITHIN GROUP (ORDER BY ...)
         // For ordering, use the column itself
+        // Note: MSSQL requires the ORDER BY column to be in the SELECT list or be a simple column reference
         return "STRING_AGG({$dist}{$col}, '{$sep}') WITHIN GROUP (ORDER BY {$col})";
     }
 
@@ -1707,8 +1711,12 @@ class MSSQLDialect extends DialectAbstract
         $autoIncrement = $schema->isAutoIncrement();
 
         // Build type with length/precision
+        // BIT type in MSSQL doesn't accept length specification
         $typeDef = $type;
-        if ($length !== null) {
+        if ($type === 'BIT') {
+            // BIT doesn't accept length in MSSQL
+            $typeDef = 'BIT';
+        } elseif ($length !== null) {
             $typeDef .= "({$length})";
         } elseif ($precision !== null && $scale !== null) {
             $typeDef .= "({$precision},{$scale})";
@@ -1724,7 +1732,11 @@ class MSSQLDialect extends DialectAbstract
         $sql = "{$quotedName} {$typeDef} {$null}";
 
         if ($default !== null && !$autoIncrement) {
-            if (is_string($default)) {
+            // BIT type in MSSQL uses 0/1 for boolean values
+            if ($type === 'BIT') {
+                $bitValue = ($default === true || $default === 1 || $default === '1' || $default === 'true') ? 1 : 0;
+                $sql .= " DEFAULT {$bitValue}";
+            } elseif (is_string($default)) {
                 $sql .= " DEFAULT '{$default}'";
             } else {
                 $sql .= " DEFAULT {$default}";
@@ -1742,8 +1754,16 @@ class MSSQLDialect extends DialectAbstract
     protected function parseColumnDefinition(array $def): ColumnSchema
     {
         $type = $def['type'] ?? 'NVARCHAR(255)';
+        // Convert BOOLEAN to BIT for MSSQL
+        if (strtoupper($type) === 'BOOLEAN') {
+            $type = 'BIT';
+        }
         $length = isset($def['length']) ? (int)$def['length'] : (isset($def['precision']) ? (int)$def['precision'] : null);
         $scale = isset($def['scale']) ? (int)$def['scale'] : null;
+        // BIT doesn't accept length in MSSQL
+        if ($type === 'BIT') {
+            $length = null;
+        }
         $schema = new ColumnSchema($type, $length, $scale);
 
         if (isset($def['null'])) {
@@ -1761,5 +1781,92 @@ class MSSQLDialect extends DialectAbstract
         }
 
         return $schema;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getBooleanType(): array
+    {
+        return ['type' => 'BIT', 'length' => null];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getTimestampType(): string
+    {
+        // MSSQL can only have one TIMESTAMP column per table, so use DATETIME instead
+        return 'DATETIME';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getDatetimeType(): string
+    {
+        return 'DATETIME';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function isNoFieldsError(\PDOException $e): bool
+    {
+        $errorMessage = $e->getMessage();
+        // MSSQL throws "The active result for the query contains no fields" for DDL/DDL-like queries
+        return str_contains($errorMessage, 'contains no fields') ||
+               str_contains($errorMessage, 'IMSSP');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function appendLimitOffset(string $sql, int $limit, int $offset): string
+    {
+        // MSSQL uses OFFSET ... FETCH NEXT ... ROWS ONLY
+        // Check if ORDER BY exists in SQL
+        if (stripos($sql, 'ORDER BY') === false) {
+            // MSSQL requires ORDER BY for OFFSET/FETCH
+            // Use a simple ordering that works for any query
+            return $sql . " ORDER BY (SELECT NULL) OFFSET {$offset} ROWS FETCH NEXT {$limit} ROWS ONLY";
+        } else {
+            // ORDER BY exists, just add OFFSET/FETCH
+            return $sql . " OFFSET {$offset} ROWS FETCH NEXT {$limit} ROWS ONLY";
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getPrimaryKeyType(): string
+    {
+        return 'INT';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getBigPrimaryKeyType(): string
+    {
+        return 'BIGINT';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getStringType(): string
+    {
+        // MSSQL uses NVARCHAR for Unicode strings
+        return 'NVARCHAR';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatMaterializedCte(string $cteSql, bool $isMaterialized): string
+    {
+        // MSSQL doesn't support materialized CTEs
+        return $cteSql;
     }
 }

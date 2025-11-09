@@ -13,15 +13,24 @@ $db = createExampleDb($config);
 echo "=== Set Operations (UNION, INTERSECT, EXCEPT) ===\n\n";
 
 // Create test tables
+$driver = getCurrentDriver($db);
 $db->rawQuery('DROP TABLE IF EXISTS products_eu');
 $db->rawQuery('DROP TABLE IF EXISTS products_us');
 $db->rawQuery('DROP TABLE IF EXISTS orders_2023');
 $db->rawQuery('DROP TABLE IF EXISTS orders_2024');
 
-$db->rawQuery('CREATE TABLE products_eu (id INTEGER PRIMARY KEY, name TEXT, price DECIMAL(10,2))');
-$db->rawQuery('CREATE TABLE products_us (id INTEGER PRIMARY KEY, name TEXT, price DECIMAL(10,2))');
-$db->rawQuery('CREATE TABLE orders_2023 (id INTEGER PRIMARY KEY, product_id INTEGER, amount DECIMAL(10,2))');
-$db->rawQuery('CREATE TABLE orders_2024 (id INTEGER PRIMARY KEY, product_id INTEGER, amount DECIMAL(10,2))');
+if ($driver === 'sqlsrv') {
+    // MSSQL doesn't support TEXT in UNION operations, use NVARCHAR instead
+    $db->rawQuery('CREATE TABLE products_eu (id INT PRIMARY KEY, name NVARCHAR(255), price DECIMAL(10,2))');
+    $db->rawQuery('CREATE TABLE products_us (id INT PRIMARY KEY, name NVARCHAR(255), price DECIMAL(10,2))');
+    $db->rawQuery('CREATE TABLE orders_2023 (id INT PRIMARY KEY, product_id INT, amount DECIMAL(10,2))');
+    $db->rawQuery('CREATE TABLE orders_2024 (id INT PRIMARY KEY, product_id INT, amount DECIMAL(10,2))');
+} else {
+    $db->rawQuery('CREATE TABLE products_eu (id INTEGER PRIMARY KEY, name TEXT, price DECIMAL(10,2))');
+    $db->rawQuery('CREATE TABLE products_us (id INTEGER PRIMARY KEY, name TEXT, price DECIMAL(10,2))');
+    $db->rawQuery('CREATE TABLE orders_2023 (id INTEGER PRIMARY KEY, product_id INTEGER, amount DECIMAL(10,2))');
+    $db->rawQuery('CREATE TABLE orders_2024 (id INTEGER PRIMARY KEY, product_id INTEGER, amount DECIMAL(10,2))');
+}
 
 // Insert sample data
 $db->find()->table('products_eu')->insertMulti([

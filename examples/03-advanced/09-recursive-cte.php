@@ -8,8 +8,9 @@ require_once __DIR__ . '/../helpers.php';
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\PdoDb;
 
-$driver = getenv('PDODB_DRIVER') ?: 'sqlite';
+$driverEnv = getenv('PDODB_DRIVER') ?: 'sqlite';
 $config = getExampleConfig();
+$driver = $config['driver'] ?? $driverEnv; // Use driver from config (converts mssql to sqlsrv)
 
 echo "=== Recursive CTE Examples ===\n\n";
 echo "Database: $driver\n\n";
@@ -129,10 +130,15 @@ echo "\n";
 // Example 2: Recursive CTE - Employee hierarchy chain
 echo "2. Recursive CTE - Management chain from CEO down:\n";
 
+$driverName = $pdoDb->connection->getDriverName();
+$pathSelect = ($driverName === 'pgsql') 
+    ? Db::raw('name::VARCHAR as path')  // PostgreSQL requires explicit cast for recursive CTE
+    : 'name';
+    
 $results = $pdoDb->find()
-    ->withRecursive('emp_hierarchy', function ($q) {
+    ->withRecursive('emp_hierarchy', function ($q) use ($driverName) {
         $q->from('employees_hierarchy')
-          ->select(['id', 'name', 'manager_id', 'salary', Db::raw('0 as level'), 'path' => 'name'])
+          ->select(['id', 'name', 'manager_id', 'salary', Db::raw('0 as level'), 'path' => ($driverName === 'pgsql') ? Db::raw('name::VARCHAR') : 'name'])
           ->where('manager_id', null, 'IS')
           ->unionAll(function ($r) {
               $r->from('employees_hierarchy e')

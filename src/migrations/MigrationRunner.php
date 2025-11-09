@@ -66,6 +66,13 @@ class MigrationRunner
                     apply_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     batch INTEGER NOT NULL
                 )");
+            } elseif ($driver === 'sqlsrv') {
+                // MSSQL requires explicit length for VARCHAR/NVARCHAR in PRIMARY KEY
+                $this->db->rawQuery("CREATE TABLE {$this->migrationTable} (
+                    version NVARCHAR(255) PRIMARY KEY,
+                    apply_time DATETIME DEFAULT GETDATE(),
+                    batch INT NOT NULL
+                )");
             } else {
                 // SQLite
                 $this->db->rawQuery("CREATE TABLE {$this->migrationTable} (

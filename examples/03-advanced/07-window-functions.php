@@ -6,8 +6,9 @@ require_once __DIR__ . '/../helpers.php';
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\PdoDb;
 
-$driver = getenv('PDODB_DRIVER') ?: 'mysql';
+$driverEnv = getenv('PDODB_DRIVER') ?: 'mysql';
 $config = getExampleConfig();
+$driver = $config['driver'] ?? $driverEnv; // Use driver from config (converts mssql to sqlsrv)
 
 echo "=== Window Functions Examples ===\n\n";
 echo "Database: $driver\n\n";
@@ -42,6 +43,15 @@ if ($driver === 'sqlite') {
         amount INT NOT NULL,
         sale_date DATE NOT NULL
     ) ENGINE=InnoDB');
+} elseif ($driver === 'sqlsrv') {
+    $db->rawQuery('DROP TABLE IF EXISTS sales');
+    $db->rawQuery('CREATE TABLE sales (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        product NVARCHAR(100) NOT NULL,
+        region NVARCHAR(50) NOT NULL,
+        amount INT NOT NULL,
+        sale_date DATE NOT NULL
+    )');
 } else { // mysql
     $db->rawQuery('DROP TABLE IF EXISTS sales');
     $db->rawQuery('CREATE TABLE sales (

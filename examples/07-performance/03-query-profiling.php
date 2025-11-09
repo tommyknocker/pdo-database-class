@@ -38,7 +38,7 @@ if ($driverName === 'pgsql') {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ');
-} elseif ($driverName === 'mysql') {
+} elseif ($driverName === 'mysql' || $driverName === 'mariadb') {
     $db->rawQuery('DROP TABLE IF EXISTS profiling_demo');
     $db->rawQuery('
         CREATE TABLE profiling_demo (
@@ -48,6 +48,17 @@ if ($driverName === 'pgsql') {
             value INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB
+    ');
+} elseif ($driverName === 'sqlsrv') {
+    $db->rawQuery('DROP TABLE IF EXISTS profiling_demo');
+    $db->rawQuery('
+        CREATE TABLE profiling_demo (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            name NVARCHAR(100) NOT NULL,
+            category NVARCHAR(50),
+            value INT,
+            created_at DATETIME DEFAULT GETDATE()
+        )
     ');
 } else { // sqlite
     $db->rawQuery('DROP TABLE IF EXISTS profiling_demo');

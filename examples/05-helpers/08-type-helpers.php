@@ -39,7 +39,7 @@ echo "1. Type casting...\n";
 $driver = getCurrentDriver($db);
 $intType = ($driver === 'mysql' || $driver === 'mariadb') ? 'SIGNED' : ($driver === 'pgsql' ? 'INTEGER' : 'INTEGER');
 $realType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'pgsql' ? 'NUMERIC' : 'REAL');
-$textType = ($driver === 'mysql' || $driver === 'mariadb') ? 'CHAR(255)' : 'TEXT';
+$textType = ($driver === 'mysql' || $driver === 'mariadb') ? 'CHAR(255)' : (($driver === 'sqlsrv') ? 'NVARCHAR(255)' : 'TEXT');
 $castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : 'REAL';
 
 $results = $db->find()

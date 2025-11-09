@@ -1105,4 +1105,109 @@ interface DialectInterface
      * @return string Column definition SQL
      */
     public function formatColumnDefinition(string $name, ColumnSchema $schema): string;
+
+    /**
+     * Get boolean column type for this dialect.
+     *
+     * @return array{type: string, length: int|null} Array with 'type' and 'length' keys
+     */
+    public function getBooleanType(): array;
+
+    /**
+     * Get timestamp column type for this dialect.
+     *
+     * @return string Column type name
+     */
+    public function getTimestampType(): string;
+
+    /**
+     * Get datetime column type for this dialect.
+     *
+     * @return string Column type name
+     */
+    public function getDatetimeType(): string;
+
+    /**
+     * Check if PDOException is a "no fields" error that should be handled gracefully.
+     *
+     * Some dialects (e.g., MSSQL) throw exceptions for DDL queries that don't return result sets.
+     * This method checks if the exception should be treated as "no result" rather than an error.
+     *
+     * @param \PDOException $e The exception to check
+     *
+     * @return bool True if this is a "no fields" error that should return empty result
+     */
+    public function isNoFieldsError(\PDOException $e): bool;
+
+    /**
+     * Append LIMIT and OFFSET clause to SQL query.
+     *
+     * This method adds pagination to an existing SQL query. Some dialects (e.g., MSSQL)
+     * require ORDER BY clause when using OFFSET/FETCH, so this method may add a default
+     * ORDER BY if none exists.
+     *
+     * @param string $sql The SQL query
+     * @param int $limit Number of rows to fetch
+     * @param int $offset Number of rows to skip
+     *
+     * @return string SQL query with LIMIT/OFFSET appended
+     */
+    public function appendLimitOffset(string $sql, int $limit, int $offset): string;
+
+    /**
+     * Get primary key column type for this dialect.
+     *
+     * @return string Column type name (e.g., 'INT', 'INTEGER')
+     */
+    public function getPrimaryKeyType(): string;
+
+    /**
+     * Get big primary key column type for this dialect.
+     *
+     * @return string Column type name (e.g., 'BIGINT', 'BIGSERIAL')
+     */
+    public function getBigPrimaryKeyType(): string;
+
+    /**
+     * Get string column type for this dialect.
+     *
+     * @return string Column type name (e.g., 'VARCHAR', 'TEXT')
+     */
+    public function getStringType(): string;
+
+    /**
+     * Format MATERIALIZED keyword for CTE.
+     *
+     * Some dialects support materialized CTEs with different syntax.
+     *
+     * @param string $cteSql The CTE SQL query
+     * @param bool $isMaterialized Whether CTE should be materialized
+     *
+     * @return string Formatted CTE SQL with materialization applied if needed
+     */
+    public function formatMaterializedCte(string $cteSql, bool $isMaterialized): string;
+
+    /**
+     * Register REGEXP functions for this dialect.
+     *
+     * Some dialects (e.g., SQLite, MSSQL) require custom functions to support REGEXP operations.
+     * This method registers those functions if needed. For dialects that don't support REGEXP
+     * or have native support, this method does nothing.
+     *
+     * @param \PDO $pdo The PDO instance
+     * @param bool $force Force re-registration even if functions exist
+     */
+    public function registerRegexpFunctions(\PDO $pdo, bool $force = false): void;
+
+    /**
+     * Normalize DEFAULT keyword value for use in UPDATE/INSERT statements.
+     *
+     * Some dialects don't support DEFAULT keyword in UPDATE statements (e.g., SQLite).
+     * This method converts DEFAULT to an appropriate value for the dialect.
+     *
+     * @param string $value The value to normalize (should be 'DEFAULT' if it's the DEFAULT keyword)
+     *
+     * @return string Normalized value for the dialect
+     */
+    public function normalizeDefaultValue(string $value): string;
 }

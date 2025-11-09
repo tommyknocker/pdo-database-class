@@ -306,8 +306,7 @@ trait DdlBuilderTrait
      */
     public function primaryKey(?int $length = null): ColumnSchema
     {
-        $driver = $this->dialect->getDriverName();
-        $type = $driver === 'pgsql' ? 'INTEGER' : 'INT';
+        $type = $this->dialect->getPrimaryKeyType();
         $schema = new ColumnSchema($type, $length);
         $schema->autoIncrement();
         $schema->notNull();
@@ -322,8 +321,7 @@ trait DdlBuilderTrait
      */
     public function bigPrimaryKey(): ColumnSchema
     {
-        $driver = $this->dialect->getDriverName();
-        $type = $driver === 'pgsql' ? 'BIGSERIAL' : 'BIGINT';
+        $type = $this->dialect->getBigPrimaryKeyType();
         $schema = new ColumnSchema($type);
         $schema->autoIncrement();
         $schema->notNull();
@@ -340,8 +338,7 @@ trait DdlBuilderTrait
      */
     public function string(?int $length = null): ColumnSchema
     {
-        $driver = $this->dialect->getDriverName();
-        $type = $driver === 'sqlite' ? 'TEXT' : 'VARCHAR';
+        $type = $this->dialect->getStringType();
         return new ColumnSchema($type, $length);
     }
 
@@ -394,10 +391,8 @@ trait DdlBuilderTrait
      */
     public function boolean(): ColumnSchema
     {
-        $driver = $this->dialect->getDriverName();
-        $type = $driver === 'pgsql' ? 'BOOLEAN' : 'TINYINT';
-        $length = $driver === 'pgsql' ? null : 1;
-        return new ColumnSchema($type, $length);
+        $typeInfo = $this->dialect->getBooleanType();
+        return new ColumnSchema($typeInfo['type'], $typeInfo['length']);
     }
 
     /**
@@ -453,8 +448,7 @@ trait DdlBuilderTrait
      */
     public function datetime(): ColumnSchema
     {
-        $driver = $this->dialect->getDriverName();
-        $type = $driver === 'pgsql' ? 'TIMESTAMP' : 'DATETIME';
+        $type = $this->dialect->getDatetimeType();
         return new ColumnSchema($type);
     }
 
@@ -465,7 +459,8 @@ trait DdlBuilderTrait
      */
     public function timestamp(): ColumnSchema
     {
-        return new ColumnSchema('TIMESTAMP');
+        $type = $this->dialect->getTimestampType();
+        return new ColumnSchema($type);
     }
 
     /**

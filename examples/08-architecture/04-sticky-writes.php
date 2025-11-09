@@ -15,8 +15,10 @@ require_once __DIR__ . '/../helpers.php';
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer;
 
-$driver = getenv('PDODB_DRIVER') ?: 'mysql';
+$driverEnv = getenv('PDODB_DRIVER') ?: 'mysql';
 $config = getExampleConfig();
+// Use driver from config (converts mssql to sqlsrv)
+$driver = $config['driver'] ?? $driverEnv;
 
 // For SQLite, use a temporary file instead of :memory: for read/write splitting
 if ($driver === 'sqlite') {
@@ -75,6 +77,16 @@ if ($driver === 'sqlite') {
             content TEXT NOT NULL,
             views INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ');
+} elseif ($driver === 'sqlsrv') {
+    $db->rawQuery('
+        CREATE TABLE posts_rw (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            title NVARCHAR(255) NOT NULL,
+            content NTEXT NOT NULL,
+            views INT DEFAULT 0,
+            created_at DATETIME DEFAULT GETDATE()
         )
     ');
 } else {

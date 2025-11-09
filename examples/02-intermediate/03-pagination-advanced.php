@@ -20,8 +20,8 @@ echo "=== Pagination Examples ===\n\n";
 $db->rawQuery('DROP TABLE IF EXISTS posts');
 
 // Create table syntax varies by dialect
-$driver = getenv('PDODB_DRIVER') ?: 'sqlite';
-if ($driver === 'mysql' || $driver === 'mariadb') {
+$driverName = $db->connection->getDriverName();
+if ($driverName === 'mysql' || $driverName === 'mariadb') {
     $db->rawQuery('
         CREATE TABLE posts (
             id INT PRIMARY KEY AUTO_INCREMENT,
@@ -31,7 +31,7 @@ if ($driver === 'mysql' || $driver === 'mariadb') {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ');
-} elseif ($driver === 'pgsql') {
+} elseif ($driverName === 'pgsql') {
     $db->rawQuery('
         CREATE TABLE posts (
             id SERIAL PRIMARY KEY,
@@ -39,6 +39,16 @@ if ($driver === 'mysql' || $driver === 'mariadb') {
             author VARCHAR(100) NOT NULL,
             views INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ');
+} elseif ($driverName === 'sqlsrv') {
+    $db->rawQuery('
+        CREATE TABLE posts (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            title NVARCHAR(255) NOT NULL,
+            author NVARCHAR(100) NOT NULL,
+            views INT DEFAULT 0,
+            created_at DATETIME DEFAULT GETDATE()
         )
     ');
 } else { // sqlite

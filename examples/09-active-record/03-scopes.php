@@ -176,6 +176,29 @@ if ($driver === 'sqlite') {
             email_verified_at TIMESTAMP
         )
     ');
+} elseif ($driver === 'sqlsrv') {
+    $db->rawQuery('
+        CREATE TABLE posts (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            title NVARCHAR(255) NOT NULL,
+            status NVARCHAR(50) DEFAULT \'draft\',
+            author_id INT,
+            view_count INT DEFAULT 0,
+            deleted_at DATETIME NULL,
+            created_at DATETIME DEFAULT GETDATE()
+        )
+    ');
+
+    $db->rawQuery('
+        CREATE TABLE users (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            name NVARCHAR(255) NOT NULL,
+            email NVARCHAR(255) NOT NULL,
+            role NVARCHAR(50) DEFAULT \'user\',
+            is_active INT DEFAULT 1,
+            email_verified_at DATETIME NULL
+        )
+    ');
 } else {
     // MySQL/MariaDB
     $db->rawQuery('
@@ -412,6 +435,15 @@ if ($driver === 'sqlite') {
             name VARCHAR(255) NOT NULL,
             is_active INTEGER DEFAULT 1,
             tenant_id INTEGER
+        )
+    ');
+} elseif ($driver === 'sqlsrv') {
+    $db->rawQuery('
+        CREATE TABLE items (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            name NVARCHAR(255) NOT NULL,
+            is_active INT DEFAULT 1,
+            tenant_id INT
         )
     ');
 } else {

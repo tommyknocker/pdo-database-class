@@ -1699,4 +1699,65 @@ class PostgreSQLDialect extends DialectAbstract
     {
         return true;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getBooleanType(): array
+    {
+        return ['type' => 'BOOLEAN', 'length' => null];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getTimestampType(): string
+    {
+        return 'TIMESTAMP';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getDatetimeType(): string
+    {
+        return 'TIMESTAMP';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getPrimaryKeyType(): string
+    {
+        return 'INTEGER';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getBigPrimaryKeyType(): string
+    {
+        return 'BIGSERIAL';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getStringType(): string
+    {
+        return 'VARCHAR';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatMaterializedCte(string $cteSql, bool $isMaterialized): string
+    {
+        if ($isMaterialized) {
+            // PostgreSQL 12+: MATERIALIZED goes after AS
+            // Return SQL with MATERIALIZED marker that CteManager will use
+            return 'MATERIALIZED:' . $cteSql;
+        }
+        return $cteSql;
+    }
 }

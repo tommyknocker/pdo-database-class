@@ -1476,4 +1476,35 @@ class SqliteDialect extends DialectAbstract
     {
         return true;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getStringType(): string
+    {
+        // SQLite uses TEXT for strings
+        return 'TEXT';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatMaterializedCte(string $cteSql, bool $isMaterialized): string
+    {
+        // SQLite doesn't support materialized CTEs
+        return $cteSql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeDefaultValue(string $value): string
+    {
+        // SQLite doesn't support DEFAULT keyword in UPDATE statements
+        // Replace DEFAULT with NULL (closest equivalent behavior)
+        if (trim($value) === 'DEFAULT') {
+            return 'NULL';
+        }
+        return $value;
+    }
 }

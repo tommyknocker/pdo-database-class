@@ -38,6 +38,27 @@ if ($driverName === 'pgsql') {
             status VARCHAR(50)
         )
     ');
+} elseif ($driverName === 'sqlsrv') {
+    $db->rawQuery('DROP TABLE IF EXISTS update_delete_join_orders');
+    $db->rawQuery('DROP TABLE IF EXISTS update_delete_join_users');
+
+    $db->rawQuery('
+        CREATE TABLE update_delete_join_users (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            name NVARCHAR(100),
+            status NVARCHAR(50),
+            balance DECIMAL(10,2) DEFAULT 0
+        )
+    ');
+
+    $db->rawQuery('
+        CREATE TABLE update_delete_join_orders (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            user_id INT,
+            amount DECIMAL(10,2),
+            status NVARCHAR(50)
+        )
+    ');
 } elseif ($driverName === 'mysql' || $driverName === 'mariadb') {
     $db->rawQuery('DROP TABLE IF EXISTS update_delete_join_orders');
     $db->rawQuery('DROP TABLE IF EXISTS update_delete_join_users');

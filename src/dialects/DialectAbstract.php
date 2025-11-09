@@ -640,4 +640,103 @@ abstract class DialectAbstract implements DialectInterface
         $stmt->closeCursor();
         return $result;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getBooleanType(): array
+    {
+        // Default: TINYINT(1) for MySQL/MariaDB/SQLite
+        return ['type' => 'TINYINT', 'length' => 1];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getTimestampType(): string
+    {
+        // Default: DATETIME for MySQL/MariaDB/SQLite
+        return 'DATETIME';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getDatetimeType(): string
+    {
+        // Default: DATETIME for MySQL/MariaDB/SQLite
+        return 'DATETIME';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function isNoFieldsError(\PDOException $e): bool
+    {
+        // Default: no special handling for "no fields" errors
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function appendLimitOffset(string $sql, int $limit, int $offset): string
+    {
+        // Standard LIMIT/OFFSET syntax for MySQL, PostgreSQL, SQLite
+        return $sql . " LIMIT {$limit} OFFSET {$offset}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getPrimaryKeyType(): string
+    {
+        // Default: INT for MySQL/MariaDB/MSSQL/SQLite
+        return 'INT';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getBigPrimaryKeyType(): string
+    {
+        // Default: BIGINT for MySQL/MariaDB/MSSQL/SQLite
+        return 'BIGINT';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getStringType(): string
+    {
+        // Default: VARCHAR for MySQL/MariaDB/MSSQL/PostgreSQL
+        return 'VARCHAR';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatMaterializedCte(string $cteSql, bool $isMaterialized): string
+    {
+        // Default: no materialization support
+        return $cteSql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function registerRegexpFunctions(\PDO $pdo, bool $force = false): void
+    {
+        // Default: no REGEXP function registration needed
+        // Dialects that need REGEXP support (SQLite, MSSQL) override this method
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeDefaultValue(string $value): string
+    {
+        // Default: return DEFAULT as-is (most dialects support DEFAULT keyword)
+        return $value;
+    }
 }

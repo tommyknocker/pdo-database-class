@@ -47,9 +47,20 @@ echo "  ✓ 4 users inserted into source_users\n\n";
 
 // Example 1: Copy all data from table
 echo "2. Example 1: Copy all data from source table...\n";
-$affected = $db->find()
-    ->table('target_users')
-    ->insertFrom('source_users');
+// For MSSQL, exclude IDENTITY column 'id' when copying
+$driverName = $db->connection->getDriverName();
+if ($driverName === 'sqlsrv') {
+    $affected = $db->find()
+        ->table('target_users')
+        ->insertFrom(function ($query) {
+            $query->from('source_users')
+                ->select(['name', 'email', 'age', 'status', 'created_at']);
+        }, ['name', 'email', 'age', 'status', 'created_at']);
+} else {
+    $affected = $db->find()
+        ->table('target_users')
+        ->insertFrom('source_users');
+}
 
 echo "  ✓ Copied {$affected} rows from source_users to target_users\n";
 $count = $db->find()->from('target_users')->select([Db::count()])->getValue();
@@ -76,12 +87,23 @@ $db->find()->table('target_users')->truncate();
 
 // Example 3: Copy with QueryBuilder filter
 echo "4. Example 3: Copy filtered data using QueryBuilder...\n";
-$affected = $db->find()
-    ->table('target_users')
-    ->insertFrom(function ($query) {
-        $query->from('source_users')
-            ->where('status', 'active');
-    });
+// For MSSQL, exclude IDENTITY column 'id' when copying
+if ($driverName === 'sqlsrv') {
+    $affected = $db->find()
+        ->table('target_users')
+        ->insertFrom(function ($query) {
+            $query->from('source_users')
+                ->where('status', 'active')
+                ->select(['name', 'email', 'age', 'status', 'created_at']);
+        }, ['name', 'email', 'age', 'status', 'created_at']);
+} else {
+    $affected = $db->find()
+        ->table('target_users')
+        ->insertFrom(function ($query) {
+            $query->from('source_users')
+                ->where('status', 'active');
+        });
+}
 
 echo "  ✓ Copied {$affected} active users to target_users\n";
 $count = $db->find()->from('target_users')->select([Db::count()])->getValue();
@@ -98,6 +120,9 @@ if ($driverName === 'pgsql') {
     $avgAgeExpr = 'CAST(AVG(age) AS INTEGER)';
 } elseif ($driverName === 'sqlite') {
     $avgAgeExpr = 'CAST(AVG(age) AS INTEGER)';
+} elseif ($driverName === 'sqlsrv') {
+    // MSSQL
+    $avgAgeExpr = 'CAST(AVG(age) AS INT)';
 } else {
     // MySQL/MariaDB
     $avgAgeExpr = 'CAST(AVG(age) AS SIGNED)';
@@ -127,7 +152,7 @@ $db->find()->table('target_users')->truncate();
 
 // Example 5: Copy with CTE (Common Table Expression)
 $driverName = $db->find()->getConnection()->getDialect()->getDriverName();
-if ($driverName === 'pgsql' || $driverName === 'mysql' || $driverName === 'mariadb') {
+if ($driverName === 'pgsql' || $driverName === 'mysql' || $driverName === 'mariadb' || $driverName === 'sqlsrv') {
     echo "6. Example 5: Copy with CTE (Common Table Expression)...\n";
     $affected = $db->find()
         ->table('target_users')
@@ -183,8 +208,8 @@ echo "  ✓ Total rows copied: {$count}\n\n";
 // Example 7: Copy with ON DUPLICATE handling
 echo "8. Example 7: Copy with ON DUPLICATE handling...\n";
 $currentDriver = $db->find()->getConnection()->getDialect()->getDriverName();
-if ($currentDriver === 'sqlite') {
-    echo "  ⚠ Skipped for SQLite (ON DUPLICATE KEY UPDATE not supported with INSERT ... SELECT)\n\n";
+if ($currentDriver === 'sqlite' || $currentDriver === 'sqlsrv') {
+    echo "  ⚠ Skipped for SQLite/MSSQL (ON DUPLICATE KEY UPDATE not supported with INSERT ... SELECT)\n\n";
 } else {
     // Clear target table first
     $db->find()->table('target_users')->truncate();
@@ -231,13 +256,25 @@ if ($currentDriver === 'sqlite') {
 echo "9. Example 8: Copy limited rows...\n";
 $db->find()->table('target_users')->truncate();
 
-$affected = $db->find()
-    ->table('target_users')
-    ->insertFrom(function ($query) {
-        $query->from('source_users')
-            ->orderBy('id', 'ASC')
-            ->limit(2);
-    });
+// For MSSQL, exclude IDENTITY column 'id' when copying
+if ($driverName === 'sqlsrv') {
+    $affected = $db->find()
+        ->table('target_users')
+        ->insertFrom(function ($query) {
+            $query->from('source_users')
+                ->orderBy('id', 'ASC')
+                ->limit(2)
+                ->select(['name', 'email', 'age', 'status', 'created_at']);
+        }, ['name', 'email', 'age', 'status', 'created_at']);
+} else {
+    $affected = $db->find()
+        ->table('target_users')
+        ->insertFrom(function ($query) {
+            $query->from('source_users')
+                ->orderBy('id', 'ASC')
+                ->limit(2);
+        });
+}
 
 echo "  ✓ Copied {$affected} rows (limited to 2)\n";
 $count = $db->find()->from('target_users')->select([Db::count()])->getValue();

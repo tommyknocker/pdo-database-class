@@ -15,8 +15,10 @@ require_once __DIR__ . '/../helpers.php';
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer;
 
-$driver = getenv('PDODB_DRIVER') ?: 'mysql';
+$driverEnv = getenv('PDODB_DRIVER') ?: 'mysql';
 $config = getExampleConfig();
+// Use driver from config (converts mssql to sqlsrv)
+$driver = $config['driver'] ?? $driverEnv;
 
 // For SQLite, use a temporary file instead of :memory: for read/write splitting
 if ($driver === 'sqlite') {
@@ -83,13 +85,34 @@ if ($driver === 'sqlite') {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ');
-} else {
+} elseif ($driver === 'sqlsrv') {
+    $db->rawQuery('
+        CREATE TABLE users_rw (
+            id INT IDENTITY(1,1) PRIMARY KEY,
+            name NVARCHAR(255) NOT NULL,
+            email NVARCHAR(255) NOT NULL,
+            status NVARCHAR(50) DEFAULT \'active\',
+            created_at DATETIME DEFAULT GETDATE()
+        )
+    ');
+} elseif ($driver === 'mysql' || $driver === 'mariadb') {
     $db->rawQuery('
         CREATE TABLE users_rw (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
             email VARCHAR(255) NOT NULL,
             status VARCHAR(50) DEFAULT \'active\',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ');
+} else {
+    // SQLite fallback
+    $db->rawQuery('
+        CREATE TABLE users_rw (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            status TEXT DEFAULT \'active\',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ');
