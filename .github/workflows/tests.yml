@@ -204,8 +204,10 @@ jobs:
           export PATH="$PATH:/opt/mssql-tools18/bin"
       - name: Install pdo_sqlsrv extension
         run: |
-          sudo pecl install pdo_sqlsrv-5.11.1
-          echo "extension=pdo_sqlsrv.so" | sudo tee $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||")/conf.d/pdo_sqlsrv.ini
+          if ! php -m | grep -q pdo_sqlsrv; then
+            sudo pecl install pdo_sqlsrv-5.11.1 || sudo pecl install -f pdo_sqlsrv-5.11.1
+            echo "extension=pdo_sqlsrv.so" | sudo tee $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||")/conf.d/pdo_sqlsrv.ini
+          fi
           php -m | grep pdo_sqlsrv || echo "Warning: pdo_sqlsrv extension not loaded"
       - name: Wait for MSSQL to be ready
         run: |
