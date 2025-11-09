@@ -13,6 +13,30 @@ use tommyknocker\pdodb\PdoDb;
 function getExampleConfig(): array
 {
     $driver = mb_strtolower(getenv('PDODB_DRIVER') ?: 'sqlite', 'UTF-8');
+    
+    // For CI environments, use environment variables directly
+    if ($driver === 'mssql' || $driver === 'sqlsrv') {
+        $dbUser = getenv('DB_USER');
+        $dbPass = getenv('DB_PASS');
+        $dbHost = getenv('DB_HOST') ?: 'localhost';
+        $dbPort = getenv('DB_PORT') ?: '1433';
+        $dbName = getenv('DB_NAME') ?: 'testdb';
+        
+        // If environment variables are set (CI), use them
+        if ($dbUser !== false && $dbPass !== false) {
+            return [
+                'driver' => 'sqlsrv',
+                'host' => $dbHost,
+                'port' => (int)$dbPort,
+                'username' => $dbUser,
+                'password' => $dbPass,
+                'dbname' => $dbName,
+                'trust_server_certificate' => true,
+                'encrypt' => true,
+            ];
+        }
+    }
+    
     $configFile = __DIR__ . "/config.{$driver}.php";
     
     if (!file_exists($configFile)) {

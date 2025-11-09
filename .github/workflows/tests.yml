@@ -241,6 +241,11 @@ jobs:
       - name: Test MSSQL Examples
         run: |
           export PDODB_DRIVER=mssql
+          export DB_USER="sa"
+          export DB_PASS="Test123!@#"
+          export DB_HOST="localhost"
+          export DB_PORT="1433"
+          export DB_NAME="testdb"
           ./scripts/test-examples.sh --verbose
       - name: Upload MSSQL coverage to Codecov
         uses: codecov/codecov-action@v4
