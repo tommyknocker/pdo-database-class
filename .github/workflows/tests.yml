@@ -187,12 +187,6 @@ jobs:
           MSSQL_PID: Developer
         ports:
           - 1433:1433
-        options: >-
-          --health-cmd="bash -c '/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"Test123!@#\" -C -Q \"SELECT 1\" || exit 1'"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=15
-          --health-start-period=60s
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -216,12 +210,20 @@ jobs:
       - name: Wait for MSSQL to be ready
         run: |
           export PATH="$PATH:/opt/mssql-tools18/bin"
-          for i in {1..60}; do
-            sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q 'SELECT 1' -b > /dev/null 2>&1 && break || true
-            echo "Waiting for MSSQL to be ready... ($i/60)"
+          echo "Waiting for MSSQL to be ready..."
+          for i in {1..120}; do
+            if sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q 'SELECT 1' -b > /dev/null 2>&1; then
+              echo "MSSQL is ready!"
+              sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q 'SELECT @@VERSION' -b
+              break
+            fi
+            if [ $i -eq 120 ]; then
+              echo "MSSQL failed to start after 240 seconds"
+              exit 1
+            fi
+            echo "Waiting for MSSQL... ($i/120)"
             sleep 2
           done
-          sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q 'SELECT @@VERSION' -b
       - name: Create database and user
         run: |
           export PATH="$PATH:/opt/mssql-tools18/bin"
