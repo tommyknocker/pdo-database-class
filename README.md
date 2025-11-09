@@ -47,7 +47,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Enhanced Error Diagnostics** - Query context, sanitized parameters, and debug information in exceptions
 - **Connection Retry** - Automatic retry with exponential backoff
 - **PSR-14 Event Dispatcher** - Event-driven architecture for monitoring, auditing, and middleware
-- **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more (REPEAT, REVERSE, LPAD, RPAD emulated for SQLite)
+- **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more (REPEAT, REVERSE, LPAD, RPAD emulated for SQLite; REGEXP operations supported across all dialects)
 - **Fully Tested** - 1320 tests, 5249 assertions across all dialects
 - **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
 

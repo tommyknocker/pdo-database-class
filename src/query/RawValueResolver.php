@@ -40,6 +40,9 @@ use tommyknocker\pdodb\helpers\values\NowValue;
 use tommyknocker\pdodb\helpers\values\PadValue;
 use tommyknocker\pdodb\helpers\values\PositionValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\helpers\values\RegexpExtractValue;
+use tommyknocker\pdodb\helpers\values\RegexpMatchValue;
+use tommyknocker\pdodb\helpers\values\RegexpReplaceValue;
 use tommyknocker\pdodb\helpers\values\RepeatValue;
 use tommyknocker\pdodb\helpers\values\ReverseValue;
 use tommyknocker\pdodb\helpers\values\RightValue;
@@ -148,6 +151,20 @@ class RawValueResolver
                 $value->getLength(),
                 $value->getPadString(),
                 $value->isLeft()
+            ),
+            $value instanceof RegexpMatchValue => $this->dialect->formatRegexpMatch(
+                $value->getSourceValue(),
+                $value->getPattern()
+            ),
+            $value instanceof RegexpReplaceValue => $this->dialect->formatRegexpReplace(
+                $value->getSourceValue(),
+                $value->getPattern(),
+                $value->getReplacement()
+            ),
+            $value instanceof RegexpExtractValue => $this->dialect->formatRegexpExtract(
+                $value->getSourceValue(),
+                $value->getPattern(),
+                $value->getGroupIndex()
             ),
             $value instanceof DateOnlyValue => $this->dialect->formatDateOnly(
                 $value->getSourceValue()

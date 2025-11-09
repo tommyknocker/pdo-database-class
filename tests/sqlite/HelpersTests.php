@@ -777,4 +777,60 @@ final class HelpersTests extends BaseSqliteTestCase
         $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', $row['today']);
         $this->assertMatchesRegularExpression('/^\d{2}:\d{2}:\d{2}$/', $row['now_time']);
     }
+
+    public function testRegexpHelpers(): void
+    {
+        $db = self::$db;
+
+        // REGEXP functions are automatically registered by ConnectionFactory
+        // No need to check availability - they should be available
+
+        // Create test table
+        $db->rawQuery('DROP TABLE IF EXISTS t_regexp');
+        $db->rawQuery('CREATE TABLE t_regexp (id INTEGER PRIMARY KEY AUTOINCREMENT, email VARCHAR(255), phone VARCHAR(50))');
+
+        // Insert test data
+        $id1 = $db->find()->table('t_regexp')->insert(['email' => 'user@example.com', 'phone' => '+1-555-123-4567']);
+        $id2 = $db->find()->table('t_regexp')->insert(['email' => 'admin@test.org', 'phone' => '+44-20-7946-0958']);
+        $id3 = $db->find()->table('t_regexp')->insert(['email' => 'invalid-email', 'phone' => '12345']);
+
+        // Test regexpMatch - check if email matches pattern
+        $results = $db->find()
+            ->from('t_regexp')
+            ->where(Db::regexpMatch('email', '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'))
+            ->get();
+        $this->assertCount(2, $results);
+        $this->assertEquals('user@example.com', $results[0]['email']);
+        $this->assertEquals('admin@test.org', $results[1]['email']);
+
+        // Test regexpReplace - replace dashes with spaces in phone
+        // Note: regexp_replace requires REGEXP extension with regexp_replace function
+        // If not available, the query will fail with PDOException
+        $row = $db->find()
+            ->from('t_regexp')
+            ->select(['phone_formatted' => Db::regexpReplace('phone', '-', ' ')])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertStringContainsString(' ', $row['phone_formatted']);
+        $this->assertStringNotContainsString('-', $row['phone_formatted']);
+
+        // Test regexpExtract - extract domain from email
+        // Note: regexp_extract requires REGEXP extension with regexp_extract function
+        // If not available, the query will fail with PDOException
+        $row = $db->find()
+            ->from('t_regexp')
+            ->select(['domain' => Db::regexpExtract('email', '@([a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})', 1)])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertNotNull($row['domain']);
+        $this->assertEquals('example.com', $row['domain']);
+
+        // Test regexpMatch in WHERE clause with negation
+        $results = $db->find()
+            ->from('t_regexp')
+            ->where(Db::not(Db::regexpMatch('email', '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$')))
+            ->get();
+        $this->assertCount(1, $results);
+        $this->assertEquals('invalid-email', $results[0]['email']);
+    }
 }

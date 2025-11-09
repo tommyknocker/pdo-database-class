@@ -249,6 +249,77 @@ $users = $db->find()
 foreach ($users as $user) {
     echo "  • {$user['email']} → user: {$user['email_user']}, domain: {$user['email_domain']}\n";
 }
+echo "\n";
+
+// Example 14: REGEXP operations
+echo "14. REGEXP operations - Pattern matching and extraction...\n";
+$driver = getCurrentDriver($db);
+
+// Check if REGEXP is supported (SQLite requires extension)
+if ($driver === 'sqlite') {
+    try {
+        $db->rawQuery("SELECT 'test' REGEXP 'test'");
+    } catch (\PDOException $e) {
+        echo "  ⚠ REGEXP extension not available in SQLite, skipping regexp examples\n";
+        echo "\nString helper functions example completed!\n";
+        exit(0);
+    }
+}
+
+// Insert test data with various email formats
+recreateTable($db, 'contacts', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'email' => 'TEXT', 'phone' => 'TEXT']);
+$db->find()->table('contacts')->insertMulti([
+    ['email' => 'user@example.com', 'phone' => '+1-555-123-4567'],
+    ['email' => 'admin@test.org', 'phone' => '+44-20-7946-0958'],
+    ['email' => 'invalid-email', 'phone' => '12345'],
+]);
+
+// REGEXP_MATCH - Find valid email addresses
+echo "  a) REGEXP_MATCH - Find valid email addresses:\n";
+$validEmails = $db->find()
+    ->from('contacts')
+    ->select(['email'])
+    ->where(Db::regexpMatch('email', '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'))
+    ->get();
+
+foreach ($validEmails as $contact) {
+    echo "    • {$contact['email']}\n";
+}
+echo "\n";
+
+// REGEXP_REPLACE - Format phone numbers
+echo "  b) REGEXP_REPLACE - Format phone numbers:\n";
+$formattedPhones = $db->find()
+    ->from('contacts')
+    ->select([
+        'phone',
+        'formatted' => Db::regexpReplace('phone', '-', ' ')
+    ])
+    ->where(Db::regexpMatch('phone', '-'))
+    ->get();
+
+foreach ($formattedPhones as $contact) {
+    echo "    • {$contact['phone']} → {$contact['formatted']}\n";
+}
+echo "\n";
+
+// REGEXP_EXTRACT - Extract domain from email
+echo "  c) REGEXP_EXTRACT - Extract domain from email:\n";
+$domains = $db->find()
+    ->from('contacts')
+    ->select([
+        'email',
+        'domain' => Db::regexpExtract('email', '@([a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})', 1)
+    ])
+    ->where(Db::regexpMatch('email', '@'))
+    ->get();
+
+foreach ($domains as $contact) {
+    if ($contact['domain'] !== null) {
+        echo "    • {$contact['email']} → domain: {$contact['domain']}\n";
+    }
+}
+echo "\n";
 
 echo "\nString helper functions example completed!\n";
 

@@ -888,6 +888,99 @@ class SqliteDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
+     */
+    public function formatRegexpMatch(string|RawValue $value, string $pattern): string
+    {
+        // SQLite REGEXP requires extension to be loaded
+        // If extension is not available, this will cause a runtime error
+        // Users should ensure REGEXP extension is loaded: PRAGMA compile_options LIKE '%REGEXP%'
+        $val = $this->resolveValue($value);
+        $pat = str_replace("'", "''", $pattern);
+        return "($val REGEXP '$pat')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
+    {
+        // SQLite doesn't have native REGEXP_REPLACE
+        // This requires REGEXP extension and regexp_replace function
+        // If not available, this will cause a runtime error
+        $val = $this->resolveValue($value);
+        $pat = str_replace("'", "''", $pattern);
+        $rep = str_replace("'", "''", $replacement);
+        return "regexp_replace($val, '$pat', '$rep')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatRegexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): string
+    {
+        // SQLite doesn't have native REGEXP_EXTRACT
+        // This requires REGEXP extension and regexp_extract function
+        // If not available, this will cause a runtime error
+        $val = $this->resolveValue($value);
+        $pat = str_replace("'", "''", $pattern);
+        if ($groupIndex !== null && $groupIndex > 0) {
+            return "regexp_extract($val, '$pat', $groupIndex)";
+        }
+        return "regexp_extract($val, '$pat', 0)";
+    }
+
+    /**
+     * Register REGEXP functions for SQLite using PHP's preg_* functions.
+     * This method registers REGEXP, regexp_replace, and regexp_extract functions
+     * if they are not already available.
+     *
+     * @param PDO $pdo The PDO instance
+     * @param bool $force Force re-registration even if functions exist
+     */
+    public function registerRegexpFunctions(PDO $pdo, bool $force = false): void
+    {
+        // Check if REGEXP is already available (unless forced)
+        if (!$force) {
+            try {
+                $pdo->query("SELECT 'test' REGEXP 'test'");
+                // REGEXP is already available, skip registration
+                return;
+            } catch (\PDOException $e) {
+                // REGEXP is not available, proceed with registration
+                // Check if error is about missing function (not other error)
+                if (strpos($e->getMessage(), 'no such function') === false) {
+                    // Different error, don't register
+                    return;
+                }
+            }
+        }
+
+        // Register regexp function (2 arguments: pattern, subject)
+        // Note: In SQLite, REGEXP is a binary operator that calls the 'regexp' function
+        // When SQLite sees "subject REGEXP pattern", it calls regexp(pattern, subject)
+        // So we register it as regexp(pattern, subject)
+        $pdo->sqliteCreateFunction('regexp', function (string $pattern, string $subject): int {
+            return preg_match("/$pattern/", $subject) ? 1 : 0;
+        }, 2);
+
+        // Register regexp_replace function (3 arguments: subject, pattern, replacement)
+        $pdo->sqliteCreateFunction('regexp_replace', function (string $subject, string $pattern, string $replacement): string {
+            $result = preg_replace("/$pattern/", $replacement, $subject);
+            return $result ?? '';
+        }, 3);
+
+        // Register regexp_extract function (3 arguments: subject, pattern, groupIndex)
+        $pdo->sqliteCreateFunction('regexp_extract', function (string $subject, string $pattern, int $groupIndex = 0): string {
+            if (preg_match("/$pattern/", $subject, $matches)) {
+                $index = (int)$groupIndex;
+                return (string)($matches[$index] ?? '');
+            }
+            return '';
+        }, 3);
+    }
+
+    /**
+     * {@inheritDoc}
      * SQLite doesn't have LEFT function, use SUBSTR(value, 1, length).
      */
     public function formatLeft(string|RawValue $value, int $length): string

@@ -177,12 +177,14 @@ $db = new PdoDb('sqlite', [
 ```php
 $db = new PdoDb('sqlite', [
     // Connection options
-    'pdo'   => null,                       // Optional: Existing PDO object
-    'path'  => '/path/to/database.sqlite', // Required: Path to SQLite file
-                                           // Use ':memory:' for in-memory database
-    'prefix'=> 'sq_',                      // Optional: Table prefix
-    'mode'  => 'rwc',                      // Optional: Open mode (ro, rw, rwc, memory)
-    'cache' => 'shared'                    // Optional: Cache mode (shared, private)
+    'pdo'         => null,                       // Optional: Existing PDO object
+    'path'        => '/path/to/database.sqlite', // Required: Path to SQLite file
+                                                 // Use ':memory:' for in-memory database
+    'prefix'      => 'sq_',                      // Optional: Table prefix
+    'mode'        => 'rwc',                      // Optional: Open mode (ro, rw, rwc, memory)
+    'cache'       => 'shared',                   // Optional: Cache mode (shared, private)
+    'enable_regexp' => true                     // Optional: Enable REGEXP functions (default: true)
+                                                 // Automatically registers REGEXP, regexp_replace, regexp_extract
 ]);
 ```
 

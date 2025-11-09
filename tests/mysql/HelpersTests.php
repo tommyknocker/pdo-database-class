@@ -821,4 +821,63 @@ final class HelpersTests extends BaseMySQLTestCase
         $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', $row['today']);
         $this->assertMatchesRegularExpression('/^\d{2}:\d{2}:\d{2}$/', $row['now_time']);
     }
+
+    public function testRegexpHelpers(): void
+    {
+        $db = self::$db;
+
+        // Create test table
+        $db->rawQuery('DROP TABLE IF EXISTS t_regexp');
+        $db->rawQuery('CREATE TABLE t_regexp (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(255), phone VARCHAR(50))');
+
+        // Insert test data
+        $id1 = $db->find()->table('t_regexp')->insert(['email' => 'user@example.com', 'phone' => '+1-555-123-4567']);
+        $id2 = $db->find()->table('t_regexp')->insert(['email' => 'admin@test.org', 'phone' => '+44-20-7946-0958']);
+        $id3 = $db->find()->table('t_regexp')->insert(['email' => 'invalid-email', 'phone' => '12345']);
+
+        // Test regexpMatch - check if email matches pattern
+        $results = $db->find()
+            ->from('t_regexp')
+            ->where(Db::regexpMatch('email', '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'))
+            ->get();
+        $this->assertCount(2, $results);
+        $this->assertEquals('user@example.com', $results[0]['email']);
+        $this->assertEquals('admin@test.org', $results[1]['email']);
+
+        // Test regexpReplace - replace dashes with spaces in phone
+        $row = $db->find()
+            ->from('t_regexp')
+            ->select(['phone_formatted' => Db::regexpReplace('phone', '-', ' ')])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertStringContainsString(' ', $row['phone_formatted']);
+        $this->assertStringNotContainsString('-', $row['phone_formatted']);
+
+        // Test regexpExtract - extract domain from email
+        // Note: MySQL REGEXP_SUBSTR doesn't support capture groups in older versions
+        // We test full match extraction instead
+        $row = $db->find()
+            ->from('t_regexp')
+            ->select(['domain_match' => Db::regexpExtract('email', '@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}')])
+            ->where('id', $id1)
+            ->getOne();
+        // REGEXP_SUBSTR returns the matched substring (full match)
+        $this->assertStringContainsString('@example.com', $row['domain_match']);
+
+        // Test regexpExtract with full match (groupIndex = 0 or null)
+        $row = $db->find()
+            ->from('t_regexp')
+            ->select(['full_match' => Db::regexpExtract('email', '^[a-zA-Z0-9._%+-]+@')])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertStringContainsString('user@', $row['full_match']);
+
+        // Test regexpMatch in WHERE clause with negation
+        $results = $db->find()
+            ->from('t_regexp')
+            ->where(Db::not(Db::regexpMatch('email', '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$')))
+            ->get();
+        $this->assertCount(1, $results);
+        $this->assertEquals('invalid-email', $results[0]['email']);
+    }
 }

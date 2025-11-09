@@ -906,6 +906,42 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatRegexpMatch(string|RawValue $value, string $pattern): string
+    {
+        $val = $this->resolveValue($value);
+        $pat = str_replace("'", "''", $pattern);
+        return "($val REGEXP '$pat')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
+    {
+        $val = $this->resolveValue($value);
+        $pat = str_replace("'", "''", $pattern);
+        $rep = str_replace("'", "''", $replacement);
+        return "REGEXP_REPLACE($val, '$pat', '$rep')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatRegexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): string
+    {
+        $val = $this->resolveValue($value);
+        $pat = str_replace("'", "''", $pattern);
+        // MariaDB REGEXP_SUBSTR syntax: REGEXP_SUBSTR(expr, pattern[, pos[, occurrence[, match_type[, subexpr]]]])
+        // Note: subexpr parameter (6th parameter) is available in MariaDB 10.0.5+
+        // For compatibility, we only support full match extraction
+        // Capture group extraction requires MariaDB 10.0.5+ with subexpr parameter
+        // For now, we return the full match regardless of groupIndex
+        return "REGEXP_SUBSTR($val, '$pat')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string
     {
         $cols = is_array($columns) ? $columns : [$columns];

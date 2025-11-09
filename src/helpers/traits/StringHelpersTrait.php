@@ -9,6 +9,9 @@ use tommyknocker\pdodb\helpers\values\LeftValue;
 use tommyknocker\pdodb\helpers\values\PadValue;
 use tommyknocker\pdodb\helpers\values\PositionValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\helpers\values\RegexpExtractValue;
+use tommyknocker\pdodb\helpers\values\RegexpMatchValue;
+use tommyknocker\pdodb\helpers\values\RegexpReplaceValue;
 use tommyknocker\pdodb\helpers\values\RepeatValue;
 use tommyknocker\pdodb\helpers\values\ReverseValue;
 use tommyknocker\pdodb\helpers\values\RightValue;
@@ -262,17 +265,45 @@ trait StringHelpersTrait
 
     /**
      * Returns regexp match result (dialect-specific).
-     * Note: Implementation varies by database. Returns boolean expression.
+     * Returns boolean expression (true if matches, false otherwise).
      *
      * @param string|RawValue $value The source string.
      * @param string $pattern The regex pattern.
      *
-     * @return RawValue The RawValue instance for REGEXP/RLIKE.
+     * @return RegexpMatchValue The RegexpMatchValue instance for REGEXP match.
      */
-    public static function regexpMatch(string|RawValue $value, string $pattern): RawValue
+    public static function regexpMatch(string|RawValue $value, string $pattern): RegexpMatchValue
     {
-        $val = $value instanceof RawValue ? $value->getValue() : $value;
-        $pat = addslashes($pattern);
-        return new RawValue("($val REGEXP '$pat')");
+        return new RegexpMatchValue($value, $pattern);
+    }
+
+    /**
+     * Returns regexp replace expression (dialect-specific).
+     * Replaces all occurrences of pattern with replacement string.
+     *
+     * @param string|RawValue $value The source string.
+     * @param string $pattern The regex pattern.
+     * @param string $replacement The replacement string.
+     *
+     * @return RegexpReplaceValue The RegexpReplaceValue instance for REGEXP replace.
+     */
+    public static function regexpReplace(string|RawValue $value, string $pattern, string $replacement): RegexpReplaceValue
+    {
+        return new RegexpReplaceValue($value, $pattern, $replacement);
+    }
+
+    /**
+     * Returns regexp extract expression (dialect-specific).
+     * Extracts matched substring or capture group from string.
+     *
+     * @param string|RawValue $value The source string.
+     * @param string $pattern The regex pattern.
+     * @param int|null $groupIndex Capture group index (0 = full match, 1+ = specific group, null = full match).
+     *
+     * @return RegexpExtractValue The RegexpExtractValue instance for REGEXP extract.
+     */
+    public static function regexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): RegexpExtractValue
+    {
+        return new RegexpExtractValue($value, $pattern, $groupIndex);
     }
 }

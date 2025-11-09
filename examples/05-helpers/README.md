@@ -20,6 +20,7 @@ String manipulation functions.
 - `replace()` - Replace substring
 - `reverse()` - Reverse string
 - `position()` - Find substring position
+- `regexpMatch()`, `regexpReplace()`, `regexpExtract()` - Regular expression operations
 
 ### 02-math-helpers.php
 Mathematical operations and functions.

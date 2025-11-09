@@ -592,6 +592,38 @@ interface DialectInterface
      */
     public function formatPad(string|RawValue $value, int $length, string $padString, bool $isLeft): string;
 
+    /**
+     * Format REGEXP match expression (returns boolean).
+     *
+     * @param string|RawValue $value Source string.
+     * @param string $pattern Regex pattern.
+     *
+     * @return string SQL expression that returns boolean (true if matches, false otherwise).
+     */
+    public function formatRegexpMatch(string|RawValue $value, string $pattern): string;
+
+    /**
+     * Format REGEXP replace expression.
+     *
+     * @param string|RawValue $value Source string.
+     * @param string $pattern Regex pattern.
+     * @param string $replacement Replacement string.
+     *
+     * @return string SQL expression for regexp replacement.
+     */
+    public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string;
+
+    /**
+     * Format REGEXP extract expression (extracts matched substring).
+     *
+     * @param string|RawValue $value Source string.
+     * @param string $pattern Regex pattern.
+     * @param int|null $groupIndex Capture group index (0 = full match, 1+ = specific group, null = full match).
+     *
+     * @return string SQL expression for regexp extraction.
+     */
+    public function formatRegexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): string;
+
     /* ---------------- Original SQL helpers and dialect-specific expressions ---------------- */
 
     /**

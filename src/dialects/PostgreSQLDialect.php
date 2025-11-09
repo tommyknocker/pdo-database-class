@@ -1110,6 +1110,49 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatRegexpMatch(string|RawValue $value, string $pattern): string
+    {
+        $val = $this->resolveValue($value);
+        $pat = str_replace("'", "''", $pattern);
+        // PostgreSQL uses ~ operator for case-sensitive match
+        return "($val ~ '$pat')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
+    {
+        $val = $this->resolveValue($value);
+        $pat = str_replace("'", "''", $pattern);
+        $rep = str_replace("'", "''", $replacement);
+        return "regexp_replace($val, '$pat', '$rep', 'g')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatRegexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): string
+    {
+        $val = $this->resolveValue($value);
+        // Escape single quotes for PostgreSQL string literal (backslashes are handled by PostgreSQL regex)
+        $pat = str_replace("'", "''", $pattern);
+        // PostgreSQL regexp_match returns array, use (regexp_match(...))[1] for first group
+        // For full match (groupIndex = 0 or null), use [1] (full match)
+        // For specific group, use [groupIndex + 1] since PostgreSQL arrays are 1-indexed
+        // [1] = full match, [2] = first capture group, [3] = second capture group, etc.
+        // Note: regexp_match returns NULL if no match, so array indexing will also return NULL
+        if ($groupIndex !== null && $groupIndex > 0) {
+            $arrayIndex = $groupIndex + 1;
+            return "(regexp_match($val, '$pat'))[$arrayIndex]";
+        }
+        // For full match, use [1] which is the full match
+        return "(regexp_match($val, '$pat'))[1]";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatDateOnly(string|RawValue $value): string
     {
         return $this->resolveValue($value) . '::DATE';

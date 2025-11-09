@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use PDO;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
+use tommyknocker\pdodb\dialects\SqliteDialect;
 use tommyknocker\pdodb\events\ConnectionOpenedEvent;
 
 /**
@@ -61,6 +62,14 @@ class ConnectionFactory
         }
 
         $dialect->setPdo($pdo);
+
+        // Register REGEXP functions for SQLite if enabled (default: true)
+        if ($driver === 'sqlite' && $dialect instanceof SqliteDialect) {
+            $enableRegexp = $config['enable_regexp'] ?? true;
+            if ($enableRegexp) {
+                $dialect->registerRegexpFunctions($pdo);
+            }
+        }
 
         // Use RetryableConnection if retry is enabled
         $retryConfig = $config['retry'] ?? [];

@@ -179,7 +179,9 @@ use tommyknocker\pdodb\helpers\values\YearValue;
  * @method static PadValue padRight(string|RawValue $value, int $length, string $padString = ' ') Returns string padded on right.
  * @method static PadValue lpad(string|RawValue $value, int $length, string $padString = ' ') Alias for padLeft().
  * @method static PadValue rpad(string|RawValue $value, int $length, string $padString = ' ') Alias for padRight().
- * @method static RawValue regexpMatch(string|RawValue $value, string $pattern) Returns regexp match result.
+ * @method static \tommyknocker\pdodb\helpers\values\RegexpMatchValue regexpMatch(string|RawValue $value, string $pattern) Returns regexp match result (boolean expression).
+ * @method static \tommyknocker\pdodb\helpers\values\RegexpReplaceValue regexpReplace(string|RawValue $value, string $pattern, string $replacement) Returns regexp replace expression.
+ * @method static \tommyknocker\pdodb\helpers\values\RegexpExtractValue regexpExtract(string|RawValue $value, string $pattern, int|null $groupIndex = null) Returns regexp extract expression.
  *
  * Type Conversion & Comparison:
  * @method static RawValue cast(mixed $value, string $type) Returns CAST expression.
