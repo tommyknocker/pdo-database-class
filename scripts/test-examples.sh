@@ -21,6 +21,7 @@ echo ""
 MYSQL_AVAILABLE=0
 MARIADB_AVAILABLE=0
 PGSQL_AVAILABLE=0
+MSSQL_AVAILABLE=0
 SQLITE_AVAILABLE=1  # SQLite always available
 
 # Check MySQL
@@ -90,6 +91,34 @@ else
     echo -e "${YELLOW}⊘ PostgreSQL config not found (examples/config.pgsql.php)${NC}"
 fi
 
+# Check MSSQL
+if [ -f "examples/config.mssql.php" ]; then
+    if php -r "
+        \$config = require 'examples/config.mssql.php';
+        try {
+            \$port = \$config['port'] ?? 1433;
+            \$dsn = 'sqlsrv:Server=' . \$config['host'] . ',' . \$port . ';Database=' . \$config['dbname'];
+            if (isset(\$config['trust_server_certificate']) && \$config['trust_server_certificate']) {
+                \$dsn .= ';TrustServerCertificate=yes';
+            }
+            if (isset(\$config['encrypt']) && \$config['encrypt']) {
+                \$dsn .= ';Encrypt=yes';
+            }
+            new PDO(\$dsn, \$config['username'], \$config['password']);
+            exit(0);
+        } catch (Exception \$e) {
+            exit(1);
+        }
+    " 2>/dev/null; then
+        MSSQL_AVAILABLE=1
+        echo -e "${GREEN}✓ MSSQL available${NC}"
+    else
+        echo -e "${YELLOW}⊘ MSSQL not available (config exists but connection failed)${NC}"
+    fi
+else
+    echo -e "${YELLOW}⊘ MSSQL config not found (examples/config.mssql.php)${NC}"
+fi
+
 echo -e "${GREEN}✓ SQLite available (always)${NC}"
 echo ""
 
@@ -107,6 +136,9 @@ RESULTS["pgsql_failed"]=0
 RESULTS["sqlite_total"]=0
 RESULTS["sqlite_passed"]=0
 RESULTS["sqlite_failed"]=0
+RESULTS["mssql_total"]=0
+RESULTS["mssql_passed"]=0
+RESULTS["mssql_failed"]=0
 
 echo "================================================"
 echo "Running Tests"
@@ -204,6 +236,27 @@ for file in examples/*/*.php; do
             fi
         fi
     fi
+    
+    # Test on MSSQL if available
+    if [ $MSSQL_AVAILABLE -eq 1 ]; then
+        RESULTS["mssql_total"]=$((${RESULTS["mssql_total"]} + 1))
+        echo -n -e "${CYAN}[$category/$filename]${NC} on ${BLUE}MSSQL${NC} ... "
+        
+        export PDODB_DRIVER="mssql"
+        if timeout 30 php "$file" > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ PASSED${NC}"
+            RESULTS["mssql_passed"]=$((${RESULTS["mssql_passed"]} + 1))
+        else
+            echo -e "${RED}✗ FAILED${NC}"
+            RESULTS["mssql_failed"]=$((${RESULTS["mssql_failed"]} + 1))
+            
+            if [ "$1" == "--verbose" ] || [ "$1" == "-v" ]; then
+                echo -e "${YELLOW}Error output:${NC}"
+                php "$file" 2>&1 | tail -10
+                echo ""
+            fi
+        fi
+    fi
 done
 
 echo ""
@@ -245,6 +298,14 @@ if [ ${RESULTS["pgsql_total"]} -gt 0 ]; then
     fi
 fi
 
+if [ ${RESULTS["mssql_total"]} -gt 0 ]; then
+    echo -e "${BLUE}MSSQL:${NC} ${GREEN}${RESULTS["mssql_passed"]}${NC}/${RESULTS["mssql_total"]} passed"
+    if [ ${RESULTS["mssql_failed"]} -gt 0 ]; then
+        echo -e "  Failed: ${RED}${RESULTS["mssql_failed"]}${NC}"
+        TOTAL_FAILED=$((TOTAL_FAILED + ${RESULTS["mssql_failed"]}))
+    fi
+fi
+
 echo "================================================"
 
 if [ $TOTAL_FAILED -gt 0 ]; then
@@ -264,6 +325,9 @@ else
     fi
     if [ $PGSQL_AVAILABLE -eq 0 ]; then
         MISSING_DBS+=("PostgreSQL (create examples/config.pgsql.php)")
+    fi
+    if [ $MSSQL_AVAILABLE -eq 0 ]; then
+        MISSING_DBS+=("MSSQL (create examples/config.mssql.php)")
     fi
     
     if [ ${#MISSING_DBS[@]} -gt 0 ]; then

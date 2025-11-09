@@ -544,4 +544,19 @@ abstract class DialectAbstract implements DialectInterface
     {
         return 'TIME(' . $this->resolveValue($value) . ')';
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatLimitOffset(string $sql, ?int $limit, ?int $offset): string
+    {
+        // Default implementation: append LIMIT and OFFSET
+        if ($limit !== null) {
+            $sql .= ' LIMIT ' . (int)$limit;
+        }
+        if ($offset !== null) {
+            $sql .= ' OFFSET ' . (int)$offset;
+        }
+        return $sql;
+    }
 }

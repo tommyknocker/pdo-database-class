@@ -111,6 +111,18 @@ interface DialectInterface
     public function formatSelectOptions(string $sql, array $options): string;
 
     /**
+     * Format LIMIT and OFFSET clause for SELECT statement.
+     * MSSQL uses TOP or OFFSET...FETCH NEXT instead of LIMIT/OFFSET.
+     *
+     * @param string $sql The SQL query
+     * @param int|null $limit LIMIT value (null = no limit)
+     * @param int|null $offset OFFSET value (null = no offset)
+     *
+     * @return string SQL with properly formatted LIMIT/OFFSET
+     */
+    public function formatLimitOffset(string $sql, ?int $limit, ?int $offset): string;
+
+    /**
      * Build upsert clause.
      *
      * @param array<int, string>|array<string, mixed> $updateColumns Either array of column names or associative array with expressions

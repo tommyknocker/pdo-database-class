@@ -193,6 +193,15 @@ class RawValueResolver
             return 'NULL';
         }
 
+        // MSSQL-specific replacements
+        if ($this->dialect->getDriverName() === 'sqlsrv') {
+            // Replace LENGTH( with LEN( but be careful not to replace in strings or identifiers
+            $sql = preg_replace('/\bLENGTH\s*\(/i', 'LEN(', $sql);
+            // MSSQL doesn't support TRUE/FALSE literals, use 1/0 for BIT type
+            $sql = preg_replace('/\bTRUE\b/i', '1', $sql);
+            $sql = preg_replace('/\bFALSE\b/i', '0', $sql);
+        }
+
         if (empty($params)) {
             return $sql;
         }

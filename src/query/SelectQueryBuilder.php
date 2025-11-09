@@ -254,7 +254,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         }
         foreach ($cols as $index => $col) {
             if ($col instanceof RawValue && is_string($index)) {
-                $this->select[] = $this->resolveRawValue($col) . ' AS ' . $index;
+                $alias = $this->dialect->quoteIdentifier($index);
+                $this->select[] = $this->resolveRawValue($col) . ' AS ' . $alias;
             } elseif ($col instanceof RawValue) {
                 $this->select[] = $this->resolveRawValue($col);
             } elseif (is_callable($col)) {
@@ -264,15 +265,17 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 $sub = $subQuery->toSQL();
                 $map = $this->parameterManager->mergeSubParams($sub['params'], 'sq');
                 $subSql = $this->parameterManager->replacePlaceholdersInSql($sub['sql'], $map);
-                $this->select[] = is_string($index) ? "({$subSql}) AS {$index}" : "({$subSql})";
+                $alias = is_string($index) ? $this->dialect->quoteIdentifier($index) : '';
+                $this->select[] = is_string($index) ? "({$subSql}) AS {$alias}" : "({$subSql})";
             } elseif (is_string($index)) { // ['total' => 'SUM(amount)] Treat it as SUM(amount) AS total
                 // Process external references in column expressions
                 $processedCol = $this->processExternalReferences($col);
+                $alias = $this->dialect->quoteIdentifier($index);
                 if ($processedCol instanceof RawValue) {
-                    $this->select[] = $this->resolveRawValue($processedCol) . ' AS ' . $index;
+                    $this->select[] = $this->resolveRawValue($processedCol) . ' AS ' . $alias;
                 } else {
                     $colStr = is_string($col) ? $col : (string)$col;
-                    $this->select[] = $colStr . ' AS ' . $index;
+                    $this->select[] = $colStr . ' AS ' . $alias;
                 }
             } else {
                 // Process external references in column names
@@ -980,13 +983,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 $sql .= ' ORDER BY ' . implode(', ', $this->order);
             }
 
-            if ($this->limit !== null) {
-                $sql .= ' LIMIT ' . (int)$this->limit;
-            }
-
-            if ($this->offset !== null) {
-                $sql .= ' OFFSET ' . (int)$this->offset;
-            }
+            // Format LIMIT/OFFSET using dialect-specific method
+            $sql = $this->dialect->formatLimitOffset($sql, $this->limit, $this->offset);
 
             $sql = $this->dialect->formatSelectOptions($sql, $this->options);
         } else {
@@ -999,13 +997,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 $sql .= ' ORDER BY ' . implode(', ', $this->order);
             }
 
-            if ($this->limit !== null) {
-                $sql .= ' LIMIT ' . (int)$this->limit;
-            }
-
-            if ($this->offset !== null) {
-                $sql .= ' OFFSET ' . (int)$this->offset;
-            }
+            // Format LIMIT/OFFSET using dialect-specific method
+            $sql = $this->dialect->formatLimitOffset($sql, $this->limit, $this->offset);
         }
 
         return trim($sql);

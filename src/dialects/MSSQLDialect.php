@@ -196,6 +196,51 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatLimitOffset(string $sql, ?int $limit, ?int $offset): string
+    {
+        // MSSQL doesn't support LIMIT/OFFSET syntax
+        // Use TOP for LIMIT only, or OFFSET...FETCH NEXT for LIMIT+OFFSET
+        // ORDER BY is required for OFFSET...FETCH NEXT
+        
+        if ($limit !== null && $offset === null) {
+            // Simple LIMIT: use TOP
+            // TOP must be placed right after SELECT
+            if (preg_match('/^SELECT\s+/i', $sql)) {
+                $sql = preg_replace('/^SELECT\s+/i', "SELECT TOP ({$limit}) ", $sql);
+            }
+        } elseif ($limit !== null && $offset !== null) {
+            // LIMIT + OFFSET: use OFFSET...FETCH NEXT
+            // Remove any existing LIMIT/OFFSET
+            $sql = preg_replace('/\s+LIMIT\s+\d+/i', '', $sql);
+            $sql = preg_replace('/\s+OFFSET\s+\d+/i', '', $sql);
+            // Ensure ORDER BY exists (required for OFFSET...FETCH NEXT)
+            if (!preg_match('/\s+ORDER\s+BY\s+/i', $sql)) {
+                // If no ORDER BY, add a dummy one (MSSQL requires it)
+                // Try to find a primary key or first column
+                if (preg_match('/SELECT\s+.*?\s+FROM\s+(\w+)/i', $sql, $matches)) {
+                    $table = $matches[1];
+                    $sql .= " ORDER BY (SELECT NULL)";
+                } else {
+                    $sql .= " ORDER BY (SELECT NULL)";
+                }
+            }
+            $sql .= " OFFSET {$offset} ROWS FETCH NEXT {$limit} ROWS ONLY";
+        } elseif ($offset !== null) {
+            // OFFSET only: use OFFSET...FETCH NEXT (without limit, use a large number)
+            $sql = preg_replace('/\s+OFFSET\s+\d+/i', '', $sql);
+            // Ensure ORDER BY exists
+            if (!preg_match('/\s+ORDER\s+BY\s+/i', $sql)) {
+                $sql .= " ORDER BY (SELECT NULL)";
+            }
+            $sql .= " OFFSET {$offset} ROWS";
+        }
+        
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
     {
         if (!$updateColumns) {
@@ -832,15 +877,116 @@ class MSSQLDialect extends DialectAbstract
     }
 
     /**
+     * Register REGEXP functions for MSSQL using SQL Server user-defined functions.
+     * Creates T-SQL functions that use PATINDEX and string manipulation for regex matching.
+     *
+     * Note: This is a basic implementation using PATINDEX. PATINDEX supports SQL Server
+     * patterns (%, _, [], [^]), not full regex. For full regex support, SQL Server CLR
+     * functions should be used.
+     *
+     * @param PDO $pdo The PDO instance
+     * @param bool $force Force re-registration even if functions exist
+     */
+    public function registerRegexpFunctions(PDO $pdo, bool $force = false): void
+    {
+        // Check if REGEXP functions are already available (unless forced)
+        if (!$force) {
+            try {
+                // Check if functions exist in sys.objects
+                $stmt = $pdo->query("
+                    SELECT COUNT(*) as cnt 
+                    FROM sys.objects 
+                    WHERE name IN ('regexp_match', 'regexp_replace', 'regexp_extract') 
+                    AND type = 'FN'
+                    AND schema_id = SCHEMA_ID('dbo')
+                ");
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($result && (int)$result['cnt'] === 3) {
+                    // Functions are already available, skip registration
+                    return;
+                }
+            } catch (\PDOException $e) {
+                // Error checking, proceed with registration
+            }
+        }
+
+        // Create user-defined functions using T-SQL
+        // These functions use PATINDEX for basic pattern matching
+
+        // Function for regexp_match (returns 1 if matches, 0 otherwise)
+        // DROP and CREATE must be separate statements
+        try {
+            $pdo->exec("IF OBJECT_ID('dbo.regexp_match', 'FN') IS NOT NULL DROP FUNCTION dbo.regexp_match");
+        } catch (\PDOException $e) {
+            // Ignore errors if function doesn't exist
+        }
+        $pdo->exec("
+            CREATE FUNCTION dbo.regexp_match(@subject NVARCHAR(MAX), @pattern NVARCHAR(MAX))
+            RETURNS BIT
+            WITH EXECUTE AS CALLER
+            AS
+            BEGIN
+                -- Use PATINDEX for basic pattern matching
+                -- Note: PATINDEX supports SQL Server patterns, not full regex
+                -- For full regex support, SQL Server CLR functions should be used
+                IF PATINDEX(@pattern, @subject) > 0
+                    RETURN 1;
+                RETURN 0;
+            END
+        ");
+
+        // Function for regexp_replace
+        try {
+            $pdo->exec("IF OBJECT_ID('dbo.regexp_replace', 'FN') IS NOT NULL DROP FUNCTION dbo.regexp_replace");
+        } catch (\PDOException $e) {
+            // Ignore errors if function doesn't exist
+        }
+        $pdo->exec("
+            CREATE FUNCTION dbo.regexp_replace(@subject NVARCHAR(MAX), @pattern NVARCHAR(MAX), @replacement NVARCHAR(MAX))
+            RETURNS NVARCHAR(MAX)
+            WITH EXECUTE AS CALLER
+            AS
+            BEGIN
+                -- Basic replacement using REPLACE
+                -- For complex regex, use CLR functions
+                RETURN REPLACE(@subject, @pattern, @replacement);
+            END
+        ");
+
+        // Function for regexp_extract
+        try {
+            $pdo->exec("IF OBJECT_ID('dbo.regexp_extract', 'FN') IS NOT NULL DROP FUNCTION dbo.regexp_extract");
+        } catch (\PDOException $e) {
+            // Ignore errors if function doesn't exist
+        }
+        $pdo->exec("
+            CREATE FUNCTION dbo.regexp_extract(@subject NVARCHAR(MAX), @pattern NVARCHAR(MAX), @groupIndex INT = 0)
+            RETURNS NVARCHAR(MAX)
+            WITH EXECUTE AS CALLER
+            AS
+            BEGIN
+                -- Basic extraction using PATINDEX and SUBSTRING
+                DECLARE @pos INT = PATINDEX(@pattern, @subject);
+                IF @pos > 0
+                    RETURN SUBSTRING(@subject, @pos, LEN(@subject));
+                RETURN '';
+            END
+        ");
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function formatRegexpMatch(string|RawValue $value, string $pattern): string
     {
         $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        // MSSQL uses LIKE with wildcards or PATINDEX for regex-like matching
-        // For basic regex, use PATINDEX (returns position, 0 if not found)
-        return "(PATINDEX('%{$pat}%', $val) > 0)";
+        // Use registered user-defined function
+        // PATINDEX pattern: convert basic regex patterns to SQL Server patterns
+        // Note: This is a simplified conversion - full regex requires CLR
+        $sqlPattern = $this->convertRegexToSqlPattern($pattern);
+        $sqlPatternEscaped = str_replace("'", "''", $sqlPattern);
+        // PATINDEX searches anywhere, so add % around pattern
+        return "(dbo.regexp_match($val, '%{$sqlPatternEscaped}%') = 1)";
     }
 
     /**
@@ -849,11 +995,13 @@ class MSSQLDialect extends DialectAbstract
     public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
     {
         $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
         $rep = str_replace("'", "''", $replacement);
-        // MSSQL doesn't have native regex replace, use REPLACE for simple patterns
-        // For complex regex, would need CLR functions or manual string manipulation
-        return "REPLACE($val, '{$pat}', '{$rep}')";
+        // Use registered user-defined function
+        // Convert regex pattern to SQL Server pattern
+        $sqlPattern = $this->convertRegexToSqlPattern($pattern);
+        $sqlPatternEscaped = str_replace("'", "''", $sqlPattern);
+        // For REPLACE, use exact pattern match (no % wildcards)
+        return "dbo.regexp_replace($val, '{$sqlPatternEscaped}', '{$rep}')";
     }
 
     /**
@@ -862,11 +1010,49 @@ class MSSQLDialect extends DialectAbstract
     public function formatRegexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): string
     {
         $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        // MSSQL doesn't have native regex extract
-        // Use SUBSTRING with PATINDEX for basic extraction
-        $start = "PATINDEX('%{$pat}%', $val)";
-        return "SUBSTRING($val, $start, LEN($val))";
+        $groupIdx = $groupIndex ?? 0;
+        // Use registered user-defined function
+        // Convert regex pattern to SQL Server pattern
+        $sqlPattern = $this->convertRegexToSqlPattern($pattern);
+        $sqlPatternEscaped = str_replace("'", "''", $sqlPattern);
+        // PATINDEX searches anywhere, so add % around pattern
+        return "dbo.regexp_extract($val, '%{$sqlPatternEscaped}%', $groupIdx)";
+    }
+
+    /**
+     * Convert basic regex patterns to SQL Server PATINDEX patterns.
+     * This is a simplified conversion - full regex requires CLR functions.
+     *
+     * @param string $pattern Regex pattern
+     * @return string SQL Server pattern
+     */
+    protected function convertRegexToSqlPattern(string $pattern): string
+    {
+        // Basic conversions for common regex patterns
+        // Note: This is limited - full regex support requires CLR
+        $sqlPattern = $pattern;
+        
+        // Escape SQL Server special characters first
+        $sqlPattern = str_replace('[', '[[]', $sqlPattern);
+        $sqlPattern = str_replace(']', '[]]', $sqlPattern);
+        $sqlPattern = str_replace('%', '[%]', $sqlPattern);
+        $sqlPattern = str_replace('_', '[_]', $sqlPattern);
+        
+        // Convert regex patterns to SQL Server patterns
+        // . -> _ (any single character)
+        $sqlPattern = str_replace('.', '_', $sqlPattern);
+        // * -> % (zero or more characters) - but only if not already escaped
+        $sqlPattern = preg_replace('/(?<!\[)(?<!\[\[)\*(?!\])/', '%', $sqlPattern);
+        // + -> % (one or more) - simplified
+        $sqlPattern = preg_replace('/(?<!\[)(?<!\[\[)\+(?!\])/', '%', $sqlPattern);
+        // ? -> _ (zero or one) - simplified
+        $sqlPattern = preg_replace('/(?<!\[)(?<!\[\[)\?(?!\])/', '_', $sqlPattern);
+        
+        // Remove regex anchors (^ and $) as PATINDEX searches anywhere
+        $sqlPattern = str_replace('^', '', $sqlPattern);
+        $sqlPattern = str_replace('$', '', $sqlPattern);
+        
+        return $sqlPattern;
     }
 
     /**
@@ -884,7 +1070,9 @@ class MSSQLDialect extends DialectAbstract
             }
 
             if (is_numeric($part)) {
-                $mapped[] = (string)$part;
+                // MSSQL requires explicit CAST for concatenating numbers with strings
+                // Convert number to string using CAST
+                $mapped[] = "CAST({$part} AS NVARCHAR)";
                 continue;
             }
 
@@ -900,16 +1088,14 @@ class MSSQLDialect extends DialectAbstract
             // - Contains spaces OR special chars like : ; ! ? etc. (but not SQL operators)
             // - Does NOT contain SQL operators or parentheses
             // - Does NOT look like SQL keywords
-            // - OR is a simple word (starts with letter, contains only letters/numbers, no dots)
-            //   that is not a known SQL keyword
+            // Simple words without spaces/special chars are treated as identifiers, not literals
             $isSimpleWord = preg_match('/^[a-zA-Z][a-zA-Z0-9]*$/', $s) && !str_contains($s, '.');
             $isSqlKeyword = preg_match('/^(SELECT|FROM|WHERE|AND|OR|JOIN|NULL|TRUE|FALSE|AS|ON|IN|IS|LIKE|BETWEEN|EXISTS|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TABLE|INDEX|PRIMARY|KEY|FOREIGN|CONSTRAINT|UNIQUE|CHECK|DEFAULT|NOT|GROUP|BY|ORDER|HAVING|LIMIT|OFFSET|DISTINCT|COUNT|SUM|AVG|MAX|MIN)$/i', $s);
             
+            // Only quote as string literal if it contains spaces or special chars (not operators)
+            // Simple words are treated as identifiers
             if (
-                (
-                    preg_match('/[\s:;!?@#\$&]/', $s) ||
-                    ($isSimpleWord && !$isSqlKeyword)
-                ) &&
+                preg_match('/[\s:;!?@#\$&]/', $s) &&
                 !preg_match('/[()%<>=+*\/]/', $s)
             ) {
                 // Quote as string literal
@@ -943,7 +1129,11 @@ class MSSQLDialect extends DialectAbstract
     public function now(?string $diff = '', bool $asTimestamp = false): string
     {
         if ($diff === '' || $diff === null) {
-            return $asTimestamp ? 'GETDATE()' : 'GETDATE()';
+            if ($asTimestamp) {
+                // MSSQL doesn't have UNIX_TIMESTAMP, use DATEDIFF(SECOND, '1970-01-01', GETDATE())
+                return "DATEDIFF(SECOND, '1970-01-01', GETDATE())";
+            }
+            return 'GETDATE()';
         }
         
         // Parse diff like "+1 DAY" or "-2 MONTH"
@@ -964,9 +1154,17 @@ class MSSQLDialect extends DialectAbstract
                 default => 'day',
             };
             
-            return "DATEADD({$mssqlUnit}, {$sign}{$value}, GETDATE())";
+            $dateExpr = "DATEADD({$mssqlUnit}, {$sign}{$value}, GETDATE())";
+            if ($asTimestamp) {
+                // Convert to Unix timestamp
+                return "DATEDIFF(SECOND, '1970-01-01', {$dateExpr})";
+            }
+            return $dateExpr;
         }
         
+        if ($asTimestamp) {
+            return "DATEDIFF(SECOND, '1970-01-01', GETDATE())";
+        }
         return 'GETDATE()';
     }
 

@@ -108,16 +108,60 @@ function recreateTable(PdoDb $db, string $tableName, array $columns, array $opti
         $db->rawQuery("SET FOREIGN_KEY_CHECKS=0");
     }
     
+    // For MSSQL, drop foreign key constraints before dropping table
+    if ($driver === 'sqlsrv') {
+        // Get all foreign key constraints referencing this table
+        $fkQuery = "
+            SELECT 
+                fk.name AS fk_name,
+                OBJECT_SCHEMA_NAME(fk.parent_object_id) AS schema_name,
+                OBJECT_NAME(fk.parent_object_id) AS table_name
+            FROM sys.foreign_keys fk
+            WHERE OBJECT_NAME(fk.referenced_object_id) = '$tableName'
+        ";
+        $fks = $db->rawQuery($fkQuery);
+        foreach ($fks as $fk) {
+            $schema = $fk['schema_name'] ?? 'dbo';
+            $fkTable = $fk['table_name'];
+            $fkName = $fk['fk_name'];
+            // Use connection->query() for DDL operations in MSSQL
+            $connection->query("ALTER TABLE [{$schema}].[{$fkTable}] DROP CONSTRAINT [{$fkName}]");
+        }
+        
+        // Also drop foreign keys defined in this table
+        $fkQuery2 = "
+            SELECT 
+                fk.name AS fk_name
+            FROM sys.foreign_keys fk
+            WHERE OBJECT_NAME(fk.parent_object_id) = '$tableName'
+        ";
+        $fks2 = $db->rawQuery($fkQuery2);
+        foreach ($fks2 as $fk) {
+            $fkName = $fk['fk_name'];
+            // Use connection->query() for DDL operations in MSSQL
+            $connection->query("ALTER TABLE [{$tableName}] DROP CONSTRAINT [{$fkName}]");
+        }
+    }
+    
     // Drop table with CASCADE for PostgreSQL to handle dependent objects
     if ($driver === 'pgsql') {
         $db->rawQuery("DROP TABLE IF EXISTS $tableName CASCADE");
+    } elseif ($driver === 'sqlsrv') {
+        // MSSQL doesn't support DROP TABLE IF EXISTS, use IF OBJECT_ID check
+        // Use connection->query() for DDL operations in MSSQL
+        $connection->query("IF OBJECT_ID('$tableName', 'U') IS NOT NULL DROP TABLE [$tableName]");
     } else {
         $db->rawQuery("DROP TABLE IF EXISTS $tableName");
     }
     
     // Create table
     $sql = getCreateTableSql($db, $tableName, $columns, $options);
-    $db->rawQuery($sql);
+    if ($driver === 'sqlsrv') {
+        // Use connection->query() for DDL operations in MSSQL
+        $connection->query($sql);
+    } else {
+        $db->rawQuery($sql);
+    }
     
     // Re-enable foreign key checks for MySQL/MariaDB
     if ($driver === 'mysql' || $driver === 'mariadb') {
@@ -144,6 +188,33 @@ function normalizeColumnDef(string $driver, string $colDef): string
         $normalized = str_replace('REAL', 'DECIMAL(10,2)', $normalized);
         $normalized = str_replace('DATETIME DEFAULT CURRENT_TIMESTAMP', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP', $normalized);
         $normalized = str_replace('DATETIME', 'TIMESTAMP', $normalized);
+        
+    } elseif ($driver === 'sqlsrv') {
+        // Convert to MSSQL syntax
+        $normalized = str_replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'INT IDENTITY(1,1) PRIMARY KEY', $normalized);
+        $normalized = str_replace('INTEGER AUTOINCREMENT', 'INT IDENTITY(1,1)', $normalized);
+        $normalized = str_replace('AUTOINCREMENT', 'IDENTITY(1,1)', $normalized);
+        $normalized = str_replace('AUTO_INCREMENT', 'IDENTITY(1,1)', $normalized);
+        $normalized = str_replace('SERIAL PRIMARY KEY', 'INT IDENTITY(1,1) PRIMARY KEY', $normalized);
+        
+        // Handle data types - use preg_replace with word boundaries to avoid double replacement
+        $normalized = preg_replace('/\bDATETIME\s+DEFAULT\s+CURRENT_TIMESTAMP\b/i', 'DATETIME2 DEFAULT GETDATE()', $normalized);
+        $normalized = preg_replace('/\bTIMESTAMP\s+DEFAULT\s+CURRENT_TIMESTAMP\b/i', 'DATETIME2 DEFAULT GETDATE()', $normalized);
+        $normalized = preg_replace('/\bCURRENT_TIMESTAMP\b/i', 'GETDATE()', $normalized);
+        $normalized = preg_replace('/\bTIMESTAMP\b/i', 'DATETIME2', $normalized);
+        $normalized = preg_replace('/\bDATETIME\b/i', 'DATETIME2', $normalized);
+        // Replace VARCHAR before TEXT to avoid double replacement
+        $normalized = preg_replace('/\bVARCHAR\s*\(\s*255\s*\)\b/i', 'NVARCHAR(255)', $normalized);
+        // For TEXT with UNIQUE/INDEX constraints, use NVARCHAR(255) instead of NVARCHAR(MAX)
+        // MSSQL doesn't allow NVARCHAR(MAX) in indexes
+        if (preg_match('/\bTEXT\b/i', $normalized) && (stripos($normalized, 'UNIQUE') !== false || stripos($normalized, 'INDEX') !== false)) {
+            $normalized = preg_replace('/\bTEXT\b/i', 'NVARCHAR(255)', $normalized);
+        } else {
+            $normalized = preg_replace('/\bTEXT\b/i', 'NVARCHAR(MAX)', $normalized);
+        }
+        $normalized = preg_replace('/\bREAL\b/i', 'DECIMAL(10,2)', $normalized);
+        $normalized = preg_replace('/\bBOOLEAN\b/i', 'BIT', $normalized);
+        $normalized = preg_replace('/\bBOOL\b/i', 'BIT', $normalized);
         
     } elseif ($driver === 'pgsql') {
         // Convert to PostgreSQL syntax
