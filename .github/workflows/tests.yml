@@ -175,6 +175,73 @@ jobs:
           flags: sqlite
           name: sqlite-coverage
 
+  mssql:
+    name: MSSQL Tests
+    runs-on: ubuntu-latest
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: Test123!@#
+          MSSQL_PID: Developer
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd="/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q 'SELECT 1' || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+          --health-start-period=30s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo, pdo_odbc, odbc
+          coverage: xdebug
+      - name: Install Microsoft ODBC Driver for SQL Server
+        run: |
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+      - name: Install pdo_sqlsrv extension
+        run: |
+          pecl install pdo_sqlsrv-5.11.1
+          echo "extension=pdo_sqlsrv.so" | sudo tee $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||")/conf.d/pdo_sqlsrv.ini
+          php -m | grep pdo_sqlsrv || echo "Warning: pdo_sqlsrv extension not loaded"
+      - name: Wait for MSSQL to be ready
+        run: |
+          for i in {1..30}; do
+            /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q 'SELECT 1' && break
+            echo "Waiting for MSSQL to be ready... ($i/30)"
+            sleep 2
+          done
+      - name: Create database and user
+        run: |
+          /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q "CREATE DATABASE testdb;"
+          /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Test123!@#' -C -d testdb -Q "CREATE LOGIN testuser WITH PASSWORD='testpass';"
+          /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Test123!@#' -C -d testdb -Q "CREATE USER testuser FOR LOGIN testuser;"
+          /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Test123!@#' -C -d testdb -Q "ALTER ROLE db_owner ADD MEMBER testuser;"
+      - run: composer install --no-interaction --prefer-dist
+      - run: |
+          DB_DSN="sqlsrv:Server=localhost,1433;Database=testdb;TrustServerCertificate=yes" \
+          DB_USER="testuser" \
+          DB_PASS="testpass" \
+          vendor/bin/phpunit --testsuite="MSSQL Tests" --coverage-clover coverage-mssql.xml
+      - name: Test MSSQL Examples
+        run: |
+          export PDODB_DRIVER=mssql
+          ./scripts/test-examples.sh --verbose
+      - name: Upload MSSQL coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage-mssql.xml
+          flags: mssql
+          name: mssql-coverage
+
   shared-coverage:
     name: Shared Coverage Tests
     runs-on: ubuntu-latest
