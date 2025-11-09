@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\connection;
 use InvalidArgumentException;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\MariaDBDialect;
+use tommyknocker\pdodb\dialects\MSSQLDialect;
 use tommyknocker\pdodb\dialects\MySQLDialect;
 use tommyknocker\pdodb\dialects\PostgreSQLDialect;
 use tommyknocker\pdodb\dialects\SqliteDialect;
@@ -25,6 +26,7 @@ class DialectRegistry
         'mariadb' => MariaDBDialect::class,
         'sqlite' => SqliteDialect::class,
         'pgsql' => PostgreSQLDialect::class,
+        'sqlsrv' => MSSQLDialect::class,
     ];
 
     /**

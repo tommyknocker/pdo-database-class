@@ -9,13 +9,13 @@
 [![Downloads](https://img.shields.io/packagist/dt/tommyknocker/pdo-database-class.svg)](https://packagist.org/packages/tommyknocker/pdo-database-class)
 [![GitHub Stars](https://img.shields.io/github/stars/tommyknocker/pdo-database-class?style=social)](https://github.com/tommyknocker/pdo-database-class)
 
-**PDOdb** is a lightweight, framework-agnostic PHP database library providing a **unified API** across MySQL, MariaDB, PostgreSQL, and SQLite.
+**PDOdb** is a lightweight, framework-agnostic PHP database library providing a **unified API** across MySQL, MariaDB, PostgreSQL, SQLite, and Microsoft SQL Server (MSSQL).
 
 Built on top of PDO with **zero external dependencies**, it offers:
 
 **Core Features:**
 - **Fluent Query Builder** - Intuitive, chainable API for all database operations
-- **Cross-Database Compatibility** - Automatic SQL dialect handling (MySQL, MariaDB, PostgreSQL, SQLite)
+- **Cross-Database Compatibility** - Automatic SQL dialect handling (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL)
 - **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more (REPEAT, REVERSE, LPAD, RPAD emulated for SQLite; REGEXP operations supported across all dialects)
 
 **Performance:**
@@ -27,7 +27,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 **Advanced Features:**
 - **Window Functions** - Advanced analytics with ROW_NUMBER, RANK, LAG, LEAD, running totals, moving averages
 - **Common Table Expressions (CTEs)** - WITH clauses for complex queries, recursive CTEs for hierarchical data, materialized CTEs for performance optimization
-- **LATERAL JOINs** - Correlated subqueries in FROM clause for PostgreSQL and MySQL
+- **LATERAL JOINs** - Correlated subqueries in FROM clause for PostgreSQL, MySQL, and MSSQL (CROSS APPLY/OUTER APPLY)
 - **Set Operations** - UNION, INTERSECT, EXCEPT for combining query results with automatic deduplication
 - **JSON Operations** - Native JSON support with consistent API across all databases
 - **Full-Text Search** - Cross-database FTS with unified API (MySQL FULLTEXT, PostgreSQL tsvector, SQLite FTS5)
@@ -55,8 +55,8 @@ Built on top of PDO with **zero external dependencies**, it offers:
 **Additional Capabilities:**
 - **Bulk Operations** - CSV/XML/JSON loaders, multi-row inserts, UPSERT support
 - **INSERT ... SELECT** - Fluent API for copying data between tables with QueryBuilder, subqueries, and CTE support
-- **UPDATE/DELETE with JOIN** - Update and delete operations with JOIN clauses (MySQL/MariaDB/PostgreSQL only)
-- **MERGE Statements** - INSERT/UPDATE/DELETE based on match conditions (PostgreSQL native, MySQL/SQLite emulated)
+- **UPDATE/DELETE with JOIN** - Update and delete operations with JOIN clauses (MySQL/MariaDB/PostgreSQL/MSSQL)
+- **MERGE Statements** - INSERT/UPDATE/DELETE based on match conditions (PostgreSQL/MSSQL native, MySQL/SQLite emulated)
 - **Schema Introspection** - Query indexes, foreign keys, and constraints programmatically
 - **DDL Query Builder** - Fluent API for creating, altering, and managing database schema (tables, columns, indexes, foreign keys)
 - **Database Migrations** - Version-controlled schema changes with rollback support (Yii2-inspired)
@@ -73,7 +73,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 
 **Perfect for:**
 - ✅ **Beginners** - Simple, intuitive API with zero configuration needed
-- ✅ **Cross-database projects** - Switch between MySQL, PostgreSQL, SQLite without code changes
+- ✅ **Cross-database projects** - Switch between MySQL, PostgreSQL, SQLite, MSSQL without code changes
 - ✅ **Performance-critical apps** - Built-in caching, query optimization, profiling
 - ✅ **Modern PHP** - Type-safe, PSR-compliant, PHP 8.4+ features
 
@@ -105,6 +105,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - [MariaDB Configuration](#mariadb-configuration)
   - [PostgreSQL Configuration](#postgresql-configuration)
   - [SQLite Configuration](#sqlite-configuration)
+  - [Microsoft SQL Server Configuration](#microsoft-sql-server-configuration)
   - [Connection Pooling](#connection-pooling)
   - [Read/Write Splitting](#readwrite-splitting)
   - [Sharding](#sharding)
@@ -160,10 +161,12 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - `pdo_mysql` for MySQL/MariaDB
   - `pdo_pgsql` for PostgreSQL
   - `pdo_sqlite` for SQLite
+  - `sqlsrv` for Microsoft SQL Server (requires Microsoft ODBC Driver for SQL Server)
 - **Supported Databases**:
   - MySQL 5.7+ / MariaDB 10.3+
   - PostgreSQL 9.4+
   - SQLite 3.38+
+  - Microsoft SQL Server 2019+ / Azure SQL Database
 
 Check if your SQLite has JSON support:
 ```bash
@@ -248,6 +251,9 @@ PDODB_DRIVER=mysql php 01-basic/02-simple-crud.php
 # PostgreSQL (update config.pgsql.php with your credentials)
 PDODB_DRIVER=pgsql php 01-basic/02-simple-crud.php
 
+# Microsoft SQL Server (update config.mssql.php with your credentials)
+PDODB_DRIVER=sqlsrv php 01-basic/02-simple-crud.php
+
 # Test all examples on all available databases
 ./scripts/test-examples.sh
 ```
@@ -257,6 +263,7 @@ PDODB_DRIVER=pgsql php 01-basic/02-simple-crud.php
 - `mysql` - uses `config.mysql.php`
 - `mariadb` - uses `config.mariadb.php`
 - `pgsql` - uses `config.pgsql.php`
+- `sqlsrv` - uses `config.mssql.php`
 
 If config file is missing, falls back to SQLite.
 
@@ -455,6 +462,27 @@ $db = new PdoDb('sqlite', [
     'cache' => 'shared'                    // Optional. Cache mode: shared or private.
 ]);
 ```
+
+### Microsoft SQL Server Configuration
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+$db = new PdoDb('sqlsrv', [
+    'pdo'                    => null,            // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
+    'host'                   => 'localhost',     // Required. SQL Server host.
+    'username'               => 'testuser',      // Required. SQL Server username.
+    'password'               => 'testpass',      // Required. SQL Server password.
+    'dbname'                 => 'testdb',        // Required. Database name.
+    'port'                   => 1433,            // Optional. SQL Server port (default is 1433).
+    'prefix'                 => 'mssql_',        // Optional. Table prefix.
+    'trust_server_certificate' => true,          // Optional. Trust server certificate (default: true for self-signed certs).
+                                                  // Set to false for production with valid certificates.
+    'encrypt'                => true,            // Optional. Enable encryption (default: true).
+]);
+```
+
+**Note**: MSSQL uses the `sqlsrv` driver name. The Microsoft ODBC Driver for SQL Server must be installed, and the PHP `sqlsrv` extension must be enabled.
 
 ### Connection Pooling
 

@@ -1,6 +1,6 @@
 # Configuration
 
-Database connection configuration for MySQL, MariaDB, PostgreSQL, and SQLite.
+Database connection configuration for MySQL, MariaDB, PostgreSQL, SQLite, and Microsoft SQL Server (MSSQL).
 
 ## MySQL Configuration
 
@@ -341,6 +341,86 @@ $db = new PdoDb('pgsql', [
     'sslrootcert' => '/path/to/ca.crt'
 ]);
 ```
+
+## Microsoft SQL Server (MSSQL) Configuration
+
+### Basic Configuration
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+$db = new PdoDb('sqlsrv', [
+    'host' => 'localhost',
+    'username' => 'testuser',
+    'password' => 'testpass',
+    'dbname' => 'testdb'
+]);
+```
+
+### Full Configuration Options
+
+```php
+$db = new PdoDb('sqlsrv', [
+    // Connection options
+    'pdo'                    => null,            // Optional: Existing PDO object
+    'host'                   => 'localhost',     // Required: SQL Server host
+    'username'               => 'testuser',      // Required: SQL Server username
+    'password'               => 'testpass',      // Required: SQL Server password
+    'dbname'                 => 'testdb',        // Required: Database name
+    'port'                   => 1433,            // Optional: SQL Server port (default: 1433)
+    'prefix'                 => 'mssql_',        // Optional: Table prefix
+    
+    // SSL/TLS options
+    'trust_server_certificate' => true,          // Optional: Trust server certificate (default: true)
+                                                  // Set to false for production with valid certificates
+    'encrypt'                => true,            // Optional: Enable encryption (default: true)
+]);
+```
+
+### Using Existing PDO Connection
+
+```php
+$pdo = new PDO(
+    'sqlsrv:Server=localhost,1433;Database=testdb;TrustServerCertificate=yes;Encrypt=yes',
+    'user',
+    'pass'
+);
+
+$db = new PdoDb('sqlsrv', [
+    'pdo' => $pdo,
+    'prefix' => 'app_'
+]);
+```
+
+### MSSQL SSL Configuration
+
+For self-signed certificates (development/testing):
+
+```php
+$db = new PdoDb('sqlsrv', [
+    'host' => 'localhost',
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'mydb',
+    'trust_server_certificate' => true,  // Trust self-signed certificates
+    'encrypt' => true                     // Enable encryption
+]);
+```
+
+For production with valid certificates:
+
+```php
+$db = new PdoDb('sqlsrv', [
+    'host' => 'sqlserver.example.com',
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'mydb',
+    'trust_server_certificate' => false,  // Require valid certificate
+    'encrypt' => true                     // Enable encryption
+]);
+```
+
+**Note**: MSSQL uses the `sqlsrv` driver name. The Microsoft ODBC Driver for SQL Server must be installed, and the PHP `sqlsrv` extension must be enabled.
 
 ## Next Steps
 

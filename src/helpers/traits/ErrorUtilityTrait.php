@@ -22,6 +22,7 @@ trait ErrorUtilityTrait
             'mysql' => self::getMysqlRetryableErrors(),
             'pgsql' => self::getPostgresqlRetryableErrors(),
             'sqlite' => self::getSqliteRetryableErrors(),
+            'sqlsrv' => self::getMssqlRetryableErrors(),
             default => [],
         };
     }
@@ -53,6 +54,7 @@ trait ErrorUtilityTrait
             'mysql' => self::getMysqlDescriptions(),
             'pgsql' => self::getPostgresqlDescriptions(),
             'sqlite' => self::getSqliteDescriptions(),
+            'sqlsrv' => self::getMssqlDescriptions(),
             default => [],
         };
 

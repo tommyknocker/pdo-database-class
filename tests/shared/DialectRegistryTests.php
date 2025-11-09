@@ -26,6 +26,7 @@ final class DialectRegistryTests extends BaseSharedTestCase
         $this->assertTrue(DialectRegistry::isSupported('mariadb'));
         $this->assertTrue(DialectRegistry::isSupported('sqlite'));
         $this->assertTrue(DialectRegistry::isSupported('pgsql'));
+        $this->assertTrue(DialectRegistry::isSupported('sqlsrv'));
     }
 
     public function testIsSupportedWithInvalidDriver(): void
@@ -55,6 +56,7 @@ final class DialectRegistryTests extends BaseSharedTestCase
         $this->assertContains('mariadb', $drivers);
         $this->assertContains('sqlite', $drivers);
         $this->assertContains('pgsql', $drivers);
+        $this->assertContains('sqlsrv', $drivers);
     }
 
     public function testRegisterCustomDialect(): void

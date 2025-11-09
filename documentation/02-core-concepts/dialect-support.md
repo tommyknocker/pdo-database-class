@@ -1,6 +1,6 @@
 # Dialect Support
 
-PDOdb provides unified API across MySQL, MariaDB, PostgreSQL, and SQLite while handling dialect-specific differences automatically.
+PDOdb provides unified API across MySQL, MariaDB, PostgreSQL, SQLite, and Microsoft SQL Server (MSSQL) while handling dialect-specific differences automatically.
 
 ## Supported Databases
 
@@ -10,6 +10,7 @@ PDOdb provides unified API across MySQL, MariaDB, PostgreSQL, and SQLite while h
 | MariaDB | 10.3+ | JSON support, compatibility mode |
 | PostgreSQL | 9.4+ | JSONB support, advanced types |
 | SQLite | 3.38+ | In-memory, file-based |
+| Microsoft SQL Server | 2019+ | JSON support, MERGE statements, CROSS APPLY |
 
 ## Automatic Dialect Handling
 
@@ -75,6 +76,15 @@ $db = new PdoDb('pgsql', [
 $db = new PdoDb('sqlite', [
     'path' => '/path/to/database.sqlite'
 ]);
+
+// Microsoft SQL Server
+$db = new PdoDb('sqlsrv', [
+    'host' => 'localhost',
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'mydb',
+    'port' => 1433
+]);
 ```
 
 ## Data Type Differences
@@ -93,6 +103,10 @@ $id = $db->find()->table('users')->insert(['name' => 'Alice']);
 // SQLite
 $id = $db->find()->table('users')->insert(['name' => 'Alice']);
 // Returns: INTEGER PRIMARY KEY
+
+// Microsoft SQL Server
+$id = $db->find()->table('users')->insert(['name' => 'Alice']);
+// Returns: IDENTITY(1,1) integer
 ```
 
 ### Timestamps
@@ -378,17 +392,19 @@ Returns dialect-specific execution plans.
 
 ## Feature Compatibility Matrix
 
-| Feature | MySQL | PostgreSQL | SQLite |
-|---------|-------|------------|--------|
-| Prepared statements | ✅ | ✅ | ✅ |
-| Transactions | ✅ | ✅ | ✅ |
-| JSON support | ✅ | ✅ | ✅ (if compiled with JSON1) |
-| UPSERT | ✅ | ✅ | ✅ |
-| Bulk loading | ✅ | ✅ | ✅ (emulated) |
-| Table locking | ✅ | ✅ | ✅ (BEGIN IMMEDIATE) |
-| Schema support | ❌ | ✅ | ❌ |
-| Table prefixes | ✅ | ✅ | ✅ |
-| REPEAT/REVERSE/LPAD/RPAD | ✅ | ✅ | ✅ (emulated) |
+| Feature | MySQL | PostgreSQL | SQLite | MSSQL |
+|---------|-------|------------|--------|-------|
+| Prepared statements | ✅ | ✅ | ✅ | ✅ |
+| Transactions | ✅ | ✅ | ✅ | ✅ |
+| JSON support | ✅ | ✅ | ✅ (if compiled with JSON1) | ✅ |
+| UPSERT | ✅ | ✅ | ✅ | ✅ (MERGE) |
+| Bulk loading | ✅ | ✅ | ✅ (emulated) | ✅ |
+| Table locking | ✅ | ✅ | ✅ (BEGIN IMMEDIATE) | ✅ |
+| Schema support | ❌ | ✅ | ❌ | ✅ |
+| Table prefixes | ✅ | ✅ | ✅ | ✅ |
+| REPEAT/REVERSE/LPAD/RPAD | ✅ | ✅ | ✅ (emulated) | ✅ |
+| MERGE statements | ❌ (emulated) | ✅ | ❌ (emulated) | ✅ |
+| LATERAL JOINs | ✅ | ✅ | ❌ | ✅ (CROSS APPLY) |
 
 ## Migration Between Databases
 

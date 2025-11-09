@@ -41,6 +41,10 @@
             <directory suffix="Tests.php">./tests/sqlite</directory>
             <exclude>./tests/sqlite/Base*.php</exclude>
         </testsuite>
+        <testsuite name="MSSQL Tests">
+            <directory suffix="Tests.php">./tests/mssql</directory>
+            <exclude>./tests/mssql/Base*.php</exclude>
+        </testsuite>
         <testsuite name="Shared Tests">
             <directory suffix="Tests.php">./tests/shared</directory>
             <exclude>./tests/shared/Base*.php</exclude>

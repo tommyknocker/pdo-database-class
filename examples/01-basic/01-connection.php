@@ -80,8 +80,25 @@ if ($pgsql instanceof PdoDb) {
     echo "  (This is OK - PostgreSQL is optional. Create config.pgsql.php to test)\n\n";
 }
 
-// Example 4: Connection pooling (without default connection)
-echo "4. Connection pooling example...\n";
+// Example 4: Microsoft SQL Server Connection (if config exists)
+echo "4. Connecting to Microsoft SQL Server...\n";
+$mssqlConfig = __DIR__ . '/../config.mssql.php';
+$mssql = tryConnect('sqlsrv', $mssqlConfig);
+
+if ($mssql instanceof PdoDb) {
+    echo "✓ MSSQL connected successfully\n";
+    $config = require $mssqlConfig;
+    echo "  Server: {$config['host']}:{$config['port']}\n";
+    echo "  Database: {$config['dbname']}\n\n";
+} elseif ($mssql === false) {
+    echo "  (Check your MSSQL server and config.mssql.php settings)\n\n";
+} else {
+    echo "  ℹ️  Config not found: $mssqlConfig\n";
+    echo "  (This is OK - MSSQL is optional. Create config.mssql.php to test)\n\n";
+}
+
+// Example 5: Connection pooling (without default connection)
+echo "5. Connection pooling example...\n";
 $db = new PdoDb();
 
 // Use SQLite for pooling demo (always available)
@@ -102,4 +119,4 @@ $result = $db->rawQueryValue('SELECT "Connected to analytics"');
 echo "✓ $result\n\n";
 
 echo "All connection examples completed!\n";
-echo "\nℹ️  Tip: Create config.mysql.php and config.pgsql.php to test all databases\n";
+echo "\nℹ️  Tip: Create config.mysql.php, config.pgsql.php, and config.mssql.php to test all databases\n";
