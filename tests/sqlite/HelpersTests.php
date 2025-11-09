@@ -130,6 +130,30 @@ final class HelpersTests extends BaseSqliteTestCase
         $this->assertEquals('Helen', $notNullResults[0]['name']);
     }
 
+    public function testDefaultHelper(): void
+    {
+        $db = self::$db;
+
+        $userId = $db->find()->table('users')->insert([
+        'name' => 'Nina',
+        'company' => 'DefaultCorp',
+        'age' => 31,
+        'status' => 'active',
+        ]);
+
+        $db->find()
+        ->table('users')
+        ->where('id', $userId)
+        ->update(['status' => Db::default()]);
+
+        $result = $db->find()
+        ->from('users')
+        ->where('id', $userId)
+        ->getOne();
+
+        $this->assertNull($result['status']);
+    }
+
     public function testCaseInSelect(): void
     {
         $db = self::$db;

@@ -319,7 +319,13 @@ class SqliteDialect extends DialectAbstract
      */
     protected function buildRawValueExpression(string $colSql, RawValue $expr, string $tableName, string $col): string
     {
-        return "{$colSql} = {$expr->getValue()}";
+        // SQLite doesn't support DEFAULT keyword in UPDATE statements
+        // Replace DEFAULT with NULL (closest equivalent behavior)
+        $value = $expr->getValue();
+        if (trim($value) === 'DEFAULT') {
+            return "{$colSql} = NULL";
+        }
+        return "{$colSql} = {$value}";
     }
 
     /**
