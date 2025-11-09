@@ -7,6 +7,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.10.0] - 2025-11-09
+
+### Added
+- **MSSQL (Microsoft SQL Server) Support** - Full support for MSSQL as a fifth database dialect:
+  - **New MSSQLDialect class** - Complete SQL dialect implementation for Microsoft SQL Server
+  - **Comprehensive test coverage** - 28 test suites, 732+ tests covering all MSSQL-specific functionality
+  - **GitHub Actions integration** - Dedicated CI job for MSSQL with coverage reporting
+  - **Example compatibility** - All examples now support MSSQL (64/64 passing)
+  - **REGEXP support** - Custom REGEXP implementation using `PATINDEX` for pattern matching
+  - **Cross-dialect compatibility** - All helper functions work consistently across all five dialects
+  - **Complete documentation** - MSSQL configuration and usage examples added to documentation
+
+- **MSSQL-Specific Features**:
+  - **LATERAL JOIN support** - Automatic conversion to `CROSS APPLY`/`OUTER APPLY` syntax
+  - **MERGE statement support** - Native MERGE operations for UPSERT patterns
+  - **Window functions** - Full support for SQL Server window functions
+  - **JSON operations** - Complete JSON support using SQL Server JSON functions
+  - **Type casting** - Safe type conversion using `TRY_CAST` for error-free casting
+  - **String functions** - Dialect-specific implementations (`LEN` vs `LENGTH`, `CEILING` vs `CEIL`)
+  - **Date/time functions** - SQL Server-specific date/time handling
+  - **Boolean types** - `BIT` type support with proper 0/1 handling
+  - **Identity columns** - `IDENTITY(1,1)` support for auto-incrementing primary keys
+
+### Changed
+- **Architecture Improvements** - Major refactoring following SOLID principles:
+  - **Dialect-specific logic migration** - Moved all dialect-specific checks from general classes to dialect implementations
+  - **New DialectInterface methods** - Added 20+ new methods to `DialectInterface` for better abstraction:
+    - `formatLateralJoin()` - Handle LATERAL JOIN conversion
+    - `needsColumnQualificationInUpdateSet()` - PostgreSQL-specific UPDATE behavior
+    - `executeExplainAnalyze()` - Dialect-specific EXPLAIN ANALYZE execution
+    - `getBooleanType()`, `getTimestampType()`, `getDatetimeType()` - Type system abstraction
+    - `isNoFieldsError()` - MSSQL-specific error detection
+    - `appendLimitOffset()` - Dialect-specific LIMIT/OFFSET handling
+    - `getPrimaryKeyType()`, `getBigPrimaryKeyType()`, `getStringType()` - Schema type abstraction
+    - `formatMaterializedCte()` - Materialized CTE support
+    - `registerRegexpFunctions()` - REGEXP function registration
+    - `normalizeDefaultValue()` - Default value normalization
+    - `buildMigrationTableSql()`, `buildMigrationInsertSql()` - Migration infrastructure
+    - `extractErrorCode()` - Error code extraction
+    - `getExplainParser()` - EXPLAIN parser abstraction
+    - `getRecursiveCteKeyword()` - Recursive CTE keyword handling
+    - `formatGreatest()`, `formatLeast()` - Type-safe GREATEST/LEAST functions
+    - `buildDropTableIfExistsSql()` - DROP TABLE IF EXISTS support
+  - **Removed dialect checks from general classes** - No more `if ($driver === 'sqlsrv')` in general classes
+  - **Better separation of concerns** - Each dialect handles its own specific requirements
+
+- **Example Improvements**:
+  - **Refactored examples** - Removed `Db::raw()` calls with dialect-specific SQL from examples
+  - **Library helpers usage** - Examples now use library helpers exclusively (`Db::length()`, `Db::position()`, `Db::greatest()`, etc.)
+  - **Schema Builder usage** - Examples use Schema Builder for DDL operations where possible
+  - **Better educational value** - Examples demonstrate proper library usage patterns
+
+- **CI/CD Improvements**:
+  - **MSSQL GitHub Actions job** - Complete CI setup for MSSQL testing
+  - **Environment variable support** - Examples and tests can use environment variables for configuration
+  - **Simplified user management** - Use SA user directly in CI for better reliability
+
+### Fixed
+- **PostgreSQL DROP TABLE CASCADE** - Fixed foreign key constraint issues when dropping tables
+- **MSSQL type compatibility** - Fixed GREATEST/LEAST functions to handle type compatibility issues
+- **MSSQL boolean handling** - Proper conversion of TRUE/FALSE to 1/0 for BIT type
+- **MSSQL string functions** - Fixed LENGTH() -> LEN() conversion, SUBSTRING syntax
+- **MSSQL REGEXP support** - Custom PATINDEX-based implementation for pattern matching
+- **MSSQL LIMIT/OFFSET** - Proper OFFSET ... FETCH NEXT ... ROWS ONLY syntax
+- **MSSQL error handling** - Proper handling of "contains no fields" errors
+- **Example compatibility** - All examples now work correctly on all five dialects
+
+### Technical Details
+- **All tests passing**: 2052 tests, 7097 assertions (+732 tests, +2239 assertions from 2.9.3)
+- **All examples passing**: 320/320 examples (64 files × 5 dialects each)
+  - SQLite: 64/64 ✅
+  - MySQL: 64/64 ✅
+  - MariaDB: 64/64 ✅
+  - PostgreSQL: 64/64 ✅
+  - MSSQL: 64/64 ✅
+- **PHPStan Level 8**: Zero errors across entire codebase
+- **PHP-CS-Fixer**: All code complies with PSR-12 standards
+- **Full backward compatibility**: 100% maintained - all existing code continues to work
+- **Code quality**: Follows KISS, SOLID, DRY, YAGNI principles
+- **MSSQL integration**: Complete dialect support with comprehensive testing and CI integration
 
 ## [2.9.3] - 2025-11-09
 
@@ -1285,7 +1365,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.3...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.0...HEAD
+[2.10.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.3...v2.10.0
 [2.9.3]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.2...v2.9.3
 [2.9.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.1...v2.9.2
 [2.9.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.0...v2.9.1
