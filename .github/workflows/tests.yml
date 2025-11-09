@@ -188,11 +188,11 @@ jobs:
         ports:
           - 1433:1433
         options: >-
-          --health-cmd="/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q 'SELECT 1' || exit 1"
+          --health-cmd="/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q 'SELECT 1' -b"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
-          --health-start-period=30s
+          --health-start-period=40s
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -213,11 +213,12 @@ jobs:
           php -m | grep pdo_sqlsrv || echo "Warning: pdo_sqlsrv extension not loaded"
       - name: Wait for MSSQL to be ready
         run: |
-          for i in {1..30}; do
-            /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q 'SELECT 1' && break
-            echo "Waiting for MSSQL to be ready... ($i/30)"
+          for i in {1..60}; do
+            /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q 'SELECT 1' -b > /dev/null 2>&1 && break || true
+            echo "Waiting for MSSQL to be ready... ($i/60)"
             sleep 2
           done
+          /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q 'SELECT @@VERSION' -b
       - name: Create database and user
         run: |
           /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q "CREATE DATABASE testdb;"
