@@ -12,46 +12,83 @@
 **PDOdb** is a lightweight, framework-agnostic PHP database library providing a **unified API** across MySQL, MariaDB, PostgreSQL, and SQLite.
 
 Built on top of PDO with **zero external dependencies**, it offers:
+
+**Core Features:**
 - **Fluent Query Builder** - Intuitive, chainable API for all database operations
 - **Cross-Database Compatibility** - Automatic SQL dialect handling (MySQL, MariaDB, PostgreSQL, SQLite)
-- **Query Caching** - PSR-16 integration for result caching (10-1000x faster queries)
+- **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more (REPEAT, REVERSE, LPAD, RPAD emulated for SQLite; REGEXP operations supported across all dialects)
+
+**Performance:**
+- **Query Caching** - PSR-16 integration for result caching (10-1000x faster repeated queries)
 - **Query Compilation Cache** - Cache compiled SQL strings (10-30% performance improvement)
-- **Query Performance Profiling** - Built-in profiler for tracking execution times, memory usage, and slow query detection
 - **Prepared Statement Pool** - Automatic statement caching with LRU eviction (20-50% faster repeated queries)
-- **Read/Write Splitting** - Horizontal scaling with master-replica architecture and load balancing
-- **Sharding** - Horizontal partitioning across multiple databases with automatic query routing (range, hash, modulo strategies)
+- **Query Performance Profiling** - Built-in profiler for tracking execution times, memory usage, and slow query detection
+
+**Advanced Features:**
 - **Window Functions** - Advanced analytics with ROW_NUMBER, RANK, LAG, LEAD, running totals, moving averages
 - **Common Table Expressions (CTEs)** - WITH clauses for complex queries, recursive CTEs for hierarchical data, materialized CTEs for performance optimization
 - **LATERAL JOINs** - Correlated subqueries in FROM clause for PostgreSQL and MySQL
 - **Set Operations** - UNION, INTERSECT, EXCEPT for combining query results with automatic deduplication
-- **DISTINCT & DISTINCT ON** - Remove duplicates with full PostgreSQL DISTINCT ON support
-- **FILTER Clause** - Conditional aggregates (SQL:2003 standard) with automatic MySQL fallback to CASE WHEN
-- **Full-Text Search** - Cross-database FTS with unified API (MySQL FULLTEXT, PostgreSQL tsvector, SQLite FTS5)
-- **Schema Introspection** - Query indexes, foreign keys, and constraints programmatically
-- **DDL Query Builder** - Fluent API for creating, altering, and managing database schema (tables, columns, indexes, foreign keys)
-- **Database Migrations** - Version-controlled schema changes with rollback support (Yii2-inspired)
-- **Enhanced EXPLAIN** - Automatic detection of full table scans, missing indexes, and optimization recommendations
-- **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
 - **JSON Operations** - Native JSON support with consistent API across all databases
+- **Full-Text Search** - Cross-database FTS with unified API (MySQL FULLTEXT, PostgreSQL tsvector, SQLite FTS5)
+- **Read/Write Splitting** - Horizontal scaling with master-replica architecture and load balancing
+- **Sharding** - Horizontal partitioning across multiple databases with automatic query routing (range, hash, modulo strategies)
+- **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
+
+**Developer Experience:**
+- **Enhanced EXPLAIN** - Automatic detection of full table scans, missing indexes, and optimization recommendations
+- **Exception Hierarchy** - Typed exceptions for precise error handling
+- **Enhanced Error Diagnostics** - Query context, sanitized parameters, and debug information in exceptions
+- **SQL Formatter/Pretty Printer** - Human-readable SQL output for debugging with indentation and line breaks
+- **Query Debugging** - Comprehensive debug information and query inspection tools
+- **PSR-14 Event Dispatcher** - Event-driven architecture for monitoring, auditing, and middleware
+- **Plugin System** - Extend PdoDb with custom plugins for macros, scopes, and event listeners
+
+**Production Ready:**
+- **Fully Tested** - 1320 tests, 5249 assertions across all dialects
+- **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
+- **Zero Memory Leaks** - Production-tested memory management with automatic cursor cleanup
+- **Connection Retry** - Automatic retry with exponential backoff
+- **Transactions & Locking** - Full transaction support with table locking and savepoints for nested transactions
+- **Batch Processing** - Memory-efficient generators for large datasets with zero memory leaks
+
+**Additional Capabilities:**
 - **Bulk Operations** - CSV/XML/JSON loaders, multi-row inserts, UPSERT support
 - **INSERT ... SELECT** - Fluent API for copying data between tables with QueryBuilder, subqueries, and CTE support
 - **UPDATE/DELETE with JOIN** - Update and delete operations with JOIN clauses (MySQL/MariaDB/PostgreSQL only)
 - **MERGE Statements** - INSERT/UPDATE/DELETE based on match conditions (PostgreSQL native, MySQL/SQLite emulated)
-- **SQL Formatter/Pretty Printer** - Human-readable SQL output for debugging with indentation and line breaks
+- **Schema Introspection** - Query indexes, foreign keys, and constraints programmatically
+- **DDL Query Builder** - Fluent API for creating, altering, and managing database schema (tables, columns, indexes, foreign keys)
+- **Database Migrations** - Version-controlled schema changes with rollback support (Yii2-inspired)
+- **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
 - **Export Helpers** - Export results to JSON, CSV, and XML formats
-- **Transactions & Locking** - Full transaction support with table locking and savepoints for nested transactions
-- **Batch Processing** - Memory-efficient generators for large datasets with zero memory leaks
-- **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
-- **Plugin System** - Extend PdoDb with custom plugins for macros, scopes, and event listeners
-- **Exception Hierarchy** - Typed exceptions for precise error handling
-- **Enhanced Error Diagnostics** - Query context, sanitized parameters, and debug information in exceptions
-- **Connection Retry** - Automatic retry with exponential backoff
-- **PSR-14 Event Dispatcher** - Event-driven architecture for monitoring, auditing, and middleware
-- **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more (REPEAT, REVERSE, LPAD, RPAD emulated for SQLite; REGEXP operations supported across all dialects)
-- **Fully Tested** - 1320 tests, 5249 assertions across all dialects
-- **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
+- **DISTINCT & DISTINCT ON** - Remove duplicates with full PostgreSQL DISTINCT ON support
+- **FILTER Clause** - Conditional aggregates (SQL:2003 standard) with automatic MySQL fallback to CASE WHEN
 
 Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class) and [Yii2 framework](https://github.com/yiisoft/yii2-framework)
+
+---
+
+## Why PDOdb?
+
+**Perfect for:**
+- ✅ **Beginners** - Simple, intuitive API with zero configuration needed
+- ✅ **Cross-database projects** - Switch between MySQL, PostgreSQL, SQLite without code changes
+- ✅ **Performance-critical apps** - Built-in caching, query optimization, profiling
+- ✅ **Modern PHP** - Type-safe, PSR-compliant, PHP 8.4+ features
+
+**vs. Raw PDO:**
+- ✅ Fluent query builder instead of manual SQL strings
+- ✅ Automatic parameter binding (SQL injection protection built-in)
+- ✅ Cross-database compatibility out of the box
+- ✅ Helper functions for common operations
+
+**vs. Eloquent/Doctrine:**
+- ✅ Zero dependencies (no framework required)
+- ✅ Lightweight (no ORM overhead)
+- ✅ Direct SQL access when needed
+- ✅ Better performance for complex queries
+- ✅ Optional ActiveRecord pattern available
 
 ---
 
@@ -62,6 +99,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 - [📖 Documentation](#-documentation)
 - [📚 Examples](#-examples)
 - [Quick Example](#quick-example)
+- [5-Minute Tutorial](#5-minute-tutorial)
 - [Configuration](#configuration)
   - [MySQL Configuration](#mysql-configuration)
   - [MariaDB Configuration](#mariadb-configuration)
@@ -104,6 +142,8 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 - [Helper Functions Reference](#helper-functions-reference)
 - [Public API Reference](#public-api-reference)
 - [Dialect Differences](#dialect-differences)
+- [Frequently Asked Questions](#frequently-asked-questions)
+- [Migration Guide](#migration-guide)
 - [Troubleshooting](#troubleshooting)
 - [Testing](#testing)
 - [Database Error Codes](#database-error-codes)
@@ -224,34 +264,108 @@ If config file is missing, falls back to SQLite.
 
 ## Quick Example
 
+**Get started in 30 seconds:**
+
 ```php
 use tommyknocker\pdodb\PdoDb;
-use tommyknocker\pdodb\helpers\Db;
 
-// Initialize
-$db = new PdoDb('mysql', [
-    'host' => 'localhost',
-    'username' => 'user',
-    'password' => 'pass',
-    'dbname' => 'testdb'
+// Connect (SQLite - no setup needed!)
+$db = new PdoDb('sqlite', ['path' => ':memory:']);
+
+// Create table
+$db->rawQuery('CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    email TEXT,
+    age INTEGER
+)');
+
+// Insert
+$id = $db->find()->table('users')->insert([
+    'name' => 'John',
+    'email' => 'john@example.com',
+    'age' => 30
 ]);
 
-// Simple query
+// Query
 $users = $db->find()
     ->from('users')
     ->where('age', 18, '>')
-    ->andWhere(Db::jsonContains('tags', 'php'))
-    ->orderBy('created_at', 'DESC')
+    ->orderBy('name', 'ASC')
     ->limit(10)
     ->get();
 
-// Insert with JSON
-$id = $db->find()->table('users')->insert([
-    'name' => 'John',
-    'age' => 25,
-    'meta' => Db::jsonObject(['city' => 'NYC', 'active' => true])
+// Update
+$db->find()
+    ->table('users')
+    ->where('id', $id)
+    ->update(['age' => 31]);
+```
+
+**That's it!** No configuration, no dependencies, just works.
+
+---
+
+## 5-Minute Tutorial
+
+### Step 1: Install
+
+```bash
+composer require tommyknocker/pdo-database-class
+```
+
+### Step 2: Connect
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+// SQLite (easiest - no database server needed)
+$db = new PdoDb('sqlite', ['path' => ':memory:']);
+
+// Or MySQL/PostgreSQL (see Configuration section)
+$db = new PdoDb('mysql', [
+    'host' => 'localhost',
+    'dbname' => 'mydb',
+    'username' => 'user',
+    'password' => 'pass'
 ]);
 ```
+
+### Step 3: Create Table
+
+```php
+$db->rawQuery('CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    email TEXT,
+    age INTEGER
+)');
+```
+
+### Step 4: CRUD Operations
+
+```php
+// Create
+$id = $db->find()->table('users')->insert([
+    'name' => 'Alice',
+    'email' => 'alice@example.com',
+    'age' => 30
+]);
+
+// Read
+$users = $db->find()->from('users')->get();
+$user = $db->find()->from('users')->where('id', $id)->getOne();
+
+// Update
+$db->find()->table('users')
+    ->where('id', $id)
+    ->update(['name' => 'Bob']);
+
+// Delete
+$db->find()->table('users')->where('id', $id)->delete();
+```
+
+**Next:** See [Quick Start](#quick-start) for more examples.
 
 ---
 
@@ -3605,6 +3719,175 @@ $db->find()->table('users')->insertMulti([
     ['name' => 'Bob', 'age' => 25]
 ]);
 ```
+
+---
+
+## Frequently Asked Questions
+
+### Is PDOdb an ORM?
+No, PDOdb is a **query builder** with optional ActiveRecord pattern. It's lighter than full ORMs like Eloquent or Doctrine, giving you direct SQL control when needed.
+
+### Can I use raw SQL?
+Yes! Use `rawQuery()` for complete control:
+```php
+$users = $db->rawQuery('SELECT * FROM users WHERE age > :age', ['age' => 18]);
+```
+
+### Does it work with frameworks?
+Yes! PDOdb is framework-agnostic. Works with Laravel, Symfony, Yii, or no framework at all.
+
+### How do I migrate from Eloquent/Doctrine?
+PDOdb uses similar fluent syntax. Most queries translate directly:
+```php
+// Eloquent
+User::where('active', 1)->get();
+
+// PDOdb
+$db->find()->from('users')->where('active', 1)->get();
+```
+
+### Is it production-ready?
+Yes! 1320+ tests, PHPStan level 8, used in production environments.
+
+### What about security?
+All queries use **prepared statements** automatically. SQL injection protection is built-in.
+
+### Can I use it with existing PDO connections?
+Yes! Pass your PDO instance:
+```php
+$pdo = new PDO('mysql:host=localhost;dbname=test', 'user', 'pass');
+$db = new PdoDb('mysql', ['pdo' => $pdo]);
+```
+
+### Which database should I use for development?
+**SQLite** is perfect for development - no server setup needed, works out of the box:
+```php
+$db = new PdoDb('sqlite', ['path' => ':memory:']);
+```
+
+### How do I switch between databases?
+Just change the driver name - your code stays the same:
+```php
+// Development (SQLite)
+$db = new PdoDb('sqlite', ['path' => ':memory:']);
+
+// Production (MySQL)
+$db = new PdoDb('mysql', ['host' => 'localhost', ...]);
+```
+
+### Does it support transactions?
+Yes! Full transaction support with savepoints:
+```php
+$db->startTransaction();
+try {
+    // Your operations
+    $db->commit();
+} catch (\Exception $e) {
+    $db->rollBack();
+}
+```
+
+### Can I use it for migrations?
+Yes! PDOdb includes a migration system inspired by Yii2. See [Schema Management examples](examples/11-schema/) for migration examples.
+
+---
+
+## Migration Guide
+
+### From Raw PDO
+
+**Before (PDO):**
+```php
+$pdo = new PDO('mysql:host=localhost;dbname=test', 'user', 'pass');
+$stmt = $pdo->prepare('SELECT * FROM users WHERE age > :age');
+$stmt->execute(['age' => 18]);
+$users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+```
+
+**After (PDOdb):**
+```php
+$db = new PdoDb('mysql', [
+    'host' => 'localhost',
+    'dbname' => 'test',
+    'username' => 'user',
+    'password' => 'pass'
+]);
+$users = $db->find()->from('users')->where('age', 18, '>')->get();
+```
+
+### From Eloquent (Laravel)
+
+**Before (Eloquent):**
+```php
+User::where('active', 1)
+    ->where('age', '>', 18)
+    ->orderBy('name')
+    ->limit(10)
+    ->get();
+```
+
+**After (PDOdb):**
+```php
+$db->find()
+    ->from('users')
+    ->where('active', 1)
+    ->andWhere('age', 18, '>')
+    ->orderBy('name', 'ASC')
+    ->limit(10)
+    ->get();
+```
+
+### From Doctrine DBAL
+
+**Before (Doctrine):**
+```php
+$qb = $conn->createQueryBuilder();
+$qb->select('*')
+   ->from('users')
+   ->where('age > ?')
+   ->setParameter(0, 18);
+$users = $qb->executeQuery()->fetchAllAssociative();
+```
+
+**After (PDOdb):**
+```php
+$users = $db->find()
+    ->from('users')
+    ->where('age', 18, '>')
+    ->get();
+```
+
+### From Yii2 ActiveRecord
+
+**Before (Yii2):**
+```php
+User::find()
+    ->where(['active' => 1])
+    ->andWhere(['>', 'age', 18])
+    ->orderBy('name')
+    ->all();
+```
+
+**After (PDOdb):**
+```php
+$db->find()
+    ->from('users')
+    ->where('active', 1)
+    ->andWhere('age', 18, '>')
+    ->orderBy('name', 'ASC')
+    ->get();
+```
+
+### Key Differences
+
+| Feature | PDOdb | Eloquent | Doctrine |
+|---------|-------|----------|----------|
+| **Dependencies** | Zero | Laravel | Symfony |
+| **ORM** | Optional | Yes | Yes |
+| **Raw SQL** | Easy | Possible | Possible |
+| **Cross-DB** | Built-in | Limited | Yes |
+| **Performance** | High | Medium | Medium |
+| **Learning Curve** | Low | Medium | High |
 
 ---
 
