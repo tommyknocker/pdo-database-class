@@ -8,6 +8,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [2.9.3] - 2025-11-09
+
+### Added
+- **Regular Expression Helpers** - Cross-database regex support with unified API:
+  - **REGEXP_LIKE** (`Db::regexpMatch()`) - Pattern matching for all dialects
+  - **REGEXP_REPLACE** (`Db::regexpReplace()`) - Pattern-based string replacement
+  - **REGEXP_EXTRACT** (`Db::regexpExtract()`) - Extract matched substrings with capture group support
+  - **Automatic SQLite registration** - REGEXP functions automatically registered via `PDO::sqliteCreateFunction()` if not available
+  - **Configuration option** - `enable_regexp` config option for SQLite (default: `true`) to control automatic registration
+  - **Cross-dialect support** - MySQL/MariaDB (`REGEXP`, `REGEXP_REPLACE`, `REGEXP_SUBSTR`), PostgreSQL (`~`, `regexp_replace`, `regexp_match`), SQLite (via extension or PHP emulation)
+  - **Complete documentation** - `documentation/07-helper-functions/string-helpers.md` with regex examples
+  - **Comprehensive examples** - `examples/05-helpers/01-string-helpers.php` demonstrates all regex operations
+  - **Full test coverage** - Tests for all dialects including SQLite emulation
+
+- **JSON Modification Helpers** - Enhanced JSON manipulation capabilities:
+  - **`Db::jsonSet()`** - Set JSON values at specific paths (supports nested paths)
+  - **`Db::jsonRemove()`** - Remove JSON keys or array elements
+  - **`Db::jsonReplace()`** - Replace existing JSON values
+  - **MariaDB compatibility** - Proper handling of MariaDB's JSON function differences
+  - **Cross-dialect support** - Works consistently across MySQL, MariaDB, PostgreSQL, and SQLite
+  - **Complete test coverage** - Comprehensive tests for all JSON modification operations
+
+- **DEFAULT Helper Support for SQLite** - `Db::default()` now works on SQLite:
+  - **Automatic translation** - `DEFAULT` keyword automatically converted to `NULL` for SQLite UPDATE statements
+  - **Consistent behavior** - Provides consistent API across all dialects
+  - **UPSERT support** - Works correctly in UPSERT operations for SQLite
+
+- **Savepoints and Nested Transactions** - Advanced transaction management:
+  - **Savepoint support** - Create named savepoints within transactions
+  - **Nested transactions** - Support for nested transaction patterns
+  - **Rollback to savepoint** - Rollback to specific savepoints without affecting outer transactions
+  - **Complete documentation** - Transaction management guide with savepoint examples
+  - **Examples** - `examples/34-savepoints/` demonstrating savepoint usage
+
+- **SQLite String Function Emulation** - Additional string functions for SQLite:
+  - **`REPEAT()`** - Repeat string N times (emulated via PHP)
+  - **`REVERSE()`** - Reverse string characters (emulated via PHP)
+  - **`LPAD()`** - Left pad string to specified length (emulated via PHP)
+  - **`RPAD()`** - Right pad string to specified length (emulated via PHP)
+  - **Automatic registration** - Functions automatically registered via `PDO::sqliteCreateFunction()`
+  - **Cross-dialect compatibility** - Provides consistent API across all dialects
+
+- **JOIN Support for UPDATE and DELETE** - Advanced DML operations:
+  - **UPDATE with JOIN** - Update tables based on JOIN conditions
+  - **DELETE with JOIN** - Delete rows based on JOIN conditions
+  - **Cross-dialect support** - Works on MySQL, MariaDB, PostgreSQL, and SQLite
+  - **Complete documentation** - DML operations guide with JOIN examples
+  - **Examples** - `examples/33-update-delete-join/` demonstrating JOIN in UPDATE/DELETE
+
+- **INSERT ... SELECT Support** - Bulk insert from query results:
+  - **`QueryBuilder::insertFrom()`** - Insert rows from SELECT query results
+  - **Column mapping** - Map columns from source to target table
+  - **Cross-dialect support** - Works consistently across all dialects
+  - **Complete documentation** - INSERT operations guide with INSERT ... SELECT examples
+  - **Examples** - `examples/32-insert-select/` demonstrating INSERT ... SELECT patterns
+
+- **Enhanced EXPLAIN Analysis** - Advanced performance metrics:
+  - **Performance metrics** - Additional performance indicators in EXPLAIN output
+  - **Better recommendations** - Improved query optimization suggestions
+  - **Cross-dialect parsing** - Enhanced parsing for MySQL, PostgreSQL, and SQLite EXPLAIN output
+
+- **Plugin System** - Extend PdoDb with custom functionality:
+  - **`AbstractPlugin` class** - Base class for creating plugins
+  - **`PdoDb::registerPlugin()`** - Register plugins to extend functionality
+  - **Macro registration** - Plugins can register QueryBuilder macros
+  - **Scope registration** - Plugins can register global scopes
+  - **Event listener registration** - Plugins can register event listeners
+  - **Complete documentation** - `documentation/05-advanced-features/plugins.md` with plugin development guide
+  - **Examples** - `examples/31-plugins/` demonstrating plugin creation and usage
+
+### Changed
+- **Examples Directory Reorganization** - Improved structure for better navigation:
+  - Reorganized example files into logical groups
+  - Better organization of advanced features examples
+  - Improved README files in example directories
+
+- **Code Quality Improvements**:
+  - **Namespace refactoring** - Replaced full namespace paths with `use` statements throughout codebase
+  - **Better code organization** - Improved maintainability and readability
+  - **PSR-12 compliance** - All code follows PSR-12 standards
+
+### Fixed
+- **Composer Description** - Shortened description for better Packagist display
+
+### Documentation
+- **README Improvements** - Major enhancements for better onboarding:
+  - **Reorganized feature list** - Grouped features into logical categories (Core, Performance, Advanced, Developer Experience)
+  - **Added "Why PDOdb?" section** - Value proposition and comparisons vs Raw PDO, Eloquent, and Doctrine
+  - **Simplified Quick Example** - Replaced complex JSON example with basic CRUD using SQLite
+  - **Added "5-Minute Tutorial"** - Step-by-step guide for quick onboarding
+  - **Added FAQ section** - 10 common questions and answers
+  - **Added Migration Guide** - Examples for migrating from Raw PDO, Eloquent, Doctrine, and Yii2
+  - **Improved structure** - Better navigation and readability
+  - **Lower entry barrier** - Easier for new users to understand and adopt
+
+- **Examples Section Updates**:
+  - Updated Examples section in README.md with current example structure
+  - Added Sharding section to README.md
+  - Replaced chained `where()` with `andWhere()` in examples and documentation for better clarity
+
+### Technical Details
+- **All tests passing**: Comprehensive test coverage including new regex, JSON, and SQLite emulation tests
+- **PHPStan Level 8**: Zero errors across entire codebase
+- **PHP-CS-Fixer**: All code complies with PSR-12 standards
+- **Full backward compatibility**: 100% maintained - all existing code continues to work
+- **Code quality**: Follows KISS, SOLID, DRY, YAGNI principles
+- **Documentation**: Updated with new features including regex helpers, JSON modification, savepoints, and plugin system
+- **Examples**: All examples updated and verified on all dialects (MySQL, MariaDB, PostgreSQL, SQLite)
+
 ## [2.9.2] - 2025-11-06
 
 ### Added
@@ -1176,7 +1285,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.2...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.3...HEAD
+[2.9.3]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.2...v2.9.3
 [2.9.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.1...v2.9.2
 [2.9.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.0...v2.9.1
 [2.9.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.8.0...v2.9.0
