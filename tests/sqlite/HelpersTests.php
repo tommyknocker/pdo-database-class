@@ -814,9 +814,16 @@ final class HelpersTests extends BaseSqliteTestCase
         $this->assertStringContainsString(' ', $row['phone_formatted']);
         $this->assertStringNotContainsString('-', $row['phone_formatted']);
 
-        // Test regexpExtract - extract domain from email
-        // Note: regexp_extract requires REGEXP extension with regexp_extract function
-        // If not available, the query will fail with PDOException
+        // Test regexpExtract - extract domain from email (full match without capture groups)
+        $row = $db->find()
+            ->from('t_regexp')
+            ->select(['domain_match' => Db::regexpExtract('email', '@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}')])
+            ->where('id', $id1)
+            ->getOne();
+        // regexp_extract returns the matched substring (full match)
+        $this->assertStringContainsString('@example.com', $row['domain_match']);
+
+        // Test regexpExtract - extract domain from email with capture group
         $row = $db->find()
             ->from('t_regexp')
             ->select(['domain' => Db::regexpExtract('email', '@([a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})', 1)])
@@ -824,6 +831,14 @@ final class HelpersTests extends BaseSqliteTestCase
             ->getOne();
         $this->assertNotNull($row['domain']);
         $this->assertEquals('example.com', $row['domain']);
+
+        // Test regexpExtract with full match (groupIndex = 0 or null)
+        $row = $db->find()
+            ->from('t_regexp')
+            ->select(['full_match' => Db::regexpExtract('email', '^[a-zA-Z0-9._%+-]+@')])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertStringContainsString('user@', $row['full_match']);
 
         // Test regexpMatch in WHERE clause with negation
         $results = $db->find()
