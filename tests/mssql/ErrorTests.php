@@ -25,13 +25,15 @@ final class ErrorTests extends BaseMSSQLTestCase
         $testHandler = new TestHandler();
         $logger = new Logger('test-db');
         $logger->pushHandler($testHandler);
+        $username = getenv('DB_USER') ?: self::DB_USER;
+        $password = getenv('DB_PASS') ?: self::DB_PASSWORD;
         $db = new PdoDb(
             'sqlsrv',
             [
                 'host' => self::DB_HOST,
                 'port' => self::DB_PORT,
-                'username' => self::DB_USER,
-                'password' => self::DB_PASSWORD,
+                'username' => $username,
+                'password' => $password,
                 'dbname' => self::DB_NAME,
                 'trust_server_certificate' => true,
                 'encrypt' => true,
@@ -66,13 +68,15 @@ final class ErrorTests extends BaseMSSQLTestCase
         $testHandler = new TestHandler();
         $logger = new Logger('test-db');
         $logger->pushHandler($testHandler);
+        $username = getenv('DB_USER') ?: self::DB_USER;
+        $password = getenv('DB_PASS') ?: self::DB_PASSWORD;
         $db = new PdoDb(
             'sqlsrv',
             [
                 'host' => self::DB_HOST,
                 'port' => self::DB_PORT,
-                'username' => self::DB_USER,
-                'password' => self::DB_PASSWORD,
+                'username' => $username,
+                'password' => $password,
                 'dbname' => self::DB_NAME,
                 'trust_server_certificate' => true,
                 'encrypt' => true,

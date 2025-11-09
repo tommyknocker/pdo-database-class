@@ -226,29 +226,17 @@ jobs:
             echo "Waiting for MSSQL... ($i/120)"
             sleep 2
           done
-      - name: Create database and user
+      - name: Create database
         run: |
           export PATH="$PATH:/opt/mssql-tools18/bin"
           # Create database (ignore error if exists)
           sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'testdb') CREATE DATABASE testdb;" || true
-          # Drop login if exists (for clean state)
-          sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q "IF EXISTS (SELECT * FROM sys.server_principals WHERE name = 'testuser') DROP LOGIN testuser;" || true
-          # Create login with password policy disabled for testing
-          sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q "CREATE LOGIN testuser WITH PASSWORD='TestPass123!@#', CHECK_POLICY=OFF, CHECK_EXPIRATION=OFF;"
-          # Create user in database
-          sqlcmd -S localhost -U sa -P 'Test123!@#' -C -d testdb -Q "IF EXISTS (SELECT * FROM sys.database_principals WHERE name = 'testuser') DROP USER testuser;" || true
-          sqlcmd -S localhost -U sa -P 'Test123!@#' -C -d testdb -Q "CREATE USER testuser FOR LOGIN testuser;"
-          # Grant permissions
-          sqlcmd -S localhost -U sa -P 'Test123!@#' -C -d testdb -Q "ALTER ROLE db_owner ADD MEMBER testuser;"
-          # Verify user can connect
-          echo "Testing connection as testuser..."
-          sqlcmd -S localhost -U testuser -P 'TestPass123!@#' -C -d testdb -Q "SELECT USER_NAME() AS current_user, DB_NAME() AS current_database;" || (echo "Connection test failed!" && exit 1)
-          echo "User created and verified successfully!"
+          echo "Database 'testdb' ready"
       - run: composer install --no-interaction --prefer-dist
       - run: |
           DB_DSN="sqlsrv:Server=localhost,1433;Database=testdb;TrustServerCertificate=yes" \
-          DB_USER="testuser" \
-          DB_PASS="TestPass123!@#" \
+          DB_USER="sa" \
+          DB_PASS="Test123!@#" \
           vendor/bin/phpunit --testsuite="MSSQL Tests" --coverage-clover coverage-mssql.xml
       - name: Test MSSQL Examples
         run: |
