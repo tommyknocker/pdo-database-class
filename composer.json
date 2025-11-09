@@ -1,6 +1,6 @@
 {
   "name": "tommyknocker/pdo-database-class",
-  "description": "Lightweight PHP database library with unified API for MySQL, MariaDB, PostgreSQL & SQLite. QueryBuilder, caching, sharding, window functions, CTEs, JSON, migrations, ActiveRecord. Zero dependencies.",
+  "description": "Lightweight PHP database library with unified API for MySQL, MariaDB, PostgreSQL, SQLite & MSSQL. QueryBuilder, caching, sharding, window functions, CTEs, JSON, migrations, ActiveRecord. Zero dependencies.",
   "type": "library",
   "keywords": [
     "pdo",
@@ -16,6 +16,10 @@
     "mariadb",
     "postgresql",
     "sqlite",
+    "mssql",
+    "sqlsrv",
+    "microsoft-sql-server",
+    "sql-server",
     "database",
     "prepared-statements",
     "prepared-statement-pool",
@@ -83,7 +87,13 @@
     "connection-retry",
     "psr-14",
     "event-dispatcher",
-    "explain-analysis"
+    "explain-analysis",
+    "patindex",
+    "cross-apply",
+    "outer-apply",
+    "try-cast",
+    "identity-column",
+    "bit-type"
   ],
   "homepage": "https://github.com/tommyknocker/pdo-database-class",
   "license": "MIT",
