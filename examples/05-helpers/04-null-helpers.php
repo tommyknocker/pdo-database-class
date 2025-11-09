@@ -159,13 +159,19 @@ echo "\n";
 
 // Example 9: Advanced COALESCE scenarios
 echo "9. Advanced COALESCE scenarios...\n";
+// Resolve ConcatValue to SQL string before using in coalesce
+// ConcatValue cannot be used directly in coalesce() because it throws exception on getValue()
+// We need to resolve it through the dialect first to get the SQL string
+$resolver = new \tommyknocker\pdodb\query\RawValueResolver($db->connection, new \tommyknocker\pdodb\query\ParameterManager());
+$concatRawValue = $db->connection->getDialect()->concat(Db::concat('Name: ', 'name'));
+$concatExpr = $concatRawValue->getValue();
 $users = $db->find()
     ->from('users')
     ->select([
         'name',
         'display_name' => Db::coalesce('name', "'Anonymous'"),
         'contact_info' => Db::coalesce('phone', 'email', 'address', "'No contact info'"),
-        'profile_summary' => Db::coalesce('bio', Db::raw('CONCAT(\'Name: \', name)'), "'No profile'")
+        'profile_summary' => Db::coalesce('bio', Db::raw($concatExpr), "'No profile'")
     ])
     ->get();
 
@@ -222,31 +228,18 @@ echo "\n";
 
 // Example 12: NULL handling in aggregations
 echo "12. NULL handling in aggregations...\n";
-$driver = getCurrentDriver($db);
-if ($driver === 'sqlsrv') {
-    // MSSQL uses LEN instead of LENGTH
-    $stats = $db->find()
-        ->from('users')
-        ->select([
-            'avg_name_length' => Db::avg(Db::raw('LEN(name)')),
-            'max_contact_length' => Db::max(Db::raw('LEN(COALESCE(email, phone, \'N/A\'))')),
-            'users_with_complete_info' => Db::count(Db::case([
-                'email IS NOT NULL AND phone IS NOT NULL AND address IS NOT NULL' => '1'
-            ], null))
-        ])
-        ->getOne();
-} else {
-    $stats = $db->find()
-        ->from('users')
-        ->select([
-            'avg_name_length' => Db::avg(Db::length('name')),
-            'max_contact_length' => Db::max(Db::length(Db::coalesce('email', 'phone', "'N/A'"))),
-            'users_with_complete_info' => Db::count(Db::case([
-                'email IS NOT NULL AND phone IS NOT NULL AND address IS NOT NULL' => '1'
-            ], null))
-        ])
-        ->getOne();
-}
+// Use library helpers for all dialects
+// Db::length() handles LENGTH() -> LEN() conversion for MSSQL automatically via normalizeRawValue
+$stats = $db->find()
+    ->from('users')
+    ->select([
+        'avg_name_length' => Db::avg(Db::length('name')),
+        'max_contact_length' => Db::max(Db::length(Db::coalesce('email', 'phone', "'N/A'"))),
+        'users_with_complete_info' => Db::count(Db::case([
+            'email IS NOT NULL AND phone IS NOT NULL AND address IS NOT NULL' => '1'
+        ], null))
+    ])
+    ->getOne();
 
 echo "  Aggregation statistics:\n";
 echo "  • Average name length: " . round($stats['avg_name_length'], 2) . " characters\n";

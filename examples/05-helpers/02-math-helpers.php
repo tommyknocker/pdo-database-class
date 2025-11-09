@@ -102,13 +102,9 @@ echo "\n";
 
 // Example 4: GREATEST - Maximum of multiple values
 echo "4. GREATEST - Maximum of multiple columns...\n";
-$driver = getCurrentDriver($db);
-if ($driver === 'sqlsrv') {
-    // MSSQL uses different syntax: ALTER TABLE ... ADD ... (without COLUMN keyword)
-    $db->rawQuery("ALTER TABLE measurements ADD alt_reading INT DEFAULT 0");
-} else {
-    $db->rawQuery("ALTER TABLE measurements ADD COLUMN alt_reading INTEGER DEFAULT 0");
-}
+// Use Schema Builder to add column (demonstrates proper library usage)
+$schema = $db->schema();
+$schema->addColumn('measurements', 'alt_reading', $schema->integer()->defaultValue(0));
 $db->find()->table('measurements')->where('id', 2, '<=')->update(['alt_reading' => Db::raw('reading + 10')]);
 $db->find()->table('measurements')->where('id', 2, '>')->update(['alt_reading' => Db::raw('reading - 5')]);
 
@@ -129,38 +125,22 @@ echo "\n";
 
 // Example 5b: POWER, SQRT, EXP, LN/LOG
 echo "5b. POWER/SQRT/EXP/LN/LOG - Advanced math...\n";
-$driver = getCurrentDriver($db);
-if ($driver === 'sqlsrv') {
-    // MSSQL uses LOG for natural logarithm (without base) and LOG(base, value) for base logarithm
-    // LN is not supported, so we use LOG instead
-    $adv = $db->find()
-        ->from('measurements')
-        ->select([
-            'name',
-            'reading',
-            'pow2' => Db::power('reading', 2),
-            'sqrt_abs' => Db::sqrt(Db::abs('value')),
-            'exp1' => Db::exp(1),
-            'ln_abs' => Db::raw('LOG(ABS(value))'), // MSSQL uses LOG for natural logarithm
-            'log10_abs' => Db::raw('LOG(10, ABS(value))') // MSSQL uses LOG(base, value)
-        ])
-        ->limit(2)
-        ->get();
-} else {
-    $adv = $db->find()
-        ->from('measurements')
-        ->select([
-            'name',
-            'reading',
-            'pow2' => Db::power('reading', 2),
-            'sqrt_abs' => Db::sqrt(Db::abs('value')),
-            'exp1' => Db::exp(1),
-            'ln_abs' => Db::ln(Db::abs('value')),
-            'log10_abs' => Db::log(Db::abs('value'))
-        ])
-        ->limit(2)
-        ->get();
-}
+// Use library helpers for all dialects
+// Db::ln() handles LN() -> LOG() conversion for MSSQL automatically via normalizeRawValue
+// Db::log() handles LOG10() -> LOG(10, ...) conversion for MSSQL automatically via normalizeRawValue
+$adv = $db->find()
+    ->from('measurements')
+    ->select([
+        'name',
+        'reading',
+        'pow2' => Db::power('reading', 2),
+        'sqrt_abs' => Db::sqrt(Db::abs('value')),
+        'exp1' => Db::exp(1),
+        'ln_abs' => Db::ln(Db::abs('value')), // Automatically converted to LOG() for MSSQL
+        'log10_abs' => Db::log(Db::abs('value')) // Automatically converted to LOG(10, ...) for MSSQL
+    ])
+    ->limit(2)
+    ->get();
 
 foreach ($adv as $row) {
     echo "  • {$row['name']}: pow(reading,2)={$row['pow2']}, sqrt(|value|)={$row['sqrt_abs']}\n";

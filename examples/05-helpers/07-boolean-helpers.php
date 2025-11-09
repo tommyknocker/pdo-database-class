@@ -128,15 +128,18 @@ echo "\n";
 
 // Example 6: Boolean aggregation
 echo "6. Boolean aggregation...\n";
+// Use Db::true()->getValue() to get dialect-specific boolean literal
+// normalizeRawValue will convert TRUE to 1 for MSSQL automatically
+$trueValue = Db::true()->getValue();
 $results = $db->find()
     ->from('settings')
     ->select([
         'user_id',
         'total_settings' => Db::count(),
-        'active_settings' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_active = 1' : 'is_active = true') => '1'], '0')),
-        'default_settings' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_default = 1' : 'is_default = true') => '1'], '0')),
-        'public_settings' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_public = 1' : 'is_public = true') => '1'], '0')),
-        'required_settings' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_required = 1' : 'is_required = true') => '1'], '0'))
+        'active_settings' => Db::sum(Db::case(["is_active = {$trueValue}" => '1'], '0')),
+        'default_settings' => Db::sum(Db::case(["is_default = {$trueValue}" => '1'], '0')),
+        'public_settings' => Db::sum(Db::case(["is_public = {$trueValue}" => '1'], '0')),
+        'required_settings' => Db::sum(Db::case(["is_required = {$trueValue}" => '1'], '0'))
     ])
     ->groupBy('user_id')
     ->orderBy('user_id')
@@ -209,15 +212,17 @@ echo "\n";
 
 // Example 10: Boolean statistics
 echo "10. Boolean statistics...\n";
+// Use Db::true()->getValue() to get dialect-specific boolean literal
+$trueValue = Db::true()->getValue();
 $stats = $db->find()
     ->from('settings')
     ->select([
         'total_settings' => Db::count(),
-        'active_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_active = 1' : 'is_active = true') => '1'], '0')),
-        'default_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_default = 1' : 'is_default = true') => '1'], '0')),
-        'public_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_public = 1' : 'is_public = true') => '1'], '0')),
-        'required_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? 'is_required = 1' : 'is_required = true') => '1'], '0')),
-        'active_percentage' => Db::round(Db::raw($driver === 'sqlsrv' ? '(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*))' : '(SUM(CASE WHEN is_active = true THEN 1 ELSE 0 END) * 100.0 / COUNT(*))'), 1)
+        'active_count' => Db::sum(Db::case(["is_active = {$trueValue}" => '1'], '0')),
+        'default_count' => Db::sum(Db::case(["is_default = {$trueValue}" => '1'], '0')),
+        'public_count' => Db::sum(Db::case(["is_public = {$trueValue}" => '1'], '0')),
+        'required_count' => Db::sum(Db::case(["is_required = {$trueValue}" => '1'], '0')),
+        'active_percentage' => Db::round(Db::raw("(SUM(CASE WHEN is_active = {$trueValue} THEN 1 ELSE 0 END) * 100.0 / COUNT(*))"), 1)
     ])
     ->getOne();
 

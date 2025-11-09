@@ -260,19 +260,35 @@ echo "\n";
 // Example 10: Type validation
 echo "10. Type validation...\n";
 $castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : 'REAL';
+$intType = ($driver === 'mysql' || $driver === 'mariadb') ? 'SIGNED' : 'INTEGER';
+// Use COALESCE with CAST to safely check if value can be converted
+// COALESCE(CAST(...), NULL) returns NULL if CAST fails (for dialects that use TRY_CAST or safe CAST)
+// Then use CASE to categorize based on whether cast succeeded
+// This demonstrates combining CAST, COALESCE, and CASE helpers for type validation
+$castRealSafe = Db::coalesce(Db::cast('text_value', $castRealType), Db::null());
+$castIntSafe = Db::coalesce(Db::cast('text_value', $intType), Db::null());
+$castDateSafe = Db::coalesce(Db::cast('mixed_value', 'DATE'), Db::null());
+// Resolve expressions to SQL strings for use in CASE conditions
+$resolver = new \tommyknocker\pdodb\query\RawValueResolver($db->connection, new \tommyknocker\pdodb\query\ParameterManager());
+$castRealSql = $resolver->resolveRawValue($castRealSafe);
+$castIntSql = $resolver->resolveRawValue($castIntSafe);
+$castDateSql = $resolver->resolveRawValue($castDateSafe);
+// Build CASE conditions using resolved SQL expressions
+// Note: For checking NULL on expressions, we need to use SQL directly since isNull/isNotNull helpers
+// are designed for column names, not expressions. This demonstrates combining helpers with raw SQL.
 $results = $db->find()
     ->from('data_types')
     ->select([
         'text_value',
         'mixed_value',
         'is_valid_numeric' => Db::case([
-            (Db::cast('text_value', $castRealType)->getValue() . ' IS NOT NULL AND ' . Db::cast('text_value', $castRealType)->getValue() . ' = ' . Db::cast('text_value', ($driver === 'mysql' || $driver === 'mariadb' ? 'SIGNED' : 'INTEGER'))->getValue()) => '\'Integer\'',
-            (Db::cast('text_value', $castRealType)->getValue() . ' IS NOT NULL') => '\'Real\'',
-            (Db::cast('text_value', $castRealType)->getValue() . ' IS NULL') => '\'Not Numeric\''
+            ($castRealSql . ' IS NOT NULL AND ' . $castIntSql . ' IS NOT NULL AND ' . $castRealSql . ' = ' . $castIntSql) => '\'Integer\'',
+            ($castRealSql . ' IS NOT NULL') => '\'Real\'',
+            ($castRealSql . ' IS NULL') => '\'Not Numeric\''
         ], '\'Unknown\''),
         'is_valid_date' => Db::case([
-            (Db::cast('mixed_value', 'DATE')->getValue() . ' IS NOT NULL') => '\'Valid Date\'',
-            (Db::cast('mixed_value', 'DATE')->getValue() . ' IS NULL') => '\'Invalid Date\''
+            ($castDateSql . ' IS NOT NULL') => '\'Valid Date\'',
+            ($castDateSql . ' IS NULL') => '\'Invalid Date\''
         ], '\'Unknown\'')
     ])
     ->get();

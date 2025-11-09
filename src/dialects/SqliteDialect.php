@@ -1458,7 +1458,10 @@ class SqliteDialect extends DialectAbstract
      */
     public function normalizeRawValue(string $sql): string
     {
-        // SQLite doesn't need special normalization
+        // Convert standard SUBSTRING(expr, start, length) to SQLite SUBSTR(expr, start, length)
+        // Pattern: SUBSTRING(expr, start, length) -> SUBSTR(expr, start, length)
+        $sql = preg_replace('/\bSUBSTRING\s*\(/i', 'SUBSTR(', $sql) ?? $sql;
+
         return $sql;
     }
 

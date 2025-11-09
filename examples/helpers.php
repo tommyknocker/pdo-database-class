@@ -124,8 +124,11 @@ function getCreateTableSql(PdoDb $db, string $tableName, array $columns, array $
 }
 
 /**
- * Drop table if exists and create new one
+ * Drop table if exists and create new one using Schema Builder
  * Handles foreign key constraints properly for each database
+ * 
+ * This function uses the library's Schema Builder instead of raw SQL
+ * to demonstrate proper usage of the library's DDL API.
  */
 function recreateTable(PdoDb $db, string $tableName, array $columns, array $options = []): void
 {
@@ -135,6 +138,7 @@ function recreateTable(PdoDb $db, string $tableName, array $columns, array $opti
     }
     
     $driver = $connection->getDriverName();
+    $schema = $db->schema();
     
     // Disable foreign key checks for MySQL/MariaDB
     if ($driver === 'mysql' || $driver === 'mariadb') {
@@ -154,11 +158,11 @@ function recreateTable(PdoDb $db, string $tableName, array $columns, array $opti
         ";
         $fks = $db->rawQuery($fkQuery);
         foreach ($fks as $fk) {
-            $schema = $fk['schema_name'] ?? 'dbo';
+            $schemaName = $fk['schema_name'] ?? 'dbo';
             $fkTable = $fk['table_name'];
             $fkName = $fk['fk_name'];
             // Use connection->query() for DDL operations in MSSQL
-            $connection->query("ALTER TABLE [{$schema}].[{$fkTable}] DROP CONSTRAINT [{$fkName}]");
+            $connection->query("ALTER TABLE [{$schemaName}].[{$fkTable}] DROP CONSTRAINT [{$fkName}]");
         }
         
         // Also drop foreign keys defined in this table
@@ -176,18 +180,13 @@ function recreateTable(PdoDb $db, string $tableName, array $columns, array $opti
         }
     }
     
-    // Drop table with CASCADE for PostgreSQL to handle dependent objects
-    if ($driver === 'pgsql') {
-        $db->rawQuery("DROP TABLE IF EXISTS $tableName CASCADE");
-    } elseif ($driver === 'sqlsrv') {
-        // MSSQL doesn't support DROP TABLE IF EXISTS, use IF OBJECT_ID check
-        // Use connection->query() for DDL operations in MSSQL
-        $connection->query("IF OBJECT_ID('$tableName', 'U') IS NOT NULL DROP TABLE [$tableName]");
-    } else {
-        $db->rawQuery("DROP TABLE IF EXISTS $tableName");
-    }
+    // Use Schema Builder to drop table if exists (demonstrates Schema Builder usage)
+    $schema->dropTableIfExists($tableName);
     
-    // Create table
+    // Create table using raw SQL for now
+    // Note: Schema Builder doesn't parse PRIMARY KEY from string definitions like 'INTEGER PRIMARY KEY AUTOINCREMENT'
+    // For better Schema Builder usage, examples should use ColumnSchema objects or arrays instead of strings
+    // Example: $schema->createTable('users', ['id' => $schema->primaryKey(), 'name' => $schema->string(255)])
     $sql = getCreateTableSql($db, $tableName, $columns, $options);
     if ($driver === 'sqlsrv') {
         // Use connection->query() for DDL operations in MSSQL

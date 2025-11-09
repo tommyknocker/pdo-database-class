@@ -1383,7 +1383,9 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildDropTableIfExistsSql(string $table): string
     {
-        return 'DROP TABLE IF EXISTS ' . $this->quoteTable($table);
+        // Use CASCADE to drop dependent objects (foreign keys, constraints, etc.)
+        // This is necessary when tables have dependencies from previous test runs
+        return 'DROP TABLE IF EXISTS ' . $this->quoteTable($table) . ' CASCADE';
     }
 
     /**
@@ -1725,6 +1727,30 @@ class PostgreSQLDialect extends DialectAbstract
                 }
                 // For TIMESTAMP and TIME, use similar pattern
                 return "CASE WHEN {$column}::text ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN {$column}::{$type} ELSE NULL END";
+            },
+            $sql
+        ) ?? $sql;
+
+        // Convert standard SUBSTRING(expr, start, length) to PostgreSQL SUBSTRING(expr FROM start FOR length)
+        // Pattern: SUBSTRING(expr, start, length) -> SUBSTRING(expr FROM start FOR length)
+        $sql = preg_replace_callback(
+            '/\bSUBSTRING\s*\(\s*([^,]+),\s*([^,]+),\s*([^)]+)\s*\)/i',
+            function ($matches) {
+                $expr = trim($matches[1]);
+                $start = trim($matches[2]);
+                $length = trim($matches[3]);
+                return "SUBSTRING({$expr} FROM {$start} FOR {$length})";
+            },
+            $sql
+        ) ?? $sql;
+
+        // Pattern: SUBSTRING(expr, start) -> SUBSTRING(expr FROM start)
+        $sql = preg_replace_callback(
+            '/\bSUBSTRING\s*\(\s*([^,]+),\s*([^)]+)\s*\)/i',
+            function ($matches) {
+                $expr = trim($matches[1]);
+                $start = trim($matches[2]);
+                return "SUBSTRING({$expr} FROM {$start})";
             },
             $sql
         ) ?? $sql;

@@ -31,19 +31,16 @@ echo "1. Basic Exception Handling\n";
 echo "----------------------------\n";
 
 try {
-    // Drop table if exists (for idempotency)
-    $db->rawQuery("DROP TABLE IF EXISTS users");
+    // Use Schema Builder to drop and create table (demonstrates proper library usage)
+    $schema = $db->schema();
+    $schema->dropTableIfExists('users');
     
-    // Create a table with unique constraint (dialect-specific)
-    if ($driver === 'mysql') {
-        $db->rawQuery("CREATE TABLE users (id INT PRIMARY KEY AUTO_INCREMENT, email VARCHAR(255) UNIQUE, name VARCHAR(255))");
-    } elseif ($driver === 'pgsql') {
-        $db->rawQuery("CREATE TABLE users (id SERIAL PRIMARY KEY, email VARCHAR(255) UNIQUE, name VARCHAR(255))");
-    } elseif ($driver === 'sqlsrv') {
-        $db->rawQuery("CREATE TABLE users (id INT IDENTITY(1,1) PRIMARY KEY, email NVARCHAR(255) UNIQUE, name NVARCHAR(255))");
-    } else {
-        $db->rawQuery("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, name TEXT)");
-    }
+    // Create table using Schema Builder - demonstrates proper usage of library API
+    $schema->createTable('users', [
+        'id' => $schema->primaryKey(),
+        'email' => $schema->string(255)->unique(),
+        'name' => $schema->string(255)
+    ]);
     
     // Insert first user
     $db->find()->from('users')->insert(['email' => 'test@example.com', 'name' => 'Test User']);
@@ -77,42 +74,16 @@ echo "2. Constraint Violation Handling\n";
 echo "--------------------------------\n";
 
 try {
-    // Drop table if exists (for idempotency)
-    $db->rawQuery('DROP TABLE IF EXISTS users');
+    // Use Schema Builder to drop and create table (demonstrates proper library usage)
+    $schema = $db->schema();
+    $schema->dropTableIfExists('users');
     
-    // Create table with unique constraint (dialect-specific)
-    if ($driver === 'mysql' || $driver === 'mariadb') {
-        $db->rawQuery('CREATE TABLE users (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            email VARCHAR(255) UNIQUE NOT NULL,
-            name VARCHAR(255) NOT NULL
-        )');
-    } elseif ($driver === 'pgsql') {
-        $db->rawQuery('CREATE TABLE users (
-            id SERIAL PRIMARY KEY,
-            email VARCHAR(255) UNIQUE NOT NULL,
-            name VARCHAR(255) NOT NULL
-        )');
-    } elseif ($driver === 'sqlsrv') {
-        $db->rawQuery('CREATE TABLE users (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            email NVARCHAR(255) UNIQUE NOT NULL,
-            name NVARCHAR(255) NOT NULL
-        )');
-    } elseif ($driver === 'sqlite') {
-        $db->rawQuery('CREATE TABLE users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL
-        )');
-    } else {
-        // Default fallback (should not reach here)
-        $db->rawQuery('CREATE TABLE users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL
-        )');
-    }
+    // Create table using Schema Builder - demonstrates proper usage of library API
+    $schema->createTable('users', [
+        'id' => $schema->primaryKey(),
+        'email' => $schema->string(255)->unique()->notNull(),
+        'name' => $schema->string(255)->notNull()
+    ]);
     
     // Insert first user
     $db->find()->table('users')->insert([
@@ -153,31 +124,15 @@ echo "3. Transaction Error Handling\n";
 echo "-----------------------------\n";
 
 try {
-    // Drop table if exists (for idempotency)
-    $db->rawQuery('DROP TABLE IF EXISTS accounts');
+    // Use Schema Builder to drop and create table (demonstrates proper library usage)
+    $schema = $db->schema();
+    $schema->dropTableIfExists('accounts');
     
-    // Create table (dialect-specific)
-    if ($driver === 'mysql') {
-        $db->rawQuery('CREATE TABLE accounts (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            balance DECIMAL(10,2) NOT NULL DEFAULT 0
-        )');
-    } elseif ($driver === 'pgsql') {
-        $db->rawQuery('CREATE TABLE accounts (
-            id SERIAL PRIMARY KEY,
-            balance DECIMAL(10,2) NOT NULL DEFAULT 0
-        )');
-    } elseif ($driver === 'sqlsrv') {
-        $db->rawQuery('CREATE TABLE accounts (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            balance DECIMAL(10,2) NOT NULL DEFAULT 0
-        )');
-    } else {
-        $db->rawQuery('CREATE TABLE accounts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            balance DECIMAL(10,2) NOT NULL DEFAULT 0
-        )');
-    }
+    // Create table using Schema Builder - demonstrates proper usage of library API
+    $schema->createTable('accounts', [
+        'id' => $schema->primaryKey(),
+        'balance' => $schema->decimal(10, 2)->notNull()->defaultValue(0)
+    ]);
     
     // Insert test account
     $db->find()->table('accounts')->insert(['balance' => 1000]);

@@ -235,31 +235,29 @@ echo "\n";
 
 // Example 9: Advanced string operations
 echo "9. Advanced string operations...\n";
-$driver = getCurrentDriver($db);
-if ($driver === 'sqlsrv') {
-    // MSSQL requires 3 arguments for SUBSTRING
-    $users = $db->find()
-        ->from('users')
-        ->select([
-            'email',
-            'email_domain' => Db::raw("SUBSTRING(email, LEN(email) - LEN(REPLACE(email, '@', '')) + 2, LEN(email))"),
-            'email_user' => Db::raw("SUBSTRING(email, 1, LEN(email) - LEN(REPLACE(email, '@', '')) - 1)")
-        ])
-        ->get();
-} else {
-    $substringFunc = $driver === 'pgsql' ? 'SUBSTR' : 'SUBSTRING';
-    $users = $db->find()
-        ->from('users')
-        ->select([
-            'email',
-            'email_domain' => Db::raw("$substringFunc(email, LENGTH(email) - LENGTH(REPLACE(email, '@', '')) + 2)"),
-            'email_user' => Db::raw("$substringFunc(email, 1, LENGTH(email) - LENGTH(REPLACE(email, '@', '')) - 1)")
-        ])
-        ->get();
-}
+// Demonstrate using library helpers for string manipulation
+// All helpers handle dialect-specific differences automatically
+$users = $db->find()
+    ->from('users')
+    ->select([
+        'email',
+        // Use helpers for string operations
+        'email_length' => Db::length('email'),
+        'at_position' => Db::position('@', 'email'),
+        // Extract first 5 characters using helper
+        'email_prefix' => Db::substring('email', 1, 5),
+        // Extract last 10 characters using helper
+        'email_suffix' => Db::right('email', 10),
+        // Use greatest() helper to find maximum length between email and first_name
+        'max_length' => Db::greatest(Db::length('email'), Db::length('first_name'))
+    ])
+    ->get();
 
 foreach ($users as $user) {
-    echo "  • {$user['email']} → user: {$user['email_user']}, domain: {$user['email_domain']}\n";
+    echo "  • {$user['email']}\n";
+    echo "    Length: {$user['email_length']}, '@' at position: {$user['at_position']}\n";
+    echo "    Prefix (first 5): {$user['email_prefix']}, Suffix (last 10): {$user['email_suffix']}\n";
+    echo "    Max length (email vs name): {$user['max_length']}\n";
 }
 echo "\n";
 

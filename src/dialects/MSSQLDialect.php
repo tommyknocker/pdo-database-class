@@ -1371,6 +1371,14 @@ class MSSQLDialect extends DialectAbstract
                 // This prevents errors when casting invalid values (e.g., 'abc' to INT)
                 $replaced = preg_replace('/\bCAST\s*\(/i', 'TRY_CAST(', $part);
                 $part = $replaced !== null ? $replaced : $part;
+                // MSSQL doesn't support LN(), use LOG() for natural logarithm
+                $replaced = preg_replace('/\bLN\s*\(/i', 'LOG(', $part);
+                $part = $replaced !== null ? $replaced : $part;
+                // MSSQL doesn't support LOG10(), use LOG(10, value) instead
+                $replaced = preg_replace_callback('/\bLOG10\s*\(([^)]+)\)/i', function ($matches) {
+                    return 'LOG(10, ' . trim($matches[1]) . ')';
+                }, $part);
+                $part = $replaced !== null ? $replaced : $part;
                 $result .= $part;
             }
         }
@@ -1935,9 +1943,13 @@ class MSSQLDialect extends DialectAbstract
     public function formatGreatest(array $values): string
     {
         $args = $this->resolveValues($values);
+        // Apply normalizeRawValue to each argument to convert LENGTH() to LEN(), etc.
+        $normalizedArgs = array_map(function ($arg) {
+            return $this->normalizeRawValue((string)$arg);
+        }, $args);
         // MSSQL GREATEST requires all arguments to be of compatible types
         // If any argument is a CAST/TRY_CAST expression, ensure all are cast to the same type
-        $normalizedArgs = $this->normalizeGreatestLeastArgs($args);
+        $normalizedArgs = $this->normalizeGreatestLeastArgs($normalizedArgs);
         return 'GREATEST(' . implode(', ', $normalizedArgs) . ')';
     }
 
@@ -1947,9 +1959,13 @@ class MSSQLDialect extends DialectAbstract
     public function formatLeast(array $values): string
     {
         $args = $this->resolveValues($values);
+        // Apply normalizeRawValue to each argument to convert LENGTH() to LEN(), etc.
+        $normalizedArgs = array_map(function ($arg) {
+            return $this->normalizeRawValue((string)$arg);
+        }, $args);
         // MSSQL LEAST requires all arguments to be of compatible types
         // If any argument is a CAST/TRY_CAST expression, ensure all are cast to the same type
-        $normalizedArgs = $this->normalizeGreatestLeastArgs($args);
+        $normalizedArgs = $this->normalizeGreatestLeastArgs($normalizedArgs);
         return 'LEAST(' . implode(', ', $normalizedArgs) . ')';
     }
 

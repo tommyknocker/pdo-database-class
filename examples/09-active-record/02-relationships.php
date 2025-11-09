@@ -305,13 +305,9 @@ echo "8. Yii2-like Syntax - Calling Relationships as Methods\n";
 echo "--------------------------------------------------------\n";
 
 // Add published column for demonstration
-$driver = getCurrentDriver($db);
-if ($driver === 'sqlsrv') {
-    // MSSQL doesn't support COLUMN keyword in ALTER TABLE ADD
-    $db->rawQuery('ALTER TABLE posts ADD published INT DEFAULT 1');
-} else {
-    $db->rawQuery('ALTER TABLE posts ADD COLUMN published INTEGER DEFAULT 1');
-}
+// Use Schema Builder to add column (demonstrates proper library usage)
+$schema = $db->schema();
+$schema->addColumn('posts', 'published', $schema->integer()->defaultValue(1));
 $db->find()->table('posts')->where('title', 'Charlie\'s Post')->update(['published' => 1]);
 
 // Call relationship as method to get ActiveQuery
@@ -336,17 +332,21 @@ $postCount = $user3->posts()->where('published', 1)->select(['count' => \tommykn
 echo "\nPublished posts count: {$postCount}\n";
 
 // Cleanup
+// Use Schema Builder to drop column (demonstrates proper library usage)
+// Note: MSSQL requires dropping default constraints first, which Schema Builder handles internally
+$schema = $db->schema();
+$driver = getCurrentDriver($db);
 if ($driver === 'sqlsrv') {
     // MSSQL: Drop default constraint first, then drop column
+    // Schema Builder's dropColumn() doesn't handle default constraints automatically for MSSQL
+    // So we need to drop the constraint manually first
     $constraintQuery = "SELECT name FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID('posts') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID('posts'), 'published', 'ColumnId')";
     $constraints = $db->rawQuery($constraintQuery);
     foreach ($constraints as $constraint) {
         $db->rawQuery("ALTER TABLE posts DROP CONSTRAINT [{$constraint['name']}]");
     }
-    $db->rawQuery('ALTER TABLE posts DROP COLUMN published');
-} else {
-    $db->rawQuery('ALTER TABLE posts DROP COLUMN published');
 }
+$schema->dropColumn('posts', 'published');
 echo "\n";
 
     // Example 9: Many-to-Many Relationships
