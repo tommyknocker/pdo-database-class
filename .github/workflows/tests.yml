@@ -230,14 +230,17 @@ jobs:
         run: |
           export PATH="$PATH:/opt/mssql-tools18/bin"
           sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q "CREATE DATABASE testdb;"
-          sqlcmd -S localhost -U sa -P 'Test123!@#' -C -d testdb -Q "CREATE LOGIN testuser WITH PASSWORD='testpass';"
+          sqlcmd -S localhost -U sa -P 'Test123!@#' -C -Q "CREATE LOGIN testuser WITH PASSWORD='testpass123!@#';"
           sqlcmd -S localhost -U sa -P 'Test123!@#' -C -d testdb -Q "CREATE USER testuser FOR LOGIN testuser;"
           sqlcmd -S localhost -U sa -P 'Test123!@#' -C -d testdb -Q "ALTER ROLE db_owner ADD MEMBER testuser;"
+          sqlcmd -S localhost -U sa -P 'Test123!@#' -C -d testdb -Q "GRANT CONNECT TO testuser;"
+          # Verify user can connect
+          sqlcmd -S localhost -U testuser -P 'testpass123!@#' -C -d testdb -Q "SELECT USER_NAME();"
       - run: composer install --no-interaction --prefer-dist
       - run: |
           DB_DSN="sqlsrv:Server=localhost,1433;Database=testdb;TrustServerCertificate=yes" \
           DB_USER="testuser" \
-          DB_PASS="testpass" \
+          DB_PASS="testpass123!@#" \
           vendor/bin/phpunit --testsuite="MSSQL Tests" --coverage-clover coverage-mssql.xml
       - name: Test MSSQL Examples
         run: |
