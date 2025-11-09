@@ -158,11 +158,20 @@ echo "\n";
 // Example 5: Case-insensitive search
 echo "=== 5. Case-Insensitive Search ===\n";
 $searchTerm = 'sql';
-$results = $db->find()
-    ->from('articles')
-    ->where(Db::ilike('title', "%{$searchTerm}%"))
-    ->orWhere(Db::ilike('content', "%{$searchTerm}%"))
-    ->get();
+if ($driver === 'sqlsrv') {
+    // MSSQL: NTEXT doesn't work with LOWER, need to use CAST or CONVERT
+    $results = $db->find()
+        ->from('articles')
+        ->where(Db::raw("LOWER(CAST(title AS NVARCHAR(MAX))) LIKE LOWER(CAST('%{$searchTerm}%' AS NVARCHAR(MAX)))"))
+        ->orWhere(Db::raw("LOWER(CAST(content AS NVARCHAR(MAX))) LIKE LOWER(CAST('%{$searchTerm}%' AS NVARCHAR(MAX)))"))
+        ->get();
+} else {
+    $results = $db->find()
+        ->from('articles')
+        ->where(Db::ilike('title', "%{$searchTerm}%"))
+        ->orWhere(Db::ilike('content', "%{$searchTerm}%"))
+        ->get();
+}
 
 echo "Results for search '$searchTerm' (case-insensitive): " . count($results) . "\n";
 foreach ($results as $row) {

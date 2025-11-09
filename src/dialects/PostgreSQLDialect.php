@@ -1681,8 +1681,81 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function normalizeRawValue(string $sql): string
     {
-        // PostgreSQL doesn't need special normalization
+        // PostgreSQL CAST throws errors for invalid values
+        // Replace CAST with safe CASE WHEN expressions for common types
+        // This allows safe type conversion without errors
+
+        // Pattern: CAST(column AS INTEGER) -> CASE WHEN column ~ '^[0-9]+$' THEN column::INTEGER ELSE NULL END
+        // Match CAST(expr AS type) where expr can be a column name (possibly qualified) or a simple expression
+        // Make sure to match the closing parenthesis
+        $sql = preg_replace_callback(
+            '/\bCAST\s*\(\s*([a-zA-Z_][a-zA-Z0-9_.]*|"[^"]+"|`[^`]+`|\[[^\]]+\])\s+AS\s+(INTEGER|INT|BIGINT|SMALLINT|SERIAL|BIGSERIAL)\s*\)/i',
+            function ($matches) {
+                $column = trim($matches[1]);
+                $type = strtoupper($matches[2]);
+                // Use ::TYPE syntax for PostgreSQL
+                return "CASE WHEN {$column} ~ '^[0-9]+$' THEN {$column}::{$type} ELSE NULL END";
+            },
+            $sql
+        ) ?? $sql;
+
+        // Pattern: CAST(column AS NUMERIC|DECIMAL|REAL|DOUBLE|FLOAT) -> CASE WHEN column ~ '^[0-9]+\.?[0-9]*$' THEN column::TYPE ELSE NULL END
+        $sql = preg_replace_callback(
+            '/\bCAST\s*\(\s*([a-zA-Z_][a-zA-Z0-9_.]*|"[^"]+"|`[^`]+`|\[[^\]]+\])\s+AS\s+(NUMERIC|DECIMAL|REAL|DOUBLE\s+PRECISION|FLOAT|DOUBLE)\s*\)/i',
+            function ($matches) {
+                $column = trim($matches[1]);
+                $type = strtoupper($matches[2]);
+                // Use ::TYPE syntax for PostgreSQL
+                return "CASE WHEN {$column} ~ '^[0-9]+\\.?[0-9]*$' THEN {$column}::{$type} ELSE NULL END";
+            },
+            $sql
+        ) ?? $sql;
+
+        // Pattern: CAST(column AS DATE|TIMESTAMP|TIME) -> CASE WHEN column is valid date/timestamp/time THEN column::TYPE ELSE NULL END
+        $sql = preg_replace_callback(
+            '/\bCAST\s*\(\s*([a-zA-Z_][a-zA-Z0-9_.]*|"[^"]+"|`[^`]+`|\[[^\]]+\])\s+AS\s+(DATE|TIMESTAMP|TIME)\s*\)/i',
+            function ($matches) {
+                $column = trim($matches[1]);
+                $type = strtoupper($matches[2]);
+                // Use ::TYPE syntax for PostgreSQL
+                // Try to cast, return NULL if invalid (PostgreSQL will throw error, so we use a function)
+                // For DATE, check if it matches a date pattern
+                if ($type === 'DATE') {
+                    return "CASE WHEN {$column}::text ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN {$column}::{$type} ELSE NULL END";
+                }
+                // For TIMESTAMP and TIME, use similar pattern
+                return "CASE WHEN {$column}::text ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN {$column}::{$type} ELSE NULL END";
+            },
+            $sql
+        ) ?? $sql;
+
         return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatGreatest(array $values): string
+    {
+        $args = $this->resolveValues($values);
+        // Apply normalizeRawValue to each argument to handle safe CAST conversion
+        $normalizedArgs = array_map(function ($arg) {
+            return $this->normalizeRawValue((string)$arg);
+        }, $args);
+        return 'GREATEST(' . implode(', ', $normalizedArgs) . ')';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatLeast(array $values): string
+    {
+        $args = $this->resolveValues($values);
+        // Apply normalizeRawValue to each argument to handle safe CAST conversion
+        $normalizedArgs = array_map(function ($arg) {
+            return $this->normalizeRawValue((string)$arg);
+        }, $args);
+        return 'LEAST(' . implode(', ', $normalizedArgs) . ')';
     }
 
     /**

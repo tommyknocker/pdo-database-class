@@ -1249,4 +1249,12 @@ interface DialectInterface
      * @return ExplainParserInterface Parser instance
      */
     public function getExplainParser(): ExplainParserInterface;
+
+    /**
+     * Get the keyword for recursive CTE.
+     * Most databases use 'WITH RECURSIVE', but MSSQL uses just 'WITH'.
+     *
+     * @return string Keyword for recursive CTE ('WITH' or 'WITH RECURSIVE')
+     */
+    public function getRecursiveCteKeyword(): string;
 }

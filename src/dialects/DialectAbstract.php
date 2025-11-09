@@ -786,4 +786,12 @@ abstract class DialectAbstract implements DialectInterface
             sprintf('EXPLAIN parser not implemented for %s dialect', $this->getDriverName())
         );
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getRecursiveCteKeyword(): string
+    {
+        return 'WITH RECURSIVE';
+    }
 }

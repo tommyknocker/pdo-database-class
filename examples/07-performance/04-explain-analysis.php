@@ -142,6 +142,9 @@ if ($driverName === 'pgsql') {
     $db->rawQuery('CREATE INDEX IF NOT EXISTS idx_explain_demo_status ON explain_demo(status)');
 } elseif ($driverName === 'mysql') {
     $db->rawQuery('CREATE INDEX idx_explain_demo_status ON explain_demo(status)');
+} elseif ($driverName === 'sqlsrv') {
+    // MSSQL doesn't support IF NOT EXISTS for CREATE INDEX
+    $db->rawQuery('IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = \'idx_explain_demo_status\' AND object_id = OBJECT_ID(\'explain_demo\')) CREATE INDEX idx_explain_demo_status ON explain_demo(status)');
 } else { // sqlite
     $db->rawQuery('CREATE INDEX IF NOT EXISTS idx_explain_demo_status ON explain_demo(status)');
 }

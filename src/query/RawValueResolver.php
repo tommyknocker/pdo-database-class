@@ -378,6 +378,10 @@ class RawValueResolver
     {
         $aggregateFunc = $value->getAggregateFunc();
 
+        // Apply dialect-specific normalization to the aggregate function
+        // This ensures CAST is converted to TRY_CAST for MSSQL, etc.
+        $aggregateFunc = $this->dialect->normalizeRawValue($aggregateFunc);
+
         if (!$value->hasFilter()) {
             return $aggregateFunc;
         }

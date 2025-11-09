@@ -1343,18 +1343,38 @@ class MSSQLDialect extends DialectAbstract
      */
     public function normalizeRawValue(string $sql): string
     {
-        // Replace LENGTH( with LEN( but be careful not to replace in strings or identifiers
-        $replaced = preg_replace('/\bLENGTH\s*\(/i', 'LEN(', $sql);
-        $sql = $replaced !== null ? $replaced : $sql;
-        // Replace CEIL( with CEILING( (MSSQL uses CEILING instead of CEIL)
-        $replaced = preg_replace('/\bCEIL\s*\(/i', 'CEILING(', $sql);
-        $sql = $replaced !== null ? $replaced : $sql;
-        // MSSQL doesn't support TRUE/FALSE literals, use 1/0 for BIT type
-        $replaced = preg_replace('/\bTRUE\b/i', '1', $sql);
-        $sql = $replaced !== null ? $replaced : $sql;
-        $replaced = preg_replace('/\bFALSE\b/i', '0', $sql);
-        $sql = $replaced !== null ? $replaced : $sql;
-        return $sql;
+        // Don't modify identifiers in square brackets (MSSQL quoted identifiers)
+        // Split SQL into parts: identifiers in brackets and everything else
+        $parts = preg_split('/(\[[^\]]+\])/', $sql, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+        if ($parts === false) {
+            $parts = [];
+        }
+        $result = '';
+        foreach ($parts as $part) {
+            if (preg_match('/^\[[^\]]+\]$/', $part)) {
+                // This is a quoted identifier, don't modify it
+                $result .= $part;
+            } else {
+                // This is not a quoted identifier, apply normalization
+                // Replace LENGTH( with LEN( but be careful not to replace in strings or identifiers
+                $replaced = preg_replace('/\bLENGTH\s*\(/i', 'LEN(', $part);
+                $part = $replaced !== null ? $replaced : $part;
+                // Replace CEIL( with CEILING( (MSSQL uses CEILING instead of CEIL)
+                $replaced = preg_replace('/\bCEIL\s*\(/i', 'CEILING(', $part);
+                $part = $replaced !== null ? $replaced : $part;
+                // MSSQL doesn't support TRUE/FALSE literals, use 1/0 for BIT type
+                $replaced = preg_replace('/\bTRUE\b/i', '1', $part);
+                $part = $replaced !== null ? $replaced : $part;
+                $replaced = preg_replace('/\bFALSE\b/i', '0', $part);
+                $part = $replaced !== null ? $replaced : $part;
+                // Replace CAST( with TRY_CAST( for safe type conversion in MSSQL
+                // This prevents errors when casting invalid values (e.g., 'abc' to INT)
+                $replaced = preg_replace('/\bCAST\s*\(/i', 'TRY_CAST(', $part);
+                $part = $replaced !== null ? $replaced : $part;
+                $result .= $part;
+            }
+        }
+        return $result;
     }
 
     /**
@@ -1692,9 +1712,12 @@ class MSSQLDialect extends DialectAbstract
     public function buildRenameTableSql(string $table, string $newName): string
     {
         $tableQuoted = $this->quoteTable($table);
-        $newQuoted = $this->quoteIdentifier($newName);
+        // MSSQL sp_rename doesn't need brackets in the new name parameter
+        // Remove brackets if present to avoid "already in use" errors
+        $newNameClean = trim($newName, '[]');
+        // Don't quote the new name - sp_rename expects unquoted name
         // MSSQL uses sp_rename stored procedure
-        return "EXEC sp_rename '{$tableQuoted}', '{$newQuoted}'";
+        return "EXEC sp_rename '{$tableQuoted}', '{$newNameClean}'";
     }
 
     /**
@@ -1717,6 +1740,9 @@ class MSSQLDialect extends DialectAbstract
         if ($type === 'BIT') {
             // BIT doesn't accept length in MSSQL
             $typeDef = 'BIT';
+        } elseif ($type === 'NVARCHAR' && $length === null) {
+            // NVARCHAR without length defaults to NVARCHAR(MAX) in MSSQL
+            $typeDef = 'NVARCHAR(MAX)';
         } elseif ($length !== null) {
             $typeDef .= "({$length})";
         } elseif ($precision !== null && $scale !== null) {
@@ -1733,14 +1759,24 @@ class MSSQLDialect extends DialectAbstract
         $sql = "{$quotedName} {$typeDef} {$null}";
 
         if ($default !== null && !$autoIncrement) {
-            // BIT type in MSSQL uses 0/1 for boolean values
-            if ($type === 'BIT') {
-                $bitValue = ($default === true || $default === 1 || $default === '1' || $default === 'true') ? 1 : 0;
-                $sql .= " DEFAULT {$bitValue}";
-            } elseif (is_string($default)) {
-                $sql .= " DEFAULT '{$default}'";
+            if ($schema->isDefaultExpression()) {
+                // Handle default expressions (e.g., CURRENT_TIMESTAMP -> GETDATE() for MSSQL)
+                $defaultExpr = (string)$default;
+                if (strtoupper($defaultExpr) === 'CURRENT_TIMESTAMP') {
+                    $sql .= ' DEFAULT GETDATE()';
+                } else {
+                    $sql .= " DEFAULT {$defaultExpr}";
+                }
             } else {
-                $sql .= " DEFAULT {$default}";
+                // BIT type in MSSQL uses 0/1 for boolean values
+                if ($type === 'BIT') {
+                    $bitValue = ($default === true || $default === 1 || $default === '1' || $default === 'true') ? 1 : 0;
+                    $sql .= " DEFAULT {$bitValue}";
+                } elseif (is_string($default)) {
+                    $sql .= " DEFAULT '{$default}'";
+                } else {
+                    $sql .= " DEFAULT {$default}";
+                }
             }
         }
 
@@ -1891,5 +1927,108 @@ class MSSQLDialect extends DialectAbstract
     public function getExplainParser(): ExplainParserInterface
     {
         return new \tommyknocker\pdodb\query\analysis\parsers\MSSQLExplainParser();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatGreatest(array $values): string
+    {
+        $args = $this->resolveValues($values);
+        // MSSQL GREATEST requires all arguments to be of compatible types
+        // If any argument is a CAST/TRY_CAST expression, ensure all are cast to the same type
+        $normalizedArgs = $this->normalizeGreatestLeastArgs($args);
+        return 'GREATEST(' . implode(', ', $normalizedArgs) . ')';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatLeast(array $values): string
+    {
+        $args = $this->resolveValues($values);
+        // MSSQL LEAST requires all arguments to be of compatible types
+        // If any argument is a CAST/TRY_CAST expression, ensure all are cast to the same type
+        $normalizedArgs = $this->normalizeGreatestLeastArgs($args);
+        return 'LEAST(' . implode(', ', $normalizedArgs) . ')';
+    }
+
+    /**
+     * Normalize arguments for GREATEST/LEAST to ensure type compatibility in MSSQL.
+     * If any argument is a CAST/TRY_CAST expression, cast all other arguments to DECIMAL(10,2).
+     *
+     * @param array<int, string|int|float> $args
+     *
+     * @return array<int, string>
+     */
+    protected function normalizeGreatestLeastArgs(array $args): array
+    {
+        $hasCast = false;
+        $castType = 'DECIMAL(10,2)';
+
+        // Check if any argument is a CAST/TRY_CAST expression
+        foreach ($args as $arg) {
+            $argStr = (string)$arg;
+            if (preg_match('/\b(TRY_CAST|CAST)\s*\([^)]+\s+AS\s+([^)]+)\)/i', $argStr, $matches)) {
+                $hasCast = true;
+                // Extract the type from CAST expression
+                $extractedType = trim($matches[2]);
+                // Normalize common numeric types to DECIMAL(10,2)
+                if (preg_match('/\b(INT|INTEGER|SIGNED|UNSIGNED|BIGINT|SMALLINT|TINYINT)\b/i', $extractedType)) {
+                    $castType = 'DECIMAL(10,2)';
+                } elseif (preg_match('/\b(REAL|FLOAT|DOUBLE|NUMERIC|DECIMAL)\b/i', $extractedType)) {
+                    $castType = 'DECIMAL(10,2)';
+                }
+                break;
+            }
+        }
+
+        if (!$hasCast) {
+            // No CAST found, check if we have mixed types (strings and numbers)
+            // If so, cast all to DECIMAL(10,2) for safety
+            $hasNumeric = false;
+            $hasString = false;
+            foreach ($args as $arg) {
+                $argStr = trim((string)$arg);
+                // Check if it's a quoted string or column name (not a number)
+                if (preg_match('/^[\'"`\[]/', $argStr) || preg_match('/^[a-zA-Z_]/', $argStr)) {
+                    $hasString = true;
+                } elseif (is_numeric($argStr)) {
+                    $hasNumeric = true;
+                }
+            }
+            if ($hasString && $hasNumeric) {
+                $hasCast = true;
+            }
+        }
+
+        if ($hasCast) {
+            // Cast all arguments to the same type
+            $normalized = [];
+            foreach ($args as $arg) {
+                $argStr = (string)$arg;
+                // If already a CAST/TRY_CAST, extract the value and recast to target type
+                if (preg_match('/\b(TRY_CAST|CAST)\s*\(([^)]+)\s+AS\s+[^)]+\)/i', $argStr, $matches)) {
+                    $value = trim($matches[2]);
+                    $normalized[] = "TRY_CAST({$value} AS {$castType})";
+                } else {
+                    // Cast to target type
+                    $normalized[] = "TRY_CAST({$argStr} AS {$castType})";
+                }
+            }
+            return $normalized;
+        }
+
+        // Convert all arguments to strings
+        return array_map(fn ($arg) => (string)$arg, $args);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getRecursiveCteKeyword(): string
+    {
+        // MSSQL uses just 'WITH' for recursive CTEs, not 'WITH RECURSIVE'
+        return 'WITH';
     }
 }

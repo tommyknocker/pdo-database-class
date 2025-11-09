@@ -61,6 +61,25 @@ function getCreateTableSql(PdoDb $db, string $tableName, array $columns, array $
     $columnDefs = [];
     $constraints = [];
     
+    // First pass: collect column names that are used in constraints (for MSSQL TEXT->NVARCHAR conversion)
+    $columnsInConstraints = [];
+    foreach ($columns as $colName => $colDef) {
+        if (str_starts_with($colName, 'PRIMARY KEY') || 
+            str_starts_with($colName, 'FOREIGN KEY') || 
+            str_starts_with($colName, 'UNIQUE') ||
+            str_starts_with($colName, 'INDEX') ||
+            str_starts_with($colName, 'CHECK')) {
+            // Extract column names from constraint (e.g., "UNIQUE(role, resource, action)")
+            if (preg_match('/\(([^)]+)\)/', $colName, $matches)) {
+                $constraintCols = array_map('trim', explode(',', $matches[1]));
+                foreach ($constraintCols as $constraintCol) {
+                    $constraintCol = trim($constraintCol, '[]`"');
+                    $columnsInConstraints[$constraintCol] = true;
+                }
+            }
+        }
+    }
+    
     foreach ($columns as $colName => $colDef) {
         // Check if this is a table constraint (e.g., PRIMARY KEY (...), FOREIGN KEY (...))
         if (str_starts_with($colName, 'PRIMARY KEY') || 
@@ -73,8 +92,22 @@ function getCreateTableSql(PdoDb $db, string $tableName, array $columns, array $
         }
         
         // Normalize column definition
+        // For MSSQL, if column is used in constraints and is TEXT, convert to NVARCHAR(255)
+        $colNameClean = trim($colName, '[]`"');
+        if ($driver === 'sqlsrv' && isset($columnsInConstraints[$colNameClean]) && stripos($colDef, 'TEXT') !== false) {
+            $colDef = str_ireplace('TEXT', 'NVARCHAR(255)', $colDef);
+        }
+        
         $colDef = normalizeColumnDef($driver, $colDef);
-        $columnDefs[] = "$colName $colDef";
+        
+        // For MSSQL, quote column names that might be reserved keywords
+        if ($driver === 'sqlsrv') {
+            // Remove brackets if already present, then add them
+            $colNameQuoted = '[' . trim($colName, '[]') . ']';
+            $columnDefs[] = "$colNameQuoted $colDef";
+        } else {
+            $columnDefs[] = "$colName $colDef";
+        }
     }
     
     // Combine columns and constraints
@@ -205,9 +238,10 @@ function normalizeColumnDef(string $driver, string $colDef): string
         $normalized = preg_replace('/\bDATETIME\b/i', 'DATETIME2', $normalized);
         // Replace VARCHAR before TEXT to avoid double replacement
         $normalized = preg_replace('/\bVARCHAR\s*\(\s*255\s*\)\b/i', 'NVARCHAR(255)', $normalized);
-        // For TEXT with UNIQUE/INDEX constraints, use NVARCHAR(255) instead of NVARCHAR(MAX)
-        // MSSQL doesn't allow NVARCHAR(MAX) in indexes
-        if (preg_match('/\bTEXT\b/i', $normalized) && (stripos($normalized, 'UNIQUE') !== false || stripos($normalized, 'INDEX') !== false)) {
+        // For TEXT columns, use NVARCHAR(255) instead of NVARCHAR(MAX) if they're used in constraints
+        // MSSQL doesn't allow NVARCHAR(MAX) in indexes or primary keys
+        // Check if TEXT is used with UNIQUE/INDEX/PRIMARY KEY in the definition itself
+        if (preg_match('/\bTEXT\b/i', $normalized) && (stripos($normalized, 'UNIQUE') !== false || stripos($normalized, 'INDEX') !== false || stripos($normalized, 'PRIMARY KEY') !== false)) {
             $normalized = preg_replace('/\bTEXT\b/i', 'NVARCHAR(255)', $normalized);
         } else {
             $normalized = preg_replace('/\bTEXT\b/i', 'NVARCHAR(MAX)', $normalized);

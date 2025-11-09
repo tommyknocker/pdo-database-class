@@ -93,8 +93,10 @@ class CteManager
         // Clear parameters before rebuilding
         $this->cteParams = [];
 
-        // Determine base keyword
-        $keyword = $this->hasRecursive() ? 'WITH RECURSIVE' : 'WITH';
+        // Determine base keyword - use dialect-specific keyword for recursive CTEs
+        $keyword = $this->hasRecursive()
+            ? $this->dialect->getRecursiveCteKeyword()
+            : 'WITH';
 
         $cteParts = [];
 

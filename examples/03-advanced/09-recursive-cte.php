@@ -16,6 +16,7 @@ echo "=== Recursive CTE Examples ===\n\n";
 echo "Database: $driver\n\n";
 
 $pdoDb = createExampleDb($config);
+$driverName = $pdoDb->connection->getDialect()->getDriverName();
 
 // Create test tables based on driver
 if ($driver === 'mysql') {
@@ -55,6 +56,26 @@ if ($driver === 'mysql') {
             id INTEGER PRIMARY KEY,
             name VARCHAR(100),
             manager_id INTEGER NULL,
+            salary DECIMAL(10,2)
+        )
+    ');
+} elseif ($driver === 'sqlsrv') {
+    $pdoDb->rawQuery('DROP TABLE IF EXISTS categories');
+    $pdoDb->rawQuery('DROP TABLE IF EXISTS employees_hierarchy');
+    
+    $pdoDb->rawQuery('
+        CREATE TABLE categories (
+            id INT PRIMARY KEY,
+            name NVARCHAR(100),
+            parent_id INT NULL
+        )
+    ');
+    
+    $pdoDb->rawQuery('
+        CREATE TABLE employees_hierarchy (
+            id INT PRIMARY KEY,
+            name NVARCHAR(100),
+            manager_id INT NULL,
             salary DECIMAL(10,2)
         )
     ');
@@ -105,21 +126,40 @@ $pdoDb->find()->table('employees_hierarchy')->insertMulti([
 
 // Example 1: Recursive CTE - Category hierarchy
 echo "1. Recursive CTE - Full category tree from 'Electronics':\n";
-$results = $pdoDb->find()
-    ->withRecursive('category_tree', function ($q) {
-        $q->from('categories')
-          ->select(['id', 'name', 'parent_id', Db::raw('0 as level')])
-          ->where('parent_id', null, 'IS')
-          ->unionAll(function ($r) {
-              $r->from('categories c')
-                ->select(['c.id', 'c.name', 'c.parent_id', Db::raw('ct.level + 1')])
-                ->join('category_tree ct', 'c.parent_id = ct.id');
-          });
-    }, ['id', 'name', 'parent_id', 'level'])
-    ->from('category_tree')
-    ->orderBy('level')
-    ->orderBy('name')
-    ->get();
+// MSSQL requires explicit column qualification in recursive CTE
+if ($driverName === 'sqlsrv') {
+    $results = $pdoDb->find()
+        ->withRecursive('category_tree', function ($q) {
+            $q->from('categories')
+              ->select(['id', 'name', 'parent_id', Db::raw('0 as level')])
+              ->where('parent_id', null, 'IS')
+              ->unionAll(function ($r) {
+                  $r->from('categories c')
+                    ->select(['c.id', 'c.name', 'c.parent_id', Db::raw('[ct].[level] + 1 as level')])
+                    ->join('category_tree ct', 'c.parent_id = ct.id');
+              });
+        }, ['id', 'name', 'parent_id', 'level'])
+        ->from('category_tree')
+        ->orderBy('level')
+        ->orderBy($driverName === 'sqlsrv' ? Db::raw('CAST(name AS NVARCHAR(MAX))') : 'name')
+        ->get();
+} else {
+    $results = $pdoDb->find()
+        ->withRecursive('category_tree', function ($q) {
+            $q->from('categories')
+              ->select(['id', 'name', 'parent_id', Db::raw('0 as level')])
+              ->where('parent_id', null, 'IS')
+              ->unionAll(function ($r) {
+                  $r->from('categories c')
+                    ->select(['c.id', 'c.name', 'c.parent_id', Db::raw('ct.level + 1')])
+                    ->join('category_tree ct', 'c.parent_id = ct.id');
+              });
+        }, ['id', 'name', 'parent_id', 'level'])
+        ->from('category_tree')
+        ->orderBy('level')
+        ->orderBy('name')
+        ->get();
+}
 
 foreach ($results as $category) {
     $indent = str_repeat('  ', (int)$category['level']);
@@ -137,21 +177,27 @@ $pathSelect = ($driverName === 'pgsql')
     
 $results = $pdoDb->find()
     ->withRecursive('emp_hierarchy', function ($q) use ($driverName) {
+        $pathAnchor = ($driverName === 'pgsql') 
+            ? Db::raw('name::VARCHAR')
+            : (($driverName === 'sqlsrv') ? Db::raw('CAST(name AS NVARCHAR(MAX))') : 'name');
         $q->from('employees_hierarchy')
-          ->select(['id', 'name', 'manager_id', 'salary', Db::raw('0 as level'), 'path' => ($driverName === 'pgsql') ? Db::raw('name::VARCHAR') : 'name'])
+          ->select(['id', 'name', 'manager_id', 'salary', Db::raw('0 as level'), 'path' => $pathAnchor])
           ->where('manager_id', null, 'IS')
-          ->unionAll(function ($r) {
+          ->unionAll(function ($r) use ($driverName) {
+              $pathRecursive = ($driverName === 'sqlsrv')
+                  ? Db::raw('CAST(eh.path AS NVARCHAR(MAX)) + \' -> \' + CAST(e.name AS NVARCHAR(MAX))')
+                  : Db::concat('eh.path', Db::raw("' -> '"), 'e.name');
               $r->from('employees_hierarchy e')
                 ->select([
                     'e.id', 'e.name', 'e.manager_id', 'e.salary', Db::raw('eh.level + 1'),
-                    'path' => Db::concat('eh.path', Db::raw("' -> '"), 'e.name')
+                    'path' => $pathRecursive
                 ])
                 ->join('emp_hierarchy eh', 'e.manager_id = eh.id');
           });
     }, ['id', 'name', 'manager_id', 'salary', 'level', 'path'])
     ->from('emp_hierarchy')
     ->orderBy('level')
-    ->orderBy('name')
+    ->orderBy($driverName === 'sqlsrv' ? Db::raw('CAST(name AS NVARCHAR(MAX))') : 'name')
     ->get();
 
 foreach ($results as $employee) {

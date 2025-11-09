@@ -221,11 +221,11 @@ $apiStats = $db->find()
     ->join('tenants AS t', 't.id = a.tenant_id')
     ->select([
         't.name',
-        't.plan',
+        $driver === 'sqlsrv' ? Db::raw('[t].[plan] as [plan]') : 't.plan',
         'total_requests' => Db::sum('a.requests_count'),
         'endpoints_count' => Db::count('DISTINCT a.endpoint')
     ])
-    ->groupBy(['a.tenant_id', 't.name', 't.plan'])
+    ->groupBy($driver === 'sqlsrv' ? [Db::raw('[a].[tenant_id]'), Db::raw('[t].[name]'), Db::raw('[t].[plan]')] : ['a.tenant_id', 't.name', 't.plan'])
     ->orderBy(Db::sum('a.requests_count'), 'DESC')
     ->get();
 
@@ -243,9 +243,9 @@ $platformStats = $db->find()
     ->select([
         'total_tenants' => Db::count(),
         'active_tenants' => Db::sum(Db::case(['is_active = 1' => '1'], '0')),
-        'enterprise_count' => Db::sum(Db::case(["plan = 'enterprise'" => '1'], '0')),
-        'business_count' => Db::sum(Db::case(["plan = 'business'" => '1'], '0')),
-        'free_count' => Db::sum(Db::case(["plan = 'free'" => '1'], '0'))
+        'enterprise_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? '[plan]' : 'plan') . " = 'enterprise'" => '1'], '0')),
+        'business_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? '[plan]' : 'plan') . " = 'business'" => '1'], '0')),
+        'free_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? '[plan]' : 'plan') . " = 'free'" => '1'], '0'))
     ])
     ->getOne();
 

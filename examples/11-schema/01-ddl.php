@@ -77,8 +77,19 @@ echo "   ✓ Column 'phone' renamed to 'phone_number'\n";
 $driver = $db->connection->getDialect()->getDriverName();
 if ($driver !== 'sqlite') {
     echo "\n6. Dropping column:\n";
-    $schema->dropColumn('users', 'phone_number');
-    echo "   ✓ Column 'phone_number' dropped\n";
+    // For MSSQL, check if column exists before dropping (sp_rename may cause issues)
+    if ($driver === 'sqlsrv') {
+        $columns = $db->rawQuery("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'users' AND COLUMN_NAME = 'phone_number'");
+        if (!empty($columns)) {
+            $schema->dropColumn('users', 'phone_number');
+            echo "   ✓ Column 'phone_number' dropped\n";
+        } else {
+            echo "   ⊘ Column 'phone_number' not found (may have been renamed differently)\n";
+        }
+    } else {
+        $schema->dropColumn('users', 'phone_number');
+        echo "   ✓ Column 'phone_number' dropped\n";
+    }
 } else {
     echo "\n6. Dropping column:\n";
     echo "   ⊘ Skipped (SQLite DROP COLUMN support varies by version)\n";
@@ -86,6 +97,14 @@ if ($driver !== 'sqlite') {
 
 // Example 7: Rename table
 echo "\n7. Renaming table:\n";
+// For MSSQL, ensure articles table doesn't exist before renaming
+if ($driver === 'sqlsrv') {
+    // Check if articles table exists and drop it first
+    $articlesExists = $schema->tableExists('articles');
+    if ($articlesExists) {
+        $schema->dropTable('articles');
+    }
+}
 $schema->dropTableIfExists('articles'); // Cleanup in case of previous run
 $schema->renameTable('posts', 'articles');
 echo "   ✓ Table 'posts' renamed to 'articles'\n";

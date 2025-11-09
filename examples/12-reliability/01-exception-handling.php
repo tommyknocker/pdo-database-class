@@ -22,7 +22,8 @@ use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\exceptions\TimeoutException;
 use tommyknocker\pdodb\exceptions\TransactionException;
 
-$driver = getenv('PDODB_DRIVER') ?: 'sqlite';
+$db = createExampleDb();
+$driver = getCurrentDriver($db);
 echo "=== Exception Handling Examples (on {$driver}) ===\n\n";
 
 // Example 1: Basic exception handling with specific types
@@ -30,8 +31,6 @@ echo "1. Basic Exception Handling\n";
 echo "----------------------------\n";
 
 try {
-    $db = createExampleDb();
-    
     // Drop table if exists (for idempotency)
     $db->rawQuery("DROP TABLE IF EXISTS users");
     
@@ -40,6 +39,8 @@ try {
         $db->rawQuery("CREATE TABLE users (id INT PRIMARY KEY AUTO_INCREMENT, email VARCHAR(255) UNIQUE, name VARCHAR(255))");
     } elseif ($driver === 'pgsql') {
         $db->rawQuery("CREATE TABLE users (id SERIAL PRIMARY KEY, email VARCHAR(255) UNIQUE, name VARCHAR(255))");
+    } elseif ($driver === 'sqlsrv') {
+        $db->rawQuery("CREATE TABLE users (id INT IDENTITY(1,1) PRIMARY KEY, email NVARCHAR(255) UNIQUE, name NVARCHAR(255))");
     } else {
         $db->rawQuery("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, name TEXT)");
     }
@@ -76,8 +77,6 @@ echo "2. Constraint Violation Handling\n";
 echo "--------------------------------\n";
 
 try {
-    $db = createExampleDb();
-    
     // Drop table if exists (for idempotency)
     $db->rawQuery('DROP TABLE IF EXISTS users');
     
@@ -100,7 +99,14 @@ try {
             email NVARCHAR(255) UNIQUE NOT NULL,
             name NVARCHAR(255) NOT NULL
         )');
+    } elseif ($driver === 'sqlite') {
+        $db->rawQuery('CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL
+        )');
     } else {
+        // Default fallback (should not reach here)
         $db->rawQuery('CREATE TABLE users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE NOT NULL,
@@ -147,8 +153,6 @@ echo "3. Transaction Error Handling\n";
 echo "-----------------------------\n";
 
 try {
-    $db = createExampleDb();
-    
     // Drop table if exists (for idempotency)
     $db->rawQuery('DROP TABLE IF EXISTS accounts');
     
@@ -161,6 +165,11 @@ try {
     } elseif ($driver === 'pgsql') {
         $db->rawQuery('CREATE TABLE accounts (
             id SERIAL PRIMARY KEY,
+            balance DECIMAL(10,2) NOT NULL DEFAULT 0
+        )');
+    } elseif ($driver === 'sqlsrv') {
+        $db->rawQuery('CREATE TABLE accounts (
+            id INT IDENTITY(1,1) PRIMARY KEY,
             balance DECIMAL(10,2) NOT NULL DEFAULT 0
         )');
     } else {
