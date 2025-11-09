@@ -975,8 +975,14 @@ class PdoDb
      */
     public function explainAnalyze(string $query, array $params = []): array
     {
-        $sql = $this->connection->getDialect()->buildExplainAnalyzeSql($query);
-        return $this->rawQuery($sql, $params);
+        $dialect = $this->connection->getDialect();
+        $pdo = $this->connection->getPdo();
+
+        // Build explain analyze SQL first
+        $sql = $dialect->buildExplainAnalyzeSql($query);
+
+        // Use dialect-specific execution logic
+        return $dialect->executeExplainAnalyze($pdo, $sql, $params);
     }
 
     /**

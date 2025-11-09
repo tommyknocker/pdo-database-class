@@ -176,7 +176,7 @@ final class HelpersTests extends BaseMySQLTestCase
 
         $lastQuery = $db->lastQuery ?? '';
         $this->assertStringContainsString(
-            "CASE WHEN age < 30 THEN 'young' WHEN age >= 30 THEN 'adult' END AS category",
+            "CASE WHEN age < 30 THEN 'young' WHEN age >= 30 THEN 'adult' END AS `category`",
             $lastQuery
         );
 

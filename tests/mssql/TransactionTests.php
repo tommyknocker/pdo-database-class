@@ -42,9 +42,21 @@ final class TransactionTests extends BaseMSSQLTestCase
 
     public function testNestedTransactions(): void
     {
-        // MSSQL doesn't support SAVEPOINT, so nested transactions are not supported
-        // This test is skipped as savepoints are not available in MSSQL
-        $this->markTestSkipped('MSSQL does not support SAVEPOINT for nested transactions');
+        // MSSQL doesn't support SAVEPOINT, so attempting to create a savepoint should throw an exception
+        $db = self::$db;
+
+        $db->startTransaction();
+
+        try {
+            // Attempt to create a savepoint - should fail in MSSQL
+            $this->expectException(\PDOException::class);
+            $db->savepoint('sp1');
+        } finally {
+            // Cleanup - rollback the transaction
+            if ($db->inTransaction()) {
+                $db->rollback();
+            }
+        }
     }
 
     public function testTransactionRollbackOnError(): void

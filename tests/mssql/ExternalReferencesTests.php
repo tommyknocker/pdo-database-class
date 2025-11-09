@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mssql;
 
-use tommyknocker\pdodb\helpers\Db;
-
 /**
  * ExternalReferencesTests tests for MSSQL.
  */
@@ -17,25 +15,57 @@ final class ExternalReferencesTests extends BaseMSSQLTestCase
         $connection = $db->connection;
         assert($connection !== null);
 
+        // Ensure clean state and reset IDENTITY
+        $connection->query('DELETE FROM orders');
+        $connection->query('DELETE FROM users');
+        $connection->query('DBCC CHECKIDENT(\'users\', RESEED, 0)');
+        $connection->query('DBCC CHECKIDENT(\'orders\', RESEED, 0)');
+
         // Insert test data and get actual IDs
-        $userId1 = $db->find()->table('users')->insert(['name' => 'John Doe', 'status' => 'active']);
-        $userId2 = $db->find()->table('users')->insert(['name' => 'Jane Smith', 'status' => 'active']);
+        $db->find()->table('users')->insert(['name' => 'John Doe', 'status' => 'active']);
+        $db->find()->table('users')->insert(['name' => 'Jane Smith', 'status' => 'active']);
+
+        // Get actual IDs from database
+        $userId1 = (int)$db->find()->table('users')->select('id')->where('name', 'John Doe')->getValue();
+        $userId2 = (int)$db->find()->table('users')->select('id')->where('name', 'Jane Smith')->getValue();
+
         $db->find()->table('orders')->insert(['user_id' => $userId1, 'amount' => 100.00]);
         $db->find()->table('orders')->insert(['user_id' => $userId2, 'amount' => 200.00]);
 
+        // Verify data exists - both users and orders should be present
+        $allUsers = $connection->query('SELECT * FROM users ORDER BY id')->fetchAll(\PDO::FETCH_ASSOC);
+        $allOrders = $connection->query('SELECT * FROM orders ORDER BY id')->fetchAll(\PDO::FETCH_ASSOC);
+        $this->assertCount(2, $allUsers, 'Should have 2 users before query');
+        $this->assertCount(2, $allOrders, 'Should have 2 orders before query');
+
+        // Verify that orders reference the correct users
+        $orderUserIds = array_map(fn ($o) => (int)$o['user_id'], $allOrders);
+        $this->assertContains($userId1, $orderUserIds, 'Should have order for user 1');
+        $this->assertContains($userId2, $orderUserIds, 'Should have order for user 2');
+
         // Test WHERE EXISTS with external reference
-        // Note: MSSQL may have issues with external reference auto-detection in subqueries
-        // Using explicit RawValue to ensure proper handling
-        $users = $db->find()
+        // External reference should be auto-detected and converted to RawValue
+        $query = $db->find()
         ->from('users')
         ->whereExists(function ($query) {
             $query->from('orders')
-            ->where('user_id', Db::raw('users.id'))  // External reference - explicit RawValue
+            ->where('user_id', 'users.id')  // External reference - should be auto-converted
             ->where('amount', 50, '>');
-        })
-        ->get();
+        });
 
-        $this->assertCount(2, $users);
+        $sql = $query->toSQL();
+
+        // Execute SQL directly with same parameters to verify it works
+        $pdo = $connection->getPdo();
+        $stmt = $pdo->prepare($sql['sql']);
+        $stmt->execute($sql['params']);
+        $directResult = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $this->assertCount(2, $directResult, 'Direct SQL execution should return 2 users');
+
+        $users = $query->get();
+
+        // Debug: if test fails, the SQL will be shown
+        $this->assertCount(2, $users, 'Expected 2 users but got ' . count($users) . '. SQL: ' . $sql['sql']);
         $userNames = array_column($users, 'name');
         $this->assertContains('John Doe', $userNames);
         $this->assertContains('Jane Smith', $userNames);
@@ -48,8 +78,13 @@ final class ExternalReferencesTests extends BaseMSSQLTestCase
         assert($connection !== null);
 
         // Insert test data and get actual IDs
-        $userId1 = $db->find()->table('users')->insert(['name' => 'John Doe', 'status' => 'active']);
-        $userId2 = $db->find()->table('users')->insert(['name' => 'Jane Smith', 'status' => 'active']);
+        $db->find()->table('users')->insert(['name' => 'John Doe', 'status' => 'active']);
+        $db->find()->table('users')->insert(['name' => 'Jane Smith', 'status' => 'active']);
+
+        // Get actual IDs from database
+        $userId1 = (int)$db->find()->table('users')->select('id')->where('name', 'John Doe')->getValue();
+        $userId2 = (int)$db->find()->table('users')->select('id')->where('name', 'Jane Smith')->getValue();
+
         $db->find()->table('orders')->insert(['user_id' => $userId1, 'amount' => 100.00]);
         $db->find()->table('orders')->insert(['user_id' => $userId2, 'amount' => 200.00]);
 
@@ -73,8 +108,13 @@ final class ExternalReferencesTests extends BaseMSSQLTestCase
         assert($connection !== null);
 
         // Insert test data and get actual IDs
-        $userId1 = $db->find()->table('users')->insert(['name' => 'John Doe', 'status' => 'active']);
-        $userId2 = $db->find()->table('users')->insert(['name' => 'Jane Smith', 'status' => 'active']);
+        $db->find()->table('users')->insert(['name' => 'John Doe', 'status' => 'active']);
+        $db->find()->table('users')->insert(['name' => 'Jane Smith', 'status' => 'active']);
+
+        // Get actual IDs from database
+        $userId1 = (int)$db->find()->table('users')->select('id')->where('name', 'John Doe')->getValue();
+        $userId2 = (int)$db->find()->table('users')->select('id')->where('name', 'Jane Smith')->getValue();
+
         $db->find()->table('orders')->insert(['user_id' => $userId1, 'amount' => 100.00]);
         $db->find()->table('orders')->insert(['user_id' => $userId2, 'amount' => 200.00]);
 

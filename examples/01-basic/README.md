@@ -5,7 +5,7 @@ Essential operations to get started with PDOdb.
 ## Examples
 
 ### 01-connection.php
-Demonstrates database connection setup for all four database dialects (MySQL, MariaDB, PostgreSQL, SQLite).
+Demonstrates database connection setup for all five database dialects (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL).
 
 **Topics covered:**
 - SQLite connection with `:memory:` database
@@ -76,6 +76,11 @@ PDODB_DRIVER=mysql php 01-connection.php
 ### PostgreSQL
 ```bash
 PDODB_DRIVER=pgsql php 01-connection.php
+```
+
+### MSSQL
+```bash
+PDODB_DRIVER=mssql php 01-connection.php
 ```
 
 ## Next Steps

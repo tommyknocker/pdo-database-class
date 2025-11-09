@@ -168,6 +168,15 @@ class JoinBuilder implements JoinBuilderInterface
                     if (!preg_match('/\s+AS\s+/i', $tableSql)) {
                         $tableSql .= ' AS ' . $this->dialect->quoteIdentifier($alias);
                     }
+                    $aliasQuoted = $this->dialect->quoteIdentifier($alias);
+                } else {
+                    // Extract alias from tableSql if present, or generate one
+                    if (preg_match('/\s+AS\s+(\w+)/i', $tableSql, $matches)) {
+                        $aliasQuoted = $this->dialect->quoteIdentifier($matches[1]);
+                    } else {
+                        $alias = 'lateral_' . substr(hash('sha256', $tableSql), 0, 16);
+                        $aliasQuoted = $this->dialect->quoteIdentifier($alias);
+                    }
                 }
                 $tableSql = "LATERAL {$tableSql}";
             } else {
@@ -175,33 +184,19 @@ class JoinBuilder implements JoinBuilderInterface
                 $tableSql = $this->normalizeTable($tableOrSubquery);
                 if ($alias !== null) {
                     $tableSql .= ' AS ' . $this->dialect->quoteIdentifier($alias);
+                    $aliasQuoted = $this->dialect->quoteIdentifier($alias);
+                } else {
+                    // Generate alias for simple table name
+                    $alias = 'lateral_' . substr(hash('sha256', $tableSql), 0, 16);
+                    $aliasQuoted = $this->dialect->quoteIdentifier($alias);
                 }
                 $tableSql = "LATERAL {$tableSql}";
             }
         }
 
-        // Build ON condition if provided
-        // For LATERAL JOIN, syntax is: [type] JOIN LATERAL ... (not [type] LATERAL ...)
-        // CROSS JOIN LATERAL doesn't need ON clause
-        // For MySQL, LEFT/INNER JOIN LATERAL may need explicit ON condition
-        $isCross = ($type === 'CROSS' || $type === 'CROSS JOIN');
-        if ($condition !== null) {
-            $onSql = $condition instanceof RawValue ? $this->resolveRawValue($condition) : (string)$condition;
-            if ($isCross) {
-                $this->joins[] = "CROSS JOIN {$tableSql} ON {$onSql}";
-            } else {
-                $this->joins[] = "{$type} JOIN {$tableSql} ON {$onSql}";
-            }
-        } else {
-            // For CROSS JOIN LATERAL, no ON clause needed
-            if ($isCross) {
-                $this->joins[] = "CROSS JOIN {$tableSql}";
-            } else {
-                // For LEFT/INNER JOIN LATERAL, MySQL may require explicit ON condition
-                // PostgreSQL supports LATERAL without ON, but for compatibility add ON true
-                $this->joins[] = "{$type} JOIN {$tableSql} ON true";
-            }
-        }
+        // Use dialect-specific formatting for LATERAL JOIN
+        $joinSql = $this->dialect->formatLateralJoin($tableSql, $type, $aliasQuoted, $condition);
+        $this->joins[] = $joinSql;
 
         return $this;
     }

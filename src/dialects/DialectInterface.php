@@ -233,6 +233,16 @@ interface DialectInterface
         string $options = ''
     ): string;
 
+    /**
+     * Check if column names need to be qualified with table name in UPDATE SET clause when JOIN is used.
+     *
+     * PostgreSQL uses FROM clause in UPDATE, so column names don't need table prefix.
+     * Other dialects use JOIN syntax and may require table qualification to avoid ambiguity.
+     *
+     * @return bool True if column qualification is needed when JOIN is used
+     */
+    public function needsColumnQualificationInUpdateSet(): bool;
+
     /* ---------------- JSON methods ---------------- */
 
     /**
@@ -730,6 +740,20 @@ interface DialectInterface
     public function executeExplain(\PDO $pdo, string $sql, array $params = []): array;
 
     /**
+     * Execute EXPLAIN ANALYZE query with dialect-specific logic.
+     * For MSSQL, this handles SET STATISTICS XML ON/OFF separately.
+     * For other dialects, this simply executes the explain analyze SQL.
+     *
+     * @param \PDO $pdo PDO connection instance
+     * @param string $sql SQL query to explain and analyze
+     * @param array<int|string, string|int|float|bool|null> $params Query parameters
+     *
+     * @return array<int, array<string, mixed>> Explain analyze results
+     * @throws \PDOException
+     */
+    public function executeExplainAnalyze(\PDO $pdo, string $sql, array $params = []): array;
+
+    /**
      * Normalize raw SQL value for dialect-specific function replacements.
      * Replaces function names like LENGTH->LEN, CEIL->CEILING, TRUE/FALSE->1/0, etc.
      *
@@ -904,6 +928,22 @@ interface DialectInterface
      * @return bool True if LATERAL JOINs are supported
      */
     public function supportsLateralJoin(): bool;
+
+    /**
+     * Format LATERAL JOIN SQL for dialect-specific syntax.
+     *
+     * Converts standard LATERAL JOIN syntax to dialect-specific format.
+     * For MSSQL, converts to CROSS APPLY/OUTER APPLY.
+     * For other dialects, uses standard LATERAL JOIN syntax.
+     *
+     * @param string $tableSql Table SQL with LATERAL prefix (e.g., "LATERAL ({$subquerySql}) AS {$aliasQuoted}")
+     * @param string $type JOIN type (LEFT, INNER, CROSS, etc.)
+     * @param string $aliasQuoted Quoted alias for the lateral subquery/table
+     * @param string|RawValue|null $condition Optional ON condition (ignored for MSSQL APPLY syntax)
+     *
+     * @return string Formatted JOIN SQL clause
+     */
+    public function formatLateralJoin(string $tableSql, string $type, string $aliasQuoted, string|RawValue|null $condition = null): string;
 
     /* ---------------- DDL Operations ---------------- */
 

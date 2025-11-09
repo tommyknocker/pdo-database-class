@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mssql;
 
+use tommyknocker\pdodb\helpers\Db;
+
 /**
  * MSSQL-specific tests for INSERT ... SELECT functionality.
  */
@@ -63,13 +65,22 @@ final class InsertFromTests extends BaseMSSQLTestCase
         // Insert source data
         self::$db->find()->table('insert_from_source')->insert(['name' => 'Alice', 'age' => 30, 'status' => 'new']);
 
-        // MSSQL uses MERGE for upsert - need to specify columns
+        // MSSQL uses MERGE for upsert - use merge() method instead of insertFrom with update columns
         $affected = self::$db->find()
             ->table('insert_from_target')
-            ->insertFrom(function ($query) {
-                $query->from('insert_from_source')
-                    ->select(['name', 'age', 'status']);
-            }, ['name', 'age', 'status'], ['age', 'status']);
+            ->merge(
+                'insert_from_source',
+                'target.name = source.name',
+                [
+                    'age' => Db::raw('source.age'),
+                    'status' => Db::raw('source.status'),
+                ],
+                [
+                    'name' => Db::raw('source.name'),
+                    'age' => Db::raw('source.age'),
+                    'status' => Db::raw('source.status'),
+                ]
+            );
 
         $this->assertGreaterThanOrEqual(1, $affected);
 

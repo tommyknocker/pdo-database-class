@@ -682,20 +682,18 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
         $joins = $this->joinBuilder->getJoins();
         $hasJoins = !empty($joins);
 
-        // When JOIN is used, we need to qualify column names in SET clause with table name
+        // When JOIN is used, we may need to qualify column names in SET clause with table name
         $table = $this->normalizeTable();
         $tableAlias = $hasJoins ? $table : null;
-        // PostgreSQL uses FROM instead of JOIN, so we don't need to qualify columns automatically
-        $isPostgreSQL = $this->dialect->getDriverName() === 'pgsql';
+        $needsQualification = $this->dialect->needsColumnQualificationInUpdateSet();
 
         foreach ($this->data as $col => $val) {
-            // If JOIN is used and not PostgreSQL, qualify column name with table name to avoid ambiguity
+            // If JOIN is used and dialect requires qualification, qualify column name with table name
             // But only if column name doesn't already contain table prefix
-            // PostgreSQL uses FROM clause, so column names in SET don't need table prefix
-            if ($hasJoins && $tableAlias !== null && !$isPostgreSQL && !str_contains($col, '.')) {
+            if ($hasJoins && $tableAlias !== null && $needsQualification && !str_contains($col, '.')) {
                 $qid = $tableAlias . '.' . $this->dialect->quoteIdentifier($col);
             } else {
-                // Column already qualified or no JOIN or PostgreSQL - quote as is (may contain table.column)
+                // Column already qualified or no JOIN or dialect doesn't need qualification - quote as is
                 $qid = str_contains($col, '.')
                     ? implode('.', array_map([$this->dialect, 'quoteIdentifier'], explode('.', $col, 2)))
                     : $this->dialect->quoteIdentifier($col);

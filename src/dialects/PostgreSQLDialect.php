@@ -44,6 +44,15 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function needsColumnQualificationInUpdateSet(): bool
+    {
+        // PostgreSQL uses FROM clause in UPDATE, so column names don't need table prefix
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildUpdateWithJoinSql(
         string $table,
         string $setClause,

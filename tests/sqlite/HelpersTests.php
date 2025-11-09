@@ -172,7 +172,7 @@ final class HelpersTests extends BaseSqliteTestCase
         ->orderBy('age ASC')
         ->get();
 
-        $this->assertStringContainsString("CASE WHEN age < 30 THEN 'young' WHEN age >= 30 THEN 'adult' END AS category", $db->lastQuery);
+        $this->assertStringContainsString("CASE WHEN age < 30 THEN 'young' WHEN age >= 30 THEN 'adult' END AS \"category\"", $db->lastQuery);
 
         $this->assertEquals('young', $results[0]['category']);
         $this->assertEquals('adult', $results[1]['category']);

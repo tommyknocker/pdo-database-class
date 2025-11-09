@@ -91,7 +91,7 @@ final class LateralJoinTests extends BaseMSSQLTestCase
 
     public function testLateralJoinLatestOrderPerUser(): void
     {
-        // Test SQL generation for LATERAL JOIN with subquery (CROSS APPLY in MSSQL)
+        // Test SQL generation for LATERAL JOIN with subquery (OUTER APPLY in MSSQL for LEFT JOIN)
         $query = self::$db->find()
             ->from('test_users_lateral AS u')
             ->select([
@@ -108,15 +108,15 @@ final class LateralJoinTests extends BaseMSSQLTestCase
             }, null, 'LEFT', 'latest')
             ->toSQL();
 
-        $this->assertStringContainsString('CROSS APPLY', $query['sql']);
         $this->assertStringContainsString('OUTER APPLY', $query['sql']);
+        $this->assertStringNotContainsString('CROSS APPLY', $query['sql']);
         $this->assertStringContainsString('latest', $query['sql']);
         $this->assertStringContainsString('ORDER BY', $query['sql']);
     }
 
     public function testLateralJoinWithAggregation(): void
     {
-        // Test SQL generation - aggregation in LATERAL JOIN subquery
+        // Test SQL generation - aggregation in LATERAL JOIN subquery (OUTER APPLY in MSSQL for LEFT JOIN)
         $query = self::$db->find()
             ->from('test_users_lateral AS u')
             ->select([
@@ -133,7 +133,8 @@ final class LateralJoinTests extends BaseMSSQLTestCase
             }, null, 'LEFT', 'stats')
             ->toSQL();
 
-        $this->assertStringContainsString('CROSS APPLY', $query['sql']);
+        $this->assertStringContainsString('OUTER APPLY', $query['sql']);
+        $this->assertStringNotContainsString('CROSS APPLY', $query['sql']);
         $this->assertStringContainsString('SUM([amount])', $query['sql']);
         $this->assertStringContainsString('COUNT(*)', $query['sql']);
         $this->assertStringContainsString('stats', $query['sql']);

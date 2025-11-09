@@ -993,16 +993,16 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             // Store original limit/offset for UNION (some dialects need to remove LIMIT from base query)
             $originalLimit = $this->limit;
             $originalOffset = $this->offset;
-            
+
             // Format base query for UNION (remove LIMIT if needed by dialect)
             $sql = $this->dialect->formatUnionSelect($sql, true);
-            
+
             // Temporarily remove limit/offset from base query for UNION
             $this->limit = null;
             $this->offset = null;
-            
+
             $sql = $this->dialect->formatSelectOptions($sql, $this->options);
-            
+
             // Build UNION SQL
             $sql = $this->buildUnionSql($sql);
 

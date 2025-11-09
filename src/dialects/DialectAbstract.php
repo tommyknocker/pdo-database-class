@@ -591,4 +591,53 @@ abstract class DialectAbstract implements DialectInterface
         // Default implementation: no parentheses needed
         return false;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatLateralJoin(string $tableSql, string $type, string $aliasQuoted, string|RawValue|null $condition = null): string
+    {
+        // Standard LATERAL JOIN syntax for PostgreSQL, MySQL, etc.
+        $typeUpper = strtoupper(trim($type));
+        $isCross = ($typeUpper === 'CROSS' || $typeUpper === 'CROSS JOIN');
+
+        if ($condition !== null) {
+            $onSql = $condition instanceof RawValue ? $condition->getValue() : (string)$condition;
+            if ($isCross) {
+                return "CROSS JOIN {$tableSql} ON {$onSql}";
+            }
+            return "{$typeUpper} JOIN {$tableSql} ON {$onSql}";
+        }
+
+        // For CROSS JOIN LATERAL, no ON clause needed
+        if ($isCross) {
+            return "CROSS JOIN {$tableSql}";
+        }
+
+        // For LEFT/INNER JOIN LATERAL, MySQL may require explicit ON condition
+        // PostgreSQL supports LATERAL without ON, but for compatibility add ON true
+        return "{$typeUpper} JOIN {$tableSql} ON true";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function needsColumnQualificationInUpdateSet(): bool
+    {
+        // Default: most dialects need column qualification when JOIN is used
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function executeExplainAnalyze(\PDO $pdo, string $sql, array $params = []): array
+    {
+        // Default implementation: execute the explain analyze SQL directly
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $stmt->closeCursor();
+        return $result;
+    }
 }

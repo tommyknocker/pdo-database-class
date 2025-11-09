@@ -45,7 +45,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Plugin System** - Extend PdoDb with custom plugins for macros, scopes, and event listeners
 
 **Production Ready:**
-- **Fully Tested** - 1320 tests, 5249 assertions across all dialects
+- **Fully Tested** - 2052 tests, 7097 assertions across all dialects
 - **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
 - **Zero Memory Leaks** - Production-tested memory management with automatic cursor cleanup
 - **Connection Retry** - Automatic retry with exponential backoff
@@ -3775,7 +3775,7 @@ $db->find()->from('users')->where('active', 1)->get();
 ```
 
 ### Is it production-ready?
-Yes! 1320+ tests, PHPStan level 8, used in production environments.
+Yes! 2052+ tests, PHPStan level 8, used in production environments.
 
 ### What about security?
 All queries use **prepared statements** automatically. SQL injection protection is built-in.
@@ -4034,7 +4034,7 @@ while (true) {
 
 ## Testing
 
-The project includes comprehensive PHPUnit tests for MySQL, MariaDB, PostgreSQL, and SQLite.
+The project includes comprehensive PHPUnit tests for MySQL, MariaDB, PostgreSQL, SQLite, and Microsoft SQL Server (MSSQL).
 
 ### Running Tests
 
@@ -4054,8 +4054,10 @@ The project includes comprehensive PHPUnit tests for MySQL, MariaDB, PostgreSQL,
 ### Test Requirements
 
 - **MySQL**: Running instance on localhost:3306
+- **MariaDB**: Running instance on localhost:3306 (or custom port)
 - **PostgreSQL**: Running instance on localhost:5432
 - **SQLite**: No setup required (uses `:memory:`)
+- **Microsoft SQL Server**: Running instance on localhost:1433 (requires Microsoft ODBC Driver for SQL Server and PHP sqlsrv extension)
 
 ### CI/CD
 
@@ -4270,7 +4272,7 @@ Contributions are welcome! Please follow these guidelines:
    - Steps to reproduce
 4. **Follow PSR-12** coding standards
 5. **Write tests** for all new functionality
-6. **Test against all four dialects** (MySQL, MariaDB, PostgreSQL, SQLite)
+6. **Test against all five dialects** (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL)
 
 ### Pull Request Process
 

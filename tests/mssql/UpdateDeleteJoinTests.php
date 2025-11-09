@@ -58,9 +58,23 @@ final class UpdateDeleteJoinTests extends BaseMSSQLTestCase
 
     public function testUpdateWithJoin(): void
     {
-        // Insert test data
-        $userId1 = self::$db->find()->table('update_delete_join_users')->insert(['name' => 'Alice', 'status' => 'active', 'balance' => 100]);
-        $userId2 = self::$db->find()->table('update_delete_join_users')->insert(['name' => 'Bob', 'status' => 'active', 'balance' => 200]);
+        // Insert test data - get actual IDs from database
+        self::$db->find()->table('update_delete_join_users')->insert(['name' => 'Alice', 'status' => 'active', 'balance' => 100]);
+        self::$db->find()->table('update_delete_join_users')->insert(['name' => 'Bob', 'status' => 'active', 'balance' => 200]);
+
+        // Get actual IDs from database (MSSQL getLastInsertId() may return incorrect values)
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $pdo = $connection->getPdo();
+        $stmt1 = $pdo->prepare('SELECT id FROM update_delete_join_users WHERE name = ?');
+        $stmt1->execute(['Alice']);
+        $row1 = $stmt1->fetch(\PDO::FETCH_ASSOC);
+        $userId1 = $row1 ? (int)$row1['id'] : 1;
+
+        $stmt2 = $pdo->prepare('SELECT id FROM update_delete_join_users WHERE name = ?');
+        $stmt2->execute(['Bob']);
+        $row2 = $stmt2->fetch(\PDO::FETCH_ASSOC);
+        $userId2 = $row2 ? (int)$row2['id'] : 2;
 
         self::$db->find()->table('update_delete_join_orders')->insert(['user_id' => $userId1, 'amount' => 50, 'status' => 'completed']);
         self::$db->find()->table('update_delete_join_orders')->insert(['user_id' => $userId2, 'amount' => 75, 'status' => 'completed']);
@@ -97,12 +111,12 @@ final class UpdateDeleteJoinTests extends BaseMSSQLTestCase
         $user1 = self::$db->find()->from('update_delete_join_users')->where('id', $userId1)->getOne();
         $this->assertNotNull($user1);
         // Balance should be updated (initial + 50)
-        $this->assertEquals($initialBalance1 + 50, (float)$user1['balance']);
+        $this->assertEquals($initialBalance1 + 50, (float)$user1['balance'], 'User1 balance should be updated correctly. Initial: ' . $initialBalance1 . ', Final: ' . (float)$user1['balance']);
 
         $user2 = self::$db->find()->from('update_delete_join_users')->where('id', $userId2)->getOne();
         $this->assertNotNull($user2);
         // Balance should be updated (initial + 75)
-        $this->assertEquals($initialBalance2 + 75, (float)$user2['balance']);
+        $this->assertEquals($initialBalance2 + 75, (float)$user2['balance'], 'User2 balance should be updated correctly. Initial: ' . $initialBalance2 . ', Final: ' . (float)$user2['balance']);
     }
 
     public function testDeleteWithJoin(): void

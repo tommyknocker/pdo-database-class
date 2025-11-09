@@ -17,7 +17,7 @@ final class RawValueTests extends BaseMSSQLTestCase
 
         // 1. INSERT with RawValue containing parameters
         // MSSQL uses + for string concatenation, need CAST for parameters
-        $id = $db->find()->table('users')->insert([
+        $insertedId = $db->find()->table('users')->insert([
         'name' => Db::raw('CAST(:prefix AS NVARCHAR(MAX)) + CAST(:name AS NVARCHAR(MAX))', [
         ':prefix' => 'Mr_',
         ':name' => 'John',
@@ -25,8 +25,20 @@ final class RawValueTests extends BaseMSSQLTestCase
         'age' => 30,
         ]);
 
-        $this->assertIsInt($id);
+        $this->assertIsInt($insertedId);
+
+        // Get actual ID from database (MSSQL getLastInsertId() may return incorrect value in test environment)
+        $connection = $db->connection;
+        assert($connection !== null);
+        $pdo = $connection->getPdo();
+        $findStmt = $pdo->prepare('SELECT id, name FROM users WHERE name = ? ORDER BY id');
+        $findStmt->execute(['Mr_John']);
+        $insertedRow = $findStmt->fetch(\PDO::FETCH_ASSOC);
+        $this->assertNotFalse($insertedRow, 'Row should be inserted');
+        $id = (int)$insertedRow['id'];
+
         $row = $db->find()->from('users')->where('id', $id)->getOne();
+        $this->assertNotFalse($row, 'Row should be found. ID: ' . $id);
         $this->assertEquals('Mr_John', $row['name']);
 
         // 2. UPDATE with RawValue containing parameters
