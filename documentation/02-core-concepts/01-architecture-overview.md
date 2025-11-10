@@ -4,57 +4,59 @@ Understanding how PDOdb works under the hood.
 
 ## High-Level Architecture
 
+PDOdb follows a layered architecture that separates concerns and provides a clean, extensible design:
+
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Your Application                       │
-│                                                             │
-│  $db = new PdoDb('mysql', $config);                        │
-│  $users = $db->find()->from('users')->get();               │
-└───────────────────────┬─────────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│                        PdoDb Class                          │
-│  • Query execution                                          │
-│  • Connection management                                    │
-│  • Transaction handling                                     │
-│  • Error handling                                           │
-└───────────────────────┬─────────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Connection Layer                         │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │  Connection  │  │   Dialect    │  │     PDO     │     │
-│  │              │  │              │  │              │     │
-│  │ • PDO wrapper│  │ • SQL gen    │  │ • Database  │     │
-│  │ • Pool mgmt  │  │ • Type conv  │  │   driver    │     │
-│  │ • Retry logic│  │ • Functions  │  │ • Prepared  │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
-└─────────────────────────────────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Query Builder Layer                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │   Select     │  │     DML      │  │     DDL      │     │
-│  │  QueryBuilder│  │  QueryBuilder│  │  QueryBuilder│     │
-│  │              │  │              │  │              │     │
-│  │ • SELECT     │  │ • INSERT     │  │ • CREATE     │     │
-│  │ • FROM       │  │ • UPDATE     │  │ • ALTER      │     │
-│  │ • WHERE      │  │ • DELETE     │  │ • DROP       │     │
-│  │ • JOIN       │  │ • REPLACE    │  │              │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
-└─────────────────────────────────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Execution Engine                          │
-│  • Parameter binding                                        │
-│  • Statement execution                                      │
-│  • Result fetching                                         │
-│  • Error handling                                          │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Your Application                            │
+│                                                                     │
+│  $db = new PdoDb('mysql', $config);                                 │
+│  $users = $db->find()->from('users')->get();                        │
+└───────────────────────────────────┬─────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                          PdoDb Class                                │
+│  • Query execution                                                  │
+│  • Connection management                                            │
+│  • Transaction handling                                             │
+│  • Error handling                                                   │
+└───────────────────────────────────┬─────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                       Connection Layer                              │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐   │
+│  │   Connection     │  │     Dialect      │  │       PDO        │   │
+│  │                  │  │                  │  │                  │   │
+│  │ • PDO wrapper    │  │ • SQL gen        │  │ • Database       │   │
+│  │ • Pool mgmt      │  │ • Type conv      │  │   driver         │   │
+│  │ • Retry logic    │  │ • Functions      │  │ • Prepared       │   │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘   │
+└───────────────────────────────────┬─────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      Query Builder Layer                            │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐   │
+│  │   Select         │  │       DML        │  │       DDL        │   │
+│  │  QueryBuilder    │  │   QueryBuilder   │  │   QueryBuilder   │   │
+│  │                  │  │                  │  │                  │   │
+│  │ • SELECT         │  │ • INSERT         │  │ • CREATE         │   │
+│  │ • FROM           │  │ • UPDATE         │  │ • ALTER          │   │
+│  │ • WHERE          │  │ • DELETE         │  │ • DROP           │   │
+│  │ • JOIN           │  │ • REPLACE        │  │                  │   │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘   │
+└───────────────────────────────────┬─────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                       Execution Engine                              │
+│  • Parameter binding                                                │
+│  • Statement execution                                              │
+│  • Result fetching                                                  │
+│  • Error handling                                                   │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Component Flow
