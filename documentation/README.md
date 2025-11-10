@@ -1,16 +1,20 @@
 # PDOdb Documentation
 
-Complete documentation for the PDOdb library - a lightweight, framework-agnostic PHP database library providing a unified API across MySQL, PostgreSQL, and SQLite.
+Complete documentation for the PDOdb library - a lightweight, framework-agnostic PHP database library providing a unified API across MySQL, MariaDB, PostgreSQL, SQLite, and Microsoft SQL Server (MSSQL).
 
 ## 📖 Table of Contents
 
 ### Getting Started
 - [Installation](01-getting-started/installation.md) - Install via Composer
+- [Choosing Your Database](01-getting-started/choosing-database.md) - Which database to use?
+- [Learning Path](01-getting-started/learning-path.md) - Structured learning guide
 - [Configuration](01-getting-started/configuration.md) - Database configuration
 - [First Connection](01-getting-started/first-connection.md) - Your first connection
 - [Hello World](01-getting-started/hello-world.md) - Simple example
+- [Quick Reference](01-getting-started/quick-reference.md) - Common tasks with code snippets
 
 ### Core Concepts
+- [Architecture Overview](02-core-concepts/architecture-overview.md) - How PDOdb works internally
 - [Connection Management](02-core-concepts/connection-management.md) - Single and pooled connections
 - [Query Builder Basics](02-core-concepts/query-builder-basics.md) - Fluent API overview
 - [Parameter Binding](02-core-concepts/parameter-binding.md) - Prepared statements and security
@@ -109,17 +113,17 @@ composer require tommyknocker/pdo-database-class
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-$db = new PdoDb('mysql', [
-    'host' => 'localhost',
-    'username' => 'user',
-    'password' => 'pass',
-    'dbname' => 'mydb'
+// Works with MySQL, MariaDB, PostgreSQL, SQLite, and MSSQL
+$db = new PdoDb('sqlite', [
+    'path' => ':memory:'  // SQLite - no setup required!
 ]);
+
+// Or use MySQL/MariaDB/PostgreSQL/MSSQL
+// $db = new PdoDb('mysql', ['host' => 'localhost', 'username' => 'user', 'password' => 'pass', 'dbname' => 'mydb']);
 
 $users = $db->find()
     ->from('users')
     ->where('age', 18, '>')
-    ->andWhere(Db::jsonContains('tags', 'php'))
     ->orderBy('created_at', 'DESC')
     ->limit(10)
     ->get();
@@ -128,7 +132,7 @@ $users = $db->find()
 ## 📚 Key Features
 
 - **Fluent Query Builder** - Intuitive chainable API
-- **Cross-Database Support** - Works with MySQL, MariaDB, PostgreSQL, SQLite
+- **Cross-Database Support** - Works with MySQL, MariaDB, PostgreSQL, SQLite, and Microsoft SQL Server (MSSQL)
 - **Query Caching** - PSR-16 integration for 10-1000x faster queries
 - **Read/Write Splitting** - Horizontal scaling with master-replica architecture
 - **Sharding** - Horizontal partitioning across multiple databases with automatic query routing
@@ -152,7 +156,10 @@ $users = $db->find()
 
 ## 💡 Navigation Tips
 
-- **New to PDOdb?** Start with [Installation](01-getting-started/installation.md)
+- **New to PDOdb?** Start with [Installation](01-getting-started/installation.md) → [First Connection](01-getting-started/first-connection.md) → [Hello World](01-getting-started/hello-world.md)
+- **Not sure which database to use?** See [Choosing Your Database](01-getting-started/choosing-database.md)
+- **Want a structured learning path?** See [Learning Path](01-getting-started/learning-path.md)
+- **Need quick examples?** See [Quick Reference](01-getting-started/quick-reference.md)
 - **Building queries?** See [SELECT Operations](03-query-builder/select-operations.md)
 - **Working with JSON?** See [JSON Basics](04-json-operations/json-basics.md)
 - **Performance issues?** See [Performance](08-best-practices/performance.md)

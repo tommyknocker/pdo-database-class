@@ -189,6 +189,63 @@ $id = $db->find()->table('users')->insert([
 echo "Inserted user with ID: $id\n";
 ```
 
+## MSSQL (Microsoft SQL Server) Example
+
+### 1. Create a database
+
+```sql
+CREATE DATABASE testdb;
+```
+
+### 2. Configure and connect
+
+```php
+<?php
+require 'vendor/autoload.php';
+
+use tommyknocker\pdodb\PdoDb;
+
+$db = new PdoDb('sqlsrv', [
+    'host' => 'localhost',
+    'username' => 'sa',
+    'password' => 'your_password',
+    'dbname' => 'testdb',
+    'port' => 1433,
+    'trust_server_certificate' => true,  // Required for local development
+    'encrypt' => true
+]);
+
+// Test the connection
+if ($db->ping()) {
+    echo "Connected to MSSQL successfully!\n";
+} else {
+    echo "Failed to connect to MSSQL\n";
+    exit(1);
+}
+
+// Create a table
+$db->rawQuery('CREATE TABLE IF NOT EXISTS users (
+    id INT IDENTITY(1,1) PRIMARY KEY,    -- AUTO_INCREMENT in MySQL, SERIAL in PostgreSQL
+    name NVARCHAR(255) NOT NULL,          -- VARCHAR(255) in MySQL/PostgreSQL, TEXT in SQLite
+    email NVARCHAR(255) NOT NULL,         -- VARCHAR(255) in MySQL/PostgreSQL, TEXT in SQLite
+    created_at DATETIME DEFAULT GETDATE() -- CURRENT_TIMESTAMP in MySQL/PostgreSQL/SQLite
+)');
+
+// Insert a user
+$id = $db->find()->table('users')->insert([
+    'name' => 'Alice',
+    'email' => 'alice@example.com'
+]);
+
+echo "Inserted user with ID: $id\n";
+```
+
+**Note**: MSSQL uses the `'sqlsrv'` driver name. Key differences:
+- Uses `IDENTITY(1,1)` for auto-increment columns (instead of `AUTO_INCREMENT`)
+- Uses `NVARCHAR` for string types (instead of `VARCHAR`)
+- Uses `GETDATE()` for current timestamp (instead of `CURRENT_TIMESTAMP`)
+- Requires `trust_server_certificate => true` for local development
+
 ## Checking Connection Status
 
 ### Ping

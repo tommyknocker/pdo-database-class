@@ -122,8 +122,10 @@ $db->find()->table('users')->update([
 
 **Generated SQL:**
 - MySQL: `NOW()`
+- MariaDB: `NOW()`
 - PostgreSQL: `CURRENT_TIMESTAMP`
 - SQLite: `CURRENT_TIMESTAMP`
+- MSSQL: `GETDATE()`
 
 ### Boolean Values
 
@@ -150,8 +152,10 @@ $db->find()->table('users')->insert([
 
 **Storage:**
 - MySQL: JSON column (5.7+)
+- MariaDB: JSON column (10.3+)
 - PostgreSQL: JSONB column
 - SQLite: TEXT column with JSON functions
+- MSSQL: NVARCHAR(MAX) or JSON column (2016+)
 
 ### Querying JSON
 
@@ -178,9 +182,10 @@ $db->find()->from('users')->select(['id', 'name']);  // No need to quote
 ```
 
 **Generated SQL:**
-- MySQL: `SELECT `id`, `name` FROM `users``
+- MySQL/MariaDB: ``SELECT `id`, `name` FROM `users` ``
 - PostgreSQL: `SELECT "id", "name" FROM "users"`
 - SQLite: `SELECT "id", "name" FROM "users"`
+- MSSQL: `SELECT [id], [name] FROM [users]`
 
 ### String Concatenation
 
@@ -194,9 +199,10 @@ $users = $db->find()
 ```
 
 **Generated SQL:**
-- MySQL: `CONCAT(first_name, ' ', last_name)`
+- MySQL/MariaDB: `CONCAT(first_name, ' ', last_name)`
 - PostgreSQL: `first_name || ' ' || last_name`
 - SQLite: `first_name || ' ' || last_name`
+- MSSQL: `first_name + ' ' + last_name`
 
 ## LIMIT and OFFSET
 
@@ -209,11 +215,12 @@ $users = $db->find()
 ```
 
 **Generated SQL:**
-- MySQL: `... LIMIT 10 OFFSET 20`
+- MySQL/MariaDB: `... LIMIT 10 OFFSET 20`
 - PostgreSQL: `... LIMIT 10 OFFSET 20`
 - SQLite: `... LIMIT 10 OFFSET 20`
+- MSSQL: `... ORDER BY (SELECT NULL) OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY`
 
-> **Note:** SQLite requires LIMIT when using OFFSET.
+> **Note:** SQLite requires LIMIT when using OFFSET. MSSQL requires ORDER BY when using OFFSET/FETCH.
 
 ## UPSERT Operations
 
@@ -252,6 +259,18 @@ ON CONFLICT (email) DO UPDATE SET
     updated_at = CURRENT_TIMESTAMP
 ```
 
+**MSSQL:**
+```sql
+MERGE users AS target
+USING (VALUES (:email, :name, :age)) AS source (email, name, age)
+ON target.email = source.email
+WHEN MATCHED THEN UPDATE SET 
+    age = target.age + 1,
+    updated_at = GETDATE()
+WHEN NOT MATCHED THEN INSERT (email, name, age) 
+    VALUES (source.email, source.name, source.age);
+```
+
 ## REPLACE Operations
 
 ```php
@@ -274,6 +293,15 @@ INSERT INTO users (id, name) VALUES (:id, :name)
 ON CONFLICT (id) DO UPDATE SET name = :name
 ```
 
+**MSSQL:**
+```sql
+MERGE users AS target
+USING (VALUES (:id, :name)) AS source (id, name)
+ON target.id = source.id
+WHEN MATCHED THEN UPDATE SET name = source.name
+WHEN NOT MATCHED THEN INSERT (id, name) VALUES (source.id, source.name);
+```
+
 ## TRUNCATE Operations
 
 ```php
@@ -291,6 +319,11 @@ TRUNCATE TABLE users
 ```sql
 DELETE FROM users;
 DELETE FROM sqlite_sequence WHERE name = 'users';
+```
+
+**MSSQL:**
+```sql
+TRUNCATE TABLE users
 ```
 
 ## Table Locking
@@ -320,6 +353,13 @@ BEGIN IMMEDIATE
 COMMIT
 ```
 
+**MSSQL:**
+```sql
+BEGIN TRANSACTION
+-- Operations here
+COMMIT TRANSACTION
+```
+
 ## Bulk Loading
 
 ### CSV Loader
@@ -329,9 +369,10 @@ $db->find()->table('users')->loadCsv('/path/to/file.csv');
 ```
 
 **Implementation:**
-- MySQL: `LOAD DATA LOCAL INFILE`
+- MySQL/MariaDB: `LOAD DATA LOCAL INFILE`
 - PostgreSQL: `COPY FROM`
 - SQLite: Row-by-row inserts in transaction
+- MSSQL: `BULK INSERT` or row-by-row inserts
 
 ### XML Loader
 
@@ -392,19 +433,38 @@ Returns dialect-specific execution plans.
 
 ## Feature Compatibility Matrix
 
-| Feature | MySQL | PostgreSQL | SQLite | MSSQL |
-|---------|-------|------------|--------|-------|
-| Prepared statements | ✅ | ✅ | ✅ | ✅ |
-| Transactions | ✅ | ✅ | ✅ | ✅ |
-| JSON support | ✅ | ✅ | ✅ (if compiled with JSON1) | ✅ |
-| UPSERT | ✅ | ✅ | ✅ | ✅ (MERGE) |
-| Bulk loading | ✅ | ✅ | ✅ (emulated) | ✅ |
-| Table locking | ✅ | ✅ | ✅ (BEGIN IMMEDIATE) | ✅ |
-| Schema support | ❌ | ✅ | ❌ | ✅ |
-| Table prefixes | ✅ | ✅ | ✅ | ✅ |
-| REPEAT/REVERSE/LPAD/RPAD | ✅ | ✅ | ✅ (emulated) | ✅ |
-| MERGE statements | ❌ (emulated) | ✅ | ❌ (emulated) | ✅ |
-| LATERAL JOINs | ✅ | ✅ | ❌ | ✅ (CROSS APPLY) |
+| Feature | MySQL | MariaDB | PostgreSQL | SQLite | MSSQL |
+|---------|-------|---------|------------|--------|-------|
+| **Core Features** |
+| Prepared statements | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Transactions | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Savepoints | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **Data Types** |
+| JSON support | ✅ | ✅ | ✅ (JSONB) | ✅ (if JSON1) | ✅ |
+| Boolean type | TINYINT(1) | TINYINT(1) | BOOLEAN | INTEGER | BIT |
+| Auto-increment | AUTO_INCREMENT | AUTO_INCREMENT | SERIAL | AUTOINCREMENT | IDENTITY(1,1) |
+| **Operations** |
+| UPSERT | ✅ | ✅ | ✅ | ✅ | ✅ (MERGE) |
+| Bulk loading | ✅ | ✅ | ✅ | ✅ (emulated) | ✅ |
+| Table locking | ✅ | ✅ | ✅ | ✅ (BEGIN IMMEDIATE) | ✅ |
+| **Advanced Features** |
+| Schema support | ❌ | ❌ | ✅ | ❌ | ✅ |
+| Table prefixes | ✅ | ✅ | ✅ | ✅ | ✅ |
+| REPEAT/REVERSE/LPAD/RPAD | ✅ | ✅ | ✅ (emulated) | ✅ (emulated) | ✅ |
+| MERGE statements | ❌ (emulated) | ❌ (emulated) | ✅ | ❌ (emulated) | ✅ |
+| LATERAL JOINs | ✅ | ✅ | ✅ | ❌ | ✅ (CROSS APPLY) |
+| Window functions | ✅ (8.0+) | ✅ (10.2+) | ✅ | ✅ (3.25+) | ✅ |
+| Recursive CTEs | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Full-text search | ✅ | ✅ | ✅ | ✅ (FTS5) | ✅ |
+| **String Functions** |
+| LENGTH() | ✅ | ✅ | ✅ | ✅ | LEN() |
+| SUBSTRING() | ✅ | ✅ | ✅ | SUBSTR() | ✅ |
+| CONCAT() | ✅ | ✅ | ✅ (||) | ✅ (||) | ✅ (+) |
+| **Date Functions** |
+| NOW() | ✅ | ✅ | CURRENT_TIMESTAMP | CURRENT_TIMESTAMP | GETDATE() |
+| DATE() | ✅ | ✅ | ✅ | ✅ | CAST() |
+| **LIMIT/OFFSET** |
+| LIMIT/OFFSET | ✅ | ✅ | ✅ | ✅ | OFFSET/FETCH |
 
 ## Migration Between Databases
 
@@ -437,15 +497,20 @@ CREATE TABLE users (
 );
 ```
 
-### Data Types
+### Data Types Comparison
 
-| MySQL | PostgreSQL | SQLite |
-|-------|-----------|--------|
-| VARCHAR(255) | VARCHAR(255) | TEXT |
-| INT | INTEGER | INTEGER |
-| DATETIME | TIMESTAMP | DATETIME |
-| JSON | JSONB | TEXT |
-| TINYINT | BOOLEAN | INTEGER |
+| Type | MySQL | MariaDB | PostgreSQL | SQLite | MSSQL |
+|------|-------|---------|------------|--------|-------|
+| String | VARCHAR(255) | VARCHAR(255) | VARCHAR(255) | TEXT | NVARCHAR(255) |
+| Integer | INT | INT | INTEGER | INTEGER | INT |
+| Big Integer | BIGINT | BIGINT | BIGINT | INTEGER | BIGINT |
+| Decimal | DECIMAL(10,2) | DECIMAL(10,2) | NUMERIC(10,2) | REAL | DECIMAL(10,2) |
+| Date/Time | DATETIME | DATETIME | TIMESTAMP | DATETIME | DATETIME |
+| Timestamp | TIMESTAMP | TIMESTAMP | TIMESTAMP | DATETIME | DATETIME |
+| JSON | JSON | JSON | JSONB | TEXT | NVARCHAR(MAX) or JSON |
+| Boolean | TINYINT(1) | TINYINT(1) | BOOLEAN | INTEGER | BIT |
+| Text | TEXT | TEXT | TEXT | TEXT | NTEXT or NVARCHAR(MAX) |
+| Binary | BLOB | BLOB | BYTEA | BLOB | VARBINARY(MAX) |
 
 ## Next Steps
 

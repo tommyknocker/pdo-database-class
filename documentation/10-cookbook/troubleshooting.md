@@ -13,6 +13,13 @@ Common issues and solutions when using PDOdb.
 # Ubuntu/Debian
 sudo apt-get install php8.4-mysql php8.4-pgsql php8.4-sqlite3
 
+# MSSQL requires additional setup
+curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+sudo apt-get update
+sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+sudo pecl install pdo_sqlsrv
+
 # Check installed extensions
 php -m | grep pdo
 ```
@@ -38,6 +45,56 @@ try {
 } catch (\Exception $e) {
     echo "Connection failed: {$e->getMessage()}\n";
 }
+```
+
+### MSSQL Connection Issues
+
+**Problem:** "Login failed for user" or "Driver not found"
+
+**Solutions:**
+
+1. **Verify pdo_sqlsrv extension is installed:**
+```bash
+php -m | grep pdo_sqlsrv
+```
+
+2. **Check MSSQL server is running:**
+```bash
+# Linux
+sudo systemctl status mssql-server
+
+# Windows
+# Check SQL Server service in Services
+```
+
+3. **Verify connection string:**
+```php
+// MSSQL requires trust_server_certificate for local development
+$db = new PdoDb('sqlsrv', [
+    'host' => 'localhost',
+    'username' => 'sa',
+    'password' => 'your_password',
+    'dbname' => 'testdb',
+    'port' => 1433,
+    'trust_server_certificate' => true,  // Required!
+    'encrypt' => true
+]);
+```
+
+4. **Check SQL Server authentication mode:**
+```sql
+-- Run in SQL Server Management Studio
+SELECT SERVERPROPERTY('IsIntegratedSecurityOnly') AS 'Login Mode';
+-- 0 = Mixed Mode (SQL Server + Windows), 1 = Windows Only
+```
+
+5. **Enable SQL Server authentication (if needed):**
+```sql
+-- Enable mixed mode authentication
+EXEC xp_instance_regwrite N'HKEY_LOCAL_MACHINE', 
+     N'Software\Microsoft\MSSQLServer\MSSQLServer', 
+     N'LoginMode', REG_DWORD, 2;
+-- Then restart SQL Server service
 ```
 
 ## JSON Support Issues
