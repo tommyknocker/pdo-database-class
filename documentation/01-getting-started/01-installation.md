@@ -168,6 +168,6 @@ If you see `pdo_sqlsrv`, the extension is installed correctly.
 
 ## Next Steps
 
-- [Configuration](configuration.md) - Configure your database connection
-- [First Connection](first-connection.md) - Make your first connection
-- [Hello World](hello-world.md) - Build your first query
+- [Configuration](04-configuration.md) - Configure your database connection
+- [First Connection](05-first-connection.md) - Make your first connection
+- [Hello World](06-hello-world.md) - Build your first query

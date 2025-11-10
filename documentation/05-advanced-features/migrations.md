@@ -441,6 +441,6 @@ You can create a root `config.php` with multiple database configurations, and th
 
 ## Related Documentation
 
-- [DDL Operations](../03-query-builder/ddl-operations.md) - Schema management operations
+- [DDL Operations](../03-query-builder/12-ddl-operations.md) - Schema management operations
 - [Transactions](transactions.md) - Transaction management
-- [Query Builder Basics](../02-core-concepts/query-builder-basics.md) - Query building fundamentals
+- [Query Builder Basics](../02-core-concepts/03-query-builder-basics.md) - Query building fundamentals

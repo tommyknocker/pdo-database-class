@@ -25,8 +25,8 @@ Perfect for those new to PDOdb or database libraries in general.
 - Create a simple test connection
 
 **Resources:**
-- [Installation Guide](installation.md)
-- [First Connection](first-connection.md)
+- [Installation Guide](01-installation.md)
+- [First Connection](05-first-connection.md)
 
 **Checkpoint:** Can you connect to SQLite and run a simple query?
 
@@ -40,8 +40,8 @@ Perfect for those new to PDOdb or database libraries in general.
 - Test connection with `ping()`
 
 **Resources:**
-- [First Connection](first-connection.md)
-- [Configuration](configuration.md)
+- [First Connection](05-first-connection.md)
+- [Configuration](04-configuration.md)
 
 **Checkpoint:** Can you connect to at least one database type?
 
@@ -57,8 +57,8 @@ Perfect for those new to PDOdb or database libraries in general.
 - Understand basic CRUD operations
 
 **Resources:**
-- [Hello World](hello-world.md)
-- [Quick Reference](quick-reference.md) - for quick lookups
+- [Hello World](06-hello-world.md)
+- [Quick Reference](07-quick-reference.md) - for quick lookups
 
 **Checkpoint:** Can you create a table, insert data, and query it?
 
@@ -72,8 +72,8 @@ Perfect for those new to PDOdb or database libraries in general.
 - Practice building simple queries
 
 **Resources:**
-- [Query Builder Basics](../02-core-concepts/query-builder-basics.md)
-- [SELECT Operations](../03-query-builder/select-operations.md)
+- [Query Builder Basics](../02-core-concepts/03-query-builder-basics.md)
+- [SELECT Operations](../03-query-builder/01-select-operations.md)
 
 **Checkpoint:** Can you build queries using method chaining?
 
@@ -89,8 +89,8 @@ Perfect for those new to PDOdb or database libraries in general.
 - Understand affected rows
 
 **Resources:**
-- [Data Manipulation](../03-query-builder/data-manipulation.md)
-- [Filtering Conditions](../03-query-builder/filtering-conditions.md)
+- [Data Manipulation](../03-query-builder/02-data-manipulation.md)
+- [Filtering Conditions](../03-query-builder/03-filtering-conditions.md)
 
 **Checkpoint:** Can you perform all CRUD operations confidently?
 
@@ -115,8 +115,8 @@ For those comfortable with basics and ready to learn advanced query building.
 - Handle NULL values in joins
 
 **Resources:**
-- [Joins](../03-query-builder/joins.md)
-- [Query Builder Basics](../02-core-concepts/query-builder-basics.md)
+- [Joins](../03-query-builder/04-joins.md)
+- [Query Builder Basics](../02-core-concepts/03-query-builder-basics.md)
 
 **Checkpoint:** Can you join multiple tables and get correct results?
 
@@ -131,7 +131,7 @@ For those comfortable with basics and ready to learn advanced query building.
 - Filtering aggregated results
 
 **Resources:**
-- [Aggregations](../03-query-builder/aggregations.md)
+- [Aggregations](../03-query-builder/05-aggregations.md)
 - [Aggregate Helpers](../07-helper-functions/aggregate-helpers.md)
 
 **Checkpoint:** Can you write queries with aggregations and grouping?
@@ -225,7 +225,7 @@ For those ready to master advanced features and optimizations.
 - Partitioning windows
 
 **Resources:**
-- [Window Functions](../03-query-builder/window-functions.md)
+- [Window Functions](../03-query-builder/09-window-functions.md)
 - [Window Helpers](../07-helper-functions/window-helpers.md)
 
 **Checkpoint:** Can you write queries with window functions?
@@ -241,7 +241,7 @@ For those ready to master advanced features and optimizations.
 - Multiple CTEs in one query
 
 **Resources:**
-- [CTEs](../03-query-builder/cte.md)
+- [CTEs](../03-query-builder/08-cte.md)
 
 **Checkpoint:** Can you write recursive CTEs for tree structures?
 
@@ -256,7 +256,7 @@ For those ready to master advanced features and optimizations.
 - Correlated subqueries
 
 **Resources:**
-- [Subqueries](../03-query-builder/subqueries.md)
+- [Subqueries](../03-query-builder/07-subqueries.md)
 
 **Checkpoint:** Can you use subqueries in SELECT, WHERE, and FROM clauses?
 
@@ -328,14 +328,14 @@ You're now a PDOdb expert! Continue exploring advanced topics and contributing t
 
 ### Need to do something quickly?
 
-- [Quick Reference](quick-reference.md) - Common tasks with code snippets
+- [Quick Reference](07-quick-reference.md) - Common tasks with code snippets
 - [API Reference](../09-reference/api-reference.md) - Complete API documentation
 - [Troubleshooting](../10-cookbook/troubleshooting.md) - Common issues and solutions
 
 ### Not sure where to start?
 
-1. **Complete beginner?** → Start with [Installation](installation.md)
-2. **Know SQL but new to PDOdb?** → Start with [Hello World](hello-world.md)
+1. **Complete beginner?** → Start with [Installation](01-installation.md)
+2. **Know SQL but new to PDOdb?** → Start with [Hello World](06-hello-world.md)
 3. **Want to learn a specific feature?** → Use the search or table of contents
 4. **Having issues?** → Check [Troubleshooting](../10-cookbook/troubleshooting.md)
 

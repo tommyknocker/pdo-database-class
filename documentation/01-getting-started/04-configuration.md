@@ -258,7 +258,7 @@ $db = new PdoDb('mysql', [
 ]);
 ```
 
-**See**: [Connection Management - Prepared Statement Pool](02-core-concepts/connection-management.md#prepared-statement-pool) for detailed documentation.
+**See**: [Connection Management - Prepared Statement Pool](02-core-concepts/02-connection-management.md#prepared-statement-pool) for detailed documentation.
 
 ## Connection Pooling
 
@@ -424,5 +424,5 @@ $db = new PdoDb('sqlsrv', [
 
 ## Next Steps
 
-- [First Connection](first-connection.md) - Make your first connection
-- [Hello World](hello-world.md) - Build your first query
+- [First Connection](05-first-connection.md) - Make your first connection
+- [Hello World](06-hello-world.md) - Build your first query

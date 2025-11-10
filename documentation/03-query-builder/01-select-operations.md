@@ -531,4 +531,4 @@ print_r($plan);
 - [Filtering Conditions](filtering-conditions.md) - Complex WHERE clauses
 - [Joins](joins.md) - Joining tables
 - [Aggregations](aggregations.md) - GROUP BY, HAVING
-- [Query Builder Basics](../02-core-concepts/query-builder-basics.md) - Fluent API overview
+- [Query Builder Basics](../02-core-concepts/03-query-builder-basics.md) - Fluent API overview

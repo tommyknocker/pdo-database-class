@@ -383,5 +383,5 @@ For more details, see [Connection Retry](../05-advanced-features/connection-retr
 
 ## Next Steps
 
-- [Hello World](hello-world.md) - Build your first query
-- [Query Builder Basics](../02-core-concepts/query-builder-basics.md) - Learn about the fluent API
+- [Hello World](06-hello-world.md) - Build your first query
+- [Query Builder Basics](../02-core-concepts/03-query-builder-basics.md) - Learn about the fluent API

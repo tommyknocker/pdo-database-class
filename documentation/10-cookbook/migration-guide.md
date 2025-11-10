@@ -217,6 +217,6 @@ $users = $db->find()
 
 ## Next Steps
 
-- [Installation](../01-getting-started/installation.md) - Install PDOdb
-- [Configuration](../01-getting-started/configuration.md) - Configure database
+- [Installation](../01-getting-started/01-installation.md) - Install PDOdb
+- [Configuration](../01-getting-started/04-configuration.md) - Configure database
 - [Common Patterns](common-patterns.md) - Common patterns

@@ -5,35 +5,38 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 ## 📖 Table of Contents
 
 ### Getting Started
-- [Installation](01-getting-started/installation.md) - Install via Composer
-- [Choosing Your Database](01-getting-started/choosing-database.md) - Which database to use?
-- [Learning Path](01-getting-started/learning-path.md) - Structured learning guide
-- [Configuration](01-getting-started/configuration.md) - Database configuration
-- [First Connection](01-getting-started/first-connection.md) - Your first connection
-- [Hello World](01-getting-started/hello-world.md) - Simple example
-- [Quick Reference](01-getting-started/quick-reference.md) - Common tasks with code snippets
+- [01. Installation](01-getting-started/01-installation.md) - Install via Composer
+- [02. Choosing Your Database](01-getting-started/02-choosing-database.md) - Which database to use?
+- [03. Learning Path](01-getting-started/03-learning-path.md) - Structured learning guide
+- [04. Configuration](01-getting-started/04-configuration.md) - Database configuration
+- [05. First Connection](01-getting-started/05-first-connection.md) - Your first connection
+- [06. Hello World](01-getting-started/06-hello-world.md) - Simple example
+- [07. Quick Reference](01-getting-started/07-quick-reference.md) - Common tasks with code snippets
 
 ### Core Concepts
-- [Architecture Overview](02-core-concepts/architecture-overview.md) - How PDOdb works internally
-- [Connection Management](02-core-concepts/connection-management.md) - Single and pooled connections
-- [Query Builder Basics](02-core-concepts/query-builder-basics.md) - Fluent API overview
-- [Parameter Binding](02-core-concepts/parameter-binding.md) - Prepared statements and security
-- [Dialect Support](02-core-concepts/dialect-support.md) - Database differences
+- [01. Architecture Overview](02-core-concepts/01-architecture-overview.md) - How PDOdb works internally
+- [02. Connection Management](02-core-concepts/02-connection-management.md) - Single and pooled connections
+- [03. Query Builder Basics](02-core-concepts/03-query-builder-basics.md) - Fluent API overview
+- [04. Parameter Binding](02-core-concepts/04-parameter-binding.md) - Prepared statements and security
+- [05. Dialect Support](02-core-concepts/05-dialect-support.md) - Database differences
 
 ### Query Builder
-- [SELECT Operations](03-query-builder/select-operations.md) - SELECT, FROM, WHERE, JOIN
-- [Data Manipulation](03-query-builder/data-manipulation.md) - INSERT, UPDATE, DELETE, REPLACE
-- [Filtering Conditions](03-query-builder/filtering-conditions.md) - WHERE, HAVING, complex conditions
-- [Joins](03-query-builder/joins.md) - JOIN types and usage
-- [Aggregations](03-query-builder/aggregations.md) - GROUP BY, HAVING, aggregates
-- [Ordering & Pagination](03-query-builder/ordering-pagination.md) - ORDER BY, LIMIT, OFFSET
-- [Subqueries](03-query-builder/subqueries.md) - Subqueries and EXISTS
-- [Common Table Expressions (CTEs)](03-query-builder/cte.md) - WITH clauses and recursive CTEs
-- [Window Functions](03-query-builder/window-functions.md) - ROW_NUMBER, RANK, LAG, LEAD
-- [Full-Text Search](03-query-builder/fulltext-search.md) - Cross-database FTS
-- [Schema Introspection](03-query-builder/schema-introspection.md) - Query indexes, foreign keys
-- [DDL Operations](03-query-builder/ddl-operations.md) - Create, alter, and manage database schema
-- [Raw Queries](03-query-builder/raw-queries.md) - Raw SQL with binding
+- [01. SELECT Operations](03-query-builder/01-select-operations.md) - SELECT, FROM, WHERE, JOIN
+- [02. Data Manipulation](03-query-builder/02-data-manipulation.md) - INSERT, UPDATE, DELETE, REPLACE
+- [03. Filtering Conditions](03-query-builder/03-filtering-conditions.md) - WHERE, HAVING, complex conditions
+- [04. Joins](03-query-builder/04-joins.md) - JOIN types and usage
+- [05. Aggregations](03-query-builder/05-aggregations.md) - GROUP BY, HAVING, aggregates
+- [06. Ordering & Pagination](03-query-builder/06-ordering-pagination.md) - ORDER BY, LIMIT, OFFSET
+- [07. Subqueries](03-query-builder/07-subqueries.md) - Subqueries and EXISTS
+- [08. Common Table Expressions (CTEs)](03-query-builder/08-cte.md) - WITH clauses and recursive CTEs
+- [09. Window Functions](03-query-builder/09-window-functions.md) - ROW_NUMBER, RANK, LAG, LEAD
+- [10. Full-Text Search](03-query-builder/10-fulltext-search.md) - Cross-database FTS
+- [11. Schema Introspection](03-query-builder/11-schema-introspection.md) - Query indexes, foreign keys
+- [12. DDL Operations](03-query-builder/12-ddl-operations.md) - Create, alter, and manage database schema
+- [13. DISTINCT](03-query-builder/13-distinct.md) - Remove duplicates
+- [14. FILTER Clause](03-query-builder/14-filter-clause.md) - Conditional aggregates
+- [15. Set Operations](03-query-builder/15-set-operations.md) - UNION, INTERSECT, EXCEPT
+- [16. Raw Queries](03-query-builder/16-raw-queries.md) - Raw SQL with binding
 
 ### JSON Operations
 - [JSON Basics](04-json-operations/json-basics.md) - Creating and storing JSON
@@ -156,11 +159,11 @@ $users = $db->find()
 
 ## 💡 Navigation Tips
 
-- **New to PDOdb?** Start with [Installation](01-getting-started/installation.md) → [First Connection](01-getting-started/first-connection.md) → [Hello World](01-getting-started/hello-world.md)
-- **Not sure which database to use?** See [Choosing Your Database](01-getting-started/choosing-database.md)
-- **Want a structured learning path?** See [Learning Path](01-getting-started/learning-path.md)
-- **Need quick examples?** See [Quick Reference](01-getting-started/quick-reference.md)
-- **Building queries?** See [SELECT Operations](03-query-builder/select-operations.md)
+- **New to PDOdb?** Start with [Installation](01-getting-started/01-installation.md) → [First Connection](01-getting-started/05-first-connection.md) → [Hello World](01-getting-started/06-hello-world.md)
+- **Not sure which database to use?** See [Choosing Your Database](01-getting-started/02-choosing-database.md)
+- **Want a structured learning path?** See [Learning Path](01-getting-started/03-learning-path.md)
+- **Need quick examples?** See [Quick Reference](01-getting-started/07-quick-reference.md)
+- **Building queries?** See [SELECT Operations](03-query-builder/01-select-operations.md)
 - **Working with JSON?** See [JSON Basics](04-json-operations/json-basics.md)
 - **Performance issues?** See [Performance](08-best-practices/performance.md)
 - **Need a quick reference?** See [API Reference](09-reference/api-reference.md)

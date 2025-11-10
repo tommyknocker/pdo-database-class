@@ -428,7 +428,7 @@ Observable Behavior
 
 ## Next Steps
 
-- [Connection Management](connection-management.md) - Learn about connections
-- [Query Builder Basics](query-builder-basics.md) - Fluent API overview
-- [Dialect Support](dialect-support.md) - Database differences
+- [Connection Management](02-connection-management.md) - Learn about connections
+- [Query Builder Basics](03-query-builder-basics.md) - Fluent API overview
+- [Dialect Support](05-dialect-support.md) - Database differences
 

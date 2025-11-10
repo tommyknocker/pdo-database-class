@@ -305,14 +305,14 @@ $users = $db->find()->from('users')->where('name', $name)->get();
 Now that you understand the basics:
 
 1. **Practice:** Modify this example and experiment
-2. **Learn More:** Follow the [Learning Path](learning-path.md)
-3. **Reference:** Use [Quick Reference](quick-reference.md) for common tasks
-4. **Deep Dive:** Read [Query Builder Basics](../02-core-concepts/query-builder-basics.md)
+2. **Learn More:** Follow the [Learning Path](03-learning-path.md)
+3. **Reference:** Use [Quick Reference](07-quick-reference.md) for common tasks
+4. **Deep Dive:** Read [Query Builder Basics](../02-core-concepts/03-query-builder-basics.md)
 
 ## Next Steps
 
-- [Learning Path](learning-path.md) - Structured learning guide
-- [Quick Reference](quick-reference.md) - Common tasks with code snippets
-- [Query Builder Basics](../02-core-concepts/query-builder-basics.md) - Deep dive into the query builder
-- [SELECT Operations](../03-query-builder/select-operations.md) - Learn SELECT queries
-- [Data Manipulation](../03-query-builder/data-manipulation.md) - INSERT, UPDATE, DELETE
+- [Learning Path](03-learning-path.md) - Structured learning guide
+- [Quick Reference](07-quick-reference.md) - Common tasks with code snippets
+- [Query Builder Basics](../02-core-concepts/03-query-builder-basics.md) - Deep dive into the query builder
+- [SELECT Operations](../03-query-builder/01-select-operations.md) - Learn SELECT queries
+- [Data Manipulation](../03-query-builder/02-data-manipulation.md) - INSERT, UPDATE, DELETE

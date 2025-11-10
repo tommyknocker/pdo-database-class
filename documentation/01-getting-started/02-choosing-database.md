@@ -280,8 +280,8 @@ $db = new PdoDb('mysql', $mysqlConfig);            // Production
 
 ## Next Steps
 
-- [Installation](installation.md) - Install PDOdb
-- [First Connection](first-connection.md) - Connect to your chosen database
-- [Configuration](configuration.md) - Configure your connection
-- [Learning Path](learning-path.md) - Start learning PDOdb
+- [Installation](01-installation.md) - Install PDOdb
+- [First Connection](05-first-connection.md) - Connect to your chosen database
+- [Configuration](04-configuration.md) - Configure your connection
+- [Learning Path](03-learning-path.md) - Start learning PDOdb
 

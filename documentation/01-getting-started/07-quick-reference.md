@@ -543,7 +543,7 @@ $users = $db->find()
 
 ## Next Steps
 
-- [Learning Path](learning-path.md) - Structured learning guide
+- [Learning Path](03-learning-path.md) - Structured learning guide
 - [API Reference](../09-reference/api-reference.md) - Complete API documentation
 - [Common Patterns](../10-cookbook/common-patterns.md) - More patterns and examples
 

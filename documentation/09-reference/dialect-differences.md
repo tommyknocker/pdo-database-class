@@ -116,5 +116,5 @@ SELECT * FROM "users"
 ## Next Steps
 
 - [API Reference](api-reference.md) - Complete API
-- [Dialect Support](../02-core-concepts/dialect-support.md) - Dialect handling
+- [Dialect Support](../02-core-concepts/05-dialect-support.md) - Dialect handling
 - [Troubleshooting](../10-cookbook/troubleshooting.md) - Common issues

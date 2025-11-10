@@ -627,6 +627,6 @@ $db = ConnectionFactory::create();
 
 ## Next Steps
 
-- [Query Builder Basics](query-builder-basics.md) - Learn about the fluent API
-- [Parameter Binding](parameter-binding.md) - Prepared statements and security
-- [Dialect Support](dialect-support.md) - Database differences
+- [Query Builder Basics](03-query-builder-basics.md) - Learn about the fluent API
+- [Parameter Binding](04-parameter-binding.md) - Prepared statements and security
+- [Dialect Support](05-dialect-support.md) - Database differences

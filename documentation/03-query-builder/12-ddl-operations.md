@@ -390,4 +390,4 @@ echo "Table 'posts' created successfully\n";
 
 - [Schema Introspection](schema-introspection.md) - Querying existing schema
 - [Database Migrations](../05-advanced-features/migrations.md) - Version-controlled schema changes
-- [Dialect Support](../02-core-concepts/dialect-support.md) - Database-specific differences
+- [Dialect Support](../02-core-concepts/05-dialect-support.md) - Database-specific differences

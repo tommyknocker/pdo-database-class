@@ -341,5 +341,5 @@ Use scopes when you need:
 ## See Also
 
 - [Query Scopes](query-scopes.md) - Model-based reusable query logic
-- [Query Builder Basics](../02-core-concepts/query-builder-basics.md) - QueryBuilder fundamentals
-- [Filtering Conditions](../03-query-builder/filtering-conditions.md) - WHERE clause patterns
+- [Query Builder Basics](../02-core-concepts/03-query-builder-basics.md) - QueryBuilder fundamentals
+- [Filtering Conditions](../03-query-builder/03-filtering-conditions.md) - WHERE clause patterns

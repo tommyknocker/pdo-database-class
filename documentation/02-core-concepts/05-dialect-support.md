@@ -514,6 +514,6 @@ CREATE TABLE users (
 
 ## Next Steps
 
-- [Connection Management](connection-management.md) - Learn about connections
-- [Query Builder Basics](query-builder-basics.md) - Fluent API overview
-- [SELECT Operations](../03-query-builder/select-operations.md) - SELECT queries
+- [Connection Management](02-connection-management.md) - Learn about connections
+- [Query Builder Basics](03-query-builder-basics.md) - Fluent API overview
+- [SELECT Operations](../03-query-builder/01-select-operations.md) - SELECT queries

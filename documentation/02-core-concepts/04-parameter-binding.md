@@ -431,6 +431,6 @@ var_dump($result);
 
 ## Next Steps
 
-- [Query Builder Basics](query-builder-basics.md) - Fluent API overview
-- [Dialect Support](dialect-support.md) - Database differences
-- [SELECT Operations](../03-query-builder/select-operations.md) - Detailed SELECT documentation
+- [Query Builder Basics](03-query-builder-basics.md) - Fluent API overview
+- [Dialect Support](05-dialect-support.md) - Database differences
+- [SELECT Operations](../03-query-builder/01-select-operations.md) - Detailed SELECT documentation
