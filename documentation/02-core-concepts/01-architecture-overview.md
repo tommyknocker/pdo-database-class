@@ -171,42 +171,59 @@ $db->rollback()       // Rollback transaction
 
 ### Connection Layer
 
+The Connection Layer consists of three main components working together:
+
 **Connection Class:**
 - Wraps PDO instance
 - Provides dialect access
 - Manages connection pool
 - Handles retry logic
+- Connection lifecycle management
 
 **Dialect Classes:**
-- MySQLDialect
-- MariaDBDialect
-- PostgreSQLDialect
-- SqliteDialect
-- MSSQLDialect
+- `MySQLDialect` - MySQL-specific SQL generation
+- `MariaDBDialect` - MariaDB-specific SQL generation
+- `PostgreSQLDialect` - PostgreSQL-specific SQL generation
+- `SqliteDialect` - SQLite-specific SQL generation
+- `MSSQLDialect` - Microsoft SQL Server-specific SQL generation
 
-**Responsibilities:**
-- SQL generation (dialect-specific)
-- Type conversion
-- Function mapping (e.g., LENGTH → LEN for MSSQL)
-- Identifier quoting
-- Feature emulation
+**Dialect Responsibilities:**
+- SQL generation (dialect-specific syntax)
+- Type conversion (e.g., `TEXT` → `NVARCHAR(MAX)` for MSSQL)
+- Function mapping (e.g., `LENGTH` → `LEN` for MSSQL)
+- Identifier quoting (backticks for MySQL, brackets for MSSQL, etc.)
+- Feature emulation (e.g., REGEXP for SQLite/MSSQL)
+
+**PDO:**
+- Native PHP database driver
+- Prepared statements
+- Parameter binding
+- Transaction support
 
 ### Query Builder Layer
+
+The Query Builder Layer provides three specialized builders for different query types:
 
 **SelectQueryBuilder:**
 - Builds SELECT queries
 - Handles: FROM, WHERE, JOIN, GROUP BY, HAVING, ORDER BY, LIMIT, OFFSET
 - Supports subqueries and CTEs
+- Window functions support
+- Set operations (UNION, INTERSECT, EXCEPT)
 
-**DmlQueryBuilder:**
+**DmlQueryBuilder (Data Manipulation Language):**
 - Builds INSERT, UPDATE, DELETE, REPLACE queries
-- Handles bulk operations
-- Supports UPSERT operations
+- Handles bulk operations (`insertMulti()`)
+- Supports UPSERT operations (`onDuplicate()`)
+- INSERT ... SELECT support
+- UPDATE/DELETE with JOIN support
 
-**DdlQueryBuilder:**
+**DdlQueryBuilder (Data Definition Language):**
 - Builds CREATE, ALTER, DROP queries
 - Schema introspection
 - Index management
+- Foreign key constraints
+- Column operations (add, modify, drop, rename)
 
 ### Execution Engine
 
