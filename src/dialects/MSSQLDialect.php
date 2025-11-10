@@ -183,7 +183,7 @@ class MSSQLDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
-     * MSSQL: NTEXT/NVARCHAR(MAX) doesn't work with LOWER directly, need CAST to NVARCHAR(MAX)
+     * MSSQL: NTEXT/NVARCHAR(MAX) doesn't work with LOWER directly, need CAST to NVARCHAR(MAX).
      */
     public function ilike(string $column, string $pattern): RawValue
     {

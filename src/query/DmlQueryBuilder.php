@@ -572,6 +572,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
             // Extract source table name (handle quoted identifiers like [table] or table)
             $sourceTableRaw = $matches[1];
             $sourceTable = trim($sourceTableRaw, '[]`"\'');
+
             // Get source table columns (excluding IDENTITY if any)
             try {
                 $sourceDescribeSql = $this->dialect->buildDescribeSql($sourceTable);
@@ -592,13 +593,22 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
                     }
                 }
                 // Replace SELECT * (with optional TOP) with explicit column list
-                $sourceSql = preg_replace('/SELECT\s+(TOP\s*\([^)]+\)\s+)?\*\s+FROM/i', 'SELECT $1' . implode(', ', $sourceColumnNames) . ' FROM', $sourceSql);
+                /** @var string|null $replacedSql */
+                $replacedSql = preg_replace('/SELECT\s+(TOP\s*\([^)]+\)\s+)?\*\s+FROM/i', 'SELECT $1' . implode(', ', $sourceColumnNames) . ' FROM', $sourceSql);
+                if ($replacedSql !== null) {
+                    $sourceSql = $replacedSql;
+                }
             } catch (\Exception $e) {
                 // If describe fails, keep original SELECT *
             }
         }
 
         // Build INSERT ... SELECT SQL using dialect
+        // $sourceSql is guaranteed to be string at this point (buildInsertFromSourceSql returns string)
+        // preg_replace can return null, but we check for it above, so at this point $sourceSql is always string
+        if (!is_string($sourceSql)) {
+            throw new RuntimeException('Source SQL must be a string');
+        }
         $sql = $this->dialect->buildInsertSelectSql(
             $this->normalizeTable(),
             $columns,
@@ -635,6 +645,9 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
             // SelectQueryBuilder instance - get SQL
             $result = $source->toSQL();
             $sql = $result['sql'] ?? $result[0] ?? '';
+            if ($sql === '') {
+                throw new RuntimeException('Source query builder returned empty SQL');
+            }
             $params = $result['params'] ?? $result[1] ?? [];
             // Merge parameters
             foreach ($params as $key => $value) {
@@ -647,6 +660,9 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
             // QueryBuilder instance - use its toSQL method
             $result = $source->toSQL();
             $sql = $result['sql'] ?? $result[0] ?? '';
+            if ($sql === '') {
+                throw new RuntimeException('Source query builder returned empty SQL');
+            }
             $params = $result['params'] ?? $result[1] ?? [];
             // Merge parameters
             foreach ($params as $key => $value) {

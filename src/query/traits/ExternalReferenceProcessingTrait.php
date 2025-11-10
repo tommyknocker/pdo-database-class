@@ -40,6 +40,7 @@ trait ExternalReferenceProcessingTrait
         if ($this->table === $tableName) {
             return true;
         }
+
         // Check JOIN tables if joinBuilder is available
         // Use reflection to access protected property if needed
         try {

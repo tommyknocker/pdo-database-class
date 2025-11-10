@@ -158,22 +158,22 @@ trait ConditionalHelpersTrait
         // Only match identifiers that appear before operators, not SQL keywords
         // Operators: =, !=, <>, <, >, <=, >=, LIKE, ILIKE, IN, NOT IN, IS, IS NOT
         $pattern = '/\b([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?)\s*(=|!=|<>|<|>|<=|>=|LIKE|ILIKE|IN|NOT\s+IN|IS|IS\s+NOT)\s*/i';
-        
-        return preg_replace_callback($pattern, function ($matches) use ($mssqlReservedWords, $sqlKeywords) {
+
+        $result = preg_replace_callback($pattern, function ($matches) use ($mssqlReservedWords, $sqlKeywords) {
             $identifier = $matches[1];
             $operator = $matches[2];
-            
+
             // Skip if identifier is already quoted
             if (preg_match('/^\[.*\]$/', $identifier) || preg_match('/^".*"$/', $identifier)) {
                 return $matches[0];
             }
-            
+
             // Skip if identifier is a SQL keyword/operator (not a column name)
             $identifierLower = strtolower($identifier);
             if (in_array($identifierLower, $sqlKeywords, true)) {
                 return $matches[0];
             }
-            
+
             // Check if identifier contains a reserved word that should be quoted
             $parts = explode('.', $identifier);
             $needsQuoting = false;
@@ -185,7 +185,7 @@ trait ConditionalHelpersTrait
                     break;
                 }
             }
-            
+
             if ($needsQuoting) {
                 // Only quote for MSSQL (check via environment variable)
                 // Other dialects don't need quoting for these reserved words
@@ -199,8 +199,15 @@ trait ConditionalHelpersTrait
                     return $quotedIdentifier . ' ' . $operator . ' ';
                 }
             }
-            
+
             return $matches[0];
         }, $condition);
+
+        // preg_replace_callback returns string|null, but with a non-null input string it always returns string
+        if ($result === null) {
+            return $condition;
+        }
+
+        return $result;
     }
 }
