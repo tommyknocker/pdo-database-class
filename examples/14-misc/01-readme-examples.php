@@ -3,7 +3,13 @@
  * Examples from README.md
  * 
  * This file demonstrates the main features shown in the README documentation.
- * All examples are designed to work across MySQL, MariaDB, PostgreSQL, and SQLite.
+ * All examples are designed to work across MySQL, MariaDB, PostgreSQL, SQLite, and MSSQL.
+ * 
+ * Run with different databases:
+ *   PDODB_DRIVER=sqlite php 01-readme-examples.php
+ *   PDODB_DRIVER=mysql php 01-readme-examples.php
+ *   PDODB_DRIVER=pgsql php 01-readme-examples.php
+ *   PDODB_DRIVER=sqlsrv php 01-readme-examples.php
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
@@ -14,9 +20,8 @@ use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\debug\QueryDebugger;
 
-// Initialize database connection
-$config = require __DIR__ . '/../config.sqlite.php';
-$db = new PdoDb('sqlite', $config);
+// Initialize database connection (supports all dialects via environment variable)
+$db = createExampleDb();
 
 echo "=== README Examples Demo ===\n";
 echo "Driver: " . getCurrentDriver($db) . "\n\n";
