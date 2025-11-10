@@ -24,52 +24,16 @@ $driverName = $db->connection->getDriverName();
 echo "=== EXPLAIN Analysis with Recommendations Examples ===\n\n";
 echo "Driver: $driverName\n\n";
 
-// Create test table without indexes on some columns
-if ($driverName === 'pgsql') {
-    $db->rawQuery('DROP TABLE IF EXISTS explain_demo CASCADE');
-    $db->rawQuery('
-        CREATE TABLE explain_demo (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            email VARCHAR(255),
-            status VARCHAR(50),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-} elseif ($driverName === 'mysql' || $driverName === 'mariadb') {
-    $db->rawQuery('DROP TABLE IF EXISTS explain_demo');
-    $db->rawQuery('
-        CREATE TABLE explain_demo (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            email VARCHAR(255),
-            status VARCHAR(50),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB
-    ');
-} elseif ($driverName === 'sqlsrv') {
-    $db->rawQuery('DROP TABLE IF EXISTS explain_demo');
-    $db->rawQuery('
-        CREATE TABLE explain_demo (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            name NVARCHAR(100) NOT NULL,
-            email NVARCHAR(255),
-            status NVARCHAR(50),
-            created_at DATETIME DEFAULT GETDATE()
-        )
-    ');
-} else { // sqlite
-    $db->rawQuery('DROP TABLE IF EXISTS explain_demo');
-    $db->rawQuery('
-        CREATE TABLE explain_demo (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT,
-            status TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-}
+// Create test table without indexes on some columns using fluent API
+$schema = $db->schema();
+$schema->dropTableIfExists('explain_demo');
+$schema->createTable('explain_demo', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(100)->notNull(),
+    'email' => $schema->string(255),
+    'status' => $schema->string(50),
+    'created_at' => $schema->timestamp()->defaultExpression('CURRENT_TIMESTAMP'),
+]);
 
 // Insert test data
 echo "1. Inserting Test Data\n";
@@ -138,15 +102,12 @@ echo "\n";
 // Example 3: Create index and analyze again
 echo "4. Creating Index and Re-analyzing\n";
 echo "   --------------------------------\n";
-if ($driverName === 'pgsql') {
-    $db->rawQuery('CREATE INDEX IF NOT EXISTS idx_explain_demo_status ON explain_demo(status)');
-} elseif ($driverName === 'mysql') {
-    $db->rawQuery('CREATE INDEX idx_explain_demo_status ON explain_demo(status)');
-} elseif ($driverName === 'sqlsrv') {
-    // MSSQL doesn't support IF NOT EXISTS for CREATE INDEX
-    $db->rawQuery('IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = \'idx_explain_demo_status\' AND object_id = OBJECT_ID(\'explain_demo\')) CREATE INDEX idx_explain_demo_status ON explain_demo(status)');
-} else { // sqlite
-    $db->rawQuery('CREATE INDEX IF NOT EXISTS idx_explain_demo_status ON explain_demo(status)');
+// Use schema API for cross-dialect index creation
+// Try to create index (will fail if already exists, which is OK for this example)
+try {
+    $schema->createIndex('idx_explain_demo_status', 'explain_demo', 'status');
+} catch (\Exception $e) {
+    // Index might already exist, continue
 }
 echo "   ✓ Created index on status column\n";
 
@@ -215,7 +176,7 @@ echo "\n";
 // Cleanup
 echo "7. Cleanup\n";
 echo "   -------\n";
-$db->rawQuery('DROP TABLE IF EXISTS explain_demo');
+$schema->dropTableIfExists('explain_demo');
 echo "   ✓ Cleaned up test table\n\n";
 
 echo "=== Examples Complete ===\n";

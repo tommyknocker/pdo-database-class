@@ -25,8 +25,9 @@ $db = new PdoDb($driver, $config);
 
 echo "=== Export Helpers Examples ===\n\n";
 
-// Create and populate test table
-$db->rawQuery('DROP TABLE IF EXISTS export_test');
+// Create and populate test table using fluent API (cross-dialect)
+$schema = $db->schema();
+$schema->dropTableIfExists('export_test');
 
 
 $autoIncrement = $driver === 'pgsql' ? 'SERIAL PRIMARY KEY' : 'INT AUTO_INCREMENT PRIMARY KEY';

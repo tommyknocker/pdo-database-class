@@ -137,6 +137,6 @@ echo "   " . str_repeat('-', 70) . "\n\n";
 echo "=== SQL Formatter Example Complete ===\n";
 
 // Clean up
-$db->rawQuery('DROP TABLE IF EXISTS users');
-$db->rawQuery('DROP TABLE IF EXISTS orders');
+$schema->dropTableIfExists('users');
+$schema->dropTableIfExists('orders');
 

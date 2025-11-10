@@ -24,9 +24,10 @@ if (!is_dir($migrationPath)) {
 }
 
 // Cleanup previous migrations
-$db->rawQuery("DROP TABLE IF EXISTS __migrations");
-$db->rawQuery("DROP TABLE IF EXISTS test_users");
-$db->rawQuery("DROP TABLE IF EXISTS test_posts");
+$schema = $db->schema();
+$schema->dropTableIfExists('__migrations');
+$schema->dropTableIfExists('test_users');
+$schema->dropTableIfExists('test_posts');
 
 // Remove old migration files
 $oldFiles = glob($migrationPath . '/m*.php');
@@ -128,8 +129,8 @@ if (!$db->find()->table('test_posts')->tableExists()) {
 }
 
 // Cleanup
-$db->rawQuery("DROP TABLE IF EXISTS test_users");
-$db->rawQuery("DROP TABLE IF EXISTS __migrations");
+$schema->dropTableIfExists('test_users');
+$schema->dropTableIfExists('__migrations');
 
 // Remove migration files
 foreach (glob($migrationPath . '/m*.php') as $file) {

@@ -63,60 +63,16 @@ echo "✓ Configured 1 write master and 2 read replicas\n\n";
 // ========================================
 echo "2. Creating test table\n";
 
-$db->rawQuery('DROP TABLE IF EXISTS users_rw');
-
-if ($driver === 'sqlite') {
-    $db->rawQuery('
-        CREATE TABLE users_rw (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT NOT NULL,
-            status TEXT DEFAULT \'active\',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-} elseif ($driver === 'pgsql') {
-    $db->rawQuery('
-        CREATE TABLE users_rw (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) NOT NULL,
-            status VARCHAR(50) DEFAULT \'active\',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-} elseif ($driver === 'sqlsrv') {
-    $db->rawQuery('
-        CREATE TABLE users_rw (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            name NVARCHAR(255) NOT NULL,
-            email NVARCHAR(255) NOT NULL,
-            status NVARCHAR(50) DEFAULT \'active\',
-            created_at DATETIME DEFAULT GETDATE()
-        )
-    ');
-} elseif ($driver === 'mysql' || $driver === 'mariadb') {
-    $db->rawQuery('
-        CREATE TABLE users_rw (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) NOT NULL,
-            status VARCHAR(50) DEFAULT \'active\',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-} else {
-    // SQLite fallback
-    $db->rawQuery('
-        CREATE TABLE users_rw (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT NOT NULL,
-            status TEXT DEFAULT \'active\',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-}
+// Create test table using fluent API (cross-dialect)
+$schema = $db->schema();
+$schema->dropTableIfExists('users_rw');
+$schema->createTable('users_rw', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255)->notNull(),
+    'email' => $schema->string(255)->notNull(),
+    'status' => $schema->string(50)->defaultValue('active'),
+    'created_at' => $schema->timestamp()->defaultExpression('CURRENT_TIMESTAMP'),
+]);
 
 echo "✓ Table created\n\n";
 
@@ -180,7 +136,7 @@ echo "Force write mode: " . ($router->isForceWriteMode() ? 'Yes' : 'No') . "\n\n
 // 6. Cleanup
 // ========================================
 echo "6. Cleanup\n";
-$db->rawQuery('DROP TABLE IF EXISTS users_rw');
+$schema->dropTableIfExists('users_rw');
 echo "✓ Test table dropped\n";
 
 // Clean up SQLite temp file

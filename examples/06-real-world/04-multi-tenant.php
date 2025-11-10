@@ -14,6 +14,9 @@ use tommyknocker\pdodb\helpers\Db;
 $db = createExampleDb();
 $driver = getCurrentDriver($db);
 
+// Use Db::true()->getValue() for cross-dialect boolean comparison
+$trueValue = Db::true()->getValue();
+
 echo "=== Multi-Tenant Application Example (on $driver) ===\n\n";
 
 // Create schema
@@ -226,11 +229,11 @@ $apiStats = $db->find()
     ->join('tenants AS t', 't.id = a.tenant_id')
     ->select([
         't.name',
-        $driver === 'sqlsrv' ? Db::raw('[t].[plan] as [plan]') : 't.plan',
+        't.plan',
         'total_requests' => Db::sum('a.requests_count'),
         'endpoints_count' => Db::count('DISTINCT a.endpoint')
     ])
-    ->groupBy($driver === 'sqlsrv' ? [Db::raw('[a].[tenant_id]'), Db::raw('[t].[name]'), Db::raw('[t].[plan]')] : ['a.tenant_id', 't.name', 't.plan'])
+    ->groupBy(['a.tenant_id', 't.name', 't.plan'])
     ->orderBy(Db::sum('a.requests_count'), 'DESC')
     ->get();
 
@@ -243,15 +246,14 @@ echo "\n";
 // Scenario 9: Cross-tenant analytics (admin dashboard)
 echo "9. Cross-tenant analytics (platform overview):\n";
 
-$activeCondition = $driver === 'pgsql' ? 'is_active = TRUE' : 'is_active = 1';
 $platformStats = $db->find()
     ->from('tenants')
     ->select([
         'total_tenants' => Db::count(),
-        'active_tenants' => Db::sum(Db::case([$activeCondition => '1'], '0')),
-        'enterprise_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? '[plan]' : 'plan') . " = 'enterprise'" => '1'], '0')),
-        'business_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? '[plan]' : 'plan') . " = 'business'" => '1'], '0')),
-        'free_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? '[plan]' : 'plan') . " = 'free'" => '1'], '0'))
+        'active_tenants' => Db::sum(Db::case(["is_active = {$trueValue}" => '1'], '0')),
+        'enterprise_count' => Db::sum(Db::case(["plan = 'enterprise'" => '1'], '0')),
+        'business_count' => Db::sum(Db::case(["plan = 'business'" => '1'], '0')),
+        'free_count' => Db::sum(Db::case(["plan = 'free'" => '1'], '0'))
     ])
     ->getOne();
 
@@ -316,7 +318,7 @@ $mostActive = $db->find()
         't.name',
         'doc_count' => Db::count(),
         'total_size_kb' => Db::sum('d.size_kb'),
-        'public_docs' => Db::sum(Db::case([($driver === 'pgsql' ? 'd.is_public = TRUE' : 'd.is_public = 1') => '1'], '0'))
+        'public_docs' => Db::sum(Db::case(["d.is_public = {$trueValue}" => '1'], '0'))
     ])
     ->groupBy(['d.tenant_id', 't.name'])
     ->orderBy(Db::count(), 'DESC')

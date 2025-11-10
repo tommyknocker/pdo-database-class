@@ -25,101 +25,32 @@ if (!$dialect->supportsMaterializedCte()) {
     exit(0);
 }
 
-// Create test tables based on driver
-if ($driver === 'mysql' || $driver === 'mariadb') {
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS orders');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS order_items');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS customers');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE orders (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            customer_id INT,
-            order_date DATE,
-            total DECIMAL(10,2)
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE order_items (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            order_id INT,
-            product_name VARCHAR(100),
-            quantity INT,
-            price DECIMAL(10,2)
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE customers (
-            id INT PRIMARY KEY,
-            name VARCHAR(100),
-            email VARCHAR(100)
-        )
-    ');
-} elseif ($driver === 'pgsql') {
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS orders CASCADE');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS order_items CASCADE');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS customers CASCADE');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE orders (
-            id SERIAL PRIMARY KEY,
-            customer_id INTEGER,
-            order_date DATE,
-            total DECIMAL(10,2)
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE order_items (
-            id SERIAL PRIMARY KEY,
-            order_id INTEGER,
-            product_name VARCHAR(100),
-            quantity INTEGER,
-            price DECIMAL(10,2)
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE customers (
-            id INTEGER PRIMARY KEY,
-            name VARCHAR(100),
-            email VARCHAR(100)
-        )
-    ');
-} else {
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS orders');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS order_items');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS customers');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE orders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER,
-            order_date TEXT,
-            total REAL
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE order_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            order_id INTEGER,
-            product_name TEXT,
-            quantity INTEGER,
-            price REAL
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE customers (
-            id INTEGER PRIMARY KEY,
-            name TEXT,
-            email TEXT
-        )
-    ');
-}
+// Create test tables using fluent API (cross-dialect)
+$schema = $pdoDb->schema();
+$schema->dropTableIfExists('orders');
+$schema->dropTableIfExists('order_items');
+$schema->dropTableIfExists('customers');
+
+$schema->createTable('customers', [
+    'id' => $schema->integer()->notNull(),
+    'name' => $schema->string(100),
+    'email' => $schema->string(100),
+], ['primaryKey' => ['id']]);
+
+$schema->createTable('orders', [
+    'id' => $schema->primaryKey(),
+    'customer_id' => $schema->integer(),
+    'order_date' => $schema->date(),
+    'total' => $schema->decimal(10, 2),
+]);
+
+$schema->createTable('order_items', [
+    'id' => $schema->primaryKey(),
+    'order_id' => $schema->integer(),
+    'product_name' => $schema->string(100),
+    'quantity' => $schema->integer(),
+    'price' => $schema->decimal(10, 2),
+]);
 
 // Insert sample data
 $pdoDb->find()->table('customers')->insertMulti([

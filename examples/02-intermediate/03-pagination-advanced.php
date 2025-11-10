@@ -16,52 +16,16 @@ $db = createExampleDb();
 
 echo "=== Pagination Examples ===\n\n";
 
-// Create and populate sample table
-$db->rawQuery('DROP TABLE IF EXISTS posts');
-
-// Create table syntax varies by dialect
-$driverName = $db->connection->getDriverName();
-if ($driverName === 'mysql' || $driverName === 'mariadb') {
-    $db->rawQuery('
-        CREATE TABLE posts (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            title VARCHAR(255) NOT NULL,
-            author VARCHAR(100) NOT NULL,
-            views INT DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-} elseif ($driverName === 'pgsql') {
-    $db->rawQuery('
-        CREATE TABLE posts (
-            id SERIAL PRIMARY KEY,
-            title VARCHAR(255) NOT NULL,
-            author VARCHAR(100) NOT NULL,
-            views INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-} elseif ($driverName === 'sqlsrv') {
-    $db->rawQuery('
-        CREATE TABLE posts (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            title NVARCHAR(255) NOT NULL,
-            author NVARCHAR(100) NOT NULL,
-            views INT DEFAULT 0,
-            created_at DATETIME DEFAULT GETDATE()
-        )
-    ');
-} else { // sqlite
-    $db->rawQuery('
-        CREATE TABLE posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            author TEXT NOT NULL,
-            views INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-}
+// Create and populate sample table using fluent API (cross-dialect)
+$schema = $db->schema();
+$schema->dropTableIfExists('posts');
+$schema->createTable('posts', [
+    'id' => $schema->primaryKey(),
+    'title' => $schema->string(255)->notNull(),
+    'author' => $schema->string(100)->notNull(),
+    'views' => $schema->integer()->defaultValue(0),
+    'created_at' => $schema->timestamp()->defaultExpression('CURRENT_TIMESTAMP'),
+]);
 
 // Insert sample data
 $posts = [];

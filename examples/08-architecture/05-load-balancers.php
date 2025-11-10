@@ -192,7 +192,8 @@ echo "   Switched to: " . get_class($db4->getConnectionRouter()->getLoadBalancer
 // 6. Cleanup
 // ========================================
 echo "6. Cleanup\n";
-$db1->rawQuery('DROP TABLE IF EXISTS lb_test');
+$schema1 = $db1->schema();
+$schema1->dropTableIfExists('lb_test');
 echo "✓ Test table dropped\n";
 
 // Clean up SQLite temp file

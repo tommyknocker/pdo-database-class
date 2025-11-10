@@ -183,6 +183,16 @@ class MSSQLDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
+     * MSSQL: NTEXT/NVARCHAR(MAX) doesn't work with LOWER directly, need CAST to NVARCHAR(MAX)
+     */
+    public function ilike(string $column, string $pattern): RawValue
+    {
+        // Use CAST to NVARCHAR(MAX) to ensure compatibility with NTEXT, NVARCHAR(MAX), TEXT, etc.
+        return new RawValue("LOWER(CAST($column AS NVARCHAR(MAX))) LIKE LOWER(CAST(:pattern AS NVARCHAR(MAX)))", ['pattern' => $pattern]);
+    }
+
+    /**
+     * {@inheritDoc}
      */
     public function buildInsertSql(string $table, array $columns, array $placeholders, array $options = []): string
     {
@@ -1436,14 +1446,14 @@ class MSSQLDialect extends DialectAbstract
      */
     public function buildDescribeSql(string $table): string
     {
-        // MSSQL: Get column information from INFORMATION_SCHEMA
+        // MSSQL: Get column information from INFORMATION_SCHEMA including IDENTITY flag
         $parts = explode('.', $table);
         if (count($parts) === 2) {
             $schema = $parts[0];
             $tableName = $parts[1];
-            return "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{$schema}' AND TABLE_NAME = '{$tableName}' ORDER BY ORDINAL_POSITION";
+            return "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMNPROPERTY(OBJECT_ID('{$schema}.{$tableName}'), COLUMN_NAME, 'IsIdentity') AS is_identity FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{$schema}' AND TABLE_NAME = '{$tableName}' ORDER BY ORDINAL_POSITION";
         }
-        return "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{$table}' ORDER BY ORDINAL_POSITION";
+        return "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMNPROPERTY(OBJECT_ID('{$table}'), COLUMN_NAME, 'IsIdentity') AS is_identity FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{$table}' ORDER BY ORDINAL_POSITION";
     }
 
     /**
@@ -1648,11 +1658,13 @@ class MSSQLDialect extends DialectAbstract
      */
     public function buildRenameColumnSql(string $table, string $oldName, string $newName): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $oldQuoted = $this->quoteIdentifier($oldName);
-        $newQuoted = $this->quoteIdentifier($newName);
+        // sp_rename requires unquoted names in string format: 'schema.table.column'
+        // Remove brackets for all sp_rename parameters (like buildRenameTableSql)
+        $tableUnquoted = str_replace(['[', ']'], '', $this->quoteTable($table));
+        $oldUnquoted = str_replace(['[', ']'], '', $this->quoteIdentifier($oldName));
+        $newNameClean = trim($newName, '[]');
         // MSSQL uses sp_rename stored procedure
-        return "EXEC sp_rename '{$tableQuoted}.{$oldQuoted}', '{$newQuoted}', 'COLUMN'";
+        return "EXEC sp_rename '{$tableUnquoted}.{$oldUnquoted}', '{$newNameClean}', 'COLUMN'";
     }
 
     /**

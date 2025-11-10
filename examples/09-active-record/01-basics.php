@@ -49,57 +49,17 @@ $driver = getCurrentDriver($db);
 echo "=== ActiveRecord Examples ===\n\n";
 echo "Driver: $driver\n\n";
 
-// Create users table based on driver
-$driverName = $db->connection->getDriverName();
-if ($driverName === 'mysql' || $driverName === 'mariadb') {
-    $db->rawQuery('DROP TABLE IF EXISTS users');
-    $db->rawQuery('
-        CREATE TABLE users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            email VARCHAR(255) NOT NULL,
-            age INT,
-            status VARCHAR(20) DEFAULT "active",
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB
-    ');
-} elseif ($driverName === 'pgsql') {
-    $db->rawQuery('DROP TABLE IF EXISTS users CASCADE');
-    $db->rawQuery('
-        CREATE TABLE users (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            email VARCHAR(255) NOT NULL,
-            age INTEGER,
-            status VARCHAR(20) DEFAULT \'active\',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-} elseif ($driverName === 'sqlsrv') {
-    $db->rawQuery('DROP TABLE IF EXISTS users');
-    $db->rawQuery('
-        CREATE TABLE users (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            name NVARCHAR(100) NOT NULL,
-            email NVARCHAR(255) NOT NULL,
-            age INT,
-            status NVARCHAR(20) DEFAULT \'active\',
-            created_at DATETIME DEFAULT GETDATE()
-        )
-    ');
-} else { // sqlite
-    $db->rawQuery('DROP TABLE IF EXISTS users');
-    $db->rawQuery('
-        CREATE TABLE users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT NOT NULL,
-            age INTEGER,
-            status TEXT DEFAULT "active",
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-}
+// Create users table using fluent API (cross-dialect)
+$schema = $db->schema();
+$schema->dropTableIfExists('users');
+$schema->createTable('users', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(100)->notNull(),
+    'email' => $schema->string(255)->notNull(),
+    'age' => $schema->integer(),
+    'status' => $schema->string(20)->defaultValue('active'),
+    'created_at' => $schema->timestamp()->defaultExpression('CURRENT_TIMESTAMP'),
+]);
 
 // Set database connection for User model
 User::setDb($db);

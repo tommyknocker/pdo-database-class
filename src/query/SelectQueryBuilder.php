@@ -651,7 +651,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 if ($processedCol instanceof RawValue) {
                     $groups[] = $this->resolveRawValue($processedCol);
                 } else {
-                    $groups[] = $this->quoteQualifiedIdentifier((string)$col);
+                    $groups[] = $this->quoteQualifiedIdentifier((string)$processedCol);
                 }
             }
         }

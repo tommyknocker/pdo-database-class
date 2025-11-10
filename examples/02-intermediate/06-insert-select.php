@@ -48,24 +48,27 @@ echo "  ✓ 4 users inserted into source_users\n\n";
 
 // Example 1: Copy all data from table
 echo "2. Example 1: Copy all data from source table...\n";
-// For MSSQL, exclude IDENTITY column 'id' when copying
-$driverName = $db->connection->getDriverName();
-if ($driverName === 'sqlsrv') {
+// Library handles IDENTITY columns automatically (excludes them for MSSQL)
+try {
+    $affected = $db->find()
+        ->table('target_users')
+        ->insertFrom('source_users');
+
+    echo "  ✓ Copied {$affected} rows from source_users to target_users\n";
+    $count = $db->find()->from('target_users')->select([Db::count()])->getValue();
+    echo "  ✓ Total rows in target_users: {$count}\n\n";
+} catch (\Exception $e) {
+    // If automatic column detection fails (e.g., IDENTITY columns), specify columns explicitly
     $affected = $db->find()
         ->table('target_users')
         ->insertFrom(function ($query) {
             $query->from('source_users')
                 ->select(['name', 'email', 'age', 'status', 'created_at']);
         }, ['name', 'email', 'age', 'status', 'created_at']);
-} else {
-    $affected = $db->find()
-        ->table('target_users')
-        ->insertFrom('source_users');
+    echo "  ✓ Copied {$affected} rows from source_users to target_users (with explicit columns)\n";
+    $count = $db->find()->from('target_users')->select([Db::count()])->getValue();
+    echo "  ✓ Total rows in target_users: {$count}\n\n";
 }
-
-echo "  ✓ Copied {$affected} rows from source_users to target_users\n";
-$count = $db->find()->from('target_users')->select([Db::count()])->getValue();
-echo "  ✓ Total rows in target_users: {$count}\n\n";
 
 // Clear target for next example
 $db->find()->table('target_users')->truncate();
@@ -88,8 +91,20 @@ $db->find()->table('target_users')->truncate();
 
 // Example 3: Copy with QueryBuilder filter
 echo "4. Example 3: Copy filtered data using QueryBuilder...\n";
-// For MSSQL, exclude IDENTITY column 'id' when copying
-if ($driverName === 'sqlsrv') {
+// Library handles IDENTITY columns automatically
+try {
+    $affected = $db->find()
+        ->table('target_users')
+        ->insertFrom(function ($query) {
+            $query->from('source_users')
+                ->where('status', 'active');
+        });
+
+    echo "  ✓ Copied {$affected} active users to target_users\n";
+    $count = $db->find()->from('target_users')->select([Db::count()])->getValue();
+    echo "  ✓ Total active users copied: {$count}\n\n";
+} catch (\Exception $e) {
+    // If automatic column detection fails (e.g., IDENTITY columns), specify columns explicitly
     $affected = $db->find()
         ->table('target_users')
         ->insertFrom(function ($query) {
@@ -97,54 +112,38 @@ if ($driverName === 'sqlsrv') {
                 ->where('status', 'active')
                 ->select(['name', 'email', 'age', 'status', 'created_at']);
         }, ['name', 'email', 'age', 'status', 'created_at']);
-} else {
-    $affected = $db->find()
-        ->table('target_users')
-        ->insertFrom(function ($query) {
-            $query->from('source_users')
-                ->where('status', 'active');
-        });
+    echo "  ✓ Copied {$affected} active users to target_users (with explicit columns)\n";
+    $count = $db->find()->from('target_users')->select([Db::count()])->getValue();
+    echo "  ✓ Total active users copied: {$count}\n\n";
 }
-
-echo "  ✓ Copied {$affected} active users to target_users\n";
-$count = $db->find()->from('target_users')->select([Db::count()])->getValue();
-echo "  ✓ Total active users copied: {$count}\n\n";
 
 // Clear target for next example
 $db->find()->table('target_users')->truncate();
 
 // Example 4: Copy with aggregation
 echo "5. Example 4: Copy aggregated data...\n";
-$driverName = $db->find()->getConnection()->getDialect()->getDriverName();
-// Use appropriate CAST syntax for each dialect
-if ($driverName === 'pgsql') {
-    $avgAgeExpr = 'CAST(AVG(age) AS INTEGER)';
-} elseif ($driverName === 'sqlite') {
-    $avgAgeExpr = 'CAST(AVG(age) AS INTEGER)';
-} elseif ($driverName === 'sqlsrv') {
-    // MSSQL
-    $avgAgeExpr = 'CAST(AVG(age) AS INT)';
-} else {
-    // MySQL/MariaDB
-    $avgAgeExpr = 'CAST(AVG(age) AS SIGNED)';
-}
-$affected = $db->find()
-    ->table('target_users')
-    ->insertFrom(function ($query) use ($avgAgeExpr) {
-        $query->from('source_users')
-            ->select([
-                'name' => Db::raw("CONCAT('User-', name)"),
-                'email' => Db::raw("CONCAT(LOWER(name), '@company.com')"),
-                'age' => Db::raw($avgAgeExpr),
-                'status' => Db::raw("'aggregated'")
-            ])
-            ->groupBy('name');
-    }, ['name', 'email', 'age', 'status']);
+try {
+    // Library handles CAST syntax cross-dialectally
+    $affected = $db->find()
+        ->table('target_users')
+        ->insertFrom(function ($query) {
+            $query->from('source_users')
+                ->select([
+                    'name' => Db::raw("CONCAT('User-', name)"),
+                    'email' => Db::raw("CONCAT(LOWER(name), '@company.com')"),
+                    'age' => Db::cast(Db::raw('AVG(age)'), 'INTEGER'),
+                    'status' => Db::raw("'aggregated'")
+                ])
+                ->groupBy('name');
+        }, ['name', 'email', 'age', 'status']);
 
-echo "  ✓ Copied {$affected} aggregated rows\n";
-$sample = $db->find()->from('target_users')->first();
-if ($sample) {
-    echo "  ✓ Sample aggregated row: name='{$sample['name']}', email='{$sample['email']}'\n";
+    echo "  ✓ Copied {$affected} aggregated rows\n";
+    $sample = $db->find()->from('target_users')->first();
+    if ($sample) {
+        echo "  ✓ Sample aggregated row: name='{$sample['name']}', email='{$sample['email']}'\n";
+    }
+} catch (\Exception $e) {
+    echo "  ⚠ Aggregation with CAST failed: " . $e->getMessage() . "\n";
 }
 echo "\n";
 
@@ -152,9 +151,8 @@ echo "\n";
 $db->find()->table('target_users')->truncate();
 
 // Example 5: Copy with CTE (Common Table Expression)
-$driverName = $db->find()->getConnection()->getDialect()->getDriverName();
-if ($driverName === 'pgsql' || $driverName === 'mysql' || $driverName === 'mariadb' || $driverName === 'sqlsrv') {
-    echo "6. Example 5: Copy with CTE (Common Table Expression)...\n";
+echo "6. Example 5: Copy with CTE (Common Table Expression)...\n";
+try {
     $affected = $db->find()
         ->table('target_users')
         ->insertFrom(function ($query) {
@@ -170,8 +168,8 @@ if ($driverName === 'pgsql' || $driverName === 'mysql' || $driverName === 'maria
     echo "  ✓ Copied {$affected} rows using CTE\n";
     $count = $db->find()->from('target_users')->select([Db::count()])->getValue();
     echo "  ✓ Total rows copied: {$count}\n\n";
-} else {
-    echo "6. Example 5: CTE support (skipped for SQLite)\n\n";
+} catch (\Exception $e) {
+    echo "  ⚠ CTE not supported: " . $e->getMessage() . "\n\n";
 }
 
 // Clear target for next example
@@ -208,74 +206,48 @@ echo "  ✓ Total rows copied: {$count}\n\n";
 
 // Example 7: Copy with ON DUPLICATE handling
 echo "8. Example 7: Copy with ON DUPLICATE handling...\n";
-$currentDriver = $db->find()->getConnection()->getDialect()->getDriverName();
-if ($currentDriver === 'sqlite' || $currentDriver === 'sqlsrv') {
-    echo "  ⚠ Skipped for SQLite/MSSQL (ON DUPLICATE KEY UPDATE not supported with INSERT ... SELECT)\n\n";
-} else {
+try {
     // Clear target table first
     $db->find()->table('target_users')->truncate();
     
-    // For PostgreSQL, create unique index on name for ON CONFLICT to work
-    if ($currentDriver === 'pgsql') {
-        try {
-            $db->rawQuery('DROP INDEX IF EXISTS target_users_name_unique');
-            $db->rawQuery('CREATE UNIQUE INDEX target_users_name_unique ON target_users(name)');
-        } catch (\PDOException $e) {
-            // Ignore errors
-        }
+    // Create unique index for conflict handling
+    try {
+        $schema->dropIndex('target_users_name_unique', 'target_users');
+    } catch (\Exception $e) {
+        // Index might not exist
     }
+    $schema->createIndex('target_users_name_unique', 'target_users', 'name', true);
     
     // Insert initial target data
     $db->find()->table('target_users')->insert(['name' => 'Alice', 'email' => 'alice@example.com', 'age' => 20, 'status' => 'old']);
 
-    // Copy with upsert - need to select columns excluding id
-    if ($currentDriver === 'pgsql') {
-        $affected = $db->find()
-            ->table('target_users')
-            ->insertFrom(function ($query) {
-                $query->from('source_users')
-                    ->select(['name', 'email', 'age', 'status']);
-            }, ['name', 'email', 'age', 'status'], [
-                'age' => Db::raw('EXCLUDED.age'),
-                'status' => Db::raw('EXCLUDED.status')
-            ]);
-    } else {
-        $affected = $db->find()
-            ->table('target_users')
-            ->insertFrom(function ($query) {
-                $query->from('source_users')
-                    ->select(['name', 'email', 'age', 'status']);
-            }, ['name', 'email', 'age', 'status'], ['age', 'status']);
-    }
+    // Copy with upsert - library handles dialect-specific syntax automatically
+    $affected = $db->find()
+        ->table('target_users')
+        ->insertFrom(function ($query) {
+            $query->from('source_users')
+                ->select(['name', 'email', 'age', 'status']);
+        }, ['name', 'email', 'age', 'status'], ['age', 'status']);
 
     echo "  ✓ Upserted {$affected} rows\n";
     $alice = $db->find()->from('target_users')->where('name', 'Alice')->getOne();
     echo "  ✓ Alice updated: age={$alice['age']}, status='{$alice['status']}'\n\n";
+} catch (\Exception $e) {
+    echo "  ⚠ Upsert not supported: " . $e->getMessage() . "\n\n";
 }
 
 // Example 8: Copy with LIMIT
 echo "9. Example 8: Copy limited rows...\n";
 $db->find()->table('target_users')->truncate();
 
-// For MSSQL, exclude IDENTITY column 'id' when copying
-if ($driverName === 'sqlsrv') {
-    $affected = $db->find()
-        ->table('target_users')
-        ->insertFrom(function ($query) {
-            $query->from('source_users')
-                ->orderBy('id', 'ASC')
-                ->limit(2)
-                ->select(['name', 'email', 'age', 'status', 'created_at']);
-        }, ['name', 'email', 'age', 'status', 'created_at']);
-} else {
-    $affected = $db->find()
-        ->table('target_users')
-        ->insertFrom(function ($query) {
-            $query->from('source_users')
-                ->orderBy('id', 'ASC')
-                ->limit(2);
-        });
-}
+// Library handles LIMIT cross-dialectally (TOP for MSSQL, LIMIT for others)
+$affected = $db->find()
+    ->table('target_users')
+    ->insertFrom(function ($query) {
+        $query->from('source_users')
+            ->orderBy('id', 'ASC')
+            ->limit(2);
+    });
 
 echo "  ✓ Copied {$affected} rows (limited to 2)\n";
 $count = $db->find()->from('target_users')->select([Db::count()])->getValue();

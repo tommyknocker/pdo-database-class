@@ -57,49 +57,16 @@ echo "✓ Sticky writes enabled (3 seconds)\n\n";
 // ========================================
 echo "2. Creating test table\n";
 
-$db->rawQuery('DROP TABLE IF EXISTS posts_rw');
-
-if ($driver === 'sqlite') {
-    $db->rawQuery('
-        CREATE TABLE posts_rw (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            content TEXT NOT NULL,
-            views INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-} elseif ($driver === 'pgsql') {
-    $db->rawQuery('
-        CREATE TABLE posts_rw (
-            id SERIAL PRIMARY KEY,
-            title VARCHAR(255) NOT NULL,
-            content TEXT NOT NULL,
-            views INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-} elseif ($driver === 'sqlsrv') {
-    $db->rawQuery('
-        CREATE TABLE posts_rw (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            title NVARCHAR(255) NOT NULL,
-            content NTEXT NOT NULL,
-            views INT DEFAULT 0,
-            created_at DATETIME DEFAULT GETDATE()
-        )
-    ');
-} else {
-    $db->rawQuery('
-        CREATE TABLE posts_rw (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            title VARCHAR(255) NOT NULL,
-            content TEXT NOT NULL,
-            views INT DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-}
+// Create test table using fluent API (cross-dialect)
+$schema = $db->schema();
+$schema->dropTableIfExists('posts_rw');
+$schema->createTable('posts_rw', [
+    'id' => $schema->primaryKey(),
+    'title' => $schema->string(255)->notNull(),
+    'content' => $schema->text()->notNull(),
+    'views' => $schema->integer()->defaultValue(0),
+    'created_at' => $schema->timestamp()->defaultExpression('CURRENT_TIMESTAMP'),
+]);
 
 echo "✓ Table created\n\n";
 
@@ -197,7 +164,7 @@ echo "✓ Transaction completed\n\n";
 // 6. Cleanup
 // ========================================
 echo "6. Cleanup\n";
-$db->rawQuery('DROP TABLE IF EXISTS posts_rw');
+$schema->dropTableIfExists('posts_rw');
 echo "✓ Test table dropped\n";
 
 // Clean up SQLite temp file

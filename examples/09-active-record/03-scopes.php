@@ -120,110 +120,29 @@ $driver = getCurrentDriver($db);
 
 echo "=== Query Scopes Example (on $driver) ===\n\n";
 
-// Create tables
-$db->schema()->dropTableIfExists('posts');
-$db->schema()->dropTableIfExists('users');
+// Create tables using fluent API (cross-dialect)
+$schema = $db->schema();
+$schema->dropTableIfExists('posts');
+$schema->dropTableIfExists('users');
 
-// Create tables using dialect-specific SQL
-$driver = getCurrentDriver($db);
+$schema->createTable('posts', [
+    'id' => $schema->primaryKey(),
+    'title' => $schema->string(255)->notNull(),
+    'status' => $schema->string(50)->defaultValue('draft'),
+    'author_id' => $schema->integer(),
+    'view_count' => $schema->integer()->defaultValue(0),
+    'deleted_at' => $schema->timestamp(),
+    'created_at' => $schema->timestamp()->defaultExpression('CURRENT_TIMESTAMP'),
+]);
 
-$db->rawQuery('DROP TABLE IF EXISTS posts');
-$db->rawQuery('DROP TABLE IF EXISTS users');
-
-if ($driver === 'sqlite') {
-    $db->rawQuery('
-        CREATE TABLE posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            status TEXT DEFAULT \'draft\',
-            author_id INTEGER,
-            view_count INTEGER DEFAULT 0,
-            deleted_at TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-
-    $db->rawQuery('
-        CREATE TABLE users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT NOT NULL,
-            role TEXT DEFAULT \'user\',
-            is_active INTEGER DEFAULT 1,
-            email_verified_at TEXT
-        )
-    ');
-} elseif ($driver === 'pgsql') {
-    $db->rawQuery('
-        CREATE TABLE posts (
-            id SERIAL PRIMARY KEY,
-            title VARCHAR(255) NOT NULL,
-            status VARCHAR(50) DEFAULT \'draft\',
-            author_id INTEGER,
-            view_count INTEGER DEFAULT 0,
-            deleted_at TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-
-    $db->rawQuery('
-        CREATE TABLE users (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) NOT NULL,
-            role VARCHAR(50) DEFAULT \'user\',
-            is_active INTEGER DEFAULT 1,
-            email_verified_at TIMESTAMP
-        )
-    ');
-} elseif ($driver === 'sqlsrv') {
-    $db->rawQuery('
-        CREATE TABLE posts (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            title NVARCHAR(255) NOT NULL,
-            status NVARCHAR(50) DEFAULT \'draft\',
-            author_id INT,
-            view_count INT DEFAULT 0,
-            deleted_at DATETIME NULL,
-            created_at DATETIME DEFAULT GETDATE()
-        )
-    ');
-
-    $db->rawQuery('
-        CREATE TABLE users (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            name NVARCHAR(255) NOT NULL,
-            email NVARCHAR(255) NOT NULL,
-            role NVARCHAR(50) DEFAULT \'user\',
-            is_active INT DEFAULT 1,
-            email_verified_at DATETIME NULL
-        )
-    ');
-} else {
-    // MySQL/MariaDB
-    $db->rawQuery('
-        CREATE TABLE posts (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            title VARCHAR(255) NOT NULL,
-            status VARCHAR(50) DEFAULT \'draft\',
-            author_id INT,
-            view_count INT DEFAULT 0,
-            deleted_at TIMESTAMP NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-
-    $db->rawQuery('
-        CREATE TABLE users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) NOT NULL,
-            role VARCHAR(50) DEFAULT \'user\',
-            is_active INT DEFAULT 1,
-            email_verified_at TIMESTAMP NULL
-        )
-    ');
-}
+$schema->createTable('users', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255)->notNull(),
+    'email' => $schema->string(255)->notNull(),
+    'role' => $schema->string(50)->defaultValue('user'),
+    'is_active' => $schema->integer()->defaultValue(1),
+    'email_verified_at' => $schema->timestamp(),
+]);
 
 Post::setDb($db);
 User::setDb($db);
@@ -416,47 +335,14 @@ foreach (array_keys($scopes) as $scopeName) {
     $db->removeScope($scopeName);
 }
 
-// Drop and recreate a simple table for this example
-$db->rawQuery('DROP TABLE IF EXISTS items');
-$driver = getCurrentDriver($db);
-if ($driver === 'sqlite') {
-    $db->rawQuery('
-        CREATE TABLE items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            is_active INTEGER DEFAULT 1,
-            tenant_id INTEGER
-        )
-    ');
-} elseif ($driver === 'pgsql') {
-    $db->rawQuery('
-        CREATE TABLE items (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            is_active INTEGER DEFAULT 1,
-            tenant_id INTEGER
-        )
-    ');
-} elseif ($driver === 'sqlsrv') {
-    $db->rawQuery('
-        CREATE TABLE items (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            name NVARCHAR(255) NOT NULL,
-            is_active INT DEFAULT 1,
-            tenant_id INT
-        )
-    ');
-} else {
-    // MySQL/MariaDB
-    $db->rawQuery('
-        CREATE TABLE items (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            is_active INT DEFAULT 1,
-            tenant_id INT
-        )
-    ');
-}
+// Drop and recreate a simple table for this example using fluent API
+$schema->dropTableIfExists('items');
+$schema->createTable('items', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255)->notNull(),
+    'is_active' => $schema->integer()->defaultValue(1),
+    'tenant_id' => $schema->integer(),
+]);
 
 // Insert test data
 $db->find()->table('items')->insert(['name' => 'Item 1', 'is_active' => 1, 'tenant_id' => 1]);
@@ -494,8 +380,8 @@ echo "Items after removing tenant scope: " . count($itemsAfterRemoval) . "\n";
 
 // Cleanup
 echo "\nCleaning up...\n";
-$db->rawQuery('DROP TABLE IF EXISTS items');
-$db->schema()->dropTableIfExists('posts');
-$db->schema()->dropTableIfExists('users');
+$schema->dropTableIfExists('items');
+$schema->dropTableIfExists('posts');
+$schema->dropTableIfExists('users');
 echo "✓ Done\n";
 

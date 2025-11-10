@@ -206,16 +206,14 @@ echo "\n";
 // Scenario 6: User statistics
 echo "6. User statistics...\n";
 
-$driver = getCurrentDriver($db);
-$activeCondition = $driver === 'pgsql' ? 'is_active = TRUE' : 'is_active = 1';
-$verifiedCondition = $driver === 'pgsql' ? 'email_verified = TRUE' : 'email_verified = 1';
-
+// Use Db::true()->getValue() for cross-dialect boolean comparison
+$trueValue = Db::true()->getValue();
 $stats = $db->find()
     ->from('users')
     ->select([
         'total_users' => Db::count(),
-        'active_users' => Db::sum(Db::case([$activeCondition => '1'], '0')),
-        'verified_users' => Db::sum(Db::case([$verifiedCondition => '1'], '0')),
+        'active_users' => Db::sum(Db::case(["is_active = {$trueValue}" => '1'], '0')),
+        'verified_users' => Db::sum(Db::case(["email_verified = {$trueValue}" => '1'], '0')),
         'admin_count' => Db::sum(Db::case(["role = 'admin'" => '1'], '0'))
     ])
     ->getOne();

@@ -20,56 +20,17 @@ $driver = getCurrentDriver($db);
 
 echo "=== Query Builder Macros Example (on $driver) ===\n\n";
 
-// Create table
-$db->rawQuery('DROP TABLE IF EXISTS products');
-$driver = getCurrentDriver($db);
-
-if ($driver === 'sqlite') {
-    $db->rawQuery('
-        CREATE TABLE products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            price REAL NOT NULL,
-            status TEXT DEFAULT \'active\',
-            category_id INTEGER,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-} elseif ($driver === 'pgsql') {
-    $db->rawQuery('
-        CREATE TABLE products (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            price DECIMAL(10,2) NOT NULL,
-            status VARCHAR(50) DEFAULT \'active\',
-            category_id INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-} elseif ($driver === 'sqlsrv') {
-    $db->rawQuery('
-        CREATE TABLE products (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            name NVARCHAR(255) NOT NULL,
-            price DECIMAL(10,2) NOT NULL,
-            status NVARCHAR(50) DEFAULT \'active\',
-            category_id INT,
-            created_at DATETIME DEFAULT GETDATE()
-        )
-    ');
-} else {
-    // MySQL/MariaDB
-    $db->rawQuery('
-        CREATE TABLE products (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            price DECIMAL(10,2) NOT NULL,
-            status VARCHAR(50) DEFAULT \'active\',
-            category_id INT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-}
+// Create table using fluent API (cross-dialect)
+$schema = $db->schema();
+$schema->dropTableIfExists('products');
+$schema->createTable('products', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255)->notNull(),
+    'price' => $schema->decimal(10, 2)->notNull(),
+    'status' => $schema->string(50)->defaultValue('active'),
+    'category_id' => $schema->integer(),
+    'created_at' => $schema->timestamp()->defaultExpression('CURRENT_TIMESTAMP'),
+]);
 
 echo "✓ Table created\n\n";
 
@@ -305,6 +266,6 @@ echo "\n";
 
 // Cleanup
 echo "Cleaning up...\n";
-$db->rawQuery('DROP TABLE IF EXISTS products');
+$schema->dropTableIfExists('products');
 echo "✓ Done\n";
 

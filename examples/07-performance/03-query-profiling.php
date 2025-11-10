@@ -26,52 +26,16 @@ $driverName = $db->connection->getDriverName();
 echo "=== Query Performance Profiling Examples ===\n\n";
 echo "Driver: $driverName\n\n";
 
-// Create test table
-if ($driverName === 'pgsql') {
-    $db->rawQuery('DROP TABLE IF EXISTS profiling_demo CASCADE');
-    $db->rawQuery('
-        CREATE TABLE profiling_demo (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            category VARCHAR(50),
-            value INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-} elseif ($driverName === 'mysql' || $driverName === 'mariadb') {
-    $db->rawQuery('DROP TABLE IF EXISTS profiling_demo');
-    $db->rawQuery('
-        CREATE TABLE profiling_demo (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            category VARCHAR(50),
-            value INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB
-    ');
-} elseif ($driverName === 'sqlsrv') {
-    $db->rawQuery('DROP TABLE IF EXISTS profiling_demo');
-    $db->rawQuery('
-        CREATE TABLE profiling_demo (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            name NVARCHAR(100) NOT NULL,
-            category NVARCHAR(50),
-            value INT,
-            created_at DATETIME DEFAULT GETDATE()
-        )
-    ');
-} else { // sqlite
-    $db->rawQuery('DROP TABLE IF EXISTS profiling_demo');
-    $db->rawQuery('
-        CREATE TABLE profiling_demo (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            category TEXT,
-            value INTEGER,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ');
-}
+// Create test table using fluent API (cross-dialect)
+$schema = $db->schema();
+$schema->dropTableIfExists('profiling_demo');
+$schema->createTable('profiling_demo', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(100)->notNull(),
+    'category' => $schema->string(50),
+    'value' => $schema->integer(),
+    'created_at' => $schema->timestamp()->defaultExpression('CURRENT_TIMESTAMP'),
+]);
 
 echo "1. Basic Profiling Setup\n";
 echo "   --------------------\n";

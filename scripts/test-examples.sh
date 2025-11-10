@@ -167,8 +167,30 @@ echo "Running Tests"
 echo "================================================"
 echo ""
 
+# Check if specific directory is provided
+TEST_DIR=""
+if [ "$1" == "--dir" ] || [ "$1" == "-d" ]; then
+    if [ -z "$2" ]; then
+        echo -e "${RED}Error: Directory name required after --dir${NC}"
+        echo "Usage: $0 [--dir <directory>] [--verbose]"
+        exit 1
+    fi
+    TEST_DIR="$2"
+    shift 2
+    echo -e "${CYAN}Testing only directory: examples/$TEST_DIR${NC}"
+    echo ""
+fi
+
 # Find all example PHP files
-for file in examples/*/*.php; do
+if [ -n "$TEST_DIR" ]; then
+    # Test specific directory
+    FILE_PATTERN="examples/$TEST_DIR/*.php"
+else
+    # Test all directories
+    FILE_PATTERN="examples/*/*.php"
+fi
+
+for file in $FILE_PATTERN; do
     filename=$(basename "$file")
     category=$(basename $(dirname "$file"))
     
@@ -209,7 +231,7 @@ for file in examples/*/*.php; do
             echo -e "${RED}✗ FAILED${NC}"
             RESULTS["mysql_failed"]=$((${RESULTS["mysql_failed"]} + 1))
             
-            if [ "$1" == "--verbose" ] || [ "$1" == "-v" ]; then
+            if [ "$1" == "--verbose" ] || [ "$1" == "-v" ] || [ "$2" == "--verbose" ] || [ "$2" == "-v" ]; then
                 echo -e "${YELLOW}Error output:${NC}"
                 php "$file" 2>&1 | tail -10
                 echo ""
@@ -230,7 +252,7 @@ for file in examples/*/*.php; do
             echo -e "${RED}✗ FAILED${NC}"
             RESULTS["mariadb_failed"]=$((${RESULTS["mariadb_failed"]} + 1))
             
-            if [ "$1" == "--verbose" ] || [ "$1" == "-v" ]; then
+            if [ "$1" == "--verbose" ] || [ "$1" == "-v" ] || [ "$2" == "--verbose" ] || [ "$2" == "-v" ]; then
                 echo -e "${YELLOW}Error output:${NC}"
                 php "$file" 2>&1 | tail -10
                 echo ""
@@ -251,7 +273,7 @@ for file in examples/*/*.php; do
             echo -e "${RED}✗ FAILED${NC}"
             RESULTS["pgsql_failed"]=$((${RESULTS["pgsql_failed"]} + 1))
             
-            if [ "$1" == "--verbose" ] || [ "$1" == "-v" ]; then
+            if [ "$1" == "--verbose" ] || [ "$1" == "-v" ] || [ "$2" == "--verbose" ] || [ "$2" == "-v" ]; then
                 echo -e "${YELLOW}Error output:${NC}"
                 php "$file" 2>&1 | tail -10
                 echo ""
@@ -272,7 +294,7 @@ for file in examples/*/*.php; do
             echo -e "${RED}✗ FAILED${NC}"
             RESULTS["mssql_failed"]=$((${RESULTS["mssql_failed"]} + 1))
             
-            if [ "$1" == "--verbose" ] || [ "$1" == "-v" ]; then
+            if [ "$1" == "--verbose" ] || [ "$1" == "-v" ] || [ "$2" == "--verbose" ] || [ "$2" == "-v" ]; then
                 echo -e "${YELLOW}Error output:${NC}"
                 php "$file" 2>&1 | tail -10
                 echo ""

@@ -12,97 +12,26 @@ $currentDriver = getCurrentDriver($db);
 
 echo "=== UPDATE/DELETE with JOIN Examples ===\n\n";
 
-// Create tables
+// Create tables using fluent API (cross-dialect)
 echo "Creating tables...\n";
 
-$driverName = $db->find()->getConnection()->getDialect()->getDriverName();
+$schema = $db->schema();
+$schema->dropTableIfExists('update_delete_join_orders');
+$schema->dropTableIfExists('update_delete_join_users');
 
-if ($driverName === 'pgsql') {
-    $db->rawQuery('DROP TABLE IF EXISTS update_delete_join_orders');
-    $db->rawQuery('DROP TABLE IF EXISTS update_delete_join_users');
+$schema->createTable('update_delete_join_users', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(100),
+    'status' => $schema->string(50),
+    'balance' => $schema->decimal(10, 2)->defaultValue(0),
+]);
 
-    $db->rawQuery('
-        CREATE TABLE update_delete_join_users (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100),
-            status VARCHAR(50),
-            balance DECIMAL(10,2) DEFAULT 0
-        )
-    ');
-
-    $db->rawQuery('
-        CREATE TABLE update_delete_join_orders (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER,
-            amount DECIMAL(10,2),
-            status VARCHAR(50)
-        )
-    ');
-} elseif ($driverName === 'sqlsrv') {
-    $db->rawQuery('DROP TABLE IF EXISTS update_delete_join_orders');
-    $db->rawQuery('DROP TABLE IF EXISTS update_delete_join_users');
-
-    $db->rawQuery('
-        CREATE TABLE update_delete_join_users (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            name NVARCHAR(100),
-            status NVARCHAR(50),
-            balance DECIMAL(10,2) DEFAULT 0
-        )
-    ');
-
-    $db->rawQuery('
-        CREATE TABLE update_delete_join_orders (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            user_id INT,
-            amount DECIMAL(10,2),
-            status NVARCHAR(50)
-        )
-    ');
-} elseif ($driverName === 'mysql' || $driverName === 'mariadb') {
-    $db->rawQuery('DROP TABLE IF EXISTS update_delete_join_orders');
-    $db->rawQuery('DROP TABLE IF EXISTS update_delete_join_users');
-
-    $db->rawQuery('
-        CREATE TABLE update_delete_join_users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(100),
-            status VARCHAR(50),
-            balance DECIMAL(10,2) DEFAULT 0
-        )
-    ');
-
-    $db->rawQuery('
-        CREATE TABLE update_delete_join_orders (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT,
-            amount DECIMAL(10,2),
-            status VARCHAR(50)
-        )
-    ');
-} else {
-    // SQLite
-    $db->rawQuery('DROP TABLE IF EXISTS update_delete_join_orders');
-    $db->rawQuery('DROP TABLE IF EXISTS update_delete_join_users');
-
-    $db->rawQuery('
-        CREATE TABLE update_delete_join_users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            status TEXT,
-            balance NUMERIC(10,2) DEFAULT 0
-        )
-    ');
-
-    $db->rawQuery('
-        CREATE TABLE update_delete_join_orders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            amount NUMERIC(10,2),
-            status TEXT
-        )
-    ');
-}
+$schema->createTable('update_delete_join_orders', [
+    'id' => $schema->primaryKey(),
+    'user_id' => $schema->integer(),
+    'amount' => $schema->decimal(10, 2),
+    'status' => $schema->string(50),
+]);
 
 echo "Tables created.\n\n";
 
@@ -132,9 +61,6 @@ try {
     echo "User 2 balance: {$user2['balance']}\n";
 } catch (\Exception $e) {
     echo "Error: " . $e->getMessage() . "\n";
-    if ($driverName === 'sqlite') {
-        echo "Note: SQLite doesn't support JOIN in UPDATE statements.\n";
-    }
 }
 
 echo "\n";
@@ -190,17 +116,12 @@ $userId2 = $db->find()->table('update_delete_join_users')->insert(['name' => 'Bo
 $db->find()->table('update_delete_join_orders')->insert(['user_id' => $userId1, 'amount' => 50, 'status' => 'completed']);
 
 try {
-    // For MySQL/MariaDB, use qualified column name to avoid ambiguity
-    // For PostgreSQL, column name doesn't need table prefix
-    $updateData = ($driverName === 'pgsql')
-        ? ['status' => 'has_orders']
-        : ['update_delete_join_users.status' => 'has_orders'];
-
+    // Use qualified column name to avoid ambiguity
     $affected = $db->find()
         ->table('update_delete_join_users')
         ->leftJoin('update_delete_join_orders', 'update_delete_join_orders.user_id = update_delete_join_users.id')
         ->where('update_delete_join_orders.id', null, 'IS NOT')
-        ->update($updateData);
+        ->update(['update_delete_join_users.status' => 'has_orders']);
 
     echo "Updated {$affected} row(s)\n";
 
@@ -208,50 +129,42 @@ try {
     echo "User 1 status: {$user1['status']}\n";
 } catch (\Exception $e) {
     echo "Error: " . $e->getMessage() . "\n";
-    if ($driverName === 'sqlite') {
-        echo "Note: SQLite doesn't support JOIN in UPDATE statements.\n";
-    }
 }
 
 echo "\n";
 
 // Example 4: UPDATE with multiple JOINs
-if ($driverName !== 'sqlite') {
-    echo "Example 4: UPDATE with multiple JOINs\n";
-    echo "Update users based on multiple joined tables\n";
+echo "Example 4: UPDATE with multiple JOINs\n";
+echo "Update users based on multiple joined tables\n";
 
-    // Reset data
-    $db->rawQuery('DELETE FROM update_delete_join_orders');
-    $db->rawQuery('DELETE FROM update_delete_join_users');
+// Reset data
+$db->rawQuery('DELETE FROM update_delete_join_orders');
+$db->rawQuery('DELETE FROM update_delete_join_users');
 
-    $userId1 = $db->find()->table('update_delete_join_users')->insert(['name' => 'Alice', 'status' => 'active', 'balance' => 100]);
-    $userId2 = $db->find()->table('update_delete_join_users')->insert(['name' => 'Bob', 'status' => 'active', 'balance' => 200]);
+$userId1 = $db->find()->table('update_delete_join_users')->insert(['name' => 'Alice', 'status' => 'active', 'balance' => 100]);
+$userId2 = $db->find()->table('update_delete_join_users')->insert(['name' => 'Bob', 'status' => 'active', 'balance' => 200]);
 
-    $db->find()->table('update_delete_join_orders')->insert(['user_id' => $userId1, 'amount' => 50, 'status' => 'completed']);
-    $db->find()->table('update_delete_join_orders')->insert(['user_id' => $userId1, 'amount' => 25, 'status' => 'completed']);
+$db->find()->table('update_delete_join_orders')->insert(['user_id' => $userId1, 'amount' => 50, 'status' => 'completed']);
+$db->find()->table('update_delete_join_orders')->insert(['user_id' => $userId1, 'amount' => 25, 'status' => 'completed']);
 
-    try {
-        $updateData = ($driverName === 'pgsql')
-            ? ['status' => 'has_multiple_orders']
-            : ['update_delete_join_users.status' => 'has_multiple_orders'];
+try {
+    // Use qualified column name to avoid ambiguity
+    $affected = $db->find()
+        ->table('update_delete_join_users')
+        ->join('update_delete_join_orders', 'update_delete_join_orders.user_id = update_delete_join_users.id')
+        ->where('update_delete_join_users.id', $userId1)
+        ->where('update_delete_join_orders.status', 'completed')
+        ->update(['update_delete_join_users.status' => 'has_multiple_orders']);
 
-        $affected = $db->find()
-            ->table('update_delete_join_users')
-            ->join('update_delete_join_orders', 'update_delete_join_orders.user_id = update_delete_join_users.id')
-            ->where('update_delete_join_users.id', $userId1)
-            ->where('update_delete_join_orders.status', 'completed')
-            ->update($updateData);
+    echo "Updated {$affected} row(s)\n";
 
-        echo "Updated {$affected} row(s)\n";
-
-        $user1 = $db->find()->from('update_delete_join_users')->where('id', $userId1)->getOne();
-        echo "User 1 status: {$user1['status']}\n";
-    } catch (\Exception $e) {
-        echo "Error: " . $e->getMessage() . "\n";
-    }
-
-    echo "\n";
+    $user1 = $db->find()->from('update_delete_join_users')->where('id', $userId1)->getOne();
+    echo "User 1 status: {$user1['status']}\n";
+} catch (\Exception $e) {
+    echo "Error: " . $e->getMessage() . "\n";
 }
+
+echo "\n";
 
 echo "=== Examples completed ===\n";
 
