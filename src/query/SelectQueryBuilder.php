@@ -649,7 +649,16 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 // Process external references
                 $processedCol = $this->processExternalReferences($col);
                 if ($processedCol instanceof RawValue) {
-                    $groups[] = $this->resolveRawValue($processedCol);
+                    // If it's a qualified identifier (table.column), quote it properly
+                    // RawValue from processExternalReferences means it's an external reference,
+                    // but for GROUP BY we should quote qualified identifiers
+                    $rawValue = $processedCol->getValue();
+                    // Check if it's a simple qualified identifier (table.column pattern)
+                    if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*$/', $rawValue)) {
+                        $groups[] = $this->quoteQualifiedIdentifier($rawValue);
+                    } else {
+                        $groups[] = $this->resolveRawValue($processedCol);
+                    }
                 } else {
                     $groups[] = $this->quoteQualifiedIdentifier((string)$processedCol);
                 }
