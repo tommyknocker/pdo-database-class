@@ -17,22 +17,23 @@ $driver = getCurrentDriver($db);
 echo "=== INSERT ... SELECT Operations Example (on $driver) ===\n\n";
 
 // Setup source and target tables
+$schema = $db->schema();
 recreateTable($db, 'source_users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'VARCHAR(100)',
-    'email' => 'VARCHAR(100)',
-    'age' => 'INTEGER',
-    'status' => 'VARCHAR(50)',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(100),
+    'email' => $schema->string(100),
+    'age' => $schema->integer(),
+    'status' => $schema->string(50),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 recreateTable($db, 'target_users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'VARCHAR(100)',
-    'email' => 'VARCHAR(100)',
-    'age' => 'INTEGER',
-    'status' => 'VARCHAR(50)',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(100),
+    'email' => $schema->string(100),
+    'age' => $schema->integer(),
+    'status' => $schema->string(50),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 echo "✓ Tables created\n\n";
@@ -179,10 +180,10 @@ $db->find()->table('target_users')->truncate();
 // Example 6: Copy with JOIN
 echo "7. Example 6: Copy data with JOIN...\n";
 recreateTable($db, 'user_profiles', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'user_id' => 'INTEGER',
-    'bio' => 'TEXT',
-    'location' => 'VARCHAR(100)'
+    'id' => $schema->primaryKey(),
+    'user_id' => $schema->integer(),
+    'bio' => $schema->text(),
+    'location' => $schema->string(100),
 ]);
 
 $db->find()->table('user_profiles')->insert(['user_id' => 1, 'bio' => 'Alice bio', 'location' => 'New York']);

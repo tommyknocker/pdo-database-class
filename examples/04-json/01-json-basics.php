@@ -15,13 +15,14 @@ $driver = getCurrentDriver($db);
 
 echo "=== JSON Basics Example (on $driver) ===\n\n";
 
-// Create table  
+// Create table using fluent API (cross-dialect)
+$schema = $db->schema();
 $driver = getCurrentDriver($db);
 recreateTable($db, 'users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'settings' => $driver === 'pgsql' ? 'JSONB' : 'TEXT',
-    'tags' => $driver === 'pgsql' ? 'JSONB' : 'TEXT'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255),
+    'settings' => $driver === 'pgsql' ? $schema->json() : $schema->text(),
+    'tags' => $driver === 'pgsql' ? $schema->json() : $schema->text(),
 ]);
 
 echo "✓ Table created\n\n";

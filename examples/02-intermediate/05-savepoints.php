@@ -12,10 +12,11 @@ echo "=== Savepoints and Nested Transactions Examples ===\n\n";
 $db = createExampleDb();
 
 // Ensure users table exists
+$schema = $db->schema();
 recreateTable($db, 'users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'VARCHAR(100)',
-    'age' => 'INTEGER'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(100),
+    'age' => $schema->integer(),
 ]);
 
 // Example 1: Basic savepoint usage

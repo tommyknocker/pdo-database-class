@@ -16,11 +16,12 @@ $driver = getCurrentDriver($db);
 echo "=== INSERT and UPDATE Operations (on $driver) ===\n\n";
 
 // Setup
+$schema = $db->schema();
 recreateTable($db, 'counters', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT UNIQUE',
-    'value' => 'INTEGER DEFAULT 0',
-    'updated_at' => 'DATETIME'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text()->unique(),
+    'value' => $schema->integer()->defaultValue(0),
+    'updated_at' => $schema->datetime(),
 ]);
 
 // Example 1: Basic INSERT

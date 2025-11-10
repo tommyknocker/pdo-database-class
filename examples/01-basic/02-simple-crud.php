@@ -17,13 +17,14 @@ $driver = getCurrentDriver($db);
 
 echo "=== Simple CRUD Operations (on $driver) ===\n\n";
 
-// Create table with proper syntax for current driver
+// Create table using fluent API (Yii2-style)
+$schema = $db->schema();
 recreateTable($db, 'users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT NOT NULL',
-    'email' => 'TEXT UNIQUE',
-    'age' => 'INTEGER',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text()->notNull(),
+    'email' => $schema->text()->unique(),
+    'age' => $schema->integer(),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 echo "✓ Table 'users' created\n\n";

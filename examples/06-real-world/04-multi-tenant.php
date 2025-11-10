@@ -19,48 +19,53 @@ echo "=== Multi-Tenant Application Example (on $driver) ===\n\n";
 // Create schema
 echo "Setting up multi-tenant database...\n";
 
+// Setup using fluent API (cross-dialect)
+$schema = $db->schema();
+
 recreateTable($db, 'tenants', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT NOT NULL',
-    'slug' => 'TEXT UNIQUE NOT NULL',
-    'plan' => 'TEXT DEFAULT \'free\'',
-    'max_users' => 'INTEGER DEFAULT 5',
-    'max_storage_mb' => 'INTEGER DEFAULT 100',
-    'is_active' => 'INTEGER DEFAULT 1',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255)->notNull(),
+    'slug' => $schema->string(100)->unique()->notNull(),
+    'plan' => $schema->string(50)->defaultValue('free'),
+    'max_users' => $schema->integer()->defaultValue(5),
+    'max_storage_mb' => $schema->integer()->defaultValue(100),
+    'is_active' => $schema->boolean()->defaultValue(true),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 recreateTable($db, 'users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'tenant_id' => 'INTEGER NOT NULL',
-    'name' => 'TEXT NOT NULL',
-    'email' => 'TEXT NOT NULL',
-    'role' => 'TEXT DEFAULT \'member\'',
-    'is_active' => 'INTEGER DEFAULT 1',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP',
-    'UNIQUE(tenant_id, email)' => ''
+    'id' => $schema->primaryKey(),
+    'tenant_id' => $schema->integer()->notNull(),
+    'name' => $schema->string(255)->notNull(),
+    'email' => $schema->string(255)->notNull(),
+    'role' => $schema->string(50)->defaultValue('member'),
+    'is_active' => $schema->boolean()->defaultValue(true),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
+// Create unique index for (tenant_id, email)
+$schema->createIndex('idx_users_tenant_email', 'users', ['tenant_id', 'email'], true);
 
 recreateTable($db, 'documents', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'tenant_id' => 'INTEGER NOT NULL',
-    'user_id' => 'INTEGER NOT NULL',
-    'title' => 'TEXT NOT NULL',
-    'content' => 'TEXT',
-    'size_kb' => 'INTEGER DEFAULT 0',
-    'is_public' => 'INTEGER DEFAULT 0',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP',
-    'updated_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'tenant_id' => $schema->integer()->notNull(),
+    'user_id' => $schema->integer()->notNull(),
+    'title' => $schema->string(255)->notNull(),
+    'content' => $schema->text(),
+    'size_kb' => $schema->integer()->defaultValue(0),
+    'is_public' => $schema->boolean()->defaultValue(false),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
+    'updated_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 recreateTable($db, 'api_usage', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'tenant_id' => 'INTEGER NOT NULL',
-    'endpoint' => 'TEXT NOT NULL',
-    'requests_count' => 'INTEGER DEFAULT 0',
-    'date' => 'DATE NOT NULL',
-    'UNIQUE(tenant_id, endpoint, date)' => ''
+    'id' => $schema->primaryKey(),
+    'tenant_id' => $schema->integer()->notNull(),
+    'endpoint' => $schema->string(255)->notNull(),
+    'requests_count' => $schema->integer()->defaultValue(0),
+    'date' => $schema->date()->notNull(),
 ]);
+// Create unique index for (tenant_id, endpoint, date)
+$schema->createIndex('idx_api_usage_unique', 'api_usage', ['tenant_id', 'endpoint', 'date'], true);
 
 echo "✓ Schema created (tenants, users, documents, api_usage)\n\n";
 
@@ -238,11 +243,12 @@ echo "\n";
 // Scenario 9: Cross-tenant analytics (admin dashboard)
 echo "9. Cross-tenant analytics (platform overview):\n";
 
+$activeCondition = $driver === 'pgsql' ? 'is_active = TRUE' : 'is_active = 1';
 $platformStats = $db->find()
     ->from('tenants')
     ->select([
         'total_tenants' => Db::count(),
-        'active_tenants' => Db::sum(Db::case(['is_active = 1' => '1'], '0')),
+        'active_tenants' => Db::sum(Db::case([$activeCondition => '1'], '0')),
         'enterprise_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? '[plan]' : 'plan') . " = 'enterprise'" => '1'], '0')),
         'business_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? '[plan]' : 'plan') . " = 'business'" => '1'], '0')),
         'free_count' => Db::sum(Db::case([($driver === 'sqlsrv' ? '[plan]' : 'plan') . " = 'free'" => '1'], '0'))
@@ -310,7 +316,7 @@ $mostActive = $db->find()
         't.name',
         'doc_count' => Db::count(),
         'total_size_kb' => Db::sum('d.size_kb'),
-        'public_docs' => Db::sum(Db::case(['d.is_public = 1' => '1'], '0'))
+        'public_docs' => Db::sum(Db::case([($driver === 'pgsql' ? 'd.is_public = TRUE' : 'd.is_public = 1') => '1'], '0'))
     ])
     ->groupBy(['d.tenant_id', 't.name'])
     ->orderBy(Db::count(), 'DESC')

@@ -16,27 +16,28 @@ $driver = getCurrentDriver($db);
 echo "=== Subqueries Example (on $driver) ===\n\n";
 
 // Setup
+$schema = $db->schema();
 recreateTable($db, 'users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'department' => 'TEXT',
-    'salary' => 'REAL',
-    'hire_date' => 'TEXT'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text(),
+    'department' => $schema->text(),
+    'salary' => $schema->decimal(10, 2),
+    'hire_date' => $schema->text(),
 ]);
 
 recreateTable($db, 'orders', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'user_id' => 'INTEGER',
-    'amount' => 'REAL',
-    'order_date' => 'TEXT',
-    'status' => 'TEXT'
+    'id' => $schema->primaryKey(),
+    'user_id' => $schema->integer(),
+    'amount' => $schema->decimal(10, 2),
+    'order_date' => $schema->text(),
+    'status' => $schema->text(),
 ]);
 
 recreateTable($db, 'departments', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'budget' => 'REAL',
-    'manager_id' => 'INTEGER'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text(),
+    'budget' => $schema->decimal(10, 2),
+    'manager_id' => $schema->integer(),
 ]);
 
 $db->find()->table('users')->insertMulti([

@@ -16,14 +16,15 @@ $driver = getCurrentDriver($db);
 
 echo "=== Batch Processing Examples (on $driver) ===\n\n";
 
-// Setup
+// Setup using fluent API (cross-dialect)
+$schema = $db->schema();
 recreateTable($db, 'users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'email' => 'TEXT',
-    'age' => 'INTEGER',
-    'active' => 'INTEGER DEFAULT 1',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255),
+    'email' => $schema->string(255),
+    'age' => $schema->integer(),
+    'active' => $schema->integer()->defaultValue(1),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 // Insert test data

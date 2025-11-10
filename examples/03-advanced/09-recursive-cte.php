@@ -18,88 +18,23 @@ echo "Database: $driver\n\n";
 $pdoDb = createExampleDb($config);
 $driverName = $pdoDb->connection->getDialect()->getDriverName();
 
-// Create test tables based on driver
-if ($driver === 'mysql') {
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS categories');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS employees_hierarchy');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE categories (
-            id INT PRIMARY KEY,
-            name VARCHAR(100),
-            parent_id INT NULL
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE employees_hierarchy (
-            id INT PRIMARY KEY,
-            name VARCHAR(100),
-            manager_id INT NULL,
-            salary DECIMAL(10,2)
-        )
-    ');
-} elseif ($driver === 'pgsql') {
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS categories CASCADE');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS employees_hierarchy CASCADE');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE categories (
-            id INTEGER PRIMARY KEY,
-            name VARCHAR(100),
-            parent_id INTEGER NULL
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE employees_hierarchy (
-            id INTEGER PRIMARY KEY,
-            name VARCHAR(100),
-            manager_id INTEGER NULL,
-            salary DECIMAL(10,2)
-        )
-    ');
-} elseif ($driver === 'sqlsrv') {
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS categories');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS employees_hierarchy');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE categories (
-            id INT PRIMARY KEY,
-            name NVARCHAR(100),
-            parent_id INT NULL
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE employees_hierarchy (
-            id INT PRIMARY KEY,
-            name NVARCHAR(100),
-            manager_id INT NULL,
-            salary DECIMAL(10,2)
-        )
-    ');
-} else {
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS categories');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS employees_hierarchy');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE categories (
-            id INTEGER PRIMARY KEY,
-            name TEXT,
-            parent_id INTEGER NULL
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE employees_hierarchy (
-            id INTEGER PRIMARY KEY,
-            name TEXT,
-            manager_id INTEGER NULL,
-            salary REAL
-        )
-    ');
-}
+// Create test tables using fluent API (cross-dialect)
+$schema = $pdoDb->schema();
+$schema->dropTableIfExists('categories');
+$schema->dropTableIfExists('employees_hierarchy');
+
+$schema->createTable('categories', [
+    'id' => $schema->integer()->notNull(),
+    'name' => $schema->string(100),
+    'parent_id' => $schema->integer(),
+], ['primaryKey' => ['id']]);
+
+$schema->createTable('employees_hierarchy', [
+    'id' => $schema->integer()->notNull(),
+    'name' => $schema->string(100),
+    'manager_id' => $schema->integer(),
+    'salary' => $schema->decimal(10, 2),
+], ['primaryKey' => ['id']]);
 
 // Insert hierarchical category data
 $pdoDb->find()->table('categories')->insertMulti([

@@ -16,13 +16,14 @@ $driver = getCurrentDriver($db);
 echo "=== Ordering Examples (on $driver) ===\n\n";
 
 // Setup
+$schema = $db->schema();
 recreateTable($db, 'products', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'category' => 'TEXT',
-    'price' => 'REAL',
-    'stock' => 'INTEGER',
-    'rating' => 'REAL'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text(),
+    'category' => $schema->text(),
+    'price' => $schema->decimal(10, 2),
+    'stock' => $schema->integer(),
+    'rating' => $schema->decimal(3, 2),
 ]);
 
 $products = [

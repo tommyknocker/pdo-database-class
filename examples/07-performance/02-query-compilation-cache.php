@@ -25,15 +25,16 @@ $dbWithCache = new PdoDb($driver, getExampleConfig(), [], null, $cache);
 
 echo "=== Query Compilation Cache Examples (on $driver) ===\n\n";
 
-// Setup
+// Setup using fluent API (cross-dialect)
+$schema = $dbWithCache->schema();
 recreateTable($dbWithCache, 'products', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'price' => 'DECIMAL(10, 2)',
-    'category' => 'TEXT',
-    'stock' => 'INTEGER',
-    'active' => 'INTEGER DEFAULT 1',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255),
+    'price' => $schema->decimal(10, 2),
+    'category' => $schema->string(100),
+    'stock' => $schema->integer(),
+    'active' => $schema->boolean()->defaultValue(true),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 // Insert test data

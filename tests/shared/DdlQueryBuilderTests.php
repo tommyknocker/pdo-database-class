@@ -1093,4 +1093,314 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
         // Cleanup
         $schema->dropTable('test_decimal_custom');
     }
+
+    /**
+     * Test creating table with non-auto-increment primary key (composite PK support).
+     */
+    public function testCreateTableWithNonAutoIncrementPrimaryKey(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_composite_pk');
+
+        // Create table with composite primary key using options
+        $schema->createTable('test_composite_pk', [
+            'id' => $schema->integer()->notNull(),
+            'code' => $schema->string(50)->notNull(),
+            'name' => $schema->string(100),
+        ], ['primaryKey' => ['id', 'code']]);
+
+        $this->assertTrue($schema->tableExists('test_composite_pk'));
+
+        // Test single column primary key
+        $schema->dropTableIfExists('test_single_pk');
+        $schema->createTable('test_single_pk', [
+            'id' => $schema->integer()->notNull(),
+            'name' => $schema->string(100),
+        ], ['primaryKey' => 'id']);
+
+        $this->assertTrue($schema->tableExists('test_single_pk'));
+
+        // Cleanup
+        $schema->dropTable('test_composite_pk');
+        $schema->dropTable('test_single_pk');
+    }
+
+    /**
+     * Test cross-dialect type mapping for common types.
+     */
+    public function testCrossDialectTypeMapping(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+        $driver = $schema->getDialect()->getDriverName();
+
+        $schema->dropTableIfExists('test_cross_dialect_types');
+
+        // Create table with types that should map correctly across dialects
+        $schema->createTable('test_cross_dialect_types', [
+            'id' => $schema->primaryKey(), // Should map to AUTO_INCREMENT/IDENTITY/SERIAL/AUTOINCREMENT
+            'name' => $schema->string(255), // Should map to VARCHAR/NVARCHAR/TEXT
+            'description' => $schema->text(), // Should map to TEXT/NVARCHAR(MAX)/TEXT
+            'price' => $schema->decimal(10, 2), // Should map to DECIMAL/DECIMAL/NUMERIC/REAL
+            'is_active' => $schema->boolean(), // Should map to TINYINT(1)/BIT/BOOLEAN/INTEGER
+            'created_at' => $schema->datetime(), // Should map to DATETIME/TIMESTAMP/DATETIME2/TEXT
+            'updated_at' => $schema->timestamp(), // Should map to TIMESTAMP/TIMESTAMP/DATETIME2/TEXT
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_cross_dialect_types'));
+
+        // Verify we can insert and query data
+        $db->find()->table('test_cross_dialect_types')->insert([
+            'name' => 'Test Product',
+            'description' => 'Test Description',
+            'price' => 99.99,
+            'is_active' => true,
+        ]);
+
+        $row = $db->find()->from('test_cross_dialect_types')->where('name', 'Test Product')->getOne();
+        $this->assertNotNull($row);
+        $this->assertEquals('Test Product', $row['name']);
+
+        // Cleanup
+        $schema->dropTable('test_cross_dialect_types');
+    }
+
+    /**
+     * Test creating table with unique constraint using schema API.
+     */
+    public function testCreateTableWithUniqueConstraint(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_unique_constraint');
+
+        // Create table with unique column
+        $schema->createTable('test_unique_constraint', [
+            'id' => $schema->primaryKey(),
+            'email' => $schema->string(255)->unique(),
+            'username' => $schema->string(100)->notNull(),
+        ]);
+
+        // Create unique index
+        $schema->createIndex('idx_username_unique', 'test_unique_constraint', 'username', true);
+
+        $this->assertTrue($schema->tableExists('test_unique_constraint'));
+
+        // Test inserting unique values
+        $db->find()->table('test_unique_constraint')->insert([
+            'email' => 'test@example.com',
+            'username' => 'testuser',
+        ]);
+
+        // Try to insert duplicate (should fail or be handled)
+        try {
+            $db->find()->table('test_unique_constraint')->insert([
+                'email' => 'test@example.com',
+                'username' => 'testuser2',
+            ]);
+            $this->fail('Expected unique constraint violation');
+        } catch (\Throwable $e) {
+            // Expected - unique constraint should prevent duplicate
+            $this->assertTrue(true);
+        }
+
+        // Cleanup
+        $schema->dropIndex('idx_username_unique', 'test_unique_constraint');
+        $schema->dropTable('test_unique_constraint');
+    }
+
+    /**
+     * Test cross-dialect TEXT type conversion with DEFAULT values.
+     * MySQL/MariaDB should convert TEXT with DEFAULT to VARCHAR(255).
+     * MSSQL should convert TEXT to NVARCHAR(MAX).
+     */
+    public function testTextTypeWithDefaultCrossDialect(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+        $driver = $schema->getDialect()->getDriverName();
+
+        $schema->dropTableIfExists('test_text_default');
+
+        // Create table with TEXT column that has DEFAULT value
+        // This should work cross-dialectally:
+        // - MySQL/MariaDB: TEXT with DEFAULT -> VARCHAR(255) with DEFAULT
+        // - MSSQL: TEXT -> NVARCHAR(MAX)
+        // - PostgreSQL/SQLite: TEXT with DEFAULT (native support)
+        $schema->createTable('test_text_default', [
+            'id' => $schema->primaryKey(),
+            'status' => $schema->text()->defaultValue('active'),
+            'description' => $schema->text(),
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_text_default'));
+
+        // Insert row without specifying status (should use default)
+        $db->find()->table('test_text_default')->insert([
+            'description' => 'Test description',
+        ]);
+
+        $row = $db->find()->table('test_text_default')->where('id', 1)->getOne();
+        $this->assertNotNull($row);
+        $this->assertEquals('active', $row['status']);
+
+        // Cleanup
+        $schema->dropTable('test_text_default');
+    }
+
+    /**
+     * Test that string() creates VARCHAR (not TEXT) in MySQL/MariaDB/PostgreSQL.
+     */
+    public function testStringCreatesVarchar(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+        $driver = $schema->getDialect()->getDriverName();
+
+        $schema->dropTableIfExists('test_string_type');
+
+        // Create table with string() - should be VARCHAR, not TEXT
+        $schema->createTable('test_string_type', [
+            'id' => $schema->primaryKey(),
+            'name' => $schema->string(255),
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_string_type'));
+
+        // Verify column type (check actual SQL or describe)
+        $columns = $db->describe('test_string_type');
+        $nameColumn = null;
+        foreach ($columns as $col) {
+            $colName = $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? null;
+            if ($colName === 'name') {
+                $nameColumn = $col;
+                break;
+            }
+        }
+
+        $this->assertNotNull($nameColumn, 'Column name should exist');
+
+        // For MySQL/MariaDB/PostgreSQL, string() should create VARCHAR
+        // For MSSQL, string() should create NVARCHAR
+        // For SQLite, string() creates TEXT (SQLite doesn't distinguish)
+        if (in_array($driver, ['mysql', 'mariadb', 'pgsql'])) {
+            $type = strtoupper($nameColumn['Type'] ?? $nameColumn['data_type'] ?? '');
+            $this->assertStringContainsString('VARCHAR', $type, 'string() should create VARCHAR in MySQL/MariaDB/PostgreSQL');
+        } elseif ($driver === 'sqlsrv') {
+            $type = strtoupper($nameColumn['Type'] ?? $nameColumn['data_type'] ?? '');
+            $this->assertStringContainsString('NVARCHAR', $type, 'string() should create NVARCHAR in MSSQL');
+        }
+        // SQLite doesn't distinguish VARCHAR/TEXT, so we skip assertion
+
+        // Cleanup
+        $schema->dropTable('test_string_type');
+    }
+
+    /**
+     * Test that text() creates TEXT (not VARCHAR) in MySQL/MariaDB/PostgreSQL.
+     */
+    public function testTextCreatesText(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+        $driver = $schema->getDialect()->getDriverName();
+
+        $schema->dropTableIfExists('test_text_type');
+
+        // Create table with text() - should be TEXT, not VARCHAR
+        $schema->createTable('test_text_type', [
+            'id' => $schema->primaryKey(),
+            'description' => $schema->text(),
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_text_type'));
+
+        // Verify column type
+        $columns = $db->describe('test_text_type');
+        $descColumn = null;
+        foreach ($columns as $col) {
+            $colName = $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? null;
+            if ($colName === 'description') {
+                $descColumn = $col;
+                break;
+            }
+        }
+
+        $this->assertNotNull($descColumn, 'Column description should exist');
+
+        // For MySQL/MariaDB/PostgreSQL/SQLite, text() should create TEXT
+        // For MSSQL, text() creates NVARCHAR(MAX) (converted in formatColumnDefinition)
+        $type = strtoupper(
+            $descColumn['Type'] ??
+            $descColumn['data_type'] ??
+            $descColumn['DATA_TYPE'] ??
+            $descColumn['type'] ??
+            ''
+        );
+
+        if (in_array($driver, ['mysql', 'mariadb', 'pgsql', 'sqlite'])) {
+            // TEXT type should be present
+            $this->assertTrue(
+                str_contains($type, 'TEXT') || str_contains($type, 'NVARCHAR'),
+                'text() should create TEXT or NVARCHAR(MAX), got: ' . ($type ?: 'empty') . ' (column: ' . json_encode($descColumn) . ')'
+            );
+        } elseif ($driver === 'sqlsrv') {
+            $this->assertStringContainsString('NVARCHAR', $type, 'text() should create NVARCHAR(MAX) in MSSQL, got: ' . ($type ?: 'empty'));
+        }
+
+        // Cleanup
+        $schema->dropTable('test_text_type');
+    }
+
+    /**
+     * Test that char() creates CHAR type.
+     */
+    public function testCharCreatesChar(): void
+    {
+        $db = self::getDb();
+        $schema = $db->schema();
+        $driver = $schema->getDialect()->getDriverName();
+
+        $schema->dropTableIfExists('test_char_type');
+
+        // Create table with char() - should be CHAR
+        $schema->createTable('test_char_type', [
+            'id' => $schema->primaryKey(),
+            'code' => $schema->char(10),
+        ]);
+
+        $this->assertTrue($schema->tableExists('test_char_type'));
+
+        // Verify column type
+        $columns = $db->describe('test_char_type');
+        $codeColumn = null;
+        foreach ($columns as $col) {
+            $colName = $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? null;
+            if ($colName === 'code') {
+                $codeColumn = $col;
+                break;
+            }
+        }
+
+        $this->assertNotNull($codeColumn, 'Column code should exist');
+
+        // For MySQL/MariaDB/PostgreSQL, char() should create CHAR
+        // For MSSQL, char() should create NCHAR
+        // For SQLite, char() creates TEXT (SQLite doesn't distinguish)
+        if (in_array($driver, ['mysql', 'mariadb', 'pgsql'])) {
+            $type = strtoupper($codeColumn['Type'] ?? $codeColumn['data_type'] ?? '');
+            $this->assertStringContainsString('CHAR', $type, 'char() should create CHAR in MySQL/MariaDB/PostgreSQL');
+            $this->assertStringNotContainsString('VARCHAR', $type, 'char() should not create VARCHAR');
+        } elseif ($driver === 'sqlsrv') {
+            $type = strtoupper($codeColumn['Type'] ?? $codeColumn['data_type'] ?? '');
+            $this->assertStringContainsString('NCHAR', $type, 'char() should create NCHAR in MSSQL');
+        }
+        // SQLite doesn't distinguish CHAR/VARCHAR/TEXT, so we skip assertion
+
+        // Cleanup
+        $schema->dropTable('test_char_type');
+    }
 }

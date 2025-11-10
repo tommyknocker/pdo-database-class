@@ -19,35 +19,39 @@ echo "=== User Authentication System Example (on $driver) ===\n\n";
 // Create schema
 echo "Setting up authentication database...\n";
 
+// Setup using fluent API (cross-dialect)
+$schema = $db->schema();
+
 recreateTable($db, 'users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'username' => 'TEXT UNIQUE NOT NULL',
-    'email' => 'TEXT UNIQUE NOT NULL',
-    'password_hash' => 'TEXT NOT NULL',
-    'role' => 'TEXT DEFAULT \'user\'',
-    'is_active' => 'INTEGER DEFAULT 1',
-    'email_verified' => 'INTEGER DEFAULT 0',
-    'failed_login_attempts' => 'INTEGER DEFAULT 0',
-    'last_login_at' => 'DATETIME',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'username' => $schema->string(100)->unique()->notNull(),
+    'email' => $schema->string(255)->unique()->notNull(),
+    'password_hash' => $schema->string(255)->notNull(),
+    'role' => $schema->string(50)->defaultValue('user'),
+    'is_active' => $schema->boolean()->defaultValue(true),
+    'email_verified' => $schema->boolean()->defaultValue(false),
+    'failed_login_attempts' => $schema->integer()->defaultValue(0),
+    'last_login_at' => $schema->datetime(),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 recreateTable($db, 'sessions', [
-    'id' => 'TEXT PRIMARY KEY',
-    'user_id' => 'INTEGER NOT NULL',
-    'ip_address' => 'TEXT',
-    'user_agent' => 'TEXT',
-    'expires_at' => 'DATETIME NOT NULL',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
-]);
+    'id' => $schema->string(255)->notNull(),
+    'user_id' => $schema->integer()->notNull(),
+    'ip_address' => $schema->string(45),
+    'user_agent' => $schema->string(500),
+    'expires_at' => $schema->datetime()->notNull(),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
+], ['primaryKey' => ['id']]);
 
 recreateTable($db, 'permissions', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'role' => 'TEXT NOT NULL',
-    'resource' => 'TEXT NOT NULL',
-    'action' => 'TEXT NOT NULL',
-    'UNIQUE(role, resource, action)' => ''
+    'id' => $schema->primaryKey(),
+    'role' => $schema->string(50)->notNull(),
+    'resource' => $schema->string(100)->notNull(),
+    'action' => $schema->string(50)->notNull(),
 ]);
+// Create unique index for (role, resource, action)
+$schema->createIndex('idx_permissions_unique', 'permissions', ['role', 'resource', 'action'], true);
 
 echo "✓ Schema created (users, sessions, permissions)\n\n";
 
@@ -97,10 +101,11 @@ echo "3. User login simulation...\n";
 
 function loginUser($db, $username, $password) {
     // Get user by username
+    $driver = getCurrentDriver($db);
     $user = $db->find()
         ->from('users')
         ->where('username', $username)
-        ->andWhere('is_active', 1)
+        ->andWhere('is_active', $driver === 'pgsql' ? Db::true() : 1)
         ->getOne();
     
     if (!$user) {
@@ -201,12 +206,16 @@ echo "\n";
 // Scenario 6: User statistics
 echo "6. User statistics...\n";
 
+$driver = getCurrentDriver($db);
+$activeCondition = $driver === 'pgsql' ? 'is_active = TRUE' : 'is_active = 1';
+$verifiedCondition = $driver === 'pgsql' ? 'email_verified = TRUE' : 'email_verified = 1';
+
 $stats = $db->find()
     ->from('users')
     ->select([
         'total_users' => Db::count(),
-        'active_users' => Db::sum(Db::case(['is_active = 1' => '1'], '0')),
-        'verified_users' => Db::sum(Db::case(['email_verified = 1' => '1'], '0')),
+        'active_users' => Db::sum(Db::case([$activeCondition => '1'], '0')),
+        'verified_users' => Db::sum(Db::case([$verifiedCondition => '1'], '0')),
         'admin_count' => Db::sum(Db::case(["role = 'admin'" => '1'], '0'))
     ])
     ->getOne();

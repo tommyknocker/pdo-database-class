@@ -16,7 +16,13 @@ $driver = getCurrentDriver($db);
 echo "=== Math Helper Functions Example (on $driver) ===\n\n";
 
 // Setup
-recreateTable($db, 'measurements', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'name' => 'TEXT', 'value' => 'REAL', 'reading' => 'INTEGER']);
+$schema = $db->schema();
+recreateTable($db, 'measurements', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text(),
+    'value' => $schema->decimal(10, 2),
+    'reading' => $schema->integer(),
+]);
 
 $db->find()->table('measurements')->insertMulti([
     ['name' => 'Temperature', 'value' => -5.7, 'reading' => 15],

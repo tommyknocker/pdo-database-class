@@ -16,15 +16,16 @@ $driver = getCurrentDriver($db);
 echo "=== Boolean Helper Functions Example (on $driver) ===\n\n";
 
 // Setup
+$schema = $db->schema();
 recreateTable($db, 'settings', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'user_id' => 'INTEGER',
-    'setting_name' => 'TEXT',
-    'setting_value' => 'TEXT',
-    'is_active' => 'BOOLEAN',
-    'is_default' => 'BOOLEAN',
-    'is_public' => 'BOOLEAN',
-    'is_required' => 'BOOLEAN'
+    'id' => $schema->primaryKey(),
+    'user_id' => $schema->integer(),
+    'setting_name' => $schema->text(),
+    'setting_value' => $schema->text(),
+    'is_active' => $schema->boolean(),
+    'is_default' => $schema->boolean(),
+    'is_public' => $schema->boolean(),
+    'is_required' => $schema->boolean(),
 ]);
 
 $db->find()->table('settings')->insertMulti([

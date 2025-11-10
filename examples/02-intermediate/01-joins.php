@@ -16,9 +16,24 @@ $driver = getCurrentDriver($db);
 echo "=== JOIN Operations Example (on $driver) ===\n\n";
 
 // Setup tables
-recreateTable($db, 'users', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'name' => 'TEXT', 'city' => 'TEXT']);
-recreateTable($db, 'orders', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'user_id' => 'INTEGER', 'product' => 'TEXT', 'amount' => 'REAL']);
-recreateTable($db, 'reviews', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'user_id' => 'INTEGER', 'rating' => 'INTEGER', 'comment' => 'TEXT']);
+$schema = $db->schema();
+recreateTable($db, 'users', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text(),
+    'city' => $schema->text(),
+]);
+recreateTable($db, 'orders', [
+    'id' => $schema->primaryKey(),
+    'user_id' => $schema->integer(),
+    'product' => $schema->text(),
+    'amount' => $schema->decimal(10, 2),
+]);
+recreateTable($db, 'reviews', [
+    'id' => $schema->primaryKey(),
+    'user_id' => $schema->integer(),
+    'rating' => $schema->integer(),
+    'comment' => $schema->text(),
+]);
 
 // Insert test data
 $db->find()->table('users')->insertMulti([

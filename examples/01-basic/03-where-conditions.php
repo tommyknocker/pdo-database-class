@@ -16,14 +16,15 @@ $driver = getCurrentDriver($db);
 echo "=== WHERE Conditions Examples (on $driver) ===\n\n";
 
 // Setup
+$schema = $db->schema();
 recreateTable($db, 'products', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'category' => 'TEXT',
-    'price' => 'REAL',
-    'stock' => 'INTEGER',
-    'active' => 'INTEGER DEFAULT 1',
-    'threshold' => 'INTEGER DEFAULT 10'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text(),
+    'category' => $schema->text(),
+    'price' => $schema->decimal(10, 2),
+    'stock' => $schema->integer(),
+    'active' => $schema->integer()->defaultValue(1),
+    'threshold' => $schema->integer()->defaultValue(10),
 ]);
 
 $products = [

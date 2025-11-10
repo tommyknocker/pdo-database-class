@@ -26,14 +26,16 @@ $db = new PdoDb(
     $cache
 );
 
-// Setup table
-$db->rawQuery('CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    category TEXT,
-    price REAL,
-    stock INTEGER
-)');
+// Setup table using fluent API (cross-dialect)
+$schema = $db->schema();
+$schema->dropTableIfExists('products');
+$schema->createTable('products', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text(),
+    'category' => $schema->text(),
+    'price' => $schema->decimal(10, 2),
+    'stock' => $schema->integer(),
+]);
 
 $products = [
     ['name' => 'Laptop', 'category' => 'Electronics', 'price' => 1299.99, 'stock' => 15],

@@ -19,29 +19,32 @@ echo "=== Advanced Search & Filters Example (on $driver) ===\n\n";
 // Create schema
 echo "Setting up product catalog database...\n";
 
+// Setup using fluent API (cross-dialect)
+$schema = $db->schema();
+
 recreateTable($db, 'products', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT NOT NULL',
-    'description' => 'TEXT',
-    'category' => 'TEXT NOT NULL',
-    'brand' => 'TEXT',
-    'price' => 'REAL NOT NULL',
-    'stock' => 'INTEGER DEFAULT 0',
-    'rating' => 'REAL DEFAULT 0',
-    'review_count' => 'INTEGER DEFAULT 0',
-    'tags' => 'TEXT',
-    'specs' => 'TEXT',
-    'is_featured' => 'INTEGER DEFAULT 0',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255)->notNull(),
+    'description' => $schema->text(),
+    'category' => $schema->string(100)->notNull(),
+    'brand' => $schema->string(100),
+    'price' => $schema->decimal(10, 2)->notNull(),
+    'stock' => $schema->integer()->defaultValue(0),
+    'rating' => $schema->decimal(3, 1)->defaultValue(0),
+    'review_count' => $schema->integer()->defaultValue(0),
+    'tags' => $schema->string(500),
+    'specs' => $schema->text(),
+    'is_featured' => $schema->boolean()->defaultValue(false),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 recreateTable($db, 'reviews', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'product_id' => 'INTEGER NOT NULL',
-    'user_name' => 'TEXT NOT NULL',
-    'rating' => 'INTEGER NOT NULL',
-    'comment' => 'TEXT',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'product_id' => $schema->integer()->notNull(),
+    'user_name' => $schema->string(255)->notNull(),
+    'rating' => $schema->integer()->notNull(),
+    'comment' => $schema->text(),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 echo "✓ Schema created\n\n";

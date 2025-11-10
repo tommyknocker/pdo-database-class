@@ -18,20 +18,21 @@ $driver = getCurrentDriver($db);
 
 echo "=== MERGE Statement Operations Example (on $driver) ===\n\n";
 
-// Setup target and source tables
+// Setup target and source tables using fluent API (cross-dialect)
+$schema = $db->schema();
 recreateTable($db, 'products', [
-    'id' => 'INTEGER PRIMARY KEY',
-    'name' => 'VARCHAR(100)',
-    'price' => 'DECIMAL(10,2)',
-    'stock' => 'INTEGER DEFAULT 0',
-    'updated_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
-]);
+    'id' => $schema->integer()->notNull(),
+    'name' => $schema->string(100),
+    'price' => $schema->decimal(10, 2),
+    'stock' => $schema->integer()->defaultValue(0),
+    'updated_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
+], ['primaryKey' => ['id']]);
 
 recreateTable($db, 'product_updates', [
-    'id' => 'INTEGER',
-    'name' => 'VARCHAR(100)',
-    'price' => 'DECIMAL(10,2)',
-    'stock' => 'INTEGER'
+    'id' => $schema->integer(),
+    'name' => $schema->string(100),
+    'price' => $schema->decimal(10, 2),
+    'stock' => $schema->integer(),
 ]);
 
 echo "✓ Tables created\n\n";

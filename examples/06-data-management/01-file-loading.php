@@ -16,14 +16,15 @@ $driver = getCurrentDriver($db);
 
 echo "=== JSON File Loading Example (on $driver) ===\n\n";
 
-// Create table
+// Create table using fluent API (cross-dialect)
+$schema = $db->schema();
 $driver = getCurrentDriver($db);
 recreateTable($db, 'products', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'price' => 'NUMERIC(10,2)',
-    'stock' => 'INTEGER',
-    'category' => 'TEXT'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255),
+    'price' => $schema->decimal(10, 2),
+    'stock' => $schema->integer(),
+    'category' => $schema->string(100),
 ]);
 
 echo "✓ Table created\n\n";

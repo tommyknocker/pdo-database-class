@@ -12,25 +12,37 @@ $db = createExampleDb($config);
 
 echo "=== Set Operations (UNION, INTERSECT, EXCEPT) ===\n\n";
 
-// Create test tables
+// Create test tables using fluent API (cross-dialect)
+$schema = $db->schema();
 $driver = getCurrentDriver($db);
-$db->rawQuery('DROP TABLE IF EXISTS products_eu');
-$db->rawQuery('DROP TABLE IF EXISTS products_us');
-$db->rawQuery('DROP TABLE IF EXISTS orders_2023');
-$db->rawQuery('DROP TABLE IF EXISTS orders_2024');
+$schema->dropTableIfExists('products_eu');
+$schema->dropTableIfExists('products_us');
+$schema->dropTableIfExists('orders_2023');
+$schema->dropTableIfExists('orders_2024');
 
-if ($driver === 'sqlsrv') {
-    // MSSQL doesn't support TEXT in UNION operations, use NVARCHAR instead
-    $db->rawQuery('CREATE TABLE products_eu (id INT PRIMARY KEY, name NVARCHAR(255), price DECIMAL(10,2))');
-    $db->rawQuery('CREATE TABLE products_us (id INT PRIMARY KEY, name NVARCHAR(255), price DECIMAL(10,2))');
-    $db->rawQuery('CREATE TABLE orders_2023 (id INT PRIMARY KEY, product_id INT, amount DECIMAL(10,2))');
-    $db->rawQuery('CREATE TABLE orders_2024 (id INT PRIMARY KEY, product_id INT, amount DECIMAL(10,2))');
-} else {
-    $db->rawQuery('CREATE TABLE products_eu (id INTEGER PRIMARY KEY, name TEXT, price DECIMAL(10,2))');
-    $db->rawQuery('CREATE TABLE products_us (id INTEGER PRIMARY KEY, name TEXT, price DECIMAL(10,2))');
-    $db->rawQuery('CREATE TABLE orders_2023 (id INTEGER PRIMARY KEY, product_id INTEGER, amount DECIMAL(10,2))');
-    $db->rawQuery('CREATE TABLE orders_2024 (id INTEGER PRIMARY KEY, product_id INTEGER, amount DECIMAL(10,2))');
-}
+$schema->createTable('products_eu', [
+    'id' => $schema->integer()->notNull(),
+    'name' => $schema->string(255), // MSSQL will use NVARCHAR automatically
+    'price' => $schema->decimal(10, 2),
+], ['primaryKey' => ['id']]);
+
+$schema->createTable('products_us', [
+    'id' => $schema->integer()->notNull(),
+    'name' => $schema->string(255),
+    'price' => $schema->decimal(10, 2),
+], ['primaryKey' => ['id']]);
+
+$schema->createTable('orders_2023', [
+    'id' => $schema->integer()->notNull(),
+    'product_id' => $schema->integer(),
+    'amount' => $schema->decimal(10, 2),
+], ['primaryKey' => ['id']]);
+
+$schema->createTable('orders_2024', [
+    'id' => $schema->integer()->notNull(),
+    'product_id' => $schema->integer(),
+    'amount' => $schema->decimal(10, 2),
+], ['primaryKey' => ['id']]);
 
 // Insert sample data
 $db->find()->table('products_eu')->insertMulti([

@@ -19,58 +19,46 @@ echo "=== Full-Text Search Examples ($driver) ===\n\n";
 // Create a table for testing full-text search
 echo "Setting up test table with full-text index...\n";
 
-$tableDef = match ($driver) {
-    'mysql' => [
-        'id' => 'INT AUTO_INCREMENT PRIMARY KEY',
-        'title' => 'VARCHAR(255)',
-        'content' => 'TEXT',
-        'FULLTEXT (title, content)' => ''
-    ],
-    'pgsql' => [
-        'id' => 'SERIAL PRIMARY KEY',
-        'title' => 'VARCHAR(255)',
-        'content' => 'TEXT',
-        'ts_vector' => 'TSVECTOR GENERATED ALWAYS AS (to_tsvector(\'english\', title || \' \' || content)) STORED'
-    ],
-    'sqlsrv' => [
-        'id' => 'INT IDENTITY(1,1) PRIMARY KEY',
-        'title' => 'NVARCHAR(255)',
-        'content' => 'NTEXT'
-    ],
-    'sqlite' => [
-        'id' => 'INTEGER PRIMARY KEY',
-        'title' => 'TEXT',
-        'content' => 'TEXT'
-    ]
-};
-
-$autoIncrement = match ($driver) {
-    'pgsql' => 'SERIAL PRIMARY KEY',
-    'sqlsrv' => 'INT IDENTITY(1,1) PRIMARY KEY',
-    default => 'INT AUTO_INCREMENT PRIMARY KEY'
-};
-
+// Create table using fluent API (cross-dialect)
+$schema = $db->schema();
 try {
-    $db->rawQuery("DROP TABLE IF EXISTS articles");
+    $schema->dropTableIfExists('articles');
     
-    $sql = getCreateTableSql($db, 'articles', $tableDef);
-    $db->rawQuery($sql);
+    // Create table with fluent API
+    $schema->createTable('articles', [
+        'id' => $schema->primaryKey(),
+        'title' => $schema->string(255),
+        'content' => $schema->text(),
+    ]);
     
-    // Create full-text index for SQLite (FTS5)
+    // Create full-text index for MySQL/MariaDB
+    if (in_array($driver, ['mysql', 'mariadb'])) {
+        $db->rawQuery("ALTER TABLE articles ADD FULLTEXT INDEX ft_idx (title, content)");
+    }
+    
+    // Create full-text index for PostgreSQL
+    if ($driver === 'pgsql') {
+        $db->rawQuery("ALTER TABLE articles ADD COLUMN ts_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', title || ' ' || content)) STORED");
+        $db->rawQuery("CREATE INDEX articles_ts_vector_idx ON articles USING GIN(ts_vector)");
+    }
+    
+    // Create full-text index for SQLite (FTS5 virtual table)
     if ($driver === 'sqlite') {
-        $db->rawQuery("CREATE VIRTUAL TABLE IF NOT EXISTS articles USING fts5(title, content)");
+        $schema->dropTable('articles');
+        $db->rawQuery("CREATE VIRTUAL TABLE articles USING fts5(title, content)");
     }
     
     echo "✓ Table created\n\n";
-} catch (Exception $e) {
+} catch (\Exception $e) {
     echo "Note: Full-text indexes may require special setup\n";
     echo "Error: " . $e->getMessage() . "\n";
     
     // Create simple table without full-text index for demonstration
+    $schema->dropTableIfExists('articles');
     recreateTable($db, 'articles', [
-        'id' => $autoIncrement,
-        'title' => 'VARCHAR(255)',
-        'content' => 'TEXT'
+        'id' => $schema->primaryKey(),
+        'title' => $schema->string(255),
+        'content' => $schema->text(),
     ]);
 }
 

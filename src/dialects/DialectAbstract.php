@@ -717,6 +717,24 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function getTextType(): string
+    {
+        // Default: TEXT for MySQL/MariaDB/PostgreSQL/SQLite
+        return 'TEXT';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getCharType(): string
+    {
+        // Default: CHAR for MySQL/MariaDB/PostgreSQL
+        return 'CHAR';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatMaterializedCte(string $cteSql, bool $isMaterialized): string
     {
         // Default: no materialization support

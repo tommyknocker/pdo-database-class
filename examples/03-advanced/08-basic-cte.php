@@ -17,128 +17,31 @@ echo "Database: $driver\n\n";
 
 $pdoDb = createExampleDb($config);
 
-// Create test tables based on driver
-if ($driver === 'mysql' || $driver === 'mariadb') {
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS products');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS sales');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS employees');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE products (
-            id INT PRIMARY KEY,
-            name VARCHAR(100),
-            category VARCHAR(50),
-            price DECIMAL(10,2)
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE sales (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            product_id INT,
-            quantity INT,
-            sale_date DATE
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE employees (
-            id INT PRIMARY KEY,
-            name VARCHAR(100),
-            manager_id INT NULL
-        )
-    ');
-} elseif ($driver === 'pgsql') {
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS products CASCADE');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS sales CASCADE');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS employees CASCADE');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE products (
-            id INTEGER PRIMARY KEY,
-            name VARCHAR(100),
-            category VARCHAR(50),
-            price DECIMAL(10,2)
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE sales (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER,
-            quantity INTEGER,
-            sale_date DATE
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE employees (
-            id INTEGER PRIMARY KEY,
-            name VARCHAR(100),
-            manager_id INTEGER NULL
-        )
-    ');
-} elseif ($driver === 'sqlsrv') {
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS products');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS sales');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS employees');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE products (
-            id INT PRIMARY KEY,
-            name NVARCHAR(100),
-            category NVARCHAR(50),
-            price DECIMAL(10,2)
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE sales (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            product_id INT,
-            quantity INT,
-            sale_date DATE
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE employees (
-            id INT PRIMARY KEY,
-            name NVARCHAR(100),
-            manager_id INT NULL
-        )
-    ');
-} else {
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS products');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS sales');
-    $pdoDb->rawQuery('DROP TABLE IF EXISTS employees');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE products (
-            id INTEGER PRIMARY KEY,
-            name TEXT,
-            category TEXT,
-            price REAL
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE sales (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            product_id INTEGER,
-            quantity INTEGER,
-            sale_date TEXT
-        )
-    ');
-    
-    $pdoDb->rawQuery('
-        CREATE TABLE employees (
-            id INTEGER PRIMARY KEY,
-            name TEXT,
-            manager_id INTEGER NULL
-        )
-    ');
-}
+// Create test tables using fluent API (cross-dialect)
+$schema = $pdoDb->schema();
+$schema->dropTableIfExists('products');
+$schema->dropTableIfExists('sales');
+$schema->dropTableIfExists('employees');
+
+$schema->createTable('products', [
+    'id' => $schema->integer()->notNull(),
+    'name' => $schema->string(100),
+    'category' => $schema->string(50),
+    'price' => $schema->decimal(10, 2),
+], ['primaryKey' => ['id']]);
+
+$schema->createTable('sales', [
+    'id' => $schema->primaryKey(),
+    'product_id' => $schema->integer(),
+    'quantity' => $schema->integer(),
+    'sale_date' => $schema->date(),
+]);
+
+$schema->createTable('employees', [
+    'id' => $schema->integer()->notNull(),
+    'name' => $schema->string(100),
+    'manager_id' => $schema->integer(),
+], ['primaryKey' => ['id']]);
 
 // Insert sample data
 $pdoDb->find()->table('products')->insertMulti([

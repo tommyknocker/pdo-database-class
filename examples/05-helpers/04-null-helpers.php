@@ -16,7 +16,15 @@ $driver = getCurrentDriver($db);
 echo "=== NULL Handling Helpers Example (on $driver) ===\n\n";
 
 // Setup
-recreateTable($db, 'users', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'name' => 'TEXT', 'email' => 'TEXT', 'phone' => 'TEXT', 'address' => 'TEXT', 'bio' => 'TEXT']);
+$schema = $db->schema();
+recreateTable($db, 'users', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text(),
+    'email' => $schema->text(),
+    'phone' => $schema->text(),
+    'address' => $schema->text(),
+    'bio' => $schema->text(),
+]);
 
 $db->find()->table('users')->insertMulti([
     ['name' => 'Alice', 'email' => 'alice@example.com', 'phone' => '555-0001', 'address' => '123 Main St', 'bio' => 'Developer'],

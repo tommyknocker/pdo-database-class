@@ -27,38 +27,15 @@ echo "----------------------------------\n";
 try {
     $db = createExampleDb();
 
-    // Create a test table
-    $db->rawQuery('DROP TABLE IF EXISTS debug_users');
-    $driverName = getCurrentDriver($db);
-    if ($driverName === 'mysql' || $driverName === 'mariadb') {
-        $db->rawQuery('CREATE TABLE debug_users (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            name VARCHAR(255),
-            email VARCHAR(255),
-            age INT
-        )');
-    } elseif ($driverName === 'pgsql') {
-        $db->rawQuery('CREATE TABLE debug_users (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255),
-            email VARCHAR(255),
-            age INT
-        )');
-    } elseif ($driverName === 'sqlsrv') {
-        $db->rawQuery('CREATE TABLE debug_users (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            name NVARCHAR(255),
-            email NVARCHAR(255),
-            age INT
-        )');
-    } else {
-        $db->rawQuery('CREATE TABLE debug_users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            email TEXT,
-            age INTEGER
-        )');
-    }
+    // Create a test table using fluent API (cross-dialect)
+    $schema = $db->schema();
+    $schema->dropTableIfExists('debug_users');
+    $schema->createTable('debug_users', [
+        'id' => $schema->primaryKey(),
+        'name' => $schema->string(255),
+        'email' => $schema->string(255),
+        'age' => $schema->integer(),
+    ]);
 
     // Build a query
     $query = $db->find()
@@ -133,38 +110,15 @@ echo "------------------------------------------\n";
 try {
     $db = createExampleDb();
 
-    // Create a table with constraints
-    $db->rawQuery('DROP TABLE IF EXISTS debug_accounts');
-    $driverName = getCurrentDriver($db);
-    if ($driverName === 'mysql' || $driverName === 'mariadb') {
-        $db->rawQuery('CREATE TABLE debug_accounts (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            username VARCHAR(255) UNIQUE,
-            password VARCHAR(255),
-            email VARCHAR(255)
-        )');
-    } elseif ($driverName === 'pgsql') {
-        $db->rawQuery('CREATE TABLE debug_accounts (
-            id SERIAL PRIMARY KEY,
-            username VARCHAR(255) UNIQUE,
-            password VARCHAR(255),
-            email VARCHAR(255)
-        )');
-    } elseif ($driverName === 'sqlsrv') {
-        $db->rawQuery('CREATE TABLE debug_accounts (
-            id INT IDENTITY(1,1) PRIMARY KEY,
-            username NVARCHAR(255) UNIQUE,
-            password NVARCHAR(255),
-            email NVARCHAR(255)
-        )');
-    } else {
-        $db->rawQuery('CREATE TABLE debug_accounts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT,
-            email TEXT
-        )');
-    }
+    // Create a table with constraints using fluent API (cross-dialect)
+    $schema = $db->schema();
+    $schema->dropTableIfExists('debug_accounts');
+    $schema->createTable('debug_accounts', [
+        'id' => $schema->primaryKey(),
+        'username' => $schema->string(255)->unique(),
+        'password' => $schema->string(255),
+        'email' => $schema->string(255),
+    ]);
 
     // Insert a user
     $db->find()->from('debug_accounts')->insert([

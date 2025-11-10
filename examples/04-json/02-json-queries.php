@@ -15,13 +15,14 @@ $driver = getCurrentDriver($db);
 
 echo "=== JSON Queries Example (on $driver) ===\n\n";
 
-// Setup
+// Setup using fluent API (cross-dialect)
+$schema = $db->schema();
 $driver = getCurrentDriver($db);
 recreateTable($db, 'products', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'specs' => $driver === 'pgsql' ? 'JSONB' : 'TEXT',
-    'tags' => $driver === 'pgsql' ? 'JSONB' : 'TEXT'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255),
+    'specs' => $driver === 'pgsql' ? $schema->json() : $schema->text(),
+    'tags' => $driver === 'pgsql' ? $schema->json() : $schema->text(),
 ]);
 
 echo "1. Inserting products with nested JSON...\n";

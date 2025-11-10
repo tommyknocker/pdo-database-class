@@ -365,21 +365,12 @@ echo "\n";
     'description' => ($driver === 'sqlsrv') ? $db->schema()->string(null) : $db->schema()->text(),
 ]);
 
-// Create junction table with composite primary key (dialect-specific)
-$driver = getCurrentDriver($db);
-if ($driver === 'sqlite') {
-    $db->rawQuery('CREATE TABLE user_project (
-        user_id INTEGER NOT NULL,
-        project_id INTEGER NOT NULL,
-        PRIMARY KEY (user_id, project_id)
-    )');
-} else {
-    $db->schema()->createTable('user_project', [
-        'user_id' => $db->schema()->integer()->notNull(),
-        'project_id' => $db->schema()->integer()->notNull(),
-    ]);
-    $db->rawQuery('ALTER TABLE user_project ADD PRIMARY KEY (user_id, project_id)');
-}
+// Create junction table with composite primary key (cross-dialect)
+$schema = $db->schema();
+$schema->createTable('user_project', [
+    'user_id' => $schema->integer()->notNull(),
+    'project_id' => $schema->integer()->notNull(),
+], ['primaryKey' => ['user_id', 'project_id']]);
 
 // Define Project model with relation to User
 class Project extends Model

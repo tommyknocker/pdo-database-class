@@ -127,30 +127,15 @@ echo "=== PSR-14 Event Dispatcher Example ===\n\n";
 // Create table (will trigger connection opened and query executed events)
 echo "1. Creating table...\n";
 $driver = getCurrentDriver($db);
-if ($driver === 'sqlsrv') {
-    $autoIncrement = 'INT IDENTITY(1,1) PRIMARY KEY';
-    $timestamp = 'DATETIME DEFAULT GETDATE()';
-    $varchar = 'NVARCHAR';
-} elseif ($driver === 'mysql' || $driver === 'mariadb') {
-    $autoIncrement = 'INT AUTO_INCREMENT PRIMARY KEY';
-    $timestamp = 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP';
-    $varchar = 'VARCHAR';
-} elseif ($driver === 'pgsql') {
-    $autoIncrement = 'SERIAL PRIMARY KEY';
-    $timestamp = 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP';
-    $varchar = 'VARCHAR';
-} else {
-    $autoIncrement = 'INTEGER PRIMARY KEY AUTOINCREMENT';
-    $timestamp = 'DATETIME DEFAULT CURRENT_TIMESTAMP';
-    $varchar = 'TEXT';
-}
-$db->rawQuery("DROP TABLE IF EXISTS users");
-$db->rawQuery("CREATE TABLE users (
-    id $autoIncrement,
-    name {$varchar}(255) NOT NULL,
-    email {$varchar}(255) NOT NULL,
-    created_at $timestamp
-)");
+// Create table using fluent API (cross-dialect)
+$schema = $db->schema();
+$schema->dropTableIfExists('users');
+$schema->createTable('users', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255)->notNull(),
+    'email' => $schema->string(255)->notNull(),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
+]);
 
 // Insert data (will trigger query executed events)
 echo "\n2. Inserting data...\n";

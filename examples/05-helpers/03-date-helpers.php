@@ -15,13 +15,14 @@ $driver = getCurrentDriver($db);
 
 echo "=== Date and Time Helpers Example (on $driver) ===\n\n";
 
-// Setup
+// Setup using fluent API (cross-dialect)
+$schema = $db->schema();
 recreateTable($db, 'events', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'title' => 'TEXT',
-    'event_date' => 'DATE',
-    'event_time' => 'TIME',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'title' => $schema->string(255),
+    'event_date' => $schema->date(),
+    'event_time' => $schema->time(),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 echo "1. Inserting events with current timestamp...\n";

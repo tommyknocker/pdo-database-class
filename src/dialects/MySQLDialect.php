@@ -1150,6 +1150,13 @@ class MySQLDialect extends DialectAbstract
             $columnDefs[] = 'PRIMARY KEY (' . $this->quoteIdentifier($primaryKeyColumn) . ')';
         }
 
+        // Add PRIMARY KEY constraint from options if specified
+        if (!empty($options['primaryKey'])) {
+            $pkColumns = is_array($options['primaryKey']) ? $options['primaryKey'] : [$options['primaryKey']];
+            $pkQuoted = array_map([$this, 'quoteIdentifier'], $pkColumns);
+            $columnDefs[] = 'PRIMARY KEY (' . implode(', ', $pkQuoted) . ')';
+        }
+
         $sql = "CREATE TABLE {$tableQuoted} (\n    " . implode(",\n    ", $columnDefs) . "\n)";
 
         // Add table options
@@ -1328,13 +1335,25 @@ class MySQLDialect extends DialectAbstract
         $nameQuoted = $this->quoteIdentifier($name);
         $type = $schema->getType();
 
+        // MySQL/MariaDB don't support DEFAULT for TEXT/BLOB columns
+        // Convert TEXT to VARCHAR(255) if DEFAULT is specified (Yii2-style behavior)
+        $length = $schema->getLength();
+        if (($type === 'TEXT' || $type === 'BLOB' || $type === 'LONGTEXT' || $type === 'MEDIUMTEXT' || $type === 'TINYTEXT')
+            && $schema->getDefaultValue() !== null) {
+            $type = 'VARCHAR';
+            // Use default length for VARCHAR if not specified
+            if ($length === null) {
+                $length = 255;
+            }
+        }
+
         // Build type with length/scale
         $typeDef = $type;
-        if ($schema->getLength() !== null) {
+        if ($length !== null) {
             if ($schema->getScale() !== null) {
-                $typeDef .= '(' . $schema->getLength() . ',' . $schema->getScale() . ')';
+                $typeDef .= '(' . $length . ',' . $schema->getScale() . ')';
             } else {
-                $typeDef .= '(' . $schema->getLength() . ')';
+                $typeDef .= '(' . $length . ')';
             }
         }
 
@@ -1494,6 +1513,22 @@ class MySQLDialect extends DialectAbstract
             }
         }
         return $cteSql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getTextType(): string
+    {
+        return 'TEXT';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getCharType(): string
+    {
+        return 'CHAR';
     }
 
     /**

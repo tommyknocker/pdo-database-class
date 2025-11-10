@@ -15,53 +15,16 @@ echo "Database: $driver\n\n";
 
 $db = createExampleDb($config);
 
-// Create test table with sample sales data
-if ($driver === 'sqlite') {
-    $db->rawQuery('DROP TABLE IF EXISTS sales');
-    $db->rawQuery('CREATE TABLE sales (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        product TEXT NOT NULL,
-        region TEXT NOT NULL,
-        amount INTEGER NOT NULL,
-        sale_date TEXT NOT NULL
-    )');
-} elseif ($driver === 'pgsql') {
-    $db->rawQuery('DROP TABLE IF EXISTS sales CASCADE');
-    $db->rawQuery('CREATE TABLE sales (
-        id SERIAL PRIMARY KEY,
-        product VARCHAR(100) NOT NULL,
-        region VARCHAR(50) NOT NULL,
-        amount INTEGER NOT NULL,
-        sale_date DATE NOT NULL
-    )');
-} elseif ($driver === 'mariadb') {
-    $db->rawQuery('DROP TABLE IF EXISTS sales');
-    $db->rawQuery('CREATE TABLE sales (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        product VARCHAR(100) NOT NULL,
-        region VARCHAR(50) NOT NULL,
-        amount INT NOT NULL,
-        sale_date DATE NOT NULL
-    ) ENGINE=InnoDB');
-} elseif ($driver === 'sqlsrv') {
-    $db->rawQuery('DROP TABLE IF EXISTS sales');
-    $db->rawQuery('CREATE TABLE sales (
-        id INT IDENTITY(1,1) PRIMARY KEY,
-        product NVARCHAR(100) NOT NULL,
-        region NVARCHAR(50) NOT NULL,
-        amount INT NOT NULL,
-        sale_date DATE NOT NULL
-    )');
-} else { // mysql
-    $db->rawQuery('DROP TABLE IF EXISTS sales');
-    $db->rawQuery('CREATE TABLE sales (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        product VARCHAR(100) NOT NULL,
-        region VARCHAR(50) NOT NULL,
-        amount INT NOT NULL,
-        sale_date DATE NOT NULL
-    ) ENGINE=InnoDB');
-}
+// Create test table with sample sales data using fluent API (cross-dialect)
+$schema = $db->schema();
+$schema->dropTableIfExists('sales');
+$schema->createTable('sales', [
+    'id' => $schema->primaryKey(),
+    'product' => $schema->string(100)->notNull(),
+    'region' => $schema->string(50)->notNull(),
+    'amount' => $schema->integer()->notNull(),
+    'sale_date' => $schema->date()->notNull(),
+], ['engine' => 'InnoDB']); // MySQL/MariaDB table option
 
 // Insert sample data
 $db->find()->table('sales')->insertMulti([

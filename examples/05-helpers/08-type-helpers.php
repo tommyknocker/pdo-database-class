@@ -16,13 +16,14 @@ $driver = getCurrentDriver($db);
 echo "=== Type Helper Functions Example (on $driver) ===\n\n";
 
 // Setup
+$schema = $db->schema();
 recreateTable($db, 'data_types', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'text_value' => 'TEXT',
-    'numeric_value' => 'REAL',
-    'date_value' => 'TEXT',
-    'boolean_value' => 'BOOLEAN',
-    'mixed_value' => 'TEXT'
+    'id' => $schema->primaryKey(),
+    'text_value' => $schema->text(),
+    'numeric_value' => $schema->decimal(10, 2),
+    'date_value' => $schema->text(),
+    'boolean_value' => $schema->boolean(),
+    'mixed_value' => $schema->text(),
 ]);
 
 $db->find()->table('data_types')->insertMulti([

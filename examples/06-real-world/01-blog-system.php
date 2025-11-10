@@ -18,48 +18,50 @@ echo "=== Blog System Example (on $driver) ===\n\n";
 // Create schema
 echo "Setting up blog database schema...\n";
 
+// Setup using fluent API (cross-dialect)
+$schema = $db->schema();
+$driver = getCurrentDriver($db);
+
 recreateTable($db, 'users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'username' => 'TEXT UNIQUE NOT NULL',
-    'email' => 'TEXT UNIQUE NOT NULL',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'username' => $schema->string(100)->unique()->notNull(),
+    'email' => $schema->string(255)->unique()->notNull(),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
-$driver = getCurrentDriver($db);
 recreateTable($db, 'posts', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'title' => 'TEXT NOT NULL',
-    'slug' => 'TEXT UNIQUE NOT NULL',
-    'content' => 'TEXT',
-    'author_id' => 'INTEGER',
-    'meta' => $driver === 'pgsql' ? 'JSONB' : 'TEXT',
-    'status' => 'TEXT DEFAULT \'draft\'',
-    'view_count' => 'INTEGER DEFAULT 0',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP',
-    'published_at' => 'DATETIME'
+    'id' => $schema->primaryKey(),
+    'title' => $schema->string(255)->notNull(),
+    'slug' => $schema->string(255)->unique()->notNull(),
+    'content' => $schema->text(),
+    'author_id' => $schema->integer(),
+    'meta' => $driver === 'pgsql' ? $schema->json() : $schema->text(),
+    'status' => $schema->string(50)->defaultValue('draft'),
+    'view_count' => $schema->integer()->defaultValue(0),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
+    'published_at' => $schema->datetime(),
 ]);
 
 recreateTable($db, 'comments', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'post_id' => 'INTEGER',
-    'author_name' => 'TEXT',
-    'author_email' => 'TEXT',
-    'content' => 'TEXT',
-    'status' => 'TEXT DEFAULT \'pending\'',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'post_id' => $schema->integer(),
+    'author_name' => $schema->string(255),
+    'author_email' => $schema->string(255),
+    'content' => $schema->text(),
+    'status' => $schema->string(50)->defaultValue('pending'),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 recreateTable($db, 'tags', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT UNIQUE',
-    'slug' => 'TEXT UNIQUE'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(100)->unique(),
+    'slug' => $schema->string(100)->unique(),
 ]);
 
 recreateTable($db, 'post_tags', [
-    'post_id' => 'INTEGER',
-    'tag_id' => 'INTEGER',
-    'PRIMARY KEY (post_id, tag_id)' => ''
-]);
+    'post_id' => $schema->integer()->notNull(),
+    'tag_id' => $schema->integer()->notNull(),
+], ['primaryKey' => ['post_id', 'tag_id']]);
 
 echo "✓ Schema created (users, posts, comments, tags, post_tags)\n\n";
 

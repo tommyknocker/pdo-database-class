@@ -16,14 +16,15 @@ $driver = getCurrentDriver($db);
 echo "=== Aggregations Example (on $driver) ===\n\n";
 
 // Setup
+$schema = $db->schema();
 recreateTable($db, 'sales', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'product' => 'TEXT',
-    'category' => 'TEXT',
-    'amount' => 'REAL',
-    'quantity' => 'INTEGER',
-    'region' => 'TEXT',
-    'sale_date' => 'DATE'
+    'id' => $schema->primaryKey(),
+    'product' => $schema->text(),
+    'category' => $schema->text(),
+    'amount' => $schema->decimal(10, 2),
+    'quantity' => $schema->integer(),
+    'region' => $schema->text(),
+    'sale_date' => $schema->date(),
 ]);
 
 $db->find()->table('sales')->insertMulti([

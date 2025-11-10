@@ -16,7 +16,14 @@ $driver = getCurrentDriver($db);
 echo "=== String Helper Functions Example (on $driver) ===\n\n";
 
 // Setup
-recreateTable($db, 'users', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'first_name' => 'TEXT', 'last_name' => 'TEXT', 'email' => 'TEXT', 'bio' => 'TEXT']);
+$schema = $db->schema();
+recreateTable($db, 'users', [
+    'id' => $schema->primaryKey(),
+    'first_name' => $schema->text(),
+    'last_name' => $schema->text(),
+    'email' => $schema->text(),
+    'bio' => $schema->text(),
+]);
 
 $db->find()->table('users')->insertMulti([
     ['first_name' => 'john', 'last_name' => 'doe', 'email' => 'JOHN@EXAMPLE.COM', 'bio' => '  Software Developer  '],
@@ -277,7 +284,12 @@ if ($driver === 'sqlite') {
 }
 
 // Insert test data with various email formats
-recreateTable($db, 'contacts', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'email' => 'TEXT', 'phone' => 'TEXT']);
+$schema = $db->schema();
+recreateTable($db, 'contacts', [
+    'id' => $schema->primaryKey(),
+    'email' => $schema->text(),
+    'phone' => $schema->text(),
+]);
 $db->find()->table('contacts')->insertMulti([
     ['email' => 'user@example.com', 'phone' => '+1-555-123-4567'],
     ['email' => 'admin@test.org', 'phone' => '+44-20-7946-0958'],

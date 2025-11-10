@@ -13,21 +13,22 @@ $driver = getCurrentDriver($db);
 
 echo "=== SQL Formatter Example (on {$driver}) ===\n\n";
 
-// Setup: Create sample tables
+// Setup: Create sample tables using fluent API (cross-dialect)
+$schema = $db->schema();
 recreateTable($db, 'users', [
-    'id' => 'INTEGER PRIMARY KEY',
-    'name' => 'VARCHAR(100)',
-    'email' => 'VARCHAR(100)',
-    'status' => 'VARCHAR(20)',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
-]);
+    'id' => $schema->integer()->notNull(),
+    'name' => $schema->string(100),
+    'email' => $schema->string(100),
+    'status' => $schema->string(20),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
+], ['primaryKey' => ['id']]);
 
 recreateTable($db, 'orders', [
-    'id' => 'INTEGER PRIMARY KEY',
-    'user_id' => 'INTEGER',
-    'total' => 'DECIMAL(10,2)',
-    'status' => 'VARCHAR(20)'
-]);
+    'id' => $schema->integer()->notNull(),
+    'user_id' => $schema->integer(),
+    'total' => $schema->decimal(10, 2),
+    'status' => $schema->string(20),
+], ['primaryKey' => ['id']]);
 
 echo "✓ Tables created\n\n";
 

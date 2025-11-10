@@ -1177,6 +1177,20 @@ interface DialectInterface
     public function getStringType(): string;
 
     /**
+     * Get text column type for this dialect.
+     *
+     * @return string Column type name (e.g., 'TEXT', 'NVARCHAR(MAX)')
+     */
+    public function getTextType(): string;
+
+    /**
+     * Get char column type for this dialect.
+     *
+     * @return string Column type name (e.g., 'CHAR', 'NCHAR')
+     */
+    public function getCharType(): string;
+
+    /**
      * Format MATERIALIZED keyword for CTE.
      *
      * Some dialects support materialized CTEs with different syntax.

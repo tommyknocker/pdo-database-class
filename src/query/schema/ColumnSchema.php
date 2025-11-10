@@ -303,4 +303,30 @@ class ColumnSchema
     {
         return $this->first;
     }
+
+    /**
+     * Set column type.
+     *
+     * @param string $type Column type
+     *
+     * @return static
+     */
+    public function setType(string $type): static
+    {
+        $this->type = $type;
+        return $this;
+    }
+
+    /**
+     * Set length.
+     *
+     * @param int|null $length Length or precision
+     *
+     * @return static
+     */
+    public function setLength(?int $length): static
+    {
+        $this->length = $length;
+        return $this;
+    }
 }

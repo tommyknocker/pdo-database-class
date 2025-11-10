@@ -16,12 +16,13 @@ $driver = getCurrentDriver($db);
 echo "=== Bulk Operations Example (on $driver) ===\n\n";
 
 // Setup
+$schema = $db->schema();
 recreateTable($db, 'users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'email' => 'TEXT',
-    'age' => 'INTEGER',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text(),
+    'email' => $schema->text(),
+    'age' => $schema->integer(),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 // Example 1: Single inserts (slow)

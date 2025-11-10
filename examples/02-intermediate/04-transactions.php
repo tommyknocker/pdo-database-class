@@ -16,13 +16,18 @@ $driver = getCurrentDriver($db);
 echo "=== Transaction Management Example (on $driver) ===\n\n";
 
 // Setup
-recreateTable($db, 'accounts', ['id' => 'INTEGER PRIMARY KEY AUTOINCREMENT', 'name' => 'TEXT', 'balance' => 'REAL DEFAULT 0']);
+$schema = $db->schema();
+recreateTable($db, 'accounts', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text(),
+    'balance' => $schema->decimal(10, 2)->defaultValue(0),
+]);
 recreateTable($db, 'transactions', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'from_account' => 'INTEGER',
-    'to_account' => 'INTEGER',
-    'amount' => 'REAL',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'from_account' => $schema->integer(),
+    'to_account' => $schema->integer(),
+    'amount' => $schema->decimal(10, 2),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 $db->find()->table('accounts')->insertMulti([

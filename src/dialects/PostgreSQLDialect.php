@@ -1351,6 +1351,13 @@ class PostgreSQLDialect extends DialectAbstract
             }
         }
 
+        // Add PRIMARY KEY constraint from options if specified
+        if (!empty($options['primaryKey'])) {
+            $pkColumns = is_array($options['primaryKey']) ? $options['primaryKey'] : [$options['primaryKey']];
+            $pkQuoted = array_map([$this, 'quoteIdentifier'], $pkColumns);
+            $columnDefs[] = 'PRIMARY KEY (' . implode(', ', $pkQuoted) . ')';
+        }
+
         $sql = "CREATE TABLE {$tableQuoted} (\n    " . implode(",\n    ", $columnDefs) . "\n)";
 
         // PostgreSQL table options (TABLESPACE, WITH, etc.)
@@ -1846,6 +1853,22 @@ class PostgreSQLDialect extends DialectAbstract
     public function getStringType(): string
     {
         return 'VARCHAR';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getTextType(): string
+    {
+        return 'TEXT';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getCharType(): string
+    {
+        return 'CHAR';
     }
 
     /**

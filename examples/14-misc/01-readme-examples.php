@@ -26,25 +26,26 @@ $db = createExampleDb();
 echo "=== README Examples Demo ===\n";
 echo "Driver: " . getCurrentDriver($db) . "\n\n";
 
-// Clean up and recreate tables
+// Clean up and recreate tables using fluent API
+$schema = $db->schema();
 $driver = getCurrentDriver($db);
 recreateTable($db, 'users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT NOT NULL',
-    'email' => 'TEXT UNIQUE',
-    'age' => 'INTEGER',
-    'status' => 'TEXT DEFAULT "active"',
-    'meta' => $driver === 'pgsql' ? 'JSONB' : 'TEXT', // PostgreSQL requires JSONB for JSON operations
-    'tags' => $driver === 'pgsql' ? 'JSONB' : 'TEXT', // PostgreSQL requires JSONB for JSON operations
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP',
-    'updated_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text()->notNull(),
+    'email' => $schema->text()->unique(),
+    'age' => $schema->integer(),
+    'status' => $schema->text()->defaultValue('active'),
+    'meta' => $driver === 'pgsql' ? $schema->json() : $schema->text(), // PostgreSQL uses JSON type
+    'tags' => $driver === 'pgsql' ? $schema->json() : $schema->text(), // PostgreSQL uses JSON type
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
+    'updated_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 recreateTable($db, 'orders', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'user_id' => 'INTEGER NOT NULL',
-    'amount' => 'REAL NOT NULL',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'user_id' => $schema->integer()->notNull(),
+    'amount' => $schema->decimal(10, 2)->notNull(),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 echo "1. Basic CRUD Operations\n";
@@ -495,10 +496,10 @@ echo "-------------------------------\n";
 
 // Create products table for CTE examples
 recreateTable($db, 'products', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT NOT NULL',
-    'category' => 'TEXT',
-    'price' => 'REAL'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text()->notNull(),
+    'category' => $schema->text(),
+    'price' => $schema->decimal(10, 2),
 ]);
 
 $db->find()->table('products')->insertMulti([
@@ -530,9 +531,9 @@ echo "CTE with UNION returned " . count($analysis) . " products\n";
 
 // Create categories table for recursive CTE
 recreateTable($db, 'categories', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT NOT NULL',
-    'parent_id' => 'INTEGER'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text()->notNull(),
+    'parent_id' => $schema->integer(),
 ]);
 
 // Insert categories data
@@ -605,9 +606,9 @@ echo "------------------------------------------\n";
 
 // Create test data for string helpers
 recreateTable($db, 'test_strings', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'email' => 'TEXT'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text(),
+    'email' => $schema->text(),
 ]);
 
 $db->find()->table('test_strings')->insertMulti([

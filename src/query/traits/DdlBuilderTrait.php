@@ -349,7 +349,21 @@ trait DdlBuilderTrait
      */
     public function text(): ColumnSchema
     {
-        return new ColumnSchema('TEXT');
+        $type = $this->dialect->getTextType();
+        return new ColumnSchema($type);
+    }
+
+    /**
+     * Create char column schema.
+     *
+     * @param int|null $length Char length
+     *
+     * @return ColumnSchema
+     */
+    public function char(?int $length = null): ColumnSchema
+    {
+        $type = $this->dialect->getCharType();
+        return new ColumnSchema($type, $length);
     }
 
     /**

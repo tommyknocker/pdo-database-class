@@ -15,15 +15,16 @@ $driver = getCurrentDriver($db);
 
 echo "=== Conditional Helper Functions Example (on $driver) ===\n\n";
 
-// Setup
+// Setup using fluent API (cross-dialect)
+$schema = $db->schema();
 recreateTable($db, 'orders', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'customer_name' => 'TEXT',
-    'amount' => 'REAL',
-    'status' => 'TEXT',
-    'priority' => 'TEXT',
-    'order_date' => 'TEXT',
-    'discount_percent' => 'REAL'
+    'id' => $schema->primaryKey(),
+    'customer_name' => $schema->string(255),
+    'amount' => $schema->decimal(10, 2),
+    'status' => $schema->string(50),
+    'priority' => $schema->string(50),
+    'order_date' => $schema->date(),
+    'discount_percent' => $schema->decimal(5, 2),
 ]);
 
 $db->find()->table('orders')->insertMulti([

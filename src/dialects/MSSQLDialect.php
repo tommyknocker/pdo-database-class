@@ -1571,6 +1571,13 @@ class MSSQLDialect extends DialectAbstract
             $columnDefs[] = 'PRIMARY KEY (' . $this->quoteIdentifier($primaryKeyColumn) . ')';
         }
 
+        // Add PRIMARY KEY constraint from options if specified
+        if (!empty($options['primaryKey'])) {
+            $pkColumns = is_array($options['primaryKey']) ? $options['primaryKey'] : [$options['primaryKey']];
+            $pkQuoted = array_map([$this, 'quoteIdentifier'], $pkColumns);
+            $columnDefs[] = 'PRIMARY KEY (' . implode(', ', $pkQuoted) . ')';
+        }
+
         $sql = "CREATE TABLE {$tableQuoted} (\n    " . implode(",\n    ", $columnDefs) . "\n)";
 
         // MSSQL table options
@@ -1748,9 +1755,15 @@ class MSSQLDialect extends DialectAbstract
         if ($type === 'BIT') {
             // BIT doesn't accept length in MSSQL
             $typeDef = 'BIT';
+        } elseif ($type === 'TEXT' || $type === 'LONGTEXT' || $type === 'MEDIUMTEXT' || $type === 'TINYTEXT') {
+            // MSSQL doesn't have TEXT type - use NVARCHAR(MAX) instead
+            $typeDef = 'NVARCHAR(MAX)';
         } elseif ($type === 'NVARCHAR' && $length === null) {
             // NVARCHAR without length defaults to NVARCHAR(MAX) in MSSQL
             $typeDef = 'NVARCHAR(MAX)';
+        } elseif ($type === 'VARCHAR' && $length === null) {
+            // VARCHAR without length defaults to VARCHAR(MAX) in MSSQL
+            $typeDef = 'VARCHAR(MAX)';
         } elseif ($length !== null) {
             $typeDef .= "({$length})";
         } elseif ($precision !== null && $scale !== null) {
@@ -1904,6 +1917,25 @@ class MSSQLDialect extends DialectAbstract
     {
         // MSSQL uses NVARCHAR for Unicode strings
         return 'NVARCHAR';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getTextType(): string
+    {
+        // MSSQL doesn't have TEXT type - use NVARCHAR(MAX)
+        // Conversion to NVARCHAR(MAX) happens in formatColumnDefinition
+        return 'TEXT';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getCharType(): string
+    {
+        // MSSQL uses NCHAR for Unicode fixed-length strings
+        return 'NCHAR';
     }
 
     /**

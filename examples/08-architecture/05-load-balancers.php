@@ -48,15 +48,13 @@ for ($i = 1; $i <= 3; $i++) {
     $db1->addConnection("read-$i", $readConfig);
 }
 
-// Create test table
-$db1->rawQuery('DROP TABLE IF EXISTS lb_test');
-if ($driver === 'sqlite') {
-    $db1->rawQuery('CREATE TABLE lb_test (id INTEGER PRIMARY KEY, name TEXT)');
-} elseif ($driver === 'pgsql') {
-    $db1->rawQuery('CREATE TABLE lb_test (id SERIAL PRIMARY KEY, name VARCHAR(255))');
-} else {
-    $db1->rawQuery('CREATE TABLE lb_test (id INT PRIMARY KEY, name VARCHAR(255))');
-}
+// Create test table using fluent API (cross-dialect)
+$schema1 = $db1->schema();
+$schema1->dropTableIfExists('lb_test');
+$schema1->createTable('lb_test', [
+    'id' => $schema1->integer()->notNull(),
+    'name' => $schema1->string(255),
+], ['primaryKey' => ['id']]);
 
 $db1->rawQuery("INSERT INTO lb_test (id, name) VALUES (1, 'Test')");
 

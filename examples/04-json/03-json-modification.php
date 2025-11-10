@@ -16,12 +16,13 @@ $driver = getCurrentDriver($db);
 
 echo "=== JSON Modification Helpers Example (on $driver) ===\n\n";
 
-// Setup
+// Setup using fluent API (cross-dialect)
+$schema = $db->schema();
 recreateTable($db, 'users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'meta' => $driver === 'pgsql' ? 'JSONB' : 'TEXT',
-    'preferences' => $driver === 'pgsql' ? 'JSONB' : 'TEXT'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255),
+    'meta' => $driver === 'pgsql' ? $schema->json() : $schema->text(),
+    'preferences' => $driver === 'pgsql' ? $schema->json() : $schema->text(),
 ]);
 
 echo "1. Inserting users with JSON metadata...\n";

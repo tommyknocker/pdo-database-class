@@ -15,16 +15,17 @@ $driver = getCurrentDriver($db);
 
 echo "=== Comparison Helper Functions Example (on $driver) ===\n\n";
 
-// Setup
+// Setup using fluent API (cross-dialect)
+$schema = $db->schema();
 recreateTable($db, 'products', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'price' => 'REAL',
-    'category' => 'TEXT',
-    'description' => 'TEXT',
-    'tags' => 'TEXT',
-    'rating' => 'REAL',
-    'in_stock' => 'BOOLEAN'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255),
+    'price' => $schema->decimal(10, 2),
+    'category' => $schema->string(100),
+    'description' => $schema->text(),
+    'tags' => $schema->string(255),
+    'rating' => $schema->decimal(3, 1),
+    'in_stock' => $schema->boolean(),
 ]);
 
 $db->find()->table('products')->insertMulti([

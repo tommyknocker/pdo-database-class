@@ -1157,6 +1157,13 @@ class SqliteDialect extends DialectAbstract
             }
         }
 
+        // Add PRIMARY KEY constraint from options if specified
+        if (!empty($options['primaryKey'])) {
+            $pkColumns = is_array($options['primaryKey']) ? $options['primaryKey'] : [$options['primaryKey']];
+            $pkQuoted = array_map([$this, 'quoteIdentifier'], $pkColumns);
+            $columnDefs[] = 'PRIMARY KEY (' . implode(', ', $pkQuoted) . ')';
+        }
+
         $sql = "CREATE TABLE {$tableQuoted} (\n    " . implode(",\n    ", $columnDefs) . "\n)";
 
         // SQLite doesn't support table options like MySQL/PostgreSQL
@@ -1487,6 +1494,24 @@ class SqliteDialect extends DialectAbstract
     public function getStringType(): string
     {
         // SQLite uses TEXT for strings
+        return 'TEXT';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getTextType(): string
+    {
+        // SQLite uses TEXT for all text types
+        return 'TEXT';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getCharType(): string
+    {
+        // SQLite doesn't distinguish CHAR/VARCHAR/TEXT - all are TEXT
         return 'TEXT';
     }
 

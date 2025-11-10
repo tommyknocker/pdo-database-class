@@ -16,11 +16,12 @@ $driver = getCurrentDriver($db);
 echo "=== Pagination Example (on $driver) ===\n\n";
 
 // Setup with 50 users
+$schema = $db->schema();
 recreateTable($db, 'users', [
-    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
-    'name' => 'TEXT',
-    'email' => 'TEXT',
-    'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
+    'id' => $schema->primaryKey(),
+    'name' => $schema->text(),
+    'email' => $schema->text(),
+    'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);
 
 echo "1. Inserting 50 users...\n";
