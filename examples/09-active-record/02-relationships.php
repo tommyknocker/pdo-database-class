@@ -333,19 +333,7 @@ echo "\nPublished posts count: {$postCount}\n";
 
 // Cleanup
 // Use Schema Builder to drop column (demonstrates proper library usage)
-// Note: MSSQL requires dropping default constraints first, which Schema Builder handles internally
 $schema = $db->schema();
-$driver = getCurrentDriver($db);
-if ($driver === 'sqlsrv') {
-    // MSSQL: Drop default constraint first, then drop column
-    // Schema Builder's dropColumn() doesn't handle default constraints automatically for MSSQL
-    // So we need to drop the constraint manually first
-    $constraintQuery = "SELECT name FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID('posts') AND parent_column_id = COLUMNPROPERTY(OBJECT_ID('posts'), 'published', 'ColumnId')";
-    $constraints = $db->rawQuery($constraintQuery);
-    foreach ($constraints as $constraint) {
-        $db->rawQuery("ALTER TABLE posts DROP CONSTRAINT [{$constraint['name']}]");
-    }
-}
 $schema->dropColumn('posts', 'published');
 echo "\n";
 
@@ -358,11 +346,10 @@ echo "\n";
     $db->schema()->dropTableIfExists('projects');
 
     // Create junction table and project table
-    // For MSSQL, use NVARCHAR(MAX) instead of TEXT to avoid DISTINCT issues
     $db->schema()->createTable('projects', [
     'id' => $db->schema()->primaryKey(),
     'name' => $db->schema()->string(100)->notNull(),
-    'description' => ($driver === 'sqlsrv') ? $db->schema()->string(null) : $db->schema()->text(),
+    'description' => $db->schema()->text(),
 ]);
 
 // Create junction table with composite primary key (cross-dialect)

@@ -61,40 +61,21 @@ $pdoDb->find()->table('employees_hierarchy')->insertMulti([
 
 // Example 1: Recursive CTE - Category hierarchy
 echo "1. Recursive CTE - Full category tree from 'Electronics':\n";
-// MSSQL requires explicit column qualification in recursive CTE
-if ($driverName === 'sqlsrv') {
-    $results = $pdoDb->find()
-        ->withRecursive('category_tree', function ($q) {
-            $q->from('categories')
-              ->select(['id', 'name', 'parent_id', Db::raw('0 as level')])
-              ->where('parent_id', null, 'IS')
-              ->unionAll(function ($r) {
-                  $r->from('categories c')
-                    ->select(['c.id', 'c.name', 'c.parent_id', Db::raw('[ct].[level] + 1 as level')])
-                    ->join('category_tree ct', 'c.parent_id = ct.id');
-              });
-        }, ['id', 'name', 'parent_id', 'level'])
-        ->from('category_tree')
-        ->orderBy('level')
-        ->orderBy($driverName === 'sqlsrv' ? Db::raw('CAST(name AS NVARCHAR(MAX))') : 'name')
-        ->get();
-} else {
-    $results = $pdoDb->find()
-        ->withRecursive('category_tree', function ($q) {
-            $q->from('categories')
-              ->select(['id', 'name', 'parent_id', Db::raw('0 as level')])
-              ->where('parent_id', null, 'IS')
-              ->unionAll(function ($r) {
-                  $r->from('categories c')
-                    ->select(['c.id', 'c.name', 'c.parent_id', Db::raw('ct.level + 1')])
-                    ->join('category_tree ct', 'c.parent_id = ct.id');
-              });
-        }, ['id', 'name', 'parent_id', 'level'])
-        ->from('category_tree')
-        ->orderBy('level')
-        ->orderBy('name')
-        ->get();
-}
+$results = $pdoDb->find()
+    ->withRecursive('category_tree', function ($q) {
+        $q->from('categories')
+          ->select(['id', 'name', 'parent_id', Db::raw('0 as level')])
+          ->where('parent_id', null, 'IS')
+          ->unionAll(function ($r) {
+              $r->from('categories c')
+                ->select(['c.id', 'c.name', 'c.parent_id', Db::raw('ct.level + 1 as level')])
+                ->join('category_tree ct', 'c.parent_id = ct.id');
+          });
+    }, ['id', 'name', 'parent_id', 'level'])
+    ->from('category_tree')
+    ->orderBy('level')
+    ->orderBy('name')
+    ->get();
 
 foreach ($results as $category) {
     $indent = str_repeat('  ', (int)$category['level']);

@@ -1635,7 +1635,36 @@ class MSSQLDialect extends DialectAbstract
     {
         $tableQuoted = $this->quoteTable($table);
         $columnQuoted = $this->quoteIdentifier($column);
-        return "ALTER TABLE {$tableQuoted} DROP COLUMN {$columnQuoted}";
+
+        // MSSQL requires dropping default constraints before dropping the column
+        // Extract table name without schema for OBJECT_ID
+        $tableParts = explode('.', $table);
+        $tableNameOnly = end($tableParts);
+        $tableNameOnly = trim($tableNameOnly, '[]');
+        $columnNameOnly = trim($column, '[]');
+
+        // Build SQL batch that drops default constraints first, then the column
+        // MSSQL allows multiple statements separated by semicolons
+        $dropConstraintsSql = "
+            DECLARE @constraintName NVARCHAR(255);
+            DECLARE constraint_cursor CURSOR FOR
+                SELECT name FROM sys.default_constraints
+                WHERE parent_object_id = OBJECT_ID('{$tableNameOnly}')
+                AND parent_column_id = COLUMNPROPERTY(OBJECT_ID('{$tableNameOnly}'), '{$columnNameOnly}', 'ColumnId');
+            OPEN constraint_cursor;
+            FETCH NEXT FROM constraint_cursor INTO @constraintName;
+            WHILE @@FETCH_STATUS = 0
+            BEGIN
+                DECLARE @sql NVARCHAR(MAX) = 'ALTER TABLE {$tableQuoted} DROP CONSTRAINT [' + @constraintName + ']';
+                EXEC sp_executesql @sql;
+                FETCH NEXT FROM constraint_cursor INTO @constraintName;
+            END;
+            CLOSE constraint_cursor;
+            DEALLOCATE constraint_cursor;
+        ";
+
+        // Return SQL batch that drops constraints first, then the column
+        return $dropConstraintsSql . ";\nALTER TABLE {$tableQuoted} DROP COLUMN {$columnQuoted}";
     }
 
     /**
