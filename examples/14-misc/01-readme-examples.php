@@ -191,7 +191,7 @@ $db->find()
     ->where('id', $userId)
     ->update([
         'age' => Db::raw('age + :inc', ['inc' => 5]), // No helper for arithmetic
-        'name' => Db::concat('name', '_updated')      // Using CONCAT helper
+        'name' => Db::concat('name', Db::raw("'_updated'")) // Using CONCAT helper with raw string literal
     ]);
 echo "Updated user with helper functions\n";
 
