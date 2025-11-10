@@ -327,7 +327,7 @@ if ($schema->tableExists('users')) {
 
 4. **Transaction Safety**: Wrap schema changes in transactions when possible (though some operations like `DROP COLUMN` in MySQL can't be rolled back).
 
-5. **Version Control**: Use migrations (see [Database Migrations](../05-advanced-features/migrations.md)) for schema version control.
+5. **Version Control**: Use migrations (see [Database Migrations](../05-advanced-features/15-migrations.md)) for schema version control.
 
 ## Examples
 
@@ -389,5 +389,5 @@ echo "Table 'posts' created successfully\n";
 ## Related Documentation
 
 - [Schema Introspection](schema-introspection.md) - Querying existing schema
-- [Database Migrations](../05-advanced-features/migrations.md) - Version-controlled schema changes
+- [Database Migrations](../05-advanced-features/15-migrations.md) - Version-controlled schema changes
 - [Dialect Support](../02-core-concepts/05-dialect-support.md) - Database-specific differences

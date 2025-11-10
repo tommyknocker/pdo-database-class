@@ -140,6 +140,6 @@ $db->find()->table('products')->insert([
 
 ## Next Steps
 
-- [JSON Basics](../04-json-operations/json-basics.md) - JSON fundamentals
-- [JSON Querying](../04-json-operations/json-querying.md) - Query JSON
-- [JSON Filtering](../04-json-operations/json-filtering.md) - Filter by JSON
+- [JSON Basics](../04-json-operations/01-json-basics.md) - JSON fundamentals
+- [JSON Querying](../04-json-operations/02-json-querying.md) - Query JSON
+- [JSON Filtering](../04-json-operations/03-json-filtering.md) - Filter by JSON

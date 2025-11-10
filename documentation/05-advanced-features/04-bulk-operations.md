@@ -149,4 +149,4 @@ foreach ($batches as $batch) {
 
 - [Batch Processing](batch-processing.md) - Process large datasets
 - [Transactions](transactions.md) - Ensure data consistency
-- [Performance](../08-best-practices/performance.md) - Optimization tips
+- [Performance](../08-best-practices/02-performance.md) - Optimization tips

@@ -109,5 +109,5 @@ function retryWithLogging(callable $operation, Logger $logger): mixed
 ## Next Steps
 
 - [Exception Hierarchy](exception-hierarchy.md) - Exception types
-- [Connection Retry](../05-advanced-features/connection-retry.md) - Automatic retry
+- [Connection Retry](../05-advanced-features/07-connection-retry.md) - Automatic retry
 - [Error Codes](error-codes.md) - Error constants

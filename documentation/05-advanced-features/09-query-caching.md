@@ -621,6 +621,6 @@ See [examples/14-caching/](../../examples/14-caching/) for complete working exam
 
 ## Related Documentation
 
-- [Performance Optimization](../08-best-practices/performance.md)
+- [Performance Optimization](../08-best-practices/02-performance.md)
 - [Connection Management](../02-core-concepts/02-connection-management.md)
 - [Query Builder Basics](../02-core-concepts/03-query-builder-basics.md)

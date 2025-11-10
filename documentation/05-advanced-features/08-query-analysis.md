@@ -298,6 +298,6 @@ foreach ($log as $query) {
 
 ## Next Steps
 
-- [Performance](../08-best-practices/performance.md) - Query optimization
-- [Common Pitfalls](../08-best-practices/common-pitfalls.md) - Mistakes to avoid
-- [Troubleshooting](../10-cookbook/troubleshooting.md) - Common issues
+- [Performance](../08-best-practices/02-performance.md) - Query optimization
+- [Common Pitfalls](../08-best-practices/05-common-pitfalls.md) - Mistakes to avoid
+- [Troubleshooting](../10-cookbook/04-troubleshooting.md) - Common issues

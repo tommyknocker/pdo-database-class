@@ -132,7 +132,7 @@ For those comfortable with basics and ready to learn advanced query building.
 
 **Resources:**
 - [Aggregations](../03-query-builder/05-aggregations.md)
-- [Aggregate Helpers](../07-helper-functions/aggregate-helpers.md)
+- [Aggregate Helpers](../07-helper-functions/08-aggregate-helpers.md)
 
 **Checkpoint:** Can you write queries with aggregations and grouping?
 
@@ -147,8 +147,8 @@ For those comfortable with basics and ready to learn advanced query building.
 - Understand when to use transactions
 
 **Resources:**
-- [Transactions](../05-advanced-features/transactions.md)
-- [Common Pitfalls](../08-best-practices/common-pitfalls.md)
+- [Transactions](../05-advanced-features/01-transactions.md)
+- [Common Pitfalls](../08-best-practices/05-common-pitfalls.md)
 
 **Checkpoint:** Can you wrap multiple operations in a transaction?
 
@@ -163,9 +163,9 @@ For those comfortable with basics and ready to learn advanced query building.
 - Update JSON documents
 
 **Resources:**
-- [JSON Basics](../04-json-operations/json-basics.md)
-- [JSON Querying](../04-json-operations/json-querying.md)
-- [JSON Filtering](../04-json-operations/json-filtering.md)
+- [JSON Basics](../04-json-operations/01-json-basics.md)
+- [JSON Querying](../04-json-operations/02-json-querying.md)
+- [JSON Filtering](../04-json-operations/03-json-filtering.md)
 
 **Checkpoint:** Can you store and query JSON data?
 
@@ -180,10 +180,10 @@ For those comfortable with basics and ready to learn advanced query building.
 - Comparison helpers (like, between, in)
 
 **Resources:**
-- [String Helpers](../07-helper-functions/string-helpers.md)
-- [Date Helpers](../07-helper-functions/date-helpers.md)
-- [NULL Helpers](../07-helper-functions/null-helpers.md)
-- [Comparison Helpers](../07-helper-functions/comparison-helpers.md)
+- [String Helpers](../07-helper-functions/02-string-helpers.md)
+- [Date Helpers](../07-helper-functions/04-date-helpers.md)
+- [NULL Helpers](../07-helper-functions/05-null-helpers.md)
+- [Comparison Helpers](../07-helper-functions/06-comparison-helpers.md)
 
 **Checkpoint:** Can you use helpers instead of raw SQL for common operations?
 
@@ -198,9 +198,9 @@ For those comfortable with basics and ready to learn advanced query building.
 - Log errors appropriately
 
 **Resources:**
-- [Exception Hierarchy](../06-error-handling/exception-hierarchy.md)
-- [Error Diagnostics](../06-error-handling/error-diagnostics.md)
-- [Logging](../06-error-handling/logging.md)
+- [Exception Hierarchy](../06-error-handling/01-exception-hierarchy.md)
+- [Error Diagnostics](../06-error-handling/03-error-diagnostics.md)
+- [Logging](../06-error-handling/05-logging.md)
 
 **Checkpoint:** Can you handle errors and debug database issues?
 
@@ -226,7 +226,7 @@ For those ready to master advanced features and optimizations.
 
 **Resources:**
 - [Window Functions](../03-query-builder/09-window-functions.md)
-- [Window Helpers](../07-helper-functions/window-helpers.md)
+- [Window Helpers](../07-helper-functions/09-window-helpers.md)
 
 **Checkpoint:** Can you write queries with window functions?
 
@@ -272,10 +272,10 @@ For those ready to master advanced features and optimizations.
 - Batch processing for large datasets
 
 **Resources:**
-- [Performance](../08-best-practices/performance.md)
-- [Query Analysis](../05-advanced-features/query-analysis.md)
-- [Query Caching](../05-advanced-features/query-caching.md)
-- [Batch Processing](../05-advanced-features/batch-processing.md)
+- [Performance](../08-best-practices/02-performance.md)
+- [Query Analysis](../05-advanced-features/08-query-analysis.md)
+- [Query Caching](../05-advanced-features/09-query-caching.md)
+- [Batch Processing](../05-advanced-features/03-batch-processing.md)
 
 **Checkpoint:** Can you identify and fix slow queries?
 
@@ -291,12 +291,12 @@ For those ready to master advanced features and optimizations.
 - Plugin system
 
 **Resources:**
-- [Read/Write Splitting](../05-advanced-features/read-write-splitting.md)
-- [Sharding](../05-advanced-features/sharding.md)
-- [Migrations](../05-advanced-features/migrations.md)
-- [Query Macros](../05-advanced-features/query-macros.md)
-- [Query Scopes](../05-advanced-features/query-scopes.md)
-- [Plugin System](../05-advanced-features/plugins.md)
+- [Read/Write Splitting](../05-advanced-features/13-read-write-splitting.md)
+- [Sharding](../05-advanced-features/14-sharding.md)
+- [Migrations](../05-advanced-features/15-migrations.md)
+- [Query Macros](../05-advanced-features/18-query-macros.md)
+- [Query Scopes](../05-advanced-features/19-query-scopes.md)
+- [Plugin System](../05-advanced-features/20-plugins.md)
 
 **Checkpoint:** Can you set up read/write splitting or sharding?
 
@@ -312,9 +312,9 @@ For those ready to master advanced features and optimizations.
 - Query scopes
 
 **Resources:**
-- [ActiveRecord](../05-advanced-features/active-record.md)
-- [ActiveRecord Relationships](../05-advanced-features/active-record-relationships.md)
-- [Query Scopes](../05-advanced-features/query-scopes.md)
+- [ActiveRecord](../05-advanced-features/16-active-record.md)
+- [ActiveRecord Relationships](../05-advanced-features/16-active-record-relationships.md)
+- [Query Scopes](../05-advanced-features/19-query-scopes.md)
 
 **Checkpoint:** Can you build a complete model with relationships?
 
@@ -329,15 +329,15 @@ You're now a PDOdb expert! Continue exploring advanced topics and contributing t
 ### Need to do something quickly?
 
 - [Quick Reference](07-quick-reference.md) - Common tasks with code snippets
-- [API Reference](../09-reference/api-reference.md) - Complete API documentation
-- [Troubleshooting](../10-cookbook/troubleshooting.md) - Common issues and solutions
+- [API Reference](../09-reference/01-api-reference.md) - Complete API documentation
+- [Troubleshooting](../10-cookbook/04-troubleshooting.md) - Common issues and solutions
 
 ### Not sure where to start?
 
 1. **Complete beginner?** → Start with [Installation](01-installation.md)
 2. **Know SQL but new to PDOdb?** → Start with [Hello World](06-hello-world.md)
 3. **Want to learn a specific feature?** → Use the search or table of contents
-4. **Having issues?** → Check [Troubleshooting](../10-cookbook/troubleshooting.md)
+4. **Having issues?** → Check [Troubleshooting](../10-cookbook/04-troubleshooting.md)
 
 ### Learning Tips
 
@@ -351,8 +351,8 @@ You're now a PDOdb expert! Continue exploring advanced topics and contributing t
 
 After completing your path:
 
-- Explore [Real-World Examples](../10-cookbook/real-world-examples.md)
-- Review [Common Patterns](../10-cookbook/common-patterns.md)
+- Explore [Real-World Examples](../10-cookbook/02-real-world-examples.md)
+- Review [Common Patterns](../10-cookbook/01-common-patterns.md)
 - Read [Best Practices](../08-best-practices/)
 - Contribute to the project!
 

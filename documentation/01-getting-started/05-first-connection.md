@@ -379,7 +379,7 @@ $db = new PdoDb('mysql', [
 ]);
 ```
 
-For more details, see [Connection Retry](../05-advanced-features/connection-retry.md).
+For more details, see [Connection Retry](../05-advanced-features/07-connection-retry.md).
 
 ## Next Steps
 

@@ -150,4 +150,4 @@ try {
 
 - [Transactions](transactions.md) - Transaction management
 - [Batch Processing](batch-processing.md) - Handle large datasets
-- [Performance](../08-best-practices/performance.md) - Optimization
+- [Performance](../08-best-practices/02-performance.md) - Optimization

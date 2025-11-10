@@ -366,4 +366,4 @@ foreach ($db->find()
 
 - [Bulk Operations](bulk-operations.md) - Bulk inserts and updates
 - [Transactions](transactions.md) - Transaction management
-- [Performance](../08-best-practices/performance.md) - Performance optimization
+- [Performance](../08-best-practices/02-performance.md) - Performance optimization

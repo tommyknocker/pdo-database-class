@@ -164,4 +164,4 @@ The nested data will be stored as JSON-encoded strings in the database.
 
 - [Bulk Operations](bulk-operations.md) - Multi-row operations
 - [Batch Processing](batch-processing.md) - Large datasets
-- [Troubleshooting](../10-cookbook/troubleshooting.md) - Common issues
+- [Troubleshooting](../10-cookbook/04-troubleshooting.md) - Common issues
