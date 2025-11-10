@@ -85,6 +85,48 @@ final class AdvancedHelpersTests extends BaseMSSQLTestCase
         $this->assertStringContainsString('Product 1', $row['names']);
         $this->assertStringContainsString('Product 2', $row['names']);
 
+        // Test Db::add() helper
+        $row = $db->find()->table('t_advanced')
+            ->select([
+                'price',
+                'price_plus_10' => Db::add('price', 10),
+                'price_plus_price' => Db::add('price', 'price'),
+                'constant_sum' => Db::add(5, 3),
+                'price_plus_float' => Db::add('price', 0.5),
+            ])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertEquals(109.99, round((float)$row['price_plus_10'], 2));
+        $this->assertEquals(199.98, round((float)$row['price_plus_price'], 2));
+        $this->assertEquals(8, (int)$row['constant_sum']);
+        $this->assertEquals(100.49, round((float)$row['price_plus_float'], 2));
+
         $connection->query('DROP TABLE t_advanced');
+    }
+
+    public function testAddHelperWithRawValue(): void
+    {
+        $db = self::$db;
+        $connection = $db->connection;
+        assert($connection !== null);
+
+        $connection->query('IF OBJECT_ID(\'t_add_test\', \'U\') IS NOT NULL DROP TABLE t_add_test');
+        $connection->query('CREATE TABLE t_add_test (id INT IDENTITY(1,1) PRIMARY KEY, value INT, multiplier INT)');
+        $db->find()->table('t_add_test')->insert([
+            'value' => 10,
+            'multiplier' => 2,
+        ]);
+
+        $row = $db->find()->table('t_add_test')
+            ->select([
+                'value',
+                'multiplier',
+                'computed' => Db::add('value', Db::raw('multiplier * 3')),
+            ])
+            ->getOne();
+
+        $this->assertEquals(16, (int)$row['computed']);
+
+        $connection->query('DROP TABLE t_add_test');
     }
 }

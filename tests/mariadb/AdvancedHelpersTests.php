@@ -81,5 +81,44 @@ final class AdvancedHelpersTests extends BaseMariaDBTestCase
         ->getOne();
         $this->assertStringContainsString('Product 1', $row['names']);
         $this->assertStringContainsString('Product 2', $row['names']);
+
+        // Test Db::add() helper
+        $row = $db->find()->table('t_advanced')
+            ->select([
+                'price',
+                'price_plus_10' => Db::add('price', 10),
+                'price_plus_price' => Db::add('price', 'price'),
+                'constant_sum' => Db::add(5, 3),
+                'price_plus_float' => Db::add('price', 0.5),
+            ])
+            ->where('id', $id1)
+            ->getOne();
+        $this->assertEquals(109.99, round((float)$row['price_plus_10'], 2));
+        $this->assertEquals(199.98, round((float)$row['price_plus_price'], 2));
+        $this->assertEquals(8, (int)$row['constant_sum']);
+        $this->assertEquals(100.49, round((float)$row['price_plus_float'], 2));
+    }
+
+    public function testAddHelperWithRawValue(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('DROP TABLE IF EXISTS t_add_test');
+        $db->rawQuery('CREATE TABLE t_add_test (id INT AUTO_INCREMENT PRIMARY KEY, value INT, multiplier INT)');
+        $db->find()->table('t_add_test')->insert([
+            'value' => 10,
+            'multiplier' => 2,
+        ]);
+
+        $row = $db->find()->table('t_add_test')
+            ->select([
+                'value',
+                'multiplier',
+                'computed' => Db::add('value', Db::raw('multiplier * 3')),
+            ])
+            ->getOne();
+
+        $this->assertEquals(16, (int)$row['computed']);
+
+        $db->rawQuery('DROP TABLE t_add_test');
     }
 }

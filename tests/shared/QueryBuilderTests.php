@@ -454,4 +454,60 @@ final class QueryBuilderTests extends BaseSharedTestCase
             ->last();
         $this->assertNull($empty);
     }
+
+    public function testIndexMethod(): void
+    {
+        // Insert test data
+        self::$db->find()->table('test_coverage')->insert(['name' => 'Alice', 'value' => 10]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'Bob', 'value' => 20]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'Charlie', 'value' => 30]);
+
+        // Test index() with default 'id' column
+        $indexedById = self::$db->find()
+            ->table('test_coverage')
+            ->index()
+            ->get();
+
+        $this->assertIsArray($indexedById);
+        $this->assertArrayHasKey(1, $indexedById);
+        $this->assertArrayHasKey(2, $indexedById);
+        $this->assertArrayHasKey(3, $indexedById);
+        $this->assertEquals('Alice', $indexedById[1]['name']);
+        $this->assertEquals('Bob', $indexedById[2]['name']);
+
+        // Test index() with custom column
+        $indexedByName = self::$db->find()
+            ->table('test_coverage')
+            ->index('name')
+            ->get();
+
+        $this->assertIsArray($indexedByName);
+        $this->assertArrayHasKey('Alice', $indexedByName);
+        $this->assertArrayHasKey('Bob', $indexedByName);
+        $this->assertArrayHasKey('Charlie', $indexedByName);
+        $this->assertEquals(10, $indexedByName['Alice']['value']);
+        $this->assertEquals(20, $indexedByName['Bob']['value']);
+
+        // Test index() with missing column (should skip rows without that column)
+        $indexedByMissing = self::$db->find()
+            ->table('test_coverage')
+            ->select(['name', 'value'])
+            ->index('nonexistent')
+            ->get();
+
+        $this->assertIsArray($indexedByMissing);
+        $this->assertEmpty($indexedByMissing);
+
+        // Test index() with duplicate values (last one wins)
+        self::$db->find()->table('test_coverage')->insert(['name' => 'Alice', 'value' => 40]);
+        $indexedWithDuplicates = self::$db->find()
+            ->table('test_coverage')
+            ->where('name', 'Alice')
+            ->index('name')
+            ->get();
+
+        $this->assertCount(1, $indexedWithDuplicates);
+        $this->assertArrayHasKey('Alice', $indexedWithDuplicates);
+        $this->assertEquals(40, $indexedWithDuplicates['Alice']['value']); // Last one wins
+    }
 }

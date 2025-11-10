@@ -72,6 +72,45 @@ class EagerLoaderTestPost extends Model
     }
 }
 
+class EagerLoaderTestProject extends Model
+{
+    public static function tableName(): string
+    {
+        return 'eager_loader_projects';
+    }
+
+    public static function primaryKey(): array
+    {
+        return ['id'];
+    }
+}
+
+class EagerLoaderTestUserWithProjects extends Model
+{
+    public static function tableName(): string
+    {
+        return 'eager_loader_users';
+    }
+
+    public static function primaryKey(): array
+    {
+        return ['id'];
+    }
+
+    public static function relations(): array
+    {
+        return [
+            'projects' => [
+                'hasManyThrough',
+                'modelClass' => EagerLoaderTestProject::class,
+                'viaTable' => 'eager_loader_user_project',
+                'link' => ['id' => 'user_id'],
+                'viaLink' => ['project_id' => 'id'],
+            ],
+        ];
+    }
+}
+
 /**
  * Tests for EagerLoader.
  */
@@ -112,9 +151,26 @@ final class EagerLoaderTests extends BaseSharedTestCase
             )
         ');
 
+        $db->rawQuery('
+            CREATE TABLE eager_loader_projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL
+            )
+        ');
+
+        $db->rawQuery('
+            CREATE TABLE eager_loader_user_project (
+                user_id INTEGER NOT NULL,
+                project_id INTEGER NOT NULL,
+                PRIMARY KEY (user_id, project_id)
+            )
+        ');
+
         EagerLoaderTestUser::setDb($db);
         EagerLoaderTestProfile::setDb($db);
         EagerLoaderTestPost::setDb($db);
+        EagerLoaderTestProject::setDb($db);
+        EagerLoaderTestUserWithProjects::setDb($db);
     }
 
     protected function setUp(): void
@@ -122,6 +178,8 @@ final class EagerLoaderTests extends BaseSharedTestCase
         parent::setUp();
 
         $db = self::$db;
+        $db->rawQuery('DELETE FROM eager_loader_user_project');
+        $db->rawQuery('DELETE FROM eager_loader_projects');
         $db->rawQuery('DELETE FROM eager_loader_posts');
         $db->rawQuery('DELETE FROM eager_loader_profiles');
         $db->rawQuery('DELETE FROM eager_loader_users');
@@ -427,5 +485,98 @@ final class EagerLoaderTests extends BaseSharedTestCase
 
         $relation = $method->invoke($loader, $user, 'nonexistent');
         $this->assertNull($relation);
+    }
+
+    public function testNormalizeRelationsWithInvalidValue(): void
+    {
+        $loader = new EagerLoader();
+        $reflection = new \ReflectionClass($loader);
+        $method = $reflection->getMethod('normalizeRelations');
+        $method->setAccessible(true);
+
+        // Test with array value in indexed array (should be skipped)
+        $relations = [['invalid']];
+        $normalized = $method->invoke($loader, $relations);
+
+        $this->assertIsArray($normalized);
+        // Should skip invalid array value
+    }
+
+    public function testLoadBelongsToWithEmptyForeignValues(): void
+    {
+        // Create post with invalid user_id (non-existent)
+        $postId = self::$db->find()->table('eager_loader_posts')->insert(['user_id' => 99999, 'title' => 'Post without user']);
+        $post1 = EagerLoaderTestPost::findOne($postId);
+        $this->assertNotNull($post1);
+
+        $posts = [$post1];
+        $loader = new EagerLoader();
+        $loader->load($posts, ['user']);
+
+        // User should be null (post has invalid user_id)
+        $user = $post1->user;
+        $this->assertNull($user);
+    }
+
+    public function testLoadHasManyThroughViaTable(): void
+    {
+        $db = self::$db;
+
+        // Create users and projects
+        $user1 = new EagerLoaderTestUserWithProjects();
+        $user1->name = 'Alice';
+        $user1->email = 'alice@example.com';
+        $user1->save();
+
+        $user2 = new EagerLoaderTestUserWithProjects();
+        $user2->name = 'Bob';
+        $user2->email = 'bob@example.com';
+        $user2->save();
+
+        $project1 = new EagerLoaderTestProject();
+        $project1->name = 'Project 1';
+        $project1->save();
+
+        $project2 = new EagerLoaderTestProject();
+        $project2->name = 'Project 2';
+        $project2->save();
+
+        // Link users to projects
+        $db->find()->table('eager_loader_user_project')->insert(['user_id' => $user1->id, 'project_id' => $project1->id]);
+        $db->find()->table('eager_loader_user_project')->insert(['user_id' => $user1->id, 'project_id' => $project2->id]);
+        $db->find()->table('eager_loader_user_project')->insert(['user_id' => $user2->id, 'project_id' => $project1->id]);
+
+        $users = EagerLoaderTestUserWithProjects::find()->all();
+        $loader = new EagerLoader();
+        $loader->load($users, ['projects']);
+
+        // Check that projects are loaded
+        foreach ($users as $user) {
+            $projects = $user->projects;
+            $this->assertIsArray($projects);
+            if ($user->id === $user1->id) {
+                $this->assertCount(2, $projects);
+            } elseif ($user->id === $user2->id) {
+                $this->assertCount(1, $projects);
+            }
+        }
+    }
+
+    public function testLoadHasManyThroughWithEmptyOwnerValues(): void
+    {
+        // Create user without id (edge case)
+        $user = new EagerLoaderTestUserWithProjects();
+        $user->name = 'Test';
+        $user->email = 'test@example.com';
+        // Don't save, so id will be null
+
+        $users = [$user];
+        $loader = new EagerLoader();
+        $loader->load($users, ['projects']);
+
+        // Projects should be empty array
+        $projects = $user->projects;
+        $this->assertIsArray($projects);
+        $this->assertEmpty($projects);
     }
 }

@@ -670,4 +670,57 @@ final class QueryBuilderTests extends BasePostgreSQLTestCase
 
         $this->assertStringContainsString('RIGHT JOIN', $db->lastQuery);
     }
+
+    public function testDistinctOn(): void
+    {
+        $db = self::$db;
+
+        // Create test table
+        $db->rawQuery('DROP TABLE IF EXISTS test_distinct_on');
+        $db->rawQuery('CREATE TABLE test_distinct_on (id SERIAL PRIMARY KEY, category VARCHAR(50), name VARCHAR(50), value INTEGER)');
+
+        // Insert test data
+        $db->find()->table('test_distinct_on')->insertMulti([
+            ['category' => 'A', 'name' => 'Item 1', 'value' => 10],
+            ['category' => 'A', 'name' => 'Item 2', 'value' => 20],
+            ['category' => 'B', 'name' => 'Item 3', 'value' => 30],
+            ['category' => 'B', 'name' => 'Item 4', 'value' => 40],
+            ['category' => 'C', 'name' => 'Item 5', 'value' => 50],
+        ]);
+
+        // Test DISTINCT ON with single column
+        $results = $db->find()
+            ->from('test_distinct_on')
+            ->select(['category', 'name', 'value'])
+            ->distinctOn(['category'])
+            ->orderBy('category')
+            ->orderBy('value', 'DESC')
+            ->get();
+
+        $this->assertCount(3, $results); // One row per category
+        $this->assertEquals('A', $results[0]['category']);
+        $this->assertEquals('B', $results[1]['category']);
+        $this->assertEquals('C', $results[2]['category']);
+        // Should get highest value per category due to ORDER BY value DESC
+        $this->assertEquals(20, (int)$results[0]['value']);
+        $this->assertEquals(40, (int)$results[1]['value']);
+
+        // Test DISTINCT ON with multiple columns
+        $db->find()->table('test_distinct_on')->insertMulti([
+            ['category' => 'A', 'name' => 'Item 1', 'value' => 15],
+        ]);
+
+        $results2 = $db->find()
+            ->from('test_distinct_on')
+            ->select(['category', 'name', 'value'])
+            ->distinctOn(['category', 'name'])
+            ->orderBy('category')
+            ->orderBy('name')
+            ->orderBy('value', 'DESC')
+            ->get();
+
+        $this->assertGreaterThanOrEqual(3, count($results2));
+
+        $db->rawQuery('DROP TABLE test_distinct_on');
+    }
 }
