@@ -187,4 +187,20 @@ trait NumericHelpersTrait
     {
         return new TruncValue($value, $precision);
     }
+
+    /**
+     * Returns addition expression (left + right).
+     * Useful for arithmetic operations in SELECT clauses.
+     *
+     * @param string|int|float|RawValue $left The left operand.
+     * @param string|int|float|RawValue $right The right operand.
+     *
+     * @return RawValue The RawValue instance for addition.
+     */
+    public static function add(string|int|float|RawValue $left, string|int|float|RawValue $right): RawValue
+    {
+        $leftVal = $left instanceof RawValue ? $left->getValue() : (string)$left;
+        $rightVal = $right instanceof RawValue ? $right->getValue() : (string)$right;
+        return new RawValue("($leftVal + $rightVal)");
+    }
 }

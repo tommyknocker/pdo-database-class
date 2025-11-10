@@ -212,6 +212,12 @@ function recreateTable(PdoDb $db, string $tableName, array $columns, array $opti
     // For better Schema Builder usage, examples should use ColumnSchema objects or arrays instead of strings
     // Example: $schema->createTable('users', ['id' => $schema->primaryKey(), 'name' => $schema->string(255)])
     $sql = getCreateTableSql($db, $tableName, $columns, $options);
+    
+    // Debug: uncomment to see generated SQL
+    // if ($driver === 'pgsql') {
+    //     echo "Generated SQL for PostgreSQL:\n$sql\n\n";
+    // }
+    
     if ($driver === 'sqlsrv') {
         // Use connection->query() for DDL operations in MSSQL
         $connection->query($sql);
@@ -259,6 +265,8 @@ function normalizeColumnDef(string $driver, string $colDef): string
         $normalized = preg_replace('/\bCURRENT_TIMESTAMP\b/i', 'GETDATE()', $normalized);
         $normalized = preg_replace('/\bTIMESTAMP\b/i', 'DATETIME2', $normalized);
         $normalized = preg_replace('/\bDATETIME\b/i', 'DATETIME2', $normalized);
+        // MSSQL requires single quotes for string literals in DEFAULT, not double quotes
+        $normalized = preg_replace('/DEFAULT\s+"([^"]+)"/', "DEFAULT '$1'", $normalized);
         // Replace VARCHAR before TEXT to avoid double replacement
         $normalized = preg_replace('/\bVARCHAR\s*\(\s*255\s*\)\b/i', 'NVARCHAR(255)', $normalized);
         // For TEXT columns, use NVARCHAR(255) instead of NVARCHAR(MAX) if they're used in constraints
@@ -280,7 +288,15 @@ function normalizeColumnDef(string $driver, string $colDef): string
         
         // Handle data types
         $normalized = str_replace('REAL', 'NUMERIC', $normalized);
+        // PostgreSQL: Replace DATETIME DEFAULT CURRENT_TIMESTAMP BEFORE replacing DATETIME
+        // PostgreSQL doesn't support CURRENT_TIMESTAMP in DEFAULT, use NOW() instead
+        $normalized = str_replace('DATETIME DEFAULT CURRENT_TIMESTAMP', 'TIMESTAMP DEFAULT NOW()', $normalized);
+        // Replace remaining DATETIME
         $normalized = str_replace('DATETIME', 'TIMESTAMP', $normalized);
+        // Also handle TIMESTAMP DEFAULT CURRENT_TIMESTAMP if it exists
+        $normalized = preg_replace('/\bTIMESTAMP\s+DEFAULT\s+CURRENT_TIMESTAMP\b/i', 'TIMESTAMP DEFAULT NOW()', $normalized);
+        // PostgreSQL requires single quotes for string literals in DEFAULT, not double quotes
+        $normalized = preg_replace('/DEFAULT\s+"([^"]+)"/', "DEFAULT '$1'", $normalized);
         
     } else {
         // SQLite - keep as is, just normalize variations to standard

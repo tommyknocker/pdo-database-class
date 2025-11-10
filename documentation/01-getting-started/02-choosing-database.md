@@ -284,4 +284,3 @@ $db = new PdoDb('mysql', $mysqlConfig);            // Production
 - [First Connection](05-first-connection.md) - Connect to your chosen database
 - [Configuration](04-configuration.md) - Configure your connection
 - [Learning Path](03-learning-path.md) - Start learning PDOdb
-

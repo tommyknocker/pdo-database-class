@@ -18,6 +18,7 @@ use tommyknocker\pdodb\helpers\traits\NumericHelpersTrait;
 use tommyknocker\pdodb\helpers\traits\StringHelpersTrait;
 use tommyknocker\pdodb\helpers\traits\TypeHelpersTrait;
 use tommyknocker\pdodb\helpers\traits\WindowHelpersTrait;
+use tommyknocker\pdodb\helpers\values\AsValue;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\CurDateValue;
@@ -52,6 +53,9 @@ use tommyknocker\pdodb\helpers\values\NowValue;
 use tommyknocker\pdodb\helpers\values\PadValue;
 use tommyknocker\pdodb\helpers\values\PositionValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\helpers\values\RegexpExtractValue;
+use tommyknocker\pdodb\helpers\values\RegexpMatchValue;
+use tommyknocker\pdodb\helpers\values\RegexpReplaceValue;
 use tommyknocker\pdodb\helpers\values\RepeatValue;
 use tommyknocker\pdodb\helpers\values\ReverseValue;
 use tommyknocker\pdodb\helpers\values\RightValue;
@@ -70,6 +74,7 @@ use tommyknocker\pdodb\helpers\values\YearValue;
  * @method static RawValue raw(string $sql, array<int|string, string|int|float|bool|null> $params = []) Returns a raw SQL value with optional parameters.
  * @method static EscapeValue escape(string $str) Escapes a string for use in SQL query.
  * @method static ConfigValue config(string $key, mixed $value, bool $useEqualSign = true, bool $quoteValue = false) Returns a SET/PRAGMA statement value.
+ * @method static AsValue as(string|int|float|RawValue $value, string $alias) Returns a value with alias (AS clause).
  *
  * Aggregate Functions:
  * @method static FilterValue count(string|RawValue $expr = '*') Returns COUNT expression.
@@ -179,9 +184,9 @@ use tommyknocker\pdodb\helpers\values\YearValue;
  * @method static PadValue padRight(string|RawValue $value, int $length, string $padString = ' ') Returns string padded on right.
  * @method static PadValue lpad(string|RawValue $value, int $length, string $padString = ' ') Alias for padLeft().
  * @method static PadValue rpad(string|RawValue $value, int $length, string $padString = ' ') Alias for padRight().
- * @method static \tommyknocker\pdodb\helpers\values\RegexpMatchValue regexpMatch(string|RawValue $value, string $pattern) Returns regexp match result (boolean expression).
- * @method static \tommyknocker\pdodb\helpers\values\RegexpReplaceValue regexpReplace(string|RawValue $value, string $pattern, string $replacement) Returns regexp replace expression.
- * @method static \tommyknocker\pdodb\helpers\values\RegexpExtractValue regexpExtract(string|RawValue $value, string $pattern, int|null $groupIndex = null) Returns regexp extract expression.
+ * @method static RegexpMatchValue regexpMatch(string|RawValue $value, string $pattern) Returns regexp match result (boolean expression).
+ * @method static RegexpReplaceValue regexpReplace(string|RawValue $value, string $pattern, string $replacement) Returns regexp replace expression.
+ * @method static RegexpExtractValue regexpExtract(string|RawValue $value, string $pattern, int|null $groupIndex = null) Returns regexp extract expression.
  *
  * Type Conversion & Comparison:
  * @method static RawValue cast(mixed $value, string $type) Returns CAST expression.

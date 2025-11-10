@@ -9,6 +9,7 @@ use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\helpers\values\AsValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\ExplainAnalyzer;
@@ -253,7 +254,24 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             $cols = [$cols];
         }
         foreach ($cols as $index => $col) {
-            if ($col instanceof RawValue && is_string($index)) {
+            if ($col instanceof AsValue) {
+                // Handle AsValue - use its alias
+                $value = $col->getValue();
+                $alias = $this->dialect->quoteIdentifier($col->getAlias());
+                if ($value instanceof RawValue) {
+                    $this->select[] = $this->resolveRawValue($value) . ' AS ' . $alias;
+                } elseif (is_numeric($value)) {
+                    $this->select[] = (string)$value . ' AS ' . $alias;
+                } else {
+                    // Process string value (may contain column references)
+                    $processedValue = $this->processExternalReferences((string)$value);
+                    if ($processedValue instanceof RawValue) {
+                        $this->select[] = $this->resolveRawValue($processedValue) . ' AS ' . $alias;
+                    } else {
+                        $this->select[] = $processedValue . ' AS ' . $alias;
+                    }
+                }
+            } elseif ($col instanceof RawValue && is_string($index)) {
                 $alias = $this->dialect->quoteIdentifier($index);
                 $this->select[] = $this->resolveRawValue($col) . ' AS ' . $alias;
             } elseif ($col instanceof RawValue) {

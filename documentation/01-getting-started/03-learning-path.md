@@ -355,4 +355,3 @@ After completing your path:
 - Review [Common Patterns](../10-cookbook/01-common-patterns.md)
 - Read [Best Practices](../08-best-practices/)
 - Contribute to the project!
-

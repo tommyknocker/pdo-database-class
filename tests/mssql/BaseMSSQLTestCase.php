@@ -26,14 +26,14 @@ abstract class BaseMSSQLTestCase extends TestCase
          * USE testdb;
          * CREATE USER testuser FOR LOGIN testuser;
          * ALTER ROLE db_owner ADD MEMBER testuser;
-         * 
+         *
          * Or use SA user for CI/testing:
          * DB_USER=sa DB_PASS=Test123!@#
          */
         // Use environment variables if set (for CI), otherwise use constants
         $username = getenv('DB_USER') ?: self::DB_USER;
         $password = getenv('DB_PASS') ?: self::DB_PASSWORD;
-        
+
         self::$db = new PdoDb(
             'sqlsrv',
             [

@@ -826,7 +826,7 @@ $products = $pdoDb->find()
     ->orderBy('price', 'DESC')
     ->get();
 
-// Multiple CTEs
+// Multiple CTEs with UNION
 $analysis = $pdoDb->find()
     ->with('electronics', function ($q) {
         $q->from('products')->where('category', 'Electronics');
@@ -834,26 +834,33 @@ $analysis = $pdoDb->find()
     ->with('furniture', function ($q) {
         $q->from('products')->where('category', 'Furniture');
     })
-    ->with('combined', Db::raw('
-        SELECT * FROM electronics
-        UNION ALL
-        SELECT * FROM furniture
-    '))
+    ->with('combined', function ($q) {
+        $q->from('electronics')
+          ->unionAll(function ($union) {
+              $union->from('furniture');
+          });
+    })
     ->from('combined')
     ->orderBy('price')
     ->get();
 
 // Recursive CTE - hierarchical data
 $hierarchy = $pdoDb->find()
-    ->withRecursive('category_tree', Db::raw('
-        SELECT id, name, parent_id, 0 as level
-        FROM categories
-        WHERE parent_id IS NULL
-        UNION ALL
-        SELECT c.id, c.name, c.parent_id, ct.level + 1
-        FROM categories c
-        INNER JOIN category_tree ct ON c.parent_id = ct.id
-    '), ['id', 'name', 'parent_id', 'level'])
+    ->withRecursive('category_tree', function ($q) {
+        $q->from('categories')
+          ->select(['id', 'name', 'parent_id', 'level' => Db::as(0, 'level')])
+          ->whereNull('parent_id')
+          ->unionAll(function ($union) {
+              $union->from('categories c')
+                    ->join('category_tree ct', 'c.parent_id = ct.id')
+                    ->select([
+                        'c.id',
+                        'c.name',
+                        'c.parent_id',
+                        'level' => Db::as(Db::add('ct.level', 1), 'level')
+                    ]);
+          });
+    }, ['id', 'name', 'parent_id', 'level'])
     ->from('category_tree')
     ->orderBy('level')
     ->get();
@@ -1951,13 +1958,17 @@ $users = $db->find()
     ->whereExists($orderExistsQuery)
     ->get();
 
-// Method 5: Complex subquery in SELECT (using helper functions)
+// Method 5: Complex subquery in SELECT (using QueryBuilder)
 $users = $db->find()
     ->from('users AS u')
     ->select([
         'u.id',
         'u.name',
-        'order_count' => Db::raw('(SELECT ' . Db::count()->getValue() . ' FROM orders o WHERE o.user_id = u.id)')
+        'order_count' => function ($q) {
+            $q->from('orders', 'o')
+              ->select([Db::count()])
+              ->where('o.user_id', 'u.id');
+        }
     ])
     ->get();
 
@@ -3279,8 +3290,8 @@ Additional frequently used helpers:
 // Strings
 Db::left('name', 2);
 Db::right('name', 2);
-Db::position(Db::raw("'@'"), 'email');
-Db::repeat(Db::raw("'-'"), 5);
+Db::position('@', 'email');
+Db::repeat('-', 5);
 Db::reverse('name');
 Db::padLeft('name', 8, ' ');
 Db::padRight('name', 8, '.');

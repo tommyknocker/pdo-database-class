@@ -27,14 +27,15 @@ echo "=== README Examples Demo ===\n";
 echo "Driver: " . getCurrentDriver($db) . "\n\n";
 
 // Clean up and recreate tables
+$driver = getCurrentDriver($db);
 recreateTable($db, 'users', [
     'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
     'name' => 'TEXT NOT NULL',
     'email' => 'TEXT UNIQUE',
     'age' => 'INTEGER',
     'status' => 'TEXT DEFAULT "active"',
-    'meta' => 'TEXT',
-    'tags' => 'TEXT',
+    'meta' => $driver === 'pgsql' ? 'JSONB' : 'TEXT', // PostgreSQL requires JSONB for JSON operations
+    'tags' => $driver === 'pgsql' ? 'JSONB' : 'TEXT', // PostgreSQL requires JSONB for JSON operations
     'created_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP',
     'updated_at' => 'DATETIME DEFAULT CURRENT_TIMESTAMP'
 ]);
@@ -117,7 +118,7 @@ $stats = $db->find()
     ->from('users AS u')
     ->select(['u.id', 'u.name', 'total' => Db::sum('o.amount')])
     ->leftJoin('orders AS o', 'o.user_id = u.id')
-    ->groupBy('u.id', 'u.name')
+    ->groupBy(['u.id', 'u.name'])
     ->having(Db::sum('o.amount'), 100, '>')
     ->orderBy('total', 'DESC')
     ->get();
@@ -191,7 +192,7 @@ $db->find()
     ->where('id', $userId)
     ->update([
         'age' => Db::raw('age + :inc', ['inc' => 5]), // No helper for arithmetic
-        'name' => Db::concat('name', Db::raw("'_updated'")) // Using CONCAT helper with raw string literal
+        'name' => Db::concat('name', Db::raw("'_updated'")) // Using CONCAT helper with string literal (Db::raw needed for literals)
     ]);
 echo "Updated user with helper functions\n";
 
@@ -365,9 +366,13 @@ echo "------------------------\n";
 $currentTimeout = $db->getTimeout();
 echo "Current timeout: {$currentTimeout} seconds\n";
 
-// Set new timeout
-$db->setTimeout(30);
-echo "New timeout set to: " . $db->getTimeout() . " seconds\n";
+// Set new timeout (may not be supported by all drivers)
+try {
+    $db->setTimeout(30);
+    echo "New timeout set to: " . $db->getTimeout() . " seconds\n";
+} catch (Exception $e) {
+    echo "Timeout setting not supported by this driver\n";
+}
 
 // Test ping
 $isAlive = $db->ping();
@@ -484,5 +489,152 @@ echo "Parameter Sanitization:\n";
 echo "  Original password: " . $params['password'] . "\n";
 echo "  Sanitized password: " . ($sanitized['password'] ?? 'N/A') . "\n";
 echo "  Sanitized API key: " . ($sanitized['api_key'] ?? 'N/A') . "\n";
+
+echo "\n16. CTE Examples (from README)\n";
+echo "-------------------------------\n";
+
+// Create products table for CTE examples
+recreateTable($db, 'products', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'name' => 'TEXT NOT NULL',
+    'category' => 'TEXT',
+    'price' => 'REAL'
+]);
+
+$db->find()->table('products')->insertMulti([
+    ['name' => 'Laptop', 'category' => 'Electronics', 'price' => 999.99],
+    ['name' => 'Phone', 'category' => 'Electronics', 'price' => 699.99],
+    ['name' => 'Chair', 'category' => 'Furniture', 'price' => 199.99],
+    ['name' => 'Table', 'category' => 'Furniture', 'price' => 299.99],
+]);
+
+// Multiple CTEs with UNION
+$analysis = $db->find()
+    ->with('electronics', function ($q) {
+        $q->from('products')->where('category', 'Electronics');
+    })
+    ->with('furniture', function ($q) {
+        $q->from('products')->where('category', 'Furniture');
+    })
+    ->with('combined', function ($q) {
+        $q->from('electronics')
+          ->unionAll(function ($union) {
+              $union->from('furniture');
+          });
+    })
+    ->from('combined')
+    ->orderBy('price')
+    ->get();
+
+echo "CTE with UNION returned " . count($analysis) . " products\n";
+
+// Create categories table for recursive CTE
+recreateTable($db, 'categories', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'name' => 'TEXT NOT NULL',
+    'parent_id' => 'INTEGER'
+]);
+
+// Insert categories data
+// For MSSQL, we can't insert explicit ID values without IDENTITY_INSERT,
+// so we insert without IDs and then update parent_id references
+$driver = getCurrentDriver($db);
+if ($driver === 'sqlsrv') {
+    // Insert without IDs for MSSQL
+    $rootId = $db->find()->table('categories')->insert(['name' => 'Root', 'parent_id' => null]);
+    $child1Id = $db->find()->table('categories')->insert(['name' => 'Child 1', 'parent_id' => $rootId]);
+    $child2Id = $db->find()->table('categories')->insert(['name' => 'Child 2', 'parent_id' => $rootId]);
+    $db->find()->table('categories')->insert(['name' => 'Grandchild', 'parent_id' => $child1Id]);
+} else {
+    // For other databases, insert with explicit IDs
+    $db->find()->table('categories')->insertMulti([
+        ['id' => 1, 'name' => 'Root', 'parent_id' => null],
+        ['id' => 2, 'name' => 'Child 1', 'parent_id' => 1],
+        ['id' => 3, 'name' => 'Child 2', 'parent_id' => 1],
+        ['id' => 4, 'name' => 'Grandchild', 'parent_id' => 2],
+    ]);
+}
+
+// Recursive CTE - hierarchical data (using Db::as() and Db::add() helpers)
+$hierarchy = $db->find()
+    ->withRecursive('category_tree', function ($q) {
+        $q->from('categories')
+          ->select(['id', 'name', 'parent_id', 'level' => Db::as(0, 'level')])
+          ->whereNull('parent_id')
+          ->unionAll(function ($union) {
+              $union->from('categories c')
+                    ->join('category_tree ct', 'c.parent_id = ct.id')
+                    ->select([
+                        'c.id',
+                        'c.name',
+                        'c.parent_id',
+                        'level' => Db::as(Db::add('ct.level', 1), 'level')
+                    ]);
+          });
+    }, ['id', 'name', 'parent_id', 'level'])
+    ->from('category_tree')
+    ->orderBy('level')
+    ->get();
+
+echo "Recursive CTE returned " . count($hierarchy) . " categories\n";
+
+echo "\n17. Subquery in SELECT (from README)\n";
+echo "-------------------------------------\n";
+
+// Complex subquery in SELECT using QueryBuilder
+$usersWithOrders = $db->find()
+    ->from('users AS u')
+    ->select([
+        'u.id',
+        'u.name',
+        'order_count' => function ($q) {
+            $q->from('orders AS o')
+              ->select([Db::count()])
+              ->where('o.user_id', 'u.id');
+        }
+    ])
+    ->get();
+
+echo "Users with order counts: " . count($usersWithOrders) . "\n";
+foreach ($usersWithOrders as $user) {
+    echo "  • {$user['name']}: {$user['order_count']} orders\n";
+}
+
+echo "\n18. String Helper Functions (from README)\n";
+echo "------------------------------------------\n";
+
+// Create test data for string helpers
+recreateTable($db, 'test_strings', [
+    'id' => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+    'name' => 'TEXT',
+    'email' => 'TEXT'
+]);
+
+$db->find()->table('test_strings')->insertMulti([
+    ['name' => 'John Doe', 'email' => 'john@example.com'],
+    ['name' => 'Jane Smith', 'email' => 'jane@test.com'],
+]);
+
+// String helpers without Db::raw()
+$results = $db->find()
+    ->from('test_strings')
+    ->select([
+        'name',
+        'left2' => Db::left('name', 2),
+        'right2' => Db::right('name', 2),
+        'at_position' => Db::position('@', 'email'),
+        'separator' => Db::repeat('-', 5),
+        'reversed' => Db::reverse('name')
+    ])
+    ->get();
+
+echo "String helper functions:\n";
+foreach ($results as $row) {
+    echo "  • {$row['name']}:\n";
+    echo "    LEFT(2): {$row['left2']}, RIGHT(2): {$row['right2']}\n";
+    echo "    '@' position in email: {$row['at_position']}\n";
+    echo "    Separator: {$row['separator']}\n";
+    echo "    Reversed: {$row['reversed']}\n";
+}
 
 echo "\n=== Demo Complete ===\n";

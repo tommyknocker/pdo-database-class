@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers\traits;
 
+use tommyknocker\pdodb\helpers\values\AsValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\EscapeValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -56,5 +57,20 @@ trait CoreHelpersTrait
         bool $quoteValue = false
     ): ConfigValue {
         return new ConfigValue($key, $value, $useEqualSign, $quoteValue);
+    }
+
+    /**
+     * Returns an AsValue instance for creating column aliases.
+     * Useful in SELECT clauses: select(['level' => Db::as(0, 'level')])
+     * or select(['level' => Db::as(Db::add('ct.level', 1), 'level')]).
+     *
+     * @param string|int|float|RawValue $value The value to alias.
+     * @param string $alias The alias name.
+     *
+     * @return AsValue The AsValue instance.
+     */
+    public static function as(string|int|float|RawValue $value, string $alias): AsValue
+    {
+        return new AsValue($value, $alias);
     }
 }
