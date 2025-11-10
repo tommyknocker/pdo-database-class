@@ -313,7 +313,7 @@ For those ready to master advanced features and optimizations.
 
 **Resources:**
 - [ActiveRecord](../05-advanced-features/16-active-record.md)
-- [ActiveRecord Relationships](../05-advanced-features/16-active-record-relationships.md)
+- [ActiveRecord Relationships](../05-advanced-features/17-active-record-relationships.md)
 - [Query Scopes](../05-advanced-features/19-query-scopes.md)
 
 **Checkpoint:** Can you build a complete model with relationships?
