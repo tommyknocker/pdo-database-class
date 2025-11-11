@@ -17,7 +17,19 @@ declare(strict_types=1);
  *   vendor/bin/pdodb model make User
  */
 
-require_once __DIR__ . '/../vendor/autoload.php';
+// Try to load autoload.php from library root (for development)
+$autoloadPath = __DIR__ . '/../vendor/autoload.php';
+if (!file_exists($autoloadPath)) {
+    // Try to load from project root (when installed via Composer)
+    $autoloadPath = __DIR__ . '/../../autoload.php';
+}
+
+if (!file_exists($autoloadPath)) {
+    fwrite(STDERR, "Error: Could not find autoload.php. Please run 'composer install'.\n");
+    exit(1);
+}
+
+require_once $autoloadPath;
 
 use tommyknocker\pdodb\cli\Application;
 
