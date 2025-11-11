@@ -78,9 +78,13 @@ interface QueryBuilderInterface
     public function getOne(): mixed;
 
     /**
+     * Execute SELECT statement and return column values.
+     *
+     * @param string|null $name Column name to extract (optional, uses first column from select() if not provided)
+     *
      * @return array<int, mixed>
      */
-    public function getColumn(): array;
+    public function getColumn(?string $name = null): array;
 
     /**
      * @return mixed

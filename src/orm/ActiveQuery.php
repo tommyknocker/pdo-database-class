@@ -224,12 +224,14 @@ class ActiveQuery
      * Get column values.
      * Direct access to QueryBuilder::getColumn().
      *
+     * @param string|null $name Column name to extract (optional, uses first column from select() if not provided)
+     *
      * @return array<int, mixed> Column values
      */
-    public function getColumn(): array
+    public function getColumn(?string $name = null): array
     {
         $this->ensureGlobalScopes();
-        return $this->queryBuilder->getColumn();
+        return $this->queryBuilder->getColumn($name);
     }
 
     /**

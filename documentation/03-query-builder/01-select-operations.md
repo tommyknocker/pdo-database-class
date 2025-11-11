@@ -34,11 +34,28 @@ $count = $db->find()
 ### Get Single Column
 
 ```php
+// Get column values (uses first column from select() if not specified)
 $names = $db->find()
     ->from('users')
     ->select('name')
     ->getColumn();
 // Returns: array<int, string>
+
+// Get specific column from multiple selected columns
+$names = $db->find()
+    ->from('users')
+    ->select(['id', 'name', 'email'])
+    ->getColumn('name');
+// Returns: array<int, string>
+
+// Get column with index preservation
+$names = $db->find()
+    ->from('measurements')
+    ->select('id,name')
+    ->index('id')
+    ->getColumn('name');
+// Returns: array<int|string, string> (keys preserved from index)
+// Example: [1 => 'test1', 2 => 'test2', 3 => 'test3']
 ```
 
 ## Selecting Columns

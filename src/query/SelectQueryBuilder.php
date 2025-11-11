@@ -427,15 +427,13 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /**
      * Execute SELECT statement and return column values.
      *
+     * @param string|null $name Column name to extract (optional, uses first column from select() if not provided)
+     *
      * @return array<int, mixed>
      * @throws PDOException
      */
-    public function getColumn(): array
+    public function getColumn(?string $name = null): array
     {
-        if (count($this->select) !== 1) {
-            return [];
-        }
-
         if ($this->shouldUseCache()) {
             $cached = $this->getFromCache();
             if ($cached !== null) {
@@ -445,9 +443,34 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             }
         }
 
-        $key = $this->resolveSelectedKey();
         $rows = $this->get();
-        $result = array_column($rows, $key);
+
+        // Determine which column to extract
+        $key = $name;
+        if ($key === null) {
+            // Try to get first key from select()
+            $key = $this->resolveFirstSelectedKey();
+            if ($key === null && !empty($rows)) {
+                // If no key found, use first column from result
+                $firstRow = reset($rows);
+                if (is_array($firstRow)) {
+                    $firstKey = array_key_first($firstRow);
+                    $key = $firstKey !== null ? (string)$firstKey : null;
+                }
+            }
+        }
+
+        if ($key === null) {
+            return [];
+        }
+
+        // Extract column values while preserving array keys from indexed results
+        $result = [];
+        foreach ($rows as $rowKey => $row) {
+            if (is_array($row) && array_key_exists($key, $row)) {
+                $result[$rowKey] = $row[$key];
+            }
+        }
 
         if ($this->shouldUseCache()) {
             $this->saveToCache($result);
@@ -1139,6 +1162,35 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
 
         // 3) Complex expression without alias — cannot determine key
         return $expr;
+    }
+
+    /**
+     * Resolve first selected key from select() array.
+     *
+     * @return string|null
+     */
+    protected function resolveFirstSelectedKey(): ?string
+    {
+        if (empty($this->select)) {
+            return null;
+        }
+
+        $expr = $this->select[0];
+
+        // 1) Try to capture explicit alias at the end: " ... AS alias" or " ... alias"
+        //    Allow optional quoting with backticks, double quotes or square brackets.
+        if (preg_match('/\s+(?:AS\s+)?[`"\[]?([A-Za-z0-9_]+)[`"\]]?\s*$/i', $expr, $matches)) {
+            return $matches[1];
+        }
+
+        // 2) If expression is a simple identifier (table.col or col), return last segment
+        if (preg_match('/^[A-Za-z0-9_\.]+$/', $expr)) {
+            $parts = explode('.', $expr);
+            return end($parts);
+        }
+
+        // 3) Complex expression without alias — cannot determine key
+        return null;
     }
 
     /**

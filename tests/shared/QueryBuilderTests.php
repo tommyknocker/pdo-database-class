@@ -54,14 +54,45 @@ final class QueryBuilderTests extends BaseSharedTestCase
         self::$db->find()->table('test_coverage')->insert(['name' => 'test1', 'value' => 1]);
         self::$db->find()->table('test_coverage')->insert(['name' => 'test2', 'value' => 2]);
 
-        // getColumn() should return empty array when select has multiple columns
+        // getColumn() without name should return first column from select()
         $result = self::$db->find()
         ->table('test_coverage')
         ->select(['name', 'value'])
         ->getColumn();
 
         $this->assertIsArray($result);
-        $this->assertEmpty($result);
+        $this->assertCount(2, $result);
+        $this->assertSame(['test1', 'test2'], array_values($result));
+
+        // getColumn() with explicit column name
+        $result = self::$db->find()
+        ->table('test_coverage')
+        ->select(['name', 'value'])
+        ->getColumn('value');
+
+        $this->assertIsArray($result);
+        $this->assertCount(2, $result);
+        $this->assertSame([1, 2], array_values($result));
+    }
+
+    public function testGetColumnWithIndexAndName(): void
+    {
+        self::$db->find()->table('test_coverage')->insert(['id' => 1, 'name' => 'test1', 'value' => 10]);
+        self::$db->find()->table('test_coverage')->insert(['id' => 2, 'name' => 'test2', 'value' => 20]);
+
+        // Test getColumn() with index() and explicit column name
+        $result = self::$db->find()
+        ->table('test_coverage')
+        ->select(['id', 'name'])
+        ->index('id')
+        ->getColumn('name');
+
+        $this->assertIsArray($result);
+        $this->assertCount(2, $result);
+        $this->assertSame(['test1', 'test2'], array_values($result));
+        // Check that keys are preserved from index()
+        $this->assertArrayHasKey(1, $result);
+        $this->assertArrayHasKey(2, $result);
     }
 
     public function testQueryException(): void

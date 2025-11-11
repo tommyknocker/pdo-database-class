@@ -907,10 +907,12 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Execute SELECT statement and return column values.
      *
+     * @param string|null $name Column name to extract (optional, uses first column from select() if not provided)
+     *
      * @return array<int, mixed>
      * @throws PDOException
      */
-    public function getColumn(): array
+    public function getColumn(?string $name = null): array
     {
         $this->applyGlobalScopes();
         $originalConnection = $this->switchToReadConnection();
@@ -940,7 +942,7 @@ class QueryBuilder implements QueryBuilderInterface
                 $this->selectQueryBuilder->setCteManager($this->cteManager);
             }
 
-            return $this->selectQueryBuilder->getColumn();
+            return $this->selectQueryBuilder->getColumn($name);
         } finally {
             $this->restoreConnection($originalConnection);
         }
