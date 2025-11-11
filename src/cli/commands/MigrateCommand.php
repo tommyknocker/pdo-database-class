@@ -54,14 +54,12 @@ class MigrateCommand extends Command
     protected function create(): int
     {
         $name = $this->getArgument(1);
-        ob_start();
 
         try {
-            MigrationGenerator::generate($name);
-            ob_end_clean();
+            $filename = MigrationGenerator::generate($name);
+            // Output is already displayed by MigrationGenerator::generate()
             return 0;
         } catch (\Exception $e) {
-            ob_end_clean();
             $this->showError($e->getMessage());
             // @phpstan-ignore-next-line
             return 1;

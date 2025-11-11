@@ -23,3 +23,6 @@ infection.log
 infection-report.html
 infection-report.json
 infection-summary.txt
+
+# Migrations directory (user-generated files)
+/migrations/

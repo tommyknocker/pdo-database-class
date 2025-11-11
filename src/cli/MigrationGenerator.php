@@ -109,12 +109,19 @@ class MigrationGenerator extends BaseCliCommand
             return $path;
         }
 
-        // Check common locations
+        // Use current working directory (user's project root)
+        $cwd = getcwd();
+        if ($cwd === false) {
+            $cwd = __DIR__ . '/../../..';
+        }
+
+        // Check common locations in user's project
         $possiblePaths = [
+            $cwd . '/migrations',
+            $cwd . '/database/migrations',
+            // Fallback to library directory (for development)
             __DIR__ . '/../../migrations',
             __DIR__ . '/../../database/migrations',
-            getcwd() . '/migrations',
-            getcwd() . '/database/migrations',
         ];
 
         foreach ($possiblePaths as $path) {
@@ -123,8 +130,8 @@ class MigrationGenerator extends BaseCliCommand
             }
         }
 
-        // Create default migrations directory
-        $defaultPath = __DIR__ . '/../../migrations';
+        // Create default migrations directory in user's project
+        $defaultPath = $cwd . '/migrations';
         if (!is_dir($defaultPath)) {
             mkdir($defaultPath, 0755, true);
         }
