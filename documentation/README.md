@@ -66,6 +66,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [18. Query Builder Macros](05-advanced-features/18-query-macros.md) - Custom query methods for extending QueryBuilder
 - [19. Query Scopes](05-advanced-features/19-query-scopes.md) - Global and local scopes for reusable query logic
 - [20. Plugin System](05-advanced-features/20-plugins.md) - Extend PdoDb with custom plugins for macros, scopes, and event listeners
+- [21. CLI Tools](05-advanced-features/21-cli-tools.md) - Migration generator, model generator, schema inspector, and interactive query tester (REPL)
 
 ### Error Handling
 - [01. Exception Hierarchy](06-error-handling/01-exception-hierarchy.md) - Exception types

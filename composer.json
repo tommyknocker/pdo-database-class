@@ -141,6 +141,9 @@
       "tommyknocker\\pdodb\\tests\\": "tests/"
     }
   },
+  "bin": [
+    "bin/pdodb"
+  ],
   "scripts": {
     "pdodb:test": "phpunit",
     "pdodb:test:mysql": "phpunit tests/mysql/*Tests.php",
@@ -173,6 +176,10 @@
     "pdodb:migrate:down": "php scripts/migrate.php rollback",
     "pdodb:migrate:history": "php scripts/migrate.php history",
     "pdodb:migrate:new": "php scripts/migrate.php new",
+    "pdodb:make:migration": "php scripts/make-migration.php",
+    "pdodb:make:model": "php scripts/make-model.php",
+    "pdodb:schema:inspect": "php scripts/schema-inspect.php",
+    "pdodb:query:test": "php scripts/query-test.php",
     "pdodb:check-all-with-infection": [
       "@pdodb:phpstan",
       "@pdodb:cs-check",

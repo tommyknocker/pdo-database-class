@@ -1,0 +1,26 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * PDOdb CLI Tool
+ *
+ * Usage:
+ *   vendor/bin/pdodb <command> [subcommand] [arguments] [options]
+ *
+ * Examples:
+ *   vendor/bin/pdodb migrate create create_users_table
+ *   vendor/bin/pdodb migrate up
+ *   vendor/bin/pdodb schema inspect users
+ *   vendor/bin/pdodb query test "SELECT * FROM users"
+ *   vendor/bin/pdodb model make User
+ */
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use tommyknocker\pdodb\cli\Application;
+
+$application = new Application();
+exit($application->run($argv));
+

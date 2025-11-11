@@ -36,6 +36,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
 
 **Developer Experience:**
+- **CLI Tools** - Migration generator, model generator, schema inspector, and interactive query tester (REPL)
 - **Enhanced EXPLAIN** - Automatic detection of full table scans, missing indexes, and optimization recommendations
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Enhanced Error Diagnostics** - Query context, sanitized parameters, and debug information in exceptions
@@ -2700,6 +2701,96 @@ Works with any PSR-14 compatible event dispatcher:
 - Custom implementations
 
 **See**: [Event Dispatcher Example](examples/19-events/01-event-dispatcher.php)
+
+### CLI Tools
+
+PDOdb provides convenient command-line tools for common development tasks. All tools are available via a unified `pdodb` command:
+
+```bash
+vendor/bin/pdodb <command> [subcommand] [arguments] [options]
+```
+
+#### Available Commands
+
+- **`migrate`** - Manage database migrations
+- **`schema`** - Inspect database schema
+- **`query`** - Test SQL queries interactively
+- **`model`** - Generate ActiveRecord models
+
+#### Migration Management
+
+```bash
+# Create new migration
+vendor/bin/pdodb migrate create create_users_table
+
+# Apply pending migrations
+vendor/bin/pdodb migrate up
+
+# Rollback last migration
+vendor/bin/pdodb migrate down
+
+# Show migration history
+vendor/bin/pdodb migrate history
+
+# Show new migrations
+vendor/bin/pdodb migrate new
+```
+
+#### Model Generation
+
+Generate ActiveRecord model classes from existing database tables:
+
+```bash
+# Auto-detect table name from model name
+vendor/bin/pdodb model make User
+
+# Specify table name explicitly
+vendor/bin/pdodb model make User users
+
+# Specify output path
+vendor/bin/pdodb model make User users app/Models
+```
+
+#### Schema Inspection
+
+Inspect database schema structure:
+
+```bash
+# List all tables
+vendor/bin/pdodb schema inspect
+
+# Inspect specific table
+vendor/bin/pdodb schema inspect users
+
+# Output in JSON format
+vendor/bin/pdodb schema inspect users --format=json
+
+# Output in YAML format
+vendor/bin/pdodb schema inspect users --format=yaml
+```
+
+#### Query Testing (REPL)
+
+Interactive REPL for testing SQL queries:
+
+```bash
+# Interactive mode
+vendor/bin/pdodb query test
+
+# Execute single query
+vendor/bin/pdodb query test "SELECT * FROM users LIMIT 10"
+```
+
+#### Configuration
+
+CLI tools automatically detect database configuration from:
+
+1. **`.env` file** in the current working directory (recommended for production)
+2. **`config.php`** file in the current working directory
+3. **Environment variables** (`PDODB_DRIVER`, `PDODB_HOST`, etc.)
+4. **Examples config** (for testing only)
+
+**See**: [CLI Tools Documentation](documentation/05-advanced-features/21-cli-tools.md)
 
 ---
 
