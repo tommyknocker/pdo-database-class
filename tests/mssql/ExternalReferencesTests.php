@@ -135,4 +135,89 @@ final class ExternalReferencesTests extends BaseMSSQLTestCase
         $this->assertCount(2, $users);
         $this->assertArrayHasKey('total_orders', $users[0]);
     }
+
+    public function testJoinWithTableAliasInCondition(): void
+    {
+        $db = self::$db;
+        $connection = $db->connection;
+        assert($connection !== null);
+
+        // Insert test data
+        $db->find()->table('users')->insert(['name' => 'John Doe', 'status' => 'active']);
+        $userId = (int)$db->find()->table('users')->select('id')->where('name', 'John Doe')->getValue();
+        $db->find()->table('orders')->insert(['user_id' => $userId, 'amount' => 100.00]);
+
+        // Test JOIN with alias - this tests isTableInCurrentQuery
+        // The alias 'o' should be recognized as part of current query
+        $users = $db->find()
+        ->from('users')
+        ->leftJoin('orders o', 'o.user_id = users.id')
+        ->where('o.amount', 50, '>')  // o is alias from JOIN - should be recognized
+        ->get();
+
+        $this->assertCount(1, $users);
+    }
+
+    public function testJoinWithoutAsKeyword(): void
+    {
+        $db = self::$db;
+        $connection = $db->connection;
+        assert($connection !== null);
+
+        // Insert test data
+        $db->find()->table('users')->insert(['name' => 'John Doe', 'status' => 'active']);
+        $userId = (int)$db->find()->table('users')->select('id')->where('name', 'John Doe')->getValue();
+        $db->find()->table('orders')->insert(['user_id' => $userId, 'amount' => 100.00]);
+
+        // Test JOIN without AS keyword (implicit alias)
+        // This tests isTableInCurrentQuery with table alias pattern
+        $users = $db->find()
+        ->from('users')
+        ->leftJoin('orders o', 'o.user_id = users.id')
+        ->where('o.amount', 50, '>')  // o is alias from JOIN
+        ->get();
+
+        $this->assertCount(1, $users);
+    }
+
+    public function testProcessExternalReferencesWithNonString(): void
+    {
+        $db = self::$db;
+
+        // Insert test data
+        $db->find()->table('users')->insert(['name' => 'John Doe', 'status' => 'active']);
+
+        // Test processExternalReferences with non-string value
+        // This should return value as-is
+        $users = $db->find()
+        ->from('users')
+        ->where('id', 1)  // Integer value - should not be processed
+        ->get();
+
+        $this->assertCount(1, $users);
+    }
+
+    public function testIsExternalReferenceWithInvalidPattern(): void
+    {
+        $db = self::$db;
+
+        // Insert test data
+        $db->find()->table('users')->insert(['name' => 'John Doe', 'status' => 'active']);
+
+        // Test isExternalReference with invalid patterns
+        // These should not match table.column pattern
+        $users = $db->find()
+        ->from('users')
+        ->where('name', 'invalid.pattern.123')  // Too many dots
+        ->get();
+
+        $this->assertCount(0, $users);
+
+        $users = $db->find()
+        ->from('users')
+        ->where('name', '123.invalid')  // Starts with number
+        ->get();
+
+        $this->assertCount(0, $users);
+    }
 }
