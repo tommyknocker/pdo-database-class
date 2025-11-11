@@ -300,4 +300,135 @@ PHP;
         $db->rawQuery('DROP TABLE IF EXISTS __migrations');
         unlink($migrationPath . '/m20251101120012_testalready.php');
     }
+
+    /**
+     * Test recordMigration method.
+     */
+    public function testRecordMigration(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('DROP TABLE IF EXISTS __migrations');
+
+        $migrationPath = sys_get_temp_dir() . '/pdodb_migrations_edge7';
+        if (!is_dir($migrationPath)) {
+            mkdir($migrationPath, 0755, true);
+        }
+
+        $runner = new MigrationRunner($db, $migrationPath);
+        $reflection = new \ReflectionClass($runner);
+        $method = $reflection->getMethod('recordMigration');
+        $method->setAccessible(true);
+
+        // Record a migration
+        $method->invoke($runner, '20251101120013_testrecord', 1);
+
+        // Verify it was recorded
+        $history = $runner->getMigrationHistory();
+        $versions = array_column($history, 'version');
+        $this->assertContains('20251101120013_testrecord', $versions);
+
+        // Cleanup
+        $db->rawQuery('DROP TABLE IF EXISTS __migrations');
+    }
+
+    /**
+     * Test removeMigrationRecord method.
+     */
+    public function testRemoveMigrationRecord(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('DROP TABLE IF EXISTS __migrations');
+
+        $migrationPath = sys_get_temp_dir() . '/pdodb_migrations_edge8';
+        if (!is_dir($migrationPath)) {
+            mkdir($migrationPath, 0755, true);
+        }
+
+        $runner = new MigrationRunner($db, $migrationPath);
+        $reflection = new \ReflectionClass($runner);
+        $recordMethod = $reflection->getMethod('recordMigration');
+        $recordMethod->setAccessible(true);
+        $removeMethod = $reflection->getMethod('removeMigrationRecord');
+        $removeMethod->setAccessible(true);
+
+        // Record a migration
+        $recordMethod->invoke($runner, '20251101120014_testremove', 1);
+
+        // Verify it was recorded
+        $historyBefore = $runner->getMigrationHistory();
+        $versionsBefore = array_column($historyBefore, 'version');
+        $this->assertContains('20251101120014_testremove', $versionsBefore);
+
+        // Remove the migration record
+        $removeMethod->invoke($runner, '20251101120014_testremove');
+
+        // Verify it was removed
+        $historyAfter = $runner->getMigrationHistory();
+        $versionsAfter = array_column($historyAfter, 'version');
+        $this->assertNotContains('20251101120014_testremove', $versionsAfter);
+
+        // Cleanup
+        $db->rawQuery('DROP TABLE IF EXISTS __migrations');
+    }
+
+    /**
+     * Test ensureMigrationTable creates table if it doesn't exist.
+     */
+    public function testEnsureMigrationTableCreatesTable(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('DROP TABLE IF EXISTS __migrations');
+
+        $migrationPath = sys_get_temp_dir() . '/pdodb_migrations_edge9';
+        if (!is_dir($migrationPath)) {
+            mkdir($migrationPath, 0755, true);
+        }
+
+        // Create runner - this should create the migration table
+        $runner = new MigrationRunner($db, $migrationPath);
+
+        // Verify table exists
+        $this->assertTrue($db->schema()->tableExists('__migrations'));
+
+        // Cleanup
+        $db->rawQuery('DROP TABLE IF EXISTS __migrations');
+    }
+
+    /**
+     * Test ensureMigrationTable doesn't recreate existing table.
+     */
+    public function testEnsureMigrationTableDoesNotRecreateExistingTable(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('DROP TABLE IF EXISTS __migrations');
+
+        $migrationPath = sys_get_temp_dir() . '/pdodb_migrations_edge10';
+        if (!is_dir($migrationPath)) {
+            mkdir($migrationPath, 0755, true);
+        }
+
+        // Create table manually first
+        $schema = $db->schema();
+        $dialect = $schema->getDialect();
+        $sql = $dialect->buildMigrationTableSql('__migrations');
+        $db->rawQuery($sql);
+
+        // Insert a test record
+        $db->find()->table('__migrations')->insert([
+            'version' => '20251101120015_testexisting',
+            'batch' => 1,
+        ]);
+
+        // Create runner - should not recreate table
+        $runner = new MigrationRunner($db, $migrationPath);
+
+        // Verify table still exists and record is still there
+        $this->assertTrue($db->schema()->tableExists('__migrations'));
+        $history = $runner->getMigrationHistory();
+        $versions = array_column($history, 'version');
+        $this->assertContains('20251101120015_testexisting', $versions);
+
+        // Cleanup
+        $db->rawQuery('DROP TABLE IF EXISTS __migrations');
+    }
 }
