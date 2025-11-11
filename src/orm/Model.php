@@ -96,15 +96,81 @@ abstract class Model
     /**
      * Get relationship definitions.
      *
+     * Defines ActiveRecord relationships for lazy and eager loading.
+     * Supports hasOne, hasMany, belongsTo, and hasManyThrough relationships.
+     *
      * Format: [
      *   'relationName' => ['hasOne', 'modelClass' => RelatedModel::class, 'foreignKey' => '...', 'localKey' => '...'],
      *   'relationName' => ['hasMany', 'modelClass' => RelatedModel::class, 'foreignKey' => '...', 'localKey' => '...'],
      *   'relationName' => ['belongsTo', 'modelClass' => RelatedModel::class, 'foreignKey' => '...', 'ownerKey' => '...'],
+     *   'relationName' => ['hasManyThrough', 'modelClass' => RelatedModel::class, 'viaTable' => '...', 'link' => [...], 'viaLink' => [...]],
      * ]
      *
      * Override this method to define relationships for the model.
      *
      * @return array<string, array<int|string, mixed>> Relationship definitions
+     *
+     * @example
+     * // User has one Profile
+     * public static function relations(): array
+     * {
+     *     return [
+     *         'profile' => [
+     *             'hasOne',
+     *             'modelClass' => Profile::class,
+     *             'foreignKey' => 'user_id',
+     *             'localKey' => 'id'
+     *         ]
+     *     ];
+     * }
+     * @example
+     * // User has many Posts
+     * public static function relations(): array
+     * {
+     *     return [
+     *         'posts' => [
+     *             'hasMany',
+     *             'modelClass' => Post::class,
+     *             'foreignKey' => 'user_id',
+     *             'localKey' => 'id'
+     *         ]
+     *     ];
+     * }
+     * @example
+     * // Post belongs to User
+     * public static function relations(): array
+     * {
+     *     return [
+     *         'user' => [
+     *             'belongsTo',
+     *             'modelClass' => User::class,
+     *             'foreignKey' => 'user_id',
+     *             'ownerKey' => 'id'
+     *         ]
+     *     ];
+     * }
+     * @example
+     * // Many-to-many via junction table
+     * public static function relations(): array
+     * {
+     *     return [
+     *         'projects' => [
+     *             'hasManyThrough',
+     *             'modelClass' => Project::class,
+     *             'viaTable' => 'user_project',
+     *             'link' => ['id' => 'user_id'],
+     *             'viaLink' => ['project_id' => 'id']
+     *         ]
+     *     ];
+     * }
+     *
+     * @note Relationships can be accessed as properties (lazy loading) or via with() (eager loading).
+     *       Use eager loading to prevent N+1 query problems.
+     *
+     * @warning Foreign key and local key parameters are required for all relationship types.
+     *
+     * @see Model::with() For eager loading relationships
+     * @see documentation/05-advanced-features/17-active-record-relationships.md
      */
     public static function relations(): array
     {

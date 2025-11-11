@@ -90,6 +90,23 @@ class ColumnSchema
      * @param mixed $value Default value
      *
      * @return static
+     *
+     * @example
+     * // Literal default value
+     * $db->schema()->createTable('users', [
+     *     'status' => $db->schema()->string(20)->defaultValue('active')
+     * ]);
+     * @example
+     * // Expression default (use defaultExpression instead)
+     * $db->schema()->createTable('posts', [
+     *     'created_at' => $db->schema()->timestamp()->defaultExpression('CURRENT_TIMESTAMP')
+     * ]);
+     *
+     * @warning For SQL expressions (like CURRENT_TIMESTAMP), use defaultExpression() instead.
+     *          This method treats the value as a literal string/number.
+     *
+     * @see ColumnSchema::defaultExpression() For SQL expression defaults
+     * @see documentation/03-query-builder/12-ddl-operations.md#column-schema-methods
      */
     public function defaultValue(mixed $value): static
     {

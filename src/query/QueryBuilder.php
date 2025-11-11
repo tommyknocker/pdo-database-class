@@ -455,11 +455,53 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add a recursive Common Table Expression (CTE) to the query.
      *
+     * Creates a recursive Common Table Expression (WITH RECURSIVE) for hierarchical queries,
+     * tree traversal, and other recursive data structures.
+     *
      * @param string $name CTE name
      * @param QueryBuilder|Closure(QueryBuilder): void|string|RawValue $query Query with UNION ALL structure
      * @param array<string> $columns Explicit column list (recommended for recursive CTEs)
      *
      * @return static The current instance.
+     *
+     * @example
+     * // Hierarchical category tree
+     * $categories = $db->find()
+     *     ->withRecursive('category_tree', function($q) {
+     *         $q->from('categories')
+     *           ->select(['id', 'name', 'parent_id', Db::raw('0 as level')])
+     *           ->where('parent_id', null, 'IS');
+     *     }, function($r) {
+     *         $r->from('categories c')
+     *           ->select(['c.id', 'c.name', 'c.parent_id', Db::raw('ct.level + 1 as level')])
+     *           ->join('category_tree ct', 'c.parent_id = ct.id');
+     *     })
+     *     ->from('category_tree')
+     *     ->orderBy('level')
+     *     ->orderBy('name')
+     *     ->get();
+     * @example
+     * // Employee hierarchy
+     * $employees = $db->find()
+     *     ->withRecursive('employee_tree', function($q) {
+     *         $q->from('employees')
+     *           ->select(['id', 'name', 'manager_id', Db::raw('1 as depth')])
+     *           ->where('manager_id', null, 'IS');
+     *     }, function($r) {
+     *         $r->from('employees e')
+     *           ->select(['e.id', 'e.name', 'e.manager_id', Db::raw('et.depth + 1')])
+     *           ->join('employee_tree et', 'e.manager_id = et.id');
+     *     })
+     *     ->from('employee_tree')
+     *     ->get();
+     *
+     * @warning Recursive CTEs require careful design to avoid infinite loops.
+     *          Always ensure the recursive part eventually terminates.
+     *
+     * @note Column names are auto-detected from SELECT clauses if not provided.
+     *       Explicit column names improve performance and prevent errors.
+     *
+     * @see documentation/03-query-builder/08-cte.md#recursive-ctes
      */
     public function withRecursive(
         string $name,

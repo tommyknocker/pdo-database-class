@@ -206,6 +206,9 @@ trait DdlBuilderTrait
     /**
      * Create an index (Yii2-style with extended support).
      *
+     * Supports standard indexes, unique indexes, partial indexes (WHERE clause),
+     * indexes with sorting, INCLUDE columns (PostgreSQL/MSSQL), and functional indexes.
+     *
      * @param string $name Index name
      * @param string $table Table name
      * @param string|array<int, string|array<string, string>> $columns Column name(s) or array with sorting ['col1' => 'ASC', 'col2' => 'DESC']
@@ -215,6 +218,43 @@ trait DdlBuilderTrait
      * @param array<string, mixed> $options Additional index options (fillfactor, using, etc.)
      *
      * @return static
+     *
+     * @example
+     * // Simple index
+     * $db->schema()->createIndex('idx_email', 'users', 'email');
+     * @example
+     * // Composite index
+     * $db->schema()->createIndex('idx_name_email', 'users', ['name', 'email']);
+     * @example
+     * // Index with sorting
+     * $db->schema()->createIndex('idx_name_email', 'users', [
+     *     'name' => 'ASC',
+     *     'email' => 'DESC'
+     * ]);
+     * @example
+     * // Partial index (PostgreSQL)
+     * $db->schema()->createIndex('idx_active_users', 'users', 'email', false, "status = 'active'");
+     * @example
+     * // Index with INCLUDE columns (PostgreSQL/MSSQL)
+     * $db->schema()->createIndex('idx_email', 'users', 'email', false, null, ['name', 'created_at']);
+     * @example
+     * // Functional index (PostgreSQL)
+     * $db->schema()->createIndex('idx_lower_email', 'users', Db::raw('LOWER(email)'));
+     * @example
+     * // Index with options (PostgreSQL)
+     * $db->schema()->createIndex('idx_email', 'users', 'email', false, null, null, [
+     *     'fillfactor' => 80,
+     *     'using' => 'btree'
+     * ]);
+     *
+     * @warning Partial indexes (WHERE clause) are only supported by PostgreSQL and MSSQL.
+     *          MySQL/MariaDB will ignore the WHERE clause.
+     * @warning INCLUDE columns are only supported by PostgreSQL and MSSQL.
+     *          MySQL/MariaDB will ignore includeColumns parameter.
+     *
+     * @note For functional indexes, use Db::raw() for column expressions.
+     *
+     * @see documentation/03-query-builder/12-ddl-operations.md#creating-indexes
      */
     public function createIndex(
         string $name,

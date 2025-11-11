@@ -427,10 +427,41 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /**
      * Execute SELECT statement and return column values.
      *
+     * Extracts a specific column from all rows, preserving array keys if index() was used.
+     * If no column name is provided, returns the first column from SELECT clause.
+     *
      * @param string|null $name Column name to extract (optional, uses first column from select() if not provided)
      *
-     * @return array<int, mixed>
+     * @return array<int|string, mixed> Array of column values, indexed by row key if index() was used
      * @throws PDOException
+     *
+     * @example
+     * // Get first selected column
+     * $ids = $db->find()
+     *     ->from('users')
+     *     ->select('id')
+     *     ->getColumn();
+     * // Returns: [1, 2, 3, ...]
+     * @example
+     * // Get specific column with multiple selects
+     * $names = $db->find()
+     *     ->from('users')
+     *     ->select(['id', 'name', 'email'])
+     *     ->getColumn('name');
+     * // Returns: ['John', 'Jane', 'Bob', ...]
+     * @example
+     * // Get column with index() to preserve keys
+     * $names = $db->find()
+     *     ->from('users')
+     *     ->select(['id', 'name'])
+     *     ->index('id')
+     *     ->getColumn('name');
+     * // Returns: [1 => 'John', 2 => 'Jane', 3 => 'Bob', ...]
+     *
+     * @note The column name must match exactly (case-sensitive) with the column name
+     *       in SELECT clause or table schema.
+     *
+     * @see documentation/03-query-builder/01-select-operations.md#get-single-column
      */
     public function getColumn(?string $name = null): array
     {
@@ -655,9 +686,49 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /**
      * Add GROUP BY clause.
      *
+     * Groups query results by specified columns. Supports qualified identifiers (table.column)
+     * and automatically quotes identifiers for MSSQL reserved words.
+     *
      * @param string|array<int, string|RawValue>|RawValue $cols The columns to group by.
      *
      * @return static The current instance.
+     *
+     * @example
+     * // Single column
+     * $db->find()
+     *     ->from('orders')
+     *     ->select(['status', Db::count('*')])
+     *     ->groupBy('status')
+     *     ->get();
+     * @example
+     * // Multiple columns
+     * $db->find()
+     *     ->from('orders')
+     *     ->select(['user_id', 'status', Db::sum('amount')])
+     *     ->groupBy(['user_id', 'status'])
+     *     ->get();
+     * @example
+     * // Qualified identifiers (with JOIN)
+     * $db->find()
+     *     ->from('orders o')
+     *     ->select(['u.name', Db::sum('o.amount')])
+     *     ->join('users u', 'o.user_id = u.id')
+     *     ->groupBy('u.name')
+     *     ->get();
+     * @example
+     * // GROUP BY with expression
+     * $db->find()
+     *     ->from('orders')
+     *     ->select([Db::raw('DATE(created_at)'), Db::sum('amount')])
+     *     ->groupBy(Db::raw('DATE(created_at)'))
+     *     ->get();
+     *
+     * @note Qualified identifiers (table.column) are automatically quoted correctly
+     *       even when used with JOIN aliases.
+     *
+     * @warning For MSSQL: Reserved words like 'plan', 'order', 'group' are automatically quoted.
+     *
+     * @see documentation/03-query-builder/02-aggregations.md#group-by
      */
     public function groupBy(string|array|RawValue $cols): static
     {
@@ -1271,6 +1342,37 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      *
      * @return PaginationResult
      * @throws PDOException
+     *
+     * @example
+     * // Basic pagination
+     * $result = $db->find()
+     *     ->from('users')
+     *     ->where('status', 'active')
+     *     ->paginate(15);
+     *
+     * foreach ($result->items as $user) {
+     *     echo $user['name'];
+     * }
+     * echo "Page {$result->currentPage} of {$result->lastPage}";
+     * @example
+     * // Pagination with custom page
+     * $result = $db->find()
+     *     ->from('users')
+     *     ->paginate(20, 3);
+     * @example
+     * // Pagination with custom URL path
+     * $result = $db->find()
+     *     ->from('users')
+     *     ->paginate(15, null, ['path' => '/admin/users']);
+     *
+     * @note This method performs two queries: one COUNT(*) and one SELECT.
+     *       For better performance with large datasets, consider using cursorPaginate().
+     *
+     * @warning Auto-detection of page from $_GET['page'] requires $_GET to be available.
+     *          Always validate and sanitize page numbers in production.
+     *
+     * @see SelectQueryBuilder::cursorPaginate() For cursor-based pagination
+     * @see documentation/03-query-builder/06-ordering-pagination.md#pagination
      */
     public function paginate(int $perPage = 15, ?int $page = null, array $options = []): PaginationResult
     {

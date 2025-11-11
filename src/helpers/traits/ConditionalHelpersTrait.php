@@ -14,10 +14,51 @@ trait ConditionalHelpersTrait
     /**
      * Returns a RawValue instance representing a CASE statement.
      *
+     * Generates a SQL CASE expression with automatic identifier quoting for MSSQL reserved words.
+     *
      * @param array<string, string> $cases An associative array where keys are WHEN conditions and values are THEN results.
      * @param string|null $else An optional ELSE result.
      *
      * @return RawValue The RawValue instance for the CASE statement.
+     *
+     * @example
+     * // Simple CASE statement
+     * $db->find()
+     *     ->from('users')
+     *     ->select([
+     *         'status_label' => Db::case([
+     *             "status = 'active'" => "'Active'",
+     *             "status = 'inactive'" => "'Inactive'",
+     *         ], "'Unknown'")
+     *     ])
+     *     ->get();
+     * @example
+     * // CASE with MSSQL reserved words (automatically quoted)
+     * $db->find()
+     *     ->from('plans')
+     *     ->select([
+     *         'plan_type' => Db::case([
+     *             "plan = 'basic'" => "'Basic Plan'",
+     *             "plan = 'premium'" => "'Premium Plan'",
+     *         ])
+     *     ])
+     *     ->get();
+     * @example
+     * // CASE in WHERE clause
+     * $db->find()
+     *     ->from('orders')
+     *     ->where(Db::case([
+     *         "status = 'pending'" => '1',
+     *         "status = 'processing'" => '1',
+     *     ], '0'), '1')
+     *     ->get();
+     *
+     * @note For MSSQL: Identifiers in WHEN conditions are automatically quoted if they are
+     *       reserved words (e.g., 'plan', 'order', 'group'). This prevents syntax errors.
+     *
+     * @warning WHEN conditions should be valid SQL expressions. Use Db::raw() for complex expressions.
+     *
+     * @see documentation/07-helper-functions/06-comparison-helpers.md
      */
     public static function case(array $cases, string|null $else = null): RawValue
     {

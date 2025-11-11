@@ -197,11 +197,42 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
     /**
      * Insert data from a SELECT query or subquery.
      *
+     * Supports INSERT ... SELECT with ON DUPLICATE KEY UPDATE (MySQL/MariaDB),
+     * ON CONFLICT (PostgreSQL), and MERGE (MSSQL).
+     *
      * @param string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface|QueryBuilder $source Source query (table name, QueryBuilder, SelectQueryBuilderInterface, or Closure)
      * @param array<string>|null $columns Column names to insert into (null = use SELECT columns)
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
      * @return int The result of the insert operation.
+     *
+     * @example
+     * // Basic INSERT ... SELECT
+     * $db->find()
+     *     ->table('target_table')
+     *     ->insertFrom('source_table');
+     * @example
+     * // INSERT ... SELECT with specific columns
+     * $db->find()
+     *     ->table('target_table')
+     *     ->insertFrom('source_table', ['id', 'name', 'email']);
+     * @example
+     * // INSERT ... SELECT with ON DUPLICATE KEY UPDATE (MySQL)
+     * $db->find()
+     *     ->table('target_table')
+     *     ->insertFrom('source_table', null, ['name' => Db::raw('VALUES(name)'), 'updated_at' => Db::now()]);
+     * @example
+     * // INSERT ... SELECT from QueryBuilder
+     * $db->find()
+     *     ->table('target_table')
+     *     ->insertFrom(function($query) {
+     *         $query->from('source_table')->where('status', 'active');
+     *     });
+     *
+     * @warning For MSSQL: IDENTITY columns are automatically excluded from INSERT column list
+     *          when columns are not explicitly provided. This prevents "IDENTITY_INSERT" errors.
+     *
+     * @see documentation/03-query-builder/02-data-manipulation.md#insert--select-copy-data-between-tables
      */
     public function insertFrom(
         string|\Closure|SelectQueryBuilderInterface|QueryBuilder $source,
@@ -869,14 +900,49 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
     /**
      * Execute MERGE statement (INSERT/UPDATE/DELETE based on match conditions).
      *
+     * Performs INSERT ... ON CONFLICT UPDATE (PostgreSQL), INSERT ... ON DUPLICATE KEY UPDATE (MySQL),
+     * or MERGE (MSSQL) operations. This is a powerful way to synchronize data between tables.
+     *
      * @param string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface $source Source table/subquery for MERGE
-     * @param string|array<string> $onConditions ON clause conditions
+     * @param string|array<string> $onConditions ON clause conditions (e.g., ['target.id = source.id'])
      * @param array<string, string|int|float|bool|null|RawValue> $whenMatched Update columns when matched
      * @param array<string, string|int|float|bool|null|RawValue> $whenNotMatched Insert columns when not matched
      * @param bool $whenNotMatchedBySourceDelete Delete when not matched by source
      *
      * @return int Number of affected rows
      * @throws RuntimeException If MERGE is not supported by dialect
+     *
+     * @example
+     * // MERGE/UPSERT from table
+     * $db->find()
+     *     ->table('target_users')
+     *     ->merge('source_users', ['target_users.id = source_users.id'], [
+     *         'name' => Db::raw('source_users.name'),
+     *         'updated_at' => Db::now()
+     *     ], [
+     *         'id' => Db::raw('source_users.id'),
+     *         'name' => Db::raw('source_users.name')
+     *     ]);
+     * @example
+     * // MERGE/UPSERT from QueryBuilder
+     * $db->find()
+     *     ->table('target_users')
+     *     ->merge(function($query) {
+     *         $query->from('source_users')->where('status', 'active');
+     *     }, ['target_users.id = source_users.id'], [
+     *         'name' => Db::raw('source_users.name')
+     *     ]);
+     *
+     * @warning MERGE syntax differs between databases:
+     *          - PostgreSQL: Uses INSERT ... ON CONFLICT
+     *          - MySQL/MariaDB: Uses INSERT ... ON DUPLICATE KEY UPDATE
+     *          - MSSQL: Uses MERGE statement
+     *          - SQLite: Not supported, throws exception
+     *
+     * @note For MSSQL, use table aliases in ON conditions (e.g., 'target.id = source.id').
+     *       For PostgreSQL/MySQL, the conflict target is automatically detected from ON conditions.
+     *
+     * @see documentation/05-advanced-features/05-upsert-operations.md
      */
     public function merge(
         string|\Closure|SelectQueryBuilderInterface $source,
