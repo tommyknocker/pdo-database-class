@@ -7,6 +7,103 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.10.1] - 2025-11-11
+
+### Added
+- **CLI Tools - Unified Command Structure** - Complete command-line interface for developer productivity:
+  - **Migration Management** (`pdodb migrate`) - Create, run, rollback, and manage database migrations:
+    - `pdodb migrate create <name>` - Generate new migration files
+    - `pdodb migrate up` - Apply pending migrations
+    - `pdodb migrate down` - Rollback last migration
+    - `pdodb migrate to <version>` - Migrate to specific version
+    - `pdodb migrate history` - View migration history
+    - `pdodb migrate new` - List pending migrations
+  - **Model Generator** (`pdodb model make`) - Auto-generate ActiveRecord models from database tables:
+    - Automatic table name detection from model name
+    - Primary key detection
+    - Foreign key relationship detection
+    - Attribute generation with types
+    - Relationship definitions generation
+    - Support for custom output paths via `PDODB_MODEL_PATH` environment variable
+  - **Schema Inspector** (`pdodb schema inspect`) - Inspect database structure:
+    - List all tables
+    - Detailed table inspection (columns, indexes, foreign keys, constraints)
+    - Multiple output formats (table, JSON, YAML)
+    - Row count information
+  - **Interactive Query Tester** (`pdodb query test`) - REPL for testing SQL queries:
+    - Interactive SQL execution
+    - Single query execution mode
+    - Formatted result display
+    - Help commands and query history
+
+- **Enhanced Developer Experience**:
+  - **PHPDoc Improvements** - Comprehensive inline documentation with examples:
+    - `@example` tags with usage examples for 10+ key methods
+    - `@warning` tags for dialect-specific differences and important considerations
+    - `@note` tags for additional context and best practices
+    - `@see` tags linking to full documentation
+    - Enhanced documentation for `insertFrom()`, `merge()`, `getColumn()`, `paginate()`, `withRecursive()`, `createIndex()`, `groupBy()`, `case()`, `relations()`, and more
+  - **Migration Path Resolution** - Improved migration file location detection:
+    - Automatic detection of project root directory
+    - Support for `.env` file configuration
+    - Fallback to library paths for development
+    - Better error messages for missing directories
+  - **getColumn() Enhancement** - Added optional column name parameter:
+    - `getColumn()` - Returns first selected column (backward compatible)
+    - `getColumn('name')` - Returns specific column by name
+    - Preserves array keys when used with `index()` method
+    - Automatic detection of first selected column from SELECT clause
+
+- **New Helper Methods**:
+  - `Db::as()` - Alias helper to reduce `Db::raw()` usage for simple aliases
+  - `Db::add()` - Addition helper for mathematical operations
+  - `ColumnSchema::char()` - CHAR type support for fixed-length strings
+
+### Changed
+- **CLI Tools Architecture** - Reorganized into unified command structure:
+  - Single entry point: `vendor/bin/pdodb` with subcommands
+  - Yii2-inspired command structure (`pdodb migrate create`, `pdodb model make`, etc.)
+  - Consistent error handling and output formatting
+  - Better integration with Composer installation paths
+  - Improved autoload.php path resolution for both development and production
+
+- **Migration System Improvements**:
+  - Fixed `migrateTo()` to use migration order instead of `apply_time` for correct rollback sequence
+  - Improved rollback logic to ensure migrations are rolled back in reverse order
+  - Better handling of migration version detection
+  - Migration files excluded from Git tracking (added to `.gitignore`)
+
+- **Code Quality**:
+  - Increased test coverage from 79.79% to 80.25%
+  - Comprehensive test coverage for CLI tools (MigrationGenerator, ModelGenerator, SchemaInspector, QueryTester)
+  - Improved test coverage for RangeShardStrategy, RawValueResolver, MSSQLExplainParser, FileLoader, MigrationRunner
+  - Enhanced test coverage for SelectQueryBuilder, DmlQueryBuilder, ExternalReferenceProcessingTrait
+
+### Fixed
+- **Cross-Dialect Compatibility**:
+  - Improved identifier quoting in `CASE` statements for MSSQL reserved words
+  - Fixed `GROUP BY` with qualified identifiers (table.column) and JOIN aliases
+  - Better handling of MSSQL reserved words like 'plan', 'order', 'group'
+  - Improved cross-dialect DDL operations
+
+- **Migration System**:
+  - Fixed migration path resolution to prioritize project root over library paths
+  - Corrected autoload.php path detection for Composer installations
+  - Fixed migration version detection after rollback operations
+
+- **Type Safety**:
+  - Added explicit type checks for PHPStan compatibility
+  - Fixed type hints in various methods
+  - Improved parameter type validation
+
+### Technical Details
+- **All tests passing**: 2052+ tests across all dialects
+- **CLI Tools**: Fully tested with comprehensive test coverage
+- **Code Coverage**: Improved from 79.79% to 80.25%
+- **PHPStan Level 8**: Zero errors maintained
+- **PHP-CS-Fixer**: All code complies with PSR-12 standards
+- **Full backward compatibility**: 100% maintained
+
 ## [2.10.0] - 2025-11-09
 
 ### Added
@@ -1365,7 +1462,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.0...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.1...HEAD
+[2.10.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.0...v2.10.1
 [2.10.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.3...v2.10.0
 [2.9.3]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.2...v2.9.3
 [2.9.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.1...v2.9.2
