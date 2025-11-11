@@ -408,15 +408,29 @@ PHP;
         // Rollback to version 1
         $runner->migrateTo('20251101120006_testto1');
 
-        // Verify rollback happened - check version changed
-        $versionAfter = $runner->getMigrationVersion();
-        // After rollback, version should be 1
-        $this->assertEquals('20251101120006_testto1', $versionAfter);
+        // Verify rollback happened - check tables
+        // Note: After rollback, table1 should exist (migration 1 is still applied)
+        // but tables 2 and 3 should not exist (migrations 2 and 3 were rolled back)
+        $table1Exists = $db->schema()->tableExists('test_to_table1');
+        $table2Exists = $db->schema()->tableExists('test_to_table2');
+        $table3Exists = $db->schema()->tableExists('test_to_table3');
+
+        $this->assertTrue($table1Exists, 'Table 1 should exist after rollback to version 1');
+        $this->assertFalse($table2Exists, 'Table 2 should not exist after rollback to version 1');
+        $this->assertFalse($table3Exists, 'Table 3 should not exist after rollback to version 1');
 
         // Verify version 1 is in history
         $historyAfter = $runner->getMigrationHistory();
         $appliedVersionsAfter = array_column($historyAfter, 'version');
         $this->assertContains('20251101120006_testto1', $appliedVersionsAfter);
+        $this->assertNotContains('20251101120007_testto2', $appliedVersionsAfter);
+        $this->assertNotContains('20251101120008_testto3', $appliedVersionsAfter);
+
+        // Verify version after rollback
+        // getMigrationVersion() returns the latest applied migration by apply_time
+        // After rollback, only version 1 should remain
+        $versionAfter = $runner->getMigrationVersion();
+        $this->assertEquals('20251101120006_testto1', $versionAfter, 'After rollback to version 1, getMigrationVersion() should return version 1');
 
         // Cleanup
         $db->rawQuery('DROP TABLE IF EXISTS test_to_table1');

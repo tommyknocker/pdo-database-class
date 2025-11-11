@@ -228,6 +228,38 @@ class MigrationRunner
     }
 
     /**
+     * Rollback a specific migration by version.
+     *
+     * @param string $version Migration version to rollback
+     */
+    protected function migrateDownByVersion(string $version): void
+    {
+        $history = $this->getMigrationHistory();
+        $appliedVersions = array_column($history, 'version');
+
+        if (!in_array($version, $appliedVersions, true)) {
+            return; // Not applied, nothing to rollback
+        }
+
+        try {
+            $this->db->startTransaction();
+            $migration = $this->loadMigration($version);
+            $migration->down();
+            $this->removeMigrationRecord($version);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollback();
+            $previous = $e instanceof PDOException ? $e : null;
+
+            throw new QueryException(
+                "Rollback of migration {$version} failed: " . $e->getMessage(),
+                0,
+                $previous
+            );
+        }
+    }
+
+    /**
      * Migrate to a specific version.
      *
      * @param string $version Target version
@@ -263,10 +295,13 @@ class MigrationRunner
             }
 
             if ($targetIndex < $currentIndex) {
-                // Rollback
+                // Rollback migrations in reverse order (newest first)
+                // We need to rollback from currentIndex down to targetIndex+1
                 $migrationsToRollback = array_slice($allMigrations, $targetIndex + 1, $currentIndex - $targetIndex);
+
+                // Rollback each migration that needs to be rolled back, in reverse order
                 foreach (array_reverse($migrationsToRollback) as $migrationVersion) {
-                    $this->migrateDown(1);
+                    $this->migrateDownByVersion($migrationVersion);
                 }
             } else {
                 // Apply
