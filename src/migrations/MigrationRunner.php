@@ -259,58 +259,51 @@ class MigrationRunner
      */
     public function migrateTo(string $version): void
     {
+        $allMigrations = $this->getAllMigrationFiles();
+        $targetIndex = array_search($version, $allMigrations, true);
+        
+        if ($targetIndex === false) {
+            throw new QueryException("Migration version {$version} not found");
+        }
+
         $history = $this->getMigrationHistory();
-        $currentVersion = $this->getMigrationVersion();
-
-        if ($currentVersion === null) {
-            // Apply all migrations up to version
-            $allMigrations = $this->getAllMigrationFiles();
-            $targetIndex = array_search($version, $allMigrations, true);
-            if ($targetIndex === false) {
-                throw new QueryException("Migration version {$version} not found");
+        $appliedVersions = array_column($history, 'version');
+        
+        // Find the highest applied migration version (by order in allMigrations, not by apply_time)
+        $currentIndex = -1;
+        foreach ($appliedVersions as $appliedVersion) {
+            $index = array_search($appliedVersion, $allMigrations, true);
+            if ($index !== false && $index > $currentIndex) {
+                $currentIndex = $index;
             }
+        }
 
+        if ($currentIndex === -1) {
+            // No migrations applied, apply all up to target version
             $migrationsToApply = array_slice($allMigrations, 0, $targetIndex + 1);
             foreach ($migrationsToApply as $migrationVersion) {
                 $this->migrateUp($migrationVersion);
             }
-        } elseif ($currentVersion === $version) {
+        } elseif ($currentIndex === $targetIndex) {
             // Already at target version
             return;
-        } else {
-            // Rollback or apply migrations
-            $allMigrations = $this->getAllMigrationFiles();
-            $currentIndex = array_search($currentVersion, $allMigrations, true);
-            $targetIndex = array_search($version, $allMigrations, true);
-
-            if ($targetIndex === false) {
-                throw new QueryException("Migration version {$version} not found");
+        } elseif ($targetIndex < $currentIndex) {
+            // Rollback migrations in reverse order (newest first)
+            // We need to rollback from currentIndex down to targetIndex+1
+            $migrationsToRollback = array_slice($allMigrations, $targetIndex + 1, $currentIndex - $targetIndex);
+            
+            // Rollback each migration that needs to be rolled back, in reverse order
+            foreach (array_reverse($migrationsToRollback) as $migrationVersion) {
+                // Only rollback if migration is actually applied
+                if (in_array($migrationVersion, $appliedVersions, true)) {
+                    $this->migrateDownByVersion($migrationVersion);
+                }
             }
-
-            if ($targetIndex < $currentIndex) {
-                // Rollback migrations in reverse order (newest first)
-                // We need to rollback from currentIndex down to targetIndex+1
-                $migrationsToRollback = array_slice($allMigrations, $targetIndex + 1, $currentIndex - $targetIndex);
-                
-                // Get current history once before rollback loop
-                $history = $this->getMigrationHistory();
-                $appliedVersions = array_column($history, 'version');
-                
-                // Rollback each migration that needs to be rolled back, in reverse order
-                foreach (array_reverse($migrationsToRollback) as $migrationVersion) {
-                    // Only rollback if migration is actually applied
-                    if (in_array($migrationVersion, $appliedVersions, true)) {
-                        $this->migrateDownByVersion($migrationVersion);
-                        // Remove from appliedVersions to avoid duplicate rollback attempts
-                        $appliedVersions = array_values(array_diff($appliedVersions, [$migrationVersion]));
-                    }
-                }
-            } else {
-                // Apply
-                $migrationsToApply = array_slice($allMigrations, $currentIndex + 1, $targetIndex - $currentIndex);
-                foreach ($migrationsToApply as $migrationVersion) {
-                    $this->migrateUp($migrationVersion);
-                }
+        } else {
+            // Apply
+            $migrationsToApply = array_slice($allMigrations, $currentIndex + 1, $targetIndex - $currentIndex);
+            foreach ($migrationsToApply as $migrationVersion) {
+                $this->migrateUp($migrationVersion);
             }
         }
     }
