@@ -17,14 +17,29 @@ declare(strict_types=1);
  *   vendor/bin/pdodb model make User
  */
 
-// Try to load autoload.php from library root (for development)
-$autoloadPath = __DIR__ . '/../vendor/autoload.php';
-if (!file_exists($autoloadPath)) {
-    // Try to load from project root (when installed via Composer)
-    $autoloadPath = __DIR__ . '/../../autoload.php';
+// Find autoload.php by traversing up directories
+// When installed via Composer: vendor/tommyknocker/pdo-database-class/bin/pdodb -> vendor/autoload.php
+// When in library development: bin/pdodb -> vendor/autoload.php
+$autoloadPath = null;
+$dir = __DIR__;
+
+// Try up to 5 levels up
+for ($i = 0; $i < 5; $i++) {
+    $path = $dir . '/vendor/autoload.php';
+    if (file_exists($path)) {
+        $autoloadPath = $path;
+        break;
+    }
+    
+    $parentDir = dirname($dir);
+    if ($parentDir === $dir) {
+        // Reached filesystem root
+        break;
+    }
+    $dir = $parentDir;
 }
 
-if (!file_exists($autoloadPath)) {
+if ($autoloadPath === null) {
     fwrite(STDERR, "Error: Could not find autoload.php. Please run 'composer install'.\n");
     exit(1);
 }
