@@ -396,7 +396,7 @@ class CliToolsTests extends BaseSharedTestCase
             'id' => $schema->primaryKey(),
             'name' => $schema->string(100),
         ]);
-        
+
         // SQLite requires foreign keys to be defined during CREATE TABLE
         // For other databases, we can add them via ALTER TABLE
         try {
@@ -576,7 +576,7 @@ class CliToolsTests extends BaseSharedTestCase
             'id' => $schema->primaryKey(),
             'email' => $schema->string(200),
         ]);
-        
+
         try {
             $schema->createIndex('test_inspector_indexes', 'idx_email', ['email']);
         } catch (\Exception $e) {
@@ -610,7 +610,7 @@ class CliToolsTests extends BaseSharedTestCase
             'id' => $schema->primaryKey(),
             'parent_id' => $schema->integer(),
         ]);
-        
+
         try {
             $schema->addForeignKey('fk_parent', 'test_inspector_fk_child', 'parent_id', 'test_inspector_fk_parent', 'id');
         } catch (\Exception $e) {

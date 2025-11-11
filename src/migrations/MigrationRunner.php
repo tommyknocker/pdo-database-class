@@ -261,14 +261,14 @@ class MigrationRunner
     {
         $allMigrations = $this->getAllMigrationFiles();
         $targetIndex = array_search($version, $allMigrations, true);
-        
+
         if ($targetIndex === false) {
             throw new QueryException("Migration version {$version} not found");
         }
 
         $history = $this->getMigrationHistory();
         $appliedVersions = array_column($history, 'version');
-        
+
         // Find the highest applied migration version (by order in allMigrations, not by apply_time)
         $currentIndex = -1;
         foreach ($appliedVersions as $appliedVersion) {
@@ -291,7 +291,7 @@ class MigrationRunner
             // Rollback migrations in reverse order (newest first)
             // We need to rollback from currentIndex down to targetIndex+1
             $migrationsToRollback = array_slice($allMigrations, $targetIndex + 1, $currentIndex - $targetIndex);
-            
+
             // Rollback each migration that needs to be rolled back, in reverse order
             foreach (array_reverse($migrationsToRollback) as $migrationVersion) {
                 // Only rollback if migration is actually applied
