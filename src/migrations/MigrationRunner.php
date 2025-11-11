@@ -234,13 +234,6 @@ class MigrationRunner
      */
     protected function migrateDownByVersion(string $version): void
     {
-        $history = $this->getMigrationHistory();
-        $appliedVersions = array_column($history, 'version');
-
-        if (!in_array($version, $appliedVersions, true)) {
-            return; // Not applied, nothing to rollback
-        }
-
         try {
             $this->db->startTransaction();
             $migration = $this->loadMigration($version);
@@ -298,10 +291,19 @@ class MigrationRunner
                 // Rollback migrations in reverse order (newest first)
                 // We need to rollback from currentIndex down to targetIndex+1
                 $migrationsToRollback = array_slice($allMigrations, $targetIndex + 1, $currentIndex - $targetIndex);
-
+                
+                // Get current history once before rollback loop
+                $history = $this->getMigrationHistory();
+                $appliedVersions = array_column($history, 'version');
+                
                 // Rollback each migration that needs to be rolled back, in reverse order
                 foreach (array_reverse($migrationsToRollback) as $migrationVersion) {
-                    $this->migrateDownByVersion($migrationVersion);
+                    // Only rollback if migration is actually applied
+                    if (in_array($migrationVersion, $appliedVersions, true)) {
+                        $this->migrateDownByVersion($migrationVersion);
+                        // Remove from appliedVersions to avoid duplicate rollback attempts
+                        $appliedVersions = array_values(array_diff($appliedVersions, [$migrationVersion]));
+                    }
                 }
             } else {
                 // Apply
