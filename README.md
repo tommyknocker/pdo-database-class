@@ -58,7 +58,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **UPDATE/DELETE with JOIN** - Update and delete operations with JOIN clauses (MySQL/MariaDB/PostgreSQL/MSSQL)
 - **MERGE Statements** - INSERT/UPDATE/DELETE based on match conditions (PostgreSQL/MSSQL native, MySQL/SQLite emulated)
 - **Schema Introspection** - Query indexes, foreign keys, and constraints programmatically
-- **DDL Query Builder** - Fluent API for creating, altering, and managing database schema (tables, columns, indexes, foreign keys)
+- **DDL Query Builder** - Production-ready fluent API for creating, altering, and managing database schema (tables, columns, indexes, foreign keys, constraints) with Yii2-style methods, partial indexes, fulltext/spatial indexes, and cross-dialectal support
 - **Database Migrations** - Version-controlled schema changes with rollback support (Yii2-inspired)
 - **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
 - **Export Helpers** - Export results to JSON, CSV, and XML formats

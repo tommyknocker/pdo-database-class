@@ -204,20 +204,69 @@ trait DdlBuilderTrait
     }
 
     /**
-     * Create an index.
+     * Create an index (Yii2-style with extended support).
      *
      * @param string $name Index name
      * @param string $table Table name
-     * @param string|array<int, string> $columns Column name(s)
+     * @param string|array<int, string|array<string, string>> $columns Column name(s) or array with sorting ['col1' => 'ASC', 'col2' => 'DESC']
      * @param bool $unique Whether index is unique
+     * @param string|null $where WHERE clause for partial indexes
+     * @param array<int, string>|null $includeColumns INCLUDE columns (for PostgreSQL/MSSQL)
+     * @param array<string, mixed> $options Additional index options (fillfactor, using, etc.)
      *
      * @return static
      */
-    public function createIndex(string $name, string $table, string|array $columns, bool $unique = false): static
-    {
+    public function createIndex(
+        string $name,
+        string $table,
+        string|array $columns,
+        bool $unique = false,
+        ?string $where = null,
+        ?array $includeColumns = null,
+        array $options = []
+    ): static {
         $tableName = $this->prefix ? ($this->prefix . $table) : $table;
-        $columnArray = is_array($columns) ? $columns : [$columns];
-        $sql = $this->dialect->buildCreateIndexSql($name, $tableName, $columnArray, $unique);
+
+        // Normalize columns: convert string to array, handle sorting arrays
+        /** @var array<int, string|array<string, string>> $columnArray */
+        $columnArray = [];
+
+        if (is_string($columns)) {
+            $columnArray = [$columns];
+        } else {
+            // Check if this is a sorting array format: ['col1' => 'ASC', 'col2' => 'DESC']
+            // vs regular array format: ['col1', 'col2']
+            $isSortingArray = false;
+            foreach ($columns as $key => $value) {
+                if (is_string($key) && is_string($value) && (strtoupper($value) === 'ASC' || strtoupper($value) === 'DESC')) {
+                    $isSortingArray = true;
+                    break;
+                }
+            }
+
+            if ($isSortingArray) {
+                // This is a sorting array: ['col1' => 'ASC', 'col2' => 'DESC']
+                // Convert to format expected by buildCreateIndexSql: [['col1' => 'ASC'], ['col2' => 'DESC']]
+                foreach ($columns as $colName => $direction) {
+                    if (is_string($colName) && is_string($direction)) {
+                        $columnArray[] = [$colName => $direction];
+                    }
+                }
+            } else {
+                // Regular array format: ['col1', 'col2'] or [RawValue, ...]
+                $columnArray = $columns;
+            }
+        }
+
+        $sql = $this->dialect->buildCreateIndexSql(
+            $name,
+            $tableName,
+            $columnArray,
+            $unique,
+            $where,
+            $includeColumns,
+            $options
+        );
         $this->connection->query($sql);
 
         return $this;
@@ -235,6 +284,81 @@ trait DdlBuilderTrait
     {
         $tableName = $this->prefix ? ($this->prefix . $table) : $table;
         $sql = $this->dialect->buildDropIndexSql($name, $tableName);
+        $this->connection->query($sql);
+
+        return $this;
+    }
+
+    /**
+     * Create a fulltext index (Yii2-style).
+     *
+     * @param string $name Index name
+     * @param string $table Table name
+     * @param string|array<int, string> $columns Column name(s)
+     * @param string|null $parser Parser name (for MySQL)
+     *
+     * @return static
+     */
+    public function createFulltextIndex(string $name, string $table, string|array $columns, ?string $parser = null): static
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $columnArray = is_array($columns) ? $columns : [$columns];
+        $sql = $this->dialect->buildCreateFulltextIndexSql($name, $tableName, $columnArray, $parser);
+        $this->connection->query($sql);
+
+        return $this;
+    }
+
+    /**
+     * Create a spatial index (Yii2-style).
+     *
+     * @param string $name Index name
+     * @param string $table Table name
+     * @param string|array<int, string> $columns Column name(s)
+     *
+     * @return static
+     */
+    public function createSpatialIndex(string $name, string $table, string|array $columns): static
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $columnArray = is_array($columns) ? $columns : [$columns];
+        $sql = $this->dialect->buildCreateSpatialIndexSql($name, $tableName, $columnArray);
+        $this->connection->query($sql);
+
+        return $this;
+    }
+
+    /**
+     * Rename an index (Yii2-style).
+     *
+     * @param string $oldName Old index name
+     * @param string $table Table name
+     * @param string $newName New index name
+     *
+     * @return static
+     */
+    public function renameIndex(string $oldName, string $table, string $newName): static
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildRenameIndexSql($oldName, $tableName, $newName);
+        $this->connection->query($sql);
+
+        return $this;
+    }
+
+    /**
+     * Rename a foreign key (Yii2-style).
+     *
+     * @param string $oldName Old foreign key name
+     * @param string $table Table name
+     * @param string $newName New foreign key name
+     *
+     * @return static
+     */
+    public function renameForeignKey(string $oldName, string $table, string $newName): static
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildRenameForeignKeySql($oldName, $tableName, $newName);
         $this->connection->query($sql);
 
         return $this;
@@ -292,6 +416,113 @@ trait DdlBuilderTrait
     {
         $tableName = $this->prefix ? ($this->prefix . $table) : $table;
         $sql = $this->dialect->buildDropForeignKeySql($name, $tableName);
+        $this->connection->query($sql);
+
+        return $this;
+    }
+
+    /**
+     * Add a primary key constraint (Yii2-style).
+     *
+     * @param string $name Primary key name
+     * @param string $table Table name
+     * @param string|array<int, string> $columns Column name(s)
+     *
+     * @return static
+     */
+    public function addPrimaryKey(string $name, string $table, string|array $columns): static
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $columnArray = is_array($columns) ? $columns : [$columns];
+        $sql = $this->dialect->buildAddPrimaryKeySql($name, $tableName, $columnArray);
+        $this->connection->query($sql);
+
+        return $this;
+    }
+
+    /**
+     * Drop a primary key constraint (Yii2-style).
+     *
+     * @param string $name Primary key name
+     * @param string $table Table name
+     *
+     * @return static
+     */
+    public function dropPrimaryKey(string $name, string $table): static
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildDropPrimaryKeySql($name, $tableName);
+        $this->connection->query($sql);
+
+        return $this;
+    }
+
+    /**
+     * Add a unique constraint (Yii2-style).
+     *
+     * @param string $name Unique constraint name
+     * @param string $table Table name
+     * @param string|array<int, string> $columns Column name(s)
+     *
+     * @return static
+     */
+    public function addUnique(string $name, string $table, string|array $columns): static
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $columnArray = is_array($columns) ? $columns : [$columns];
+        $sql = $this->dialect->buildAddUniqueSql($name, $tableName, $columnArray);
+        $this->connection->query($sql);
+
+        return $this;
+    }
+
+    /**
+     * Drop a unique constraint (Yii2-style).
+     *
+     * @param string $name Unique constraint name
+     * @param string $table Table name
+     *
+     * @return static
+     */
+    public function dropUnique(string $name, string $table): static
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildDropUniqueSql($name, $tableName);
+        $this->connection->query($sql);
+
+        return $this;
+    }
+
+    /**
+     * Add a check constraint (Yii2-style).
+     *
+     * @param string $name Check constraint name
+     * @param string $table Table name
+     * @param string $expression Check expression
+     *
+     * @return static
+     */
+    public function addCheck(string $name, string $table, string $expression): static
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildAddCheckSql($name, $tableName, $expression);
+        $this->connection->query($sql);
+
+        return $this;
+    }
+
+    /**
+     * Drop a check constraint (Yii2-style).
+     *
+     * @param string $name Check constraint name
+     * @param string $table Table name
+     *
+     * @return static
+     */
+    public function dropCheck(string $name, string $table): static
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildDropCheckSql($name, $tableName);
         $this->connection->query($sql);
 
         return $this;
@@ -542,5 +773,211 @@ trait DdlBuilderTrait
 
         // String type: 'VARCHAR(255)'
         return new ColumnSchema((string)$type);
+    }
+
+    /**
+     * Check if an index exists (Yii2-style).
+     *
+     * @param string $name Index name
+     * @param string $table Table name
+     *
+     * @return bool True if index exists
+     */
+    public function indexExists(string $name, string $table): bool
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildShowIndexesSql($tableName);
+        $stmt = $this->connection->query($sql);
+        if ($stmt === false) {
+            return false;
+        }
+        $indexes = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        foreach ($indexes as $index) {
+            // Index name might be in different columns depending on dialect
+            $indexName = $index['Key_name'] ?? $index['indexname'] ?? $index['name'] ?? $index['INDEX_NAME'] ?? null;
+            if ($indexName === $name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if a foreign key exists (Yii2-style).
+     *
+     * @param string $name Foreign key name
+     * @param string $table Table name
+     *
+     * @return bool True if foreign key exists
+     */
+    public function foreignKeyExists(string $name, string $table): bool
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildShowForeignKeysSql($tableName);
+        $stmt = $this->connection->query($sql);
+        if ($stmt === false) {
+            return false;
+        }
+        $foreignKeys = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        foreach ($foreignKeys as $fk) {
+            // Foreign key name might be in different columns depending on dialect
+            $fkName = $fk['CONSTRAINT_NAME'] ?? $fk['constraint_name'] ?? $fk['name'] ?? $fk['fk_name'] ?? null;
+            if ($fkName === $name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if a check constraint exists (Yii2-style).
+     *
+     * @param string $name Check constraint name
+     * @param string $table Table name
+     *
+     * @return bool True if check constraint exists
+     */
+    public function checkExists(string $name, string $table): bool
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildShowConstraintsSql($tableName);
+        $stmt = $this->connection->query($sql);
+        if ($stmt === false) {
+            return false;
+        }
+        $constraints = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        foreach ($constraints as $constraint) {
+            // Constraint name might be in different columns depending on dialect
+            $constraintName = $constraint['CONSTRAINT_NAME'] ?? $constraint['constraint_name'] ?? $constraint['name'] ?? null;
+            $constraintType = $constraint['CONSTRAINT_TYPE'] ?? $constraint['constraint_type'] ?? $constraint['type'] ?? null;
+            if ($constraintName === $name && (
+                strtoupper((string)$constraintType) === 'CHECK' ||
+                strpos(strtoupper((string)$constraintType), 'CHECK') !== false
+            )) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if a unique constraint exists (Yii2-style).
+     *
+     * @param string $name Unique constraint name
+     * @param string $table Table name
+     *
+     * @return bool True if unique constraint exists
+     */
+    public function uniqueExists(string $name, string $table): bool
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildShowConstraintsSql($tableName);
+        $stmt = $this->connection->query($sql);
+        if ($stmt === false) {
+            return false;
+        }
+        $constraints = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        foreach ($constraints as $constraint) {
+            // Constraint name might be in different columns depending on dialect
+            $constraintName = $constraint['CONSTRAINT_NAME'] ?? $constraint['constraint_name'] ?? $constraint['name'] ?? null;
+            $constraintType = $constraint['CONSTRAINT_TYPE'] ?? $constraint['constraint_type'] ?? $constraint['type'] ?? null;
+            if ($constraintName === $name && (
+                strtoupper((string)$constraintType) === 'UNIQUE' ||
+                strpos(strtoupper((string)$constraintType), 'UNIQUE') !== false
+            )) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Get all indexes for a table (Yii2-style).
+     *
+     * @param string $table Table name
+     *
+     * @return array<int, array<string, mixed>> Array of index information
+     */
+    public function getIndexes(string $table): array
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildShowIndexesSql($tableName);
+        $stmt = $this->connection->query($sql);
+        if ($stmt === false) {
+            return [];
+        }
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get all foreign keys for a table (Yii2-style).
+     *
+     * @param string $table Table name
+     *
+     * @return array<int, array<string, mixed>> Array of foreign key information
+     */
+    public function getForeignKeys(string $table): array
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildShowForeignKeysSql($tableName);
+        $stmt = $this->connection->query($sql);
+        if ($stmt === false) {
+            return [];
+        }
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Get all check constraints for a table (Yii2-style).
+     *
+     * @param string $table Table name
+     *
+     * @return array<int, array<string, mixed>> Array of check constraint information
+     */
+    public function getCheckConstraints(string $table): array
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildShowConstraintsSql($tableName);
+        $stmt = $this->connection->query($sql);
+        if ($stmt === false) {
+            return [];
+        }
+        $constraints = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $checkConstraints = [];
+        foreach ($constraints as $constraint) {
+            $constraintType = $constraint['CONSTRAINT_TYPE'] ?? $constraint['constraint_type'] ?? $constraint['type'] ?? null;
+            if (strtoupper((string)$constraintType) === 'CHECK' ||
+                strpos(strtoupper((string)$constraintType), 'CHECK') !== false) {
+                $checkConstraints[] = $constraint;
+            }
+        }
+        return $checkConstraints;
+    }
+
+    /**
+     * Get all unique constraints for a table (Yii2-style).
+     *
+     * @param string $table Table name
+     *
+     * @return array<int, array<string, mixed>> Array of unique constraint information
+     */
+    public function getUniqueConstraints(string $table): array
+    {
+        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
+        $sql = $this->dialect->buildShowConstraintsSql($tableName);
+        $stmt = $this->connection->query($sql);
+        if ($stmt === false) {
+            return [];
+        }
+        $constraints = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $uniqueConstraints = [];
+        foreach ($constraints as $constraint) {
+            $constraintType = $constraint['CONSTRAINT_TYPE'] ?? $constraint['constraint_type'] ?? $constraint['type'] ?? null;
+            if (strtoupper((string)$constraintType) === 'UNIQUE' ||
+                strpos(strtoupper((string)$constraintType), 'UNIQUE') !== false) {
+                $uniqueConstraints[] = $constraint;
+            }
+        }
+        return $uniqueConstraints;
     }
 }

@@ -1699,14 +1699,57 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function buildCreateIndexSql(string $name, string $table, array $columns, bool $unique = false): string
-    {
+    public function buildCreateIndexSql(
+        string $name,
+        string $table,
+        array $columns,
+        bool $unique = false,
+        ?string $where = null,
+        ?array $includeColumns = null,
+        array $options = []
+    ): string {
         $tableQuoted = $this->quoteTable($table);
         $nameQuoted = $this->quoteIdentifier($name);
         $type = $unique ? 'UNIQUE INDEX' : 'INDEX';
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+
+        // Process columns with sorting support and RawValue support (functional indexes)
+        $colsQuoted = [];
+        foreach ($columns as $col) {
+            if (is_array($col)) {
+                // Array format: ['column' => 'ASC'/'DESC'] - associative array with column name as key
+                foreach ($col as $colName => $direction) {
+                    // $colName is always string (array key), $direction is the sort direction
+                    $dir = strtoupper((string)$direction) === 'DESC' ? 'DESC' : 'ASC';
+                    $colsQuoted[] = $this->quoteIdentifier((string)$colName) . ' ' . $dir;
+                }
+            } elseif ($col instanceof RawValue) {
+                // RawValue expression (functional index)
+                $colsQuoted[] = $col->getValue();
+            } else {
+                $colsQuoted[] = $this->quoteIdentifier((string)$col);
+            }
+        }
         $colsList = implode(', ', $colsQuoted);
-        return "CREATE {$type} {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+
+        $sql = "CREATE {$type} {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+
+        // Add INCLUDE columns if provided
+        if ($includeColumns !== null && !empty($includeColumns)) {
+            $includeQuoted = array_map([$this, 'quoteIdentifier'], $includeColumns);
+            $sql .= ' INCLUDE (' . implode(', ', $includeQuoted) . ')';
+        }
+
+        // Add WHERE clause for filtered indexes (MSSQL 2008+)
+        if ($where !== null && $where !== '') {
+            $sql .= ' WHERE ' . $where;
+        }
+
+        // Add options (fillfactor, etc.)
+        if (!empty($options['fillfactor'])) {
+            $sql .= ' WITH (FILLFACTOR = ' . (int)$options['fillfactor'] . ')';
+        }
+
+        return $sql;
     }
 
     /**
@@ -1717,6 +1760,56 @@ class MSSQLDialect extends DialectAbstract
         $tableQuoted = $this->quoteTable($table);
         $nameQuoted = $this->quoteIdentifier($name);
         return "DROP INDEX {$nameQuoted} ON {$tableQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateFulltextIndexSql(string $name, string $table, array $columns, ?string $parser = null): string
+    {
+        // MSSQL uses FULLTEXT CATALOG and FULLTEXT INDEX
+        // This is a simplified version - full implementation would require catalog management
+        throw new \RuntimeException(
+            'MSSQL fulltext indexes require FULLTEXT CATALOG setup. ' .
+            'Please use CREATE FULLTEXT INDEX directly or set up the catalog first.'
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateSpatialIndexSql(string $name, string $table, array $columns): string
+    {
+        // MSSQL supports spatial indexes via CREATE SPATIAL INDEX
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        return "CREATE SPATIAL INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameIndexSql(string $oldName, string $table, string $newName): string
+    {
+        // MSSQL uses sp_rename for renaming indexes
+        $tableUnquoted = str_replace(['[', ']'], '', $this->quoteTable($table));
+        $oldUnquoted = str_replace(['[', ']'], '', $this->quoteIdentifier($oldName));
+        $newNameClean = trim($newName, '[]');
+        return "EXEC sp_rename '{$tableUnquoted}.{$oldUnquoted}', '{$newNameClean}', 'INDEX'";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameForeignKeySql(string $oldName, string $table, string $newName): string
+    {
+        // MSSQL uses sp_rename for renaming foreign keys
+        $tableUnquoted = str_replace(['[', ']'], '', $this->quoteTable($table));
+        $oldUnquoted = str_replace(['[', ']'], '', $this->quoteIdentifier($oldName));
+        $newNameClean = trim($newName, '[]');
+        return "EXEC sp_rename '{$tableUnquoted}.{$oldUnquoted}', '{$newNameClean}', 'OBJECT'";
     }
 
     /**
@@ -1756,6 +1849,70 @@ class MSSQLDialect extends DialectAbstract
      * {@inheritDoc}
      */
     public function buildDropForeignKeySql(string $name, string $table): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "ALTER TABLE {$tableQuoted} DROP CONSTRAINT {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddPrimaryKeySql(string $name, string $table, array $columns): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} PRIMARY KEY ({$colsList})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropPrimaryKeySql(string $name, string $table): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "ALTER TABLE {$tableQuoted} DROP CONSTRAINT {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddUniqueSql(string $name, string $table, array $columns): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} UNIQUE ({$colsList})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropUniqueSql(string $name, string $table): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "ALTER TABLE {$tableQuoted} DROP CONSTRAINT {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddCheckSql(string $name, string $table, string $expression): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} CHECK ({$expression})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropCheckSql(string $name, string $table): string
     {
         $tableQuoted = $this->quoteTable($table);
         $nameQuoted = $this->quoteIdentifier($name);

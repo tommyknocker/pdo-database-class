@@ -1360,6 +1360,13 @@ class PostgreSQLDialect extends DialectAbstract
 
         $sql = "CREATE TABLE {$tableQuoted} (\n    " . implode(",\n    ", $columnDefs) . "\n)";
 
+        // PostgreSQL table inheritance
+        if (!empty($options['inherits'])) {
+            $inherits = is_array($options['inherits']) ? $options['inherits'] : [$options['inherits']];
+            $inheritsQuoted = array_map([$this, 'quoteTable'], $inherits);
+            $sql .= ' INHERITS (' . implode(', ', $inheritsQuoted) . ')';
+        }
+
         // PostgreSQL table options (TABLESPACE, WITH, etc.)
         if (!empty($options['tablespace'])) {
             $sql .= ' TABLESPACE ' . $this->quoteIdentifier($options['tablespace']);
@@ -1372,6 +1379,11 @@ class PostgreSQLDialect extends DialectAbstract
             if (!empty($withOptions)) {
                 $sql .= ' WITH (' . implode(', ', $withOptions) . ')';
             }
+        }
+
+        // Add partitioning (PostgreSQL)
+        if (!empty($options['partition'])) {
+            $sql .= ' ' . $options['partition'];
         }
 
         return $sql;
@@ -1475,14 +1487,63 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function buildCreateIndexSql(string $name, string $table, array $columns, bool $unique = false): string
-    {
+    public function buildCreateIndexSql(
+        string $name,
+        string $table,
+        array $columns,
+        bool $unique = false,
+        ?string $where = null,
+        ?array $includeColumns = null,
+        array $options = []
+    ): string {
         $tableQuoted = $this->quoteTable($table);
         $nameQuoted = $this->quoteIdentifier($name);
         $uniqueClause = $unique ? 'UNIQUE ' : '';
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+
+        // Process columns with sorting support and RawValue support (functional indexes)
+        $colsQuoted = [];
+        foreach ($columns as $col) {
+            if (is_array($col)) {
+                // Array format: ['column' => 'ASC'/'DESC'] - associative array with column name as key
+                foreach ($col as $colName => $direction) {
+                    // $colName is always string (array key), $direction is the sort direction
+                    $dir = strtoupper((string)$direction) === 'DESC' ? 'DESC' : 'ASC';
+                    $colsQuoted[] = $this->quoteIdentifier((string)$colName) . ' ' . $dir;
+                }
+            } elseif ($col instanceof \tommyknocker\pdodb\helpers\values\RawValue) {
+                // RawValue expression (functional index)
+                $colsQuoted[] = $col->getValue();
+            } else {
+                $colsQuoted[] = $this->quoteIdentifier((string)$col);
+            }
+        }
         $colsList = implode(', ', $colsQuoted);
-        return "CREATE {$uniqueClause}INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+
+        // PostgreSQL: USING must come before column list
+        $usingClause = '';
+        if (!empty($options['using'])) {
+            $usingClause = ' USING ' . strtoupper($options['using']);
+        }
+
+        $sql = "CREATE {$uniqueClause}INDEX {$nameQuoted} ON {$tableQuoted}{$usingClause} ({$colsList})";
+
+        // Add INCLUDE columns if provided
+        if ($includeColumns !== null && !empty($includeColumns)) {
+            $includeQuoted = array_map([$this, 'quoteIdentifier'], $includeColumns);
+            $sql .= ' INCLUDE (' . implode(', ', $includeQuoted) . ')';
+        }
+
+        // Add WHERE clause for partial indexes
+        if ($where !== null && $where !== '') {
+            $sql .= ' WHERE ' . $where;
+        }
+
+        // Add options (fillfactor, etc.)
+        if (!empty($options['fillfactor'])) {
+            $sql .= ' WITH (fillfactor = ' . (int)$options['fillfactor'] . ')';
+        }
+
+        return $sql;
     }
 
     /**
@@ -1493,6 +1554,54 @@ class PostgreSQLDialect extends DialectAbstract
         // PostgreSQL: DROP INDEX name (table is not needed)
         $nameQuoted = $this->quoteIdentifier($name);
         return "DROP INDEX {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateFulltextIndexSql(string $name, string $table, array $columns, ?string $parser = null): string
+    {
+        // PostgreSQL uses GIN index with tsvector for fulltext search
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        // Create tsvector expression for fulltext search
+        $tsvectorExpr = "to_tsvector('" . ($parser ?? 'english') . "', " . implode(" || ' ' || ", $colsQuoted) . ')';
+        return "CREATE INDEX {$nameQuoted} ON {$tableQuoted} USING GIN ({$tsvectorExpr})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateSpatialIndexSql(string $name, string $table, array $columns): string
+    {
+        // PostgreSQL uses GIST index for spatial data
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        return "CREATE INDEX {$nameQuoted} ON {$tableQuoted} USING GIST ({$colsList})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameIndexSql(string $oldName, string $table, string $newName): string
+    {
+        $oldQuoted = $this->quoteIdentifier($oldName);
+        $newQuoted = $this->quoteIdentifier($newName);
+        return "ALTER INDEX {$oldQuoted} RENAME TO {$newQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameForeignKeySql(string $oldName, string $table, string $newName): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $oldQuoted = $this->quoteIdentifier($oldName);
+        $newQuoted = $this->quoteIdentifier($newName);
+        return "ALTER TABLE {$tableQuoted} RENAME CONSTRAINT {$oldQuoted} TO {$newQuoted}";
     }
 
     /**
@@ -1532,6 +1641,70 @@ class PostgreSQLDialect extends DialectAbstract
      * {@inheritDoc}
      */
     public function buildDropForeignKeySql(string $name, string $table): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "ALTER TABLE {$tableQuoted} DROP CONSTRAINT {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddPrimaryKeySql(string $name, string $table, array $columns): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} PRIMARY KEY ({$colsList})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropPrimaryKeySql(string $name, string $table): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "ALTER TABLE {$tableQuoted} DROP CONSTRAINT {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddUniqueSql(string $name, string $table, array $columns): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} UNIQUE ({$colsList})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropUniqueSql(string $name, string $table): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "ALTER TABLE {$tableQuoted} DROP CONSTRAINT {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddCheckSql(string $name, string $table, string $expression): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} CHECK ({$expression})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropCheckSql(string $name, string $table): string
     {
         $tableQuoted = $this->quoteTable($table);
         $nameQuoted = $this->quoteIdentifier($name);

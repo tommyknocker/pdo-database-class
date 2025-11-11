@@ -1174,6 +1174,11 @@ class MySQLDialect extends DialectAbstract
             $sql .= " COMMENT='{$comment}'";
         }
 
+        // Add partitioning (MySQL)
+        if (!empty($options['partition'])) {
+            $sql .= ' ' . $options['partition'];
+        }
+
         return $sql;
     }
 
@@ -1254,14 +1259,48 @@ class MySQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function buildCreateIndexSql(string $name, string $table, array $columns, bool $unique = false): string
-    {
+    public function buildCreateIndexSql(
+        string $name,
+        string $table,
+        array $columns,
+        bool $unique = false,
+        ?string $where = null,
+        ?array $includeColumns = null,
+        array $options = []
+    ): string {
         $tableQuoted = $this->quoteTable($table);
         $nameQuoted = $this->quoteIdentifier($name);
         $type = $unique ? 'UNIQUE INDEX' : 'INDEX';
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+
+        // Process columns with sorting support and RawValue support (functional indexes)
+        $colsQuoted = [];
+        foreach ($columns as $col) {
+            if (is_array($col)) {
+                // Array format: ['column' => 'ASC'/'DESC'] - associative array with column name as key
+                foreach ($col as $colName => $direction) {
+                    // $colName is always string (array key), $direction is the sort direction
+                    $dir = strtoupper((string)$direction) === 'DESC' ? 'DESC' : 'ASC';
+                    $colsQuoted[] = $this->quoteIdentifier((string)$colName) . ' ' . $dir;
+                }
+            } elseif ($col instanceof RawValue) {
+                // RawValue expression (functional index)
+                $colsQuoted[] = $col->getValue();
+            } else {
+                $colsQuoted[] = $this->quoteIdentifier((string)$col);
+            }
+        }
         $colsList = implode(', ', $colsQuoted);
-        return "CREATE {$type} {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+
+        $sql = "CREATE {$type} {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+
+        // MySQL doesn't support WHERE clause in CREATE INDEX (use partial indexes via filtered indexes in MySQL 8.0+)
+        // MySQL doesn't support INCLUDE columns
+        // Add options if provided
+        if (!empty($options['using'])) {
+            $sql .= ' USING ' . strtoupper($options['using']);
+        }
+
+        return $sql;
     }
 
     /**
@@ -1272,6 +1311,56 @@ class MySQLDialect extends DialectAbstract
         $tableQuoted = $this->quoteTable($table);
         $nameQuoted = $this->quoteIdentifier($name);
         return "DROP INDEX {$nameQuoted} ON {$tableQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateFulltextIndexSql(string $name, string $table, array $columns, ?string $parser = null): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        $parserClause = $parser !== null ? " WITH PARSER {$parser}" : '';
+        return "CREATE FULLTEXT INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList}){$parserClause}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateSpatialIndexSql(string $name, string $table, array $columns): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        return "CREATE SPATIAL INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameIndexSql(string $oldName, string $table, string $newName): string
+    {
+        // MySQL doesn't support RENAME INDEX directly, use ALTER TABLE ... RENAME INDEX
+        $tableQuoted = $this->quoteTable($table);
+        $oldQuoted = $this->quoteIdentifier($oldName);
+        $newQuoted = $this->quoteIdentifier($newName);
+        return "ALTER TABLE {$tableQuoted} RENAME INDEX {$oldQuoted} TO {$newQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameForeignKeySql(string $oldName, string $table, string $newName): string
+    {
+        // MySQL doesn't support RENAME FOREIGN KEY directly
+        // Need to drop and recreate, but for API consistency we'll throw an exception
+        throw new \RuntimeException(
+            'MySQL does not support renaming foreign keys directly. ' .
+            'You must drop the foreign key and create a new one with the desired name.'
+        );
     }
 
     /**
@@ -1315,6 +1404,71 @@ class MySQLDialect extends DialectAbstract
         $tableQuoted = $this->quoteTable($table);
         $nameQuoted = $this->quoteIdentifier($name);
         return "ALTER TABLE {$tableQuoted} DROP FOREIGN KEY {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddPrimaryKeySql(string $name, string $table, array $columns): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} PRIMARY KEY ({$colsList})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropPrimaryKeySql(string $name, string $table): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        // MySQL doesn't require constraint name for DROP PRIMARY KEY
+        return "ALTER TABLE {$tableQuoted} DROP PRIMARY KEY";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddUniqueSql(string $name, string $table, array $columns): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} UNIQUE ({$colsList})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropUniqueSql(string $name, string $table): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "ALTER TABLE {$tableQuoted} DROP INDEX {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddCheckSql(string $name, string $table, string $expression): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        // MySQL 8.0.16+ supports CHECK constraints
+        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} CHECK ({$expression})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropCheckSql(string $name, string $table): string
+    {
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "ALTER TABLE {$tableQuoted} DROP CHECK {$nameQuoted}";
     }
 
     /**

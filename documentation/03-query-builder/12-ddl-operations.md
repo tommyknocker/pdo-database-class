@@ -4,7 +4,7 @@ PDOdb provides a fluent DDL Query Builder for database schema operations without
 
 ## Overview
 
-The DDL Query Builder provides a unified API for schema operations across MySQL, MariaDB, PostgreSQL, and SQLite. It automatically handles dialect-specific differences and syntax requirements.
+The DDL Query Builder provides a unified API for schema operations across MySQL, MariaDB, PostgreSQL, SQLite, and Microsoft SQL Server (MSSQL). It automatically handles dialect-specific differences and syntax requirements.
 
 ## Getting Started
 
@@ -80,21 +80,20 @@ The ColumnSchema fluent API provides many methods for column definition:
 #### Type Methods
 
 - `primaryKey(?int $length = null)` - Integer primary key with auto-increment
-- `bigPrimaryKey(?int $length = null)` - Big integer primary key with auto-increment
-- `string(int $length = 255)` - VARCHAR column
+- `bigPrimaryKey()` - Big integer primary key with auto-increment (BIGINT)
+- `string(?int $length = null)` - VARCHAR column (default length varies by dialect)
 - `text()` - TEXT column
+- `char(?int $length = null)` - CHAR column
 - `integer(?int $length = null)` - INTEGER column
-- `bigInteger(?int $length = null)` - BIGINT column
-- `smallInteger(?int $length = null)` - SMALLINT column
+- `bigInteger()` - BIGINT column
+- `smallInteger()` - SMALLINT column
 - `boolean()` - BOOLEAN column
-- `float(int $precision = 10, int $scale = 2)` - FLOAT column
+- `float(?int $precision = null, ?int $scale = null)` - FLOAT column
 - `decimal(int $precision = 10, int $scale = 2)` - DECIMAL column
-- `dateTime()` - DATETIME/TIMESTAMP column
+- `datetime()` - DATETIME/TIMESTAMP column
 - `timestamp()` - TIMESTAMP column
 - `date()` - DATE column
 - `time()` - TIME column
-- `binary(?int $length = null)` - BLOB/BINARY column
-- `uuid()` - UUID column (PostgreSQL)
 - `json()` - JSON column
 
 #### Column Attributes
@@ -133,6 +132,27 @@ $schema->createTable('users', [
 ], [
     'tablespace' => 'pg_default',
     'with' => ['fillfactor' => 70],
+]);
+
+// Table partitioning (MySQL, PostgreSQL)
+$schema->createTable('orders', [
+    'id' => $schema->primaryKey(),
+    'order_date' => $schema->date()->notNull(),
+    'amount' => $schema->decimal(10, 2),
+], [
+    'partition' => 'PARTITION BY RANGE (YEAR(order_date)) (
+        PARTITION p2023 VALUES LESS THAN (2024),
+        PARTITION p2024 VALUES LESS THAN (2025),
+        PARTITION p2025 VALUES LESS THAN (2026)
+    )',
+]);
+
+// Table inheritance (PostgreSQL only)
+$schema->createTable('child_table', [
+    'id' => $schema->primaryKey(),
+    'name' => $schema->string(255),
+], [
+    'inherits' => ['parent_table'],
 ]);
 ```
 
@@ -200,6 +220,77 @@ $schema->renameColumn('users', 'phone', 'phone_number');
 $schema->renameTable('posts', 'articles');
 ```
 
+## Constraints (Yii2-style)
+
+### Primary Key Constraints
+
+```php
+// Add primary key constraint
+$schema->addPrimaryKey('pk_orders', 'orders', ['order_id', 'product_id']);
+
+// Drop primary key constraint
+$schema->dropPrimaryKey('pk_orders', 'orders');
+```
+
+### Unique Constraints
+
+```php
+// Add unique constraint
+$schema->addUnique('uq_users_email', 'users', 'email');
+$schema->addUnique('uq_users_username_email', 'users', ['username', 'email']);
+
+// Drop unique constraint
+$schema->dropUnique('uq_users_email', 'users');
+```
+
+### Check Constraints
+
+```php
+// Add check constraint
+$schema->addCheck('chk_products_price', 'products', 'price > 0');
+$schema->addCheck('chk_users_age', 'users', 'age >= 18 AND age <= 120');
+
+// Drop check constraint
+$schema->dropCheck('chk_products_price', 'products');
+```
+
+### Checking Constraint Existence
+
+```php
+// Check if constraints exist
+if ($schema->indexExists('idx_users_email', 'users')) {
+    echo "Index exists\n";
+}
+
+if ($schema->uniqueExists('uq_users_email', 'users')) {
+    echo "Unique constraint exists\n";
+}
+
+if ($schema->foreignKeyExists('fk_posts_user', 'posts')) {
+    echo "Foreign key exists\n";
+}
+
+if ($schema->checkExists('chk_products_price', 'products')) {
+    echo "Check constraint exists\n";
+}
+```
+
+### Getting Constraint Lists
+
+```php
+// Get all indexes for a table
+$indexes = $schema->getIndexes('users');
+
+// Get all foreign keys for a table
+$foreignKeys = $schema->getForeignKeys('posts');
+
+// Get all unique constraints for a table
+$uniqueConstraints = $schema->getUniqueConstraints('users');
+
+// Get all check constraints for a table
+$checkConstraints = $schema->getCheckConstraints('products');
+```
+
 ## Indexes
 
 ### Creating Indexes
@@ -213,6 +304,55 @@ $schema->createIndex('idx_users_username', 'users', 'username', true);
 
 // Composite index
 $schema->createIndex('idx_posts_user_date', 'posts', ['user_id', 'created_at']);
+
+// Index with sorting (ASC/DESC)
+$schema->createIndex('idx_products_name_price', 'products', [
+    'name' => 'ASC',
+    'price' => 'DESC',
+]);
+
+// Partial index with WHERE clause (PostgreSQL, MSSQL, SQLite)
+$schema->createIndex('idx_products_active', 'products', 'name', false, 'status = 1');
+
+// Index with INCLUDE columns (PostgreSQL, MSSQL)
+$schema->createIndex('idx_products_search', 'products', 'name', false, null, ['price', 'stock']);
+
+// Functional index (on expression)
+use tommyknocker\pdodb\helpers\Db;
+
+$schema->createIndex('idx_users_lower_email', 'users', [Db::raw('LOWER(email)')]);
+```
+
+### Fulltext Indexes
+
+```php
+// MySQL/MariaDB fulltext index
+$schema->createFulltextIndex('ft_idx_articles', 'articles', ['title', 'content']);
+
+// PostgreSQL fulltext index (uses GIN with tsvector)
+$schema->createFulltextIndex('ft_idx_articles', 'articles', ['title', 'content'], 'english');
+```
+
+### Spatial Indexes
+
+```php
+// MySQL/MariaDB spatial index
+$schema->createSpatialIndex('sp_idx_locations', 'locations', ['coordinates']);
+
+// PostgreSQL spatial index (uses GIST)
+$schema->createSpatialIndex('sp_idx_locations', 'locations', ['coordinates']);
+
+// MSSQL spatial index
+$schema->createSpatialIndex('sp_idx_locations', 'locations', ['coordinates']);
+```
+
+**Note:** Spatial indexes require spatial data types (GEOMETRY, GEOGRAPHY, POINT, etc.) in the columns. For PostgreSQL, you may need the PostGIS extension.
+
+### Renaming Indexes
+
+```php
+// Rename index
+$schema->renameIndex('idx_old_name', 'users', 'idx_new_name');
 ```
 
 ### Dropping Indexes
@@ -260,6 +400,13 @@ $schema->addForeignKey(
 
 ```php
 $schema->dropForeignKey('fk_posts_user', 'posts');
+```
+
+### Renaming Foreign Keys
+
+```php
+// Rename foreign key (PostgreSQL, MSSQL)
+$schema->renameForeignKey('fk_old_name', 'posts', 'fk_new_name');
 ```
 
 ## Dropping Tables
@@ -316,6 +463,16 @@ if ($schema->tableExists('users')) {
 - Type system is flexible (affinity-based)
 - No support for `UNSIGNED`, `FIRST`, `AFTER`, `COMMENT`
 - Foreign keys must be enabled with `PRAGMA foreign_keys = ON`
+
+### Microsoft SQL Server (MSSQL)
+
+- Uses `IDENTITY` for auto-increment columns (instead of `AUTO_INCREMENT`)
+- Supports filtered indexes with WHERE clause
+- Supports indexes with INCLUDE columns
+- Supports spatial indexes (GEOMETRY/GEOGRAPHY types)
+- `RENAME COLUMN` uses `sp_rename` stored procedure
+- `DROP COLUMN` automatically handles default constraints
+- Supports `NVARCHAR(MAX)` for TEXT type
 
 ## Best Practices
 

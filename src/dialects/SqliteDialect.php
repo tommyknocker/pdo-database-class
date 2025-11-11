@@ -1251,14 +1251,56 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function buildCreateIndexSql(string $name, string $table, array $columns, bool $unique = false): string
-    {
+    public function buildCreateIndexSql(
+        string $name,
+        string $table,
+        array $columns,
+        bool $unique = false,
+        ?string $where = null,
+        ?array $includeColumns = null,
+        array $options = []
+    ): string {
         $tableQuoted = $this->quoteTable($table);
         $nameQuoted = $this->quoteIdentifier($name);
         $uniqueClause = $unique ? 'UNIQUE ' : '';
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+
+        // Process columns with sorting support and RawValue support (functional indexes)
+        $colsQuoted = [];
+        foreach ($columns as $col) {
+            if (is_array($col)) {
+                // Array format: ['column' => 'ASC'/'DESC'] - associative array with column name as key
+                foreach ($col as $colName => $direction) {
+                    // $colName is always string (array key), $direction is the sort direction
+                    $dir = strtoupper((string)$direction) === 'DESC' ? 'DESC' : 'ASC';
+                    $colsQuoted[] = $this->quoteIdentifier((string)$colName) . ' ' . $dir;
+                }
+            } elseif ($col instanceof \tommyknocker\pdodb\helpers\values\RawValue) {
+                // RawValue expression (functional index)
+                $colsQuoted[] = $col->getValue();
+            } else {
+                $colsQuoted[] = $this->quoteIdentifier((string)$col);
+            }
+        }
         $colsList = implode(', ', $colsQuoted);
-        return "CREATE {$uniqueClause}INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+
+        $sql = "CREATE {$uniqueClause}INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+
+        // SQLite supports WHERE clause for partial indexes
+        if ($where !== null && $where !== '') {
+            $sql .= ' WHERE ' . $where;
+        }
+
+        // SQLite doesn't support INCLUDE columns
+        if ($includeColumns !== null && !empty($includeColumns)) {
+            throw new QueryException(
+                'SQLite does not support INCLUDE columns in indexes. ' .
+                'Include columns must be part of the main index columns list.'
+            );
+        }
+
+        // SQLite doesn't support fillfactor or other index options
+
+        return $sql;
     }
 
     /**
@@ -1269,6 +1311,55 @@ class SqliteDialect extends DialectAbstract
         // SQLite: DROP INDEX name (table is not needed, but kept for compatibility)
         $nameQuoted = $this->quoteIdentifier($name);
         return "DROP INDEX {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateFulltextIndexSql(string $name, string $table, array $columns, ?string $parser = null): string
+    {
+        // SQLite doesn't have native fulltext indexes, but supports FTS (Full-Text Search) virtual tables
+        throw new QueryException(
+            'SQLite does not support FULLTEXT indexes. ' .
+            'Use FTS (Full-Text Search) virtual tables instead: CREATE VIRTUAL TABLE ... USING FTS5(...)'
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateSpatialIndexSql(string $name, string $table, array $columns): string
+    {
+        // SQLite doesn't have native spatial indexes
+        throw new QueryException(
+            'SQLite does not support SPATIAL indexes. ' .
+            'Use R-Tree virtual tables for spatial data: CREATE VIRTUAL TABLE ... USING rtree(...)'
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameIndexSql(string $oldName, string $table, string $newName): string
+    {
+        // SQLite doesn't support RENAME INDEX directly
+        // Need to drop and recreate
+        throw new QueryException(
+            'SQLite does not support renaming indexes directly. ' .
+            'You must drop the index and create a new one with the desired name.'
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRenameForeignKeySql(string $oldName, string $table, string $newName): string
+    {
+        // SQLite doesn't support renaming foreign keys
+        throw new QueryException(
+            'SQLite does not support renaming foreign keys. ' .
+            'You must recreate the table without the constraint and add a new one.'
+        );
     }
 
     /**
@@ -1304,6 +1395,79 @@ class SqliteDialect extends DialectAbstract
         throw new QueryException(
             'SQLite does not support dropping foreign keys via ALTER TABLE. ' .
             'To drop a foreign key, you must recreate the table without the constraint.'
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddPrimaryKeySql(string $name, string $table, array $columns): string
+    {
+        // SQLite doesn't support adding PRIMARY KEY via ALTER TABLE
+        // Requires table recreation
+        throw new QueryException(
+            'SQLite does not support adding PRIMARY KEY via ALTER TABLE. ' .
+            'To add a PRIMARY KEY, you must recreate the table with the constraint.'
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropPrimaryKeySql(string $name, string $table): string
+    {
+        // SQLite doesn't support dropping PRIMARY KEY via ALTER TABLE
+        // Requires table recreation
+        throw new QueryException(
+            'SQLite does not support dropping PRIMARY KEY via ALTER TABLE. ' .
+            'To drop a PRIMARY KEY, you must recreate the table without the constraint.'
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddUniqueSql(string $name, string $table, array $columns): string
+    {
+        // SQLite supports UNIQUE via CREATE UNIQUE INDEX
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
+        $colsList = implode(', ', $colsQuoted);
+        return "CREATE UNIQUE INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropUniqueSql(string $name, string $table): string
+    {
+        // SQLite UNIQUE constraints are implemented as indexes, so drop as index
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "DROP INDEX {$nameQuoted}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAddCheckSql(string $name, string $table, string $expression): string
+    {
+        // SQLite 3.37.0+ supports CHECK constraints via ALTER TABLE
+        $tableQuoted = $this->quoteTable($table);
+        $nameQuoted = $this->quoteIdentifier($name);
+        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} CHECK ({$expression})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildDropCheckSql(string $name, string $table): string
+    {
+        // SQLite doesn't support dropping CHECK constraints via ALTER TABLE
+        // Requires table recreation
+        throw new QueryException(
+            'SQLite does not support dropping CHECK constraints via ALTER TABLE. ' .
+            'To drop a CHECK constraint, you must recreate the table without the constraint.'
         );
     }
 

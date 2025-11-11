@@ -1037,12 +1037,23 @@ interface DialectInterface
      *
      * @param string $name Index name
      * @param string $table Table name
-     * @param array<int, string> $columns Column names
+     * @param array<int, string|array<string, string>> $columns Column names (can be array with 'column' => 'ASC'/'DESC' for sorting)
      * @param bool $unique Whether index is unique
+     * @param string|null $where WHERE clause for partial indexes
+     * @param array<int, string>|null $includeColumns INCLUDE columns (for PostgreSQL/MSSQL)
+     * @param array<string, mixed> $options Additional index options (fillfactor, using, etc.)
      *
      * @return string SQL statement
      */
-    public function buildCreateIndexSql(string $name, string $table, array $columns, bool $unique = false): string;
+    public function buildCreateIndexSql(
+        string $name,
+        string $table,
+        array $columns,
+        bool $unique = false,
+        ?string $where = null,
+        ?array $includeColumns = null,
+        array $options = []
+    ): string;
 
     /**
      * Build DROP INDEX SQL statement.
@@ -1053,6 +1064,51 @@ interface DialectInterface
      * @return string SQL statement
      */
     public function buildDropIndexSql(string $name, string $table): string;
+
+    /**
+     * Build CREATE FULLTEXT INDEX SQL statement.
+     *
+     * @param string $name Index name
+     * @param string $table Table name
+     * @param array<int, string> $columns Column names
+     * @param string|null $parser Parser name (for MySQL)
+     *
+     * @return string SQL statement
+     */
+    public function buildCreateFulltextIndexSql(string $name, string $table, array $columns, ?string $parser = null): string;
+
+    /**
+     * Build CREATE SPATIAL INDEX SQL statement.
+     *
+     * @param string $name Index name
+     * @param string $table Table name
+     * @param array<int, string> $columns Column names
+     *
+     * @return string SQL statement
+     */
+    public function buildCreateSpatialIndexSql(string $name, string $table, array $columns): string;
+
+    /**
+     * Build RENAME INDEX SQL statement.
+     *
+     * @param string $oldName Old index name
+     * @param string $table Table name
+     * @param string $newName New index name
+     *
+     * @return string SQL statement
+     */
+    public function buildRenameIndexSql(string $oldName, string $table, string $newName): string;
+
+    /**
+     * Build RENAME FOREIGN KEY SQL statement.
+     *
+     * @param string $oldName Old foreign key name
+     * @param string $table Table name
+     * @param string $newName New foreign key name
+     *
+     * @return string SQL statement
+     */
+    public function buildRenameForeignKeySql(string $oldName, string $table, string $newName): string;
 
     /**
      * Build ADD FOREIGN KEY SQL statement.
@@ -1086,6 +1142,69 @@ interface DialectInterface
      * @return string SQL statement
      */
     public function buildDropForeignKeySql(string $name, string $table): string;
+
+    /**
+     * Build ADD PRIMARY KEY SQL statement.
+     *
+     * @param string $name Primary key name
+     * @param string $table Table name
+     * @param array<int, string> $columns Column names
+     *
+     * @return string SQL statement
+     */
+    public function buildAddPrimaryKeySql(string $name, string $table, array $columns): string;
+
+    /**
+     * Build DROP PRIMARY KEY SQL statement.
+     *
+     * @param string $name Primary key name
+     * @param string $table Table name
+     *
+     * @return string SQL statement
+     */
+    public function buildDropPrimaryKeySql(string $name, string $table): string;
+
+    /**
+     * Build ADD UNIQUE constraint SQL statement.
+     *
+     * @param string $name Unique constraint name
+     * @param string $table Table name
+     * @param array<int, string> $columns Column names
+     *
+     * @return string SQL statement
+     */
+    public function buildAddUniqueSql(string $name, string $table, array $columns): string;
+
+    /**
+     * Build DROP UNIQUE constraint SQL statement.
+     *
+     * @param string $name Unique constraint name
+     * @param string $table Table name
+     *
+     * @return string SQL statement
+     */
+    public function buildDropUniqueSql(string $name, string $table): string;
+
+    /**
+     * Build ADD CHECK constraint SQL statement.
+     *
+     * @param string $name Check constraint name
+     * @param string $table Table name
+     * @param string $expression Check expression
+     *
+     * @return string SQL statement
+     */
+    public function buildAddCheckSql(string $name, string $table, string $expression): string;
+
+    /**
+     * Build DROP CHECK constraint SQL statement.
+     *
+     * @param string $name Check constraint name
+     * @param string $table Table name
+     *
+     * @return string SQL statement
+     */
+    public function buildDropCheckSql(string $name, string $table): string;
 
     /**
      * Build RENAME TABLE SQL statement.

@@ -179,7 +179,8 @@ Extending PdoDb: macros, plugins, and events.
 ### 11. Schema Management
 Database schema management: DDL and migrations.
 
-- **[01-ddl.php](11-schema/01-ddl.php)** - DDL Query Builder
+- **[01-ddl.php](11-schema/01-ddl.php)** - DDL Query Builder basics
+- **[02-advanced-ddl.php](11-schema/02-advanced-ddl.php)** - Advanced DDL features (Yii2-style constraints, partial indexes, fulltext/spatial indexes)
 - **[02-migrations.php](11-schema/02-migrations.php)** - Database migrations
 
 ### 12. Reliability
