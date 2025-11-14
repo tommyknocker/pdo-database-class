@@ -33,6 +33,7 @@ class CliToolsTests extends BaseSharedTestCase
         putenv('PDODB_MIGRATION_PATH=' . $this->testMigrationPath);
         putenv('PDODB_MODEL_PATH=' . $this->testModelPath);
         putenv('PDODB_DRIVER=sqlite');
+        putenv('PDODB_NON_INTERACTIVE=1');
     }
 
     protected function tearDown(): void
@@ -70,6 +71,7 @@ class CliToolsTests extends BaseSharedTestCase
         // Clean up environment variables
         putenv('PDODB_MIGRATION_PATH');
         putenv('PDODB_MODEL_PATH');
+        putenv('PDODB_NON_INTERACTIVE');
 
         parent::tearDown();
     }

@@ -25,7 +25,7 @@ abstract class BaseCliCommand
         static::loadEnvFile();
 
         // Get driver from environment
-        $driver = mb_strtolower(getenv('PDODB_DRIVER') ?: 'sqlite', 'UTF-8');
+        $driver = mb_strtolower(getenv('PDODB_DRIVER') ?: '', 'UTF-8');
 
         // Build config from environment variables
         $config = static::buildConfigFromEnv($driver);
@@ -33,21 +33,53 @@ abstract class BaseCliCommand
             return $config;
         }
 
-        // Try root config.php
-        $rootConfig = getcwd() . '/config.php';
+        // Try config/db.php
+        $rootConfig = getcwd() . '/config/db.php';
         if (file_exists($rootConfig)) {
             $config = require $rootConfig;
-            return $config[$driver] ?? $config['sqlite'] ?? ['driver' => 'sqlite', 'path' => ':memory:'];
+            // Config should directly contain driver and connection settings
+            if (isset($config['driver'])) {
+                return $config;
+            }
+            // Backward compatibility: check if it's an array with driver keys
+            if (isset($config[$driver])) {
+                return $config[$driver];
+            }
+            // If driver not specified, check if sqlite config exists (for backward compatibility)
+            if (isset($config['sqlite'])) {
+                static::warning('Using SQLite configuration from config/db.php. Consider setting PDODB_DRIVER environment variable or using direct driver configuration.');
+                return $config['sqlite'];
+            }
         }
 
         // Try examples config (for testing only)
-        $configFile = __DIR__ . "/../../examples/config.{$driver}.php";
-        if (file_exists($configFile)) {
-            return require $configFile;
+        if ($driver !== '') {
+            $configFile = __DIR__ . "/../../examples/config.{$driver}.php";
+            if (file_exists($configFile)) {
+                return require $configFile;
+            }
         }
 
-        // Fallback to SQLite
-        return ['driver' => 'sqlite', 'path' => ':memory:'];
+        // Throw error instead of fallback
+        static::error("Database configuration not found.\n\n" .
+            "Please configure your database connection:\n" .
+            "  1. Create a .env file in your project root with:\n" .
+            "     PDODB_DRIVER=mysql|mariadb|pgsql|sqlite|sqlsrv\n" .
+            "     PDODB_HOST=localhost\n" .
+            "     PDODB_DATABASE=your_database\n" .
+            "     PDODB_USERNAME=your_username\n" .
+            "     PDODB_PASSWORD=your_password\n\n" .
+            "  2. Or create a config/db.php file in your project root with:\n" .
+            "     <?php\n" .
+            "     return [\n" .
+            "         'driver' => 'mysql',\n" .
+            "         'host' => 'localhost',\n" .
+            "         'database' => 'your_database',\n" .
+            "         'username' => 'your_username',\n" .
+            "         'password' => 'your_password',\n" .
+            "     ];\n\n" .
+            "  3. Or set PDODB_DRIVER environment variable\n\n" .
+            'For more information, see: documentation/05-advanced-features/21-cli-tools.md');
     }
 
     /**
@@ -101,6 +133,11 @@ abstract class BaseCliCommand
      */
     protected static function buildConfigFromEnv(string $driver): ?array
     {
+        // Return null if driver is empty
+        if ($driver === '') {
+            return null;
+        }
+
         $config = ['driver' => $driver];
 
         switch ($driver) {
@@ -214,6 +251,20 @@ abstract class BaseCliCommand
      */
     protected static function readInput(string $prompt, ?string $default = null): string
     {
+        // Check if non-interactive mode is enabled (for tests, CI, etc.)
+        // Check for PDODB_NON_INTERACTIVE env var or if STDIN is not a tty
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false
+            || !stream_isatty(STDIN);
+
+        if ($nonInteractive) {
+            if ($default !== null) {
+                return $default;
+            }
+            // If no default and not interactive, return empty string
+            return '';
+        }
+
         $defaultText = $default !== null ? " [{$default}]" : '';
         echo $prompt . $defaultText . ': ';
         $input = trim((string)fgets(STDIN));
@@ -230,6 +281,16 @@ abstract class BaseCliCommand
      */
     protected static function readConfirmation(string $prompt, bool $default = true): bool
     {
+        // Check if non-interactive mode is enabled (for tests, CI, etc.)
+        // Check for PDODB_NON_INTERACTIVE env var or if STDIN is not a tty
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false
+            || !stream_isatty(STDIN);
+
+        if ($nonInteractive) {
+            return $default;
+        }
+
         $defaultText = $default ? 'Y/n' : 'y/N';
         echo $prompt . " [{$defaultText}]: ";
         $input = strtolower(trim((string)fgets(STDIN)));
