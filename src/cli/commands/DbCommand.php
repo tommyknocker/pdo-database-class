@@ -52,10 +52,15 @@ class DbCommand extends Command
      */
     protected function create(): int
     {
+        $this->showDatabaseHeader();
+
         $databaseName = $this->getArgument(1);
 
         if ($databaseName === null) {
-            $this->showError('Database name is required');
+            $databaseName = static::readInput('Enter database name');
+            if ($databaseName === '') {
+                $this->showError('Database name is required');
+            }
         }
 
         try {
@@ -76,10 +81,15 @@ class DbCommand extends Command
      */
     protected function drop(): int
     {
+        $this->showDatabaseHeader();
+
         $databaseName = $this->getArgument(1);
 
         if ($databaseName === null) {
-            $this->showError('Database name is required');
+            $databaseName = static::readInput('Enter database name');
+            if ($databaseName === '') {
+                $this->showError('Database name is required');
+            }
         }
 
         // Ask for confirmation
@@ -108,10 +118,15 @@ class DbCommand extends Command
      */
     protected function exists(): int
     {
+        $this->showDatabaseHeader();
+
         $databaseName = $this->getArgument(1);
 
         if ($databaseName === null) {
-            $this->showError('Database name is required');
+            $databaseName = static::readInput('Enter database name');
+            if ($databaseName === '') {
+                $this->showError('Database name is required');
+            }
         }
 
         try {
@@ -138,6 +153,8 @@ class DbCommand extends Command
      */
     protected function list(): int
     {
+        $this->showDatabaseHeader();
+
         try {
             $config = static::loadDatabaseConfig();
             $db = DatabaseManager::createServerConnection($config);
@@ -166,6 +183,8 @@ class DbCommand extends Command
      */
     protected function showInfo(): int
     {
+        $this->showDatabaseHeader();
+
         try {
             $db = $this->getDb();
             $info = DatabaseManager::getInfo($db);
@@ -189,6 +208,36 @@ class DbCommand extends Command
     }
 
     /**
+     * Show database header with current database information.
+     */
+    protected function showDatabaseHeader(): void
+    {
+        try {
+            $db = $this->getDb();
+            $driver = static::getDriverName($db);
+            $info = DatabaseManager::getInfo($db);
+
+            echo "PDOdb Database Management\n";
+            echo "Database: {$driver}";
+            if (isset($info['current_database']) && is_string($info['current_database']) && $info['current_database'] !== '') {
+                echo " ({$info['current_database']})";
+            }
+            echo "\n\n";
+        } catch (\Exception $e) {
+            // If we can't get database info, just show driver
+            try {
+                $db = $this->getDb();
+                $driver = static::getDriverName($db);
+                echo "PDOdb Database Management\n";
+                echo "Database: {$driver}\n\n";
+            } catch (\Exception $e2) {
+                // If even that fails, just show header
+                echo "PDOdb Database Management\n\n";
+            }
+        }
+    }
+
+    /**
      * Show help message.
      *
      * @return int Exit code
@@ -198,14 +247,15 @@ class DbCommand extends Command
         echo "Database Management\n\n";
         echo "Usage: pdodb db <subcommand> [arguments] [options]\n\n";
         echo "Subcommands:\n";
-        echo "  create <name>     Create a new database\n";
-        echo "  drop <name>        Drop a database (with confirmation)\n";
-        echo "  exists <name>      Check if a database exists\n";
+        echo "  create [name]      Create a new database (name will be prompted if not provided)\n";
+        echo "  drop [name]        Drop a database (name will be prompted if not provided, with confirmation)\n";
+        echo "  exists [name]      Check if a database exists (name will be prompted if not provided)\n";
         echo "  list               List all databases\n";
         echo "  info               Show information about current database\n";
         echo "  help               Show this help message\n\n";
         echo "Examples:\n";
         echo "  pdodb db create myapp\n";
+        echo "  pdodb db create    (will prompt for name)\n";
         echo "  pdodb db drop myapp\n";
         echo "  pdodb db exists myapp\n";
         echo "  pdodb db list\n";

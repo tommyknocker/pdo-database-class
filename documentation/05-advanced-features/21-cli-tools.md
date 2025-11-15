@@ -68,14 +68,17 @@ Manage databases with simple commands for creating, dropping, listing, and check
 ### Usage
 
 ```bash
-# Create a database
+# Create a database (name will be prompted if not provided)
 vendor/bin/pdodb db create myapp
+vendor/bin/pdodb db create
 
-# Drop a database (with confirmation)
+# Drop a database (name will be prompted if not provided, with confirmation)
 vendor/bin/pdodb db drop myapp
+vendor/bin/pdodb db drop
 
-# Check if a database exists
+# Check if a database exists (name will be prompted if not provided)
 vendor/bin/pdodb db exists myapp
+vendor/bin/pdodb db exists
 
 # List all databases
 vendor/bin/pdodb db list
@@ -94,6 +97,15 @@ $ vendor/bin/pdodb db create myapp
 ✓ Database 'myapp' created successfully
 ```
 
+Or interactively:
+
+```bash
+$ vendor/bin/pdodb db create
+
+Enter database name: myapp
+✓ Database 'myapp' created successfully
+```
+
 #### Drop Database
 
 ```bash
@@ -103,11 +115,30 @@ Are you sure you want to drop database 'myapp'? This action cannot be undone [y/
 ✓ Database 'myapp' dropped successfully
 ```
 
+Or interactively:
+
+```bash
+$ vendor/bin/pdodb db drop
+
+Enter database name: myapp
+Are you sure you want to drop database 'myapp'? This action cannot be undone [y/N]: y
+✓ Database 'myapp' dropped successfully
+```
+
 #### Check Database Existence
 
 ```bash
 $ vendor/bin/pdodb db exists myapp
 
+✓ Database 'myapp' exists
+```
+
+Or interactively:
+
+```bash
+$ vendor/bin/pdodb db exists
+
+Enter database name: myapp
 ✓ Database 'myapp' exists
 ```
 
