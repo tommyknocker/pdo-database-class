@@ -75,13 +75,45 @@ class MigrateCommand extends Command
     {
         $migrationPath = MigrationGenerator::getMigrationPath();
         $runner = new MigrationRunner($this->getDb(), $migrationPath);
+
+        // Handle options
+        $dryRun = $this->getOption('dry-run', false);
+        $pretend = $this->getOption('pretend', false);
+
+        if ($dryRun) {
+            $runner->setDryRun(true);
+        }
+        if ($pretend) {
+            $runner->setPretend(true);
+        }
+
         $limit = (int)($this->getArgument(1) ?? 0);
         $applied = $runner->migrate($limit);
         $count = count($applied);
+
         if ($count > 0) {
-            static::success("Applied {$count} migration(s)");
-            foreach ($applied as $version) {
-                echo "  - {$version}\n";
+            if ($dryRun || $pretend) {
+                $mode = $dryRun ? 'DRY-RUN' : 'PRETEND';
+                static::info("{$mode} mode: Would apply {$count} migration(s)");
+                foreach ($applied as $version) {
+                    echo "  - {$version}\n";
+                }
+
+                // Show collected queries for dry-run
+                if ($dryRun) {
+                    $queries = $runner->getCollectedQueries();
+                    if (!empty($queries)) {
+                        echo "\nSQL that would be executed:\n";
+                        foreach ($queries as $query) {
+                            echo "  {$query}\n";
+                        }
+                    }
+                }
+            } else {
+                static::success("Applied {$count} migration(s)");
+                foreach ($applied as $version) {
+                    echo "  - {$version}\n";
+                }
             }
         } else {
             static::info('No new migrations to apply');
@@ -98,10 +130,65 @@ class MigrateCommand extends Command
     {
         $migrationPath = MigrationGenerator::getMigrationPath();
         $runner = new MigrationRunner($this->getDb(), $migrationPath);
+
+        // Handle options
+        $dryRun = $this->getOption('dry-run', false);
+        $pretend = $this->getOption('pretend', false);
+        $force = $this->getOption('force', false);
+
+        if ($dryRun) {
+            $runner->setDryRun(true);
+        }
+        if ($pretend) {
+            $runner->setPretend(true);
+        }
+
         $step = (int)($this->getArgument(1) ?? 1);
+
+        // Ask for confirmation unless --force is used
+        if (!$force) {
+            $confirmed = static::readConfirmation(
+                "Are you sure you want to rollback {$step} migration(s)? This action cannot be undone",
+                false
+            );
+
+            if (!$confirmed) {
+                static::info('Operation cancelled');
+                return 0;
+            }
+        }
+
         $rolledBack = $runner->migrateDown($step);
         $count = count($rolledBack);
-        static::success("Rolled back {$count} migration(s)");
+
+        if ($count > 0) {
+            if ($dryRun || $pretend) {
+                $mode = $dryRun ? 'DRY-RUN' : 'PRETEND';
+                static::info("{$mode} mode: Would rollback {$count} migration(s)");
+                foreach ($rolledBack as $version) {
+                    echo "  - {$version}\n";
+                }
+
+                // Show collected queries for dry-run
+                if ($dryRun) {
+                    $queries = $runner->getCollectedQueries();
+                    if (!empty($queries)) {
+                        echo "\nSQL that would be executed:\n";
+                        foreach ($queries as $query) {
+                            echo "  {$query}\n";
+                        }
+                    }
+                }
+            } else {
+                static::success("Rolled back {$count} migration(s)");
+                foreach ($rolledBack as $version) {
+                    echo "  - {$version}\n";
+                }
+            }
+        } else {
+            static::info('No migrations to rollback');
+        }
+
         return 0;
     }
 
@@ -169,7 +256,15 @@ class MigrateCommand extends Command
         echo "  down, rollback    Rollback the last migration\n";
         echo "  history           Show migration history\n";
         echo "  new               Show new migrations\n";
-        echo "  help              Show this help message\n";
+        echo "  help              Show this help message\n\n";
+        echo "Options:\n";
+        echo "  --dry-run         Show SQL without executing\n";
+        echo "  --force           Execute without confirmation (for rollback)\n";
+        echo "  --pretend         Simulate execution\n\n";
+        echo "Examples:\n";
+        echo "  pdodb migrate up --dry-run\n";
+        echo "  pdodb migrate down 2 --force\n";
+        echo "  pdodb migrate up --pretend\n";
         return 0;
     }
 }

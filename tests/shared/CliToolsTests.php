@@ -10,6 +10,7 @@ use tommyknocker\pdodb\cli\ModelGenerator;
 use tommyknocker\pdodb\cli\SchemaInspector;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\ResourceException;
+use tommyknocker\pdodb\migrations\MigrationRunner;
 
 /**
  * Shared tests for CLI tools.
@@ -47,6 +48,11 @@ class CliToolsTests extends BaseSharedTestCase
             if ($schema->tableExists($table)) {
                 $schema->dropTable($table);
             }
+        }
+
+        // Clean up migration history table
+        if ($schema->tableExists('__migrations')) {
+            self::$db->find()->from('__migrations')->delete();
         }
 
         // Clean up test directories
@@ -900,5 +906,213 @@ class CliToolsTests extends BaseSharedTestCase
                 unlink($tempFile);
             }
         }
+    }
+
+    /**
+     * Test MigrationRunner dry-run mode for migrate up.
+     */
+    public function testMigrationRunnerDryRunModeForMigrateUp(): void
+    {
+        // Create a test migration
+        ob_start();
+
+        try {
+            $migrationName = 'test_dry_run_migration';
+            $filename = MigrationGenerator::generate($migrationName, $this->testMigrationPath);
+        } finally {
+            ob_end_clean();
+        }
+
+        $runner = new MigrationRunner(self::$db, $this->testMigrationPath);
+        $runner->setDryRun(true);
+
+        // In dry-run mode, migrate should return list without executing
+        $applied = $runner->migrate(0);
+        $this->assertIsArray($applied);
+        $this->assertNotEmpty($applied);
+
+        // Check that collected queries exist
+        $queries = $runner->getCollectedQueries();
+        $this->assertNotEmpty($queries);
+        $this->assertStringContainsString('Migration:', $queries[0]);
+        $this->assertStringContainsString('Would execute', $queries[1]);
+
+        // Verify migration was NOT actually applied
+        $history = $runner->getMigrationHistory();
+        $appliedVersions = array_column($history, 'version');
+        $version = basename($filename, '.php');
+        $version = substr($version, 1); // Remove 'm' prefix
+        $this->assertNotContains($version, $appliedVersions);
+    }
+
+    /**
+     * Test MigrationRunner pretend mode for migrate up.
+     */
+    public function testMigrationRunnerPretendModeForMigrateUp(): void
+    {
+        // Create a test migration
+        ob_start();
+
+        try {
+            $migrationName = 'test_pretend_migration';
+            $filename = MigrationGenerator::generate($migrationName, $this->testMigrationPath);
+        } finally {
+            ob_end_clean();
+        }
+
+        $runner = new MigrationRunner(self::$db, $this->testMigrationPath);
+        $runner->setPretend(true);
+
+        // In pretend mode, migrate should return list without executing
+        $applied = $runner->migrate(0);
+        $this->assertIsArray($applied);
+        $this->assertNotEmpty($applied);
+
+        // Check that collected queries exist
+        $queries = $runner->getCollectedQueries();
+        $this->assertNotEmpty($queries);
+        $this->assertStringContainsString('Migration:', $queries[0]);
+
+        // Verify migration was NOT actually applied
+        $history = $runner->getMigrationHistory();
+        $appliedVersions = array_column($history, 'version');
+        $version = basename($filename, '.php');
+        $version = substr($version, 1); // Remove 'm' prefix
+        $this->assertNotContains($version, $appliedVersions);
+    }
+
+    /**
+     * Test MigrationRunner dry-run mode for migrate down.
+     */
+    public function testMigrationRunnerDryRunModeForMigrateDown(): void
+    {
+        // Create and apply a test migration first
+        ob_start();
+
+        try {
+            $migrationName = 'test_dry_run_down_migration';
+            MigrationGenerator::generate($migrationName, $this->testMigrationPath);
+        } finally {
+            ob_end_clean();
+        }
+
+        // Apply migration normally
+        $runner = new MigrationRunner(self::$db, $this->testMigrationPath);
+        $applied = $runner->migrate(0);
+        $this->assertNotEmpty($applied);
+        $version = $applied[0];
+
+        // Now test dry-run for rollback
+        $runner->setDryRun(true);
+        $rolledBack = $runner->migrateDown(1);
+        $this->assertIsArray($rolledBack);
+        $this->assertNotEmpty($rolledBack);
+        $this->assertEquals($version, $rolledBack[0]);
+
+        // Check that collected queries exist
+        $queries = $runner->getCollectedQueries();
+        $this->assertNotEmpty($queries);
+        $this->assertStringContainsString('Rollback Migration:', $queries[0]);
+        $this->assertStringContainsString('Would execute', $queries[1]);
+
+        // Verify migration was NOT actually rolled back
+        $history = $runner->getMigrationHistory();
+        $appliedVersions = array_column($history, 'version');
+        $this->assertContains($version, $appliedVersions);
+    }
+
+    /**
+     * Test MigrationRunner pretend mode for migrate down.
+     */
+    public function testMigrationRunnerPretendModeForMigrateDown(): void
+    {
+        // Create and apply a test migration first
+        ob_start();
+
+        try {
+            $migrationName = 'test_pretend_down_migration';
+            MigrationGenerator::generate($migrationName, $this->testMigrationPath);
+        } finally {
+            ob_end_clean();
+        }
+
+        // Apply migration normally
+        $runner = new MigrationRunner(self::$db, $this->testMigrationPath);
+        $applied = $runner->migrate(0);
+        $this->assertNotEmpty($applied);
+        $version = $applied[0];
+
+        // Now test pretend for rollback
+        $runner->setPretend(true);
+        $rolledBack = $runner->migrateDown(1);
+        $this->assertIsArray($rolledBack);
+        $this->assertNotEmpty($rolledBack);
+        $this->assertEquals($version, $rolledBack[0]);
+
+        // Check that collected queries exist
+        $queries = $runner->getCollectedQueries();
+        $this->assertNotEmpty($queries);
+        $this->assertStringContainsString('Rollback Migration:', $queries[0]);
+
+        // Verify migration was NOT actually rolled back
+        $history = $runner->getMigrationHistory();
+        $appliedVersions = array_column($history, 'version');
+        $this->assertContains($version, $appliedVersions);
+    }
+
+    /**
+     * Test MigrationRunner getCollectedQueries and clearCollectedQueries methods.
+     */
+    public function testMigrationRunnerCollectedQueriesMethods(): void
+    {
+        // Create a test migration
+        ob_start();
+
+        try {
+            $migrationName = 'test_collected_queries';
+            MigrationGenerator::generate($migrationName, $this->testMigrationPath);
+        } finally {
+            ob_end_clean();
+        }
+
+        $runner = new MigrationRunner(self::$db, $this->testMigrationPath);
+        $runner->setDryRun(true);
+
+        // Initially, collected queries should be empty
+        $queries = $runner->getCollectedQueries();
+        $this->assertEmpty($queries);
+
+        // Run migrate in dry-run mode
+        $runner->migrate(0);
+        $queries = $runner->getCollectedQueries();
+        $this->assertNotEmpty($queries);
+
+        // Clear collected queries
+        $runner->clearCollectedQueries();
+        $queries = $runner->getCollectedQueries();
+        $this->assertEmpty($queries);
+    }
+
+    /**
+     * Test MigrationRunner setDryRun and setPretend methods.
+     */
+    public function testMigrationRunnerSetDryRunAndSetPretend(): void
+    {
+        $runner = new MigrationRunner(self::$db, $this->testMigrationPath);
+
+        // Test setDryRun
+        $result = $runner->setDryRun(true);
+        $this->assertSame($runner, $result);
+
+        // Test setPretend
+        $result = $runner->setPretend(true);
+        $this->assertSame($runner, $result);
+
+        // Test that both can be set
+        $runner->setDryRun(false);
+        $runner->setPretend(false);
+        $runner->setDryRun(true);
+        $runner->setPretend(true);
+        $this->assertTrue(true); // If we get here, no exception was thrown
     }
 }
