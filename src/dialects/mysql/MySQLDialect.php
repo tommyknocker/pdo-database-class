@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\dialects\mysql;
 use InvalidArgumentException;
 use PDO;
 use RuntimeException;
+use tommyknocker\pdodb\dialects\mysql\MySQLFeatureSupport;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\mysql\MySQLDdlBuilder;

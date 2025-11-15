@@ -8,7 +8,7 @@ use Exception;
 use PDOException;
 use tommyknocker\pdodb\connection\Connection;
 use tommyknocker\pdodb\connection\ConnectionInterface;
-use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\builders\dialects\DialectInterface;
 use tommyknocker\pdodb\events\QueryErrorEvent;
 use tommyknocker\pdodb\events\QueryExecutedEvent;
 use tommyknocker\pdodb\exceptions\ExceptionFactory;

@@ -9,23 +9,33 @@ use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
-use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
+use tommyknocker\pdodb\dialects\postgresql\PostgreSQLDdlBuilder;
+use tommyknocker\pdodb\dialects\postgresql\PostgreSQLDmlBuilder;
+use tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class PostgreSQLDialect extends DialectAbstract
 {
-    use JsonPathBuilderTrait;
-    use UpsertBuilderTrait;
-
     /** @var PostgreSQLFeatureSupport Feature support instance */
     private PostgreSQLFeatureSupport $featureSupport;
+
+    /** @var PostgreSQLSqlFormatter SQL formatter instance */
+    private PostgreSQLSqlFormatter $sqlFormatter;
+
+    /** @var PostgreSQLDmlBuilder DML builder instance */
+    private PostgreSQLDmlBuilder $dmlBuilder;
+
+    /** @var PostgreSQLDdlBuilder DDL builder instance */
+    private PostgreSQLDdlBuilder $ddlBuilder;
 
     public function __construct()
     {
         $this->featureSupport = new PostgreSQLFeatureSupport();
+        $this->sqlFormatter = new PostgreSQLSqlFormatter($this);
+        $this->dmlBuilder = new PostgreSQLDmlBuilder($this);
+        $this->ddlBuilder = new PostgreSQLDdlBuilder($this);
     }
     /**
      * {@inheritDoc}
@@ -243,46 +253,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildInsertSql(string $table, array $columns, array $placeholders, array $options = []): string
     {
-        $cols = implode(', ', array_map([$this, 'quoteIdentifier'], $columns));
-        $vals = implode(', ', $placeholders);
-        $sql = sprintf('INSERT INTO %s (%s) VALUES (%s)', $table, $cols, $vals);
-
-        $tail = [];
-        $beforeValues = []; // e.g., OVERRIDING ...
-        foreach ($options as $opt) {
-            $u = strtoupper(trim($opt));
-            if (str_starts_with($u, 'RETURNING')) {
-                $tail[] = $opt;
-            } elseif (str_starts_with($u, 'ONLY')) {
-                $result = preg_replace(
-                    '/^INSERT INTO\s+' . preg_quote($table, '/') . '/i',
-                    'INSERT INTO ONLY ' . $table,
-                    $sql,
-                    1
-                );
-                $sql = $result ?? $sql;
-            } elseif (str_starts_with($u, 'OVERRIDING')) {
-                // insert before VALUES
-                $beforeValues[] = $opt;
-            } elseif (str_starts_with($u, 'ON CONFLICT')) {
-                // ON CONFLICT goes after VALUES and before RETURNING
-                $tail[] = $opt;
-            } else {
-                // move unknown option to tail by default
-                $tail[] = $opt;
-            }
-        }
-
-        if (!empty($beforeValues)) {
-            $result = preg_replace('/\)\s+VALUES\s+/i', ') ' . implode(' ', $beforeValues) . ' VALUES ', $sql, 1);
-            $sql = $result ?? $sql;
-        }
-
-        if (!empty($tail)) {
-            $sql .= ' ' . implode(' ', $tail);
-        }
-
-        return $sql;
+        return $this->dmlBuilder->buildInsertSql($table, $columns, $placeholders, $options);
     }
 
     /**
@@ -294,70 +265,15 @@ class PostgreSQLDialect extends DialectAbstract
         string $selectSql,
         array $options = []
     ): string {
-        $sql = 'INSERT INTO ' . $table;
-        if (!empty($columns)) {
-            $sql .= ' (' . implode(', ', array_map([$this, 'quoteIdentifier'], $columns)) . ')';
-        }
-        $sql .= ' ' . $selectSql;
-
-        $tail = [];
-        $beforeSelect = []; // e.g., OVERRIDING ...
-        foreach ($options as $opt) {
-            $u = strtoupper(trim($opt));
-            if (str_starts_with($u, 'RETURNING')) {
-                $tail[] = $opt;
-            } elseif (str_starts_with($u, 'ONLY')) {
-                $result = preg_replace(
-                    '/^INSERT INTO\s+/i',
-                    'INSERT INTO ONLY ',
-                    $sql,
-                    1
-                );
-                $sql = $result ?? $sql;
-            } elseif (str_starts_with($u, 'OVERRIDING')) {
-                $beforeSelect[] = $opt;
-            } elseif (str_starts_with($u, 'ON CONFLICT')) {
-                $tail[] = $opt;
-            } else {
-                $tail[] = $opt;
-            }
-        }
-
-        if (!empty($beforeSelect)) {
-            $result = preg_replace('/\)\s+SELECT\s+/i', ') ' . implode(' ', $beforeSelect) . ' SELECT ', $sql, 1);
-            if ($result === null) {
-                // If no ) SELECT pattern, insert before SELECT
-                $result = preg_replace('/\s+SELECT\s+/i', ' ' . implode(' ', $beforeSelect) . ' SELECT ', $sql, 1);
-            }
-            $sql = $result ?? $sql;
-        }
-
-        if (!empty($tail)) {
-            $sql .= ' ' . implode(' ', $tail);
-        }
-
-        return $sql;
+        return $this->dmlBuilder->buildInsertSelectSql($table, $columns, $selectSql, $options);
     }
 
     /**
      * {@inheritDoc}
-     *
-     * @param array<string, mixed> $options
      */
     public function formatSelectOptions(string $sql, array $options): string
     {
-        $tail = [];
-        foreach ($options as $opt) {
-            $u = strtoupper(trim($opt));
-            // PG supports FOR UPDATE / FOR SHARE as tail options
-            if (in_array($u, ['FOR UPDATE', 'FOR SHARE', 'FOR NO KEY UPDATE', 'FOR KEY SHARE'])) {
-                $tail[] = $opt;
-            }
-        }
-        if ($tail) {
-            $sql .= ' ' . implode(' ', $tail);
-        }
-        return $sql;
+        return $this->sqlFormatter->formatSelectOptions($sql, $options);
     }
 
     /**
@@ -365,22 +281,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
     {
-        if (!$updateColumns) {
-            return '';
-        }
-
-        $isAssoc = $this->isAssociativeArray($updateColumns);
-
-        if ($isAssoc) {
-            $parts = $this->buildUpsertExpressions($updateColumns, $tableName);
-        } else {
-            $parts = [];
-            foreach ($updateColumns as $c) {
-                $parts[] = "{$this->quoteIdentifier($c)} = EXCLUDED.{$this->quoteIdentifier($c)}";
-            }
-        }
-
-        return "ON CONFLICT ({$this->quoteIdentifier($defaultConflictTarget)}) DO UPDATE SET " . implode(', ', $parts);
+        return $this->dmlBuilder->buildUpsertClause($updateColumns, $defaultConflictTarget, $tableName);
     }
 
     /**
@@ -400,52 +301,7 @@ class PostgreSQLDialect extends DialectAbstract
         string $onClause,
         array $whenClauses
     ): string {
-        $target = $this->quoteTable($targetTable);
-
-        // Ensure source has alias for PostgreSQL MERGE
-        if (!preg_match('/\s+AS\s+source$/i', $sourceSql) && !preg_match('/\s+source$/i', $sourceSql)) {
-            $sourceSql .= ' AS source';
-        }
-
-        $sql = "MERGE INTO {$target} AS target\n";
-        $sql .= "USING {$sourceSql}\n";
-        $sql .= "ON {$onClause}\n";
-
-        // WHEN MATCHED
-        if (!empty($whenClauses['whenMatched']) && is_string($whenClauses['whenMatched'])) {
-            $condition = $whenClauses['whenMatched'];
-            if (str_contains($condition, ' AND ')) {
-                [$update, $whenCondition] = explode(' AND ', $condition, 2);
-                $sql .= "WHEN MATCHED AND {$whenCondition} THEN\n";
-                $sql .= "  UPDATE SET {$update}\n";
-            } else {
-                $sql .= "WHEN MATCHED THEN\n";
-                $sql .= "  UPDATE SET {$condition}\n";
-            }
-        }
-
-        // WHEN NOT MATCHED
-        if (!empty($whenClauses['whenNotMatched']) && is_string($whenClauses['whenNotMatched'])) {
-            $condition = $whenClauses['whenNotMatched'];
-            // Replace MERGE_SOURCE_COLUMN_ markers with source.column for PostgreSQL
-            $condition = preg_replace('/MERGE_SOURCE_COLUMN_(\w+)/', 'source.$1', $condition);
-            if ($condition !== null && str_contains($condition, ' AND ')) {
-                [$insert, $whenCondition] = explode(' AND ', $condition, 2);
-                $sql .= "WHEN NOT MATCHED AND {$whenCondition} THEN\n";
-                $sql .= "  INSERT {$insert}\n";
-            } elseif ($condition !== null) {
-                $sql .= "WHEN NOT MATCHED THEN\n";
-                $sql .= "  INSERT {$condition}\n";
-            }
-        }
-
-        // WHEN NOT MATCHED BY SOURCE (PostgreSQL 15+ syntax)
-        if ($whenClauses['whenNotMatchedBySourceDelete']) {
-            $sql .= "WHEN NOT MATCHED BY SOURCE THEN\n";
-            $sql .= "  DELETE\n";
-        }
-
-        return $sql;
+        return $this->dmlBuilder->buildMergeSql($targetTable, $sourceSql, $onClause, $whenClauses);
     }
 
     /**
@@ -510,9 +366,6 @@ class PostgreSQLDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
-     *
-     * @param array<int, string> $columns
-     * @param array<int, string|array<int, string>> $placeholders
      */
     public function buildReplaceSql(
         string $table,
@@ -520,53 +373,7 @@ class PostgreSQLDialect extends DialectAbstract
         array $placeholders,
         bool $isMultiple = false
     ): string {
-        $tableSql = $this->quoteTable($table);
-        $colsSql = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
-
-        if ($isMultiple) {
-            // $placeholders is expected to be an array of strings where each string
-            // is a list of placeholders without outer parentheses or already wrapped.
-            // Normalize to: VALUES (row1),(row2),...
-            $rows = [];
-            foreach ($placeholders as $ph) {
-                // if the element already has outer parentheses — keep it, otherwise wrap it
-                $phStr = is_array($ph) ? implode(',', $ph) : $ph;
-                $phTrim = trim($phStr);
-                if (str_starts_with($phTrim, '(') && str_ends_with($phTrim, ')')) {
-                    $rows[] = $phTrim;
-                } else {
-                    $rows[] = '(' . $phTrim . ')';
-                }
-            }
-            $valsSql = implode(',', $rows);
-        } else {
-            // single insert: ensure parentheses around the list
-            $stringPlaceholders = array_map(static fn ($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
-            $phList = implode(',', $stringPlaceholders);
-            $valsSql = '(' . $phList . ')';
-        }
-
-        if (in_array('id', $columns, true)) {
-            $updates = [];
-            foreach ($columns as $col) {
-                if ($col === 'id') {
-                    continue;
-                }
-                $quoted = $this->quoteIdentifier($col);
-                $updates[] = sprintf('%s = EXCLUDED.%s', $quoted, $quoted);
-            }
-            $updateSql = empty($updates) ? 'DO NOTHING' : 'DO UPDATE SET ' . implode(', ', $updates);
-            return sprintf(
-                'INSERT INTO %s (%s) VALUES %s ON CONFLICT (%s) %s',
-                $tableSql,
-                $colsSql,
-                $valsSql,
-                $this->quoteIdentifier('id'),
-                $updateSql
-            );
-        }
-
-        return sprintf('INSERT INTO %s (%s) VALUES %s ON CONFLICT DO NOTHING', $tableSql, $colsSql, $valsSql);
+        return $this->dmlBuilder->buildReplaceSql($table, $columns, $placeholders, $isMultiple);
     }
 
     /**
@@ -716,92 +523,23 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string
     {
-        $parts = $this->normalizeJsonPath($path);
-        if (empty($parts)) {
-            return $asText ? $this->quoteIdentifier($col) . '::text' : $this->quoteIdentifier($col);
-        }
-        $arr = $this->buildPostgreSqlJsonPath($parts);
-        // build #> or #>> with array literal
-        if ($asText) {
-            return $this->quoteIdentifier($col) . ' #>> ' . $arr;
-        }
-        return $this->quoteIdentifier($col) . ' #> ' . $arr;
+        return $this->sqlFormatter->formatJsonGet($col, $path, $asText);
     }
 
     /**
      * {@inheritDoc}
-     *
-     * @throws \JsonException
      */
     public function formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
     {
-        $colQuoted = $this->quoteIdentifier($col);
-        $parts = $this->normalizeJsonPath($path ?? []);
-        $paramJson = $this->generateParameterName('jsonc', $col);
-        $json = $this->encodeToJson($value);
-
-        if (empty($parts)) {
-            $sql = "{$colQuoted}::jsonb @> {$paramJson}::jsonb";
-            return [$sql, [$paramJson => $json]];
-        }
-
-        $arr = $this->buildPostgreSqlJsonPath($parts);
-        $extracted = "{$colQuoted}::jsonb #> {$arr}";
-
-        if (is_string($value)) {
-            // Avoid using the '?' operator because PDO treats '?' as positional placeholder.
-            // Use EXISTS with jsonb_array_elements_text to check presence of string element.
-            $tokenParam = $this->generateParameterName('jsonc_token', $col);
-            $sql = "EXISTS (SELECT 1 FROM jsonb_array_elements_text({$extracted}) AS _e(val) WHERE _e.val = {$tokenParam})";
-            return [$sql, [$tokenParam => (string)$value]];
-        }
-
-        // non-string scalar or array/object: use jsonb containment against extracted node
-        $sql = "{$extracted} @> {$paramJson}::jsonb";
-        return [$sql, [$paramJson => $json]];
+        return $this->sqlFormatter->formatJsonContains($col, $value, $path);
     }
 
     /**
      * {@inheritDoc}
-     *
-     * @throws \JsonException
      */
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
     {
-        $parts = $this->normalizeJsonPath($path);
-        $colQuoted = $this->quoteIdentifier($col);
-
-        // build pg path for full path and for parent path
-        $pgPath = $this->buildPostgreSqlJsonbPath($parts);
-        if (count($parts) > 1) {
-            $parentParts = $this->getParentPathParts($parts);
-            $pgParentPath = $this->buildPostgreSqlJsonbPath($parentParts);
-            $lastKey = $this->getLastSegment($parts);
-        } else {
-            $pgParentPath = null;
-            $lastKey = $parts[0];
-        }
-
-        $param = $this->generateParameterName('jsonset', $col . '|' . $pgPath);
-
-        // produce json text to bind exactly once (use as-is if it already looks like JSON)
-        if (is_string($value)) {
-            $jsonText = $this->looksLikeJson($value) ? $value : $this->encodeToJson($value);
-        } else {
-            $jsonText = $this->encodeToJson($value);
-        }
-
-        // If there is a parent path, first ensure parent exists as object: set(parentPath, COALESCE(col->parent, {}))
-        // Then set the final child inside that parent with jsonb_set(..., fullPath, to_jsonb(CAST(:param AS json)), true)
-        if ($pgParentPath !== null) {
-            $ensureParent = "jsonb_set({$colQuoted}::jsonb, '{$pgParentPath}', COALESCE({$colQuoted}::jsonb #> '{$pgParentPath}', '{}'::jsonb), true)";
-            $expr = "jsonb_set({$ensureParent}, '{$pgPath}', to_jsonb(CAST({$param} AS json)), true)::json";
-        } else {
-            // single segment: just set directly
-            $expr = "jsonb_set({$colQuoted}::jsonb, '{$pgPath}', to_jsonb(CAST({$param} AS json)), true)::json";
-        }
-
-        return [$expr, [$param => $jsonText]];
+        return $this->sqlFormatter->formatJsonSet($col, $path, $value);
     }
 
     /**
@@ -809,23 +547,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatJsonRemove(string $col, array|string $path): string
     {
-        $parts = $this->normalizeJsonPath($path);
-        $colQuoted = $this->quoteIdentifier($col);
-
-        // Build pg path array literal for functions that need it
-        $pgPathArr = $this->buildPostgreSqlJsonbPath($parts);
-
-        // If last segment is numeric -> treat as array index: set that element to JSON null (preserve indices)
-        $last = $this->getLastSegment($parts);
-        if ($this->isNumericIndex($last)) {
-            // Use jsonb_set to assign JSON null at exact path; create parents if needed
-            return "jsonb_set({$colQuoted}::jsonb, '{$pgPathArr}', 'null'::jsonb, true)::jsonb";
-        }
-
-        // Otherwise treat as object key removal: use #- operator which removes key at path (works for nested paths)
-        // Operator expects text[] on right-hand side; use the same pgPathArr
-        // Return expression only (no "col ="), QueryBuilder will use: SET "meta" = <expr>
-        return "({$colQuoted}::jsonb #- '{$pgPathArr}')::jsonb";
+        return $this->sqlFormatter->formatJsonRemove($col, $path);
     }
 
     /**
@@ -833,22 +555,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatJsonReplace(string $col, array|string $path, mixed $value): array
     {
-        $parts = $this->normalizeJsonPath($path);
-        $colQuoted = $this->quoteIdentifier($col);
-        $pgPath = $this->buildPostgreSqlJsonbPath($parts);
-
-        $param = $this->generateParameterName('jsonreplace', $col . '|' . $pgPath);
-
-        if (is_string($value)) {
-            $jsonText = $this->looksLikeJson($value) ? $value : $this->encodeToJson($value);
-        } else {
-            $jsonText = $this->encodeToJson($value);
-        }
-
-        // jsonb_set with create_missing=false only replaces if path exists
-        $expr = "jsonb_set({$colQuoted}::jsonb, '{$pgPath}', to_jsonb(CAST({$param} AS json)), false)::json";
-
-        return [$expr, [$param => $jsonText]];
+        return $this->sqlFormatter->formatJsonReplace($col, $path, $value);
     }
 
     /**
@@ -856,42 +563,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatJsonExists(string $col, array|string $path): string
     {
-        $parts = $this->normalizeJsonPath($path);
-        $colQuoted = $this->quoteIdentifier($col);
-
-        // Build jsonpath for jsonb_path_exists
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        $checks = ["jsonb_path_exists({$colQuoted}::jsonb, '{$jsonPath}')"];
-
-        // Build prefix existence checks without using the ? operator to avoid PDO positional placeholder issues
-        $prefixExpr = $colQuoted . '::jsonb';
-        $accum = [];
-        foreach ($parts as $i => $p) {
-            $isIndex = $this->isNumericIndex($p);
-            if ($isIndex) {
-                $idx = (int)$p;
-                $lenCheck = "(jsonb_typeof({$prefixExpr}) = 'array' AND jsonb_array_length({$prefixExpr}) > {$idx})";
-                $accum[] = $lenCheck;
-                $prefixExpr = "{$prefixExpr} -> {$idx}";
-            } else {
-                // use -> to get child and IS NOT NULL to check existence (avoids ? operator)
-                $keyLiteral = "'" . str_replace("'", "''", (string)$p) . "'";
-                $accum[] = "({$prefixExpr} -> {$keyLiteral}) IS NOT NULL";
-                $prefixExpr = "{$prefixExpr} -> {$keyLiteral}";
-            }
-        }
-
-        if (!empty($accum)) {
-            $prefixCheck = '(' . implode(' AND ', $accum) . ')';
-            $checks[] = $prefixCheck;
-        }
-
-        // Final fallback: #> path not null. Build pg path array literal safely.
-        $pgPathArr = $this->buildPostgreSqlJsonbPath($parts);
-        $checks[] = "({$colQuoted}::jsonb #> '{$pgPathArr}') IS NOT NULL";
-
-        return '(' . implode(' OR ', $checks) . ')';
+        return $this->sqlFormatter->formatJsonExists($col, $path);
     }
 
     /**
@@ -899,18 +571,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatJsonOrderExpr(string $col, array|string $path): string
     {
-        $parts = $this->normalizeJsonPath($path);
-        if (empty($parts)) {
-            // whole column: cast text to numeric when possible
-            $expr = $this->quoteIdentifier($col) . '::text';
-        } else {
-            $arr = $this->buildPostgreSqlJsonPath($parts);
-            $expr = $this->quoteIdentifier($col) . ' #>> ' . $arr;
-        }
-
-        // CASE expression: if text looks like a number, cast to numeric for ordering, otherwise NULL
-        // This yields numeric values for numeric entries and NULL for non-numeric ones.
-        return "CASE WHEN ({$expr}) ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN ({$expr})::numeric ELSE NULL END";
+        return $this->sqlFormatter->formatJsonOrderExpr($col, $path);
     }
 
     /**
@@ -918,18 +579,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatJsonLength(string $col, array|string|null $path = null): string
     {
-        $colQuoted = $this->quoteIdentifier($col);
-
-        if ($path === null) {
-            // For whole column, use jsonb_array_length for arrays, return 0 for others
-            return "CASE WHEN jsonb_typeof({$colQuoted}::jsonb) = 'array' THEN jsonb_array_length({$colQuoted}::jsonb) ELSE 0 END";
-        }
-
-        $parts = $this->normalizeJsonPath($path);
-        $arr = $this->buildPostgreSqlJsonPath($parts);
-        $extracted = "{$colQuoted}::jsonb #> {$arr}";
-
-        return "CASE WHEN jsonb_typeof({$extracted}) = 'array' THEN jsonb_array_length({$extracted}) ELSE 0 END";
+        return $this->sqlFormatter->formatJsonLength($col, $path);
     }
 
     /**
@@ -937,18 +587,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatJsonKeys(string $col, array|string|null $path = null): string
     {
-        $colQuoted = $this->quoteIdentifier($col);
-
-        if ($path === null) {
-            // PostgreSQL doesn't have a simple JSON_KEYS function, return a placeholder
-            return "'[keys]'";
-        }
-
-        $parts = $this->normalizeJsonPath($path);
-        $arr = $this->buildPostgreSqlJsonPath($parts);
-
-        // PostgreSQL doesn't have a simple JSON_KEYS function, return a placeholder
-        return "'[keys]'";
+        return $this->sqlFormatter->formatJsonKeys($col, $path);
     }
 
     /**
@@ -956,17 +595,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatJsonType(string $col, array|string|null $path = null): string
     {
-        $colQuoted = $this->quoteIdentifier($col);
-
-        if ($path === null) {
-            return "jsonb_typeof({$colQuoted}::jsonb)";
-        }
-
-        $parts = $this->normalizeJsonPath($path);
-        $arr = $this->buildPostgreSqlJsonPath($parts);
-        $extracted = "{$colQuoted}::jsonb #> {$arr}";
-
-        return "jsonb_typeof({$extracted})";
+        return $this->sqlFormatter->formatJsonType($col, $path);
     }
 
     /**
@@ -974,8 +603,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatIfNull(string $expr, mixed $default): string
     {
-        // PostgreSQL doesn't have IFNULL, use COALESCE
-        return "COALESCE($expr, {$this->formatDefaultValue($default)})";
+        return $this->sqlFormatter->formatIfNull($expr, $default);
     }
 
     /**
@@ -983,11 +611,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatSubstring(string|RawValue $source, int $start, ?int $length): string
     {
-        $src = $this->resolveValue($source);
-        if ($length === null) {
-            return "SUBSTRING($src FROM $start)";
-        }
-        return "SUBSTRING($src FROM $start FOR $length)";
+        return $this->sqlFormatter->formatSubstring($source, $start, $length);
     }
 
     /**
@@ -995,7 +619,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatCurDate(): string
     {
-        return 'CURRENT_DATE';
+        return $this->sqlFormatter->formatCurDate();
     }
 
     /**
@@ -1003,7 +627,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatCurTime(): string
     {
-        return 'CURRENT_TIME';
+        return $this->sqlFormatter->formatCurTime();
     }
 
     /**
@@ -1011,7 +635,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatYear(string|RawValue $value): string
     {
-        return "EXTRACT(YEAR FROM {$this->resolveValue($value)})";
+        return $this->sqlFormatter->formatYear($value);
     }
 
     /**
@@ -1019,7 +643,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatMonth(string|RawValue $value): string
     {
-        return "EXTRACT(MONTH FROM {$this->resolveValue($value)})";
+        return $this->sqlFormatter->formatMonth($value);
     }
 
     /**
@@ -1027,7 +651,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatDay(string|RawValue $value): string
     {
-        return "EXTRACT(DAY FROM {$this->resolveValue($value)})";
+        return $this->sqlFormatter->formatDay($value);
     }
 
     /**
@@ -1035,7 +659,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatHour(string|RawValue $value): string
     {
-        return "EXTRACT(HOUR FROM {$this->resolveValue($value)})";
+        return $this->sqlFormatter->formatHour($value);
     }
 
     /**
@@ -1043,7 +667,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatMinute(string|RawValue $value): string
     {
-        return "EXTRACT(MINUTE FROM {$this->resolveValue($value)})";
+        return $this->sqlFormatter->formatMinute($value);
     }
 
     /**
@@ -1051,7 +675,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatSecond(string|RawValue $value): string
     {
-        return "EXTRACT(SECOND FROM {$this->resolveValue($value)})";
+        return $this->sqlFormatter->formatSecond($value);
     }
 
     /**
@@ -1059,10 +683,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
     {
-        $e = $this->resolveValue($expr);
-        $sign = $isAdd ? '+' : '-';
-        // PostgreSQL uses INTERVAL 'value unit' syntax
-        return "{$e} {$sign} INTERVAL '{$value} {$unit}'";
+        return $this->sqlFormatter->formatInterval($expr, $value, $unit, $isAdd);
     }
 
     /**
@@ -1070,10 +691,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string
     {
-        $col = $this->resolveValue($column);
-        $sep = addslashes($separator);
-        $dist = $distinct ? 'DISTINCT ' : '';
-        return "STRING_AGG($dist$col, '$sep')";
+        return $this->sqlFormatter->formatGroupConcat($column, $separator, $distinct);
     }
 
     /**
@@ -1081,8 +699,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatTruncate(string|RawValue $value, int $precision): string
     {
-        $val = $this->resolveValue($value);
-        return "TRUNC($val, $precision)";
+        return $this->sqlFormatter->formatTruncate($value, $precision);
     }
 
     /**
@@ -1090,9 +707,23 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatPosition(string|RawValue $substring, string|RawValue $value): string
     {
-        $sub = $substring instanceof RawValue ? $substring->getValue() : "'" . addslashes((string)$substring) . "'";
-        $val = $this->resolveValue($value);
-        return "POSITION($sub IN $val)";
+        return $this->sqlFormatter->formatPosition($substring, $value);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatLeft(string|RawValue $value, int $length): string
+    {
+        return $this->sqlFormatter->formatLeft($value, $length);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatRight(string|RawValue $value, int $length): string
+    {
+        return $this->sqlFormatter->formatRight($value, $length);
     }
 
     /**
@@ -1100,8 +731,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatRepeat(string|RawValue $value, int $count): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : "'" . addslashes((string)$value) . "'";
-        return "REPEAT($val, $count)";
+        return $this->sqlFormatter->formatRepeat($value, $count);
     }
 
     /**
@@ -1109,8 +739,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatReverse(string|RawValue $value): string
     {
-        $val = $this->resolveValue($value);
-        return "REVERSE($val)";
+        return $this->sqlFormatter->formatReverse($value);
     }
 
     /**
@@ -1118,10 +747,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatPad(string|RawValue $value, int $length, string $padString, bool $isLeft): string
     {
-        $val = $this->resolveValue($value);
-        $pad = addslashes($padString);
-        $func = $isLeft ? 'LPAD' : 'RPAD';
-        return "{$func}($val, $length, '$pad')";
+        return $this->sqlFormatter->formatPad($value, $length, $padString, $isLeft);
     }
 
     /**
@@ -1129,10 +755,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatRegexpMatch(string|RawValue $value, string $pattern): string
     {
-        $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        // PostgreSQL uses ~ operator for case-sensitive match
-        return "($val ~ '$pat')";
+        return $this->sqlFormatter->formatRegexpMatch($value, $pattern);
     }
 
     /**
@@ -1140,10 +763,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
     {
-        $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        $rep = str_replace("'", "''", $replacement);
-        return "regexp_replace($val, '$pat', '$rep', 'g')";
+        return $this->sqlFormatter->formatRegexpReplace($value, $pattern, $replacement);
     }
 
     /**
@@ -1151,20 +771,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatRegexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): string
     {
-        $val = $this->resolveValue($value);
-        // Escape single quotes for PostgreSQL string literal (backslashes are handled by PostgreSQL regex)
-        $pat = str_replace("'", "''", $pattern);
-        // PostgreSQL regexp_match returns array, use (regexp_match(...))[1] for first group
-        // For full match (groupIndex = 0 or null), use [1] (full match)
-        // For specific group, use [groupIndex + 1] since PostgreSQL arrays are 1-indexed
-        // [1] = full match, [2] = first capture group, [3] = second capture group, etc.
-        // Note: regexp_match returns NULL if no match, so array indexing will also return NULL
-        if ($groupIndex !== null && $groupIndex > 0) {
-            $arrayIndex = $groupIndex + 1;
-            return "(regexp_match($val, '$pat'))[$arrayIndex]";
-        }
-        // For full match, use [1] which is the full match
-        return "(regexp_match($val, '$pat'))[1]";
+        return $this->sqlFormatter->formatRegexpExtract($value, $pattern, $groupIndex);
     }
 
     /**
@@ -1172,7 +779,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatDateOnly(string|RawValue $value): string
     {
-        return $this->resolveValue($value) . '::DATE';
+        return $this->sqlFormatter->formatDateOnly($value);
     }
 
     /**
@@ -1180,7 +787,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatTimeOnly(string|RawValue $value): string
     {
-        return $this->resolveValue($value) . '::TIME';
+        return $this->sqlFormatter->formatTimeOnly($value);
     }
 
     /**
@@ -1188,14 +795,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string
     {
-        $cols = is_array($columns) ? $columns : [$columns];
-        $quotedCols = array_map([$this, 'quoteIdentifier'], $cols);
-        $colList = implode(' || ', $quotedCols);
-
-        $ph = ':fulltext_search_term';
-        $sql = "$colList @@ to_tsquery('english', $ph)";
-
-        return [$sql, [$ph => $searchTerm]];
+        return $this->sqlFormatter->formatFulltextMatch($columns, $searchTerm, $mode, $withQueryExpansion);
     }
 
     /**
@@ -1208,55 +808,7 @@ class PostgreSQLDialect extends DialectAbstract
         array $orderBy,
         ?string $frameClause
     ): string {
-        $sql = strtoupper($function) . '(';
-
-        // Add function arguments
-        if (!empty($args)) {
-            $formattedArgs = array_map(function ($arg) {
-                if (is_string($arg) && !is_numeric($arg)) {
-                    return $this->quoteIdentifier($arg);
-                }
-                if (is_null($arg)) {
-                    return 'NULL';
-                }
-                return (string)$arg;
-            }, $args);
-            $sql .= implode(', ', $formattedArgs);
-        }
-
-        $sql .= ') OVER (';
-
-        // Add PARTITION BY
-        if (!empty($partitionBy)) {
-            $quotedPartitions = array_map(
-                fn ($col) => $this->quoteIdentifier($col),
-                $partitionBy
-            );
-            $sql .= 'PARTITION BY ' . implode(', ', $quotedPartitions);
-        }
-
-        // Add ORDER BY
-        if (!empty($orderBy)) {
-            if (!empty($partitionBy)) {
-                $sql .= ' ';
-            }
-            $orderClauses = [];
-            foreach ($orderBy as $order) {
-                foreach ($order as $col => $dir) {
-                    $orderClauses[] = $this->quoteIdentifier($col) . ' ' . strtoupper($dir);
-                }
-            }
-            $sql .= 'ORDER BY ' . implode(', ', $orderClauses);
-        }
-
-        // Add frame clause
-        if ($frameClause !== null) {
-            $sql .= ' ' . $frameClause;
-        }
-
-        $sql .= ')';
-
-        return $sql;
+        return $this->sqlFormatter->formatWindowFunction($function, $args, $partitionBy, $orderBy, $frameClause);
     }
 
     /**
@@ -1341,59 +893,7 @@ class PostgreSQLDialect extends DialectAbstract
         array $columns,
         array $options = []
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $columnDefs = [];
-
-        foreach ($columns as $name => $def) {
-            if ($def instanceof ColumnSchema) {
-                $columnDefs[] = $this->formatColumnDefinition($name, $def);
-            } elseif (is_array($def)) {
-                // Short syntax: ['type' => 'VARCHAR(255)', 'null' => false]
-                $schema = $this->parseColumnDefinition($def);
-                $columnDefs[] = $this->formatColumnDefinition($name, $schema);
-            } else {
-                // String type: 'VARCHAR(255)'
-                $schema = new ColumnSchema((string)$def);
-                $columnDefs[] = $this->formatColumnDefinition($name, $schema);
-            }
-        }
-
-        // Add PRIMARY KEY constraint from options if specified
-        if (!empty($options['primaryKey'])) {
-            $pkColumns = is_array($options['primaryKey']) ? $options['primaryKey'] : [$options['primaryKey']];
-            $pkQuoted = array_map([$this, 'quoteIdentifier'], $pkColumns);
-            $columnDefs[] = 'PRIMARY KEY (' . implode(', ', $pkQuoted) . ')';
-        }
-
-        $sql = "CREATE TABLE {$tableQuoted} (\n    " . implode(",\n    ", $columnDefs) . "\n)";
-
-        // PostgreSQL table inheritance
-        if (!empty($options['inherits'])) {
-            $inherits = is_array($options['inherits']) ? $options['inherits'] : [$options['inherits']];
-            $inheritsQuoted = array_map([$this, 'quoteTable'], $inherits);
-            $sql .= ' INHERITS (' . implode(', ', $inheritsQuoted) . ')';
-        }
-
-        // PostgreSQL table options (TABLESPACE, WITH, etc.)
-        if (!empty($options['tablespace'])) {
-            $sql .= ' TABLESPACE ' . $this->quoteIdentifier($options['tablespace']);
-        }
-        if (isset($options['with']) && is_array($options['with'])) {
-            $withOptions = [];
-            foreach ($options['with'] as $key => $value) {
-                $withOptions[] = $this->quoteIdentifier($key) . ' = ' . (is_numeric($value) ? $value : "'" . addslashes((string)$value) . "'");
-            }
-            if (!empty($withOptions)) {
-                $sql .= ' WITH (' . implode(', ', $withOptions) . ')';
-            }
-        }
-
-        // Add partitioning (PostgreSQL)
-        if (!empty($options['partition'])) {
-            $sql .= ' ' . $options['partition'];
-        }
-
-        return $sql;
+        return $this->ddlBuilder->buildCreateTableSql($table, $columns, $options);
     }
 
     /**
@@ -1401,7 +901,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildDropTableSql(string $table): string
     {
-        return 'DROP TABLE ' . $this->quoteTable($table);
+        return $this->ddlBuilder->buildDropTableSql($table);
     }
 
     /**
@@ -1409,9 +909,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildDropTableIfExistsSql(string $table): string
     {
-        // Use CASCADE to drop dependent objects (foreign keys, constraints, etc.)
-        // This is necessary when tables have dependencies from previous test runs
-        return 'DROP TABLE IF EXISTS ' . $this->quoteTable($table) . ' CASCADE';
+        return $this->ddlBuilder->buildDropTableIfExistsSql($table);
     }
 
     /**
@@ -1422,10 +920,7 @@ class PostgreSQLDialect extends DialectAbstract
         string $column,
         ColumnSchema $schema
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $columnDef = $this->formatColumnDefinition($column, $schema);
-        // PostgreSQL doesn't support FIRST/AFTER in ALTER TABLE ADD COLUMN
-        return "ALTER TABLE {$tableQuoted} ADD COLUMN {$columnDef}";
+        return $this->ddlBuilder->buildAddColumnSql($table, $column, $schema);
     }
 
     /**
@@ -1433,9 +928,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildDropColumnSql(string $table, string $column): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $columnQuoted = $this->quoteIdentifier($column);
-        return "ALTER TABLE {$tableQuoted} DROP COLUMN {$columnQuoted}";
+        return $this->ddlBuilder->buildDropColumnSql($table, $column);
     }
 
     /**
@@ -1446,38 +939,7 @@ class PostgreSQLDialect extends DialectAbstract
         string $column,
         ColumnSchema $schema
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $columnQuoted = $this->quoteIdentifier($column);
-
-        $parts = [];
-        $type = $schema->getType();
-        if ($schema->getLength() !== null) {
-            if ($schema->getScale() !== null) {
-                $type .= '(' . $schema->getLength() . ',' . $schema->getScale() . ')';
-            } else {
-                $type .= '(' . $schema->getLength() . ')';
-            }
-        }
-        if ($type !== '') {
-            $parts[] = "ALTER COLUMN {$columnQuoted} TYPE {$type}";
-        }
-        if ($schema->isNotNull()) {
-            $parts[] = "ALTER COLUMN {$columnQuoted} SET NOT NULL";
-        }
-        if ($schema->getDefaultValue() !== null) {
-            if ($schema->isDefaultExpression()) {
-                $parts[] = "ALTER COLUMN {$columnQuoted} SET DEFAULT " . $schema->getDefaultValue();
-            } else {
-                $default = $this->formatDefaultValue($schema->getDefaultValue());
-                $parts[] = "ALTER COLUMN {$columnQuoted} SET DEFAULT {$default}";
-            }
-        }
-
-        if (empty($parts)) {
-            return "ALTER TABLE {$tableQuoted} ALTER COLUMN {$columnQuoted} TYPE " . ($schema->getType() ?: 'text');
-        }
-
-        return "ALTER TABLE {$tableQuoted} " . implode(', ', $parts);
+        return $this->ddlBuilder->buildAlterColumnSql($table, $column, $schema);
     }
 
     /**
@@ -1485,10 +947,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildRenameColumnSql(string $table, string $oldName, string $newName): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $oldQuoted = $this->quoteIdentifier($oldName);
-        $newQuoted = $this->quoteIdentifier($newName);
-        return "ALTER TABLE {$tableQuoted} RENAME COLUMN {$oldQuoted} TO {$newQuoted}";
+        return $this->ddlBuilder->buildRenameColumnSql($table, $oldName, $newName);
     }
 
     /**
@@ -1503,54 +962,7 @@ class PostgreSQLDialect extends DialectAbstract
         ?array $includeColumns = null,
         array $options = []
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $uniqueClause = $unique ? 'UNIQUE ' : '';
-
-        // Process columns with sorting support and RawValue support (functional indexes)
-        $colsQuoted = [];
-        foreach ($columns as $col) {
-            if (is_array($col)) {
-                // Array format: ['column' => 'ASC'/'DESC'] - associative array with column name as key
-                foreach ($col as $colName => $direction) {
-                    // $colName is always string (array key), $direction is the sort direction
-                    $dir = strtoupper((string)$direction) === 'DESC' ? 'DESC' : 'ASC';
-                    $colsQuoted[] = $this->quoteIdentifier((string)$colName) . ' ' . $dir;
-                }
-            } elseif ($col instanceof \tommyknocker\pdodb\helpers\values\RawValue) {
-                // RawValue expression (functional index)
-                $colsQuoted[] = $col->getValue();
-            } else {
-                $colsQuoted[] = $this->quoteIdentifier((string)$col);
-            }
-        }
-        $colsList = implode(', ', $colsQuoted);
-
-        // PostgreSQL: USING must come before column list
-        $usingClause = '';
-        if (!empty($options['using'])) {
-            $usingClause = ' USING ' . strtoupper($options['using']);
-        }
-
-        $sql = "CREATE {$uniqueClause}INDEX {$nameQuoted} ON {$tableQuoted}{$usingClause} ({$colsList})";
-
-        // Add INCLUDE columns if provided
-        if ($includeColumns !== null && !empty($includeColumns)) {
-            $includeQuoted = array_map([$this, 'quoteIdentifier'], $includeColumns);
-            $sql .= ' INCLUDE (' . implode(', ', $includeQuoted) . ')';
-        }
-
-        // Add WHERE clause for partial indexes
-        if ($where !== null && $where !== '') {
-            $sql .= ' WHERE ' . $where;
-        }
-
-        // Add options (fillfactor, etc.)
-        if (!empty($options['fillfactor'])) {
-            $sql .= ' WITH (fillfactor = ' . (int)$options['fillfactor'] . ')';
-        }
-
-        return $sql;
+        return $this->ddlBuilder->buildCreateIndexSql($name, $table, $columns, $unique, $where, $includeColumns, $options);
     }
 
     /**
@@ -1558,9 +970,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildDropIndexSql(string $name, string $table): string
     {
-        // PostgreSQL: DROP INDEX name (table is not needed)
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "DROP INDEX {$nameQuoted}";
+        return $this->ddlBuilder->buildDropIndexSql($name, $table);
     }
 
     /**
@@ -1568,13 +978,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildCreateFulltextIndexSql(string $name, string $table, array $columns, ?string $parser = null): string
     {
-        // PostgreSQL uses GIN index with tsvector for fulltext search
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        // Create tsvector expression for fulltext search
-        $tsvectorExpr = "to_tsvector('" . ($parser ?? 'english') . "', " . implode(" || ' ' || ", $colsQuoted) . ')';
-        return "CREATE INDEX {$nameQuoted} ON {$tableQuoted} USING GIN ({$tsvectorExpr})";
+        return $this->ddlBuilder->buildCreateFulltextIndexSql($name, $table, $columns, $parser);
     }
 
     /**
@@ -1582,12 +986,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildCreateSpatialIndexSql(string $name, string $table, array $columns): string
     {
-        // PostgreSQL uses GIST index for spatial data
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $colsList = implode(', ', $colsQuoted);
-        return "CREATE INDEX {$nameQuoted} ON {$tableQuoted} USING GIST ({$colsList})";
+        return $this->ddlBuilder->buildCreateSpatialIndexSql($name, $table, $columns);
     }
 
     /**
@@ -1595,9 +994,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildRenameIndexSql(string $oldName, string $table, string $newName): string
     {
-        $oldQuoted = $this->quoteIdentifier($oldName);
-        $newQuoted = $this->quoteIdentifier($newName);
-        return "ALTER INDEX {$oldQuoted} RENAME TO {$newQuoted}";
+        return $this->ddlBuilder->buildRenameIndexSql($oldName, $table, $newName);
     }
 
     /**
@@ -1605,10 +1002,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildRenameForeignKeySql(string $oldName, string $table, string $newName): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $oldQuoted = $this->quoteIdentifier($oldName);
-        $newQuoted = $this->quoteIdentifier($newName);
-        return "ALTER TABLE {$tableQuoted} RENAME CONSTRAINT {$oldQuoted} TO {$newQuoted}";
+        return $this->ddlBuilder->buildRenameForeignKeySql($oldName, $table, $newName);
     }
 
     /**
@@ -1623,25 +1017,7 @@ class PostgreSQLDialect extends DialectAbstract
         ?string $delete = null,
         ?string $update = null
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $refTableQuoted = $this->quoteTable($refTable);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $refColsQuoted = array_map([$this, 'quoteIdentifier'], $refColumns);
-        $colsList = implode(', ', $colsQuoted);
-        $refColsList = implode(', ', $refColsQuoted);
-
-        $sql = "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted}";
-        $sql .= " FOREIGN KEY ({$colsList}) REFERENCES {$refTableQuoted} ({$refColsList})";
-
-        if ($delete !== null) {
-            $sql .= ' ON DELETE ' . strtoupper($delete);
-        }
-        if ($update !== null) {
-            $sql .= ' ON UPDATE ' . strtoupper($update);
-        }
-
-        return $sql;
+        return $this->ddlBuilder->buildAddForeignKeySql($name, $table, $columns, $refTable, $refColumns, $delete, $update);
     }
 
     /**
@@ -1649,9 +1025,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildDropForeignKeySql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "ALTER TABLE {$tableQuoted} DROP CONSTRAINT {$nameQuoted}";
+        return $this->ddlBuilder->buildDropForeignKeySql($name, $table);
     }
 
     /**
@@ -1659,11 +1033,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildAddPrimaryKeySql(string $name, string $table, array $columns): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $colsList = implode(', ', $colsQuoted);
-        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} PRIMARY KEY ({$colsList})";
+        return $this->ddlBuilder->buildAddPrimaryKeySql($name, $table, $columns);
     }
 
     /**
@@ -1671,9 +1041,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildDropPrimaryKeySql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "ALTER TABLE {$tableQuoted} DROP CONSTRAINT {$nameQuoted}";
+        return $this->ddlBuilder->buildDropPrimaryKeySql($name, $table);
     }
 
     /**
@@ -1681,11 +1049,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildAddUniqueSql(string $name, string $table, array $columns): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $colsList = implode(', ', $colsQuoted);
-        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} UNIQUE ({$colsList})";
+        return $this->ddlBuilder->buildAddUniqueSql($name, $table, $columns);
     }
 
     /**
@@ -1693,9 +1057,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildDropUniqueSql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "ALTER TABLE {$tableQuoted} DROP CONSTRAINT {$nameQuoted}";
+        return $this->ddlBuilder->buildDropUniqueSql($name, $table);
     }
 
     /**
@@ -1703,9 +1065,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildAddCheckSql(string $name, string $table, string $expression): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} CHECK ({$expression})";
+        return $this->ddlBuilder->buildAddCheckSql($name, $table, $expression);
     }
 
     /**
@@ -1713,9 +1073,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildDropCheckSql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "ALTER TABLE {$tableQuoted} DROP CONSTRAINT {$nameQuoted}";
+        return $this->ddlBuilder->buildDropCheckSql($name, $table);
     }
 
     /**
@@ -1723,9 +1081,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function buildRenameTableSql(string $table, string $newName): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $newQuoted = $this->quoteTable($newName);
-        return "ALTER TABLE {$tableQuoted} RENAME TO {$newQuoted}";
+        return $this->ddlBuilder->buildRenameTableSql($table, $newName);
     }
 
     /**
@@ -1733,136 +1089,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatColumnDefinition(string $name, ColumnSchema $schema): string
     {
-        $nameQuoted = $this->quoteIdentifier($name);
-        $type = $schema->getType();
-
-        // PostgreSQL type mapping
-        if ($type === 'INT' || $type === 'INTEGER') {
-            $type = 'INTEGER';
-        } elseif ($type === 'TINYINT' || $type === 'SMALLINT') {
-            $type = 'SMALLINT';
-        } elseif ($type === 'BIGINT') {
-            $type = 'BIGINT';
-        } elseif ($type === 'TEXT') {
-            $type = 'TEXT';
-        } elseif ($type === 'DATETIME' || $type === 'TIMESTAMP') {
-            $type = 'TIMESTAMP';
-        }
-
-        // Build type with length/scale
-        $typeDef = $type;
-        if ($schema->getLength() !== null) {
-            if ($schema->getScale() !== null) {
-                $typeDef .= '(' . $schema->getLength() . ',' . $schema->getScale() . ')';
-            } else {
-                // For VARCHAR and similar
-                if (in_array(strtoupper($type), ['VARCHAR', 'CHAR', 'CHARACTER VARYING', 'CHARACTER'], true)) {
-                    $typeDef .= '(' . $schema->getLength() . ')';
-                }
-            }
-        }
-
-        // SERIAL type handling (PostgreSQL auto-increment)
-        if ($schema->isAutoIncrement()) {
-            if ($type === 'INTEGER' || $type === 'INT') {
-                $typeDef = 'SERIAL';
-            } elseif ($type === 'BIGINT') {
-                $typeDef = 'BIGSERIAL';
-            } elseif ($type === 'SMALLINT') {
-                $typeDef = 'SMALLSERIAL';
-            }
-        }
-
-        $parts = [$nameQuoted, $typeDef];
-
-        // NOT NULL / NULL
-        if ($schema->isNotNull()) {
-            $parts[] = 'NOT NULL';
-        }
-
-        // DEFAULT (only if not SERIAL, as SERIAL includes auto-increment)
-        if ($schema->getDefaultValue() !== null && !$schema->isAutoIncrement()) {
-            if ($schema->isDefaultExpression()) {
-                $parts[] = 'DEFAULT ' . $schema->getDefaultValue();
-            } else {
-                $default = $this->formatDefaultValue($schema->getDefaultValue());
-                $parts[] = 'DEFAULT ' . $default;
-            }
-        }
-
-        // UNIQUE is handled separately (not in column definition)
-        // It's created via CREATE INDEX or table constraint
-
-        return implode(' ', $parts);
-    }
-
-    /**
-     * Parse column definition from array.
-     *
-     * @param array<string, mixed> $def Definition array
-     *
-     * @return ColumnSchema
-     */
-    protected function parseColumnDefinition(array $def): ColumnSchema
-    {
-        $type = $def['type'] ?? 'VARCHAR';
-        $length = $def['length'] ?? $def['size'] ?? null;
-        $scale = $def['scale'] ?? null;
-
-        $schema = new ColumnSchema((string)$type, $length, $scale);
-
-        if (isset($def['null']) && $def['null'] === false) {
-            $schema->notNull();
-        }
-        if (isset($def['default'])) {
-            if (isset($def['defaultExpression']) && $def['defaultExpression']) {
-                $schema->defaultExpression((string)$def['default']);
-            } else {
-                $schema->defaultValue($def['default']);
-            }
-        }
-        if (isset($def['comment'])) {
-            // PostgreSQL comments are set separately via COMMENT ON COLUMN
-            $schema->comment((string)$def['comment']);
-        }
-        if (isset($def['autoIncrement']) && $def['autoIncrement']) {
-            $schema->autoIncrement();
-        }
-        if (isset($def['unique']) && $def['unique']) {
-            $schema->unique();
-        }
-
-        // PostgreSQL doesn't support FIRST/AFTER in ALTER TABLE
-        // These are silently ignored
-
-        return $schema;
-    }
-
-    /**
-     * Format default value for SQL.
-     *
-     * @param mixed $value Default value
-     *
-     * @return string SQL formatted value
-     */
-    protected function formatDefaultValue(mixed $value): string
-    {
-        if ($value instanceof RawValue) {
-            return $value->getValue();
-        }
-        if ($value === null) {
-            return 'NULL';
-        }
-        if (is_bool($value)) {
-            return $value ? 'TRUE' : 'FALSE';
-        }
-        if (is_numeric($value)) {
-            return (string)$value;
-        }
-        if (is_string($value)) {
-            return "'" . addslashes($value) . "'";
-        }
-        return "'" . addslashes((string)$value) . "'";
+        return $this->ddlBuilder->formatColumnDefinition($name, $schema);
     }
 
     /**
@@ -1948,14 +1175,33 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatLimitOffset(string $sql, ?int $limit, ?int $offset): string
+    {
+        return $this->sqlFormatter->formatLimitOffset($sql, $limit, $offset);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatUnionSelect(string $selectSql, bool $isBaseQuery = false): string
+    {
+        return $this->sqlFormatter->formatUnionSelect($selectSql, $isBaseQuery);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function needsUnionParentheses(): bool
+    {
+        return $this->sqlFormatter->needsUnionParentheses();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatGreatest(array $values): string
     {
-        $args = $this->resolveValues($values);
-        // Apply normalizeRawValue to each argument to handle safe CAST conversion
-        $normalizedArgs = array_map(function ($arg) {
-            return $this->normalizeRawValue((string)$arg);
-        }, $args);
-        return 'GREATEST(' . implode(', ', $normalizedArgs) . ')';
+        return $this->sqlFormatter->formatGreatest($values);
     }
 
     /**
@@ -1963,12 +1209,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatLeast(array $values): string
     {
-        $args = $this->resolveValues($values);
-        // Apply normalizeRawValue to each argument to handle safe CAST conversion
-        $normalizedArgs = array_map(function ($arg) {
-            return $this->normalizeRawValue((string)$arg);
-        }, $args);
-        return 'LEAST(' . implode(', ', $normalizedArgs) . ')';
+        return $this->sqlFormatter->formatLeast($values);
     }
 
     /**
@@ -2056,12 +1297,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function formatMaterializedCte(string $cteSql, bool $isMaterialized): string
     {
-        if ($isMaterialized) {
-            // PostgreSQL 12+: MATERIALIZED goes after AS
-            // Return SQL with MATERIALIZED marker that CteManager will use
-            return 'MATERIALIZED:' . $cteSql;
-        }
-        return $cteSql;
+        return $this->sqlFormatter->formatMaterializedCte($cteSql, $isMaterialized);
     }
 
     /**

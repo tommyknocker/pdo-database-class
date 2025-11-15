@@ -11,7 +11,7 @@ use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\connection\loadbalancer\RandomLoadBalancer;
 use tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer;
 use tommyknocker\pdodb\connection\loadbalancer\WeightedLoadBalancer;
-use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\builders\dialects\DialectInterface;
 use tommyknocker\pdodb\PdoDb;
 
 /**

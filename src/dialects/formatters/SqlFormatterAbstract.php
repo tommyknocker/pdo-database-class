@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\dialects\formatters;
 
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\formatters\SqlFormatterInterface;
 use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
