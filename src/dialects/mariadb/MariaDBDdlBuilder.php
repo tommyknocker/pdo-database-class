@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects\mariadb;
 
+use RuntimeException;
 use tommyknocker\pdodb\dialects\builders\DdlBuilderInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -269,7 +270,7 @@ class MariaDBDdlBuilder implements DdlBuilderInterface
      */
     public function buildRenameForeignKeySql(string $oldName, string $table, string $newName): string
     {
-        throw new \RuntimeException(
+        throw new RuntimeException(
             'MariaDB does not support renaming foreign keys directly. ' .
             'You must drop the foreign key and create a new one with the desired name.'
         );

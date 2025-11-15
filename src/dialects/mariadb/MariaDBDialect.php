@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects\mariadb;
 
+use Generator;
 use InvalidArgumentException;
 use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
+use tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class MariaDBDialect extends DialectAbstract
@@ -395,7 +397,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function buildLoadCsvSqlGenerator(string $table, string $filePath, array $options = []): \Generator
+    public function buildLoadCsvSqlGenerator(string $table, string $filePath, array $options = []): Generator
     {
         // MariaDB uses native LOAD DATA INFILE which loads entire file at once
         yield $this->buildLoadCsvSql($table, $filePath, $options);
@@ -404,7 +406,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function buildLoadXMLGenerator(string $table, string $filePath, array $options = []): \Generator
+    public function buildLoadXMLGenerator(string $table, string $filePath, array $options = []): Generator
     {
         // MariaDB uses native LOAD XML LOCAL INFILE which loads entire file at once
         yield $this->buildLoadXML($table, $filePath, $options);
@@ -1012,6 +1014,6 @@ class MariaDBDialect extends DialectAbstract
      */
     public function getExplainParser(): ExplainParserInterface
     {
-        return new \tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser();
+        return new MySQLExplainParser();
     }
 }

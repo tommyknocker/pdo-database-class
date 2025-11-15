@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects\postgresql;
 
+use Generator;
 use InvalidArgumentException;
 use PDO;
+use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
+use tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class PostgreSQLDialect extends DialectAbstract
@@ -535,7 +538,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function buildLoadCsvSqlGenerator(string $table, string $filePath, array $options = []): \Generator
+    public function buildLoadCsvSqlGenerator(string $table, string $filePath, array $options = []): Generator
     {
         // PostgreSQL uses native COPY which loads entire file at once
         yield $this->buildLoadCsvSql($table, $filePath, $options);
@@ -1352,7 +1355,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function extractErrorCode(\PDOException $e): string
+    public function extractErrorCode(PDOException $e): string
     {
         // PostgreSQL stores SQLSTATE in errorInfo[0]
         if (isset($e->errorInfo[0])) {
@@ -1366,6 +1369,6 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function getExplainParser(): ExplainParserInterface
     {
-        return new \tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser();
+        return new PostgreSQLExplainParser();
     }
 }

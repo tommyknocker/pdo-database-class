@@ -6,10 +6,12 @@ namespace tommyknocker\pdodb\dialects\mssql;
 
 use InvalidArgumentException;
 use PDO;
+use PDOException;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
+use tommyknocker\pdodb\query\analysis\parsers\MSSQLExplainParser;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class MSSQLDialect extends DialectAbstract
@@ -750,7 +752,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function executeExplain(\PDO $pdo, string $sql, array $params = []): array
+    public function executeExplain(PDO $pdo, string $sql, array $params = []): array
     {
         // MSSQL SET SHOWPLAN_ALL ON doesn't work well with PDO prepared statements
         // Return a minimal execution plan structure to satisfy the API
@@ -769,7 +771,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function executeExplainAnalyze(\PDO $pdo, string $sql, array $params = []): array
+    public function executeExplainAnalyze(PDO $pdo, string $sql, array $params = []): array
     {
         // For MSSQL, SET STATISTICS XML ON returns XML in messages, not in result set
         // Execute the query and return a minimal result to satisfy the API
@@ -783,10 +785,10 @@ class MSSQLDialect extends DialectAbstract
             $pdo->query('SET STATISTICS XML OFF');
             // Return minimal result structure
             return [['Query' => $sql, 'Statistics' => 'XML output available']];
-        } catch (\PDOException $e) {
+        } catch (PDOException $e) {
             try {
                 $pdo->query('SET STATISTICS XML OFF');
-            } catch (\PDOException $ignored) {
+            } catch (PDOException $ignored) {
                 // Ignore errors when turning off STATISTICS XML
             }
 
@@ -1146,7 +1148,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function isNoFieldsError(\PDOException $e): bool
+    public function isNoFieldsError(PDOException $e): bool
     {
         $errorMessage = $e->getMessage();
         // MSSQL throws "The active result for the query contains no fields" for DDL/DDL-like queries
@@ -1228,7 +1230,7 @@ class MSSQLDialect extends DialectAbstract
      */
     public function getExplainParser(): ExplainParserInterface
     {
-        return new \tommyknocker\pdodb\query\analysis\parsers\MSSQLExplainParser();
+        return new MSSQLExplainParser();
     }
 
     /**

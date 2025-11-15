@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects\mssql;
 
+use PDO;
+use PDOException;
+use ReflectionClass;
+use ReflectionException;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\builders\DdlBuilderInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
@@ -17,8 +21,8 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
 {
     protected DialectInterface $dialect;
 
-    /** @var \PDO|null PDO instance (accessed via reflection from dialect) */
-    protected ?\PDO $pdo = null;
+    /** @var PDO|null PDO instance (accessed via reflection from dialect) */
+    protected ?PDO $pdo = null;
 
     public function __construct(DialectInterface $dialect)
     {
@@ -26,16 +30,16 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
 
         // Try to get PDO from dialect via reflection
         try {
-            $reflection = new \ReflectionClass($dialect);
+            $reflection = new ReflectionClass($dialect);
             if ($reflection->hasProperty('pdo')) {
                 $property = $reflection->getProperty('pdo');
                 $property->setAccessible(true);
                 $pdo = $property->getValue($dialect);
-                if ($pdo instanceof \PDO) {
+                if ($pdo instanceof PDO) {
                     $this->pdo = $pdo;
                 }
             }
-        } catch (\ReflectionException $e) {
+        } catch (ReflectionException $e) {
             // PDO not available, method will return empty string
         }
     }
@@ -420,7 +424,7 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
     {
         // MSSQL uses FULLTEXT CATALOG and FULLTEXT INDEX
         // This is a simplified version - full implementation would require catalog management
-        throw new \RuntimeException(
+        throw new RuntimeException(
             'MSSQL fulltext indexes require FULLTEXT CATALOG setup. ' .
             'Please use CREATE FULLTEXT INDEX directly or set up the catalog first.'
         );
@@ -720,7 +724,7 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
     /**
      * {@inheritDoc}
      */
-    public function isNoFieldsError(\PDOException $e): bool
+    public function isNoFieldsError(PDOException $e): bool
     {
         $errorMessage = $e->getMessage();
         // MSSQL throws "The active result for the query contains no fields" for DDL/DDL-like queries
