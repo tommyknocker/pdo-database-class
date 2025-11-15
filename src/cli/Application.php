@@ -57,6 +57,9 @@ class Application
 
         // Database management command with subcommands
         $this->addCommand(new commands\DbCommand());
+
+        // User management command with subcommands
+        $this->addCommand(new commands\UserCommand());
     }
 
     /**

@@ -1129,4 +1129,199 @@ class MySQLDialect extends DialectAbstract
 
         return $info;
     }
+
+    /* ---------------- User Management ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function createUser(string $username, string $password, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        $host = $host ?? '%';
+        $quotedUsername = $this->quoteIdentifier($username);
+        $quotedHost = $this->quoteIdentifier($host);
+        $quotedPassword = $db->rawQueryValue('SELECT QUOTE(?)', [$password]);
+        if ($quotedPassword === null) {
+            $quotedPassword = "'" . addslashes($password) . "'";
+        }
+
+        $sql = "CREATE USER {$quotedUsername}@{$quotedHost} IDENTIFIED BY {$quotedPassword}";
+        $db->rawQuery($sql);
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dropUser(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        $host = $host ?? '%';
+        $quotedUsername = $this->quoteIdentifier($username);
+        $quotedHost = $this->quoteIdentifier($host);
+
+        $sql = "DROP USER {$quotedUsername}@{$quotedHost}";
+        $db->rawQuery($sql);
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function userExists(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        $host = $host ?? '%';
+        $quotedUsername = $this->quoteIdentifier($username);
+        $quotedHost = $this->quoteIdentifier($host);
+
+        $sql = 'SELECT COUNT(*) FROM mysql.user WHERE User = ? AND Host = ?';
+        $count = $db->rawQueryValue($sql, [$username, $host]);
+        return (int)$count > 0;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listUsers(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $sql = 'SELECT User, Host FROM mysql.user ORDER BY User, Host';
+        $result = $db->rawQuery($sql);
+
+        $users = [];
+        foreach ($result as $row) {
+            $users[] = [
+                'username' => $row['User'],
+                'host' => $row['Host'],
+                'user_host' => $row['User'] . '@' . $row['Host'],
+            ];
+        }
+
+        return $users;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getUserInfo(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): array
+    {
+        $host = $host ?? '%';
+        $quotedUsername = $this->quoteIdentifier($username);
+        $quotedHost = $this->quoteIdentifier($host);
+
+        $sql = 'SELECT User, Host FROM mysql.user WHERE User = ? AND Host = ?';
+        $user = $db->rawQueryOne($sql, [$username, $host]);
+
+        if (empty($user)) {
+            return [];
+        }
+
+        $info = [
+            'username' => $user['User'],
+            'host' => $user['Host'],
+            'user_host' => $user['User'] . '@' . $user['Host'],
+        ];
+
+        // Get privileges
+        $grantsSql = "SHOW GRANTS FOR {$quotedUsername}@{$quotedHost}";
+
+        try {
+            $grants = $db->rawQuery($grantsSql);
+            $privileges = [];
+            foreach ($grants as $grant) {
+                $grantLine = $grant['Grants for ' . $username . '@' . $host] ?? ($grant[array_key_first($grant)] ?? '');
+                $privileges[] = $grantLine;
+            }
+            $info['privileges'] = $privileges;
+        } catch (\Throwable $e) {
+            $info['privileges'] = [];
+        }
+
+        return $info;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function grantPrivileges(
+        string $username,
+        string $privileges,
+        ?string $database,
+        ?string $table,
+        ?string $host,
+        \tommyknocker\pdodb\PdoDb $db
+    ): bool {
+        $host = $host ?? '%';
+        $quotedUsername = $this->quoteIdentifier($username);
+        $quotedHost = $this->quoteIdentifier($host);
+
+        $target = '';
+        if ($database !== null) {
+            $quotedDb = $database === '*' ? '*' : $this->quoteIdentifier($database);
+            if ($table !== null) {
+                $quotedTable = $table === '*' ? '*' : $this->quoteIdentifier($table);
+                $target = "{$quotedDb}.{$quotedTable}";
+            } else {
+                $target = "{$quotedDb}.*";
+            }
+        } else {
+            $target = '*.*';
+        }
+
+        $sql = "GRANT {$privileges} ON {$target} TO {$quotedUsername}@{$quotedHost}";
+        $db->rawQuery($sql);
+        $db->rawQuery('FLUSH PRIVILEGES');
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function revokePrivileges(
+        string $username,
+        string $privileges,
+        ?string $database,
+        ?string $table,
+        ?string $host,
+        \tommyknocker\pdodb\PdoDb $db
+    ): bool {
+        $host = $host ?? '%';
+        $quotedUsername = $this->quoteIdentifier($username);
+        $quotedHost = $this->quoteIdentifier($host);
+
+        $target = '';
+        if ($database !== null) {
+            $quotedDb = $database === '*' ? '*' : $this->quoteIdentifier($database);
+            if ($table !== null) {
+                $quotedTable = $table === '*' ? '*' : $this->quoteIdentifier($table);
+                $target = "{$quotedDb}.{$quotedTable}";
+            } else {
+                $target = "{$quotedDb}.*";
+            }
+        } else {
+            $target = '*.*';
+        }
+
+        $sql = "REVOKE {$privileges} ON {$target} FROM {$quotedUsername}@{$quotedHost}";
+        $db->rawQuery($sql);
+        $db->rawQuery('FLUSH PRIVILEGES');
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function changeUserPassword(string $username, string $newPassword, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        $host = $host ?? '%';
+        $quotedUsername = $this->quoteIdentifier($username);
+        $quotedHost = $this->quoteIdentifier($host);
+        $quotedPassword = $db->rawQueryValue('SELECT QUOTE(?)', [$newPassword]);
+        if ($quotedPassword === null) {
+            $quotedPassword = "'" . addslashes($newPassword) . "'";
+        }
+
+        $sql = "ALTER USER {$quotedUsername}@{$quotedHost} IDENTIFIED BY {$quotedPassword}";
+        $db->rawQuery($sql);
+        $db->rawQuery('FLUSH PRIVILEGES');
+        return true;
+    }
 }

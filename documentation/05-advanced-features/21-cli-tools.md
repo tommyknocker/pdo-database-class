@@ -7,6 +7,7 @@ PDOdb provides convenient command-line tools for common development tasks, inclu
 The CLI tools are designed to streamline your development workflow:
 
 - **Database Management** - Create, drop, list, and check database existence
+- **User Management** - Create, drop, list, and manage database users and privileges
 - **Migration Generator** - Create database migrations with interactive prompts
 - **Model Generator** - Generate ActiveRecord models from existing database tables
 - **Schema Inspector** - Inspect database schema structure
@@ -186,6 +187,117 @@ vendor/bin/pdodb db exists /path/to/database.sqlite
 ```
 
 Note: SQLite does not support listing multiple databases. Use file paths for database operations.
+
+## User Management
+
+Manage database users and their privileges with simple commands. Note that SQLite does not support user management operations.
+
+### Usage
+
+```bash
+# Create a user (username and password will be prompted if not provided)
+vendor/bin/pdodb user create john
+vendor/bin/pdodb user create john --password secret123
+vendor/bin/pdodb user create john --password secret123 --host localhost
+vendor/bin/pdodb user create
+
+# Drop a user (username will be prompted if not provided, with confirmation)
+vendor/bin/pdodb user drop john
+vendor/bin/pdodb user drop john --force
+vendor/bin/pdodb user drop
+
+# Check if a user exists (username will be prompted if not provided)
+vendor/bin/pdodb user exists john
+vendor/bin/pdodb user exists
+
+# List all users
+vendor/bin/pdodb user list
+
+# Show user information and privileges (username will be prompted if not provided)
+vendor/bin/pdodb user info john
+vendor/bin/pdodb user info
+
+# Grant privileges to a user
+vendor/bin/pdodb user grant john SELECT,INSERT,UPDATE --database myapp
+vendor/bin/pdodb user grant john ALL --database myapp --table users
+vendor/bin/pdodb user grant john SELECT,INSERT --database myapp --table users
+
+# Revoke privileges from a user
+vendor/bin/pdodb user revoke john DELETE --database myapp
+vendor/bin/pdodb user revoke john ALL --database myapp --table users
+
+# Change user password (password will be prompted if not provided)
+vendor/bin/pdodb user password john
+vendor/bin/pdodb user password john --password newpass123
+```
+
+### Options
+
+- `--force` - Execute without confirmation (for create/drop)
+- `--password <pass>` - Set password (for create/password commands)
+- `--host <host>` - Host for MySQL/MariaDB (default: '%')
+- `--database <db>` - Database name (for grant/revoke)
+- `--table <table>` - Table name (for grant/revoke)
+
+### Examples
+
+#### Create User
+
+```bash
+$ vendor/bin/pdodb user create john
+
+Enter password: ********
+✓ User 'john@%' created successfully
+```
+
+Or with options:
+
+```bash
+$ vendor/bin/pdodb user create john --password secret123 --host localhost
+
+✓ User 'john@localhost' created successfully
+```
+
+#### Grant Privileges
+
+```bash
+$ vendor/bin/pdodb user grant john SELECT,INSERT,UPDATE --database myapp
+
+✓ Granted SELECT,INSERT,UPDATE on myapp.* to 'john@%'
+```
+
+#### List Users
+
+```bash
+$ vendor/bin/pdodb user list
+
+Users (3):
+  root@localhost
+  testuser@%
+  john@%
+```
+
+#### Show User Info
+
+```bash
+$ vendor/bin/pdodb user info john
+
+User Information:
+
+  Username: john
+  Host: %
+  User host: john@%
+  Privileges (2):
+    - GRANT SELECT, INSERT, UPDATE ON `myapp`.* TO `john`@`%`
+    - GRANT USAGE ON *.* TO `john`@`%`
+```
+
+### Notes
+
+- **MySQL/MariaDB**: Users are identified by username@host. Use `--host` option to specify host (default: '%').
+- **PostgreSQL**: Users are identified by username only. Host option is ignored.
+- **MSSQL**: Users are identified by login name. Host option is ignored.
+- **SQLite**: User management is not supported and will throw an exception.
 
 ## Migration Generator
 

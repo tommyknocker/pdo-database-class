@@ -1437,4 +1437,242 @@ class PostgreSQLDialect extends DialectAbstract
 
         return $info;
     }
+
+    /* ---------------- User Management ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function createUser(string $username, string $password, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        // PostgreSQL doesn't use host in user creation
+        // Check if user already exists
+        if ($this->userExists($username, $host, $db)) {
+            return true; // User already exists, consider it success
+        }
+
+        $quotedUsername = $this->quoteIdentifier($username);
+        $quotedPassword = $db->rawQueryValue('SELECT quote_literal(?)', [$password]);
+        if ($quotedPassword === null) {
+            $quotedPassword = "'" . addslashes($password) . "'";
+        }
+
+        $sql = "CREATE USER {$quotedUsername} WITH PASSWORD {$quotedPassword}";
+        $db->rawQuery($sql);
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dropUser(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        // PostgreSQL doesn't use host in user deletion
+        $quotedUsername = $this->quoteIdentifier($username);
+
+        // Use IF EXISTS to avoid errors if user doesn't exist
+        $sql = "DROP USER IF EXISTS {$quotedUsername}";
+        $db->rawQuery($sql);
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function userExists(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        // PostgreSQL doesn't use host in user checks
+        $quotedUsername = $this->quoteIdentifier($username);
+
+        $sql = 'SELECT COUNT(*) FROM pg_roles WHERE rolname = ?';
+        $count = $db->rawQueryValue($sql, [$username]);
+        return (int)$count > 0;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listUsers(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $sql = 'SELECT rolname FROM pg_roles WHERE rolcanlogin = true ORDER BY rolname';
+        $result = $db->rawQuery($sql);
+
+        $users = [];
+        foreach ($result as $row) {
+            $users[] = [
+                'username' => $row['rolname'],
+                'host' => null,
+                'user_host' => $row['rolname'],
+            ];
+        }
+
+        return $users;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getUserInfo(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): array
+    {
+        // PostgreSQL doesn't use host in user info
+        $quotedUsername = $this->quoteIdentifier($username);
+
+        $sql = 'SELECT rolname, rolsuper, rolcreaterole, rolcreatedb, rolcanlogin FROM pg_roles WHERE rolname = ?';
+        $user = $db->rawQueryOne($sql, [$username]);
+
+        if (empty($user)) {
+            return [];
+        }
+
+        $info = [
+            'username' => $user['rolname'],
+            'host' => null,
+            'user_host' => $user['rolname'],
+            'is_superuser' => $user['rolsuper'] === 't' || $user['rolsuper'] === true,
+            'can_create_roles' => $user['rolcreaterole'] === 't' || $user['rolcreaterole'] === true,
+            'can_create_databases' => $user['rolcreatedb'] === 't' || $user['rolcreatedb'] === true,
+            'can_login' => $user['rolcanlogin'] === 't' || $user['rolcanlogin'] === true,
+        ];
+
+        // Get privileges
+        try {
+            $grantsSql = 'SELECT
+                table_schema,
+                table_name,
+                privilege_type
+            FROM information_schema.role_table_grants
+            WHERE grantee = ?';
+            $grants = $db->rawQuery($grantsSql, [$username]);
+            $privileges = [];
+            foreach ($grants as $grant) {
+                $privileges[] = $grant;
+            }
+            $info['privileges'] = $privileges;
+        } catch (\Throwable $e) {
+            $info['privileges'] = [];
+        }
+
+        return $info;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function grantPrivileges(
+        string $username,
+        string $privileges,
+        ?string $database,
+        ?string $table,
+        ?string $host,
+        \tommyknocker\pdodb\PdoDb $db
+    ): bool {
+        // PostgreSQL doesn't use host in grants
+        $quotedUsername = $this->quoteIdentifier($username);
+
+        $target = '';
+        if ($database !== null && $table !== null) {
+            $quotedDb = $database === '*' ? '*' : $this->quoteIdentifier($database);
+            $quotedTable = $table === '*' ? '*' : $this->quoteIdentifier($table);
+            $target = "{$quotedDb}.{$quotedTable}";
+        } elseif ($database !== null) {
+            $quotedDb = $database === '*' ? '*' : $this->quoteIdentifier($database);
+
+            // Check if privileges are database-level (CONNECT, CREATE, TEMPORARY)
+            // or table-level (SELECT, INSERT, UPDATE, DELETE, etc.)
+            $dbLevelPrivileges = ['CONNECT', 'CREATE', 'TEMPORARY'];
+            $isDbLevel = false;
+            foreach ($dbLevelPrivileges as $dbPriv) {
+                if (stripos($privileges, $dbPriv) !== false) {
+                    $isDbLevel = true;
+                    break;
+                }
+            }
+
+            if ($isDbLevel) {
+                // For database-level privileges, use DATABASE syntax
+                $target = "DATABASE {$quotedDb}";
+            } else {
+                // For table-level privileges (SELECT, INSERT, UPDATE, DELETE, etc.),
+                // grant on all tables in the public schema
+                $target = 'ALL TABLES IN SCHEMA public';
+            }
+        } else {
+            // Server-level grants are not directly supported in PostgreSQL
+            // Use ALL TABLES IN SCHEMA public as fallback
+            $target = 'ALL TABLES IN SCHEMA public';
+        }
+
+        $sql = "GRANT {$privileges} ON {$target} TO {$quotedUsername}";
+        $db->rawQuery($sql);
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function revokePrivileges(
+        string $username,
+        string $privileges,
+        ?string $database,
+        ?string $table,
+        ?string $host,
+        \tommyknocker\pdodb\PdoDb $db
+    ): bool {
+        // PostgreSQL doesn't use host in revokes
+        $quotedUsername = $this->quoteIdentifier($username);
+
+        $target = '';
+        if ($database !== null && $table !== null) {
+            $quotedDb = $database === '*' ? '*' : $this->quoteIdentifier($database);
+            $quotedTable = $table === '*' ? '*' : $this->quoteIdentifier($table);
+            $target = "{$quotedDb}.{$quotedTable}";
+        } elseif ($database !== null) {
+            $quotedDb = $database === '*' ? '*' : $this->quoteIdentifier($database);
+
+            // Check if privileges are database-level (CONNECT, CREATE, TEMPORARY)
+            // or table-level (SELECT, INSERT, UPDATE, DELETE, etc.)
+            $dbLevelPrivileges = ['CONNECT', 'CREATE', 'TEMPORARY'];
+            $isDbLevel = false;
+            foreach ($dbLevelPrivileges as $dbPriv) {
+                if (stripos($privileges, $dbPriv) !== false) {
+                    $isDbLevel = true;
+                    break;
+                }
+            }
+
+            if ($isDbLevel) {
+                // For database-level privileges, use DATABASE syntax
+                $target = "DATABASE {$quotedDb}";
+            } else {
+                // For table-level privileges (SELECT, INSERT, UPDATE, DELETE, etc.),
+                // revoke from all tables in the public schema
+                $target = 'ALL TABLES IN SCHEMA public';
+            }
+        } else {
+            // Server-level revokes are not directly supported in PostgreSQL
+            // Use ALL TABLES IN SCHEMA public as fallback
+            $target = 'ALL TABLES IN SCHEMA public';
+        }
+
+        $sql = "REVOKE {$privileges} ON {$target} FROM {$quotedUsername}";
+        $db->rawQuery($sql);
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function changeUserPassword(string $username, string $newPassword, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        // PostgreSQL doesn't use host in password changes
+        $quotedUsername = $this->quoteIdentifier($username);
+        $quotedPassword = $db->rawQueryValue('SELECT quote_literal(?)', [$newPassword]);
+        if ($quotedPassword === null) {
+            $quotedPassword = "'" . addslashes($newPassword) . "'";
+        }
+
+        $sql = "ALTER USER {$quotedUsername} WITH PASSWORD {$quotedPassword}";
+        $db->rawQuery($sql);
+        return true;
+    }
 }

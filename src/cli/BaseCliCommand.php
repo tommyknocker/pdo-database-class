@@ -273,6 +273,45 @@ abstract class BaseCliCommand
     }
 
     /**
+     * Read password from stdin (hidden input).
+     *
+     * @param string $prompt Prompt message
+     *
+     * @return string
+     */
+    protected static function readPassword(string $prompt): string
+    {
+        // Check if non-interactive mode is enabled (for tests, CI, etc.)
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false
+            || !stream_isatty(STDIN);
+
+        if ($nonInteractive) {
+            // In non-interactive mode, try to read from stdin if available
+            $input = trim((string)fgets(STDIN));
+            return $input;
+        }
+
+        // Use stty to hide input on Unix-like systems
+        if (PHP_OS_FAMILY !== 'Windows') {
+            $sttyMode = shell_exec('stty -g');
+            shell_exec('stty -echo');
+        }
+
+        echo $prompt . ': ';
+        flush();
+        $input = trim((string)fgets(STDIN));
+        echo "\n";
+
+        // Restore stty mode
+        if (PHP_OS_FAMILY !== 'Windows' && isset($sttyMode)) {
+            shell_exec("stty {$sttyMode}");
+        }
+
+        return $input;
+    }
+
+    /**
      * Read yes/no confirmation from stdin.
      *
      * @param string $prompt Prompt message

@@ -1307,4 +1307,230 @@ class MSSQLDialect extends DialectAbstract
 
         return $info;
     }
+
+    /* ---------------- User Management ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function createUser(string $username, string $password, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        // MSSQL uses logins at server level and users at database level
+        // Host is not used in MSSQL
+        $quotedUsername = $this->quoteIdentifier($username);
+        // Escape single quotes in password for MSSQL
+        $quotedPassword = "'" . str_replace("'", "''", $password) . "'";
+
+        // Create login first
+        $sql = "CREATE LOGIN {$quotedUsername} WITH PASSWORD = {$quotedPassword}";
+        $db->rawQuery($sql);
+
+        // Create user in current database
+        $currentDb = $db->rawQueryValue('SELECT DB_NAME()');
+        if ($currentDb !== null) {
+            // Execute USE and CREATE USER as separate queries
+            $db->rawQuery("USE [{$currentDb}]");
+            $db->rawQuery("CREATE USER {$quotedUsername} FOR LOGIN {$quotedUsername}");
+        }
+
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dropUser(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        // MSSQL: drop user first, then login
+        $quotedUsername = $this->quoteIdentifier($username);
+
+        // Drop user from current database
+        $currentDb = $db->rawQueryValue('SELECT DB_NAME()');
+        if ($currentDb !== null) {
+            try {
+                // Execute USE and DROP USER as separate queries
+                $db->rawQuery("USE [{$currentDb}]");
+                $db->rawQuery("DROP USER {$quotedUsername}");
+            } catch (\Throwable $e) {
+                // User might not exist in this database, continue
+            }
+        }
+
+        // Drop login
+        $sql = "DROP LOGIN {$quotedUsername}";
+        $db->rawQuery($sql);
+
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function userExists(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        // MSSQL: check if login exists
+        $quotedUsername = $this->quoteIdentifier($username);
+
+        $sql = "SELECT COUNT(*) FROM sys.server_principals WHERE name = ? AND type = 'S'";
+        $count = $db->rawQueryValue($sql, [$username]);
+        return (int)$count > 0;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listUsers(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $sql = "SELECT name FROM sys.server_principals WHERE type = 'S' AND is_disabled = 0 ORDER BY name";
+        $result = $db->rawQuery($sql);
+
+        $users = [];
+        foreach ($result as $row) {
+            $users[] = [
+                'username' => $row['name'],
+                'host' => null,
+                'user_host' => $row['name'],
+            ];
+        }
+
+        return $users;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getUserInfo(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): array
+    {
+        // MSSQL: get login and user info
+        $quotedUsername = $this->quoteIdentifier($username);
+
+        $sql = "SELECT name, type_desc, is_disabled FROM sys.server_principals WHERE name = ? AND type = 'S'";
+        $login = $db->rawQueryOne($sql, [$username]);
+
+        if (empty($login)) {
+            return [];
+        }
+
+        $info = [
+            'username' => $login['name'],
+            'host' => null,
+            'user_host' => $login['name'],
+            'type' => $login['type_desc'],
+            'is_disabled' => $login['is_disabled'] === 1 || $login['is_disabled'] === true,
+        ];
+
+        // Get database user info
+        $currentDb = $db->rawQueryValue('SELECT DB_NAME()');
+        if ($currentDb !== null) {
+            try {
+                // Execute USE and SELECT as separate queries
+                $db->rawQuery("USE [{$currentDb}]");
+                $user = $db->rawQueryOne("SELECT name FROM sys.database_principals WHERE name = ? AND type = 'S'", [$username]);
+                $info['database_user'] = $user['name'] ?? null;
+            } catch (\Throwable $e) {
+                $info['database_user'] = null;
+            }
+        }
+
+        // Get privileges
+        try {
+            $grantsSql = 'SELECT
+                permission_name,
+                state_desc,
+                object_name(major_id) as object_name
+            FROM sys.database_permissions
+            WHERE grantee_principal_id = (SELECT principal_id FROM sys.database_principals WHERE name = ?)';
+            $grants = $db->rawQuery($grantsSql, [$username]);
+            $privileges = [];
+            foreach ($grants as $grant) {
+                $privileges[] = $grant;
+            }
+            $info['privileges'] = $privileges;
+        } catch (\Throwable $e) {
+            $info['privileges'] = [];
+        }
+
+        return $info;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function grantPrivileges(
+        string $username,
+        string $privileges,
+        ?string $database,
+        ?string $table,
+        ?string $host,
+        \tommyknocker\pdodb\PdoDb $db
+    ): bool {
+        // MSSQL: grant permissions
+        $quotedUsername = $this->quoteIdentifier($username);
+
+        $target = '';
+        if ($database !== null && $table !== null) {
+            $quotedDb = $database === '*' ? '[' . $db->rawQueryValue('SELECT DB_NAME()') . ']' : '[' . $database . ']';
+            $quotedTable = $table === '*' ? '*' : $this->quoteIdentifier($table);
+            $target = "{$quotedDb}.dbo.{$quotedTable}";
+        } elseif ($database !== null) {
+            // For database-level grants in MSSQL, use SCHEMA instead of DATABASE
+            // MSSQL doesn't support GRANT SELECT ON DATABASE, only on SCHEMA or objects
+            $target = 'SCHEMA::dbo';
+        } else {
+            // For server-level grants, use current database schema
+            $target = 'SCHEMA::dbo';
+        }
+
+        $sql = "GRANT {$privileges} ON {$target} TO {$quotedUsername}";
+        $db->rawQuery($sql);
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function revokePrivileges(
+        string $username,
+        string $privileges,
+        ?string $database,
+        ?string $table,
+        ?string $host,
+        \tommyknocker\pdodb\PdoDb $db
+    ): bool {
+        // MSSQL: revoke permissions
+        $quotedUsername = $this->quoteIdentifier($username);
+
+        $target = '';
+        if ($database !== null && $table !== null) {
+            $quotedDb = $database === '*' ? '[' . $db->rawQueryValue('SELECT DB_NAME()') . ']' : '[' . $database . ']';
+            $quotedTable = $table === '*' ? '*' : $this->quoteIdentifier($table);
+            $target = "{$quotedDb}.dbo.{$quotedTable}";
+        } elseif ($database !== null) {
+            // For database-level revokes in MSSQL, use SCHEMA instead of DATABASE
+            // MSSQL doesn't support REVOKE SELECT ON DATABASE, only on SCHEMA or objects
+            $target = 'SCHEMA::dbo';
+        } else {
+            // For server-level revokes, use current database schema
+            $target = 'SCHEMA::dbo';
+        }
+
+        $sql = "REVOKE {$privileges} ON {$target} FROM {$quotedUsername}";
+        $db->rawQuery($sql);
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function changeUserPassword(string $username, string $newPassword, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        // MSSQL: change login password
+        $quotedUsername = $this->quoteIdentifier($username);
+        // Escape single quotes in password for MSSQL
+        $quotedPassword = "'" . str_replace("'", "''", $newPassword) . "'";
+
+        $sql = "ALTER LOGIN {$quotedUsername} WITH PASSWORD = {$quotedPassword}";
+        $db->rawQuery($sql);
+        return true;
+    }
 }

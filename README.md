@@ -36,7 +36,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
 
 **Developer Experience:**
-- **CLI Tools** - Database management, migration generator, model generator, schema inspector, and interactive query tester (REPL)
+- **CLI Tools** - Database management, user management, migration generator, model generator, schema inspector, and interactive query tester (REPL)
 - **Enhanced EXPLAIN** - Automatic detection of full table scans, missing indexes, and optimization recommendations
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Enhanced Error Diagnostics** - Query context, sanitized parameters, and debug information in exceptions
@@ -2713,6 +2713,7 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 #### Available Commands
 
 - **`db`** - Manage databases (create, drop, list, check existence, show info)
+- **`user`** - Manage database users (create, drop, list, grant/revoke privileges, change password)
 - **`migrate`** - Manage database migrations
 - **`schema`** - Inspect database schema
 - **`query`** - Test SQL queries interactively
@@ -2738,6 +2739,38 @@ vendor/bin/pdodb db list
 # Show information about current database
 vendor/bin/pdodb db info
 ```
+
+#### User Management
+
+Manage database users and their privileges:
+
+```bash
+# Create a user
+vendor/bin/pdodb user create john --password secret123
+
+# Drop a user (with confirmation)
+vendor/bin/pdodb user drop john
+
+# Check if a user exists
+vendor/bin/pdodb user exists john
+
+# List all users
+vendor/bin/pdodb user list
+
+# Show user information
+vendor/bin/pdodb user info john
+
+# Grant privileges
+vendor/bin/pdodb user grant john SELECT,INSERT,UPDATE --database myapp
+
+# Revoke privileges
+vendor/bin/pdodb user revoke john DELETE --database myapp
+
+# Change password
+vendor/bin/pdodb user password john --password newpass123
+```
+
+**Note**: SQLite does not support user management operations.
 
 #### Migration Management
 

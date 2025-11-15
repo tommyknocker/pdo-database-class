@@ -1443,4 +1443,122 @@ interface DialectInterface
      * @return array<string, mixed> Database information
      */
     public function getDatabaseInfo(\tommyknocker\pdodb\PdoDb $db): array;
+
+    /* ---------------- User Management ---------------- */
+
+    /**
+     * Create a database user.
+     *
+     * @param string $username Username
+     * @param string $password Password
+     * @param string|null $host Host (for MySQL/MariaDB, default: '%')
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return bool True on success
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If user creation fails or not supported
+     */
+    public function createUser(string $username, string $password, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool;
+
+    /**
+     * Drop a database user.
+     *
+     * @param string $username Username
+     * @param string|null $host Host (for MySQL/MariaDB, default: '%')
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return bool True on success
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If user deletion fails or not supported
+     */
+    public function dropUser(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool;
+
+    /**
+     * Check if a database user exists.
+     *
+     * @param string $username Username
+     * @param string|null $host Host (for MySQL/MariaDB, default: '%')
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return bool True if user exists
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If check fails or not supported
+     */
+    public function userExists(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool;
+
+    /**
+     * List all database users.
+     *
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return array<int, array<string, mixed>> List of users with their information
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If listing fails or not supported
+     */
+    public function listUsers(\tommyknocker\pdodb\PdoDb $db): array;
+
+    /**
+     * Get user information and privileges.
+     *
+     * @param string $username Username
+     * @param string|null $host Host (for MySQL/MariaDB, default: '%')
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return array<string, mixed> User information
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If retrieval fails or not supported
+     */
+    public function getUserInfo(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): array;
+
+    /**
+     * Grant privileges to a user.
+     *
+     * @param string $username Username
+     * @param string $privileges Privileges (e.g., 'SELECT,INSERT,UPDATE' or 'ALL')
+     * @param string|null $database Database name (null = all databases, '*' = all databases)
+     * @param string|null $table Table name (null = all tables, '*' = all tables)
+     * @param string|null $host Host (for MySQL/MariaDB, default: '%')
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return bool True on success
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If grant fails or not supported
+     */
+    public function grantPrivileges(
+        string $username,
+        string $privileges,
+        ?string $database,
+        ?string $table,
+        ?string $host,
+        \tommyknocker\pdodb\PdoDb $db
+    ): bool;
+
+    /**
+     * Revoke privileges from a user.
+     *
+     * @param string $username Username
+     * @param string $privileges Privileges (e.g., 'SELECT,INSERT,UPDATE' or 'ALL')
+     * @param string|null $database Database name (null = all databases, '*' = all databases)
+     * @param string|null $table Table name (null = all tables, '*' = all tables)
+     * @param string|null $host Host (for MySQL/MariaDB, default: '%')
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return bool True on success
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If revoke fails or not supported
+     */
+    public function revokePrivileges(
+        string $username,
+        string $privileges,
+        ?string $database,
+        ?string $table,
+        ?string $host,
+        \tommyknocker\pdodb\PdoDb $db
+    ): bool;
+
+    /**
+     * Change user password.
+     *
+     * @param string $username Username
+     * @param string $newPassword New password
+     * @param string|null $host Host (for MySQL/MariaDB, default: '%')
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return bool True on success
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If password change fails or not supported
+     */
+    public function changeUserPassword(string $username, string $newPassword, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool;
 }

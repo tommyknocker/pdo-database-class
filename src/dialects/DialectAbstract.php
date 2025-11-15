@@ -893,4 +893,98 @@ abstract class DialectAbstract implements DialectInterface
     {
         return [];
     }
+
+    /* ---------------- User Management ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function createUser(string $username, string $password, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+            'User management is not supported for ' . $this->getDriverName()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dropUser(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+            'User management is not supported for ' . $this->getDriverName()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function userExists(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+            'User management is not supported for ' . $this->getDriverName()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listUsers(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+            'User management is not supported for ' . $this->getDriverName()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getUserInfo(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): array
+    {
+        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+            'User management is not supported for ' . $this->getDriverName()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function grantPrivileges(
+        string $username,
+        string $privileges,
+        ?string $database,
+        ?string $table,
+        ?string $host,
+        \tommyknocker\pdodb\PdoDb $db
+    ): bool {
+        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+            'User management is not supported for ' . $this->getDriverName()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function revokePrivileges(
+        string $username,
+        string $privileges,
+        ?string $database,
+        ?string $table,
+        ?string $host,
+        \tommyknocker\pdodb\PdoDb $db
+    ): bool {
+        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+            'User management is not supported for ' . $this->getDriverName()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function changeUserPassword(string $username, string $newPassword, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+            'User management is not supported for ' . $this->getDriverName()
+        );
+    }
 }
