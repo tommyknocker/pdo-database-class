@@ -79,6 +79,7 @@ class MigrateCommand extends Command
         // Handle options
         $dryRun = $this->getOption('dry-run', false);
         $pretend = $this->getOption('pretend', false);
+        $force = $this->getOption('force', false);
 
         if ($dryRun) {
             $runner->setDryRun(true);
@@ -88,6 +89,23 @@ class MigrateCommand extends Command
         }
 
         $limit = (int)($this->getArgument(1) ?? 0);
+        $newMigrations = $runner->getNewMigrations();
+
+        // Ask for confirmation unless --force is used or no migrations to apply
+        if (!empty($newMigrations) && !$force && !$dryRun && !$pretend) {
+            $count = count($newMigrations);
+            $limitText = $limit > 0 ? " {$limit}" : '';
+            $confirmed = static::readConfirmation(
+                "Are you sure you want to apply{$limitText} migration(s)? This will modify your database",
+                true
+            );
+
+            if (!$confirmed) {
+                static::info('Operation cancelled');
+                return 0;
+            }
+        }
+
         $applied = $runner->migrate($limit);
         $count = count($applied);
 
@@ -259,10 +277,11 @@ class MigrateCommand extends Command
         echo "  help              Show this help message\n\n";
         echo "Options:\n";
         echo "  --dry-run         Show SQL without executing\n";
-        echo "  --force           Execute without confirmation (for rollback)\n";
+        echo "  --force           Execute without confirmation\n";
         echo "  --pretend         Simulate execution\n\n";
         echo "Examples:\n";
         echo "  pdodb migrate up --dry-run\n";
+        echo "  pdodb migrate up --force\n";
         echo "  pdodb migrate down 2 --force\n";
         echo "  pdodb migrate up --pretend\n";
         return 0;

@@ -63,6 +63,20 @@ class DbCommand extends Command
             }
         }
 
+        // Ask for confirmation unless --force is used
+        $force = $this->getOption('force', false);
+        if (!$force) {
+            $confirmed = static::readConfirmation(
+                "Are you sure you want to create database '{$databaseName}'? This will create a new database",
+                true
+            );
+
+            if (!$confirmed) {
+                static::info('Operation cancelled');
+                return 0;
+            }
+        }
+
         try {
             $config = static::loadDatabaseConfig();
             $db = DatabaseManager::createServerConnection($config);
@@ -92,12 +106,18 @@ class DbCommand extends Command
             }
         }
 
-        // Ask for confirmation
-        $confirmed = static::readConfirmation("Are you sure you want to drop database '{$databaseName}'? This action cannot be undone", false);
+        // Ask for confirmation unless --force is used
+        $force = $this->getOption('force', false);
+        if (!$force) {
+            $confirmed = static::readConfirmation(
+                "Are you sure you want to drop database '{$databaseName}'? This action cannot be undone",
+                false
+            );
 
-        if (!$confirmed) {
-            static::info('Operation cancelled');
-            return 0;
+            if (!$confirmed) {
+                static::info('Operation cancelled');
+                return 0;
+            }
         }
 
         try {
@@ -248,15 +268,19 @@ class DbCommand extends Command
         echo "Usage: pdodb db <subcommand> [arguments] [options]\n\n";
         echo "Subcommands:\n";
         echo "  create [name]      Create a new database (name will be prompted if not provided)\n";
-        echo "  drop [name]        Drop a database (name will be prompted if not provided, with confirmation)\n";
+        echo "  drop [name]        Drop a database (name will be prompted if not provided)\n";
         echo "  exists [name]      Check if a database exists (name will be prompted if not provided)\n";
         echo "  list               List all databases\n";
         echo "  info               Show information about current database\n";
         echo "  help               Show this help message\n\n";
+        echo "Options:\n";
+        echo "  --force            Execute without confirmation\n\n";
         echo "Examples:\n";
         echo "  pdodb db create myapp\n";
+        echo "  pdodb db create myapp --force\n";
         echo "  pdodb db create    (will prompt for name)\n";
         echo "  pdodb db drop myapp\n";
+        echo "  pdodb db drop myapp --force\n";
         echo "  pdodb db exists myapp\n";
         echo "  pdodb db list\n";
         echo "  pdodb db info\n";
