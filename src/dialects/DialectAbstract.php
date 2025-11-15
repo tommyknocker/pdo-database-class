@@ -6,7 +6,6 @@ namespace tommyknocker\pdodb\dialects;
 
 use PDO;
 use RuntimeException;
-use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;

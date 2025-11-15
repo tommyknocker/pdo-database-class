@@ -122,4 +122,3 @@ interface DmlBuilderInterface
         array $whenClauses
     ): string;
 }
-

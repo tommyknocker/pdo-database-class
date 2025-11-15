@@ -74,4 +74,3 @@ class MySQLFeatureSupport implements FeatureSupportInterface
         return true;
     }
 }
-

@@ -76,4 +76,3 @@ interface FeatureSupportInterface
      */
     public function supportsLimitInExists(): bool;
 }
-

@@ -76,4 +76,3 @@ class MariaDBFeatureSupport implements FeatureSupportInterface
         return true;
     }
 }
-

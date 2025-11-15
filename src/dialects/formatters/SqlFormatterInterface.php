@@ -424,4 +424,3 @@ interface SqlFormatterInterface
      */
     public function formatMaterializedCte(string $cteSql, bool $isMaterialized): string;
 }
-

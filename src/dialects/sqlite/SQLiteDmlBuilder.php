@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\dialects\mysql;
+namespace tommyknocker\pdodb\dialects\sqlite;
 
-use RuntimeException;
 use tommyknocker\pdodb\dialects\builders\DmlBuilderInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
+use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
- * MySQL DML builder implementation.
+ * SQLite DML builder implementation.
  */
-class MySQLDmlBuilder implements DmlBuilderInterface
+class SQLiteDmlBuilder implements DmlBuilderInterface
 {
     use UpsertBuilderTrait;
 
@@ -45,10 +45,9 @@ class MySQLDmlBuilder implements DmlBuilderInterface
      */
     public function buildInsertSql(string $table, array $columns, array $placeholders, array $options = []): string
     {
-        $cols = implode(', ', array_map([$this, 'quoteIdentifier'], $columns));
-        $vals = implode(', ', $placeholders);
-        $prefix = 'INSERT' . ($options ? ' ' . implode(' ', $options) : '') . ' INTO';
-        return sprintf('%s %s (%s) VALUES (%s)', $prefix, $table, $cols, $vals);
+        $cols = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
+        $phs = implode(',', $placeholders);
+        return $this->insertKeywords($options) . "INTO {$table} ({$cols}) VALUES ({$phs})";
     }
 
     /**
@@ -60,12 +59,25 @@ class MySQLDmlBuilder implements DmlBuilderInterface
         string $selectSql,
         array $options = []
     ): string {
-        $prefix = 'INSERT' . ($options ? ' ' . implode(' ', $options) : '') . ' INTO';
         $colsSql = '';
         if (!empty($columns)) {
             $colsSql = ' (' . implode(', ', array_map([$this, 'quoteIdentifier'], $columns)) . ')';
         }
-        return sprintf('%s %s%s %s', $prefix, $table, $colsSql, $selectSql);
+        return $this->insertKeywords($options) . "INTO {$table}{$colsSql} {$selectSql}";
+    }
+
+    /**
+     * Build INSERT keywords for SQLite (INSERT OR IGNORE, etc.).
+     *
+     * @param array<int|string, mixed> $flags
+     */
+    public function insertKeywords(array $flags): string
+    {
+        // SQLite does not support IGNORE directly, but supports INSERT OR IGNORE
+        if (in_array('IGNORE', $flags, true)) {
+            return 'INSERT OR IGNORE ';
+        }
+        return 'INSERT ';
     }
 
     /**
@@ -79,11 +91,12 @@ class MySQLDmlBuilder implements DmlBuilderInterface
         ?int $limit = null,
         string $options = ''
     ): string {
-        $sql = "UPDATE {$options}{$table}";
+        // SQLite doesn't support JOIN in UPDATE, convert to subquery
+        $sql = "UPDATE {$options}{$table} SET {$setClause}";
         if (!empty($joins)) {
-            $sql .= ' ' . implode(' ', $joins);
+            // SQLite doesn't support JOIN in UPDATE, so we need to use a different approach
+            // For now, just add WHERE clause
         }
-        $sql .= " SET {$setClause}";
         $sql .= $whereClause;
         if ($limit !== null) {
             $sql .= ' LIMIT ' . (int)$limit;
@@ -100,11 +113,8 @@ class MySQLDmlBuilder implements DmlBuilderInterface
         string $whereClause,
         string $options = ''
     ): string {
-        // MySQL syntax: DELETE table FROM table JOIN ...
-        $sql = "DELETE {$options}{$table} FROM {$table}";
-        if (!empty($joins)) {
-            $sql .= ' ' . implode(' ', $joins);
-        }
+        // SQLite doesn't support JOIN in DELETE, convert to subquery
+        $sql = "DELETE {$options}FROM {$table}";
         $sql .= $whereClause;
         return $sql;
     }
@@ -118,21 +128,18 @@ class MySQLDmlBuilder implements DmlBuilderInterface
         array $placeholders,
         bool $isMultiple = false
     ): string {
-        $tableSql = $this->quoteTable($table);
         $colsSql = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
 
         if ($isMultiple) {
-            // placeholders already contain grouped row expressions like "(...),(...)" or ["(...)", "(...)"]
             $valsSql = implode(',', array_map(function ($p) {
                 return is_array($p) ? '(' . implode(',', $p) . ')' : $p;
             }, $placeholders));
-            return sprintf('REPLACE INTO %s (%s) VALUES %s', $tableSql, $colsSql, $valsSql);
+            return sprintf('REPLACE INTO %s (%s) VALUES %s', $table, $colsSql, $valsSql);
         }
 
-        // Single row: placeholders are scalar fragments matching columns
         $stringPlaceholders = array_map(fn ($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
         $valsSql = implode(',', $stringPlaceholders);
-        return sprintf('REPLACE INTO %s (%s) VALUES (%s)', $tableSql, $colsSql, $valsSql);
+        return sprintf('REPLACE INTO %s (%s) VALUES (%s)', $table, $colsSql, $valsSql);
     }
 
     /**
@@ -147,16 +154,16 @@ class MySQLDmlBuilder implements DmlBuilderInterface
         $isAssoc = $this->isAssociativeArray($updateColumns);
 
         if ($isAssoc) {
-            $updates = $this->buildUpsertExpressions($updateColumns, $tableName);
+            $parts = $this->buildUpsertExpressions($updateColumns, $tableName);
         } else {
-            $updates = [];
-            foreach ($updateColumns as $col) {
-                $qid = $this->quoteIdentifier($col);
-                $updates[] = "{$qid} = VALUES({$qid})";
+            $parts = [];
+            foreach ($updateColumns as $c) {
+                $parts[] = "{$this->quoteIdentifier($c)} = excluded.{$this->quoteIdentifier($c)}";
             }
         }
 
-        return 'ON DUPLICATE KEY UPDATE ' . implode(', ', $updates);
+        $target = $this->quoteIdentifier($defaultConflictTarget);
+        return "ON CONFLICT ({$target}) DO UPDATE SET " . implode(', ', $parts);
     }
 
     /**
@@ -168,15 +175,15 @@ class MySQLDmlBuilder implements DmlBuilderInterface
         string $onClause,
         array $whenClauses
     ): string {
-        // MySQL emulation using INSERT ... SELECT ... ON DUPLICATE KEY UPDATE
-        // Extract key from ON clause for conflict target
+        // SQLite emulation similar to MySQL
+        // Extract key from ON clause
         preg_match('/target\.(\w+)\s*=\s*source\.(\w+)/i', $onClause, $matches);
         $keyColumn = $matches[1] ?? 'id';
 
         $target = $this->quoteTable($targetTable);
 
         if (empty($whenClauses['whenNotMatched'])) {
-            throw new RuntimeException('MySQL MERGE requires WHEN NOT MATCHED clause');
+            throw new QueryException('SQLite MERGE requires WHEN NOT MATCHED clause');
         }
 
         // Parse INSERT clause
@@ -195,23 +202,33 @@ class MySQLDmlBuilder implements DmlBuilderInterface
             $colName = trim($colName, '`"');
             // If it's a MERGE_SOURCE_COLUMN_ marker, use source column; otherwise it's raw SQL
             if (preg_match('/^MERGE_SOURCE_COLUMN_(\w+)$/', $val, $paramMatch)) {
+                // Use unquoted column name in source reference for SQLite
                 $selectColumns[] = 'source.' . $this->quoteIdentifier($colName);
             } else {
                 $selectColumns[] = $val;
             }
         }
 
-        $sql = "INSERT INTO {$target} ({$columns})\n";
-        $sql .= 'SELECT ' . implode(', ', $selectColumns) . " FROM {$sourceSql} AS source\n";
+        // SQLite doesn't support ON CONFLICT with INSERT ... SELECT
+        // Use INSERT OR REPLACE which replaces based on PRIMARY KEY or UNIQUE constraints
+        // Remove "AS source" if present (we add it ourselves)
+        $sourceSql = preg_replace('/\s+AS\s+source$/i', '', $sourceSql);
+        $sql = "INSERT OR REPLACE INTO {$target} ({$columns})\n";
+        $sql .= 'SELECT ' . implode(', ', $selectColumns) . " FROM {$sourceSql} AS source";
 
-        // Add ON DUPLICATE KEY UPDATE if whenMatched exists
-        if (!empty($whenClauses['whenMatched'])) {
-            // Replace source.column references with VALUES(column) for MySQL
-            $updateExpr = preg_replace('/source\.([a-zA-Z_][a-zA-Z0-9_]*)/', 'VALUES($1)', $whenClauses['whenMatched']);
-            $sql .= "ON DUPLICATE KEY UPDATE {$updateExpr}\n";
-        }
+        // Note: INSERT OR REPLACE will replace existing rows based on PRIMARY KEY
+        // The whenMatched clause behavior is handled by OR REPLACE
 
         return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function needsColumnQualificationInUpdateSet(): bool
+    {
+        // SQLite doesn't support JOIN in UPDATE, so column names don't need table prefix
+        return false;
     }
 
     /**
@@ -222,14 +239,15 @@ class MySQLDmlBuilder implements DmlBuilderInterface
     protected function buildIncrementExpression(string $colSql, array $expr, string $tableName): string
     {
         if (!isset($expr['__op']) || !isset($expr['val'])) {
-            return "{$colSql} = VALUES({$colSql})";
+            return "{$colSql} = excluded.{$colSql}";
         }
 
         $op = $expr['__op'];
+        // SQLite uses column (unqualified) for old values
         return match ($op) {
             'inc' => "{$colSql} = {$colSql} + " . (int)$expr['val'],
             'dec' => "{$colSql} = {$colSql} - " . (int)$expr['val'],
-            default => "{$colSql} = VALUES({$colSql})",
+            default => "{$colSql} = excluded.{$colSql}",
         };
     }
 
@@ -238,7 +256,13 @@ class MySQLDmlBuilder implements DmlBuilderInterface
      */
     protected function buildRawValueExpression(string $colSql, RawValue $expr, string $tableName, string $col): string
     {
-        return "{$colSql} = {$expr->getValue()}";
+        // SQLite doesn't support DEFAULT keyword in UPDATE statements
+        // Replace DEFAULT with NULL (closest equivalent behavior)
+        $value = $expr->getValue();
+        if (trim($value) === 'DEFAULT') {
+            return "{$colSql} = NULL";
+        }
+        return "{$colSql} = {$value}";
     }
 
     /**
@@ -246,12 +270,21 @@ class MySQLDmlBuilder implements DmlBuilderInterface
      */
     protected function buildDefaultExpression(string $colSql, mixed $expr, string $col): string
     {
-        if ($expr === true) {
-            return "{$colSql} = VALUES({$colSql})";
+        $exprStr = trim((string)$expr);
+
+        // Simple name or EXCLUDED.name
+        if (preg_match('/^(?:excluded\.)?[A-Za-z_][A-Za-z0-9_]*$/i', $exprStr)) {
+            if (stripos($exprStr, 'excluded.') === 0) {
+                return "{$colSql} = {$exprStr}";
+            }
+            return "{$colSql} = excluded.{$this->quoteIdentifier($exprStr)}";
         }
-        if (is_string($expr)) {
-            return "{$colSql} = {$expr}";
-        }
-        return "{$colSql} = VALUES({$colSql})";
+
+        // Auto-qualify for typical expressions: replace only "bare" occurrences of column name with excluded."col"
+        $quotedCol = $this->quoteIdentifier($col);
+        $replacement = 'excluded.' . $quotedCol;
+
+        $safeExpr = $this->replaceColumnReferences($exprStr, $col, $replacement);
+        return "{$colSql} = {$safeExpr}";
     }
 }

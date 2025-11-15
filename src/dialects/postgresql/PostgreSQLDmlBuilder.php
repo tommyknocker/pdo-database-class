@@ -376,6 +376,8 @@ class PostgreSQLDmlBuilder implements DmlBuilderInterface
 
     /**
      * Build increment/decrement expression.
+     *
+     * @param array<string, mixed> $expr
      */
     protected function buildIncrementExpression(string $colSql, array $expr, string $tableName): string
     {
@@ -432,4 +434,3 @@ class PostgreSQLDmlBuilder implements DmlBuilderInterface
         return "{$colSql} = {$safeExpr}";
     }
 }
-

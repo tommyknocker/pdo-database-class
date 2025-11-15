@@ -75,4 +75,3 @@ class SqliteFeatureSupport implements FeatureSupportInterface
         return true;
     }
 }
-

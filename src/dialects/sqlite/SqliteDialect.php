@@ -7,10 +7,6 @@ namespace tommyknocker\pdodb\dialects\sqlite;
 use InvalidArgumentException;
 use PDO;
 use tommyknocker\pdodb\dialects\DialectAbstract;
-use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\dialects\sqlite\SqliteFeatureSupport;
-use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
-use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -19,15 +15,24 @@ use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class SqliteDialect extends DialectAbstract
 {
-    use JsonPathBuilderTrait;
-    use UpsertBuilderTrait;
-
     /** @var SqliteFeatureSupport Feature support instance */
     private SqliteFeatureSupport $featureSupport;
+
+    /** @var SQLiteSqlFormatter SQL formatter instance */
+    private SQLiteSqlFormatter $sqlFormatter;
+
+    /** @var SQLiteDmlBuilder DML builder instance */
+    private SQLiteDmlBuilder $dmlBuilder;
+
+    /** @var SQLiteDdlBuilder DDL builder instance */
+    private SQLiteDdlBuilder $ddlBuilder;
 
     public function __construct()
     {
         $this->featureSupport = new SqliteFeatureSupport();
+        $this->sqlFormatter = new SQLiteSqlFormatter($this);
+        $this->dmlBuilder = new SQLiteDmlBuilder($this);
+        $this->ddlBuilder = new SQLiteDdlBuilder($this);
     }
     /**
      * {@inheritDoc}
@@ -64,9 +69,7 @@ class SqliteDialect extends DialectAbstract
         ?int $limit = null,
         string $options = ''
     ): string {
-        // This method should not be called if supportsJoinInUpdateDelete() returns false
-        // But we implement it for interface compliance
-        throw new QueryException('JOIN in UPDATE statements is not supported by SQLite');
+        return $this->dmlBuilder->buildUpdateWithJoinSql($table, $setClause, $joins, $whereClause, $limit, $options);
     }
 
     /**
@@ -78,9 +81,7 @@ class SqliteDialect extends DialectAbstract
         string $whereClause,
         string $options = ''
     ): string {
-        // This method should not be called if supportsJoinInUpdateDelete() returns false
-        // But we implement it for interface compliance
-        throw new QueryException('JOIN in DELETE statements is not supported by SQLite');
+        return $this->dmlBuilder->buildDeleteWithJoinSql($table, $joins, $whereClause, $options);
     }
 
     /**
@@ -155,11 +156,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function insertKeywords(array $flags): string
     {
-        // SQLite does not support IGNORE directly, but supports INSERT OR IGNORE
-        if (in_array('IGNORE', $flags, true)) {
-            return 'INSERT OR IGNORE ';
-        }
-        return 'INSERT ';
+        return $this->dmlBuilder->insertKeywords($flags);
     }
 
     /**
@@ -167,9 +164,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildInsertSql(string $fullTable, array $columns, array $placeholders, array $options): string
     {
-        $cols = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
-        $phs = implode(',', $placeholders);
-        return $this->insertKeywords($options) . "INTO {$fullTable} ({$cols}) VALUES ({$phs})";
+        return $this->dmlBuilder->buildInsertSql($fullTable, $columns, $placeholders, $options);
     }
 
     /**
@@ -181,38 +176,15 @@ class SqliteDialect extends DialectAbstract
         string $selectSql,
         array $options = []
     ): string {
-        $colsSql = '';
-        if (!empty($columns)) {
-            $colsSql = ' (' . implode(', ', array_map([$this, 'quoteIdentifier'], $columns)) . ')';
-        }
-        return $this->insertKeywords($options) . "INTO {$table}{$colsSql} {$selectSql}";
+        return $this->dmlBuilder->buildInsertSelectSql($table, $columns, $selectSql, $options);
     }
 
     /**
      * {@inheritDoc}
-     *
-     * @param array<string, mixed> $options
      */
     public function formatSelectOptions(string $sql, array $options): string
     {
-        $middle = [];
-        $tail = [];
-        foreach ($options as $opt) {
-            $u = strtoupper(trim($opt));
-            if (in_array($u, ['LOCK IN SHARE MODE', 'FOR UPDATE'])) {
-                $tail[] = $opt;
-            } else {
-                $middle[] = $opt;
-            }
-        }
-        if ($middle) {
-            $result = preg_replace('/^SELECT\s+/i', 'SELECT ' . implode(',', $middle) . ' ', $sql, 1);
-            $sql = $result !== null ? $result : $sql;
-        }
-        if ($tail) {
-            $sql .= ' ' . implode(' ', $tail);
-        }
-        return $sql;
+        return $this->sqlFormatter->formatSelectOptions($sql, $options);
     }
 
     /**
@@ -220,23 +192,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
     {
-        if (!$updateColumns) {
-            return '';
-        }
-
-        $isAssoc = $this->isAssociativeArray($updateColumns);
-
-        if ($isAssoc) {
-            $parts = $this->buildUpsertExpressions($updateColumns, $tableName);
-        } else {
-            $parts = [];
-            foreach ($updateColumns as $c) {
-                $parts[] = "{$this->quoteIdentifier($c)} = excluded.{$this->quoteIdentifier($c)}";
-            }
-        }
-
-        $target = $this->quoteIdentifier($defaultConflictTarget);
-        return "ON CONFLICT ({$target}) DO UPDATE SET " . implode(', ', $parts);
+        return $this->dmlBuilder->buildUpsertClause($updateColumns, $defaultConflictTarget, $tableName);
     }
 
     /**
@@ -256,51 +212,7 @@ class SqliteDialect extends DialectAbstract
         string $onClause,
         array $whenClauses
     ): string {
-        // SQLite emulation similar to MySQL
-        // Extract key from ON clause
-        preg_match('/target\.(\w+)\s*=\s*source\.(\w+)/i', $onClause, $matches);
-        $keyColumn = $matches[1] ?? 'id';
-
-        $target = $this->quoteTable($targetTable);
-
-        if (empty($whenClauses['whenNotMatched'])) {
-            throw new QueryException('SQLite MERGE requires WHEN NOT MATCHED clause');
-        }
-
-        // Parse INSERT clause
-        preg_match('/\(([^)]+)\)\s+VALUES\s+\(([^)]+)\)/', $whenClauses['whenNotMatched'], $insertMatches);
-        $columns = $insertMatches[1] ?? '';
-        $values = $insertMatches[2] ?? '';
-
-        // Build SELECT columns from VALUES - replace MERGE_SOURCE_COLUMN_ markers with source columns
-        $selectColumns = [];
-        $valueColumns = explode(',', $values);
-        $colNames = explode(',', $columns);
-        foreach ($valueColumns as $idx => $val) {
-            $val = trim($val);
-            $colName = trim($colNames[$idx] ?? '');
-            // Remove quotes from column name if present
-            $colName = trim($colName, '`"');
-            // If it's a MERGE_SOURCE_COLUMN_ marker, use source column; otherwise it's raw SQL
-            if (preg_match('/^MERGE_SOURCE_COLUMN_(\w+)$/', $val, $paramMatch)) {
-                // Use unquoted column name in source reference for SQLite
-                $selectColumns[] = 'source.' . $this->quoteIdentifier($colName);
-            } else {
-                $selectColumns[] = $val;
-            }
-        }
-
-        // SQLite doesn't support ON CONFLICT with INSERT ... SELECT
-        // Use INSERT OR REPLACE which replaces based on PRIMARY KEY or UNIQUE constraints
-        // Remove "AS source" if present (we add it ourselves)
-        $sourceSql = preg_replace('/\s+AS\s+source$/i', '', $sourceSql);
-        $sql = "INSERT OR REPLACE INTO {$target} ({$columns})\n";
-        $sql .= 'SELECT ' . implode(', ', $selectColumns) . " FROM {$sourceSql} AS source";
-
-        // Note: INSERT OR REPLACE will replace existing rows based on PRIMARY KEY
-        // The whenMatched clause behavior is handled by OR REPLACE
-
-        return $sql;
+        return $this->dmlBuilder->buildMergeSql($targetTable, $sourceSql, $onClause, $whenClauses);
     }
 
     /**
@@ -361,10 +273,34 @@ class SqliteDialect extends DialectAbstract
     }
 
     /**
+     * Safely replace column references in expression.
+     */
+    protected function replaceColumnReferences(string $expression, string $column, string $replacement): string
+    {
+        $result = preg_replace_callback(
+            '/\b' . preg_quote($column, '/') . '\b/i',
+            static function ($matches) use ($expression, $replacement) {
+                $pos = strpos($expression, $matches[0]);
+                if ($pos === false) {
+                    return $matches[0];
+                }
+
+                // Check if it's already qualified (has a dot or excluded prefix)
+                $left = $pos > 0 ? substr($expression, max(0, $pos - 9), 9) : '';
+                if (str_contains($left, '.') || stripos($left, 'excluded') !== false) {
+                    return $matches[0];
+                }
+
+                return $replacement;
+            },
+            $expression
+        );
+
+        return $result ?? $expression;
+    }
+
+    /**
      * {@inheritDoc}
-     *
-     * @param array<int, string> $columns
-     * @param array<int, string|array<int, string>> $placeholders
      */
     public function buildReplaceSql(
         string $table,
@@ -372,18 +308,7 @@ class SqliteDialect extends DialectAbstract
         array $placeholders,
         bool $isMultiple = false
     ): string {
-        $colsSql = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
-
-        if ($isMultiple) {
-            $valsSql = implode(',', array_map(function ($p) {
-                return is_array($p) ? '(' . implode(',', $p) . ')' : $p;
-            }, $placeholders));
-            return sprintf('REPLACE INTO %s (%s) VALUES %s', $table, $colsSql, $valsSql);
-        }
-
-        $stringPlaceholders = array_map(fn ($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
-        $valsSql = implode(',', $stringPlaceholders);
-        return sprintf('REPLACE INTO %s (%s) VALUES (%s)', $table, $colsSql, $valsSql);
+        return $this->dmlBuilder->buildReplaceSql($table, $columns, $placeholders, $isMultiple);
     }
 
     /**
@@ -471,11 +396,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string
     {
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-        $colQuoted = $this->quoteIdentifier($col);
-        $base = "json_extract({$colQuoted}, '{$jsonPath}')";
-        return $asText ? "({$base} || '')" : $base;
+        return $this->sqlFormatter->formatJsonGet($col, $path, $asText);
     }
 
     /**
@@ -483,33 +404,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
     {
-        $parts = $this->normalizeJsonPath($path ?? []);
-        $jsonPath = $this->buildJsonPathString($parts);
-        $quotedCol = $this->quoteIdentifier($col);
-
-        // If value is an array, check that all elements are present in the JSON array
-        if (is_array($value)) {
-            $conditions = [];
-            $params = [];
-
-            foreach ($value as $idx => $item) {
-                $param = $this->generateParameterName('jsonc', $col . '_' . $idx);
-                $conditions[] = "EXISTS (SELECT 1 FROM json_each({$quotedCol}, '{$jsonPath}') WHERE json_each.value = {$param})";
-                $params[$param] = is_string($item) ? $item : $this->encodeToJson($item);
-            }
-
-            $sql = '(' . implode(' AND ', $conditions) . ')';
-            return [$sql, $params];
-        }
-
-        // For scalar values, use simple json_each check
-        $param = $this->generateParameterName('jsonc', $col);
-        $sql = "EXISTS (SELECT 1 FROM json_each({$quotedCol}, '{$jsonPath}') WHERE json_each.value = {$param})";
-
-        // Encode value as JSON if not a simple scalar
-        $paramValue = is_string($value) ? $value : $this->encodeToJson($value);
-
-        return [$sql, [$param => $paramValue]];
+        return $this->sqlFormatter->formatJsonContains($col, $value, $path);
     }
 
     /**
@@ -517,12 +412,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
     {
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-        $param = $this->generateParameterName('jsonset', $col);
-        // Use json() to parse the JSON-encoded value properly
-        $expr = 'JSON_SET(' . $this->quoteIdentifier($col) . ", '{$jsonPath}', json({$param}))";
-        return [$expr, [$param => $this->encodeToJson($value)]];
+        return $this->sqlFormatter->formatJsonSet($col, $path, $value);
     }
 
     /**
@@ -530,19 +420,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatJsonRemove(string $col, array|string $path): string
     {
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-        $colQuoted = $this->quoteIdentifier($col);
-
-        // If last segment is numeric, replace array element with JSON null to preserve indices
-        $last = $this->getLastSegment($parts);
-        if ($this->isNumericIndex($last)) {
-            // Use JSON_SET to set the element to JSON null (using json('null'))
-            return "JSON_SET({$colQuoted}, '{$jsonPath}', json('null'))";
-        }
-
-        // Otherwise remove object key
-        return "JSON_REMOVE({$colQuoted}, '{$jsonPath}')";
+        return $this->sqlFormatter->formatJsonRemove($col, $path);
     }
 
     /**
@@ -550,14 +428,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatJsonReplace(string $col, array|string $path, mixed $value): array
     {
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-        $param = $this->generateParameterName('jsonreplace', $col);
-
-        // SQLite JSON_REPLACE only replaces if path exists
-        $expr = 'JSON_REPLACE(' . $this->quoteIdentifier($col) . ", '{$jsonPath}', json({$param}))";
-
-        return [$expr, [$param => $this->encodeToJson($value)]];
+        return $this->sqlFormatter->formatJsonReplace($col, $path, $value);
     }
 
     /**
@@ -565,8 +436,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatJsonExists(string $col, array|string $path): string
     {
-        $expr = $this->formatJsonGet($col, $path, false);
-        return "{$expr} IS NOT NULL";
+        return $this->sqlFormatter->formatJsonExists($col, $path);
     }
 
     /**
@@ -574,10 +444,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatJsonOrderExpr(string $col, array|string $path): string
     {
-        $expr = $this->formatJsonGet($col, $path, true);
-        // Force numeric coercion for ordering: add 0 to convert string to number
-        // This ensures numeric ordering instead of lexicographic ordering
-        return "({$expr} + 0)";
+        return $this->sqlFormatter->formatJsonOrderExpr($col, $path);
     }
 
     /**
@@ -585,18 +452,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatJsonLength(string $col, array|string|null $path = null): string
     {
-        $colQuoted = $this->quoteIdentifier($col);
-
-        if ($path === null) {
-            // For whole column: use json_array_length for arrays, approximate for objects
-            return "COALESCE(json_array_length({$colQuoted}), 0)";
-        }
-
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        $extracted = "json_extract({$colQuoted}, '{$jsonPath}')";
-        return "COALESCE(json_array_length({$extracted}), 0)";
+        return $this->sqlFormatter->formatJsonLength($col, $path);
     }
 
     /**
@@ -604,18 +460,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatJsonKeys(string $col, array|string|null $path = null): string
     {
-        $colQuoted = $this->quoteIdentifier($col);
-
-        if ($path === null) {
-            // SQLite doesn't have a direct JSON_KEYS function, return a placeholder
-            return "'[keys]'";
-        }
-
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        // SQLite doesn't have a direct JSON_KEYS function, return a placeholder
-        return "'[keys]'";
+        return $this->sqlFormatter->formatJsonKeys($col, $path);
     }
 
     /**
@@ -623,16 +468,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatJsonType(string $col, array|string|null $path = null): string
     {
-        $colQuoted = $this->quoteIdentifier($col);
-
-        if ($path === null) {
-            return "json_type({$colQuoted})";
-        }
-
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        return "json_type(json_extract({$colQuoted}, '{$jsonPath}'))";
+        return $this->sqlFormatter->formatJsonType($col, $path);
     }
 
     /**
@@ -640,25 +476,23 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatIfNull(string $expr, mixed $default): string
     {
-        return "IFNULL($expr, {$this->formatDefaultValue($default)})";
+        return $this->sqlFormatter->formatIfNull($expr, $default);
     }
 
     /**
      * {@inheritDoc}
-     * SQLite doesn't have GREATEST, use MAX.
      */
     public function formatGreatest(array $values): string
     {
-        return 'MAX(' . implode(', ', $this->resolveValues($values)) . ')';
+        return $this->sqlFormatter->formatGreatest($values);
     }
 
     /**
      * {@inheritDoc}
-     * SQLite doesn't have LEAST, use MIN.
      */
     public function formatLeast(array $values): string
     {
-        return 'MIN(' . implode(', ', $this->resolveValues($values)) . ')';
+        return $this->sqlFormatter->formatLeast($values);
     }
 
     /**
@@ -666,20 +500,15 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatSubstring(string|RawValue $source, int $start, ?int $length): string
     {
-        $src = $this->resolveValue($source);
-        if ($length === null) {
-            return "SUBSTR($src, $start)";
-        }
-        return "SUBSTR($src, $start, $length)";
+        return $this->sqlFormatter->formatSubstring($source, $start, $length);
     }
 
     /**
      * {@inheritDoc}
-     * SQLite doesn't have MOD function, use % operator.
      */
     public function formatMod(string|RawValue $dividend, string|RawValue $divisor): string
     {
-        return "({$this->resolveValue($dividend)} % {$this->resolveValue($divisor)})";
+        return $this->sqlFormatter->formatMod($dividend, $divisor);
     }
 
     /**
@@ -687,7 +516,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatCurDate(): string
     {
-        return "DATE('now')";
+        return $this->sqlFormatter->formatCurDate();
     }
 
     /**
@@ -695,7 +524,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatCurTime(): string
     {
-        return "TIME('now')";
+        return $this->sqlFormatter->formatCurTime();
     }
 
     /**
@@ -703,7 +532,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatYear(string|RawValue $value): string
     {
-        return "CAST(STRFTIME('%Y', {$this->resolveValue($value)}) AS INTEGER)";
+        return $this->sqlFormatter->formatYear($value);
     }
 
     /**
@@ -711,7 +540,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatMonth(string|RawValue $value): string
     {
-        return "CAST(STRFTIME('%m', {$this->resolveValue($value)}) AS INTEGER)";
+        return $this->sqlFormatter->formatMonth($value);
     }
 
     /**
@@ -719,7 +548,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatDay(string|RawValue $value): string
     {
-        return "CAST(STRFTIME('%d', {$this->resolveValue($value)}) AS INTEGER)";
+        return $this->sqlFormatter->formatDay($value);
     }
 
     /**
@@ -727,7 +556,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatHour(string|RawValue $value): string
     {
-        return "CAST(STRFTIME('%H', {$this->resolveValue($value)}) AS INTEGER)";
+        return $this->sqlFormatter->formatHour($value);
     }
 
     /**
@@ -735,7 +564,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatMinute(string|RawValue $value): string
     {
-        return "CAST(STRFTIME('%M', {$this->resolveValue($value)}) AS INTEGER)";
+        return $this->sqlFormatter->formatMinute($value);
     }
 
     /**
@@ -743,7 +572,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatSecond(string|RawValue $value): string
     {
-        return "CAST(STRFTIME('%S', {$this->resolveValue($value)}) AS INTEGER)";
+        return $this->sqlFormatter->formatSecond($value);
     }
 
     /**
@@ -751,7 +580,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatDateOnly(string|RawValue $value): string
     {
-        return 'DATE(' . $this->resolveValue($value) . ')';
+        return $this->sqlFormatter->formatDateOnly($value);
     }
 
     /**
@@ -759,7 +588,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatTimeOnly(string|RawValue $value): string
     {
-        return 'TIME(' . $this->resolveValue($value) . ')';
+        return $this->sqlFormatter->formatTimeOnly($value);
     }
 
     /**
@@ -767,12 +596,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
     {
-        $e = $this->resolveValue($expr);
-        $sign = $isAdd ? '+' : '-';
-        // SQLite uses datetime(expr, '±value unit') or date(expr, '±value unit') syntax
-        // Normalize unit names for SQLite (it uses lowercase: day, month, year, hour, minute, second)
-        $unitLower = strtolower($unit);
-        return "datetime({$e}, '{$sign}{$value} {$unitLower}')";
+        return $this->sqlFormatter->formatInterval($expr, $value, $unit, $isAdd);
     }
 
     /**
@@ -780,125 +604,47 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string
     {
-        $col = $this->resolveValue($column);
-        $sep = addslashes($separator);
-        $dist = $distinct ? 'DISTINCT ' : '';
-        return "GROUP_CONCAT($dist$col, '$sep')";
+        return $this->sqlFormatter->formatGroupConcat($column, $separator, $distinct);
     }
 
     /**
      * {@inheritDoc}
-     * Emulated using recursive CTE for SQLite.
      */
     public function formatRepeat(string|RawValue $value, int $count): string
     {
-        if ($count <= 0) {
-            return "''";
-        }
-
-        // Handle string literals and RawValue differently
-        // String literals should be quoted, RawValue should be used as-is
-        if ($value instanceof RawValue) {
-            $val = $value->getValue();
-        } else {
-            // Escape string literal
-            $val = "'" . str_replace("'", "''", $value) . "'";
-        }
-
-        // Use recursive CTE to repeat the string
-        // SQLite supports recursive CTEs in scalar subqueries
-        return "(SELECT result FROM (
-            WITH RECURSIVE repeat_cte(n, result) AS (
-                SELECT 1, {$val}
-                UNION ALL
-                SELECT n+1, result || {$val} FROM repeat_cte WHERE n < {$count}
-            )
-            SELECT result FROM repeat_cte WHERE n = {$count}
-        ))";
+        return $this->sqlFormatter->formatRepeat($value, $count);
     }
 
     /**
      * {@inheritDoc}
-     * Emulated using recursive CTE for SQLite.
      */
     public function formatReverse(string|RawValue $value): string
     {
-        // Use resolveValue to handle both RawValue and column names
-        $val = $this->resolveValue($value);
-
-        // Use recursive CTE to reverse the string character by character
-        return "(SELECT GROUP_CONCAT(char, '') FROM (
-            WITH RECURSIVE reverse_cte(n, char) AS (
-                SELECT LENGTH({$val}), SUBSTR({$val}, LENGTH({$val}), 1)
-                UNION ALL
-                SELECT n-1, SUBSTR({$val}, n-1, 1) FROM reverse_cte WHERE n > 1
-            )
-            SELECT char FROM reverse_cte
-        ))";
+        return $this->sqlFormatter->formatReverse($value);
     }
 
     /**
      * {@inheritDoc}
-     * Emulated using SUBSTR and REPEAT emulation for SQLite.
      */
     public function formatPad(string|RawValue $value, int $length, string $padString, bool $isLeft): string
     {
-        // Use resolveValue to handle both RawValue and column names
-        $val = $this->resolveValue($value);
-        $escapedPad = addslashes($padString);
-
-        // Calculate how much padding is needed
-        // Use REPEAT emulation to generate padding, then concatenate and truncate
-        $paddingCount = "MAX(0, {$length} - LENGTH({$val}))";
-        $paddingSubquery = "(SELECT result FROM (
-            WITH RECURSIVE pad_cte(n, result) AS (
-                SELECT 1, '{$escapedPad}'
-                UNION ALL
-                SELECT n+1, result || '{$escapedPad}' FROM pad_cte
-                WHERE LENGTH(result || '{$escapedPad}') <= {$paddingCount}
-            )
-            SELECT result FROM pad_cte ORDER BY n DESC LIMIT 1
-        ))";
-
-        if ($isLeft) {
-            // LPAD: pad on the left
-            return "CASE
-                WHEN LENGTH({$val}) >= {$length} THEN SUBSTR({$val}, 1, {$length})
-                ELSE SUBSTR({$paddingSubquery} || {$val}, -{$length})
-            END";
-        } else {
-            // RPAD: pad on the right
-            return "CASE
-                WHEN LENGTH({$val}) >= {$length} THEN SUBSTR({$val}, 1, {$length})
-                ELSE SUBSTR({$val} || {$paddingSubquery}, 1, {$length})
-            END";
-        }
+        return $this->sqlFormatter->formatPad($value, $length, $padString, $isLeft);
     }
 
     /**
      * {@inheritDoc}
-     * SQLite doesn't have TRUNCATE function, use ROUND(value - 0.5, precision) for positive numbers.
      */
     public function formatTruncate(string|RawValue $value, int $precision): string
     {
-        $val = $this->resolveValue($value);
-        if ($precision === 0) {
-            return "CAST($val AS INTEGER)";
-        }
-        // For non-zero precision, use multiplication/division trick: ROUND(value * power, 0) / power
-        $power = pow(10, $precision);
-        return "ROUND($val * $power - 0.5, 0) / $power";
+        return $this->sqlFormatter->formatTruncate($value, $precision);
     }
 
     /**
      * {@inheritDoc}
-     * SQLite uses INSTR(string, substring) instead of POSITION(substring IN string).
      */
     public function formatPosition(string|RawValue $substring, string|RawValue $value): string
     {
-        $sub = $substring instanceof RawValue ? $substring->getValue() : "'" . addslashes((string)$substring) . "'";
-        $val = $this->resolveValue($value);
-        return "INSTR($val, $sub)";
+        return $this->sqlFormatter->formatPosition($substring, $value);
     }
 
     /**
@@ -906,12 +652,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatRegexpMatch(string|RawValue $value, string $pattern): string
     {
-        // SQLite REGEXP requires extension to be loaded
-        // If extension is not available, this will cause a runtime error
-        // Users should ensure REGEXP extension is loaded: PRAGMA compile_options LIKE '%REGEXP%'
-        $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        return "($val REGEXP '$pat')";
+        return $this->sqlFormatter->formatRegexpMatch($value, $pattern);
     }
 
     /**
@@ -919,13 +660,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
     {
-        // SQLite doesn't have native REGEXP_REPLACE
-        // This requires REGEXP extension and regexp_replace function
-        // If not available, this will cause a runtime error
-        $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        $rep = str_replace("'", "''", $replacement);
-        return "regexp_replace($val, '$pat', '$rep')";
+        return $this->sqlFormatter->formatRegexpReplace($value, $pattern, $replacement);
     }
 
     /**
@@ -933,15 +668,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatRegexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): string
     {
-        // SQLite doesn't have native REGEXP_EXTRACT
-        // This requires REGEXP extension and regexp_extract function
-        // If not available, this will cause a runtime error
-        $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        if ($groupIndex !== null && $groupIndex > 0) {
-            return "regexp_extract($val, '$pat', $groupIndex)";
-        }
-        return "regexp_extract($val, '$pat', 0)";
+        return $this->sqlFormatter->formatRegexpExtract($value, $pattern, $groupIndex);
     }
 
     /**
@@ -954,64 +681,23 @@ class SqliteDialect extends DialectAbstract
      */
     public function registerRegexpFunctions(PDO $pdo, bool $force = false): void
     {
-        // Check if REGEXP is already available (unless forced)
-        if (!$force) {
-            try {
-                $pdo->query("SELECT 'test' REGEXP 'test'");
-                // REGEXP is already available, skip registration
-                return;
-            } catch (\PDOException $e) {
-                // REGEXP is not available, proceed with registration
-                // Check if error is about missing function (not other error)
-                if (strpos($e->getMessage(), 'no such function') === false) {
-                    // Different error, don't register
-                    return;
-                }
-            }
-        }
-
-        // Register regexp function (2 arguments: pattern, subject)
-        // Note: In SQLite, REGEXP is a binary operator that calls the 'regexp' function
-        // When SQLite sees "subject REGEXP pattern", it calls regexp(pattern, subject)
-        // So we register it as regexp(pattern, subject)
-        $pdo->sqliteCreateFunction('regexp', function (string $pattern, string $subject): int {
-            return preg_match("/$pattern/", $subject) ? 1 : 0;
-        }, 2);
-
-        // Register regexp_replace function (3 arguments: subject, pattern, replacement)
-        $pdo->sqliteCreateFunction('regexp_replace', function (string $subject, string $pattern, string $replacement): string {
-            $result = preg_replace("/$pattern/", $replacement, $subject);
-            return $result ?? '';
-        }, 3);
-
-        // Register regexp_extract function (3 arguments: subject, pattern, groupIndex)
-        $pdo->sqliteCreateFunction('regexp_extract', function (string $subject, string $pattern, int $groupIndex = 0): string {
-            if (preg_match("/$pattern/", $subject, $matches)) {
-                $index = (int)$groupIndex;
-                return (string)($matches[$index] ?? '');
-            }
-            return '';
-        }, 3);
+        $this->sqlFormatter->registerRegexpFunctions($pdo, $force);
     }
 
     /**
      * {@inheritDoc}
-     * SQLite doesn't have LEFT function, use SUBSTR(value, 1, length).
      */
     public function formatLeft(string|RawValue $value, int $length): string
     {
-        $val = $this->resolveValue($value);
-        return "SUBSTR($val, 1, $length)";
+        return $this->sqlFormatter->formatLeft($value, $length);
     }
 
     /**
      * {@inheritDoc}
-     * SQLite doesn't have RIGHT function, use SUBSTR(value, -length) or SUBSTR(value, LENGTH(value) - length + 1).
      */
     public function formatRight(string|RawValue $value, int $length): string
     {
-        $val = $this->resolveValue($value);
-        return "SUBSTR($val, -$length)";
+        return $this->sqlFormatter->formatRight($value, $length);
     }
 
     /**
@@ -1019,14 +705,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string
     {
-        $cols = is_array($columns) ? $columns : [$columns];
-        $quotedCols = array_map([$this, 'quoteIdentifier'], $cols);
-        $colList = implode(', ', $quotedCols);
-
-        $ph = ':fulltext_search_term';
-        $sql = "$colList MATCH $ph";
-
-        return [$sql, [$ph => $searchTerm]];
+        return $this->sqlFormatter->formatFulltextMatch($columns, $searchTerm, $mode, $withQueryExpansion);
     }
 
     /**
@@ -1039,55 +718,7 @@ class SqliteDialect extends DialectAbstract
         array $orderBy,
         ?string $frameClause
     ): string {
-        $sql = strtoupper($function) . '(';
-
-        // Add function arguments
-        if (!empty($args)) {
-            $formattedArgs = array_map(function ($arg) {
-                if (is_string($arg) && !is_numeric($arg)) {
-                    return $this->quoteIdentifier($arg);
-                }
-                if (is_null($arg)) {
-                    return 'NULL';
-                }
-                return (string)$arg;
-            }, $args);
-            $sql .= implode(', ', $formattedArgs);
-        }
-
-        $sql .= ') OVER (';
-
-        // Add PARTITION BY
-        if (!empty($partitionBy)) {
-            $quotedPartitions = array_map(
-                fn ($col) => $this->quoteIdentifier($col),
-                $partitionBy
-            );
-            $sql .= 'PARTITION BY ' . implode(', ', $quotedPartitions);
-        }
-
-        // Add ORDER BY
-        if (!empty($orderBy)) {
-            if (!empty($partitionBy)) {
-                $sql .= ' ';
-            }
-            $orderClauses = [];
-            foreach ($orderBy as $order) {
-                foreach ($order as $col => $dir) {
-                    $orderClauses[] = $this->quoteIdentifier($col) . ' ' . strtoupper($dir);
-                }
-            }
-            $sql .= 'ORDER BY ' . implode(', ', $orderClauses);
-        }
-
-        // Add frame clause
-        if ($frameClause !== null) {
-            $sql .= ' ' . $frameClause;
-        }
-
-        $sql .= ')';
-
-        return $sql;
+        return $this->sqlFormatter->formatWindowFunction($function, $args, $partitionBy, $orderBy, $frameClause);
     }
 
     /**
@@ -1148,36 +779,7 @@ class SqliteDialect extends DialectAbstract
         array $columns,
         array $options = []
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $columnDefs = [];
-
-        foreach ($columns as $name => $def) {
-            if ($def instanceof ColumnSchema) {
-                $columnDefs[] = $this->formatColumnDefinition($name, $def);
-            } elseif (is_array($def)) {
-                // Short syntax: ['type' => 'TEXT', 'null' => false]
-                $schema = $this->parseColumnDefinition($def);
-                $columnDefs[] = $this->formatColumnDefinition($name, $schema);
-            } else {
-                // String type: 'TEXT'
-                $schema = new ColumnSchema((string)$def);
-                $columnDefs[] = $this->formatColumnDefinition($name, $schema);
-            }
-        }
-
-        // Add PRIMARY KEY constraint from options if specified
-        if (!empty($options['primaryKey'])) {
-            $pkColumns = is_array($options['primaryKey']) ? $options['primaryKey'] : [$options['primaryKey']];
-            $pkQuoted = array_map([$this, 'quoteIdentifier'], $pkColumns);
-            $columnDefs[] = 'PRIMARY KEY (' . implode(', ', $pkQuoted) . ')';
-        }
-
-        $sql = "CREATE TABLE {$tableQuoted} (\n    " . implode(",\n    ", $columnDefs) . "\n)";
-
-        // SQLite doesn't support table options like MySQL/PostgreSQL
-        // Options are silently ignored
-
-        return $sql;
+        return $this->ddlBuilder->buildCreateTableSql($table, $columns, $options);
     }
 
     /**
@@ -1185,7 +787,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildDropTableSql(string $table): string
     {
-        return 'DROP TABLE ' . $this->quoteTable($table);
+        return $this->ddlBuilder->buildDropTableSql($table);
     }
 
     /**
@@ -1193,7 +795,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildDropTableIfExistsSql(string $table): string
     {
-        return 'DROP TABLE IF EXISTS ' . $this->quoteTable($table);
+        return $this->ddlBuilder->buildDropTableIfExistsSql($table);
     }
 
     /**
@@ -1204,10 +806,7 @@ class SqliteDialect extends DialectAbstract
         string $column,
         ColumnSchema $schema
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $columnDef = $this->formatColumnDefinition($column, $schema);
-        // SQLite doesn't support FIRST/AFTER in ALTER TABLE ADD COLUMN
-        return "ALTER TABLE {$tableQuoted} ADD COLUMN {$columnDef}";
+        return $this->ddlBuilder->buildAddColumnSql($table, $column, $schema);
     }
 
     /**
@@ -1215,17 +814,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildDropColumnSql(string $table, string $column): string
     {
-        // SQLite 3.35.0+ supports DROP COLUMN
-        // For older versions, we throw an exception
-        $tableQuoted = $this->quoteTable($table);
-        $columnQuoted = $this->quoteIdentifier($column);
-        // Note: SQLite DROP COLUMN requires complex table recreation
-        // This is a simplified version - in production, you'd need to:
-        // 1. Create new table without column
-        // 2. Copy data
-        // 3. Drop old table
-        // 4. Rename new table
-        return "ALTER TABLE {$tableQuoted} DROP COLUMN {$columnQuoted}";
+        return $this->ddlBuilder->buildDropColumnSql($table, $column);
     }
 
     /**
@@ -1236,12 +825,7 @@ class SqliteDialect extends DialectAbstract
         string $column,
         ColumnSchema $schema
     ): string {
-        // SQLite doesn't support ALTER COLUMN to change type
-        // This would require table recreation which is complex
-        throw new QueryException(
-            'SQLite does not support ALTER COLUMN to change column type. ' .
-            'You must recreate the table. Use buildRenameColumnSql to rename columns.'
-        );
+        return $this->ddlBuilder->buildAlterColumnSql($table, $column, $schema);
     }
 
     /**
@@ -1249,11 +833,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildRenameColumnSql(string $table, string $oldName, string $newName): string
     {
-        // SQLite 3.25.0+ supports RENAME COLUMN
-        $tableQuoted = $this->quoteTable($table);
-        $oldQuoted = $this->quoteIdentifier($oldName);
-        $newQuoted = $this->quoteIdentifier($newName);
-        return "ALTER TABLE {$tableQuoted} RENAME COLUMN {$oldQuoted} TO {$newQuoted}";
+        return $this->ddlBuilder->buildRenameColumnSql($table, $oldName, $newName);
     }
 
     /**
@@ -1268,47 +848,7 @@ class SqliteDialect extends DialectAbstract
         ?array $includeColumns = null,
         array $options = []
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $uniqueClause = $unique ? 'UNIQUE ' : '';
-
-        // Process columns with sorting support and RawValue support (functional indexes)
-        $colsQuoted = [];
-        foreach ($columns as $col) {
-            if (is_array($col)) {
-                // Array format: ['column' => 'ASC'/'DESC'] - associative array with column name as key
-                foreach ($col as $colName => $direction) {
-                    // $colName is always string (array key), $direction is the sort direction
-                    $dir = strtoupper((string)$direction) === 'DESC' ? 'DESC' : 'ASC';
-                    $colsQuoted[] = $this->quoteIdentifier((string)$colName) . ' ' . $dir;
-                }
-            } elseif ($col instanceof \tommyknocker\pdodb\helpers\values\RawValue) {
-                // RawValue expression (functional index)
-                $colsQuoted[] = $col->getValue();
-            } else {
-                $colsQuoted[] = $this->quoteIdentifier((string)$col);
-            }
-        }
-        $colsList = implode(', ', $colsQuoted);
-
-        $sql = "CREATE {$uniqueClause}INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
-
-        // SQLite supports WHERE clause for partial indexes
-        if ($where !== null && $where !== '') {
-            $sql .= ' WHERE ' . $where;
-        }
-
-        // SQLite doesn't support INCLUDE columns
-        if ($includeColumns !== null && !empty($includeColumns)) {
-            throw new QueryException(
-                'SQLite does not support INCLUDE columns in indexes. ' .
-                'Include columns must be part of the main index columns list.'
-            );
-        }
-
-        // SQLite doesn't support fillfactor or other index options
-
-        return $sql;
+        return $this->ddlBuilder->buildCreateIndexSql($name, $table, $columns, $unique, $where, $includeColumns, $options);
     }
 
     /**
@@ -1316,9 +856,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildDropIndexSql(string $name, string $table): string
     {
-        // SQLite: DROP INDEX name (table is not needed, but kept for compatibility)
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "DROP INDEX {$nameQuoted}";
+        return $this->ddlBuilder->buildDropIndexSql($name, $table);
     }
 
     /**
@@ -1326,11 +864,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildCreateFulltextIndexSql(string $name, string $table, array $columns, ?string $parser = null): string
     {
-        // SQLite doesn't have native fulltext indexes, but supports FTS (Full-Text Search) virtual tables
-        throw new QueryException(
-            'SQLite does not support FULLTEXT indexes. ' .
-            'Use FTS (Full-Text Search) virtual tables instead: CREATE VIRTUAL TABLE ... USING FTS5(...)'
-        );
+        return $this->ddlBuilder->buildCreateFulltextIndexSql($name, $table, $columns, $parser);
     }
 
     /**
@@ -1338,11 +872,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildCreateSpatialIndexSql(string $name, string $table, array $columns): string
     {
-        // SQLite doesn't have native spatial indexes
-        throw new QueryException(
-            'SQLite does not support SPATIAL indexes. ' .
-            'Use R-Tree virtual tables for spatial data: CREATE VIRTUAL TABLE ... USING rtree(...)'
-        );
+        return $this->ddlBuilder->buildCreateSpatialIndexSql($name, $table, $columns);
     }
 
     /**
@@ -1350,12 +880,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildRenameIndexSql(string $oldName, string $table, string $newName): string
     {
-        // SQLite doesn't support RENAME INDEX directly
-        // Need to drop and recreate
-        throw new QueryException(
-            'SQLite does not support renaming indexes directly. ' .
-            'You must drop the index and create a new one with the desired name.'
-        );
+        return $this->ddlBuilder->buildRenameIndexSql($oldName, $table, $newName);
     }
 
     /**
@@ -1363,11 +888,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildRenameForeignKeySql(string $oldName, string $table, string $newName): string
     {
-        // SQLite doesn't support renaming foreign keys
-        throw new QueryException(
-            'SQLite does not support renaming foreign keys. ' .
-            'You must recreate the table without the constraint and add a new one.'
-        );
+        return $this->ddlBuilder->buildRenameForeignKeySql($oldName, $table, $newName);
     }
 
     /**
@@ -1382,15 +903,7 @@ class SqliteDialect extends DialectAbstract
         ?string $delete = null,
         ?string $update = null
     ): string {
-        // SQLite foreign keys must be defined during CREATE TABLE
-        // Adding them via ALTER TABLE requires table recreation
-        // This is a limitation - we throw exception for now
-        // In production, you might want to implement table recreation logic
-        throw new QueryException(
-            'SQLite does not support adding foreign keys via ALTER TABLE. ' .
-            'Foreign keys must be defined during CREATE TABLE. ' .
-            'To add a foreign key to an existing table, you must recreate the table.'
-        );
+        return $this->ddlBuilder->buildAddForeignKeySql($name, $table, $columns, $refTable, $refColumns, $delete, $update);
     }
 
     /**
@@ -1398,12 +911,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildDropForeignKeySql(string $name, string $table): string
     {
-        // SQLite foreign keys can't be dropped directly
-        // Requires table recreation
-        throw new QueryException(
-            'SQLite does not support dropping foreign keys via ALTER TABLE. ' .
-            'To drop a foreign key, you must recreate the table without the constraint.'
-        );
+        return $this->ddlBuilder->buildDropForeignKeySql($name, $table);
     }
 
     /**
@@ -1411,12 +919,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildAddPrimaryKeySql(string $name, string $table, array $columns): string
     {
-        // SQLite doesn't support adding PRIMARY KEY via ALTER TABLE
-        // Requires table recreation
-        throw new QueryException(
-            'SQLite does not support adding PRIMARY KEY via ALTER TABLE. ' .
-            'To add a PRIMARY KEY, you must recreate the table with the constraint.'
-        );
+        return $this->ddlBuilder->buildAddPrimaryKeySql($name, $table, $columns);
     }
 
     /**
@@ -1424,12 +927,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildDropPrimaryKeySql(string $name, string $table): string
     {
-        // SQLite doesn't support dropping PRIMARY KEY via ALTER TABLE
-        // Requires table recreation
-        throw new QueryException(
-            'SQLite does not support dropping PRIMARY KEY via ALTER TABLE. ' .
-            'To drop a PRIMARY KEY, you must recreate the table without the constraint.'
-        );
+        return $this->ddlBuilder->buildDropPrimaryKeySql($name, $table);
     }
 
     /**
@@ -1437,12 +935,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildAddUniqueSql(string $name, string $table, array $columns): string
     {
-        // SQLite supports UNIQUE via CREATE UNIQUE INDEX
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $colsList = implode(', ', $colsQuoted);
-        return "CREATE UNIQUE INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+        return $this->ddlBuilder->buildAddUniqueSql($name, $table, $columns);
     }
 
     /**
@@ -1450,9 +943,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildDropUniqueSql(string $name, string $table): string
     {
-        // SQLite UNIQUE constraints are implemented as indexes, so drop as index
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "DROP INDEX {$nameQuoted}";
+        return $this->ddlBuilder->buildDropUniqueSql($name, $table);
     }
 
     /**
@@ -1460,10 +951,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildAddCheckSql(string $name, string $table, string $expression): string
     {
-        // SQLite 3.37.0+ supports CHECK constraints via ALTER TABLE
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} CHECK ({$expression})";
+        return $this->ddlBuilder->buildAddCheckSql($name, $table, $expression);
     }
 
     /**
@@ -1471,12 +959,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildDropCheckSql(string $name, string $table): string
     {
-        // SQLite doesn't support dropping CHECK constraints via ALTER TABLE
-        // Requires table recreation
-        throw new QueryException(
-            'SQLite does not support dropping CHECK constraints via ALTER TABLE. ' .
-            'To drop a CHECK constraint, you must recreate the table without the constraint.'
-        );
+        return $this->ddlBuilder->buildDropCheckSql($name, $table);
     }
 
     /**
@@ -1484,9 +967,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function buildRenameTableSql(string $table, string $newName): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $newQuoted = $this->quoteTable($newName);
-        return "ALTER TABLE {$tableQuoted} RENAME TO {$newQuoted}";
+        return $this->ddlBuilder->buildRenameTableSql($table, $newName);
     }
 
     /**
@@ -1494,142 +975,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatColumnDefinition(string $name, ColumnSchema $schema): string
     {
-        $nameQuoted = $this->quoteIdentifier($name);
-        $type = $schema->getType();
-
-        // SQLite type mapping (SQLite is flexible with types)
-        // Map common types to SQLite equivalents
-        $typeUpper = strtoupper($type);
-        if ($typeUpper === 'INT' || $typeUpper === 'INTEGER' || $typeUpper === 'TINYINT' || $typeUpper === 'SMALLINT' || $typeUpper === 'MEDIUMINT') {
-            $type = 'INTEGER';
-        } elseif ($typeUpper === 'BIGINT') {
-            $type = 'INTEGER'; // SQLite uses INTEGER for all integer sizes
-        } elseif ($typeUpper === 'VARCHAR' || $typeUpper === 'CHAR' || $typeUpper === 'CHARACTER') {
-            $type = 'TEXT';
-        } elseif ($typeUpper === 'TEXT' || $typeUpper === 'LONGTEXT' || $typeUpper === 'MEDIUMTEXT') {
-            $type = 'TEXT';
-        } elseif ($typeUpper === 'DATETIME' || $typeUpper === 'TIMESTAMP') {
-            $type = 'TEXT'; // SQLite stores dates as TEXT
-        } elseif ($typeUpper === 'DATE') {
-            $type = 'TEXT';
-        } elseif ($typeUpper === 'TIME') {
-            $type = 'TEXT';
-        } elseif ($typeUpper === 'BOOLEAN' || $typeUpper === 'BOOL') {
-            $type = 'INTEGER'; // SQLite uses INTEGER (0/1) for booleans
-        } elseif ($typeUpper === 'DECIMAL' || $typeUpper === 'NUMERIC' || $typeUpper === 'FLOAT' || $typeUpper === 'DOUBLE' || $typeUpper === 'REAL') {
-            // Keep as-is, SQLite supports REAL, NUMERIC, etc.
-        }
-
-        // Build type with length/scale (SQLite ignores length for most types, but we include it for compatibility)
-        $typeDef = $type;
-        if ($schema->getLength() !== null) {
-            if ($schema->getScale() !== null) {
-                // For DECIMAL/NUMERIC
-                $typeDef .= '(' . $schema->getLength() . ',' . $schema->getScale() . ')';
-            }
-            // Note: SQLite ignores length for TEXT/VARCHAR, but we keep it for SQL compatibility
-        }
-
-        $parts = [$nameQuoted, $typeDef];
-
-        // PRIMARY KEY (for INTEGER PRIMARY KEY AUTOINCREMENT)
-        if ($schema->isAutoIncrement()) {
-            // SQLite requires INTEGER PRIMARY KEY for AUTOINCREMENT
-            if ($type === 'INTEGER') {
-                $parts[1] = 'INTEGER PRIMARY KEY AUTOINCREMENT';
-            } else {
-                // For other types, we can't use AUTOINCREMENT, but can mark as PRIMARY KEY
-                $parts[] = 'PRIMARY KEY';
-            }
-        }
-
-        // NOT NULL / NULL
-        if ($schema->isNotNull()) {
-            $parts[] = 'NOT NULL';
-        }
-
-        // DEFAULT
-        if ($schema->getDefaultValue() !== null) {
-            if ($schema->isDefaultExpression()) {
-                $parts[] = 'DEFAULT ' . $schema->getDefaultValue();
-            } else {
-                $default = $this->formatDefaultValue($schema->getDefaultValue());
-                $parts[] = 'DEFAULT ' . $default;
-            }
-        }
-
-        // UNIQUE is handled separately (not in column definition)
-        // It's created via CREATE INDEX or table constraint
-
-        // SQLite doesn't support UNSIGNED, FIRST, AFTER
-        // These are silently ignored
-
-        return implode(' ', $parts);
-    }
-
-    /**
-     * Parse column definition from array.
-     *
-     * @param array<string, mixed> $def Definition array
-     *
-     * @return ColumnSchema
-     */
-    protected function parseColumnDefinition(array $def): ColumnSchema
-    {
-        $type = $def['type'] ?? 'TEXT';
-        $length = $def['length'] ?? $def['size'] ?? null;
-        $scale = $def['scale'] ?? null;
-
-        $schema = new ColumnSchema((string)$type, $length, $scale);
-
-        if (isset($def['null']) && $def['null'] === false) {
-            $schema->notNull();
-        }
-        if (isset($def['default'])) {
-            if (isset($def['defaultExpression']) && $def['defaultExpression']) {
-                $schema->defaultExpression((string)$def['default']);
-            } else {
-                $schema->defaultValue($def['default']);
-            }
-        }
-        if (isset($def['autoIncrement']) && $def['autoIncrement']) {
-            $schema->autoIncrement();
-        }
-        if (isset($def['unique']) && $def['unique']) {
-            $schema->unique();
-        }
-
-        // SQLite doesn't support UNSIGNED, FIRST, AFTER, COMMENT
-        // These are silently ignored
-
-        return $schema;
-    }
-
-    /**
-     * Format default value for SQL.
-     *
-     * @param mixed $value Default value
-     *
-     * @return string SQL formatted value
-     */
-    protected function formatDefaultValue(mixed $value): string
-    {
-        if ($value instanceof RawValue) {
-            return $value->getValue();
-        }
-        if ($value === null) {
-            return 'NULL';
-        }
-        if (is_bool($value)) {
-            return $value ? '1' : '0';
-        }
-        if (is_numeric($value)) {
-            return (string)$value;
-        }
-        if (is_string($value)) {
-            return "'" . addslashes($value) . "'";
-        }
-        return "'" . addslashes((string)$value) . "'";
+        return $this->ddlBuilder->formatColumnDefinition($name, $schema);
     }
 
     /**
@@ -1637,11 +983,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function normalizeRawValue(string $sql): string
     {
-        // Convert standard SUBSTRING(expr, start, length) to SQLite SUBSTR(expr, start, length)
-        // Pattern: SUBSTRING(expr, start, length) -> SUBSTR(expr, start, length)
-        $sql = preg_replace('/\bSUBSTRING\s*\(/i', 'SUBSTR(', $sql) ?? $sql;
-
-        return $sql;
+        return $this->sqlFormatter->normalizeRawValue($sql);
     }
 
     /**
@@ -1692,8 +1034,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function formatMaterializedCte(string $cteSql, bool $isMaterialized): string
     {
-        // SQLite doesn't support materialized CTEs
-        return $cteSql;
+        return $this->sqlFormatter->formatMaterializedCte($cteSql, $isMaterialized);
     }
 
     /**

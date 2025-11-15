@@ -75,4 +75,3 @@ class PostgreSQLFeatureSupport implements FeatureSupportInterface
         return true;
     }
 }
-

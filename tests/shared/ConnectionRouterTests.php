@@ -219,7 +219,7 @@ final class ConnectionRouterTests extends BaseSharedTestCase
                 return $this->connection->getPdo();
             }
 
-            public function getDialect(): \tommyknocker\pdodb\dialects\builders\dialects\DialectInterface
+            public function getDialect(): \tommyknocker\pdodb\dialects\DialectInterface
             {
                 return $this->connection->getDialect();
             }

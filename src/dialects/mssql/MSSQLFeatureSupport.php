@@ -75,4 +75,3 @@ class MSSQLFeatureSupport implements FeatureSupportInterface
         return false;
     }
 }
-

@@ -502,6 +502,8 @@ class PostgreSQLDdlBuilder implements DdlBuilderInterface
 
     /**
      * Parse column definition from array.
+     *
+     * @param array<string, mixed> $def
      */
     protected function parseColumnDefinition(array $def): ColumnSchema
     {
@@ -561,4 +563,3 @@ class PostgreSQLDdlBuilder implements DdlBuilderInterface
         return "'" . addslashes((string)$value) . "'";
     }
 }
-

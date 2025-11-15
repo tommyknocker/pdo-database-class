@@ -289,4 +289,3 @@ interface DdlBuilderInterface
      */
     public function formatColumnDefinition(string $name, ColumnSchema $schema): string;
 }
-

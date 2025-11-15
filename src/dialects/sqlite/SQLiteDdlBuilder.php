@@ -2,17 +2,18 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\dialects\mysql;
+namespace tommyknocker\pdodb\dialects\sqlite;
 
 use tommyknocker\pdodb\dialects\builders\DdlBuilderInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 /**
- * MySQL DDL builder implementation.
+ * SQLite DDL builder implementation.
  */
-class MySQLDdlBuilder implements DdlBuilderInterface
+class SQLiteDdlBuilder implements DdlBuilderInterface
 {
     protected DialectInterface $dialect;
 
@@ -47,32 +48,19 @@ class MySQLDdlBuilder implements DdlBuilderInterface
     ): string {
         $tableQuoted = $this->quoteTable($table);
         $columnDefs = [];
-        $primaryKeyColumn = null;
 
         foreach ($columns as $name => $def) {
             if ($def instanceof ColumnSchema) {
                 $columnDefs[] = $this->formatColumnDefinition($name, $def);
-                if ($def->isAutoIncrement() && $primaryKeyColumn === null) {
-                    $primaryKeyColumn = $name;
-                }
             } elseif (is_array($def)) {
+                // Short syntax: ['type' => 'TEXT', 'null' => false]
                 $schema = $this->parseColumnDefinition($def);
                 $columnDefs[] = $this->formatColumnDefinition($name, $schema);
-                if ($schema->isAutoIncrement() && $primaryKeyColumn === null) {
-                    $primaryKeyColumn = $name;
-                }
             } else {
+                // String type: 'TEXT'
                 $schema = new ColumnSchema((string)$def);
                 $columnDefs[] = $this->formatColumnDefinition($name, $schema);
-                if ($schema->isAutoIncrement() && $primaryKeyColumn === null) {
-                    $primaryKeyColumn = $name;
-                }
             }
-        }
-
-        // Add PRIMARY KEY if AUTO_INCREMENT column exists
-        if ($primaryKeyColumn !== null) {
-            $columnDefs[] = 'PRIMARY KEY (' . $this->quoteIdentifier($primaryKeyColumn) . ')';
         }
 
         // Add PRIMARY KEY constraint from options if specified
@@ -84,25 +72,8 @@ class MySQLDdlBuilder implements DdlBuilderInterface
 
         $sql = "CREATE TABLE {$tableQuoted} (\n    " . implode(",\n    ", $columnDefs) . "\n)";
 
-        // Add table options
-        if (!empty($options['engine'])) {
-            $sql .= ' ENGINE=' . $options['engine'];
-        }
-        if (!empty($options['charset'])) {
-            $sql .= ' DEFAULT CHARSET=' . $options['charset'];
-        }
-        if (!empty($options['collate'])) {
-            $sql .= ' COLLATE=' . $options['collate'];
-        }
-        if (isset($options['comment'])) {
-            $comment = addslashes((string)$options['comment']);
-            $sql .= " COMMENT='{$comment}'";
-        }
-
-        // Add partitioning (MySQL)
-        if (!empty($options['partition'])) {
-            $sql .= ' ' . $options['partition'];
-        }
+        // SQLite doesn't support table options like MySQL/PostgreSQL
+        // Options are silently ignored
 
         return $sql;
     }
@@ -133,15 +104,8 @@ class MySQLDdlBuilder implements DdlBuilderInterface
     ): string {
         $tableQuoted = $this->quoteTable($table);
         $columnDef = $this->formatColumnDefinition($column, $schema);
-        $sql = "ALTER TABLE {$tableQuoted} ADD COLUMN {$columnDef}";
-
-        if ($schema->isFirst()) {
-            $sql .= ' FIRST';
-        } elseif ($schema->getAfter() !== null) {
-            $sql .= ' AFTER ' . $this->quoteIdentifier($schema->getAfter());
-        }
-
-        return $sql;
+        // SQLite doesn't support FIRST/AFTER in ALTER TABLE ADD COLUMN
+        return "ALTER TABLE {$tableQuoted} ADD COLUMN {$columnDef}";
     }
 
     /**
@@ -149,8 +113,16 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildDropColumnSql(string $table, string $column): string
     {
+        // SQLite 3.35.0+ supports DROP COLUMN
+        // For older versions, we throw an exception
         $tableQuoted = $this->quoteTable($table);
         $columnQuoted = $this->quoteIdentifier($column);
+        // Note: SQLite DROP COLUMN requires complex table recreation
+        // This is a simplified version - in production, you'd need to:
+        // 1. Create new table without column
+        // 2. Copy data
+        // 3. Drop old table
+        // 4. Rename new table
         return "ALTER TABLE {$tableQuoted} DROP COLUMN {$columnQuoted}";
     }
 
@@ -162,9 +134,12 @@ class MySQLDdlBuilder implements DdlBuilderInterface
         string $column,
         ColumnSchema $schema
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $columnDef = $this->formatColumnDefinition($column, $schema);
-        return "ALTER TABLE {$tableQuoted} MODIFY COLUMN {$columnDef}";
+        // SQLite doesn't support ALTER COLUMN to change type
+        // This would require table recreation which is complex
+        throw new QueryException(
+            'SQLite does not support ALTER COLUMN to change column type. ' .
+            'You must recreate the table. Use buildRenameColumnSql to rename columns.'
+        );
     }
 
     /**
@@ -172,6 +147,7 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildRenameColumnSql(string $table, string $oldName, string $newName): string
     {
+        // SQLite 3.25.0+ supports RENAME COLUMN
         $tableQuoted = $this->quoteTable($table);
         $oldQuoted = $this->quoteIdentifier($oldName);
         $newQuoted = $this->quoteIdentifier($newName);
@@ -192,16 +168,20 @@ class MySQLDdlBuilder implements DdlBuilderInterface
     ): string {
         $tableQuoted = $this->quoteTable($table);
         $nameQuoted = $this->quoteIdentifier($name);
-        $type = $unique ? 'UNIQUE INDEX' : 'INDEX';
+        $uniqueClause = $unique ? 'UNIQUE ' : '';
 
+        // Process columns with sorting support and RawValue support (functional indexes)
         $colsQuoted = [];
         foreach ($columns as $col) {
             if (is_array($col)) {
+                // Array format: ['column' => 'ASC'/'DESC'] - associative array with column name as key
                 foreach ($col as $colName => $direction) {
+                    // $colName is always string (array key), $direction is the sort direction
                     $dir = strtoupper((string)$direction) === 'DESC' ? 'DESC' : 'ASC';
                     $colsQuoted[] = $this->quoteIdentifier((string)$colName) . ' ' . $dir;
                 }
             } elseif ($col instanceof RawValue) {
+                // RawValue expression (functional index)
                 $colsQuoted[] = $col->getValue();
             } else {
                 $colsQuoted[] = $this->quoteIdentifier((string)$col);
@@ -209,11 +189,22 @@ class MySQLDdlBuilder implements DdlBuilderInterface
         }
         $colsList = implode(', ', $colsQuoted);
 
-        $sql = "CREATE {$type} {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+        $sql = "CREATE {$uniqueClause}INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
 
-        if (!empty($options['using'])) {
-            $sql .= ' USING ' . strtoupper($options['using']);
+        // SQLite supports WHERE clause for partial indexes
+        if ($where !== null && $where !== '') {
+            $sql .= ' WHERE ' . $where;
         }
+
+        // SQLite doesn't support INCLUDE columns
+        if ($includeColumns !== null && !empty($includeColumns)) {
+            throw new QueryException(
+                'SQLite does not support INCLUDE columns in indexes. ' .
+                'Include columns must be part of the main index columns list.'
+            );
+        }
+
+        // SQLite doesn't support fillfactor or other index options
 
         return $sql;
     }
@@ -223,9 +214,9 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildDropIndexSql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
+        // SQLite: DROP INDEX name (table is not needed, but kept for compatibility)
         $nameQuoted = $this->quoteIdentifier($name);
-        return "DROP INDEX {$nameQuoted} ON {$tableQuoted}";
+        return "DROP INDEX {$nameQuoted}";
     }
 
     /**
@@ -233,12 +224,11 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildCreateFulltextIndexSql(string $name, string $table, array $columns, ?string $parser = null): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $colsList = implode(', ', $colsQuoted);
-        $parserClause = $parser !== null ? " WITH PARSER {$parser}" : '';
-        return "CREATE FULLTEXT INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList}){$parserClause}";
+        // SQLite doesn't have native fulltext indexes, but supports FTS (Full-Text Search) virtual tables
+        throw new QueryException(
+            'SQLite does not support FULLTEXT indexes. ' .
+            'Use FTS (Full-Text Search) virtual tables instead: CREATE VIRTUAL TABLE ... USING FTS5(...)'
+        );
     }
 
     /**
@@ -246,11 +236,11 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildCreateSpatialIndexSql(string $name, string $table, array $columns): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $colsList = implode(', ', $colsQuoted);
-        return "CREATE SPATIAL INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+        // SQLite doesn't have native spatial indexes
+        throw new QueryException(
+            'SQLite does not support SPATIAL indexes. ' .
+            'Use R-Tree virtual tables for spatial data: CREATE VIRTUAL TABLE ... USING rtree(...)'
+        );
     }
 
     /**
@@ -258,10 +248,12 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildRenameIndexSql(string $oldName, string $table, string $newName): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $oldQuoted = $this->quoteIdentifier($oldName);
-        $newQuoted = $this->quoteIdentifier($newName);
-        return "ALTER TABLE {$tableQuoted} RENAME INDEX {$oldQuoted} TO {$newQuoted}";
+        // SQLite doesn't support RENAME INDEX directly
+        // Need to drop and recreate
+        throw new QueryException(
+            'SQLite does not support renaming indexes directly. ' .
+            'You must drop the index and create a new one with the desired name.'
+        );
     }
 
     /**
@@ -269,9 +261,10 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildRenameForeignKeySql(string $oldName, string $table, string $newName): string
     {
-        throw new \RuntimeException(
-            'MySQL does not support renaming foreign keys directly. ' .
-            'You must drop the foreign key and create a new one with the desired name.'
+        // SQLite doesn't support renaming foreign keys
+        throw new QueryException(
+            'SQLite does not support renaming foreign keys. ' .
+            'You must recreate the table without the constraint and add a new one.'
         );
     }
 
@@ -287,25 +280,15 @@ class MySQLDdlBuilder implements DdlBuilderInterface
         ?string $delete = null,
         ?string $update = null
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $refTableQuoted = $this->quoteTable($refTable);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $refColsQuoted = array_map([$this, 'quoteIdentifier'], $refColumns);
-        $colsList = implode(', ', $colsQuoted);
-        $refColsList = implode(', ', $refColsQuoted);
-
-        $sql = "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted}";
-        $sql .= " FOREIGN KEY ({$colsList}) REFERENCES {$refTableQuoted} ({$refColsList})";
-
-        if ($delete !== null) {
-            $sql .= ' ON DELETE ' . strtoupper($delete);
-        }
-        if ($update !== null) {
-            $sql .= ' ON UPDATE ' . strtoupper($update);
-        }
-
-        return $sql;
+        // SQLite foreign keys must be defined during CREATE TABLE
+        // Adding them via ALTER TABLE requires table recreation
+        // This is a limitation - we throw exception for now
+        // In production, you might want to implement table recreation logic
+        throw new QueryException(
+            'SQLite does not support adding foreign keys via ALTER TABLE. ' .
+            'Foreign keys must be defined during CREATE TABLE. ' .
+            'To add a foreign key to an existing table, you must recreate the table.'
+        );
     }
 
     /**
@@ -313,9 +296,12 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildDropForeignKeySql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "ALTER TABLE {$tableQuoted} DROP FOREIGN KEY {$nameQuoted}";
+        // SQLite foreign keys can't be dropped directly
+        // Requires table recreation
+        throw new QueryException(
+            'SQLite does not support dropping foreign keys via ALTER TABLE. ' .
+            'To drop a foreign key, you must recreate the table without the constraint.'
+        );
     }
 
     /**
@@ -323,11 +309,12 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildAddPrimaryKeySql(string $name, string $table, array $columns): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $colsList = implode(', ', $colsQuoted);
-        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} PRIMARY KEY ({$colsList})";
+        // SQLite doesn't support adding PRIMARY KEY via ALTER TABLE
+        // Requires table recreation
+        throw new QueryException(
+            'SQLite does not support adding PRIMARY KEY via ALTER TABLE. ' .
+            'To add a PRIMARY KEY, you must recreate the table with the constraint.'
+        );
     }
 
     /**
@@ -335,8 +322,12 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildDropPrimaryKeySql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        return "ALTER TABLE {$tableQuoted} DROP PRIMARY KEY";
+        // SQLite doesn't support dropping PRIMARY KEY via ALTER TABLE
+        // Requires table recreation
+        throw new QueryException(
+            'SQLite does not support dropping PRIMARY KEY via ALTER TABLE. ' .
+            'To drop a PRIMARY KEY, you must recreate the table without the constraint.'
+        );
     }
 
     /**
@@ -344,11 +335,12 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildAddUniqueSql(string $name, string $table, array $columns): string
     {
+        // SQLite supports UNIQUE via CREATE UNIQUE INDEX
         $tableQuoted = $this->quoteTable($table);
         $nameQuoted = $this->quoteIdentifier($name);
         $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
         $colsList = implode(', ', $colsQuoted);
-        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} UNIQUE ({$colsList})";
+        return "CREATE UNIQUE INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
     }
 
     /**
@@ -356,9 +348,9 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildDropUniqueSql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
+        // SQLite UNIQUE constraints are implemented as indexes, so drop as index
         $nameQuoted = $this->quoteIdentifier($name);
-        return "ALTER TABLE {$tableQuoted} DROP INDEX {$nameQuoted}";
+        return "DROP INDEX {$nameQuoted}";
     }
 
     /**
@@ -366,6 +358,8 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildAddCheckSql(string $name, string $table, string $expression): string
     {
+        // SQLite 3.37.0+ supports adding CHECK constraints via ALTER TABLE
+        // For older versions, we throw an exception
         $tableQuoted = $this->quoteTable($table);
         $nameQuoted = $this->quoteIdentifier($name);
         return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} CHECK ({$expression})";
@@ -376,9 +370,12 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     public function buildDropCheckSql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "ALTER TABLE {$tableQuoted} DROP CHECK {$nameQuoted}";
+        // SQLite doesn't support dropping CHECK constraint via ALTER TABLE
+        // Requires table recreation
+        throw new QueryException(
+            'SQLite does not support dropping CHECK constraint via ALTER TABLE. ' .
+            'To drop a CHECK constraint, you must recreate the table without the constraint.'
+        );
     }
 
     /**
@@ -388,7 +385,7 @@ class MySQLDdlBuilder implements DdlBuilderInterface
     {
         $tableQuoted = $this->quoteTable($table);
         $newQuoted = $this->quoteTable($newName);
-        return "RENAME TABLE {$tableQuoted} TO {$newQuoted}";
+        return "ALTER TABLE {$tableQuoted} RENAME TO {$newQuoted}";
     }
 
     /**
@@ -399,38 +396,52 @@ class MySQLDdlBuilder implements DdlBuilderInterface
         $nameQuoted = $this->quoteIdentifier($name);
         $type = $schema->getType();
 
-        $length = $schema->getLength();
-        if (($type === 'TEXT' || $type === 'BLOB' || $type === 'LONGTEXT' || $type === 'MEDIUMTEXT' || $type === 'TINYTEXT')
-            && $schema->getDefaultValue() !== null) {
-            $type = 'VARCHAR';
-            if ($length === null) {
-                $length = 255;
-            }
+        // SQLite type mapping
+        if ($type === 'INT' || $type === 'INTEGER') {
+            $type = 'INTEGER';
+        } elseif ($type === 'TINYINT' || $type === 'SMALLINT') {
+            $type = 'INTEGER';
+        } elseif ($type === 'BIGINT') {
+            $type = 'INTEGER';
+        } elseif ($type === 'TEXT') {
+            $type = 'TEXT';
+        } elseif ($type === 'DATETIME' || $type === 'TIMESTAMP') {
+            $type = 'TEXT';
         }
 
+        // Build type with length/scale
         $typeDef = $type;
-        if ($length !== null) {
+        if ($schema->getLength() !== null) {
             if ($schema->getScale() !== null) {
-                $typeDef .= '(' . $length . ',' . $schema->getScale() . ')';
+                $typeDef .= '(' . $schema->getLength() . ',' . $schema->getScale() . ')';
             } else {
-                $typeDef .= '(' . $length . ')';
+                // SQLite ignores length for most types, but we include it for compatibility
+                if (in_array(strtoupper($type), ['VARCHAR', 'CHAR', 'CHARACTER VARYING', 'CHARACTER'], true)) {
+                    $typeDef .= '(' . $schema->getLength() . ')';
+                }
             }
-        }
-
-        if ($schema->isUnsigned()) {
-            $typeDef .= ' UNSIGNED';
         }
 
         $parts = [$nameQuoted, $typeDef];
 
+        // PRIMARY KEY and AUTOINCREMENT handling for SQLite
+        // SQLite AUTOINCREMENT requires INTEGER PRIMARY KEY
+        if ($schema->isAutoIncrement()) {
+            // SQLite requires INTEGER PRIMARY KEY for AUTOINCREMENT
+            if ($type === 'INTEGER') {
+                $parts[1] = 'INTEGER PRIMARY KEY AUTOINCREMENT';
+            } else {
+                // For other types, we can't use AUTOINCREMENT, but can mark as PRIMARY KEY
+                $parts[] = 'PRIMARY KEY';
+            }
+        }
+
+        // NOT NULL / NULL
         if ($schema->isNotNull()) {
             $parts[] = 'NOT NULL';
         }
 
-        if ($schema->isAutoIncrement()) {
-            $parts[] = 'AUTO_INCREMENT';
-        }
-
+        // DEFAULT
         if ($schema->getDefaultValue() !== null) {
             if ($schema->isDefaultExpression()) {
                 $parts[] = 'DEFAULT ' . $schema->getDefaultValue();
@@ -440,10 +451,8 @@ class MySQLDdlBuilder implements DdlBuilderInterface
             }
         }
 
-        if ($schema->getComment() !== null) {
-            $comment = addslashes($schema->getComment());
-            $parts[] = "COMMENT '{$comment}'";
-        }
+        // UNIQUE is handled separately (not in column definition)
+        // It's created via CREATE INDEX or table constraint
 
         return implode(' ', $parts);
     }
@@ -455,7 +464,7 @@ class MySQLDdlBuilder implements DdlBuilderInterface
      */
     protected function parseColumnDefinition(array $def): ColumnSchema
     {
-        $type = $def['type'] ?? 'VARCHAR';
+        $type = $def['type'] ?? 'TEXT';
         $length = $def['length'] ?? $def['size'] ?? null;
         $scale = $def['scale'] ?? null;
 
@@ -472,10 +481,8 @@ class MySQLDdlBuilder implements DdlBuilderInterface
             }
         }
         if (isset($def['comment'])) {
+            // SQLite comments are set separately via COMMENT ON COLUMN (SQLite 3.31.0+)
             $schema->comment((string)$def['comment']);
-        }
-        if (isset($def['unsigned']) && $def['unsigned']) {
-            $schema->unsigned();
         }
         if (isset($def['autoIncrement']) && $def['autoIncrement']) {
             $schema->autoIncrement();
@@ -483,12 +490,10 @@ class MySQLDdlBuilder implements DdlBuilderInterface
         if (isset($def['unique']) && $def['unique']) {
             $schema->unique();
         }
-        if (isset($def['after'])) {
-            $schema->after((string)$def['after']);
-        }
-        if (isset($def['first']) && $def['first']) {
-            $schema->first();
-        }
+        // Note: primaryKey is handled at table level via options['primaryKey'], not at column level
+
+        // SQLite doesn't support FIRST/AFTER in ALTER TABLE
+        // These are silently ignored
 
         return $schema;
     }

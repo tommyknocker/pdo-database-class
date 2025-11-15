@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\dialects\mysql;
+namespace tommyknocker\pdodb\dialects\mariadb;
 
 use tommyknocker\pdodb\dialects\formatters\SqlFormatterAbstract;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
- * MySQL SQL formatter implementation.
+ * MariaDB SQL formatter implementation.
  */
-class MySQLSqlFormatter extends SqlFormatterAbstract
+class MariaDBSqlFormatter extends SqlFormatterAbstract
 {
     /**
      * {@inheritDoc}
@@ -138,22 +138,31 @@ class MySQLSqlFormatter extends SqlFormatterAbstract
 
         $jsonText = $this->encodeToJson($value);
 
+        // MariaDB's JSON_SET doesn't support CAST(:param AS JSON) directly in the third argument.
+        // For nested paths, ensure parent exists as object before setting child (similar to MySQL approach).
+        // But without CAST, we need to handle it differently.
         if (count($parts) > 1) {
             $lastSegment = $this->getLastSegment($parts);
             $isLastNumeric = $this->isNumericIndex($lastSegment);
 
             if ($isLastNumeric) {
-                $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', CAST({$param} AS JSON))";
+                // For array indices, use direct path
+                $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', {$param})";
             } else {
+                // For object keys, ensure parent exists
                 $parentParts = $this->getParentPathParts($parts);
                 $parentPath = $this->buildJsonPathString($parentParts);
                 $lastKey = (string)$lastSegment;
 
-                $parentNew = "JSON_SET(COALESCE(JSON_EXTRACT({$colQuoted}, '{$parentPath}'), CAST('{}' AS JSON)), '$.{$lastKey}', CAST({$param} AS JSON))";
+                // Build expression: set the parent to JSON_SET(COALESCE(JSON_EXTRACT(col,parent), '{}') , '$.<last>', :param)
+                // then write that parent back into the document
+                // Note: Without CAST, MariaDB may store the value as a string, but JSON_SET should handle it
+                $parentNew = "JSON_SET(COALESCE(JSON_EXTRACT({$colQuoted}, '{$parentPath}'), '{}'), '$.{$lastKey}', {$param})";
                 $sql = "JSON_SET({$colQuoted}, '{$parentPath}', {$parentNew})";
             }
         } else {
-            $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', CAST({$param} AS JSON))";
+            // simple single-segment path
+            $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', {$param})";
         }
 
         return [$sql, [$param => $jsonText]];
@@ -168,11 +177,16 @@ class MySQLSqlFormatter extends SqlFormatterAbstract
         $jsonPath = $this->buildJsonPathString($parts);
         $colQuoted = $this->quoteIdentifier($col);
 
+        // If last segment is numeric — replace that array slot with JSON null to preserve array length semantics
         $last = $this->getLastSegment($parts);
         if ($this->isNumericIndex($last)) {
-            return "JSON_SET({$colQuoted}, '{$jsonPath}', CAST('null' AS JSON))";
+            // MariaDB doesn't support CAST('null' AS JSON) in JSON_SET
+            // For array indices, we still use JSON_REMOVE to remove the element
+            // This is a limitation - we can't preserve array length with null in MariaDB
+            return "JSON_REMOVE({$colQuoted}, '{$jsonPath}')";
         }
 
+        // otherwise remove object key
         return "JSON_REMOVE({$colQuoted}, '{$jsonPath}')";
     }
 
@@ -189,7 +203,10 @@ class MySQLSqlFormatter extends SqlFormatterAbstract
 
         $jsonText = $this->encodeToJson($value);
 
-        $sql = "JSON_REPLACE({$colQuoted}, '{$jsonPath}', CAST({$param} AS JSON))";
+        // MariaDB's JSON_REPLACE doesn't support CAST(:param AS JSON) directly in the third argument.
+        // Pass the JSON string directly - MariaDB's JSON_REPLACE will parse it correctly.
+        // Note: This works correctly for objects and arrays, but strings will be stored as JSON strings (quoted).
+        $sql = "JSON_REPLACE({$colQuoted}, '{$jsonPath}', {$param})";
 
         return [$sql, [$param => $jsonText]];
     }
@@ -544,5 +561,41 @@ class MySQLSqlFormatter extends SqlFormatterAbstract
             }
         }
         return $cteSql;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @param array<int|string, mixed> $options
+     */
+    public function formatSelectOptions(string $sql, array $options): string
+    {
+        $middle = [];
+        $tail = [];
+        foreach ($options as $opt) {
+            $u = strtoupper(trim($opt));
+            if (in_array($u, ['LOCK IN SHARE MODE', 'FOR UPDATE'])) {
+                $tail[] = $opt;
+            } else {
+                $middle[] = $opt;
+            }
+        }
+        if ($middle) {
+            $result = preg_replace('/^SELECT\s+/i', 'SELECT ' . implode(',', $middle) . ' ', $sql, 1);
+            $sql = $result !== null ? $result : $sql;
+        }
+        if ($tail) {
+            $sql .= ' ' . implode(' ', $tail);
+        }
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeRawValue(string $sql): string
+    {
+        // MariaDB doesn't need special normalization
+        return $sql;
     }
 }

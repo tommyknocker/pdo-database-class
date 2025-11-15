@@ -28,6 +28,8 @@ class PostgreSQLSqlFormatter extends SqlFormatterAbstract
 
     /**
      * {@inheritDoc}
+     *
+     * @param array<int|string, mixed> $options
      */
     public function formatSelectOptions(string $sql, array $options): string
     {
@@ -663,4 +665,3 @@ class PostgreSQLSqlFormatter extends SqlFormatterAbstract
         return 'LEAST(' . implode(', ', $normalizedArgs) . ')';
     }
 }
-

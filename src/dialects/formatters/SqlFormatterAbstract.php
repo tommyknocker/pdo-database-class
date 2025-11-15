@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\dialects\formatters;
 
 use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\dialects\formatters\SqlFormatterInterface;
 use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
@@ -42,6 +41,10 @@ abstract class SqlFormatterAbstract implements SqlFormatterInterface
 
     /**
      * Resolve array of values (handle RawValue instances).
+     *
+     * @param array<int|string, mixed> $values
+     *
+     * @return array<int|string, mixed>
      */
     protected function resolveValues(array $values): array
     {
@@ -64,6 +67,10 @@ abstract class SqlFormatterAbstract implements SqlFormatterInterface
 
     /**
      * Normalize JSON path input.
+     *
+     * @param array<int, string|int>|string $path
+     *
+     * @return array<int, string|int>
      */
     protected function normalizeJsonPath(array|string $path): array
     {
@@ -77,4 +84,3 @@ abstract class SqlFormatterAbstract implements SqlFormatterInterface
         return array_values($path);
     }
 }
-

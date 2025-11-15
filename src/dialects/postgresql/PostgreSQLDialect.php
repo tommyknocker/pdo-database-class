@@ -8,10 +8,6 @@ use InvalidArgumentException;
 use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\DialectAbstract;
-use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\dialects\postgresql\PostgreSQLDdlBuilder;
-use tommyknocker\pdodb\dialects\postgresql\PostgreSQLDmlBuilder;
-use tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
@@ -362,6 +358,33 @@ class PostgreSQLDialect extends DialectAbstract
 
         $safeExpr = $this->replaceColumnReferences($exprStr, $col, $replacement);
         return "{$colSql} = {$safeExpr}";
+    }
+
+    /**
+     * Safely replace column references in expression.
+     */
+    protected function replaceColumnReferences(string $expression, string $column, string $replacement): string
+    {
+        $result = preg_replace_callback(
+            '/\b' . preg_quote($column, '/') . '\b/i',
+            static function ($matches) use ($expression, $replacement) {
+                $pos = strpos($expression, $matches[0]);
+                if ($pos === false) {
+                    return $matches[0];
+                }
+
+                // Check if it's already qualified (has a dot or excluded prefix)
+                $left = $pos > 0 ? substr($expression, max(0, $pos - 9), 9) : '';
+                if (str_contains($left, '.') || stripos($left, 'excluded') !== false) {
+                    return $matches[0];
+                }
+
+                return $replacement;
+            },
+            $expression
+        );
+
+        return $result ?? $expression;
     }
 
     /**

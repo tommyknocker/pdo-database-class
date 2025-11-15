@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\dialects\mysql;
+namespace tommyknocker\pdodb\dialects\mariadb;
 
 use tommyknocker\pdodb\dialects\builders\DdlBuilderInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
@@ -10,9 +10,9 @@ use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 /**
- * MySQL DDL builder implementation.
+ * MariaDB DDL builder implementation.
  */
-class MySQLDdlBuilder implements DdlBuilderInterface
+class MariaDBDdlBuilder implements DdlBuilderInterface
 {
     protected DialectInterface $dialect;
 
@@ -99,7 +99,7 @@ class MySQLDdlBuilder implements DdlBuilderInterface
             $sql .= " COMMENT='{$comment}'";
         }
 
-        // Add partitioning (MySQL)
+        // Add partitioning (MariaDB)
         if (!empty($options['partition'])) {
             $sql .= ' ' . $options['partition'];
         }
@@ -270,7 +270,7 @@ class MySQLDdlBuilder implements DdlBuilderInterface
     public function buildRenameForeignKeySql(string $oldName, string $table, string $newName): string
     {
         throw new \RuntimeException(
-            'MySQL does not support renaming foreign keys directly. ' .
+            'MariaDB does not support renaming foreign keys directly. ' .
             'You must drop the foreign key and create a new one with the desired name.'
         );
     }

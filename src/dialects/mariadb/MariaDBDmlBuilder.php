@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\dialects\mysql;
+namespace tommyknocker\pdodb\dialects\mariadb;
 
 use RuntimeException;
 use tommyknocker\pdodb\dialects\builders\DmlBuilderInterface;
@@ -11,9 +11,9 @@ use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
- * MySQL DML builder implementation.
+ * MariaDB DML builder implementation.
  */
-class MySQLDmlBuilder implements DmlBuilderInterface
+class MariaDBDmlBuilder implements DmlBuilderInterface
 {
     use UpsertBuilderTrait;
 
@@ -100,7 +100,7 @@ class MySQLDmlBuilder implements DmlBuilderInterface
         string $whereClause,
         string $options = ''
     ): string {
-        // MySQL syntax: DELETE table FROM table JOIN ...
+        // MariaDB syntax: DELETE table FROM table JOIN ...
         $sql = "DELETE {$options}{$table} FROM {$table}";
         if (!empty($joins)) {
             $sql .= ' ' . implode(' ', $joins);
@@ -168,7 +168,7 @@ class MySQLDmlBuilder implements DmlBuilderInterface
         string $onClause,
         array $whenClauses
     ): string {
-        // MySQL emulation using INSERT ... SELECT ... ON DUPLICATE KEY UPDATE
+        // MariaDB emulation using INSERT ... SELECT ... ON DUPLICATE KEY UPDATE
         // Extract key from ON clause for conflict target
         preg_match('/target\.(\w+)\s*=\s*source\.(\w+)/i', $onClause, $matches);
         $keyColumn = $matches[1] ?? 'id';
@@ -176,7 +176,7 @@ class MySQLDmlBuilder implements DmlBuilderInterface
         $target = $this->quoteTable($targetTable);
 
         if (empty($whenClauses['whenNotMatched'])) {
-            throw new RuntimeException('MySQL MERGE requires WHEN NOT MATCHED clause');
+            throw new RuntimeException('MariaDB MERGE requires WHEN NOT MATCHED clause');
         }
 
         // Parse INSERT clause
@@ -206,7 +206,7 @@ class MySQLDmlBuilder implements DmlBuilderInterface
 
         // Add ON DUPLICATE KEY UPDATE if whenMatched exists
         if (!empty($whenClauses['whenMatched'])) {
-            // Replace source.column references with VALUES(column) for MySQL
+            // Replace source.column references with VALUES(column) for MariaDB
             $updateExpr = preg_replace('/source\.([a-zA-Z_][a-zA-Z0-9_]*)/', 'VALUES($1)', $whenClauses['whenMatched']);
             $sql .= "ON DUPLICATE KEY UPDATE {$updateExpr}\n";
         }
