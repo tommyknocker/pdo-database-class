@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\dialects;
+namespace tommyknocker\pdodb\dialects\mssql;
 
 use InvalidArgumentException;
 use PDO;
 use RuntimeException;
+use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
 use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
@@ -18,6 +20,14 @@ class MSSQLDialect extends DialectAbstract
 {
     use JsonPathBuilderTrait;
     use UpsertBuilderTrait;
+
+    /** @var MSSQLFeatureSupport Feature support instance */
+    private MSSQLFeatureSupport $featureSupport;
+
+    public function __construct()
+    {
+        $this->featureSupport = new MSSQLFeatureSupport();
+    }
 
     /**
      * {@inheritDoc}
@@ -32,8 +42,7 @@ class MSSQLDialect extends DialectAbstract
      */
     public function supportsLateralJoin(): bool
     {
-        // MSSQL supports CROSS APPLY / OUTER APPLY (equivalent to LATERAL JOIN)
-        return true;
+        return $this->featureSupport->supportsLateralJoin();
     }
 
     /**
@@ -76,7 +85,7 @@ class MSSQLDialect extends DialectAbstract
      */
     public function supportsJoinInUpdateDelete(): bool
     {
-        return true;
+        return $this->featureSupport->supportsJoinInUpdateDelete();
     }
 
     /**
@@ -322,7 +331,7 @@ class MSSQLDialect extends DialectAbstract
      */
     public function supportsMerge(): bool
     {
-        return true; // MSSQL has native MERGE support
+        return $this->featureSupport->supportsMerge();
     }
 
     /**
@@ -857,7 +866,7 @@ class MSSQLDialect extends DialectAbstract
      */
     public function supportsFilterClause(): bool
     {
-        return false; // MSSQL does not support FILTER clause
+        return $this->featureSupport->supportsFilterClause();
     }
 
     /**
@@ -865,7 +874,7 @@ class MSSQLDialect extends DialectAbstract
      */
     public function supportsDistinctOn(): bool
     {
-        return false; // MSSQL does not support DISTINCT ON
+        return $this->featureSupport->supportsDistinctOn();
     }
 
     /**
@@ -873,7 +882,7 @@ class MSSQLDialect extends DialectAbstract
      */
     public function supportsMaterializedCte(): bool
     {
-        return false; // MSSQL does not support MATERIALIZED CTE
+        return $this->featureSupport->supportsMaterializedCte();
     }
 
     /**
@@ -1409,8 +1418,7 @@ class MSSQLDialect extends DialectAbstract
      */
     public function supportsLimitInExists(): bool
     {
-        // MSSQL doesn't support LIMIT in EXISTS subqueries
-        return false;
+        return $this->featureSupport->supportsLimitInExists();
     }
 
     /**

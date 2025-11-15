@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\dialects;
+namespace tommyknocker\pdodb\dialects\sqlite;
 
 use InvalidArgumentException;
 use PDO;
+use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
 use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\exceptions\QueryException;
@@ -18,6 +20,14 @@ class SqliteDialect extends DialectAbstract
 {
     use JsonPathBuilderTrait;
     use UpsertBuilderTrait;
+
+    /** @var SqliteFeatureSupport Feature support instance */
+    private SqliteFeatureSupport $featureSupport;
+
+    public function __construct()
+    {
+        $this->featureSupport = new SqliteFeatureSupport();
+    }
     /**
      * {@inheritDoc}
      */
@@ -31,8 +41,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function supportsLateralJoin(): bool
     {
-        // SQLite does not support LATERAL JOINs
-        return false;
+        return $this->featureSupport->supportsLateralJoin();
     }
 
     /**
@@ -40,8 +49,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function supportsJoinInUpdateDelete(): bool
     {
-        // SQLite does not support JOIN in UPDATE/DELETE statements
-        return false;
+        return $this->featureSupport->supportsJoinInUpdateDelete();
     }
 
     /**
@@ -235,8 +243,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function supportsMerge(): bool
     {
-        // SQLite doesn't support MERGE natively, but we can emulate it
-        return true;
+        return $this->featureSupport->supportsMerge();
     }
 
     /**
@@ -1087,7 +1094,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function supportsFilterClause(): bool
     {
-        return true; // SQLite 3.30+ supports FILTER clause
+        return $this->featureSupport->supportsFilterClause();
     }
 
     /**
@@ -1095,7 +1102,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function supportsDistinctOn(): bool
     {
-        return false; // SQLite does not support DISTINCT ON
+        return $this->featureSupport->supportsDistinctOn();
     }
 
     /**
@@ -1103,7 +1110,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function supportsMaterializedCte(): bool
     {
-        return false; // SQLite does not support MATERIALIZED CTE
+        return $this->featureSupport->supportsMaterializedCte();
     }
 
     /**
@@ -1649,7 +1656,7 @@ class SqliteDialect extends DialectAbstract
      */
     public function supportsLimitInExists(): bool
     {
-        return true;
+        return $this->featureSupport->supportsLimitInExists();
     }
 
     /**

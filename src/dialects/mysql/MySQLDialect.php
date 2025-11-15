@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\dialects;
+namespace tommyknocker\pdodb\dialects\mysql;
 
 use InvalidArgumentException;
 use PDO;
 use RuntimeException;
+use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
 use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -17,6 +19,14 @@ class MySQLDialect extends DialectAbstract
 {
     use JsonPathBuilderTrait;
     use UpsertBuilderTrait;
+
+    /** @var MySQLFeatureSupport Feature support instance */
+    private MySQLFeatureSupport $featureSupport;
+
+    public function __construct()
+    {
+        $this->featureSupport = new MySQLFeatureSupport();
+    }
     /**
      * {@inheritDoc}
      */
@@ -30,8 +40,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function supportsLateralJoin(): bool
     {
-        // MySQL supports LATERAL JOINs since version 8.0.14
-        return true;
+        return $this->featureSupport->supportsLateralJoin();
     }
 
     /**
@@ -39,7 +48,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function supportsJoinInUpdateDelete(): bool
     {
-        return true;
+        return $this->featureSupport->supportsJoinInUpdateDelete();
     }
 
     /**
@@ -230,8 +239,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function supportsMerge(): bool
     {
-        // MySQL doesn't support MERGE natively, but we can emulate it
-        return true;
+        return $this->featureSupport->supportsMerge();
     }
 
     /**
@@ -1023,7 +1031,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function supportsFilterClause(): bool
     {
-        return false; // MySQL does not support FILTER clause
+        return $this->featureSupport->supportsFilterClause();
     }
 
     /**
@@ -1031,7 +1039,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function supportsDistinctOn(): bool
     {
-        return false; // MySQL does not support DISTINCT ON
+        return $this->featureSupport->supportsDistinctOn();
     }
 
     /**
@@ -1039,7 +1047,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function supportsMaterializedCte(): bool
     {
-        return true; // MySQL 8.0+ can use optimizer hints for materialization
+        return $this->featureSupport->supportsMaterializedCte();
     }
 
     /**
@@ -1646,7 +1654,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function supportsLimitInExists(): bool
     {
-        return true;
+        return $this->featureSupport->supportsLimitInExists();
     }
 
     /**

@@ -6,7 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PDO;
 use tommyknocker\pdodb\connection\RetryableConnection;
-use tommyknocker\pdodb\dialects\SqliteDialect;
+use tommyknocker\pdodb\dialects\sqlite\SqliteDialect;
 
 /**
  * Tests for RetryableConnection class.

@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\dialects;
+namespace tommyknocker\pdodb\dialects\postgresql;
 
 use InvalidArgumentException;
 use PDO;
 use RuntimeException;
+use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
 use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -17,6 +19,14 @@ class PostgreSQLDialect extends DialectAbstract
 {
     use JsonPathBuilderTrait;
     use UpsertBuilderTrait;
+
+    /** @var PostgreSQLFeatureSupport Feature support instance */
+    private PostgreSQLFeatureSupport $featureSupport;
+
+    public function __construct()
+    {
+        $this->featureSupport = new PostgreSQLFeatureSupport();
+    }
     /**
      * {@inheritDoc}
      */
@@ -30,8 +40,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function supportsLateralJoin(): bool
     {
-        // PostgreSQL has native LATERAL JOIN support since version 9.3
-        return true;
+        return $this->featureSupport->supportsLateralJoin();
     }
 
     /**
@@ -39,7 +48,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function supportsJoinInUpdateDelete(): bool
     {
-        return true;
+        return $this->featureSupport->supportsJoinInUpdateDelete();
     }
 
     /**
@@ -379,9 +388,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function supportsMerge(): bool
     {
-        // PostgreSQL 15+ supports MERGE
-        // Check version if needed, or assume 15+ for now
-        return true;
+        return $this->featureSupport->supportsMerge();
     }
 
     /**
@@ -1257,7 +1264,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function supportsFilterClause(): bool
     {
-        return true; // PostgreSQL supports FILTER clause
+        return $this->featureSupport->supportsFilterClause();
     }
 
     /**
@@ -1265,7 +1272,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function supportsDistinctOn(): bool
     {
-        return true; // PostgreSQL supports DISTINCT ON
+        return $this->featureSupport->supportsDistinctOn();
     }
 
     /**
@@ -1273,7 +1280,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function supportsMaterializedCte(): bool
     {
-        return true; // PostgreSQL supports MATERIALIZED CTE (12+)
+        return $this->featureSupport->supportsMaterializedCte();
     }
 
     /**
@@ -1977,7 +1984,7 @@ class PostgreSQLDialect extends DialectAbstract
      */
     public function supportsLimitInExists(): bool
     {
-        return true;
+        return $this->featureSupport->supportsLimitInExists();
     }
 
     /**

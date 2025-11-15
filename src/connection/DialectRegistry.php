@@ -6,11 +6,11 @@ namespace tommyknocker\pdodb\connection;
 
 use InvalidArgumentException;
 use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\dialects\MariaDBDialect;
-use tommyknocker\pdodb\dialects\MSSQLDialect;
-use tommyknocker\pdodb\dialects\MySQLDialect;
-use tommyknocker\pdodb\dialects\PostgreSQLDialect;
-use tommyknocker\pdodb\dialects\SqliteDialect;
+use tommyknocker\pdodb\dialects\mariadb\MariaDBDialect;
+use tommyknocker\pdodb\dialects\mssql\MSSQLDialect;
+use tommyknocker\pdodb\dialects\mysql\MySQLDialect;
+use tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect;
+use tommyknocker\pdodb\dialects\sqlite\SqliteDialect;
 
 /**
  * DialectRegistry class.

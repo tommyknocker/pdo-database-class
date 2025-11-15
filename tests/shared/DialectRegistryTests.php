@@ -63,7 +63,7 @@ final class DialectRegistryTests extends BaseSharedTestCase
     public function testRegisterCustomDialect(): void
     {
         // Use an existing dialect class to test registration
-        $dialectClass = \tommyknocker\pdodb\dialects\SqliteDialect::class;
+        $dialectClass = \tommyknocker\pdodb\dialects\sqlite\SqliteDialect::class;
 
         // Register it with a test driver name
         DialectRegistry::register('test_driver', $dialectClass);
