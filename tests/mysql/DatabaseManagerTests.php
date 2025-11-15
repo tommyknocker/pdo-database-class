@@ -4,69 +4,157 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mysql;
 
-use ReflectionClass;
-use tommyknocker\pdodb\dialects\mysql\MySQLDialect;
+use tommyknocker\pdodb\cli\DatabaseManager;
+use tommyknocker\pdodb\exceptions\DatabaseException;
 
 /**
- * DatabaseManager SQL syntax tests for MySQL.
+ * DatabaseManager tests for MySQL.
  *
- * Tests only SQL syntax generation, not actual database operations.
+ * These tests require CREATE DATABASE and DROP DATABASE privileges.
+ * Tests will be skipped if permissions are insufficient.
  */
 final class DatabaseManagerTests extends BaseMySQLTestCase
 {
-    public function testBuildCreateDatabaseSql(): void
-    {
-        $dialect = new MySQLDialect();
-        $reflection = new ReflectionClass($dialect);
-        $method = $reflection->getMethod('buildCreateDatabaseSql');
-        $method->setAccessible(true);
+    private const string TEST_DB_NAME = 'test_db_manager';
 
-        $sql = $method->invoke($dialect, 'test_db');
-        $this->assertStringContainsString('CREATE DATABASE', $sql);
-        $this->assertStringContainsString('IF NOT EXISTS', $sql);
-        $this->assertStringContainsString('test_db', $sql);
-        $this->assertStringContainsString('utf8mb4', $sql);
+    public function setUp(): void
+    {
+        parent::setUp();
+
+        // Clean up test database if exists
+        try {
+            if (DatabaseManager::exists(self::TEST_DB_NAME, static::$db)) {
+                DatabaseManager::drop(self::TEST_DB_NAME, static::$db);
+            }
+        } catch (\Throwable $e) {
+            // Ignore errors in setUp - just try to clean up
+        }
     }
 
-    public function testBuildDropDatabaseSql(): void
+    /**
+     * Check if we have sufficient privileges for database management.
+     * If not, skip all tests in this class.
+     */
+    protected function checkPrivileges(): void
     {
-        $dialect = new MySQLDialect();
-        $reflection = new ReflectionClass($dialect);
-        $method = $reflection->getMethod('buildDropDatabaseSql');
-        $method->setAccessible(true);
-
-        $sql = $method->invoke($dialect, 'test_db');
-        $this->assertStringContainsString('DROP DATABASE', $sql);
-        $this->assertStringContainsString('IF EXISTS', $sql);
-        $this->assertStringContainsString('test_db', $sql);
+        try {
+            // Try to list databases - this requires minimal privileges
+            DatabaseManager::list(static::$db);
+        } catch (\Throwable $e) {
+            $message = $e->getMessage();
+            if (str_contains($message, 'Access denied') || str_contains($message, 'privilege') || str_contains($message, 'denied')) {
+                $this->markTestSkipped('Insufficient privileges: ' . $message);
+            }
+        }
     }
 
-    public function testBuildListDatabasesSql(): void
+    public function tearDown(): void
     {
-        $dialect = new MySQLDialect();
-        $reflection = new ReflectionClass($dialect);
-        $method = $reflection->getMethod('buildListDatabasesSql');
-        $method->setAccessible(true);
-
-        $sql = $method->invoke($dialect);
-        $this->assertEquals('SHOW DATABASES', $sql);
+        // Clean up test database
+        try {
+            if (DatabaseManager::exists(self::TEST_DB_NAME, static::$db)) {
+                DatabaseManager::drop(self::TEST_DB_NAME, static::$db);
+            }
+        } catch (\Throwable $e) {
+            // Ignore all errors in tearDown - just try to clean up
+        }
+        parent::tearDown();
     }
 
-    public function testExtractDatabaseNames(): void
+    public function testCreateDatabase(): void
     {
-        $dialect = new MySQLDialect();
-        $reflection = new ReflectionClass($dialect);
-        $method = $reflection->getMethod('extractDatabaseNames');
-        $method->setAccessible(true);
+        $this->checkPrivileges();
 
-        $result = [
-            ['Database' => 'test_db1'],
-            ['Database' => 'test_db2'],
-        ];
+        try {
+            $result = DatabaseManager::create(self::TEST_DB_NAME, static::$db);
+            $this->assertTrue($result);
+            $this->assertTrue(DatabaseManager::exists(self::TEST_DB_NAME, static::$db));
+        } catch (\Throwable $e) {
+            $message = $e->getMessage();
+            if (str_contains($message, 'Access denied') || str_contains($message, 'privilege') || str_contains($message, 'denied')) {
+                $this->markTestSkipped('Insufficient privileges: ' . $message);
+            }
 
-        $names = $method->invoke($dialect, $result);
-        $this->assertIsArray($names);
-        $this->assertContains('test_db1', $names);
-        $this->assertContains('test_db2', $names);
+            throw $e;
+        }
+    }
+
+    public function testDatabaseExists(): void
+    {
+        $this->checkPrivileges();
+
+        try {
+            // Create database first
+            DatabaseManager::create(self::TEST_DB_NAME, static::$db);
+            $this->assertTrue(DatabaseManager::exists(self::TEST_DB_NAME, static::$db));
+            $this->assertFalse(DatabaseManager::exists('non_existent_database_xyz', static::$db));
+        } catch (DatabaseException $e) {
+            if (str_contains($e->getMessage(), 'Access denied') || str_contains($e->getMessage(), 'privilege')) {
+                $this->markTestSkipped('Insufficient privileges: ' . $e->getMessage());
+            }
+
+            throw $e;
+        }
+    }
+
+    public function testListDatabases(): void
+    {
+        $this->checkPrivileges();
+
+        try {
+            $databases = DatabaseManager::list(static::$db);
+            $this->assertIsArray($databases);
+            // Should have at least one database (the test database or mysql)
+            $this->assertNotEmpty($databases);
+            // Should contain the current database
+            $this->assertContains(static::DB_NAME, $databases);
+        } catch (DatabaseException $e) {
+            if (str_contains($e->getMessage(), 'Access denied') || str_contains($e->getMessage(), 'privilege')) {
+                $this->markTestSkipped('Insufficient privileges: ' . $e->getMessage());
+            }
+
+            throw $e;
+        }
+    }
+
+    public function testGetDatabaseInfo(): void
+    {
+        $this->checkPrivileges();
+
+        try {
+            $info = DatabaseManager::getInfo(static::$db);
+            $this->assertIsArray($info);
+            $this->assertArrayHasKey('driver', $info);
+            $this->assertEquals('mysql', $info['driver']);
+            // Should have current database info
+            if (isset($info['current_database'])) {
+                $this->assertNotEmpty($info['current_database']);
+            }
+        } catch (DatabaseException $e) {
+            if (str_contains($e->getMessage(), 'Access denied') || str_contains($e->getMessage(), 'privilege')) {
+                $this->markTestSkipped('Insufficient privileges: ' . $e->getMessage());
+            }
+
+            throw $e;
+        }
+    }
+
+    public function testDropDatabase(): void
+    {
+        $this->checkPrivileges();
+
+        try {
+            // Create database first
+            DatabaseManager::create(self::TEST_DB_NAME, static::$db);
+            $result = DatabaseManager::drop(self::TEST_DB_NAME, static::$db);
+            $this->assertTrue($result);
+            $this->assertFalse(DatabaseManager::exists(self::TEST_DB_NAME, static::$db));
+        } catch (DatabaseException $e) {
+            if (str_contains($e->getMessage(), 'Access denied') || str_contains($e->getMessage(), 'privilege')) {
+                $this->markTestSkipped('Insufficient privileges: ' . $e->getMessage());
+            }
+
+            throw $e;
+        }
     }
 }
