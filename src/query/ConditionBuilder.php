@@ -84,9 +84,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @return static The current instance.
      */
-    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
+    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
-        return $this->addCondition('where', $exprOrColumn, $value, $operator, 'AND');
+        return $this->addCondition(QueryConstants::COND_WHERE, $exprOrColumn, $value, $operator, QueryConstants::BOOLEAN_AND);
     }
 
     /**
@@ -98,7 +98,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @return static The current instance.
      */
-    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
+    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         return $this->where($exprOrColumn, $value, $operator);
     }
@@ -112,9 +112,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @return static The current instance.
      */
-    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
+    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
-        return $this->addCondition('where', $exprOrColumn, $value, $operator, 'OR');
+        return $this->addCondition(QueryConstants::COND_WHERE, $exprOrColumn, $value, $operator, QueryConstants::BOOLEAN_OR);
     }
 
     /**
@@ -126,9 +126,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @return static The current instance.
      */
-    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
+    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
-        return $this->addCondition('having', $exprOrColumn, $value, $operator, 'AND');
+        return $this->addCondition(QueryConstants::COND_HAVING, $exprOrColumn, $value, $operator, QueryConstants::BOOLEAN_AND);
     }
 
     /**
@@ -140,9 +140,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @return static The current instance.
      */
-    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
+    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
-        return $this->addCondition('having', $exprOrColumn, $value, $operator, 'OR');
+        return $this->addCondition(QueryConstants::COND_HAVING, $exprOrColumn, $value, $operator, QueryConstants::BOOLEAN_OR);
     }
 
     /**
@@ -153,9 +153,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): static
+    public function whereIn(string $column, callable|array $subqueryOrArray, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
-        return $this->addCondition('where', $column, $subqueryOrArray, 'IN', $boolean);
+        return $this->addCondition(QueryConstants::COND_WHERE, $column, $subqueryOrArray, QueryConstants::OP_IN, $boolean);
     }
 
     /**
@@ -167,9 +167,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereNotIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): static
+    public function whereNotIn(string $column, callable|array $subqueryOrArray, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
-        return $this->addCondition('where', $column, $subqueryOrArray, 'NOT IN', $boolean);
+        return $this->addCondition(QueryConstants::COND_WHERE, $column, $subqueryOrArray, QueryConstants::OP_NOT_IN, $boolean);
     }
 
     /**
@@ -180,9 +180,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereNull(string $column, string $boolean = 'AND'): static
+    public function whereNull(string $column, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
-        return $this->addCondition('where', $column, null, '=', $boolean);
+        return $this->addCondition(QueryConstants::COND_WHERE, $column, null, QueryConstants::OP_EQUAL, $boolean);
     }
 
     /**
@@ -193,9 +193,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereNotNull(string $column, string $boolean = 'AND'): static
+    public function whereNotNull(string $column, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
-        return $this->addCondition('where', $column, null, '!=', $boolean);
+        return $this->addCondition(QueryConstants::COND_WHERE, $column, null, QueryConstants::OP_NOT_EQUAL, $boolean);
     }
 
     /**
@@ -208,9 +208,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): static
+    public function whereBetween(string $column, mixed $min, mixed $max, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
-        return $this->addCondition('where', $column, [$min, $max], 'BETWEEN', $boolean);
+        return $this->addCondition(QueryConstants::COND_WHERE, $column, [$min, $max], QueryConstants::OP_BETWEEN, $boolean);
     }
 
     /**
@@ -223,9 +223,9 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereNotBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): static
+    public function whereNotBetween(string $column, mixed $min, mixed $max, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
-        return $this->addCondition('where', $column, [$min, $max], 'NOT BETWEEN', $boolean);
+        return $this->addCondition(QueryConstants::COND_WHERE, $column, [$min, $max], QueryConstants::OP_NOT_BETWEEN, $boolean);
     }
 
     /**
@@ -238,7 +238,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereColumn(string $first, string $operator, string $second, string $boolean = 'AND'): static
+    public function whereColumn(string $first, string $operator, string $second, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
         $firstQuoted = $this->quoteQualifiedIdentifier($first);
         $secondQuoted = $this->quoteQualifiedIdentifier($second);
@@ -258,7 +258,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function orWhereNull(string $column): static
     {
-        return $this->whereNull($column, 'OR');
+        return $this->whereNull($column, QueryConstants::BOOLEAN_OR);
     }
 
     /**
@@ -270,7 +270,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function orWhereNotNull(string $column): static
     {
-        return $this->whereNotNull($column, 'OR');
+        return $this->whereNotNull($column, QueryConstants::BOOLEAN_OR);
     }
 
     /**
@@ -284,7 +284,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function orWhereBetween(string $column, mixed $min, mixed $max): static
     {
-        return $this->whereBetween($column, $min, $max, 'OR');
+        return $this->whereBetween($column, $min, $max, QueryConstants::BOOLEAN_OR);
     }
 
     /**
@@ -298,7 +298,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function orWhereNotBetween(string $column, mixed $min, mixed $max): static
     {
-        return $this->whereNotBetween($column, $min, $max, 'OR');
+        return $this->whereNotBetween($column, $min, $max, QueryConstants::BOOLEAN_OR);
     }
 
     /**
@@ -311,7 +311,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function orWhereIn(string $column, callable|array $subqueryOrArray): static
     {
-        return $this->addCondition('where', $column, $subqueryOrArray, 'IN', 'OR');
+        return $this->addCondition(QueryConstants::COND_WHERE, $column, $subqueryOrArray, QueryConstants::OP_IN, QueryConstants::BOOLEAN_OR);
     }
 
     /**
@@ -324,7 +324,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function orWhereNotIn(string $column, callable|array $subqueryOrArray): static
     {
-        return $this->addCondition('where', $column, $subqueryOrArray, 'NOT IN', 'OR');
+        return $this->addCondition(QueryConstants::COND_WHERE, $column, $subqueryOrArray, QueryConstants::OP_NOT_IN, QueryConstants::BOOLEAN_OR);
     }
 
     /**
@@ -336,7 +336,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function andWhereNull(string $column): static
     {
-        return $this->whereNull($column, 'AND');
+        return $this->whereNull($column, QueryConstants::BOOLEAN_AND);
     }
 
     /**
@@ -348,7 +348,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function andWhereNotNull(string $column): static
     {
-        return $this->whereNotNull($column, 'AND');
+        return $this->whereNotNull($column, QueryConstants::BOOLEAN_AND);
     }
 
     /**
@@ -362,7 +362,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function andWhereBetween(string $column, mixed $min, mixed $max): static
     {
-        return $this->whereBetween($column, $min, $max, 'AND');
+        return $this->whereBetween($column, $min, $max, QueryConstants::BOOLEAN_AND);
     }
 
     /**
@@ -376,7 +376,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function andWhereNotBetween(string $column, mixed $min, mixed $max): static
     {
-        return $this->whereNotBetween($column, $min, $max, 'AND');
+        return $this->whereNotBetween($column, $min, $max, QueryConstants::BOOLEAN_AND);
     }
 
     /**
@@ -389,7 +389,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function andWhereIn(string $column, callable|array $subqueryOrArray): static
     {
-        return $this->whereIn($column, $subqueryOrArray, 'AND');
+        return $this->whereIn($column, $subqueryOrArray, QueryConstants::BOOLEAN_AND);
     }
 
     /**
@@ -402,7 +402,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function andWhereNotIn(string $column, callable|array $subqueryOrArray): static
     {
-        return $this->whereNotIn($column, $subqueryOrArray, 'AND');
+        return $this->whereNotIn($column, $subqueryOrArray, QueryConstants::BOOLEAN_AND);
     }
 
     /**
@@ -416,7 +416,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function andWhereColumn(string $first, string $operator, string $second): static
     {
-        return $this->whereColumn($first, $operator, $second, 'AND');
+        return $this->whereColumn($first, $operator, $second, QueryConstants::BOOLEAN_AND);
     }
 
     /**
@@ -430,7 +430,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function orWhereColumn(string $first, string $operator, string $second): static
     {
-        return $this->whereColumn($first, $operator, $second, 'OR');
+        return $this->whereColumn($first, $operator, $second, QueryConstants::BOOLEAN_OR);
     }
 
     /**
@@ -447,7 +447,7 @@ class ConditionBuilder implements ConditionBuilderInterface
         $sub = $instance->toSQL();
         $map = $this->parameterManager->mergeSubParams($sub['params'], 'sq');
         $subSql = $this->parameterManager->replacePlaceholdersInSql($sub['sql'], $map);
-        $this->where[] = ['sql' => "EXISTS ({$subSql})", 'cond' => 'AND'];
+        $this->where[] = ['sql' => QueryConstants::OP_EXISTS . " ({$subSql})", 'cond' => QueryConstants::BOOLEAN_AND];
         return $this;
     }
 
@@ -465,7 +465,7 @@ class ConditionBuilder implements ConditionBuilderInterface
         $sub = $instance->toSQL();
         $map = $this->parameterManager->mergeSubParams($sub['params'], 'sq');
         $subSql = $this->parameterManager->replacePlaceholdersInSql($sub['sql'], $map);
-        $this->where[] = ['sql' => "NOT EXISTS ({$subSql})", 'cond' => 'AND'];
+        $this->where[] = ['sql' => QueryConstants::OP_NOT_EXISTS . " ({$subSql})", 'cond' => QueryConstants::BOOLEAN_AND];
         return $this;
     }
 
@@ -483,7 +483,7 @@ class ConditionBuilder implements ConditionBuilderInterface
             $placeholder = str_starts_with($key, ':') ? $key : ':' . $key;
             $this->parameterManager->setParam($placeholder, $value);
         }
-        $this->where[] = ['sql' => $sql, 'cond' => 'AND'];
+        $this->where[] = ['sql' => $sql, 'cond' => QueryConstants::BOOLEAN_AND];
         return $this;
     }
 
@@ -501,7 +501,7 @@ class ConditionBuilder implements ConditionBuilderInterface
             $placeholder = str_starts_with($key, ':') ? $key : ':' . $key;
             $this->parameterManager->setParam($placeholder, $value);
         }
-        $this->having[] = ['sql' => $sql, 'cond' => 'AND'];
+        $this->having[] = ['sql' => $sql, 'cond' => QueryConstants::BOOLEAN_AND];
         return $this;
     }
 
@@ -594,15 +594,15 @@ class ConditionBuilder implements ConditionBuilderInterface
         foreach ($items as $i => $w) {
             if ($w instanceof RawValue) {
                 $sql = $this->resolveRawValue($w);
-                $clauses[] = ($i === 0 ? '' : 'AND ') . $sql;
+                $clauses[] = ($i === 0 ? '' : QueryConstants::BOOLEAN_AND . ' ') . $sql;
                 continue;
             }
             if (is_string($w)) {
-                $clauses[] = ($i === 0 ? '' : 'AND ') . $w;
+                $clauses[] = ($i === 0 ? '' : QueryConstants::BOOLEAN_AND . ' ') . $w;
                 continue;
             }
             $sql = $w['sql'] ?? '';
-            $cond = $w['cond'] ?? ($i === 0 ? '' : 'AND');
+            $cond = $w['cond'] ?? ($i === 0 ? '' : QueryConstants::BOOLEAN_AND);
             if ($sql === '') {
                 continue;
             }
@@ -700,7 +700,7 @@ class ConditionBuilder implements ConditionBuilderInterface
 
             $opUpper = $this->normalizeOperator($operator);
             $exprQuoted = $this->quoteQualifiedIdentifier($exprStr);
-            $nullSql = ($opUpper === 'IS NOT' || $opUpper === '!=' || $opUpper === '<>') ? 'IS NOT NULL' : 'IS NULL';
+            $nullSql = ($opUpper === QueryConstants::OP_IS_NOT || $opUpper === QueryConstants::OP_NOT_EQUAL || $opUpper === QueryConstants::OP_NOT_EQUAL_ALT) ? QueryConstants::OP_IS_NOT . ' NULL' : QueryConstants::OP_IS . ' NULL';
             $this->{$prop}[] = ['sql' => "{$exprQuoted} {$nullSql}", 'cond' => $cond];
             return $this;
         }
@@ -746,12 +746,12 @@ class ConditionBuilder implements ConditionBuilderInterface
 
         $opUpper = $this->normalizeOperator($operator);
         // support IN / NOT IN with an array of values
-        if (($opUpper === 'IN' || $opUpper === 'NOT IN') && is_array($value)) {
+        if (($opUpper === QueryConstants::OP_IN || $opUpper === QueryConstants::OP_NOT_IN) && is_array($value)) {
             if (empty($value)) {
                 // The semantics of an empty IN depend on the logic: it's better to form a condition
                 // that is always false/true. Here it's safe to create a condition that never matches for IN,
                 // and always matches for NOT IN.
-                if ($opUpper === 'IN') {
+                if ($opUpper === QueryConstants::OP_IN) {
                     $this->{$prop}[] = ['sql' => '0=1', 'cond' => $cond];
                 } else {
                     $this->{$prop}[] = ['sql' => '1=1', 'cond' => $cond];
@@ -774,7 +774,7 @@ class ConditionBuilder implements ConditionBuilderInterface
         }
 
         // handle BETWEEN / NOT BETWEEN when value is array with two items
-        if (($opUpper === 'BETWEEN' || $opUpper === 'NOT BETWEEN') && is_array($value)) {
+        if (($opUpper === QueryConstants::OP_BETWEEN || $opUpper === QueryConstants::OP_NOT_BETWEEN) && is_array($value)) {
             $value = array_values($value);
 
             // require exactly two bounds; if not - treat defensively

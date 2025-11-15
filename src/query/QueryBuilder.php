@@ -1365,10 +1365,10 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
+    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         // Handle the old signature: where(array $conditions, array $params)
-        if (is_array($exprOrColumn) && is_array($value) && $operator === '=') {
+        if (is_array($exprOrColumn) && is_array($value) && $operator === QueryConstants::OP_EQUAL) {
             // This is the old signature: where(['age' => ':age'], ['age' => 30])
             foreach ($exprOrColumn as $column => $placeholder) {
                 if (is_string($placeholder) && str_starts_with($placeholder, ':')) {
@@ -1398,7 +1398,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
+    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         $this->conditionBuilder->andWhere($exprOrColumn, $value, $operator);
         return $this;
@@ -1413,7 +1413,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
+    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         $this->conditionBuilder->orWhere($exprOrColumn, $value, $operator);
         return $this;
@@ -1428,7 +1428,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
+    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         $this->conditionBuilder->having($exprOrColumn, $value, $operator);
         return $this;
@@ -1443,7 +1443,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @return static The current instance.
      */
-    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static
+    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         $this->conditionBuilder->orHaving($exprOrColumn, $value, $operator);
         return $this;
@@ -1458,7 +1458,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): static
+    public function whereIn(string $column, callable|array $subqueryOrArray, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
         $this->conditionBuilder->whereIn($column, $subqueryOrArray, $boolean);
         return $this;
@@ -1473,7 +1473,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereNotIn(string $column, callable|array $subqueryOrArray, string $boolean = 'AND'): static
+    public function whereNotIn(string $column, callable|array $subqueryOrArray, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
         $this->conditionBuilder->whereNotIn($column, $subqueryOrArray, $boolean);
         return $this;
@@ -1487,7 +1487,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereNull(string $column, string $boolean = 'AND'): static
+    public function whereNull(string $column, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
         $this->conditionBuilder->whereNull($column, $boolean);
         return $this;
@@ -1501,7 +1501,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereNotNull(string $column, string $boolean = 'AND'): static
+    public function whereNotNull(string $column, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
         $this->conditionBuilder->whereNotNull($column, $boolean);
         return $this;
@@ -1517,7 +1517,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): static
+    public function whereBetween(string $column, mixed $min, mixed $max, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
         $this->conditionBuilder->whereBetween($column, $min, $max, $boolean);
         return $this;
@@ -1533,7 +1533,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereNotBetween(string $column, mixed $min, mixed $max, string $boolean = 'AND'): static
+    public function whereNotBetween(string $column, mixed $min, mixed $max, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
         $this->conditionBuilder->whereNotBetween($column, $min, $max, $boolean);
         return $this;
@@ -1549,7 +1549,7 @@ class QueryBuilder implements QueryBuilderInterface
      *
      * @return static The current instance
      */
-    public function whereColumn(string $first, string $operator, string $second, string $boolean = 'AND'): static
+    public function whereColumn(string $first, string $operator, string $second, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
         $this->conditionBuilder->whereColumn($first, $operator, $second, $boolean);
         return $this;
@@ -2280,7 +2280,7 @@ class QueryBuilder implements QueryBuilderInterface
         array|string $path,
         string $operator,
         mixed $value,
-        string $cond = 'AND'
+        string $cond = QueryConstants::BOOLEAN_AND
     ): static {
         $this->jsonQueryBuilder->whereJsonPath($col, $path, $operator, $value, $cond);
         return $this;
@@ -2300,7 +2300,7 @@ class QueryBuilder implements QueryBuilderInterface
         string $col,
         mixed $value,
         array|string|null $path = null,
-        string $cond = 'AND'
+        string $cond = QueryConstants::BOOLEAN_AND
     ): static {
         $this->jsonQueryBuilder->whereJsonContains($col, $value, $path, $cond);
         return $this;

@@ -24,12 +24,15 @@ use tommyknocker\pdodb\plugin\PluginInterface;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\QueryBuilder;
+use tommyknocker\pdodb\query\QueryConstants;
 use tommyknocker\pdodb\query\QueryProfiler;
 
 class PdoDb
 {
-    public const string LOCK_WRITE = 'WRITE';
-    public const string LOCK_READ = 'READ';
+    /** @deprecated Use QueryConstants::LOCK_WRITE instead */
+    public const string LOCK_WRITE = QueryConstants::LOCK_WRITE;
+    /** @deprecated Use QueryConstants::LOCK_READ instead */
+    public const string LOCK_READ = QueryConstants::LOCK_READ;
 
     /** @var ConnectionInterface Current active connection */
     public ConnectionInterface $connection {
@@ -77,7 +80,7 @@ class PdoDb
     }
 
     /** @var string Lock method for table locking (WRITE/READ) */
-    protected string $lockMethod = 'WRITE';
+    protected string $lockMethod = QueryConstants::LOCK_WRITE;
 
     /** @var CacheManager|null Cache manager for query result caching */
     protected ?CacheManager $cacheManager = null;
@@ -154,13 +157,13 @@ class PdoDb
 
         // Only create default connection if driver is provided
         if ($driver !== null) {
-            $this->addConnection('default', [
+            $this->addConnection(QueryConstants::CONNECTION_DEFAULT, [
                 'driver' => $driver,
                 ...$config,
             ], $pdoOptions, $logger);
 
             // use default connection
-            $this->connection('default');
+            $this->connection(QueryConstants::CONNECTION_DEFAULT);
         }
     }
 
@@ -761,7 +764,7 @@ class PdoDb
     public function setLockMethod(string $method): static
     {
         $upper = strtoupper($method);
-        if (!in_array($upper, [self::LOCK_WRITE, self::LOCK_READ], true)) {
+        if (!in_array($upper, [QueryConstants::LOCK_WRITE, QueryConstants::LOCK_READ], true)) {
             throw new InvalidArgumentException("Invalid lock method: $method");
         }
         $this->lockMethod = $upper;
