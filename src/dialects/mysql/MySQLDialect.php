@@ -9,23 +9,33 @@ use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
-use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
+use tommyknocker\pdodb\dialects\mysql\MySQLDdlBuilder;
+use tommyknocker\pdodb\dialects\mysql\MySQLDmlBuilder;
+use tommyknocker\pdodb\dialects\mysql\MySQLSqlFormatter;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class MySQLDialect extends DialectAbstract
 {
-    use JsonPathBuilderTrait;
-    use UpsertBuilderTrait;
-
     /** @var MySQLFeatureSupport Feature support instance */
     private MySQLFeatureSupport $featureSupport;
+
+    /** @var MySQLSqlFormatter SQL formatter instance */
+    private MySQLSqlFormatter $sqlFormatter;
+
+    /** @var MySQLDmlBuilder DML builder instance */
+    private MySQLDmlBuilder $dmlBuilder;
+
+    /** @var MySQLDdlBuilder DDL builder instance */
+    private MySQLDdlBuilder $ddlBuilder;
 
     public function __construct()
     {
         $this->featureSupport = new MySQLFeatureSupport();
+        $this->sqlFormatter = new MySQLSqlFormatter($this);
+        $this->dmlBuilder = new MySQLDmlBuilder($this);
+        $this->ddlBuilder = new MySQLDdlBuilder($this);
     }
     /**
      * {@inheritDoc}
@@ -62,16 +72,7 @@ class MySQLDialect extends DialectAbstract
         ?int $limit = null,
         string $options = ''
     ): string {
-        $sql = "UPDATE {$options}{$table}";
-        if (!empty($joins)) {
-            $sql .= ' ' . implode(' ', $joins);
-        }
-        $sql .= " SET {$setClause}";
-        $sql .= $whereClause;
-        if ($limit !== null) {
-            $sql .= ' LIMIT ' . (int)$limit;
-        }
-        return $sql;
+        return $this->dmlBuilder->buildUpdateWithJoinSql($table, $setClause, $joins, $whereClause, $limit, $options);
     }
 
     /**
@@ -83,13 +84,7 @@ class MySQLDialect extends DialectAbstract
         string $whereClause,
         string $options = ''
     ): string {
-        // MySQL syntax: DELETE table FROM table JOIN ...
-        $sql = "DELETE {$options}{$table} FROM {$table}";
-        if (!empty($joins)) {
-            $sql .= ' ' . implode(' ', $joins);
-        }
-        $sql .= $whereClause;
-        return $sql;
+        return $this->dmlBuilder->buildDeleteWithJoinSql($table, $joins, $whereClause, $options);
     }
 
     /**
@@ -160,10 +155,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildInsertSql(string $table, array $columns, array $placeholders, array $options = []): string
     {
-        $cols = implode(', ', array_map([$this, 'quoteIdentifier'], $columns));
-        $vals = implode(', ', $placeholders);
-        $prefix = 'INSERT' . ($options ? ' ' . implode(' ', $options) : '') . ' INTO';
-        return sprintf('%s %s (%s) VALUES (%s)', $prefix, $table, $cols, $vals);
+        return $this->dmlBuilder->buildInsertSql($table, $columns, $placeholders, $options);
     }
 
     /**
@@ -175,12 +167,7 @@ class MySQLDialect extends DialectAbstract
         string $selectSql,
         array $options = []
     ): string {
-        $prefix = 'INSERT' . ($options ? ' ' . implode(' ', $options) : '') . ' INTO';
-        $colsSql = '';
-        if (!empty($columns)) {
-            $colsSql = ' (' . implode(', ', array_map([$this, 'quoteIdentifier'], $columns)) . ')';
-        }
-        return sprintf('%s %s%s %s', $prefix, $table, $colsSql, $selectSql);
+        return $this->dmlBuilder->buildInsertSelectSql($table, $columns, $selectSql, $options);
     }
 
     /**
@@ -215,23 +202,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
     {
-        if (!$updateColumns) {
-            return '';
-        }
-
-        $isAssoc = $this->isAssociativeArray($updateColumns);
-
-        if ($isAssoc) {
-            $updates = $this->buildUpsertExpressions($updateColumns, $tableName);
-        } else {
-            $updates = [];
-            foreach ($updateColumns as $col) {
-                $qid = $this->quoteIdentifier($col);
-                $updates[] = "{$qid} = VALUES({$qid})";
-            }
-        }
-
-        return 'ON DUPLICATE KEY UPDATE ' . implode(', ', $updates);
+        return $this->dmlBuilder->buildUpsertClause($updateColumns, $defaultConflictTarget, $tableName);
     }
 
     /**
@@ -251,99 +222,11 @@ class MySQLDialect extends DialectAbstract
         string $onClause,
         array $whenClauses
     ): string {
-        // MySQL emulation using INSERT ... SELECT ... ON DUPLICATE KEY UPDATE
-        // Extract key from ON clause for conflict target
-        preg_match('/target\.(\w+)\s*=\s*source\.(\w+)/i', $onClause, $matches);
-        $keyColumn = $matches[1] ?? 'id';
-
-        $target = $this->quoteTable($targetTable);
-
-        if (empty($whenClauses['whenNotMatched'])) {
-            throw new RuntimeException('MySQL MERGE requires WHEN NOT MATCHED clause');
-        }
-
-        // Parse INSERT clause
-        preg_match('/\(([^)]+)\)\s+VALUES\s+\(([^)]+)\)/', $whenClauses['whenNotMatched'], $insertMatches);
-        $columns = $insertMatches[1] ?? '';
-        $values = $insertMatches[2] ?? '';
-
-        // Build SELECT columns from VALUES - replace MERGE_SOURCE_COLUMN_ markers with source columns
-        $selectColumns = [];
-        $valueColumns = explode(',', $values);
-        $colNames = explode(',', $columns);
-        foreach ($valueColumns as $idx => $val) {
-            $val = trim($val);
-            $colName = trim($colNames[$idx] ?? '');
-            // Remove quotes from column name if present
-            $colName = trim($colName, '`"');
-            // If it's a MERGE_SOURCE_COLUMN_ marker, use source column; otherwise it's raw SQL
-            if (preg_match('/^MERGE_SOURCE_COLUMN_(\w+)$/', $val, $paramMatch)) {
-                $selectColumns[] = 'source.' . $this->quoteIdentifier($colName);
-            } else {
-                $selectColumns[] = $val;
-            }
-        }
-
-        $sql = "INSERT INTO {$target} ({$columns})\n";
-        $sql .= 'SELECT ' . implode(', ', $selectColumns) . " FROM {$sourceSql} AS source\n";
-
-        // Add ON DUPLICATE KEY UPDATE if whenMatched exists
-        if (!empty($whenClauses['whenMatched'])) {
-            // Replace source.column references with VALUES(column) for MySQL
-            $updateExpr = preg_replace('/source\.([a-zA-Z_][a-zA-Z0-9_]*)/', 'VALUES($1)', $whenClauses['whenMatched']);
-            $sql .= "ON DUPLICATE KEY UPDATE {$updateExpr}\n";
-        }
-
-        return $sql;
+        return $this->dmlBuilder->buildMergeSql($targetTable, $sourceSql, $onClause, $whenClauses);
     }
 
     /**
      * {@inheritDoc}
-     *
-     * @param array<string, mixed> $expr
-     */
-    protected function buildIncrementExpression(string $colSql, array $expr, string $tableName): string
-    {
-        if (!isset($expr['__op']) || !isset($expr['val'])) {
-            return "{$colSql} = VALUES({$colSql})";
-        }
-
-        $op = $expr['__op'];
-        return match ($op) {
-            'inc' => "{$colSql} = {$colSql} + " . (int)$expr['val'],
-            'dec' => "{$colSql} = {$colSql} - " . (int)$expr['val'],
-            default => "{$colSql} = VALUES({$colSql})",
-        };
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    protected function buildRawValueExpression(string $colSql, RawValue $expr, string $tableName, string $col): string
-    {
-        return "{$colSql} = {$expr->getValue()}";
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    protected function buildDefaultExpression(string $colSql, mixed $expr, string $col): string
-    {
-        if ($expr === true) {
-            return "{$colSql} = VALUES({$colSql})";
-        }
-        if (is_string($expr)) {
-            return "{$colSql} = {$expr}";
-        }
-        return "{$colSql} = VALUES({$colSql})";
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    /**
-     * @param array<int, string> $columns
-     * @param array<int, string|array<int, string>> $placeholders
      */
     public function buildReplaceSql(
         string $table,
@@ -351,21 +234,7 @@ class MySQLDialect extends DialectAbstract
         array $placeholders,
         bool $isMultiple = false
     ): string {
-        $tableSql = $this->quoteTable($table);
-        $colsSql = implode(',', array_map([$this, 'quoteIdentifier'], $columns));
-
-        if ($isMultiple) {
-            // placeholders already contain grouped row expressions like "(...),(...)" or ["(...)", "(...)"]
-            $valsSql = implode(',', array_map(function ($p) {
-                return is_array($p) ? '(' . implode(',', $p) . ')' : $p;
-            }, $placeholders));
-            return sprintf('REPLACE INTO %s (%s) VALUES %s', $tableSql, $colsSql, $valsSql);
-        }
-
-        // Single row: placeholders are scalar fragments matching columns
-        $stringPlaceholders = array_map(fn ($p) => is_array($p) ? implode(',', $p) : $p, $placeholders);
-        $valsSql = implode(',', $stringPlaceholders);
-        return sprintf('REPLACE INTO %s (%s) VALUES (%s)', $tableSql, $colsSql, $valsSql);
+        return $this->dmlBuilder->buildReplaceSql($table, $columns, $placeholders, $isMultiple);
     }
 
     /**
@@ -569,14 +438,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string
     {
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        $expr = 'JSON_EXTRACT(' . $this->quoteIdentifier($col) . ", '" . $jsonPath . "')";
-        if ($asText) {
-            return 'JSON_UNQUOTE(' . $expr . ')';
-        }
-        return $expr;
+        return $this->sqlFormatter->formatJsonGet($col, $path, $asText);
     }
 
     /**
@@ -584,13 +446,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
     {
-        $jsonPath = $path === null ? '$' : $this->buildJsonPathString($this->normalizeJsonPath($path));
-        $colQuoted = $this->quoteIdentifier($col);
-        $param = $this->generateParameterName('jsonc', $col . '|' . $jsonPath);
-        $jsonText = $this->encodeToJson($value);
-
-        $sql = "JSON_CONTAINS({$colQuoted}, {$param}, '{$jsonPath}')";
-        return [$sql, [$param => $jsonText]];
+        return $this->sqlFormatter->formatJsonContains($col, $value, $path);
     }
 
     /**
@@ -598,41 +454,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
     {
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        $colQuoted = $this->quoteIdentifier($col);
-        $param = $this->generateParameterName('jsonset', $col . '|' . $jsonPath);
-
-        $jsonText = $this->encodeToJson($value);
-
-        // If nested path, ensure parent exists as object before setting child
-        // But if last segment is numeric index, handle it differently
-        if (count($parts) > 1) {
-            $lastSegment = $this->getLastSegment($parts);
-            $isLastNumeric = $this->isNumericIndex($lastSegment);
-
-            if ($isLastNumeric) {
-                // For array indices, use direct path like '$.tags[0]'
-                // MySQL handles array indices directly in JSON path
-                $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', CAST({$param} AS JSON))";
-            } else {
-                // For object keys, ensure parent exists
-                $parentParts = $this->getParentPathParts($parts);
-                $parentPath = $this->buildJsonPathString($parentParts);
-                $lastKey = (string)$lastSegment;
-
-                // Build expression: set the parent to JSON_SET(COALESCE(JSON_EXTRACT(col,parent), {}) , '$.<last>', CAST(:param AS JSON))
-                // then write that parent back into the document
-                $parentNew = "JSON_SET(COALESCE(JSON_EXTRACT({$colQuoted}, '{$parentPath}'), CAST('{}' AS JSON)), '$.{$lastKey}', CAST({$param} AS JSON))";
-                $sql = "JSON_SET({$colQuoted}, '{$parentPath}', {$parentNew})";
-            }
-        } else {
-            // simple single-segment path
-            $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', CAST({$param} AS JSON))";
-        }
-
-        return [$sql, [$param => $jsonText]];
+        return $this->sqlFormatter->formatJsonSet($col, $path, $value);
     }
 
     /**
@@ -640,19 +462,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatJsonRemove(string $col, array|string $path): string
     {
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-        $colQuoted = $this->quoteIdentifier($col);
-
-        // If last segment is numeric — replace that array slot with JSON null to preserve array length semantics
-        $last = $this->getLastSegment($parts);
-        if ($this->isNumericIndex($last)) {
-            // JSON_SET(column, '$.path[index]', CAST('null' AS JSON))
-            return "JSON_SET({$colQuoted}, '{$jsonPath}', CAST('null' AS JSON))";
-        }
-
-        // otherwise remove object key
-        return "JSON_REMOVE({$colQuoted}, '{$jsonPath}')";
+        return $this->sqlFormatter->formatJsonRemove($col, $path);
     }
 
     /**
@@ -660,18 +470,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatJsonReplace(string $col, array|string $path, mixed $value): array
     {
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        $colQuoted = $this->quoteIdentifier($col);
-        $param = $this->generateParameterName('jsonreplace', $col . '|' . $jsonPath);
-
-        $jsonText = $this->encodeToJson($value);
-
-        // JSON_REPLACE only replaces if path exists
-        $sql = "JSON_REPLACE({$colQuoted}, '{$jsonPath}', CAST({$param} AS JSON))";
-
-        return [$sql, [$param => $jsonText]];
+        return $this->sqlFormatter->formatJsonReplace($col, $path, $value);
     }
 
     /**
@@ -679,20 +478,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatJsonExists(string $col, array|string $path): string
     {
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-        $colQuoted = $this->quoteIdentifier($col);
-
-        // Combined check to cover multiple edge cases:
-        // 1) JSON_CONTAINS_PATH detects presence even when value is JSON null
-        // 2) JSON_SEARCH finds a scalar/string value inside arrays/objects
-        // 3) JSON_EXTRACT(...) IS NOT NULL picks up non-NULL extraction results
-        // Any one true -> path considered present
-        return '('
-            . "JSON_CONTAINS_PATH({$colQuoted}, 'one', '{$jsonPath}')"
-            . " OR JSON_SEARCH({$colQuoted}, 'one', JSON_UNQUOTE(JSON_EXTRACT({$colQuoted}, '{$jsonPath}'))) IS NOT NULL"
-            . " OR JSON_EXTRACT({$colQuoted}, '{$jsonPath}') IS NOT NULL"
-            . ')';
+        return $this->sqlFormatter->formatJsonExists($col, $path);
     }
 
     /**
@@ -700,16 +486,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatJsonOrderExpr(string $col, array|string $path): string
     {
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        $colQuoted = $this->quoteIdentifier($col);
-        $base = "JSON_EXTRACT({$colQuoted}, '{$jsonPath}')";
-        $unquoted = "JSON_UNQUOTE({$base})";
-
-        // Force numeric coercion for ordering: numeric-like strings and numeric JSON become numbers.
-        // This returns an expression suitable for ORDER BY ... ASC/DESC.
-        return "({$unquoted} + 0)";
+        return $this->sqlFormatter->formatJsonOrderExpr($col, $path);
     }
 
     /**
@@ -717,16 +494,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatJsonLength(string $col, array|string|null $path = null): string
     {
-        $colQuoted = $this->quoteIdentifier($col);
-
-        if ($path === null) {
-            return "JSON_LENGTH({$colQuoted})";
-        }
-
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        return "JSON_LENGTH({$colQuoted}, '{$jsonPath}')";
+        return $this->sqlFormatter->formatJsonLength($col, $path);
     }
 
     /**
@@ -734,16 +502,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatJsonKeys(string $col, array|string|null $path = null): string
     {
-        $colQuoted = $this->quoteIdentifier($col);
-
-        if ($path === null) {
-            return "JSON_KEYS({$colQuoted})";
-        }
-
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        return "JSON_KEYS({$colQuoted}, '{$jsonPath}')";
+        return $this->sqlFormatter->formatJsonKeys($col, $path);
     }
 
     /**
@@ -751,16 +510,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatJsonType(string $col, array|string|null $path = null): string
     {
-        $colQuoted = $this->quoteIdentifier($col);
-
-        if ($path === null) {
-            return "JSON_TYPE({$colQuoted})";
-        }
-
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        return "JSON_TYPE(JSON_EXTRACT({$colQuoted}, '{$jsonPath}'))";
+        return $this->sqlFormatter->formatJsonType($col, $path);
     }
 
     /**
@@ -768,7 +518,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatIfNull(string $expr, mixed $default): string
     {
-        return "IFNULL($expr, {$this->formatDefaultValue($default)})";
+        return $this->sqlFormatter->formatIfNull($expr, $default);
     }
 
     /**
@@ -776,11 +526,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatSubstring(string|RawValue $source, int $start, ?int $length): string
     {
-        $src = $this->resolveValue($source);
-        if ($length === null) {
-            return "SUBSTRING($src, $start)";
-        }
-        return "SUBSTRING($src, $start, $length)";
+        return $this->sqlFormatter->formatSubstring($source, $start, $length);
     }
 
     /**
@@ -788,7 +534,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatCurDate(): string
     {
-        return 'CURDATE()';
+        return $this->sqlFormatter->formatCurDate();
     }
 
     /**
@@ -796,7 +542,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatCurTime(): string
     {
-        return 'CURTIME()';
+        return $this->sqlFormatter->formatCurTime();
     }
 
     /**
@@ -804,7 +550,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatYear(string|RawValue $value): string
     {
-        return "YEAR({$this->resolveValue($value)})";
+        return $this->sqlFormatter->formatYear($value);
     }
 
     /**
@@ -812,7 +558,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatMonth(string|RawValue $value): string
     {
-        return "MONTH({$this->resolveValue($value)})";
+        return $this->sqlFormatter->formatMonth($value);
     }
 
     /**
@@ -820,7 +566,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatDay(string|RawValue $value): string
     {
-        return "DAY({$this->resolveValue($value)})";
+        return $this->sqlFormatter->formatDay($value);
     }
 
     /**
@@ -828,7 +574,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatHour(string|RawValue $value): string
     {
-        return "HOUR({$this->resolveValue($value)})";
+        return $this->sqlFormatter->formatHour($value);
     }
 
     /**
@@ -836,7 +582,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatMinute(string|RawValue $value): string
     {
-        return "MINUTE({$this->resolveValue($value)})";
+        return $this->sqlFormatter->formatMinute($value);
     }
 
     /**
@@ -844,7 +590,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatSecond(string|RawValue $value): string
     {
-        return "SECOND({$this->resolveValue($value)})";
+        return $this->sqlFormatter->formatSecond($value);
     }
 
     /**
@@ -852,7 +598,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatDateOnly(string|RawValue $value): string
     {
-        return 'DATE(' . $this->resolveValue($value) . ')';
+        return $this->sqlFormatter->formatDateOnly($value);
     }
 
     /**
@@ -860,7 +606,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatTimeOnly(string|RawValue $value): string
     {
-        return 'TIME(' . $this->resolveValue($value) . ')';
+        return $this->sqlFormatter->formatTimeOnly($value);
     }
 
     /**
@@ -868,9 +614,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
     {
-        $e = $this->resolveValue($expr);
-        $func = $isAdd ? 'DATE_ADD' : 'DATE_SUB';
-        return "{$func}({$e}, INTERVAL {$value} {$unit})";
+        return $this->sqlFormatter->formatInterval($expr, $value, $unit, $isAdd);
     }
 
     /**
@@ -878,10 +622,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string
     {
-        $col = $this->resolveValue($column);
-        $sep = addslashes($separator);
-        $dist = $distinct ? 'DISTINCT ' : '';
-        return "GROUP_CONCAT($dist$col SEPARATOR '$sep')";
+        return $this->sqlFormatter->formatGroupConcat($column, $separator, $distinct);
     }
 
     /**
@@ -889,8 +630,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatTruncate(string|RawValue $value, int $precision): string
     {
-        $val = $this->resolveValue($value);
-        return "TRUNCATE($val, $precision)";
+        return $this->sqlFormatter->formatTruncate($value, $precision);
     }
 
     /**
@@ -898,9 +638,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatPosition(string|RawValue $substring, string|RawValue $value): string
     {
-        $sub = $substring instanceof RawValue ? $substring->getValue() : "'" . addslashes((string)$substring) . "'";
-        $val = $this->resolveValue($value);
-        return "POSITION($sub IN $val)";
+        return $this->sqlFormatter->formatPosition($substring, $value);
     }
 
     /**
@@ -908,9 +646,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatRegexpMatch(string|RawValue $value, string $pattern): string
     {
-        $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        return "($val REGEXP '$pat')";
+        return $this->sqlFormatter->formatRegexpMatch($value, $pattern);
     }
 
     /**
@@ -918,10 +654,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
     {
-        $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        $rep = str_replace("'", "''", $replacement);
-        return "REGEXP_REPLACE($val, '$pat', '$rep')";
+        return $this->sqlFormatter->formatRegexpReplace($value, $pattern, $replacement);
     }
 
     /**
@@ -929,14 +662,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatRegexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): string
     {
-        $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        // MySQL REGEXP_SUBSTR syntax: REGEXP_SUBSTR(expr, pattern[, pos[, occurrence[, match_type[, subexpr]]]])
-        // Note: subexpr parameter (6th parameter) is only available in MySQL 8.0.4+
-        // For compatibility, we only support full match extraction
-        // Capture group extraction requires MySQL 8.0.4+ with subexpr parameter
-        // For now, we return the full match regardless of groupIndex
-        return "REGEXP_SUBSTR($val, '$pat')";
+        return $this->sqlFormatter->formatRegexpExtract($value, $pattern, $groupIndex);
     }
 
     /**
@@ -944,25 +670,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string
     {
-        $cols = is_array($columns) ? $columns : [$columns];
-        $quotedCols = array_map([$this, 'quoteIdentifier'], $cols);
-        $colList = implode(', ', $quotedCols);
-
-        $modeClause = '';
-        if ($mode !== null) {
-            $validModes = ['natural', 'boolean', 'natural language', 'boolean'];
-            if (!in_array(strtolower($mode), $validModes, true)) {
-                $mode = 'natural';
-            }
-            $modeClause = ' IN ' . strtoupper($mode) . ' MODE';
-        }
-
-        $expansionClause = $withQueryExpansion ? ' WITH QUERY EXPANSION' : '';
-
-        $ph = ':fulltext_search_term';
-        $sql = "MATCH ($colList) AGAINST ($ph$modeClause$expansionClause)";
-
-        return [$sql, [$ph => $searchTerm]];
+        return $this->sqlFormatter->formatFulltextMatch($columns, $searchTerm, $mode, $withQueryExpansion);
     }
 
     /**
@@ -975,55 +683,31 @@ class MySQLDialect extends DialectAbstract
         array $orderBy,
         ?string $frameClause
     ): string {
-        $sql = strtoupper($function) . '(';
+        return $this->sqlFormatter->formatWindowFunction($function, $args, $partitionBy, $orderBy, $frameClause);
+    }
 
-        // Add function arguments
-        if (!empty($args)) {
-            $formattedArgs = array_map(function ($arg) {
-                if (is_string($arg) && !is_numeric($arg)) {
-                    return $this->quoteIdentifier($arg);
-                }
-                if (is_null($arg)) {
-                    return 'NULL';
-                }
-                return (string)$arg;
-            }, $args);
-            $sql .= implode(', ', $formattedArgs);
-        }
+    /**
+     * {@inheritDoc}
+     */
+    public function formatLimitOffset(string $sql, ?int $limit, ?int $offset): string
+    {
+        return $this->sqlFormatter->formatLimitOffset($sql, $limit, $offset);
+    }
 
-        $sql .= ') OVER (';
+    /**
+     * {@inheritDoc}
+     */
+    public function formatGreatest(array $values): string
+    {
+        return $this->sqlFormatter->formatGreatest($values);
+    }
 
-        // Add PARTITION BY
-        if (!empty($partitionBy)) {
-            $quotedPartitions = array_map(
-                fn ($col) => $this->quoteIdentifier($col),
-                $partitionBy
-            );
-            $sql .= 'PARTITION BY ' . implode(', ', $quotedPartitions);
-        }
-
-        // Add ORDER BY
-        if (!empty($orderBy)) {
-            if (!empty($partitionBy)) {
-                $sql .= ' ';
-            }
-            $orderClauses = [];
-            foreach ($orderBy as $order) {
-                foreach ($order as $col => $dir) {
-                    $orderClauses[] = $this->quoteIdentifier($col) . ' ' . strtoupper($dir);
-                }
-            }
-            $sql .= 'ORDER BY ' . implode(', ', $orderClauses);
-        }
-
-        // Add frame clause
-        if ($frameClause !== null) {
-            $sql .= ' ' . $frameClause;
-        }
-
-        $sql .= ')';
-
-        return $sql;
+    /**
+     * {@inheritDoc}
+     */
+    public function formatLeast(array $values): string
+    {
+        return $this->sqlFormatter->formatLeast($values);
     }
 
     /**
@@ -1123,71 +807,7 @@ class MySQLDialect extends DialectAbstract
         array $columns,
         array $options = []
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $columnDefs = [];
-        $primaryKeyColumn = null;
-
-        foreach ($columns as $name => $def) {
-            if ($def instanceof ColumnSchema) {
-                $columnDefs[] = $this->formatColumnDefinition($name, $def);
-                // If column has AUTO_INCREMENT, it must be PRIMARY KEY in MySQL
-                if ($def->isAutoIncrement() && $primaryKeyColumn === null) {
-                    $primaryKeyColumn = $name;
-                }
-            } elseif (is_array($def)) {
-                // Short syntax: ['type' => 'VARCHAR(255)', 'null' => false]
-                $schema = $this->parseColumnDefinition($def);
-                $columnDefs[] = $this->formatColumnDefinition($name, $schema);
-                // If column has AUTO_INCREMENT, it must be PRIMARY KEY in MySQL
-                if ($schema->isAutoIncrement() && $primaryKeyColumn === null) {
-                    $primaryKeyColumn = $name;
-                }
-            } else {
-                // String type: 'VARCHAR(255)'
-                $schema = new ColumnSchema((string)$def);
-                $columnDefs[] = $this->formatColumnDefinition($name, $schema);
-                // If column has AUTO_INCREMENT, it must be PRIMARY KEY in MySQL
-                if ($schema->isAutoIncrement() && $primaryKeyColumn === null) {
-                    $primaryKeyColumn = $name;
-                }
-            }
-        }
-
-        // Add PRIMARY KEY if AUTO_INCREMENT column exists
-        if ($primaryKeyColumn !== null) {
-            $columnDefs[] = 'PRIMARY KEY (' . $this->quoteIdentifier($primaryKeyColumn) . ')';
-        }
-
-        // Add PRIMARY KEY constraint from options if specified
-        if (!empty($options['primaryKey'])) {
-            $pkColumns = is_array($options['primaryKey']) ? $options['primaryKey'] : [$options['primaryKey']];
-            $pkQuoted = array_map([$this, 'quoteIdentifier'], $pkColumns);
-            $columnDefs[] = 'PRIMARY KEY (' . implode(', ', $pkQuoted) . ')';
-        }
-
-        $sql = "CREATE TABLE {$tableQuoted} (\n    " . implode(",\n    ", $columnDefs) . "\n)";
-
-        // Add table options
-        if (!empty($options['engine'])) {
-            $sql .= ' ENGINE=' . $options['engine'];
-        }
-        if (!empty($options['charset'])) {
-            $sql .= ' DEFAULT CHARSET=' . $options['charset'];
-        }
-        if (!empty($options['collate'])) {
-            $sql .= ' COLLATE=' . $options['collate'];
-        }
-        if (isset($options['comment'])) {
-            $comment = addslashes((string)$options['comment']);
-            $sql .= " COMMENT='{$comment}'";
-        }
-
-        // Add partitioning (MySQL)
-        if (!empty($options['partition'])) {
-            $sql .= ' ' . $options['partition'];
-        }
-
-        return $sql;
+        return $this->ddlBuilder->buildCreateTableSql($table, $columns, $options);
     }
 
     /**
@@ -1195,7 +815,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildDropTableSql(string $table): string
     {
-        return 'DROP TABLE ' . $this->quoteTable($table);
+        return $this->ddlBuilder->buildDropTableSql($table);
     }
 
     /**
@@ -1203,7 +823,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildDropTableIfExistsSql(string $table): string
     {
-        return 'DROP TABLE IF EXISTS ' . $this->quoteTable($table);
+        return $this->ddlBuilder->buildDropTableIfExistsSql($table);
     }
 
     /**
@@ -1214,17 +834,7 @@ class MySQLDialect extends DialectAbstract
         string $column,
         ColumnSchema $schema
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $columnDef = $this->formatColumnDefinition($column, $schema);
-        $sql = "ALTER TABLE {$tableQuoted} ADD COLUMN {$columnDef}";
-
-        if ($schema->isFirst()) {
-            $sql .= ' FIRST';
-        } elseif ($schema->getAfter() !== null) {
-            $sql .= ' AFTER ' . $this->quoteIdentifier($schema->getAfter());
-        }
-
-        return $sql;
+        return $this->ddlBuilder->buildAddColumnSql($table, $column, $schema);
     }
 
     /**
@@ -1232,9 +842,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildDropColumnSql(string $table, string $column): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $columnQuoted = $this->quoteIdentifier($column);
-        return "ALTER TABLE {$tableQuoted} DROP COLUMN {$columnQuoted}";
+        return $this->ddlBuilder->buildDropColumnSql($table, $column);
     }
 
     /**
@@ -1245,10 +853,7 @@ class MySQLDialect extends DialectAbstract
         string $column,
         ColumnSchema $schema
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $columnQuoted = $this->quoteIdentifier($column);
-        $columnDef = $this->formatColumnDefinition($column, $schema);
-        return "ALTER TABLE {$tableQuoted} MODIFY COLUMN {$columnDef}";
+        return $this->ddlBuilder->buildAlterColumnSql($table, $column, $schema);
     }
 
     /**
@@ -1256,12 +861,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildRenameColumnSql(string $table, string $oldName, string $newName): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $oldQuoted = $this->quoteIdentifier($oldName);
-        $newQuoted = $this->quoteIdentifier($newName);
-        // MySQL 8.0.13+ supports RENAME COLUMN
-        // For older versions, this will fail and user should use alterColumn instead
-        return "ALTER TABLE {$tableQuoted} RENAME COLUMN {$oldQuoted} TO {$newQuoted}";
+        return $this->ddlBuilder->buildRenameColumnSql($table, $oldName, $newName);
     }
 
     /**
@@ -1276,39 +876,7 @@ class MySQLDialect extends DialectAbstract
         ?array $includeColumns = null,
         array $options = []
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $type = $unique ? 'UNIQUE INDEX' : 'INDEX';
-
-        // Process columns with sorting support and RawValue support (functional indexes)
-        $colsQuoted = [];
-        foreach ($columns as $col) {
-            if (is_array($col)) {
-                // Array format: ['column' => 'ASC'/'DESC'] - associative array with column name as key
-                foreach ($col as $colName => $direction) {
-                    // $colName is always string (array key), $direction is the sort direction
-                    $dir = strtoupper((string)$direction) === 'DESC' ? 'DESC' : 'ASC';
-                    $colsQuoted[] = $this->quoteIdentifier((string)$colName) . ' ' . $dir;
-                }
-            } elseif ($col instanceof RawValue) {
-                // RawValue expression (functional index)
-                $colsQuoted[] = $col->getValue();
-            } else {
-                $colsQuoted[] = $this->quoteIdentifier((string)$col);
-            }
-        }
-        $colsList = implode(', ', $colsQuoted);
-
-        $sql = "CREATE {$type} {$nameQuoted} ON {$tableQuoted} ({$colsList})";
-
-        // MySQL doesn't support WHERE clause in CREATE INDEX (use partial indexes via filtered indexes in MySQL 8.0+)
-        // MySQL doesn't support INCLUDE columns
-        // Add options if provided
-        if (!empty($options['using'])) {
-            $sql .= ' USING ' . strtoupper($options['using']);
-        }
-
-        return $sql;
+        return $this->ddlBuilder->buildCreateIndexSql($name, $table, $columns, $unique, $where, $includeColumns, $options);
     }
 
     /**
@@ -1316,9 +884,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildDropIndexSql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "DROP INDEX {$nameQuoted} ON {$tableQuoted}";
+        return $this->ddlBuilder->buildDropIndexSql($name, $table);
     }
 
     /**
@@ -1326,12 +892,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildCreateFulltextIndexSql(string $name, string $table, array $columns, ?string $parser = null): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $colsList = implode(', ', $colsQuoted);
-        $parserClause = $parser !== null ? " WITH PARSER {$parser}" : '';
-        return "CREATE FULLTEXT INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList}){$parserClause}";
+        return $this->ddlBuilder->buildCreateFulltextIndexSql($name, $table, $columns, $parser);
     }
 
     /**
@@ -1339,11 +900,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildCreateSpatialIndexSql(string $name, string $table, array $columns): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $colsList = implode(', ', $colsQuoted);
-        return "CREATE SPATIAL INDEX {$nameQuoted} ON {$tableQuoted} ({$colsList})";
+        return $this->ddlBuilder->buildCreateSpatialIndexSql($name, $table, $columns);
     }
 
     /**
@@ -1351,11 +908,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildRenameIndexSql(string $oldName, string $table, string $newName): string
     {
-        // MySQL doesn't support RENAME INDEX directly, use ALTER TABLE ... RENAME INDEX
-        $tableQuoted = $this->quoteTable($table);
-        $oldQuoted = $this->quoteIdentifier($oldName);
-        $newQuoted = $this->quoteIdentifier($newName);
-        return "ALTER TABLE {$tableQuoted} RENAME INDEX {$oldQuoted} TO {$newQuoted}";
+        return $this->ddlBuilder->buildRenameIndexSql($oldName, $table, $newName);
     }
 
     /**
@@ -1363,12 +916,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildRenameForeignKeySql(string $oldName, string $table, string $newName): string
     {
-        // MySQL doesn't support RENAME FOREIGN KEY directly
-        // Need to drop and recreate, but for API consistency we'll throw an exception
-        throw new \RuntimeException(
-            'MySQL does not support renaming foreign keys directly. ' .
-            'You must drop the foreign key and create a new one with the desired name.'
-        );
+        return $this->ddlBuilder->buildRenameForeignKeySql($oldName, $table, $newName);
     }
 
     /**
@@ -1383,25 +931,7 @@ class MySQLDialect extends DialectAbstract
         ?string $delete = null,
         ?string $update = null
     ): string {
-        $tableQuoted = $this->quoteTable($table);
-        $refTableQuoted = $this->quoteTable($refTable);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $refColsQuoted = array_map([$this, 'quoteIdentifier'], $refColumns);
-        $colsList = implode(', ', $colsQuoted);
-        $refColsList = implode(', ', $refColsQuoted);
-
-        $sql = "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted}";
-        $sql .= " FOREIGN KEY ({$colsList}) REFERENCES {$refTableQuoted} ({$refColsList})";
-
-        if ($delete !== null) {
-            $sql .= ' ON DELETE ' . strtoupper($delete);
-        }
-        if ($update !== null) {
-            $sql .= ' ON UPDATE ' . strtoupper($update);
-        }
-
-        return $sql;
+        return $this->ddlBuilder->buildAddForeignKeySql($name, $table, $columns, $refTable, $refColumns, $delete, $update);
     }
 
     /**
@@ -1409,9 +939,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildDropForeignKeySql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "ALTER TABLE {$tableQuoted} DROP FOREIGN KEY {$nameQuoted}";
+        return $this->ddlBuilder->buildDropForeignKeySql($name, $table);
     }
 
     /**
@@ -1419,11 +947,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildAddPrimaryKeySql(string $name, string $table, array $columns): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $colsList = implode(', ', $colsQuoted);
-        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} PRIMARY KEY ({$colsList})";
+        return $this->ddlBuilder->buildAddPrimaryKeySql($name, $table, $columns);
     }
 
     /**
@@ -1431,9 +955,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildDropPrimaryKeySql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        // MySQL doesn't require constraint name for DROP PRIMARY KEY
-        return "ALTER TABLE {$tableQuoted} DROP PRIMARY KEY";
+        return $this->ddlBuilder->buildDropPrimaryKeySql($name, $table);
     }
 
     /**
@@ -1441,11 +963,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildAddUniqueSql(string $name, string $table, array $columns): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        $colsQuoted = array_map([$this, 'quoteIdentifier'], $columns);
-        $colsList = implode(', ', $colsQuoted);
-        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} UNIQUE ({$colsList})";
+        return $this->ddlBuilder->buildAddUniqueSql($name, $table, $columns);
     }
 
     /**
@@ -1453,9 +971,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildDropUniqueSql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "ALTER TABLE {$tableQuoted} DROP INDEX {$nameQuoted}";
+        return $this->ddlBuilder->buildDropUniqueSql($name, $table);
     }
 
     /**
@@ -1463,10 +979,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildAddCheckSql(string $name, string $table, string $expression): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        // MySQL 8.0.16+ supports CHECK constraints
-        return "ALTER TABLE {$tableQuoted} ADD CONSTRAINT {$nameQuoted} CHECK ({$expression})";
+        return $this->ddlBuilder->buildAddCheckSql($name, $table, $expression);
     }
 
     /**
@@ -1474,9 +987,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildDropCheckSql(string $name, string $table): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $nameQuoted = $this->quoteIdentifier($name);
-        return "ALTER TABLE {$tableQuoted} DROP CHECK {$nameQuoted}";
+        return $this->ddlBuilder->buildDropCheckSql($name, $table);
     }
 
     /**
@@ -1484,9 +995,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildRenameTableSql(string $table, string $newName): string
     {
-        $tableQuoted = $this->quoteTable($table);
-        $newQuoted = $this->quoteTable($newName);
-        return "RENAME TABLE {$tableQuoted} TO {$newQuoted}";
+        return $this->ddlBuilder->buildRenameTableSql($table, $newName);
     }
 
     /**
@@ -1494,142 +1003,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatColumnDefinition(string $name, ColumnSchema $schema): string
     {
-        $nameQuoted = $this->quoteIdentifier($name);
-        $type = $schema->getType();
-
-        // MySQL/MariaDB don't support DEFAULT for TEXT/BLOB columns
-        // Convert TEXT to VARCHAR(255) if DEFAULT is specified (Yii2-style behavior)
-        $length = $schema->getLength();
-        if (($type === 'TEXT' || $type === 'BLOB' || $type === 'LONGTEXT' || $type === 'MEDIUMTEXT' || $type === 'TINYTEXT')
-            && $schema->getDefaultValue() !== null) {
-            $type = 'VARCHAR';
-            // Use default length for VARCHAR if not specified
-            if ($length === null) {
-                $length = 255;
-            }
-        }
-
-        // Build type with length/scale
-        $typeDef = $type;
-        if ($length !== null) {
-            if ($schema->getScale() !== null) {
-                $typeDef .= '(' . $length . ',' . $schema->getScale() . ')';
-            } else {
-                $typeDef .= '(' . $length . ')';
-            }
-        }
-
-        // UNSIGNED (MySQL/MariaDB only)
-        if ($schema->isUnsigned()) {
-            $typeDef .= ' UNSIGNED';
-        }
-
-        $parts = [$nameQuoted, $typeDef];
-
-        // NOT NULL / NULL
-        if ($schema->isNotNull()) {
-            $parts[] = 'NOT NULL';
-        }
-
-        // AUTO_INCREMENT
-        if ($schema->isAutoIncrement()) {
-            $parts[] = 'AUTO_INCREMENT';
-        }
-
-        // DEFAULT
-        if ($schema->getDefaultValue() !== null) {
-            if ($schema->isDefaultExpression()) {
-                $parts[] = 'DEFAULT ' . $schema->getDefaultValue();
-            } else {
-                $default = $this->formatDefaultValue($schema->getDefaultValue());
-                $parts[] = 'DEFAULT ' . $default;
-            }
-        }
-
-        // COMMENT
-        if ($schema->getComment() !== null) {
-            $comment = addslashes($schema->getComment());
-            $parts[] = "COMMENT '{$comment}'";
-        }
-
-        // UNIQUE is handled separately (not in column definition for MySQL)
-        // It's created via CREATE INDEX or table constraint
-
-        return implode(' ', $parts);
-    }
-
-    /**
-     * Parse column definition from array.
-     *
-     * @param array<string, mixed> $def Definition array
-     *
-     * @return ColumnSchema
-     */
-    protected function parseColumnDefinition(array $def): ColumnSchema
-    {
-        $type = $def['type'] ?? 'VARCHAR';
-        $length = $def['length'] ?? $def['size'] ?? null;
-        $scale = $def['scale'] ?? null;
-
-        $schema = new ColumnSchema((string)$type, $length, $scale);
-
-        if (isset($def['null']) && $def['null'] === false) {
-            $schema->notNull();
-        }
-        if (isset($def['default'])) {
-            if (isset($def['defaultExpression']) && $def['defaultExpression']) {
-                $schema->defaultExpression((string)$def['default']);
-            } else {
-                $schema->defaultValue($def['default']);
-            }
-        }
-        if (isset($def['comment'])) {
-            $schema->comment((string)$def['comment']);
-        }
-        if (isset($def['unsigned']) && $def['unsigned']) {
-            $schema->unsigned();
-        }
-        if (isset($def['autoIncrement']) && $def['autoIncrement']) {
-            $schema->autoIncrement();
-        }
-        if (isset($def['unique']) && $def['unique']) {
-            $schema->unique();
-        }
-        if (isset($def['after'])) {
-            $schema->after((string)$def['after']);
-        }
-        if (isset($def['first']) && $def['first']) {
-            $schema->first();
-        }
-
-        return $schema;
-    }
-
-    /**
-     * Format default value for SQL.
-     *
-     * @param mixed $value Default value
-     *
-     * @return string SQL formatted value
-     */
-    protected function formatDefaultValue(mixed $value): string
-    {
-        if ($value instanceof RawValue) {
-            return $value->getValue();
-        }
-        if ($value === null) {
-            return 'NULL';
-        }
-        if (is_bool($value)) {
-            return $value ? '1' : '0';
-        }
-        if (is_numeric($value)) {
-            return (string)$value;
-        }
-        if (is_string($value)) {
-            return "'" . addslashes($value) . "'";
-        }
-        return "'" . addslashes((string)$value) . "'";
+        return $this->ddlBuilder->formatColumnDefinition($name, $schema);
     }
 
     /**
@@ -1662,19 +1036,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function formatMaterializedCte(string $cteSql, bool $isMaterialized): string
     {
-        if ($isMaterialized) {
-            // MySQL: Use optimizer hint in the query
-            // Add a comment hint to encourage materialization
-            if (preg_match('/^\s*SELECT\s+/i', $cteSql)) {
-                // Add optimizer hint after SELECT
-                return preg_replace(
-                    '/^\s*(SELECT\s+)/i',
-                    '$1/*+ MATERIALIZE */ ',
-                    $cteSql
-                ) ?? $cteSql;
-            }
-        }
-        return $cteSql;
+        return $this->sqlFormatter->formatMaterializedCte($cteSql, $isMaterialized);
     }
 
     /**
