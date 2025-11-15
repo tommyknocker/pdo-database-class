@@ -36,8 +36,19 @@ class MariaDBSqlFormatter extends SqlFormatterAbstract
         array $orderBy,
         ?string $frameClause
     ): string {
-        $sql = strtoupper($function) . '(';
+        // MariaDB doesn't support default value parameter in LAG/LEAD functions
+        // For LAG/LEAD with 3 arguments, use COALESCE wrapper instead
+        $functionUpper = strtoupper($function);
+        $defaultValue = null;
 
+        if (($functionUpper === 'LAG' || $functionUpper === 'LEAD') && count($args) === 3) {
+            // Extract default value and remove it from args
+            $defaultValue = array_pop($args);
+        }
+
+        $sql = $functionUpper . '(';
+
+        // Add function arguments
         if (!empty($args)) {
             $formattedArgs = array_map(function ($arg) {
                 if (is_string($arg) && !is_numeric($arg)) {
@@ -53,6 +64,7 @@ class MariaDBSqlFormatter extends SqlFormatterAbstract
 
         $sql .= ') OVER (';
 
+        // Add PARTITION BY
         if (!empty($partitionBy)) {
             $quotedPartitions = array_map(
                 fn ($col) => $this->quoteIdentifier($col),
@@ -61,6 +73,7 @@ class MariaDBSqlFormatter extends SqlFormatterAbstract
             $sql .= 'PARTITION BY ' . implode(', ', $quotedPartitions);
         }
 
+        // Add ORDER BY
         if (!empty($orderBy)) {
             if (!empty($partitionBy)) {
                 $sql .= ' ';
@@ -74,11 +87,18 @@ class MariaDBSqlFormatter extends SqlFormatterAbstract
             $sql .= 'ORDER BY ' . implode(', ', $orderClauses);
         }
 
+        // Add frame clause
         if ($frameClause !== null) {
             $sql .= ' ' . $frameClause;
         }
 
         $sql .= ')';
+
+        // Wrap in COALESCE if default value was provided for LAG/LEAD
+        if ($defaultValue !== null) {
+            $defaultFormatted = is_numeric($defaultValue) ? (string)$defaultValue : "'" . addslashes((string)$defaultValue) . "'";
+            $sql = "COALESCE({$sql}, {$defaultFormatted})";
+        }
 
         return $sql;
     }
