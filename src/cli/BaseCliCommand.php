@@ -267,6 +267,7 @@ abstract class BaseCliCommand
 
         $defaultText = $default !== null ? " [{$default}]" : '';
         echo $prompt . $defaultText . ': ';
+        flush();
         $input = trim((string)fgets(STDIN));
         return $input !== '' ? $input : ($default ?? '');
     }
@@ -293,6 +294,7 @@ abstract class BaseCliCommand
 
         $defaultText = $default ? 'Y/n' : 'y/N';
         echo $prompt . " [{$defaultText}]: ";
+        flush();
         $input = strtolower(trim((string)fgets(STDIN)));
 
         if ($input === '') {

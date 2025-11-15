@@ -58,12 +58,9 @@ class ModelCommand extends Command
         }
 
         try {
-            ob_start();
             ModelGenerator::generate($modelName, $tableName, $outputPath, $this->getDb());
-            ob_end_clean();
             return 0;
         } catch (\Exception $e) {
-            ob_end_clean();
             $this->showError($e->getMessage());
             // @phpstan-ignore-next-line
             return 1;
