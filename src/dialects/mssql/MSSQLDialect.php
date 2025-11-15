@@ -1241,4 +1241,70 @@ class MSSQLDialect extends DialectAbstract
         // MSSQL uses just 'WITH' for recursive CTEs, not 'WITH RECURSIVE'
         return 'WITH';
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildCreateDatabaseSql(string $databaseName): string
+    {
+        $quotedName = $this->quoteIdentifier($databaseName);
+        return "CREATE DATABASE {$quotedName}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildDropDatabaseSql(string $databaseName): string
+    {
+        $quotedName = $this->quoteIdentifier($databaseName);
+        return "DROP DATABASE IF EXISTS {$quotedName}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildListDatabasesSql(): string
+    {
+        return 'SELECT name FROM sys.databases ORDER BY name';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function extractDatabaseNames(array $result): array
+    {
+        $names = [];
+        foreach ($result as $row) {
+            $name = $row['name'] ?? null;
+            if ($name !== null && is_string($name)) {
+                $names[] = $name;
+            }
+        }
+        return $names;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getDatabaseInfo(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $info = [];
+
+        $dbName = $db->rawQueryValue('SELECT DB_NAME()');
+        if ($dbName !== null) {
+            $info['current_database'] = $dbName;
+        }
+
+        $version = $db->rawQueryValue('SELECT @@VERSION');
+        if ($version !== null) {
+            $info['version'] = $version;
+        }
+
+        $collation = $db->rawQueryValue("SELECT DATABASEPROPERTYEX(DB_NAME(), 'Collation')");
+        if ($collation !== null) {
+            $info['collation'] = $collation;
+        }
+
+        return $info;
+    }
 }

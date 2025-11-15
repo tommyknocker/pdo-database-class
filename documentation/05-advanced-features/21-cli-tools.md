@@ -1,11 +1,12 @@
 # CLI Tools
 
-PDOdb provides convenient command-line tools for common development tasks, including migration generation, model generation, schema inspection, and interactive query testing.
+PDOdb provides convenient command-line tools for common development tasks, including database management, migration generation, model generation, schema inspection, and interactive query testing.
 
 ## Overview
 
 The CLI tools are designed to streamline your development workflow:
 
+- **Database Management** - Create, drop, list, and check database existence
 - **Migration Generator** - Create database migrations with interactive prompts
 - **Model Generator** - Generate ActiveRecord models from existing database tables
 - **Schema Inspector** - Inspect database schema structure
@@ -59,6 +60,101 @@ PDODB_CHARSET=utf8mb4
 PDODB_MIGRATION_PATH=./database/migrations
 PDODB_MODEL_PATH=./app/Models
 ```
+
+## Database Management
+
+Manage databases with simple commands for creating, dropping, listing, and checking database existence.
+
+### Usage
+
+```bash
+# Create a database
+vendor/bin/pdodb db create myapp
+
+# Drop a database (with confirmation)
+vendor/bin/pdodb db drop myapp
+
+# Check if a database exists
+vendor/bin/pdodb db exists myapp
+
+# List all databases
+vendor/bin/pdodb db list
+
+# Show information about current database
+vendor/bin/pdodb db info
+```
+
+### Examples
+
+#### Create Database
+
+```bash
+$ vendor/bin/pdodb db create myapp
+
+✓ Database 'myapp' created successfully
+```
+
+#### Drop Database
+
+```bash
+$ vendor/bin/pdodb db drop myapp
+
+Are you sure you want to drop database 'myapp'? This action cannot be undone [y/N]: y
+✓ Database 'myapp' dropped successfully
+```
+
+#### Check Database Existence
+
+```bash
+$ vendor/bin/pdodb db exists myapp
+
+✓ Database 'myapp' exists
+```
+
+#### List Databases
+
+```bash
+$ vendor/bin/pdodb db list
+
+Databases (5):
+
+  information_schema
+  mysql
+  myapp
+  performance_schema
+  sys
+```
+
+#### Database Information
+
+```bash
+$ vendor/bin/pdodb db info
+
+Database Information:
+
+  Driver: mysql
+  Current Database: myapp
+  Version: 8.0.35
+  Charset: utf8mb4
+  Collation: utf8mb4_unicode_ci
+```
+
+### SQLite Support
+
+For SQLite, database management works with file paths:
+
+```bash
+# Create SQLite database file
+vendor/bin/pdodb db create /path/to/database.sqlite
+
+# Drop SQLite database file
+vendor/bin/pdodb db drop /path/to/database.sqlite
+
+# Check if SQLite database file exists
+vendor/bin/pdodb db exists /path/to/database.sqlite
+```
+
+Note: SQLite does not support listing multiple databases. Use file paths for database operations.
 
 ## Migration Generator
 
@@ -361,6 +457,7 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 
 ### Available Commands
 
+- **`db`** - Manage databases (create, drop, list, check existence, show info)
 - **`migrate`** - Manage database migrations
 - **`schema`** - Inspect database schema
 - **`query`** - Test SQL queries interactively
@@ -373,6 +470,7 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 vendor/bin/pdodb
 
 # Show help for a specific command
+vendor/bin/pdodb db --help
 vendor/bin/pdodb migrate --help
 vendor/bin/pdodb schema --help
 vendor/bin/pdodb query --help

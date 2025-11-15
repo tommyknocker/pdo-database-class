@@ -1371,4 +1371,70 @@ class PostgreSQLDialect extends DialectAbstract
     {
         return new PostgreSQLExplainParser();
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildCreateDatabaseSql(string $databaseName): string
+    {
+        $quotedName = $this->quoteIdentifier($databaseName);
+        return "CREATE DATABASE {$quotedName}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildDropDatabaseSql(string $databaseName): string
+    {
+        $quotedName = $this->quoteIdentifier($databaseName);
+        return "DROP DATABASE IF EXISTS {$quotedName}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildListDatabasesSql(): string
+    {
+        return 'SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function extractDatabaseNames(array $result): array
+    {
+        $names = [];
+        foreach ($result as $row) {
+            $name = $row['datname'] ?? null;
+            if ($name !== null && is_string($name)) {
+                $names[] = $name;
+            }
+        }
+        return $names;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getDatabaseInfo(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $info = [];
+
+        $dbName = $db->rawQueryValue('SELECT current_database()');
+        if ($dbName !== null) {
+            $info['current_database'] = $dbName;
+        }
+
+        $version = $db->rawQueryValue('SELECT version()');
+        if ($version !== null) {
+            $info['version'] = $version;
+        }
+
+        $encoding = $db->rawQueryValue('SELECT pg_encoding_to_char(encoding) FROM pg_database WHERE datname = current_database()');
+        if ($encoding !== null) {
+            $info['encoding'] = $encoding;
+        }
+
+        return $info;
+    }
 }

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\cli\DatabaseManager;
 use tommyknocker\pdodb\cli\MigrationGenerator;
 use tommyknocker\pdodb\cli\ModelGenerator;
 use tommyknocker\pdodb\cli\SchemaInspector;
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\exceptions\ResourceException;
 
 /**
  * Shared tests for CLI tools.
@@ -773,5 +775,130 @@ class CliToolsTests extends BaseSharedTestCase
         }
 
         $this->assertStringContainsString('Test warning message', $output);
+    }
+
+    /**
+     * Test DatabaseManager create database for SQLite.
+     */
+    public function testDatabaseManagerCreateDatabase(): void
+    {
+        $tempFile = sys_get_temp_dir() . '/test_db_create_' . uniqid() . '.sqlite';
+
+        try {
+            $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+            $result = DatabaseManager::create($tempFile, $db);
+
+            $this->assertTrue($result);
+            $this->assertTrue(file_exists($tempFile));
+        } finally {
+            if (file_exists($tempFile)) {
+                unlink($tempFile);
+            }
+        }
+    }
+
+    /**
+     * Test DatabaseManager drop database for SQLite.
+     */
+    public function testDatabaseManagerDropDatabase(): void
+    {
+        $tempFile = sys_get_temp_dir() . '/test_db_drop_' . uniqid() . '.sqlite';
+        touch($tempFile);
+
+        try {
+            $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+            $result = DatabaseManager::drop($tempFile, $db);
+
+            $this->assertTrue($result);
+            $this->assertFalse(file_exists($tempFile));
+        } finally {
+            if (file_exists($tempFile)) {
+                unlink($tempFile);
+            }
+        }
+    }
+
+    /**
+     * Test DatabaseManager exists for SQLite.
+     */
+    public function testDatabaseManagerExists(): void
+    {
+        $tempFile = sys_get_temp_dir() . '/test_db_exists_' . uniqid() . '.sqlite';
+        touch($tempFile);
+
+        try {
+            $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+
+            $exists = DatabaseManager::exists($tempFile, $db);
+            $this->assertTrue($exists);
+
+            unlink($tempFile);
+
+            $exists = DatabaseManager::exists($tempFile, $db);
+            $this->assertFalse($exists);
+        } finally {
+            if (file_exists($tempFile)) {
+                unlink($tempFile);
+            }
+        }
+    }
+
+    /**
+     * Test DatabaseManager list throws exception for SQLite.
+     */
+    public function testDatabaseManagerListThrowsExceptionForSqlite(): void
+    {
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+
+        $this->expectException(ResourceException::class);
+        $this->expectExceptionMessage('SQLite does not support multiple databases');
+
+        DatabaseManager::list($db);
+    }
+
+    /**
+     * Test DatabaseManager getInfo returns database information.
+     */
+    public function testDatabaseManagerGetInfo(): void
+    {
+        $info = DatabaseManager::getInfo(self::$db);
+
+        $this->assertIsArray($info);
+        $this->assertArrayHasKey('driver', $info);
+        $this->assertEquals('sqlite', $info['driver']);
+    }
+
+    /**
+     * Test DatabaseManager create and drop flow.
+     */
+    public function testDatabaseManagerCreateAndDropFlow(): void
+    {
+        $tempFile = sys_get_temp_dir() . '/test_db_flow_' . uniqid() . '.sqlite';
+
+        try {
+            $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+
+            // Create database
+            $created = DatabaseManager::create($tempFile, $db);
+            $this->assertTrue($created);
+            $this->assertTrue(file_exists($tempFile));
+
+            // Check exists
+            $exists = DatabaseManager::exists($tempFile, $db);
+            $this->assertTrue($exists);
+
+            // Drop database
+            $dropped = DatabaseManager::drop($tempFile, $db);
+            $this->assertTrue($dropped);
+            $this->assertFalse(file_exists($tempFile));
+
+            // Check not exists
+            $exists = DatabaseManager::exists($tempFile, $db);
+            $this->assertFalse($exists);
+        } finally {
+            if (file_exists($tempFile)) {
+                unlink($tempFile);
+            }
+        }
     }
 }

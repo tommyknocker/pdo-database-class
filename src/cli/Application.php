@@ -54,6 +54,9 @@ class Application
 
         // Model command with subcommands
         $this->addCommand(new commands\ModelCommand());
+
+        // Database management command with subcommands
+        $this->addCommand(new commands\DbCommand());
     }
 
     /**

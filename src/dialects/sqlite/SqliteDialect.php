@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use PDO;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
@@ -1069,5 +1070,140 @@ class SqliteDialect extends DialectAbstract
     public function getExplainParser(): ExplainParserInterface
     {
         return new \tommyknocker\pdodb\query\analysis\parsers\SqliteExplainParser();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function createDatabase(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        // For SQLite, creating a database means creating a file
+        // If databaseName doesn't have extension, add .sqlite
+        $filePath = $databaseName;
+        if (!str_ends_with($databaseName, '.sqlite') && !str_ends_with($databaseName, '.db')) {
+            $filePath = $databaseName . '.sqlite';
+        }
+
+        // Check if file already exists
+        if (file_exists($filePath)) {
+            // Database already exists, return true
+            return true;
+        }
+
+        // Create the database file by connecting to it
+        try {
+            $newDb = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $filePath]);
+            // Test connection by running a simple query
+            $newDb->rawQueryValue('SELECT 1');
+            return true;
+        } catch (QueryException $e) {
+            throw new ResourceException("Failed to create SQLite database file '{$filePath}': {$e->getMessage()}", 0, $e, 'sqlite');
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dropDatabase(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        // For SQLite, delete the database file
+        // If databaseName doesn't have extension, try both .sqlite and .db
+        $filePath = $databaseName;
+        if (!str_ends_with($databaseName, '.sqlite') && !str_ends_with($databaseName, '.db')) {
+            // Try .sqlite first, then .db
+            if (file_exists($databaseName . '.sqlite')) {
+                $filePath = $databaseName . '.sqlite';
+            } elseif (file_exists($databaseName . '.db')) {
+                $filePath = $databaseName . '.db';
+            } else {
+                $filePath = $databaseName . '.sqlite';
+            }
+        }
+
+        if (!file_exists($filePath)) {
+            // File doesn't exist, consider it already dropped
+            return true;
+        }
+
+        // Also delete journal and wal files if they exist
+        $journalFile = $filePath . '-journal';
+        $walFile = $filePath . '-wal';
+        $shmFile = $filePath . '-shm';
+
+        if (file_exists($journalFile)) {
+            @unlink($journalFile);
+        }
+        if (file_exists($walFile)) {
+            @unlink($walFile);
+        }
+        if (file_exists($shmFile)) {
+            @unlink($shmFile);
+        }
+
+        if (!unlink($filePath)) {
+            throw new ResourceException("Failed to delete SQLite database file '{$filePath}'", 0, null, 'sqlite');
+        }
+
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function databaseExists(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        // For SQLite, check if file exists
+        // If databaseName looks like a file path, check it directly
+        if (str_contains($databaseName, '/') || str_contains($databaseName, '\\') || str_ends_with($databaseName, '.sqlite') || str_ends_with($databaseName, '.db')) {
+            return file_exists($databaseName);
+        }
+
+        // For SQLite, without explicit file path, we can't determine existence
+        // Return false as SQLite doesn't support multiple databases
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listDatabases(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        throw new ResourceException('SQLite does not support multiple databases. Use file paths instead.', 0, null, 'sqlite');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildCreateDatabaseSql(string $databaseName): string
+    {
+        // Not used for SQLite, but required by abstract method
+        throw new ResourceException('SQLite does not support CREATE DATABASE SQL. Use createDatabase() method instead.', 0, null, 'sqlite');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildDropDatabaseSql(string $databaseName): string
+    {
+        // Not used for SQLite, but required by abstract method
+        throw new ResourceException('SQLite does not support DROP DATABASE SQL. Use dropDatabase() method instead.', 0, null, 'sqlite');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildListDatabasesSql(): string
+    {
+        // Not used for SQLite, but required by abstract method
+        throw new ResourceException('SQLite does not support listing databases. Use file paths instead.', 0, null, 'sqlite');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function extractDatabaseNames(array $result): array
+    {
+        // Not used for SQLite, but required by abstract method
+        return [];
     }
 }

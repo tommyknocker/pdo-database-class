@@ -812,4 +812,85 @@ abstract class DialectAbstract implements DialectInterface
     {
         return 'WITH RECURSIVE';
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function createDatabase(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        $sql = $this->buildCreateDatabaseSql($databaseName);
+        $db->rawQuery($sql);
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dropDatabase(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        $sql = $this->buildDropDatabaseSql($databaseName);
+        $db->rawQuery($sql);
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function databaseExists(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool
+    {
+        $databases = $this->listDatabases($db);
+        return in_array($databaseName, $databases, true);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listDatabases(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $sql = $this->buildListDatabasesSql();
+        $result = $db->rawQuery($sql);
+        return $this->extractDatabaseNames($result);
+    }
+
+    /**
+     * Build CREATE DATABASE SQL statement.
+     *
+     * @param string $databaseName Database name
+     *
+     * @return string SQL statement
+     */
+    abstract protected function buildCreateDatabaseSql(string $databaseName): string;
+
+    /**
+     * Build DROP DATABASE SQL statement.
+     *
+     * @param string $databaseName Database name
+     *
+     * @return string SQL statement
+     */
+    abstract protected function buildDropDatabaseSql(string $databaseName): string;
+
+    /**
+     * Build list databases SQL statement.
+     *
+     * @return string SQL statement
+     */
+    abstract protected function buildListDatabasesSql(): string;
+
+    /**
+     * Extract database names from query result.
+     *
+     * @param array<int, array<string, mixed>> $result Query result
+     *
+     * @return array<int, string> List of database names
+     */
+    abstract protected function extractDatabaseNames(array $result): array;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getDatabaseInfo(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        return [];
+    }
 }

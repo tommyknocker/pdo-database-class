@@ -36,7 +36,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
 
 **Developer Experience:**
-- **CLI Tools** - Migration generator, model generator, schema inspector, and interactive query tester (REPL)
+- **CLI Tools** - Database management, migration generator, model generator, schema inspector, and interactive query tester (REPL)
 - **Enhanced EXPLAIN** - Automatic detection of full table scans, missing indexes, and optimization recommendations
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Enhanced Error Diagnostics** - Query context, sanitized parameters, and debug information in exceptions
@@ -2712,10 +2712,32 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 
 #### Available Commands
 
+- **`db`** - Manage databases (create, drop, list, check existence, show info)
 - **`migrate`** - Manage database migrations
 - **`schema`** - Inspect database schema
 - **`query`** - Test SQL queries interactively
 - **`model`** - Generate ActiveRecord models
+
+#### Database Management
+
+Manage databases with simple commands:
+
+```bash
+# Create a database
+vendor/bin/pdodb db create myapp
+
+# Drop a database (with confirmation)
+vendor/bin/pdodb db drop myapp
+
+# Check if a database exists
+vendor/bin/pdodb db exists myapp
+
+# List all databases
+vendor/bin/pdodb db list
+
+# Show information about current database
+vendor/bin/pdodb db info
+```
 
 #### Migration Management
 

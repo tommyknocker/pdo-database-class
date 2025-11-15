@@ -1058,4 +1058,75 @@ class MySQLDialect extends DialectAbstract
     {
         return new \tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser();
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildCreateDatabaseSql(string $databaseName): string
+    {
+        $quotedName = $this->quoteIdentifier($databaseName);
+        return "CREATE DATABASE IF NOT EXISTS {$quotedName} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildDropDatabaseSql(string $databaseName): string
+    {
+        $quotedName = $this->quoteIdentifier($databaseName);
+        return "DROP DATABASE IF EXISTS {$quotedName}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function buildListDatabasesSql(): string
+    {
+        return 'SHOW DATABASES';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function extractDatabaseNames(array $result): array
+    {
+        $names = [];
+        foreach ($result as $row) {
+            $name = $row['Database'] ?? null;
+            if ($name !== null && is_string($name)) {
+                $names[] = $name;
+            }
+        }
+        return $names;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getDatabaseInfo(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $info = [];
+
+        $dbName = $db->rawQueryValue('SELECT DATABASE()');
+        if ($dbName !== null) {
+            $info['current_database'] = $dbName;
+        }
+
+        $version = $db->rawQueryValue('SELECT VERSION()');
+        if ($version !== null) {
+            $info['version'] = $version;
+        }
+
+        $charset = $db->rawQueryValue('SELECT @@character_set_database');
+        if ($charset !== null) {
+            $info['charset'] = $charset;
+        }
+
+        $collation = $db->rawQueryValue('SELECT @@collation_database');
+        if ($collation !== null) {
+            $info['collation'] = $collation;
+        }
+
+        return $info;
+    }
 }

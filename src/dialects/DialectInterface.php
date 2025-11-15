@@ -1390,4 +1390,57 @@ interface DialectInterface
      * @return string Keyword for recursive CTE ('WITH' or 'WITH RECURSIVE')
      */
     public function getRecursiveCteKeyword(): string;
+
+    /* ---------------- Database Management ---------------- */
+
+    /**
+     * Create a database.
+     *
+     * @param string $databaseName Database name
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return bool True on success
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If database creation fails
+     */
+    public function createDatabase(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool;
+
+    /**
+     * Drop a database.
+     *
+     * @param string $databaseName Database name
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return bool True on success
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If database deletion fails
+     */
+    public function dropDatabase(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool;
+
+    /**
+     * Check if a database exists.
+     *
+     * @param string $databaseName Database name
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return bool True if database exists
+     */
+    public function databaseExists(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool;
+
+    /**
+     * List all databases.
+     *
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return array<int, string> List of database names
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If listing fails
+     */
+    public function listDatabases(\tommyknocker\pdodb\PdoDb $db): array;
+
+    /**
+     * Get database-specific information.
+     *
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return array<string, mixed> Database information
+     */
+    public function getDatabaseInfo(\tommyknocker\pdodb\PdoDb $db): array;
 }
