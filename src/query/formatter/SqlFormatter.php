@@ -89,6 +89,8 @@ class SqlFormatter
         $sql = (string)preg_replace('/\s*\)\s*/', ')', $sql);
         // Remove spaces around commas
         $sql = (string)preg_replace('/\s*,\s*/', ', ', $sql);
+        // Normalize spaces around equal signs
+        $sql = (string)preg_replace('/\s*=\s*/', ' = ', $sql);
         // Trim
         return trim($sql);
     }
@@ -111,47 +113,62 @@ class SqlFormatter
         $length = strlen($sql);
         for ($i = 0; $i < $length; $i++) {
             $char = $sql[$i];
-            $nextChar = $i + 1 < $length ? $sql[$i + 1] : '';
 
-            // Handle quoted strings
-            if (($char === '"' || $char === "'" || $char === '`') && !$inQuotes) {
-                $inQuotes = true;
-                $quoteChar = $char;
-                $current .= $char;
-            } elseif ($char === $quoteChar && $inQuotes) {
-                // Check for escaped quote
-                if ($i > 0 && $sql[$i - 1] === '\\') {
-                    $current .= $char;
+            // Handle quoted strings: keep contents intact
+            if ($char === '"' || $char === "'" || $char === '`') {
+                if ($inQuotes) {
+                    if ($char === $quoteChar && ($i === 0 || $sql[$i - 1] !== '\\')) {
+                        $inQuotes = false;
+                        $quoteChar = '';
+                    }
                 } else {
-                    $inQuotes = false;
-                    $quoteChar = '';
-                    $current .= $char;
+                    $inQuotes = true;
+                    $quoteChar = $char;
                 }
-            } elseif ($inQuotes) {
                 $current .= $char;
-            } elseif ($char === '(') {
+                continue;
+            }
+
+            if ($inQuotes) {
+                $current .= $char;
+                continue;
+            }
+
+            // Parentheses as separate tokens
+            if ($char === '(' || $char === ')') {
                 if ($current !== '') {
                     $tokens[] = trim($current);
                     $current = '';
                 }
-                $tokens[] = '(';
-                $inParens++;
-            } elseif ($char === ')') {
-                if ($current !== '') {
-                    $tokens[] = trim($current);
-                    $current = '';
+                $tokens[] = $char;
+                $inParens += ($char === '(') ? 1 : -1;
+                if ($inParens < 0) {
+                    $inParens = 0;
                 }
-                $tokens[] = ')';
-                $inParens--;
-            } elseif ($char === ',' && $inParens === 0) {
+                continue;
+            }
+
+            // Comma outside parentheses as separate token
+            if ($char === ',' && $inParens === 0) {
                 if ($current !== '') {
                     $tokens[] = trim($current);
                     $current = '';
                 }
                 $tokens[] = ',';
-            } else {
-                $current .= $char;
+                continue;
             }
+
+            // Split on whitespace outside of quotes/parentheses
+            if (ctype_space($char)) {
+                if ($current !== '') {
+                    $tokens[] = trim($current);
+                    $current = '';
+                }
+                continue;
+            }
+
+            // Default: accumulate
+            $current .= $char;
         }
 
         if ($current !== '') {
@@ -180,6 +197,35 @@ class SqlFormatter
         while ($i < $tokenCount) {
             $token = $tokens[$i];
             $upperToken = strtoupper($token);
+            // Combine multi-word keywords like "LEFT JOIN", "RIGHT JOIN", "FULL JOIN", "GROUP BY", "ORDER BY",
+            // and variants "LEFT OUTER JOIN", "RIGHT OUTER JOIN", "FULL OUTER JOIN"
+            $combinedToken = $upperToken;
+            $consume = 0;
+            if ($i + 1 < $tokenCount) {
+                $t2 = strtoupper($tokens[$i + 1]);
+                $two = $upperToken . ' ' . $t2;
+                $three = $two;
+                if ($i + 2 < $tokenCount) {
+                    $t3 = strtoupper($tokens[$i + 2]);
+                    $three = $two . ' ' . $t3;
+                }
+                $multiCandidates = [
+                    'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN', 'GROUP BY', 'ORDER BY',
+                    'LEFT OUTER JOIN', 'RIGHT OUTER JOIN', 'FULL OUTER JOIN',
+                ];
+                if (in_array($three, $multiCandidates, true)) {
+                    $combinedToken = $three;
+                    $consume = 2;
+                } elseif (in_array($two, $multiCandidates, true)) {
+                    $combinedToken = $two;
+                    $consume = 1;
+                }
+            }
+            if ($consume > 0) {
+                // advance the index to account for consumed tokens
+                $i += $consume;
+                $upperToken = $combinedToken;
+            }
             $isKeyword = $this->isKeyword($upperToken);
 
             // Handle opening parenthesis (subquery)
@@ -272,7 +318,14 @@ class SqlFormatter
      */
     protected function isKeyword(string $token): bool
     {
-        return in_array($token, self::KEYWORDS_UPPERCASE, true);
+        if (in_array($token, self::KEYWORDS_UPPERCASE, true)) {
+            return true;
+        }
+        // Treat multi-word clause keywords as keywords too
+        if (in_array($token, self::KEYWORDS_NEWLINE, true)) {
+            return true;
+        }
+        return false;
     }
 
     /**

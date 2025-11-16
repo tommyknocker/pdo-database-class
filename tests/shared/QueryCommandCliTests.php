@@ -122,10 +122,11 @@ final class QueryCommandCliTests extends TestCase
             throw $e;
         }
         $this->assertSame(0, $code4);
-        // formatted output should be normalized and readable
-        $this->assertStringContainsString('select', $out4);
-        $this->assertStringContainsString('from', $out4);
-        $this->assertStringContainsString('where', $out4);
-        $this->assertStringContainsString('order by', $out4);
+        // formatted output should include uppercase keywords and line breaks before major clauses
+        $this->assertStringContainsString('SELECT', $out4);
+        $this->assertStringContainsString('FROM', $out4);
+        $this->assertStringContainsString('WHERE', $out4);
+        $this->assertStringContainsString('ORDER BY', $out4);
+        $this->assertTrue(strpos($out4, "\n") !== false, 'Expected formatted SQL to contain line breaks');
     }
 }
