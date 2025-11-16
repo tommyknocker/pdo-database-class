@@ -40,7 +40,10 @@ final class QueryCommandCliTests extends TestCase
         }
         $this->assertSame(0, $code);
         $this->assertStringContainsString('Query Testing', $out);
-        $this->assertStringContainsString('Usage: pdodb query test', $out);
+        $this->assertStringContainsString('Usage:', $out);
+        $this->assertStringContainsString('query explain', $out);
+        $this->assertStringContainsString('query format', $out);
+        $this->assertStringContainsString('query validate', $out);
     }
 
     public function testQueryExecutesSingleSelect(): void
@@ -59,5 +62,70 @@ final class QueryCommandCliTests extends TestCase
         $this->assertSame(0, $code);
         $this->assertStringContainsString('val', $out);
         $this->assertStringContainsString('Total rows: 1', $out);
+    }
+
+    public function testQueryExplainValidateAndFormat(): void
+    {
+        $app = new Application();
+
+        // explain
+        ob_start();
+
+        try {
+            $code1 = $app->run(['pdodb', 'query', 'explain', 'SELECT 1']);
+            $out1 = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code1);
+        $this->assertStringContainsString('EXPLAIN plan:', $out1);
+
+        // validate ok
+        ob_start();
+
+        try {
+            $code2 = $app->run(['pdodb', 'query', 'validate', 'SELECT 1']);
+            $out2 = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code2);
+        $this->assertStringContainsString('SQL is valid', $out2);
+
+        // validate fail
+        ob_start();
+
+        try {
+            $code3 = $app->run(['pdodb', 'query', 'validate', 'SELEC 1']);
+            $out3 = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(1, $code3);
+        $this->assertStringContainsString('Invalid SQL', $out3);
+
+        // format
+        ob_start();
+
+        try {
+            $code4 = $app->run(['pdodb', 'query', 'format', 'select  *  from users where  id=1 order   by  name']);
+            $out4 = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code4);
+        // formatted output should be normalized and readable
+        $this->assertStringContainsString('select', $out4);
+        $this->assertStringContainsString('from', $out4);
+        $this->assertStringContainsString('where', $out4);
+        $this->assertStringContainsString('order by', $out4);
     }
 }

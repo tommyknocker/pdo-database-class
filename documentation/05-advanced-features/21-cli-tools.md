@@ -545,7 +545,7 @@ $ vendor/bin/pdodb schema inspect users --format=json
 
 ## Query Tester (REPL)
 
-Interactive REPL for testing SQL queries against the database.
+Interactive REPL for testing SQL queries against the database, plus utilities to explain, format, and validate SQL.
 
 ### Usage
 
@@ -555,6 +555,15 @@ vendor/bin/pdodb query test
 
 # Execute single query
 vendor/bin/pdodb query test "SELECT * FROM users LIMIT 10"
+
+# Explain a SQL query (database-specific EXPLAIN)
+vendor/bin/pdodb query explain "SELECT * FROM users WHERE id = 1"
+
+# Format SQL for readability
+vendor/bin/pdodb query format "select  *  from users where  id=1 order   by  name"
+
+# Validate SQL syntax (no execution; uses EXPLAIN)
+vendor/bin/pdodb query validate "SELECT COUNT(*) FROM users"
 ```
 
 ### Interactive Commands
