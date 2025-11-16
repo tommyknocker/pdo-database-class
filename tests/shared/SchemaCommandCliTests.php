@@ -39,11 +39,13 @@ final class SchemaCommandCliTests extends TestCase
     {
         $app = new Application();
         ob_start();
+
         try {
             $code = $app->run(['pdodb', 'schema', 'help']);
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
         $this->assertSame(0, $code);
@@ -55,11 +57,13 @@ final class SchemaCommandCliTests extends TestCase
     {
         $app = new Application();
         ob_start();
+
         try {
             $code = $app->run(['pdodb', 'schema', 'inspect']);
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
         $this->assertSame(0, $code);
@@ -71,11 +75,13 @@ final class SchemaCommandCliTests extends TestCase
         $app = new Application();
         // JSON
         ob_start();
+
         try {
             $codeJson = $app->run(['pdodb', 'schema', 'inspect', 'sc_users', '--format=json']);
             $outJson = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
         $this->assertSame(0, $codeJson);
@@ -85,11 +91,13 @@ final class SchemaCommandCliTests extends TestCase
 
         // YAML (just check key markers exist)
         ob_start();
+
         try {
             $codeYaml = $app->run(['pdodb', 'schema', 'inspect', 'sc_users', '--format=yaml']);
             $outYaml = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
         $this->assertSame(0, $codeYaml);
@@ -97,5 +105,3 @@ final class SchemaCommandCliTests extends TestCase
         $this->assertStringContainsString('columns:', $outYaml);
     }
 }
-
-

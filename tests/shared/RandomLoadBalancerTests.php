@@ -56,5 +56,3 @@ final class RandomLoadBalancerTests extends TestCase
         $this->assertTrue(in_array($picked2, [$a, $b, $c], true));
     }
 }
-
-

@@ -29,11 +29,13 @@ final class QueryCommandCliTests extends TestCase
     {
         $app = new Application();
         ob_start();
+
         try {
             $code = $app->run(['pdodb', 'query', 'help']);
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
         $this->assertSame(0, $code);
@@ -45,11 +47,13 @@ final class QueryCommandCliTests extends TestCase
     {
         $app = new Application();
         ob_start();
+
         try {
             $code = $app->run(['pdodb', 'query', 'test', 'SELECT 42 AS val']);
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
         $this->assertSame(0, $code);
@@ -57,5 +61,3 @@ final class QueryCommandCliTests extends TestCase
         $this->assertStringContainsString('Total rows: 1', $out);
     }
 }
-
-

@@ -28,11 +28,13 @@ final class QueryTesterTests extends TestCase
     public function testExecuteSelectQueryOnce(): void
     {
         ob_start();
+
         try {
             QueryTester::test('SELECT 1 AS one');
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
         $this->assertStringContainsString('PDOdb Query Tester (REPL)', $out);
@@ -44,15 +46,15 @@ final class QueryTesterTests extends TestCase
     public function testExecuteNonSelectQuery(): void
     {
         ob_start();
+
         try {
             QueryTester::test('CREATE TABLE t (id INTEGER)');
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
         $this->assertStringContainsString('Query executed successfully.', $out);
     }
 }
-
-

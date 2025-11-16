@@ -12,7 +12,7 @@ final class MSSQLErrorTraitTests extends TestCase
 {
     private function getDummy()
     {
-        return new class {
+        return new class () {
             use MSSQLErrorTrait;
         };
     }
@@ -40,5 +40,3 @@ final class MSSQLErrorTraitTests extends TestCase
         $this->assertArrayHasKey($dummy::MSSQL_SYNTAX_ERROR, $descs);
     }
 }
-
-

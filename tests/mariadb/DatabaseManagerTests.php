@@ -42,7 +42,10 @@ final class DatabaseManagerTests extends BaseMariaDBTestCase
             DatabaseManager::list(static::$db);
         } catch (\Throwable $e) {
             $message = $e->getMessage();
-            if (str_contains($message, 'Access denied') || str_contains($message, 'privilege') || str_contains($message, 'denied')) {
+            if (str_contains($message, 'Access denied') ||
+                str_contains($message, 'privilege') ||
+                str_contains($message, 'denied'
+            )) {
                 $this->markTestSkipped('Insufficient privileges: ' . $message);
             }
         }
@@ -71,7 +74,10 @@ final class DatabaseManagerTests extends BaseMariaDBTestCase
             $this->assertTrue(DatabaseManager::exists(self::TEST_DB_NAME, static::$db));
         } catch (\Throwable $e) {
             $message = $e->getMessage();
-            if (str_contains($message, 'Access denied') || str_contains($message, 'privilege') || str_contains($message, 'denied')) {
+            if (str_contains($message, 'Access denied') ||
+                str_contains($message, 'privilege') ||
+                str_contains($message, 'denied')
+            ) {
                 $this->markTestSkipped('Insufficient privileges: ' . $message);
             }
 
