@@ -50,11 +50,13 @@ final class ModelCommandCliTests extends TestCase
 
         // First generate without existing file
         ob_start();
+
         try {
             $code1 = $app->run(['pdodb', 'model', 'make', $model, $table, $this->modelsDir, '--namespace=App\\Entities']);
             $out1 = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
         $this->assertSame(0, $code1);
@@ -67,11 +69,13 @@ final class ModelCommandCliTests extends TestCase
 
         // Regenerate with --force should overwrite without prompt and update namespace
         ob_start();
+
         try {
             $code2 = $app->run(['pdodb', 'model', 'make', $model, $table, $this->modelsDir, '--namespace=App\\Models', '--force']);
             $out2 = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
         $this->assertSame(0, $code2);
@@ -80,5 +84,3 @@ final class ModelCommandCliTests extends TestCase
         $this->assertStringContainsString('namespace App\\Models;', $content2);
     }
 }
-
-

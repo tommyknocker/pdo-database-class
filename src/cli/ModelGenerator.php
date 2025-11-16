@@ -31,8 +31,7 @@ class ModelGenerator extends BaseCliCommand
         ?PdoDb $db = null,
         ?string $namespace = null,
         bool $force = false
-    ): string
-    {
+    ): string {
         if ($db === null) {
             $db = static::createDatabase();
         }
