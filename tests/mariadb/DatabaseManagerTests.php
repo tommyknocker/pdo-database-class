@@ -44,8 +44,8 @@ final class DatabaseManagerTests extends BaseMariaDBTestCase
             $message = $e->getMessage();
             if (str_contains($message, 'Access denied') ||
                 str_contains($message, 'privilege') ||
-                str_contains($message, 'denied'
-            )) {
+                str_contains($message, 'denied')
+            ) {
                 $this->markTestSkipped('Insufficient privileges: ' . $message);
             }
         }
