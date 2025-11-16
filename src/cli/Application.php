@@ -60,6 +60,9 @@ class Application
 
         // User management command with subcommands
         $this->addCommand(new commands\UserCommand());
+
+        // Table management command with subcommands
+        $this->addCommand(new commands\TableCommand());
     }
 
     /**

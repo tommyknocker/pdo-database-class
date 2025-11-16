@@ -13,6 +13,47 @@ The CLI tools are designed to streamline your development workflow:
 - **Schema Inspector** - Inspect database schema structure
 - **Query Tester** - Interactive REPL for testing SQL queries
 
+## Table Management
+
+Manage tables (create, drop, rename, truncate, inspect structure).
+
+### Usage
+
+```bash
+# Summary info
+vendor/bin/pdodb table info users --format=json
+
+# List tables
+vendor/bin/pdodb table list --format=table
+
+# Existence
+vendor/bin/pdodb table exists users
+
+# Create / Drop / Rename / Truncate
+vendor/bin/pdodb table create users --columns="id:int, name:string:nullable" --force
+vendor/bin/pdodb table drop users --force
+vendor/bin/pdodb table rename users users_archive --force
+vendor/bin/pdodb table truncate users --force
+
+# Describe columns
+vendor/bin/pdodb table describe users --format=yaml
+
+# Columns
+vendor/bin/pdodb table columns list users --format=json
+vendor/bin/pdodb table columns add users price --type=float
+vendor/bin/pdodb table columns alter users price --type=float --nullable
+vendor/bin/pdodb table columns drop users price --force
+
+# Indexes
+vendor/bin/pdodb table indexes list users --format=json
+vendor/bin/pdodb table indexes add users idx_users_name --columns="name" --unique
+vendor/bin/pdodb table indexes drop users idx_users_name --force
+```
+
+Notes:
+- Options like ENGINE/CHARSET/COLLATION are dialect-specific and applied where supported.
+- If an operation is not supported by a dialect, a typed exception is thrown.
+
 ## Configuration
 
 CLI tools automatically detect database configuration from:
