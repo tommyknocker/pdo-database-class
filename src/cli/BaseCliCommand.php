@@ -21,7 +21,7 @@ abstract class BaseCliCommand
      */
     protected static function loadDatabaseConfig(): array
     {
-        // Load .env file from current working directory
+        // Load .env file (custom or current working directory)
         static::loadEnvFile();
 
         // Get driver from environment
@@ -33,8 +33,11 @@ abstract class BaseCliCommand
             return $config;
         }
 
-        // Try config/db.php
-        $rootConfig = getcwd() . '/config/db.php';
+        // Try config file: explicit PDODB_CONFIG_PATH or default config/db.php
+        $customConfig = getenv('PDODB_CONFIG_PATH');
+        $rootConfig = ($customConfig !== false && is_string($customConfig) && $customConfig !== '')
+            ? (string)$customConfig
+            : (getcwd() . '/config/db.php');
         if (file_exists($rootConfig)) {
             $config = require $rootConfig;
             $requestedConnection = getenv('PDODB_CONNECTION');
@@ -125,7 +128,10 @@ abstract class BaseCliCommand
      */
     protected static function loadEnvFile(): void
     {
-        $envFile = getcwd() . '/.env';
+        $customEnv = getenv('PDODB_ENV_PATH');
+        $envFile = ($customEnv !== false && is_string($customEnv) && $customEnv !== '')
+            ? (string)$customEnv
+            : (getcwd() . '/.env');
         if (!file_exists($envFile)) {
             return;
         }

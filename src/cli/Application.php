@@ -180,6 +180,8 @@ class Application
 
         echo "\nGlobal options:\n";
         echo "  --connection=<name>  Use a named connection from config/db.php\n";
+        echo "  --config=<path>      Path to db.php configuration file\n";
+        echo "  --env=<path>         Path to .env file\n";
         echo "\nUse 'pdodb <command> --help' for more information about a command.\n";
     }
 }

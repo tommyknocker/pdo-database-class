@@ -2710,6 +2710,14 @@ PDOdb provides convenient command-line tools for common development tasks. All t
 vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 ```
 
+Global options available for all commands:
+
+```text
+--connection=<name>  Use a named connection from config/db.php
+--config=<path>      Path to db.php configuration file
+--env=<path>         Path to .env file
+```
+
 #### Available Commands
 
 - **`db`** - Manage databases (create, drop, list, check existence, show info)

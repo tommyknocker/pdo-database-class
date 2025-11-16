@@ -96,6 +96,18 @@ abstract class Command extends BaseCliCommand
             putenv('PDODB_CONNECTION=' . $conn);
             $_ENV['PDODB_CONNECTION'] = $conn;
         }
+        // Support global --config option by exporting to environment
+        if (isset($options['config']) && is_string($options['config']) && $options['config'] !== '') {
+            $path = $options['config'];
+            putenv('PDODB_CONFIG_PATH=' . $path);
+            $_ENV['PDODB_CONFIG_PATH'] = $path;
+        }
+        // Support global --env option by exporting to environment
+        if (isset($options['env']) && is_string($options['env']) && $options['env'] !== '') {
+            $path = $options['env'];
+            putenv('PDODB_ENV_PATH=' . $path);
+            $_ENV['PDODB_ENV_PATH'] = $path;
+        }
         return $this;
     }
 

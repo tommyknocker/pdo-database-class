@@ -124,6 +124,62 @@ final class ApplicationAndCliCommandsTests extends TestCase
         $this->assertFileDoesNotExist($this->tmpDbFile);
     }
 
+    public function testGlobalEnvOptionLoadsCustomEnvFile(): void
+    {
+        $tmpDir = sys_get_temp_dir() . '/pdodb_env_' . uniqid();
+        @mkdir($tmpDir, 0777, true);
+        $dbPath = $tmpDir . '/test.sqlite';
+        file_put_contents($tmpDir . '/.env.custom', "PDODB_DRIVER=sqlite\nPDODB_PATH={$dbPath}\nPDODB_NON_INTERACTIVE=1\n");
+
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'db', 'info', '--env=' . $tmpDir . '/.env.custom']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Database: sqlite', $out);
+    }
+
+    public function testGlobalConfigOptionLoadsCustomConfigFile(): void
+    {
+        $tmpDir = sys_get_temp_dir() . '/pdodb_cfg_' . uniqid();
+        @mkdir($tmpDir, 0777, true);
+        $dbPath = $tmpDir . '/test.sqlite';
+        $configPath = $tmpDir . '/db.php';
+        $php = <<<PHP
+<?php
+return [
+    'driver' => 'sqlite',
+    'path' => '{$dbPath}',
+];
+PHP;
+        file_put_contents($configPath, $php);
+
+        // Ensure env does not interfere
+        putenv('PDODB_DRIVER');
+        unset($_ENV['PDODB_DRIVER']);
+
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'db', 'info', '--config=' . $configPath]);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Database: sqlite', $out);
+    }
+
     public function testMigrateCommandDryRunAndPretendViaApplication(): void
     {
         // Minimal migration directory

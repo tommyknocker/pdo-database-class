@@ -18,9 +18,27 @@ The CLI tools are designed to streamline your development workflow:
 CLI tools automatically detect database configuration from:
 
 1. **`.env` file** in the current working directory (recommended for production)
-2. **`config.php`** file in the current working directory
+2. **`config/db.php`** file in the current working directory
 3. **Environment variables** (`PDODB_DRIVER`, `PDODB_HOST`, etc.)
 4. **Examples config** (for testing only)
+
+You can also explicitly point to custom locations using global options:
+
+```bash
+# Use a specific .env file
+vendor/bin/pdodb db info --env=/path/to/.env.local
+
+# Use a specific db.php configuration file
+vendor/bin/pdodb db info --config=/path/to/db.php
+```
+
+Global options available for all commands:
+
+```text
+--connection=<name>  Use a named connection from config/db.php
+--config=<path>      Path to db.php configuration file
+--env=<path>         Path to .env file
+```
 
 ### Environment Variables
 
