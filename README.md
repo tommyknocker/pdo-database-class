@@ -46,7 +46,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Plugin System** - Extend PdoDb with custom plugins for macros, scopes, and event listeners
 
 **Production Ready:**
-- **Fully Tested** - 2052 tests, 7097 assertions across all dialects
+- **Fully Tested** - 2325 tests, 7759 assertions across all dialects
 - **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
 - **Zero Memory Leaks** - Production-tested memory management with automatic cursor cleanup
 - **Connection Retry** - Automatic retry with exponential backoff
@@ -3932,7 +3932,7 @@ $db->find()->from('users')->where('active', 1)->get();
 ```
 
 ### Is it production-ready?
-Yes! 2052+ tests, PHPStan level 8, used in production environments.
+Yes! 2325+ tests, PHPStan level 8, used in production environments.
 
 ### What about security?
 All queries use **prepared statements** automatically. SQL injection protection is built-in.
