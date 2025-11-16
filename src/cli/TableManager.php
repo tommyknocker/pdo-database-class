@@ -31,10 +31,16 @@ class TableManager
         }
 
         if ($driver === 'mysql' || $driver === 'mariadb') {
-            /** @var array<int, array<int, mixed>> $rows */
+            /** @var array<int, array<string, mixed>> $rows */
             $rows = $db->rawQuery('SHOW FULL TABLES WHERE Table_Type = "BASE TABLE"');
             /** @var array<int, string> $names */
-            $names = array_map(static fn (array $r): string => (string)$r[0], $rows);
+            $names = array_values(array_filter(array_map(
+                static function (array $r): string {
+                    $vals = array_values($r);
+                    return isset($vals[0]) && is_string($vals[0]) ? $vals[0] : '';
+                },
+                $rows
+            ), static fn(string $s): bool => $s !== ''));
             sort($names);
             return $names;
         }

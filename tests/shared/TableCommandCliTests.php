@@ -207,4 +207,18 @@ final class TableCommandCliTests extends TestCase
         $this->assertSame(0, $code);
         $this->assertStringContainsString("Index 'idx_items_name' dropped", $out);
     }
+
+    /**
+     * @runInSeparateProcess
+     */
+    public function testCreateTableWithoutColumnsYieldsError(): void
+    {
+        // Run in a subprocess to avoid exit() killing PHPUnit
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $dbPath = sys_get_temp_dir() . '/pdodb_nc_' . uniqid() . '.sqlite';
+        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
+        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' table create no_columns_tbl 2>&1';
+        $out = (string)shell_exec($cmd);
+        $this->assertStringContainsString('At least one column is required', $out);
+    }
 }

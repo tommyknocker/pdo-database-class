@@ -53,6 +53,10 @@ class TableCommand extends Command
         $format = $this->getOption('format', 'table');
         $db = $this->getDb();
         $tables = TableManager::listTables($db, is_string($schema) ? $schema : null);
+        if (empty($tables) && (string)$format === 'table') {
+            static::info('No tables found');
+            return 0;
+        }
         return $this->printFormatted(['tables' => $tables], (string)$format);
     }
 
@@ -84,8 +88,15 @@ class TableCommand extends Command
         }
         $ifNotExists = (bool)$this->getOption('if-not-exists', false);
         $columnsOpt = $this->getOption('columns');
+        if (!is_string($columnsOpt) || $columnsOpt === '') {
+            // Try interactive prompt for columns definition
+            $columnsOpt = static::readInput('Enter columns (e.g., id:int, name:string:nullable)', null);
+        }
         $options = $this->collectCreateOptions();
         $columns = $this->parseColumns(is_string($columnsOpt) ? $columnsOpt : null);
+        if (empty($columns)) {
+            return $this->showError('At least one column is required. Use --columns="id:int, name:string".');
+        }
         $db = $this->getDb();
         TableManager::create($db, $table, $columns, $options, $ifNotExists);
         static::success("Table '{$table}' created successfully");
