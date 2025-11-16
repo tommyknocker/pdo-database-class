@@ -90,6 +90,12 @@ abstract class Command extends BaseCliCommand
     public function setOptions(array $options): static
     {
         $this->options = $options;
+        // Support global --connection option by exporting to environment
+        if (isset($options['connection']) && is_string($options['connection']) && $options['connection'] !== '') {
+            $conn = $options['connection'];
+            putenv('PDODB_CONNECTION=' . $conn);
+            $_ENV['PDODB_CONNECTION'] = $conn;
+        }
         return $this;
     }
 

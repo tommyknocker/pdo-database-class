@@ -178,6 +178,8 @@ class Application
             echo "  {$name}{$command->getDescription()}\n";
         }
 
+        echo "\nGlobal options:\n";
+        echo "  --connection=<name>  Use a named connection from config/db.php\n";
         echo "\nUse 'pdodb <command> --help' for more information about a command.\n";
     }
 }

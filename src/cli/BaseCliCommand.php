@@ -37,18 +37,56 @@ abstract class BaseCliCommand
         $rootConfig = getcwd() . '/config/db.php';
         if (file_exists($rootConfig)) {
             $config = require $rootConfig;
-            // Config should directly contain driver and connection settings
-            if (isset($config['driver'])) {
+            $requestedConnection = getenv('PDODB_CONNECTION');
+
+            // 1) Flat config with explicit driver
+            if (is_array($config) && isset($config['driver'])) {
                 return $config;
             }
-            // Backward compatibility: check if it's an array with driver keys
-            if (isset($config[$driver])) {
+
+            // 2) Modern multi-connection structure:
+            // ['default' => 'main', 'connections' => ['main'=>[...], 'reporting'=>[...]]]
+            if (is_array($config) && isset($config['connections']) && is_array($config['connections'])) {
+                if ($requestedConnection !== false && isset($config['connections'][$requestedConnection])) {
+                    /** @var array<string, mixed> $chosen */
+                    $chosen = $config['connections'][$requestedConnection];
+                    return $chosen;
+                }
+                if (isset($config['default']) && is_string($config['default'])) {
+                    $def = $config['default'];
+                    if (isset($config['connections'][$def]) && is_array($config['connections'][$def])) {
+                        /** @var array<string, mixed> $chosen */
+                        $chosen = $config['connections'][$def];
+                        return $chosen;
+                    }
+                }
+                if (count($config['connections']) === 1) {
+                    /** @var array<string, mixed> $only */
+                    $only = reset($config['connections']);
+                    return $only;
+                }
+            }
+
+            // 3) Legacy per-driver map: ['mysql'=>[...], 'pgsql'=>[...]]
+            if ($driver !== '' && is_array($config) && isset($config[$driver]) && is_array($config[$driver])) {
                 return $config[$driver];
             }
-            // If driver not specified, check if sqlite config exists (for backward compatibility)
-            if (isset($config['sqlite'])) {
+
+            // 4) Legacy named connections without 'connections' wrapper:
+            // ['main'=>['driver'=>...], 'reporting'=>['driver'=>...]]
+            if ($requestedConnection !== false && is_array($config) && isset($config[$requestedConnection])
+                && is_array($config[$requestedConnection]) && isset($config[$requestedConnection]['driver'])) {
+                /** @var array<string, mixed> $chosen */
+                $chosen = $config[$requestedConnection];
+                return $chosen;
+            }
+
+            // 5) Backward-compatibility: if 'sqlite' key exists and no driver provided
+            if (is_array($config) && isset($config['sqlite'])) {
                 static::warning('Using SQLite configuration from config/db.php. Consider setting PDODB_DRIVER environment variable or using direct driver configuration.');
-                return $config['sqlite'];
+                /** @var array<string, mixed> $sqliteCfg */
+                $sqliteCfg = $config['sqlite'];
+                return $sqliteCfg;
             }
         }
 
