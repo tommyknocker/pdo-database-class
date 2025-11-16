@@ -382,6 +382,15 @@ vendor/bin/pdodb model make User users
 
 # Specify output path
 vendor/bin/pdodb model make User users app/Models
+
+# Specify namespace for generated model
+vendor/bin/pdodb model make User users app/Models --namespace=App\\Entities
+
+# Overwrite without confirmation
+vendor/bin/pdodb model make User users app/Models --force
+
+# Use a named connection from config/db.php (global option)
+vendor/bin/pdodb model make User users app/Models --connection=reporting
 ```
 
 ### Example
@@ -398,6 +407,12 @@ Enter table name [users]: users
   Table: users
   Primary key: id
 ```
+
+### Options
+
+- `--namespace=NS` – Set PHP namespace for the generated class (default: `App\\Models`)
+- `--force` – Overwrite existing file without confirmation
+- `--connection=NAME` – Use a named connection from `config/db.php` (global option available for all commands)
 
 ### Generated Model File
 

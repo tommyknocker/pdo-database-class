@@ -2804,6 +2804,15 @@ vendor/bin/pdodb model make User users
 
 # Specify output path
 vendor/bin/pdodb model make User users app/Models
+
+# Specify namespace for generated model
+vendor/bin/pdodb model make User users app/Models --namespace=App\\Entities
+
+# Overwrite without confirmation
+vendor/bin/pdodb model make User users app/Models --force
+
+# Use a named connection from config/db.php (global option)
+vendor/bin/pdodb model make User users app/Models --connection=reporting
 ```
 
 #### Schema Inspection

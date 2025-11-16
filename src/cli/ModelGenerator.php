@@ -24,7 +24,14 @@ class ModelGenerator extends BaseCliCommand
      *
      * @return string Path to created model file
      */
-    public static function generate(string $modelName, ?string $tableName = null, ?string $outputPath = null, ?PdoDb $db = null): string
+    public static function generate(
+        string $modelName,
+        ?string $tableName = null,
+        ?string $outputPath = null,
+        ?PdoDb $db = null,
+        ?string $namespace = null,
+        bool $force = false
+    ): string
     {
         if ($db === null) {
             $db = static::createDatabase();
@@ -67,12 +74,13 @@ class ModelGenerator extends BaseCliCommand
         $foreignKeys = static::getForeignKeys($db, $tableName);
 
         // Generate model code
-        $modelCode = static::generateModelCode($modelName, $tableName, $columns, $primaryKey, $foreignKeys);
+        $modelNamespace = $namespace !== null && $namespace !== '' ? $namespace : 'App\\Models';
+        $modelCode = static::generateModelCode($modelName, $tableName, $columns, $primaryKey, $foreignKeys, $modelNamespace);
 
         // Write model file
         $filename = $outputPath . '/' . $modelName . '.php';
         if (file_exists($filename)) {
-            $overwrite = static::readConfirmation('Model file already exists. Overwrite?', false);
+            $overwrite = $force ? true : static::readConfirmation('Model file already exists. Overwrite?', false);
             if (!$overwrite) {
                 static::info('Model generation cancelled.');
                 exit(0);
@@ -173,9 +181,9 @@ class ModelGenerator extends BaseCliCommand
         string $tableName,
         array $columns,
         array $primaryKey,
-        array $foreignKeys
+        array $foreignKeys,
+        string $namespace
     ): string {
-        $namespace = 'App\\Models';
         $primaryKeyCode = count($primaryKey) === 1 && $primaryKey[0] === 'id'
             ? "        return ['id'];\n"
             : '        return ' . var_export($primaryKey, true) . ";\n";

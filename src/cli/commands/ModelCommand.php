@@ -50,6 +50,8 @@ class ModelCommand extends Command
         $modelName = $this->getArgument(1);
         $tableName = $this->getArgument(2);
         $outputPath = $this->getArgument(3);
+        $namespace = $this->getOption('namespace');
+        $force = (bool)$this->getOption('force', false);
 
         if ($modelName === null) {
             $this->showError('Model name is required');
@@ -58,7 +60,7 @@ class ModelCommand extends Command
         }
 
         try {
-            ModelGenerator::generate($modelName, $tableName, $outputPath, $this->getDb());
+            ModelGenerator::generate($modelName, $tableName, $outputPath, $this->getDb(), is_string($namespace) ? $namespace : null, $force);
             return 0;
         } catch (\Exception $e) {
             $this->showError($e->getMessage());
@@ -80,10 +82,16 @@ class ModelCommand extends Command
         echo "  ModelName         Model class name (required)\n";
         echo "  table_name       Table name (optional, auto-detected from model name if not provided)\n";
         echo "  output_path      Output directory path (optional)\n\n";
+        echo "Options:\n";
+        echo "  --force          Overwrite existing file without confirmation\n";
+        echo "  --namespace=NS   Set the PHP namespace for the generated model (default: App\\\\Models)\n";
+        echo "  --connection=NAME  Use a named connection from config/db.php\n\n";
         echo "Examples:\n";
         echo "  pdodb model make User\n";
         echo "  pdodb model make User users\n";
         echo "  pdodb model make User users app/Models\n";
+        echo "  pdodb model make User users app/Models --namespace=App\\\\Entities\n";
+        echo "  pdodb model make User users app/Models --force\n";
         return 0;
     }
 }
