@@ -6,6 +6,8 @@ namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\TableManager;
+use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\exceptions\ResourceException;
 
 class TableCommand extends Command
 {
@@ -31,6 +33,7 @@ class TableCommand extends Command
             'describe' => $this->describe(),
             'columns' => $this->columns(),
             'indexes' => $this->indexes(),
+            'keys' => $this->keys(),
             default => $this->showError("Unknown subcommand: {$sub}"),
         };
     }
@@ -237,6 +240,186 @@ class TableCommand extends Command
             return 0;
         }
         return $this->showError("Unknown indexes operation: {$op}");
+    }
+
+    protected function keys(): int
+    {
+        $op = $this->getArgument(1);
+        $db = $this->getDb();
+
+        if ($op === 'check') {
+            return $this->keysCheck($db);
+        }
+
+        $table = $this->getArgument(2);
+        if (!is_string($op) || !is_string($table) || $table === '') {
+            return $this->showError('Usage: pdodb table keys <list|add|drop> <table> ...');
+        }
+
+        return match ($op) {
+            'list' => $this->keysList($db, $table),
+            'add' => $this->keysAdd($db, $table),
+            'drop' => $this->keysDrop($db, $table),
+            default => $this->showError("Unknown keys operation: {$op}"),
+        };
+    }
+
+    protected function keysList(\tommyknocker\pdodb\PdoDb $db, string $table): int
+    {
+        $foreignKeys = $db->schema()->getForeignKeys($table);
+        $format = (string)$this->getOption('format', 'table');
+        return $this->printFormatted(['foreign_keys' => $foreignKeys], $format);
+    }
+
+    protected function keysAdd(\tommyknocker\pdodb\PdoDb $db, string $table): int
+    {
+        $name = (string)$this->getArgument(3, '');
+        $columns = (string)$this->getOption('columns', '');
+        $refTable = (string)$this->getOption('ref-table', '');
+        $refColumns = (string)$this->getOption('ref-columns', '');
+
+        // Interactive mode if required parameters are missing
+        if ($name === '') {
+            $name = static::readInput('Foreign key name', null);
+        }
+        if ($columns === '') {
+            $columns = static::readInput('Columns (comma-separated)', null);
+        }
+        if ($refTable === '') {
+            $refTable = static::readInput('Referenced table', null);
+        }
+        if ($refColumns === '') {
+            $refColumns = static::readInput('Referenced columns (comma-separated)', null);
+        }
+
+        if ($name === '' || $columns === '' || $refTable === '' || $refColumns === '') {
+            return $this->showError('Foreign key name, columns, referenced table, and referenced columns are required');
+        }
+
+        $columnArray = array_map('trim', explode(',', $columns));
+        $refColumnArray = array_map('trim', explode(',', $refColumns));
+
+        if (count($columnArray) !== count($refColumnArray)) {
+            return $this->showError('Number of columns must match number of referenced columns');
+        }
+
+        $onDelete = $this->getOption('on-delete');
+        $onUpdate = $this->getOption('on-update');
+        $deleteAction = is_string($onDelete) && $onDelete !== '' ? $onDelete : null;
+        $updateAction = is_string($onUpdate) && $onUpdate !== '' ? $onUpdate : null;
+
+        $db->schema()->addForeignKey(
+            $name,
+            $table,
+            count($columnArray) === 1 ? $columnArray[0] : $columnArray,
+            $refTable,
+            count($refColumnArray) === 1 ? $refColumnArray[0] : $refColumnArray,
+            $deleteAction,
+            $updateAction
+        );
+
+        static::success("Foreign key '{$name}' added to '{$table}'");
+        return 0;
+    }
+
+    protected function keysDrop(\tommyknocker\pdodb\PdoDb $db, string $table): int
+    {
+        $name = (string)$this->getArgument(3, '');
+        if ($name === '') {
+            return $this->showError('Foreign key name is required');
+        }
+
+        $force = (bool)$this->getOption('force', false);
+        if (!$force) {
+            $confirmed = static::readConfirmation("Are you sure you want to drop foreign key '{$name}' on '{$table}'?", false);
+            if (!$confirmed) {
+                static::info('Operation cancelled');
+                return 0;
+            }
+        }
+
+        $db->schema()->dropForeignKey($name, $table);
+        static::success("Foreign key '{$name}' dropped from '{$table}'");
+        return 0;
+    }
+
+    protected function keysCheck(\tommyknocker\pdodb\PdoDb $db): int
+    {
+        $schema = $db->schema();
+        $tables = TableManager::listTables($db);
+        $violations = [];
+        $checked = 0;
+
+        foreach ($tables as $table) {
+            $foreignKeys = $schema->getForeignKeys($table);
+            if (empty($foreignKeys)) {
+                continue;
+            }
+
+            foreach ($foreignKeys as $fk) {
+                $checked++;
+                // Handle different dialect formats
+                $fkName = $fk['CONSTRAINT_NAME'] ?? $fk['constraint_name'] ?? $fk['name'] ?? 'unknown';
+                // SQLite uses 'from' and 'to', others use COLUMN_NAME/column_name and REFERENCED_COLUMN_NAME/referenced_column_name
+                $column = $fk['COLUMN_NAME'] ?? $fk['column_name'] ?? $fk['from'] ?? null;
+                $refTable = $fk['REFERENCED_TABLE_NAME'] ?? $fk['referenced_table_name'] ?? $fk['table'] ?? null;
+                $refColumn = $fk['REFERENCED_COLUMN_NAME'] ?? $fk['referenced_column_name'] ?? $fk['to'] ?? null;
+
+                if (!is_string($column) || !is_string($refTable) || !is_string($refColumn)) {
+                    continue;
+                }
+
+                // Check for orphaned records
+                $dialect = $schema->getDialect();
+                $quotedTable = $dialect->quoteTable($table);
+                $quotedColumn = $dialect->quoteIdentifier($column);
+                $quotedRefTable = $dialect->quoteTable($refTable);
+                $quotedRefColumn = $dialect->quoteIdentifier($refColumn);
+
+                // Find records in child table that don't have matching parent records
+                $sql = "SELECT COUNT(*) as cnt FROM {$quotedTable} t1
+                        WHERE t1.{$quotedColumn} IS NOT NULL
+                        AND NOT EXISTS (
+                            SELECT 1 FROM {$quotedRefTable} t2
+                            WHERE t2.{$quotedRefColumn} = t1.{$quotedColumn}
+                        )";
+
+                try {
+                    $result = $db->rawQueryValue($sql);
+                    $count = (int)($result ?? 0);
+                    if ($count > 0) {
+                        $violations[] = [
+                            'table' => $table,
+                            'foreign_key' => is_string($fkName) ? $fkName : 'unknown',
+                            'column' => $column,
+                            'referenced_table' => $refTable,
+                            'referenced_column' => $refColumn,
+                            'violations' => $count,
+                        ];
+                    }
+                } catch (QueryException | ResourceException $e) {
+                    // Skip if query fails (table might not exist, etc.)
+                    continue;
+                } catch (\Exception $e) {
+                    // Skip other exceptions
+                    continue;
+                }
+            }
+        }
+
+        if (empty($violations)) {
+            static::success("All foreign key constraints are valid ({$checked} checked)");
+            return 0;
+        }
+
+        static::warning('Found ' . count($violations) . ' foreign key constraint violation(s):');
+        foreach ($violations as $violation) {
+            echo "  - Table '{$violation['table']}', FK '{$violation['foreign_key']}': ";
+            echo "{$violation['violations']} orphaned record(s) in '{$violation['column']}' ";
+            echo "referencing '{$violation['referenced_table']}.{$violation['referenced_column']}'\n";
+        }
+
+        return 1;
     }
 
     protected function columnsAdd(\tommyknocker\pdodb\PdoDb $db, string $table): int
@@ -460,7 +643,9 @@ class TableCommand extends Command
         echo "  truncate <table>                     Truncate table\n";
         echo "  describe <table>                     Show detailed columns\n";
         echo "  columns <op> <table> [...]           Manage columns (list/add/alter/drop)\n";
-        echo "  indexes <op> <table> [...]           Manage indexes (list/add/drop)\n\n";
+        echo "  indexes <op> <table> [...]           Manage indexes (list/add/drop)\n";
+        echo "  keys <op> <table> [...]              Manage foreign keys (list/add/drop)\n";
+        echo "  keys check                           Check foreign key integrity\n\n";
         echo "Options:\n";
         echo "  --format=table|json|yaml             Output format (for info/list/describe)\n";
         echo "  --force                              Execute without confirmation\n";
@@ -472,6 +657,10 @@ class TableCommand extends Command
         echo "    alter: [--not-null] [--drop-default] [--rename=NEW]\n";
         echo "  indexes add:\n";
         echo "    <name> --columns=\"c1,c2\" [--unique]\n";
+        echo "  keys add:\n";
+        echo "    <name> --columns=\"c1,c2\" --ref-table=table --ref-columns=\"c1,c2\" [--on-delete=ACTION] [--on-update=ACTION]\n";
+        echo "  keys check:\n";
+        echo "    Check all foreign key constraints for integrity violations\n";
         return 0;
     }
 }

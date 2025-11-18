@@ -2727,7 +2727,7 @@ Global options available for all commands:
 - **`schema`** - Inspect database schema
 - **`query`** - Test SQL queries interactively
 - **`model`** - Generate ActiveRecord models
-- **`table`** - Manage tables (info, list, exists, create, drop, rename, truncate, describe, columns, indexes)
+- **`table`** - Manage tables (info, list, exists, create, drop, rename, truncate, describe, columns, indexes, foreign keys)
 
 #### Database Management
 

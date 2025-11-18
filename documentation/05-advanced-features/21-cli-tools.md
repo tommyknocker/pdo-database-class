@@ -97,9 +97,47 @@ vendor/bin/pdodb table columns drop users price --force
 vendor/bin/pdodb table indexes list users --format=json
 vendor/bin/pdodb table indexes add users idx_users_name --columns="name" --unique
 vendor/bin/pdodb table indexes drop users idx_users_name --force
+
+# Foreign Keys
+vendor/bin/pdodb table keys list users --format=json
+vendor/bin/pdodb table keys add users fk_users_profile --columns="profile_id" --ref-table=profiles --ref-columns="id"
+vendor/bin/pdodb table keys add users fk_users_profile --columns="profile_id" --ref-table=profiles --ref-columns="id" --on-delete=CASCADE --on-update=RESTRICT
+vendor/bin/pdodb table keys drop users fk_users_profile --force
+vendor/bin/pdodb table keys check
 ```
 
-Notes:
+#### Foreign Key Management
+
+Manage foreign key constraints:
+
+```bash
+# List foreign keys for a table
+vendor/bin/pdodb table keys list users --format=json
+
+# Add foreign key (interactive mode if parameters missing)
+vendor/bin/pdodb table keys add users fk_users_profile --columns="profile_id" --ref-table=profiles --ref-columns="id"
+
+# Add foreign key with ON DELETE/ON UPDATE actions
+vendor/bin/pdodb table keys add users fk_users_profile --columns="profile_id" --ref-table=profiles --ref-columns="id" --on-delete=CASCADE --on-update=RESTRICT
+
+# Drop foreign key (with confirmation)
+vendor/bin/pdodb table keys drop users fk_users_profile --force
+
+# Check all foreign key constraints for integrity violations
+vendor/bin/pdodb table keys check
+```
+
+**Options:**
+- `--columns="col1,col2"` - Column(s) in the table (comma-separated for composite keys)
+- `--ref-table=table` - Referenced table name
+- `--ref-columns="col1,col2"` - Referenced column(s) (comma-separated for composite keys)
+- `--on-delete=ACTION` - Action on DELETE (CASCADE, SET NULL, RESTRICT, NO ACTION)
+- `--on-update=ACTION` - Action on UPDATE (CASCADE, SET NULL, RESTRICT, NO ACTION)
+- `--force` - Skip confirmation (for drop)
+
+**Notes:**
+- SQLite does not support ADD FOREIGN KEY via ALTER TABLE. Foreign keys must be defined during CREATE TABLE.
+- The `check` command verifies all foreign key constraints across all tables and reports orphaned records.
 - Options like ENGINE/CHARSET/COLLATION are dialect-specific and applied where supported.
 - If an operation is not supported by a dialect, a typed exception is thrown.
 

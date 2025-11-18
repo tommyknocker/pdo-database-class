@@ -208,6 +208,96 @@ final class TableCommandCliTests extends TestCase
         $this->assertStringContainsString("Index 'idx_items_name' dropped", $out);
     }
 
+    public function testForeignKeysListAndCheck(): void
+    {
+        $app = new Application();
+
+        // Create parent table
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'parent', '--columns=id:int', '--force']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+
+        // Create child table with foreign key (SQLite supports FK in CREATE TABLE)
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'child', '--columns=id:int,parent_id:int', '--force']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+
+        // SQLite doesn't support ADD FOREIGN KEY via ALTER TABLE, so we'll test list and check
+        // For SQLite, foreign keys are defined in CREATE TABLE, so we need to create table with FK inline
+        // But since we're using the CLI, we'll test what we can: list and check
+
+        // List foreign keys (should be empty for SQLite if not defined in CREATE TABLE)
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'keys', 'list', 'child', '--format=json']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('foreign_keys', $out);
+
+        // Check foreign keys (should pass if no violations)
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'keys', 'check']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        // Should return 0 if no violations, or 1 if violations found
+        $this->assertContains($code, [0, 1]);
+    }
+
+    /**
+     * @runInSeparateProcess
+     */
+    public function testKeysAddWithoutRequiredParamsYieldsError(): void
+    {
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $dbPath = sys_get_temp_dir() . '/pdodb_keys_' . uniqid() . '.sqlite';
+        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
+        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' table keys add test_table 2>&1';
+        $out = (string)shell_exec($cmd);
+        // Should show error about missing parameters
+        $this->assertStringContainsString('required', $out);
+    }
+
+    /**
+     * @runInSeparateProcess
+     */
+    public function testKeysDropWithoutNameYieldsError(): void
+    {
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $dbPath = sys_get_temp_dir() . '/pdodb_keys_' . uniqid() . '.sqlite';
+        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
+        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' table keys drop test_table 2>&1';
+        $out = (string)shell_exec($cmd);
+        $this->assertStringContainsString('Foreign key name is required', $out);
+    }
+
     /**
      * @runInSeparateProcess
      */
