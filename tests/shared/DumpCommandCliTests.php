@@ -212,4 +212,27 @@ class DumpCommandCliTests extends TestCase
 
         unlink($dumpFile);
     }
+
+    public function testDumpCommandTypoInRestore(): void
+    {
+        // Run in a subprocess to avoid exit() killing PHPUnit
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg(self::$dbPath) . ' PDODB_NON_INTERACTIVE=1';
+        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' dump retore 2>&1';
+        $out = (string)shell_exec($cmd);
+        $this->assertStringContainsString('Error:', $out);
+        $this->assertStringContainsString("Unknown command: 'retore'", $out);
+        $this->assertStringContainsString("Did you mean 'restore'?", $out);
+    }
+
+    public function testDumpCommandNonExistentTable(): void
+    {
+        // Run in a subprocess to avoid exit() killing PHPUnit
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg(self::$dbPath) . ' PDODB_NON_INTERACTIVE=1';
+        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' dump nonexistent_table 2>&1';
+        $out = (string)shell_exec($cmd);
+        $this->assertStringContainsString('Error:', $out);
+        $this->assertStringContainsString("Table 'nonexistent_table' does not exist", $out);
+    }
 }

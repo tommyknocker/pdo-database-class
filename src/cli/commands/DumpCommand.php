@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\DumpManager;
+use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\ResourceException;
 
 /**
@@ -45,6 +46,11 @@ class DumpCommand extends Command
             return $this->restore();
         }
 
+        // Check for common typos in 'restore' command
+        if ($firstArg !== null && (str_starts_with($firstArg, 'restor') || str_starts_with($firstArg, 'retor'))) {
+            return $this->showError("Unknown command: '{$firstArg}'. Did you mean 'restore'?");
+        }
+
         // If no arguments, check if dump-specific options are provided
         // If yes, dump entire database; if no, show help
         if ($firstArg === null) {
@@ -80,6 +86,15 @@ class DumpCommand extends Command
 
         try {
             $db = $this->getDb();
+
+            // Check if table exists when table name is provided
+            if (is_string($table) && $table !== '') {
+                $schema = $db->schema();
+                if (!$schema->tableExists($table)) {
+                    return $this->showError("Table '{$table}' does not exist");
+                }
+            }
+
             $sql = DumpManager::dump($db, is_string($table) ? $table : null, $schemaOnly, $dataOnly, $dropTables);
 
             if (is_string($output) && $output !== '') {
@@ -94,6 +109,15 @@ class DumpCommand extends Command
             echo $sql;
             return 0;
         } catch (ResourceException $e) {
+            return $this->showError($e->getMessage());
+        } catch (QueryException $e) {
+            // Check if error is about table not found
+            $message = $e->getMessage();
+            if (is_string($table) && $table !== '' && (str_contains($message, "doesn't exist") || str_contains($message, 'not found'))) {
+                return $this->showError("Table '{$table}' does not exist");
+            }
+            return $this->showError($message);
+        } catch (\Exception $e) {
             return $this->showError($e->getMessage());
         }
     }
