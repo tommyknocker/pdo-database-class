@@ -29,16 +29,17 @@ abstract class BaseCliCommand
 
         // Try examples config first (for testing/examples) - this takes precedence
         // because examples need to use the same config file that createExampleDb() uses
-        // But skip if environment variables are explicitly set (CI or user override)
+        // But skip if PDODB_* environment variables are explicitly set (CI or user override)
+        // Note: We check PDODB_* variables, not DB_* variables, because examples set PDODB_* from getExampleConfig()
         $hasEnvConfig = false;
         if ($driver === 'sqlite') {
             $hasEnvConfig = getenv('PDODB_PATH') !== false;
         } elseif ($driver === 'mysql' || $driver === 'mariadb') {
-            $hasEnvConfig = getenv('PDODB_DATABASE') !== false || getenv('DB_NAME') !== false;
+            $hasEnvConfig = getenv('PDODB_DATABASE') !== false && getenv('PDODB_USERNAME') !== false;
         } elseif ($driver === 'pgsql') {
-            $hasEnvConfig = getenv('PDODB_DATABASE') !== false;
+            $hasEnvConfig = getenv('PDODB_DATABASE') !== false && getenv('PDODB_USERNAME') !== false;
         } elseif ($driver === 'sqlsrv') {
-            $hasEnvConfig = getenv('PDODB_DATABASE') !== false || getenv('DB_NAME') !== false;
+            $hasEnvConfig = getenv('PDODB_DATABASE') !== false && getenv('PDODB_USERNAME') !== false;
         }
 
         if ($driver !== '' && !$hasEnvConfig) {
