@@ -991,7 +991,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string
     {
         throw new \tommyknocker\pdodb\exceptions\ResourceException(
             'Database dump is not supported for ' . $this->getDriverName()

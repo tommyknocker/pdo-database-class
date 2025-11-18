@@ -1569,11 +1569,12 @@ interface DialectInterface
      *
      * @param \tommyknocker\pdodb\PdoDb $db Database instance
      * @param string|null $table Table name (null = all tables)
+     * @param bool $dropTables Whether to add DROP TABLE IF EXISTS before CREATE TABLE
      *
      * @return string SQL schema dump
      * @throws \tommyknocker\pdodb\exceptions\ResourceException If operation fails or not supported
      */
-    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string;
+    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string;
 
     /**
      * Dump database data (INSERT statements).

@@ -32,6 +32,9 @@ vendor/bin/pdodb dump --schema-only --output=schema.sql
 # Data only (no schema)
 vendor/bin/pdodb dump --data-only --output=data.sql
 
+# Dump without DROP TABLE IF EXISTS statements
+vendor/bin/pdodb dump --no-drop-tables --output=backup.sql
+
 # Restore from dump file
 vendor/bin/pdodb dump restore backup.sql
 
@@ -44,7 +47,12 @@ vendor/bin/pdodb dump restore backup.sql --force
 - `--schema-only` - Dump only schema (CREATE TABLE, indexes, etc.)
 - `--data-only` - Dump only data (INSERT statements)
 - `--output=<file>` - Write dump to file instead of stdout
+- `--no-drop-tables` - Do not add DROP TABLE IF EXISTS before CREATE TABLE (by default, DROP TABLE IF EXISTS is included)
 - `--force` - Skip confirmation prompt (for restore)
+
+### Behavior
+
+By default, `pdodb dump` includes `DROP TABLE IF EXISTS` statements before each `CREATE TABLE` statement. This ensures that restoring a dump will replace existing tables. Use the `--no-drop-tables` option to exclude these statements if you want to preserve existing tables.
 
 ### Notes
 

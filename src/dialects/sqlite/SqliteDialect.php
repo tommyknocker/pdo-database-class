@@ -1210,7 +1210,7 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string
     {
         $tableOutput = [];
         $indexOutput = [];
@@ -1227,6 +1227,10 @@ class SqliteDialect extends DialectAbstract
 
         // First, collect all CREATE TABLE statements
         foreach ($tables as $tableName) {
+            if ($dropTables) {
+                $quotedTable = $this->quoteTable($tableName);
+                $tableOutput[] = "DROP TABLE IF EXISTS {$quotedTable};";
+            }
             $createRows = $db->rawQuery("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?", [$tableName]);
             if (!empty($createRows)) {
                 $createSql = (string)$createRows[0]['sql'];

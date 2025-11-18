@@ -1679,7 +1679,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string
     {
         $output = [];
         $tables = [];
@@ -1696,8 +1696,13 @@ class PostgreSQLDialect extends DialectAbstract
         }
 
         foreach ($tables as $tableName) {
-            // Build CREATE TABLE from information_schema
             $quotedTable = $this->quoteTable($tableName);
+
+            if ($dropTables) {
+                $output[] = "DROP TABLE IF EXISTS {$quotedTable} CASCADE;";
+            }
+
+            // Build CREATE TABLE from information_schema
             $columns = $db->rawQuery(
                 "SELECT column_name, data_type, character_maximum_length, numeric_precision, numeric_scale, is_nullable, column_default
                  FROM information_schema.columns

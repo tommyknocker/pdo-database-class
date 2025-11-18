@@ -19,11 +19,12 @@ class DumpManager
      * @param string|null $table Table name (null = entire database)
      * @param bool $schemaOnly Only dump schema (no data)
      * @param bool $dataOnly Only dump data (no schema)
+     * @param bool $dropTables Whether to add DROP TABLE IF EXISTS before CREATE TABLE
      *
      * @return string SQL dump content
      * @throws ResourceException If operation is not supported or fails
      */
-    public static function dump(PdoDb $db, ?string $table = null, bool $schemaOnly = false, bool $dataOnly = false): string
+    public static function dump(PdoDb $db, ?string $table = null, bool $schemaOnly = false, bool $dataOnly = false, bool $dropTables = true): string
     {
         $dialect = $db->schema()->getDialect();
         $driver = $dialect->getDriverName();
@@ -43,7 +44,7 @@ class DumpManager
         $output[] = '';
 
         if (!$dataOnly) {
-            $schema = $dialect->dumpSchema($db, $table);
+            $schema = $dialect->dumpSchema($db, $table, $dropTables);
             if ($schema !== '') {
                 $output[] = $schema;
                 $output[] = '';

@@ -1537,7 +1537,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string
     {
         $output = [];
         $tables = [];
@@ -1554,6 +1554,10 @@ class MSSQLDialect extends DialectAbstract
         foreach ($tables as $tableName) {
             // Build CREATE TABLE from INFORMATION_SCHEMA
             $quotedTable = $this->quoteTable($tableName);
+
+            if ($dropTables) {
+                $output[] = "IF OBJECT_ID('{$quotedTable}', 'U') IS NOT NULL DROP TABLE {$quotedTable};";
+            }
             $columns = $db->rawQuery(
                 'SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE, IS_NULLABLE, COLUMN_DEFAULT
                  FROM INFORMATION_SCHEMA.COLUMNS

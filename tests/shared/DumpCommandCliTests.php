@@ -56,6 +56,20 @@ class DumpCommandCliTests extends TestCase
         $this->assertStringContainsString('Post 1', $sql);
     }
 
+    public function testDumpIncludesDropTableByDefault(): void
+    {
+        $sql = DumpManager::dump(self::$db, null, true, false);
+        $this->assertStringContainsString('DROP TABLE IF EXISTS', $sql);
+        $this->assertStringContainsString('CREATE TABLE', $sql);
+    }
+
+    public function testDumpNoDropTablesOption(): void
+    {
+        $sql = DumpManager::dump(self::$db, null, true, false, false);
+        $this->assertStringNotContainsString('DROP TABLE IF EXISTS', $sql);
+        $this->assertStringContainsString('CREATE TABLE', $sql);
+    }
+
     public function testDumpSchemaOnly(): void
     {
         $sql = DumpManager::dump(self::$db, null, true, false);
@@ -174,6 +188,27 @@ class DumpCommandCliTests extends TestCase
         $this->assertStringContainsString('CREATE TABLE', $sql);
         $this->assertStringContainsString('users', $sql);
         $this->assertStringContainsString('posts', $sql);
+
+        unlink($dumpFile);
+    }
+
+    public function testDumpCommandNoDropTablesOption(): void
+    {
+        $dumpFile = sys_get_temp_dir() . '/pdodb_cli_test_' . uniqid() . '.sql';
+        $app = new Application();
+        putenv('PDODB_DRIVER=sqlite');
+        putenv('PDODB_PATH=' . self::$dbPath);
+        putenv('PDODB_NON_INTERACTIVE=1');
+
+        ob_start();
+        $exitCode = $app->run(['pdodb', 'dump', '--schema-only', '--no-drop-tables', '--output=' . $dumpFile]);
+        $output = ob_get_clean();
+
+        $this->assertEquals(0, $exitCode);
+        $this->assertFileExists($dumpFile);
+        $sql = file_get_contents($dumpFile);
+        $this->assertStringNotContainsString('DROP TABLE IF EXISTS', $sql);
+        $this->assertStringContainsString('CREATE TABLE', $sql);
 
         unlink($dumpFile);
     }

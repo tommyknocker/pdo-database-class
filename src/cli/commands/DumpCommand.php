@@ -72,6 +72,7 @@ class DumpCommand extends Command
         $schemaOnly = (bool)$this->getOption('schema-only', false);
         $dataOnly = (bool)$this->getOption('data-only', false);
         $output = $this->getOption('output');
+        $dropTables = !(bool)$this->getOption('no-drop-tables', false);
 
         if ($schemaOnly && $dataOnly) {
             return $this->showError('Cannot use --schema-only and --data-only together');
@@ -79,7 +80,7 @@ class DumpCommand extends Command
 
         try {
             $db = $this->getDb();
-            $sql = DumpManager::dump($db, is_string($table) ? $table : null, $schemaOnly, $dataOnly);
+            $sql = DumpManager::dump($db, is_string($table) ? $table : null, $schemaOnly, $dataOnly, $dropTables);
 
             if (is_string($output) && $output !== '') {
                 $written = file_put_contents($output, $sql);
@@ -151,6 +152,7 @@ class DumpCommand extends Command
         echo "  --schema-only       Dump only schema (CREATE TABLE, indexes, etc.)\n";
         echo "  --data-only         Dump only data (INSERT statements)\n";
         echo "  --output=<file>     Write dump to file instead of stdout\n";
+        echo "  --no-drop-tables   Do not add DROP TABLE IF EXISTS before CREATE TABLE\n";
         echo "  --force             Skip confirmation (for restore)\n\n";
         echo "Examples:\n";
         echo "  pdodb dump --output=backup.sql\n";

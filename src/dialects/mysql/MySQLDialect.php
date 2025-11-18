@@ -1328,7 +1328,7 @@ class MySQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string
     {
         $output = [];
         $tables = [];
@@ -1351,6 +1351,11 @@ class MySQLDialect extends DialectAbstract
             $schema = $db->schema();
             if (!$schema->tableExists($tableName)) {
                 continue;
+            }
+
+            if ($dropTables) {
+                $quotedTable = $this->quoteTable($tableName);
+                $output[] = "DROP TABLE IF EXISTS {$quotedTable};";
             }
 
             // Get CREATE TABLE statement (includes indexes in MySQL)

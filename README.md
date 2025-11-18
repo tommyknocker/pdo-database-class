@@ -2787,7 +2787,7 @@ vendor/bin/pdodb user password john --password newpass123
 Export and import database schema and data:
 
 ```bash
-# Full database dump to file
+# Full database dump to file (includes DROP TABLE IF EXISTS by default)
 vendor/bin/pdodb dump --output=backup.sql
 
 # Dump specific table to file
@@ -2798,6 +2798,9 @@ vendor/bin/pdodb dump --schema-only --output=schema.sql
 
 # Data only (no schema)
 vendor/bin/pdodb dump --data-only --output=data.sql
+
+# Dump without DROP TABLE IF EXISTS statements
+vendor/bin/pdodb dump --no-drop-tables --output=backup.sql
 
 # Restore from dump file
 vendor/bin/pdodb dump restore backup.sql
