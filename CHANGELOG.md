@@ -7,6 +7,133 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.10.2] - 2025-11-18
+
+### Added
+- **Database Dump and Restore** (`pdodb dump`) - Export and import database schema and data:
+  - `pdodb dump` - Dump entire database to SQL
+  - `pdodb dump <table>` - Dump specific table
+  - `pdodb dump --schema-only` - Dump only schema (CREATE TABLE, indexes, etc.)
+  - `pdodb dump --data-only` - Dump only data (INSERT statements)
+  - `pdodb dump --output=<file>` - Write dump to file instead of stdout
+  - `pdodb dump --no-drop-tables` - Exclude DROP TABLE IF EXISTS statements (included by default)
+  - `pdodb dump restore <file>` - Restore database from SQL dump file
+  - `pdodb dump restore <file> --force` - Restore without confirmation
+  - Cross-dialect support for all database types
+  - Automatic DROP TABLE IF EXISTS before CREATE TABLE (configurable)
+
+- **Table Management** (`pdodb table`) - Comprehensive table operations:
+  - `pdodb table list` - List all tables
+  - `pdodb table info <table>` - Show detailed table information
+  - `pdodb table exists <table>` - Check if table exists
+  - `pdodb table create <table>` - Create new table with interactive column prompts
+  - `pdodb table drop <table>` - Drop table (with confirmation)
+  - `pdodb table rename <table> <new_name>` - Rename table
+  - `pdodb table truncate <table>` - Truncate table data
+  - `pdodb table describe <table>` - Show table structure
+  - `pdodb table columns list <table>` - List all columns
+  - `pdodb table columns add <table>` - Add new column
+  - `pdodb table columns alter <table> <column>` - Modify column
+  - `pdodb table columns drop <table> <column>` - Drop column
+  - `pdodb table indexes list <table>` - List all indexes
+  - `pdodb table indexes add <table>` - Create new index
+  - `pdodb table indexes drop <table> <index>` - Drop index
+  - Support for `--format` option (table, json, yaml)
+  - Support for `--if-exists` and `--if-not-exists` flags
+
+- **Database Management** (`pdodb db`) - Database operations:
+  - `pdodb db create <name>` - Create new database
+  - `pdodb db drop <name>` - Drop database (with confirmation)
+  - `pdodb db exists <name>` - Check if database exists
+  - `pdodb db list` - List all databases
+  - `pdodb db info <name>` - Show database information
+  - Interactive prompts for database name input
+  - Database name display in command header
+
+- **User Management** (`pdodb user`) - Database user operations:
+  - `pdodb user create <username>` - Create new database user
+  - `pdodb user drop <username>` - Drop user (with confirmation)
+  - `pdodb user exists <username>` - Check if user exists
+  - `pdodb user list` - List all users
+  - `pdodb user info <username>` - Show user information
+  - `pdodb user grant <username>` - Grant privileges to user
+  - `pdodb user revoke <username>` - Revoke privileges from user
+  - `pdodb user password <username>` - Change user password
+  - Cross-dialect support (MySQL, MariaDB, PostgreSQL, MSSQL)
+
+- **Query Command Enhancements** (`pdodb query`):
+  - `pdodb query explain <sql>` - Show EXPLAIN plan for query
+  - `pdodb query format <sql>` - Pretty-print and format SQL
+  - `pdodb query validate <sql>` - Validate SQL syntax
+
+- **Model Generator Enhancements** (`pdodb model`):
+  - `--force` option - Overwrite existing models without confirmation
+  - `--namespace=<ns>` option - Specify namespace for generated models
+  - `--connection=<name>` - Select named connection (global option)
+
+- **Global CLI Options**:
+  - `--help` - Show help message (available globally and per-command)
+  - `--connection=<name>` - Use named connection from config/db.php
+  - `--config=<path>` - Path to db.php configuration file
+  - `--env=<path>` - Path to .env file
+
+- **Migration Command Enhancements** (`pdodb migrate`):
+  - `--dry-run` option - Show SQL without executing
+  - `--pretend` option - Show what would be executed
+  - `--force` option - Skip confirmation prompts
+  - Confirmation prompts for `migrate up` command
+
+### Changed
+- **SQL Formatter Improvements**:
+  - Enhanced tokenization with proper whitespace handling
+  - Multi-word keyword recognition (LEFT/RIGHT/FULL [OUTER] JOIN, GROUP BY, ORDER BY)
+  - Consistent keyword uppercasing
+  - Improved formatting with proper line breaks for major clauses
+  - Better handling of quoted strings and parentheses
+
+- **Dialect Architecture Refactoring**:
+  - Split dialect classes into separate components (SqlFormatter, DmlBuilder, DdlBuilder)
+  - Reorganized dialects into subdirectories (sqlite/, mysql/, mariadb/, postgresql/, mssql/)
+  - Extracted FeatureSupport classes for better organization
+  - Replaced magic strings with QueryConstants class
+
+- **CLI Command Behavior**:
+  - Commands now show help when no arguments provided (consistent behavior)
+  - Improved error messages with helpful suggestions (e.g., typo detection for 'restore')
+  - Better table existence checking before operations
+
+### Fixed
+- **Error Handling**:
+  - Improved error handling in `pdodb dump` command (replaces fatal errors with user-friendly messages)
+  - Typo detection for 'restore' command with helpful suggestions
+  - Table existence check before dumping (prevents fatal errors)
+  - Better exception handling with try/catch for QueryException and general Exception
+
+- **Configuration Loading**:
+  - Fixed configuration loading order in BaseCliCommand
+  - Corrected environment variable checks for CI environments
+  - Improved MSSQL configuration loading (sqlsrv driver alias support)
+  - Fixed MySQL/MariaDB CI environment variable support in examples
+
+- **CI/CD**:
+  - Added CI environment variable support to MariaDB config and workflow
+  - Fixed MariaDB examples failing in GitHub Actions
+  - Improved configuration file detection for examples
+
+- **Window Functions**:
+  - Restored MariaDB LAG/LEAD default value handling in formatWindowFunction
+
+- **CLI Tools**:
+  - Fixed CLI prompts display before waiting for input
+  - Prevented CLI tools from hanging in tests by adding non-interactive mode
+  - Improved MySQL/MariaDB table listing robustness
+
+### Technical Details
+- **All tests passing**: 2390 tests, 8016 assertions across all dialects
+- **Test coverage**: Increased CLI integration test coverage
+- **Code quality**: PHPStan level 8, PHP-CS-Fixer compliant
+- **Full backward compatibility**: 100% maintained
+
 ## [2.10.1] - 2025-11-11
 
 ### Added
@@ -1462,7 +1589,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.1...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.2...HEAD
+[2.10.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.1...v2.10.2
 [2.10.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.0...v2.10.1
 [2.10.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.3...v2.10.0
 [2.9.3]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.2...v2.9.3
