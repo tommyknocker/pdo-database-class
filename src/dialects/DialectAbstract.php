@@ -987,4 +987,34 @@ abstract class DialectAbstract implements DialectInterface
             'User management is not supported for ' . $this->getDriverName()
         );
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    {
+        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+            'Database dump is not supported for ' . $this->getDriverName()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dumpData(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    {
+        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+            'Database dump is not supported for ' . $this->getDriverName()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function restoreFromSql(\tommyknocker\pdodb\PdoDb $db, string $sql, bool $continueOnError = false): void
+    {
+        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+            'Database restore is not supported for ' . $this->getDriverName()
+        );
+    }
 }

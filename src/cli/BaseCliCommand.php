@@ -99,6 +99,13 @@ abstract class BaseCliCommand
             if (file_exists($configFile)) {
                 return require $configFile;
             }
+            // Handle sqlsrv -> mssql alias for config file (MSSQL uses sqlsrv driver but config.mssql.php)
+            if ($driver === 'sqlsrv') {
+                $configFile = __DIR__ . '/../../examples/config.mssql.php';
+                if (file_exists($configFile)) {
+                    return require $configFile;
+                }
+            }
         }
 
         // Throw error instead of fallback

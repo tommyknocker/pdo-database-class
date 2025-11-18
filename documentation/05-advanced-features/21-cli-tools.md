@@ -13,6 +13,47 @@ The CLI tools are designed to streamline your development workflow:
 - **Schema Inspector** - Inspect database schema structure
 - **Query Tester** - Interactive REPL for testing SQL queries
 
+## Database Dump and Restore
+
+Export and import database schema and data.
+
+### Usage
+
+```bash
+# Full database dump to file
+vendor/bin/pdodb dump --output=backup.sql
+
+# Dump specific table to file
+vendor/bin/pdodb dump users --output=users_backup.sql
+
+# Schema only (no data)
+vendor/bin/pdodb dump --schema-only --output=schema.sql
+
+# Data only (no schema)
+vendor/bin/pdodb dump --data-only --output=data.sql
+
+# Restore from dump file
+vendor/bin/pdodb dump restore backup.sql
+
+# Restore without confirmation
+vendor/bin/pdodb dump restore backup.sql --force
+```
+
+### Options
+
+- `--schema-only` - Dump only schema (CREATE TABLE, indexes, etc.)
+- `--data-only` - Dump only data (INSERT statements)
+- `--output=<file>` - Write dump to file instead of stdout
+- `--force` - Skip confirmation prompt (for restore)
+
+### Notes
+
+- Dump format is SQL-compatible across all supported dialects
+- Schema dumps include CREATE TABLE statements and indexes
+- Data dumps use batched INSERT statements for efficiency
+- Restore executes SQL statements sequentially with error handling
+- Use `--force` with restore to continue on errors (skips failed statements)
+
 ## Table Management
 
 Manage tables (create, drop, rename, truncate, inspect structure).

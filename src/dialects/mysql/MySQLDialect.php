@@ -1324,4 +1324,195 @@ class MySQLDialect extends DialectAbstract
         $db->rawQuery('FLUSH PRIVILEGES');
         return true;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    {
+        $output = [];
+        $tables = [];
+
+        if ($table !== null) {
+            $tables = [$table];
+        } else {
+            $rows = $db->rawQuery('SHOW FULL TABLES WHERE Table_Type = "BASE TABLE"');
+            foreach ($rows as $row) {
+                $vals = array_values($row);
+                if (isset($vals[0]) && is_string($vals[0])) {
+                    $tables[] = $vals[0];
+                }
+            }
+            sort($tables);
+        }
+
+        foreach ($tables as $tableName) {
+            // Check if table exists before trying to dump it
+            $schema = $db->schema();
+            if (!$schema->tableExists($tableName)) {
+                continue;
+            }
+
+            // Get CREATE TABLE statement (includes indexes in MySQL)
+            try {
+                $createRows = $db->rawQuery('SHOW CREATE TABLE ' . $this->quoteTable($tableName));
+                if (!empty($createRows)) {
+                    $vals = array_values($createRows[0]);
+                    $createSql = isset($vals[1]) && is_string($vals[1]) ? $vals[1] : '';
+                    if ($createSql !== '') {
+                        $output[] = $createSql . ';';
+                    }
+                }
+            } catch (\Exception $e) {
+                // Table might have been dropped, skip it
+                continue;
+            }
+
+            // Note: MySQL's SHOW CREATE TABLE already includes all indexes in the CREATE TABLE statement,
+            // so we don't need to add separate CREATE INDEX statements
+        }
+
+        return implode("\n", $output);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dumpData(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    {
+        $output = [];
+        $tables = [];
+
+        if ($table !== null) {
+            $tables = [$table];
+        } else {
+            $rows = $db->rawQuery('SHOW FULL TABLES WHERE Table_Type = "BASE TABLE"');
+            foreach ($rows as $row) {
+                $vals = array_values($row);
+                if (isset($vals[0]) && is_string($vals[0])) {
+                    $tables[] = $vals[0];
+                }
+            }
+            sort($tables);
+        }
+
+        foreach ($tables as $tableName) {
+            $quotedTable = $this->quoteTable($tableName);
+            $rows = $db->rawQuery("SELECT * FROM {$quotedTable}");
+
+            if (empty($rows)) {
+                continue;
+            }
+
+            $columns = array_keys($rows[0]);
+            $quotedColumns = array_map([$this, 'quoteIdentifier'], $columns);
+            $columnsList = implode(', ', $quotedColumns);
+
+            $batchSize = 100;
+            $batch = [];
+            foreach ($rows as $row) {
+                $values = [];
+                foreach ($columns as $col) {
+                    $val = $row[$col];
+                    if ($val === null) {
+                        $values[] = 'NULL';
+                    } elseif (is_int($val) || is_float($val)) {
+                        $values[] = (string)$val;
+                    } else {
+                        $values[] = "'" . str_replace(["'", '\\'], ["''", '\\\\'], (string)$val) . "'";
+                    }
+                }
+                $batch[] = '(' . implode(', ', $values) . ')';
+
+                if (count($batch) >= $batchSize) {
+                    $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
+                    $batch = [];
+                }
+            }
+
+            if (!empty($batch)) {
+                $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
+            }
+        }
+
+        return implode("\n\n", $output);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function restoreFromSql(\tommyknocker\pdodb\PdoDb $db, string $sql, bool $continueOnError = false): void
+    {
+        // Split SQL into statements, handling comments and quoted strings
+        $statements = [];
+        $current = '';
+        $inString = false;
+        $stringChar = '';
+        $inComment = false;
+
+        $lines = explode("\n", $sql);
+        foreach ($lines as $line) {
+            // Skip comment-only lines
+            $trimmedLine = trim($line);
+            if ($trimmedLine === '' || preg_match('/^--/', $trimmedLine)) {
+                continue;
+            }
+
+            $length = strlen($line);
+            for ($i = 0; $i < $length; $i++) {
+                $char = $line[$i];
+                $nextChar = $i + 1 < $length ? $line[$i + 1] : '';
+
+                // Handle comments (-- style)
+                if (!$inString && $char === '-' && $nextChar === '-') {
+                    // Skip rest of line (comment)
+                    break;
+                }
+
+                if (!$inString && ($char === '"' || $char === "'" || $char === '`')) {
+                    $inString = true;
+                    $stringChar = $char;
+                    $current .= $char;
+                } elseif ($inString && $char === $stringChar) {
+                    if ($nextChar === $stringChar) {
+                        $current .= $char . $nextChar;
+                        $i++;
+                    } else {
+                        $inString = false;
+                        $stringChar = '';
+                        $current .= $char;
+                    }
+                } elseif (!$inString && $char === ';') {
+                    $stmt = trim($current);
+                    if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
+                        $statements[] = $stmt;
+                    }
+                    $current = '';
+                } else {
+                    $current .= $char;
+                }
+            }
+        }
+
+        $stmt = trim($current);
+        if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
+            $statements[] = $stmt;
+        }
+
+        $errors = [];
+        foreach ($statements as $stmt) {
+            try {
+                $db->rawQuery($stmt);
+            } catch (\Throwable $e) {
+                if (!$continueOnError) {
+                    throw new \tommyknocker\pdodb\exceptions\ResourceException('Failed to execute SQL statement: ' . $e->getMessage() . "\nStatement: " . substr($stmt, 0, 200));
+                }
+                $errors[] = $e->getMessage();
+            }
+        }
+
+        if (!empty($errors) && $continueOnError) {
+            throw new \tommyknocker\pdodb\exceptions\ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
+        }
+    }
 }

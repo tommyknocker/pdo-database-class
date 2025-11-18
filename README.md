@@ -36,7 +36,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
 
 **Developer Experience:**
-- **CLI Tools** - Database management, user management, migration generator, model generator, schema inspector, and interactive query tester (REPL)
+- **CLI Tools** - Database management, user management, dump/restore, migration generator, model generator, schema inspector, and interactive query tester (REPL)
 - **Enhanced EXPLAIN** - Automatic detection of full table scans, missing indexes, and optimization recommendations
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Enhanced Error Diagnostics** - Query context, sanitized parameters, and debug information in exceptions
@@ -2722,6 +2722,7 @@ Global options available for all commands:
 
 - **`db`** - Manage databases (create, drop, list, check existence, show info)
 - **`user`** - Manage database users (create, drop, list, grant/revoke privileges, change password)
+- **`dump`** - Dump and restore database (schema and data export/import)
 - **`migrate`** - Manage database migrations
 - **`schema`** - Inspect database schema
 - **`query`** - Test SQL queries interactively
@@ -2780,6 +2781,30 @@ vendor/bin/pdodb user password john --password newpass123
 ```
 
 **Note**: SQLite does not support user management operations.
+
+#### Database Dump and Restore
+
+Export and import database schema and data:
+
+```bash
+# Full database dump to file
+vendor/bin/pdodb dump --output=backup.sql
+
+# Dump specific table to file
+vendor/bin/pdodb dump users --output=users_backup.sql
+
+# Schema only (no data)
+vendor/bin/pdodb dump --schema-only --output=schema.sql
+
+# Data only (no schema)
+vendor/bin/pdodb dump --data-only --output=data.sql
+
+# Restore from dump file
+vendor/bin/pdodb dump restore backup.sql
+
+# Restore without confirmation
+vendor/bin/pdodb dump restore backup.sql --force
+```
 
 #### Migration Management
 

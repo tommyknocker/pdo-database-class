@@ -40,7 +40,7 @@ class TableManager
                     return isset($vals[0]) && is_string($vals[0]) ? $vals[0] : '';
                 },
                 $rows
-            ), static fn(string $s): bool => $s !== ''));
+            ), static fn (string $s): bool => $s !== ''));
             sort($names);
             return $names;
         }

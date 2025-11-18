@@ -38,9 +38,13 @@ abstract class BaseMySQLTestCase extends TestCase
             ]
         );
 
+        // Drop tables in correct order (child tables first, then parent tables)
+        // Disable foreign key checks to avoid constraint violations
+        self::$db->rawQuery('SET FOREIGN_KEY_CHECKS=0');
         self::$db->rawQuery('DROP TABLE IF EXISTS archive_users');
         self::$db->rawQuery('DROP TABLE IF EXISTS orders');
         self::$db->rawQuery('DROP TABLE IF EXISTS users');
+        self::$db->rawQuery('SET FOREIGN_KEY_CHECKS=1');
 
         self::$db->rawQuery('CREATE TABLE users (
             id INT AUTO_INCREMENT PRIMARY KEY,

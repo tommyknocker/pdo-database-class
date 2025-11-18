@@ -1206,4 +1206,188 @@ class SqliteDialect extends DialectAbstract
         // Not used for SQLite, but required by abstract method
         return [];
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    {
+        $tableOutput = [];
+        $indexOutput = [];
+        $tables = [];
+
+        if ($table !== null) {
+            $tables = [$table];
+        } else {
+            $rows = $db->rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+            foreach ($rows as $row) {
+                $tables[] = (string)$row['name'];
+            }
+        }
+
+        // First, collect all CREATE TABLE statements
+        foreach ($tables as $tableName) {
+            $createRows = $db->rawQuery("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?", [$tableName]);
+            if (!empty($createRows)) {
+                $createSql = (string)$createRows[0]['sql'];
+                $tableOutput[] = $createSql . ';';
+            }
+        }
+
+        // Then, collect all indexes
+        foreach ($tables as $tableName) {
+            $indexRows = $db->rawQuery("SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name = ? AND sql IS NOT NULL", [$tableName]);
+            foreach ($indexRows as $idxRow) {
+                $idxSql = (string)$idxRow['sql'];
+                if ($idxSql !== '') {
+                    $indexOutput[] = $idxSql . ';';
+                }
+            }
+        }
+
+        return implode("\n", array_merge($tableOutput, $indexOutput));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dumpData(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    {
+        $output = [];
+        $tables = [];
+
+        if ($table !== null) {
+            $tables = [$table];
+        } else {
+            $rows = $db->rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+            foreach ($rows as $row) {
+                $tables[] = (string)$row['name'];
+            }
+        }
+
+        foreach ($tables as $tableName) {
+            $quotedTable = $this->quoteTable($tableName);
+            $rows = $db->rawQuery("SELECT * FROM {$quotedTable}");
+
+            if (empty($rows)) {
+                continue;
+            }
+
+            // Get column names
+            $columns = array_keys($rows[0]);
+            $quotedColumns = array_map([$this, 'quoteIdentifier'], $columns);
+            $columnsList = implode(', ', $quotedColumns);
+
+            // Generate INSERT statements in batches
+            $batchSize = 100;
+            $batch = [];
+            foreach ($rows as $row) {
+                $values = [];
+                foreach ($columns as $col) {
+                    $val = $row[$col];
+                    if ($val === null) {
+                        $values[] = 'NULL';
+                    } elseif (is_int($val) || is_float($val)) {
+                        $values[] = (string)$val;
+                    } else {
+                        $values[] = "'" . str_replace("'", "''", (string)$val) . "'";
+                    }
+                }
+                $batch[] = '(' . implode(', ', $values) . ')';
+
+                if (count($batch) >= $batchSize) {
+                    $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
+                    $batch = [];
+                }
+            }
+
+            if (!empty($batch)) {
+                $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
+            }
+        }
+
+        return implode("\n\n", $output);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function restoreFromSql(\tommyknocker\pdodb\PdoDb $db, string $sql, bool $continueOnError = false): void
+    {
+        // Split SQL into statements (semicolon-separated, ignoring semicolons in strings and comments)
+        $statements = [];
+        $current = '';
+        $inString = false;
+        $stringChar = '';
+        $inComment = false;
+
+        $lines = explode("\n", $sql);
+        foreach ($lines as $line) {
+            $line = rtrim($line);
+            if ($line === '') {
+                continue;
+            }
+
+            // Skip comment lines
+            if (preg_match('/^--/', $line)) {
+                continue;
+            }
+
+            // Check for inline comments (-- at end of line)
+            $commentPos = strpos($line, '--');
+            if ($commentPos !== false) {
+                // Check if -- is inside a string
+                $beforeComment = substr($line, 0, $commentPos);
+                $quoteCount = substr_count($beforeComment, "'") + substr_count($beforeComment, '"') + substr_count($beforeComment, '`');
+                if ($quoteCount % 2 === 0) {
+                    // Not in string, remove comment
+                    $line = substr($line, 0, $commentPos);
+                    $line = rtrim($line);
+                }
+            }
+
+            $current .= $line . "\n";
+
+            // Check if line ends with semicolon (statement complete)
+            if (substr(rtrim($line), -1) === ';') {
+                $stmt = trim($current);
+                if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
+                    // Remove trailing semicolon
+                    $stmt = rtrim($stmt, ';');
+                    $stmt = trim($stmt);
+                    if ($stmt !== '') {
+                        $statements[] = $stmt;
+                    }
+                }
+                $current = '';
+            }
+        }
+
+        // Handle last statement
+        $stmt = trim($current);
+        if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
+            $stmt = rtrim($stmt, ';');
+            $stmt = trim($stmt);
+            if ($stmt !== '') {
+                $statements[] = $stmt;
+            }
+        }
+
+        // Execute statements
+        $errors = [];
+        foreach ($statements as $stmt) {
+            try {
+                $db->rawQuery($stmt);
+            } catch (\Throwable $e) {
+                if (!$continueOnError) {
+                    throw new ResourceException('Failed to execute SQL statement: ' . $e->getMessage() . "\nStatement: " . substr($stmt, 0, 200));
+                }
+                $errors[] = $e->getMessage();
+            }
+        }
+
+        if (!empty($errors) && $continueOnError) {
+            throw new ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
+        }
+    }
 }

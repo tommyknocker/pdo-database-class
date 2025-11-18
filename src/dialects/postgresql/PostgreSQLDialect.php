@@ -1675,4 +1675,277 @@ class PostgreSQLDialect extends DialectAbstract
         $db->rawQuery($sql);
         return true;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    {
+        $output = [];
+        $tables = [];
+
+        if ($table !== null) {
+            $tables = [$table];
+        } else {
+            $rows = $db->rawQuery(
+                'SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = \'public\' ORDER BY tablename'
+            );
+            foreach ($rows as $row) {
+                $tables[] = (string)$row['tablename'];
+            }
+        }
+
+        foreach ($tables as $tableName) {
+            // Build CREATE TABLE from information_schema
+            $quotedTable = $this->quoteTable($tableName);
+            $columns = $db->rawQuery(
+                "SELECT column_name, data_type, character_maximum_length, numeric_precision, numeric_scale, is_nullable, column_default
+                 FROM information_schema.columns
+                 WHERE table_schema = 'public' AND table_name = ?
+                 ORDER BY ordinal_position",
+                [$tableName]
+            );
+
+            if (empty($columns)) {
+                continue;
+            }
+
+            $colDefs = [];
+            foreach ($columns as $col) {
+                $colName = $this->quoteIdentifier((string)$col['column_name']);
+                $dataType = (string)$col['data_type'];
+                $nullable = (string)$col['is_nullable'] === 'YES';
+                $default = $col['column_default'] !== null ? (string)$col['column_default'] : null;
+
+                // Build type with length/precision
+                // PostgreSQL doesn't support precision/scale for integer, bigint, smallint, serial types
+                $typesWithoutPrecision = ['integer', 'bigint', 'smallint', 'serial', 'bigserial', 'smallserial', 'real', 'double precision', 'money'];
+                if ($col['character_maximum_length'] !== null) {
+                    $dataType .= '(' . (int)$col['character_maximum_length'] . ')';
+                } elseif ($col['numeric_precision'] !== null && !in_array(strtolower($dataType), $typesWithoutPrecision, true)) {
+                    $dataType .= '(' . (int)$col['numeric_precision'];
+                    if ($col['numeric_scale'] !== null) {
+                        $dataType .= ',' . (int)$col['numeric_scale'];
+                    }
+                    $dataType .= ')';
+                }
+
+                $def = $colName . ' ' . $dataType;
+                if (!$nullable) {
+                    $def .= ' NOT NULL';
+                }
+                if ($default !== null) {
+                    $def .= ' DEFAULT ' . $default;
+                }
+                $colDefs[] = $def;
+            }
+
+            // Check for sequences that need to be created before the table
+            $sequences = [];
+            foreach ($columns as $col) {
+                $default = $col['column_default'] !== null ? (string)$col['column_default'] : null;
+                if ($default !== null && preg_match("/nextval\('([^']+)'::regclass\)/", $default, $matches)) {
+                    $seqName = $matches[1];
+                    if (!in_array($seqName, $sequences, true)) {
+                        $sequences[] = $seqName;
+                    }
+                }
+            }
+
+            // Create sequences before table
+            foreach ($sequences as $seqName) {
+                $quotedSeq = $this->quoteIdentifier($seqName);
+                $output[] = "CREATE SEQUENCE IF NOT EXISTS {$quotedSeq};";
+            }
+
+            $output[] = "CREATE TABLE {$quotedTable} (\n  " . implode(",\n  ", $colDefs) . "\n);";
+
+            // Get indexes (exclude primary key indexes as they're already in CREATE TABLE)
+            $indexRows = $db->rawQuery(
+                "SELECT i.indexname, i.indexdef
+                 FROM pg_indexes i
+                 INNER JOIN pg_class idx ON idx.relname = i.indexname
+                 INNER JOIN pg_index pgidx ON pgidx.indexrelid = idx.oid
+                 INNER JOIN pg_class t ON pgidx.indrelid = t.oid
+                 WHERE i.schemaname = 'public' AND t.relname = ? AND NOT pgidx.indisprimary
+                 ORDER BY i.indexname",
+                [$tableName]
+            );
+            foreach ($indexRows as $idxRow) {
+                $idxDef = (string)$idxRow['indexdef'];
+                if (str_contains($idxDef, 'CREATE UNIQUE INDEX')) {
+                    $output[] = $idxDef . ';';
+                } elseif (str_contains($idxDef, 'CREATE INDEX')) {
+                    $output[] = $idxDef . ';';
+                }
+            }
+        }
+
+        return implode("\n\n", $output);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dumpData(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    {
+        $output = [];
+        $tables = [];
+
+        if ($table !== null) {
+            $tables = [$table];
+        } else {
+            $rows = $db->rawQuery(
+                'SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = \'public\' ORDER BY tablename'
+            );
+            foreach ($rows as $row) {
+                $tables[] = (string)$row['tablename'];
+            }
+        }
+
+        foreach ($tables as $tableName) {
+            $quotedTable = $this->quoteTable($tableName);
+            $rows = $db->rawQuery("SELECT * FROM {$quotedTable}");
+
+            if (empty($rows)) {
+                continue;
+            }
+
+            $columns = array_keys($rows[0]);
+            $quotedColumns = array_map([$this, 'quoteIdentifier'], $columns);
+            $columnsList = implode(', ', $quotedColumns);
+
+            $batchSize = 100;
+            $batch = [];
+            foreach ($rows as $row) {
+                $values = [];
+                foreach ($columns as $col) {
+                    $val = $row[$col];
+                    if ($val === null) {
+                        $values[] = 'NULL';
+                    } elseif (is_int($val) || is_float($val)) {
+                        $values[] = (string)$val;
+                    } else {
+                        $values[] = "'" . str_replace(["'", '\\'], ["''", '\\\\'], (string)$val) . "'";
+                    }
+                }
+                $batch[] = '(' . implode(', ', $values) . ')';
+
+                if (count($batch) >= $batchSize) {
+                    $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
+                    $batch = [];
+                }
+            }
+
+            if (!empty($batch)) {
+                $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
+            }
+        }
+
+        return implode("\n\n", $output);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function restoreFromSql(\tommyknocker\pdodb\PdoDb $db, string $sql, bool $continueOnError = false): void
+    {
+        // PostgreSQL uses dollar-quoted strings, need more sophisticated parsing
+        $statements = [];
+        $current = '';
+        $inString = false;
+        $stringChar = '';
+        $inDollarQuote = false;
+        $dollarTag = '';
+
+        $lines = explode("\n", $sql);
+        foreach ($lines as $line) {
+            // Skip comment-only lines
+            $trimmedLine = trim($line);
+            if ($trimmedLine === '' || preg_match('/^--/', $trimmedLine)) {
+                continue;
+            }
+
+            $length = strlen($line);
+            for ($i = 0; $i < $length; $i++) {
+                $char = $line[$i];
+                $nextChar = $i + 1 < $length ? $line[$i + 1] : '';
+
+                // Handle comments (-- style)
+                if (!$inString && !$inDollarQuote && $char === '-' && $nextChar === '-') {
+                    // Skip rest of line (comment)
+                    break;
+                }
+
+                // Check for dollar-quoted strings ($tag$ ... $tag$)
+                if (!$inString && !$inDollarQuote && $char === '$') {
+                    $tagEnd = strpos($line, '$', $i + 1);
+                    if ($tagEnd !== false) {
+                        $dollarTag = substr($line, $i, $tagEnd - $i + 1);
+                        $inDollarQuote = true;
+                        $current .= $dollarTag;
+                        $i = $tagEnd;
+                        continue;
+                    }
+                }
+
+                if ($inDollarQuote) {
+                    $tagLen = strlen($dollarTag);
+                    if (substr($line, $i, $tagLen) === $dollarTag) {
+                        $inDollarQuote = false;
+                        $current .= $dollarTag;
+                        $i += $tagLen - 1;
+                        $dollarTag = '';
+                        continue;
+                    }
+                    $current .= $char;
+                    continue;
+                }
+
+                if (!$inString && ($char === '"' || $char === "'")) {
+                    $inString = true;
+                    $stringChar = $char;
+                    $current .= $char;
+                } elseif ($inString && $char === $stringChar) {
+                    if ($nextChar === $stringChar) {
+                        $current .= $char . $nextChar;
+                        $i++;
+                    } else {
+                        $inString = false;
+                        $stringChar = '';
+                        $current .= $char;
+                    }
+                } elseif (!$inString && $char === ';') {
+                    $stmt = trim($current);
+                    if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
+                        $statements[] = $stmt;
+                    }
+                    $current = '';
+                } else {
+                    $current .= $char;
+                }
+            }
+        }
+
+        $stmt = trim($current);
+        if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
+            $statements[] = $stmt;
+        }
+
+        $errors = [];
+        foreach ($statements as $stmt) {
+            try {
+                $db->rawQuery($stmt);
+            } catch (\Throwable $e) {
+                if (!$continueOnError) {
+                    throw new \tommyknocker\pdodb\exceptions\ResourceException('Failed to execute SQL statement: ' . $e->getMessage() . "\nStatement: " . substr($stmt, 0, 200));
+                }
+                $errors[] = $e->getMessage();
+            }
+        }
+
+        if (!empty($errors) && $continueOnError) {
+            throw new \tommyknocker\pdodb\exceptions\ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
+        }
+    }
 }

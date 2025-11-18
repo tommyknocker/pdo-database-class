@@ -92,6 +92,63 @@ final class DdlQueryBuilderTests extends BasePostgreSQLTestCase
     }
 
     /**
+     * Test that auto-increment columns automatically create PRIMARY KEY constraint.
+     * This is a bug fix: PostgreSQL SERIAL doesn't automatically create PRIMARY KEY,
+     * so we need to add it explicitly.
+     */
+    public function testAutoIncrementCreatesPrimaryKey(): void
+    {
+        $db = self::$db;
+        $schema = $db->schema();
+
+        $schema->dropTableIfExists('test_auto_pk_child');
+        $schema->dropTableIfExists('test_auto_pk_parent');
+
+        // Create parent table with primaryKey() - should automatically create PRIMARY KEY
+        // Without explicit primaryKey option
+        $schema->createTable('test_auto_pk_parent', [
+            'id' => $schema->primaryKey(),
+            'name' => $schema->string(100)->notNull(),
+        ]);
+
+        // Create child table
+        $schema->createTable('test_auto_pk_child', [
+            'id' => $schema->primaryKey(),
+            'parent_id' => $schema->integer()->notNull(),
+            'value' => $schema->string(255),
+        ]);
+
+        // Add foreign key - this should work because parent.id is PRIMARY KEY
+        $schema->addForeignKey(
+            'fk_test_auto_child_parent',
+            'test_auto_pk_child',
+            'parent_id',
+            'test_auto_pk_parent',
+            'id',
+            'CASCADE',
+            'CASCADE'
+        );
+
+        // Verify tables exist
+        $this->assertTrue($schema->tableExists('test_auto_pk_parent'));
+        $this->assertTrue($schema->tableExists('test_auto_pk_child'));
+
+        // Test inserting data with foreign key
+        $parentId = $db->find()->table('test_auto_pk_parent')->insert(['name' => 'Parent']);
+        $childId = $db->find()->table('test_auto_pk_child')->insert([
+            'parent_id' => $parentId,
+            'value' => 'Child Value',
+        ]);
+
+        $this->assertNotNull($childId);
+
+        // Cleanup
+        $schema->dropForeignKey('fk_test_auto_child_parent', 'test_auto_pk_child');
+        $schema->dropTable('test_auto_pk_child');
+        $schema->dropTable('test_auto_pk_parent');
+    }
+
+    /**
      * Test createSpatialIndex (PostgreSQL-specific using GIST).
      */
     public function testCreateSpatialIndex(): void

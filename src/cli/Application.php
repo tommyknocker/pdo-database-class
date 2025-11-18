@@ -63,6 +63,9 @@ class Application
 
         // Table management command with subcommands
         $this->addCommand(new commands\TableCommand());
+
+        // Dump and restore command
+        $this->addCommand(new commands\DumpCommand());
     }
 
     /**

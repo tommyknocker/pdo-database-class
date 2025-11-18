@@ -1561,4 +1561,39 @@ interface DialectInterface
      * @throws \tommyknocker\pdodb\exceptions\ResourceException If password change fails or not supported
      */
     public function changeUserPassword(string $username, string $newPassword, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool;
+
+    /* ---------------- Dump and Restore ---------------- */
+
+    /**
+     * Dump database schema (CREATE TABLE, indexes, foreign keys).
+     *
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param string|null $table Table name (null = all tables)
+     *
+     * @return string SQL schema dump
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If operation fails or not supported
+     */
+    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string;
+
+    /**
+     * Dump database data (INSERT statements).
+     *
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param string|null $table Table name (null = all tables)
+     *
+     * @return string SQL data dump
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If operation fails or not supported
+     */
+    public function dumpData(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string;
+
+    /**
+     * Restore database from SQL dump.
+     *
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param string $sql SQL dump content
+     * @param bool $continueOnError Continue on errors (skip failed statements)
+     *
+     * @throws \tommyknocker\pdodb\exceptions\ResourceException If restore fails
+     */
+    public function restoreFromSql(\tommyknocker\pdodb\PdoDb $db, string $sql, bool $continueOnError = false): void;
 }

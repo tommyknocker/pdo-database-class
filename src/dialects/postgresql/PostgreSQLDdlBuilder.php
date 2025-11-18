@@ -48,13 +48,22 @@ class PostgreSQLDdlBuilder implements DdlBuilderInterface
         $tableQuoted = $this->quoteTable($table);
         $columnDefs = [];
 
+        $autoIncrementColumns = [];
         foreach ($columns as $name => $def) {
             if ($def instanceof ColumnSchema) {
                 $columnDefs[] = $this->formatColumnDefinition($name, $def);
+                // Track auto-increment columns for automatic PRIMARY KEY
+                if ($def->isAutoIncrement()) {
+                    $autoIncrementColumns[] = $name;
+                }
             } elseif (is_array($def)) {
                 // Short syntax: ['type' => 'VARCHAR(255)', 'null' => false]
                 $schema = $this->parseColumnDefinition($def);
                 $columnDefs[] = $this->formatColumnDefinition($name, $schema);
+                // Track auto-increment columns for automatic PRIMARY KEY
+                if ($schema->isAutoIncrement()) {
+                    $autoIncrementColumns[] = $name;
+                }
             } else {
                 // String type: 'VARCHAR(255)'
                 $schema = new ColumnSchema((string)$def);
@@ -66,6 +75,11 @@ class PostgreSQLDdlBuilder implements DdlBuilderInterface
         if (!empty($options['primaryKey'])) {
             $pkColumns = is_array($options['primaryKey']) ? $options['primaryKey'] : [$options['primaryKey']];
             $pkQuoted = array_map([$this, 'quoteIdentifier'], $pkColumns);
+            $columnDefs[] = 'PRIMARY KEY (' . implode(', ', $pkQuoted) . ')';
+        } elseif (!empty($autoIncrementColumns)) {
+            // Automatically add PRIMARY KEY for auto-increment columns if not specified in options
+            // This is needed for PostgreSQL because SERIAL doesn't automatically create PRIMARY KEY
+            $pkQuoted = array_map([$this, 'quoteIdentifier'], $autoIncrementColumns);
             $columnDefs[] = 'PRIMARY KEY (' . implode(', ', $pkQuoted) . ')';
         }
 
