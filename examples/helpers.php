@@ -37,6 +37,29 @@ function getExampleConfig(): array
         }
     }
     
+    // For MySQL/MariaDB CI environments, check for DB_USER and DB_PASS
+    if ($driver === 'mysql' || $driver === 'mariadb') {
+        $dbUser = getenv('DB_USER');
+        $dbPass = getenv('DB_PASS');
+        $dbHost = getenv('DB_HOST') ?: 'localhost';
+        $dbPort = getenv('DB_PORT') ?: '3306';
+        $dbName = getenv('DB_NAME') ?: 'testdb';
+        $dbCharset = getenv('DB_CHARSET') ?: 'utf8mb4';
+        
+        // If environment variables are set (CI), use them
+        if ($dbUser !== false && $dbPass !== false) {
+            return [
+                'driver' => $driver,
+                'host' => $dbHost,
+                'port' => (int)$dbPort,
+                'username' => $dbUser,
+                'password' => $dbPass,
+                'dbname' => $dbName,
+                'charset' => $dbCharset,
+            ];
+        }
+    }
+    
     $configFile = __DIR__ . "/config.{$driver}.php";
     
     if (!file_exists($configFile)) {
