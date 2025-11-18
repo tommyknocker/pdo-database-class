@@ -97,6 +97,11 @@ jobs:
       - name: Test MariaDB Examples
         run: |
           export PDODB_DRIVER=mariadb
+          export DB_USER="testuser"
+          export DB_PASS="testpass"
+          export DB_HOST="127.0.0.1"
+          export DB_PORT="3305"
+          export DB_NAME="testdb"
           ./scripts/test-examples.sh --verbose
       - name: Upload MariaDB coverage to Codecov
         uses: codecov/codecov-action@v4
