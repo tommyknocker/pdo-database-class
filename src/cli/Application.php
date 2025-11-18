@@ -117,6 +117,12 @@ class Application
             return 0;
         }
 
+        // Check for global --help option
+        if ($argv[0] === '--help') {
+            $this->showHelp();
+            return 0;
+        }
+
         $commandName = $argv[0];
         $command = $this->getCommand($commandName);
 
@@ -185,6 +191,7 @@ class Application
         }
 
         echo "\nGlobal options:\n";
+        echo "  --help               Show help message\n";
         echo "  --connection=<name>  Use a named connection from config/db.php\n";
         echo "  --config=<path>      Path to db.php configuration file\n";
         echo "  --env=<path>         Path to .env file\n";

@@ -143,4 +143,38 @@ class DumpCommandCliTests extends TestCase
         $this->assertStringContainsString('Database Dump and Restore', $output);
         $this->assertStringContainsString('Usage:', $output);
     }
+
+    public function testDumpCommandShowsHelpWhenNoArguments(): void
+    {
+        $app = new Application();
+        ob_start();
+        $exitCode = $app->run(['pdodb', 'dump']);
+        $output = ob_get_clean();
+
+        $this->assertEquals(0, $exitCode);
+        $this->assertStringContainsString('Database Dump and Restore', $output);
+        $this->assertStringContainsString('Usage:', $output);
+    }
+
+    public function testDumpCommandDumpsDatabaseWhenOutputOptionProvided(): void
+    {
+        $dumpFile = sys_get_temp_dir() . '/pdodb_cli_test_' . uniqid() . '.sql';
+        $app = new Application();
+        putenv('PDODB_DRIVER=sqlite');
+        putenv('PDODB_PATH=' . self::$dbPath);
+        putenv('PDODB_NON_INTERACTIVE=1');
+
+        ob_start();
+        $exitCode = $app->run(['pdodb', 'dump', '--output=' . $dumpFile]);
+        $output = ob_get_clean();
+
+        $this->assertEquals(0, $exitCode);
+        $this->assertFileExists($dumpFile);
+        $sql = file_get_contents($dumpFile);
+        $this->assertStringContainsString('CREATE TABLE', $sql);
+        $this->assertStringContainsString('users', $sql);
+        $this->assertStringContainsString('posts', $sql);
+
+        unlink($dumpFile);
+    }
 }

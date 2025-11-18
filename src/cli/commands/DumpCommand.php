@@ -28,7 +28,7 @@ class DumpCommand extends Command
      */
     public function execute(): int
     {
-        // Show help only if explicitly requested via option or argument
+        // Show help if explicitly requested via option or argument
         if ($this->getOption('help', false)) {
             $this->showHelp();
             return 0;
@@ -36,7 +36,7 @@ class DumpCommand extends Command
 
         $firstArg = $this->getArgument(0);
 
-        if ($firstArg === 'help') {
+        if ($firstArg === '--help' || $firstArg === 'help') {
             $this->showHelp();
             return 0;
         }
@@ -45,7 +45,19 @@ class DumpCommand extends Command
             return $this->restore();
         }
 
-        // Default: dump (first arg is table name if provided, null = entire database)
+        // If no arguments, check if dump-specific options are provided
+        // If yes, dump entire database; if no, show help
+        if ($firstArg === null) {
+            $hasDumpOptions = $this->getOption('schema-only', false) !== false
+                || $this->getOption('data-only', false) !== false
+                || $this->getOption('output') !== null;
+            if (!$hasDumpOptions) {
+                $this->showHelp();
+                return 0;
+            }
+        }
+
+        // First arg is table name (dump specific table), or null for entire database
         return $this->dump();
     }
 
