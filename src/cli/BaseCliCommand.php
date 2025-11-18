@@ -277,6 +277,13 @@ abstract class BaseCliCommand
         $driver = $config['driver'];
         unset($config['driver']);
 
+        // Normalize database/dbname key for compatibility
+        // Some configs use 'database', some use 'dbname' - dialects expect 'dbname'
+        if (isset($config['database']) && !isset($config['dbname'])) {
+            $config['dbname'] = $config['database'];
+            unset($config['database']);
+        }
+
         return new PdoDb($driver, $config);
     }
 

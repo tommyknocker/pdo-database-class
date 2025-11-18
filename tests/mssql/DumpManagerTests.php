@@ -103,14 +103,20 @@ final class DumpManagerTests extends BaseMSSQLTestCase
         file_put_contents($dumpFile, $sql);
 
         // Create new database for restore
+        // Use environment variables if set (for CI), otherwise use constants
+        $username = getenv('DB_USER') ?: self::DB_USER;
+        $password = getenv('DB_PASS') ?: self::DB_PASSWORD;
+
         $newDb = new PdoDb(
             'sqlsrv',
             [
                 'host' => self::DB_HOST,
                 'port' => self::DB_PORT,
-                'username' => self::DB_USER,
-                'password' => self::DB_PASSWORD,
+                'username' => $username,
+                'password' => $password,
                 'dbname' => self::DB_NAME,
+                'trust_server_certificate' => true,
+                'encrypt' => true,
             ]
         );
 
@@ -182,14 +188,20 @@ final class DumpManagerTests extends BaseMSSQLTestCase
         $fullDump = file_get_contents($usersDumpFile) . "\n" . file_get_contents($postsDumpFile);
 
         // Create new database for restore
+        // Use environment variables if set (for CI), otherwise use constants
+        $username = getenv('DB_USER') ?: self::DB_USER;
+        $password = getenv('DB_PASS') ?: self::DB_PASSWORD;
+
         $newDb = new PdoDb(
             'sqlsrv',
             [
                 'host' => self::DB_HOST,
                 'port' => self::DB_PORT,
-                'username' => self::DB_USER,
-                'password' => self::DB_PASSWORD,
+                'username' => $username,
+                'password' => $password,
                 'dbname' => self::DB_NAME,
+                'trust_server_certificate' => true,
+                'encrypt' => true,
             ]
         );
 
