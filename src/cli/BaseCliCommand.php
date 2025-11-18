@@ -27,6 +27,34 @@ abstract class BaseCliCommand
         // Get driver from environment
         $driver = mb_strtolower(getenv('PDODB_DRIVER') ?: '', 'UTF-8');
 
+        // Try examples config first (for testing/examples) - this takes precedence
+        // because examples need to use the same config file that createExampleDb() uses
+        // But skip if environment variables are explicitly set (CI or user override)
+        $hasEnvConfig = false;
+        if ($driver === 'sqlite') {
+            $hasEnvConfig = getenv('PDODB_PATH') !== false;
+        } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+            $hasEnvConfig = getenv('PDODB_DATABASE') !== false || getenv('DB_NAME') !== false;
+        } elseif ($driver === 'pgsql') {
+            $hasEnvConfig = getenv('PDODB_DATABASE') !== false;
+        } elseif ($driver === 'sqlsrv') {
+            $hasEnvConfig = getenv('PDODB_DATABASE') !== false || getenv('DB_NAME') !== false;
+        }
+
+        if ($driver !== '' && !$hasEnvConfig) {
+            $configFile = __DIR__ . "/../../examples/config.{$driver}.php";
+            if (file_exists($configFile)) {
+                return require $configFile;
+            }
+            // Handle sqlsrv -> mssql alias for config file (MSSQL uses sqlsrv driver but config.mssql.php)
+            if ($driver === 'sqlsrv') {
+                $configFile = __DIR__ . '/../../examples/config.mssql.php';
+                if (file_exists($configFile)) {
+                    return require $configFile;
+                }
+            }
+        }
+
         // Build config from environment variables
         $config = static::buildConfigFromEnv($driver);
         if ($config !== null) {
@@ -90,21 +118,6 @@ abstract class BaseCliCommand
                 /** @var array<string, mixed> $sqliteCfg */
                 $sqliteCfg = $config['sqlite'];
                 return $sqliteCfg;
-            }
-        }
-
-        // Try examples config (for testing only)
-        if ($driver !== '') {
-            $configFile = __DIR__ . "/../../examples/config.{$driver}.php";
-            if (file_exists($configFile)) {
-                return require $configFile;
-            }
-            // Handle sqlsrv -> mssql alias for config file (MSSQL uses sqlsrv driver but config.mssql.php)
-            if ($driver === 'sqlsrv') {
-                $configFile = __DIR__ . '/../../examples/config.mssql.php';
-                if (file_exists($configFile)) {
-                    return require $configFile;
-                }
             }
         }
 
