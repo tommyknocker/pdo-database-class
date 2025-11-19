@@ -102,7 +102,7 @@ class CacheFactoryTests extends TestCase
 
         $cache = CacheFactory::create($config);
         if ($cache === null) {
-            $this->markTestSkipped('Redis connection failed (server may not be running)');
+            $this->markTestSkipped('Redis not available (ext-redis not installed, symfony/cache not installed, or server not running)');
         }
 
         $this->assertInstanceOf(CacheInterface::class, $cache);
@@ -184,13 +184,20 @@ class CacheFactoryTests extends TestCase
             $this->markTestSkipped('symfony/cache is not installed');
         }
 
-        $redis = new \Redis();
-        $connected = @$redis->connect('127.0.0.1', 6379);
-        if (!$connected) {
+        try {
+            $redis = new \Redis();
+            $connected = $redis->connect('127.0.0.1', 6379);
+            if (!$connected) {
+                $this->markTestSkipped('Redis connection failed (server may not be running)');
+            }
+            $redis->select(15); // Use database 15 for testing
+        } catch (\RedisException $e) {
             $this->markTestSkipped('Redis connection failed (server may not be running)');
         }
 
-        $redis->select(15); // Use database 15 for testing
+        if (!isset($redis)) {
+            $this->markTestSkipped('Redis connection failed (server may not be running)');
+        }
 
         $config = [
             'type' => 'redis',

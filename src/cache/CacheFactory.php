@@ -143,18 +143,23 @@ class CacheFactory
         $timeout = $config['timeout'] ?? $config['redis_timeout'] ?? 0.0;
         $timeout = is_float($timeout) ? $timeout : (is_numeric($timeout) ? (float)$timeout : 0.0);
 
-        $redis = new \Redis();
-        $connected = $redis->connect($host, $port, $timeout);
-        if (!$connected) {
+        try {
+            $redis = new \Redis();
+            $connected = $redis->connect($host, $port, $timeout);
+            if (!$connected) {
+                return null;
+            }
+
+            if ($password !== null && $password !== '') {
+                $redis->auth($password);
+            }
+
+            if ($database > 0) {
+                $redis->select($database);
+            }
+        } catch (\RedisException $e) {
+            // Redis server not available or connection failed
             return null;
-        }
-
-        if ($password !== null && $password !== '') {
-            $redis->auth($password);
-        }
-
-        if ($database > 0) {
-            $redis->select($database);
         }
 
         $namespace = $config['namespace'] ?? '';

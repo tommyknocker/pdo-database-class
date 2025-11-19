@@ -76,7 +76,7 @@ if (extension_loaded('redis')) {
         echo '   ✓ Cache set/get works: ' . ($redisCache->get('test_key') === 'test_value' ? 'OK' : 'FAIL') . "\n";
         $redisCache->clear();
     } else {
-        echo "   ✗ Redis cache not available (symfony/cache not installed or Redis server not running)\n";
+        echo "   ✗ Redis cache not available (ext-redis not installed, symfony/cache not installed, or Redis server not running)\n";
     }
 } else {
     echo "   ✗ Redis not available (ext-redis not installed)\n";

@@ -63,7 +63,7 @@ if (extension_loaded('redis')) {
         echo "   - Database: " . $redisConfig['database'] . "\n";
         $redisCache->clear();
     } else {
-        echo "   ✗ Redis cache not available\n";
+        echo "   ✗ Redis cache not available (ext-redis not installed, symfony/cache not installed, or Redis server not running)\n";
     }
 } else {
     echo "   ✗ Redis extension not available\n";
