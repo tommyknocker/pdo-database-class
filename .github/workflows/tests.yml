@@ -48,9 +48,9 @@ jobs:
         run: |
           mysql -h 127.0.0.1 -uroot -proot -e "SET GLOBAL local_infile=1;"
       - run: |
-          DB_DSN="mysql:host=127.0.0.1;port=3306;dbname=testdb;charset=utf8mb4" \
-          DB_USER="testuser" \
-          DB_PASS="testpass" \
+          PDODB_DSN="mysql:host=127.0.0.1;port=3306;dbname=testdb;charset=utf8mb4" \
+          PDODB_USERNAME="testuser" \
+          PDODB_PASSWORD="testpass" \
           vendor/bin/phpunit --testsuite="MySQL Tests" --coverage-clover coverage-mysql.xml
       - name: Test MySQL Examples
         run: ./scripts/test-examples.sh --verbose
@@ -90,18 +90,18 @@ jobs:
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
       - run: |
-          DB_DSN="mariadb:host=127.0.0.1;port=3305;dbname=testdb;charset=utf8mb4" \
-          DB_USER="testuser" \
-          DB_PASS="testpass" \
+          PDODB_DSN="mariadb:host=127.0.0.1;port=3305;dbname=testdb;charset=utf8mb4" \
+          PDODB_USERNAME="testuser" \
+          PDODB_PASSWORD="testpass" \
           vendor/bin/phpunit --testsuite="MariaDB Tests" --coverage-clover coverage-mariadb.xml
       - name: Test MariaDB Examples
         run: |
           export PDODB_DRIVER=mariadb
-          export DB_USER="testuser"
-          export DB_PASS="testpass"
-          export DB_HOST="127.0.0.1"
-          export DB_PORT="3305"
-          export DB_NAME="testdb"
+          export PDODB_USERNAME="testuser"
+          export PDODB_PASSWORD="testpass"
+          export PDODB_HOST="127.0.0.1"
+          export PDODB_PORT="3305"
+          export PDODB_DATABASE="testdb"
           ./scripts/test-examples.sh --verbose
       - name: Upload MariaDB coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -142,9 +142,9 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d testdb -c "GRANT ALL PRIVILEGES ON DATABASE testdb TO testuser;"
           PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d testdb -c "GRANT ALL ON SCHEMA public TO testuser;"
       - run: |
-          DB_DSN="pgsql:host=localhost;port=5433;dbname=testdb" \
-          DB_USER="testuser" \
-          DB_PASS="testpass" \
+          PDODB_DSN="pgsql:host=localhost;port=5433;dbname=testdb" \
+          PDODB_USERNAME="testuser" \
+          PDODB_PASSWORD="testpass" \
           vendor/bin/phpunit --testsuite="PostgreSQL Tests" --coverage-clover coverage-postgres.xml
       - name: Test PostgreSQL Examples
         run: ./scripts/test-examples.sh --verbose
@@ -168,7 +168,7 @@ jobs:
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
       - run: |
-          DB_DSN="sqlite::memory:" \
+          PDODB_DSN="sqlite::memory:" \
           vendor/bin/phpunit --testsuite="SQLite Tests" --coverage-clover coverage-sqlite.xml
       - name: Test SQLite Examples
         run: ./scripts/test-examples.sh  --verbose
@@ -239,18 +239,18 @@ jobs:
           echo "Database 'testdb' ready"
       - run: composer install --no-interaction --prefer-dist
       - run: |
-          DB_DSN="sqlsrv:Server=localhost,1433;Database=testdb;TrustServerCertificate=yes" \
-          DB_USER="sa" \
-          DB_PASS="Test123!@#" \
+          PDODB_DSN="sqlsrv:Server=localhost,1433;Database=testdb;TrustServerCertificate=yes" \
+          PDODB_USERNAME="sa" \
+          PDODB_PASSWORD="Test123!@#" \
           vendor/bin/phpunit --testsuite="MSSQL Tests" --coverage-clover coverage-mssql.xml
       - name: Test MSSQL Examples
         run: |
-          export PDODB_DRIVER=mssql
-          export DB_USER="sa"
-          export DB_PASS="Test123!@#"
-          export DB_HOST="localhost"
-          export DB_PORT="1433"
-          export DB_NAME="testdb"
+          export PDODB_DRIVER=sqlsrv
+          export PDODB_USERNAME="sa"
+          export PDODB_PASSWORD="Test123!@#"
+          export PDODB_HOST="localhost"
+          export PDODB_PORT="1433"
+          export PDODB_DATABASE="testdb"
           ./scripts/test-examples.sh --verbose
       - name: Upload MSSQL coverage to Codecov
         uses: codecov/codecov-action@v4

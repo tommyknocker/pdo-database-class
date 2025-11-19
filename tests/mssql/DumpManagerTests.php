@@ -104,8 +104,8 @@ final class DumpManagerTests extends BaseMSSQLTestCase
 
         // Create new database for restore
         // Use environment variables if set (for CI), otherwise use constants
-        $username = getenv('DB_USER') ?: self::DB_USER;
-        $password = getenv('DB_PASS') ?: self::DB_PASSWORD;
+        $username = getenv('PDODB_USERNAME') ?: self::DB_USER;
+        $password = getenv('PDODB_PASSWORD') ?: self::DB_PASSWORD;
 
         $newDb = new PdoDb(
             'sqlsrv',
@@ -189,8 +189,8 @@ final class DumpManagerTests extends BaseMSSQLTestCase
 
         // Create new database for restore
         // Use environment variables if set (for CI), otherwise use constants
-        $username = getenv('DB_USER') ?: self::DB_USER;
-        $password = getenv('DB_PASS') ?: self::DB_PASSWORD;
+        $username = getenv('PDODB_USERNAME') ?: self::DB_USER;
+        $password = getenv('PDODB_PASSWORD') ?: self::DB_PASSWORD;
 
         $newDb = new PdoDb(
             'sqlsrv',

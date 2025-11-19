@@ -16,11 +16,11 @@ function getExampleConfig(): array
     
     // For CI environments, use environment variables directly
     if ($driver === 'mssql' || $driver === 'sqlsrv') {
-        $dbUser = getenv('DB_USER');
-        $dbPass = getenv('DB_PASS');
-        $dbHost = getenv('DB_HOST') ?: 'localhost';
-        $dbPort = getenv('DB_PORT') ?: '1433';
-        $dbName = getenv('DB_NAME') ?: 'testdb';
+        $dbUser = getenv('PDODB_USERNAME');
+        $dbPass = getenv('PDODB_PASSWORD');
+        $dbHost = getenv('PDODB_HOST') ?: 'localhost';
+        $dbPort = getenv('PDODB_PORT') ?: '1433';
+        $dbName = getenv('PDODB_DATABASE') ?: 'testdb';
         
         // If environment variables are set (CI), use them
         if ($dbUser !== false && $dbPass !== false) {
@@ -37,14 +37,14 @@ function getExampleConfig(): array
         }
     }
     
-    // For MySQL/MariaDB CI environments, check for DB_USER and DB_PASS
+    // For MySQL/MariaDB CI environments, check for PDODB_USERNAME and PDODB_PASSWORD
     if ($driver === 'mysql' || $driver === 'mariadb') {
-        $dbUser = getenv('DB_USER');
-        $dbPass = getenv('DB_PASS');
-        $dbHost = getenv('DB_HOST') ?: 'localhost';
-        $dbPort = getenv('DB_PORT') ?: '3306';
-        $dbName = getenv('DB_NAME') ?: 'testdb';
-        $dbCharset = getenv('DB_CHARSET') ?: 'utf8mb4';
+        $dbUser = getenv('PDODB_USERNAME');
+        $dbPass = getenv('PDODB_PASSWORD');
+        $dbHost = getenv('PDODB_HOST') ?: 'localhost';
+        $dbPort = getenv('PDODB_PORT') ?: '3306';
+        $dbName = getenv('PDODB_DATABASE') ?: 'testdb';
+        $dbCharset = getenv('PDODB_CHARSET') ?: 'utf8mb4';
         
         // If environment variables are set (CI), use them
         if ($dbUser !== false && $dbPass !== false) {

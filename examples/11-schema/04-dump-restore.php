@@ -36,36 +36,9 @@ $driver = $db->connection?->getDriverName() ?? 'sqlite';
 $schema = $db->schema();
 
 // Set driver and non-interactive mode for CLI commands
-// This ensures BaseCliCommand loads config from examples/config.{driver}.php
+// This ensures BaseCliCommand loads config from examples/config.{driver}.php or environment variables
 putenv('PDODB_DRIVER=' . $driver);
 putenv('PDODB_NON_INTERACTIVE=1');
-
-// For non-SQLite drivers, set environment variables from config to ensure CLI commands can connect
-// This ensures CLI commands can use the same database connection as the example
-if ($driver !== 'sqlite') {
-    $config = getExampleConfig();
-    // Only set if not already set (allow CI to override)
-    if (isset($config['host']) && getenv('PDODB_HOST') === false) {
-        putenv('PDODB_HOST=' . $config['host']);
-    }
-    if (isset($config['port']) && getenv('PDODB_PORT') === false) {
-        putenv('PDODB_PORT=' . (string)$config['port']);
-    }
-    if (isset($config['dbname']) && getenv('PDODB_DATABASE') === false) {
-        putenv('PDODB_DATABASE=' . $config['dbname']);
-    } elseif (isset($config['database']) && getenv('PDODB_DATABASE') === false) {
-        putenv('PDODB_DATABASE=' . $config['database']);
-    }
-    if (isset($config['username']) && getenv('PDODB_USERNAME') === false) {
-        putenv('PDODB_USERNAME=' . $config['username']);
-    }
-    if (isset($config['password']) && getenv('PDODB_PASSWORD') === false) {
-        putenv('PDODB_PASSWORD=' . $config['password']);
-    }
-    if (isset($config['charset']) && getenv('PDODB_CHARSET') === false) {
-        putenv('PDODB_CHARSET=' . $config['charset']);
-    }
-}
 
 // Create CLI application
 $app = new Application();

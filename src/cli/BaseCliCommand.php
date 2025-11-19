@@ -29,10 +29,14 @@ abstract class BaseCliCommand
         // Get driver from environment
         $driver = mb_strtolower(getenv('PDODB_DRIVER') ?: '', 'UTF-8');
 
+        // Normalize mssql -> sqlsrv (MSSQL uses sqlsrv driver but config.mssql.php)
+        if ($driver === 'mssql') {
+            $driver = 'sqlsrv';
+        }
+
         // Try examples config first (for testing/examples) - this takes precedence
         // because examples need to use the same config file that createExampleDb() uses
         // But skip if PDODB_* environment variables are explicitly set (CI or user override)
-        // Note: We check PDODB_* variables, not DB_* variables, because examples set PDODB_* from getExampleConfig()
         $hasEnvConfig = false;
         if ($driver === 'sqlite') {
             $hasEnvConfig = getenv('PDODB_PATH') !== false;
@@ -45,16 +49,13 @@ abstract class BaseCliCommand
         }
 
         if ($driver !== '' && !$hasEnvConfig) {
-            $configFile = __DIR__ . "/../../examples/config.{$driver}.php";
-            if (file_exists($configFile)) {
-                return require $configFile;
-            }
             // Handle sqlsrv -> mssql alias for config file (MSSQL uses sqlsrv driver but config.mssql.php)
+            $configFile = __DIR__ . "/../../examples/config.{$driver}.php";
             if ($driver === 'sqlsrv') {
                 $configFile = __DIR__ . '/../../examples/config.mssql.php';
-                if (file_exists($configFile)) {
-                    return require $configFile;
-                }
+            }
+            if (file_exists($configFile)) {
+                return require $configFile;
             }
         }
 
@@ -257,8 +258,10 @@ abstract class BaseCliCommand
             case 'sqlsrv':
                 $host = getenv('PDODB_HOST');
                 $host = $host !== false ? $host : 'localhost';
+
                 $port = getenv('PDODB_PORT');
                 $port = $port !== false ? $port : '1433';
+
                 $database = getenv('PDODB_DATABASE');
                 $username = getenv('PDODB_USERNAME');
                 $password = getenv('PDODB_PASSWORD');
@@ -270,8 +273,11 @@ abstract class BaseCliCommand
                 $config['host'] = $host;
                 $config['port'] = (int)$port;
                 $config['database'] = $database;
+                $config['dbname'] = $database;
                 $config['username'] = $username;
                 $config['password'] = $password !== false ? $password : '';
+                $config['trust_server_certificate'] = true;
+                $config['encrypt'] = true;
                 break;
 
             case 'sqlite':

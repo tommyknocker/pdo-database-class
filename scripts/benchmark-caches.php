@@ -31,10 +31,10 @@ echo "Query iterations: $iterations\n\n";
 
 // Database configuration
 $config = [
-    'host' => getenv('DB_HOST') ?: '127.0.0.1',
-    'dbname' => getenv('DB_NAME') ?: 'testdb',
-    'username' => getenv('DB_USER') ?: 'testuser',
-    'password' => getenv('DB_PASS') ?: 'testpass',
+    'host' => getenv('PDODB_HOST') ?: '127.0.0.1',
+    'dbname' => getenv('PDODB_DATABASE') ?: 'testdb',
+    'username' => getenv('PDODB_USERNAME') ?: 'testuser',
+    'password' => getenv('PDODB_PASSWORD') ?: 'testpass',
 ];
 
 // Create cache backend

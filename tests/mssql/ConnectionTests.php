@@ -59,8 +59,8 @@ final class ConnectionTests extends BaseMSSQLTestCase
     {
         self::$db->disconnect();
         $this->assertFalse(self::$db->ping());
-        $username = getenv('DB_USER') ?: self::DB_USER;
-        $password = getenv('DB_PASS') ?: self::DB_PASSWORD;
+        $username = getenv('PDODB_USERNAME') ?: self::DB_USER;
+        $password = getenv('PDODB_PASSWORD') ?: self::DB_PASSWORD;
         self::$db = new PdoDb('sqlsrv', [
             'host' => self::DB_HOST,
             'port' => self::DB_PORT,
@@ -75,8 +75,8 @@ final class ConnectionTests extends BaseMSSQLTestCase
 
     public function testAddConnectionAndSwitch(): void
     {
-        $username = getenv('DB_USER') ?: self::DB_USER;
-        $password = getenv('DB_PASS') ?: self::DB_PASSWORD;
+        $username = getenv('PDODB_USERNAME') ?: self::DB_USER;
+        $password = getenv('PDODB_PASSWORD') ?: self::DB_PASSWORD;
         self::$db->addConnection('secondary', [
             'driver' => 'sqlsrv',
             'host' => self::DB_HOST,

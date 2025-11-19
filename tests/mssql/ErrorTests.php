@@ -25,8 +25,8 @@ final class ErrorTests extends BaseMSSQLTestCase
         $testHandler = new TestHandler();
         $logger = new Logger('test-db');
         $logger->pushHandler($testHandler);
-        $username = getenv('DB_USER') ?: self::DB_USER;
-        $password = getenv('DB_PASS') ?: self::DB_PASSWORD;
+        $username = getenv('PDODB_USERNAME') ?: self::DB_USER;
+        $password = getenv('PDODB_PASSWORD') ?: self::DB_PASSWORD;
         $db = new PdoDb(
             'sqlsrv',
             [
@@ -68,8 +68,8 @@ final class ErrorTests extends BaseMSSQLTestCase
         $testHandler = new TestHandler();
         $logger = new Logger('test-db');
         $logger->pushHandler($testHandler);
-        $username = getenv('DB_USER') ?: self::DB_USER;
-        $password = getenv('DB_PASS') ?: self::DB_PASSWORD;
+        $username = getenv('PDODB_USERNAME') ?: self::DB_USER;
+        $password = getenv('PDODB_PASSWORD') ?: self::DB_PASSWORD;
         $db = new PdoDb(
             'sqlsrv',
             [

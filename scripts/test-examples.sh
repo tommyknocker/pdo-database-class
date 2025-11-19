@@ -93,14 +93,14 @@ fi
 
 # Check MSSQL
 # First check if environment variables are set (CI), then fallback to config file
-if [ -n "$DB_USER" ] && [ -n "$DB_PASS" ]; then
+if [ -n "$PDODB_USERNAME" ] && [ -n "$PDODB_PASSWORD" ]; then
     # Use environment variables (CI)
     if php -r "
-        \$host = getenv('DB_HOST') ?: 'localhost';
-        \$port = getenv('DB_PORT') ?: '1433';
-        \$dbname = getenv('DB_NAME') ?: 'testdb';
-        \$username = getenv('DB_USER');
-        \$password = getenv('DB_PASS');
+        \$host = getenv('PDODB_HOST') ?: 'localhost';
+        \$port = getenv('PDODB_PORT') ?: '1433';
+        \$dbname = getenv('PDODB_DATABASE') ?: 'testdb';
+        \$username = getenv('PDODB_USERNAME');
+        \$password = getenv('PDODB_PASSWORD');
         try {
             \$dsn = 'sqlsrv:Server=' . \$host . ',' . \$port . ';Database=' . \$dbname . ';TrustServerCertificate=yes';
             new PDO(\$dsn, \$username, \$password);

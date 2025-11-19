@@ -2,17 +2,17 @@
 /**
  * MariaDB Database configuration for examples
  * 
- * This config file checks for CI environment variables (DB_*) first,
+ * This config file checks for CI environment variables (PDODB_*) first,
  * then falls back to local development defaults.
  */
 
 // Check for CI environment variables first
-$dbUser = getenv('DB_USER');
-$dbPass = getenv('DB_PASS');
-$dbHost = getenv('DB_HOST');
-$dbPort = getenv('DB_PORT');
-$dbName = getenv('DB_NAME');
-$dbCharset = getenv('DB_CHARSET');
+$dbUser = getenv('PDODB_USERNAME');
+$dbPass = getenv('PDODB_PASSWORD');
+$dbHost = getenv('PDODB_HOST');
+$dbPort = getenv('PDODB_PORT');
+$dbName = getenv('PDODB_DATABASE');
+$dbCharset = getenv('PDODB_CHARSET');
 
 // If CI variables are set, use them
 if ($dbUser !== false && $dbPass !== false) {
