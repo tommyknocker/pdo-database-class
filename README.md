@@ -2728,6 +2728,7 @@ Global options available for all commands:
 - **`query`** - Test SQL queries interactively
 - **`model`** - Generate ActiveRecord models
 - **`table`** - Manage tables (info, list, exists, create, drop, rename, truncate, describe, columns, indexes, foreign keys)
+- **`monitor`** - Monitor database queries, connections, and performance
 
 #### Database Management
 
@@ -2881,6 +2882,32 @@ vendor/bin/pdodb query test
 # Execute single query
 vendor/bin/pdodb query test "SELECT * FROM users LIMIT 10"
 ```
+
+#### Database Monitoring
+
+Monitor database queries, connections, and performance:
+
+```bash
+# Monitor active queries
+vendor/bin/pdodb monitor queries
+
+# Monitor active queries in real-time
+vendor/bin/pdodb monitor queries --watch
+
+# Monitor active connections
+vendor/bin/pdodb monitor connections
+
+# Monitor slow queries (threshold: 1 second)
+vendor/bin/pdodb monitor slow --threshold=1s
+
+# Show query statistics (requires profiling enabled)
+vendor/bin/pdodb monitor stats
+
+# Output in JSON format
+vendor/bin/pdodb monitor queries --format=json
+```
+
+**Note**: SQLite has limited monitoring support. For `monitor slow` and `monitor stats` on SQLite, you must enable profiling in your application code: `$db->enableProfiling(1.0)`.
 
 #### Configuration
 

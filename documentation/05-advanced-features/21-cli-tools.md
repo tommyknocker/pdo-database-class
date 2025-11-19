@@ -752,6 +752,159 @@ pdodb> exit
 Goodbye!
 ```
 
+## Database Monitoring
+
+Monitor database queries, connections, and performance metrics in real-time.
+
+### Usage
+
+```bash
+# Monitor active queries
+vendor/bin/pdodb monitor queries
+
+# Monitor active queries in real-time (updates every 2 seconds)
+vendor/bin/pdodb monitor queries --watch
+
+# Monitor active connections
+vendor/bin/pdodb monitor connections
+
+# Monitor active connections in real-time
+vendor/bin/pdodb monitor connections --watch
+
+# Monitor slow queries (threshold: 1 second)
+vendor/bin/pdodb monitor slow --threshold=1s
+
+# Monitor slow queries with custom threshold and limit
+vendor/bin/pdodb monitor slow --threshold=500ms --limit=20
+
+# Show query statistics (requires profiling enabled)
+vendor/bin/pdodb monitor stats
+
+# Output in JSON format
+vendor/bin/pdodb monitor queries --format=json
+```
+
+### Options
+
+- `--watch` - Update in real-time (for queries/connections)
+- `--format=table|json` - Output format (default: table)
+- `--threshold=TIME` - Slow query threshold (e.g., `1s`, `500ms`, `2.5s`)
+- `--limit=N` - Maximum number of slow queries to show (default: 10)
+
+### Examples
+
+#### Monitor Active Queries
+
+```bash
+$ vendor/bin/pdodb monitor queries
+
+Queries:
+  id    user    host         db      command  time  state  query
+  ----------------------------------------------------------------------------
+  123   root    localhost    myapp   Query    0     NULL   SELECT * FROM users
+  124   app     localhost    myapp   Query    1     NULL   UPDATE orders SET status = 'paid'
+```
+
+#### Monitor Active Connections
+
+```bash
+$ vendor/bin/pdodb monitor connections
+
+Connections:
+  id    user    host         db      command  time  state
+  ----------------------------------------------------------------------------
+  123   root    localhost    myapp   Sleep    10    NULL
+  124   app     localhost    myapp   Query    0     NULL
+
+Summary:
+  current: 2
+  max: 100
+  usage_percent: 2.00
+```
+
+#### Monitor Slow Queries
+
+```bash
+$ vendor/bin/pdodb monitor slow --threshold=2s --limit=5
+
+Slow queries:
+  id    user    host         db      time  query
+  ----------------------------------------------------------------------------
+  125   app     localhost    myapp   5     SELECT * FROM orders WHERE status = 'pending' ORDER BY created_at
+  126   app     localhost    myapp   3     SELECT COUNT(*) FROM users WHERE active = 1
+```
+
+#### Query Statistics
+
+```bash
+$ vendor/bin/pdodb monitor stats
+
+Stats:
+  aggregated:
+    total_queries: 150
+    total_time: 2.45s
+    avg_time: 0.016s
+    slow_queries: 3
+  by_query:
+    - sql: SELECT * FROM users WHERE id = ?
+      count: 50
+      avg_time: 0.001s
+      max_time: 0.002s
+```
+
+### Real-time Monitoring
+
+Use the `--watch` option to continuously monitor queries or connections:
+
+```bash
+$ vendor/bin/pdodb monitor queries --watch
+
+Monitoring active queries (Press Ctrl+C to exit)
+Updated: 2024-01-15 14:30:00
+
+Queries:
+  id    user    host         db      command  time  state  query
+  ----------------------------------------------------------------------------
+  123   root    localhost    myapp   Query    0     NULL   SELECT * FROM users
+```
+
+The display updates every 2 seconds. Press `Ctrl+C` to exit.
+
+### Dialect Support
+
+**MySQL/MariaDB:**
+- Full support for all monitoring features
+- Uses `SHOW PROCESSLIST` and `SHOW STATUS`
+
+**PostgreSQL:**
+- Full support for all monitoring features
+- Uses `pg_stat_activity` and `pg_stat_statements` (if extension enabled)
+- For slow queries, `pg_stat_statements` extension provides better statistics
+
+**MSSQL:**
+- Full support for all monitoring features
+- Uses `sys.dm_exec_requests`, `sys.dm_exec_sessions`, and `sys.dm_exec_query_stats`
+
+**SQLite:**
+- Limited support (no built-in query/connection monitoring at database level)
+- `monitor queries` returns empty (SQLite doesn't track active queries)
+- `monitor connections` shows PDOdb connection pool only
+- `monitor slow` and `monitor stats` require QueryProfiler to be enabled (`$db->enableProfiling()`)
+
+### Notes
+
+- **Query Profiling**: For `monitor stats` and `monitor slow` on SQLite, you must enable profiling in your application code:
+  ```php
+  $db->enableProfiling(1.0); // Enable with 1 second threshold
+  ```
+
+- **PostgreSQL Extensions**: For better slow query statistics on PostgreSQL, install the `pg_stat_statements` extension:
+  ```sql
+  CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+  ```
+
+- **Real-time Updates**: The `--watch` option uses a 2-second polling interval. For production monitoring, consider using dedicated monitoring tools.
+
 ## Installation
 
 After installing PDOdb via Composer, the CLI tool is automatically available in `vendor/bin/`:
@@ -771,10 +924,14 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 ### Available Commands
 
 - **`db`** - Manage databases (create, drop, list, check existence, show info)
+- **`user`** - Manage database users (create, drop, list, grant/revoke privileges, change password)
+- **`dump`** - Dump and restore database (schema and data export/import)
 - **`migrate`** - Manage database migrations
 - **`schema`** - Inspect database schema
 - **`query`** - Test SQL queries interactively
 - **`model`** - Generate ActiveRecord models
+- **`table`** - Manage tables (info, list, exists, create, drop, rename, truncate, describe, columns, indexes, foreign keys)
+- **`monitor`** - Monitor database queries, connections, and performance
 
 ### Getting Help
 

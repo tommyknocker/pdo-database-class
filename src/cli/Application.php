@@ -66,6 +66,9 @@ class Application
 
         // Dump and restore command
         $this->addCommand(new commands\DumpCommand());
+
+        // Monitor command
+        $this->addCommand(new commands\MonitorCommand());
     }
 
     /**
