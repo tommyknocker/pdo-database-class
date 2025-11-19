@@ -115,10 +115,10 @@
   },
   "suggest": {
     "monolog/monolog": "If you need robust logging capabilities.",
-    "symfony/cache": "For query result caching (PSR-16 implementation)",
-    "cache/filesystem-adapter": "Filesystem-based cache implementation",
-    "ext-apcu": "For APCu-based query caching",
-    "ext-redis": "For Redis-based query caching",
+    "symfony/cache": "For query result caching (PSR-16 implementation). Provides Filesystem, Redis, APCu, Memcached and other adapters.",
+    "ext-apcu": "For APCu-based query caching (requires symfony/cache)",
+    "ext-redis": "For Redis-based query caching (requires symfony/cache)",
+    "ext-memcached": "For Memcached-based query caching (requires symfony/cache)",
     "ext-simplexml": "For bulk XML insert support",
     "ext-xmlreader": "For bulk XML insert support",
     "ext-xmlwriter": "For XML export support"
@@ -126,6 +126,7 @@
   "require-dev": {
     "phpunit/phpunit": "^12.0",
     "monolog/monolog": "^3.9",
+    "symfony/cache": "^7.3",
     "phpstan/phpstan": "^2.0",
     "phpstan/phpstan-phpunit": "^2.0",
     "friendsofphp/php-cs-fixer": "^3.89",

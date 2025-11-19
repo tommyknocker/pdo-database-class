@@ -1,6 +1,6 @@
 # PDOdb Examples
 
-Complete collection of **53 runnable examples** demonstrating PDOdb features across **all 5 database dialects** (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL).
+Complete collection of **55 runnable examples** demonstrating PDOdb features across **all 5 database dialects** (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL).
 
 ## 🚀 Quick Start
 
@@ -201,6 +201,14 @@ Complete applications and patterns.
 Various examples and demonstrations.
 
 - **[01-readme-examples.php](14-misc/01-readme-examples.php)** - Examples from main README
+
+### 15. Optional Dependencies
+Examples demonstrating how to use optional dependencies with PDOdb.
+
+- **[01-cache-factory.php](15-optional-dependencies/01-cache-factory.php)** - Using CacheFactory for cache adapters (Filesystem, APCu, Redis, Memcached)
+- **[02-cache-configuration.php](15-optional-dependencies/02-cache-configuration.php)** - Cache configuration via environment variables and config files
+
+**See**: [Optional Dependencies README](15-optional-dependencies/README.md) for installation and usage instructions.
 
 ## 💡 Tips
 

@@ -49,15 +49,68 @@ Query caching stores the results of SELECT queries in a cache layer, allowing su
 ### 1. Install a PSR-16 Cache Implementation
 
 ```bash
-# Symfony Cache (recommended)
+# Symfony Cache (recommended - provides multiple adapters)
 composer require symfony/cache
 
-# Or other implementations
-composer require cache/filesystem-adapter
-composer require predis/predis
+# Optional: For APCu cache
+# Enable ext-apcu extension in php.ini
+
+# Optional: For Redis cache
+# Install ext-redis extension
+
+# Optional: For Memcached cache
+# Install ext-memcached extension
 ```
 
 ### 2. Create Cache Instance
+
+#### Option A: Using CacheFactory (Recommended)
+
+`CacheFactory` provides a convenient way to create cache adapters from configuration:
+
+```php
+use tommyknocker\pdodb\cache\CacheFactory;
+use tommyknocker\pdodb\PdoDb;
+
+// Filesystem cache
+$cache = CacheFactory::create([
+    'type' => 'filesystem',
+    'directory' => '/var/cache/pdodb',
+    'namespace' => 'app',
+    'default_lifetime' => 3600,
+]);
+
+// Redis cache
+$cache = CacheFactory::create([
+    'type' => 'redis',
+    'host' => '127.0.0.1',
+    'port' => 6379,
+    'database' => 0,
+    'namespace' => 'app',
+]);
+
+// APCu cache
+$cache = CacheFactory::create([
+    'type' => 'apcu',
+    'namespace' => 'app',
+]);
+
+// Pass cache to PdoDb
+$db = new PdoDb(
+    'mysql',
+    [
+        'host' => 'localhost',
+        'dbname' => 'myapp',
+        'username' => 'user',
+        'password' => 'pass',
+    ],
+    [],
+    null,
+    $cache
+);
+```
+
+#### Option B: Manual Creation
 
 ```php
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
@@ -324,7 +377,58 @@ $cache->cache(3600);
 
 PDOdb works with any PSR-16 compatible cache. Here are recommended implementations:
 
-### 1. Symfony Cache (Recommended)
+### 1. Using CacheFactory (Recommended)
+
+`CacheFactory` provides a unified interface for creating cache adapters from optional dependencies:
+
+```php
+use tommyknocker\pdodb\cache\CacheFactory;
+
+// Filesystem cache (requires symfony/cache)
+$cache = CacheFactory::create([
+    'type' => 'filesystem',
+    'directory' => '/var/cache/pdodb',
+    'namespace' => 'myapp',
+    'default_lifetime' => 3600,
+]);
+
+// Redis cache (requires ext-redis and symfony/cache)
+$cache = CacheFactory::create([
+    'type' => 'redis',
+    'host' => '127.0.0.1',
+    'port' => 6379,
+    'database' => 0,
+    'password' => null, // Optional
+    'namespace' => 'myapp',
+]);
+
+// APCu cache (requires ext-apcu and symfony/cache)
+$cache = CacheFactory::create([
+    'type' => 'apcu',
+    'namespace' => 'myapp',
+]);
+
+// Memcached cache (requires ext-memcached and symfony/cache)
+$cache = CacheFactory::create([
+    'type' => 'memcached',
+    'servers' => [['127.0.0.1', 11211]],
+    'namespace' => 'myapp',
+]);
+```
+
+**Note**: `CacheFactory::create()` returns `null` if the required dependencies are not installed, so always check:
+
+```php
+$cache = CacheFactory::create($config);
+if ($cache === null) {
+    // Handle missing dependencies
+    throw new \RuntimeException('Cache adapter not available');
+}
+```
+
+### 2. Manual Creation with Symfony Cache
+
+You can also create cache adapters manually:
 
 **Filesystem Cache**:
 ```php
@@ -368,31 +472,23 @@ $adapter = new MemcachedAdapter($client);
 $cache = new Psr16Cache($adapter);
 ```
 
-### 2. PHP Cache
-
-```bash
-composer require cache/filesystem-adapter
-```
-
-```php
-use Cache\Adapter\Filesystem\FilesystemCachePool;
-use League\Flysystem\Adapter\Local;
-use League\Flysystem\Filesystem;
-
-$filesystemAdapter = new Local(__DIR__.'/cache/');
-$filesystem = new Filesystem($filesystemAdapter);
-$cache = new FilesystemCachePool($filesystem);
-```
-
 ### 3. Array Cache (Testing)
 
 For unit tests and development:
 
 ```php
-use tommyknocker\pdodb\tests\ArrayCache;
+use tommyknocker\pdodb\tests\fixtures\ArrayCache;
 
 $cache = new ArrayCache();
 $db = new PdoDb('sqlite', ['path' => ':memory:'], [], null, $cache);
+```
+
+Or use CacheFactory:
+
+```php
+use tommyknocker\pdodb\cache\CacheFactory;
+
+$cache = CacheFactory::create(['type' => 'array']);
 ```
 
 ## Best Practices

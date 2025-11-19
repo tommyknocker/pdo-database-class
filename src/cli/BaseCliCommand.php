@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli;
 
+use Psr\SimpleCache\CacheInterface;
+use tommyknocker\pdodb\cache\CacheFactory;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -101,7 +103,9 @@ abstract class BaseCliCommand
 
             // 3) Legacy per-driver map: ['mysql'=>[...], 'pgsql'=>[...]]
             if ($driver !== '' && is_array($config) && isset($config[$driver]) && is_array($config[$driver])) {
-                return $config[$driver];
+                /** @var array<string, mixed> $driverConfig */
+                $driverConfig = $config[$driver];
+                return $driverConfig;
             }
 
             // 4) Legacy named connections without 'connections' wrapper:
@@ -281,6 +285,124 @@ abstract class BaseCliCommand
     }
 
     /**
+     * Load cache configuration from environment and config.
+     *
+     * @param array<string, mixed> $dbConfig Database configuration (may contain cache config)
+     *
+     * @return array<string, mixed> Cache configuration
+     */
+    protected static function loadCacheConfig(array $dbConfig): array
+    {
+        $cacheConfig = [];
+
+        // Get cache config from dbConfig (if exists)
+        $cacheSection = isset($dbConfig['cache']) && is_array($dbConfig['cache']) ? $dbConfig['cache'] : [];
+
+        // Check if cache is enabled
+        $cacheEnabled = getenv('PDODB_CACHE_ENABLED');
+        if ($cacheEnabled !== false && mb_strtolower($cacheEnabled, 'UTF-8') === 'true') {
+            $cacheConfig['enabled'] = true;
+        } elseif (isset($cacheSection['enabled'])) {
+            $cacheConfig['enabled'] = (bool)$cacheSection['enabled'];
+        } else {
+            $cacheConfig['enabled'] = false;
+        }
+
+        if (!$cacheConfig['enabled']) {
+            return $cacheConfig;
+        }
+
+        // Get cache type
+        $type = getenv('PDODB_CACHE_TYPE');
+        if ($type === false) {
+            $type = $cacheSection['type'] ?? $cacheSection['adapter'] ?? 'filesystem';
+        }
+        $cacheConfig['type'] = is_string($type) ? $type : 'filesystem';
+
+        // Load cache-specific configuration
+        switch (mb_strtolower($cacheConfig['type'], 'UTF-8')) {
+            case 'filesystem':
+            case 'file':
+                $cacheConfig['directory'] = getenv('PDODB_CACHE_DIRECTORY') !== false
+                    ? getenv('PDODB_CACHE_DIRECTORY')
+                    : ($cacheSection['directory'] ?? $cacheSection['path'] ?? sys_get_temp_dir() . '/pdodb_cache');
+                $cacheConfig['namespace'] = getenv('PDODB_CACHE_NAMESPACE') !== false
+                    ? getenv('PDODB_CACHE_NAMESPACE')
+                    : ($cacheSection['namespace'] ?? '');
+                break;
+
+            case 'redis':
+                $cacheConfig['host'] = getenv('PDODB_CACHE_REDIS_HOST') !== false
+                    ? getenv('PDODB_CACHE_REDIS_HOST')
+                    : ($cacheSection['host'] ?? $cacheSection['redis_host'] ?? '127.0.0.1');
+                $cacheConfig['port'] = getenv('PDODB_CACHE_REDIS_PORT') !== false
+                    ? (int)getenv('PDODB_CACHE_REDIS_PORT')
+                    : ($cacheSection['port'] ?? $cacheSection['redis_port'] ?? 6379);
+                $cacheConfig['password'] = getenv('PDODB_CACHE_REDIS_PASSWORD') !== false
+                    ? getenv('PDODB_CACHE_REDIS_PASSWORD')
+                    : ($cacheSection['password'] ?? $cacheSection['redis_password'] ?? null);
+                $cacheConfig['database'] = getenv('PDODB_CACHE_REDIS_DATABASE') !== false
+                    ? (int)getenv('PDODB_CACHE_REDIS_DATABASE')
+                    : ($cacheSection['database'] ?? $cacheSection['redis_database'] ?? $cacheSection['db'] ?? 0);
+                $cacheConfig['namespace'] = getenv('PDODB_CACHE_NAMESPACE') !== false
+                    ? getenv('PDODB_CACHE_NAMESPACE')
+                    : ($cacheSection['namespace'] ?? '');
+                break;
+
+            case 'apcu':
+                $cacheConfig['namespace'] = getenv('PDODB_CACHE_NAMESPACE') !== false
+                    ? getenv('PDODB_CACHE_NAMESPACE')
+                    : ($cacheSection['namespace'] ?? '');
+                break;
+
+            case 'memcached':
+                $servers = getenv('PDODB_CACHE_MEMCACHED_SERVERS');
+                if ($servers !== false && $servers !== '') {
+                    $serversList = explode(',', $servers);
+                    $cacheConfig['servers'] = [];
+                    foreach ($serversList as $server) {
+                        $parts = explode(':', trim($server));
+                        $host = $parts[0] ?? '127.0.0.1';
+                        $port = isset($parts[1]) ? (int)$parts[1] : 11211;
+                        $cacheConfig['servers'][] = [$host, $port];
+                    }
+                } else {
+                    $cacheConfig['servers'] = $cacheSection['servers'] ?? $cacheSection['memcached_servers'] ?? [['127.0.0.1', 11211]];
+                }
+                $cacheConfig['namespace'] = getenv('PDODB_CACHE_NAMESPACE') !== false
+                    ? getenv('PDODB_CACHE_NAMESPACE')
+                    : ($cacheSection['namespace'] ?? '');
+                break;
+        }
+
+        // Common cache settings
+        $cacheConfig['default_lifetime'] = getenv('PDODB_CACHE_TTL') !== false
+            ? (int)getenv('PDODB_CACHE_TTL')
+            : ($cacheSection['default_lifetime'] ?? $cacheSection['ttl'] ?? 3600);
+        $cacheConfig['prefix'] = getenv('PDODB_CACHE_PREFIX') !== false
+            ? getenv('PDODB_CACHE_PREFIX')
+            : ($cacheSection['prefix'] ?? 'pdodb_');
+
+        return $cacheConfig;
+    }
+
+    /**
+     * Create cache instance from configuration.
+     *
+     * @param array<string, mixed> $cacheConfig Cache configuration
+     *
+     * @return CacheInterface|null
+     */
+    protected static function createCache(array $cacheConfig): ?CacheInterface
+    {
+        if (!($cacheConfig['enabled'] ?? false)) {
+            return null;
+        }
+
+        return CacheFactory::create($cacheConfig);
+    }
+
+    /**
      * Create database instance from configuration.
      *
      * @return PdoDb
@@ -288,7 +410,7 @@ abstract class BaseCliCommand
     protected static function createDatabase(): PdoDb
     {
         $config = static::loadDatabaseConfig();
-        $driver = $config['driver'];
+        $driver = isset($config['driver']) && is_string($config['driver']) ? $config['driver'] : null;
         unset($config['driver']);
 
         // Normalize database/dbname key for compatibility
@@ -298,7 +420,16 @@ abstract class BaseCliCommand
             unset($config['database']);
         }
 
-        return new PdoDb($driver, $config);
+        // Load and create cache if configured
+        $cacheConfig = static::loadCacheConfig($config);
+        $cache = static::createCache($cacheConfig);
+
+        // Merge cache config into main config for PdoDb
+        if (!empty($cacheConfig)) {
+            $config['cache'] = $cacheConfig;
+        }
+
+        return new PdoDb($driver, $config, [], null, $cache);
     }
 
     /**

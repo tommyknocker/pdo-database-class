@@ -2286,6 +2286,41 @@ PDOdb supports PSR-16 (Simple Cache) for caching query results to improve perfor
 
 #### Setup
 
+**Option 1: Using CacheFactory (Recommended)**
+
+```php
+use tommyknocker\pdodb\cache\CacheFactory;
+use tommyknocker\pdodb\PdoDb;
+
+// Create cache from configuration
+$cache = CacheFactory::create([
+    'type' => 'filesystem',  // or 'redis', 'apcu', 'memcached'
+    'directory' => '/var/cache/pdodb',
+    'namespace' => 'app',
+]);
+
+// Pass cache to PdoDb
+$db = new PdoDb(
+    'mysql',
+    [
+        'host' => 'localhost',
+        'dbname' => 'myapp',
+        'username' => 'user',
+        'password' => 'pass',
+        'cache' => [
+            'prefix' => 'myapp_',        // Optional: cache key prefix
+            'default_ttl' => 3600,       // Optional: default TTL in seconds
+            'enabled' => true,           // Optional: enable/disable
+        ],
+    ],
+    [],
+    null,
+    $cache
+);
+```
+
+**Option 2: Manual Creation**
+
 ```php
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Cache\Psr16Cache;
@@ -2313,6 +2348,19 @@ $db = new PdoDb(
     null,
     $cache  // PSR-16 cache instance
 );
+```
+
+#### Cache Configuration via Environment Variables
+
+You can configure cache using environment variables (useful for CLI tools):
+
+```bash
+PDODB_CACHE_ENABLED=true
+PDODB_CACHE_TYPE=filesystem  # or redis, apcu, memcached
+PDODB_CACHE_DIRECTORY=/var/cache/pdodb
+PDODB_CACHE_REDIS_HOST=127.0.0.1
+PDODB_CACHE_REDIS_PORT=6379
+PDODB_CACHE_TTL=3600
 ```
 
 #### Basic Usage
@@ -2366,11 +2414,20 @@ $names = $db->find()->from('users')->select('name')->cache(600)->getColumn();
 
 #### Supported PSR-16 Implementations
 
-- **Symfony Cache** (recommended): `symfony/cache`
-- **Redis**: Via Symfony Redis adapter
-- **APCu**: Via Symfony APCu adapter
-- **Memcached**: Via Symfony Memcached adapter
-- **Filesystem**: Via Symfony Filesystem adapter
+- **Symfony Cache** (recommended): `symfony/cache` - provides multiple adapters
+  - Filesystem: `CacheFactory::create(['type' => 'filesystem'])`
+  - Redis: `CacheFactory::create(['type' => 'redis', 'host' => '...'])` (requires `ext-redis`)
+  - APCu: `CacheFactory::create(['type' => 'apcu'])` (requires `ext-apcu`)
+  - Memcached: `CacheFactory::create(['type' => 'memcached'])` (requires `ext-memcached`)
+
+Install optional dependencies:
+```bash
+composer require symfony/cache  # Required for all cache adapters
+# Optional extensions:
+# - ext-apcu: For APCu cache
+# - ext-redis: For Redis cache
+# - ext-memcached: For Memcached cache
+```
 
 #### Performance Impact
 
