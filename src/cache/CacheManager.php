@@ -319,12 +319,18 @@ class CacheManager
     }
 
     /**
-     * Get Redis connection from Symfony RedisAdapter (if available).
+     * Get Redis connection from cache implementation (universal check).
      *
-     * @return (\Redis|object)|null Returns Redis connection or null
+     * Checks for Redis connection in:
+     * - Cached atomic connection
+     * - Direct cache instance
+     * - Properties via reflection (Symfony Cache and other PSR-16 implementations)
+     *
+     * @return object|null Redis connection (\Redis or \Predis\Client) or null
      */
     protected function getRedisConnection(): ?object
     {
+        // 1. Check cached connection
         if ($this->atomicConnection !== null) {
             $isRedis = $this->atomicConnection instanceof \Redis;
             $isPredis = false;
@@ -339,35 +345,57 @@ class CacheManager
             }
         }
 
-        if (!class_exists(\Symfony\Component\Cache\Psr16Cache::class)
-            || !$this->cache instanceof \Symfony\Component\Cache\Psr16Cache) {
-            return null;
+        // 2. Direct check: cache instance might be Redis/Predis directly
+        if ($this->cache instanceof \Redis) {
+            $this->atomicConnection = $this->cache;
+            return $this->cache;
+        }
+        if (class_exists(\Predis\Client::class)) {
+            /** @var class-string<\Predis\Client> $predisClass */
+            $predisClass = \Predis\Client::class;
+            if ($this->cache instanceof $predisClass) {
+                $this->atomicConnection = $this->cache;
+                return $this->cache;
+            }
         }
 
+        // 3. Universal reflection check (works for any PSR-16 implementation)
         try {
             $reflection = new ReflectionClass($this->cache);
-            $poolProperty = $reflection->getProperty('pool');
-            $poolProperty->setAccessible(true);
-            $pool = $poolProperty->getValue($this->cache);
 
-            if (class_exists(\Symfony\Component\Cache\Adapter\RedisAdapter::class)
-                && $pool instanceof \Symfony\Component\Cache\Adapter\RedisAdapter) {
-                $poolReflection = new ReflectionClass($pool);
-                $redisProperty = $poolReflection->getProperty('redis');
-                $redisProperty->setAccessible(true);
-                $redis = $redisProperty->getValue($pool);
+            // Check all properties recursively
+            $redis = $this->findRedisInProperties($reflection, $this->cache);
+            if ($redis !== null) {
+                $this->atomicConnection = $redis;
+                return $redis;
+            }
 
-                if ($redis instanceof \Redis) {
-                    $this->atomicConnection = $redis;
-                    return $redis;
-                }
-                // Check for Predis\Client (optional dependency)
-                if (class_exists(\Predis\Client::class)) {
-                    /** @var class-string<\Predis\Client> $predisClass */
-                    $predisClass = \Predis\Client::class;
-                    if ($redis instanceof $predisClass) {
+            // Check Symfony Cache specifically (for backward compatibility)
+            if (class_exists(\Symfony\Component\Cache\Psr16Cache::class)
+                && $this->cache instanceof \Symfony\Component\Cache\Psr16Cache) {
+                $poolProperty = $reflection->getProperty('pool');
+                $poolProperty->setAccessible(true);
+                $pool = $poolProperty->getValue($this->cache);
+
+                if (class_exists(\Symfony\Component\Cache\Adapter\RedisAdapter::class)
+                    && $pool instanceof \Symfony\Component\Cache\Adapter\RedisAdapter) {
+                    $poolReflection = new ReflectionClass($pool);
+                    $redisProperty = $poolReflection->getProperty('redis');
+                    $redisProperty->setAccessible(true);
+                    $redis = $redisProperty->getValue($pool);
+
+                    if ($redis instanceof \Redis) {
                         $this->atomicConnection = $redis;
                         return $redis;
+                    }
+                    // Check for Predis\Client (optional dependency)
+                    if (class_exists(\Predis\Client::class)) {
+                        /** @var class-string<\Predis\Client> $predisClass */
+                        $predisClass = \Predis\Client::class;
+                        if ($redis instanceof $predisClass) {
+                            $this->atomicConnection = $redis;
+                            return $redis;
+                        }
                     }
                 }
             }
@@ -379,41 +407,155 @@ class CacheManager
     }
 
     /**
-     * Get Memcached connection from Symfony MemcachedAdapter (if available).
+     * Recursively find Redis connection in object properties.
+     *
+     * @param ReflectionClass $reflection Reflection of object to check
+     * @param object $object Object instance
+     * @param int $depth Current recursion depth
+     *
+     * @return object|null Redis connection or null
+     *
+     * @phpstan-ignore-next-line - ReflectionClass generic type cannot be specified statically
+     */
+    protected function findRedisInProperties(ReflectionClass $reflection, object $object, int $depth = 0): ?object
+    {
+        // Limit recursion depth to avoid infinite loops
+        if ($depth > 3) {
+            return null;
+        }
+
+        foreach ($reflection->getProperties() as $property) {
+            try {
+                $property->setAccessible(true);
+                $value = $property->getValue($object);
+
+                if ($value instanceof \Redis) {
+                    return $value;
+                }
+
+                if (class_exists(\Predis\Client::class)) {
+                    /** @var class-string<\Predis\Client> $predisClass */
+                    $predisClass = \Predis\Client::class;
+                    if ($value instanceof $predisClass) {
+                        return $value;
+                    }
+                }
+
+                // Recursively check nested objects
+                if (is_object($value) && $value !== $this->cache) {
+                    $nestedReflection = new ReflectionClass($value);
+                    $found = $this->findRedisInProperties($nestedReflection, $value, $depth + 1);
+                    if ($found !== null) {
+                        return $found;
+                    }
+                }
+            } catch (ReflectionException) {
+                // Ignore individual property access errors
+                continue;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Get Memcached connection from cache implementation (universal check).
+     *
+     * Checks for Memcached connection in:
+     * - Cached atomic connection
+     * - Direct cache instance
+     * - Properties via reflection (Symfony Cache and other PSR-16 implementations)
      *
      * @return \Memcached|null
      */
     protected function getMemcachedConnection(): ?\Memcached
     {
+        // 1. Check cached connection
         if ($this->atomicConnection instanceof \Memcached) {
             return $this->atomicConnection;
         }
 
-        if (!class_exists(\Symfony\Component\Cache\Psr16Cache::class)
-            || !$this->cache instanceof \Symfony\Component\Cache\Psr16Cache) {
-            return null;
+        // 2. Direct check: cache instance might be Memcached directly
+        if ($this->cache instanceof \Memcached) {
+            $this->atomicConnection = $this->cache;
+            return $this->cache;
         }
 
+        // 3. Universal reflection check (works for any PSR-16 implementation)
         try {
             $reflection = new ReflectionClass($this->cache);
-            $poolProperty = $reflection->getProperty('pool');
-            $poolProperty->setAccessible(true);
-            $pool = $poolProperty->getValue($this->cache);
 
-            if (class_exists(\Symfony\Component\Cache\Adapter\MemcachedAdapter::class)
-                && $pool instanceof \Symfony\Component\Cache\Adapter\MemcachedAdapter) {
-                $poolReflection = new ReflectionClass($pool);
-                $memcachedProperty = $poolReflection->getProperty('client');
-                $memcachedProperty->setAccessible(true);
-                $memcached = $memcachedProperty->getValue($pool);
+            // Check all properties recursively
+            $memcached = $this->findMemcachedInProperties($reflection, $this->cache);
+            if ($memcached !== null) {
+                $this->atomicConnection = $memcached;
+                return $memcached;
+            }
 
-                if ($memcached instanceof \Memcached) {
-                    $this->atomicConnection = $memcached;
-                    return $memcached;
+            // Check Symfony Cache specifically (for backward compatibility)
+            if (class_exists(\Symfony\Component\Cache\Psr16Cache::class)
+                && $this->cache instanceof \Symfony\Component\Cache\Psr16Cache) {
+                $poolProperty = $reflection->getProperty('pool');
+                $poolProperty->setAccessible(true);
+                $pool = $poolProperty->getValue($this->cache);
+
+                if (class_exists(\Symfony\Component\Cache\Adapter\MemcachedAdapter::class)
+                    && $pool instanceof \Symfony\Component\Cache\Adapter\MemcachedAdapter) {
+                    $poolReflection = new ReflectionClass($pool);
+                    $memcachedProperty = $poolReflection->getProperty('client');
+                    $memcachedProperty->setAccessible(true);
+                    $memcached = $memcachedProperty->getValue($pool);
+
+                    if ($memcached instanceof \Memcached) {
+                        $this->atomicConnection = $memcached;
+                        return $memcached;
+                    }
                 }
             }
         } catch (ReflectionException) {
             // Ignore reflection errors
+        }
+
+        return null;
+    }
+
+    /**
+     * Recursively find Memcached connection in object properties.
+     *
+     * @param ReflectionClass $reflection Reflection of object to check
+     * @param object $object Object instance
+     * @param int $depth Current recursion depth
+     *
+     * @return \Memcached|null Memcached connection or null
+     */
+    protected function findMemcachedInProperties(ReflectionClass $reflection, object $object, int $depth = 0): ?\Memcached
+    {
+        // Limit recursion depth to avoid infinite loops
+        if ($depth > 3) {
+            return null;
+        }
+
+        foreach ($reflection->getProperties() as $property) {
+            try {
+                $property->setAccessible(true);
+                $value = $property->getValue($object);
+
+                if ($value instanceof \Memcached) {
+                    return $value;
+                }
+
+                // Recursively check nested objects
+                if (is_object($value) && $value !== $this->cache) {
+                    $nestedReflection = new ReflectionClass($value);
+                    $found = $this->findMemcachedInProperties($nestedReflection, $value, $depth + 1);
+                    if ($found !== null) {
+                        return $found;
+                    }
+                }
+            } catch (ReflectionException) {
+                // Ignore individual property access errors
+                continue;
+            }
         }
 
         return null;
@@ -951,12 +1093,19 @@ class CacheManager
     }
 
     /**
-     * Detect cache type from cache instance.
+     * Detect cache type from cache instance (universal detection).
+     *
+     * Uses multiple strategies:
+     * 1. Check via atomic connection methods (already discovered)
+     * 2. Direct type checking
+     * 3. Universal reflection (any PSR-16 implementation)
+     * 4. Class name pattern matching
      *
      * @return string Cache type name (Redis, Memcached, APCu, Filesystem, Array, Unknown)
      */
     protected function detectCacheType(): string
     {
+        // 1. Check via already discovered connections (fastest path)
         if ($this->getRedisConnection() !== null) {
             return 'Redis';
         }
@@ -969,36 +1118,109 @@ class CacheManager
             return 'APCu';
         }
 
-        // Check via reflection for Symfony adapters
-        if (class_exists(\Symfony\Component\Cache\Psr16Cache::class)
-            && $this->cache instanceof \Symfony\Component\Cache\Psr16Cache) {
-            try {
-                $reflection = new ReflectionClass($this->cache);
-                $poolProperty = $reflection->getProperty('pool');
-                $poolProperty->setAccessible(true);
-                $pool = $poolProperty->getValue($this->cache);
-
-                $poolClass = get_class($pool);
-                // get_class() always returns a string, but PHPStan sees class-string type
-                $poolClassName = (string)$poolClass;
-                if (str_contains($poolClassName, 'FilesystemAdapter')) {
-                    return 'Filesystem';
-                }
-                if (str_contains($poolClassName, 'ArrayAdapter')) {
-                    return 'Array';
-                }
-            } catch (ReflectionException) {
-                // Ignore
+        // 2. Direct type checking
+        if ($this->cache instanceof \Redis) {
+            return 'Redis';
+        }
+        if ($this->cache instanceof \Memcached) {
+            return 'Memcached';
+        }
+        if (class_exists(\Predis\Client::class)) {
+            /** @var class-string<\Predis\Client> $predisClass */
+            $predisClass = \Predis\Client::class;
+            if ($this->cache instanceof $predisClass) {
+                return 'Redis';
             }
         }
 
-        // Fallback: detect by class name
-        $className = get_class($this->cache);
-        if (str_contains($className, 'Array')) {
-            return 'Array';
+        // 3. Universal reflection check (works for any PSR-16 implementation)
+        try {
+            $reflection = new ReflectionClass($this->cache);
+
+            // Check properties for backend connections
+            foreach ($reflection->getProperties() as $property) {
+                try {
+                    $property->setAccessible(true);
+                    $value = $property->getValue($this->cache);
+
+                    if ($value instanceof \Redis) {
+                        return 'Redis';
+                    }
+                    if ($value instanceof \Memcached) {
+                        return 'Memcached';
+                    }
+                    if (class_exists(\Predis\Client::class)) {
+                        /** @var class-string<\Predis\Client> $predisClass */
+                        $predisClass = \Predis\Client::class;
+                        if ($value instanceof $predisClass) {
+                            return 'Redis';
+                        }
+                    }
+                } catch (ReflectionException) {
+                    // Ignore individual property access errors
+                    continue;
+                }
+            }
+
+            // Check methods for type hints
+            $methods = array_map(static fn ($m) => $m->getName(), $reflection->getMethods());
+            $redisMethods = ['incr', 'decr', 'keys', 'del', 'get', 'set', 'hget', 'hset'];
+            $memcachedMethods = ['increment', 'decrement', 'getallkeys', 'getbykey'];
+
+            if (array_intersect($redisMethods, $methods)) {
+                // Likely Redis-like cache
+                return 'Redis';
+            }
+            if (array_intersect($memcachedMethods, $methods)) {
+                // Likely Memcached-like cache
+                return 'Memcached';
+            }
+
+            // Check Symfony Cache adapters specifically
+            if (class_exists(\Symfony\Component\Cache\Psr16Cache::class)
+                && $this->cache instanceof \Symfony\Component\Cache\Psr16Cache) {
+                try {
+                    $poolProperty = $reflection->getProperty('pool');
+                    $poolProperty->setAccessible(true);
+                    $pool = $poolProperty->getValue($this->cache);
+
+                    $poolClass = get_class($pool);
+                    $poolClassName = (string)$poolClass;
+                    if (str_contains($poolClassName, 'FilesystemAdapter')) {
+                        return 'Filesystem';
+                    }
+                    if (str_contains($poolClassName, 'ArrayAdapter')) {
+                        return 'Array';
+                    }
+                    if (str_contains($poolClassName, 'ApcuAdapter')) {
+                        return 'APCu';
+                    }
+                } catch (ReflectionException) {
+                    // Ignore
+                }
+            }
+        } catch (ReflectionException) {
+            // Ignore reflection errors
         }
-        if (str_contains($className, 'File')) {
+
+        // 4. Fallback: detect by class name pattern
+        $className = get_class($this->cache);
+        $lowerClassName = strtolower($className);
+
+        if (str_contains($lowerClassName, 'redis')) {
+            return 'Redis';
+        }
+        if (str_contains($lowerClassName, 'memcached') || str_contains($lowerClassName, 'memcache')) {
+            return 'Memcached';
+        }
+        if (str_contains($lowerClassName, 'apcu') || str_contains($lowerClassName, 'apc')) {
+            return 'APCu';
+        }
+        if (str_contains($lowerClassName, 'filesystem') || str_contains($lowerClassName, 'file')) {
             return 'Filesystem';
+        }
+        if (str_contains($lowerClassName, 'array')) {
+            return 'Array';
         }
 
         return 'Unknown';

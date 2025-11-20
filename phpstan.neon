@@ -22,3 +22,8 @@ parameters:
     checkMissingCallableSignature: true
     checkUninitializedProperties: true
     checkDynamicProperties: true
+    
+    # Ignore ReflectionClass generic type warnings for recursive property search methods
+    # These methods work correctly at runtime but PHPStan cannot infer the generic type statically
+    ignoreErrors:
+        - '#has parameter \$reflection with generic class ReflectionClass but does not specify its types: T#'
