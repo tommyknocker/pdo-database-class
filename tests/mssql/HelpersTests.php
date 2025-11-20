@@ -422,9 +422,11 @@ final class HelpersTests extends BaseMSSQLTestCase
 
         $now = time();
 
-        $this->assertGreaterThanOrEqual($ts, $row['ts']);
-        $this->assertGreaterThanOrEqual($now + 83600, $row['ts_diff']);
-        $this->assertLessThanOrEqual($now - 83600, $row['ts_diff2']);
+        // Allow up to 1 second difference between time() calls
+        $this->assertGreaterThanOrEqual($ts - 1, $row['ts']);
+        $this->assertLessThanOrEqual($now + 1, $row['ts']);
+        $this->assertGreaterThanOrEqual($now + 83600 - 1, $row['ts_diff']);
+        $this->assertLessThanOrEqual($now - 83600 + 1, $row['ts_diff2']);
     }
 
     public function testEscape(): void

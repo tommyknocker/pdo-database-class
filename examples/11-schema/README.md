@@ -52,6 +52,15 @@ Database monitoring: monitor queries, connections, and performance metrics.
 - Query statistics - View aggregated query performance data
 - Real-time monitoring - Watch queries and connections in real-time
 
+### 06-cache-management.php
+Cache management: manage query result cache using CLI commands.
+
+**Topics covered:**
+- Cache statistics - View cache usage metrics (hits, misses, hit rate)
+- Cache clearing - Clear all cached query results
+- Cache monitoring - Track cache effectiveness
+- CLI interface - Command-line cache operations
+
 ## Usage
 
 ```bash
@@ -61,6 +70,7 @@ php 02-migrations.php
 php 03-table-cli.php
 php 04-dump-restore.php
 php 05-monitoring.php
+php 06-cache-management.php
 ```
 
 ## Schema Management Features
@@ -71,6 +81,7 @@ php 05-monitoring.php
 - **Table Management** - CLI commands for table operations
 - **Database Dump/Restore** - Export and import database schema and data
 - **Database Monitoring** - Monitor queries, connections, and performance
+- **Cache Management** - Manage query result cache via CLI
 - **Cross-Database** - Works across all supported databases
 
 ## Related Examples

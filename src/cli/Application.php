@@ -69,6 +69,9 @@ class Application
 
         // Monitor command
         $this->addCommand(new commands\MonitorCommand());
+
+        // Cache management command
+        $this->addCommand(new commands\CacheCommand());
     }
 
     /**

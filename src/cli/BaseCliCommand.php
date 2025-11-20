@@ -379,6 +379,10 @@ abstract class BaseCliCommand
                     ? getenv('PDODB_CACHE_NAMESPACE')
                     : ($cacheSection['namespace'] ?? '');
                 break;
+
+            case 'array':
+                // Array cache (for testing) - no additional configuration needed
+                break;
         }
 
         // Common cache settings
@@ -435,6 +439,8 @@ abstract class BaseCliCommand
             $config['cache'] = $cacheConfig;
         }
 
+        // Debug: ensure cache is passed to PdoDb if cacheConfig is enabled
+        // PdoDb will create CacheManager only if $cache is not null
         return new PdoDb($driver, $config, [], null, $cache);
     }
 

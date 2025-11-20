@@ -23,7 +23,7 @@ _pdodb() {
     local global_opts="--help --connection= --config= --env="
 
     # Main commands
-    local commands="migrate schema query model db user table dump monitor"
+    local commands="migrate schema query model db user table dump monitor cache"
 
     # If no command yet, complete with commands
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -206,6 +206,24 @@ _pdodb() {
             elif [[ "${subcmd}" == "stats" ]]; then
                 local monitor_opts="--format=table --format=json --format"
                 COMPREPLY=($(compgen -W "${monitor_opts}" -- "${cur}"))
+            fi
+        fi
+        return 0
+    fi
+
+    # Cache command
+    if [[ "${cmd}" == "cache" ]]; then
+        local cache_subcommands="clear stats"
+        
+        if [[ ${COMP_CWORD} -eq 2 ]]; then
+            COMPREPLY=($(compgen -W "${cache_subcommands} --help" -- "${cur}"))
+        else
+            if [[ "${subcmd}" == "clear" ]]; then
+                local cache_opts="--force"
+                COMPREPLY=($(compgen -W "${cache_opts}" -- "${cur}"))
+            elif [[ "${subcmd}" == "stats" ]]; then
+                local cache_opts="--format=table --format=json --format"
+                COMPREPLY=($(compgen -W "${cache_opts}" -- "${cur}"))
             fi
         fi
         return 0

@@ -905,6 +905,111 @@ The display updates every 2 seconds. Press `Ctrl+C` to exit.
 
 - **Real-time Updates**: The `--watch` option uses a 2-second polling interval. For production monitoring, consider using dedicated monitoring tools.
 
+## Cache Management
+
+Manage query result cache using CLI commands for cache statistics and clearing.
+
+### Usage
+
+```bash
+# Show cache statistics
+vendor/bin/pdodb cache stats
+
+# Show cache statistics in JSON format
+vendor/bin/pdodb cache stats --format=json
+
+# Clear all cached query results (interactive)
+vendor/bin/pdodb cache clear
+
+# Clear cache without confirmation
+vendor/bin/pdodb cache clear --force
+```
+
+### Options
+
+- `--format=table|json` - Output format for stats (default: table)
+- `--force` - Skip confirmation prompt (for clear)
+
+### Examples
+
+#### Show Cache Statistics
+
+```bash
+$ vendor/bin/pdodb cache stats
+
+Cache Statistics
+================
+
+Enabled:        Yes
+Prefix:         pdodb_
+Default TTL:    3600 seconds
+Hits:           1250
+Misses:         350
+Hit Rate:       78.13%
+Sets:           350
+Deletes:        15
+Total Requests: 1600
+```
+
+#### Show Cache Statistics (JSON Format)
+
+```bash
+$ vendor/bin/pdodb cache stats --format=json
+
+{
+    "enabled": true,
+    "prefix": "pdodb_",
+    "default_ttl": 3600,
+    "hits": 1250,
+    "misses": 350,
+    "hit_rate": 78.13,
+    "sets": 350,
+    "deletes": 15,
+    "total_requests": 1600
+}
+```
+
+#### Clear Cache
+
+```bash
+$ vendor/bin/pdodb cache clear
+
+Are you sure you want to clear all cache? This cannot be undone [y/N]: y
+✓ Cache cleared successfully
+```
+
+Or with `--force`:
+
+```bash
+$ vendor/bin/pdodb cache clear --force
+
+✓ Cache cleared successfully
+```
+
+### Statistics Explained
+
+- **Hits** - Number of successful cache retrievals (query result found in cache)
+- **Misses** - Number of cache lookups that didn't find a result (query executed)
+- **Hit Rate** - Percentage of successful cache hits: `(hits / (hits + misses)) * 100`
+- **Sets** - Number of query results stored in cache
+- **Deletes** - Number of cache entries deleted
+- **Total Requests** - Total number of cache operations (hits + misses)
+
+### Notes
+
+- **Cache Must Be Enabled**: Cache commands require cache to be enabled in your configuration. If cache is disabled, the command will show an error.
+- **Statistics Are In-Memory**: Cache statistics are runtime counters that reset when the application restarts. Use this for monitoring cache effectiveness during development and testing.
+- **Universal Support**: Cache statistics work with any PSR-16 cache adapter (Filesystem, Redis, APCu, Memcached, Array).
+- **Clear Removes All Cache**: The `cache clear` command removes ALL cached query results. This cannot be undone.
+- **Statistics Tracking**: Statistics are tracked automatically when using `$db->find()->cache()` methods. Manual cache operations via `$db->cacheManager` also update statistics.
+
+### When to Use
+
+- **Development**: Monitor cache hit rates to optimize cache TTL settings
+- **Debugging**: Check cache statistics when investigating performance issues
+- **Deployment**: Clear cache after schema changes or data migrations
+- **Maintenance**: Periodic cache clearing to ensure fresh data after updates
+
 ## Installation
 
 After installing PDOdb via Composer, the CLI tool is automatically available in `vendor/bin/`:
@@ -932,6 +1037,7 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 - **`model`** - Generate ActiveRecord models
 - **`table`** - Manage tables (info, list, exists, create, drop, rename, truncate, describe, columns, indexes, foreign keys)
 - **`monitor`** - Monitor database queries, connections, and performance
+- **`cache`** - Manage query result cache (clear, statistics)
 
 ### Getting Help
 

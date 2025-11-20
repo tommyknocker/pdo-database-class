@@ -274,6 +274,227 @@ final class CacheTests extends BaseSharedTestCase
         $this->assertEquals(2, $callCount); // Compiler called twice
     }
 
+    public function testCacheManagerStatsBasic(): void
+    {
+        $cache = new ArrayCache();
+        $cm = new CacheManager($cache, ['enabled' => true, 'prefix' => 'test_']);
+
+        // Initially stats should be zero
+        $stats = $cm->getStats();
+        $this->assertEquals(0, $stats['hits']);
+        $this->assertEquals(0, $stats['misses']);
+        $this->assertEquals(0, $stats['sets']);
+        $this->assertEquals(0, $stats['deletes']);
+        $this->assertEquals(0, $stats['total_requests']);
+
+        // Perform cache operations
+        $key = 'test_key';
+        $cm->get($key); // Miss
+        $cm->set($key, 'value'); // Set
+        $cm->get($key); // Hit
+        $cm->delete($key); // Delete
+
+        // Force persist stats by triggering multiple operations
+        for ($i = 0; $i < 12; $i++) {
+            $cm->get('key' . $i);
+        }
+
+        $stats = $cm->getStats();
+        $this->assertGreaterThanOrEqual(1, $stats['hits']);
+        $this->assertGreaterThanOrEqual(12, $stats['misses']); // 1 initial + 12 in loop
+        $this->assertGreaterThanOrEqual(1, $stats['sets']);
+        $this->assertGreaterThanOrEqual(1, $stats['deletes']);
+        $this->assertGreaterThan(0, $stats['total_requests']);
+    }
+
+    public function testCacheManagerPersistentStats(): void
+    {
+        // Test that statistics persist across different CacheManager instances
+        // when using the same cache backend
+
+        $cache = new ArrayCache();
+        $prefix = 'test_' . uniqid() . '_';
+
+        // Create first CacheManager instance
+        $cm1 = new CacheManager($cache, ['enabled' => true, 'prefix' => $prefix]);
+
+        // Perform operations
+        $cm1->set('key1', 'value1');
+        $cm1->get('key1'); // Hit
+        $cm1->get('key2'); // Miss
+        $cm1->delete('key1');
+
+        // Force persist by doing enough operations
+        for ($i = 0; $i < 12; $i++) {
+            $cm1->set('key' . $i, 'value' . $i);
+        }
+
+        // Force persist to ensure stats are saved
+        $reflection = new \ReflectionClass($cm1);
+        $persistMethod = $reflection->getMethod('persistStats');
+        $persistMethod->setAccessible(true);
+        $persistMethod->invoke($cm1);
+
+        // Get stats from first instance
+        $stats1 = $cm1->getStats();
+        $this->assertGreaterThanOrEqual(1, $stats1['hits']);
+        $this->assertGreaterThanOrEqual(1, $stats1['misses']);
+        $this->assertGreaterThanOrEqual(13, $stats1['sets']); // 1 + 12
+        $this->assertGreaterThanOrEqual(1, $stats1['deletes']);
+
+        // Create second CacheManager instance with same cache and prefix
+        $cm2 = new CacheManager($cache, ['enabled' => true, 'prefix' => $prefix]);
+
+        // Statistics should include data from first instance
+        $stats2 = $cm2->getStats();
+        $this->assertGreaterThanOrEqual($stats1['hits'], $stats2['hits']);
+        $this->assertGreaterThanOrEqual($stats1['misses'], $stats2['misses']);
+        $this->assertGreaterThanOrEqual($stats1['sets'], $stats2['sets']);
+        $this->assertGreaterThanOrEqual($stats1['deletes'], $stats2['deletes']);
+
+        // Perform more operations with second instance
+        $cm2->get('key1'); // This might be a hit or miss depending on if it was cleared
+        $cm2->set('key100', 'value100');
+
+        // Force persist
+        for ($i = 0; $i < 12; $i++) {
+            $cm2->get('newkey' . $i);
+        }
+
+        // Statistics should accumulate
+        $stats2After = $cm2->getStats();
+        $this->assertGreaterThanOrEqual($stats2['sets'], $stats2After['sets']);
+        $this->assertGreaterThanOrEqual($stats2['misses'], $stats2After['misses']);
+
+        // First instance should also see updated stats (shared cache)
+        $stats1After = $cm1->getStats();
+        $this->assertGreaterThanOrEqual($stats1['sets'], $stats1After['sets']);
+    }
+
+    public function testCacheManagerResetStats(): void
+    {
+        $cache = new ArrayCache();
+        $prefix = 'test_' . uniqid() . '_';
+        $cm = new CacheManager($cache, ['enabled' => true, 'prefix' => $prefix]);
+
+        // Perform operations
+        $cm->set('key1', 'value1');
+        $cm->get('key1'); // Hit
+        $cm->get('key2'); // Miss
+
+        // Force persist
+        for ($i = 0; $i < 12; $i++) {
+            $cm->get('key' . $i);
+        }
+
+        $statsBefore = $cm->getStats();
+        $this->assertGreaterThan(0, $statsBefore['total_requests']);
+
+        // Reset stats
+        $cm->resetStats();
+
+        // Stats should be reset (both in-memory and persistent)
+        $statsAfter = $cm->getStats();
+        $this->assertEquals(0, $statsAfter['hits']);
+        $this->assertEquals(0, $statsAfter['misses']);
+        $this->assertEquals(0, $statsAfter['sets']);
+        $this->assertEquals(0, $statsAfter['deletes']);
+        $this->assertEquals(0, $statsAfter['total_requests']);
+
+        // Create new instance with same cache/prefix - should also have zero stats
+        $cm2 = new CacheManager($cache, ['enabled' => true, 'prefix' => $prefix]);
+        $stats2 = $cm2->getStats();
+        $this->assertEquals(0, $stats2['hits']);
+        $this->assertEquals(0, $stats2['misses']);
+        $this->assertEquals(0, $stats2['sets']);
+        $this->assertEquals(0, $stats2['deletes']);
+        $this->assertEquals(0, $stats2['total_requests']);
+    }
+
+    public function testCacheManagerStatsHitRate(): void
+    {
+        $cache = new ArrayCache();
+        $cm = new CacheManager($cache, ['enabled' => true]);
+
+        // Initially hit rate should be 0 (no requests)
+        $stats = $cm->getStats();
+        $this->assertEquals(0.0, $stats['hit_rate']);
+
+        // All misses
+        $cm->get('key1');
+        $cm->get('key2');
+        $cm->get('key3');
+
+        // Force persist
+        for ($i = 0; $i < 12; $i++) {
+            $cm->get('key' . $i);
+        }
+
+        $stats = $cm->getStats();
+        $this->assertEquals(0.0, $stats['hit_rate']); // All misses
+
+        // Add some hits
+        $cm->set('key1', 'value1');
+        $cm->get('key1'); // Hit
+        $cm->get('key1'); // Hit
+
+        // Force persist
+        for ($i = 0; $i < 12; $i++) {
+            $cm->get('key1');
+        }
+
+        $stats = $cm->getStats();
+        $this->assertGreaterThan(0, $stats['hits']);
+        $this->assertGreaterThan(0, $stats['hit_rate']);
+        $this->assertLessThanOrEqual(100, $stats['hit_rate']);
+    }
+
+    public function testCacheManagerStatsWithDisabledCache(): void
+    {
+        $cache = new ArrayCache();
+        $cm = new CacheManager($cache, ['enabled' => false]);
+
+        // Operations should not affect stats when cache is disabled
+        $cm->get('key1');
+        $cm->set('key1', 'value1');
+        $cm->delete('key1');
+
+        $stats = $cm->getStats();
+        $this->assertFalse($stats['enabled']);
+        $this->assertEquals(0, $stats['hits']);
+        $this->assertEquals(0, $stats['misses']);
+        $this->assertEquals(0, $stats['sets']);
+        $this->assertEquals(0, $stats['deletes']);
+    }
+
+    public function testCacheManagerStatsWithDifferentPrefixes(): void
+    {
+        // Stats should be isolated by prefix
+        $cache = new ArrayCache();
+        $prefix1 = 'prefix1_';
+        $prefix2 = 'prefix2_';
+
+        $cm1 = new CacheManager($cache, ['enabled' => true, 'prefix' => $prefix1]);
+        $cm2 = new CacheManager($cache, ['enabled' => true, 'prefix' => $prefix2]);
+
+        // Operations on cm1
+        $cm1->set('key1', 'value1');
+        $cm1->get('key1'); // Hit
+
+        // Force persist
+        for ($i = 0; $i < 12; $i++) {
+            $cm1->get('key' . $i);
+        }
+
+        $stats1 = $cm1->getStats();
+        $this->assertGreaterThan(0, $stats1['hits']);
+
+        // Stats on cm2 should be independent (different prefix)
+        $stats2 = $cm2->getStats();
+        $this->assertEquals(0, $stats2['hits']);
+        $this->assertEquals(0, $stats2['misses']);
+    }
+
     public function testQueryCompilationCacheWithActualQueries(): void
     {
         $cache = new ArrayCache();
