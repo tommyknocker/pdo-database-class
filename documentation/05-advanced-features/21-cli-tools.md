@@ -907,7 +907,7 @@ The display updates every 2 seconds. Press `Ctrl+C` to exit.
 
 ## Cache Management
 
-Manage query result cache using CLI commands for cache statistics and clearing.
+Manage query result cache using CLI commands for cache statistics, invalidation, and clearing.
 
 ### Usage
 
@@ -917,6 +917,15 @@ vendor/bin/pdodb cache stats
 
 # Show cache statistics in JSON format
 vendor/bin/pdodb cache stats --format=json
+
+# Invalidate cache entries by pattern (interactive)
+vendor/bin/pdodb cache invalidate users
+
+# Invalidate cache entries by pattern without confirmation
+vendor/bin/pdodb cache invalidate "table:users" --force
+
+# Invalidate cache entries by table prefix
+vendor/bin/pdodb cache invalidate "table:users_*" --force
 
 # Clear all cached query results (interactive)
 vendor/bin/pdodb cache clear
@@ -928,7 +937,7 @@ vendor/bin/pdodb cache clear --force
 ### Options
 
 - `--format=table|json` - Output format for stats (default: table)
-- `--force` - Skip confirmation prompt (for clear)
+- `--force` - Skip confirmation prompt (for clear/invalidate)
 
 ### Examples
 
@@ -941,6 +950,7 @@ Cache Statistics
 ================
 
 Enabled:        Yes
+Type:           Redis
 Prefix:         pdodb_
 Default TTL:    3600 seconds
 Hits:           1250
@@ -958,6 +968,7 @@ $ vendor/bin/pdodb cache stats --format=json
 
 {
     "enabled": true,
+    "type": "Redis",
     "prefix": "pdodb_",
     "default_ttl": 3600,
     "hits": 1250,
@@ -968,6 +979,33 @@ $ vendor/bin/pdodb cache stats --format=json
     "total_requests": 1600
 }
 ```
+
+#### Invalidate Cache by Table Name
+
+```bash
+$ vendor/bin/pdodb cache invalidate users
+
+Are you sure you want to invalidate cache entries matching pattern 'users'? [y/N]: y
+✓ Invalidated 25 cache entries matching pattern 'users'
+```
+
+#### Invalidate Cache by Table Pattern
+
+```bash
+$ vendor/bin/pdodb cache invalidate "table:users" --force
+
+✓ Invalidated 25 cache entries matching pattern 'table:users'
+```
+
+#### Invalidate Cache by Table Prefix
+
+```bash
+$ vendor/bin/pdodb cache invalidate "table:users_*" --force
+
+✓ Invalidated 50 cache entries matching pattern 'table:users_*'
+```
+
+**Note**: Table prefix patterns (`*` wildcards) work only with Redis and Memcached cache backends that support key pattern matching.
 
 #### Clear Cache
 
@@ -986,8 +1024,34 @@ $ vendor/bin/pdodb cache clear --force
 ✓ Cache cleared successfully
 ```
 
+### Invalidation Patterns
+
+The `cache invalidate` command supports several pattern formats:
+
+1. **Table Name** - `users` - Invalidates all cache entries for the `users` table
+2. **Table Prefix** - `table:users` - Same as table name (explicit form)
+3. **Table Prefix with Wildcard** - `table:users_*` - Invalidates all cache entries for tables starting with `users_` (requires Redis/Memcached)
+4. **Key Pattern** - `pdodb_table_users_*` - Invalidates by cache key pattern (requires Redis/Memcached)
+
+**Examples:**
+
+```bash
+# Invalidate all entries for 'users' table
+vendor/bin/pdodb cache invalidate users --force
+
+# Invalidate all entries for 'users' table (explicit form)
+vendor/bin/pdodb cache invalidate "table:users" --force
+
+# Invalidate all entries for tables starting with 'users_' (Redis/Memcached only)
+vendor/bin/pdodb cache invalidate "table:users_*" --force
+
+# Invalidate by key pattern (Redis/Memcached only)
+vendor/bin/pdodb cache invalidate "pdodb_table_users_*" --force
+```
+
 ### Statistics Explained
 
+- **Type** - Cache backend type (Redis, Memcached, APCu, Filesystem, Array, Unknown)
 - **Hits** - Number of successful cache retrievals (query result found in cache)
 - **Misses** - Number of cache lookups that didn't find a result (query executed)
 - **Hit Rate** - Percentage of successful cache hits: `(hits / (hits + misses)) * 100`
@@ -998,9 +1062,11 @@ $ vendor/bin/pdodb cache clear --force
 ### Notes
 
 - **Cache Must Be Enabled**: Cache commands require cache to be enabled in your configuration. If cache is disabled, the command will show an error.
-- **Statistics Are In-Memory**: Cache statistics are runtime counters that reset when the application restarts. Use this for monitoring cache effectiveness during development and testing.
+- **Persistent Statistics**: Cache statistics are stored in the cache backend itself, so they persist across requests. Statistics include both in-memory counters (current request) and persistent counters (accumulated across all requests).
 - **Universal Support**: Cache statistics work with any PSR-16 cache adapter (Filesystem, Redis, APCu, Memcached, Array).
-- **Clear Removes All Cache**: The `cache clear` command removes ALL cached query results. This cannot be undone.
+- **Pattern Matching**: Key pattern matching (wildcards) works only with Redis and Memcached. For other cache types, only exact table name matching is supported.
+- **Clear Removes All Cache**: The `cache clear` command removes ALL cached query results and statistics. This cannot be undone.
+- **Invalidate Removes Matching Entries**: The `cache invalidate` command removes only cache entries matching the specified pattern. Statistics are updated accordingly.
 - **Statistics Tracking**: Statistics are tracked automatically when using `$db->find()->cache()` methods. Manual cache operations via `$db->cacheManager` also update statistics.
 
 ### When to Use
@@ -1008,7 +1074,8 @@ $ vendor/bin/pdodb cache clear --force
 - **Development**: Monitor cache hit rates to optimize cache TTL settings
 - **Debugging**: Check cache statistics when investigating performance issues
 - **Deployment**: Clear cache after schema changes or data migrations
-- **Maintenance**: Periodic cache clearing to ensure fresh data after updates
+- **Maintenance**: Invalidate specific table caches after data updates without clearing all cache
+- **Performance**: Use selective invalidation to maintain cache for unchanged tables while refreshing updated tables
 
 ## Installation
 
@@ -1037,7 +1104,7 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 - **`model`** - Generate ActiveRecord models
 - **`table`** - Manage tables (info, list, exists, create, drop, rename, truncate, describe, columns, indexes, foreign keys)
 - **`monitor`** - Monitor database queries, connections, and performance
-- **`cache`** - Manage query result cache (clear, statistics)
+- **`cache`** - Manage query result cache (clear, invalidate, statistics)
 
 ### Getting Help
 

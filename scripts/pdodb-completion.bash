@@ -213,7 +213,7 @@ _pdodb() {
 
     # Cache command
     if [[ "${cmd}" == "cache" ]]; then
-        local cache_subcommands="clear stats"
+        local cache_subcommands="clear invalidate stats"
         
         if [[ ${COMP_CWORD} -eq 2 ]]; then
             COMPREPLY=($(compgen -W "${cache_subcommands} --help" -- "${cur}"))
@@ -221,6 +221,14 @@ _pdodb() {
             if [[ "${subcmd}" == "clear" ]]; then
                 local cache_opts="--force"
                 COMPREPLY=($(compgen -W "${cache_opts}" -- "${cur}"))
+            elif [[ "${subcmd}" == "invalidate" ]]; then
+                if [[ ${COMP_CWORD} -eq 3 ]]; then
+                    # Pattern argument - no completions for now
+                    COMPREPLY=()
+                else
+                    local cache_opts="--force"
+                    COMPREPLY=($(compgen -W "${cache_opts}" -- "${cur}"))
+                fi
             elif [[ "${subcmd}" == "stats" ]]; then
                 local cache_opts="--format=table --format=json --format"
                 COMPREPLY=($(compgen -W "${cache_opts}" -- "${cur}"))

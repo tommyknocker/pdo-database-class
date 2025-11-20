@@ -17,6 +17,9 @@ class CacheManager
     /** Cache key for statistics */
     private const STATS_KEY = '__pdodb_stats__';
 
+    /** Cache key prefix for metadata */
+    private const META_KEY_PREFIX = '__pdodb_meta:';
+
     /** TTL for statistics (30 days) */
     private const STATS_TTL = 30 * 24 * 3600;
 
@@ -99,10 +102,11 @@ class CacheManager
      * @param string $key Cache key
      * @param mixed $value Value to cache
      * @param int|null $ttl Time-to-live in seconds (null = use default)
+     * @param array<string>|null $tables Optional array of table names for metadata
      *
      * @throws InvalidArgumentException
      */
-    public function set(string $key, mixed $value, ?int $ttl = null): bool
+    public function set(string $key, mixed $value, ?int $ttl = null, ?array $tables = null): bool
     {
         if (!$this->config->isEnabled()) {
             return false;
@@ -114,6 +118,11 @@ class CacheManager
         if ($result) {
             $this->sets++;
             $this->incrementStatAtomic('sets');
+
+            // Save metadata about tables if provided
+            if ($tables !== null && !empty($tables)) {
+                $this->addKeyToMetadata($key, $tables);
+            }
         }
 
         $this->operationCount++;
@@ -233,6 +242,7 @@ class CacheManager
 
         return [
             'enabled' => $this->config->isEnabled(),
+            'type' => $this->detectCacheType(),
             'prefix' => $this->config->getPrefix(),
             'default_ttl' => $this->config->getDefaultTtl(),
             'hits' => $totalHits,
@@ -701,5 +711,296 @@ class CacheManager
 
         // If all retries failed, we'll try again on next batch
         // This is acceptable - statistics are best-effort for non-atomic caches
+    }
+
+    /**
+     * Invalidate cache entries matching pattern.
+     *
+     * Supported patterns:
+     * - "table:users" - Invalidate all entries for table "users"
+     * - "table:users_*" - Invalidate all entries for tables starting with "users_"
+     * - "pdodb_table_users_*" - Invalidate by key pattern (Redis/Memcached only)
+     * - "users" - Simple table name match
+     *
+     * @param string $pattern Pattern to match
+     *
+     * @return int Number of invalidated entries
+     */
+    public function invalidateByPattern(string $pattern): int
+    {
+        if (!$this->config->isEnabled()) {
+            return 0;
+        }
+
+        $deletedCount = 0;
+
+        // Parse pattern
+        if (str_starts_with($pattern, 'table:')) {
+            // Pattern like "table:users" or "table:users_*"
+            $tablePattern = substr($pattern, 6); // Remove "table:"
+
+            if (str_ends_with($tablePattern, '_*')) {
+                // Table prefix
+                $tablePrefix = substr($tablePattern, 0, -2);
+                $deletedCount = $this->invalidateByTablePrefix($tablePrefix);
+            } else {
+                // Exact table match
+                $deletedCount = $this->invalidateByTable($tablePattern);
+            }
+        } elseif (str_contains($pattern, '*')) {
+            // Key pattern like "pdodb_table_users_*"
+            $deletedCount = $this->invalidateByKeyPattern($pattern);
+        } else {
+            // Simple match (table name or part of key)
+            $deletedCount = $this->invalidateByTable($pattern);
+        }
+
+        return $deletedCount;
+    }
+
+    /**
+     * Add key to metadata for tables.
+     *
+     * @param string $key Cache key
+     * @param array<string> $tables Table names
+     */
+    protected function addKeyToMetadata(string $key, array $tables): void
+    {
+        foreach ($tables as $table) {
+            // Normalize table name
+            $normalizedTable = $this->normalizeTableName($table);
+            $metaKey = $this->config->getPrefix() . self::META_KEY_PREFIX . 'table:' . $normalizedTable;
+
+            $keys = $this->cache->get($metaKey, []);
+            if (!is_array($keys)) {
+                $keys = [];
+            }
+
+            if (!in_array($key, $keys, true)) {
+                $keys[] = $key;
+                $this->cache->set($metaKey, $keys, self::STATS_TTL);
+            }
+        }
+    }
+
+    /**
+     * Normalize table name (remove alias, schema, quotes).
+     *
+     * @param string $table Table name
+     *
+     * @return string Normalized table name
+     */
+    protected function normalizeTableName(string $table): string
+    {
+        // Remove alias (table AS alias -> table)
+        if (preg_match('/^(\S+)\s+(?:AS\s+)?\S+$/i', $table, $matches)) {
+            $table = $matches[1];
+        }
+
+        // Remove quotes
+        $table = trim($table, '`"[]');
+
+        // Remove schema prefix (schema.table -> table)
+        if (preg_match('/\.([^.]+)$/', $table, $matches)) {
+            $table = $matches[1];
+        }
+
+        return strtolower($table);
+    }
+
+    /**
+     * Invalidate cache entries by table name.
+     *
+     * @param string $table Table name
+     *
+     * @return int Number of invalidated entries
+     */
+    protected function invalidateByTable(string $table): int
+    {
+        $normalizedTable = $this->normalizeTableName($table);
+        $metaKey = $this->config->getPrefix() . self::META_KEY_PREFIX . 'table:' . $normalizedTable;
+
+        $keys = $this->cache->get($metaKey, []);
+        if (!is_array($keys) || empty($keys)) {
+            return 0;
+        }
+
+        $deletedCount = 0;
+        foreach ($keys as $key) {
+            if (is_string($key) && $this->cache->delete($key)) {
+                $deletedCount++;
+                $this->deletes++;
+                $this->incrementStatAtomic('deletes');
+            }
+        }
+
+        // Delete metadata
+        $this->cache->delete($metaKey);
+
+        return $deletedCount;
+    }
+
+    /**
+     * Invalidate cache entries by table prefix.
+     *
+     * @param string $tablePrefix Table prefix
+     *
+     * @return int Number of invalidated entries
+     */
+    protected function invalidateByTablePrefix(string $tablePrefix): int
+    {
+        $deletedCount = 0;
+        $prefix = $this->config->getPrefix();
+        $normalizedPrefix = strtolower($tablePrefix);
+
+        // For universal caches, we need to find all metadata keys
+        // Use low-level operations if available
+        if ($this->supportsKeyPatternMatching()) {
+            $metaPattern = $prefix . self::META_KEY_PREFIX . 'table:' . $normalizedPrefix . '*';
+            $metaKeys = $this->getKeysByPattern($metaPattern);
+
+            foreach ($metaKeys as $metaKey) {
+                $keys = $this->cache->get($metaKey, []);
+                if (is_array($keys)) {
+                    foreach ($keys as $key) {
+                        if (is_string($key) && $this->cache->delete($key)) {
+                            $deletedCount++;
+                            $this->deletes++;
+                            $this->incrementStatAtomic('deletes');
+                        }
+                    }
+                }
+                $this->cache->delete($metaKey);
+            }
+        } else {
+            // Fallback: try exact match (limited functionality)
+            $deletedCount = $this->invalidateByTable($tablePrefix);
+        }
+
+        return $deletedCount;
+    }
+
+    /**
+     * Invalidate cache entries by key pattern.
+     *
+     * @param string $pattern Key pattern with wildcards
+     *
+     * @return int Number of invalidated entries
+     */
+    protected function invalidateByKeyPattern(string $pattern): int
+    {
+        if ($this->supportsKeyPatternMatching()) {
+            $keys = $this->getKeysByPattern($pattern);
+            $deletedCount = 0;
+
+            foreach ($keys as $key) {
+                if (is_string($key) && $this->cache->delete($key)) {
+                    $deletedCount++;
+                    $this->deletes++;
+                    $this->incrementStatAtomic('deletes');
+                }
+            }
+
+            return $deletedCount;
+        }
+
+        // Fallback: cannot match patterns without low-level operations
+        return 0;
+    }
+
+    /**
+     * Check if cache supports key pattern matching.
+     *
+     * @return bool True if pattern matching is supported
+     */
+    protected function supportsKeyPatternMatching(): bool
+    {
+        return $this->getRedisConnection() !== null
+            || $this->getMemcachedConnection() !== null;
+    }
+
+    /**
+     * Get cache keys matching pattern (for Redis/Memcached).
+     *
+     * @param string $pattern Pattern with wildcards (*, ?)
+     *
+     * @return array<string> Array of matching keys
+     */
+    protected function getKeysByPattern(string $pattern): array
+    {
+        // Redis
+        $redis = $this->getRedisConnection();
+        if ($redis instanceof \Redis) {
+            $keys = $redis->keys($pattern);
+            return is_array($keys) ? $keys : [];
+        }
+
+        // Predis
+        if (class_exists(\Predis\Client::class)) {
+            /** @var class-string<\Predis\Client> $predisClass */
+            $predisClass = \Predis\Client::class;
+            if ($redis instanceof $predisClass) {
+                /** @var \Predis\Client $redis */
+                $keys = $redis->keys($pattern);
+                return is_array($keys) ? $keys : [];
+            }
+        }
+
+        // Memcached doesn't support patterns directly - return empty array
+        return [];
+    }
+
+    /**
+     * Detect cache type from cache instance.
+     *
+     * @return string Cache type name (Redis, Memcached, APCu, Filesystem, Array, Unknown)
+     */
+    protected function detectCacheType(): string
+    {
+        if ($this->getRedisConnection() !== null) {
+            return 'Redis';
+        }
+
+        if ($this->getMemcachedConnection() !== null) {
+            return 'Memcached';
+        }
+
+        if ($this->getApcuConnection() === true) {
+            return 'APCu';
+        }
+
+        // Check via reflection for Symfony adapters
+        if (class_exists(\Symfony\Component\Cache\Psr16Cache::class)
+            && $this->cache instanceof \Symfony\Component\Cache\Psr16Cache) {
+            try {
+                $reflection = new ReflectionClass($this->cache);
+                $poolProperty = $reflection->getProperty('pool');
+                $poolProperty->setAccessible(true);
+                $pool = $poolProperty->getValue($this->cache);
+
+                $poolClass = get_class($pool);
+                // get_class() always returns a string, but PHPStan sees class-string type
+                $poolClassName = (string)$poolClass;
+                if (str_contains($poolClassName, 'FilesystemAdapter')) {
+                    return 'Filesystem';
+                }
+                if (str_contains($poolClassName, 'ArrayAdapter')) {
+                    return 'Array';
+                }
+            } catch (ReflectionException) {
+                // Ignore
+            }
+        }
+
+        // Fallback: detect by class name
+        $className = get_class($this->cache);
+        if (str_contains($className, 'Array')) {
+            return 'Array';
+        }
+        if (str_contains($className, 'File')) {
+            return 'Filesystem';
+        }
+
+        return 'Unknown';
     }
 }

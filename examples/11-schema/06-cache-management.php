@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Cache Management Examples.
  *
  * This example demonstrates how to use the pdodb cache command
- * to manage query result cache (clear, statistics).
+ * to manage query result cache (clear, invalidate, statistics).
  *
  * Usage:
  *   php examples/11-schema/06-cache-management.php
@@ -148,17 +148,34 @@ $result6 = $db->find()
     ->get();
 echo "   Found " . count($result6) . " records (cache hit)\n\n";
 
-echo "6. Final Cache Statistics (from CLI):\n";
-echo "   Note: CLI commands create a separate CacheManager instance,\n";
-echo "   so statistics may differ from the application's CacheManager.\n";
-echo "   Command: pdodb cache stats --format=json\n";
+echo "6. Invalidate Cache by Table Pattern:\n";
+echo "   Command: pdodb cache invalidate cache_test --force\n";
 echo "   Output:\n";
 ob_start();
-$app->run(['pdodb', 'cache', 'stats', '--format=json']);
+$app->run(['pdodb', 'cache', 'invalidate', 'cache_test', '--force']);
 $output = ob_get_clean();
 echo $output . "\n";
 
-echo "\n7. Direct Cache Statistics (from application's CacheManager):\n";
+echo "7. Invalidate Cache by Table Pattern (table: prefix):\n";
+echo "   Command: pdodb cache invalidate \"table:cache_test\" --force\n";
+// First generate some cache again
+$db->find()->from('cache_test')->cache(3600)->get();
+ob_start();
+$app->run(['pdodb', 'cache', 'invalidate', 'table:cache_test', '--force']);
+$output = ob_get_clean();
+echo $output . "\n";
+
+echo "8. Final Cache Statistics (from CLI):\n";
+echo "   Note: CLI commands create a separate CacheManager instance,\n";
+echo "   so statistics may differ from the application's CacheManager.\n";
+echo "   Command: pdodb cache stats\n";
+echo "   Output:\n";
+ob_start();
+$app->run(['pdodb', 'cache', 'stats']);
+$output = ob_get_clean();
+echo $output . "\n";
+
+echo "\n9. Direct Cache Statistics (from application's CacheManager):\n";
 $cacheManager = $db->getCacheManager();
 if ($cacheManager !== null) {
     $stats = $cacheManager->getStats();
@@ -171,9 +188,12 @@ if ($cacheManager !== null) {
 echo "\nAdditional Notes:\n";
 echo "- Cache statistics track hits, misses, sets, and deletes\n";
 echo "- Hit rate is calculated as: (hits / (hits + misses)) * 100\n";
-echo "- Statistics are in-memory counters that reset on application restart\n";
-echo "- Use --force flag to skip confirmation when clearing cache\n";
+echo "- Statistics are persistent across requests (stored in cache backend)\n";
+echo "- Cache type (Redis, Memcached, APCu, Filesystem, Array) is shown in statistics\n";
+echo "- Use --force flag to skip confirmation when clearing/invalidating cache\n";
 echo "- Cache clear removes ALL cached query results\n";
+echo "- Cache invalidate removes entries matching a pattern (table name, table prefix, or key pattern)\n";
+echo "- Supported patterns: 'table:users', 'table:users_*', 'pdodb_table_users_*', 'users'\n";
 echo "- Cache statistics help monitor cache effectiveness\n";
 
 // Cleanup

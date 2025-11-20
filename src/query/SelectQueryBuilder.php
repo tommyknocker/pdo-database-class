@@ -1635,7 +1635,12 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         }
 
         $ttl = $this->cacheTtl ?? $this->cacheManager->getConfig()->getDefaultTtl();
-        $this->cacheManager->set($this->cachedCacheKey, $result, $ttl);
+
+        // Extract table names from SQL for metadata
+        $sqlData = $this->cachedSqlData ?? $this->toSQL();
+        $tables = \tommyknocker\pdodb\cache\QueryCacheKey::extractTables($sqlData['sql']);
+
+        $this->cacheManager->set($this->cachedCacheKey, $result, $ttl, $tables);
     }
 
     /**

@@ -413,10 +413,26 @@ final class QueryBuilderTests extends BaseSharedTestCase
         ['name' => 'Charlie', 'age' => 35],
         ]);
 
-        // Helper function to count query cache entries (excluding statistics keys)
-        $getQueryCacheCount = static function () use ($cache): int {
+        // Helper function to count query cache entries (excluding statistics and metadata keys)
+        $getQueryCacheCount = static function () use ($cache, $db): int {
             $cacheKeys = $cache->getKeys();
-            $queryKeys = array_filter($cacheKeys, static fn ($key) => !str_starts_with($key, '__pdodb_stats__'));
+            $cacheManager = $db->getCacheManager();
+            $prefix = $cacheManager?->getConfig()->getPrefix() ?? 'pdodb_';
+
+            $queryKeys = array_filter(
+                $cacheKeys,
+                static function ($key) use ($prefix) {
+                    // Exclude statistics keys (__pdodb_stats__* or prefix + __pdodb_stats__*)
+                    if (str_starts_with($key, '__pdodb_stats__') || str_starts_with($key, $prefix . '__pdodb_stats__')) {
+                        return false;
+                    }
+                    // Exclude metadata keys (__pdodb_meta:* or prefix + __pdodb_meta:*)
+                    if (str_starts_with($key, '__pdodb_meta:') || str_starts_with($key, $prefix . '__pdodb_meta:')) {
+                        return false;
+                    }
+                    return true;
+                }
+            );
             return count($queryKeys);
         };
 
