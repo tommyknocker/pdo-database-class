@@ -43,44 +43,32 @@ class Application
      */
     protected function registerDefaultCommands(): void
     {
-        // Migrate command with subcommands
+        // Project initialization
+        $this->addCommand(new commands\InitCommand());
+
+        // Migrations
         $this->addCommand(new commands\MigrateCommand());
 
-        // Schema command with subcommands
-        $this->addCommand(new commands\SchemaCommand());
-
-        // Query command with subcommands
-        $this->addCommand(new commands\QueryCommand());
-
-        // Model command with subcommands
+        // Code generation
         $this->addCommand(new commands\ModelCommand());
-
-        // Repository command with subcommands
         $this->addCommand(new commands\RepositoryCommand());
-
-        // Service command with subcommands
         $this->addCommand(new commands\ServiceCommand());
 
-        // Database management command with subcommands
+        // Database management
         $this->addCommand(new commands\DbCommand());
-
-        // User management command with subcommands
         $this->addCommand(new commands\UserCommand());
-
-        // Table management command with subcommands
         $this->addCommand(new commands\TableCommand());
 
-        // Dump and restore command
-        $this->addCommand(new commands\DumpCommand());
+        // Development tools
+        $this->addCommand(new commands\SchemaCommand());
+        $this->addCommand(new commands\QueryCommand());
 
-        // Monitor command
+        // Monitoring and performance
         $this->addCommand(new commands\MonitorCommand());
-
-        // Cache management command
         $this->addCommand(new commands\CacheCommand());
 
-        // Init command for project initialization
-        $this->addCommand(new commands\InitCommand());
+        // Utilities
+        $this->addCommand(new commands\DumpCommand());
     }
 
     /**
