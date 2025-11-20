@@ -1,4 +1,5 @@
 .idea
+.cursor
 /nbproject
 vendor
 composer.lock
