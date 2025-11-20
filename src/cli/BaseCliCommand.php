@@ -230,6 +230,8 @@ abstract class BaseCliCommand
                 $config['host'] = $host;
                 $config['port'] = (int)$port;
                 $config['database'] = $database;
+                // MySQL/MariaDB dialect requires 'dbname' parameter for DSN
+                $config['dbname'] = $database;
                 $config['username'] = $username;
                 $config['password'] = $password !== false ? $password : '';
                 $config['charset'] = $charset;
@@ -251,6 +253,8 @@ abstract class BaseCliCommand
                 $config['host'] = $host;
                 $config['port'] = (int)$port;
                 $config['database'] = $database;
+                // PostgreSQL dialect requires 'dbname' parameter for DSN
+                $config['dbname'] = $database;
                 $config['username'] = $username;
                 $config['password'] = $password !== false ? $password : '';
                 break;

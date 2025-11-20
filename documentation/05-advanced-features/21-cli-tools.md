@@ -10,6 +10,8 @@ The CLI tools are designed to streamline your development workflow:
 - **User Management** - Create, drop, list, and manage database users and privileges
 - **Migration Generator** - Create database migrations with interactive prompts
 - **Model Generator** - Generate ActiveRecord models from existing database tables
+- **Repository Generator** - Generate repository classes with CRUD operations
+- **Service Generator** - Generate service classes for business logic
 - **Schema Inspector** - Inspect database schema structure
 - **Query Tester** - Interactive REPL for testing SQL queries
 
@@ -160,6 +162,176 @@ vendor/bin/pdodb db info --env=/path/to/.env.local
 vendor/bin/pdodb db info --config=/path/to/db.php
 ```
 
+## Project Initialization
+
+The `pdodb init` command provides an interactive wizard to help you quickly set up PDOdb configuration for your project.
+
+### Basic Usage
+
+```bash
+# Interactive wizard (recommended for first-time setup)
+vendor/bin/pdodb init
+
+# Create .env file only
+vendor/bin/pdodb init --env-only
+
+# Create config/db.php only
+vendor/bin/pdodb init --config-only
+
+# Skip connection test (useful if database is not yet available)
+vendor/bin/pdodb init --skip-connection-test
+
+# Overwrite existing files without confirmation
+vendor/bin/pdodb init --force
+
+# Don't create directory structure
+vendor/bin/pdodb init --no-structure
+```
+
+### Interactive Wizard
+
+The wizard guides you through:
+
+1. **Database Connection Settings**
+   - Database driver (mysql, mariadb, pgsql, sqlite, sqlsrv)
+   - Host, port, database name, username, password
+   - Driver-specific options (charset for MySQL, path for SQLite, etc.)
+
+2. **Configuration Format Selection**
+   - `.env` file (environment-based, simple)
+   - `config/db.php` (PHP array, more flexible)
+   
+   **Note:** PDOdb uses either `.env` or `config/db.php`, not both. If `PDODB_*` environment variables are set, `.env` takes priority and `config/db.php` is ignored.
+
+3. **Project Structure**
+   - Create directory structure (migrations, models, repositories, services, seeds)
+   - Set namespace prefix
+   - Configure paths for generated files
+
+4. **Advanced Options (Optional)**
+   - Table prefix
+   - Query result caching (filesystem, Redis, Memcached, APCu)
+   - Performance options (query compilation cache, prepared statement pool, connection retry)
+   - Multiple database connections (manual configuration in config/db.php)
+
+### Non-Interactive Mode
+
+For automated setups, use environment variables with `PDODB_NON_INTERACTIVE=1`:
+
+```bash
+PDODB_NON_INTERACTIVE=1 \
+PDODB_DRIVER=mysql \
+PDODB_HOST=localhost \
+PDODB_PORT=3306 \
+PDODB_DATABASE=mydb \
+PDODB_USERNAME=user \
+PDODB_PASSWORD=pass \
+PDODB_CHARSET=utf8mb4 \
+vendor/bin/pdodb init --env-only --skip-connection-test --force
+```
+
+### Examples
+
+**Quick Start (SQLite):**
+```bash
+vendor/bin/pdodb init
+# Select: sqlite
+# Path: ./database.sqlite
+# Format: 1 (.env) or 2 (config/db.php)
+# Create structure: Yes
+```
+
+**Production Setup (MySQL with cache):**
+```bash
+vendor/bin/pdodb init
+# Select: mysql
+# Host: db.example.com
+# Database: production_db
+# Format: 2 (config/db.php - for advanced options)
+# Advanced options: Yes
+#   - Enable caching: Yes (Redis)
+#   - Enable compilation cache: Yes
+#   - Enable statement pool: Yes
+```
+
+**CI/CD Setup (non-interactive):**
+```bash
+# .github/workflows/tests.yml
+- name: Initialize PDOdb
+  run: |
+    export PDODB_NON_INTERACTIVE=1
+    export PDODB_DRIVER=sqlite
+    export PDODB_PATH=:memory:
+    vendor/bin/pdodb init --env-only --skip-connection-test --force
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--skip-connection-test` | Skip database connection test during wizard |
+| `--force` | Overwrite existing files without confirmation |
+| `--env-only` | Create `.env` file only |
+| `--config-only` | Create `config/db.php` only |
+| `--no-structure` | Don't create directory structure |
+
+**Note:** PDOdb uses either `.env` or `config/db.php`, not both simultaneously. Environment variables from `.env` (if set) take priority over `config/db.php`.
+
+### Generated Files
+
+#### `.env` file example:
+```env
+# Database Configuration
+PDODB_DRIVER=mysql
+PDODB_HOST=localhost
+PDODB_PORT=3306
+PDODB_DATABASE=mydb
+PDODB_USERNAME=user
+PDODB_PASSWORD=secret
+PDODB_CHARSET=utf8mb4
+
+# Cache Configuration (if enabled)
+PDODB_CACHE_ENABLED=true
+PDODB_CACHE_TYPE=filesystem
+PDODB_CACHE_DIRECTORY=./storage/cache
+
+# Project Paths
+PDODB_MIGRATION_PATH=./migrations
+PDODB_MODEL_PATH=./app/Models
+PDODB_REPOSITORY_PATH=./app/Repositories
+PDODB_SERVICE_PATH=./app/Services
+PDODB_SEED_PATH=./database/seeds
+```
+
+#### `config/db.php` example:
+```php
+<?php
+
+declare(strict_types=1);
+
+return [
+    'driver' => 'mysql',
+    'host' => 'localhost',
+    'port' => 3306,
+    'database' => 'mydb',
+    'username' => 'user',
+    'password' => 'secret',
+    'charset' => 'utf8mb4',
+    
+    // Advanced options (if configured)
+    'prefix' => 'app_',
+    'cache' => [
+        'enabled' => true,
+        'type' => 'filesystem',
+        'directory' => './storage/cache',
+    ],
+    'compilation_cache' => [
+        'enabled' => true,
+        'ttl' => 86400,
+    ],
+];
+```
+
 Global options available for all commands:
 
 ```text
@@ -190,6 +362,8 @@ PDODB_PATH=/path/to/database.sqlite
 # Paths
 PDODB_MIGRATION_PATH=/path/to/migrations
 PDODB_MODEL_PATH=/path/to/models
+PDODB_REPOSITORY_PATH=/path/to/repositories
+PDODB_SERVICE_PATH=/path/to/services
 ```
 
 ### .env File Example
@@ -617,6 +791,234 @@ class User extends Model
     }
 }
 ```
+
+## Repository Generator
+
+Generate repository classes with CRUD operations for models and database tables.
+
+### Usage
+
+```bash
+# Auto-detect model name from repository name (UserRepository -> User)
+vendor/bin/pdodb repository make UserRepository
+
+# Specify model name explicitly
+vendor/bin/pdodb repository make UserRepository User
+
+# Specify output path
+vendor/bin/pdodb repository make UserRepository User app/Repositories
+
+# Specify namespaces
+vendor/bin/pdodb repository make UserRepository User app/Repositories --namespace=App\\Repositories --model-namespace=App\\Models
+
+# Overwrite without confirmation
+vendor/bin/pdodb repository make UserRepository User app/Repositories --force
+```
+
+### Example
+
+```bash
+$ vendor/bin/pdodb repository make UserRepository User
+
+PDOdb Repository Generator
+Database: mysql
+
+✓ Repository file created: UserRepository.php
+  Path: /path/to/repositories/UserRepository.php
+  Model: App\Models\User
+  Table: users
+```
+
+### Options
+
+- `--namespace=NS` – Set PHP namespace for the generated repository (default: `App\\Repositories`)
+- `--model-namespace=NS` – Set PHP namespace for the model class (default: `App\\Models`)
+- `--force` – Overwrite existing file without confirmation
+- `--connection=NAME` – Use a named connection from `config/db.php` (global option)
+
+### Generated Repository File
+
+The generated repository includes the following methods:
+
+- `findById($id)` – Find record by primary key
+- `findAll($conditions, $orderBy, $limit)` – Find all records with optional conditions
+- `findBy($column, $value)` – Find records by column value
+- `findOneBy($column, $value)` – Find one record by column value
+- `create($data)` – Create new record
+- `update($id, $data)` – Update record by primary key
+- `delete($id)` – Delete record by primary key
+- `exists($id)` – Check if record exists
+- `count($conditions)` – Count records with optional conditions
+
+Example generated code:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Repositories;
+
+use tommyknocker\pdodb\PdoDb;
+use App\Models\User;
+
+/**
+ * Repository class for User model.
+ *
+ * Auto-generated by PDOdb Repository Generator
+ */
+class UserRepository
+{
+    protected PdoDb $db;
+
+    public function __construct(PdoDb $db)
+    {
+        $this->db = $db;
+    }
+
+    public function findById(int $id): ?array
+    {
+        return $this->db->find()
+            ->from('users')
+            ->where('id', $id)
+            ->getOne();
+    }
+
+    public function create(array $data): int
+    {
+        return $this->db->find()
+            ->table('users')
+            ->insert($data);
+    }
+
+    // ... other CRUD methods
+}
+```
+
+### Output Path
+
+The generator searches for repositories directory in this order:
+
+1. `PDODB_REPOSITORY_PATH` environment variable
+2. `app/Repositories` directory
+3. `src/Repositories` directory
+4. `repositories` directory in current working directory
+5. Creates `repositories` directory if none found
+
+## Service Generator
+
+Generate service classes with business logic structure, typically working with repositories.
+
+### Usage
+
+```bash
+# Auto-detect repository name from service name (UserService -> UserRepository)
+vendor/bin/pdodb service make UserService
+
+# Specify repository name explicitly
+vendor/bin/pdodb service make UserService UserRepository
+
+# Specify output path
+vendor/bin/pdodb service make UserService UserRepository app/Services
+
+# Specify namespaces
+vendor/bin/pdodb service make UserService UserRepository app/Services --namespace=App\\Services --repository-namespace=App\\Repositories
+
+# Overwrite without confirmation
+vendor/bin/pdodb service make UserService UserRepository app/Services --force
+```
+
+### Example
+
+```bash
+$ vendor/bin/pdodb service make UserService UserRepository
+
+PDOdb Service Generator
+Database: mysql
+
+✓ Service file created: UserService.php
+  Path: /path/to/services/UserService.php
+  Repository: App\Repositories\UserRepository
+```
+
+### Options
+
+- `--namespace=NS` – Set PHP namespace for the generated service (default: `App\\Services`)
+- `--repository-namespace=NS` – Set PHP namespace for the repository class (default: `App\\Repositories`)
+- `--force` – Overwrite existing file without confirmation
+- `--connection=NAME` – Use a named connection from `config/db.php` (global option)
+
+### Generated Service File
+
+The generated service provides a basic structure with:
+
+- Database connection instance (`$db`)
+- Repository instance (`$repository`)
+- Protected method to access repository (`getRepository()`)
+- Example comment showing how to add business logic methods
+
+Example generated code:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use tommyknocker\pdodb\PdoDb;
+use App\Repositories\UserRepository;
+
+/**
+ * Service class for UserRepository.
+ *
+ * Auto-generated by PDOdb Service Generator
+ */
+class UserService
+{
+    protected PdoDb $db;
+    protected UserRepository $repository;
+
+    public function __construct(PdoDb $db, UserRepository $repository)
+    {
+        $this->db = $db;
+        $this->repository = $repository;
+    }
+
+    protected function getRepository(): UserRepository
+    {
+        return $this->repository;
+    }
+
+    // TODO: Add your business logic methods here
+    // Example:
+    //
+    // public function createUserWithProfile(array $userData, array $profileData): int
+    // {
+    //     $this->db->startTransaction();
+    //     try {
+    //         $userId = $this->repository->create($userData);
+    //         $profileData['user_id'] = $userId;
+    //         $this->db->find()->table('profiles')->insert($profileData);
+    //         $this->db->commit();
+    //         return $userId;
+    //     } catch (\Exception $e) {
+    //         $this->db->rollback();
+    //         throw $e;
+    //     }
+    // }
+}
+```
+
+### Output Path
+
+The generator searches for services directory in this order:
+
+1. `PDODB_SERVICE_PATH` environment variable
+2. `app/Services` directory
+3. `src/Services` directory
+4. `services` directory in current working directory
+5. Creates `services` directory if none found
 
 ## Schema Inspector
 

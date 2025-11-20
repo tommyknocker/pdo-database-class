@@ -61,6 +61,16 @@ Cache management: manage query result cache using CLI commands.
 - Cache monitoring - Track cache effectiveness
 - CLI interface - Command-line cache operations
 
+### 07-repository-service-generation.php
+Repository and Service generation: generate repository and service classes using CLI commands.
+
+**Topics covered:**
+- Repository generation - Generate repository classes with CRUD operations
+- Service generation - Generate service classes with business logic structure
+- Custom namespaces - Configure namespaces for repositories and services
+- Auto-detection - Automatic model/repository name detection
+- CLI interface - Command-line code generation
+
 ## Usage
 
 ```bash
@@ -71,6 +81,7 @@ php 03-table-cli.php
 php 04-dump-restore.php
 php 05-monitoring.php
 php 06-cache-management.php
+php 07-repository-service-generation.php
 ```
 
 ## Schema Management Features
@@ -82,6 +93,8 @@ php 06-cache-management.php
 - **Database Dump/Restore** - Export and import database schema and data
 - **Database Monitoring** - Monitor queries, connections, and performance
 - **Cache Management** - Manage query result cache via CLI
+- **Repository Generation** - Generate repository classes with CRUD operations
+- **Service Generation** - Generate service classes for business logic
 - **Cross-Database** - Works across all supported databases
 
 ## Related Examples

@@ -55,6 +55,12 @@ class Application
         // Model command with subcommands
         $this->addCommand(new commands\ModelCommand());
 
+        // Repository command with subcommands
+        $this->addCommand(new commands\RepositoryCommand());
+
+        // Service command with subcommands
+        $this->addCommand(new commands\ServiceCommand());
+
         // Database management command with subcommands
         $this->addCommand(new commands\DbCommand());
 
@@ -72,6 +78,9 @@ class Application
 
         // Cache management command
         $this->addCommand(new commands\CacheCommand());
+
+        // Init command for project initialization
+        $this->addCommand(new commands\InitCommand());
     }
 
     /**

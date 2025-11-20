@@ -23,7 +23,7 @@ _pdodb() {
     local global_opts="--help --connection= --config= --env="
 
     # Main commands
-    local commands="migrate schema query model db user table dump monitor cache"
+    local commands="migrate schema query model repository service db user table dump monitor cache init"
 
     # If no command yet, complete with commands
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -96,6 +96,38 @@ _pdodb() {
         else
             local model_opts="--connection= --table= --namespace= --force"
             COMPREPLY=($(compgen -W "${model_opts}" -- "${cur}"))
+        fi
+        return 0
+    fi
+
+    # Repository command
+    if [[ "${cmd}" == "repository" ]]; then
+        local repository_subcommands="make"
+        
+        if [[ ${COMP_CWORD} -eq 2 ]]; then
+            COMPREPLY=($(compgen -W "${repository_subcommands} --help" -- "${cur}"))
+        elif [[ "${subcmd}" == "make" ]] && [[ ${COMP_CWORD} -eq 3 ]]; then
+            # No specific suggestions for repository name
+            COMPREPLY=()
+        else
+            local repository_opts="--force --namespace= --model-namespace= --connection="
+            COMPREPLY=($(compgen -W "${repository_opts}" -- "${cur}"))
+        fi
+        return 0
+    fi
+
+    # Service command
+    if [[ "${cmd}" == "service" ]]; then
+        local service_subcommands="make"
+        
+        if [[ ${COMP_CWORD} -eq 2 ]]; then
+            COMPREPLY=($(compgen -W "${service_subcommands} --help" -- "${cur}"))
+        elif [[ "${subcmd}" == "make" ]] && [[ ${COMP_CWORD} -eq 3 ]]; then
+            # No specific suggestions for service name
+            COMPREPLY=()
+        else
+            local service_opts="--force --namespace= --repository-namespace= --connection="
+            COMPREPLY=($(compgen -W "${service_opts}" -- "${cur}"))
         fi
         return 0
     fi
@@ -234,6 +266,13 @@ _pdodb() {
                 COMPREPLY=($(compgen -W "${cache_opts}" -- "${cur}"))
             fi
         fi
+        return 0
+    fi
+
+    # Init command
+    if [[ "${cmd}" == "init" ]]; then
+        local init_opts="--skip-connection-test --force --env-only --config-only --no-structure"
+        COMPREPLY=($(compgen -W "${init_opts} --help" -- "${cur}"))
         return 0
     fi
 

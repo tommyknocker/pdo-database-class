@@ -28,3 +28,6 @@ infection-summary.txt
 
 # Migrations directory (user-generated files)
 /migrations/
+
+# File-based cache directory
+/storage/
