@@ -10,7 +10,7 @@ use tommyknocker\pdodb\PdoDb;
 
 $driverEnv = getenv('PDODB_DRIVER') ?: 'sqlite';
 $config = getExampleConfig();
-$driver = $config['driver'] ?? $driverEnv; // Use driver from config (converts mssql to sqlsrv)
+$driver = $config['driver'] ?? $driverEnv;
 
 echo "=== Common Table Expressions (CTEs) Examples ===\n\n";
 echo "Database: $driver\n\n";

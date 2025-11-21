@@ -17,7 +17,6 @@ use tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer;
 
 $driverEnv = getenv('PDODB_DRIVER') ?: 'mysql';
 $config = getExampleConfig();
-// Use driver from config (converts mssql to sqlsrv)
 $driver = $config['driver'] ?? $driverEnv;
 
 // For SQLite, use a temporary file instead of :memory: for read/write splitting

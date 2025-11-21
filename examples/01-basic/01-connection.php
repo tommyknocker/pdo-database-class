@@ -82,7 +82,7 @@ if ($pgsql instanceof PdoDb) {
 
 // Example 4: Microsoft SQL Server Connection (if config exists)
 echo "4. Connecting to Microsoft SQL Server...\n";
-$mssqlConfig = __DIR__ . '/../config.mssql.php';
+$mssqlConfig = __DIR__ . '/../config.sqlsrv.php';
 $mssql = tryConnect('sqlsrv', $mssqlConfig);
 
 if ($mssql instanceof PdoDb) {
@@ -91,10 +91,10 @@ if ($mssql instanceof PdoDb) {
     echo "  Server: {$config['host']}:{$config['port']}\n";
     echo "  Database: {$config['dbname']}\n\n";
 } elseif ($mssql === false) {
-    echo "  (Check your MSSQL server and config.mssql.php settings)\n\n";
+    echo "  (Check your MSSQL server and config.sqlsrv.php settings)\n\n";
 } else {
     echo "  ℹ️  Config not found: $mssqlConfig\n";
-    echo "  (This is OK - MSSQL is optional. Create config.mssql.php to test)\n\n";
+    echo "  (This is OK - MSSQL is optional. Create config.sqlsrv.php to test)\n\n";
 }
 
 // Example 5: Connection pooling (without default connection)
@@ -119,4 +119,4 @@ $result = $db->rawQueryValue('SELECT "Connected to analytics"');
 echo "✓ $result\n\n";
 
 echo "All connection examples completed!\n";
-echo "\nℹ️  Tip: Create config.mysql.php, config.pgsql.php, and config.mssql.php to test all databases\n";
+echo "\nℹ️  Tip: Create config.mysql.php, config.pgsql.php, and config.sqlsrv.php to test all databases\n";

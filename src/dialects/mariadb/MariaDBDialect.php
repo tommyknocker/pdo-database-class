@@ -1492,4 +1492,198 @@ class MariaDBDialect extends DialectAbstract
     {
         return new MariaDBDdlQueryBuilder($connection, $prefix);
     }
+
+    /* ---------------- Monitoring ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getActiveQueries(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        // MariaDB uses the same SHOW FULL PROCESSLIST as MySQL
+        $rows = $db->rawQuery('SHOW FULL PROCESSLIST');
+        $result = [];
+        foreach ($rows as $row) {
+            $command = $row['Command'] ?? '';
+            $info = $row['Info'] ?? '';
+            if (is_string($command) && $command !== 'Sleep' && is_string($info) && $info !== '') {
+                $result[] = [
+                    'id' => $this->toString($row['Id'] ?? ''),
+                    'user' => $this->toString($row['User'] ?? ''),
+                    'host' => $this->toString($row['Host'] ?? ''),
+                    'db' => $this->toString($row['db'] ?? ''),
+                    'command' => $command,
+                    'time' => $this->toString($row['Time'] ?? ''),
+                    'state' => $this->toString($row['State'] ?? ''),
+                    'query' => $info,
+                ];
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getActiveConnections(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $rows = $db->rawQuery('SHOW PROCESSLIST');
+        $result = [];
+        foreach ($rows as $row) {
+            $result[] = [
+                'id' => $this->toString($row['Id'] ?? ''),
+                'user' => $this->toString($row['User'] ?? ''),
+                'host' => $this->toString($row['Host'] ?? ''),
+                'db' => $this->toString($row['db'] ?? ''),
+                'command' => $this->toString($row['Command'] ?? ''),
+                'time' => $this->toString($row['Time'] ?? ''),
+                'state' => $this->toString($row['State'] ?? ''),
+            ];
+        }
+
+        // Get connection limits
+        $status = $db->rawQuery("SHOW STATUS LIKE 'Threads_connected'");
+        $maxConn = $db->rawQuery("SHOW VARIABLES LIKE 'max_connections'");
+        $currentVal = $status[0]['Value'] ?? 0;
+        $maxVal = $maxConn[0]['Value'] ?? 0;
+        $current = is_int($currentVal) ? $currentVal : (is_string($currentVal) ? (int)$currentVal : 0);
+        $max = is_int($maxVal) ? $maxVal : (is_string($maxVal) ? (int)$maxVal : 0);
+
+        return [
+            'connections' => $result,
+            'summary' => [
+                'current' => $current,
+                'max' => $max,
+                'usage_percent' => $max > 0 ? round(($current / $max) * 100, 2) : 0,
+            ],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
+    {
+        $threshold = (int)($thresholdSeconds);
+        $rows = $db->rawQuery('SHOW FULL PROCESSLIST');
+        $result = [];
+        foreach ($rows as $row) {
+            $timeVal = $row['Time'] ?? 0;
+            $time = is_int($timeVal) ? $timeVal : (is_string($timeVal) ? (int)$timeVal : 0);
+            if ($time >= $threshold && ($row['Info'] ?? '') !== '') {
+                $result[] = [
+                    'id' => $this->toString($row['Id'] ?? ''),
+                    'user' => $this->toString($row['User'] ?? ''),
+                    'host' => $this->toString($row['Host'] ?? ''),
+                    'db' => $this->toString($row['db'] ?? ''),
+                    'time' => (string)$time,
+                    'query' => $this->toString($row['Info'] ?? ''),
+                ];
+            }
+        }
+        usort($result, static fn ($a, $b): int => (int)$b['time'] <=> (int)$a['time']);
+        return array_slice($result, 0, $limit);
+    }
+
+    /* ---------------- Table Management ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listTables(\tommyknocker\pdodb\PdoDb $db, ?string $schema = null): array
+    {
+        /** @var array<int, array<string, mixed>> $rows */
+        $rows = $db->rawQuery('SHOW FULL TABLES WHERE Table_Type = "BASE TABLE"');
+        /** @var array<int, string> $names */
+        $names = array_values(array_filter(array_map(
+            static function (array $r): string {
+                $vals = array_values($r);
+                return isset($vals[0]) && is_string($vals[0]) ? $vals[0] : '';
+            },
+            $rows
+        ), static fn (string $s): bool => $s !== ''));
+        sort($names);
+        return $names;
+    }
+
+    /* ---------------- Error Handling ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getRetryableErrorCodes(): array
+    {
+        return [
+            1205, // Lock wait timeout exceeded
+            1213, // Deadlock found when trying to get lock
+            2006, // MySQL server has gone away
+            2013, // Lost connection to MySQL server during query
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getErrorDescription(int|string $errorCode): string
+    {
+        $descriptions = [
+            1045 => 'Access denied for user',
+            1049 => 'Unknown database',
+            1054 => 'Unknown column',
+            1062 => 'Duplicate entry',
+            1064 => 'SQL syntax error',
+            1146 => 'Table doesn\'t exist',
+            1205 => 'Lock wait timeout exceeded',
+            1213 => 'Deadlock found',
+            2006 => 'MySQL server has gone away',
+            2013 => 'Lost connection to MySQL server',
+        ];
+
+        return $descriptions[$errorCode] ?? 'Unknown error';
+    }
+
+    /* ---------------- Configuration ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildConfigFromEnv(array $envVars): array
+    {
+        $config = parent::buildConfigFromEnv($envVars);
+
+        if (isset($envVars['PDODB_CHARSET'])) {
+            $config['charset'] = $envVars['PDODB_CHARSET'];
+        } else {
+            $config['charset'] = 'utf8mb4';
+        }
+
+        return $config;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeConfigParams(array $config): array
+    {
+        $config = parent::normalizeConfigParams($config);
+
+        // MariaDB requires 'dbname' for DSN
+        if (isset($config['database']) && !isset($config['dbname'])) {
+            $config['dbname'] = $config['database'];
+        }
+
+        return $config;
+    }
+
+    /**
+     * Helper method to convert value to string.
+     *
+     * @param mixed $value
+     *
+     * @return string
+     */
+    protected function toString(mixed $value): string
+    {
+        return (string)$value;
+    }
 }

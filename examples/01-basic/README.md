@@ -80,7 +80,7 @@ PDODB_DRIVER=pgsql php 01-connection.php
 
 ### MSSQL
 ```bash
-PDODB_DRIVER=mssql php 01-connection.php
+PDODB_DRIVER=sqlsrv php 01-connection.php
 ```
 
 ## Next Steps

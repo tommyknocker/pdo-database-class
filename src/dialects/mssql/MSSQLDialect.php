@@ -1818,4 +1818,271 @@ class MSSQLDialect extends DialectAbstract
     {
         return new MSSQLDdlQueryBuilder($connection, $prefix);
     }
+
+    /* ---------------- Monitoring ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getActiveQueries(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        try {
+            $sql = "SELECT r.session_id, r.request_id, r.start_time, r.status, r.command, r.database_id,
+                           s.login_name, s.host_name, s.program_name, DB_NAME(r.database_id) as database_name,
+                           SUBSTRING(t.text, (r.statement_start_offset/2)+1,
+                           ((CASE r.statement_end_offset WHEN -1 THEN DATALENGTH(t.text)
+                           ELSE r.statement_end_offset END - r.statement_start_offset)/2)+1) AS query_text
+                    FROM sys.dm_exec_requests r
+                    INNER JOIN sys.dm_exec_sessions s ON r.session_id = s.session_id
+                    OUTER APPLY sys.dm_exec_sql_text(r.sql_handle) t
+                    WHERE r.session_id != @@SPID AND r.status != 'sleeping'";
+            $rows = $db->rawQuery($sql);
+            $result = [];
+            foreach ($rows as $row) {
+                $result[] = [
+                    'session_id' => $this->toString($row['session_id'] ?? ''),
+                    'request_id' => $this->toString($row['request_id'] ?? ''),
+                    'login' => $this->toString($row['login_name'] ?? ''),
+                    'host' => $this->toString($row['host_name'] ?? ''),
+                    'database' => $this->toString($row['database_name'] ?? ''),
+                    'status' => $this->toString($row['status'] ?? ''),
+                    'command' => $this->toString($row['command'] ?? ''),
+                    'start_time' => $this->toString($row['start_time'] ?? ''),
+                    'query' => $this->toString($row['query_text'] ?? ''),
+                ];
+            }
+            return $result;
+        } catch (\Exception $e) {
+            // Return empty array if query fails (insufficient permissions, etc.)
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getActiveConnections(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        try {
+            $rows = $db->rawQuery('SELECT session_id, login_name, host_name, program_name, database_id, login_time, last_request_start_time, status FROM sys.dm_exec_sessions WHERE is_user_process = 1');
+            $result = [];
+            foreach ($rows as $row) {
+                $result[] = [
+                    'session_id' => $this->toString($row['session_id'] ?? ''),
+                    'login' => $this->toString($row['login_name'] ?? ''),
+                    'host' => $this->toString($row['host_name'] ?? ''),
+                    'program' => $this->toString($row['program_name'] ?? ''),
+                    'database_id' => $this->toString($row['database_id'] ?? ''),
+                    'login_time' => $this->toString($row['login_time'] ?? ''),
+                    'last_request' => $this->toString($row['last_request_start_time'] ?? ''),
+                    'status' => $this->toString($row['status'] ?? ''),
+                ];
+            }
+
+            // Get connection limits
+            $maxConn = $db->rawQueryValue("SELECT value FROM sys.configurations WHERE name = 'user connections'");
+            $current = count($result);
+            $maxVal = $maxConn ?? 0;
+            $max = is_int($maxVal) ? $maxVal : (is_string($maxVal) ? (int)$maxVal : 0);
+
+            return [
+                'connections' => $result,
+                'summary' => [
+                    'current' => $current,
+                    'max' => $max,
+                    'usage_percent' => $max > 0 ? round(($current / $max) * 100, 2) : 0,
+                ],
+            ];
+        } catch (\Exception $e) {
+            // Return empty structure if query fails (insufficient permissions, etc.)
+            return [
+                'connections' => [],
+                'summary' => [
+                    'current' => 0,
+                    'max' => 0,
+                    'usage_percent' => 0,
+                ],
+            ];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
+    {
+        try {
+            $thresholdMs = (int)($thresholdSeconds * 1000);
+            $sql = 'SELECT TOP ? qs.execution_count, qs.total_elapsed_time / 1000.0 as total_time_sec,
+                           qs.total_elapsed_time / qs.execution_count / 1000.0 as avg_time_sec,
+                           qs.max_elapsed_time / 1000.0 as max_time_sec,
+                           SUBSTRING(t.text, (qs.statement_start_offset/2)+1,
+                           ((CASE qs.statement_end_offset WHEN -1 THEN DATALENGTH(t.text)
+                           ELSE qs.statement_end_offset END - qs.statement_start_offset)/2)+1) AS query_text
+                    FROM sys.dm_exec_query_stats qs
+                    CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) t
+                    WHERE qs.total_elapsed_time / qs.execution_count >= ?
+                    ORDER BY qs.total_elapsed_time / qs.execution_count DESC';
+            $rows = $db->rawQuery($sql, [$limit, $thresholdMs]);
+            $result = [];
+            foreach ($rows as $row) {
+                $result[] = [
+                    'executions' => $this->toString($row['execution_count'] ?? ''),
+                    'total_time' => number_format($this->toFloat($row['total_time_sec'] ?? 0), 2) . 's',
+                    'avg_time' => number_format($this->toFloat($row['avg_time_sec'] ?? 0), 2) . 's',
+                    'max_time' => number_format($this->toFloat($row['max_time_sec'] ?? 0), 2) . 's',
+                    'query' => $this->toString($row['query_text'] ?? ''),
+                ];
+            }
+            return $result;
+        } catch (\Exception $e) {
+            // Return empty array if query fails (insufficient permissions, etc.)
+            return [];
+        }
+    }
+
+    /* ---------------- Table Management ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listTables(\tommyknocker\pdodb\PdoDb $db, ?string $schema = null): array
+    {
+        /** @var array<int, array<string, mixed>> $rows */
+        $rows = $db->rawQuery("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME");
+        /** @var array<int, string> $names */
+        $names = array_map(static fn (array $r): string => (string)$r['TABLE_NAME'], $rows);
+        return $names;
+    }
+
+    /* ---------------- Error Handling ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getRetryableErrorCodes(): array
+    {
+        return [
+            '1205', // Lock request time out period exceeded
+            '1222', // Lock request time out period exceeded
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getErrorDescription(int|string $errorCode): string
+    {
+        $descriptions = [
+            '18456' => 'Login failed',
+            '4060' => 'Cannot open database',
+            '207' => 'Invalid column name',
+            '208' => 'Invalid object name',
+            '2627' => 'Violation of UNIQUE KEY constraint',
+            '547' => 'Foreign key constraint violation',
+            '1205' => 'Lock request time out period exceeded',
+            '1222' => 'Lock request time out period exceeded',
+        ];
+
+        return $descriptions[$errorCode] ?? 'Unknown error';
+    }
+
+    /* ---------------- DML Operations ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getInsertSelectColumns(string $tableName, ?array $columns, \tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface $executionEngine): array
+    {
+        // If columns are explicitly provided, use them
+        if ($columns !== null) {
+            return $columns;
+        }
+
+        // For MSSQL, we must exclude IDENTITY columns to avoid errors
+        try {
+            $describeSql = $this->buildDescribeSql($tableName);
+            $tableColumns = $executionEngine->fetchAll($describeSql);
+            $identityColumns = [];
+            foreach ($tableColumns as $col) {
+                // MSSQL returns 'is_identity' from COLUMNPROPERTY
+                $isIdentity = $col['is_identity'] ?? $col['IDENTITY'] ?? false;
+                if ($isIdentity === true || $isIdentity === 1 || $isIdentity === '1') {
+                    $identityColumns[] = $col['COLUMN_NAME'] ?? $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? '';
+                }
+            }
+            // Get all columns except IDENTITY ones
+            $allColumns = [];
+            foreach ($tableColumns as $col) {
+                $colName = $col['COLUMN_NAME'] ?? $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? '';
+                if ($colName && !in_array($colName, $identityColumns, true)) {
+                    $allColumns[] = $colName;
+                }
+            }
+            return $allColumns;
+        } catch (\Exception $e) {
+            // If describe fails, fall back to empty array (let database handle it)
+            return [];
+        }
+    }
+
+    /* ---------------- Configuration ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildConfigFromEnv(array $envVars): array
+    {
+        $config = parent::buildConfigFromEnv($envVars);
+
+        // MSSQL requires 'dbname' parameter
+        if (isset($envVars['PDODB_DATABASE'])) {
+            $config['dbname'] = $envVars['PDODB_DATABASE'];
+        }
+
+        // MSSQL-specific options
+        $config['trust_server_certificate'] = true;
+        $config['encrypt'] = true;
+
+        return $config;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeConfigParams(array $config): array
+    {
+        $config = parent::normalizeConfigParams($config);
+
+        // MSSQL requires 'dbname' parameter
+        if (isset($config['database']) && !isset($config['dbname'])) {
+            $config['dbname'] = $config['database'];
+        }
+
+        return $config;
+    }
+
+    /**
+     * Helper method to convert value to string.
+     *
+     * @param mixed $value
+     *
+     * @return string
+     */
+    protected function toString(mixed $value): string
+    {
+        return (string)$value;
+    }
+
+    /**
+     * Helper method to convert value to float.
+     *
+     * @param mixed $value
+     *
+     * @return float
+     */
+    protected function toFloat(mixed $value): float
+    {
+        return is_float($value) ? $value : (is_numeric($value) ? (float)$value : 0.0);
+    }
 }

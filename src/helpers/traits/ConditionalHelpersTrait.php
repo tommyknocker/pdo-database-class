@@ -231,7 +231,7 @@ trait ConditionalHelpersTrait
                 // Only quote for MSSQL (check via environment variable)
                 // Other dialects don't need quoting for these reserved words
                 $driver = strtolower(getenv('PDODB_DRIVER') ?: '');
-                if ($driver === 'mssql' || $driver === 'sqlsrv') {
+                if ($driver === 'sqlsrv') {
                     // Quote each part of qualified identifier using MSSQL brackets
                     $quotedParts = array_map(function ($part) {
                         return '[' . str_replace(']', ']]', $part) . ']';

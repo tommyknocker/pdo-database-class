@@ -95,42 +95,25 @@ class InitWizard extends BaseCliCommand
             static::error('PDODB_DRIVER environment variable is required in non-interactive mode');
         }
 
-        // Normalize mssql -> sqlsrv
-        if ($driver === 'mssql') {
-            $driver = 'sqlsrv';
-        }
-
         $this->config['driver'] = $driver;
 
-        // Load driver-specific settings
-        if ($driver === 'mysql' || $driver === 'mariadb') {
-            $this->config['host'] = getenv('PDODB_HOST') ?: 'localhost';
-            $this->config['port'] = (int)(getenv('PDODB_PORT') ?: '3306');
-            $this->config['database'] = getenv('PDODB_DATABASE') ?: '';
-            // MySQL/MariaDB dialect requires 'dbname' parameter for DSN
-            $this->config['dbname'] = $this->config['database'];
-            $this->config['username'] = getenv('PDODB_USERNAME') ?: '';
-            $this->config['password'] = getenv('PDODB_PASSWORD') ?: '';
-            $this->config['charset'] = getenv('PDODB_CHARSET') ?: 'utf8mb4';
-        } elseif ($driver === 'pgsql') {
-            $this->config['host'] = getenv('PDODB_HOST') ?: 'localhost';
-            $this->config['port'] = (int)(getenv('PDODB_PORT') ?: '5432');
-            $this->config['database'] = getenv('PDODB_DATABASE') ?: '';
-            // PostgreSQL dialect requires 'dbname' parameter for DSN
-            $this->config['dbname'] = $this->config['database'];
-            $this->config['username'] = getenv('PDODB_USERNAME') ?: '';
-            $this->config['password'] = getenv('PDODB_PASSWORD') ?: '';
-        } elseif ($driver === 'sqlsrv') {
-            $this->config['host'] = getenv('PDODB_HOST') ?: 'localhost';
-            $this->config['port'] = (int)(getenv('PDODB_PORT') ?: '1433');
-            $this->config['database'] = getenv('PDODB_DATABASE') ?: '';
-            $this->config['dbname'] = $this->config['database'];
-            $this->config['username'] = getenv('PDODB_USERNAME') ?: '';
-            $this->config['password'] = getenv('PDODB_PASSWORD') ?: '';
-            $this->config['trust_server_certificate'] = true;
-            $this->config['encrypt'] = true;
-        } elseif ($driver === 'sqlite') {
-            $this->config['path'] = getenv('PDODB_PATH') ?: './database.sqlite';
+        // Load driver-specific settings using dialect's buildConfigFromEnv method
+        try {
+            $dialect = \tommyknocker\pdodb\connection\DialectRegistry::resolve($driver);
+            $envVars = [];
+            // Always use getenv() to ensure we get variables set via putenv()
+            // $_ENV may not be updated when putenv() is called
+            $envVarNames = ['PDODB_HOST', 'PDODB_PORT', 'PDODB_DATABASE', 'PDODB_USERNAME', 'PDODB_PASSWORD', 'PDODB_CHARSET', 'PDODB_PATH', 'PDODB_DRIVER'];
+            foreach ($envVarNames as $envVar) {
+                $envValue = getenv($envVar);
+                if ($envValue !== false) {
+                    $envVars[$envVar] = $envValue;
+                }
+            }
+            $dialectConfig = $dialect->buildConfigFromEnv($envVars);
+            $this->config = array_merge($this->config, $dialectConfig);
+        } catch (\InvalidArgumentException $e) {
+            // Driver not supported, use basic config
         }
 
         // Load cache configuration if enabled
@@ -202,12 +185,7 @@ class InitWizard extends BaseCliCommand
         $driver = static::readInput("Database driver ({$driverList})", 'mysql');
         $driver = mb_strtolower(trim($driver), 'UTF-8');
 
-        // Normalize mssql -> sqlsrv
-        if ($driver === 'mssql') {
-            $driver = 'sqlsrv';
-        }
-
-        if (!in_array($driver, $drivers, true) && !in_array($driver, ['sqlsrv', 'mssql'], true)) {
+        if (!in_array($driver, $drivers, true)) {
             static::error("Unsupported driver: {$driver}");
         }
 

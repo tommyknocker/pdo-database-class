@@ -33,7 +33,7 @@ abstract class DialectAbstract implements DialectInterface
             if ($this->pdo === null) {
                 throw new RuntimeException('PDO instance not set. Call setPdo() first.');
             }
-            $this->fileLoader = new FileLoader($this->pdo);
+            $this->fileLoader = new FileLoader($this->pdo, $this);
         }
         return $this->fileLoader;
     }
@@ -183,14 +183,8 @@ abstract class DialectAbstract implements DialectInterface
             $mapped[] = implode('.', $pieces);
         }
 
-        // choose concatenation style
-        if ($dialect === 'sqlite') {
-            $sql = implode(' || ', $mapped);
-        } else {
-            // default to CONCAT(); PostgreSQL and MySQL support CONCAT()
-            // if only two parts and dialect explicitly sqlite was requested, we already handled above
-            $sql = 'CONCAT(' . implode(', ', $mapped) . ')';
-        }
+        // Use dialect-specific concatenation formatting
+        $sql = $this->formatConcatExpression($mapped);
 
         return new RawValue($sql);
     }
@@ -1016,5 +1010,143 @@ abstract class DialectAbstract implements DialectInterface
         throw new \tommyknocker\pdodb\exceptions\ResourceException(
             'Database restore is not supported for ' . $this->getDriverName()
         );
+    }
+
+    /* ---------------- Monitoring ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getActiveQueries(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        // Default implementation returns empty array
+        // Dialects should override this method
+        return [];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getActiveConnections(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        // Default implementation returns empty array
+        // Dialects should override this method
+        return [
+            'connections' => [],
+            'summary' => [
+                'current' => 0,
+                'max' => 0,
+                'usage_percent' => 0,
+            ],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
+    {
+        // Default implementation returns empty array
+        // Dialects should override this method
+        return [];
+    }
+
+    /* ---------------- Table Management ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listTables(\tommyknocker\pdodb\PdoDb $db, ?string $schema = null): array
+    {
+        // Default implementation - dialects should override
+        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+            'Table listing is not implemented for ' . $this->getDriverName()
+        );
+    }
+
+    /* ---------------- Error Handling ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getRetryableErrorCodes(): array
+    {
+        // Default implementation returns empty array
+        // Dialects should override this method
+        return [];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getErrorDescription(int|string $errorCode): string
+    {
+        // Default implementation
+        // Dialects should override this method
+        return 'Unknown error';
+    }
+
+    /* ---------------- DML Operations ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getInsertSelectColumns(string $tableName, ?array $columns, \tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface $executionEngine): array
+    {
+        // Default implementation returns columns as-is
+        // Dialects that need special handling (e.g., MSSQL IDENTITY) should override
+        return $columns ?? [];
+    }
+
+    /* ---------------- Configuration ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildConfigFromEnv(array $envVars): array
+    {
+        // Default implementation - dialects should override
+        $config = ['driver' => $this->getDriverName()];
+
+        if (isset($envVars['PDODB_HOST'])) {
+            $config['host'] = $envVars['PDODB_HOST'];
+        }
+        if (isset($envVars['PDODB_PORT'])) {
+            $config['port'] = (int)$envVars['PDODB_PORT'];
+        }
+        if (isset($envVars['PDODB_DATABASE'])) {
+            $config['database'] = $envVars['PDODB_DATABASE'];
+            $config['dbname'] = $envVars['PDODB_DATABASE'];
+        }
+        if (isset($envVars['PDODB_USERNAME'])) {
+            $config['username'] = $envVars['PDODB_USERNAME'];
+        }
+        if (isset($envVars['PDODB_PASSWORD'])) {
+            $config['password'] = $envVars['PDODB_PASSWORD'];
+        }
+
+        return $config;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeConfigParams(array $config): array
+    {
+        // Default implementation - normalize 'database' to 'dbname' if needed
+        if (isset($config['database']) && !isset($config['dbname'])) {
+            $config['dbname'] = $config['database'];
+        }
+        return $config;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatConcatExpression(array $parts): string
+    {
+        // Default implementation uses CONCAT() function
+        // SQLite dialect will override to use || operator
+        return 'CONCAT(' . implode(', ', $parts) . ')';
     }
 }

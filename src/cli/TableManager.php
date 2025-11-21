@@ -18,54 +18,8 @@ class TableManager
      */
     public static function listTables(PdoDb $db, ?string $schema = null): array
     {
-        // Use schema inspection through SHOW TABLES/PRAGMA or information schema abstraction via dialect
-        // Fallback: use builder's dialect SQL for listing tables where available
         $dialect = $db->schema()->getDialect();
-        $driver = $dialect->getDriverName();
-
-        if ($driver === 'sqlite') {
-            $rows = $db->rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
-            /** @var array<int, string> $names */
-            $names = array_map(static fn (array $r): string => (string)$r['name'], $rows);
-            return $names;
-        }
-
-        if ($driver === 'mysql' || $driver === 'mariadb') {
-            /** @var array<int, array<string, mixed>> $rows */
-            $rows = $db->rawQuery('SHOW FULL TABLES WHERE Table_Type = "BASE TABLE"');
-            /** @var array<int, string> $names */
-            $names = array_values(array_filter(array_map(
-                static function (array $r): string {
-                    $vals = array_values($r);
-                    return isset($vals[0]) && is_string($vals[0]) ? $vals[0] : '';
-                },
-                $rows
-            ), static fn (string $s): bool => $s !== ''));
-            sort($names);
-            return $names;
-        }
-
-        if ($driver === 'pgsql') {
-            $schemaName = $schema ?? 'public';
-            /** @var array<int, array<string, mixed>> $rows */
-            $rows = $db->rawQuery(
-                'SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = :schema ORDER BY tablename',
-                [':schema' => $schemaName]
-            );
-            /** @var array<int, string> $names */
-            $names = array_map(static fn (array $r): string => (string)$r['tablename'], $rows);
-            return $names;
-        }
-
-        if ($driver === 'sqlsrv') {
-            /** @var array<int, array<string, mixed>> $rows */
-            $rows = $db->rawQuery("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME");
-            /** @var array<int, string> $names */
-            $names = array_map(static fn (array $r): string => (string)$r['TABLE_NAME'], $rows);
-            return $names;
-        }
-
-        return [];
+        return $dialect->listTables($db, $schema);
     }
 
     public static function tableExists(PdoDb $db, string $table): bool

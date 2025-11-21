@@ -706,6 +706,16 @@ interface DialectInterface
      */
     public function concat(ConcatValue $value): RawValue;
 
+    /**
+     * Format concatenation expression for this dialect.
+     * SQLite uses || operator, other dialects use CONCAT() function.
+     *
+     * @param array<int, string> $parts Parts to concatenate (already formatted/quoted)
+     *
+     * @return string SQL expression for concatenation
+     */
+    public function formatConcatExpression(array $parts): string;
+
     /* ---------------- Introspection / utility SQL ---------------- */
 
     /**
@@ -1607,4 +1617,98 @@ interface DialectInterface
      * @throws \tommyknocker\pdodb\exceptions\ResourceException If restore fails
      */
     public function restoreFromSql(\tommyknocker\pdodb\PdoDb $db, string $sql, bool $continueOnError = false): void;
+
+    /* ---------------- Monitoring ---------------- */
+
+    /**
+     * Get active queries for this dialect.
+     *
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return array<int, array<string, mixed>> Array of active queries with their details
+     */
+    public function getActiveQueries(\tommyknocker\pdodb\PdoDb $db): array;
+
+    /**
+     * Get active connections for this dialect.
+     *
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return array<string, mixed> Returns array with 'connections' and 'summary' keys
+     */
+    public function getActiveConnections(\tommyknocker\pdodb\PdoDb $db): array;
+
+    /**
+     * Get slow queries for this dialect.
+     *
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param float $thresholdSeconds Threshold in seconds for considering a query slow
+     * @param int $limit Maximum number of queries to return
+     *
+     * @return array<int, array<string, mixed>> Array of slow queries sorted by execution time
+     */
+    public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array;
+
+    /* ---------------- Table Management ---------------- */
+
+    /**
+     * List all tables in the database.
+     *
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param string|null $schema Schema name (for PostgreSQL, MSSQL)
+     *
+     * @return array<int, string> Array of table names
+     */
+    public function listTables(\tommyknocker\pdodb\PdoDb $db, ?string $schema = null): array;
+
+    /* ---------------- Error Handling ---------------- */
+
+    /**
+     * Get retryable error codes for this dialect.
+     *
+     * @return array<int|string> Array of error codes that can be retried
+     */
+    public function getRetryableErrorCodes(): array;
+
+    /**
+     * Get human-readable error description for an error code.
+     *
+     * @param int|string $errorCode Error code
+     *
+     * @return string Human-readable error description
+     */
+    public function getErrorDescription(int|string $errorCode): string;
+
+    /* ---------------- DML Operations ---------------- */
+
+    /**
+     * Get columns for INSERT ... SELECT operation, excluding auto-increment/identity columns.
+     *
+     * @param string $tableName Table name
+     * @param array<int, string>|null $columns Explicit column list (null = auto-detect)
+     * @param \tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface $executionEngine Execution engine for query execution
+     *
+     * @return array<int, string> Array of column names to use in INSERT
+     */
+    public function getInsertSelectColumns(string $tableName, ?array $columns, \tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface $executionEngine): array;
+
+    /* ---------------- Configuration ---------------- */
+
+    /**
+     * Build configuration array from environment variables.
+     *
+     * @param array<string, string> $envVars Environment variables (PDODB_*)
+     *
+     * @return array<string, mixed> Configuration array
+     */
+    public function buildConfigFromEnv(array $envVars): array;
+
+    /**
+     * Normalize configuration parameters (e.g., 'database' -> 'dbname').
+     *
+     * @param array<string, mixed> $config Configuration array
+     *
+     * @return array<string, mixed> Normalized configuration array
+     */
+    public function normalizeConfigParams(array $config): array;
 }

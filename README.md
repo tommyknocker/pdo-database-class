@@ -300,7 +300,7 @@ PDODB_DRIVER=mysql php 01-basic/02-simple-crud.php
 # PostgreSQL (update config.pgsql.php with your credentials)
 PDODB_DRIVER=pgsql php 01-basic/02-simple-crud.php
 
-# Microsoft SQL Server (update config.mssql.php with your credentials)
+# Microsoft SQL Server (update config.sqlsrv.php with your credentials)
 PDODB_DRIVER=sqlsrv php 01-basic/02-simple-crud.php
 
 # Test all examples on all available databases
@@ -312,7 +312,7 @@ PDODB_DRIVER=sqlsrv php 01-basic/02-simple-crud.php
 - `mysql` - uses `config.mysql.php`
 - `mariadb` - uses `config.mariadb.php`
 - `pgsql` - uses `config.pgsql.php`
-- `sqlsrv` - uses `config.mssql.php`
+- `sqlsrv` - uses `config.sqlsrv.php`
 
 If config file is missing, falls back to SQLite.
 

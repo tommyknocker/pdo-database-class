@@ -114,9 +114,9 @@ if [ -n "$PDODB_USERNAME" ] && [ -n "$PDODB_PASSWORD" ]; then
     else
         echo -e "${YELLOW}⊘ MSSQL not available (environment variables set but connection failed)${NC}"
     fi
-elif [ -f "examples/config.mssql.php" ]; then
+elif [ -f "examples/config.sqlsrv.php" ]; then
     if php -r "
-        \$config = require 'examples/config.mssql.php';
+        \$config = require 'examples/config.sqlsrv.php';
         try {
             \$port = \$config['port'] ?? 1433;
             \$dsn = 'sqlsrv:Server=' . \$config['host'] . ',' . \$port . ';Database=' . \$config['dbname'];
@@ -138,7 +138,7 @@ elif [ -f "examples/config.mssql.php" ]; then
         echo -e "${YELLOW}⊘ MSSQL not available (config exists but connection failed)${NC}"
     fi
 else
-    echo -e "${YELLOW}⊘ MSSQL config not found (examples/config.mssql.php)${NC}"
+    echo -e "${YELLOW}⊘ MSSQL config not found (examples/config.sqlsrv.php)${NC}"
 fi
 
 echo -e "${GREEN}✓ SQLite available (always)${NC}"
@@ -286,7 +286,7 @@ for file in $FILE_PATTERN; do
         RESULTS["mssql_total"]=$((${RESULTS["mssql_total"]} + 1))
         echo -n -e "${CYAN}[$category/$filename]${NC} on ${BLUE}MSSQL${NC} ... "
         
-        export PDODB_DRIVER="mssql"
+        export PDODB_DRIVER="sqlsrv"
         if timeout 30 php "$file" > /dev/null 2>&1; then
             echo -e "${GREEN}✓ PASSED${NC}"
             RESULTS["mssql_passed"]=$((${RESULTS["mssql_passed"]} + 1))
@@ -371,7 +371,7 @@ else
         MISSING_DBS+=("PostgreSQL (create examples/config.pgsql.php)")
     fi
     if [ $MSSQL_AVAILABLE -eq 0 ]; then
-        MISSING_DBS+=("MSSQL (create examples/config.mssql.php)")
+        MISSING_DBS+=("MSSQL (create examples/config.sqlsrv.php)")
     fi
     
     if [ ${#MISSING_DBS[@]} -gt 0 ]; then

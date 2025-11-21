@@ -27,7 +27,6 @@ class DialectRegistry
         'sqlite' => SqliteDialect::class,
         'pgsql' => PostgreSQLDialect::class,
         'sqlsrv' => MSSQLDialect::class,
-        'mssql' => MSSQLDialect::class, // Alias for sqlsrv for compatibility with examples
     ];
 
     /**

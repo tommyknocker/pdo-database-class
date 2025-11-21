@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers\traits;
 
+use tommyknocker\pdodb\connection\DialectRegistry;
+
 /**
  * Trait for common error utility methods.
  */
@@ -18,13 +20,32 @@ trait ErrorUtilityTrait
      */
     public static function getRetryableErrors(string $driver): array
     {
-        return match (strtolower($driver)) {
-            'mysql' => self::getMysqlRetryableErrors(),
-            'pgsql' => self::getPostgresqlRetryableErrors(),
-            'sqlite' => self::getSqliteRetryableErrors(),
-            'sqlsrv' => self::getMssqlRetryableErrors(),
-            default => [],
-        };
+        // First try to use trait methods if available (for backward compatibility)
+        $normalizedDriver = strtolower($driver);
+
+        $methodMap = [
+            'mysql' => 'getMysqlRetryableErrors',
+            'mariadb' => 'getMysqlRetryableErrors',
+            'pgsql' => 'getPostgresqlRetryableErrors',
+            'sqlite' => 'getSqliteRetryableErrors',
+            'sqlsrv' => 'getMssqlRetryableErrors',
+        ];
+
+        if (isset($methodMap[$normalizedDriver])) {
+            $method = $methodMap[$normalizedDriver];
+            if (method_exists(static::class, $method)) {
+                return static::$method();
+            }
+        }
+
+        // Fallback to dialect methods
+        try {
+            $dialect = DialectRegistry::resolve($normalizedDriver);
+            return $dialect->getRetryableErrorCodes();
+        } catch (\InvalidArgumentException $e) {
+            // Driver not supported, return empty array
+            return [];
+        }
     }
 
     /**
@@ -50,14 +71,32 @@ trait ErrorUtilityTrait
      */
     public static function getDescription(int|string $errorCode, string $driver): string
     {
-        $descriptions = match (strtolower($driver)) {
-            'mysql' => self::getMysqlDescriptions(),
-            'pgsql' => self::getPostgresqlDescriptions(),
-            'sqlite' => self::getSqliteDescriptions(),
-            'sqlsrv' => self::getMssqlDescriptions(),
-            default => [],
-        };
+        // First try to use trait methods if available (for backward compatibility)
+        $normalizedDriver = strtolower($driver);
 
-        return $descriptions[$errorCode] ?? 'Unknown error';
+        $methodMap = [
+            'mysql' => 'getMysqlDescriptions',
+            'mariadb' => 'getMysqlDescriptions',
+            'pgsql' => 'getPostgresqlDescriptions',
+            'sqlite' => 'getSqliteDescriptions',
+            'sqlsrv' => 'getMssqlDescriptions',
+        ];
+
+        if (isset($methodMap[$normalizedDriver])) {
+            $method = $methodMap[$normalizedDriver];
+            if (method_exists(static::class, $method)) {
+                $descriptions = static::$method();
+                return $descriptions[$errorCode] ?? 'Unknown error';
+            }
+        }
+
+        // Fallback to dialect methods
+        try {
+            $dialect = DialectRegistry::resolve($normalizedDriver);
+            return $dialect->getErrorDescription($errorCode);
+        } catch (\InvalidArgumentException $e) {
+            // Driver not supported, return default message
+            return 'Unknown error';
+        }
     }
 }

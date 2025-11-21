@@ -54,7 +54,6 @@ final class DialectRegistryTests extends BaseSharedTestCase
         $drivers = DialectRegistry::getSupportedDrivers();
         $this->assertContains('mysql', $drivers);
         $this->assertContains('mariadb', $drivers);
-        $this->assertContains('mssql', $drivers);
         $this->assertContains('sqlite', $drivers);
         $this->assertContains('pgsql', $drivers);
         $this->assertContains('sqlsrv', $drivers);

@@ -563,38 +563,8 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
         // Determine columns
         $columns = $this->insertFromColumns;
         if ($columns === null) {
-            // If columns not specified, we need to infer from SELECT
-            // For MSSQL, we must exclude IDENTITY columns to avoid errors
-            if ($this->dialect->getDriverName() === 'sqlsrv') {
-                // For MSSQL, get table columns and exclude IDENTITY columns
-                try {
-                    $describeSql = $this->dialect->buildDescribeSql($tableName);
-                    $tableColumns = $this->executionEngine->fetchAll($describeSql);
-                    $identityColumns = [];
-                    foreach ($tableColumns as $col) {
-                        // MSSQL returns 'is_identity' from COLUMNPROPERTY
-                        $isIdentity = $col['is_identity'] ?? $col['IDENTITY'] ?? false;
-                        if ($isIdentity === true || $isIdentity === 1 || $isIdentity === '1') {
-                            $identityColumns[] = $col['COLUMN_NAME'] ?? $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? '';
-                        }
-                    }
-                    // Get all columns except IDENTITY ones
-                    $allColumns = [];
-                    foreach ($tableColumns as $col) {
-                        $colName = $col['COLUMN_NAME'] ?? $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? '';
-                        if ($colName && !in_array($colName, $identityColumns, true)) {
-                            $allColumns[] = $colName;
-                        }
-                    }
-                    $columns = $allColumns;
-                } catch (\Exception $e) {
-                    // If describe fails, fall back to empty array (let database handle it)
-                    $columns = [];
-                }
-            } else {
-                // For other databases, let the database handle it (INSERT INTO table SELECT ...)
-                $columns = [];
-            }
+            // Use dialect-specific method to get columns (may exclude IDENTITY columns for MSSQL)
+            $columns = $this->dialect->getInsertSelectColumns($tableName, null, $this->executionEngine);
         }
 
         // For MSSQL, if source SQL contains SELECT * and columns are determined,

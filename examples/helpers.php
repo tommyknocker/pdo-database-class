@@ -15,7 +15,7 @@ function getExampleConfig(): array
     $driver = mb_strtolower(getenv('PDODB_DRIVER') ?: 'sqlite', 'UTF-8');
     
     // For CI environments, use environment variables directly
-    if ($driver === 'mssql' || $driver === 'sqlsrv') {
+    if ($driver === 'sqlsrv') {
         $dbUser = getenv('PDODB_USERNAME');
         $dbPass = getenv('PDODB_PASSWORD');
         $dbHost = getenv('PDODB_HOST') ?: 'localhost';

@@ -1968,4 +1968,221 @@ class PostgreSQLDialect extends DialectAbstract
     {
         return new PostgreSQLDdlQueryBuilder($connection, $prefix);
     }
+
+    /* ---------------- Monitoring ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getActiveQueries(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $sql = "SELECT pid, usename, application_name, datname, state, query_start, state_change, wait_event_type, wait_event, query
+                FROM pg_stat_activity
+                WHERE state != 'idle' AND query IS NOT NULL AND query != ''";
+        $rows = $db->rawQuery($sql);
+        $result = [];
+        foreach ($rows as $row) {
+            $result[] = [
+                'pid' => $this->toString($row['pid'] ?? ''),
+                'user' => $this->toString($row['usename'] ?? ''),
+                'application' => $this->toString($row['application_name'] ?? ''),
+                'database' => $this->toString($row['datname'] ?? ''),
+                'state' => $this->toString($row['state'] ?? ''),
+                'query_start' => $this->toString($row['query_start'] ?? ''),
+                'wait_event' => $this->toString($row['wait_event'] ?? ''),
+                'query' => $this->toString($row['query'] ?? ''),
+            ];
+        }
+        return $result;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getActiveConnections(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $rows = $db->rawQuery('SELECT pid, usename, application_name, datname, state, backend_start, state_change, wait_event_type, wait_event FROM pg_stat_activity');
+        $result = [];
+        foreach ($rows as $row) {
+            $result[] = [
+                'pid' => $this->toString($row['pid'] ?? ''),
+                'user' => $this->toString($row['usename'] ?? ''),
+                'application' => $this->toString($row['application_name'] ?? ''),
+                'database' => $this->toString($row['datname'] ?? ''),
+                'state' => $this->toString($row['state'] ?? ''),
+                'backend_start' => $this->toString($row['backend_start'] ?? ''),
+                'wait_event' => $this->toString($row['wait_event'] ?? ''),
+            ];
+        }
+
+        // Get connection limits
+        $maxConn = $db->rawQueryValue("SELECT setting FROM pg_settings WHERE name = 'max_connections'");
+        $current = count($result);
+        $maxVal = $maxConn ?? 0;
+        $max = is_int($maxVal) ? $maxVal : (is_string($maxVal) ? (int)$maxVal : 0);
+
+        return [
+            'connections' => $result,
+            'summary' => [
+                'current' => $current,
+                'max' => $max,
+                'usage_percent' => $max > 0 ? round(($current / $max) * 100, 2) : 0,
+            ],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
+    {
+        // Try pg_stat_statements first
+        $hasExtension = false;
+
+        try {
+            $ext = $db->rawQueryValue("SELECT COUNT(*) FROM pg_extension WHERE extname = 'pg_stat_statements'");
+            $extVal = $ext ?? 0;
+            $extInt = is_int($extVal) ? $extVal : (is_string($extVal) ? (int)$extVal : 0);
+            $hasExtension = $extInt > 0;
+        } catch (\Exception $e) {
+            // Extension not available
+        }
+
+        if ($hasExtension) {
+            $sql = 'SELECT query, calls, total_exec_time, mean_exec_time, max_exec_time
+                    FROM pg_stat_statements
+                    WHERE mean_exec_time >= ?
+                    ORDER BY mean_exec_time DESC
+                    LIMIT ?';
+            $rows = $db->rawQuery($sql, [$thresholdSeconds * 1000, $limit]); // PostgreSQL uses milliseconds
+            $result = [];
+            foreach ($rows as $row) {
+                $result[] = [
+                    'query' => $this->toString($row['query'] ?? ''),
+                    'calls' => $this->toString($row['calls'] ?? ''),
+                    'total_time' => $this->toString($row['total_exec_time'] ?? '') . 'ms',
+                    'avg_time' => $this->toString($row['mean_exec_time'] ?? '') . 'ms',
+                    'max_time' => $this->toString($row['max_exec_time'] ?? '') . 'ms',
+                ];
+            }
+            return $result;
+        }
+
+        // Fallback to pg_stat_activity
+        $sql = "SELECT pid, usename, datname, state, query_start, now() - query_start AS duration, query
+                FROM pg_stat_activity
+                WHERE state != 'idle' AND query IS NOT NULL AND query != ''
+                AND (now() - query_start) >= INTERVAL '1 second' * ?
+                ORDER BY duration DESC
+                LIMIT ?";
+        $rows = $db->rawQuery($sql, [$thresholdSeconds, $limit]);
+        $result = [];
+        foreach ($rows as $row) {
+            $result[] = [
+                'pid' => $this->toString($row['pid'] ?? ''),
+                'user' => $this->toString($row['usename'] ?? ''),
+                'database' => $this->toString($row['datname'] ?? ''),
+                'duration' => $this->toString($row['duration'] ?? ''),
+                'query' => $this->toString($row['query'] ?? ''),
+            ];
+        }
+        return $result;
+    }
+
+    /* ---------------- Table Management ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listTables(\tommyknocker\pdodb\PdoDb $db, ?string $schema = null): array
+    {
+        $schemaName = $schema ?? 'public';
+        /** @var array<int, array<string, mixed>> $rows */
+        $rows = $db->rawQuery(
+            'SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = :schema ORDER BY tablename',
+            [':schema' => $schemaName]
+        );
+        /** @var array<int, string> $names */
+        $names = array_map(static fn (array $r): string => (string)$r['tablename'], $rows);
+        return $names;
+    }
+
+    /* ---------------- Error Handling ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getRetryableErrorCodes(): array
+    {
+        return [
+            '40001', // Serialization failure
+            '40P01', // Deadlock detected
+            '55P03', // Lock not available
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getErrorDescription(int|string $errorCode): string
+    {
+        $descriptions = [
+            '28000' => 'Invalid authorization specification',
+            '28P01' => 'Invalid password',
+            '3D000' => 'Invalid catalog name',
+            '42P01' => 'Undefined table',
+            '42703' => 'Undefined column',
+            '23505' => 'Unique violation',
+            '23503' => 'Foreign key violation',
+            '40001' => 'Serialization failure',
+            '40P01' => 'Deadlock detected',
+            '55P03' => 'Lock not available',
+        ];
+
+        return $descriptions[$errorCode] ?? 'Unknown error';
+    }
+
+    /* ---------------- Configuration ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildConfigFromEnv(array $envVars): array
+    {
+        $config = parent::buildConfigFromEnv($envVars);
+
+        // PostgreSQL requires 'dbname' parameter
+        if (isset($envVars['PDODB_DATABASE'])) {
+            $config['dbname'] = $envVars['PDODB_DATABASE'];
+        }
+
+        return $config;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeConfigParams(array $config): array
+    {
+        $config = parent::normalizeConfigParams($config);
+
+        // PostgreSQL requires 'dbname' parameter
+        if (isset($config['database']) && !isset($config['dbname'])) {
+            $config['dbname'] = $config['database'];
+        }
+
+        return $config;
+    }
+
+    /**
+     * Helper method to convert value to string.
+     *
+     * @param mixed $value
+     *
+     * @return string
+     */
+    protected function toString(mixed $value): string
+    {
+        return (string)$value;
+    }
 }

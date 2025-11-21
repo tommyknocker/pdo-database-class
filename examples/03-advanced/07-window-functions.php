@@ -8,7 +8,7 @@ use tommyknocker\pdodb\PdoDb;
 
 $driverEnv = getenv('PDODB_DRIVER') ?: 'mysql';
 $config = getExampleConfig();
-$driver = $config['driver'] ?? $driverEnv; // Use driver from config (converts mssql to sqlsrv)
+$driver = $config['driver'] ?? $driverEnv;
 
 echo "=== Window Functions Examples ===\n\n";
 echo "Database: $driver\n\n";

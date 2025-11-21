@@ -60,15 +60,7 @@ class MonitorManager
     public static function getActiveQueries(PdoDb $db): array
     {
         $dialect = $db->schema()->getDialect();
-        $driver = $dialect->getDriverName();
-
-        return match ($driver) {
-            'mysql', 'mariadb' => static::getActiveQueriesMySQL($db),
-            'pgsql' => static::getActiveQueriesPostgreSQL($db),
-            'sqlsrv' => static::getActiveQueriesMSSQL($db),
-            'sqlite' => static::getActiveQueriesSQLite($db),
-            default => [],
-        };
+        return $dialect->getActiveQueries($db);
     }
 
     /**
@@ -81,15 +73,7 @@ class MonitorManager
     public static function getActiveConnections(PdoDb $db): array
     {
         $dialect = $db->schema()->getDialect();
-        $driver = $dialect->getDriverName();
-
-        return match ($driver) {
-            'mysql', 'mariadb' => static::getActiveConnectionsMySQL($db),
-            'pgsql' => static::getActiveConnectionsPostgreSQL($db),
-            'sqlsrv' => static::getActiveConnectionsMSSQL($db),
-            'sqlite' => static::getActiveConnectionsSQLite($db),
-            default => [],
-        };
+        return $dialect->getActiveConnections($db);
     }
 
     /**
@@ -104,15 +88,7 @@ class MonitorManager
     public static function getSlowQueries(PdoDb $db, float $thresholdSeconds, int $limit): array
     {
         $dialect = $db->schema()->getDialect();
-        $driver = $dialect->getDriverName();
-
-        return match ($driver) {
-            'mysql', 'mariadb' => static::getSlowQueriesMySQL($db, $thresholdSeconds, $limit),
-            'pgsql' => static::getSlowQueriesPostgreSQL($db, $thresholdSeconds, $limit),
-            'sqlsrv' => static::getSlowQueriesMSSQL($db, $thresholdSeconds, $limit),
-            'sqlite' => static::getSlowQueriesSQLite($db, $thresholdSeconds, $limit),
-            default => [],
-        };
+        return $dialect->getSlowQueries($db, $thresholdSeconds, $limit);
     }
 
     /**

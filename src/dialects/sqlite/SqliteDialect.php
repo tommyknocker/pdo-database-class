@@ -1409,4 +1409,94 @@ class SqliteDialect extends DialectAbstract
     {
         return new SQLiteDdlQueryBuilder($connection, $prefix);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatConcatExpression(array $parts): string
+    {
+        // SQLite uses || operator for concatenation
+        return implode(' || ', $parts);
+    }
+
+    /* ---------------- Table Management ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listTables(\tommyknocker\pdodb\PdoDb $db, ?string $schema = null): array
+    {
+        $rows = $db->rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+        /** @var array<int, string> $names */
+        $names = array_map(static fn (array $r): string => (string)$r['name'], $rows);
+        return $names;
+    }
+
+    /* ---------------- Error Handling ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getRetryableErrorCodes(): array
+    {
+        return [
+            'SQLITE_BUSY', // Database is locked
+            'SQLITE_LOCKED', // A table in the database is locked
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getErrorDescription(int|string $errorCode): string
+    {
+        $descriptions = [
+            'SQLITE_ERROR' => 'SQL error or missing database',
+            'SQLITE_INTERNAL' => 'Internal SQLite error',
+            'SQLITE_PERM' => 'Access permission denied',
+            'SQLITE_ABORT' => 'Callback requested abort',
+            'SQLITE_BUSY' => 'Database is locked',
+            'SQLITE_LOCKED' => 'A table in the database is locked',
+            'SQLITE_NOMEM' => 'Out of memory',
+            'SQLITE_READONLY' => 'Attempt to write a readonly database',
+            'SQLITE_INTERRUPT' => 'Operation terminated',
+            'SQLITE_IOERR' => 'Disk I/O error',
+            'SQLITE_CORRUPT' => 'Database disk image is malformed',
+            'SQLITE_NOTFOUND' => 'Table or record not found',
+            'SQLITE_FULL' => 'Insertion failed because database is full',
+            'SQLITE_CANTOPEN' => 'Unable to open the database file',
+            'SQLITE_PROTOCOL' => 'Database lock protocol error',
+            'SQLITE_EMPTY' => 'Database is empty',
+            'SQLITE_SCHEMA' => 'Database schema changed',
+            'SQLITE_TOOBIG' => 'String or BLOB exceeds size limit',
+            'SQLITE_CONSTRAINT' => 'Abort due to constraint violation',
+            'SQLITE_MISMATCH' => 'Data type mismatch',
+            'SQLITE_MISUSE' => 'Library used incorrectly',
+            'SQLITE_NOLFS' => 'Uses OS features not supported on host',
+            'SQLITE_AUTH' => 'Authorization denied',
+            'SQLITE_FORMAT' => 'Auxiliary database format error',
+            'SQLITE_RANGE' => 'Parameter index out of range',
+            'SQLITE_NOTADB' => 'File opened is not a database',
+        ];
+
+        return $descriptions[$errorCode] ?? 'Unknown error';
+    }
+
+    /* ---------------- Configuration ---------------- */
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildConfigFromEnv(array $envVars): array
+    {
+        $config = parent::buildConfigFromEnv($envVars);
+
+        if (isset($envVars['PDODB_PATH'])) {
+            $config['path'] = $envVars['PDODB_PATH'];
+        } else {
+            $config['path'] = './database.sqlite';
+        }
+
+        return $config;
+    }
 }

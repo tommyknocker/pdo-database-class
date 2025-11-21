@@ -29,11 +29,6 @@ abstract class BaseCliCommand
         // Get driver from environment
         $driver = mb_strtolower(getenv('PDODB_DRIVER') ?: '', 'UTF-8');
 
-        // Normalize mssql -> sqlsrv (MSSQL uses sqlsrv driver but config.mssql.php)
-        if ($driver === 'mssql') {
-            $driver = 'sqlsrv';
-        }
-
         // Try examples config first (for testing/examples) - this takes precedence
         // because examples need to use the same config file that createExampleDb() uses
         // But skip if PDODB_* environment variables are explicitly set (CI or user override)
@@ -49,11 +44,7 @@ abstract class BaseCliCommand
         }
 
         if ($driver !== '' && !$hasEnvConfig) {
-            // Handle sqlsrv -> mssql alias for config file (MSSQL uses sqlsrv driver but config.mssql.php)
             $configFile = __DIR__ . "/../../examples/config.{$driver}.php";
-            if ($driver === 'sqlsrv') {
-                $configFile = __DIR__ . '/../../examples/config.mssql.php';
-            }
             if (file_exists($configFile)) {
                 return require $configFile;
             }
@@ -208,90 +199,33 @@ abstract class BaseCliCommand
             return null;
         }
 
-        $config = ['driver' => $driver];
+        try {
+            $dialect = \tommyknocker\pdodb\connection\DialectRegistry::resolve($driver);
+            $envVars = [];
+            // Always use getenv() to ensure we get variables set via putenv()
+            // $_ENV may not be updated when putenv() is called
+            $envVarNames = ['PDODB_HOST', 'PDODB_PORT', 'PDODB_DATABASE', 'PDODB_USERNAME', 'PDODB_PASSWORD', 'PDODB_CHARSET', 'PDODB_PATH', 'PDODB_DRIVER'];
+            foreach ($envVarNames as $envVar) {
+                $envValue = getenv($envVar);
+                if ($envValue !== false) {
+                    $envVars[$envVar] = $envValue;
+                }
+            }
 
-        switch ($driver) {
-            case 'mysql':
-            case 'mariadb':
-                $host = getenv('PDODB_HOST');
-                $host = $host !== false ? $host : 'localhost';
-                $port = getenv('PDODB_PORT');
-                $port = $port !== false ? $port : '3306';
-                $database = getenv('PDODB_DATABASE');
-                $username = getenv('PDODB_USERNAME');
-                $password = getenv('PDODB_PASSWORD');
-                $charset = getenv('PDODB_CHARSET');
-                $charset = $charset !== false ? $charset : 'utf8mb4';
-
-                if ($database === false || $username === false) {
+            // Check required variables
+            if (!isset($envVars['PDODB_DATABASE']) || !isset($envVars['PDODB_USERNAME'])) {
+                // SQLite doesn't require username/database
+                if ($driver !== 'sqlite') {
                     return null;
                 }
+            }
 
-                $config['host'] = $host;
-                $config['port'] = (int)$port;
-                $config['database'] = $database;
-                // MySQL/MariaDB dialect requires 'dbname' parameter for DSN
-                $config['dbname'] = $database;
-                $config['username'] = $username;
-                $config['password'] = $password !== false ? $password : '';
-                $config['charset'] = $charset;
-                break;
-
-            case 'pgsql':
-                $host = getenv('PDODB_HOST');
-                $host = $host !== false ? $host : 'localhost';
-                $port = getenv('PDODB_PORT');
-                $port = $port !== false ? $port : '5432';
-                $database = getenv('PDODB_DATABASE');
-                $username = getenv('PDODB_USERNAME');
-                $password = getenv('PDODB_PASSWORD');
-
-                if ($database === false || $username === false) {
-                    return null;
-                }
-
-                $config['host'] = $host;
-                $config['port'] = (int)$port;
-                $config['database'] = $database;
-                // PostgreSQL dialect requires 'dbname' parameter for DSN
-                $config['dbname'] = $database;
-                $config['username'] = $username;
-                $config['password'] = $password !== false ? $password : '';
-                break;
-
-            case 'sqlsrv':
-                $host = getenv('PDODB_HOST');
-                $host = $host !== false ? $host : 'localhost';
-
-                $port = getenv('PDODB_PORT');
-                $port = $port !== false ? $port : '1433';
-
-                $database = getenv('PDODB_DATABASE');
-                $username = getenv('PDODB_USERNAME');
-                $password = getenv('PDODB_PASSWORD');
-
-                if ($database === false || $username === false) {
-                    return null;
-                }
-
-                $config['host'] = $host;
-                $config['port'] = (int)$port;
-                $config['database'] = $database;
-                $config['dbname'] = $database;
-                $config['username'] = $username;
-                $config['password'] = $password !== false ? $password : '';
-                $config['trust_server_certificate'] = true;
-                $config['encrypt'] = true;
-                break;
-
-            case 'sqlite':
-                $path = getenv('PDODB_PATH');
-                $path = $path !== false ? $path : ':memory:';
-                $config['path'] = $path;
-                break;
+            $config = $dialect->buildConfigFromEnv($envVars);
+            return $config;
+        } catch (\InvalidArgumentException $e) {
+            // Driver not supported
+            return null;
         }
-
-        return $config;
     }
 
     /**
