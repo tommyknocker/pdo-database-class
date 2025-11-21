@@ -7,11 +7,13 @@ namespace tommyknocker\pdodb\dialects\mssql;
 use InvalidArgumentException;
 use PDO;
 use PDOException;
+use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\analysis\parsers\MSSQLExplainParser;
+use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class MSSQLDialect extends DialectAbstract
@@ -1802,5 +1804,18 @@ class MSSQLDialect extends DialectAbstract
         if (!empty($errors) && $continueOnError) {
             throw new \tommyknocker\pdodb\exceptions\ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
         }
+    }
+
+    /**
+     * Get dialect-specific DDL query builder.
+     *
+     * @param ConnectionInterface $connection
+     * @param string $prefix
+     *
+     * @return DdlQueryBuilder
+     */
+    public function getDdlQueryBuilder(ConnectionInterface $connection, string $prefix = ''): DdlQueryBuilder
+    {
+        return new MSSQLDdlQueryBuilder($connection, $prefix);
     }
 }

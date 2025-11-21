@@ -408,13 +408,13 @@ class PdoDb
     }
 
     /**
-     * Returns a new DdlQueryBuilder instance for schema operations.
+     * Returns a dialect-specific DdlQueryBuilder instance for schema operations.
      *
-     * @return DdlQueryBuilder The new DdlQueryBuilder instance.
+     * @return DdlQueryBuilder The dialect-specific DdlQueryBuilder instance.
      */
     public function schema(): DdlQueryBuilder
     {
-        return new DdlQueryBuilder(
+        return $this->connection->getDialect()->getDdlQueryBuilder(
             $this->connection,
             $this->prefix
         );

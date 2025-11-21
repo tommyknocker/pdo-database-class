@@ -7,9 +7,11 @@ namespace tommyknocker\pdodb\dialects\mysql;
 use InvalidArgumentException;
 use PDO;
 use RuntimeException;
+use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
+use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class MySQLDialect extends DialectAbstract
@@ -1519,5 +1521,18 @@ class MySQLDialect extends DialectAbstract
         if (!empty($errors) && $continueOnError) {
             throw new \tommyknocker\pdodb\exceptions\ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
         }
+    }
+
+    /**
+     * Get dialect-specific DDL query builder.
+     *
+     * @param ConnectionInterface $connection
+     * @param string $prefix
+     *
+     * @return DdlQueryBuilder
+     */
+    public function getDdlQueryBuilder(ConnectionInterface $connection, string $prefix = ''): DdlQueryBuilder
+    {
+        return new MySQLDdlQueryBuilder($connection, $prefix);
     }
 }

@@ -59,7 +59,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **UPDATE/DELETE with JOIN** - Update and delete operations with JOIN clauses (MySQL/MariaDB/PostgreSQL/MSSQL)
 - **MERGE Statements** - INSERT/UPDATE/DELETE based on match conditions (PostgreSQL/MSSQL native, MySQL/SQLite emulated)
 - **Schema Introspection** - Query indexes, foreign keys, and constraints programmatically
-- **DDL Query Builder** - Production-ready fluent API for creating, altering, and managing database schema (tables, columns, indexes, foreign keys, constraints) with Yii2-style methods, partial indexes, fulltext/spatial indexes, and cross-dialectal support
+- **DDL Query Builder** - Production-ready fluent API for creating, altering, and managing database schema (tables, columns, indexes, foreign keys, constraints) with Yii2-style methods, partial indexes, fulltext/spatial indexes, cross-dialectal support, and **dialect-specific types** (MySQL ENUM/SET, PostgreSQL UUID/JSONB/arrays, MSSQL UNIQUEIDENTIFIER/NVARCHAR, SQLite type affinity)
 - **Database Migrations** - Version-controlled schema changes with rollback support (Yii2-inspired)
 - **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
 - **Export Helpers** - Export results to JSON, CSV, and XML formats
@@ -233,7 +233,7 @@ Comprehensive, runnable examples are available in the [`examples/`](examples/) d
 - **[Architecture](examples/08-architecture/)** - Read/write splitting, sharding, load balancing
 - **[ActiveRecord](examples/09-active-record/)** - Object-based operations, relationships, scopes
 - **[Extensibility](examples/10-extensibility/)** - Macros, plugins, event dispatcher
-- **[Schema Management](examples/11-schema/)** - DDL Query Builder, migrations
+- **[Schema Management](examples/11-schema/)** - DDL Query Builder, migrations, dialect-specific types
 - **[Reliability](examples/12-reliability/)** - Exception handling, connection retry, error diagnostics
 - **[Miscellaneous](examples/14-misc/)** - Examples extracted from this README
 
@@ -342,12 +342,26 @@ $db = new PdoDb('mysql', [
 ### Step 3: Create Table
 
 ```php
+// Simple approach (raw SQL)
 $db->rawQuery('CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
     email TEXT,
     age INTEGER
 )');
+
+// Or use DDL Query Builder with dialect-specific types
+$db->schema()->createTable('products', [
+    'id' => $db->schema()->primaryKey(),
+    'name' => $db->schema()->string(255)->notNull(),
+    'status' => $db->schema()->enum(['draft', 'published', 'archived'])  // MySQL ENUM
+        ->defaultValue('draft'),
+    'uuid' => $db->schema()->uuid(),  // PostgreSQL UUID, MySQL CHAR(36), MSSQL UNIQUEIDENTIFIER
+    'tags' => $db->schema()->array('TEXT'),  // PostgreSQL TEXT[], others JSON
+    'metadata' => $db->schema()->jsonb(),  // PostgreSQL JSONB, others JSON
+    'is_active' => $db->schema()->boolean()->defaultValue(true),
+    'created_at' => $db->schema()->timestamp()->defaultExpression('CURRENT_TIMESTAMP')
+]);
 ```
 
 ### Step 4: CRUD Operations

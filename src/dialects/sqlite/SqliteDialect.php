@@ -6,12 +6,14 @@ namespace tommyknocker\pdodb\dialects\sqlite;
 
 use InvalidArgumentException;
 use PDO;
+use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
+use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class SqliteDialect extends DialectAbstract
@@ -1393,5 +1395,18 @@ class SqliteDialect extends DialectAbstract
         if (!empty($errors) && $continueOnError) {
             throw new ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
         }
+    }
+
+    /**
+     * Get dialect-specific DDL query builder.
+     *
+     * @param ConnectionInterface $connection
+     * @param string $prefix
+     *
+     * @return DdlQueryBuilder
+     */
+    public function getDdlQueryBuilder(ConnectionInterface $connection, string $prefix = ''): DdlQueryBuilder
+    {
+        return new SQLiteDdlQueryBuilder($connection, $prefix);
     }
 }

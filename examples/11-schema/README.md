@@ -71,6 +71,16 @@ Repository and Service generation: generate repository and service classes using
 - Auto-detection - Automatic model/repository name detection
 - CLI interface - Command-line code generation
 
+### 08-dialect-specific-types.php
+Dialect-specific schema types: demonstrate database-specific column types and optimizations.
+
+**Topics covered:**
+- MySQL/MariaDB types - ENUM, SET, TINYINT, MEDIUMTEXT, spatial types
+- PostgreSQL types - UUID, JSONB, arrays, network types, geometric types
+- MSSQL types - UNIQUEIDENTIFIER, NVARCHAR, DATETIME2, money types
+- SQLite type mapping - How all types map to INTEGER, REAL, TEXT, BLOB
+- Universal vs optimized - When to use universal types vs dialect-specific
+
 ## Usage
 
 ```bash
@@ -82,6 +92,7 @@ php 04-dump-restore.php
 php 05-monitoring.php
 php 06-cache-management.php
 php 07-repository-service-generation.php
+php 08-dialect-specific-types.php
 ```
 
 ## Schema Management Features
@@ -95,6 +106,7 @@ php 07-repository-service-generation.php
 - **Cache Management** - Manage query result cache via CLI
 - **Repository Generation** - Generate repository classes with CRUD operations
 - **Service Generation** - Generate service classes for business logic
+- **Dialect-Specific Types** - Use database-specific column types for optimization
 - **Cross-Database** - Works across all supported databases
 
 ## Related Examples

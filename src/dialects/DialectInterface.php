@@ -808,6 +808,16 @@ interface DialectInterface
     public function buildShowIndexesSql(string $table): string;
 
     /**
+     * Get dialect-specific DDL query builder.
+     *
+     * @param \tommyknocker\pdodb\connection\ConnectionInterface $connection
+     * @param string $prefix
+     *
+     * @return \tommyknocker\pdodb\query\DdlQueryBuilder
+     */
+    public function getDdlQueryBuilder(\tommyknocker\pdodb\connection\ConnectionInterface $connection, string $prefix = ''): \tommyknocker\pdodb\query\DdlQueryBuilder;
+
+    /**
      * Get foreign keys for a table.
      *
      * @param string $table

@@ -662,11 +662,13 @@ trait DdlBuilderTrait
     /**
      * Create small integer column schema.
      *
+     * @param int|null $length Integer length
+     *
      * @return ColumnSchema
      */
-    public function smallInteger(): ColumnSchema
+    public function smallInteger(?int $length = null): ColumnSchema
     {
-        return new ColumnSchema('SMALLINT');
+        return new ColumnSchema('SMALLINT', $length);
     }
 
     /**

@@ -182,6 +182,12 @@ Database schema management: DDL and migrations.
 - **[01-ddl.php](11-schema/01-ddl.php)** - DDL Query Builder basics
 - **[02-advanced-ddl.php](11-schema/02-advanced-ddl.php)** - Advanced DDL features (Yii2-style constraints, partial indexes, fulltext/spatial indexes)
 - **[02-migrations.php](11-schema/02-migrations.php)** - Database migrations
+- **[03-table-cli.php](11-schema/03-table-cli.php)** - CLI table management
+- **[04-dump-restore.php](11-schema/04-dump-restore.php)** - Database dump and restore
+- **[05-monitoring.php](11-schema/05-monitoring.php)** - Database monitoring
+- **[06-cache-management.php](11-schema/06-cache-management.php)** - Cache management CLI
+- **[07-repository-service-generation.php](11-schema/07-repository-service-generation.php)** - Repository and service generation
+- **[08-dialect-specific-types.php](11-schema/08-dialect-specific-types.php)** - **NEW!** Dialect-specific schema types (MySQL ENUM/SET, PostgreSQL UUID/JSONB/arrays, MSSQL UNIQUEIDENTIFIER, SQLite type affinity)
 
 ### 12. Reliability
 Reliability features: exception handling and connection retry.
