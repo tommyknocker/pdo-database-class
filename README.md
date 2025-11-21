@@ -197,6 +197,54 @@ composer require tommyknocker/pdo-database-class:^1.0
 composer require tommyknocker/pdo-database-class:dev-master
 ```
 
+### Quick Setup with `pdodb init`
+
+**Fastest way to get started:** Use the interactive wizard to configure your project:
+
+```bash
+vendor/bin/pdodb init
+```
+
+The wizard will guide you through:
+- Database connection settings (MySQL, PostgreSQL, SQLite, MSSQL)
+- Configuration file format (`.env` or `config/db.php`)
+- Directory structure creation (migrations, models, repositories, services)
+- Connection testing
+- Advanced options (caching, table prefix, multiple connections)
+
+**Example output:**
+```
+Welcome to PDOdb Project Initialization Wizard!
+
+Database driver [1]:
+  1) MySQL
+  2) PostgreSQL
+  3) SQLite
+  4) MSSQL
+Select driver: 1
+
+Database host [localhost]: 
+Database port [3306]: 
+Database name: myapp
+Username: root
+Password: ********
+
+Testing connection... ✓ Connection successful!
+
+Configuration format [1]:
+  1) .env file
+  2) config/db.php
+Select format: 1
+
+Create directory structure? (y/n) [y]: y
+
+✓ Configuration saved to .env
+✓ Directory structure created
+✓ Project initialized successfully!
+```
+
+See [CLI Tools Documentation](documentation/05-advanced-features/21-cli-tools.md#project-initialization-pdodb-init) for more details.
+
 ---
 
 ## 📖 Documentation
@@ -272,7 +320,7 @@ If config file is missing, falls back to SQLite.
 
 ## Quick Example
 
-**Get started in 30 seconds:**
+**Fastest start:** Run `vendor/bin/pdodb init` for interactive setup, or get started manually:
 
 ```php
 use tommyknocker\pdodb\PdoDb;
@@ -322,7 +370,22 @@ $db->find()
 composer require tommyknocker/pdo-database-class
 ```
 
-### Step 2: Connect
+### Step 2: Initialize Project (Fastest Start)
+
+Use the interactive wizard to set up your project configuration:
+
+```bash
+vendor/bin/pdodb init
+```
+
+This will:
+- ✅ Create `.env` or `config/db.php` configuration file
+- ✅ Set up directory structure
+- ✅ Create directory structure (migrations, models, repositories, services)
+- ✅ Test database connection
+- ✅ Generate basic configuration
+
+**Alternative:** Manual configuration (see [Configuration](#configuration) section)
 
 ```php
 use tommyknocker\pdodb\PdoDb;
