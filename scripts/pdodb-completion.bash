@@ -23,7 +23,7 @@ _pdodb() {
     local global_opts="--help --connection= --config= --env="
 
     # Main commands
-    local commands="migrate schema query model repository service db user table dump monitor cache init"
+    local commands="migrate seed schema query model repository service db user table dump monitor cache init"
 
     # If no command yet, complete with commands
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -49,6 +49,28 @@ _pdodb() {
         else
             local migrate_opts="--dry-run --pretend --force"
             COMPREPLY=($(compgen -W "${migrate_opts}" -- "${cur}"))
+        fi
+        return 0
+    fi
+
+    # Seed command
+    if [[ "${cmd}" == "seed" ]]; then
+        local seed_subcommands="create run list rollback help"
+        
+        if [[ ${COMP_CWORD} -eq 2 ]]; then
+            COMPREPLY=($(compgen -W "${seed_subcommands} --help" -- "${cur}"))
+        elif [[ "${subcmd}" == "create" ]] && [[ ${COMP_CWORD} -eq 3 ]]; then
+            # Suggest seed name
+            COMPREPLY=($(compgen -f -- "${cur}"))
+        elif [[ "${subcmd}" == "run" ]] && [[ ${COMP_CWORD} -eq 3 ]]; then
+            # Complete with available seed names
+            _pdodb_complete_seeds
+        elif [[ "${subcmd}" == "rollback" ]] && [[ ${COMP_CWORD} -eq 3 ]]; then
+            # Complete with executed seed names
+            _pdodb_complete_executed_seeds
+        else
+            local seed_opts="--dry-run --pretend --force"
+            COMPREPLY=($(compgen -W "${seed_opts}" -- "${cur}"))
         fi
         return 0
     fi
@@ -304,6 +326,56 @@ _pdodb_complete_tables() {
     # If we got tables, return them, otherwise return empty
     if [[ -n "${tables}" ]]; then
         echo "${tables}"
+    fi
+}
+
+# Helper function to complete seed names
+_pdodb_complete_seeds() {
+    local seeds
+    
+    # Try to get seed list from pdodb if possible
+    if command -v pdodb >/dev/null 2>&1 || command -v vendor/bin/pdodb >/dev/null 2>&1; then
+        local pdodb_cmd
+        if command -v pdodb >/dev/null 2>&1; then
+            pdodb_cmd="pdodb"
+        else
+            pdodb_cmd="vendor/bin/pdodb"
+        fi
+        
+        # Try to get seeds (this might fail if database is not configured)
+        seeds=$(${pdodb_cmd} seed list 2>/dev/null | \
+            grep -E '^\[' | \
+            awk '{print $2}' 2>/dev/null)
+    fi
+    
+    # If we got seeds, return them
+    if [[ -n "${seeds}" ]]; then
+        COMPREPLY=($(compgen -W "${seeds}" -- "${cur}"))
+    fi
+}
+
+# Helper function to complete executed seed names
+_pdodb_complete_executed_seeds() {
+    local seeds
+    
+    # Try to get executed seed list from pdodb if possible
+    if command -v pdodb >/dev/null 2>&1 || command -v vendor/bin/pdodb >/dev/null 2>&1; then
+        local pdodb_cmd
+        if command -v pdodb >/dev/null 2>&1; then
+            pdodb_cmd="pdodb"
+        else
+            pdodb_cmd="vendor/bin/pdodb"
+        fi
+        
+        # Try to get executed seeds (this might fail if database is not configured)
+        seeds=$(${pdodb_cmd} seed list 2>/dev/null | \
+            grep -E '^\[EXECUTED\]' | \
+            awk '{print $2}' 2>/dev/null)
+    fi
+    
+    # If we got seeds, return them
+    if [[ -n "${seeds}" ]]; then
+        COMPREPLY=($(compgen -W "${seeds}" -- "${cur}"))
     fi
 }
 

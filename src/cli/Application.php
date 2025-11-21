@@ -49,6 +49,7 @@ class Application
 
         // Migrations
         $this->addCommand(new commands\MigrateCommand());
+        $this->addCommand(new commands\SeedCommand());
 
         // Code generation
         $this->addCommand(new commands\ModelCommand());

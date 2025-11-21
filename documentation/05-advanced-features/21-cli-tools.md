@@ -1,6 +1,29 @@
 # CLI Tools
 
-PDOdb provides convenient command-line tools for common development tasks, including database management, migration generation, model generation, schema inspection, and interactive query testing.
+PDOdb provides convenient command-line tools for common development tasks, including database management, migration generation, model generation, schema inspection, seed management, and interactive query testing.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Configuration](#configuration)
+- [Project Initialization](#project-initialization)
+- [Database Management](#database-management)
+- [User Management](#user-management)
+- [Database Dump and Restore](#database-dump-and-restore)
+- [Table Management](#table-management)
+- [Migration Generator](#migration-generator)
+- [Model Generator](#model-generator)
+- [Repository Generator](#repository-generator)
+- [Service Generator](#service-generator)
+- [Schema Inspector](#schema-inspector)
+- [Query Tester (REPL)](#query-tester-repl)
+- [Database Monitoring](#database-monitoring)
+- [Cache Management](#cache-management)
+- [Seed Management](#seed-management)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Best Practices](#best-practices)
+- [Troubleshooting](#troubleshooting)
 
 ## Overview
 
@@ -14,6 +37,7 @@ The CLI tools are designed to streamline your development workflow:
 - **Service Generator** - Generate service classes for business logic
 - **Schema Inspector** - Inspect database schema structure
 - **Query Tester** - Interactive REPL for testing SQL queries
+- **Seed Management** - Create, run, and rollback database seeds for test and initial data
 
 ## Database Dump and Restore
 
@@ -1479,6 +1503,623 @@ vendor/bin/pdodb cache invalidate "pdodb_table_users_*" --force
 - **Maintenance**: Invalidate specific table caches after data updates without clearing all cache
 - **Performance**: Use selective invalidation to maintain cache for unchanged tables while refreshing updated tables
 
+## Seed Management
+
+Database seeds are classes that populate your database with test or initial data. Seeds are useful for development, testing, and setting up initial application data.
+
+### Overview
+
+Seeds provide a structured way to:
+
+- **Populate test data** for development and testing
+- **Set up initial data** like admin users, default categories, or configuration
+- **Create reproducible datasets** across different environments
+- **Rollback data changes** when needed
+
+### Creating Seeds
+
+#### Using CLI Generator
+
+```bash
+# Create a new seed
+vendor/bin/pdodb seed create users_data
+
+# This creates: s20240115123456_users_data.php
+```
+
+#### Manual Creation
+
+Seeds are stored in the `seeds` directory (configurable via `PDODB_SEED_PATH`). Each seed file follows the naming convention:
+
+```
+s{timestamp}_{descriptive_name}.php
+```
+
+Example: `s20240115123456_users_data.php`
+
+### Seed Structure
+
+#### Basic Seed Class
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use tommyknocker\pdodb\seeds\Seed;
+
+class UsersDataSeed extends Seed
+{
+    /**
+     * Run the seed - insert data.
+     */
+    public function run(): void
+    {
+        // Insert single record
+        $this->insert('users', [
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'password' => password_hash('secret', PASSWORD_DEFAULT),
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        // Insert multiple records
+        $this->insertMulti('users', [
+            [
+                'name' => 'Jane Smith',
+                'email' => 'jane@example.com',
+                'password' => password_hash('secret', PASSWORD_DEFAULT),
+                'created_at' => date('Y-m-d H:i:s'),
+            ],
+            [
+                'name' => 'Bob Johnson',
+                'email' => 'bob@example.com',
+                'password' => password_hash('secret', PASSWORD_DEFAULT),
+                'created_at' => date('Y-m-d H:i:s'),
+            ],
+        ]);
+    }
+
+    /**
+     * Rollback the seed - remove data.
+     */
+    public function rollback(): void
+    {
+        // Remove specific records
+        $this->delete('users', ['email' => 'john@example.com']);
+        $this->delete('users', ['email' => 'jane@example.com']);
+        $this->delete('users', ['email' => 'bob@example.com']);
+    }
+}
+```
+
+### Available Methods
+
+#### Data Insertion
+
+```php
+// Insert single record
+$userId = $this->insert('users', [
+    'name' => 'John Doe',
+    'email' => 'john@example.com',
+]);
+
+// Insert multiple records
+$count = $this->insertMulti('users', [
+    ['name' => 'User 1', 'email' => 'user1@example.com'],
+    ['name' => 'User 2', 'email' => 'user2@example.com'],
+]);
+
+// Batch insert (alias for insertMulti)
+$count = $this->insertBatch('users', $users);
+```
+
+#### Data Modification
+
+```php
+// Update records
+$affected = $this->update('users', 
+    ['status' => 'active'], 
+    ['created_at' => date('Y-m-d')]
+);
+
+// Delete records
+$affected = $this->delete('users', ['status' => 'inactive']);
+```
+
+#### Query Operations
+
+```php
+// Use Query Builder
+$users = $this->find()
+    ->from('users')
+    ->where('status', 'active')
+    ->get();
+
+// Use Schema Builder
+$this->schema()->createTable('temp_table', [
+    'id' => $this->schema()->primaryKey(),
+    'data' => $this->schema()->text(),
+]);
+
+// Execute raw SQL
+$results = $this->execute('SELECT COUNT(*) as count FROM users');
+
+// Create raw values
+$this->insert('posts', [
+    'title' => 'Sample Post',
+    'created_at' => $this->raw('NOW()'),
+]);
+```
+
+### Running Seeds
+
+#### CLI Commands
+
+```bash
+# List all seeds with status
+vendor/bin/pdodb seed list
+
+# Run all pending seeds
+vendor/bin/pdodb seed run
+
+# Run specific seed
+vendor/bin/pdodb seed run s20240115123456_users_data
+
+# Dry-run (show SQL without executing)
+vendor/bin/pdodb seed run --dry-run
+
+# Pretend mode (show what would be executed)
+vendor/bin/pdodb seed run --pretend
+
+# Force run (skip confirmations)
+vendor/bin/pdodb seed run --force
+```
+
+#### Programmatic Usage
+
+```php
+use tommyknocker\pdodb\seeds\SeedRunner;
+
+$runner = new SeedRunner($db, '/path/to/seeds');
+
+// Run all pending seeds
+$executed = $runner->run();
+
+// Run specific seed
+$executed = $runner->run('s20240115123456_users_data');
+
+// Dry-run mode
+$runner->setDryRun(true);
+$runner->run();
+$queries = $runner->getCollectedQueries();
+
+// Get seed status
+$allSeeds = $runner->getAllSeeds();
+$newSeeds = $runner->getNewSeeds();
+$executedSeeds = $runner->getExecutedSeeds();
+```
+
+### Rolling Back Seeds
+
+#### CLI Rollback
+
+```bash
+# Rollback last batch
+vendor/bin/pdodb seed rollback
+
+# Rollback specific seed
+vendor/bin/pdodb seed rollback s20240115123456_users_data
+```
+
+#### Programmatic Rollback
+
+```php
+// Rollback last batch
+$rolledBack = $runner->rollback();
+
+// Rollback specific seed
+$rolledBack = $runner->rollback('s20240115123456_users_data');
+```
+
+### Advanced Examples
+
+#### Complex Data Relationships
+
+```php
+class ProductsDataSeed extends Seed
+{
+    public function run(): void
+    {
+        // Create categories first
+        $categoryIds = [];
+        $categories = ['Electronics', 'Books', 'Clothing'];
+        
+        foreach ($categories as $category) {
+            $categoryIds[$category] = $this->insert('categories', [
+                'name' => $category,
+                'slug' => strtolower($category),
+            ]);
+        }
+
+        // Create products with category relationships
+        $this->insertMulti('products', [
+            [
+                'name' => 'Laptop',
+                'price' => 999.99,
+                'category_id' => $categoryIds['Electronics'],
+            ],
+            [
+                'name' => 'Programming Book',
+                'price' => 49.99,
+                'category_id' => $categoryIds['Books'],
+            ],
+        ]);
+    }
+
+    public function rollback(): void
+    {
+        // Delete in reverse order (products first, then categories)
+        $this->delete('products', ['name' => 'Laptop']);
+        $this->delete('products', ['name' => 'Programming Book']);
+        
+        $this->delete('categories', ['name' => 'Electronics']);
+        $this->delete('categories', ['name' => 'Books']);
+        $this->delete('categories', ['name' => 'Clothing']);
+    }
+}
+```
+
+#### Using External Data
+
+```php
+class ImportDataSeed extends Seed
+{
+    public function run(): void
+    {
+        // Load data from JSON file
+        $jsonData = file_get_contents(__DIR__ . '/data/users.json');
+        $users = json_decode($jsonData, true);
+
+        // Process and insert data
+        $processedUsers = [];
+        foreach ($users as $user) {
+            $processedUsers[] = [
+                'name' => $user['full_name'],
+                'email' => $user['email_address'],
+                'password' => password_hash($user['password'], PASSWORD_DEFAULT),
+                'created_at' => date('Y-m-d H:i:s'),
+            ];
+        }
+
+        $this->insertMulti('users', $processedUsers);
+    }
+
+    public function rollback(): void
+    {
+        // Load same data to know what to delete
+        $jsonData = file_get_contents(__DIR__ . '/data/users.json');
+        $users = json_decode($jsonData, true);
+
+        foreach ($users as $user) {
+            $this->delete('users', ['email' => $user['email_address']]);
+        }
+    }
+}
+```
+
+#### Conditional Seeding
+
+```php
+class ConditionalDataSeed extends Seed
+{
+    public function run(): void
+    {
+        // Check if admin user already exists
+        $adminExists = $this->find()
+            ->from('users')
+            ->where('email', 'admin@example.com')
+            ->exists();
+
+        if (!$adminExists) {
+            $this->insert('users', [
+                'name' => 'Administrator',
+                'email' => 'admin@example.com',
+                'password' => password_hash('admin123', PASSWORD_DEFAULT),
+                'role' => 'admin',
+            ]);
+        }
+
+        // Seed different data based on environment
+        if (getenv('APP_ENV') === 'development') {
+            $this->seedDevelopmentData();
+        } elseif (getenv('APP_ENV') === 'testing') {
+            $this->seedTestData();
+        }
+    }
+
+    private function seedDevelopmentData(): void
+    {
+        // Development-specific data
+        $this->insertMulti('users', [
+            ['name' => 'Dev User 1', 'email' => 'dev1@example.com'],
+            ['name' => 'Dev User 2', 'email' => 'dev2@example.com'],
+        ]);
+    }
+
+    private function seedTestData(): void
+    {
+        // Test-specific data
+        $this->insert('users', [
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+        ]);
+    }
+
+    public function rollback(): void
+    {
+        $this->delete('users', ['email' => 'admin@example.com']);
+        $this->delete('users', ['email' => 'dev1@example.com']);
+        $this->delete('users', ['email' => 'dev2@example.com']);
+        $this->delete('users', ['email' => 'test@example.com']);
+    }
+}
+```
+
+### Configuration
+
+#### Environment Variables
+
+```env
+# Seed directory path
+PDODB_SEED_PATH=./database/seeds
+```
+
+#### Directory Structure
+
+```
+project/
+├── database/
+│   └── seeds/
+│       ├── s20240115120000_initial_users.php
+│       ├── s20240115121000_categories_data.php
+│       └── s20240115122000_products_data.php
+└── .env
+```
+
+### Seed Tracking
+
+Seeds are tracked in the `__seeds` table:
+
+```sql
+CREATE TABLE __seeds (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    seed VARCHAR(255) NOT NULL,
+    batch INT NOT NULL,
+    executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+- **seed** - Seed filename without extension
+- **batch** - Batch number for grouping seeds run together
+- **executed_at** - When the seed was executed
+
+### Best Practices
+
+#### 1. Descriptive Names
+
+```bash
+# Good
+vendor/bin/pdodb seed create initial_admin_user
+vendor/bin/pdodb seed create product_categories
+vendor/bin/pdodb seed create test_customer_data
+
+# Avoid
+vendor/bin/pdodb seed create data
+vendor/bin/pdodb seed create seed1
+```
+
+#### 2. Implement Proper Rollbacks
+
+```php
+public function rollback(): void
+{
+    // Always provide a way to undo the seed
+    $this->delete('users', ['email' => 'admin@example.com']);
+    
+    // Be specific about what to delete
+    $this->delete('products', ['created_by_seed' => 'initial_products']);
+}
+```
+
+#### 3. Use Transactions
+
+Seeds automatically run in transactions, but you can use nested transactions for complex operations:
+
+```php
+public function run(): void
+{
+    $this->db->startTransaction();
+    try {
+        // Complex multi-table operations
+        $userId = $this->insert('users', $userData);
+        $this->insert('profiles', ['user_id' => $userId] + $profileData);
+        $this->insert('permissions', ['user_id' => $userId] + $permissions);
+        
+        $this->db->commit();
+    } catch (\Exception $e) {
+        $this->db->rollback();
+        throw $e;
+    }
+}
+```
+
+#### 4. Environment-Specific Seeds
+
+```php
+public function run(): void
+{
+    $env = getenv('APP_ENV') ?: 'production';
+    
+    switch ($env) {
+        case 'development':
+            $this->seedDevelopmentData();
+            break;
+        case 'testing':
+            $this->seedTestData();
+            break;
+        case 'production':
+            $this->seedProductionData();
+            break;
+    }
+}
+```
+
+#### 5. Idempotent Seeds
+
+Make seeds safe to run multiple times:
+
+```php
+public function run(): void
+{
+    // Check if data already exists
+    $adminExists = $this->find()
+        ->from('users')
+        ->where('email', 'admin@example.com')
+        ->exists();
+    
+    if (!$adminExists) {
+        $this->insert('users', [
+            'name' => 'Admin',
+            'email' => 'admin@example.com',
+        ]);
+    }
+}
+```
+
+### Common Use Cases
+
+#### 1. Initial Application Data
+
+```php
+class InitialConfigSeed extends Seed
+{
+    public function run(): void
+    {
+        $this->insertMulti('settings', [
+            ['key' => 'site_name', 'value' => 'My Application'],
+            ['key' => 'admin_email', 'value' => 'admin@example.com'],
+            ['key' => 'maintenance_mode', 'value' => 'false'],
+        ]);
+    }
+}
+```
+
+#### 2. Test Data for Development
+
+```php
+class DevelopmentUsersSeed extends Seed
+{
+    public function run(): void
+    {
+        if (getenv('APP_ENV') !== 'development') {
+            return; // Only run in development
+        }
+
+        for ($i = 1; $i <= 50; $i++) {
+            $this->insert('users', [
+                'name' => "Test User {$i}",
+                'email' => "user{$i}@example.com",
+                'password' => password_hash('password', PASSWORD_DEFAULT),
+            ]);
+        }
+    }
+}
+```
+
+#### 3. Reference Data
+
+```php
+class CountriesSeed extends Seed
+{
+    public function run(): void
+    {
+        $countries = [
+            ['code' => 'US', 'name' => 'United States'],
+            ['code' => 'CA', 'name' => 'Canada'],
+            ['code' => 'UK', 'name' => 'United Kingdom'],
+            // ... more countries
+        ];
+
+        $this->insertMulti('countries', $countries);
+    }
+}
+```
+
+### Troubleshooting
+
+#### Seed Not Found
+
+```bash
+Error: Seed file not found: /path/to/seeds/s20240115123456_users_data.php
+```
+
+**Solution:** Ensure the seed file exists and the path is correct.
+
+#### Class Not Found
+
+```bash
+Error: Seed class not found: UsersDataSeed
+```
+
+**Solution:** Ensure the class name matches the expected format based on the filename.
+
+#### Permission Denied
+
+```bash
+Error: Permission denied when creating seed file
+```
+
+**Solution:** Check directory permissions for the seeds directory.
+
+#### Database Connection Error
+
+```bash
+Error: Could not connect to database
+```
+
+**Solution:** Verify database configuration in `.env` or `config/db.php`.
+
+### Integration with Testing
+
+Seeds are particularly useful in testing scenarios:
+
+```php
+// In your test setup
+class DatabaseTest extends PHPUnit\Framework\TestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+        
+        // Run seeds before each test
+        $runner = new SeedRunner($this->db, '/path/to/test/seeds');
+        $runner->run();
+    }
+    
+    protected function tearDown(): void
+    {
+        // Rollback seeds after each test
+        $runner = new SeedRunner($this->db, '/path/to/test/seeds');
+        $runner->rollback();
+        
+        parent::tearDown();
+    }
+}
+```
+
+Seeds provide a powerful and flexible way to manage test and initial data in your PDOdb applications, ensuring consistent and reproducible database states across different environments.
+
 ## Installation
 
 After installing PDOdb via Composer, the CLI tool is automatically available in `vendor/bin/`:
@@ -1507,6 +2148,7 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 - **`table`** - Manage tables (info, list, exists, create, drop, rename, truncate, describe, columns, indexes, foreign keys)
 - **`monitor`** - Monitor database queries, connections, and performance
 - **`cache`** - Manage query result cache (clear, invalidate, statistics)
+- **`seed`** - Manage database seeds (create, run, list, rollback)
 
 ### Getting Help
 
@@ -1520,6 +2162,7 @@ vendor/bin/pdodb migrate --help
 vendor/bin/pdodb schema --help
 vendor/bin/pdodb query --help
 vendor/bin/pdodb model --help
+vendor/bin/pdodb seed --help
 ```
 
 ## Best Practices

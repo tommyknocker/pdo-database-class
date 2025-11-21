@@ -36,7 +36,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
 
 **Developer Experience:**
-- **CLI Tools** - Database management, user management, dump/restore, migration generator, model generator, schema inspector, and interactive query tester (REPL)
+- **CLI Tools** - Database management, user management, dump/restore, migration generator, seed generator, model generator, schema inspector, and interactive query tester (REPL)
 - **Enhanced EXPLAIN** - Automatic detection of full table scans, missing indexes, and optimization recommendations
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Enhanced Error Diagnostics** - Query context, sanitized parameters, and debug information in exceptions
@@ -61,6 +61,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Schema Introspection** - Query indexes, foreign keys, and constraints programmatically
 - **DDL Query Builder** - Production-ready fluent API for creating, altering, and managing database schema (tables, columns, indexes, foreign keys, constraints) with Yii2-style methods, partial indexes, fulltext/spatial indexes, cross-dialectal support, and **dialect-specific types** (MySQL ENUM/SET, PostgreSQL UUID/JSONB/arrays, MSSQL UNIQUEIDENTIFIER/NVARCHAR, SQLite type affinity)
 - **Database Migrations** - Version-controlled schema changes with rollback support (Yii2-inspired)
+- **Database Seeds** - Populate database with initial or test data, batch tracking, rollback support
 - **Advanced Pagination** - Full, simple, and cursor-based pagination with metadata
 - **Export Helpers** - Export results to JSON, CSV, and XML formats
 - **DISTINCT & DISTINCT ON** - Remove duplicates with full PostgreSQL DISTINCT ON support
@@ -2961,6 +2962,39 @@ vendor/bin/pdodb migrate history
 
 # Show new migrations
 vendor/bin/pdodb migrate new
+```
+
+#### Seed Management
+
+Manage database seeds for populating your database with initial or test data:
+
+```bash
+# Create new seed
+vendor/bin/pdodb seed create users_table
+
+# Run all new seeds
+vendor/bin/pdodb seed run
+
+# Run specific seed
+vendor/bin/pdodb seed run users_table
+
+# List all seeds with status
+vendor/bin/pdodb seed list
+
+# Rollback last batch of seeds
+vendor/bin/pdodb seed rollback
+
+# Rollback specific seed
+vendor/bin/pdodb seed rollback users_table
+
+# Preview SQL without executing (dry-run)
+vendor/bin/pdodb seed run --dry-run
+
+# Simulate execution without running queries
+vendor/bin/pdodb seed run --pretend
+
+# Skip confirmation prompts
+vendor/bin/pdodb seed run --force
 ```
 
 #### Model Generation
