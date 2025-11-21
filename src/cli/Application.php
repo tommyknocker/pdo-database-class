@@ -60,6 +60,7 @@ class Application
         $this->addCommand(new commands\DbCommand());
         $this->addCommand(new commands\UserCommand());
         $this->addCommand(new commands\TableCommand());
+        $this->addCommand(new commands\ConnectionCommand());
 
         // Development tools
         $this->addCommand(new commands\SchemaCommand());

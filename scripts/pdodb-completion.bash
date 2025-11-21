@@ -23,7 +23,7 @@ _pdodb() {
     local global_opts="--help --connection= --config= --env="
 
     # Main commands
-    local commands="migrate seed schema query model repository service db user table dump monitor cache init"
+    local commands="migrate seed schema query model repository service db user table connection dump monitor cache init"
 
     # If no command yet, complete with commands
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -303,6 +303,30 @@ _pdodb() {
                 local cache_opts="--format=table --format=json --format"
                 COMPREPLY=($(compgen -W "${cache_opts}" -- "${cur}"))
             fi
+        fi
+        return 0
+    fi
+
+    # Connection command
+    if [[ "${cmd}" == "connection" ]]; then
+        local connection_subcommands="test info list ping"
+        
+        if [[ ${COMP_CWORD} -eq 2 ]]; then
+            COMPREPLY=($(compgen -W "${connection_subcommands} --help" -- "${cur}"))
+        elif [[ "${subcmd}" == "test" ]] || [[ "${subcmd}" == "ping" ]]; then
+            local connection_opts="--connection="
+            COMPREPLY=($(compgen -W "${connection_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "info" ]]; then
+            if [[ ${COMP_CWORD} -eq 3 ]]; then
+                # Complete connection names (if possible)
+                COMPREPLY=($(compgen -f -- "${cur}"))
+            else
+                local connection_opts="--connection= --format=table --format=json --format=yaml --format"
+                COMPREPLY=($(compgen -W "${connection_opts}" -- "${cur}"))
+            fi
+        elif [[ "${subcmd}" == "list" ]]; then
+            local connection_opts="--format=table --format=json --format=yaml --format"
+            COMPREPLY=($(compgen -W "${connection_opts}" -- "${cur}"))
         fi
         return 0
     fi

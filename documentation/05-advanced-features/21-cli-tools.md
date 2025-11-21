@@ -8,6 +8,7 @@ PDOdb provides convenient command-line tools for common development tasks, inclu
 - [Configuration](#configuration)
 - [Project Initialization](#project-initialization)
 - [Database Management](#database-management)
+- [Connection Management](#connection-management)
 - [User Management](#user-management)
 - [Database Dump and Restore](#database-dump-and-restore)
 - [Table Management](#table-management)
@@ -30,6 +31,7 @@ PDOdb provides convenient command-line tools for common development tasks, inclu
 The CLI tools are designed to streamline your development workflow:
 
 - **Database Management** - Create, drop, list, and check database existence
+- **Connection Management** - Test, inspect, and manage database connections
 - **User Management** - Create, drop, list, and manage database users and privileges
 - **Migration Generator** - Create database migrations with interactive prompts
 - **Model Generator** - Generate ActiveRecord models from existing database tables
@@ -579,6 +581,106 @@ vendor/bin/pdodb db exists /path/to/database.sqlite
 ```
 
 Note: SQLite does not support listing multiple databases. Use file paths for database operations.
+
+## Connection Management
+
+Test, inspect, and manage database connections.
+
+### Usage
+
+```bash
+# Test database connection
+vendor/bin/pdodb connection test
+
+# Test specific connection
+vendor/bin/pdodb connection test --connection=reporting
+
+# Show connection information
+vendor/bin/pdodb connection info
+
+# Show specific connection information
+vendor/bin/pdodb connection info main
+vendor/bin/pdodb connection info main --format=json
+
+# List all available connections
+vendor/bin/pdodb connection list
+vendor/bin/pdodb connection list --format=json
+
+# Ping database connection (check availability)
+vendor/bin/pdodb connection ping
+vendor/bin/pdodb connection ping --connection=reporting
+```
+
+### Options
+
+- `--connection=<name>` - Use specific connection name
+- `--format=table|json|yaml` - Output format (default: table)
+
+### Examples
+
+#### Test Connection
+
+```bash
+$ vendor/bin/pdodb connection test
+
+✓ Connection test successful
+```
+
+#### Show Connection Information
+
+```bash
+$ vendor/bin/pdodb connection info
+
+Connection Information:
+
+Name: default
+Driver: mysql
+Host: localhost:3306
+Database: myapp
+Username: user
+Status: connected
+Server Version: 8.0.35
+```
+
+#### List All Connections
+
+```bash
+$ vendor/bin/pdodb connection list
+
+Available Connections:
+
+Connection: main (default)
+  Driver: mysql
+  Host: localhost:3306
+  Database: myapp
+  Username: user
+  Status: connected
+  Server Version: 8.0.35
+
+Connection: reporting
+  Driver: mysql
+  Host: reporting.example.com:3306
+  Database: reports
+  Username: readonly
+  Status: connected
+  Server Version: 8.0.35
+```
+
+#### Ping Connection
+
+```bash
+$ vendor/bin/pdodb connection ping
+
+Ping successful (response time: 2.45ms)
+```
+
+### Notes
+
+- The `test` command verifies that a connection can be established and a simple query can be executed.
+- The `info` command shows connection parameters (without passwords) and connection status.
+- The `list` command shows all available connections from `config/db.php` (if configured).
+- The `ping` command measures response time for a simple query, useful for monitoring database availability.
+- Connection names are case-sensitive and must match the keys in your `config/db.php` file.
 
 ## User Management
 
@@ -2187,6 +2289,7 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 ### Available Commands
 
 - **`db`** - Manage databases (create, drop, list, check existence, show info)
+- **`connection`** - Manage database connections (test, info, list, ping)
 - **`user`** - Manage database users (create, drop, list, grant/revoke privileges, change password)
 - **`dump`** - Dump and restore database (schema and data export/import)
 - **`migrate`** - Manage database migrations
@@ -2206,6 +2309,7 @@ vendor/bin/pdodb
 
 # Show help for a specific command
 vendor/bin/pdodb db --help
+vendor/bin/pdodb connection --help
 vendor/bin/pdodb migrate --help
 vendor/bin/pdodb schema --help
 vendor/bin/pdodb query --help
