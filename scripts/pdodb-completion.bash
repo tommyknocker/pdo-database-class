@@ -194,11 +194,19 @@ _pdodb() {
         elif [[ "${subcmd}" == "list" ]]; then
             local table_opts="--schema= --format=table --format=json --format=yaml --format"
             COMPREPLY=($(compgen -W "${table_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "count" ]]; then
+            if [[ ${COMP_CWORD} -eq 3 ]]; then
+                # Complete table names (no options for count command)
+                _pdodb_complete_tables
+            else
+                # Count command has no options
+                COMPREPLY=()
+            fi
         elif [[ "${subcmd}" == "info" ]] || [[ "${subcmd}" == "exists" ]] || \
              [[ "${subcmd}" == "drop" ]] || [[ "${subcmd}" == "truncate" ]] || \
              [[ "${subcmd}" == "describe" ]] || [[ "${subcmd}" == "columns" ]] || \
              [[ "${subcmd}" == "indexes" ]] || [[ "${subcmd}" == "keys" ]] || \
-             [[ "${subcmd}" == "rename" ]] || [[ "${subcmd}" == "count" ]]; then
+             [[ "${subcmd}" == "rename" ]]; then
             if [[ ${COMP_CWORD} -eq 3 ]]; then
                 # Complete table names
                 _pdodb_complete_tables
