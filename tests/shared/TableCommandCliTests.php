@@ -311,4 +311,158 @@ final class TableCommandCliTests extends TestCase
         $out = (string)shell_exec($cmd);
         $this->assertStringContainsString('At least one column is required', $out);
     }
+
+    public function testTableCountCommand(): void
+    {
+        $app = new Application();
+
+        // Create table
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'test_count', '--columns=id:int,name:string', '--force']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+
+        // Insert some data
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+        $db->find()->table('test_count')->insert(['name' => 'Test 1']);
+        $db->find()->table('test_count')->insert(['name' => 'Test 2']);
+        $db->find()->table('test_count')->insert(['name' => 'Test 3']);
+
+        // Test count command
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'count', 'test_count']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertSame("3\n", $out);
+
+        // Test count with empty table
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'empty_table', '--columns=id:int', '--force']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'count', 'empty_table']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertSame("0\n", $out);
+    }
+
+    public function testTableSampleCommand(): void
+    {
+        $app = new Application();
+
+        // Create table
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'test_sample', '--columns=id:int,name:string', '--force']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+
+        // Insert some data
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+        $db->find()->table('test_sample')->insert(['name' => 'Sample 1']);
+        $db->find()->table('test_sample')->insert(['name' => 'Sample 2']);
+        $db->find()->table('test_sample')->insert(['name' => 'Sample 3']);
+
+        // Test sample command (table format)
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'sample', 'test_sample', '--format=table']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Data:', $out);
+        $this->assertStringContainsString('Sample 1', $out);
+        $this->assertStringContainsString('Total rows: 3', $out);
+
+        // Test sample command (JSON format)
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'sample', 'test_sample', '--format=json']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('"data"', $out);
+        $this->assertStringContainsString('"name"', $out);
+        $json = json_decode($out, true);
+        $this->assertIsArray($json);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertCount(3, $json['data']);
+
+        // Test select alias
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'select', 'test_sample', '--format=json']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('"data"', $out);
+
+        // Test sample with limit (should return only 2 rows)
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'sample', 'test_sample', '--limit=2', '--format=json']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $json = json_decode($out, true);
+        $this->assertIsArray($json);
+        $this->assertArrayHasKey('data', $json);
+        $this->assertCount(2, $json['data']);
+    }
 }

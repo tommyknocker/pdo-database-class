@@ -34,6 +34,9 @@ class TableCommand extends Command
             'columns' => $this->columns(),
             'indexes' => $this->indexes(),
             'keys' => $this->keys(),
+            'count' => $this->count(),
+            'sample' => $this->sample(),
+            'select' => $this->sample(), // Alias for sample
             default => $this->showError("Unknown subcommand: {$sub}"),
         };
     }
@@ -608,13 +611,59 @@ class TableCommand extends Command
         }
     }
 
+    protected function count(): int
+    {
+        $table = $this->getArgument(1);
+        if (!is_string($table) || $table === '') {
+            return $this->showError('Table name is required');
+        }
+        $db = $this->getDb();
+        if (!TableManager::tableExists($db, $table)) {
+            return $this->showError("Table '{$table}' does not exist");
+        }
+
+        $quotedTable = $db->schema()->getDialect()->quoteTable($table);
+        $count = $db->rawQueryValue("SELECT COUNT(*) FROM {$quotedTable}");
+        echo "{$count}\n";
+        return 0;
+    }
+
+    protected function sample(): int
+    {
+        $table = $this->getArgument(1);
+        if (!is_string($table) || $table === '') {
+            return $this->showError('Table name is required');
+        }
+        $limit = (int)$this->getOption('limit', 10);
+        $format = $this->getOption('format', 'table');
+        $db = $this->getDb();
+
+        if (!TableManager::tableExists($db, $table)) {
+            return $this->showError("Table '{$table}' does not exist");
+        }
+
+        $dialect = $db->schema()->getDialect();
+        $quotedTable = $dialect->quoteTable($table);
+        $sql = "SELECT * FROM {$quotedTable} LIMIT " . (int)$limit;
+        $rows = $db->rawQuery($sql);
+        return $this->printFormatted(['data' => $rows], (string)$format);
+    }
+
     /**
+     * Print data as formatted table (80 chars width).
+     *
      * @param array<string, mixed> $data
      */
     protected function printTable(array $data): void
     {
+        $maxWidth = 80;
+
         foreach ($data as $key => $val) {
-            if (is_array($val)) {
+            if (is_array($val) && !empty($val) && isset($val[0]) && is_array($val[0])) {
+                // This is a list of rows (like table data)
+                $this->printDataTable((string)$key, $val, $maxWidth);
+            } elseif (is_array($val)) {
+                // Simple array
                 echo ucfirst((string)$key) . ":\n";
                 foreach ($val as $rowKey => $rowVal) {
                     if (is_array($rowVal)) {
@@ -627,6 +676,100 @@ class TableCommand extends Command
                 echo ucfirst((string)$key) . ": {$val}\n";
             }
         }
+    }
+
+    /**
+     * Print data rows as formatted table.
+     *
+     * @param string $title
+     * @param array<int, array<string, mixed>> $rows
+     * @param int $maxWidth
+     */
+    protected function printDataTable(string $title, array $rows, int $maxWidth): void
+    {
+        if (empty($rows)) {
+            echo ucfirst($title) . ": (empty)\n";
+            return;
+        }
+
+        // Get all column names from first row
+        $columns = array_keys($rows[0]);
+        $numColumns = count($columns);
+
+        if ($numColumns === 0) {
+            return;
+        }
+
+        // Calculate column widths
+        $colWidths = [];
+        foreach ($columns as $col) {
+            $colWidths[$col] = strlen($col);
+        }
+
+        foreach ($rows as $row) {
+            foreach ($columns as $col) {
+                $value = $this->formatCellValue($row[$col] ?? null);
+                $colWidths[$col] = max($colWidths[$col], strlen($value));
+            }
+        }
+
+        // Adjust widths to fit maxWidth
+        $totalWidth = array_sum($colWidths) + ($numColumns - 1) * 3 + 4; // 3 for " | ", 4 for borders
+        if ($totalWidth > $maxWidth) {
+            $excess = $totalWidth - $maxWidth;
+            $avgReduction = (int)($excess / $numColumns);
+            foreach ($colWidths as $col => $width) {
+                $colWidths[$col] = max(3, $width - $avgReduction);
+            }
+        }
+
+        // Print header
+        echo "\n" . ucfirst($title) . ":\n";
+        echo str_repeat('=', min($maxWidth, $totalWidth)) . "\n";
+
+        // Print column headers
+        $headerParts = [];
+        foreach ($columns as $col) {
+            $headerParts[] = str_pad($col, $colWidths[$col], ' ', STR_PAD_RIGHT);
+        }
+        echo '| ' . implode(' | ', $headerParts) . " |\n";
+        echo str_repeat('-', min($maxWidth, $totalWidth)) . "\n";
+
+        // Print rows
+        foreach ($rows as $row) {
+            $rowParts = [];
+            foreach ($columns as $col) {
+                $value = $this->formatCellValue($row[$col] ?? null);
+                $value = mb_substr($value, 0, $colWidths[$col]) ?: '';
+                $rowParts[] = str_pad($value, $colWidths[$col], ' ', STR_PAD_RIGHT);
+            }
+            echo '| ' . implode(' | ', $rowParts) . " |\n";
+        }
+
+        echo str_repeat('=', min($maxWidth, $totalWidth)) . "\n";
+        echo 'Total rows: ' . count($rows) . "\n\n";
+    }
+
+    /**
+     * Format cell value for display.
+     *
+     * @param mixed $value
+     *
+     * @return string
+     */
+    protected function formatCellValue($value): string
+    {
+        if ($value === null) {
+            return '(null)';
+        }
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        if (is_array($value) || is_object($value)) {
+            $encoded = json_encode($value, JSON_UNESCAPED_SLASHES);
+            return $encoded !== false ? $encoded : '(invalid json)';
+        }
+        return (string)$value;
     }
 
     protected function showHelp(): int
@@ -642,12 +785,16 @@ class TableCommand extends Command
         echo "  rename <old> <new>                   Rename table\n";
         echo "  truncate <table>                     Truncate table\n";
         echo "  describe <table>                     Show detailed columns\n";
+        echo "  count <table>                        Show row count\n";
+        echo "  sample <table> [--limit=N]           Show sample data (default: 10 rows)\n";
+        echo "  select <table> [--limit=N]           Alias for sample\n";
         echo "  columns <op> <table> [...]           Manage columns (list/add/alter/drop)\n";
         echo "  indexes <op> <table> [...]           Manage indexes (list/add/drop)\n";
         echo "  keys <op> <table> [...]              Manage foreign keys (list/add/drop)\n";
         echo "  keys check                           Check foreign key integrity\n\n";
         echo "Options:\n";
-        echo "  --format=table|json|yaml             Output format (for info/list/describe)\n";
+        echo "  --format=table|json|yaml             Output format (for info/list/describe/sample)\n";
+        echo "  --limit=N                            Limit rows for sample/select (default: 10)\n";
         echo "  --force                              Execute without confirmation\n";
         echo "  --columns=\"col:type:nullable,...\"    Columns for create\n";
         echo "  --engine=, --charset=, --collation=, --comment=   Table options (dialect-specific)\n";

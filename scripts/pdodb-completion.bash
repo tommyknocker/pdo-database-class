@@ -187,7 +187,7 @@ _pdodb() {
 
     # Table command
     if [[ "${cmd}" == "table" ]]; then
-        local table_subcommands="info list exists create drop rename truncate describe columns indexes keys"
+        local table_subcommands="info list exists create drop rename truncate describe count sample select columns indexes keys"
         
         if [[ ${COMP_CWORD} -eq 2 ]]; then
             COMPREPLY=($(compgen -W "${table_subcommands} --help" -- "${cur}"))
@@ -198,12 +198,20 @@ _pdodb() {
              [[ "${subcmd}" == "drop" ]] || [[ "${subcmd}" == "truncate" ]] || \
              [[ "${subcmd}" == "describe" ]] || [[ "${subcmd}" == "columns" ]] || \
              [[ "${subcmd}" == "indexes" ]] || [[ "${subcmd}" == "keys" ]] || \
-             [[ "${subcmd}" == "rename" ]]; then
+             [[ "${subcmd}" == "rename" ]] || [[ "${subcmd}" == "count" ]]; then
             if [[ ${COMP_CWORD} -eq 3 ]]; then
                 # Complete table names
                 _pdodb_complete_tables
             else
                 local table_opts="--format=table --format=json --format=yaml --format --force --if-exists"
+                COMPREPLY=($(compgen -W "${table_opts}" -- "${cur}"))
+            fi
+        elif [[ "${subcmd}" == "sample" ]] || [[ "${subcmd}" == "select" ]]; then
+            if [[ ${COMP_CWORD} -eq 3 ]]; then
+                # Complete table names
+                _pdodb_complete_tables
+            else
+                local table_opts="--format=table --format=json --format=yaml --format --limit="
                 COMPREPLY=($(compgen -W "${table_opts}" -- "${cur}"))
             fi
         elif [[ "${subcmd}" == "create" ]]; then

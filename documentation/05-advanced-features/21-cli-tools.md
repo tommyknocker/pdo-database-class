@@ -113,6 +113,19 @@ vendor/bin/pdodb table truncate users --force
 # Describe columns
 vendor/bin/pdodb table describe users --format=yaml
 
+# Count rows
+vendor/bin/pdodb table count users
+
+# Show sample data (default: 10 rows, table format)
+vendor/bin/pdodb table sample users
+vendor/bin/pdodb table sample users --limit=5
+
+# Show sample data in JSON format
+vendor/bin/pdodb table sample users --format=json
+
+# Alias for sample
+vendor/bin/pdodb table select users --limit=20
+
 # Columns
 vendor/bin/pdodb table columns list users --format=json
 vendor/bin/pdodb table columns add users price --type=float
@@ -166,6 +179,41 @@ vendor/bin/pdodb table keys check
 - The `check` command verifies all foreign key constraints across all tables and reports orphaned records.
 - Options like ENGINE/CHARSET/COLLATION are dialect-specific and applied where supported.
 - If an operation is not supported by a dialect, a typed exception is thrown.
+
+#### Row Count and Sample Data
+
+Get row count and view sample data from tables:
+
+```bash
+# Count rows in a table
+vendor/bin/pdodb table count users
+
+# Show sample data (default: 10 rows, formatted table)
+vendor/bin/pdodb table sample users
+
+# Show sample data with custom limit
+vendor/bin/pdodb table sample users --limit=5
+
+# Show sample data in JSON format
+vendor/bin/pdodb table sample users --format=json
+
+# Show sample data in YAML format
+vendor/bin/pdodb table sample users --format=yaml
+
+# Use select alias (same as sample)
+vendor/bin/pdodb table select users --limit=20
+```
+
+**Options:**
+- `--limit=N` - Number of rows to show (default: 10)
+- `--format=table|json|yaml` - Output format (default: table)
+
+**Notes:**
+- The `count` command outputs only the number as a plain integer.
+- The `sample` command displays data in a formatted table by default (80 characters width).
+- Table format automatically adjusts column widths to fit within the terminal width.
+- Use `--format=json` or `--format=yaml` for structured output suitable for scripting.
+- The `select` command is an alias for `sample` and behaves identically.
 
 ## Configuration
 
