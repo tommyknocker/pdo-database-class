@@ -7,6 +7,131 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.10.3] - 2025-11-21
+
+### Added
+- **Project Initialization** (`pdodb init`) - Interactive wizard for quick project setup:
+  - Interactive configuration wizard for database connection settings
+  - Support for MySQL, PostgreSQL, SQLite, and MSSQL (SQLSRV) drivers
+  - Configuration file generation (`.env` or `config/db.php`)
+  - Automatic directory structure creation (migrations, models, repositories, services)
+  - Connection testing before saving configuration
+  - Advanced options (table prefix, caching, performance settings, multiple connections)
+  - Cache dependency validation with helpful warnings if dependencies are missing
+  - Fallback to array cache if selected cache type dependencies are unavailable
+
+- **Repository and Service Generators** (`pdodb repository`, `pdodb service`):
+  - `pdodb repository make <name>` - Generate repository classes with auto-detected model and table names
+  - `pdodb service make <name>` - Generate service classes with dependency injection
+  - Automatic primary key detection
+  - Support for `--namespace`, `--force`, and `--connection` options
+
+- **Cache Management Enhancements** (`pdodb cache`):
+  - `pdodb cache invalidate <pattern>` - Invalidate cache entries by pattern:
+    - `table:users` - Invalidate all cache entries for a specific table
+    - `table:users_*` - Invalidate cache entries for tables with prefix
+    - `pdodb_table_users_*` - Invalidate cache entries matching key pattern
+  - Cache type detection in `pdodb cache stats` output (Redis, APCu, Memcached, Filesystem, Array, Unknown)
+  - Universal cache type detection for all PSR-16 implementations (not just Symfony Cache)
+  - Persistent cache statistics with atomic operations (Redis INCR, Memcached increment, APCu apcu_inc)
+  - Optimistic locking with retry for non-atomic caches (Filesystem, Array)
+  - Cache metadata storage linking cache keys to table names for efficient invalidation
+
+- **Database Monitoring** (`pdodb monitor`):
+  - `pdodb monitor queries` - Show active queries
+  - `pdodb monitor connections` - Show active connections
+  - `pdodb monitor slow [threshold]` - Show slow queries (default threshold: 1.0 seconds)
+  - Cross-dialect support (MySQL, MariaDB, PostgreSQL, MSSQL, SQLite)
+
+- **Table Management Enhancements** (`pdodb table`):
+  - `pdodb table foreign-keys list <table>` - List foreign keys
+  - `pdodb table foreign-keys add <table>` - Add foreign key
+  - `pdodb table foreign-keys drop <table> <name>` - Drop foreign key
+
+- **Migration Dry-Run Improvements** (`pdodb migrate`):
+  - `pdodb migrate up --dry-run` now shows actual SQL queries that would be executed
+  - SQL queries are collected via event dispatcher during migration execution in transaction
+  - Transaction is rolled back after collecting SQL to prevent actual changes
+  - SQL queries are formatted with parameter substitution for readable output
+
+- **Bash Completion Script** (`scripts/pdodb-completion.bash`):
+  - Tab completion for all pdodb CLI commands and subcommands
+  - Completion for command options (`--force`, `--format`, `--connection`, etc.)
+  - Completion for cache subcommands (`clear`, `stats`, `invalidate`)
+  - Completion for migration, model, repository, service, and init commands
+
+- **Dialect-Specific DDL Query Builders**:
+  - MySQL-specific types: `enum()`, `set()`, `tinyInteger()`, `mediumInteger()`, `longText()`, `mediumText()`, `binary()`, `varbinary()`, `blob()` variants, `year()`, optimized `uuid()` (CHAR(36)), `boolean()` (TINYINT(1))
+  - PostgreSQL-specific types: `uuid()`, `jsonb()`, `serial()`, `bigSerial()`, `inet()`, `cidr()`, `macaddr()`, `tsvector()`, `tsquery()`, `bytea()`, `money()`, `interval()`, `array()`, geometric types (`point()`, `line()`, `polygon()`, `circle()`, etc.)
+  - MSSQL-specific types: `uniqueidentifier()`, `nvarchar()`, `nchar()`, `ntext()`, `money()`, `smallMoney()`, `datetime2()`, `smallDatetime()`, `datetimeOffset()`, `time()`, `binary()`, `varbinary()`, `image()`, `real()`, `xml()`, `geography()`, `geometry()`, `hierarchyid()`, `sqlVariant()`
+  - SQLite-specific type mappings for all types
+  - MariaDB inherits MySQL types with potential for MariaDB-specific extensions
+
+- **CLI Version Auto-Detection**:
+  - CLI version now automatically detected from git tags using `Composer\InstalledVersions` or `git describe`
+  - Falls back to `composer.json` version if git is not available
+  - Removes `-dev` suffix for clean version display
+
+### Changed
+- **Architecture Refactoring** - Moved dialect-specific logic from common classes to dialect implementations:
+  - Monitoring methods (`getActiveQueries`, `getActiveConnections`, `getSlowQueries`) moved to `DialectInterface`
+  - Table listing (`listTables`) moved to `DialectInterface`
+  - Error handling methods (`getRetryableErrorCodes`, `getErrorDescription`) moved to `DialectInterface`
+  - DML operations (`getInsertSelectColumns`) moved to `DialectInterface`
+  - Configuration methods (`buildConfigFromEnv`, `normalizeConfigParams`) moved to `DialectInterface`
+  - Concatenation formatting (`formatConcatExpression`) moved to `DialectInterface`
+  - Removed `match/case` and `if` statements based on specific dialects from common classes
+  - Follows Open/Closed Principle - new dialects can be added without modifying common classes
+
+- **MSSQL Driver Standardization**:
+  - Removed `mssql` alias, use only `sqlsrv` driver name everywhere
+  - Renamed `config.mssql.php` to `config.sqlsrv.php`
+  - Updated all examples, documentation, and tests to use `sqlsrv` instead of `mssql`
+  - Updated `DialectRegistry` to remove `mssql` alias
+
+- **CLI Command Organization**:
+  - Commands sorted by logical groups with `init` at the top
+  - Grouped commands: Project initialization, Migrations, Code generation, Database management, Development tools, Monitoring and performance, Utilities
+
+- **Environment Variables Standardization**:
+  - Standardized all environment variables from `DB_*` to `PDODB_*` in CI/CD workflows
+  - Updated GitHub Actions workflow (`tests.yml`) to use `PDODB_*` variables
+  - Removed fallback to `DB_*` variables in `BaseCliCommand` and `InitWizard`
+
+- **Migration Dry-Run Behavior**:
+  - `pdodb migrate up --dry-run` now executes migrations in transaction to collect actual SQL
+  - Previously only showed comments like "Would execute migration.up()"
+  - Now shows real SQL queries (CREATE TABLE, INSERT, etc.) that would be executed
+
+- **README Updates**:
+  - Added `pdodb init` as the fastest way to get started
+  - Updated quick start guide to highlight interactive wizard
+  - Updated examples to use `sqlsrv` instead of `mssql`
+
+### Fixed
+- **Cache Factory**:
+  - Handle Redis connection errors gracefully (return null instead of throwing exception)
+  - Improved error handling for missing Redis/Memcached extensions
+
+- **MSSQL Monitoring Example**:
+  - Fixed MSSQL monitoring example failing in GitHub Actions
+  - Standardized environment variable names to `PDODB_*`
+
+- **Configuration Loading**:
+  - Fixed `database` vs `dbname` parameter normalization for PostgreSQL and MSSQL
+  - Ensured `dbname` is required everywhere (not `database`)
+  - Fixed `InitWizard` connection test to properly normalize parameters
+
+- **CLI Prompts**:
+  - Fixed duplicate default values in prompts (e.g., `Select [1] [1]:` → `Select [1]:`)
+  - Removed hardcoded default values from prompt strings
+
+### Technical Details
+- **All tests passing**: 2491 tests, 8468 assertions across all dialects
+- **Test coverage**: Added tests for SQL collection in dry-run mode, cache dependency validation, dialect-specific schema builders
+- **Code quality**: PHPStan level 9, PHP-CS-Fixer compliant
+- **Full backward compatibility**: 100% maintained (except removed `mssql` alias)
+
 ## [2.10.2] - 2025-11-18
 
 ### Added
@@ -1589,7 +1714,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.2...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.3...HEAD
+[2.10.3]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.2...v2.10.3
 [2.10.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.1...v2.10.2
 [2.10.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.0...v2.10.1
 [2.10.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.9.3...v2.10.0
