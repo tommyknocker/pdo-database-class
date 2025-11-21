@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli;
 
+use tommyknocker\pdodb\cache\CacheFactory;
 use tommyknocker\pdodb\cli\commands\InitCommand;
 use tommyknocker\pdodb\connection\DialectRegistry;
 use tommyknocker\pdodb\PdoDb;
@@ -296,13 +297,14 @@ class InitWizard extends BaseCliCommand
             // Normalize database -> dbname for all dialects (except SQLite which uses 'path')
             // All dialects require 'dbname' parameter for buildDsn()
             $testConfig = $this->config;
-            if (($testConfig['driver'] ?? '') !== 'sqlite') {
+            $driver = isset($testConfig['driver']) && is_string($testConfig['driver']) ? $testConfig['driver'] : null;
+            if ($driver !== 'sqlite') {
                 if (isset($testConfig['database']) && !isset($testConfig['dbname'])) {
                     $testConfig['dbname'] = $testConfig['database'];
                 }
             }
 
-            $db = new PdoDb($testConfig['driver'], $testConfig);
+            $db = new PdoDb($driver, $testConfig);
             // Try a simple query
             $db->rawQuery('SELECT 1');
             static::success('Connection successful!');
@@ -437,7 +439,6 @@ class InitWizard extends BaseCliCommand
         if (!in_array($cacheType, $cacheTypes, true)) {
             $cacheType = 'filesystem';
         }
-        $this->config['cache']['type'] = $cacheType;
 
         switch ($cacheType) {
             case 'filesystem':
@@ -473,11 +474,69 @@ class InitWizard extends BaseCliCommand
                 break;
         }
 
+        // Validate cache dependencies
+        if ($cacheType !== 'array') {
+            // $this->config['cache'] is always an array after line 432
+            $cacheSection = $this->config['cache'];
+            $testCacheConfig = [
+                'type' => $cacheType,
+                'directory' => isset($cacheSection['directory']) && is_string($cacheSection['directory']) ? $cacheSection['directory'] : null,
+                'host' => isset($cacheSection['host']) && is_string($cacheSection['host']) ? $cacheSection['host'] : null,
+                'port' => isset($cacheSection['port']) && is_int($cacheSection['port']) ? $cacheSection['port'] : null,
+                'database' => isset($cacheSection['database']) && is_int($cacheSection['database']) ? $cacheSection['database'] : null,
+                'password' => isset($cacheSection['password']) && is_string($cacheSection['password']) ? $cacheSection['password'] : null,
+                'servers' => isset($cacheSection['servers']) && is_array($cacheSection['servers']) ? $cacheSection['servers'] : null,
+            ];
+            $testCache = CacheFactory::create($testCacheConfig);
+
+            if ($testCache === null) {
+                echo "\n";
+                static::warning("Warning: Cannot create {$cacheType} cache. Required dependencies may be missing:");
+                switch ($cacheType) {
+                    case 'filesystem':
+                        static::warning('  - symfony/cache package');
+                        break;
+                    case 'apcu':
+                        static::warning('  - ext-apcu extension');
+                        static::warning('  - symfony/cache package');
+                        break;
+                    case 'redis':
+                        static::warning('  - ext-redis extension');
+                        static::warning('  - symfony/cache package');
+                        break;
+                    case 'memcached':
+                        static::warning('  - ext-memcached extension');
+                        static::warning('  - symfony/cache package');
+                        break;
+                }
+                echo "\n";
+
+                $continue = static::readConfirmation('  Continue anyway? (cache will be disabled)', false);
+                if (!$continue) {
+                    $this->config['cache'] = ['enabled' => false];
+                    return;
+                }
+                // Fallback to array cache
+                $cacheType = 'array';
+                static::info('  Falling back to array cache (in-memory only)');
+            }
+        }
+
+        // Ensure cache config is an array (it should be after line 432, but PHPStan needs this)
+        if (!is_array($this->config['cache'])) {
+            $this->config['cache'] = [];
+        }
+        /** @var array<string, mixed> $cacheConfig */
+        $cacheConfig = $this->config['cache'];
+        $cacheConfig['type'] = $cacheType;
+
         $ttl = static::readInput('  Default cache TTL (seconds)', '3600');
-        $this->config['cache']['default_lifetime'] = (int)$ttl;
+        $cacheConfig['default_lifetime'] = (int)$ttl;
 
         $prefix = static::readInput('  Cache key prefix', 'pdodb_');
-        $this->config['cache']['prefix'] = $prefix !== '' ? $prefix : 'pdodb_';
+        $cacheConfig['prefix'] = $prefix !== '' ? $prefix : 'pdodb_';
+
+        $this->config['cache'] = $cacheConfig;
     }
 
     /**
