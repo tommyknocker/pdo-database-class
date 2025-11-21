@@ -213,8 +213,17 @@ class MigrationRunner
             $newMigrations = array_slice($newMigrations, 0, $limit);
         }
 
-        // In dry-run or pretend mode, just return the list without executing
-        if ($this->dryRun || $this->pretend) {
+        // In dry-run mode, execute migrations in transaction to collect SQL
+        if ($this->dryRun) {
+            $this->clearCollectedQueries();
+            foreach ($newMigrations as $version) {
+                $this->migrateUp($version);
+            }
+            return $newMigrations;
+        }
+
+        // In pretend mode, just return the list without executing
+        if ($this->pretend) {
             $this->clearCollectedQueries();
             $batch = $this->getNextBatchNumber();
 
@@ -413,8 +422,32 @@ class MigrationRunner
             return; // Already applied
         }
 
-        // In dry-run or pretend mode, just collect info without executing
-        if ($this->dryRun || $this->pretend) {
+        // In dry-run mode, execute migration in transaction and collect SQL
+        if ($this->dryRun) {
+            $this->collectedQueries[] = "-- Migration: {$version}";
+            $this->collectedQueries[] = '';
+
+            try {
+                $this->db->startTransaction();
+                $migration = $this->loadMigration($version);
+
+                // Collect SQL queries during migration execution
+                $this->collectMigrationSql($migration, $version);
+
+                $this->db->rollback(); // Always rollback in dry-run mode
+            } catch (\Throwable $e) {
+                // Rollback if transaction is still active
+                if ($this->db->connection->inTransaction()) {
+                    $this->db->rollback();
+                }
+                // Still collect the error as a comment
+                $this->collectedQueries[] = '-- Error: ' . $e->getMessage();
+            }
+            return;
+        }
+
+        // In pretend mode, just collect info without executing
+        if ($this->pretend) {
             $batch = $this->getNextBatchNumber();
             $this->collectedQueries[] = "-- Migration: {$version}";
             $this->collectedQueries[] = '-- Would execute migration.up()';
@@ -439,6 +472,125 @@ class MigrationRunner
                 $previous
             );
         }
+    }
+
+    /**
+     * Collect SQL queries from migration execution.
+     *
+     * @param Migration $migration Migration instance
+     * @param string $version Migration version
+     */
+    protected function collectMigrationSql(Migration $migration, string $version): void
+    {
+        // Create SQL collector
+        $sqlCollector = new SqlQueryCollector();
+
+        // Set up event dispatcher with SQL collector if available
+        $originalDispatcher = $this->db->getEventDispatcher();
+        $collectorDispatcher = null;
+        $connection = $this->db->connection;
+        $originalConnectionDispatcher = $connection->getEventDispatcher();
+
+        if (interface_exists(\Psr\EventDispatcher\EventDispatcherInterface::class)) {
+            // Create a simple event dispatcher that collects SQL queries
+            $collectorDispatcher = new class ($sqlCollector) implements \Psr\EventDispatcher\EventDispatcherInterface {
+                public function __construct(
+                    private SqlQueryCollector $collector
+                ) {
+                }
+
+                public function dispatch(object $event): object
+                {
+                    if ($event instanceof \tommyknocker\pdodb\events\QueryExecutedEvent) {
+                        $this->collector->handleQueryExecuted($event);
+                    }
+                    return $event;
+                }
+            };
+
+            // Temporarily set the collector dispatcher
+            $this->db->setEventDispatcher($collectorDispatcher);
+            $connection->setEventDispatcher($collectorDispatcher);
+        }
+
+        try {
+            // Execute migration - SQL will be collected via event dispatcher
+            $migration->up();
+
+            // Collect SQL from the collector
+            $collectedSql = $sqlCollector->getQueries();
+            if (!empty($collectedSql)) {
+                $this->collectedQueries = array_merge($this->collectedQueries, $collectedSql);
+            } else {
+                // Fallback: try to get SQL from connection's lastQuery
+                $lastQuery = $this->db->lastQuery;
+                if ($lastQuery !== null && $lastQuery !== '') {
+                    $this->collectedQueries[] = $lastQuery;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Migration failed, but we still want to show what SQL was attempted
+            $this->collectedQueries[] = '-- Error during migration execution: ' . $e->getMessage();
+
+            // Still try to collect any SQL that was executed before the error
+            $collectedSql = $sqlCollector->getQueries();
+            if (!empty($collectedSql)) {
+                $this->collectedQueries = array_merge($this->collectedQueries, $collectedSql);
+            }
+        } finally {
+            // Restore original event dispatcher
+            if ($collectorDispatcher !== null) {
+                $this->db->setEventDispatcher($originalDispatcher);
+                $connection->setEventDispatcher($originalConnectionDispatcher);
+            }
+        }
+
+        // Add migration record SQL
+        $batch = $this->getNextBatchNumber();
+        $schema = $this->db->schema();
+        $dialect = $schema->getDialect();
+        [$insertSql, $insertParams] = $dialect->buildMigrationInsertSql($this->migrationTable, $version, $batch);
+
+        // Format SQL with parameters
+        $formattedSql = $this->formatSqlWithParams($insertSql, $insertParams);
+        $this->collectedQueries[] = '';
+        $this->collectedQueries[] = "-- Would record migration in batch {$batch}";
+        $this->collectedQueries[] = $formattedSql;
+    }
+
+    /**
+     * Format SQL query with parameters.
+     *
+     * @param string $sql SQL query
+     * @param array<int|string, mixed> $params Query parameters
+     *
+     * @return string Formatted SQL
+     */
+    protected function formatSqlWithParams(string $sql, array $params): string
+    {
+        if (empty($params)) {
+            return $sql;
+        }
+
+        // Simple parameter replacement for display
+        $formatted = $sql;
+        foreach ($params as $key => $value) {
+            $placeholder = is_int($key) ? '?' : ':' . $key;
+            if (is_string($value)) {
+                $formattedValue = "'" . addslashes($value) . "'";
+            } elseif (is_int($value) || is_float($value)) {
+                $formattedValue = (string)$value;
+            } elseif (is_bool($value)) {
+                $formattedValue = $value ? '1' : '0';
+            } elseif ($value === null) {
+                $formattedValue = 'NULL';
+            } else {
+                $formattedValue = "'" . addslashes((string)$value) . "'";
+            }
+            $formatted = str_replace($placeholder, $formattedValue, $formatted);
+        }
+
+        return $formatted;
     }
 
     /**

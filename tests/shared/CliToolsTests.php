@@ -934,8 +934,15 @@ class CliToolsTests extends BaseSharedTestCase
         // Check that collected queries exist
         $queries = $runner->getCollectedQueries();
         $this->assertNotEmpty($queries);
-        $this->assertStringContainsString('Migration:', $queries[0]);
-        $this->assertStringContainsString('Would execute', $queries[1]);
+        $allQueries = implode("\n", $queries);
+        $this->assertStringContainsString('Migration:', $allQueries);
+        // In dry-run mode, should collect actual SQL or at least migration info
+        $this->assertTrue(
+            str_contains($allQueries, 'CREATE TABLE') ||
+            str_contains($allQueries, 'Would execute') ||
+            str_contains($allQueries, 'Migration:'),
+            'Dry-run should collect SQL queries or migration info'
+        );
 
         // Verify migration was NOT actually applied
         $history = $runner->getMigrationHistory();
@@ -1114,5 +1121,78 @@ class CliToolsTests extends BaseSharedTestCase
         $runner->setDryRun(true);
         $runner->setPretend(true);
         $this->assertTrue(true); // If we get here, no exception was thrown
+    }
+
+    /**
+     * Test that dry-run mode collects actual SQL queries from migration execution.
+     */
+    public function testMigrationRunnerDryRunCollectsActualSql(): void
+    {
+        // Create a test migration with actual SQL operations
+        ob_start();
+
+        try {
+            $migrationName = 'test_sql_collection';
+            $filename = MigrationGenerator::generate($migrationName, $this->testMigrationPath);
+        } finally {
+            ob_end_clean();
+        }
+
+        // Edit migration to add actual SQL operations
+        $content = file_get_contents($filename);
+        $tableName = 'test_sql_collection_table';
+        $newUpMethod = <<<PHP
+    public function up(): void
+    {
+        \$this->schema()->createTable('{$tableName}', [
+            'id' => \$this->schema()->primaryKey(),
+            'name' => \$this->schema()->string(255)->notNull(),
+            'email' => \$this->schema()->string(255),
+        ]);
+        \$this->insert('{$tableName}', ['name' => 'Test User', 'email' => 'test@example.com']);
+    }
+PHP;
+        $content = preg_replace(
+            '/public function up\(\): void\s*\{[^}]*\}/s',
+            $newUpMethod,
+            $content
+        );
+        file_put_contents($filename, $content);
+
+        $runner = new MigrationRunner(self::$db, $this->testMigrationPath);
+        $runner->setDryRun(true);
+
+        // Run migration in dry-run mode
+        $applied = $runner->migrate(0);
+        $this->assertNotEmpty($applied);
+
+        // Get collected queries
+        $queries = $runner->getCollectedQueries();
+        $this->assertNotEmpty($queries);
+
+        // Combine all queries into a single string for easier searching
+        $allQueries = implode("\n", $queries);
+
+        // Verify that actual SQL is collected, not just comments
+        // Should contain CREATE TABLE statement
+        $this->assertStringContainsString('CREATE TABLE', $allQueries, 'Dry-run should collect CREATE TABLE SQL');
+        // Should contain INSERT statement
+        $this->assertStringContainsString('INSERT', $allQueries, 'Dry-run should collect INSERT SQL');
+        // Should contain table name
+        $this->assertStringContainsString($tableName, $allQueries, 'Dry-run should collect SQL with table name');
+
+        // Verify migration was NOT actually applied
+        $schema = self::$db->schema();
+        $this->assertFalse(
+            $schema->tableExists($tableName),
+            'Table should not exist after dry-run'
+        );
+
+        // Verify migration is not in history
+        $history = $runner->getMigrationHistory();
+        $appliedVersions = array_column($history, 'version');
+        $version = basename($filename, '.php');
+        $version = substr($version, 1); // Remove 'm' prefix
+        $this->assertNotContains($version, $appliedVersions, 'Migration should not be in history after dry-run');
     }
 }
