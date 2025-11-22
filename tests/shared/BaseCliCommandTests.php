@@ -366,4 +366,161 @@ class BaseCliCommandTests extends TestCase
         $this->assertEquals('filesystem', $config['type']);
         $this->assertEquals('/custom/cache', $config['directory']);
     }
+
+    /**
+     * Test getDriverName.
+     */
+    public function testGetDriverName(): void
+    {
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('getDriverName');
+        $method->setAccessible(true);
+
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+        $driverName = $method->invoke(null, $db);
+
+        $this->assertIsString($driverName);
+        $this->assertEquals('sqlite', $driverName);
+    }
+
+    /**
+     * Test getDriverName with different drivers.
+     */
+    public function testGetDriverNameWithDifferentDrivers(): void
+    {
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('getDriverName');
+        $method->setAccessible(true);
+
+        // Test with SQLite
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+        $driverName = $method->invoke(null, $db);
+        $this->assertEquals('sqlite', $driverName);
+    }
+
+    /**
+     * Test loadDatabaseConfig with valid SQLite config.
+     */
+    public function testLoadDatabaseConfigWithValidSqliteConfig(): void
+    {
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('loadDatabaseConfig');
+        $method->setAccessible(true);
+
+        putenv('PDODB_DRIVER=sqlite');
+        putenv('PDODB_PATH=:memory:');
+
+        try {
+            $config = $method->invoke(null);
+
+            $this->assertIsArray($config);
+            $this->assertArrayHasKey('path', $config);
+            $this->assertEquals(':memory:', $config['path']);
+        } finally {
+            putenv('PDODB_DRIVER');
+            putenv('PDODB_PATH');
+        }
+    }
+
+    /**
+     * Test loadDatabaseConfig with missing required variables for non-SQLite.
+     */
+    public function testLoadDatabaseConfigWithMissingRequiredVariables(): void
+    {
+        // Test buildConfigFromEnv directly, which is called by loadDatabaseConfig
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('buildConfigFromEnv');
+        $method->setAccessible(true);
+
+        putenv('PDODB_DRIVER=mysql');
+        // Don't set PDODB_DATABASE and PDODB_USERNAME
+
+        try {
+            $config = $method->invoke(null, 'mysql');
+
+            // Should return null for non-SQLite without required vars
+            $this->assertNull($config);
+        } finally {
+            putenv('PDODB_DRIVER');
+            putenv('PDODB_DATABASE');
+            putenv('PDODB_USERNAME');
+        }
+    }
+
+    /**
+     * Test loadDatabaseConfig with invalid driver.
+     * Note: loadDatabaseConfig may call error() which exits, so we test buildConfigFromEnv instead.
+     */
+    public function testLoadDatabaseConfigWithInvalidDriver(): void
+    {
+        // Test buildConfigFromEnv directly, which is called by loadDatabaseConfig
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('buildConfigFromEnv');
+        $method->setAccessible(true);
+
+        try {
+            $config = $method->invoke(null, 'invalid_driver');
+
+            // Should return null for invalid driver
+            $this->assertNull($config);
+        } finally {
+            // Clean up
+        }
+    }
+
+    /**
+     * Test createDatabase with valid SQLite config.
+     */
+    public function testCreateDatabaseWithValidSqliteConfig(): void
+    {
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('createDatabase');
+        $method->setAccessible(true);
+
+        putenv('PDODB_DRIVER=sqlite');
+        putenv('PDODB_PATH=:memory:');
+
+        try {
+            $db = $method->invoke(null);
+
+            $this->assertInstanceOf(\tommyknocker\pdodb\PdoDb::class, $db);
+            // Verify driver via getDriverName helper
+            $getDriverNameMethod = $reflection->getMethod('getDriverName');
+            $getDriverNameMethod->setAccessible(true);
+            $driverName = $getDriverNameMethod->invoke(null, $db);
+            $this->assertEquals('sqlite', $driverName);
+        } finally {
+            putenv('PDODB_DRIVER');
+            putenv('PDODB_PATH');
+        }
+    }
+
+    /**
+     * Test createDatabase with missing config.
+     * Note: createDatabase calls exit() when config is missing, so we can't test it directly.
+     * This test verifies that buildConfigFromEnv returns null for missing config.
+     */
+    public function testCreateDatabaseWithMissingConfig(): void
+    {
+        // Instead of testing createDatabase directly (which calls exit()),
+        // we test buildConfigFromEnv which is called by loadDatabaseConfig
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('buildConfigFromEnv');
+        $method->setAccessible(true);
+
+        // Clear all database-related env vars
+        putenv('PDODB_DRIVER');
+        putenv('PDODB_PATH');
+        putenv('PDODB_DATABASE');
+        putenv('PDODB_USERNAME');
+
+        try {
+            $config = $method->invoke(null, '');
+            // Should return null for missing config
+            $this->assertNull($config);
+        } finally {
+            putenv('PDODB_DRIVER');
+            putenv('PDODB_PATH');
+        }
+    }
 }

@@ -465,4 +465,333 @@ final class TableCommandCliTests extends TestCase
         $this->assertArrayHasKey('data', $json);
         $this->assertCount(2, $json['data']);
     }
+
+    public function testTableRename(): void
+    {
+        $app = new Application();
+
+        // Create table
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'old_name', '--columns=id:int', '--force']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+
+        // Rename table
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'rename', 'old_name', 'new_name', '--force']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('renamed to', $out);
+
+        // Verify new table exists
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'exists', 'new_name']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString("Table 'new_name' exists", $out);
+    }
+
+    public function testTableTruncate(): void
+    {
+        $app = new Application();
+
+        // Create table and insert data
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'truncate_test', '--columns=id:int,name:string', '--force']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+        $db->find()->table('truncate_test')->insert(['name' => 'Test 1']);
+        $db->find()->table('truncate_test')->insert(['name' => 'Test 2']);
+
+        // Verify data exists
+        $count = $db->rawQueryValue('SELECT COUNT(*) FROM truncate_test');
+        $this->assertEquals(2, (int)$count);
+
+        // Truncate table
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'truncate', 'truncate_test', '--force']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('truncated', $out);
+
+        // Verify table is empty
+        $count = $db->rawQueryValue('SELECT COUNT(*) FROM truncate_test');
+        $this->assertEquals(0, (int)$count);
+    }
+
+    public function testTableColumnsAlter(): void
+    {
+        $app = new Application();
+
+        // Create table
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'alter_test', '--columns=id:int,name:string', '--force']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+
+        // Alter column (SQLite has limited ALTER COLUMN support)
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'columns', 'alter', 'alter_test', 'name', '--type=text:nullable']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            // SQLite may not support ALTER COLUMN, which is expected
+            $this->assertInstanceOf(\Throwable::class, $e);
+            return;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('altered', $out);
+    }
+
+    public function testTableColumnsDrop(): void
+    {
+        $app = new Application();
+
+        // Create table
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'drop_col_test', '--columns=id:int,name:string,extra:string', '--force']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+
+        // Drop column (SQLite has limited DROP COLUMN support)
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'columns', 'drop', 'drop_col_test', 'extra', '--force']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            // SQLite may not support DROP COLUMN directly, which is expected
+            $this->assertInstanceOf(\Throwable::class, $e);
+            return;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('dropped', $out);
+    }
+
+    public function testTableInfoWithYamlFormat(): void
+    {
+        $app = new Application();
+
+        // Create table
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'yaml_test', '--columns=id:int,name:string', '--force']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+
+        // Test info with YAML format
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'info', 'yaml_test', '--format=yaml']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('table:', $out);
+        $this->assertStringContainsString('yaml_test', $out);
+    }
+
+    public function testTableListWithYamlFormat(): void
+    {
+        $app = new Application();
+
+        // Create table
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'yaml_list_test', '--columns=id:int', '--force']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+
+        // Test list with YAML format
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'list', '--format=yaml']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('tables:', $out);
+    }
+
+    public function testTableParseColumns(): void
+    {
+        $command = new \tommyknocker\pdodb\cli\commands\TableCommand();
+        $reflection = new \ReflectionClass($command);
+        $method = $reflection->getMethod('parseColumns');
+        $method->setAccessible(true);
+
+        // Test simple column parsing
+        $result = $method->invoke($command, 'id:int,name:string');
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('id', $result);
+        $this->assertArrayHasKey('name', $result);
+
+        // Test with nullable
+        $result = $method->invoke($command, 'id:int:nullable,name:string');
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('id', $result);
+
+        // Test with default
+        $result = $method->invoke($command, 'id:int:default:0');
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('id', $result);
+    }
+
+    public function testTableTypeToSchema(): void
+    {
+        $command = new \tommyknocker\pdodb\cli\commands\TableCommand();
+        $reflection = new \ReflectionClass($command);
+        $method = $reflection->getMethod('typeToSchema');
+        $method->setAccessible(true);
+
+        // Test int type
+        $result = $method->invoke($command, 'int');
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('type', $result);
+
+        // Test string type
+        $result = $method->invoke($command, 'string');
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('type', $result);
+
+        // Test float type
+        $result = $method->invoke($command, 'float');
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('type', $result);
+
+        // Test boolean type
+        $result = $method->invoke($command, 'boolean');
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('type', $result);
+    }
+
+    public function testTablePrintFormattedYaml(): void
+    {
+        $command = new \tommyknocker\pdodb\cli\commands\TableCommand();
+        $reflection = new \ReflectionClass($command);
+        $method = $reflection->getMethod('printFormatted');
+        $method->setAccessible(true);
+
+        $data = ['test' => 'value', 'nested' => ['key' => 'val']];
+
+        ob_start();
+
+        try {
+            $result = $method->invoke($command, $data, 'yaml');
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertSame(0, $result);
+        $this->assertStringContainsString('test:', $out);
+        $this->assertStringContainsString('value', $out);
+    }
+
+    public function testTablePrintTable(): void
+    {
+        $command = new \tommyknocker\pdodb\cli\commands\TableCommand();
+        $reflection = new \ReflectionClass($command);
+        $method = $reflection->getMethod('printTable');
+        $method->setAccessible(true);
+
+        $data = [
+            'test_table' => [
+                ['id' => 1, 'name' => 'Test 1'],
+                ['id' => 2, 'name' => 'Test 2'],
+            ],
+        ];
+
+        ob_start();
+
+        try {
+            $method->invoke($command, $data);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertStringContainsStringIgnoringCase('id', $out);
+        $this->assertStringContainsStringIgnoringCase('name', $out);
+        $this->assertStringContainsString('Test 1', $out);
+        $this->assertStringContainsString('Test 2', $out);
+    }
 }

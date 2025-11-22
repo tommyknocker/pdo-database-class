@@ -198,4 +198,177 @@ final class MonitorManagerTests extends TestCase
         $result = MonitorManager::getQueryStats($db);
         $this->assertNull($result);
     }
+
+    public function testGetActiveQueriesMySQL(): void
+    {
+        // Test MySQL-specific method via reflection
+        // Note: This will only work if we have a MySQL connection
+        // For now, we test the method exists and has correct signature
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $this->assertTrue($reflection->hasMethod('getActiveQueriesMySQL'));
+        $method = $reflection->getMethod('getActiveQueriesMySQL');
+        $this->assertTrue($method->isProtected());
+        $this->assertTrue($method->isStatic());
+    }
+
+    public function testGetActiveConnectionsMySQL(): void
+    {
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $this->assertTrue($reflection->hasMethod('getActiveConnectionsMySQL'));
+        $method = $reflection->getMethod('getActiveConnectionsMySQL');
+        $this->assertTrue($method->isProtected());
+        $this->assertTrue($method->isStatic());
+    }
+
+    public function testGetSlowQueriesMySQL(): void
+    {
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $this->assertTrue($reflection->hasMethod('getSlowQueriesMySQL'));
+        $method = $reflection->getMethod('getSlowQueriesMySQL');
+        $this->assertTrue($method->isProtected());
+        $this->assertTrue($method->isStatic());
+    }
+
+    public function testGetActiveQueriesPostgreSQL(): void
+    {
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $this->assertTrue($reflection->hasMethod('getActiveQueriesPostgreSQL'));
+        $method = $reflection->getMethod('getActiveQueriesPostgreSQL');
+        $this->assertTrue($method->isProtected());
+        $this->assertTrue($method->isStatic());
+    }
+
+    public function testGetActiveConnectionsPostgreSQL(): void
+    {
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $this->assertTrue($reflection->hasMethod('getActiveConnectionsPostgreSQL'));
+        $method = $reflection->getMethod('getActiveConnectionsPostgreSQL');
+        $this->assertTrue($method->isProtected());
+        $this->assertTrue($method->isStatic());
+    }
+
+    public function testGetSlowQueriesPostgreSQL(): void
+    {
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $this->assertTrue($reflection->hasMethod('getSlowQueriesPostgreSQL'));
+        $method = $reflection->getMethod('getSlowQueriesPostgreSQL');
+        $this->assertTrue($method->isProtected());
+        $this->assertTrue($method->isStatic());
+    }
+
+    public function testGetActiveQueriesMSSQL(): void
+    {
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $this->assertTrue($reflection->hasMethod('getActiveQueriesMSSQL'));
+        $method = $reflection->getMethod('getActiveQueriesMSSQL');
+        $this->assertTrue($method->isProtected());
+        $this->assertTrue($method->isStatic());
+    }
+
+    public function testGetActiveConnectionsMSSQL(): void
+    {
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $this->assertTrue($reflection->hasMethod('getActiveConnectionsMSSQL'));
+        $method = $reflection->getMethod('getActiveConnectionsMSSQL');
+        $this->assertTrue($method->isProtected());
+        $this->assertTrue($method->isStatic());
+    }
+
+    public function testGetSlowQueriesMSSQL(): void
+    {
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $this->assertTrue($reflection->hasMethod('getSlowQueriesMSSQL'));
+        $method = $reflection->getMethod('getSlowQueriesMSSQL');
+        $this->assertTrue($method->isProtected());
+        $this->assertTrue($method->isStatic());
+    }
+
+    public function testGetSlowQueriesWithVariousThresholds(): void
+    {
+        $this->db->enableProfiling();
+        $this->db->rawQuery('SELECT * FROM test_table');
+        $this->db->rawQuery('SELECT COUNT(*) FROM test_table');
+
+        // Test with very low threshold
+        $result1 = MonitorManager::getSlowQueries($this->db, 0.000001, 10);
+        $this->assertIsArray($result1);
+
+        // Test with high threshold
+        $result2 = MonitorManager::getSlowQueries($this->db, 1000.0, 10);
+        $this->assertIsArray($result2);
+
+        // Test with different limits
+        $result3 = MonitorManager::getSlowQueries($this->db, 0.000001, 1);
+        $this->assertIsArray($result3);
+        $this->assertLessThanOrEqual(1, count($result3));
+    }
+
+    public function testGetActiveConnectionsWithSummary(): void
+    {
+        $result = MonitorManager::getActiveConnections($this->db);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('connections', $result);
+        $this->assertArrayHasKey('summary', $result);
+        $this->assertIsArray($result['summary']);
+        $this->assertArrayHasKey('current', $result['summary']);
+        $this->assertArrayHasKey('max', $result['summary']);
+        $this->assertArrayHasKey('usage_percent', $result['summary']);
+        $this->assertIsInt($result['summary']['current']);
+        $this->assertIsInt($result['summary']['max']);
+        // usage_percent can be int (0) or float
+        $this->assertTrue(
+            is_int($result['summary']['usage_percent']) || is_float($result['summary']['usage_percent'])
+        );
+    }
+
+    public function testToStringWithEdgeCases(): void
+    {
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $method = $reflection->getMethod('toString');
+        $method->setAccessible(true);
+
+        // Test empty string
+        $this->assertEquals('', $method->invoke(null, ''));
+
+        // Test object with __toString
+        $obj = new class () {
+            public function __toString(): string
+            {
+                return 'object_string';
+            }
+        };
+        $this->assertEquals('', $method->invoke(null, $obj)); // toString only handles string/int/float
+
+        // Test resource
+        $resource = fopen('php://memory', 'r');
+        if ($resource !== false) {
+            $this->assertEquals('', $method->invoke(null, $resource));
+            fclose($resource);
+        }
+    }
+
+    public function testToFloatWithEdgeCases(): void
+    {
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $method = $reflection->getMethod('toFloat');
+        $method->setAccessible(true);
+
+        // Test empty string
+        $this->assertEquals(0.0, $method->invoke(null, ''));
+
+        // Test negative number
+        $this->assertEquals(-123.45, $method->invoke(null, -123.45));
+        $this->assertEquals(-123.0, $method->invoke(null, -123));
+        $this->assertEquals(-123.45, $method->invoke(null, '-123.45'));
+
+        // Test zero
+        $this->assertEquals(0.0, $method->invoke(null, 0));
+        $this->assertEquals(0.0, $method->invoke(null, '0'));
+        $this->assertEquals(0.0, $method->invoke(null, 0.0));
+
+        // Test very large number
+        $this->assertEquals(999999.0, $method->invoke(null, 999999));
+        $this->assertEquals(999999.0, $method->invoke(null, '999999'));
+    }
 }
