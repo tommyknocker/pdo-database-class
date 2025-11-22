@@ -186,4 +186,89 @@ final class RetryableConnectionTests extends BaseSharedTestCase
         $this->assertCount(1, $result);
         $this->assertEquals('test', $result[0]['name']);
     }
+
+    public function testWaitBeforeRetry(): void
+    {
+        $connection = $this->createRetryableConnection([
+            'enabled' => true,
+            'max_attempts' => 3,
+            'delay_ms' => 10, // Small delay for testing
+            'backoff_multiplier' => 2.0,
+            'max_delay_ms' => 100,
+        ]);
+
+        $reflection = new \ReflectionClass($connection);
+        $method = $reflection->getMethod('waitBeforeRetry');
+        $method->setAccessible(true);
+
+        // Use reflection to set currentAttempt
+        $attemptProperty = $reflection->getProperty('currentAttempt');
+        $attemptProperty->setAccessible(true);
+        $attemptProperty->setValue($connection, 1);
+
+        $start = microtime(true);
+        $method->invoke($connection);
+        $end = microtime(true);
+
+        // Should have waited at least 10ms (with some tolerance)
+        $elapsed = ($end - $start) * 1000; // Convert to milliseconds
+        $this->assertGreaterThanOrEqual(9, $elapsed); // Allow some tolerance
+    }
+
+    public function testRetryConfigValidation(): void
+    {
+        $reflection = new \ReflectionClass(RetryableConnection::class);
+        $method = $reflection->getMethod('validateRetryConfig');
+        $method->setAccessible(true);
+
+        $pdo = new PDO('sqlite::memory:');
+        $dialect = new SqliteDialect();
+        $connection = new RetryableConnection($pdo, $dialect, null, [
+            'enabled' => true,
+            'max_attempts' => 3,
+            'delay_ms' => 1000,
+            'backoff_multiplier' => 2.0,
+            'max_delay_ms' => 10000,
+            'retryable_errors' => [],
+            'driver' => 'sqlite',
+        ]);
+
+        // Should not throw exception for valid config
+        $method->invoke($connection);
+        $this->assertTrue(true);
+    }
+
+    public function testRetryOperationWithDifferentMethods(): void
+    {
+        $connection = $this->createRetryableConnection([
+            'enabled' => false, // Disable retry for this test
+        ]);
+
+        // Test that all methods can be called
+        $connection->prepare('SELECT 1');
+        $stmt = $connection->execute();
+        $this->assertInstanceOf(\PDOStatement::class, $stmt);
+
+        $stmt = $connection->query('SELECT 1');
+        $this->assertInstanceOf(\PDOStatement::class, $stmt);
+
+        $result = $connection->transaction();
+        $this->assertTrue($result);
+    }
+
+    public function testRetryConfigMergesWithDefaults(): void
+    {
+        $connection = $this->createRetryableConnection([
+            'enabled' => true,
+            'max_attempts' => 5,
+            // Other values should use defaults
+        ]);
+
+        $config = $connection->getRetryConfig();
+        $this->assertTrue($config['enabled']);
+        $this->assertEquals(5, $config['max_attempts']);
+        $this->assertEquals(1000, $config['delay_ms']); // Default
+        $this->assertEquals(2.0, $config['backoff_multiplier']); // Default
+        $this->assertEquals(10000, $config['max_delay_ms']); // Default
+    }
 }

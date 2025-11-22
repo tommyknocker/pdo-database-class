@@ -21,8 +21,9 @@ final class InitWizardTests extends TestCase
 
         $this->command = new InitCommand();
 
-        // Set non-interactive mode
+        // Set non-interactive mode - ensure both are set
         putenv('PDODB_NON_INTERACTIVE=1');
+        putenv('PHPUNIT=1');
     }
 
     protected function tearDown(): void
@@ -33,6 +34,7 @@ final class InitWizardTests extends TestCase
         }
 
         putenv('PDODB_NON_INTERACTIVE');
+        putenv('PHPUNIT');
         parent::tearDown();
     }
 

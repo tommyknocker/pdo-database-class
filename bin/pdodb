@@ -48,6 +48,12 @@ require_once $autoloadPath;
 
 use tommyknocker\pdodb\cli\Application;
 
+// Ensure non-interactive mode for tests and CI
+if (getenv('PHPUNIT') !== false || getenv('PDODB_NON_INTERACTIVE') !== false) {
+    putenv('PDODB_NON_INTERACTIVE=1');
+    putenv('PHPUNIT=1');
+}
+
 $application = new Application();
 exit($application->run($argv));
 

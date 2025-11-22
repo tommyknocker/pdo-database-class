@@ -44,19 +44,25 @@ class SeedGenerator extends BaseCliCommand
             }
         }
 
-        // Suggest seed type based on name
-        $suggestions = static::suggestSeedType($name);
-        if (!empty($suggestions)) {
-            echo "\nSuggested seed types:\n";
-            foreach ($suggestions as $i => $suggestion) {
-                echo '  ' . ($i + 1) . ". {$suggestion}\n";
-            }
-            echo "  0. Custom (manual)\n";
-            $choice = static::readInput("\nSelect seed type", '0');
-            $selectedIndex = (int)$choice - 1;
-            if ($selectedIndex >= 0 && $selectedIndex < count($suggestions)) {
-                $seedType = $suggestions[$selectedIndex];
-                static::info("Selected: {$seedType}");
+        // Suggest seed type based on name (skip in non-interactive mode)
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false
+            || !stream_isatty(STDIN);
+        
+        if (!$nonInteractive) {
+            $suggestions = static::suggestSeedType($name);
+            if (!empty($suggestions)) {
+                echo "\nSuggested seed types:\n";
+                foreach ($suggestions as $i => $suggestion) {
+                    echo '  ' . ($i + 1) . ". {$suggestion}\n";
+                }
+                echo "  0. Custom (manual)\n";
+                $choice = static::readInput("\nSelect seed type", '0');
+                $selectedIndex = (int)$choice - 1;
+                if ($selectedIndex >= 0 && $selectedIndex < count($suggestions)) {
+                    $seedType = $suggestions[$selectedIndex];
+                    static::info("Selected: {$seedType}");
+                }
             }
         }
 

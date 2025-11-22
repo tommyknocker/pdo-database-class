@@ -440,9 +440,9 @@ abstract class BaseCliCommand
             || !stream_isatty(STDIN);
 
         if ($nonInteractive) {
-            // In non-interactive mode, try to read from stdin if available
-            $input = trim((string)fgets(STDIN));
-            return $input;
+            // In non-interactive mode, return empty string to avoid blocking on fgets(STDIN)
+            // Tests and CI environments should provide passwords via environment variables or other means
+            return '';
         }
 
         // Use stty to hide input on Unix-like systems

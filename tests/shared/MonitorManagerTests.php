@@ -114,4 +114,88 @@ final class MonitorManagerTests extends TestCase
         // Test array input
         $this->assertEquals(0.0, $method->invoke(null, []));
     }
+
+    public function testGetActiveQueriesSQLite(): void
+    {
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $method = $reflection->getMethod('getActiveQueriesSQLite');
+        $method->setAccessible(true);
+
+        $result = $method->invoke(null, $this->db);
+        $this->assertIsArray($result);
+        $this->assertEmpty($result); // SQLite returns empty array
+    }
+
+    public function testGetActiveConnectionsSQLite(): void
+    {
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $method = $reflection->getMethod('getActiveConnectionsSQLite');
+        $method->setAccessible(true);
+
+        $result = $method->invoke(null, $this->db);
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('connections', $result);
+        $this->assertArrayHasKey('summary', $result);
+        $this->assertIsArray($result['connections']);
+        $this->assertIsArray($result['summary']);
+        $this->assertArrayHasKey('current', $result['summary']);
+        $this->assertArrayHasKey('max', $result['summary']);
+        $this->assertArrayHasKey('usage_percent', $result['summary']);
+    }
+
+    public function testGetSlowQueriesSQLite(): void
+    {
+        $reflection = new \ReflectionClass(MonitorManager::class);
+        $method = $reflection->getMethod('getSlowQueriesSQLite');
+        $method->setAccessible(true);
+
+        // Test without profiling enabled
+        $result = $method->invoke(null, $this->db, 0.1, 10);
+        $this->assertIsArray($result);
+        $this->assertEmpty($result);
+
+        // Test with profiling enabled
+        $this->db->enableProfiling();
+        $this->db->rawQuery('SELECT * FROM test_table');
+        $this->db->rawQuery('SELECT COUNT(*) FROM test_table WHERE id > ?', [0]);
+
+        $result = $method->invoke(null, $this->db, 0.0001, 10);
+        $this->assertIsArray($result);
+        // May contain profiled queries if threshold is low enough
+    }
+
+    public function testGetQueryStatsWithProfiling(): void
+    {
+        // Test with profiling disabled
+        $result = MonitorManager::getQueryStats($this->db);
+        $this->assertNull($result);
+
+        // Test with profiling enabled
+        $this->db->enableProfiling();
+        $this->db->rawQuery('SELECT * FROM test_table');
+        $this->db->rawQuery('SELECT COUNT(*) FROM test_table');
+
+        $result = MonitorManager::getQueryStats($this->db);
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('aggregated', $result);
+        $this->assertArrayHasKey('by_query', $result);
+        $this->assertIsArray($result['aggregated']);
+        $this->assertIsArray($result['by_query']);
+    }
+
+    public function testGetQueryStatsWithoutProfiler(): void
+    {
+        // Create a mock PdoDb that has profiling enabled but returns null for getProfiler
+        $db = new PdoDb('sqlite', ['path' => ':memory:']);
+        $db->enableProfiling();
+
+        // Use reflection to set profiler to null
+        $reflection = new \ReflectionClass($db);
+        $property = $reflection->getProperty('profiler');
+        $property->setAccessible(true);
+        $property->setValue($db, null);
+
+        $result = MonitorManager::getQueryStats($db);
+        $this->assertNull($result);
+    }
 }

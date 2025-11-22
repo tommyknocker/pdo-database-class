@@ -36,11 +36,17 @@ class SeedCommandCliTests extends BaseSharedTestCase
         putenv("PDODB_SEED_PATH={$this->testSeedPath}");
         putenv('PDODB_DRIVER=sqlite');
         putenv("PDODB_PATH={$this->testDbPath}");
+        
+        // Ensure non-interactive mode to prevent blocking on user input
+        putenv('PDODB_NON_INTERACTIVE=1');
+        putenv('PHPUNIT=1');
 
         // Also set $_ENV for consistency
         $_ENV['PDODB_SEED_PATH'] = $this->testSeedPath;
         $_ENV['PDODB_DRIVER'] = 'sqlite';
         $_ENV['PDODB_PATH'] = $this->testDbPath;
+        $_ENV['PDODB_NON_INTERACTIVE'] = '1';
+        $_ENV['PHPUNIT'] = '1';
     }
 
     /**
@@ -75,10 +81,14 @@ class SeedCommandCliTests extends BaseSharedTestCase
         putenv('PDODB_SEED_PATH');
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
+        putenv('PDODB_NON_INTERACTIVE');
+        putenv('PHPUNIT');
 
         unset($_ENV['PDODB_SEED_PATH']);
         unset($_ENV['PDODB_DRIVER']);
         unset($_ENV['PDODB_PATH']);
+        unset($_ENV['PDODB_NON_INTERACTIVE']);
+        unset($_ENV['PHPUNIT']);
 
         parent::tearDown();
     }
