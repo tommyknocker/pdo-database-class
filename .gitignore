@@ -31,3 +31,5 @@ infection-summary.txt
 
 # File-based cache directory
 /storage/
+
+*.sqlite
