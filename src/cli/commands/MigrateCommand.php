@@ -94,7 +94,16 @@ class MigrateCommand extends Command
         // Ask for confirmation unless --force is used or no migrations to apply
         if (!empty($newMigrations) && !$force && !$dryRun && !$pretend) {
             $count = count($newMigrations);
+            $migrationsToApply = $limit > 0 ? array_slice($newMigrations, 0, $limit) : $newMigrations;
             $limitText = $limit > 0 ? " {$limit}" : '';
+
+            // Show migrations that will be applied
+            echo "\nMigrations to be applied:\n";
+            foreach ($migrationsToApply as $version) {
+                echo "  - {$version}\n";
+            }
+            echo "\n";
+
             $confirmed = static::readConfirmation(
                 "Are you sure you want to apply{$limitText} migration(s)? This will modify your database",
                 true
@@ -165,6 +174,19 @@ class MigrateCommand extends Command
 
         // Ask for confirmation unless --force is used
         if (!$force) {
+            // Get migrations that will be rolled back
+            $history = $runner->getMigrationHistory($step);
+            $migrationsToRollback = array_column($history, 'version');
+
+            // Show migrations that will be rolled back
+            if (!empty($migrationsToRollback)) {
+                echo "\nMigrations to be rolled back:\n";
+                foreach ($migrationsToRollback as $version) {
+                    echo "  - {$version}\n";
+                }
+                echo "\n";
+            }
+
             $confirmed = static::readConfirmation(
                 "Are you sure you want to rollback {$step} migration(s)? This action cannot be undone",
                 false
