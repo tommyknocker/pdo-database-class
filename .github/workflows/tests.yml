@@ -36,12 +36,30 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      memcached:
+        image: memcached:1.6-alpine
+        ports:
+          - 11211:11211
+        options: >-
+          --health-cmd "echo 'stats' | nc localhost 11211"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_mysql, simplexml, xmlreader
+          extensions: pdo_mysql, simplexml, xmlreader, redis, memcached, apcu
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
       - name: Enable MySQL local_infile
@@ -81,12 +99,30 @@ jobs:
           --health-timeout=10s
           --health-retries=20
           --health-start-period=40s
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      memcached:
+        image: memcached:1.6-alpine
+        ports:
+          - 11211:11211
+        options: >-
+          --health-cmd "echo 'stats' | nc localhost 11211"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_mysql, simplexml, xmlreader
+          extensions: pdo_mysql, simplexml, xmlreader, redis, memcached, apcu
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
       - run: |
@@ -128,12 +164,30 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      memcached:
+        image: memcached:1.6-alpine
+        ports:
+          - 11211:11211
+        options: >-
+          --health-cmd "echo 'stats' | nc localhost 11211"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_pgsql, simplexml, xmlreader
+          extensions: pdo_pgsql, simplexml, xmlreader, redis, memcached, apcu
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
       - name: Setup PostgreSQL test user
@@ -159,12 +213,31 @@ jobs:
   sqlite:
     name: SQLite Tests
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      memcached:
+        image: memcached:1.6-alpine
+        ports:
+          - 11211:11211
+        options: >-
+          --health-cmd "echo 'stats' | nc localhost 11211"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_sqlite
+          extensions: pdo_sqlite, redis, memcached, apcu
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
       - run: |
@@ -192,12 +265,30 @@ jobs:
           MSSQL_PID: Developer
         ports:
           - 1433:1433
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      memcached:
+        image: memcached:1.6-alpine
+        ports:
+          - 11211:11211
+        options: >-
+          --health-cmd "echo 'stats' | nc localhost 11211"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo, pdo_odbc, odbc
+          extensions: pdo, pdo_odbc, odbc, redis, memcached, apcu
           coverage: xdebug
       - name: Install Microsoft ODBC Driver and SQL Server Tools
         run: |
@@ -263,12 +354,31 @@ jobs:
   shared-coverage:
     name: Shared Coverage Tests
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      memcached:
+        image: memcached:1.6-alpine
+        ports:
+          - 11211:11211
+        options: >-
+          --health-cmd "echo 'stats' | nc localhost 11211"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_sqlite
+          extensions: pdo_sqlite, redis, memcached, apcu
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
       - run: vendor/bin/phpunit --testsuite="Shared Tests" --coverage-clover coverage-shared.xml

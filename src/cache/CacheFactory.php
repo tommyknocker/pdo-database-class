@@ -191,6 +191,24 @@ class CacheFactory
             return null;
         }
 
+        // Try to use provided Memcached connection
+        $memcachedConnection = $config['memcached'] ?? null;
+        if ($memcachedConnection !== null && $memcachedConnection instanceof \Memcached) {
+            $namespace = $config['namespace'] ?? '';
+            $namespace = is_string($namespace) ? $namespace : '';
+
+            $defaultLifetime = $config['default_lifetime'] ?? $config['ttl'] ?? 0;
+            $defaultLifetime = is_int($defaultLifetime) ? $defaultLifetime : (is_numeric($defaultLifetime) ? (int)$defaultLifetime : 0);
+
+            /** @var class-string<\Symfony\Component\Cache\Adapter\MemcachedAdapter> $adapterClass */
+            $adapterClass = \Symfony\Component\Cache\Adapter\MemcachedAdapter::class;
+            $adapter = new $adapterClass($memcachedConnection, $namespace, $defaultLifetime);
+
+            /** @var class-string<\Symfony\Component\Cache\Psr16Cache> $cacheClass */
+            $cacheClass = \Symfony\Component\Cache\Psr16Cache::class;
+            return new $cacheClass($adapter);
+        }
+
         $servers = $config['servers'] ?? $config['memcached_servers'] ?? [['127.0.0.1', 11211]];
         if (!is_array($servers)) {
             $servers = [['127.0.0.1', 11211]];
