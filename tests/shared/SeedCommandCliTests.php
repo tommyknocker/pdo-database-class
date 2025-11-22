@@ -36,7 +36,7 @@ class SeedCommandCliTests extends BaseSharedTestCase
         putenv("PDODB_SEED_PATH={$this->testSeedPath}");
         putenv('PDODB_DRIVER=sqlite');
         putenv("PDODB_PATH={$this->testDbPath}");
-        
+
         // Ensure non-interactive mode to prevent blocking on user input
         putenv('PDODB_NON_INTERACTIVE=1');
         putenv('PHPUNIT=1');

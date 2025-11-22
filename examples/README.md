@@ -141,11 +141,11 @@ SQL helper functions for common operations.
 ### 06. Data Management
 Data loading, batch processing, seeds, and export operations.
 
-- **[01-seeds.php](06-data-management/01-seeds.php)** - Database seeds for populating data
-- **[02-seeds-cli.php](06-data-management/02-seeds-cli.php)** - CLI commands for seed management
-- **[03-file-loading.php](06-data-management/03-file-loading.php)** - Loading data from JSON files
-- **[04-batch-processing.php](06-data-management/04-batch-processing.php)** - Memory-efficient batch processing
-- **[05-export-helpers.php](06-data-management/05-export-helpers.php)** - Export to JSON, CSV, XML
+- **[01-file-loading.php](06-data-management/01-file-loading.php)** - Loading data from JSON files
+- **[02-batch-processing.php](06-data-management/02-batch-processing.php)** - Memory-efficient batch processing
+- **[03-export-helpers.php](06-data-management/03-export-helpers.php)** - Export to JSON, CSV, XML
+- **[04-seeds.php](06-data-management/04-seeds.php)** - Database seeds for populating data
+- **[05-seeds-cli.php](06-data-management/05-seeds-cli.php)** - CLI commands for seed management
 
 ### 07. Performance
 Performance optimization: caching, profiling, and EXPLAIN analysis.

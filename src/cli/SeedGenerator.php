@@ -48,7 +48,7 @@ class SeedGenerator extends BaseCliCommand
         $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
             || getenv('PHPUNIT') !== false
             || !stream_isatty(STDIN);
-        
+
         if (!$nonInteractive) {
             $suggestions = static::suggestSeedType($name);
             if (!empty($suggestions)) {
