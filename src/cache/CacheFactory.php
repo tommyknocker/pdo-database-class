@@ -214,15 +214,21 @@ class CacheFactory
             $servers = [['127.0.0.1', 11211]];
         }
 
-        // Build server list for createConnection (accepts array of [host, port] arrays)
-        /** @var array<int, array<int, string|int>> $serverList */
+        // Build server list for createConnection (accepts DSN strings like "memcached://host:port")
+        /** @var array<int, string> $serverList */
         $serverList = [];
         foreach ($servers as $server) {
             if (is_array($server) && count($server) >= 2) {
                 $host = is_string($server[0]) ? $server[0] : '127.0.0.1';
                 $port = is_int($server[1]) ? $server[1] : (is_numeric($server[1]) ? (int)$server[1] : 11211);
-                $serverList[] = [$host, $port];
+                $serverList[] = "memcached://{$host}:{$port}";
+            } elseif (is_string($server)) {
+                $serverList[] = $server;
             }
+        }
+
+        if (empty($serverList)) {
+            $serverList = ['memcached://127.0.0.1:11211'];
         }
 
         $namespace = $config['namespace'] ?? '';
@@ -233,16 +239,19 @@ class CacheFactory
 
         /** @var class-string<\Symfony\Component\Cache\Adapter\MemcachedAdapter> $adapterClass */
         $adapterClass = \Symfony\Component\Cache\Adapter\MemcachedAdapter::class;
-        // phpstan-ignore-next-line - createConnection accepts array<array|string>|string and returns CacheItemPoolInterface
-        $adapter = $adapterClass::createConnection($serverList, [
-            'namespace' => $namespace,
-            'default_lifetime' => $defaultLifetime,
-        ]);
 
-        /** @var class-string<\Symfony\Component\Cache\Psr16Cache> $cacheClass */
-        $cacheClass = \Symfony\Component\Cache\Psr16Cache::class;
-        // @phpstan-ignore-next-line - adapter is CacheItemPoolInterface from createConnection
-        return new $cacheClass($adapter);
+        try {
+            // createConnection returns Memcached instance, need to wrap it in adapter
+            $memcached = $adapterClass::createConnection($serverList);
+            $adapter = new $adapterClass($memcached, $namespace, $defaultLifetime);
+
+            /** @var class-string<\Symfony\Component\Cache\Psr16Cache> $cacheClass */
+            $cacheClass = \Symfony\Component\Cache\Psr16Cache::class;
+            return new $cacheClass($adapter);
+        } catch (\Exception $e) {
+            // Memcached server not available or connection failed
+            return null;
+        }
     }
 
     /**
