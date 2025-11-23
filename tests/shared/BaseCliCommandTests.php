@@ -1327,4 +1327,153 @@ PHP;
             putenv('PDODB_CACHE_TYPE');
         }
     }
+
+    /**
+     * Test createCache with enabled cache.
+     */
+    public function testCreateCacheWithEnabledCache(): void
+    {
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('createCache');
+        $method->setAccessible(true);
+
+        $cacheConfig = [
+            'enabled' => true,
+            'type' => 'array',
+        ];
+
+        $cache = $method->invoke(null, $cacheConfig);
+        $this->assertInstanceOf(\Psr\SimpleCache\CacheInterface::class, $cache);
+    }
+
+    /**
+     * Test createCache with disabled cache.
+     */
+    public function testCreateCacheWithDisabledCache(): void
+    {
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('createCache');
+        $method->setAccessible(true);
+
+        $cacheConfig = [
+            'enabled' => false,
+        ];
+
+        $cache = $method->invoke(null, $cacheConfig);
+        $this->assertNull($cache);
+    }
+
+    /**
+     * Test createCache with missing enabled key.
+     */
+    public function testCreateCacheWithMissingEnabledKey(): void
+    {
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('createCache');
+        $method->setAccessible(true);
+
+        $cacheConfig = [];
+
+        $cache = $method->invoke(null, $cacheConfig);
+        $this->assertNull($cache);
+    }
+
+    /**
+     * Test loadCacheConfig with Redis cache type.
+     */
+    public function testLoadCacheConfigWithRedisCacheType(): void
+    {
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('loadCacheConfig');
+        $method->setAccessible(true);
+
+        putenv('PDODB_CACHE_ENABLED=true');
+        putenv('PDODB_CACHE_TYPE=redis');
+        putenv('PDODB_CACHE_REDIS_HOST=127.0.0.1');
+        putenv('PDODB_CACHE_REDIS_PORT=6379');
+
+        try {
+            $cacheConfig = $method->invoke(null, []);
+            $this->assertIsArray($cacheConfig);
+            $this->assertTrue($cacheConfig['enabled']);
+            $this->assertEquals('redis', $cacheConfig['type']);
+            $this->assertEquals('127.0.0.1', $cacheConfig['host']);
+            $this->assertEquals(6379, $cacheConfig['port']);
+        } finally {
+            putenv('PDODB_CACHE_ENABLED');
+            putenv('PDODB_CACHE_TYPE');
+            putenv('PDODB_CACHE_REDIS_HOST');
+            putenv('PDODB_CACHE_REDIS_PORT');
+        }
+    }
+
+    /**
+     * Test loadCacheConfig with Memcached cache type.
+     */
+    public function testLoadCacheConfigWithMemcachedCacheType(): void
+    {
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('loadCacheConfig');
+        $method->setAccessible(true);
+
+        putenv('PDODB_CACHE_ENABLED=true');
+        putenv('PDODB_CACHE_TYPE=memcached');
+        putenv('PDODB_CACHE_MEMCACHED_SERVERS=127.0.0.1:11211');
+
+        try {
+            $cacheConfig = $method->invoke(null, []);
+            $this->assertIsArray($cacheConfig);
+            $this->assertTrue($cacheConfig['enabled']);
+            $this->assertEquals('memcached', $cacheConfig['type']);
+            $this->assertIsArray($cacheConfig['servers']);
+        } finally {
+            putenv('PDODB_CACHE_ENABLED');
+            putenv('PDODB_CACHE_TYPE');
+            putenv('PDODB_CACHE_MEMCACHED_SERVERS');
+        }
+    }
+
+    /**
+     * Test loadCacheConfig with cache prefix.
+     */
+    public function testLoadCacheConfigWithCachePrefix(): void
+    {
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('loadCacheConfig');
+        $method->setAccessible(true);
+
+        putenv('PDODB_CACHE_ENABLED=true');
+        putenv('PDODB_CACHE_PREFIX=test_prefix_');
+
+        try {
+            $cacheConfig = $method->invoke(null, []);
+            $this->assertIsArray($cacheConfig);
+            $this->assertEquals('test_prefix_', $cacheConfig['prefix']);
+        } finally {
+            putenv('PDODB_CACHE_ENABLED');
+            putenv('PDODB_CACHE_PREFIX');
+        }
+    }
+
+    /**
+     * Test loadCacheConfig with cache TTL.
+     */
+    public function testLoadCacheConfigWithCacheTtl(): void
+    {
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
+        $method = $reflection->getMethod('loadCacheConfig');
+        $method->setAccessible(true);
+
+        putenv('PDODB_CACHE_ENABLED=true');
+        putenv('PDODB_CACHE_TTL=7200');
+
+        try {
+            $cacheConfig = $method->invoke(null, []);
+            $this->assertIsArray($cacheConfig);
+            $this->assertEquals(7200, $cacheConfig['default_lifetime']);
+        } finally {
+            putenv('PDODB_CACHE_ENABLED');
+            putenv('PDODB_CACHE_TTL');
+        }
+    }
 }
