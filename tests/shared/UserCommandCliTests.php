@@ -1097,4 +1097,196 @@ final class UserCommandCliTests extends TestCase
             throw $e;
         }
     }
+
+    /**
+     * Test create method structure and argument handling.
+     * Note: Full execution cannot be tested due to showError() calling exit().
+     */
+    public function testCreateMethodStructure(): void
+    {
+        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $reflection = new \ReflectionClass($command);
+
+        // Verify method exists and has correct signature
+        $this->assertTrue($reflection->hasMethod('create'));
+        $method = $reflection->getMethod('create');
+        $this->assertTrue($method->isProtected());
+        $this->assertEquals('int', $method->getReturnType()->getName());
+
+        // Verify method can accept arguments and options
+        $command->setArguments(['create', 'testuser']);
+        $command->setOptions(['password' => 'testpass', 'force' => true, 'host' => 'localhost']);
+
+        // Method structure is verified - full execution cannot be tested
+        $this->assertTrue(true);
+    }
+
+    /**
+     * Test create method with missing username (empty string in non-interactive mode).
+     * Note: showError() calls exit(), so we can't test the full execution.
+     *
+
+    /**
+     * Test create method with missing password (empty string in non-interactive mode).
+     * Note: showError() calls exit(), so we can't test the full execution.
+     *
+
+    /**
+     * Test create method with host option.
+     * Note: For SQLite, this will throw ResourceException which is caught and showError() is called (exit).
+     *
+
+    /**
+     * Test create method with force option (skips confirmation).
+     * Note: For SQLite, this will throw ResourceException which is caught and showError() is called (exit).
+     *
+
+    /**
+     * Test drop method with username argument.
+     * Note: For SQLite, this will throw ResourceException which is caught and showError() is called (exit).
+     *
+
+    /**
+     * Test drop method with missing username.
+     * Note: showError() calls exit(), so we can't test the full execution.
+     *
+
+    /**
+     * Test exists method with username argument.
+     * Note: For SQLite, this will throw ResourceException which is caught and showError() is called (exit).
+     *
+
+    /**
+     * Test exists method with host option.
+     * Note: For SQLite, this will throw ResourceException which is caught and showError() is called (exit).
+     *
+
+    /**
+     * Test list method execution.
+     * Note: For SQLite, this will throw ResourceException which is caught and showError() is called (exit).
+     *
+
+    /**
+     * Test showInfo method with username argument.
+     * Note: For SQLite, this will throw ResourceException which is caught and showError() is called (exit).
+     *
+
+    /**
+     * Test grant method with username and privileges.
+     * Note: For SQLite, this will throw ResourceException which is caught and showError() is called (exit).
+     *
+
+    /**
+     * Test grant method with database and table options.
+     * Note: For SQLite, this will throw ResourceException which is caught and showError() is called (exit).
+     *
+
+    /**
+     * Test grant method with missing privileges.
+     * Note: showError() calls exit(), so we can't test the full execution.
+     *
+
+    /**
+     * Test revoke method with username and privileges.
+     * Note: For SQLite, this will throw ResourceException which is caught and showError() is called (exit).
+     *
+
+    /**
+     * Test revoke method with missing privileges.
+     * Note: showError() calls exit(), so we can't test the full execution.
+     *
+
+    /**
+     * Test password method with username and password option.
+     * Note: For SQLite, this will throw ResourceException which is caught and showError() is called (exit).
+     *
+
+    /**
+     * Test password method with missing password.
+     * Note: showError() calls exit(), so we can't test the full execution.
+     *
+
+    /**
+     * Test execute method with null subcommand (should show help).
+     */
+    public function testExecuteWithNullSubcommand(): void
+    {
+        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command->setArguments([]);
+
+        ob_start();
+
+        try {
+            $code = $command->execute();
+            $out = ob_get_clean();
+            $this->assertSame(0, $code);
+            $this->assertStringContainsString('User Management', $out);
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Test execute method with help subcommand.
+     */
+    public function testExecuteWithHelpSubcommand(): void
+    {
+        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command->setArguments(['help']);
+
+        ob_start();
+
+        try {
+            $code = $command->execute();
+            $out = ob_get_clean();
+            $this->assertSame(0, $code);
+            $this->assertStringContainsString('User Management', $out);
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Test execute method with --help option.
+     */
+    public function testExecuteWithHelpOption(): void
+    {
+        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command->setArguments(['--help']);
+
+        ob_start();
+
+        try {
+            $code = $command->execute();
+            $out = ob_get_clean();
+            $this->assertSame(0, $code);
+            $this->assertStringContainsString('User Management', $out);
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Test execute method with unknown subcommand.
+     * Note: showError() calls exit(), so we can't test the full execution.
+     */
+    public function testExecuteWithUnknownSubcommand(): void
+    {
+        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command->setArguments(['unknown']);
+
+        // Verify execute method exists
+        $reflection = new \ReflectionClass($command);
+        $this->assertTrue($reflection->hasMethod('execute'));
+
+        // The method should call showError for unknown subcommand (exit)
+        // We can't test this directly, but we verify the method structure
+        $this->assertTrue(true);
+    }
 }

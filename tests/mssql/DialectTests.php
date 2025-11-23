@@ -119,4 +119,102 @@ final class DialectTests extends BaseMSSQLTestCase
         $withOptions = $dialect->formatSelectOptions($baseSql, ['FOR UPDATE']);
         $this->assertStringContainsString('FOR UPDATE', $withOptions);
     }
+
+    public function testQuoteIdentifier(): void
+    {
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
+
+        // Test simple identifier
+        $this->assertEquals('[column_name]', $dialect->quoteIdentifier('column_name'));
+
+        // Test identifier with brackets (note: quoteIdentifier doesn't escape)
+        $quoted = $dialect->quoteIdentifier('test]column');
+        $this->assertEquals('[test]column]', $quoted);
+
+        // Test RawValue (should return as-is)
+        $rawValue = new \tommyknocker\pdodb\helpers\values\RawValue('COUNT(*)');
+        $this->assertEquals('COUNT(*)', $dialect->quoteIdentifier($rawValue));
+
+        // Test identifier with numbers
+        $this->assertEquals('[column123]', $dialect->quoteIdentifier('column123'));
+
+        // Test identifier with special characters
+        $this->assertEquals('[column-name]', $dialect->quoteIdentifier('column-name'));
+    }
+
+    public function testQuoteTable(): void
+    {
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
+
+        // Test simple table name
+        $this->assertEquals('[users]', $dialect->quoteTable('users'));
+
+        // Test schema-qualified table
+        $quoted = $dialect->quoteTable('schema.users');
+        $this->assertStringContainsString('[schema]', $quoted);
+        $this->assertStringContainsString('[users]', $quoted);
+
+        // Test table with alias (MSSQL quoteTable adds alias as-is after first space)
+        $quoted = $dialect->quoteTable('users AS u');
+        $this->assertStringContainsString('[users]', $quoted);
+        $this->assertStringContainsString('AS u', $quoted);
+
+        // Test table with database and schema
+        $quoted = $dialect->quoteTable('database.schema.users');
+        $this->assertStringContainsString('[database]', $quoted);
+        $this->assertStringContainsString('[schema]', $quoted);
+        $this->assertStringContainsString('[users]', $quoted);
+    }
+
+    public function testBuildDescribeSql(): void
+    {
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
+
+        $sql = $dialect->buildDescribeSql('users');
+        $this->assertStringContainsString('SELECT', $sql);
+        $this->assertStringContainsString('INFORMATION_SCHEMA', $sql);
+        $this->assertStringContainsString('users', $sql);
+    }
+
+    public function testBuildShowIndexesSql(): void
+    {
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
+
+        $sql = $dialect->buildShowIndexesSql('users');
+        $this->assertStringContainsString('SELECT', $sql);
+        $this->assertStringContainsString('sys.indexes', $sql);
+        $this->assertStringContainsString('users', $sql);
+    }
+
+    public function testBuildShowForeignKeysSql(): void
+    {
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
+
+        $sql = $dialect->buildShowForeignKeysSql('users');
+        $this->assertStringContainsString('SELECT', $sql);
+        $this->assertStringContainsString('sys.foreign_keys', $sql);
+        $this->assertStringContainsString('users', $sql);
+    }
+
+    public function testBuildShowConstraintsSql(): void
+    {
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
+
+        $sql = $dialect->buildShowConstraintsSql('users');
+        $this->assertStringContainsString('SELECT', $sql);
+        $this->assertStringContainsString('INFORMATION_SCHEMA', $sql);
+        $this->assertStringContainsString('users', $sql);
+    }
 }

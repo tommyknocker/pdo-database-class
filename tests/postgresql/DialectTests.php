@@ -230,4 +230,92 @@ final class DialectTests extends BasePostgreSQLTestCase
         $fulltext = Db::match('title, content', 'search term', 'natural');
         $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\FulltextMatchValue::class, $fulltext);
     }
+
+    public function testQuoteIdentifier(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+
+        // Test simple identifier
+        $this->assertEquals('"column_name"', $dialect->quoteIdentifier('column_name'));
+
+        // Test identifier with double quotes (note: quoteIdentifier doesn't escape)
+        $quoted = $dialect->quoteIdentifier('test"column');
+        $this->assertEquals('"test"column"', $quoted);
+
+        // Test identifier with numbers
+        $this->assertEquals('"column123"', $dialect->quoteIdentifier('column123'));
+
+        // Test identifier with mixed case (PostgreSQL is case-sensitive)
+        $this->assertEquals('"ColumnName"', $dialect->quoteIdentifier('ColumnName'));
+    }
+
+    public function testQuoteIdentifierWithRawValueThrowsTypeError(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+
+        // PostgreSQL quoteIdentifier only accepts string, not RawValue
+        $rawValue = new \tommyknocker\pdodb\helpers\values\RawValue('COUNT(*)');
+        $this->expectException(\TypeError::class);
+        $dialect->quoteIdentifier($rawValue);
+    }
+
+    public function testQuoteTable(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+
+        // Test simple table name
+        $this->assertEquals('"users"', $dialect->quoteTable('users'));
+
+        // Test schema-qualified table (quoteTableWithAlias doesn't parse dots, just quotes the whole string)
+        $quoted = $dialect->quoteTable('schema.users');
+        $this->assertEquals('"schema.users"', $quoted);
+
+        // Test table with alias
+        $quoted = $dialect->quoteTable('users AS u');
+        $this->assertEquals('"users" AS "u"', $quoted);
+
+        // Test table with schema and alias
+        $quoted = $dialect->quoteTable('public.users AS u');
+        $this->assertEquals('"public.users" AS "u"', $quoted);
+    }
+
+    public function testBuildDescribeSql(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+
+        $sql = $dialect->buildDescribeSql('users');
+        $this->assertStringContainsString('SELECT', $sql);
+        $this->assertStringContainsString('information_schema', $sql);
+        $this->assertStringContainsString('users', $sql);
+    }
+
+    public function testBuildShowIndexesSql(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+
+        $sql = $dialect->buildShowIndexesSql('users');
+        $this->assertStringContainsString('SELECT', $sql);
+        $this->assertStringContainsString('pg_indexes', $sql);
+        $this->assertStringContainsString('users', $sql);
+    }
+
+    public function testBuildShowForeignKeysSql(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+
+        $sql = $dialect->buildShowForeignKeysSql('users');
+        $this->assertStringContainsString('SELECT', $sql);
+        $this->assertStringContainsString('information_schema', $sql);
+        $this->assertStringContainsString('users', $sql);
+    }
+
+    public function testBuildShowConstraintsSql(): void
+    {
+        $dialect = self::$db->connection->getDialect();
+
+        $sql = $dialect->buildShowConstraintsSql('users');
+        $this->assertStringContainsString('SELECT', $sql);
+        $this->assertStringContainsString('information_schema', $sql);
+        $this->assertStringContainsString('users', $sql);
+    }
 }

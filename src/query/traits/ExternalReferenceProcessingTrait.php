@@ -42,53 +42,41 @@ trait ExternalReferenceProcessingTrait
         }
 
         // Check JOIN tables if joinBuilder is available
-        // Use reflection to access protected property if needed
-        try {
-            $reflection = new \ReflectionClass($this);
-            if ($reflection->hasProperty('joinBuilder')) {
-                $property = $reflection->getProperty('joinBuilder');
-                $property->setAccessible(true);
-                $joinBuilder = $property->getValue($this);
-                if ($joinBuilder !== null) {
-                    $joins = $joinBuilder->getJoins();
-                    foreach ($joins as $join) {
-                        // Extract table name/alias from JOIN clause (e.g., "INNER JOIN [tenants] AS t" or "LEFT JOIN users u")
-                        // Handle quoted identifiers: [tenants] AS t, "tenants" AS "t", tenants AS t, tenants t
-                        // Pattern: JOIN [table] AS [alias] or JOIN "table" AS "alias" or JOIN table AS alias or JOIN table alias
-                        // Match groups: [1]=[table], [2]="table", [3]=table, [4]=[alias], [5]="alias", [6]=alias
-                        if (preg_match('/JOIN\s+(?:\[([^\]]+)\]|"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*))\s+(?:AS\s+)?(?:\[([^\]]+)\]|"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*))/i', $join, $matches)) {
-                            // Check all possible alias positions (matches[4] for [alias], matches[5] for "alias", matches[6] for alias)
-                            // Filter out empty strings - check in order: [5] (double quotes), [4] (square brackets), [6] (unquoted)
-                            $alias = null;
-                            foreach ([5, 4, 6] as $i) {
-                                if (isset($matches[$i]) && $matches[$i] !== '') {
-                                    $alias = $matches[$i];
-                                    break;
-                                }
-                            }
-                            if ($alias && $alias === $tableName) {
-                                return true;
-                            }
+        // Since we're in the same class scope (trait is used in class), protected properties are accessible directly
+        if (property_exists($this, 'joinBuilder') && isset($this->joinBuilder)) {
+            $joins = $this->joinBuilder->getJoins();
+            foreach ($joins as $join) {
+                // Extract table name/alias from JOIN clause (e.g., "INNER JOIN [tenants] AS t" or "LEFT JOIN users u")
+                // Handle quoted identifiers: [tenants] AS t, "tenants" AS "t", tenants AS t, tenants t
+                // Pattern: JOIN [table] AS [alias] or JOIN "table" AS "alias" or JOIN table AS alias or JOIN table alias
+                // Match groups: [1]=[table], [2]="table", [3]=table, [4]=[alias], [5]="alias", [6]=alias
+                // The pattern must stop before "ON" keyword to avoid capturing it as alias
+                // Allow any characters before JOIN (e.g., "= JOIN" or "INNER JOIN")
+                // Use non-greedy match to stop at first "ON"
+                if (preg_match('/JOIN\s+(?:\[([^\]]+)\]|"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*))(?:\s+AS\s+(?:\[([^\]]+)\]|"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*)))?\s+ON/i', $join, $matches)) {
+                    // First check table name (matches[1] for [table], matches[2] for "table", matches[3] for table)
+                    $table = null;
+                    foreach ([2, 1, 3] as $i) {
+                        if (isset($matches[$i]) && $matches[$i] !== '') {
+                            $table = $matches[$i];
+                            break;
                         }
                     }
-                }
-            }
-        } catch (\ReflectionException $e) {
-            // If reflection fails, fall back to property_exists check
-            if (property_exists($this, 'joinBuilder') && isset($this->joinBuilder)) {
-                $joins = $this->joinBuilder->getJoins();
-                foreach ($joins as $join) {
-                    if (preg_match('/JOIN\s+(?:\[([^\]]+)\]|"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*))\s+(?:AS\s+)?(?:\[([^\]]+)\]|"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*))/i', $join, $matches)) {
-                        $alias = null;
-                        foreach ([5, 4, 6] as $i) {
-                            if (isset($matches[$i]) && $matches[$i] !== '') {
-                                $alias = $matches[$i];
-                                break;
-                            }
+                    if ($table && $table === $tableName) {
+                        return true;
+                    }
+
+                    // Then check all possible alias positions (matches[4] for [alias], matches[5] for "alias", matches[6] for alias)
+                    // Filter out empty strings - check in order: [5] (double quotes), [4] (square brackets), [6] (unquoted)
+                    $alias = null;
+                    foreach ([5, 4, 6] as $i) {
+                        if (isset($matches[$i]) && $matches[$i] !== '') {
+                            $alias = $matches[$i];
+                            break;
                         }
-                        if ($alias && $alias === $tableName) {
-                            return true;
-                        }
+                    }
+                    if ($alias && $alias === $tableName) {
+                        return true;
                     }
                 }
             }

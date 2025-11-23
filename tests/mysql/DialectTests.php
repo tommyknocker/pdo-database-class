@@ -257,4 +257,137 @@ final class DialectTests extends BaseMySQLTestCase
         ->distinctOn('email')
         ->get();
     }
+
+    public function testQuoteIdentifier(): void
+    {
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
+
+        // Test simple identifier
+        $this->assertEquals('`column_name`', $dialect->quoteIdentifier('column_name'));
+
+        // Test identifier with special characters (note: quoteIdentifier doesn't escape backticks)
+        $this->assertEquals('`column`name`', $dialect->quoteIdentifier('column`name'));
+
+        // Test identifier with backticks (note: quoteIdentifier doesn't escape, quoteTable does)
+        $quoted = $dialect->quoteIdentifier('test`column');
+        $this->assertEquals('`test`column`', $quoted);
+
+        // Test RawValue (should return as-is)
+        $rawValue = new \tommyknocker\pdodb\helpers\values\RawValue('COUNT(*)');
+        $this->assertEquals('COUNT(*)', $dialect->quoteIdentifier($rawValue));
+
+        // Test empty string
+        $this->assertEquals('``', $dialect->quoteIdentifier(''));
+
+        // Test identifier with numbers
+        $this->assertEquals('`column123`', $dialect->quoteIdentifier('column123'));
+
+        // Test identifier starting with underscore
+        $this->assertEquals('`_column`', $dialect->quoteIdentifier('_column'));
+    }
+
+    public function testQuoteTable(): void
+    {
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
+
+        // Test simple table name
+        $this->assertEquals('`users`', $dialect->quoteTable('users'));
+
+        // Test schema-qualified table
+        $quoted = $dialect->quoteTable('schema.users');
+        $this->assertStringContainsString('`schema`', $quoted);
+        $this->assertStringContainsString('`users`', $quoted);
+        $this->assertStringContainsString('.', $quoted);
+
+        // Test table with alias (space-separated) - MySQL quoteTable doesn't quote alias
+        $quoted = $dialect->quoteTable('users u');
+        $this->assertStringContainsString('`users`', $quoted);
+        $this->assertStringContainsString(' u', $quoted);
+
+        // Test table with AS alias - MySQL quoteTable doesn't quote alias
+        $quoted = $dialect->quoteTable('users AS u');
+        $this->assertStringContainsString('`users`', $quoted);
+        $this->assertStringContainsString('AS', $quoted);
+        $this->assertStringContainsString(' u', $quoted);
+
+        // Test schema.table with alias - MySQL quoteTable doesn't quote alias
+        $quoted = $dialect->quoteTable('schema.users AS u');
+        $this->assertStringContainsString('`schema`', $quoted);
+        $this->assertStringContainsString('`users`', $quoted);
+        $this->assertStringContainsString(' u', $quoted);
+
+        // Test table name with backticks (should be escaped)
+        $quoted = $dialect->quoteTable('test`table');
+        $this->assertStringContainsString('``', $quoted);
+    }
+
+    public function testBuildDescribeSql(): void
+    {
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
+
+        $sql = $dialect->buildDescribeSql('users');
+        $this->assertStringContainsString('DESCRIBE', $sql);
+        $this->assertStringContainsString('users', $sql);
+
+        // Test with schema-qualified table
+        $sql2 = $dialect->buildDescribeSql('schema.users');
+        $this->assertStringContainsString('DESCRIBE', $sql2);
+        $this->assertStringContainsString('schema', $sql2);
+        $this->assertStringContainsString('users', $sql2);
+    }
+
+    public function testBuildShowIndexesSql(): void
+    {
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
+
+        $sql = $dialect->buildShowIndexesSql('users');
+        $this->assertStringContainsString('SHOW INDEX', $sql);
+        $this->assertStringContainsString('FROM', $sql);
+        $this->assertStringContainsString('users', $sql);
+
+        // Test with schema-qualified table
+        $sql2 = $dialect->buildShowIndexesSql('schema.users');
+        $this->assertStringContainsString('SHOW INDEX', $sql2);
+        $this->assertStringContainsString('schema', $sql2);
+    }
+
+    public function testBuildShowForeignKeysSql(): void
+    {
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
+
+        $sql = $dialect->buildShowForeignKeysSql('users');
+        $this->assertStringContainsString('SELECT', $sql);
+        $this->assertStringContainsString('KEY_COLUMN_USAGE', $sql);
+        $this->assertStringContainsString('users', $sql);
+
+        // Test with schema-qualified table
+        $sql2 = $dialect->buildShowForeignKeysSql('schema.users');
+        $this->assertStringContainsString('schema', $sql2);
+    }
+
+    public function testBuildShowConstraintsSql(): void
+    {
+        $connection = self::$db->connection;
+        assert($connection !== null);
+        $dialect = $connection->getDialect();
+
+        $sql = $dialect->buildShowConstraintsSql('users');
+        $this->assertStringContainsString('SELECT', $sql);
+        $this->assertStringContainsString('TABLE_CONSTRAINTS', $sql);
+        $this->assertStringContainsString('users', $sql);
+
+        // Test with schema-qualified table
+        $sql2 = $dialect->buildShowConstraintsSql('schema.users');
+        $this->assertStringContainsString('schema', $sql2);
+    }
 }
