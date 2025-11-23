@@ -139,6 +139,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - [Query Caching](#query-caching)
   - [Query Compilation Cache](#query-compilation-cache)
   - [Query Performance Profiling](#query-performance-profiling)
+- [CLI Tools](#cli-tools)
 - [Error Handling](#error-handling)
 - [Performance Tips](#performance-tips)
 - [Debugging](#debugging)
