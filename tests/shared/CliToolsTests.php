@@ -837,6 +837,7 @@ class CliToolsTests extends BaseSharedTestCase
         ]);
 
         ob_start();
+
         try {
             $filename = ModelGenerator::generate('TestUserNamespace', 'test_users_namespace', $this->testModelPath, self::$db, 'Custom\\Namespace', true);
             ob_end_clean();
@@ -846,6 +847,7 @@ class CliToolsTests extends BaseSharedTestCase
             $this->assertStringContainsString('namespace Custom\\Namespace', $content);
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         } finally {
             $schema->dropTableIfExists('test_users_namespace');
@@ -865,6 +867,7 @@ class CliToolsTests extends BaseSharedTestCase
         ]);
 
         ob_start();
+
         try {
             // Generate first time
             $filename = ModelGenerator::generate('TestUserForce', 'test_users_force', $this->testModelPath, self::$db, null, false);
@@ -879,6 +882,7 @@ class CliToolsTests extends BaseSharedTestCase
             $this->assertFileExists($filename);
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         } finally {
             $schema->dropTableIfExists('test_users_force');

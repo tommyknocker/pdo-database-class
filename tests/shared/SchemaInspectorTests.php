@@ -457,6 +457,7 @@ final class SchemaInspectorTests extends TestCase
         $method->setAccessible(true);
 
         ob_start();
+
         try {
             $method->invoke(null, $this->db, 'test_posts', null);
             $out = ob_get_clean();
@@ -635,6 +636,7 @@ final class SchemaInspectorTests extends TestCase
     public function testInspectWithDbNull(): void
     {
         ob_start();
+
         try {
             SchemaInspector::inspect('test_users', null, null);
             $out = ob_get_clean();

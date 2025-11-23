@@ -472,7 +472,7 @@ final class QueryTesterTests extends TestCase
         $method->setAccessible(true);
 
         ob_start();
-        $method->invoke(null, $this->db, "DELETE FROM test_users WHERE id = 999");
+        $method->invoke(null, $this->db, 'DELETE FROM test_users WHERE id = 999');
         $out = ob_get_clean();
 
         $this->assertStringContainsString('successfully', $out);
@@ -503,6 +503,7 @@ final class QueryTesterTests extends TestCase
     public function testTestMethodWithQueryParameter(): void
     {
         ob_start();
+
         try {
             QueryTester::test('SELECT * FROM test_users');
             $out = ob_get_clean();
