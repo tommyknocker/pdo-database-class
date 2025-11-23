@@ -457,7 +457,7 @@ vendor/bin/phpunit tests/*/DialectSpecificSchemaTests.php
 
 ## See Also
 
-- [Schema Builder Basics](./19-schema-builder.md)
-- [Migrations](./18-migrations.md)
-- [Database Connections](../02-basic-usage/03-connections.md)
+- [DDL Operations](../03-query-builder/12-ddl-operations.md) - Schema builder basics
+- [Migrations](15-migrations.md)
+- [Connection Management](../02-core-concepts/02-connection-management.md)
 - [Examples: Dialect-Specific Types](../../examples/11-schema/08-dialect-specific-types.php)

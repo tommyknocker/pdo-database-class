@@ -477,6 +477,6 @@ try {
 
 ## Next Steps
 
-- [Table Locking](table-locking.md) - Lock tables for exclusive access
-- [Batch Processing](batch-processing.md) - Process large datasets
-- [Connection Retry](connection-retry.md) - Automatic retry mechanism
+- [Table Locking](02-table-locking.md) - Lock tables for exclusive access
+- [Batch Processing](03-batch-processing.md) - Process large datasets
+- [Connection Retry](07-connection-retry.md) - Automatic retry mechanism

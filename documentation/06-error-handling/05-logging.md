@@ -98,6 +98,6 @@ $logger->pushHandler($handler);
 
 ## Next Steps
 
-- [Exception Hierarchy](exception-hierarchy.md) - Exception types
-- [Monitoring](monitoring.md) - Error tracking
-- [Retry Logic](retry-logic.md) - Build retry logic
+- [Exception Hierarchy](01-exception-hierarchy.md) - Exception types
+- [Monitoring](06-monitoring.md) - Error tracking
+- [Retry Logic](04-retry-logic.md) - Build retry logic

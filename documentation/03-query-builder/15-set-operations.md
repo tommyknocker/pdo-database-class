@@ -198,6 +198,6 @@ See [Set Operations examples](../../examples/03-advanced/12-set-operations.php) 
 
 ## See Also
 
-- [CTEs](./cte.md) - Complex queries with WITH clauses
-- [Subqueries](./subqueries.md) - Nested queries
+- [CTEs](08-cte.md) - Complex queries with WITH clauses
+- [Subqueries](07-subqueries.md) - Nested queries
 - [Aggregations](../../examples/02-intermediate/02-aggregations.php) - GROUP BY and aggregate functions

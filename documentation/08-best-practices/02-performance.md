@@ -331,6 +331,6 @@ if ($duration > 1.0) {
 
 ## Next Steps
 
-- [Security](security.md) - Security best practices
-- [Memory Management](memory-management.md) - Handle large datasets
-- [Common Pitfalls](common-pitfalls.md) - Mistakes to avoid
+- [Security](01-security.md) - Security best practices
+- [Memory Management](03-memory-management.md) - Handle large datasets
+- [Common Pitfalls](05-common-pitfalls.md) - Mistakes to avoid

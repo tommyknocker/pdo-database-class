@@ -217,6 +217,6 @@ $users = $db->find()
 
 ## Next Steps
 
-- [SELECT Operations](select-operations.md) - SELECT queries
-- [Joins](joins.md) - JOIN operations
-- [Aggregations](aggregations.md) - GROUP BY, HAVING
+- [SELECT Operations](01-select-operations.md) - SELECT queries
+- [Joins](04-joins.md) - JOIN operations
+- [Aggregations](05-aggregations.md) - GROUP BY, HAVING

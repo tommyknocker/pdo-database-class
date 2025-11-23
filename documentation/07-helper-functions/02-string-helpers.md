@@ -472,6 +472,6 @@ $db = new PdoDb('sqlite', [
 
 ## Next Steps
 
-- [Numeric Helpers](numeric-helpers.md) - Math operations
-- [Comparison Helpers](comparison-helpers.md) - WHERE conditions
-- [Core Helpers](core-helpers.md) - Essential helpers
+- [Numeric Helpers](03-numeric-helpers.md) - Math operations
+- [Comparison Helpers](06-comparison-helpers.md) - WHERE conditions
+- [Core Helpers](01-core-helpers.md) - Essential helpers

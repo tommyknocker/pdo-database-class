@@ -158,6 +158,6 @@ $users = $db->rawQuery("SELECT * FROM users WHERE email = '$email'");
 
 ## Next Steps
 
-- [SELECT Operations](select-operations.md) - Query builder SELECT
+- [SELECT Operations](01-select-operations.md) - Query builder SELECT
 - [Security](../08-best-practices/01-security.md) - Security best practices
 - [Helper Functions](../07-helper-functions/01-core-helpers.md) - Helper functions

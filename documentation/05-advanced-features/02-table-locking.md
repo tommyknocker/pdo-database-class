@@ -152,6 +152,6 @@ try {
 
 ## Next Steps
 
-- [Transactions](transactions.md) - Transaction management
-- [Batch Processing](batch-processing.md) - Handle large datasets
+- [Transactions](01-transactions.md) - Transaction management
+- [Batch Processing](03-batch-processing.md) - Handle large datasets
 - [Performance](../08-best-practices/02-performance.md) - Optimization

@@ -183,6 +183,6 @@ $db->find()->table('users')->insert([
 
 ## Next Steps
 
-- [JSON Querying](json-querying.md) - Extract JSON values
-- [JSON Modification](json-modification.md) - Update JSON
-- [JSON Basics](json-basics.md) - JSON fundamentals
+- [JSON Querying](02-json-querying.md) - Extract JSON values
+- [JSON Modification](04-json-modification.md) - Update JSON
+- [JSON Basics](01-json-basics.md) - JSON fundamentals

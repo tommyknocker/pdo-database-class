@@ -156,6 +156,6 @@ $inactive = $db->find()
 
 ## Next Steps
 
-- [String Helpers](string-helpers.md) - String operations
-- [Numeric Helpers](numeric-helpers.md) - Math functions
-- [Core Helpers](core-helpers.md) - Essential helpers
+- [String Helpers](02-string-helpers.md) - String operations
+- [Numeric Helpers](03-numeric-helpers.md) - Math functions
+- [Core Helpers](01-core-helpers.md) - Essential helpers

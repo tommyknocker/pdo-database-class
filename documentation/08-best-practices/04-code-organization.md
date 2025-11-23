@@ -138,6 +138,6 @@ class DatabaseManager {
 
 ## Next Steps
 
-- [Security](security.md) - Security best practices
-- [Performance](performance.md) - Query optimization
-- [Common Pitfalls](common-pitfalls.md) - Mistakes to avoid
+- [Security](01-security.md) - Security best practices
+- [Performance](02-performance.md) - Query optimization
+- [Common Pitfalls](05-common-pitfalls.md) - Mistakes to avoid

@@ -212,6 +212,6 @@ PDOdb handles these differences automatically.
 
 ## Next Steps
 
-- [JSON Querying](json-querying.md) - Query JSON data
-- [JSON Filtering](json-filtering.md) - Filter by JSON
-- [JSON Aggregations](json-aggregations.md) - JSON functions
+- [JSON Querying](02-json-querying.md) - Query JSON data
+- [JSON Filtering](03-json-filtering.md) - Filter by JSON
+- [JSON Aggregations](05-json-aggregations.md) - JSON functions

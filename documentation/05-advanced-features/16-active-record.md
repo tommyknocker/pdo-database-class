@@ -678,7 +678,7 @@ ActiveRecord works with all supported databases:
 
 ## Relationships
 
-ActiveRecord supports relationships between models. See [ActiveRecord Relationships](active-record-relationships.md) for detailed documentation.
+ActiveRecord supports relationships between models. See [ActiveRecord Relationships](17-active-record-relationships.md) for detailed documentation.
 
 Supported relationship types:
 - **hasOne** - One-to-one relationship
@@ -690,7 +690,7 @@ Both lazy loading and eager loading are supported to prevent N+1 query problems.
 ## Limitations
 
 - No automatic schema introspection
-- No migrations (see [Database Migrations](migrations.md) for migration support)
+- No migrations (see [Database Migrations](15-migrations.md) for migration support)
 - Lightweight implementation focused on core functionality
 
 These limitations are intentional to keep the library lightweight and optional. You can extend models to add custom functionality as needed.

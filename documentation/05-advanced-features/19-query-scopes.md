@@ -345,6 +345,6 @@ $db->removeScope('tenant');
 
 ## See Also
 
-- [ActiveRecord Pattern](active-record.md)
-- [ActiveRecord Relationships](active-record-relationships.md)
-- [Query Builder](query-builder.md)
+- [ActiveRecord Pattern](16-active-record.md)
+- [ActiveRecord Relationships](17-active-record-relationships.md)
+- [Query Builder Basics](../02-core-concepts/03-query-builder-basics.md)

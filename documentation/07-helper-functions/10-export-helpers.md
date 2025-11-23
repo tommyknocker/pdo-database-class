@@ -288,6 +288,6 @@ Db::toXml(array $data, string $rootElement = 'data', string $itemElement = 'item
 
 ## Next Steps
 
-- [Core Helpers](core-helpers.md) - Basic helpers
+- [Core Helpers](01-core-helpers.md) - Basic helpers
 - [Real-World Examples](../10-cookbook/02-real-world-examples.md) - Practical examples
 - [Common Patterns](../10-cookbook/01-common-patterns.md) - Common patterns

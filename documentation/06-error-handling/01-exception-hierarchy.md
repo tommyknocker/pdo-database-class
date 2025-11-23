@@ -100,7 +100,7 @@ try {
 }
 ```
 
-See [Error Diagnostics](error-diagnostics.md) for more details on query context and debugging.
+See [Error Diagnostics](03-error-diagnostics.md) for more details on query context and debugging.
 
 ### ConstraintViolationException
 
@@ -407,7 +407,7 @@ try {
 
 ## Next Steps
 
-- [Error Diagnostics](error-diagnostics.md) - Query context and debug information
-- [Error Codes](error-codes.md) - Standardized error codes
-- [Retry Logic](retry-logic.md) - Building retry mechanisms
-- [Logging](logging.md) - Query and error logging
+- [Error Diagnostics](03-error-diagnostics.md) - Query context and debug information
+- [Error Codes](02-error-codes.md) - Standardized error codes
+- [Retry Logic](04-retry-logic.md) - Building retry mechanisms
+- [Logging](05-logging.md) - Query and error logging

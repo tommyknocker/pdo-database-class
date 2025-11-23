@@ -408,6 +408,6 @@ $db = new PdoDb('mysql', $config, [], $logger);
 
 ## Next Steps
 
-- [Performance](performance.md) - Optimize query performance
-- [Code Organization](code-organization.md) - Structure your code
-- [Common Pitfalls](common-pitfalls.md) - Mistakes to avoid
+- [Performance](02-performance.md) - Optimize query performance
+- [Code Organization](04-code-organization.md) - Structure your code
+- [Common Pitfalls](05-common-pitfalls.md) - Mistakes to avoid

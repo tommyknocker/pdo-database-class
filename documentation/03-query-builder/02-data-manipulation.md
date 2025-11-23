@@ -735,7 +735,7 @@ if (!$exists) {
 
 ## Next Steps
 
-- [SELECT Operations](select-operations.md) - Read data from database
-- [Filtering Conditions](filtering-conditions.md) - Complex WHERE clauses
+- [SELECT Operations](01-select-operations.md) - Read data from database
+- [Filtering Conditions](03-filtering-conditions.md) - Complex WHERE clauses
 - [Transactions](../05-advanced-features/01-transactions.md) - Transaction management
 - [Bulk Operations](../05-advanced-features/04-bulk-operations.md) - Large dataset handling

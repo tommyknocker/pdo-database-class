@@ -549,8 +549,8 @@ print_r($plan);
 
 ## Next Steps
 
-- [Data Manipulation](data-manipulation.md) - INSERT, UPDATE, DELETE
-- [Filtering Conditions](filtering-conditions.md) - Complex WHERE clauses
-- [Joins](joins.md) - Joining tables
-- [Aggregations](aggregations.md) - GROUP BY, HAVING
+- [Data Manipulation](02-data-manipulation.md) - INSERT, UPDATE, DELETE
+- [Filtering Conditions](03-filtering-conditions.md) - Complex WHERE clauses
+- [Joins](04-joins.md) - Joining tables
+- [Aggregations](05-aggregations.md) - GROUP BY, HAVING
 - [Query Builder Basics](../02-core-concepts/03-query-builder-basics.md) - Fluent API overview

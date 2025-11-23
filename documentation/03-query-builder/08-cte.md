@@ -470,11 +470,14 @@ $results = $pdoDb->find()
     ->paginate(25, $page);
 ```
 
-## See Also
+## Examples
 
 - [CTE Examples](../../examples/03-advanced/08-basic-cte.php) - Basic CTE usage
 - [Recursive CTE Examples](../../examples/03-advanced/09-recursive-cte.php) - Recursive CTEs for hierarchical data
 - [Materialized CTE Examples](../../examples/03-advanced/10-materialized-cte.php) - Materialized CTEs for performance
-- [Query Builder](../03-query-builder/README.md)
-- [Window Functions](./window-functions.md)
-- [Subqueries](./subqueries.md)
+
+## See Also
+
+- [Window Functions](09-window-functions.md) - Window functions for analytics
+- [Subqueries](07-subqueries.md) - Subqueries in SELECT, WHERE, FROM
+- [Query Builder Basics](../02-core-concepts/03-query-builder-basics.md) - Fluent API overview

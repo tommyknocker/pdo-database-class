@@ -139,5 +139,5 @@ $activeUsers = $db->find()
 ## Next Steps
 
 - [Filtering Conditions](../03-query-builder/03-filtering-conditions.md) - Complex WHERE
-- [String Helpers](string-helpers.md) - String operations
-- [NULL Helpers](null-helpers.md) - NULL handling
+- [String Helpers](02-string-helpers.md) - String operations
+- [NULL Helpers](05-null-helpers.md) - NULL handling

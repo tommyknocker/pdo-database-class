@@ -230,6 +230,6 @@ $result = $db->transaction(function($db) {
 
 ## Next Steps
 
-- [Common Patterns](common-patterns.md) - Reusable patterns
-- [Real-World Examples](real-world-examples.md) - Complete apps
+- [Common Patterns](01-common-patterns.md) - Reusable patterns
+- [Real-World Examples](02-real-world-examples.md) - Complete apps
 - [Best Practices](../08-best-practices/01-security.md) - Security and performance

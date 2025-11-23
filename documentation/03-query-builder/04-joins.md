@@ -410,6 +410,6 @@ $results = $db->find()
 
 ## Next Steps
 
-- [SELECT Operations](select-operations.md) - SELECT queries
-- [Aggregations](aggregations.md) - GROUP BY, HAVING
-- [Filtering Conditions](filtering-conditions.md) - WHERE clauses
+- [SELECT Operations](01-select-operations.md) - SELECT queries
+- [Aggregations](05-aggregations.md) - GROUP BY, HAVING
+- [Filtering Conditions](03-filtering-conditions.md) - WHERE clauses

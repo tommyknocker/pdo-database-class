@@ -186,6 +186,6 @@ safeTransaction($db, function($db) use ($userId, $orderData) {
 
 ## Next Steps
 
-- [Real-World Examples](real-world-examples.md) - Complete applications
-- [Migration Guide](migration-guide.md) - Migrating from other libraries
-- [Troubleshooting](troubleshooting.md) - Common issues
+- [Real-World Examples](02-real-world-examples.md) - Complete applications
+- [Migration Guide](03-migration-guide.md) - Migrating from other libraries
+- [Troubleshooting](04-troubleshooting.md) - Common issues

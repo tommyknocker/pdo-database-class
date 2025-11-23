@@ -134,6 +134,6 @@ foreach ($db->find()->from('users')->stream() as $user) {
 
 ## Next Steps
 
-- [API Reference](api-reference.md) - Complete API
-- [Query Builder Methods](query-builder-methods.md) - Query builder methods
-- [Helper Functions Reference](helper-functions-reference.md) - Helpers
+- [API Reference](01-api-reference.md) - Complete API
+- [Query Builder Methods](02-query-builder-methods.md) - Query builder methods
+- [Helper Functions Reference](04-helper-functions-reference.md) - Helpers

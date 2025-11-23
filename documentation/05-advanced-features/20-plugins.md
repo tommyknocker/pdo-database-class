@@ -352,7 +352,6 @@ $db->registerPlugin($plugin);
 
 ## See Also
 
-- [Query Builder Macros](query-macros.md) - More about macros
-- [Query Scopes](query-scopes.md) - More about scopes
-- [Event Dispatcher](events.md) - More about events
+- [Query Builder Macros](18-query-macros.md) - More about macros
+- [Query Scopes](19-query-scopes.md) - More about scopes
 - [Examples](../../examples/10-extensibility/02-plugins.php) - Working examples

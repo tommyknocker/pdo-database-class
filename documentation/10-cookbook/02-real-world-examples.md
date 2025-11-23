@@ -175,6 +175,6 @@ function getDashboardStats(PdoDb $db, string $date): array {
 
 ## Next Steps
 
-- [Common Patterns](common-patterns.md) - Reusable patterns
-- [Troubleshooting](troubleshooting.md) - Common issues
+- [Common Patterns](01-common-patterns.md) - Reusable patterns
+- [Troubleshooting](04-troubleshooting.md) - Common issues
 - [Best Practices](../08-best-practices/01-security.md) - Security

@@ -237,6 +237,6 @@ echo $result['sql'];
 
 ## Next Steps
 
-- [API Reference](api-reference.md) - Complete API
-- [PdoDb Methods](pdo-db-methods.md) - PdoDb methods
-- [Helper Functions Reference](helper-functions-reference.md) - Helpers
+- [API Reference](01-api-reference.md) - Complete API
+- [PdoDb Methods](03-pdo-db-methods.md) - PdoDb methods
+- [Helper Functions Reference](04-helper-functions-reference.md) - Helpers

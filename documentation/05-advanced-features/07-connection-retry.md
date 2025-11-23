@@ -200,5 +200,5 @@ $db = new PdoDb('mysql', [
 ## Next Steps
 
 - [Exception Hierarchy](../06-error-handling/01-exception-hierarchy.md) - Error handling
-- [Transactions](transactions.md) - Transaction management
+- [Transactions](01-transactions.md) - Transaction management
 - [Error Codes](../06-error-handling/02-error-codes.md) - Error constants

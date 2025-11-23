@@ -168,6 +168,6 @@ foreach ($db->find()->from('users')->batch(1000) as $batch) {
 
 ## Next Steps
 
-- [Performance](performance.md) - Query optimization
-- [Security](security.md) - Best security practices
+- [Performance](02-performance.md) - Query optimization
+- [Security](01-security.md) - Best security practices
 - [Batch Processing](../05-advanced-features/03-batch-processing.md) - Batch operations

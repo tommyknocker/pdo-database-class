@@ -397,6 +397,6 @@ function searchUsers($filters) {
 
 ## Next Steps
 
-- [Joins](joins.md) - Joining tables
-- [Aggregations](aggregations.md) - GROUP BY, HAVING
-- [Subqueries](subqueries.md) - Complex subqueries
+- [Joins](04-joins.md) - Joining tables
+- [Aggregations](05-aggregations.md) - GROUP BY, HAVING
+- [Subqueries](07-subqueries.md) - Complex subqueries

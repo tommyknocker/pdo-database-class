@@ -157,6 +157,6 @@ $db->find()
 
 ## Next Steps
 
-- [Comparison Helpers](comparison-helpers.md) - WHERE conditions
-- [String Helpers](string-helpers.md) - String operations
-- [Core Helpers](core-helpers.md) - Essential helpers
+- [Comparison Helpers](06-comparison-helpers.md) - WHERE conditions
+- [String Helpers](02-string-helpers.md) - String operations
+- [Core Helpers](01-core-helpers.md) - Essential helpers

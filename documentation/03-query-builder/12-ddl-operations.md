@@ -551,6 +551,6 @@ echo "Table 'posts' created successfully\n";
 
 ## Related Documentation
 
-- [Schema Introspection](schema-introspection.md) - Querying existing schema
+- [Schema Introspection](11-schema-introspection.md) - Querying existing schema
 - [Database Migrations](../05-advanced-features/15-migrations.md) - Version-controlled schema changes
 - [Dialect Support](../02-core-concepts/05-dialect-support.md) - Database-specific differences

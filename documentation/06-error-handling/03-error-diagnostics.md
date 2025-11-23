@@ -331,6 +331,6 @@ set_exception_handler(function (\Throwable $e) {
 
 ## See Also
 
-- [Exception Hierarchy](exception-hierarchy.md) - Understanding exception types
-- [Logging](logging.md) - Query and error logging
-- [Monitoring](monitoring.md) - Error monitoring and alerting
+- [Exception Hierarchy](01-exception-hierarchy.md) - Understanding exception types
+- [Logging](05-logging.md) - Query and error logging
+- [Monitoring](06-monitoring.md) - Error monitoring and alerting

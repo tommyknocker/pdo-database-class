@@ -368,6 +368,6 @@ foreach ($db->find()
 
 ## Next Steps
 
-- [Bulk Operations](bulk-operations.md) - Bulk inserts and updates
-- [Transactions](transactions.md) - Transaction management
+- [Bulk Operations](04-bulk-operations.md) - Bulk inserts and updates
+- [Transactions](01-transactions.md) - Transaction management
 - [Performance](../08-best-practices/02-performance.md) - Performance optimization

@@ -170,7 +170,7 @@ foreach ($users as $user) {
 
 ### Extract JSON Paths
 
-See [JSON Querying](json-querying.md) for more details on extracting specific paths.
+See [JSON Querying](02-json-querying.md) for more details on extracting specific paths.
 
 ## Validating JSON
 
@@ -360,7 +360,7 @@ $meta = Db::jsonObject([/* thousands of items */]);
 
 ## Next Steps
 
-- [JSON Querying](json-querying.md) - Query JSON data with path expressions
-- [JSON Filtering](json-filtering.md) - Filter by JSON values
-- [JSON Modification](json-modification.md) - Update JSON values
-- [JSON Aggregations](json-aggregations.md) - JSON functions
+- [JSON Querying](02-json-querying.md) - Query JSON data with path expressions
+- [JSON Filtering](03-json-filtering.md) - Filter by JSON values
+- [JSON Modification](04-json-modification.md) - Update JSON values
+- [JSON Aggregations](05-json-aggregations.md) - JSON functions

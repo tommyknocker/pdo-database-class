@@ -175,6 +175,6 @@ $db->find()->table('users')->update([
 
 ## Next Steps
 
-- [String Helpers](string-helpers.md) - String manipulation
-- [Numeric Helpers](numeric-helpers.md) - Math operations
-- [Comparison Helpers](comparison-helpers.md) - WHERE conditions
+- [String Helpers](02-string-helpers.md) - String manipulation
+- [Numeric Helpers](03-numeric-helpers.md) - Math operations
+- [Comparison Helpers](06-comparison-helpers.md) - WHERE conditions

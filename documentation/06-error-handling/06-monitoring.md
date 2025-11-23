@@ -80,6 +80,6 @@ try {
 
 ## Next Steps
 
-- [Exception Hierarchy](exception-hierarchy.md) - Exception types
-- [Logging](logging.md) - Configure logging
-- [Retry Logic](retry-logic.md) - Build retry logic
+- [Exception Hierarchy](01-exception-hierarchy.md) - Exception types
+- [Logging](05-logging.md) - Configure logging
+- [Retry Logic](04-retry-logic.md) - Build retry logic

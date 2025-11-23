@@ -151,6 +151,6 @@ foreach ($batches as $batch) {
 
 ## Next Steps
 
-- [Batch Processing](batch-processing.md) - Process large datasets
-- [Transactions](transactions.md) - Ensure data consistency
+- [Batch Processing](03-batch-processing.md) - Process large datasets
+- [Transactions](01-transactions.md) - Ensure data consistency
 - [Performance](../08-best-practices/02-performance.md) - Optimization tips

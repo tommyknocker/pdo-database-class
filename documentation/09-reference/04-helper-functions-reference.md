@@ -423,6 +423,6 @@ Db::groupConcat('name', ', ', true);
 
 ## Next Steps
 
-- [API Reference](api-reference.md) - Complete API
-- [Query Builder Methods](query-builder-methods.md) - Query builder methods
-- [PdoDb Methods](pdo-db-methods.md) - PdoDb methods
+- [API Reference](01-api-reference.md) - Complete API
+- [Query Builder Methods](02-query-builder-methods.md) - Query builder methods
+- [PdoDb Methods](03-pdo-db-methods.md) - PdoDb methods

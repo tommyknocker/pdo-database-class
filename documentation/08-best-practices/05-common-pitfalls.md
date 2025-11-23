@@ -230,6 +230,6 @@ $users = $db->find()->from('users')->where('id', $id)->get();
 
 ## Next Steps
 
-- [Security](security.md) - Security best practices
-- [Performance](performance.md) - Performance optimization
-- [Memory Management](memory-management.md) - Handle large datasets
+- [Security](01-security.md) - Security best practices
+- [Performance](02-performance.md) - Performance optimization
+- [Memory Management](03-memory-management.md) - Handle large datasets

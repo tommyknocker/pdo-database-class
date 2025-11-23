@@ -114,5 +114,5 @@ $stats = $db->find()
 ## Next Steps
 
 - [Aggregations](../03-query-builder/05-aggregations.md) - GROUP BY, HAVING
-- [Core Helpers](core-helpers.md) - Essential helpers
-- [Numeric Helpers](numeric-helpers.md) - Math functions
+- [Core Helpers](01-core-helpers.md) - Essential helpers
+- [Numeric Helpers](03-numeric-helpers.md) - Math functions
