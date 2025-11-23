@@ -161,7 +161,8 @@ class SchemaInspector extends BaseCliCommand
                 $columns = implode(', ', $fk['columns'] ?? []);
                 $refTable = $fk['referenced_table'] ?? '';
                 $refColumns = implode(', ', $fk['referenced_columns'] ?? []);
-                echo "  {$fk['name']}: ({$columns}) -> {$refTable}({$refColumns})\n";
+                $fkName = $fk['name'] ?? 'FK';
+                echo "  {$fkName}: ({$columns}) -> {$refTable}({$refColumns})\n";
             }
         }
     }

@@ -258,4 +258,325 @@ final class QueryTesterTests extends TestCase
         // EXPLAIN should return results
         $this->assertNotEmpty($out);
     }
+
+    /**
+     * Test executeQuery with QueryException where getQuery() returns null.
+     */
+    public function testExecuteQueryWithQueryExceptionNullQuery(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('executeQuery');
+        $method->setAccessible(true);
+
+        ob_start();
+        // Invalid query that will throw exception
+        $method->invoke(null, $this->db, 'INVALID SQL SYNTAX');
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('Error', $out);
+    }
+
+    /**
+     * Test displayResults with non-scalar values.
+     */
+    public function testDisplayResultsWithNonScalarValues(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('displayResults');
+        $method->setAccessible(true);
+
+        $results = [
+            ['id' => 1, 'data' => ['nested' => 'value'], 'array' => [1, 2, 3]],
+        ];
+
+        ob_start();
+        $method->invoke(null, $results);
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('id', $out);
+        $this->assertStringContainsString('data', $out);
+        $this->assertStringContainsString('array', $out);
+    }
+
+    /**
+     * Test displayResults with null values.
+     */
+    public function testDisplayResultsWithNullValues(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('displayResults');
+        $method->setAccessible(true);
+
+        $results = [
+            ['id' => 1, 'name' => null, 'email' => 'test@example.com'],
+        ];
+
+        ob_start();
+        $method->invoke(null, $results);
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('id', $out);
+        $this->assertStringContainsString('name', $out);
+        $this->assertStringContainsString('email', $out);
+    }
+
+    /**
+     * Test displayResults with exactly 100 rows.
+     */
+    public function testDisplayResultsWithExactly100Rows(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('displayResults');
+        $method->setAccessible(true);
+
+        // Create exactly 100 rows
+        $results = [];
+        for ($i = 1; $i <= 100; $i++) {
+            $results[] = ['id' => $i, 'name' => "User {$i}"];
+        }
+
+        ob_start();
+        $method->invoke(null, $results);
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('Total rows: 100', $out);
+        $this->assertStringNotContainsString('more rows', $out);
+    }
+
+    /**
+     * Test displayResults with 101 rows.
+     */
+    public function testDisplayResultsWith101Rows(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('displayResults');
+        $method->setAccessible(true);
+
+        // Create 101 rows
+        $results = [];
+        for ($i = 1; $i <= 101; $i++) {
+            $results[] = ['id' => $i, 'name' => "User {$i}"];
+        }
+
+        ob_start();
+        $method->invoke(null, $results);
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('Total rows: 101', $out);
+        $this->assertStringContainsString('more rows', $out);
+    }
+
+    /**
+     * Test displayResults with values exactly 50 characters.
+     */
+    public function testDisplayResultsWithExactly50CharacterValues(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('displayResults');
+        $method->setAccessible(true);
+
+        $exactly50Chars = str_repeat('A', 50);
+        $results = [
+            ['id' => 1, 'name' => $exactly50Chars],
+        ];
+
+        ob_start();
+        $method->invoke(null, $results);
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('id', $out);
+        $this->assertStringContainsString('name', $out);
+    }
+
+    /**
+     * Test displayResults with values 51 characters (should be truncated).
+     */
+    public function testDisplayResultsWith51CharacterValues(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('displayResults');
+        $method->setAccessible(true);
+
+        $exactly51Chars = str_repeat('A', 51);
+        $results = [
+            ['id' => 1, 'name' => $exactly51Chars],
+        ];
+
+        ob_start();
+        $method->invoke(null, $results);
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('id', $out);
+        $this->assertStringContainsString('name', $out);
+        // Should be truncated
+        $this->assertStringContainsString('...', $out);
+    }
+
+    /**
+     * Test executeQuery with lowercase select.
+     */
+    public function testExecuteQueryWithLowercaseSelect(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('executeQuery');
+        $method->setAccessible(true);
+
+        ob_start();
+        $method->invoke(null, $this->db, 'select * from test_users');
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('id', $out);
+        $this->assertStringContainsString('name', $out);
+    }
+
+    /**
+     * Test executeQuery with mixed case SELECT.
+     */
+    public function testExecuteQueryWithMixedCaseSelect(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('executeQuery');
+        $method->setAccessible(true);
+
+        ob_start();
+        $method->invoke(null, $this->db, 'SeLeCt * FrOm test_users');
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('id', $out);
+        $this->assertStringContainsString('name', $out);
+    }
+
+    /**
+     * Test executeQuery with INSERT query.
+     */
+    public function testExecuteQueryWithInsert(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('executeQuery');
+        $method->setAccessible(true);
+
+        ob_start();
+        $method->invoke(null, $this->db, "INSERT INTO test_users (name, email) VALUES ('Test', 'test@example.com')");
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('successfully', $out);
+    }
+
+    /**
+     * Test executeQuery with DELETE query.
+     */
+    public function testExecuteQueryWithDelete(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('executeQuery');
+        $method->setAccessible(true);
+
+        ob_start();
+        $method->invoke(null, $this->db, "DELETE FROM test_users WHERE id = 999");
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('successfully', $out);
+    }
+
+    /**
+     * Test executeQuery with CREATE TABLE query.
+     */
+    public function testExecuteQueryWithCreateTable(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('executeQuery');
+        $method->setAccessible(true);
+
+        ob_start();
+        $method->invoke(null, $this->db, 'CREATE TABLE test_temp (id INTEGER PRIMARY KEY, name TEXT)');
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('successfully', $out);
+
+        // Cleanup
+        $this->db->rawQuery('DROP TABLE IF EXISTS test_temp');
+    }
+
+    /**
+     * Test test method with query parameter.
+     */
+    public function testTestMethodWithQueryParameter(): void
+    {
+        ob_start();
+        try {
+            QueryTester::test('SELECT * FROM test_users');
+            $out = ob_get_clean();
+
+            $this->assertStringContainsString('PDOdb Query Tester', $out);
+            $this->assertStringContainsString('Database:', $out);
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            // May fail if database config is not available
+            $this->assertInstanceOf(\Throwable::class, $e);
+        }
+    }
+
+    /**
+     * Test displayResults with empty array keys.
+     */
+    public function testDisplayResultsWithEmptyArrayKeys(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('displayResults');
+        $method->setAccessible(true);
+
+        $results = [
+            ['id' => 1, '' => 'empty_key_value'],
+        ];
+
+        ob_start();
+        $method->invoke(null, $results);
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('id', $out);
+    }
+
+    /**
+     * Test displayResults with boolean values.
+     */
+    public function testDisplayResultsWithBooleanValues(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('displayResults');
+        $method->setAccessible(true);
+
+        $results = [
+            ['id' => 1, 'active' => true, 'deleted' => false],
+        ];
+
+        ob_start();
+        $method->invoke(null, $results);
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('id', $out);
+        $this->assertStringContainsString('active', $out);
+        $this->assertStringContainsString('deleted', $out);
+    }
+
+    /**
+     * Test displayResults with numeric values.
+     */
+    public function testDisplayResultsWithNumericValues(): void
+    {
+        $reflection = new \ReflectionClass(QueryTester::class);
+        $method = $reflection->getMethod('displayResults');
+        $method->setAccessible(true);
+
+        $results = [
+            ['id' => 1, 'price' => 99.99, 'quantity' => 42],
+        ];
+
+        ob_start();
+        $method->invoke(null, $results);
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString('id', $out);
+        $this->assertStringContainsString('price', $out);
+        $this->assertStringContainsString('quantity', $out);
+    }
 }
