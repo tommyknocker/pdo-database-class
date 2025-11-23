@@ -334,12 +334,8 @@ class EagerLoader
      */
     protected function getRelationInstance(Model $model, string $relationName): ?RelationInterface
     {
-        // Use reflection to access protected method
-        $reflection = new \ReflectionClass($model);
-        $method = $reflection->getMethod('getRelationInstance');
-        $method->setAccessible(true);
-
-        return $method->invoke($model, $relationName);
+        // Use public method to access relation
+        return $model->getRelationInstance($relationName);
     }
 
     /**
@@ -356,15 +352,9 @@ class EagerLoader
         $model = new $modelClass();
         $model->populate($data);
 
-        // Use reflection to set protected properties
-        $reflection = new \ReflectionClass($model);
-        $isNewRecordProp = $reflection->getProperty('isNewRecord');
-        $isNewRecordProp->setAccessible(true);
-        $isNewRecordProp->setValue($model, false);
-
-        $oldAttributesProp = $reflection->getProperty('oldAttributes');
-        $oldAttributesProp->setAccessible(true);
-        $oldAttributesProp->setValue($model, $data);
+        // Set protected properties using public methods
+        $model->setIsNewRecord(false);
+        $model->setOldAttributes($data);
 
         return $model;
     }

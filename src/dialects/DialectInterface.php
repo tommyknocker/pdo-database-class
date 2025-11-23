@@ -30,6 +30,13 @@ interface DialectInterface
     public function setPdo(PDO $pdo): void;
 
     /**
+     * Get PDO instance.
+     *
+     * @return PDO|null The PDO instance or null if not set
+     */
+    public function getPdo(): ?PDO;
+
+    /**
      * Build dsn string.
      *
      * @param array<string, mixed> $params

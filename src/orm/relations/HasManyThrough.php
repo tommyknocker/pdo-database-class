@@ -240,17 +240,9 @@ class HasManyThrough implements RelationInterface
                 $model = new $this->modelClass();
                 $model->populate($row);
 
-                // Use reflection to set protected properties
-                /** @var class-string<Model> $modelClassForReflection */
-                $modelClassForReflection = $this->modelClass;
-                $reflection = new \ReflectionClass($modelClassForReflection);
-                $isNewRecordProp = $reflection->getProperty('isNewRecord');
-                $isNewRecordProp->setAccessible(true);
-                $isNewRecordProp->setValue($model, false);
-
-                $oldAttributesProp = $reflection->getProperty('oldAttributes');
-                $oldAttributesProp->setAccessible(true);
-                $oldAttributesProp->setValue($model, $row);
+                // Set protected properties using public methods
+                $model->setIsNewRecord(false);
+                $model->setOldAttributes($row);
 
                 $models[] = $model;
                 if ($modelId !== null) {
@@ -271,16 +263,12 @@ class HasManyThrough implements RelationInterface
      */
     protected function buildViaQuery(ActiveQuery $query): array
     {
-        // Get intermediate relationship using reflection (getRelationInstance is protected)
+        // Get intermediate relationship using public method
         if ($this->model === null) {
             throw new RuntimeException('Model instance must be set before accessing relationship.');
         }
-        /** @var class-string<Model> $modelClass */
-        $modelClass = get_class($this->model);
-        $reflection = new \ReflectionClass($modelClass);
-        $method = $reflection->getMethod('getRelationInstance');
-        $method->setAccessible(true);
-        $intermediateRelation = $method->invoke($this->model, $this->viaRelation);
+        // Get intermediate relationship using public method
+        $intermediateRelation = $this->model->getRelationInstance($this->viaRelation);
         if ($intermediateRelation === null) {
             throw new RuntimeException("Intermediate relationship '{$this->viaRelation}' not found.");
         }
@@ -330,17 +318,9 @@ class HasManyThrough implements RelationInterface
                 $model = new $relatedModelClass();
                 $model->populate($row);
 
-                // Use reflection to set protected properties
-                /** @var class-string<Model> $modelClassForReflection */
-                $modelClassForReflection = $this->modelClass;
-                $reflection = new \ReflectionClass($modelClassForReflection);
-                $isNewRecordProp = $reflection->getProperty('isNewRecord');
-                $isNewRecordProp->setAccessible(true);
-                $isNewRecordProp->setValue($model, false);
-
-                $oldAttributesProp = $reflection->getProperty('oldAttributes');
-                $oldAttributesProp->setAccessible(true);
-                $oldAttributesProp->setValue($model, $row);
+                // Set protected properties using public methods
+                $model->setIsNewRecord(false);
+                $model->setOldAttributes($row);
 
                 $relatedModels[] = $model;
             }
@@ -377,17 +357,9 @@ class HasManyThrough implements RelationInterface
                 $model = new $this->modelClass();
                 $model->populate($item);
 
-                // Use reflection to set protected properties
-                /** @var class-string<Model> $modelClassForReflection */
-                $modelClassForReflection = $this->modelClass;
-                $reflection = new \ReflectionClass($modelClassForReflection);
-                $isNewRecordProp = $reflection->getProperty('isNewRecord');
-                $isNewRecordProp->setAccessible(true);
-                $isNewRecordProp->setValue($model, false);
-
-                $oldAttributesProp = $reflection->getProperty('oldAttributes');
-                $oldAttributesProp->setAccessible(true);
-                $oldAttributesProp->setValue($model, $item);
+                // Set protected properties using public methods
+                $model->setIsNewRecord(false);
+                $model->setOldAttributes($item);
 
                 $models[] = $model;
             }
@@ -441,16 +413,11 @@ class HasManyThrough implements RelationInterface
             $queryBuilder->where($junctionTable . '.' . $junctionOwnerKey, $ownerPkValue);
         } elseif (!empty($this->viaRelation)) {
             // For via, we need to use a subquery
-            // Use reflection to access protected getRelationInstance method
+            // Get intermediate relationship using public method
             if ($this->model === null) {
                 throw new RuntimeException('Model instance must be set before preparing query.');
             }
-            /** @var class-string<Model> $modelClass */
-            $modelClass = get_class($this->model);
-            $reflection = new \ReflectionClass($modelClass);
-            $method = $reflection->getMethod('getRelationInstance');
-            $method->setAccessible(true);
-            $intermediateRelation = $method->invoke($this->model, $this->viaRelation);
+            $intermediateRelation = $this->model->getRelationInstance($this->viaRelation);
             if ($intermediateRelation !== null) {
                 $intermediateQuery = $intermediateRelation->prepareQuery();
                 $intermediateQueryBuilder = $intermediateQuery->getQueryBuilder();
@@ -464,24 +431,27 @@ class HasManyThrough implements RelationInterface
 
                 // Use WHERE IN with subquery via callable
                 // Build subquery from intermediate query
-                $intermediateTable = $intermediateQueryBuilder->getTable();
-                $intermediateWhere = $intermediateQueryBuilder->getWhere();
-                $intermediateParams = $intermediateQueryBuilder->toSQL()['params'] ?? [];
+                $intermediateTable = $intermediateQueryBuilder->getTableName();
+                if ($intermediateTable === null) {
+                    $queryBuilder->whereRaw('1 = 0'); // Always false condition
+                } else {
+                    // Get SQL from intermediate query to preserve WHERE conditions
+                    // Use it as a subquery in WHERE IN
+                    $intermediateSqlData = $intermediateQueryBuilder->toSQL();
+                    $intermediateSql = $intermediateSqlData['sql'] ?? '';
+                    $intermediateParams = $intermediateSqlData['params'] ?? [];
 
-                $queryBuilder->whereIn(
-                    $relatedForeignKey,
-                    function ($subQuery) use ($intermediateTable, $intermediatePk, $intermediateWhere, $intermediateParams) {
-                        $subQuery->from($intermediateTable)->select($intermediatePk);
-                        // Copy WHERE conditions
-                        foreach ($intermediateWhere as $condition) {
-                            $subQuery->whereRaw($condition['sql']);
+                    // Build subquery: SELECT intermediatePk FROM (intermediate query)
+                    // Use callable to build subquery that selects from the intermediate query
+                    $queryBuilder->whereIn(
+                        $relatedForeignKey,
+                        function ($subQuery) use ($intermediatePk, $intermediateSql, $intermediateParams) {
+                            // Build subquery using from with RawValue to preserve all conditions from intermediate query
+                            $subQueryRawValue = new \tommyknocker\pdodb\helpers\values\RawValue("({$intermediateSql}) AS subquery", $intermediateParams);
+                            $subQuery->from($subQueryRawValue)->select("subquery.{$intermediatePk}");
                         }
-                        // Copy parameters
-                        foreach ($intermediateParams as $param => $value) {
-                            $subQuery->getQueryBuilder()->getParameterManager()->setParam($param, $value);
-                        }
-                    }
-                );
+                    );
+                }
             } else {
                 $queryBuilder->whereRaw('1 = 0'); // Always false condition
             }

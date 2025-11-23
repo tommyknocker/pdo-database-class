@@ -450,6 +450,16 @@ class PdoDb
     }
 
     /**
+     * Get all named connections.
+     *
+     * @return array<string, ConnectionInterface> Named connections pool
+     */
+    public function getConnections(): array
+    {
+        return $this->connections;
+    }
+
+    /**
      * Get cache manager instance.
      *
      * @return CacheManager|null

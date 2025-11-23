@@ -514,24 +514,15 @@ class MonitorManager
         // Show PDOdb connection pool if available
         $connections = [];
 
-        try {
-            $reflection = new \ReflectionClass($db);
-            $property = $reflection->getProperty('connections');
-            $property->setAccessible(true);
-            $pool = $property->getValue($db);
-            if (is_array($pool)) {
-                foreach ($pool as $name => $conn) {
-                    if (is_object($conn) && method_exists($conn, 'getDriverName')) {
-                        $connections[] = [
-                            'name' => is_string($name) ? $name : '',
-                            'driver' => $conn->getDriverName(),
-                            'status' => 'active',
-                        ];
-                    }
-                }
+        $pool = $db->getConnections();
+        foreach ($pool as $name => $conn) {
+            if (is_object($conn) && method_exists($conn, 'getDriverName')) {
+                $connections[] = [
+                    'name' => is_string($name) ? $name : '',
+                    'driver' => $conn->getDriverName(),
+                    'status' => 'active',
+                ];
             }
-        } catch (\Exception $e) {
-            // Ignore reflection errors
         }
 
         return [

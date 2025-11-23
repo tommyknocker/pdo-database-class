@@ -138,6 +138,14 @@ abstract class Command extends BaseCliCommand
     }
 
     /**
+     * Reset database instance.
+     */
+    public function resetDb(): void
+    {
+        $this->db = null;
+    }
+
+    /**
      * Get option value.
      *
      * @param string $name Option name

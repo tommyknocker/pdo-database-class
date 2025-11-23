@@ -133,10 +133,7 @@ class ConnectionCommand extends Command
 
             // Try to connect and get additional info
             // Reset cached connection to ensure we use the correct one
-            $reflection = new \ReflectionClass($this);
-            $dbProperty = $reflection->getProperty('db');
-            $dbProperty->setAccessible(true);
-            $dbProperty->setValue($this, null);
+            $this->resetDb();
 
             // Set connection name before connecting
             if ($connectionName !== null) {

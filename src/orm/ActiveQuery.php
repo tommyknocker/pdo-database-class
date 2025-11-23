@@ -259,15 +259,9 @@ class ActiveQuery
         $model = new $this->modelClass();
         $model->populate($data);
 
-        // Use reflection to set protected properties
-        $reflection = new \ReflectionClass($model);
-        $isNewRecordProp = $reflection->getProperty('isNewRecord');
-        $isNewRecordProp->setAccessible(true);
-        $isNewRecordProp->setValue($model, false);
-
-        $oldAttributesProp = $reflection->getProperty('oldAttributes');
-        $oldAttributesProp->setAccessible(true);
-        $oldAttributesProp->setValue($model, $data);
+        // Set protected properties using public methods
+        $model->setIsNewRecord(false);
+        $model->setOldAttributes($data);
 
         return $model;
     }

@@ -137,15 +137,9 @@ class HasMany implements RelationInterface
                 $model = new $relatedModelClass();
                 $model->populate($item);
 
-                // Use reflection to set protected properties
-                $reflection = new \ReflectionClass($model);
-                $isNewRecordProp = $reflection->getProperty('isNewRecord');
-                $isNewRecordProp->setAccessible(true);
-                $isNewRecordProp->setValue($model, false);
-
-                $oldAttributesProp = $reflection->getProperty('oldAttributes');
-                $oldAttributesProp->setAccessible(true);
-                $oldAttributesProp->setValue($model, $item);
+                // Set protected properties using public methods
+                $model->setIsNewRecord(false);
+                $model->setOldAttributes($item);
 
                 $models[] = $model;
             }

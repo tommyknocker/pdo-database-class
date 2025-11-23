@@ -6,8 +6,6 @@ namespace tommyknocker\pdodb\dialects\mssql;
 
 use PDO;
 use PDOException;
-use ReflectionClass;
-use ReflectionException;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\builders\DdlBuilderInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
@@ -28,19 +26,10 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
     {
         $this->dialect = $dialect;
 
-        // Try to get PDO from dialect via reflection
-        try {
-            $reflection = new ReflectionClass($dialect);
-            if ($reflection->hasProperty('pdo')) {
-                $property = $reflection->getProperty('pdo');
-                $property->setAccessible(true);
-                $pdo = $property->getValue($dialect);
-                if ($pdo instanceof PDO) {
-                    $this->pdo = $pdo;
-                }
-            }
-        } catch (ReflectionException $e) {
-            // PDO not available, method will return empty string
+        // Get PDO from dialect
+        $pdo = $dialect->getPdo();
+        if ($pdo instanceof PDO) {
+            $this->pdo = $pdo;
         }
     }
 

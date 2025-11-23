@@ -24,6 +24,11 @@ abstract class DialectAbstract implements DialectInterface
         $this->pdo = $pdo;
     }
 
+    public function getPdo(): ?PDO
+    {
+        return $this->pdo;
+    }
+
     /**
      * Get file loader instance.
      */

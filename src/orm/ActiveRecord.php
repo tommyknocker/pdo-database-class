@@ -205,9 +205,29 @@ trait ActiveRecord
      *
      * @param bool $isNewRecord True if this is a new record
      */
-    protected function setIsNewRecord(bool $isNewRecord): void
+    public function setIsNewRecord(bool $isNewRecord): void
     {
         $this->isNewRecord = $isNewRecord;
+    }
+
+    /**
+     * Get old attributes (original attribute values).
+     *
+     * @return array<string, mixed> Old attributes
+     */
+    public function getOldAttributes(): array
+    {
+        return $this->oldAttributes;
+    }
+
+    /**
+     * Set old attributes (original attribute values).
+     *
+     * @param array<string, mixed> $attributes Old attributes
+     */
+    public function setOldAttributes(array $attributes): void
+    {
+        $this->oldAttributes = $attributes;
     }
 
     /**
@@ -473,11 +493,7 @@ trait ActiveRecord
         $model = static::findOne($condition);
         if ($model !== null) {
             $this->attributes = $model->getAttributes();
-            // Access oldAttributes via reflection since it's protected
-            $reflection = new \ReflectionClass($model);
-            $oldAttributesProp = $reflection->getProperty('oldAttributes');
-            $oldAttributesProp->setAccessible(true);
-            $this->oldAttributes = $oldAttributesProp->getValue($model);
+            $this->oldAttributes = $model->getOldAttributes();
             return true;
         }
 
@@ -674,7 +690,7 @@ trait ActiveRecord
      *
      * @return RelationInterface|null Relationship instance or null if not found
      */
-    protected function getRelationInstance(string $name): ?RelationInterface
+    public function getRelationInstance(string $name): ?RelationInterface
     {
         // Check if already cached
         if (isset($this->relations[$name])) {
