@@ -13,7 +13,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo, pdo_mysql, pdo_pgsql, pdo_sqlite
+          extensions: pdo, pdo_mysql, pdo_pgsql, pdo_sqlite, pdo_oci
           coverage: none
       - run: composer install --no-interaction --prefer-dist
       - run: composer pdodb:phpstan
@@ -350,6 +350,148 @@ jobs:
           files: ./coverage-mssql.xml
           flags: mssql
           name: mssql-coverage
+
+  oracle:
+    name: Oracle Tests
+    runs-on: ubuntu-latest
+    services:
+      oracle:
+        image: container-registry.oracle.com/database/express:21.3.0-xe
+        env:
+          ORACLE_PWD: System123456
+        ports:
+          - 1521:1521
+          - 5500:5500
+        options: >-
+          --health-cmd="healthcheck.sh"
+          --health-interval=30s
+          --health-timeout=10s
+          --health-retries=10
+          --health-start-period=5m
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      memcached:
+        image: memcached:1.6-alpine
+        ports:
+          - 11211:11211
+        options: >-
+          --health-cmd "echo 'stats' | nc localhost 11211"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo, redis, memcached, apcu, bz2
+          coverage: xdebug
+      - name: Install Oracle Instant Client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 wget unzip
+          cd /tmp
+          wget -q https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip
+          unzip -q instantclient-basic-linux.x64-21.1.0.0.0.zip
+          sudo mkdir -p /usr/lib/oracle/21/client64/lib
+          sudo mv instantclient_21_1/* /usr/lib/oracle/21/client64/lib/
+          echo '/usr/lib/oracle/21/client64/lib' | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
+          sudo ldconfig
+      - name: Install pdo_oci extension
+        run: |
+          export ORACLE_HOME=/usr/lib/oracle/21/client64
+          export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+          if ! php -m | grep -q pdo_oci; then
+            echo "Installing pdo_oci extension..."
+            sudo pecl install pdo_oci <<< "" || sudo pecl install -f pdo_oci <<< ""
+            echo "extension=pdo_oci.so" | sudo tee $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||")/conf.d/pdo_oci.ini
+            sudo ldconfig
+          fi
+          php -m | grep pdo_oci || echo "Warning: pdo_oci extension not loaded"
+      - name: Wait for Oracle to be ready
+        run: |
+          export ORACLE_HOME=/usr/lib/oracle/21/client64
+          export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+          export PATH=$ORACLE_HOME/bin:$PATH
+          echo "Waiting for Oracle to be ready..."
+          # Install sqlplus for health check
+          cd /tmp
+          wget -q https://download.oracle.com/otn_software/linux/instantclient/instantclient-sqlplus-linux.x64-21.1.0.0.0.zip
+          unzip -q instantclient-sqlplus-linux.x64-21.1.0.0.0.zip
+          sudo mv instantclient_21_1/sqlplus /usr/local/bin/
+          sudo mv instantclient_21_1/* /usr/lib/oracle/21/client64/lib/
+          sudo ldconfig
+          for i in {1..120}; do
+            if echo "SELECT 1 FROM DUAL;" | sqlplus -S system/System123456@localhost:1521/XEPDB1 2>&1 | grep -q "1"; then
+              echo "Oracle is ready!"
+              echo "SELECT * FROM v\$version;" | sqlplus -S system/System123456@localhost:1521/XEPDB1 2>&1 | head -5
+              break
+            fi
+            if [ $i -eq 120 ]; then
+              echo "Oracle failed to start after 240 seconds"
+              exit 1
+            fi
+            echo "Waiting for Oracle... ($i/120)"
+            sleep 2
+          done
+      - name: Setup Oracle test user
+        run: |
+          export ORACLE_HOME=/usr/lib/oracle/21/client64
+          export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+          export PATH=$ORACLE_HOME/bin:$PATH
+          # Connect to XEPDB1 PDB and create testuser
+          sqlplus -S system/System123456@localhost:1521/XEPDB1 <<EOF
+          ALTER SESSION SET CONTAINER=XEPDB1;
+          -- Drop user if exists (ignore errors)
+          BEGIN
+            EXECUTE IMMEDIATE 'DROP USER testuser CASCADE';
+          EXCEPTION
+            WHEN OTHERS THEN NULL;
+          END;
+          /
+          -- Create user
+          CREATE USER testuser IDENTIFIED BY testpass;
+          GRANT CONNECT, RESOURCE TO testuser;
+          ALTER USER testuser QUOTA UNLIMITED ON USERS;
+          EXIT;
+          EOF
+          echo "Oracle user 'testuser' created successfully"
+      - run: composer install --no-interaction --prefer-dist
+      - run: |
+          export ORACLE_HOME=/usr/lib/oracle/21/client64
+          export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+          export PDODB_DRIVER=oci
+          export PDODB_HOST=localhost
+          export PDODB_PORT=1521
+          export PDODB_USERNAME=testuser
+          export PDODB_PASSWORD=testpass
+          export PDODB_SERVICE_NAME=XEPDB1
+          vendor/bin/phpunit --testsuite="Oracle Tests" --coverage-clover coverage-oracle.xml
+      - name: Test Oracle Examples
+        run: |
+          export ORACLE_HOME=/usr/lib/oracle/21/client64
+          export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+          export PDODB_DRIVER=oci
+          export PDODB_USERNAME="testuser"
+          export PDODB_PASSWORD="testpass"
+          export PDODB_HOST="localhost"
+          export PDODB_PORT="1521"
+          export PDODB_SERVICE_NAME="XEPDB1"
+          ./scripts/test-examples.sh --verbose
+      - name: Upload Oracle coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage-oracle.xml
+          flags: oracle
+          name: oracle-coverage
 
   shared-coverage:
     name: Shared Coverage Tests
