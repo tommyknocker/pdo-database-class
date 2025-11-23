@@ -2853,6 +2853,38 @@ Global options available for all commands:
 --env=<path>         Path to .env file
 ```
 
+#### Bash Completion
+
+PDOdb includes a bash completion script for enhanced command-line experience. To install it:
+
+**Option 1: Source directly (temporary for current session)**
+```bash
+source <(curl -s https://raw.githubusercontent.com/tommyknocker/pdo-database-class/refs/heads/master/scripts/pdodb-completion.bash)
+```
+
+**Option 2: Install permanently**
+```bash
+# Download the completion script
+curl -o ~/.pdodb-completion.bash https://raw.githubusercontent.com/tommyknocker/pdo-database-class/refs/heads/master/scripts/pdodb-completion.bash
+
+# Add to your ~/.bashrc or ~/.bash_profile
+echo "source ~/.pdodb-completion.bash" >> ~/.bashrc
+
+# Reload your shell configuration
+source ~/.bashrc
+```
+
+**Option 3: System-wide installation (requires root)**
+```bash
+# Download to system bash completion directory
+sudo curl -o /etc/bash_completion.d/pdodb-completion https://raw.githubusercontent.com/tommyknocker/pdo-database-class/refs/heads/master/scripts/pdodb-completion.bash
+
+# Reload bash completion
+source /etc/bash_completion.d/pdodb-completion
+```
+
+After installation, bash completion will work automatically when you type `pdodb` or `vendor/bin/pdodb` followed by `<TAB>`.
+
 #### Available Commands
 
 - **`db`** - Manage databases (create, drop, list, check existence, show info)
