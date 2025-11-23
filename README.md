@@ -98,65 +98,26 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 
 - [Requirements](#requirements)
 - [Installation](#installation)
-- [Why PDOdb?](#why-pdodb)
 - [📖 Documentation](#-documentation)
 - [📚 Examples](#-examples)
 - [Quick Example](#quick-example)
 - [5-Minute Tutorial](#5-minute-tutorial)
 - [Configuration](#configuration)
-  - [MySQL Configuration](#mysql-configuration)
-  - [MariaDB Configuration](#mariadb-configuration)
-  - [PostgreSQL Configuration](#postgresql-configuration)
-  - [SQLite Configuration](#sqlite-configuration)
-  - [Microsoft SQL Server Configuration](#microsoft-sql-server-configuration)
-  - [Connection Pooling](#connection-pooling)
-  - [Read/Write Splitting](#readwrite-splitting)
-  - [Sharding](#sharding)
-  - [Window Functions](#window-functions)
-  - [Common Table Expressions (CTEs)](#common-table-expressions-ctes)
-- [ActiveRecord Pattern](#activerecord-pattern)
 - [Quick Start](#quick-start)
-  - [Basic CRUD Operations](#basic-crud-operations)
-  - [Filtering and Joining](#filtering-and-joining)
-  - [Bulk Operations](#bulk-operations)
-  - [Transactions](#transactions)
-- [Query Analysis](#query-analysis)
-  - [Execution Plan Analysis](#execution-plan-analysis)
-  - [Table Structure Analysis](#table-structure-analysis)
-  - [SQL Generation](#sql-generation)
-  - [Performance Optimization Example](#performance-optimization-example)
 - [JSON Operations](#json-operations)
-  - [Creating JSON Data](#creating-json-data)
-  - [Querying JSON](#querying-json)
-  - [Extracting JSON Values](#extracting-json-values)
 - [Advanced Usage](#advanced-usage)
-  - [Raw Queries](#raw-queries)
-  - [Complex Conditions](#complex-conditions)
-  - [Subqueries](#subqueries)
-  - [Schema Support](#schema-support-postgresql)
-  - [Ordering](#ordering)
-  - [Pagination](#pagination)
-  - [Batch Processing](#batch-processing)
-  - [Query Caching](#query-caching)
-  - [Query Compilation Cache](#query-compilation-cache)
-  - [Query Performance Profiling](#query-performance-profiling)
-  - [Prepared Statement Pool](#prepared-statement-pool)
-  - [PSR-14 Event Dispatcher](#psr-14-event-dispatcher)
 - [CLI Tools](#cli-tools)
 - [Error Handling](#error-handling)
 - [Performance Tips](#performance-tips)
-- [Debugging](#debugging)
-- [Helper Functions Reference](#helper-functions-reference)
-- [Public API Reference](#public-api-reference)
+- [Helper Functions](#helper-functions)
+- [API Reference](#api-reference)
 - [Dialect Differences](#dialect-differences)
 - [Frequently Asked Questions](#frequently-asked-questions)
 - [Migration Guide](#migration-guide)
 - [Troubleshooting](#troubleshooting)
 - [Testing](#testing)
-- [Database Error Codes](#database-error-codes)
 - [Contributing](#contributing)
 - [License](#license)
-- [Acknowledgments](#acknowledgments)
 
 ---
 
@@ -217,37 +178,6 @@ The wizard will guide you through:
 - Connection testing
 - Advanced options (caching, table prefix, multiple connections)
 
-**Example output:**
-```
-Welcome to PDOdb Project Initialization Wizard!
-
-Database driver [1]:
-  1) MySQL
-  2) PostgreSQL
-  3) SQLite
-  4) MSSQL
-Select driver: 1
-
-Database host [localhost]: 
-Database port [3306]: 
-Database name: myapp
-Username: root
-Password: ********
-
-Testing connection... ✓ Connection successful!
-
-Configuration format [1]:
-  1) .env file
-  2) config/db.php
-Select format: 1
-
-Create directory structure? (y/n) [y]: y
-
-✓ Configuration saved to .env
-✓ Directory structure created
-✓ Project initialized successfully!
-```
-
 See [CLI Tools Documentation](documentation/05-advanced-features/21-cli-tools.md#project-initialization-pdodb-init) for more details.
 
 ---
@@ -276,19 +206,12 @@ Start here: [Documentation Index](documentation/README.md)
 Comprehensive, runnable examples are available in the [`examples/`](examples/) directory:
 
 - **[Basic](examples/01-basic/)** - Connection, CRUD, WHERE conditions
-- **[Intermediate](examples/02-intermediate/)** - JOINs, aggregations, pagination, transactions, savepoints, INSERT ... SELECT, UPDATE/DELETE with JOIN
-- **[Advanced](examples/03-advanced/)** - Connection pooling, bulk operations, UPSERT, subqueries, MERGE, window functions, CTEs, full-text search, set operations
-- **[JSON Operations](examples/04-json/)** - Complete guide to JSON features including modification (jsonSet, jsonRemove, jsonReplace)
-- **[Helper Functions](examples/05-helpers/)** - String, math, date/time, NULL, comparison, conditional, boolean, type helpers
-- **[Data Management](examples/06-data-management/)** - File loading, batch processing, export to JSON/CSV/XML
-- **[Real-World](examples/06-real-world/)** - Blog system, user auth, search, multi-tenant
+- **[Intermediate](examples/02-intermediate/)** - JOINs, aggregations, pagination, transactions, savepoints
+- **[Advanced](examples/03-advanced/)** - Connection pooling, bulk operations, UPSERT, subqueries, MERGE, window functions, CTEs
+- **[JSON Operations](examples/04-json/)** - Complete guide to JSON features
+- **[Helper Functions](examples/05-helpers/)** - String, math, date/time, NULL, comparison helpers
 - **[Performance](examples/07-performance/)** - Query caching, compilation cache, profiling, EXPLAIN analysis
-- **[Architecture](examples/08-architecture/)** - Read/write splitting, sharding, load balancing
 - **[ActiveRecord](examples/09-active-record/)** - Object-based operations, relationships, scopes
-- **[Extensibility](examples/10-extensibility/)** - Macros, plugins, event dispatcher
-- **[Schema Management](examples/11-schema/)** - DDL Query Builder, migrations, dialect-specific types
-- **[Reliability](examples/12-reliability/)** - Exception handling, connection retry, error diagnostics
-- **[Miscellaneous](examples/14-misc/)** - Examples extracted from this README
 
 Each example is self-contained with setup instructions. See [`examples/README.md`](examples/README.md) for the full catalog.
 
@@ -302,24 +225,9 @@ php 01-basic/02-simple-crud.php
 # MySQL (update config.mysql.php with your credentials)
 PDODB_DRIVER=mysql php 01-basic/02-simple-crud.php
 
-# PostgreSQL (update config.pgsql.php with your credentials)
-PDODB_DRIVER=pgsql php 01-basic/02-simple-crud.php
-
-# Microsoft SQL Server (update config.sqlsrv.php with your credentials)
-PDODB_DRIVER=sqlsrv php 01-basic/02-simple-crud.php
-
 # Test all examples on all available databases
 ./scripts/test-examples.sh
 ```
-
-**Environment variable `PDODB_DRIVER`** controls which database to use:
-- `sqlite` (default) - uses `config.sqlite.php`
-- `mysql` - uses `config.mysql.php`
-- `mariadb` - uses `config.mariadb.php`
-- `pgsql` - uses `config.pgsql.php`
-- `sqlsrv` - uses `config.sqlsrv.php`
-
-If config file is missing, falls back to SQLite.
 
 ---
 
@@ -375,22 +283,15 @@ $db->find()
 composer require tommyknocker/pdo-database-class
 ```
 
-### Step 2: Initialize Project (Fastest Start)
+### Step 2: Initialize Project
 
-Use the interactive wizard to set up your project configuration:
+Use the interactive wizard:
 
 ```bash
 vendor/bin/pdodb init
 ```
 
-This will:
-- ✅ Create `.env` or `config/db.php` configuration file
-- ✅ Set up directory structure
-- ✅ Create directory structure (migrations, models, repositories, services)
-- ✅ Test database connection
-- ✅ Generate basic configuration
-
-**Alternative:** Manual configuration (see [Configuration](#configuration) section)
+**Alternative:** Manual configuration
 
 ```php
 use tommyknocker\pdodb\PdoDb;
@@ -398,7 +299,7 @@ use tommyknocker\pdodb\PdoDb;
 // SQLite (easiest - no database server needed)
 $db = new PdoDb('sqlite', ['path' => ':memory:']);
 
-// Or MySQL/PostgreSQL (see Configuration section)
+// Or MySQL/PostgreSQL
 $db = new PdoDb('mysql', [
     'host' => 'localhost',
     'dbname' => 'mydb',
@@ -418,16 +319,12 @@ $db->rawQuery('CREATE TABLE users (
     age INTEGER
 )');
 
-// Or use DDL Query Builder with dialect-specific types
+// Or use DDL Query Builder
 $db->schema()->createTable('products', [
     'id' => $db->schema()->primaryKey(),
     'name' => $db->schema()->string(255)->notNull(),
-    'status' => $db->schema()->enum(['draft', 'published', 'archived'])  // MySQL ENUM
+    'status' => $db->schema()->enum(['draft', 'published', 'archived'])
         ->defaultValue('draft'),
-    'uuid' => $db->schema()->uuid(),  // PostgreSQL UUID, MySQL CHAR(36), MSSQL UNIQUEIDENTIFIER
-    'tags' => $db->schema()->array('TEXT'),  // PostgreSQL TEXT[], others JSON
-    'metadata' => $db->schema()->jsonb(),  // PostgreSQL JSONB, others JSON
-    'is_active' => $db->schema()->boolean()->defaultValue(true),
     'created_at' => $db->schema()->timestamp()->defaultExpression('CURRENT_TIMESTAMP')
 ]);
 ```
@@ -461,1114 +358,136 @@ $db->find()->table('users')->where('id', $id)->delete();
 
 ## Configuration
 
-### MySQL Configuration
+### Basic Configuration
 
 ```php
 use tommyknocker\pdodb\PdoDb;
 
+// MySQL
 $db = new PdoDb('mysql', [
-    'pdo'         => null,                 // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
-    'host'        => '127.0.0.1',          // Required. MySQL host (e.g. 'localhost' or IP address).
-    'username'    => 'testuser',           // Required. MySQL username.
-    'password'    => 'testpass',           // Required. MySQL password.
-    'dbname'      => 'testdb',             // Required. Database name.
-    'port'        => 3306,                 // Optional. MySQL port (default is 3306).
-    'prefix'      => 'my_',                // Optional. Table prefix (e.g. 'wp_').
-    'charset'     => 'utf8mb4',            // Optional. Connection charset (recommended: 'utf8mb4').
-    'unix_socket' => '/var/run/mysqld/mysqld.sock', // Optional. Path to Unix socket if used.
-    'sslca'       => '/path/ca.pem',       // Optional. Path to SSL CA certificate.
-    'sslcert'     => '/path/client-cert.pem', // Optional. Path to SSL client certificate.
-    'sslkey'      => '/path/client-key.pem',  // Optional. Path to SSL client key.
-    'compress'    => true                  // Optional. Enable protocol compression.
+    'host' => '127.0.0.1',
+    'username' => 'testuser',
+    'password' => 'testpass',
+    'dbname' => 'testdb',
+    'port' => 3306,
+    'charset' => 'utf8mb4',
 ]);
-```
 
-### MariaDB Configuration
-
-```php
-use tommyknocker\pdodb\PdoDb;
-
-$db = new PdoDb('mariadb', [
-    'pdo'         => null,                 // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
-    'host'        => '127.0.0.1',          // Required. MariaDB host (e.g. 'localhost' or IP address).
-    'username'    => 'testuser',           // Required. MariaDB username.
-    'password'    => 'testpass',           // Required. MariaDB password.
-    'dbname'      => 'testdb',             // Required. Database name.
-    'port'        => 3305,                 // Optional. MariaDB port (default is 3306, often 3305 to avoid conflicts with MySQL).
-    'prefix'      => 'md_',                // Optional. Table prefix (e.g. 'wp_').
-    'charset'     => 'utf8mb4',            // Optional. Connection charset (recommended: 'utf8mb4').
-    'unix_socket' => '/var/run/mysqld/mysqld.sock', // Optional. Path to Unix socket if used.
-    'sslca'       => '/path/ca.pem',       // Optional. Path to SSL CA certificate.
-    'sslcert'     => '/path/client-cert.pem', // Optional. Path to SSL client certificate.
-    'sslkey'      => '/path/client-key.pem',  // Optional. Path to SSL client key.
-    'compress'    => true                  // Optional. Enable protocol compression.
-]);
-```
-
-### PostgreSQL Configuration
-
-```php
-use tommyknocker\pdodb\PdoDb;
-
+// PostgreSQL
 $db = new PdoDb('pgsql', [
-    'pdo'              => null,            // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
-    'host'             => '127.0.0.1',     // Required. PostgreSQL host.
-    'username'         => 'testuser',      // Required. PostgreSQL username.
-    'password'         => 'testpass',      // Required. PostgreSQL password.
-    'dbname'           => 'testdb',        // Required. Database name.
-    'port'             => 5432,            // Optional. PostgreSQL port (default is 5432).
-    'prefix'           => 'pg_',           // Optional. Table prefix.
-    'options'          => '--client_encoding=UTF8', // Optional. Extra options (e.g. client encoding).
-    'sslmode'          => 'require',       // Optional. SSL mode: disable, allow, prefer, require, verify-ca, verify-full.
-    'sslkey'           => '/path/client.key',   // Optional. Path to SSL private key.
-    'sslcert'          => '/path/client.crt',   // Optional. Path to SSL client certificate.
-    'sslrootcert'      => '/path/ca.crt',       // Optional. Path to SSL root certificate.
-    'application_name' => 'MyApp',         // Optional. Application name (visible in pg_stat_activity).
-    'connect_timeout'  => 5,               // Optional. Connection timeout in seconds.
-    'hostaddr'         => '192.168.1.10',  // Optional. Direct IP address (bypasses DNS).
-    'service'          => 'myservice',     // Optional. Service name from pg_service.conf.
-    'target_session_attrs' => 'read-write' // Optional. For clusters: any, read-write.
+    'host' => '127.0.0.1',
+    'username' => 'testuser',
+    'password' => 'testpass',
+    'dbname' => 'testdb',
+    'port' => 5432,
 ]);
-```
 
-### SQLite Configuration
-
-```php
-use tommyknocker\pdodb\PdoDb;
-
+// SQLite
 $db = new PdoDb('sqlite', [
-    'pdo'   => null,                       // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
-    'path'  => '/path/to/database.sqlite', // Required. Path to SQLite database file.
-                                           // Use ':memory:' for an in-memory database.
-    'prefix'=> 'sq_',                      // Optional. Table prefix.
-    'mode'  => 'rwc',                      // Optional. Open mode: ro (read-only), rw (read/write), rwc (create if not exists), memory.
-    'cache' => 'shared'                    // Optional. Cache mode: shared or private.
+    'path' => '/path/to/database.sqlite',  // or ':memory:' for in-memory
 ]);
-```
 
-### Microsoft SQL Server Configuration
-
-```php
-use tommyknocker\pdodb\PdoDb;
-
+// MSSQL
 $db = new PdoDb('sqlsrv', [
-    'pdo'                    => null,            // Optional. Existing PDO object. If specified, all other parameters (except prefix) are ignored.
-    'host'                   => 'localhost',     // Required. SQL Server host.
-    'username'               => 'testuser',      // Required. SQL Server username.
-    'password'               => 'testpass',      // Required. SQL Server password.
-    'dbname'                 => 'testdb',        // Required. Database name.
-    'port'                   => 1433,            // Optional. SQL Server port (default is 1433).
-    'prefix'                 => 'mssql_',        // Optional. Table prefix.
-    'trust_server_certificate' => true,          // Optional. Trust server certificate (default: true for self-signed certs).
-                                                  // Set to false for production with valid certificates.
-    'encrypt'                => true,            // Optional. Enable encryption (default: true).
+    'host' => 'localhost',
+    'username' => 'testuser',
+    'password' => 'testpass',
+    'dbname' => 'testdb',
+    'port' => 1433,
 ]);
 ```
 
-**Note**: MSSQL uses the `sqlsrv` driver name. The Microsoft ODBC Driver for SQL Server must be installed, and the PHP `sqlsrv` extension must be enabled.
+### Advanced Configuration
 
-### Connection Pooling
-
-Manage multiple database connections and switch between them:
-
+**Connection Pooling:**
 ```php
-use tommyknocker\pdodb\PdoDb;
-
-// Initialize without a default connection
 $db = new PdoDb();
-
-// Add multiple connections
-$db->addConnection('mysql_main', [
-    'driver' => 'mysql',
-    'host' => 'mysql.server.com',
-    'username' => 'user',
-    'password' => 'pass',
-    'dbname' => 'main_db'
-]);
-
-$db->addConnection('pgsql_analytics', [
-    'driver' => 'pgsql',
-    'host' => 'postgres.server.com',
-    'username' => 'analyst',
-    'password' => 'pass',
-    'dbname' => 'analytics'
-]);
-
-// Switch between connections
-$users = $db->connection('mysql_main')->find()->from('users')->get();
-$stats = $db->connection('pgsql_analytics')->find()->from('stats')->get();
+$db->addConnection('mysql_main', ['driver' => 'mysql', ...]);
+$db->addConnection('pgsql_analytics', ['driver' => 'pgsql', ...]);
+$db->connection('mysql_main')->find()->from('users')->get();
 ```
 
-### Read/Write Splitting
-
-Scale horizontally with master-replica architecture. Automatically route reads to replicas and writes to master:
-
+**Read/Write Splitting:**
 ```php
-use tommyknocker\pdodb\PdoDb;
-use tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer;
-
-$db = new PdoDb();
-
-// Enable read/write splitting with load balancer
 $db->enableReadWriteSplitting(new RoundRobinLoadBalancer());
-
-// Add write connection (master)
-$db->addConnection('master', [
-    'driver' => 'mysql',
-    'host' => 'master.db.local',
-    'username' => 'user',
-    'password' => 'pass',
-    'dbname' => 'myapp',
-    'type' => 'write',
-]);
-
-// Add read connections (replicas)
-$db->addConnection('replica-1', [
-    'driver' => 'mysql',
-    'host' => 'replica1.db.local',
-    'username' => 'user',
-    'password' => 'pass',
-    'dbname' => 'myapp',
-    'type' => 'read',
-]);
-
-$db->addConnection('replica-2', [
-    'driver' => 'mysql',
-    'host' => 'replica2.db.local',
-    'username' => 'user',
-    'password' => 'pass',
-    'dbname' => 'myapp',
-    'type' => 'read',
-]);
-
-$db->connection('master');
-
-// SELECT queries automatically go to read replicas
-$users = $db->find()->from('users')->get();
-
-// INSERT/UPDATE/DELETE automatically go to write master
-$id = $db->find()->table('users')->insert(['name' => 'John', 'email' => 'john@example.com']);
-
-// Force a SELECT to read from master
-$user = $db->find()->from('users')->forceWrite()->where('id', $id)->getOne();
-
-// Enable sticky writes (reads go to master for 60s after writes)
-$db->enableStickyWrites(60);
+$db->addConnection('master', [...], ['type' => 'write']);
+$db->addConnection('replica-1', [...], ['type' => 'read']);
+// SELECTs automatically go to replicas, DML to master
 ```
 
-**Load Balancing Strategies:**
-- `RoundRobinLoadBalancer` - Distributes requests evenly in circular order
-- `RandomLoadBalancer` - Randomly selects a replica
-- `WeightedLoadBalancer` - Distributes proportionally based on weights
-
-**Key Features:**
-- Automatic query routing (SELECTs → replicas, DML → master)
-- Sticky writes for read-after-write consistency
-- Multiple load balancing strategies
-- Health checks and automatic failover
-- Transaction support (always uses master)
-
-See:
-- [Documentation: Read/Write Splitting](documentation/05-advanced-features/read-write-splitting.md)
-- [Example: Basic Setup](examples/15-read-write-splitting/01-basic-setup.php)
-- [Example: Sticky Writes](examples/15-read-write-splitting/02-sticky-writes.php)
-- [Example: Load Balancers](examples/15-read-write-splitting/03-load-balancers.php)
-
-### Sharding
-
-Horizontal partitioning across multiple databases with automatic query routing. Automatically routes queries to the correct shard based on shard key values.
-
+**Query Caching:**
 ```php
-use tommyknocker\pdodb\PdoDb;
-
-$db = new PdoDb();
-
-// Add shard connections to the connection pool
-$db->addConnection('shard1', [
-    'driver' => 'mysql',
-    'host' => 'shard1.db.local',
-    'username' => 'user',
-    'password' => 'pass',
-    'dbname' => 'myapp_shard1',
-]);
-
-$db->addConnection('shard2', [
-    'driver' => 'mysql',
-    'host' => 'shard2.db.local',
-    'username' => 'user',
-    'password' => 'pass',
-    'dbname' => 'myapp_shard2',
-]);
-
-$db->addConnection('shard3', [
-    'driver' => 'mysql',
-    'host' => 'shard3.db.local',
-    'username' => 'user',
-    'password' => 'pass',
-    'dbname' => 'myapp_shard3',
-]);
-
-// Configure range-based sharding
-$db->shard('users')
-    ->shardKey('user_id')
-    ->strategy('range')
-    ->ranges([
-        'shard1' => [0, 1000],
-        'shard2' => [1001, 2000],
-        'shard3' => [2001, 3000],
-    ])
-    ->useConnections(['shard1', 'shard2', 'shard3'])
-    ->register();
-
-// Queries automatically route to the correct shard
-$user = $db->find()
-    ->from('users')
-    ->where('user_id', 12345)
-    ->getOne(); // Automatically routed to shard3
-
-// INSERT/UPDATE/DELETE also route automatically
-$db->find()->table('users')->insert([
-    'user_id' => 500,
-    'name' => 'Alice',
-    'email' => 'alice@example.com'
-]); // Automatically routed to shard1
+$cache = CacheFactory::create(['type' => 'filesystem', 'directory' => '/var/cache']);
+$db = new PdoDb('mysql', $config, [], null, $cache);
+$users = $db->find()->from('users')->cache(3600)->get();
 ```
 
-**Sharding Strategies:**
-
-1. **Range Strategy** - Distributes data based on numeric ranges:
-```php
-$db->shard('products')
-    ->shardKey('product_id')
-    ->strategy('range')
-    ->ranges([
-        'shard1' => [0, 1000],
-        'shard2' => [1001, 2000],
-        'shard3' => [2001, 3000],
-    ])
-    ->useConnections(['shard1', 'shard2', 'shard3'])
-    ->register();
-```
-
-2. **Hash Strategy** - Distributes data based on hash of shard key:
-```php
-$db->shard('users')
-    ->shardKey('user_id')
-    ->strategy('hash')
-    ->useConnections(['shard1', 'shard2', 'shard3'])
-    ->register();
-```
-
-3. **Modulo Strategy** - Distributes data using modulo operation:
-```php
-$db->shard('orders')
-    ->shardKey('order_id')
-    ->strategy('modulo')
-    ->useConnections(['shard1', 'shard2', 'shard3'])
-    ->register();
-```
-
-**Key Features:**
-- Automatic query routing based on shard key
-- Supports INSERT, UPDATE, DELETE, SELECT operations
-- Three sharding strategies: range, hash, modulo
-- Uses existing connections from connection pool
-- Transparent to application code
-
-**How It Works:**
-1. Configure sharding for a table with `shard()` method
-2. Specify shard key column (e.g., `user_id`)
-3. Choose sharding strategy (range, hash, or modulo)
-4. Register existing connections from connection pool
-5. Queries with shard key in WHERE clause automatically route to correct shard
-
-**Requirements:**
-- Shard key must be present in WHERE clause for SELECT operations
-- Shard key must be provided for INSERT operations
-- Supports all CRUD operations (CREATE, READ, UPDATE, DELETE)
-
-See:
-- [Documentation: Sharding](documentation/05-advanced-features/sharding.md)
-- [Example: Basic Sharding](examples/30-sharding/01-basic-sharding.php)
-- [Example: Sharding Strategies](examples/30-sharding/02-sharding-strategies.php)
-
-### Window Functions
-
-Perform advanced analytics with window functions (MySQL 8.0+, PostgreSQL 9.4+, SQLite 3.25+):
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// ROW_NUMBER - Sequential numbering within partitions
-$results = $db->find()
-    ->from('sales')
-    ->select([
-        'product',
-        'region',
-        'amount',
-        'row_num' => Db::rowNumber()
-            ->partitionBy('region')
-            ->orderBy('amount', 'DESC')
-    ])
-    ->get();
-
-// RANK - Ranking with gaps for ties
-$results = $db->find()
-    ->from('students')
-    ->select([
-        'name',
-        'score',
-        'student_rank' => Db::rank()->orderBy('score', 'DESC')
-    ])
-    ->get();
-
-// LAG/LEAD - Access previous/next row data
-$results = $db->find()
-    ->from('monthly_sales')
-    ->select([
-        'month',
-        'revenue',
-        'prev_month' => Db::lag('revenue', 1, 0)->orderBy('month'),
-        'next_month' => Db::lead('revenue', 1, 0)->orderBy('month')
-    ])
-    ->get();
-
-// Running totals
-$results = $db->find()
-    ->from('transactions')
-    ->select([
-        'date',
-        'amount',
-        'running_total' => Db::windowAggregate('SUM', 'amount')
-            ->orderBy('date')
-            ->rows('ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW')
-    ])
-    ->get();
-
-// Moving averages (7-day)
-$results = $db->find()
-    ->from('metrics')
-    ->select([
-        'date',
-        'value',
-        'moving_avg_7' => Db::windowAggregate('AVG', 'value')
-            ->orderBy('date')
-            ->rows('ROWS BETWEEN 6 PRECEDING AND CURRENT ROW')
-    ])
-    ->get();
-
-// NTILE - Divide into quartiles
-$results = $db->find()
-    ->from('products')
-    ->select([
-        'name',
-        'price',
-        'quartile' => Db::ntile(4)->orderBy('price')
-    ])
-    ->get();
-```
-
-**Available Functions:**
-- `Db::rowNumber()` - Sequential numbering
-- `Db::rank()` - Ranking with gaps
-- `Db::denseRank()` - Ranking without gaps
-- `Db::ntile(n)` - Divide into n buckets
-- `Db::lag()` - Access previous row
-- `Db::lead()` - Access next row
-- `Db::firstValue()` - First value in window
-- `Db::lastValue()` - Last value in window
-- `Db::nthValue(n)` - Nth value in window
-- `Db::windowAggregate(func, col)` - Aggregate functions (SUM, AVG, MIN, MAX, COUNT)
-
-**Common Use Cases:**
-- Rankings and leaderboards
-- Running totals and balances
-- Moving averages and smoothing
-- Period-over-period comparisons (MoM, YoY)
-- Percentile and quartile analysis
-- Gap detection and trend analysis
-
-See:
-- [Documentation: Window Functions](documentation/03-query-builder/window-functions.md)
-- [Documentation: Window Helpers](documentation/07-helper-functions/window-helpers.md)
-- [Example: Complete Demo](examples/16-window-functions/01-window-functions.php)
-
-### Common Table Expressions (CTEs)
-
-Define temporary named result sets using WITH clauses for better query organization and support for hierarchical data.
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Basic CTE with closure
-$products = $pdoDb->find()
-    ->with('expensive_products', function ($q) {
-        $q->from('products')->where('price', 1000, '>');
-    })
-    ->from('expensive_products')
-    ->orderBy('price', 'DESC')
-    ->get();
-
-// Multiple CTEs with UNION
-$analysis = $pdoDb->find()
-    ->with('electronics', function ($q) {
-        $q->from('products')->where('category', 'Electronics');
-    })
-    ->with('furniture', function ($q) {
-        $q->from('products')->where('category', 'Furniture');
-    })
-    ->with('combined', function ($q) {
-        $q->from('electronics')
-          ->unionAll(function ($union) {
-              $union->from('furniture');
-          });
-    })
-    ->from('combined')
-    ->orderBy('price')
-    ->get();
-
-// Recursive CTE - hierarchical data
-$hierarchy = $pdoDb->find()
-    ->withRecursive('category_tree', function ($q) {
-        $q->from('categories')
-          ->select(['id', 'name', 'parent_id', 'level' => Db::as(0, 'level')])
-          ->whereNull('parent_id')
-          ->unionAll(function ($union) {
-              $union->from('categories c')
-                    ->join('category_tree ct', 'c.parent_id = ct.id')
-                    ->select([
-                        'c.id',
-                        'c.name',
-                        'c.parent_id',
-                        'level' => Db::as(Db::add('ct.level', 1), 'level')
-                    ]);
-          });
-    }, ['id', 'name', 'parent_id', 'level'])
-    ->from('category_tree')
-    ->orderBy('level')
-    ->get();
-
-// CTE with QueryBuilder instance
-$subQuery = $pdoDb->find()
-    ->from('orders')
-    ->select(['customer_id', 'total' => Db::sum('amount')])
-    ->groupBy('customer_id');
-
-$results = $pdoDb->find()
-    ->with('customer_totals', $subQuery)
-    ->from('customers')
-    ->join('customer_totals', 'customers.id = customer_totals.customer_id')
-    ->select(['customers.name', 'customer_totals.total'])
-    ->get();
-
-// CTE with column list
-$results = $pdoDb->find()
-    ->with('product_summary', function ($q) {
-        $q->from('products')->select(['name', 'price']);
-    }, ['product_name', 'product_price'])
-    ->from('product_summary')
-    ->where('product_price', 100, '>')
-    ->get();
-
-// Materialized CTE - performance optimization for expensive queries
-// PostgreSQL: Uses MATERIALIZED keyword, MySQL: Uses optimizer hints
-$results = $pdoDb->find()
-    ->withMaterialized('customer_stats', function ($q) {
-        $q->from('orders')
-          ->select([
-              'customer_id',
-              'order_count' => Db::count('*'),
-              'total_spent' => Db::sum('amount'),
-          ])
-          ->groupBy('customer_id');
-    })
-    ->from('customers')
-    ->join('customer_stats', 'customers.id = customer_stats.customer_id')
-    ->where('customer_stats.total_spent', 1000, '>')
-    ->get();
-```
-
-**Key Features:**
-- **Basic CTEs** - Temporary named result sets for query organization
-- **Recursive CTEs** - Process hierarchical or tree-structured data
-- **Materialized CTEs** - Cache expensive computations for performance (PostgreSQL 12+, MySQL 8.0+)
-- **Multiple CTEs** - Chain and combine multiple WITH clauses
-- **Flexible Definition** - Use closures, QueryBuilder instances, or raw SQL
-- **Column Lists** - Explicit column naming for cleaner queries
-- **Cross-Database** - Works seamlessly on MySQL 8.0+, PostgreSQL 8.4+, SQLite 3.8.3+
-
-**Common Use Cases:**
-- Simplifying complex queries into logical components
-- Organizational charts and reporting hierarchies
-- Category trees and nested menus
-- Bill of materials and part assemblies
-- Graph traversal and pathfinding
-- Recursive data aggregation
-- Performance optimization with materialized CTEs for expensive aggregations
-
-See:
-- [Documentation: CTEs](documentation/03-query-builder/cte.md)
-- [Example: Basic CTEs](examples/17-cte/01-basic-cte.php)
-- [Example: Recursive CTEs](examples/17-cte/02-recursive-cte.php)
-- [Example: Materialized CTEs](examples/17-cte/03-materialized-cte.php)
-
----
-
-### ActiveRecord Pattern
-
-Optional lightweight ORM pattern for object-based database operations. Works seamlessly with QueryBuilder API.
-
-Features:
-- **Magic attribute access** - `$user->name`, `$user->email`
-- **Automatic CRUD** - `save()`, `delete()`, `refresh()`
-- **Dirty tracking** - Track changed attributes automatically
-- **Declarative validation** - Rules-based validation with extensible validators
-- **Lifecycle events** - PSR-14 events for save, insert, update, delete
-- **ActiveQuery builder** - Full QueryBuilder API through `find()` method
-
-```php
-use tommyknocker\pdodb\orm\Model;
-use tommyknocker\pdodb\PdoDb;
-
-// Define model with validation rules
-class User extends Model
-{
-    public static function tableName(): string
-    {
-        return 'users';
-    }
-
-    public static function rules(): array
-    {
-        return [
-            [['name', 'email'], 'required'],
-            ['email', 'email'],
-            ['age', 'integer', 'min' => 1, 'max' => 150],
-        ];
-    }
-}
-
-// Set database connection
-$db = new PdoDb('mysql', $config);
-User::setDb($db);
-
-// Create new record
-$user = new User();
-$user->name = 'Alice';
-$user->email = 'alice@example.com';
-$user->age = 30;
-$user->save();
-
-// Validation example
-$invalidUser = new User();
-$invalidUser->email = 'invalid-email';
-if (!$invalidUser->save()) {
-    $errors = $invalidUser->getValidationErrors();
-    foreach ($errors as $attribute => $messages) {
-        foreach ($messages as $message) {
-            echo "{$attribute}: {$message}\n";
-        }
-    }
-}
-
-// Find records
-$user = User::findOne(1);
-$users = User::findAll(['status' => 'active']);
-
-// Using ActiveQuery (full QueryBuilder API)
-$users = User::find()
-    ->where('status', 'active')
-    ->andWhere('age', 18, '>=')
-    ->orderBy('created_at', 'DESC')
-    ->all();
-
-// Update
-$user->name = 'Bob';
-$user->save();
-
-// Delete
-$user->delete();
-```
-
-**Key Features:**
-- **Object-Based** - Work with objects instead of arrays
-- **Magic Accessors** - Access attributes via `$model->attribute`
-- **Dirty Tracking** - Automatically tracks changed attributes
-- **Declarative Validation** - Rules-based validation with built-in validators (required, email, integer, string)
-- **Extensible Validators** - Create custom validators with `ValidatorInterface`
-- **Lifecycle Events** - PSR-14 event dispatcher integration (beforeSave, afterSave, etc.)
-- **Full QueryBuilder API** - All QueryBuilder methods available through `ActiveQuery`
-- **Relationships** - hasOne, hasMany, belongsTo, hasManyThrough with lazy and eager loading (Yii2-like syntax)
-- **Query Scopes** - Global and local scopes for reusable query logic (soft deletes, multi-tenant, common filters)
-- **Flexible Finding** - Find by ID, condition, or composite keys
-- **Cross-Database** - Works with MySQL, MariaDB, PostgreSQL, and SQLite
-
-**When to Use:**
-- Prefer working with objects over arrays
-- Need automatic dirty tracking
-- Building MVC-style applications
-- Want simple CRUD operations
-
-**Relationships Example:**
-```php
-// Define relationships in model
-class User extends Model
-{
-    public static function relations(): array
-    {
-        return [
-            'profile' => ['hasOne', 'modelClass' => Profile::class],
-            'posts' => ['hasMany', 'modelClass' => Post::class],
-        ];
-    }
-}
-
-// Lazy loading
-$user = User::findOne(1);
-$profile = $user->profile;  // Loads profile on access
-$posts = $user->posts;     // Loads posts on access
-
-// Yii2-like syntax: call relationship as method
-$publishedPosts = $user->posts()
-    ->where('published', 1)
-    ->orderBy('created_at', 'DESC')
-    ->limit(10)
-    ->all();
-
-// Eager loading (prevents N+1 queries)
-$users = User::find()->with(['profile', 'posts'])->all();
-
-// Many-to-many relationships
-class User extends Model
-{
-    public static function relations(): array
-    {
-        return [
-            'projects' => [
-                'hasManyThrough',
-                'modelClass' => Project::class,
-                'viaTable' => 'user_project',
-                'link' => ['id' => 'user_id'],
-                'viaLink' => ['project_id' => 'id'],
-            ],
-        ];
-    }
-}
-
-$user = User::findOne(1);
-$projects = $user->projects;  // Many-to-many via junction table
-```
-
-**Query Scopes Example:**
-```php
-// Option 1: Scopes in Model (ActiveRecord)
-class Post extends Model
-{
-    // Global scope: automatically applied
-    public static function globalScopes(): array
-    {
-        return [
-            'notDeleted' => function ($query) {
-                $query->whereRaw('deleted_at IS NULL');
-                return $query;
-            },
-        ];
-    }
-
-    // Local scope: applied on-demand
-    public static function scopes(): array
-    {
-        return [
-            'published' => function ($query) {
-                $query->where('status', 'published');
-                return $query;
-            },
-            'popular' => function ($query) {
-                $query->where('view_count', 1000, '>');
-                return $query;
-            },
-        ];
-    }
-}
-
-// Use scopes
-$posts = Post::find()
-    ->scope('published')      // Local scope
-    ->scope('popular')         // Chain multiple scopes
-    ->all();                   // Global scope automatically applied
-
-// Temporarily disable global scope
-$allPosts = Post::find()
-    ->withoutGlobalScope('notDeleted')
-    ->all();
-
-// Option 2: Scopes at PdoDb level (QueryBuilder)
-$db->addScope('active', function ($query) {
-    return $query->where('is_active', 1);
-});
-
-// All queries automatically apply the scope
-$items = $db->find()->from('items')->get();
-```
-
-**Query Builder Macros Example:**
-```php
-use tommyknocker\pdodb\query\QueryBuilder;
-
-// Register custom macros
-QueryBuilder::macro('active', function (QueryBuilder $query) {
-    return $query->where('status', 'active');
-});
-
-QueryBuilder::macro('wherePrice', function (QueryBuilder $query, string $operator, float $price) {
-    return $query->where('price', $price, $operator);
-});
-
-QueryBuilder::macro('recent', function (QueryBuilder $query, int $days = 7) {
-    $date = date('Y-m-d H:i:s', strtotime("-{$days} days"));
-    return $query->where('created_at', $date, '>=');
-});
-
-// Use macros as methods
-$activeProducts = $db->find()
-    ->table('products')
-    ->active()
-    ->wherePrice('>', 100.00)
-    ->recent(30)
-    ->get();
-
-// Check if macro exists
-if (QueryBuilder::hasMacro('active')) {
-    // Macro is registered
-}
-```
-
-**Plugin System Example:**
-```php
-use tommyknocker\pdodb\plugin\AbstractPlugin;
-use tommyknocker\pdodb\PdoDb;
-use tommyknocker\pdodb\query\QueryBuilder;
-
-// Create a plugin
-class MyCustomPlugin extends AbstractPlugin
-{
-    public function register(PdoDb $db): void
-    {
-        // Register macros
-        QueryBuilder::macro('active', function (QueryBuilder $query) {
-            return $query->where('status', 'active');
-        });
-
-        // Register global scopes
-        $db->addScope('notDeleted', function (QueryBuilder $query) {
-            return $query->whereNull('deleted_at');
-        });
-
-        // Register event listeners
-        $dispatcher = $db->getEventDispatcher();
-        if ($dispatcher !== null) {
-            $dispatcher->addListener(QueryExecutedEvent::class, function ($event) {
-                // Monitor queries
-            });
-        }
-    }
-}
-
-// Register plugin
-$db->registerPlugin(new MyCustomPlugin());
-
-// Use plugin features
-$users = $db->find()
-    ->from('users')
-    ->active()
-    ->get();
-```
-
-See:
-- [Documentation: ActiveRecord](documentation/05-advanced-features/active-record.md)
-- [Documentation: ActiveRecord Relationships](documentation/05-advanced-features/active-record-relationships.md)
-- [Documentation: Query Scopes](documentation/05-advanced-features/query-scopes.md)
-- [Documentation: Query Builder Macros](documentation/05-advanced-features/query-macros.md)
-- [Documentation: Plugin System](documentation/05-advanced-features/plugins.md)
-- [Example: ActiveRecord Usage](examples/23-active-record/01-active-record-examples.php)
-- [Example: ActiveRecord Relationships](examples/27-active-record-relationships/01-relationships.php)
-- [Example: Query Scopes](examples/28-query-scopes/01-scopes-examples.php)
-- [Example: Query Builder Macros](examples/29-macros/01-macro-examples.php)
-- [Example: Plugin System](examples/31-plugins/01-plugin-examples.php)
+See [Configuration Documentation](documentation/01-getting-started/04-configuration.md) for complete configuration options.
 
 ---
 
 ## Quick Start
 
-**Note**: All query examples start with `$db->find()` which returns a `QueryBuilder` instance. You can chain multiple methods before executing the query with `get()`, `getOne()`, `insert()`, `update()`, or `delete()`.
+**Note**: All query examples start with `$db->find()` which returns a `QueryBuilder` instance.
 
 ### Basic CRUD Operations
 
-#### Simple SELECT
-
 ```php
-// Get one row
+// SELECT
 $user = $db->find()
     ->from('users')
-    ->select(['id', 'name', 'email'])
     ->where('id', 10)
     ->getOne();
 
-// Get multiple rows
 $users = $db->find()
     ->from('users')
-    ->select(['id', 'name'])
     ->where('age', 18, '>=')
     ->get();
-```
 
-#### INSERT
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Single row
+// INSERT
 $id = $db->find()->table('users')->insert([
     'name' => 'Alice',
-    'age'  => 30,
-    'created_at' => Db::now()
+    'email' => 'alice@example.com',
+    'age' => 30
 ]);
 
-// Multiple rows
-$rows = [
-    ['name' => 'Bob', 'age' => 25],
-    ['name' => 'Carol', 'age' => 28],
-];
-$count = $db->find()->table('users')->insertMulti($rows);
-
-// INSERT ... SELECT (copy data between tables)
-$affected = $db->find()
-    ->table('target_users')
-    ->insertFrom('source_users');  // Copy all data
-
-// Copy filtered data using QueryBuilder
-$affected = $db->find()
-    ->table('target_users')
-    ->insertFrom(function ($query) {
-        $query->from('source_users')
-            ->where('status', 'active')
-            ->select(['name', 'email', 'age']);
-    });
-```
-
-#### UPDATE
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-$affected = $db->find()
+// UPDATE
+$db->find()
     ->table('users')
-    ->where('id', 5)
-    ->update([
-        'age' => Db::inc(),  // Increment by 1
-        'updated_at' => Db::now()
-    ]);
-```
+    ->where('id', $id)
+    ->update(['age' => 31]);
 
-#### UPDATE with JOIN
-
-```php
-// Update user balance based on order amount
-$affected = $db->find()
+// DELETE
+$db->find()
     ->table('users')
-    ->join('orders', 'orders.user_id = users.id')
-    ->where('orders.status', 'completed')
-    ->update(['balance' => Db::raw('users.balance + orders.amount')]);
-```
-
-#### DELETE
-
-```php
-$affected = $db->find()
-    ->table('users')
-    ->where('age', 18, '<')
+    ->where('id', $id)
     ->delete();
 ```
-
-#### DELETE with JOIN
-
-```php
-// Delete users who have cancelled orders
-$affected = $db->find()
-    ->table('users')
-    ->join('orders', 'orders.user_id = users.id')
-    ->where('orders.status', 'cancelled')
-    ->delete();
-```
-
-> **Note:** JOIN in UPDATE/DELETE is supported in MySQL, MariaDB, and PostgreSQL. SQLite doesn't support JOIN in UPDATE/DELETE statements and will throw an exception.
 
 ### Filtering and Joining
 
-#### WHERE Conditions
-
 ```php
 use tommyknocker\pdodb\helpers\Db;
 
+// WHERE conditions
 $users = $db->find()
     ->from('users')
     ->where('status', 'active')
     ->andWhere('age', 18, '>')
     ->andWhere(Db::like('email', '%@example.com'))
     ->get();
-```
 
-#### JOIN and GROUP BY
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
+// JOIN and GROUP BY
 $stats = $db->find()
     ->from('users AS u')
     ->select(['u.id', 'u.name', 'total' => Db::sum('o.amount')])
     ->leftJoin('orders AS o', 'o.user_id = u.id')
     ->groupBy('u.id')
     ->having(Db::sum('o.amount'), 1000, '>')
-    ->orderBy('total', 'DESC')
-    ->limit(20)
     ->get();
-```
-
-#### LATERAL JOIN (PostgreSQL/MySQL only)
-
-LATERAL JOINs allow correlated subqueries in the FROM clause, where the subquery can reference columns from preceding tables:
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Get latest order per user
-$latestOrders = $db->find()
-    ->from('users AS u')
-    ->select([
-        'u.name',
-        'latest.order_id',
-        'latest.total'
-    ])
-    ->lateralJoin(function ($q) {
-        $q->from('orders')
-          ->where('user_id', 'u.id')
-          ->orderBy('created_at', 'DESC')
-          ->limit(1);
-    }, null, 'LEFT', 'latest')
-    ->get();
-
-// Supported: PostgreSQL 9.3+, MySQL 8.0.14+
-// Not supported: SQLite (throws exception)
-```
-
-See [JOIN Operations Documentation](documentation/03-query-builder/joins.md#lateral-joins) for more examples.
-
-### Bulk Operations
-
-#### UPSERT (INSERT or UPDATE)
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Portable across MySQL, MariaDB, PostgreSQL, SQLite
-$db->find()->table('users')->onDuplicate([
-    'age' => Db::inc(),
-    'updated_at' => Db::now()
-])->insert([
-    'email' => 'alice@example.com',  // Unique key
-    'name' => 'Alice',
-    'age' => 30
-]);
-```
-
-#### CSV Loader
-
-```php
-// Simple load
-$db->find()->table('users')->loadCsv('/path/to/file.csv');
-
-// With options
-$db->find()->table('users')->loadCsv('/path/to/file.csv', [
-    'fieldChar' => ',',
-    'fieldEnclosure' => '"',
-    'fields' => ['id', 'name', 'email', 'age'],
-    'local' => true,
-    'lineChar' => "\n",
-    'linesToIgnore' => 1  // Skip header row
-]);
-```
-
-#### XML Loader
-
-```php
-$db->find()->table('users')->loadXml('/path/to/file.xml', [
-    'rowTag' => '<user>',
-    'linesToIgnore' => 0
-]);
-```
-
-#### JSON Loader
-
-```php
-// Array format
-$db->find()->table('products')->loadJson('/path/to/products.json');
-
-// NDJSON format (newline-delimited)
-$db->find()->table('products')->loadJson('/path/to/products.ndjson', [
-    'format' => 'lines',
-]);
-
-// With options
-$db->find()->table('products')->loadJson('/path/to/products.json', [
-    'columns' => ['name', 'price', 'stock'],
-    'batchSize' => 1000,
-]);
 ```
 
 ### Transactions
-
-#### Basic Transactions
-
-```php
-$db->startTransaction();
-
-try {
-    $userId = $db->find()->table('users')->insert(['name' => 'Alice']);
-    $db->find()->table('posts')->insert(['user_id' => $userId, 'title' => 'Post']);
-    $db->commit();
-} catch (\Exception $e) {
-    $db->rollback();
-}
-```
-
-#### Savepoints (Nested Transactions)
-
-PDOdb supports savepoints for nested transaction-like behavior:
-
-```php
-$db->startTransaction();
-
-try {
-    $userId = $db->find()->table('users')->insert(['name' => 'Alice']);
-    
-    // Create savepoint
-    $db->savepoint('sp1');
-    
-    try {
-        $db->find()->table('posts')->insert(['user_id' => $userId, 'title' => 'Post']);
-        $db->releaseSavepoint('sp1');
-    } catch (\Exception $e) {
-        // Rollback to savepoint (undoes the post insert)
-        $db->rollbackToSavepoint('sp1');
-    }
-    
-    $db->commit();
-} catch (\Exception $e) {
-    $db->rollback();
-}
-```
-
-Savepoints are supported by all database dialects (MySQL, MariaDB, PostgreSQL, SQLite).
 
 ```php
 $db->startTransaction();
@@ -1576,323 +495,55 @@ try {
     $userId = $db->find()->table('users')->insert(['name' => 'Alice']);
     $db->find()->table('orders')->insert(['user_id' => $userId, 'total' => 100]);
     $db->commit();
-} catch (\Throwable $e) {
-    $db->rollBack();
-    throw $e;
+} catch (\Exception $e) {
+    $db->rollback();
 }
 ```
 
-#### Table Locking
-
-```php
-$db->lock(['users', 'orders'])->setLockMethod('WRITE');
-try {
-    // Perform exclusive operations
-    $db->find()->table('users')->where('id', 1)->update(['balance' => 100]);
-} finally {
-    $db->unlock();
-}
-```
-
----
-
-## Query Analysis
-
-PDOdb provides methods to analyze query execution plans and table structures across all supported databases.
-
-### Execution Plan Analysis
-
-#### Basic EXPLAIN
-
-```php
-// Analyze query execution plan
-$plan = $db->find()
-    ->table('users')
-    ->where('age', 25, '>')
-    ->orderBy('created_at', 'DESC')
-    ->explain();
-
-// Returns dialect-specific execution plan
-// MySQL: id, select_type, table, type, possible_keys, key, key_len, ref, rows, Extra
-// PostgreSQL: QUERY PLAN column with execution details
-// SQLite: addr, opcode, p1, p2, p3, p4, p5, comment
-```
-
-#### Detailed Analysis with EXPLAIN ANALYZE
-
-```php
-// Get detailed execution statistics
-$analysis = $db->find()
-    ->table('users')
-    ->join('orders', 'users.id = orders.user_id')
-    ->where('users.age', 25, '>')
-    ->explainAnalyze();
-
-// Returns:
-// - PostgreSQL: EXPLAIN ANALYZE with actual execution times
-// - MySQL: EXPLAIN FORMAT=JSON with detailed cost analysis
-// - SQLite: EXPLAIN QUERY PLAN with query optimization details
-```
-
-#### Enhanced EXPLAIN with Recommendations
-
-```php
-// Get EXPLAIN analysis with optimization recommendations
-$analysis = $db->find()
-    ->table('users')
-    ->where('status', 'active')
-    ->explainAdvice();
-
-// Access parsed plan
-echo "Access Type: " . $analysis->plan->accessType . "\n";
-echo "Used Index: " . ($analysis->plan->usedIndex ?? 'None') . "\n";
-echo "Estimated Rows: " . $analysis->plan->estimatedRows . "\n";
-
-// MySQL/MariaDB specific: Filter ratio
-if ($analysis->plan->filtered < 100.0) {
-    echo "Filter Ratio: " . $analysis->plan->filtered . "%\n";
-}
-
-// PostgreSQL specific: Query cost
-if ($analysis->plan->totalCost !== null) {
-    echo "Query Cost: " . $analysis->plan->totalCost . "\n";
-}
-
-// Check for full table scans
-if (!empty($analysis->plan->tableScans)) {
-    echo "Full table scans: " . implode(', ', $analysis->plan->tableScans) . "\n";
-}
-
-// Get optimization recommendations (sorted by severity: critical, warning, info)
-foreach ($analysis->recommendations as $rec) {
-    echo "[{$rec->severity}] {$rec->type}: {$rec->message}\n";
-    if ($rec->suggestion) {
-        echo "  {$rec->suggestion}\n";
-    }
-}
-```
-
-**Features:**
-- ✅ **Automatic detection** of full table scans
-- ✅ **Missing index identification** with SQL suggestions
-- ✅ **Filesort and temporary table** warnings
-- ✅ **Filter ratio analysis** (MySQL/MariaDB) - detect low index selectivity
-- ✅ **Query cost analysis** (PostgreSQL) - identify high-cost queries
-- ✅ **JOIN analysis** - detect inefficient JOIN operations
-- ✅ **Subquery detection** - identify dependent subqueries
-- ✅ **GROUP BY optimization** - detect GROUP BY without index usage
-- ✅ **Dialect-aware parsing** (MySQL, MariaDB, PostgreSQL, SQLite)
-- ✅ **Structured recommendations** with severity levels (sorted by priority)
-
-### Table Structure Analysis
-
-```php
-// Get table structure information
-$structure = $db->find()
-    ->table('users')
-    ->describe();
-
-// Returns dialect-specific column information:
-// MySQL: Field, Type, Null, Key, Default, Extra
-// PostgreSQL: column_name, data_type, is_nullable, column_default
-// SQLite: cid, name, type, notnull, dflt_value, pk
-```
-
-### SQL Generation
-
-```php
-// Get SQL query and parameters without execution
-$query = $db->find()
-    ->table('users')
-    ->where('age', 25, '>')
-    ->andWhere('status', 'active')
-    ->toSQL();
-
-echo $query['sql'];    // "SELECT * FROM users WHERE age > :age AND status = :status"
-print_r($query['params']); // ['age' => 25, 'status' => 'active']
-```
-
-### Performance Optimization Example
-
-```php
-// Analyze a complex query
-$complexQuery = $db->find()
-    ->table('users')
-    ->join('orders', 'users.id = orders.user_id')
-    ->join('products', 'orders.product_id = products.id')
-    ->where('users.created_at', '2023-01-01', '>')
-    ->andWhere('orders.status', 'completed')
-    ->groupBy('users.id')
-    ->having('COUNT(orders.id)', 5, '>')
-    ->orderBy('users.created_at', 'DESC');
-
-// Get execution plan
-$plan = $complexQuery->explain();
-
-// Get detailed analysis
-$analysis = $complexQuery->explainAnalyze();
-
-// Check table structures
-$usersStructure = $db->find()->table('users')->describe();
-$ordersStructure = $db->find()->table('orders')->describe();
-```
+See [Query Builder Documentation](documentation/03-query-builder/) for more examples.
 
 ---
 
 ## JSON Operations
 
-PDOdb provides a unified JSON API that works consistently across MySQL, MariaDB, PostgreSQL, and SQLite.
-
-### Creating JSON Data
+PDOdb provides a unified JSON API that works consistently across all databases.
 
 ```php
 use tommyknocker\pdodb\helpers\Db;
 
+// Create JSON data
 $db->find()->table('users')->insert([
     'name' => 'John',
-    'meta' => Db::jsonObject(['city' => 'NYC', 'age' => 30, 'verified' => true]),
+    'meta' => Db::jsonObject(['city' => 'NYC', 'age' => 30]),
     'tags' => Db::jsonArray('php', 'mysql', 'docker')
 ]);
-```
 
-### Querying JSON
-
-#### Filter by JSON path value
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Find users older than 25
+// Query JSON
 $adults = $db->find()
     ->from('users')
     ->where(Db::jsonPath('meta', ['age'], '>', 25))
     ->get();
 
-// Multiple JSON conditions
-$active = $db->find()
-    ->from('users')
-    ->where(Db::jsonPath('meta', ['age'], '>', 25))
-    ->andWhere(Db::jsonContains('tags', 'php'))
-    ->andWhere(Db::jsonExists('meta', ['verified']))
-    ->get();
-```
-
-#### Check if JSON contains value
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Single value
-$phpDevs = $db->find()
-    ->from('users')
-    ->where(Db::jsonContains('tags', 'php'))
-    ->get();
-
-// Multiple values (subset matching)
-$fullStack = $db->find()
-    ->from('users')
-    ->where(Db::jsonContains('tags', ['php', 'mysql']))  // Must have both
-    ->get();
-```
-
-#### Check if JSON path exists
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-$withCity = $db->find()
-    ->from('users')
-    ->where(Db::jsonExists('meta', ['city']))
-    ->get();
-```
-
-### Extracting JSON Values
-
-#### Select JSON values
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
+// Extract JSON values
 $users = $db->find()
     ->from('users')
     ->select([
         'id',
         'name',
-        'city' => Db::jsonGet('meta', ['city']),
-        'age' => Db::jsonGet('meta', ['age'])
+        'city' => Db::jsonGet('meta', ['city'])
     ])
     ->get();
-```
 
-#### Order by JSON value
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-$sorted = $db->find()
-    ->from('users')
-    ->orderBy(Db::jsonGet('meta', ['age']), 'DESC')
-    ->get();
-```
-
-#### Get JSON array/object length
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-$users = $db->find()
-    ->from('users')
-    ->select([
-        'id',
-        'tag_count' => Db::jsonLength('tags')
-    ])
-    ->where(Db::jsonLength('tags'), 3, '>')
-    ->get();
-```
-
-#### Get JSON type
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-$users = $db->find()
-    ->from('users')
-    ->select([
-        'id',
-        'tags_type' => Db::jsonType('tags')  // 'array', 'object', 'string', etc.
-    ])
-    ->get();
-```
-
-#### Update JSON values
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Update JSON field using Db::jsonSet() helper (creates path if missing)
+// Update JSON
 $db->find()
     ->table('users')
     ->where('id', 1)
     ->update([
         'meta' => Db::jsonSet('meta', ['city'], 'London')
     ]);
-
-// Remove JSON field
-$db->find()
-    ->table('users')
-    ->where('id', 1)
-    ->update([
-        'meta' => Db::jsonRemove('meta', ['old_field'])
-    ]);
-
-// Replace JSON value (only if path exists)
-$db->find()
-    ->table('users')
-    ->where('id', 1)
-    ->update([
-        'meta' => Db::jsonReplace('meta', ['status'], 'inactive')
-    ]);
 ```
+
+See [JSON Operations Documentation](documentation/04-json-operations/) for complete guide.
 
 ---
 
@@ -1900,106 +551,16 @@ $db->find()
 
 ### Raw Queries
 
-#### Safe parameter binding
-
 ```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Raw SELECT
 $users = $db->rawQuery(
-    'SELECT * FROM users WHERE age > :age AND city = :city',
-    ['age' => 18, 'city' => 'NYC']
+    'SELECT * FROM users WHERE age > :age',
+    ['age' => 18]
 );
-
-// Single row
-$user = $db->rawQueryOne(
-    'SELECT * FROM users WHERE id = :id',
-    ['id' => 10]
-);
-
-// Single value
-$count = $db->rawQueryValue(
-    'SELECT COUNT(*) FROM users WHERE status = :status',
-    ['status' => 'active']
-);
-```
-
-#### Using RawValue in queries
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Using helper functions where possible
-$db->find()
-    ->table('users')
-    ->where('id', 5)
-    ->update([
-        'age' => Db::raw('age + :inc', ['inc' => 5]), // No helper for arithmetic
-        'name' => Db::concat('name', '_updated')      // Using CONCAT helper
-    ]);
-```
-
-### Complex Conditions
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Nested OR conditions
-$users = $db->find()
-    ->from('users')
-    ->where('status', 'active')
-    ->andWhere(function($qb) {
-        $qb->where('age', 18, '>')
-           ->orWhere('verified', 1);
-    })
-    ->get();
-
-// IN condition (with array)
-$users = $db->find()
-    ->from('users')
-    ->whereIn('id', [1, 2, 3, 4, 5])
-    ->get();
-
-// You can also use the helper function
-$users = $db->find()
-    ->from('users')
-    ->where(Db::in('id', [1, 2, 3, 4, 5]))
-    ->get();
-
-// BETWEEN
-$users = $db->find()
-    ->from('users')
-    ->whereBetween('age', 18, 65)
-    ->get();
-
-// IS NULL / IS NOT NULL
-$users = $db->find()
-    ->from('users')
-    ->whereNull('deleted_at')
-    ->andWhereNotNull('email')
-    ->get();
-
-// Column comparison
-$products = $db->find()
-    ->from('products')
-    ->whereColumn('quantity', '<=', 'threshold')
-    ->get();
-
-// AND/OR variants
-$users = $db->find()
-    ->from('users')
-    ->where('active', 1)
-    ->andWhereNull('deleted_at')
-    ->andWhereBetween('age', 18, 65)
-    ->andWhereIn('status', ['active', 'pending'])
-    ->orWhereNotNull('verified_at')
-    ->get();
 ```
 
 ### Subqueries
 
 ```php
-// Method 1: Using callable functions
 $users = $db->find()
     ->from('users')
     ->whereIn('id', function($query) {
@@ -2008,1480 +569,164 @@ $users = $db->find()
             ->where('total', 1000, '>');
     })
     ->get();
-
-// Method 2: Using QueryBuilder instance directly
-$orderSubquery = $db->find()
-    ->from('orders')
-    ->select('user_id')
-    ->where('total', 1000, '>');
-
-$users = $db->find()
-    ->from('users')
-    ->where('id', $orderSubquery, 'IN')
-    ->get();
-
-// Method 3: WHERE EXISTS with callable (automatic external reference detection)
-$users = $db->find()
-    ->from('users')
-    ->whereExists(function($query) {
-        $query->from('orders')
-            ->where('user_id', 'users.id')  // Automatically detected as external reference
-            ->where('status', 'completed');
-    })
-    ->get();
-
-// Method 4: WHERE EXISTS with QueryBuilder instance (automatic external reference detection)
-$orderExistsQuery = $db->find()
-    ->from('orders')
-    ->where('user_id', 'users.id')  // Automatically detected as external reference
-    ->where('status', 'completed');
-
-$users = $db->find()
-    ->from('users')
-    ->whereExists($orderExistsQuery)
-    ->get();
-
-// Method 5: Complex subquery in SELECT (using QueryBuilder)
-$users = $db->find()
-    ->from('users AS u')
-    ->select([
-        'u.id',
-        'u.name',
-        'order_count' => function ($q) {
-            $q->from('orders', 'o')
-              ->select([Db::count()])
-              ->where('o.user_id', 'u.id');
-        }
-    ])
-    ->get();
-
-// Method 6: Multiple subqueries with different approaches
-$highValueOrders = $db->find()
-    ->from('orders')
-    ->select('user_id')
-    ->where('total', 1000, '>');
-
-$bannedUsers = $db->find()
-    ->from('bans')
-    ->select('user_id')
-    ->where('active', 1);
-
-$users = $db->find()
-    ->from('users')
-    ->where('id', $highValueOrders, 'IN')
-    ->whereNotExists(function($query) use ($bannedUsers) {
-        $query->from('bans')
-            ->where('user_id', 'users.id')
-            ->where('active', 1);
-    })
-    ->get();
 ```
-
-#### Automatic External Reference Detection
-
-The library automatically detects external table references in subqueries and converts them to `RawValue` objects. This means you can write natural SQL without manually wrapping external references:
-
-```php
-// ✅ Automatic detection - no need for Db::raw()
-$users = $db->find()
-    ->from('users')
-    ->whereExists(function($query) {
-        $query->from('orders')
-            ->where('user_id', 'users.id')        // Automatically detected
-            ->where('created_at', 'users.created_at', '>')  // Automatically detected
-            ->where('status', 'completed');
-    })
-    ->get();
-
-// ✅ Works in SELECT expressions
-$users = $db->find()
-    ->from('users')
-    ->select([
-        'id',
-        'name',
-        'total_orders' => 'COUNT(orders.id)',     // Automatically detected
-        'last_order' => 'MAX(orders.created_at)' // Automatically detected
-    ])
-    ->leftJoin('orders', 'orders.user_id = users.id')
-    ->groupBy('users.id', 'users.name')
-    ->get();
-
-// ✅ Works in ORDER BY
-$users = $db->find()
-    ->from('users')
-    ->select(['users.id', 'users.name', 'total' => 'SUM(orders.amount)'])
-    ->leftJoin('orders', 'orders.user_id = users.id')
-    ->groupBy('users.id', 'users.name')
-    ->orderBy('total', 'DESC')  // Automatically detected
-    ->get();
-
-// ✅ Works in GROUP BY
-$results = $db->find()
-    ->from('orders')
-    ->select(['user_id', 'total' => 'SUM(amount)'])
-    ->groupBy('user_id')  // Internal reference - not converted
-    ->get();
-
-// ✅ Works with table aliases
-$users = $db->find()
-    ->from('users AS u')
-    ->whereExists(function($query) {
-        $query->from('orders AS o')
-            ->where('o.user_id', 'u.id')  // Automatically detected with aliases
-            ->where('o.status', 'completed');
-    })
-    ->get();
-```
-
-**Detection Rules:**
-- Pattern: `table.column` or `alias.column`
-- Only converts if the table/alias is not in the current query's FROM clause
-- Works in: `where()`, `select()`, `orderBy()`, `groupBy()`, `having()`
-- Internal references (tables in current query) are not converted
-- Invalid patterns (like `123.invalid`) are not converted
-
-### Schema Support (PostgreSQL)
-
-```php
-// Specify schema explicitly
-$users = $db->find()->from('public.users')->get();
-$archived = $db->find()->from('archive.old_users')->get();
-
-// Cross-schema JOIN
-$data = $db->find()
-    ->from('public.users AS u')
-    ->leftJoin('archive.orders AS o', 'o.user_id = u.id')
-    ->get();
-```
-
-### Ordering
-
-PDOdb supports multiple convenient ways to order results:
-
-```php
-// Single column
-$users = $db->find()->from('users')->orderBy('name', 'ASC')->get();
-
-// Multiple columns (chained)
-$users = $db->find()
-    ->from('users')
-    ->orderBy('status', 'ASC')
-    ->orderBy('created_at', 'DESC')
-    ->get();
-
-// Array with explicit directions
-$users = $db->find()
-    ->from('users')
-    ->orderBy(['status' => 'ASC', 'created_at' => 'DESC'])
-    ->get();
-
-// Array with default direction
-$users = $db->find()
-    ->from('users')
-    ->orderBy(['status', 'name'], 'DESC')
-    ->get();
-
-// Comma-separated string
-$users = $db->find()
-    ->from('users')
-    ->orderBy('status ASC, created_at DESC, name ASC')
-    ->get();
-```
-
-See [Ordering & Pagination Documentation](documentation/03-query-builder/ordering-pagination.md) for more examples.
-
----
 
 ### Pagination
 
-PDOdb offers three pagination styles for different use cases:
-
-#### Full Pagination (with total count)
-
 ```php
-// Traditional page-number pagination
+// Full pagination (with total count)
 $result = $db->find()
     ->from('posts')
     ->orderBy('created_at', 'DESC')
-    ->paginate(20, 1); // 20 per page, page 1
+    ->paginate(20, 1);
 
-echo "Page {$result->currentPage()} of {$result->lastPage()}\n";
-echo "Total: {$result->total()} items\n";
-echo "Showing: {$result->from()}-{$result->to()}\n";
-
-// JSON API response
-header('Content-Type: application/json');
-echo json_encode($result);
-```
-
-#### Simple Pagination (without total count - faster)
-
-```php
-// Infinite scroll / "Load More" pattern
-$result = $db->find()
-    ->from('posts')
-    ->orderBy('created_at', 'DESC')
-    ->simplePaginate(20, 1);
-
-if ($result->hasMorePages()) {
-    echo '<button data-page="' . ($result->currentPage() + 1) . '">Load More</button>';
-}
-
-// JSON response (no COUNT query)
-echo json_encode($result);
-```
-
-#### Cursor Pagination (most efficient for large datasets)
-
-```php
-// Stable pagination for millions of rows
+// Cursor pagination (most efficient)
 $result = $db->find()
     ->from('posts')
     ->orderBy('id', 'DESC')
-    ->cursorPaginate(20); // First page
-
-// Next page using cursor
-if ($result->hasMorePages()) {
-    $result2 = $db->find()
-        ->from('posts')
-        ->orderBy('id', 'DESC')
-        ->cursorPaginate(20, $result->nextCursor());
-}
-
-// JSON response with encoded cursors
-echo json_encode($result);
+    ->cursorPaginate(20);
 ```
-
-#### Pagination with URL Options
-
-```php
-$result = $db->find()
-    ->from('posts')
-    ->where('status', 'published')
-    ->paginate(20, 2, [
-        'path' => '/api/posts',
-        'query' => ['status' => 'published']
-    ]);
-
-echo $result->nextPageUrl();
-// Output: /api/posts?status=published&page=3
-```
-
-#### Performance Comparison
-
-| Type | Queries | Performance (1M rows) | Use Case |
-|------|---------|----------------------|----------|
-| **Full** | 2 (COUNT + SELECT) | ~200ms | Page numbers needed |
-| **Simple** | 1 (SELECT +1) | ~50ms | Infinite scroll |
-| **Cursor** | 1 (SELECT WHERE) | ~30ms | Large datasets, real-time |
-
-See [Pagination Documentation](documentation/05-advanced-features/pagination.md) for more details.
-
----
 
 ### Batch Processing
 
-For processing large datasets efficiently, PDOdb provides three generator-based methods:
-
-#### Processing in Batches
-
 ```php
-// Process data in chunks of 100 records
-foreach ($db->find()->from('users')->orderBy('id')->batch(100) as $batch) {
-    echo "Processing batch of " . count($batch) . " users\n";
-
+// Process in batches
+foreach ($db->find()->from('users')->batch(100) as $batch) {
     foreach ($batch as $user) {
-        // Process each user in the batch
         processUser($user);
     }
 }
-```
 
-#### Processing One Record at a Time
-
-```php
-// Process records individually with internal buffering
-foreach ($db->find()
-    ->from('users')
-    ->where('active', 1)
-    ->orderBy('id')
-    ->each(50) as $user) {
-
-    // Process individual user
-    sendEmail($user['email']);
+// Stream results (minimal memory)
+foreach ($db->find()->from('users')->stream() as $user) {
+    processUser($user);
 }
 ```
-
-#### Streaming Results
-
-```php
-// Most memory-efficient for very large datasets
-foreach ($db->find()
-    ->from('users')
-    ->where('age', 18, '>=')
-    ->stream() as $user) {
-
-    // Stream processing with minimal memory usage
-    exportUser($user);
-}
-```
-
-#### Real-world Example: Data Export
-
-```php
-function exportUsersToCsv($db, $filename) {
-    $file = fopen($filename, 'w');
-    fputcsv($file, ['ID', 'Name', 'Email', 'Age']);
-
-    foreach ($db->find()
-        ->from('users')
-        ->orderBy('id')
-        ->stream() as $user) {
-
-        fputcsv($file, [
-            $user['id'],
-            $user['name'],
-            $user['email'],
-            $user['age']
-        ]);
-    }
-
-    fclose($file);
-}
-
-// Export 1M+ users without memory issues
-exportUsersToCsv($db, 'users_export.csv');
-```
-
-#### Performance Comparison
-
-| Method | Memory Usage | Best For |
-|--------|-------------|----------|
-| `get()` | High (loads all data) | Small datasets, complex processing |
-| `batch()` | Medium (configurable chunks) | Bulk operations, parallel processing |
-| `each()` | Medium (internal buffering) | Individual record processing |
-| `stream()` | Low (streaming) | Large datasets, simple processing |
 
 ### Query Caching
 
-PDOdb supports PSR-16 (Simple Cache) for caching query results to improve performance.
-
-#### Setup
-
-**Option 1: Using CacheFactory (Recommended)**
-
 ```php
-use tommyknocker\pdodb\cache\CacheFactory;
-use tommyknocker\pdodb\PdoDb;
-
-// Create cache from configuration
-$cache = CacheFactory::create([
-    'type' => 'filesystem',  // or 'redis', 'apcu', 'memcached'
-    'directory' => '/var/cache/pdodb',
-    'namespace' => 'app',
-]);
-
-// Pass cache to PdoDb
-$db = new PdoDb(
-    'mysql',
-    [
-        'host' => 'localhost',
-        'dbname' => 'myapp',
-        'username' => 'user',
-        'password' => 'pass',
-        'cache' => [
-            'prefix' => 'myapp_',        // Optional: cache key prefix
-            'default_ttl' => 3600,       // Optional: default TTL in seconds
-            'enabled' => true,           // Optional: enable/disable
-        ],
-    ],
-    [],
-    null,
-    $cache
-);
-```
-
-**Option 2: Manual Creation**
-
-```php
-use Symfony\Component\Cache\Adapter\FilesystemAdapter;
-use Symfony\Component\Cache\Psr16Cache;
-use tommyknocker\pdodb\PdoDb;
-
-// Create PSR-16 cache
-$adapter = new FilesystemAdapter();
-$cache = new Psr16Cache($adapter);
-
-// Pass cache to PdoDb
-$db = new PdoDb(
-    'mysql',
-    [
-        'host' => 'localhost',
-        'dbname' => 'myapp',
-        'username' => 'user',
-        'password' => 'pass',
-        'cache' => [
-            'prefix' => 'myapp_',        // Optional: cache key prefix
-            'default_ttl' => 3600,       // Optional: default TTL in seconds
-            'enabled' => true,           // Optional: enable/disable
-        ],
-    ],
-    [],
-    null,
-    $cache  // PSR-16 cache instance
-);
-```
-
-#### Cache Configuration via Environment Variables
-
-You can configure cache using environment variables (useful for CLI tools):
-
-```bash
-PDODB_CACHE_ENABLED=true
-PDODB_CACHE_TYPE=filesystem  # or redis, apcu, memcached
-PDODB_CACHE_DIRECTORY=/var/cache/pdodb
-PDODB_CACHE_REDIS_HOST=127.0.0.1
-PDODB_CACHE_REDIS_PORT=6379
-PDODB_CACHE_TTL=3600
-```
-
-#### Basic Usage
-
-```php
-// Cache for 1 hour (3600 seconds)
+// Cache for 1 hour
 $products = $db->find()
     ->from('products')
     ->where('category', 'Electronics')
-    ->cache(3600)  // Enable caching
-    ->get();
-
-// Custom cache key
-$featured = $db->find()
-    ->from('products')
-    ->where('featured', 1)
-    ->cache(3600, 'featured_products')  // Custom key
-    ->get();
-
-// Disable caching for specific query
-$fresh = $db->find()
-    ->from('products')
     ->cache(3600)
-    ->noCache()  // Override and disable
     ->get();
 ```
 
-#### Works with All Fetch Methods
+See [Advanced Features Documentation](documentation/05-advanced-features/) for complete guide.
 
-```php
-// Cache get() - all rows
-$all = $db->find()->from('users')->cache(600)->get();
+---
 
-// Cache getOne() - single row
-$user = $db->find()->from('users')->where('id', 1)->cache(600)->getOne();
+## CLI Tools
 
-// Cache getValue() - single value
-$count = $db->find()->from('users')->select([Db::count()])->cache(600)->getValue();
-
-// Cache getColumn() - column values
-$names = $db->find()->from('users')->select('name')->cache(600)->getColumn();
-```
-
-#### Cache Configuration Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `prefix` | `string` | `'pdodb_'` | Cache key prefix for namespacing |
-| `default_ttl` | `int` | `3600` | Default time-to-live in seconds |
-| `enabled` | `bool` | `true` | Global cache enable/disable |
-
-#### Supported PSR-16 Implementations
-
-- **Symfony Cache** (recommended): `symfony/cache` - provides multiple adapters
-  - Filesystem: `CacheFactory::create(['type' => 'filesystem'])`
-  - Redis: `CacheFactory::create(['type' => 'redis', 'host' => '...'])` (requires `ext-redis`)
-  - APCu: `CacheFactory::create(['type' => 'apcu'])` (requires `ext-apcu`)
-  - Memcached: `CacheFactory::create(['type' => 'memcached'])` (requires `ext-memcached`)
-
-Install optional dependencies:
-```bash
-composer require symfony/cache  # Required for all cache adapters
-# Optional extensions:
-# - ext-apcu: For APCu cache
-# - ext-redis: For Redis cache
-# - ext-memcached: For Memcached cache
-```
-
-#### Performance Impact
-
-Benchmark results on MySQL with 10,000 rows (50-600 query iterations):
-
-| Test Scenario | No Cache | Result Cache | Improvement | Speedup |
-|---------------|----------|-------------|-------------|--------|
-| **Repeated Queries** (cache hits) | 1712ms | 56ms | **96.7% faster** | **30.4x** |
-| **Complex Structure** | 177ms | 60ms | **65.9% faster** | **2.9x** |
-| **Complex Repeated** | 1273ms | 94ms | **92.6% faster** | **13.6x** |
-| **Simple Structure** | 733ms | 204ms | **72.1% faster** | **3.6x** |
-| **Very Complex Query** | 130ms | 28ms | **78.8% faster** | **4.7x** |
-| **Average** | 805ms | 89ms | **89% faster** | **9.1x** |
-
-**Key Insights:**
-- Result cache provides **65-97% performance improvement** depending on query complexity
-- Best performance with **both compilation and result caches** (up to 93.5% faster)
-- Compilation cache alone: 2-7% improvement (best for complex queries)
-- Result cache is most effective for **repeated queries** with high cache hit rates
-
-**See**: [Query Caching Documentation](documentation/05-advanced-features/query-caching.md) and [Examples](examples/14-caching/)
-
-### Query Compilation Cache
-
-PDOdb automatically caches compiled SQL query strings based on query structure. When you provide a PSR-16 cache, compilation cache is enabled automatically, providing a 10-30% performance improvement for applications with repetitive query patterns.
-
-#### Automatic Setup
-
-```php
-use Symfony\Component\Cache\Adapter\FilesystemAdapter;
-use Symfony\Component\Cache\Psr16Cache;
-use tommyknocker\pdodb\PdoDb;
-
-$adapter = new FilesystemAdapter();
-$cache = new Psr16Cache($adapter);
-
-// Compilation cache is automatically enabled
-$db = new PdoDb('mysql', $config, [], null, $cache);
-```
-
-#### How It Works
-
-The compilation cache stores compiled SQL strings based on query structure (table, columns, joins, conditions structure) without parameter values. Queries with the same structure share cached SQL:
-
-```php
-// These queries share the same cached SQL (different parameters, same structure):
-$db->find()->from('users')->where('age', 25)->get();
-$db->find()->from('users')->where('age', 30)->get();
-$db->find()->from('users')->where('age', 35)->get();
-```
-
-#### Configuration
-
-```php
-// Configure compilation cache
-$db->getCompilationCache()?->setDefaultTtl(3600);  // 1 hour
-$db->getCompilationCache()?->setPrefix('app_compiled_');
-
-// Disable if needed
-$db->getCompilationCache()?->setEnabled(false);
-```
-
-#### Performance Impact
-
-Benchmark results on MySQL with 10,000 rows:
-
-| Test Scenario | No Cache | Compilation Cache | Improvement | Speedup |
-|---------------|----------|-------------------|-------------|---------|
-| **Complex Structure** | 177ms | 186ms | -4.8% (overhead) | 0.95x |
-| **Simple Structure** | 733ms | 716ms | **2.3% faster** | **1.02x** |
-| **Complex Repeated** | 1273ms | 1185ms | **6.9% faster** | **1.07x** |
-| **Very Complex Query** | 130ms | 127ms | **1.9% faster** | **1.02x** |
-| **Average** | 804ms | 784ms | **2.7% faster** | **1.03x** |
-
-**Key Insights:**
-- Compilation cache provides **2-7% improvement** for complex queries
-- Most effective when combined with **result cache** (up to 93% total improvement)
-- Best for applications with **repetitive query patterns** and high query volume
-- Minimal overhead (0-5%) even when not providing significant benefit
-
-**See**: [Query Compilation Cache Documentation](documentation/05-advanced-features/query-compilation-cache.md) and [Examples](examples/20-query-compilation-cache/)
-
-### Query Performance Profiling
-
-PDOdb includes a built-in query profiler for performance analysis. It automatically tracks execution times, memory usage, and detects slow queries.
-
-#### Basic Usage
-
-```php
-// Enable profiling with slow query threshold (default: 1.0 second)
-$db->enableProfiling();
-
-// Custom threshold (0.5 seconds)
-$db->enableProfiling(0.5);
-
-// Execute queries (automatically tracked)
-$users = $db->find()->from('users')->where('active', 1)->get();
-$orders = $db->find()->from('orders')->where('status', 'pending')->get();
-
-// Get aggregated statistics
-$stats = $db->getProfilerStats(true);
-echo "Total queries: {$stats['total_queries']}\n";
-echo "Average time: " . round($stats['avg_time'] * 1000, 2) . " ms\n";
-echo "Slow queries: {$stats['slow_queries']}\n";
-
-// Get slowest queries
-$slowest = $db->getSlowestQueries(10);
-foreach ($slowest as $query) {
-    echo "Query: {$query['sql']}\n";
-    echo "  Avg time: " . round($query['avg_time'] * 1000, 2) . " ms\n";
-}
-
-// Disable profiling
-$db->disableProfiling();
-```
-
-#### Features
-
-- **Automatic tracking** of all query executions
-- **Execution time** measurement (total, average, min, max)
-- **Memory usage** tracking per query
-- **Slow query detection** with configurable threshold
-- **Query grouping** by SQL structure (same query pattern grouped together)
-- **PSR-3 logger integration** for slow query logging
-- **Statistics reset** for new measurement periods
-
-#### Statistics Structure
-
-```php
-$stats = $db->getProfilerStats(true);
-// Returns:
-[
-    'total_queries' => 150,
-    'total_time' => 2.345,      // seconds
-    'avg_time' => 0.0156,      // seconds
-    'min_time' => 0.0012,      // seconds
-    'max_time' => 0.1250,      // seconds
-    'total_memory' => 2048000, // bytes
-    'avg_memory' => 13653,     // bytes
-    'slow_queries' => 5,
-]
-```
-
-#### Slow Query Detection
-
-Queries exceeding the threshold are automatically logged (if logger provided):
-
-```php
-use Psr\Log\LoggerInterface;
-
-$logger = new YourLoggerImplementation();
-$db = new PdoDb('mysql', $config, [], $logger);
-
-// Enable with 100ms threshold
-$db->enableProfiling(0.1);
-
-// Slow queries logged with warning level
-// Log includes: SQL, parameters, execution time, memory usage
-```
-
-**See**: [Query Profiling Documentation](documentation/05-advanced-features/query-profiling.md) and [Examples](examples/21-query-profiling/)
-
-### Prepared Statement Pool
-
-PDOdb includes automatic prepared statement caching to reduce overhead from `PDO::prepare()` calls. This provides a 20-50% performance boost for repeated queries.
-
-#### Setup
-
-```php
-use tommyknocker\pdodb\PdoDb;
-
-$db = new PdoDb('mysql', [
-    'host' => 'localhost',
-    'dbname' => 'myapp',
-    'username' => 'user',
-    'password' => 'pass',
-    'stmt_pool' => [
-        'enabled' => true,
-        'capacity' => 256  // Maximum number of cached statements
-    ]
-]);
-```
-
-#### How It Works
-
-The pool uses an LRU (Least Recently Used) cache algorithm:
-- Frequently used statements stay in cache
-- Less used statements are evicted when capacity is reached
-- Each connection has its own pool
-- Works transparently with all query types
-
-#### Configuration Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `enabled` | `bool` | `false` | Enable/disable statement pooling |
-| `capacity` | `int` | `256` | Maximum number of cached statements (LRU eviction) |
-
-#### Performance Impact
-
-| Scenario | Without Pool | With Pool | Improvement |
-|----------|--------------|-----------|-------------|
-| Repeated SELECT | 100% | 75-80% | 20-25% faster |
-| Repeated INSERT/UPDATE | 100% | 60-70% | 30-40% faster |
-| Mixed queries (low repetition) | 100% | 95-100% | Minimal |
-
-#### Accessing Pool Statistics
-
-```php
-$pool = $db->connection->getStatementPool();
-if ($pool !== null) {
-    echo "Hits: " . $pool->getHits() . "\n";
-    echo "Misses: " . $pool->getMisses() . "\n";
-    echo "Hit Rate: " . ($pool->getHitRate() * 100) . "%\n";
-    echo "Cached Statements: " . $pool->size() . "\n";
-}
-```
-
-#### When to Use
-
-**Recommended for:**
-- Applications with high query repetition (e.g., web apps with common queries)
-- Batch processing with similar queries
-- Long-running processes with repeated operations
-
-**Not recommended for:**
-- Applications with unique queries (low repetition)
-- Memory-constrained environments (though pool overhead is minimal)
-- Development/debugging (slight complexity increase)
-
-#### Disabling the Pool
-
-```php
-// Per connection
-$db = new PdoDb('mysql', [
-    'stmt_pool' => ['enabled' => false]
-]);
-
-// Or disable at runtime
-$pool = $db->connection->getStatementPool();
-if ($pool !== null) {
-    $pool->setEnabled(false);
-}
-```
-
-**See**: [Connection Management Documentation](documentation/02-core-concepts/connection-management.md)
-
-### PSR-14 Event Dispatcher
-
-PDOdb integrates with PSR-14 Event Dispatcher to provide event-driven monitoring, auditing, and middleware capabilities.
-
-#### Setup
-
-```php
-use tommyknocker\pdodb\PdoDb;
-use Psr\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\EventDispatcher\EventDispatcher; // Or any PSR-14 implementation
-
-$dispatcher = new EventDispatcher();
-
-$db = new PdoDb('mysql', [
-    'host' => 'localhost',
-    'dbname' => 'myapp',
-    'username' => 'user',
-    'password' => 'pass'
-]);
-
-$db->setEventDispatcher($dispatcher);
-```
-
-#### Available Events
-
-| Event | When Fired | Use Cases |
-|-------|------------|-----------|
-| `ConnectionOpenedEvent` | When a connection is opened | Connection monitoring, DSN logging |
-| `QueryExecutedEvent` | After successful query execution | Query logging, performance monitoring, metrics |
-| `QueryErrorEvent` | When a query error occurs | Error tracking, alerting, debugging |
-| `TransactionStartedEvent` | When a transaction begins | Transaction monitoring, audit logs |
-| `TransactionCommittedEvent` | When a transaction is committed | Audit trails, performance metrics |
-| `TransactionRolledBackEvent` | When a transaction is rolled back | Error tracking, audit logs |
-
-#### Example: Query Logging
-
-```php
-use tommyknocker\pdodb\events\QueryExecutedEvent;
-
-$dispatcher->addListener(QueryExecutedEvent::class, function (QueryExecutedEvent $event) {
-    echo sprintf(
-        "Query: %s (%.2f ms, %d rows)\n",
-        substr($event->getSql(), 0, 50),
-        $event->getExecutionTime(),
-        $event->getRowsAffected()
-    );
-});
-```
-
-#### Example: Transaction Monitoring
-
-```php
-use tommyknocker\pdodb\events\TransactionStartedEvent;
-use tommyknocker\pdodb\events\TransactionCommittedEvent;
-
-$dispatcher->addListener(TransactionStartedEvent::class, function ($event) {
-    error_log("Transaction started on " . $event->getDriver());
-});
-
-$dispatcher->addListener(TransactionCommittedEvent::class, function ($event) {
-    error_log(sprintf(
-        "Transaction committed (duration: %.2f ms)",
-        $event->getDuration()
-    ));
-});
-```
-
-#### Benefits
-
-- **Monitoring**: Track all database operations in real-time
-- **Auditing**: Maintain complete audit trails of database activity
-- **Middleware**: Implement cross-cutting concerns (logging, metrics, caching)
-- **Debugging**: Capture query details for troubleshooting
-- **Performance Analysis**: Measure execution times and identify slow queries
-
-#### Compatibility
-
-Works with any PSR-14 compatible event dispatcher:
-- Symfony EventDispatcher
-- League Event
-- Custom implementations
-
-**See**: [Event Dispatcher Example](examples/19-events/01-event-dispatcher.php)
-
-### CLI Tools
-
-PDOdb provides convenient command-line tools for common development tasks. All tools are available via a unified `pdodb` command:
+PDOdb provides convenient command-line tools for common development tasks:
 
 ```bash
 vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 ```
 
-Global options available for all commands:
+### Available Commands
 
-```text
---connection=<name>  Use a named connection from config/db.php
---config=<path>      Path to db.php configuration file
---env=<path>         Path to .env file
-```
-
-#### Bash Completion
-
-PDOdb includes a bash completion script for enhanced command-line experience. To install it:
-
-**Option 1: Source directly (temporary for current session)**
-```bash
-source <(curl -s https://raw.githubusercontent.com/tommyknocker/pdo-database-class/refs/heads/master/scripts/pdodb-completion.bash)
-```
-
-**Option 2: Install permanently**
-```bash
-# Download the completion script
-curl -o ~/.pdodb-completion.bash https://raw.githubusercontent.com/tommyknocker/pdo-database-class/refs/heads/master/scripts/pdodb-completion.bash
-
-# Add to your ~/.bashrc or ~/.bash_profile
-echo "source ~/.pdodb-completion.bash" >> ~/.bashrc
-
-# Reload your shell configuration
-source ~/.bashrc
-```
-
-**Option 3: System-wide installation (requires root)**
-```bash
-# Download to system bash completion directory
-sudo curl -o /etc/bash_completion.d/pdodb-completion https://raw.githubusercontent.com/tommyknocker/pdo-database-class/refs/heads/master/scripts/pdodb-completion.bash
-
-# Reload bash completion
-source /etc/bash_completion.d/pdodb-completion
-```
-
-After installation, bash completion will work automatically when you type `pdodb` or `vendor/bin/pdodb` followed by `<TAB>`.
-
-#### Available Commands
-
-- **`db`** - Manage databases (create, drop, list, check existence, show info)
-- **`user`** - Manage database users (create, drop, list, grant/revoke privileges, change password)
-- **`dump`** - Dump and restore database (schema and data export/import)
+- **`db`** - Manage databases (create, drop, list, check existence)
+- **`user`** - Manage database users (create, drop, grant/revoke privileges)
+- **`dump`** - Dump and restore database (with compression, auto-naming, rotation)
 - **`migrate`** - Manage database migrations
 - **`schema`** - Inspect database schema
-- **`query`** - Test SQL queries interactively
+- **`query`** - Test SQL queries interactively (REPL)
 - **`model`** - Generate ActiveRecord models
-- **`table`** - Manage tables (info, list, exists, create, drop, rename, truncate, describe, columns, indexes, foreign keys)
-- **`monitor`** - Monitor database queries, connections, and performance
+- **`table`** - Manage tables (info, create, drop, truncate)
+- **`monitor`** - Monitor database queries and performance
 
-#### Database Management
+### Bash Completion
 
-Manage databases with simple commands:
+Install bash completion for enhanced CLI experience:
 
 ```bash
-# Create a database
+# Temporary (current session)
+source <(curl -s https://raw.githubusercontent.com/tommyknocker/pdo-database-class/refs/heads/master/scripts/pdodb-completion.bash)
+
+# Permanent
+curl -o ~/.pdodb-completion.bash https://raw.githubusercontent.com/tommyknocker/pdo-database-class/refs/heads/master/scripts/pdodb-completion.bash
+echo "source ~/.pdodb-completion.bash" >> ~/.bashrc
+```
+
+### Examples
+
+```bash
+# Create database
 vendor/bin/pdodb db create myapp
 
-# Drop a database (with confirmation)
-vendor/bin/pdodb db drop myapp
+# Dump with compression and rotation
+vendor/bin/pdodb dump --auto-name --compress=gzip --rotate=7
 
-# Check if a database exists
-vendor/bin/pdodb db exists myapp
-
-# List all databases
-vendor/bin/pdodb db list
-
-# Show information about current database
-vendor/bin/pdodb db info
-```
-
-#### User Management
-
-Manage database users and their privileges:
-
-```bash
-# Create a user
-vendor/bin/pdodb user create john --password secret123
-
-# Drop a user (with confirmation)
-vendor/bin/pdodb user drop john
-
-# Check if a user exists
-vendor/bin/pdodb user exists john
-
-# List all users
-vendor/bin/pdodb user list
-
-# Show user information
-vendor/bin/pdodb user info john
-
-# Grant privileges
-vendor/bin/pdodb user grant john SELECT,INSERT,UPDATE --database myapp
-
-# Revoke privileges
-vendor/bin/pdodb user revoke john DELETE --database myapp
-
-# Change password
-vendor/bin/pdodb user password john --password newpass123
-```
-
-**Note**: SQLite does not support user management operations.
-
-#### Database Dump and Restore
-
-Export and import database schema and data with compression, automatic naming, and backup rotation:
-
-```bash
-# Full database dump to file (includes DROP TABLE IF EXISTS by default)
-vendor/bin/pdodb dump --output=backup.sql
-
-# Dump specific table to file
-vendor/bin/pdodb dump users --output=users_backup.sql
-
-# Schema only (no data)
-vendor/bin/pdodb dump --schema-only --output=schema.sql
-
-# Data only (no schema)
-vendor/bin/pdodb dump --data-only --output=data.sql
-
-# Dump without DROP TABLE IF EXISTS statements
-vendor/bin/pdodb dump --no-drop-tables --output=backup.sql
-
-# Automatic naming with timestamp
-vendor/bin/pdodb dump --auto-name
-
-# Compressed dump (gzip)
-vendor/bin/pdodb dump --output=backup.sql --compress=gzip
-
-# Compressed dump (bzip2)
-vendor/bin/pdodb dump --output=backup.sql --compress=bzip2
-
-# Automatic naming with compression
-vendor/bin/pdodb dump --auto-name --compress=gzip
-
-# Backup with rotation (keep last 7 backups)
-vendor/bin/pdodb dump --auto-name --rotate=7
-
-# Combined: auto-name, compress, and rotate
-vendor/bin/pdodb dump --auto-name --compress=gzip --rotate=30
-
-# Restore from dump file
-vendor/bin/pdodb dump restore backup.sql
-
-# Restore from compressed file (auto-detected)
-vendor/bin/pdodb dump restore backup.sql.gz
-
-# Restore without confirmation
-vendor/bin/pdodb dump restore backup.sql --force
-```
-
-#### Migration Management
-
-```bash
-# Create new migration
+# Create migration
 vendor/bin/pdodb migrate create create_users_table
 
-# Apply pending migrations
-vendor/bin/pdodb migrate up
-
-# Rollback last migration
-vendor/bin/pdodb migrate down
-
-# Show migration history
-vendor/bin/pdodb migrate history
-
-# Show new migrations
-vendor/bin/pdodb migrate new
-```
-
-#### Seed Management
-
-Manage database seeds for populating your database with initial or test data:
-
-```bash
-# Create new seed
-vendor/bin/pdodb seed create users_table
-
-# Run all new seeds
-vendor/bin/pdodb seed run
-
-# Run specific seed
-vendor/bin/pdodb seed run users_table
-
-# List all seeds with status
-vendor/bin/pdodb seed list
-
-# Rollback last batch of seeds
-vendor/bin/pdodb seed rollback
-
-# Rollback specific seed
-vendor/bin/pdodb seed rollback users_table
-
-# Preview SQL without executing (dry-run)
-vendor/bin/pdodb seed run --dry-run
-
-# Simulate execution without running queries
-vendor/bin/pdodb seed run --pretend
-
-# Skip confirmation prompts
-vendor/bin/pdodb seed run --force
-```
-
-#### Model Generation
-
-Generate ActiveRecord model classes from existing database tables:
-
-```bash
-# Auto-detect table name from model name
-vendor/bin/pdodb model make User
-
-# Specify table name explicitly
-vendor/bin/pdodb model make User users
-
-# Specify output path
+# Generate model
 vendor/bin/pdodb model make User users app/Models
-
-# Specify namespace for generated model
-vendor/bin/pdodb model make User users app/Models --namespace=App\\Entities
-
-# Overwrite without confirmation
-vendor/bin/pdodb model make User users app/Models --force
-
-# Use a named connection from config/db.php (global option)
-vendor/bin/pdodb model make User users app/Models --connection=reporting
 ```
 
-#### Schema Inspection
-
-Inspect database schema structure:
-
-```bash
-# List all tables
-vendor/bin/pdodb schema inspect
-
-# Inspect specific table
-vendor/bin/pdodb schema inspect users
-
-# Output in JSON format
-vendor/bin/pdodb schema inspect users --format=json
-
-# Output in YAML format
-vendor/bin/pdodb schema inspect users --format=yaml
-```
-
-#### Query Testing (REPL)
-
-Interactive REPL for testing SQL queries:
-
-```bash
-# Interactive mode
-vendor/bin/pdodb query test
-
-# Execute single query
-vendor/bin/pdodb query test "SELECT * FROM users LIMIT 10"
-```
-
-#### Database Monitoring
-
-Monitor database queries, connections, and performance:
-
-```bash
-# Monitor active queries
-vendor/bin/pdodb monitor queries
-
-# Monitor active queries in real-time
-vendor/bin/pdodb monitor queries --watch
-
-# Monitor active connections
-vendor/bin/pdodb monitor connections
-
-# Monitor slow queries (threshold: 1 second)
-vendor/bin/pdodb monitor slow --threshold=1s
-
-# Show query statistics (requires profiling enabled)
-vendor/bin/pdodb monitor stats
-
-# Output in JSON format
-vendor/bin/pdodb monitor queries --format=json
-```
-
-**Note**: SQLite has limited monitoring support. For `monitor slow` and `monitor stats` on SQLite, you must enable profiling in your application code: `$db->enableProfiling(1.0)`.
-
-#### Configuration
-
-CLI tools automatically detect database configuration from:
-
-1. **`.env` file** in the current working directory (recommended for production)
-2. **`config.php`** file in the current working directory
-3. **Environment variables** (`PDODB_DRIVER`, `PDODB_HOST`, etc.)
-4. **Examples config** (for testing only)
-
-**See**: [CLI Tools Documentation](documentation/05-advanced-features/21-cli-tools.md)
+See [CLI Tools Documentation](documentation/05-advanced-features/21-cli-tools.md) for complete guide.
 
 ---
 
 ## Error Handling
 
-PDOdb provides a comprehensive exception hierarchy for better error handling and debugging. All exceptions extend `PDOException` for backward compatibility.
-
-### Exception Hierarchy
+PDOdb provides a comprehensive exception hierarchy for better error handling:
 
 ```php
 use tommyknocker\pdodb\exceptions\{
-    DatabaseException,           // Base exception class
-    ConnectionException,         // Connection-related errors
-    QueryException,             // Query execution errors
-    ConstraintViolationException, // Constraint violations
-    TransactionException,       // Transaction errors
-    AuthenticationException,     // Authentication errors
-    TimeoutException,           // Timeout errors
-    ResourceException           // Resource exhaustion
+    DatabaseException,
+    ConnectionException,
+    QueryException,
+    ConstraintViolationException,
+    TransactionException
 };
-```
-
-### Specific Error Handling
-
-#### Connection Errors
-
-```php
-use tommyknocker\pdodb\PdoDb;
-use tommyknocker\pdodb\exceptions\ConnectionException;
-use tommyknocker\pdodb\exceptions\AuthenticationException;
-
-try {
-    $db = new PdoDb('mysql', [
-        'host' => 'localhost',
-        'username' => 'user',
-        'password' => 'pass',
-        'dbname' => 'db'
-    ]);
-} catch (ConnectionException $e) {
-    error_log("Connection failed: " . $e->getMessage());
-    // Connection errors are retryable
-    if ($e->isRetryable()) {
-        // Implement retry logic
-    }
-} catch (AuthenticationException $e) {
-    error_log("Authentication failed: " . $e->getMessage());
-    // Authentication errors are not retryable
-}
-```
-
-#### Query Errors with Enhanced Diagnostics
-
-```php
-use tommyknocker\pdodb\exceptions\QueryException;
-use tommyknocker\pdodb\debug\QueryDebugger;
-use tommyknocker\pdodb\exceptions\ConstraintViolationException;
-
-try {
-    $users = $db->find()
-        ->from('nonexistent_table')
-        ->where('id', 1)
-        ->andWhere('status', 'active')
-        ->get();
-} catch (QueryException $e) {
-    error_log("Query error: " . $e->getMessage());
-    error_log("SQL: " . $e->getQuery());
-    
-    // Get query context for debugging
-    $queryContext = $e->getQueryContext();
-    if ($queryContext !== null) {
-        error_log("Table: " . ($queryContext['table'] ?? 'N/A'));
-        error_log("Operation: " . ($queryContext['operation'] ?? 'N/A'));
-        error_log("Parameters: " . json_encode($queryContext['params'] ?? []));
-    }
-    
-    // Enhanced description includes context automatically
-    error_log("Description: " . $e->getDescription());
-} catch (ConstraintViolationException $e) {
-    error_log("Constraint violation: " . $e->getMessage());
-    error_log("Constraint: " . $e->getConstraintName());
-    error_log("Table: " . $e->getTableName());
-    error_log("Column: " . $e->getColumnName());
-}
-
-// Get debug information from QueryBuilder
-$query = $db->find()
-    ->from('users')
-    ->where('age', 25)
-    ->orderBy('name', 'ASC');
-
-$debugInfo = $query->getDebugInfo();
-// Contains: table, operation, sql, params, where, joins, select, etc.
-```
-
-#### Transaction Errors
-
-```php
-use tommyknocker\pdodb\exceptions\TransactionException;
-
-$db->startTransaction();
-try {
-    $userId = $db->find()->table('users')->insert(['name' => 'Alice']);
-    $db->find()->table('orders')->insert(['user_id' => $userId, 'total' => 100]);
-    $db->commit();
-} catch (TransactionException $e) {
-    $db->rollBack();
-    error_log("Transaction failed: " . $e->getMessage());
-
-    if ($e->isRetryable()) {
-        // Implement retry logic for deadlocks, etc.
-    }
-    throw $e;
-}
-```
-
-### Retry Logic with Exception Types
-
-```php
-function executeWithRetry(callable $operation, int $maxRetries = 3): mixed
-{
-    $attempt = 0;
-    $lastException = null;
-
-    while ($attempt < $maxRetries) {
-        try {
-            return $operation();
-        } catch (ConnectionException $e) {
-            $lastException = $e;
-            $attempt++;
-
-            if ($attempt < $maxRetries) {
-                sleep(2 ** $attempt); // Exponential backoff
-            }
-        } catch (TimeoutException $e) {
-            $lastException = $e;
-            $attempt++;
-
-            if ($attempt < $maxRetries) {
-                sleep(2 ** $attempt);
-            }
-        } catch (ResourceException $e) {
-            $lastException = $e;
-            $attempt++;
-
-            if ($attempt < $maxRetries) {
-                sleep(2 ** $attempt);
-            }
-        } catch (DatabaseException $e) {
-            // Non-retryable errors
-            throw $e;
-        }
-    }
-
-    throw $lastException;
-}
-
-// Usage
-$result = executeWithRetry(function() use ($db) {
-    return $db->find()->from('users')->get();
-});
-```
-
-### Error Monitoring and Logging
-
-```php
-use tommyknocker\pdodb\exceptions\DatabaseException;
-
-function handleDatabaseError(DatabaseException $e): void
-{
-    $errorData = $e->toArray();
-
-    // Log structured error data
-    error_log(json_encode([
-        'timestamp' => date('c'),
-        'exception_type' => $errorData['exception'],
-        'message' => $errorData['message'],
-        'code' => $errorData['code'],
-        'driver' => $errorData['driver'],
-        'category' => $errorData['category'],
-        'retryable' => $errorData['retryable'],
-        'query' => $errorData['query'],
-        'context' => $errorData['context']
-    ]));
-
-    // Send alerts for critical errors
-    if ($e instanceof AuthenticationException ||
-        $e instanceof ResourceException) {
-        sendCriticalAlert($e);
-    }
-}
 
 try {
     $users = $db->find()->from('users')->get();
-} catch (DatabaseException $e) {
-    handleDatabaseError($e);
-    throw $e;
-}
-```
-
-### Exception Properties
-
-All exceptions provide rich context information:
-
-```php
-catch (DatabaseException $e) {
-    // Basic properties
-    echo "Message: " . $e->getMessage() . "\n";
-    echo "Code: " . $e->getCode() . "\n";
-    echo "Driver: " . $e->getDriver() . "\n";
-    echo "Query: " . $e->getQuery() . "\n";
-    echo "Category: " . $e->getCategory() . "\n";
-    echo "Retryable: " . ($e->isRetryable() ? 'Yes' : 'No') . "\n";
-
-    // Context information
-    $context = $e->getContext();
-    echo "Context: " . json_encode($context) . "\n";
-
-    // Add custom context
-    $e->addContext('user_id', 123);
-
-    // Convert to array for logging
-    $errorData = $e->toArray();
-}
-```
-
-### Constraint Violation Details
-
-```php
-catch (ConstraintViolationException $e) {
-    echo "Constraint: " . $e->getConstraintName() . "\n";
-    echo "Table: " . $e->getTableName() . "\n";
-    echo "Column: " . $e->getColumnName() . "\n";
-
-    // Handle specific constraint violations
-    if ($e->getConstraintName() === 'unique_email') {
-        // Handle duplicate email
-        $existingUser = $db->find()
-            ->from('users')
-            ->where('email', $email)
-            ->getOne();
-
-        if ($existingUser) {
-            // Update existing user instead
-            $db->find()
-                ->table('users')
-                ->where('email', $email)
-                ->update(['last_login' => date('Y-m-d H:i:s')]);
-        }
-    }
-}
-```
-
-### Timeout and Resource Details
-
-```php
-catch (TimeoutException $e) {
-    echo "Timeout: " . $e->getTimeoutSeconds() . "s\n";
-
-    // Implement timeout-specific handling
-    if ($e->getTimeoutSeconds() > 30) {
-        // Long timeout - might be a complex query
-        logSlowQuery($e->getQuery());
-    }
-}
-
-catch (ResourceException $e) {
-    echo "Resource Type: " . $e->getResourceType() . "\n";
-
-    // Handle resource exhaustion
-    if ($e->getResourceType() === 'connections') {
-        // Implement connection pooling or queuing
-        queueRequest();
-    }
-}
-```
-
-### Backward Compatibility
-
-All new exceptions extend `PDOException`, so existing code continues to work:
-
-```php
-// Old way (still works)
-try {
-    $result = $db->query('SELECT * FROM users');
-} catch (PDOException $e) {
-    // Generic error handling
-}
-
-// New way (recommended)
-try {
-    $result = $db->query('SELECT * FROM users');
 } catch (ConnectionException $e) {
-    // Handle connection issues specifically
+    // Handle connection errors
+    if ($e->isRetryable()) {
+        // Implement retry logic
+    }
 } catch (QueryException $e) {
-    // Handle query issues specifically
-} catch (DatabaseException $e) {
-    // Handle any other database issues
+    // Handle query errors
+    error_log("Query: " . $e->getQuery());
+    error_log("Context: " . $e->getDescription());
+} catch (ConstraintViolationException $e) {
+    // Handle constraint violations
+    error_log("Constraint: " . $e->getConstraintName());
 }
 ```
+
+All exceptions extend `PDOException` for backward compatibility and provide rich context information.
+
+See [Error Handling Documentation](documentation/06-error-handling/) for complete guide.
 
 ---
 
 ## Performance Tips
 
-### 0. Enable Query Caching
+### Enable Query Caching
 
-For applications with repeated queries, enable result caching for massive performance gains:
+For applications with repeated queries, enable result caching:
 
 ```php
-// Setup PSR-16 cache
 $cache = new Psr16Cache(new FilesystemAdapter());
-
-// Pass to PdoDb - both result and compilation cache enabled automatically
 $db = new PdoDb('mysql', $config, [], null, $cache);
 
-// Use caching for repeated queries
 $products = $db->find()
     ->from('products')
     ->where('category', 'Electronics')
-    ->cache(3600)  // Cache for 1 hour
+    ->cache(3600)
     ->get();
 ```
 
-**Performance Impact:**
-- **65-97% faster** for repeated queries with cache hits
-- **89% average improvement** in realistic scenarios
-- Best results when using **both result and compilation caches** together
+**Performance Impact:** 65-97% faster for repeated queries with cache hits.
 
-**When to Use:**
-- ✅ High-traffic APIs with repeated queries
-- ✅ Dashboard/reporting applications
-- ✅ Frequently accessed data that changes infrequently
-- ❌ Data that changes frequently (cache invalidation overhead)
-- ❌ Unique queries with no repetition
-
-See [Query Caching](#query-caching) section for detailed setup and [Query Compilation Cache](#query-compilation-cache) for compilation-level optimization.
-
-### 1. Use Batch Operations
+### Use Batch Operations
 
 ```php
 // ❌ Slow: Multiple single inserts
@@ -3493,629 +738,95 @@ foreach ($users as $user) {
 $db->find()->table('users')->insertMulti($users);
 ```
 
-### 2. Always Limit Result Sets
+### Always Limit Result Sets
 
 ```php
-// ❌ Dangerous: Can load millions of rows
-$users = $db->find()->from('users')->get();
-
 // ✅ Safe: Limited results
 $users = $db->find()->from('users')->limit(1000)->get();
 ```
 
-### 3. Use Indexes for JSON Queries
-
-For frequently queried JSON paths, create indexes (MySQL 5.7+):
-
-```sql
--- Create virtual column + index
-ALTER TABLE users
-ADD COLUMN meta_age INT AS (JSON_EXTRACT(meta, '$.age'));
-
-CREATE INDEX idx_meta_age ON users(meta_age);
-```
-
-### 4. Connection Reuse
+### Use Batch Processing for Large Datasets
 
 ```php
-// ✅ Good: Reuse connection for multiple operations
-$db->addConnection('main', $config);
-
-$users = $db->connection('main')->find()->from('users')->get();
-$orders = $db->connection('main')->find()->from('orders')->get();
-```
-
-### 5. Query Timeouts
-
-Set appropriate timeouts for different operations:
-
-```php
-// Set timeout for long-running queries
-$db->setTimeout(60); // 60 seconds
-
-// Check current timeout
-$currentTimeout = $db->getTimeout();
-
-// Different timeouts for different connections
-$db->addConnection('fast', $fastConfig);
-$db->addConnection('slow', $slowConfig);
-
-$db->connection('fast')->setTimeout(5);   // Quick queries
-$db->connection('slow')->setTimeout(300); // Long-running reports
-```
-
-### 6. Prepared Statements (Automatic)
-
-All queries automatically use prepared statements - no action needed!
-
-```php
-// Automatically uses prepared statements
-$users = $db->find()
-    ->from('users')
-    ->where('age', 18, '>')
-    ->get();
-```
-
-### 7. Memory Management
-
-PDOdb is designed for production use with **zero memory leaks**. All PDOStatement cursors are properly closed after fetch operations, ensuring efficient memory usage even under high load.
-
-**Key Features:**
-- ✅ **Automatic cursor cleanup** - All fetch methods (`get()`, `getOne()`, `fetch()`, `fetchColumn()`) automatically close database cursors
-- ✅ **Exception-safe cleanup** - Cursors are closed even when exceptions occur (using `try/finally` blocks)
-- ✅ **Production-tested** - Verified with 50,000+ queries without memory accumulation
-- ✅ **Stream processing** - Ultra-low memory usage for large datasets via `stream()` method
-
-**Memory Leak Prevention:**
-```php
-// All fetch operations automatically close cursors
-$users = $db->find()->from('users')->get();        // ✅ Cursor closed
-$user = $db->find()->from('users')->getOne();      // ✅ Cursor closed
-$name = $db->find()->from('users')->getValue();    // ✅ Cursor closed
-
-// Streaming for very large datasets (minimal memory)
-foreach ($db->find()->from('users')->stream() as $user) {
-    // Process without loading all data into memory
+// Process in chunks
+foreach ($db->find()->from('users')->batch(100) as $batch) {
+    processBatch($batch);
 }
 ```
 
-**Best Practices:**
-- Use `limit()` for bounded result sets
-- Use `stream()` for very large datasets (millions of rows)
-- Use `batch()` or `each()` for controlled chunk processing
-- Avoid storing large result sets unnecessarily
+See [Performance Documentation](documentation/08-best-practices/02-performance.md) for more tips.
 
 ---
 
-## Debugging
+## Helper Functions
 
-### Query Debug Information
+PDOdb provides 80+ helper functions for common SQL operations:
 
-Get comprehensive debug information about your query before execution:
+**Core Helpers:**
+- `Db::raw()` - Raw SQL expressions
+- `Db::concat()` - String concatenation
+- `Db::now()` - Current timestamp
 
-```php
-use tommyknocker\pdodb\PdoDb;
+**String Operations:**
+- `Db::upper()`, `Db::lower()`, `Db::trim()`, `Db::substring()`, `Db::replace()`
 
-$query = $db->find()
-    ->from('users')
-    ->select(['id', 'name', 'email'])
-    ->where('age', 25)
-    ->andWhere('status', 'active')
-    ->orderBy('name', 'ASC')
-    ->limit(10);
+**Numeric Operations:**
+- `Db::inc()`, `Db::dec()`, `Db::abs()`, `Db::round()`, `Db::mod()`
 
-// Get debug information
-$debugInfo = $query->getDebugInfo();
+**Date/Time Functions:**
+- `Db::now()`, `Db::date()`, `Db::year()`, `Db::month()`, `Db::day()`
 
-echo "Table: " . $debugInfo['table'] . "\n";
-echo "Operation: " . $debugInfo['operation'] . "\n";
-echo "SQL: " . $debugInfo['sql'] . "\n";
-echo "Parameters: " . json_encode($debugInfo['params']) . "\n";
-echo "WHERE conditions: " . $debugInfo['where']['where_count'] . "\n";
-```
+**JSON Operations:**
+- `Db::jsonObject()`, `Db::jsonArray()`, `Db::jsonGet()`, `Db::jsonPath()`, `Db::jsonContains()`
 
-### Enhanced Error Diagnostics
+**Aggregate Functions:**
+- `Db::count()`, `Db::sum()`, `Db::avg()`, `Db::min()`, `Db::max()`
 
-QueryException now includes query context automatically:
-
-```php
-use tommyknocker\pdodb\exceptions\QueryException;
-
-try {
-    $users = $db->find()
-        ->from('nonexistent_table')
-        ->where('id', 1)
-        ->get();
-} catch (QueryException $e) {
-    // Get query context
-    $queryContext = $e->getQueryContext();
-    
-    if ($queryContext !== null) {
-        echo "Table: " . ($queryContext['table'] ?? 'N/A') . "\n";
-        echo "Operation: " . ($queryContext['operation'] ?? 'N/A') . "\n";
-        echo "Parameters: " . json_encode($queryContext['params'] ?? []) . "\n";
-    }
-    
-    // Enhanced description includes context
-    echo "Description: " . $e->getDescription() . "\n";
-}
-```
-
-### QueryDebugger Helper
-
-Use `QueryDebugger` to sanitize parameters and format context:
-
-```php
-use tommyknocker\pdodb\debug\QueryDebugger;
-
-// Sanitize sensitive parameters
-$params = ['id' => 1, 'password' => 'secret123', 'token' => 'abc123'];
-$sanitized = QueryDebugger::sanitizeParams($params, ['password', 'token']);
-// Result: ['id' => 1, 'password' => '***', 'token' => '***']
-
-// Format debug context for display
-$formatted = QueryDebugger::formatContext($debugInfo);
-// Output: "Table: users | Operation: SELECT | Has WHERE conditions | Parameters: {...}"
-```
-
-### Enable Query Logging
-
-```php
-use tommyknocker\pdodb\PdoDb;
-use Monolog\Logger;
-use Monolog\Handler\StreamHandler;
-
-// Create logger
-$logger = new Logger('database');
-$logger->pushHandler(new StreamHandler('php://stdout'));
-
-// Initialize with logger
-$db = new PdoDb('mysql', $config, [], $logger);
-
-// All queries will be logged with parameters
-$users = $db->find()->from('users')->get();
-```
-
-### Inspect Generated SQL
-
-```php
-// Build query but don't execute
-$query = $db->find()
-    ->from('users')
-    ->where('age', 18, '>');
-
-// Get generated SQL and parameters
-$sqlData = $query->toSQL();
-echo "SQL: " . $sqlData['sql'] . "\n";
-echo "Parameters: " . json_encode($sqlData['params']) . "\n";
-
-// Get bound parameters
-$params = $query->getLastParams();
-print_r($params);
-```
-
-### Check Query Results
-
-```php
-$users = $db->find()->from('users')->where('age', 18, '>')->get();
-
-echo "Found " . count($users) . " users\n";
-echo "Memory used: " . memory_get_usage(true) / 1024 / 1024 . " MB\n";
-```
+**Full Reference:** See [Helper Functions Documentation](documentation/07-helper-functions/) for complete list and examples.
 
 ---
 
-## Helper Functions Reference
-
-### Core Helpers
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Raw SQL expressions (when no helper available)
-Db::raw('age + :years', ['years' => 5])
-
-// External table references in subqueries (manual)
-Db::ref('users.id')  // Equivalent to Db::raw('users.id')
-
-// Using helper functions when available
-Db::concat('first_name', ' ', 'last_name')
-
-// Escape strings
-Db::escape("O'Reilly")
-
-// Configuration
-Db::config('FOREIGN_KEY_CHECKS', 1)
-```
-
-Additional frequently used helpers:
-
-```php
-// Strings
-Db::left('name', 2);
-Db::right('name', 2);
-Db::position('@', 'email');
-Db::repeat('-', 5);
-Db::reverse('name');
-Db::padLeft('name', 8, ' ');
-Db::padRight('name', 8, '.');
-
-// Numbers
-Db::ceil('price');
-Db::floor('price');
-Db::power('score', 2);
-Db::sqrt('distance');
-Db::exp(1);
-Db::ln('value');
-Db::log('value');
-Db::trunc('price', 1);
-
-// Dates
-Db::addInterval('created_at', '1', 'DAY');
-Db::subInterval('created_at', '2', 'HOUR');
-
-// Aggregates
-Db::groupConcat('name', ', ', true);
-```
-
-### NULL Handling
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-Db::null()                              // NULL
-Db::isNull('column')                    // column IS NULL
-Db::isNotNull('column')                 // column IS NOT NULL
-Db::ifNull('column', 'default')         // IFNULL(column, 'default')
-Db::coalesce('col1', 'col2', 'default') // COALESCE(col1, col2, 'default')
-Db::nullIf('col1', 'col2')              // NULLIF(col1, col2)
-```
-
-### Boolean Values
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-Db::true()    // TRUE (1)
-Db::false()   // FALSE (0)
-Db::default() // DEFAULT
-```
-
-### Numeric Operations
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-Db::inc()              // age + 1
-Db::dec(5)             // age - 5
-Db::abs('column')      // ABS(column)
-Db::round('column', 2) // ROUND(column, 2)
-Db::mod('a', 'b')      // MOD(a, b) or a % b
-```
-
-### String Operations
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-Db::concat('first_name', ' ', 'last_name') // CONCAT(...)
-Db::upper('name')                          // UPPER(name)
-Db::lower('email')                         // LOWER(email)
-Db::trim('text')                           // TRIM(text)
-Db::ltrim('text')                          // LTRIM(text)
-Db::rtrim('text')                          // RTRIM(text)
-Db::length('text')                         // LENGTH(text)
-Db::substring('text', 1, 5)                // SUBSTRING(text, 1, 5)
-Db::replace('text', 'old', 'new')          // REPLACE(text, 'old', 'new')
-```
-
-### Comparison Operators
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-Db::like('email', '%@example.com')      // email LIKE '%@example.com'
-Db::ilike('name', 'john%')              // Case-insensitive LIKE
-Db::not(Db::like('email', '%@spam.com')) // NOT LIKE
-Db::between('age', 18, 65)              // age BETWEEN 18 AND 65
-Db::notBetween('age', 0, 17)            // age NOT BETWEEN 0 AND 17
-Db::in('id', [1, 2, 3])                 // id IN (1, 2, 3)
-Db::notIn('status', ['deleted', 'banned']) // status NOT IN (...)
-```
-
-### Conditional Logic
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-Db::case([
-    ['age < 18', "'minor'"],
-    ['age < 65', "'adult'"]
-], "'senior'")
-// CASE WHEN age < 18 THEN 'minor' WHEN age < 65 THEN 'adult' ELSE 'senior' END
-```
-
-### Date/Time Functions
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-Db::now()                    // NOW() or CURRENT_TIMESTAMP
-Db::now('1 DAY')             // NOW() + INTERVAL 1 DAY
-Db::ts()                     // UNIX_TIMESTAMP()
-Db::curDate()                // CURDATE()
-Db::curTime()                // CURTIME()
-Db::date('created_at')       // DATE(created_at)
-Db::time('created_at')       // TIME(created_at)
-Db::year('created_at')       // YEAR(created_at)
-Db::month('created_at')      // MONTH(created_at)
-Db::day('created_at')        // DAY(created_at)
-Db::hour('created_at')       // HOUR(created_at)
-Db::minute('created_at')     // MINUTE(created_at)
-Db::second('created_at')     // SECOND(created_at)
-```
-
-### Aggregate Functions
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-Db::count()             // COUNT(*)
-Db::count('DISTINCT id') // COUNT(DISTINCT id)
-Db::sum('amount')       // SUM(amount)
-Db::avg('rating')       // AVG(rating)
-Db::min('price')        // MIN(price)
-Db::max('price')        // MAX(price)
-```
-
-### Type Conversion & Comparison
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-Db::cast('123', 'INTEGER')       // CAST('123' AS INTEGER)
-Db::greatest('a', 'b', 'c')      // GREATEST(a, b, c)
-Db::least('a', 'b', 'c')         // LEAST(a, b, c)
-```
-
-### JSON Helper Functions
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Create JSON
-Db::jsonObject(['key' => 'value'])     // '{"key":"value"}'
-Db::jsonArray('a', 'b', 'c')           // '["a","b","c"]'
-
-// Query JSON
-Db::jsonPath('meta', ['age'], '>', 18)      // JSON path comparison
-Db::jsonContains('tags', 'php')             // Check if contains value
-Db::jsonContains('tags', ['php', 'mysql'])  // Check if contains all values
-Db::jsonExists('meta', ['city'])            // Check if path exists
-
-// Extract JSON
-Db::jsonGet('meta', ['city'])               // Extract value at path
-Db::jsonExtract('meta', ['city'])           // Alias for jsonGet
-Db::jsonLength('tags')                      // Array/object length
-Db::jsonKeys('meta')                        // Object keys
-Db::jsonType('tags')                        // Value type
-
-// Modify JSON (for UPDATE operations)
-Db::jsonSet('meta', '$.status', 'active')   // Set JSON value (creates path if missing)
-Db::jsonRemove('meta', '$.old_field')      // Remove JSON path
-Db::jsonReplace('meta', '$.status', 'inactive') // Replace JSON value (only if path exists)
-```
-
-### Export Helpers
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Export to JSON
-$data = $db->find()->from('users')->get();
-$json = Db::toJson($data);
-
-// Export to CSV
-$csv = Db::toCsv($data);
-
-// Export to XML
-$xml = Db::toXml($data);
-
-// Custom options
-$json = Db::toJson($data, JSON_UNESCAPED_SLASHES);
-$csv = Db::toCsv($data, ';');              // Semicolon delimiter
-$xml = Db::toXml($data, 'users', 'user');   // Custom elements
-```
-
-### Full-Text Search
-
-```php
-use tommyknocker\pdodb\helpers\Db;
-
-// Full-text search (requires FTS indexes)
-$results = $db->find()
-    ->from('articles')
-    ->where(Db::match('title, content', 'database tutorial'))
-    ->get();
-
-// Single column search
-$results = $db->find()
-    ->from('articles')
-    ->where(Db::match('title', 'PHP'))
-    ->get();
-```
-
-### Schema Introspection
-
-```php
-// Get table structure
-$structure = $db->describe('users');
-
-// Get indexes via QueryBuilder
-$indexes = $db->find()->from('users')->indexes();
-
-// Get indexes via direct call
-$indexes = $db->indexes('users');
-
-// Get foreign keys via QueryBuilder
-$foreignKeys = $db->find()->from('orders')->keys();
-
-// Get foreign keys via direct call
-$foreignKeys = $db->keys('orders');
-
-// Get constraints via QueryBuilder
-$constraints = $db->find()->from('users')->constraints();
-
-// Get constraints via direct call
-$constraints = $db->constraints('users');
-```
-
----
-
-## Public API Reference
+## API Reference
 
 ### PdoDb Main Class
 
 | Method | Description |
 |--------|-------------|
 | `find()` | Returns QueryBuilder instance |
-| `rawQuery(string\|RawValue, array)` | Execute raw SQL, returns array of rows |
-| `rawQueryOne(string\|RawValue, array)` | Execute raw SQL, returns first row |
-| `rawQueryValue(string\|RawValue, array)` | Execute raw SQL, returns single value |
+| `rawQuery(string, array)` | Execute raw SQL, returns array of rows |
+| `rawQueryOne(string, array)` | Execute raw SQL, returns first row |
 | `startTransaction()` | Begin transaction |
 | `commit()` | Commit transaction |
 | `rollBack()` | Roll back transaction |
-| `lock(array\|string)` | Lock tables |
-| `unlock()` | Unlock tables |
-| `setLockMethod(string)` | Set lock method (READ/WRITE) |
 | `describe(string)` | Get table structure |
 | `indexes(string)` | Get all indexes for a table |
 | `keys(string)` | Get foreign key constraints |
-| `constraints(string)` | Get all constraints (PK, UNIQUE, FK, CHECK) |
-| `explain(string, array)` | Analyze query execution plan |
-| `explainAnalyze(string, array)` | Analyze query with execution |
-| `ping()` | Check database connection |
-| `disconnect()` | Close connection |
-| `setTimeout(int)` | Set query timeout in seconds |
-| `getTimeout()` | Get current query timeout |
-| `addConnection(name, config, options, logger)` | Add connection to pool |
-| `connection(name)` | Switch to named connection |
 
 ### QueryBuilder Methods
 
-#### Table & Selection
+**Table & Selection:**
+- `table(string)` / `from(string)` - Set target table
+- `select(array|string)` - Specify columns to select
 
-| Method | Description |
-|--------|-------------|
-| `table(string)` / `from(string)` | Set target table (supports `schema.table` and aliases) |
-| `prefix(string)` | Set table prefix for this query |
-| `select(array\|string\|RawValue)` | Specify columns to select |
+**Filtering:**
+- `where(...)` / `andWhere(...)` / `orWhere(...)` - Add WHERE conditions
+- `whereIn(...)` / `whereNotIn(...)` - IN / NOT IN conditions
+- `whereNull(...)` / `whereNotNull(...)` - NULL checks
+- `whereBetween(...)` - BETWEEN conditions
+- `join(...)` / `leftJoin(...)` / `rightJoin(...)` - Add JOIN clauses
 
-#### Filtering & Joining
+**Data Manipulation:**
+- `insert(array)` - Insert single row
+- `insertMulti(array)` - Insert multiple rows
+- `update(array)` - Update rows
+- `delete()` - Delete rows
 
-| Method | Description |
-|--------|-------------|
-| `where(...)` / `andWhere(...)` / `orWhere(...)` | Add WHERE conditions |
-| `whereNull(column, boolean='AND')` / `whereNotNull(column, boolean='AND')` | WHERE column IS NULL / IS NOT NULL |
-| `andWhereNull(column)` / `andWhereNotNull(column)` | AND variants for NULL checks |
-| `orWhereNull(column)` / `orWhereNotNull(column)` | OR variants for NULL checks |
-| `whereBetween(column, min, max, boolean='AND')` / `whereNotBetween(column, min, max, boolean='AND')` | WHERE column BETWEEN / NOT BETWEEN |
-| `andWhereBetween(column, min, max)` / `andWhereNotBetween(column, min, max)` | AND variants for BETWEEN |
-| `orWhereBetween(column, min, max)` / `orWhereNotBetween(column, min, max)` | OR variants for BETWEEN |
-| `whereIn(column, array\|callable, boolean='AND')` / `whereNotIn(column, array\|callable, boolean='AND')` | WHERE column IN / NOT IN (supports arrays and subqueries) |
-| `andWhereIn(column, array\|callable)` / `andWhereNotIn(column, array\|callable)` | AND variants for IN |
-| `orWhereIn(column, array\|callable)` / `orWhereNotIn(column, array\|callable)` | OR variants for IN |
-| `whereColumn(first, operator, second, boolean='AND')` | Compare two columns |
-| `andWhereColumn(first, operator, second)` / `orWhereColumn(first, operator, second)` | AND/OR variants for column comparison |
-| `whereExists(callable\|QueryBuilder)` / `whereNotExists(callable\|QueryBuilder)` | Add WHERE EXISTS/NOT EXISTS with subquery |
-| `where(column, QueryBuilder, operator)` | Add WHERE condition with QueryBuilder subquery |
-| `join(...)` / `leftJoin(...)` / `rightJoin(...)` / `innerJoin(...)` | Add JOIN clauses |
-| `groupBy(...)` | Add GROUP BY clause |
-| `having(...)` / `orHaving(...)` | Add HAVING conditions |
+**Execution:**
+- `get()` - Execute SELECT, return all rows
+- `getOne()` - Execute SELECT, return first row
+- `getValue()` - Execute SELECT, return single value
 
-#### Ordering & Limiting
-
-| Method | Description |
-|--------|-------------|
-| `orderBy(string\|array\|RawValue, direction = 'ASC')` | Add ORDER BY clause. Supports: single column, array of columns, comma-separated string |
-| `limit(int)` | Set LIMIT |
-| `offset(int)` | Set OFFSET |
-| `option(string\|array)` | Add query options (e.g., DISTINCT, SQL_CALC_FOUND_ROWS) |
-
-#### Data Manipulation
-
-| Method | Description |
-|--------|-------------|
-| `insert(array)` | Insert single row, returns inserted ID |
-| `insertMulti(array)` | Insert multiple rows, returns count |
-| `update(array)` | Update rows, returns affected count |
-| `delete()` | Delete rows, returns affected count |
-| `truncate()` | Truncate table |
-| `replace(array)` / `replaceMulti(array)` | MySQL REPLACE operations |
-| `onDuplicate(array)` | Build UPSERT clause (dialect-specific) |
-| `merge(source, onConditions, whenMatched, whenNotMatched, whenNotMatchedBySourceDelete)` | Execute MERGE statement (INSERT/UPDATE/DELETE based on match) |
-
-#### Bulk Loading
-
-| Method | Description |
-|--------|-------------|
-| `loadCsv(file, options)` | CSV loader (uses COPY/LOAD DATA when available) |
-| `loadXml(file, options)` | XML loader |
-| `loadJson(file, options)` | JSON loader (supports array and NDJSON formats) |
-
-#### Execution
-
-| Method | Description |
-|--------|-------------|
-| `get()` | Execute SELECT, return all rows |
-| `getOne()` | Execute SELECT, return first row |
-| `getColumn()` | Execute SELECT, return single column values |
-| `getValue()` | Execute SELECT, return single value |
-| `exists()` | Check if any rows match conditions |
-| `notExists()` | Check if no rows match conditions |
-| `tableExists(string)` | Check if table exists |
-
-#### Query Inspection
-
-| Method | Description |
-|--------|-------------|
-| `toSQL(bool $formatted = false)` | Convert query to SQL string and parameters. Set `$formatted = true` for human-readable output with indentation |
-
-#### Batch Processing
-
-| Method | Description |
-|--------|-------------|
-| `batch(int $batchSize = 100)` | Process data in batches using Generator |
-| `each(int $batchSize = 100)` | Process one record at a time using Generator |
-| `stream()` | Stream results with minimal memory usage using Generator |
-
-#### Query Analysis
-
-| Method | Description |
-|--------|-------------|
-| `explain()` | Execute EXPLAIN query to analyze execution plan |
-| `explainAnalyze()` | Execute EXPLAIN ANALYZE (PostgreSQL) or EXPLAIN FORMAT=JSON (MySQL) |
-| `explainAdvice()` | Analyze EXPLAIN output with optimization recommendations and suggestions |
-| `describe()` | Execute DESCRIBE to get table structure |
-| `toSQL()` | Convert query to SQL string and parameters |
-
-#### JSON Operations
-
-| Method | Description |
-|--------|-------------|
-| `selectJson(col, path, alias, asText)` | Select JSON column or path |
-| `whereJsonPath(col, path, operator, value, cond)` | Add JSON path condition |
-| `whereJsonContains(col, value, path, cond)` | Add JSON contains condition |
-| `whereJsonExists(col, path, cond)` | Add JSON path existence condition |
-| `jsonSet(col, path, value)` | Set JSON value (QueryBuilder method) |
-| `jsonRemove(col, path)` | Remove JSON path (QueryBuilder method) |
-| `orderByJson(col, path, direction)` | Order by JSON path |
-
-#### Fetch Modes
-
-| Method | Description |
-|--------|-------------|
-| `asObject()` | Set fetch mode to objects instead of arrays |
+**Full Reference:** See [API Reference Documentation](documentation/09-reference/) for complete method list and signatures.
 
 ---
 
@@ -4123,19 +834,9 @@ $constraints = $db->constraints('users');
 
 PDOdb handles most differences automatically, but here are some key points:
 
-### Identifier Quoting
-
-- **MySQL**: Backticks `` `column` ``
-- **PostgreSQL**: Double quotes `"column"`
-- **SQLite**: Double quotes `"column"`
-
-Automatically handled by the library.
-
-### UPSERT
-
+**UPSERT:**
 - **MySQL**: `ON DUPLICATE KEY UPDATE`
-- **PostgreSQL**: `ON CONFLICT ... DO UPDATE SET`
-- **SQLite**: `ON CONFLICT ... DO UPDATE SET`
+- **PostgreSQL/SQLite**: `ON CONFLICT ... DO UPDATE SET`
 
 Use `onDuplicate()` for portable UPSERT:
 
@@ -4145,70 +846,21 @@ $db->find()->table('users')->onDuplicate([
 ])->insert(['email' => 'user@example.com', 'age' => 25]);
 ```
 
-### REPLACE
-
-- **MySQL**: Native `REPLACE` statement
-- **PostgreSQL**: Emulated via UPSERT
-- **SQLite**: Native `REPLACE` statement
-
-```php
-$db->find()->table('users')->replace(['id' => 1, 'name' => 'Alice']);
-```
-
-### TRUNCATE
-
-- **MySQL/PostgreSQL**: Native `TRUNCATE TABLE`
-- **SQLite**: Emulated via `DELETE FROM` + reset AUTOINCREMENT
-
-```php
-$db->find()->table('users')->truncate();
-```
-
-### Table Locking
-
-- **MySQL**: `LOCK TABLES ... READ/WRITE`
-- **PostgreSQL**: `LOCK TABLE ... IN ... MODE`
-- **SQLite**: `BEGIN IMMEDIATE`
-
-```php
-$db->lock(['users'])->setLockMethod('WRITE');
-```
-
-### JSON Functions
-
-- **MySQL**: Uses `JSON_EXTRACT`, `JSON_CONTAINS`, etc.
+**JSON Functions:**
+- **MySQL**: Uses `JSON_EXTRACT`, `JSON_CONTAINS`
 - **PostgreSQL**: Uses `->`, `->>`, `@>` operators
-- **SQLite**: Uses `json_extract`, `json_each`, etc.
+- **SQLite**: Uses `json_extract`, `json_each`
 
 All handled transparently through `Db::json*()` helpers.
 
-### Bulk Loaders
-
-- **MySQL**: `LOAD DATA [LOCAL] INFILE`
-- **PostgreSQL**: `COPY FROM`
-- **SQLite**: Row-by-row inserts in a transaction
-
-```php
-$db->find()->table('users')->loadCsv('/path/to/file.csv');
-```
-
-### Multi-row Inserts
-
-All dialects support efficient multi-row inserts. The library generates unique placeholders (`:name_0`, `:name_1`) to avoid PDO binding conflicts:
-
-```php
-$db->find()->table('users')->insertMulti([
-    ['name' => 'Alice', 'age' => 30],
-    ['name' => 'Bob', 'age' => 25]
-]);
-```
+**Full Reference:** See [Dialect Differences Documentation](documentation/09-reference/05-dialect-differences.md) for complete guide.
 
 ---
 
 ## Frequently Asked Questions
 
 ### Is PDOdb an ORM?
-No, PDOdb is a **query builder** with optional ActiveRecord pattern. It's lighter than full ORMs like Eloquent or Doctrine, giving you direct SQL control when needed.
+No, PDOdb is a **query builder** with optional ActiveRecord pattern. It's lighter than full ORMs like Eloquent or Doctrine.
 
 ### Can I use raw SQL?
 Yes! Use `rawQuery()` for complete control:
@@ -4218,16 +870,6 @@ $users = $db->rawQuery('SELECT * FROM users WHERE age > :age', ['age' => 18]);
 
 ### Does it work with frameworks?
 Yes! PDOdb is framework-agnostic. Works with Laravel, Symfony, Yii, or no framework at all.
-
-### How do I migrate from Eloquent/Doctrine?
-PDOdb uses similar fluent syntax. Most queries translate directly:
-```php
-// Eloquent
-User::where('active', 1)->get();
-
-// PDOdb
-$db->find()->from('users')->where('active', 1)->get();
-```
 
 ### Is it production-ready?
 Yes! 2325+ tests, PHPStan level 8, used in production environments.
@@ -4243,19 +885,9 @@ $db = new PdoDb('mysql', ['pdo' => $pdo]);
 ```
 
 ### Which database should I use for development?
-**SQLite** is perfect for development - no server setup needed, works out of the box:
+**SQLite** is perfect for development - no server setup needed:
 ```php
 $db = new PdoDb('sqlite', ['path' => ':memory:']);
-```
-
-### How do I switch between databases?
-Just change the driver name - your code stays the same:
-```php
-// Development (SQLite)
-$db = new PdoDb('sqlite', ['path' => ':memory:']);
-
-// Production (MySQL)
-$db = new PdoDb('mysql', ['host' => 'localhost', ...]);
 ```
 
 ### Does it support transactions?
@@ -4270,16 +902,13 @@ try {
 }
 ```
 
-### Can I use it for migrations?
-Yes! PDOdb includes a migration system inspired by Yii2. See [Schema Management examples](examples/11-schema/) for migration examples.
-
 ---
 
 ## Migration Guide
 
 ### From Raw PDO
 
-**Before (PDO):**
+**Before:**
 ```php
 $pdo = new PDO('mysql:host=localhost;dbname=test', 'user', 'pass');
 $stmt = $pdo->prepare('SELECT * FROM users WHERE age > :age');
@@ -4287,7 +916,7 @@ $stmt->execute(['age' => 18]);
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ```
 
-**After (PDOdb):**
+**After:**
 ```php
 $db = new PdoDb('mysql', [
     'host' => 'localhost',
@@ -4300,7 +929,7 @@ $users = $db->find()->from('users')->where('age', 18, '>')->get();
 
 ### From Eloquent (Laravel)
 
-**Before (Eloquent):**
+**Before:**
 ```php
 User::where('active', 1)
     ->where('age', '>', 18)
@@ -4309,7 +938,7 @@ User::where('active', 1)
     ->get();
 ```
 
-**After (PDOdb):**
+**After:**
 ```php
 $db->find()
     ->from('users')
@@ -4320,57 +949,7 @@ $db->find()
     ->get();
 ```
 
-### From Doctrine DBAL
-
-**Before (Doctrine):**
-```php
-$qb = $conn->createQueryBuilder();
-$qb->select('*')
-   ->from('users')
-   ->where('age > ?')
-   ->setParameter(0, 18);
-$users = $qb->executeQuery()->fetchAllAssociative();
-```
-
-**After (PDOdb):**
-```php
-$users = $db->find()
-    ->from('users')
-    ->where('age', 18, '>')
-    ->get();
-```
-
-### From Yii2 ActiveRecord
-
-**Before (Yii2):**
-```php
-User::find()
-    ->where(['active' => 1])
-    ->andWhere(['>', 'age', 18])
-    ->orderBy('name')
-    ->all();
-```
-
-**After (PDOdb):**
-```php
-$db->find()
-    ->from('users')
-    ->where('active', 1)
-    ->andWhere('age', 18, '>')
-    ->orderBy('name', 'ASC')
-    ->get();
-```
-
-### Key Differences
-
-| Feature | PDOdb | Eloquent | Doctrine |
-|---------|-------|----------|----------|
-| **Dependencies** | Zero | Laravel | Symfony |
-| **ORM** | Optional | Yes | Yes |
-| **Raw SQL** | Easy | Possible | Possible |
-| **Cross-DB** | Built-in | Limited | Yes |
-| **Performance** | High | Medium | Medium |
-| **Learning Curve** | Low | Medium | High |
+See [Migration Guide Documentation](documentation/10-cookbook/03-migration-guide.md) for more examples.
 
 ---
 
@@ -4378,118 +957,44 @@ $db->find()
 
 ### "Driver not found" Error
 
-**Problem**: PDO extension not installed.
-
-**Solution**: Install the required PHP extension:
-
+**Solution:** Install the required PHP extension:
 ```bash
-# Ubuntu/Debian
 sudo apt-get install php8.4-mysql php8.4-pgsql php8.4-sqlite3
-
-# macOS
-brew install php
-
-# Check installed extensions
-php -m | grep pdo
 ```
 
 ### "JSON functions not available" (SQLite)
 
-**Problem**: SQLite compiled without JSON1 extension.
-
-**Solution**: Check if JSON support is available:
-
+**Solution:** Check if JSON support is available:
 ```bash
 sqlite3 :memory: "SELECT json_valid('{}')"
 ```
 
-If it returns an error, you need to recompile SQLite with JSON1 or use a pre-built version with JSON support.
-
 ### "SQLSTATE[HY000]: General error: 1 near 'OFFSET'"
 
-**Problem**: Using OFFSET without LIMIT in SQLite.
+**Problem:** Using OFFSET without LIMIT in SQLite.
 
-**Solution**: Always use LIMIT with OFFSET in SQLite:
-
+**Solution:** Always use LIMIT with OFFSET:
 ```php
-// ❌ Doesn't work in SQLite
-$db->find()->from('users')->offset(10)->get();
-
 // ✅ Works
 $db->find()->from('users')->limit(20)->offset(10)->get();
 ```
 
-### Slow JSON Operations
-
-**Problem**: JSON operations can be slow on large datasets without indexes.
-
-**Solutions**:
-
-1. **Add indexes** (MySQL 5.7+):
-   ```sql
-   ALTER TABLE users ADD COLUMN meta_age INT AS (JSON_EXTRACT(meta, '$.age'));
-   CREATE INDEX idx_meta_age ON users(meta_age);
-   ```
-
-2. **Denormalize frequently accessed fields**:
-   ```sql
-   ALTER TABLE users ADD COLUMN age INT;
-   -- Copy from JSON
-   UPDATE users SET age = JSON_EXTRACT(meta, '$.age');
-   ```
-
-3. **Use virtual columns with indexes** (PostgreSQL):
-   ```sql
-   CREATE INDEX idx_meta_age ON users((meta->>'age'));
-   ```
-
-### "Too many connections" Error
-
-**Problem**: Connection pool not properly managed.
-
-**Solution**: Reuse connections and disconnect when done:
-
-```php
-// ✅ Good: Reuse connection
-$db->addConnection('main', $config);
-$users = $db->connection('main')->find()->from('users')->get();
-$orders = $db->connection('main')->find()->from('orders')->get();
-
-// Disconnect when completely done
-$db->disconnect();
-```
-
 ### Memory Issues with Large Result Sets
 
-**Problem**: Loading millions of rows into memory.
-
-**Solution**: Use LIMIT or process in chunks:
-
+**Solution:** Use batch processing or streaming:
 ```php
-// Process in chunks
-$offset = 0;
-$limit = 1000;
-
-while (true) {
-    $users = $db->find()
-        ->from('users')
-        ->limit($limit)
-        ->offset($offset)
-        ->get();
-
-    if (empty($users)) break;
-
-    // Process $users...
-
-    $offset += $limit;
+foreach ($db->find()->from('users')->batch(100) as $batch) {
+    processBatch($batch);
 }
 ```
+
+See [Troubleshooting Documentation](documentation/10-cookbook/04-troubleshooting.md) for more solutions.
 
 ---
 
 ## Testing
 
-The project includes comprehensive PHPUnit tests for MySQL, MariaDB, PostgreSQL, SQLite, and Microsoft SQL Server (MSSQL).
+The project includes comprehensive PHPUnit tests for all supported databases.
 
 ### Running Tests
 
@@ -4499,8 +1004,6 @@ The project includes comprehensive PHPUnit tests for MySQL, MariaDB, PostgreSQL,
 
 # Run specific dialect tests
 ./vendor/bin/phpunit tests/PdoDbMySQLTest.php
-./vendor/bin/phpunit tests/PdoDbPostgreSQLTest.php
-./vendor/bin/phpunit tests/PdoDbSqliteTest.php
 
 # Run with coverage
 ./vendor/bin/phpunit --coverage-html coverage
@@ -4508,210 +1011,10 @@ The project includes comprehensive PHPUnit tests for MySQL, MariaDB, PostgreSQL,
 
 ### Test Requirements
 
-- **MySQL**: Running instance on localhost:3306
-- **MariaDB**: Running instance on localhost:3306 (or custom port)
+- **MySQL/MariaDB**: Running instance on localhost:3306
 - **PostgreSQL**: Running instance on localhost:5432
 - **SQLite**: No setup required (uses `:memory:`)
-- **Microsoft SQL Server**: Running instance on localhost:1433 (requires Microsoft ODBC Driver for SQL Server and PHP sqlsrv extension)
-
-### CI/CD
-
-Tests are designed to run in containers or against local instances. Recommended CI workflow:
-
-```yaml
-# GitHub Actions example
-- name: Run tests
-  run: ./vendor/bin/phpunit
-  env:
-    MYSQL_HOST: 127.0.0.1
-    MYSQL_PORT: 3306
-    PGSQL_HOST: 127.0.0.1
-    PGSQL_PORT: 5432
-```
-
----
-
-## Database Error Codes
-
-The library provides standardized error codes for all supported database dialects through the `DbError` class:
-
-```php
-use tommyknocker\pdodb\helpers\DbError;
-
-// MySQL error codes
-DbError::MYSQL_CONNECTION_LOST        // 2006
-DbError::MYSQL_CANNOT_CONNECT         // 2002
-DbError::MYSQL_CONNECTION_KILLED      // 2013
-DbError::MYSQL_DUPLICATE_KEY          // 1062
-DbError::MYSQL_TABLE_EXISTS           // 1050
-
-// PostgreSQL error codes (SQLSTATE)
-DbError::POSTGRESQL_CONNECTION_FAILURE        // '08006'
-DbError::POSTGRESQL_CONNECTION_DOES_NOT_EXIST  // '08003'
-DbError::POSTGRESQL_UNIQUE_VIOLATION          // '23505'
-DbError::POSTGRESQL_UNDEFINED_TABLE           // '42P01'
-
-// SQLite error codes
-DbError::SQLITE_ERROR      // 1
-DbError::SQLITE_BUSY       // 5
-DbError::SQLITE_LOCKED     // 6
-DbError::SQLITE_CONSTRAINT // 19
-DbError::SQLITE_ROW        // 100
-DbError::SQLITE_DONE       // 101
-```
-
-### Helper Methods
-
-```php
-// Get retryable error codes for specific driver
-$mysqlErrors = DbError::getMysqlRetryableErrors();
-$postgresqlErrors = DbError::getPostgresqlRetryableErrors();
-$sqliteErrors = DbError::getSqliteRetryableErrors();
-
-// Get retryable errors for any driver
-$errors = DbError::getRetryableErrors('mysql');
-
-// Check if error is retryable
-$isRetryable = DbError::isRetryable(2006, 'mysql'); // true
-
-// Get human-readable error description
-$description = DbError::getDescription(2006, 'mysql');
-// Returns: "MySQL server has gone away"
-```
-
-### Usage in Connection Retry
-
-```php
-use tommyknocker\pdodb\helpers\DbError;
-
-$db = new PdoDb('mysql', [
-    'host' => 'localhost',
-    'dbname' => 'test',
-    'retry' => [
-        'enabled' => true,
-        'max_attempts' => 3,
-        'delay_ms' => 1000,
-        'retryable_errors' => DbError::getRetryableErrors('mysql'), // Use helper method
-    ]
-]);
-
-// Or specify individual error codes
-$db = new PdoDb('mysql', [
-    'host' => 'localhost',
-    'dbname' => 'test',
-    'retry' => [
-        'enabled' => true,
-        'retryable_errors' => [
-            DbError::MYSQL_CONNECTION_LOST,
-            DbError::MYSQL_CANNOT_CONNECT,
-            DbError::MYSQL_CONNECTION_KILLED,
-        ]
-    ]
-]);
-```
-
-### Configuration Validation
-
-The retry mechanism includes comprehensive validation to prevent invalid configurations:
-
-```php
-// Valid configuration
-$db = new PdoDb('mysql', [
-    'host' => 'localhost',
-    'dbname' => 'test',
-    'retry' => [
-        'enabled' => true,
-        'max_attempts' => 3,        // Must be 1-100
-        'delay_ms' => 1000,         // Must be 0-300000ms (5 minutes)
-        'backoff_multiplier' => 2.0, // Must be 1.0-10.0
-        'max_delay_ms' => 10000,    // Must be >= delay_ms, max 300000ms
-        'retryable_errors' => [2006, '08006'] // Must be array of int/string
-    ]
-]);
-
-// Invalid configurations will throw InvalidArgumentException:
-try {
-    $db = new PdoDb('mysql', [
-        'retry' => [
-            'enabled' => 'true',     // ❌ Must be boolean
-            'max_attempts' => 0,     // ❌ Must be >= 1
-            'delay_ms' => -100,      // ❌ Must be >= 0
-            'backoff_multiplier' => 0.5, // ❌ Must be >= 1.0
-            'max_delay_ms' => 500,   // ❌ Must be >= delay_ms
-        ]
-    ]);
-} catch (InvalidArgumentException $e) {
-    echo "Configuration error: " . $e->getMessage();
-}
-```
-
-**Validation Rules:**
-- `enabled`: Must be boolean
-- `max_attempts`: Must be integer 1-100
-- `delay_ms`: Must be integer 0-300000ms (5 minutes)
-- `backoff_multiplier`: Must be number 1.0-10.0
-- `max_delay_ms`: Must be integer 0-300000ms, >= delay_ms
-- `retryable_errors`: Must be array of integers or strings
-
-### Retry Logging
-
-The retry mechanism provides comprehensive logging for monitoring connection attempts in production:
-
-```php
-use Monolog\Handler\TestHandler;
-use Monolog\Logger;
-
-// Create a logger (e.g., Monolog)
-$testHandler = new TestHandler();
-$logger = new Logger('database');
-$logger->pushHandler($testHandler);
-
-$db = new PdoDb('mysql', [
-    'host' => 'localhost',
-    'dbname' => 'test',
-    'retry' => [
-        'enabled' => true,
-        'max_attempts' => 3,
-        'delay_ms' => 1000,
-    ]
-], [], $logger);
-
-// Set logger on the connection
-$connection = $db->connection;
-if ($connection instanceof \tommyknocker\pdodb\connection\RetryableConnection) {
-    $reflection = new \ReflectionClass($connection);
-    $loggerProperty = $reflection->getProperty('logger');
-    $loggerProperty->setAccessible(true);
-    $loggerProperty->setValue($connection, $logger);
-}
-
-// Execute queries - logs will be captured
-$result = $db->connection->query('SELECT 1 as test');
-
-// Access captured logs
-$records = $testHandler->getRecords();
-foreach ($records as $record) {
-    echo "[{$record['level_name']}] {$record['message']}\n";
-}
-```
-
-**Log Messages:**
-
-- `connection.retry.start` - Retry operation begins
-- `connection.retry.attempt` - Individual attempt starts
-- `connection.retry.success` - Successful operation
-- `connection.retry.attempt_failed` - Attempt failed (retryable)
-- `connection.retry.not_retryable` - Error not in retryable list
-- `connection.retry.exhausted` - All retry attempts failed
-- `connection.retry.retrying` - Decision to retry
-- `connection.retry.wait` - Wait delay calculation details
-
-**Log Context Includes:**
-- Method name (`query`, `execute`, `prepare`, `transaction`)
-- Attempt number and max attempts
-- Error codes and messages
-- Driver information
-- Delay calculations and backoff details
+- **MSSQL**: Running instance on localhost:1433
 
 ---
 
@@ -4721,13 +1024,9 @@ Contributions are welcome! Please follow these guidelines:
 
 1. **Open an issue** first for new features or bug reports
 2. **Include failing tests** that demonstrate the problem
-3. **Provide details**:
-   - Expected SQL vs. actual SQL
-   - Environment details (PHP version, database version, driver)
-   - Steps to reproduce
-4. **Follow PSR-12** coding standards
-5. **Write tests** for all new functionality
-6. **Test against all five dialects** (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL)
+3. **Follow PSR-12** coding standards
+4. **Write tests** for all new functionality
+5. **Test against all five dialects** (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL)
 
 ### Pull Request Process
 
@@ -4750,3 +1049,4 @@ This project is open source. See [LICENSE](LICENSE) file for details.
 Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class) and [Yii2 framework](https://github.com/yiisoft/yii2-framework)
 
 Built with ❤️ for the PHP community.
+
