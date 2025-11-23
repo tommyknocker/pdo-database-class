@@ -98,6 +98,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [Why PDOdb?](#why-pdodb)
 - [📖 Documentation](#-documentation)
 - [📚 Examples](#-examples)
 - [Quick Example](#quick-example)
@@ -139,6 +140,8 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - [Query Caching](#query-caching)
   - [Query Compilation Cache](#query-compilation-cache)
   - [Query Performance Profiling](#query-performance-profiling)
+  - [Prepared Statement Pool](#prepared-statement-pool)
+  - [PSR-14 Event Dispatcher](#psr-14-event-dispatcher)
 - [CLI Tools](#cli-tools)
 - [Error Handling](#error-handling)
 - [Performance Tips](#performance-tips)
