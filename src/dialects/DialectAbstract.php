@@ -1208,4 +1208,37 @@ abstract class DialectAbstract implements DialectInterface
         // SQLite dialect will override to use || operator
         return 'CONCAT(' . implode(', ', $parts) . ')';
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildPingSql(): string
+    {
+        return 'SELECT 1';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function afterCreateTable(
+        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        string $tableName,
+        array $columns,
+        string $sql
+    ): void {
+        // Default implementation does nothing
+        // Dialects can override to perform post-processing (e.g., create triggers)
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function beforeCreateTable(
+        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        string $tableName,
+        array $columns
+    ): void {
+        // Default implementation does nothing
+        // Dialects can override to drop existing objects (e.g., sequences, triggers)
+    }
 }

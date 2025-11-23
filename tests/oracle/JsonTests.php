@@ -15,6 +15,18 @@ final class JsonTests extends BaseOracleTestCase
 
         // Prepare table - Oracle uses VARCHAR2 with IS JSON constraint
         try {
+            $db->rawQuery('DROP TRIGGER t_json_trigger');
+        } catch (\Throwable) {
+            // Trigger doesn't exist, continue
+        }
+
+        try {
+            $db->rawQuery('DROP SEQUENCE t_json_seq');
+        } catch (\Throwable) {
+            // Sequence doesn't exist, continue
+        }
+
+        try {
             $db->rawQuery('DROP TABLE t_json CASCADE CONSTRAINTS');
         } catch (\Throwable) {
             // Table doesn't exist, continue

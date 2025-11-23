@@ -827,7 +827,8 @@ class ConditionBuilder implements ConditionBuilderInterface
         $sql = "SELECT {$select} FROM {$from}";
         $sql .= $this->buildConditionsClause($this->where, 'WHERE');
         if ($this->limit !== null) {
-            $sql .= ' LIMIT ' . (int)$this->limit;
+            // Use dialect-specific LIMIT formatting
+            $sql = $this->dialect->formatLimitOffset($sql, $this->limit, null);
         }
         return trim($sql);
     }

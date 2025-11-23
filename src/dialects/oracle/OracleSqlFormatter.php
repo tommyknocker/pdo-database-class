@@ -150,15 +150,26 @@ class OracleSqlFormatter extends SqlFormatterAbstract
         $parts = $this->normalizeJsonPath($path ?? []);
         $jsonPath = $this->buildJsonPathString($parts);
         $param = $this->generateParameterName('jsonc', $col);
-        $jsonText = $this->encodeToJson($value);
 
+        // JSON_TABLE extracts values as strings without JSON quotes
+        // So we need to compare the raw value, not the JSON-encoded value
+        // For strings, use the raw string value; for other types, use JSON-encoded value
+        $compareValue = is_string($value) ? $value : $this->encodeToJson($value);
+
+        // Oracle doesn't support ? operator with parameters in JSON_EXISTS
+        // Use JSON_TABLE with EXISTS instead
+        // For arrays, check if any element equals the value
+        // For objects, check if the path exists and equals the value
         if (empty($parts)) {
-            $sql = "JSON_EXISTS($colQuoted, '$jsonPath' ? ($param))";
+            // Check if root JSON contains the value (for arrays)
+            $sql = "EXISTS (SELECT 1 FROM JSON_TABLE($colQuoted, '\$[*]' COLUMNS (val VARCHAR2(4000) PATH '\$')) WHERE val = $param)";
         } else {
-            $sql = "JSON_EXISTS($colQuoted, '$jsonPath' ? ($param))";
+            // Check if array at path contains the value
+            $arrayPath = $jsonPath . '[*]';
+            $sql = "EXISTS (SELECT 1 FROM JSON_TABLE($colQuoted, '$arrayPath' COLUMNS (val VARCHAR2(4000) PATH '\$')) WHERE val = $param)";
         }
 
-        return [$sql, [$param => $jsonText]];
+        return [$sql, [$param => $compareValue]];
     }
 
     /**
@@ -167,16 +178,43 @@ class OracleSqlFormatter extends SqlFormatterAbstract
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
     {
         $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
         $colQuoted = $this->quoteIdentifier($col);
-        $param = $this->generateParameterName('jsonset', $col . '|' . $jsonPath);
+        $param = $this->generateParameterName('jsonset', $col . '|' . implode('.', $parts));
         $jsonText = $this->encodeToJson($value);
 
-        // Oracle uses JSON_TRANSFORM for JSON modifications (21c+)
-        // For older versions, we'll use JSON_MERGEPATCH
-        $sql = "JSON_MERGEPATCH($colQuoted, JSON_OBJECT('$jsonPath' : $param))";
+        // Oracle JSON_MERGEPATCH requires a proper JSON object
+        // Build nested JSON object structure based on path
+        // For path ['a', 'c'], we need {"a": {"c": value}}
+        $mergeObject = $this->buildNestedJsonObject($parts, $param);
+
+        $sql = "JSON_MERGEPATCH($colQuoted, $mergeObject)";
 
         return [$sql, [$param => $jsonText]];
+    }
+
+    /**
+     * Build nested JSON object structure for JSON_MERGEPATCH.
+     *
+     * @param array<int, string|int> $parts Path parts
+     * @param string $param Parameter placeholder
+     *
+     * @return string JSON object SQL expression
+     */
+    protected function buildNestedJsonObject(array $parts, string $param): string
+    {
+        if (empty($parts)) {
+            return $param;
+        }
+
+        // Build nested structure: {"part1": {"part2": {"partN": value}}}
+        $structure = $param;
+        for ($i = count($parts) - 1; $i >= 0; $i--) {
+            $part = $parts[$i];
+            $key = is_numeric($part) ? (int)$part : "'" . str_replace("'", "''", (string)$part) . "'";
+            $structure = "JSON_OBJECT($key : $structure)";
+        }
+
+        return $structure;
     }
 
     /**
@@ -188,9 +226,8 @@ class OracleSqlFormatter extends SqlFormatterAbstract
         $jsonPath = $this->buildJsonPathString($parts);
         $colQuoted = $this->quoteIdentifier($col);
 
-        // Oracle uses JSON_TRANSFORM for removal (21c+)
-        // For older versions, set to null
-        return "JSON_MERGEPATCH($colQuoted, JSON_OBJECT('$jsonPath' : NULL))";
+        // Oracle 21c+ uses JSON_TRANSFORM with REMOVE clause
+        return "JSON_TRANSFORM($colQuoted, REMOVE '$jsonPath')";
     }
 
     /**

@@ -159,21 +159,25 @@ final class WhereTests extends BaseOracleTestCase
     {
         $db = self::$db;
 
-        // Insert a test record
-        $id = $db->find()->table('users')->insert(['name' => 'EmptyNotIn', 'age' => 100]);
-        $this->assertIsInt($id);
-        $this->assertGreaterThan(0, $id);
+        // Insert multiple test records to ensure we have data
+        $id1 = $db->find()->table('users')->insert(['name' => 'EmptyNotIn1', 'age' => 100]);
+        $id2 = $db->find()->table('users')->insert(['name' => 'EmptyNotIn2', 'age' => 101]);
+        $this->assertIsInt($id1);
+        $this->assertIsInt($id2);
+        $this->assertGreaterThan(0, $id1);
+        $this->assertGreaterThan(0, $id2);
 
         // NOT IN with empty array should return all rows (1=1 condition)
         $rows = $db->find()
             ->from('users')
-            ->where('id', [], 'NOT IN')
+            ->whereNotIn('id', [])
             ->get();
-        $ids = array_column($rows, 'ID');
+        $ids = array_map('intval', array_column($rows, 'ID'));
 
-        // Should contain the inserted ID
+        // Should contain the inserted IDs
         $this->assertNotEmpty($ids, 'NOT IN [] should return all rows');
-        $this->assertContains($id, $ids, 'NOT IN [] must not filter out any rows');
+        $this->assertContains($id1, $ids, 'NOT IN [] must not filter out any rows');
+        $this->assertContains($id2, $ids, 'NOT IN [] must not filter out any rows');
     }
 
     public function testWhereStateIsResetBetweenQueries(): void

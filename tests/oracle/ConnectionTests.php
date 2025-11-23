@@ -77,7 +77,7 @@ final class ConnectionTests extends BaseOracleTestCase
         $password = getenv('PDODB_PASSWORD') ?: self::DB_PASSWORD;
         $serviceName = getenv('PDODB_SERVICE_NAME') ?: getenv('PDODB_SID') ?: self::DB_SERVICE_NAME;
         $charset = getenv('PDODB_CHARSET') ?: self::DB_CHARSET;
-        
+
         self::$db = new PdoDb('oci', [
             'host' => $host,
             'port' => $port,
@@ -97,7 +97,7 @@ final class ConnectionTests extends BaseOracleTestCase
         $password = getenv('PDODB_PASSWORD') ?: self::DB_PASSWORD;
         $serviceName = getenv('PDODB_SERVICE_NAME') ?: getenv('PDODB_SID') ?: self::DB_SERVICE_NAME;
         $charset = getenv('PDODB_CHARSET') ?: self::DB_CHARSET;
-        
+
         self::$db->addConnection('secondary', [
             'driver' => 'oci',
             'host' => $host,

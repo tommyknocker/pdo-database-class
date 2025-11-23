@@ -175,7 +175,7 @@ final class QueryBuilderTests extends BaseOracleTestCase
             ->from('users')
             ->select(['company', 'count' => Db::count('*')])
             ->groupBy('company')
-            ->having(Db::count('*'), '>', 1)
+            ->having(Db::count('*'), 1, '>')
             ->get();
 
         $this->assertCount(1, $rows);

@@ -13,6 +13,32 @@ final class LateralJoinTests extends BaseOracleTestCase
     {
         parent::setUpBeforeClass();
 
+        // Drop triggers first (they depend on tables and sequences)
+        try {
+            self::$db->rawQuery('DROP TRIGGER test_users_lateral_trigger');
+        } catch (\Throwable) {
+            // Trigger doesn't exist, continue
+        }
+
+        try {
+            self::$db->rawQuery('DROP TRIGGER test_orders_lateral_trigger');
+        } catch (\Throwable) {
+            // Trigger doesn't exist, continue
+        }
+
+        // Drop sequences before tables
+        try {
+            self::$db->rawQuery('DROP SEQUENCE test_users_lateral_seq');
+        } catch (\Throwable) {
+            // Sequence doesn't exist, continue
+        }
+
+        try {
+            self::$db->rawQuery('DROP SEQUENCE test_orders_lateral_seq');
+        } catch (\Throwable) {
+            // Sequence doesn't exist, continue
+        }
+
         // Drop existing tables to ensure clean state
         try {
             self::$db->rawQuery('DROP TABLE test_orders_lateral CASCADE CONSTRAINTS');
@@ -69,21 +95,23 @@ final class LateralJoinTests extends BaseOracleTestCase
             END;
         ');
 
-        // Insert test data
+        // Insert test data (Oracle doesn't support multi-row INSERT VALUES, use INSERT ALL)
         self::$db->rawQuery("
-            INSERT INTO test_users_lateral (name, created_at) VALUES
-            ('Alice', DATE '2024-01-01'),
-            ('Bob', DATE '2024-01-02'),
-            ('Charlie', DATE '2024-01-03')
+            INSERT ALL
+            INTO test_users_lateral (name, created_at) VALUES ('Alice', DATE '2024-01-01')
+            INTO test_users_lateral (name, created_at) VALUES ('Bob', DATE '2024-01-02')
+            INTO test_users_lateral (name, created_at) VALUES ('Charlie', DATE '2024-01-03')
+            SELECT 1 FROM DUAL
         ");
 
         self::$db->rawQuery("
-            INSERT INTO test_orders_lateral (user_id, amount, created_at) VALUES
-            (1, 100.00, DATE '2024-01-10'),
-            (1, 200.00, DATE '2024-01-15'),
-            (2, 150.00, DATE '2024-01-12'),
-            (2, 300.00, DATE '2024-01-20'),
-            (3, 50.00, DATE '2024-01-05')
+            INSERT ALL
+            INTO test_orders_lateral (user_id, amount, created_at) VALUES (1, 100.00, DATE '2024-01-10')
+            INTO test_orders_lateral (user_id, amount, created_at) VALUES (1, 200.00, DATE '2024-01-15')
+            INTO test_orders_lateral (user_id, amount, created_at) VALUES (2, 150.00, DATE '2024-01-12')
+            INTO test_orders_lateral (user_id, amount, created_at) VALUES (2, 300.00, DATE '2024-01-20')
+            INTO test_orders_lateral (user_id, amount, created_at) VALUES (3, 50.00, DATE '2024-01-05')
+            SELECT 1 FROM DUAL
         ");
     }
 
@@ -93,21 +121,23 @@ final class LateralJoinTests extends BaseOracleTestCase
         self::$db->rawQuery('TRUNCATE TABLE test_orders_lateral');
         self::$db->rawQuery('TRUNCATE TABLE test_users_lateral');
 
-        // Re-insert test data
+        // Re-insert test data (Oracle doesn't support multi-row INSERT VALUES, use INSERT ALL)
         self::$db->rawQuery("
-            INSERT INTO test_users_lateral (name, created_at) VALUES
-            ('Alice', DATE '2024-01-01'),
-            ('Bob', DATE '2024-01-02'),
-            ('Charlie', DATE '2024-01-03')
+            INSERT ALL
+            INTO test_users_lateral (name, created_at) VALUES ('Alice', DATE '2024-01-01')
+            INTO test_users_lateral (name, created_at) VALUES ('Bob', DATE '2024-01-02')
+            INTO test_users_lateral (name, created_at) VALUES ('Charlie', DATE '2024-01-03')
+            SELECT 1 FROM DUAL
         ");
 
         self::$db->rawQuery("
-            INSERT INTO test_orders_lateral (user_id, amount, created_at) VALUES
-            (1, 100.00, DATE '2024-01-10'),
-            (1, 200.00, DATE '2024-01-15'),
-            (2, 150.00, DATE '2024-01-12'),
-            (2, 300.00, DATE '2024-01-20'),
-            (3, 50.00, DATE '2024-01-05')
+            INSERT ALL
+            INTO test_orders_lateral (user_id, amount, created_at) VALUES (1, 100.00, DATE '2024-01-10')
+            INTO test_orders_lateral (user_id, amount, created_at) VALUES (1, 200.00, DATE '2024-01-15')
+            INTO test_orders_lateral (user_id, amount, created_at) VALUES (2, 150.00, DATE '2024-01-12')
+            INTO test_orders_lateral (user_id, amount, created_at) VALUES (2, 300.00, DATE '2024-01-20')
+            INTO test_orders_lateral (user_id, amount, created_at) VALUES (3, 50.00, DATE '2024-01-05')
+            SELECT 1 FROM DUAL
         ");
     }
 
@@ -140,7 +170,7 @@ final class LateralJoinTests extends BaseOracleTestCase
 
         $this->assertStringContainsString('LATERAL', $query['sql']);
         $this->assertStringContainsString('LEFT', $query['sql']);
-        $this->assertStringContainsString('latest', $query['sql']);
+        $this->assertStringContainsString('LATEST', $query['sql']);
         $this->assertStringContainsString('ORDER BY', $query['sql']);
         $this->assertStringContainsString('FETCH NEXT', $query['sql']);
     }

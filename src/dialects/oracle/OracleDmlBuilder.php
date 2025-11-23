@@ -136,31 +136,115 @@ class OracleDmlBuilder implements DmlBuilderInterface
         ?int $limit = null,
         string $options = ''
     ): string {
-        // Oracle supports UPDATE with JOINs using subqueries or MERGE
-        // For simplicity, we'll use a subquery approach
-        $sql = "UPDATE {$options}{$table} SET {$setClause}";
-
-        // Add WHERE clause
-        if (trim($whereClause) !== '' && trim($whereClause) !== 'WHERE') {
-            $sql .= ' ' . $whereClause;
+        // Oracle doesn't support UPDATE with JOIN directly, use subquery
+        // Extract join table and conditions
+        $joinTable = null;
+        $joinConditions = [];
+        foreach ($joins as $join) {
+            if (preg_match('/\s+(?:INNER\s+)?JOIN\s+([^\s]+(?:\s+[^\s]+)?)\s+ON\s+(.+)/i', $join, $matches)) {
+                $joinTable = trim($matches[1]);
+                $joinConditions[] = $matches[2];
+            } elseif (preg_match('/\s+LEFT\s+JOIN\s+([^\s]+(?:\s+[^\s]+)?)\s+ON\s+(.+)/i', $join, $matches)) {
+                $joinTable = trim($matches[1]);
+                $joinConditions[] = $matches[2];
+            }
         }
 
-        // Add JOIN conditions to WHERE if needed
-        if (!empty($joins)) {
-            $joinConditions = [];
-            foreach ($joins as $join) {
-                if (preg_match('/\s+ON\s+(.+)/i', $join, $matches)) {
-                    $joinConditions[] = $matches[1];
-                }
+        // If SET clause references columns from JOIN table, replace them with correlated subqueries
+        $setClauseProcessed = $setClause;
+        if (!empty($joinTable) && !empty($joinConditions)) {
+            // Extract table alias/name from join conditions (e.g., "UPDATE_DELETE_JOIN_ORDERS.USER_ID")
+            // Replace references to join table columns with correlated subqueries
+            // Check if joinTable already has quotes (from quoteTable in join builder)
+            $joinTableQuoted = (str_starts_with($joinTable, '"') && str_ends_with($joinTable, '"'))
+                ? $joinTable
+                : $this->quoteTable($joinTable);
+            $joinTableName = trim($joinTableQuoted, '"');
+            $joinCondition = implode(' AND ', $joinConditions);
+            $tableQuoted = $this->quoteTable($table);
+
+            // Find references to join table columns in SET clause (pattern: table.column or "table"."column")
+            // Replace with: (SELECT column FROM join_table WHERE join_condition AND correlation)
+            // Extract correlation from join condition (e.g., "UPDATE_DELETE_JOIN_ORDERS.USER_ID = UPDATE_DELETE_JOIN_USERS.ID")
+            $correlation = '';
+            if (preg_match('/([^\s=]+)\s*=\s*([^\s=]+)/', $joinCondition, $corrMatches)) {
+                // Use the join condition as correlation, but ensure it references the main table
+                $correlation = $joinCondition;
             }
-            if (!empty($joinConditions)) {
-                if (trim($whereClause) === '' || trim($whereClause) === 'WHERE') {
-                    $sql .= ' WHERE ';
-                } else {
-                    $sql .= ' AND ';
-                }
-                $sql .= implode(' AND ', $joinConditions);
-            }
+
+            // Match both quoted and unquoted table names, with or without quotes around column
+            // Pattern: "table"."column" or table.column
+            $pattern = '/(?:' . preg_quote($joinTableQuoted, '/') . '|' . preg_quote($joinTableName, '/') . ')\.(?:("?)([a-zA-Z_][a-zA-Z0-9_]*)\1)/i';
+            $setClauseProcessed = preg_replace_callback(
+                $pattern,
+                function ($matches) use ($joinTableQuoted, $joinCondition, $tableQuoted, $table) {
+                    if (empty($matches[2])) {
+                        // Should not happen, but safety check
+                        return $matches[0];
+                    }
+                    $column = $this->quoteIdentifier($matches[2]);
+                    // Extract correlation from join condition
+                    // Join condition format: "join_table"."column" = "main_table"."column"
+                    // For correlated subquery, we need: "join_table"."column" = main_table."column"
+                    // (main_table without quotes because it's the outer table alias)
+                    $correlation = '';
+                    if (preg_match('/"([^"]+)"\s*\.\s*"([^"]+)"\s*=\s*"([^"]+)"\s*\.\s*"([^"]+)"/', $joinCondition, $corrMatches)) {
+                        // If join condition is "join_table"."col1" = "main_table"."col2"
+                        // Correlation should be "join_table"."col1" = main_table."col2"
+                        // (main_table is the outer table, so we reference it without quotes in subquery)
+                        $tableName = trim($tableQuoted, '"');
+                        if (empty($tableName)) {
+                            // Fallback: use table name directly, removing quotes if present
+                            $tableName = trim($table, '"');
+                        }
+                        if (empty($tableName)) {
+                            // Last resort: use table as-is
+                            $tableName = $table;
+                        }
+                        if ($corrMatches[1] === trim($joinTableQuoted, '"')) {
+                            // join_table is first, main_table is second
+                            // Use main table name from UPDATE statement for correlation (without quotes for outer table)
+                            $correlation = '"' . $corrMatches[1] . '"."' . $corrMatches[2] . '" = ' . $tableName . '."' . $corrMatches[4] . '"';
+                        } elseif ($corrMatches[3] === trim($joinTableQuoted, '"')) {
+                            // main_table is first, join_table is second
+                            // Use main table name from UPDATE statement for correlation (without quotes for outer table)
+                            $correlation = '"' . $corrMatches[3] . '"."' . $corrMatches[4] . '" = ' . $tableName . '."' . $corrMatches[2] . '"';
+                        } else {
+                            // Fallback: use join condition as-is, but try to replace main table with unquoted name
+                            $correlation = str_replace($tableQuoted, $tableName, $joinCondition);
+                        }
+                    } else {
+                        $correlation = $joinCondition;
+                    }
+                    // Build correlated subquery
+                    return "(SELECT {$column} FROM {$joinTableQuoted} WHERE {$correlation} AND ROWNUM = 1)";
+                },
+                $setClauseProcessed
+            );
+        }
+
+        $sql = "UPDATE {$options}{$table} SET {$setClauseProcessed}";
+
+        // Clean WHERE clause (remove WHERE keyword if present)
+        $whereClauseClean = trim($whereClause);
+        if (str_starts_with(strtoupper($whereClauseClean), 'WHERE ')) {
+            $whereClauseClean = substr($whereClauseClean, 6);
+        }
+
+        // Build WHERE clause with subquery if JOIN is present
+        $whereParts = [];
+        if (!empty($joinTable) && !empty($joinConditions)) {
+            // Combine JOIN conditions and WHERE clause in EXISTS subquery
+            $subqueryConditions = array_merge($joinConditions, $whereClauseClean ? [$whereClauseClean] : []);
+            $subqueryWhere = implode(' AND ', $subqueryConditions);
+            $whereParts[] = "EXISTS (SELECT 1 FROM {$joinTable} WHERE {$subqueryWhere})";
+        } elseif ($whereClauseClean !== '') {
+            // No JOIN, use WHERE clause as is
+            $whereParts[] = $whereClauseClean;
+        }
+
+        if (!empty($whereParts)) {
+            $sql .= ' WHERE ' . implode(' AND ', $whereParts);
         }
 
         // Oracle doesn't support LIMIT in UPDATE directly, use ROWNUM in subquery
@@ -181,30 +265,42 @@ class OracleDmlBuilder implements DmlBuilderInterface
         string $whereClause,
         string $options = ''
     ): string {
-        // Oracle supports DELETE with JOINs using subqueries
+        // Oracle doesn't support DELETE with JOIN directly, use subquery
         $sql = "DELETE {$options}FROM {$table}";
 
-        // Add WHERE clause
-        if (trim($whereClause) !== '' && trim($whereClause) !== 'WHERE') {
-            $sql .= ' ' . $whereClause;
+        // Extract join table and conditions
+        $joinTable = null;
+        $joinConditions = [];
+        foreach ($joins as $join) {
+            if (preg_match('/\s+(?:INNER\s+)?JOIN\s+([^\s]+(?:\s+[^\s]+)?)\s+ON\s+(.+)/i', $join, $matches)) {
+                $joinTable = trim($matches[1]);
+                $joinConditions[] = $matches[2];
+            } elseif (preg_match('/\s+LEFT\s+JOIN\s+([^\s]+(?:\s+[^\s]+)?)\s+ON\s+(.+)/i', $join, $matches)) {
+                $joinTable = trim($matches[1]);
+                $joinConditions[] = $matches[2];
+            }
         }
 
-        // Add JOIN conditions to WHERE if needed
-        if (!empty($joins)) {
-            $joinConditions = [];
-            foreach ($joins as $join) {
-                if (preg_match('/\s+ON\s+(.+)/i', $join, $matches)) {
-                    $joinConditions[] = $matches[1];
-                }
-            }
-            if (!empty($joinConditions)) {
-                if (trim($whereClause) === '' || trim($whereClause) === 'WHERE') {
-                    $sql .= ' WHERE ';
-                } else {
-                    $sql .= ' AND ';
-                }
-                $sql .= implode(' AND ', $joinConditions);
-            }
+        // Clean WHERE clause (remove WHERE keyword if present)
+        $whereClauseClean = trim($whereClause);
+        if (str_starts_with(strtoupper($whereClauseClean), 'WHERE ')) {
+            $whereClauseClean = substr($whereClauseClean, 6);
+        }
+
+        // Build WHERE clause with subquery if JOIN is present
+        $whereParts = [];
+        if (!empty($joinTable) && !empty($joinConditions)) {
+            // Combine JOIN conditions and WHERE clause in EXISTS subquery
+            $subqueryConditions = array_merge($joinConditions, $whereClauseClean ? [$whereClauseClean] : []);
+            $subqueryWhere = implode(' AND ', $subqueryConditions);
+            $whereParts[] = "EXISTS (SELECT 1 FROM {$joinTable} WHERE {$subqueryWhere})";
+        } elseif ($whereClauseClean !== '') {
+            // No JOIN, use WHERE clause as is
+            $whereParts[] = $whereClauseClean;
+        }
+
+        if (!empty($whereParts)) {
+            $sql .= ' WHERE ' . implode(' AND ', $whereParts);
         }
 
         return $sql;
@@ -267,25 +363,29 @@ class OracleDmlBuilder implements DmlBuilderInterface
     ): string {
         $target = $this->quoteTable($targetTable);
 
-        // buildMergeSourceSql already wraps in parentheses and adds AS source
-        // So we use sourceSql as-is (it's already formatted as (SELECT ...) AS source)
-        // But Oracle requires the alias to be "source" (lowercase)
-        // Ensure sourceSql has proper alias
+        // buildMergeSourceSql returns table name for string sources, but Oracle MERGE needs SELECT
+        // Check if sourceSql is just a table name (not a SELECT query)
+        if (!preg_match('/^\s*\(?\s*SELECT\s+/i', $sourceSql)) {
+            // It's a table name, convert to SELECT * FROM table
+            $sourceSql = 'SELECT * FROM ' . $sourceSql;
+        }
+
+        // buildMergeSourceSql already wraps in parentheses and adds AS source for subqueries
+        // But for string table names, we need to wrap it ourselves
         if (!preg_match('/\s+AS\s+source$/i', $sourceSql)) {
             // If no alias, add it
-            $sourceSql = '(' . trim($sourceSql, '()') . ') AS source';
+            $sourceSql = '(' . trim($sourceSql, '()') . ') source';
+        } else {
+            // Remove "AS" if present, Oracle doesn't require it in USING clause
+            $sourceSql = preg_replace('/\s+AS\s+source$/i', ' source', $sourceSql);
         }
-        
+
         // Ensure onClause uses proper table aliases (target and source)
-        $onClause = preg_replace('/\btarget\./i', 'target.', $onClause);
-        $onClause = preg_replace('/\bsource\./i', 'source.', $onClause);
-        
-        // Ensure sourceSql is properly formatted for Oracle
-        // Oracle requires: USING (SELECT ...) source
-        // But buildMergeSourceSql returns: (SELECT ...) AS source
-        // Remove "AS" if present, Oracle doesn't require it in USING clause
-        $sourceSql = preg_replace('/\s+AS\s+source$/i', ' source', $sourceSql);
-        
+        $onClauseReplaced = preg_replace('/\btarget\./i', 'target.', $onClause);
+        $onClause = is_string($onClauseReplaced) ? $onClauseReplaced : $onClause;
+        $onClauseReplaced = preg_replace('/\bsource\./i', 'source.', $onClause);
+        $onClause = is_string($onClauseReplaced) ? $onClauseReplaced : $onClause;
+
         $sql = "MERGE INTO {$target} target\n";
         $sql .= "USING {$sourceSql}\n";
         $sql .= "ON ({$onClause})\n";

@@ -251,15 +251,18 @@ class OracleDialect extends DialectAbstract
         if (preg_match('/INSERT\s+INTO\s+(?:"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*))/i', $sql, $matches)) {
             // @phpstan-ignore-next-line
             $tableName = ($matches[1] ?? '') !== '' ? $matches[1] : ($matches[2] ?? null);
-            if ($tableName !== null) {
+            if (is_string($tableName)) {
                 // Remove schema prefix if present (e.g., "schema"."table" -> table)
-                $tableName = preg_replace('/^[^"]*"\."/', '', $tableName);
-                $tableNameStr = is_string($tableName) ? trim($tableName, '"\'') : '';
+                $tableNameReplaced = preg_replace('/^[^"]*"\."/', '', $tableName);
+                if (!is_string($tableNameReplaced)) {
+                    return null;
+                }
+                $tableNameStr = trim($tableNameReplaced, '"\'');
                 if ($tableNameStr === '') {
                     return null;
                 }
-                $tableName = strtolower($tableNameStr);
-                $sequenceName = $tableName . '_seq';
+                $tableNameLower = strtolower($tableNameStr);
+                $sequenceName = $tableNameLower . '_seq';
 
                 try {
                     $quotedSequence = $this->quoteIdentifier($sequenceName);
@@ -290,6 +293,42 @@ class OracleDialect extends DialectAbstract
         array $whenClauses
     ): string {
         return $this->dmlBuilder->buildMergeSql($targetTable, $sourceSql, $onClause, $whenClauses);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildPingSql(): string
+    {
+        return 'SELECT 1 FROM DUAL';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function beforeCreateTable(
+        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        string $tableName,
+        array $columns
+    ): void {
+        // Oracle needs to drop existing sequences and triggers before creating table
+        $this->dropSequencesAndTriggers($connection, $tableName, $columns);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function afterCreateTable(
+        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        string $tableName,
+        array $columns,
+        string $sql
+    ): void {
+        // Oracle needs to create triggers for auto-increment columns
+        // Check if SQL contains sequences (indicates auto-increment columns)
+        if (str_contains($sql, 'CREATE SEQUENCE')) {
+            $this->createTriggersForAutoIncrement($connection, $tableName, $columns);
+        }
     }
 
     /**
@@ -1979,6 +2018,124 @@ class OracleDialect extends DialectAbstract
     {
         // Oracle doesn't have IDENTITY columns like MSSQL, return columns as-is
         return $columns ?? [];
+    }
+
+    /**
+     * Create triggers for auto-increment columns.
+     *
+     * @param \tommyknocker\pdodb\connection\ConnectionInterface $connection Database connection
+     * @param string $tableName Table name
+     * @param array<string, \tommyknocker\pdodb\query\schema\ColumnSchema|array<string, mixed>|string> $columns Column definitions
+     */
+    protected function createTriggersForAutoIncrement(
+        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        string $tableName,
+        array $columns
+    ): void {
+        $tableQuoted = $this->quoteTable($tableName);
+        $tableQuotedUpper = strtoupper($tableQuoted);
+
+        foreach ($columns as $columnName => $def) {
+            $schema = $this->normalizeColumnSchemaForTrigger($def);
+            if ($schema->isAutoIncrement()) {
+                $sequenceName = strtolower($tableName . '_' . $columnName . '_seq');
+                $seqQuoted = $this->quoteIdentifier($sequenceName);
+                $columnQuoted = $this->quoteIdentifier($columnName);
+                $triggerName = strtolower($tableName . '_' . $columnName . '_trigger');
+                $triggerQuoted = $this->quoteIdentifier($triggerName);
+
+                $triggerSql = "CREATE OR REPLACE TRIGGER {$triggerQuoted} BEFORE INSERT ON {$tableQuotedUpper} FOR EACH ROW BEGIN IF :NEW.{$columnQuoted} IS NULL THEN SELECT {$seqQuoted}.NEXTVAL INTO :NEW.{$columnQuoted} FROM DUAL; END IF; END;";
+                $connection->query($triggerSql);
+            }
+        }
+    }
+
+    /**
+     * Normalize column schema from various formats for trigger creation.
+     *
+     * @param \tommyknocker\pdodb\query\schema\ColumnSchema|array<string, mixed>|string $def Column definition
+     *
+     * @return \tommyknocker\pdodb\query\schema\ColumnSchema
+     */
+    protected function normalizeColumnSchemaForTrigger(\tommyknocker\pdodb\query\schema\ColumnSchema|array|string $def): \tommyknocker\pdodb\query\schema\ColumnSchema
+    {
+        if ($def instanceof \tommyknocker\pdodb\query\schema\ColumnSchema) {
+            return $def;
+        }
+
+        if (is_array($def)) {
+            $schemaType = $def['type'] ?? 'VARCHAR';
+            $length = $def['length'] ?? $def['size'] ?? null;
+            $scale = $def['scale'] ?? null;
+
+            $schema = new \tommyknocker\pdodb\query\schema\ColumnSchema((string)$schemaType, $length, $scale);
+
+            if (isset($def['null']) && $def['null'] === false) {
+                $schema->notNull();
+            }
+            if (isset($def['default'])) {
+                if (isset($def['defaultExpression']) && $def['defaultExpression']) {
+                    $schema->defaultExpression((string)$def['default']);
+                } else {
+                    $schema->defaultValue($def['default']);
+                }
+            }
+            if (isset($def['autoIncrement']) && $def['autoIncrement']) {
+                $schema->autoIncrement();
+            }
+
+            return $schema;
+        }
+
+        return new \tommyknocker\pdodb\query\schema\ColumnSchema((string)$def);
+    }
+
+    /**
+     * Drop sequences and triggers for auto-increment columns before table creation.
+     *
+     * @param \tommyknocker\pdodb\connection\ConnectionInterface $connection Database connection
+     * @param string $tableName Table name
+     * @param array<string, \tommyknocker\pdodb\query\schema\ColumnSchema|array<string, mixed>|string> $columns Column definitions
+     */
+    protected function dropSequencesAndTriggers(
+        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        string $tableName,
+        array $columns
+    ): void {
+        foreach ($columns as $columnName => $def) {
+            $schema = $this->normalizeColumnSchemaForTrigger($def);
+            if ($schema->isAutoIncrement()) {
+                $sequenceName = strtolower($tableName . '_' . $columnName . '_seq');
+                $seqQuoted = $this->quoteIdentifier($sequenceName);
+                $triggerName = strtolower($tableName . '_' . $columnName . '_trigger');
+                $triggerQuoted = $this->quoteIdentifier($triggerName);
+
+                // Drop trigger if exists (Oracle doesn't support IF EXISTS)
+                try {
+                    $connection->query("DROP TRIGGER {$triggerQuoted}");
+                } catch (\Throwable) {
+                    // Trigger doesn't exist, continue
+                }
+
+                // Drop sequence if exists
+                try {
+                    $connection->query("DROP SEQUENCE {$seqQuoted}");
+                } catch (\Throwable) {
+                    // Sequence doesn't exist, continue
+                }
+            }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function isNoFieldsError(\PDOException $e): bool
+    {
+        // Oracle throws ORA-24374 when trying to fetch from a statement that doesn't return rows
+        // This happens with DDL queries (CREATE, DROP, ALTER, etc.)
+        $errorCode = $this->extractErrorCode($e);
+        return $errorCode === '24374';
     }
 
     /**

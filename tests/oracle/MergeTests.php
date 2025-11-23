@@ -86,7 +86,11 @@ final class MergeTests extends BaseOracleTestCase
 
     public function testOracleMergeGeneratedSql(): void
     {
-        $sql = self::$db->find()
+        // Insert source data for merge to execute
+        self::$db->find()->table('merge_source')->insert(['id' => 1, 'name' => 'Test', 'value' => 10]);
+
+        // Execute merge to generate SQL
+        $affected = self::$db->find()
             ->table('merge_target')
             ->merge(
                 'merge_source',
@@ -95,6 +99,7 @@ final class MergeTests extends BaseOracleTestCase
                 ['id' => Db::raw('source.id'), 'name' => Db::raw('source.name')]
             );
 
+        $this->assertGreaterThanOrEqual(0, $affected);
         $this->assertStringContainsString('MERGE INTO', self::$db->lastQuery);
         $this->assertStringContainsString('USING', self::$db->lastQuery);
         $this->assertStringContainsString('ON', self::$db->lastQuery);

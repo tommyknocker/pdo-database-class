@@ -92,7 +92,7 @@ class OracleDdlBuilder implements DdlBuilderInterface
         }
 
         // Create sequences for auto-increment columns
-        // Triggers will be created separately after table creation
+        // Triggers will be created via afterCreateTable() method
         if (!empty($sequences)) {
             $sequenceSqls = [];
             foreach ($sequences as $seqName) {

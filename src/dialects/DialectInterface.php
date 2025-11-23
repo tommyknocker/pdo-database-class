@@ -1761,4 +1761,44 @@ interface DialectInterface
      * @return array<string, mixed> Normalized configuration array
      */
     public function normalizeConfigParams(array $config): array;
+
+    /**
+     * Build SQL for ping query.
+     * Used to check database connection health.
+     *
+     * @return string SQL query for ping
+     */
+    public function buildPingSql(): string;
+
+    /**
+     * Execute post-processing after table creation.
+     * This method is called after createTable() to perform dialect-specific operations
+     * like creating triggers, sequences, or other database objects.
+     *
+     * @param \tommyknocker\pdodb\connection\ConnectionInterface $connection Database connection
+     * @param string $tableName Table name
+     * @param array<string, \tommyknocker\pdodb\query\schema\ColumnSchema|array<string, mixed>|string> $columns Column definitions
+     * @param string $sql The SQL that was executed to create the table
+     */
+    public function afterCreateTable(
+        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        string $tableName,
+        array $columns,
+        string $sql
+    ): void;
+
+    /**
+     * Drop existing database objects before table creation.
+     * This method is called before createTable() to drop existing objects
+     * like sequences, triggers, or other database objects that might conflict.
+     *
+     * @param \tommyknocker\pdodb\connection\ConnectionInterface $connection Database connection
+     * @param string $tableName Table name
+     * @param array<string, \tommyknocker\pdodb\query\schema\ColumnSchema|array<string, mixed>|string> $columns Column definitions
+     */
+    public function beforeCreateTable(
+        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        string $tableName,
+        array $columns
+    ): void;
 }
