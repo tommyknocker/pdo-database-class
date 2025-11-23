@@ -170,4 +170,304 @@ final class ConnectionCommandCliTests extends TestCase
         $this->assertStringContainsString('list', $out);
         $this->assertStringContainsString('ping', $out);
     }
+
+    public function testConnectionInfoCommandWithYamlFormat(): void
+    {
+        $app = new Application();
+
+        // Test info command (YAML format)
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'connection', 'info', '--format=yaml']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('name:', $out);
+        $this->assertStringContainsString('driver:', $out);
+    }
+
+    public function testConnectionListCommandWithYamlFormat(): void
+    {
+        $app = new Application();
+
+        // Test list command (YAML format)
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'connection', 'list', '--format=yaml']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('connections:', $out);
+    }
+
+    public function testConnectionTestCommandWithConnectionOption(): void
+    {
+        $app = new Application();
+
+        // Test connection with --connection option
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'connection', 'test', '--connection=default']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('successful', $out);
+    }
+
+    public function testConnectionInfoCommandWithConnectionOption(): void
+    {
+        $app = new Application();
+
+        // Test info command with --connection option
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'connection', 'info', '--connection=default', '--format=json']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $json = json_decode($out, true);
+        $this->assertIsArray($json);
+        $this->assertArrayHasKey('driver', $json);
+    }
+
+    public function testConnectionInfoCommandWithConnectionNameArgument(): void
+    {
+        $app = new Application();
+
+        // Test info command with connection name as argument
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'connection', 'info', 'default', '--format=json']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $json = json_decode($out, true);
+        $this->assertIsArray($json);
+        $this->assertArrayHasKey('driver', $json);
+    }
+
+    public function testConnectionPingCommandWithConnectionOption(): void
+    {
+        $app = new Application();
+
+        // Test ping command with --connection option
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'connection', 'ping', '--connection=default']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Ping successful', $out);
+    }
+
+    public function testConnectionCommandWithMultiConnectionConfig(): void
+    {
+        $app = new Application();
+        $tempDir = sys_get_temp_dir() . '/pdodb_test_' . uniqid();
+        mkdir($tempDir, 0755, true);
+        $configDir = $tempDir . '/config';
+        mkdir($configDir, 0755, true);
+        $configFile = $configDir . '/db.php';
+
+        // Create multi-connection config
+        $configContent = <<<'PHP'
+<?php
+return [
+    'default' => 'primary',
+    'connections' => [
+        'primary' => [
+            'driver' => 'sqlite',
+            'path' => ':memory:',
+        ],
+        'secondary' => [
+            'driver' => 'sqlite',
+            'path' => ':memory:',
+        ],
+    ],
+];
+PHP;
+        file_put_contents($configFile, $configContent);
+
+        $oldCwd = getcwd();
+        chdir($tempDir);
+        putenv('PDODB_CONFIG_PATH=' . $configFile);
+
+        try {
+            // Test list command with multi-connection config
+            ob_start();
+
+            try {
+                $code = $app->run(['pdodb', 'connection', 'list', '--format=json']);
+                $out = ob_get_clean();
+            } catch (\Throwable $e) {
+                ob_end_clean();
+
+                throw $e;
+            }
+            $this->assertSame(0, $code);
+            $json = json_decode($out, true);
+            $this->assertIsArray($json);
+            $this->assertArrayHasKey('connections', $json);
+            $this->assertIsArray($json['connections']);
+            $this->assertGreaterThanOrEqual(1, count($json['connections']));
+
+            // Test info command with specific connection
+            ob_start();
+
+            try {
+                $code = $app->run(['pdodb', 'connection', 'info', 'secondary', '--format=json']);
+                $out = ob_get_clean();
+            } catch (\Throwable $e) {
+                ob_end_clean();
+
+                throw $e;
+            }
+            $this->assertSame(0, $code);
+            $json = json_decode($out, true);
+            $this->assertIsArray($json);
+            $this->assertArrayHasKey('driver', $json);
+        } finally {
+            chdir($oldCwd);
+            if (file_exists($configFile)) {
+                @unlink($configFile);
+            }
+            if (is_dir($configDir)) {
+                @rmdir($configDir);
+            }
+            if (is_dir($tempDir)) {
+                @rmdir($tempDir);
+            }
+            putenv('PDODB_CONFIG_PATH');
+        }
+    }
+
+    public function testConnectionCommandWithSingleConnectionConfig(): void
+    {
+        $app = new Application();
+        $tempDir = sys_get_temp_dir() . '/pdodb_test_' . uniqid();
+        mkdir($tempDir, 0755, true);
+        $configDir = $tempDir . '/config';
+        mkdir($configDir, 0755, true);
+        $configFile = $configDir . '/db.php';
+
+        // Create single connection config
+        $configContent = <<<'PHP'
+<?php
+return [
+    'driver' => 'sqlite',
+    'path' => ':memory:',
+];
+PHP;
+        file_put_contents($configFile, $configContent);
+
+        $oldCwd = getcwd();
+        chdir($tempDir);
+        putenv('PDODB_CONFIG_PATH=' . $configFile);
+
+        try {
+            // Test list command with single connection config
+            ob_start();
+
+            try {
+                $code = $app->run(['pdodb', 'connection', 'list', '--format=json']);
+                $out = ob_get_clean();
+            } catch (\Throwable $e) {
+                ob_end_clean();
+
+                throw $e;
+            }
+            $this->assertSame(0, $code);
+            $json = json_decode($out, true);
+            $this->assertIsArray($json);
+            $this->assertArrayHasKey('connections', $json);
+            $this->assertIsArray($json['connections']);
+            $this->assertCount(1, $json['connections']);
+        } finally {
+            chdir($oldCwd);
+            if (file_exists($configFile)) {
+                @unlink($configFile);
+            }
+            if (is_dir($configDir)) {
+                @rmdir($configDir);
+            }
+            if (is_dir($tempDir)) {
+                @rmdir($tempDir);
+            }
+            putenv('PDODB_CONFIG_PATH');
+        }
+    }
+
+    public function testConnectionInfoCommandWithAllFormats(): void
+    {
+        $app = new Application();
+
+        $formats = ['table', 'json', 'yaml'];
+
+        foreach ($formats as $format) {
+            ob_start();
+
+            try {
+                $code = $app->run(['pdodb', 'connection', 'info', '--format=' . $format]);
+                $out = ob_get_clean();
+            } catch (\Throwable $e) {
+                ob_end_clean();
+
+                throw $e;
+            }
+            $this->assertSame(0, $code, "Format {$format} should succeed");
+            $this->assertNotEmpty($out, "Format {$format} should produce output");
+        }
+    }
+
+    public function testConnectionListCommandWithAllFormats(): void
+    {
+        $app = new Application();
+
+        $formats = ['table', 'json', 'yaml'];
+
+        foreach ($formats as $format) {
+            ob_start();
+
+            try {
+                $code = $app->run(['pdodb', 'connection', 'list', '--format=' . $format]);
+                $out = ob_get_clean();
+            } catch (\Throwable $e) {
+                ob_end_clean();
+
+                throw $e;
+            }
+            $this->assertSame(0, $code, "Format {$format} should succeed");
+            $this->assertNotEmpty($out, "Format {$format} should produce output");
+        }
+    }
 }

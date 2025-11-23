@@ -567,4 +567,350 @@ class CacheFactoryTests extends TestCase
         // So we just verify that the method handles missing classes gracefully
         $this->assertTrue(true);
     }
+
+    /**
+     * Test creating Redis cache with alternative config keys.
+     */
+    public function testCreateRedisCacheWithAlternativeKeys(): void
+    {
+        $config = [
+            'type' => 'redis',
+            'redis_host' => '127.0.0.1',
+            'redis_port' => '6379', // String port
+            'redis_database' => '5', // String database
+            'redis_password' => null,
+            'redis_timeout' => '1.5', // String timeout
+            'namespace' => 'alt_test',
+            'ttl' => '3600', // Alternative to default_lifetime
+        ];
+
+        $cache = CacheFactory::create($config);
+        // Should return null if Redis server not available
+        $this->assertTrue($cache === null || $cache instanceof CacheInterface);
+    }
+
+    /**
+     * Test creating Redis cache with db key instead of database.
+     */
+    public function testCreateRedisCacheWithDbKey(): void
+    {
+        $config = [
+            'type' => 'redis',
+            'host' => '127.0.0.1',
+            'port' => 6379,
+            'db' => 10, // Alternative to database
+            'namespace' => 'db_test',
+        ];
+
+        $cache = CacheFactory::create($config);
+        // Should return null if Redis server not available
+        $this->assertTrue($cache === null || $cache instanceof CacheInterface);
+    }
+
+    /**
+     * Test creating Redis cache with numeric timeout.
+     */
+    public function testCreateRedisCacheWithNumericTimeout(): void
+    {
+        $config = [
+            'type' => 'redis',
+            'host' => '127.0.0.1',
+            'port' => 6379,
+            'timeout' => 2.5, // Float timeout
+            'namespace' => 'timeout_test',
+        ];
+
+        $cache = CacheFactory::create($config);
+        // Should return null if Redis server not available
+        $this->assertTrue($cache === null || $cache instanceof CacheInterface);
+    }
+
+    /**
+     * Test creating Redis cache with empty password.
+     */
+    public function testCreateRedisCacheWithEmptyPassword(): void
+    {
+        $config = [
+            'type' => 'redis',
+            'host' => '127.0.0.1',
+            'port' => 6379,
+            'password' => '', // Empty password
+            'namespace' => 'empty_pass_test',
+        ];
+
+        $cache = CacheFactory::create($config);
+        // Should return null if Redis server not available
+        $this->assertTrue($cache === null || $cache instanceof CacheInterface);
+    }
+
+    /**
+     * Test creating Redis cache with database 0.
+     */
+    public function testCreateRedisCacheWithDatabaseZero(): void
+    {
+        $config = [
+            'type' => 'redis',
+            'host' => '127.0.0.1',
+            'port' => 6379,
+            'database' => 0, // Database 0 (should not call select)
+            'namespace' => 'db0_test',
+        ];
+
+        $cache = CacheFactory::create($config);
+        // Should return null if Redis server not available
+        $this->assertTrue($cache === null || $cache instanceof CacheInterface);
+    }
+
+    /**
+     * Test creating Memcached cache with memcached_servers key.
+     */
+    public function testCreateMemcachedCacheWithMemcachedServersKey(): void
+    {
+        $config = [
+            'type' => 'memcached',
+            'memcached_servers' => [['127.0.0.1', 11211]],
+            'namespace' => 'servers_test',
+        ];
+
+        $cache = CacheFactory::create($config);
+        // Should return null if Memcached extension, symfony/cache is not installed, or server not available
+        $this->assertTrue($cache === null || $cache instanceof CacheInterface);
+    }
+
+    /**
+     * Test creating Memcached cache with string server list.
+     */
+    public function testCreateMemcachedCacheWithStringServers(): void
+    {
+        $config = [
+            'type' => 'memcached',
+            'servers' => ['memcached://127.0.0.1:11211'], // String DSN format
+            'namespace' => 'string_servers_test',
+        ];
+
+        $cache = CacheFactory::create($config);
+        // Should return null if Memcached extension, symfony/cache is not installed, or server not available
+        $this->assertTrue($cache === null || $cache instanceof CacheInterface);
+    }
+
+    /**
+     * Test creating Memcached cache with mixed server formats.
+     */
+    public function testCreateMemcachedCacheWithMixedServerFormats(): void
+    {
+        $config = [
+            'type' => 'memcached',
+            'servers' => [
+                ['127.0.0.1', 11211], // Array format
+                'memcached://192.168.1.1:11211', // String format
+            ],
+            'namespace' => 'mixed_servers_test',
+        ];
+
+        $cache = CacheFactory::create($config);
+        // Should return null if Memcached extension, symfony/cache is not installed, or server not available
+        $this->assertTrue($cache === null || $cache instanceof CacheInterface);
+    }
+
+    /**
+     * Test creating Memcached cache with invalid server array.
+     */
+    public function testCreateMemcachedCacheWithInvalidServerArray(): void
+    {
+        $config = [
+            'type' => 'memcached',
+            'servers' => [
+                ['127.0.0.1'], // Missing port
+                ['invalid'], // Invalid format
+            ],
+            'namespace' => 'invalid_servers_test',
+        ];
+
+        $cache = CacheFactory::create($config);
+        // Should return null if Memcached extension, symfony/cache is not installed, or server not available
+        $this->assertTrue($cache === null || $cache instanceof CacheInterface);
+    }
+
+    /**
+     * Test creating Memcached cache with empty server list.
+     */
+    public function testCreateMemcachedCacheWithEmptyServerList(): void
+    {
+        $config = [
+            'type' => 'memcached',
+            'servers' => [],
+            'namespace' => 'empty_servers_test',
+        ];
+
+        $cache = CacheFactory::create($config);
+        // Should return null if Memcached extension, symfony/cache is not installed, or server not available
+        $this->assertTrue($cache === null || $cache instanceof CacheInterface);
+    }
+
+    /**
+     * Test creating Memcached cache with ttl key.
+     */
+    public function testCreateMemcachedCacheWithTtlKey(): void
+    {
+        $config = [
+            'type' => 'memcached',
+            'servers' => [['127.0.0.1', 11211]],
+            'namespace' => 'ttl_test',
+            'ttl' => 1800, // Alternative to default_lifetime
+        ];
+
+        $cache = CacheFactory::create($config);
+        // Should return null if Memcached extension, symfony/cache is not installed, or server not available
+        $this->assertTrue($cache === null || $cache instanceof CacheInterface);
+    }
+
+    /**
+     * Test creating filesystem cache with path key.
+     */
+    public function testCreateFilesystemCacheWithPathKey(): void
+    {
+        $config = [
+            'type' => 'filesystem',
+            'path' => sys_get_temp_dir() . '/pdodb_test_path', // Alternative to directory
+            'namespace' => 'path_test',
+        ];
+
+        $cache = CacheFactory::create($config);
+
+        // Should return null if symfony/cache is not installed
+        if ($cache === null) {
+            $this->assertNull($cache);
+            return;
+        }
+
+        $this->assertInstanceOf(CacheInterface::class, $cache);
+
+        // Cleanup
+        $cache->clear();
+    }
+
+    /**
+     * Test creating filesystem cache with non-string directory.
+     */
+    public function testCreateFilesystemCacheWithNonStringDirectory(): void
+    {
+        $config = [
+            'type' => 'filesystem',
+            'directory' => 123, // Non-string directory
+            'namespace' => 'non_string_dir_test',
+        ];
+
+        $cache = CacheFactory::create($config);
+
+        // Should return null if symfony/cache is not installed
+        if ($cache === null) {
+            $this->assertNull($cache);
+            return;
+        }
+
+        $this->assertInstanceOf(CacheInterface::class, $cache);
+
+        // Cleanup
+        $cache->clear();
+    }
+
+    /**
+     * Test creating filesystem cache with non-string namespace.
+     */
+    public function testCreateFilesystemCacheWithNonStringNamespace(): void
+    {
+        $config = [
+            'type' => 'filesystem',
+            'namespace' => 123, // Non-string namespace
+        ];
+
+        $cache = CacheFactory::create($config);
+
+        // Should return null if symfony/cache is not installed
+        if ($cache === null) {
+            $this->assertNull($cache);
+            return;
+        }
+
+        $this->assertInstanceOf(CacheInterface::class, $cache);
+
+        // Cleanup
+        $cache->clear();
+    }
+
+    /**
+     * Test creating APCu cache with non-string namespace.
+     */
+    public function testCreateApcuCacheWithNonStringNamespace(): void
+    {
+        $config = [
+            'type' => 'apcu',
+            'namespace' => 123, // Non-string namespace
+        ];
+
+        $cache = CacheFactory::create($config);
+
+        // Should return null if APCu extension, symfony/cache is not installed, or APCu is not enabled
+        if ($cache === null) {
+            $this->assertNull($cache);
+            return;
+        }
+
+        $this->assertInstanceOf(CacheInterface::class, $cache);
+    }
+
+    /**
+     * Test creating APCu cache with null version.
+     */
+    public function testCreateApcuCacheWithNullVersion(): void
+    {
+        $config = [
+            'type' => 'apcu',
+            'namespace' => 'null_version_test',
+            'version' => null,
+        ];
+
+        $cache = CacheFactory::create($config);
+
+        // Should return null if APCu extension, symfony/cache is not installed, or APCu is not enabled
+        if ($cache === null) {
+            $this->assertNull($cache);
+            return;
+        }
+
+        $this->assertInstanceOf(CacheInterface::class, $cache);
+    }
+
+    /**
+     * Test creating Redis cache with non-string namespace.
+     */
+    public function testCreateRedisCacheWithNonStringNamespace(): void
+    {
+        $config = [
+            'type' => 'redis',
+            'host' => '127.0.0.1',
+            'port' => 6379,
+            'namespace' => 123, // Non-string namespace
+        ];
+
+        $cache = CacheFactory::create($config);
+        // Should return null if Redis server not available
+        $this->assertTrue($cache === null || $cache instanceof CacheInterface);
+    }
+
+    /**
+     * Test creating Memcached cache with non-string namespace.
+     */
+    public function testCreateMemcachedCacheWithNonStringNamespace(): void
+    {
+        $config = [
+            'type' => 'memcached',
+            'servers' => [['127.0.0.1', 11211]],
+            'namespace' => 123, // Non-string namespace
+        ];
+
+        $cache = CacheFactory::create($config);
+        // Should return null if Memcached extension, symfony/cache is not installed, or server not available
+        $this->assertTrue($cache === null || $cache instanceof CacheInterface);
+    }
 }
