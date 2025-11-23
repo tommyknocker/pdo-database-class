@@ -191,4 +191,136 @@ class MigrationClassTests extends BaseSharedTestCase
         $exists = $db->schema()->tableExists('test_migration_base');
         $this->assertFalse($exists);
     }
+
+    /**
+     * Test safeUp() method directly when not overridden.
+     */
+    public function testMigrationSafeUpDirectly(): void
+    {
+        $db = self::$db;
+        $db->schema()->dropTableIfExists('test_safe_up_table');
+
+        // Create a migration that doesn't override safeUp
+        $migration = new class ($db) extends Migration {
+            public function up(): void
+            {
+                $this->schema()->createTable('test_safe_up_table', [
+                    'id' => $this->schema()->primaryKey(),
+                ]);
+            }
+
+            public function down(): void
+            {
+                $this->schema()->dropTable('test_safe_up_table');
+            }
+        };
+
+        $reflection = new \ReflectionClass($migration);
+        $safeUpMethod = $reflection->getMethod('safeUp');
+        $safeUpMethod->setAccessible(true);
+
+        // Call safeUp directly - it should call up()
+        $safeUpMethod->invoke($migration);
+        $exists = $db->schema()->tableExists('test_safe_up_table');
+        $this->assertTrue($exists);
+
+        // Cleanup
+        $db->schema()->dropTableIfExists('test_safe_up_table');
+    }
+
+    /**
+     * Test safeDown() method directly when not overridden.
+     */
+    public function testMigrationSafeDownDirectly(): void
+    {
+        $db = self::$db;
+        $db->schema()->dropTableIfExists('test_safe_down_table');
+        $db->schema()->createTable('test_safe_down_table', [
+            'id' => $db->schema()->primaryKey(),
+        ]);
+
+        // Create a migration that doesn't override safeDown
+        $migration = new class ($db) extends Migration {
+            public function up(): void
+            {
+                $this->schema()->createTable('test_safe_down_table', [
+                    'id' => $this->schema()->primaryKey(),
+                ]);
+            }
+
+            public function down(): void
+            {
+                $this->schema()->dropTable('test_safe_down_table');
+            }
+        };
+
+        $reflection = new \ReflectionClass($migration);
+        $safeDownMethod = $reflection->getMethod('safeDown');
+        $safeDownMethod->setAccessible(true);
+
+        // Call safeDown directly - it should call down()
+        $safeDownMethod->invoke($migration);
+        $exists = $db->schema()->tableExists('test_safe_down_table');
+        $this->assertFalse($exists);
+    }
+
+    /**
+     * Test error handling in safeUp() when up() throws exception.
+     */
+    public function testMigrationSafeUpErrorHandling(): void
+    {
+        $db = self::$db;
+
+        // Create a migration that throws exception in up()
+        $migration = new class ($db) extends Migration {
+            public function up(): void
+            {
+                throw new \RuntimeException('Test error in up()');
+            }
+
+            public function down(): void
+            {
+                // Empty
+            }
+        };
+
+        $reflection = new \ReflectionClass($migration);
+        $safeUpMethod = $reflection->getMethod('safeUp');
+        $safeUpMethod->setAccessible(true);
+
+        // Call safeUp - it should propagate the exception from up()
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Test error in up()');
+        $safeUpMethod->invoke($migration);
+    }
+
+    /**
+     * Test error handling in safeDown() when down() throws exception.
+     */
+    public function testMigrationSafeDownErrorHandling(): void
+    {
+        $db = self::$db;
+
+        // Create a migration that throws exception in down()
+        $migration = new class ($db) extends Migration {
+            public function up(): void
+            {
+                // Empty
+            }
+
+            public function down(): void
+            {
+                throw new \RuntimeException('Test error in down()');
+            }
+        };
+
+        $reflection = new \ReflectionClass($migration);
+        $safeDownMethod = $reflection->getMethod('safeDown');
+        $safeDownMethod->setAccessible(true);
+
+        // Call safeDown - it should propagate the exception from down()
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Test error in down()');
+        $safeDownMethod->invoke($migration);
+    }
 }
