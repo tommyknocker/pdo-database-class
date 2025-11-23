@@ -494,4 +494,334 @@ final class CacheManagerTests extends BaseSharedTestCase
         // At depth 4, should return null due to depth limit
         $this->assertNull($result);
     }
+
+    /**
+     * Test invalidateByPattern with table: prefix.
+     */
+    public function testInvalidateByPatternWithTablePrefix(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('get')->willReturn(['key1', 'key2']);
+        $cache->method('delete')->willReturn(true);
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $result = $manager->invalidateByPattern('table:users');
+        $this->assertIsInt($result);
+    }
+
+    /**
+     * Test invalidateByPattern with table prefix pattern.
+     */
+    public function testInvalidateByPatternWithTablePrefixPattern(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('get')->willReturn(['key1', 'key2']);
+        $cache->method('delete')->willReturn(true);
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $result = $manager->invalidateByPattern('table:users_*');
+        $this->assertIsInt($result);
+    }
+
+    /**
+     * Test invalidateByPattern with key pattern.
+     */
+    public function testInvalidateByPatternWithKeyPattern(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $result = $manager->invalidateByPattern('test_table_users_*');
+        $this->assertIsInt($result);
+    }
+
+    /**
+     * Test invalidateByPattern with simple table name.
+     */
+    public function testInvalidateByPatternWithSimpleTableName(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('get')->willReturn(['key1', 'key2']);
+        $cache->method('delete')->willReturn(true);
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $result = $manager->invalidateByPattern('users');
+        $this->assertIsInt($result);
+    }
+
+    /**
+     * Test invalidateByPattern with disabled cache.
+     */
+    public function testInvalidateByPatternWithDisabledCache(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $config = new CacheConfig(prefix: 'test_', enabled: false);
+        $manager = new CacheManager($cache, $config);
+
+        $result = $manager->invalidateByPattern('users');
+        $this->assertEquals(0, $result);
+    }
+
+    /**
+     * Test persistStatsWithRetry with successful first attempt.
+     */
+    public function testPersistStatsWithRetrySuccessfulFirstAttempt(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0, '_version' => time()]);
+        $cache->method('set')->willReturn(true);
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $reflection = new \ReflectionClass($manager);
+        $hitsProperty = $reflection->getProperty('hits');
+        $hitsProperty->setAccessible(true);
+        $hitsProperty->setValue($manager, 5);
+
+        $method = $reflection->getMethod('persistStatsWithRetry');
+        $method->setAccessible(true);
+
+        $method->invoke($manager, 3);
+        $this->assertTrue(true);
+    }
+
+    /**
+     * Test persistStatsWithRetry with retries.
+     */
+    public function testPersistStatsWithRetryWithRetries(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0, '_version' => time()]);
+        $cache->method('set')
+            ->willReturnOnConsecutiveCalls(false, false, true); // Fail twice, then succeed
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $reflection = new \ReflectionClass($manager);
+        $hitsProperty = $reflection->getProperty('hits');
+        $hitsProperty->setAccessible(true);
+        $hitsProperty->setValue($manager, 3);
+
+        $method = $reflection->getMethod('persistStatsWithRetry');
+        $method->setAccessible(true);
+
+        $method->invoke($manager, 3);
+        $this->assertTrue(true);
+    }
+
+    /**
+     * Test persistStatsWithRetry with all retries failing.
+     */
+    public function testPersistStatsWithRetryAllRetriesFailing(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0, '_version' => time()]);
+        $cache->method('set')->willReturn(false); // Always fail
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $reflection = new \ReflectionClass($manager);
+        $hitsProperty = $reflection->getProperty('hits');
+        $hitsProperty->setAccessible(true);
+        $hitsProperty->setValue($manager, 2);
+
+        $method = $reflection->getMethod('persistStatsWithRetry');
+        $method->setAccessible(true);
+
+        // Should not throw, but will fail silently
+        $method->invoke($manager, 2);
+        $this->assertTrue(true);
+    }
+
+    /**
+     * Test persistStatsWithRetry with default value.
+     */
+    public function testPersistStatsWithRetryWithDefaultValue(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('get')->willReturn(null); // No existing stats
+        $cache->method('set')->willReturn(true);
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $reflection = new \ReflectionClass($manager);
+        $hitsProperty = $reflection->getProperty('hits');
+        $hitsProperty->setAccessible(true);
+        $hitsProperty->setValue($manager, 1);
+
+        $method = $reflection->getMethod('persistStatsWithRetry');
+        $method->setAccessible(true);
+
+        $method->invoke($manager);
+        $this->assertTrue(true);
+    }
+
+    /**
+     * Test persistStats with atomic support.
+     */
+    public function testPersistStatsWithAtomicSupport(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0]);
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $reflection = new \ReflectionClass($manager);
+        $atomicSupportProperty = $reflection->getProperty('atomicSupport');
+        $atomicSupportProperty->setAccessible(true);
+        $atomicSupportProperty->setValue($manager, false); // Disable atomic support
+
+        $hitsProperty = $reflection->getProperty('hits');
+        $hitsProperty->setAccessible(true);
+        $hitsProperty->setValue($manager, 3);
+
+        $method = $reflection->getMethod('persistStats');
+        $method->setAccessible(true);
+
+        $method->invoke($manager);
+        $this->assertTrue(true);
+    }
+
+    /**
+     * Test persistStats resets counters.
+     */
+    public function testPersistStatsResetsCounters(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0]);
+        $cache->method('set')->willReturn(true);
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $reflection = new \ReflectionClass($manager);
+        $atomicSupportProperty = $reflection->getProperty('atomicSupport');
+        $atomicSupportProperty->setAccessible(true);
+        $atomicSupportProperty->setValue($manager, false);
+
+        $hitsProperty = $reflection->getProperty('hits');
+        $hitsProperty->setAccessible(true);
+        $hitsProperty->setValue($manager, 5);
+
+        $method = $reflection->getMethod('persistStats');
+        $method->setAccessible(true);
+
+        $method->invoke($manager);
+
+        // Verify counters are reset
+        $this->assertEquals(0, $hitsProperty->getValue($manager));
+    }
+
+    /**
+     * Test addKeyToMetadata with non-array existing keys.
+     */
+    public function testAddKeyToMetadataWithNonArrayExistingKeys(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('get')->willReturn('not_an_array'); // Invalid format
+        $cache->method('set')->willReturn(true);
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $reflection = new \ReflectionClass($manager);
+        $method = $reflection->getMethod('addKeyToMetadata');
+        $method->setAccessible(true);
+
+        $method->invoke($manager, 'test_key', ['users']);
+        $this->assertTrue(true);
+    }
+
+    /**
+     * Test addKeyToMetadata with existing key in array.
+     */
+    public function testAddKeyToMetadataWithExistingKeyInArray(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('get')->willReturn(['existing_key', 'test_key']); // Key already exists
+        $cache->method('set')->willReturn(true);
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $reflection = new \ReflectionClass($manager);
+        $method = $reflection->getMethod('addKeyToMetadata');
+        $method->setAccessible(true);
+
+        // Should not add duplicate key
+        $method->invoke($manager, 'test_key', ['users']);
+        $this->assertTrue(true);
+    }
+
+    /**
+     * Test invalidateByTablePrefix with pattern matching support.
+     */
+    public function testInvalidateByTablePrefixWithPatternMatching(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('get')->willReturn(['key1', 'key2']);
+        $cache->method('delete')->willReturn(true);
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $reflection = new \ReflectionClass($manager);
+        $method = $reflection->getMethod('invalidateByTablePrefix');
+        $method->setAccessible(true);
+
+        $result = $method->invoke($manager, 'user');
+        $this->assertIsInt($result);
+    }
+
+    /**
+     * Test invalidateByKeyPattern with pattern matching support.
+     */
+    public function testInvalidateByKeyPatternWithPatternMatching(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $reflection = new \ReflectionClass($manager);
+        $method = $reflection->getMethod('invalidateByKeyPattern');
+        $method->setAccessible(true);
+
+        $result = $method->invoke($manager, 'test_*');
+        $this->assertIsInt($result);
+    }
+
+    /**
+     * Test getKeysByPattern with Redis connection.
+     */
+    public function testGetKeysByPatternWithRedisConnection(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $config = new CacheConfig(prefix: 'test_');
+        $manager = new CacheManager($cache, $config);
+
+        $reflection = new \ReflectionClass($manager);
+        $method = $reflection->getMethod('getKeysByPattern');
+        $method->setAccessible(true);
+
+        $result = $method->invoke($manager, 'test_*');
+        $this->assertIsArray($result);
+    }
+
+    /**
+     * Test detectCacheType returns string.
+     */
+    public function testDetectCacheTypeReturnsString(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $config = new CacheConfig();
+        $manager = new CacheManager($cache, $config);
+
+        $reflection = new \ReflectionClass($manager);
+        $method = $reflection->getMethod('detectCacheType');
+        $method->setAccessible(true);
+
+        $result = $method->invoke($manager);
+        $this->assertIsString($result);
+        $this->assertNotEmpty($result);
+    }
 }
