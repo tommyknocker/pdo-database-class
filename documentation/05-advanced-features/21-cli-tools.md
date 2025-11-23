@@ -43,7 +43,7 @@ The CLI tools are designed to streamline your development workflow:
 
 ## Database Dump and Restore
 
-Export and import database schema and data.
+Export and import database schema and data with support for compression, automatic naming, and backup rotation.
 
 ### Usage
 
@@ -63,8 +63,32 @@ vendor/bin/pdodb dump --data-only --output=data.sql
 # Dump without DROP TABLE IF EXISTS statements
 vendor/bin/pdodb dump --no-drop-tables --output=backup.sql
 
+# Automatic naming with timestamp
+vendor/bin/pdodb dump --auto-name
+
+# Automatic naming with custom date format
+vendor/bin/pdodb dump --auto-name --date-format=Y-m-d
+
+# Compressed dump (gzip)
+vendor/bin/pdodb dump --output=backup.sql --compress=gzip
+
+# Compressed dump (bzip2)
+vendor/bin/pdodb dump --output=backup.sql --compress=bzip2
+
+# Automatic naming with compression
+vendor/bin/pdodb dump --auto-name --compress=gzip
+
+# Backup with rotation (keep last 7 backups)
+vendor/bin/pdodb dump --auto-name --rotate=7
+
+# Combined: auto-name, compress, and rotate
+vendor/bin/pdodb dump --auto-name --compress=gzip --rotate=30
+
 # Restore from dump file
 vendor/bin/pdodb dump restore backup.sql
+
+# Restore from compressed file (auto-detected)
+vendor/bin/pdodb dump restore backup.sql.gz
 
 # Restore without confirmation
 vendor/bin/pdodb dump restore backup.sql --force
@@ -76,7 +100,41 @@ vendor/bin/pdodb dump restore backup.sql --force
 - `--data-only` - Dump only data (INSERT statements)
 - `--output=<file>` - Write dump to file instead of stdout
 - `--no-drop-tables` - Do not add DROP TABLE IF EXISTS before CREATE TABLE (by default, DROP TABLE IF EXISTS is included)
+- `--compress=<format>` - Compress output using `gzip` or `bzip2` format
+- `--auto-name` - Automatically name backup file with timestamp (format: `backup_YYYY-MM-DD_HH-II-SS.sql`)
+- `--date-format=<format>` - Custom date format for auto-naming (default: `Y-m-d_H-i-s`)
+- `--rotate=<N>` - Keep only N most recent backups, delete older ones
 - `--force` - Skip confirmation prompt (for restore)
+
+### Compression
+
+The `--compress` option supports two formats:
+
+- **gzip** - Uses gzip compression (`.gz` extension). Fast compression with good compression ratio.
+- **bzip2** - Uses bzip2 compression (`.bz2` extension). Slower but better compression ratio.
+
+Compressed files are automatically detected during restore. The restore command will decompress `.gz` and `.bz2` files automatically.
+
+### Automatic Naming
+
+When using `--auto-name`, backup files are automatically named with a timestamp:
+
+- Default format: `backup_YYYY-MM-DD_HH-II-SS.sql` (e.g., `backup_2024-01-15_14-30-00.sql`)
+- Custom format: Use `--date-format` to specify a different date format (e.g., `Y-m-d` for `backup_2024-01-15.sql`)
+
+If compression is enabled, the compression extension is automatically added (e.g., `backup_2024-01-15_14-30-00.sql.gz`).
+
+### Backup Rotation
+
+The `--rotate=<N>` option automatically manages backup files by keeping only the N most recent backups and deleting older ones. This is useful for automated backup scripts to prevent disk space issues.
+
+Rotation works by:
+1. Finding all backup files matching the current backup's naming pattern
+2. Sorting them by modification time (newest first)
+3. Keeping only the N most recent files
+4. Deleting all older files
+
+For auto-named files (starting with `backup_`), rotation matches all files with the `backup_*.sql` pattern. For custom-named files, rotation matches files with the same base name.
 
 ### Behavior
 
@@ -89,6 +147,9 @@ By default, `pdodb dump` includes `DROP TABLE IF EXISTS` statements before each 
 - Data dumps use batched INSERT statements for efficiency
 - Restore executes SQL statements sequentially with error handling
 - Use `--force` with restore to continue on errors (skips failed statements)
+- Compressed dumps are automatically decompressed during restore
+- Rotation only affects files in the same directory as the current backup
+- For production backups, consider using `--auto-name --compress=gzip --rotate=30` to keep 30 days of compressed backups
 
 ## Table Management
 

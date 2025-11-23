@@ -2956,7 +2956,7 @@ vendor/bin/pdodb user password john --password newpass123
 
 #### Database Dump and Restore
 
-Export and import database schema and data:
+Export and import database schema and data with compression, automatic naming, and backup rotation:
 
 ```bash
 # Full database dump to file (includes DROP TABLE IF EXISTS by default)
@@ -2974,8 +2974,29 @@ vendor/bin/pdodb dump --data-only --output=data.sql
 # Dump without DROP TABLE IF EXISTS statements
 vendor/bin/pdodb dump --no-drop-tables --output=backup.sql
 
+# Automatic naming with timestamp
+vendor/bin/pdodb dump --auto-name
+
+# Compressed dump (gzip)
+vendor/bin/pdodb dump --output=backup.sql --compress=gzip
+
+# Compressed dump (bzip2)
+vendor/bin/pdodb dump --output=backup.sql --compress=bzip2
+
+# Automatic naming with compression
+vendor/bin/pdodb dump --auto-name --compress=gzip
+
+# Backup with rotation (keep last 7 backups)
+vendor/bin/pdodb dump --auto-name --rotate=7
+
+# Combined: auto-name, compress, and rotate
+vendor/bin/pdodb dump --auto-name --compress=gzip --rotate=30
+
 # Restore from dump file
 vendor/bin/pdodb dump restore backup.sql
+
+# Restore from compressed file (auto-detected)
+vendor/bin/pdodb dump restore backup.sql.gz
 
 # Restore without confirmation
 vendor/bin/pdodb dump restore backup.sql --force

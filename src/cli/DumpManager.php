@@ -81,7 +81,76 @@ class DumpManager
             throw new ResourceException("Failed to read dump file: {$filePath}");
         }
 
+        // Detect and decompress if needed
+        $content = self::decompressIfNeeded($content, $filePath);
+
         $dialect = $db->schema()->getDialect();
         $dialect->restoreFromSql($db, $content, $continueOnError);
+    }
+
+    /**
+     * Decompress content if file is compressed.
+     *
+     * @param string $content File content
+     * @param string $filePath File path (for extension detection)
+     *
+     * @return string Decompressed content
+     * @throws ResourceException If decompression fails
+     */
+    protected static function decompressIfNeeded(string $content, string $filePath): string
+    {
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        // Handle double extension (e.g., .sql.gz)
+        $pathInfo = pathinfo($filePath);
+        $basename = $pathInfo['filename'] ?? '';
+        $doubleExtension = '';
+        if (preg_match('/\.(gz|bz2)$/', $basename, $matches)) {
+            $doubleExtension = $matches[1];
+        }
+
+        $compressionFormat = $doubleExtension !== '' ? $doubleExtension : $extension;
+
+        return match ($compressionFormat) {
+            'gz' => self::decompressGzip($content),
+            'bz2' => self::decompressBzip2($content),
+            default => $content,
+        };
+    }
+
+    /**
+     * Decompress gzip content.
+     *
+     * @param string $content Compressed content
+     *
+     * @return string Decompressed content
+     * @throws ResourceException If decompression fails
+     */
+    protected static function decompressGzip(string $content): string
+    {
+        $decompressed = gzdecode($content);
+        if ($decompressed === false) {
+            throw new ResourceException('Failed to decompress gzip file');
+        }
+
+        return $decompressed;
+    }
+
+    /**
+     * Decompress bzip2 content.
+     *
+     * @param string $content Compressed content
+     *
+     * @return string Decompressed content
+     * @throws ResourceException If decompression fails
+     */
+    protected static function decompressBzip2(string $content): string
+    {
+        $decompressed = bzdecompress($content);
+        if ($decompressed === false || !is_string($decompressed)) {
+            throw new ResourceException('Failed to decompress bzip2 file');
+        }
+
+        return $decompressed;
     }
 }
