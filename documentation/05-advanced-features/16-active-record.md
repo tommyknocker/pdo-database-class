@@ -697,4 +697,4 @@ These limitations are intentional to keep the library lightweight and optional. 
 
 ## Examples
 
-See the [ActiveRecord examples](../../examples/23-active-record/) for complete working examples.
+See the [ActiveRecord examples](../../examples/09-active-record/01-basics.php) for complete working examples.

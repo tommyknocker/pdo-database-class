@@ -545,5 +545,5 @@ For moving averages, specify exact window size:
 ## See Also
 
 - [Query Builder: Window Functions](../03-query-builder/09-window-functions.md)
-- [Examples: Window Functions](../../examples/16-window-functions/)
+- [Examples: Window Functions](../../examples/03-advanced/07-window-functions.php)
 - [API Reference](../09-reference/04-helper-functions-reference.md)

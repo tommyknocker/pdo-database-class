@@ -470,6 +470,11 @@ try {
 }
 ```
 
+## Examples
+
+- [Transactions](../../examples/05-transactions/01-basic-transactions.php) - Basic transaction operations
+- [Nested Transactions](../../examples/05-transactions/02-nested-transactions.php) - Savepoints and nested transactions
+
 ## Next Steps
 
 - [Table Locking](table-locking.md) - Lock tables for exclusive access

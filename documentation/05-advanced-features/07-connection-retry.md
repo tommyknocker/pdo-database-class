@@ -193,6 +193,10 @@ $db = new PdoDb('mysql', [
 ]);
 ```
 
+## Examples
+
+- [Connection Retry](../../examples/12-connection/02-retryable-connection.php) - Automatic retry with exponential backoff
+
 ## Next Steps
 
 - [Exception Hierarchy](../06-error-handling/01-exception-hierarchy.md) - Error handling

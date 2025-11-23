@@ -83,6 +83,13 @@ PDODB_DRIVER=pgsql php 01-connection.php
 PDODB_DRIVER=sqlsrv php 01-connection.php
 ```
 
+## Related Documentation
+
+- [Query Builder Basics](../../documentation/02-core-concepts/03-query-builder-basics.md) - Fluent API overview
+- [SELECT Operations](../../documentation/03-query-builder/01-select-operations.md) - SELECT, FROM, WHERE
+- [Data Manipulation](../../documentation/03-query-builder/02-data-manipulation.md) - INSERT, UPDATE, DELETE
+- [Filtering Conditions](../../documentation/03-query-builder/03-filtering-conditions.md) - WHERE clauses
+
 ## Next Steps
 
 After mastering these basics, explore:

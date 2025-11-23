@@ -214,6 +214,10 @@ $db->find()->table('users')
     ->insert(['email' => 'alice@example.com']);  // Only email set
 ```
 
+## Examples
+
+- [UPSERT Operations](../../examples/02-intermediate/05-upsert.php) - onDuplicate(), INSERT ... ON CONFLICT
+
 ## Next Steps
 
 - [Data Manipulation](../03-query-builder/02-data-manipulation.md) - INSERT, UPDATE, DELETE

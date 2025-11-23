@@ -542,6 +542,11 @@ $plan = $db->find()
 print_r($plan);
 ```
 
+## Examples
+
+- [Simple CRUD Operations](../../examples/01-basic/02-simple-crud.php) - Basic SELECT, INSERT, UPDATE, DELETE
+- [WHERE Conditions](../../examples/01-basic/03-where-conditions.php) - Filtering examples
+
 ## Next Steps
 
 - [Data Manipulation](data-manipulation.md) - INSERT, UPDATE, DELETE

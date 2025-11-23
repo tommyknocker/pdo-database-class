@@ -246,6 +246,27 @@ Examples automatically adapt to your database:
 - **SERIAL** for PostgreSQL, **AUTO_INCREMENT** for MySQL, **AUTOINCREMENT** for SQLite
 - Dialect-specific date/time, string concat, and type conversions
 
+## 📖 Related Documentation
+
+For detailed documentation on each topic, see:
+
+- **[Complete Documentation](../documentation/)** - Full documentation with examples
+- **[Getting Started](../documentation/01-getting-started/)** - Installation and configuration
+- **[Query Builder](../documentation/03-query-builder/)** - Query building guide
+- **[JSON Operations](../documentation/04-json-operations/)** - JSON operations documentation
+- **[Advanced Features](../documentation/05-advanced-features/)** - Transactions, caching, migrations, etc.
+- **[Helper Functions](../documentation/07-helper-functions/)** - All helper functions reference
+- **[API Reference](../documentation/09-reference/)** - Complete API documentation
+- **[Best Practices](../documentation/08-best-practices/)** - Security, performance, and code organization
+
+Each example category has corresponding documentation:
+- **Basic Examples** → [Query Builder Basics](../documentation/03-query-builder/01-select-operations.md)
+- **Intermediate Examples** → [Joins](../documentation/03-query-builder/04-joins.md), [Aggregations](../documentation/03-query-builder/05-aggregations.md)
+- **Advanced Examples** → [CTEs](../documentation/03-query-builder/08-cte.md), [Window Functions](../documentation/03-query-builder/09-window-functions.md)
+- **JSON Operations** → [JSON Basics](../documentation/04-json-operations/01-json-basics.md)
+- **ActiveRecord** → [ActiveRecord Guide](../documentation/05-advanced-features/16-active-record.md)
+- **Migrations** → [Database Migrations](../documentation/05-advanced-features/15-migrations.md)
+
 ## 🐛 Troubleshooting
 
 If you encounter issues:
@@ -262,4 +283,5 @@ If you encounter issues:
    PDODB_DRIVER=mysql php examples/01-basic/02-simple-crud.php
    ```
 5. See main [README.md](../README.md#troubleshooting) for more help
+6. See [Troubleshooting Guide](../documentation/10-cookbook/04-troubleshooting.md) for common issues
 

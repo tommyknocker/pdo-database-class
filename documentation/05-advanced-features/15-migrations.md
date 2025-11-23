@@ -439,6 +439,11 @@ The migration tool uses the same configuration files as examples:
 
 You can create a root `config.php` with multiple database configurations, and the tool will select based on `PDODB_DRIVER`.
 
+## Examples
+
+- [Database Migrations](../../examples/13-migrations/01-basic-migrations.php) - Creating and running migrations
+- [Migration Rollback](../../examples/13-migrations/02-rollback-migrations.php) - Rolling back migrations
+
 ## Related Documentation
 
 - [DDL Operations](../03-query-builder/12-ddl-operations.md) - Schema management operations

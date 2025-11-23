@@ -213,6 +213,10 @@ SELECT json_extract(meta, '$.city') as city FROM users
 
 PDOdb handles this automatically.
 
+## Examples
+
+- [JSON Querying](../../examples/04-json/02-json-querying.php) - Extract JSON values, filter, order by JSON
+
 ## Next Steps
 
 - [JSON Basics](json-basics.md) - Creating JSON data

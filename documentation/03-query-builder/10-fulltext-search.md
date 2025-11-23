@@ -99,6 +99,10 @@ CREATE VIRTUAL TABLE articles USING fts5(title, content);
 - PostgreSQL requires creating text search vectors and indexes
 - MySQL FULLTEXT indexes support only `MyISAM` or `InnoDB` with InnoDB full-text parser plugin
 
+## Examples
+
+- [Full-Text Search](../../examples/03-advanced/11-fulltext-search.php) - Cross-database FTS examples
+
 ## Related
 
 - [Filtering Conditions](filtering-conditions.md) - WHERE clauses

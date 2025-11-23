@@ -152,6 +152,10 @@ $users = $db->rawQuery(
 $users = $db->rawQuery("SELECT * FROM users WHERE email = '$email'");
 ```
 
+## Examples
+
+- [README Examples](../../examples/14-misc/01-readme-examples.php) - Various examples including raw queries
+
 ## Next Steps
 
 - [SELECT Operations](select-operations.md) - Query builder SELECT

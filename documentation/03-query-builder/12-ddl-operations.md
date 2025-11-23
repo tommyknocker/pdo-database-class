@@ -543,6 +543,12 @@ $schema->addForeignKey(
 echo "Table 'posts' created successfully\n";
 ```
 
+## Examples
+
+- [DDL Query Builder Basics](../../examples/11-schema/01-ddl.php) - Basic DDL operations
+- [Advanced DDL](../../examples/11-schema/02-advanced-ddl.php) - Advanced DDL features (Yii2-style constraints, partial indexes, fulltext/spatial indexes)
+- [Dialect-Specific Types](../../examples/11-schema/08-dialect-specific-types.php) - MySQL ENUM/SET, PostgreSQL UUID/JSONB/arrays, MSSQL UNIQUEIDENTIFIER, SQLite type affinity
+
 ## Related Documentation
 
 - [Schema Introspection](schema-introspection.md) - Querying existing schema

@@ -146,6 +146,10 @@ try {
 }
 ```
 
+## Examples
+
+- [Table Locking](../../examples/06-locking/01-table-locking.php) - READ and WRITE locks
+
 ## Next Steps
 
 - [Transactions](transactions.md) - Transaction management

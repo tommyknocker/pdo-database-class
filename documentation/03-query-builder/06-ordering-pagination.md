@@ -209,6 +209,12 @@ $users = $db->find()
     ->get();
 ```
 
+## Examples
+
+- [Ordering](../../examples/01-basic/05-ordering.php) - ORDER BY examples (single, multiple, array, comma-separated)
+- [Pagination](../../examples/02-intermediate/03-pagination.php) - LIMIT and OFFSET examples
+- [Advanced Pagination](../../examples/02-intermediate/03-pagination-advanced.php) - Full, simple, and cursor-based pagination
+
 ## Next Steps
 
 - [SELECT Operations](select-operations.md) - SELECT queries

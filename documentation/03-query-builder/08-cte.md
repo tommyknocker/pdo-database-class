@@ -472,7 +472,9 @@ $results = $pdoDb->find()
 
 ## See Also
 
-- [CTE Examples](../../examples/17-cte/)
+- [CTE Examples](../../examples/03-advanced/08-basic-cte.php) - Basic CTE usage
+- [Recursive CTE Examples](../../examples/03-advanced/09-recursive-cte.php) - Recursive CTEs for hierarchical data
+- [Materialized CTE Examples](../../examples/03-advanced/10-materialized-cte.php) - Materialized CTEs for performance
 - [Query Builder](../03-query-builder/README.md)
 - [Window Functions](./window-functions.md)
 - [Subqueries](./subqueries.md)

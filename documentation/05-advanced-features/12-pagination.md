@@ -655,4 +655,4 @@ class GraphQLResolver
 
 - [Query Builder Basics](../02-core-concepts/03-query-builder-basics.md)
 - [Query Builder Methods Reference](../09-reference/02-query-builder-methods.md)
-- [Pagination Examples](../../examples/13-pagination/)
+- [Pagination Examples](../../examples/02-intermediate/03-pagination-advanced.php)

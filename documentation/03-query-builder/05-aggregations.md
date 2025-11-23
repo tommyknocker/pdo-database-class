@@ -155,6 +155,10 @@ $monthlySales = $db->find()
     ->get();
 ```
 
+## Examples
+
+- [Aggregations](../../examples/02-intermediate/02-aggregations.php) - GROUP BY, HAVING, COUNT, SUM, AVG examples
+
 ## Next Steps
 
 - [SELECT Operations](select-operations.md) - SELECT queries

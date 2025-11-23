@@ -404,6 +404,10 @@ $results = $db->find()
 - Using SQLite (not supported)
 - Performance is critical and the correlated subquery is expensive
 
+## Examples
+
+- [JOIN Operations](../../examples/02-intermediate/01-joins.php) - INNER, LEFT, RIGHT JOIN examples
+
 ## Next Steps
 
 - [SELECT Operations](select-operations.md) - SELECT queries

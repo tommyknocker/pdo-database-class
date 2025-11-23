@@ -145,6 +145,10 @@ foreach ($batches as $batch) {
 }
 ```
 
+## Examples
+
+- [Bulk Operations](../../examples/08-batch/02-bulk-operations.php) - insertMulti(), CSV/XML import
+
 ## Next Steps
 
 - [Batch Processing](batch-processing.md) - Process large datasets

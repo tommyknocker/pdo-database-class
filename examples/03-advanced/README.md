@@ -169,6 +169,17 @@ PDODB_DRIVER=pgsql php 01-connection-pooling.php
 - **MERGE statements** provide atomic INSERT/UPDATE operations based on match conditions
 - **Subqueries** can sometimes be replaced with JOINs for better performance
 
+## Related Documentation
+
+- [Subqueries](../../documentation/03-query-builder/07-subqueries.md) - Subqueries in SELECT, WHERE, FROM
+- [CTEs](../../documentation/03-query-builder/08-cte.md) - Common Table Expressions
+- [Window Functions](../../documentation/03-query-builder/09-window-functions.md) - Window functions (ROW_NUMBER, RANK, LAG, LEAD)
+- [Full-Text Search](../../documentation/03-query-builder/10-fulltext-search.md) - Cross-database FTS
+- [Set Operations](../../documentation/03-query-builder/15-set-operations.md) - UNION, INTERSECT, EXCEPT
+- [Bulk Operations](../../documentation/05-advanced-features/04-bulk-operations.md) - insertMulti, bulk updates
+- [UPSERT Operations](../../documentation/05-advanced-features/05-upsert-operations.md) - onDuplicate/INSERT...ON CONFLICT
+- [Connection Management](../../documentation/02-core-concepts/02-connection-management.md) - Multiple connections
+
 ## Next Steps
 
 Explore more advanced topics:

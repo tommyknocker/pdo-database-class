@@ -104,6 +104,10 @@ $stats = $db->find()
     ->get();
 ```
 
+## Examples
+
+- [JSON Aggregations](../../examples/04-json/05-json-aggregations.php) - JSON length, type, keys, group by JSON
+
 ## Next Steps
 
 - [JSON Basics](json-basics.md) - JSON fundamentals

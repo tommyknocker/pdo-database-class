@@ -142,6 +142,10 @@ function getReferencedTables($db, $tableName): array
 }
 ```
 
+## Examples
+
+- [Database Monitoring](../../examples/11-schema/05-monitoring.php) - Schema inspection examples
+
 ## Related
 
 - [Table Structure Analysis](../05-advanced-features/08-query-analysis.md#table-structure-analysis)

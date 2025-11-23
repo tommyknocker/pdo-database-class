@@ -194,7 +194,7 @@ $qb->from('products')->select(['name', 'active'])
 
 ## Examples
 
-See [examples/18-set-operations/01-set-operations.php](../../examples/18-set-operations/01-set-operations.php) for complete working examples.
+See [Set Operations examples](../../examples/03-advanced/12-set-operations.php) for complete working examples.
 
 ## See Also
 

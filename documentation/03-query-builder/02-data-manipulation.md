@@ -726,6 +726,13 @@ if (!$exists) {
 }
 ```
 
+## Examples
+
+- [Simple CRUD Operations](../../examples/01-basic/02-simple-crud.php) - Basic INSERT, UPDATE, DELETE
+- [Insert and Update](../../examples/01-basic/04-insert-update.php) - Data manipulation examples
+- [INSERT ... SELECT](../../examples/02-intermediate/06-insert-select.php) - Copying data between tables
+- [UPDATE/DELETE with JOIN](../../examples/02-intermediate/07-update-delete-join.php) - Update and delete with JOIN clauses
+
 ## Next Steps
 
 - [SELECT Operations](select-operations.md) - Read data from database

@@ -160,12 +160,28 @@ $users = $db->find()
 - **Well Tested** - Comprehensive test coverage
 - **Type Safe** - PHPStan level 8 compliant
 
+## 📝 Examples
+
+PDOdb includes **55+ runnable examples** demonstrating all features across **all 5 database dialects** (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL).
+
+- **[Examples Directory](../examples/)** - Complete collection of runnable examples
+- **[Examples README](../examples/README.md)** - Overview and quick start guide
+- **All examples are self-contained** and work with SQLite (no setup required) or any configured database
+
+Examples are organized by category:
+- **Basic** - Connection, CRUD, WHERE conditions, ordering
+- **Intermediate** - JOINs, aggregations, pagination, transactions
+- **Advanced** - Subqueries, CTEs, window functions, full-text search
+- **JSON** - JSON operations across all databases
+- **ActiveRecord** - ORM patterns and relationships
+- **Real-World** - Complete application examples
+
 ## 💡 Navigation Tips
 
 - **New to PDOdb?** Start with [Installation](01-getting-started/01-installation.md) → [First Connection](01-getting-started/05-first-connection.md) → [Hello World](01-getting-started/06-hello-world.md)
 - **Not sure which database to use?** See [Choosing Your Database](01-getting-started/02-choosing-database.md)
 - **Want a structured learning path?** See [Learning Path](01-getting-started/03-learning-path.md)
-- **Need quick examples?** See [Quick Reference](01-getting-started/07-quick-reference.md)
+- **Need quick examples?** See [Quick Reference](01-getting-started/07-quick-reference.md) or [Examples Directory](../examples/)
 - **Building queries?** See [SELECT Operations](03-query-builder/01-select-operations.md)
 - **Working with JSON?** See [JSON Basics](04-json-operations/01-json-basics.md)
 - **Performance issues?** See [Performance](08-best-practices/02-performance.md)

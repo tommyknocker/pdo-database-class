@@ -713,7 +713,7 @@ $result2 = $db->find()->from('users')->where('age', 30, '>')->cache(3600)->get()
 
 ## Examples
 
-See [examples/14-caching/](../../examples/14-caching/) for complete working examples.
+See [Query Caching examples](../../examples/07-performance/01-caching.php) for complete working examples.
 
 ## Related Documentation
 

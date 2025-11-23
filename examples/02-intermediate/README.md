@@ -102,6 +102,14 @@ PDODB_DRIVER=mysql php 01-joins.php
 PDODB_DRIVER=pgsql php 01-joins.php
 ```
 
+## Related Documentation
+
+- [Joins](../../documentation/03-query-builder/04-joins.md) - JOIN operations
+- [Aggregations](../../documentation/03-query-builder/05-aggregations.md) - GROUP BY, HAVING
+- [Ordering & Pagination](../../documentation/03-query-builder/06-ordering-pagination.md) - ORDER BY, LIMIT, OFFSET
+- [Transactions](../../documentation/05-advanced-features/01-transactions.md) - Transaction management
+- [Pagination](../../documentation/05-advanced-features/12-pagination.md) - Advanced pagination
+
 ## Next Steps
 
 After mastering these intermediate concepts, explore:

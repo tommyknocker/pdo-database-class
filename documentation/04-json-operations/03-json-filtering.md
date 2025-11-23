@@ -177,6 +177,10 @@ $db->find()->table('users')->insert([
 ]);
 ```
 
+## Examples
+
+- [JSON Filtering](../../examples/04-json/03-json-filtering.php) - Filter by JSON path values, contains, exists
+
 ## Next Steps
 
 - [JSON Querying](json-querying.md) - Extract JSON values

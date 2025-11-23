@@ -391,6 +391,10 @@ function searchUsers($filters) {
 }
 ```
 
+## Examples
+
+- [WHERE Conditions](../../examples/01-basic/03-where-conditions.php) - Filtering examples
+
 ## Next Steps
 
 - [Joins](joins.md) - Joining tables

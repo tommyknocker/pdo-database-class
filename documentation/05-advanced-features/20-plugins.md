@@ -355,4 +355,4 @@ $db->registerPlugin($plugin);
 - [Query Builder Macros](query-macros.md) - More about macros
 - [Query Scopes](query-scopes.md) - More about scopes
 - [Event Dispatcher](events.md) - More about events
-- [Examples](../examples/31-plugins/) - Working examples
+- [Examples](../../examples/10-extensibility/02-plugins.php) - Working examples

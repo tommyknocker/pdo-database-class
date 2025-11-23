@@ -208,6 +208,10 @@ $users = $db->find()
     ->get();
 ```
 
+## Examples
+
+- [Subqueries](../../examples/03-advanced/04-subqueries.php) - Subqueries in SELECT, WHERE, FROM
+
 ## Next Steps
 
 - [SELECT Operations](select-operations.md) - SELECT queries

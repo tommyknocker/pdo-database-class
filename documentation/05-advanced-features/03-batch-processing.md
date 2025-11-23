@@ -362,6 +362,10 @@ foreach ($db->find()
 }
 ```
 
+## Examples
+
+- [Batch Processing](../../examples/08-batch/01-batch-processing.php) - batch(), each(), stream() methods
+
 ## Next Steps
 
 - [Bulk Operations](bulk-operations.md) - Bulk inserts and updates

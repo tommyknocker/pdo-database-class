@@ -514,4 +514,4 @@ $users = User::find()->with('comments')->all();
 
 ### Examples
 
-See [examples/27-active-record-relationships/](../examples/27-active-record-relationships/) for comprehensive examples.
+See [ActiveRecord Relationships examples](../../examples/09-active-record/02-relationships.php) for comprehensive examples.
