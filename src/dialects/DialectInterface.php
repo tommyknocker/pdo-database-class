@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\dialects;
 
 use PDO;
+use PDOStatement;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -75,6 +76,30 @@ interface DialectInterface
     /* ---------------- DML / DDL builders ---------------- */
 
     /**
+     * Enhance INSERT options if needed (e.g., add RETURNING clause for Oracle).
+     *
+     * @param array<int|string, mixed> $options Original options
+     * @param array<int, string> $columns Column names
+     * @param string $table Table name
+     *
+     * @return array<int|string, mixed> Enhanced options
+     */
+    public function enhanceInsertOptions(array $options, array $columns, string $table): array;
+
+    /**
+     * Extract inserted ID from statement result.
+     * For dialects that use RETURNING clause, this should fetch the ID from the statement.
+     * For other dialects, this should return null to fall back to lastInsertId().
+     *
+     * @param PDOStatement $stmt The executed statement
+     * @param string $sql The SQL query that was executed
+     * @param array<string, string|int|float|bool|null> $params The parameters that were used
+     *
+     * @return int|null The inserted ID, or null to use lastInsertId()
+     */
+    public function extractInsertId(\PDOStatement $stmt, string $sql, array $params): ?int;
+
+    /**
      * Build insert sql.
      *
      * @param string $table
@@ -88,6 +113,24 @@ interface DialectInterface
         string $table,
         array $columns,
         array $placeholders,
+        array $options
+    ): string;
+
+    /**
+     * Build multi-row insert sql.
+     * Some dialects (like Oracle) use INSERT ALL instead of INSERT ... VALUES (...), (...).
+     *
+     * @param string $table
+     * @param array<int, string> $columns
+     * @param array<int, string> $tuples Array of tuple strings like "(ph1, ph2)" or "(raw, ph)"
+     * @param array<int|string, mixed> $options
+     *
+     * @return string SQL for multi-row insert
+     */
+    public function buildInsertMultiSql(
+        string $table,
+        array $columns,
+        array $tuples,
         array $options
     ): string;
 

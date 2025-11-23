@@ -207,6 +207,9 @@ class InitWizard extends BaseCliCommand
             case 'sqlite':
                 $this->askSqliteConnection();
                 break;
+            case 'oci':
+                $this->askOciConnection();
+                break;
         }
     }
 
@@ -282,6 +285,29 @@ class InitWizard extends BaseCliCommand
             $path = './database.sqlite';
         }
         $this->config['path'] = $path;
+    }
+
+    /**
+     * Ask Oracle connection settings.
+     */
+    protected function askOciConnection(): void
+    {
+        $this->config['host'] = static::readInput('Database host', 'localhost');
+        $this->config['port'] = (int)static::readInput('Database port', '1521');
+        $serviceName = static::readInput('Service name (or SID)', 'XE');
+        if ($serviceName === '') {
+            static::error('Service name or SID is required');
+        }
+        $this->config['service_name'] = $serviceName;
+        $this->config['username'] = static::readInput('Database username');
+        if ($this->config['username'] === '') {
+            static::error('Database username is required');
+        }
+        $this->config['password'] = static::readPassword('Database password');
+        $charset = static::readInput('Charset', 'AL32UTF8');
+        if ($charset !== '') {
+            $this->config['charset'] = $charset;
+        }
     }
 
     /**

@@ -39,6 +39,9 @@ switch ($dialectName) {
     case 'sqlite':
         demonstrateSQLiteTypes($db);
         break;
+    case 'oci':
+        demonstrateOracleTypes($db);
+        break;
     default:
         echo "Unknown dialect: $dialectName\n";
         break;
@@ -436,5 +439,101 @@ echo "- All types map to: INTEGER, REAL, TEXT, BLOB, NULL\n";
 echo "- \$schema->uuid() -> TEXT\n";
 echo "- \$schema->boolean() -> INTEGER\n";
 echo "- \$schema->decimal() -> REAL\n\n";
+
+echo "Oracle:\n";
+echo "- \$schema->number(10, 2)        // NUMBER with precision/scale\n";
+echo "- \$schema->varchar2(255)       // VARCHAR2 (variable-length)\n";
+echo "- \$schema->clob()               // CLOB (large text)\n";
+echo "- \$schema->nclob()              // NCLOB (Unicode large text)\n";
+echo "- \$schema->blob()               // BLOB (binary large object)\n";
+echo "- \$schema->timestamp()          // TIMESTAMP\n";
+echo "- \$schema->xmltype()            // XMLTYPE\n";
+echo "- \$schema->uuid()               // RAW(16)\n\n";
+
+function demonstrateOracleTypes(PdoDb $db): void
+{
+    echo "=== Oracle-Specific Types ===\n\n";
+    
+    $tableName = 'demo_oracle_types';
+    
+    // Drop table if exists
+    try {
+        $db->schema()->dropTable($tableName);
+        echo "Dropped existing table '$tableName'\n";
+    } catch (\Throwable) {
+        // Table doesn't exist, continue
+    }
+    
+    // Create table with Oracle-specific types
+    echo "Creating table with Oracle-specific types...\n";
+    $db->schema()->createTable($tableName, [
+        'id' => $db->schema()->primaryKey(),
+        
+        // NUMBER type with precision and scale
+        'price' => $db->schema()->number(10, 2),
+        'quantity' => $db->schema()->number(10),
+        
+        // VARCHAR2 for variable-length strings
+        'name' => $db->schema()->varchar2(255),
+        'code' => $db->schema()->char(10),
+        
+        // Large text types
+        'description' => $db->schema()->clob(),
+        'unicode_text' => $db->schema()->nclob(),
+        
+        // Binary types
+        'binary_data' => $db->schema()->blob(),
+        
+        // Date/Time types
+        'created_at' => $db->schema()->timestamp()->defaultExpression('SYSTIMESTAMP'),
+        'updated_at' => $db->schema()->date(),
+        
+        // Special types
+        'uuid_field' => $db->schema()->uuid(), // RAW(16)
+        'xml_data' => $db->schema()->xmltype(),
+        
+        // Boolean emulation (NUMBER(1))
+        'is_active' => $db->schema()->boolean()->defaultValue(true),
+        
+        // JSON (VARCHAR2(4000) IS JSON)
+        'metadata' => $db->schema()->json(),
+    ]);
+    
+    echo "✓ Table created successfully!\n\n";
+    
+    // Insert sample data using Oracle-specific formats
+    echo "Inserting sample data...\n";
+    $db->find()->table($tableName)->insert([
+        'price' => 99.99,
+        'quantity' => 100,
+        'name' => 'Test Product',
+        'code' => 'PROD001',
+        'description' => 'Long description text for CLOB field',
+        'unicode_text' => 'Unicode text content',
+        'binary_data' => 'binary_content_here',
+        'updated_at' => '2023-01-01',
+        'uuid_field' => '550e8400-e29b-41d4-a716-446655440000',
+        'xml_data' => '<root><item>value</item></root>',
+        'is_active' => true,
+        'metadata' => '{"key": "value", "number": 42}',
+    ]);
+    
+    echo "✓ Sample data inserted!\n\n";
+    
+    // Query and display
+    $record = $db->find()->table($tableName)->first();
+    echo "Sample record:\n";
+    echo "- Price (NUMBER(10,2)): {$record['PRICE']}\n";
+    echo "- Quantity (NUMBER(10)): {$record['QUANTITY']}\n";
+    echo "- Name (VARCHAR2): {$record['NAME']}\n";
+    echo "- Code (CHAR): {$record['CODE']}\n";
+    echo "- UUID (RAW(16)): {$record['UUID_FIELD']}\n";
+    echo "- Is active (NUMBER(1)): " . ($record['IS_ACTIVE'] ? '1 (true)' : '0 (false)') . "\n";
+    echo "- Metadata (VARCHAR2 IS JSON): {$record['METADATA']}\n\n";
+    
+    // Clean up
+    $db->schema()->dropTable($tableName);
+    echo "✓ Table dropped\n\n";
+}
 
 echo "✅ Dialect-specific schema types example completed!\n";

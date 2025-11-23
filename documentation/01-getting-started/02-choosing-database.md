@@ -11,6 +11,7 @@ A guide to help you choose the right database for your project.
 | **MariaDB** | MySQL alternative, open source | ⭐⭐ Medium | ✅ Yes |
 | **PostgreSQL** | Complex queries, JSON, analytics | ⭐⭐⭐ Harder | ✅ Yes |
 | **MSSQL** | Enterprise, Windows environments | ⭐⭐⭐ Harder | ✅ Yes |
+| **Oracle** | Enterprise, large-scale applications | ⭐⭐⭐⭐ Hardest | ✅ Yes |
 
 ## SQLite
 
@@ -192,6 +193,55 @@ $db = new PdoDb('sqlsrv', [
 ]);
 ```
 
+## Oracle Database
+
+**When to use Oracle:**
+- ✅ Enterprise environments
+- ✅ Large-scale applications
+- ✅ High availability requirements
+- ✅ Advanced security requirements
+- ✅ Complex data warehousing
+- ✅ Applications requiring Oracle-specific features
+- ✅ Integration with Oracle ecosystem
+
+**When NOT to use Oracle:**
+- ❌ Small projects or startups
+- ❌ Simple web applications
+- ❌ When cost is a concern (licensing)
+- ❌ Open-source focused projects
+- ❌ When team is unfamiliar with Oracle
+
+**Advantages:**
+- Enterprise-grade features and reliability
+- Excellent performance for large datasets
+- Advanced security features
+- Strong data warehousing capabilities
+- Excellent tooling and ecosystem
+- High availability and disaster recovery
+- Advanced partitioning and compression
+
+**Limitations:**
+- Licensing costs (for production)
+- Complex setup and administration
+- Steeper learning curve
+- Resource-intensive
+- Less common in open-source projects
+
+**Example Use Cases:**
+```php
+// Enterprise application
+$db = new PdoDb('oci', [
+    'host' => 'oracle.company.com',
+    'port' => 1521,
+    'username' => 'app_user',
+    'password' => 'secure_password',
+    'dbname' => 'XE', // Service name
+    'charset' => 'UTF8'
+]);
+```
+
+**Note:** Oracle uses service names instead of database names. The `dbname` parameter should contain the Oracle service name (e.g., 'XE', 'ORCL').
+
 ## Decision Matrix
 
 ### For Development/Testing
@@ -211,9 +261,10 @@ $db = new PdoDb('sqlsrv', [
 - PostgreSQL: If you need advanced features or JSON
 
 ### For Enterprise Applications
-**Choose:** PostgreSQL or MSSQL
+**Choose:** PostgreSQL, MSSQL, or Oracle
 - PostgreSQL: Open-source, advanced features
 - MSSQL: Windows environment, enterprise requirements
+- Oracle: Large-scale enterprise, advanced features, high availability
 
 ### For Analytics/Reporting
 **Choose:** PostgreSQL

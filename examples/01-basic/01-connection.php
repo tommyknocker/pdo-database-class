@@ -97,7 +97,24 @@ if ($mssql instanceof PdoDb) {
     echo "  (This is OK - MSSQL is optional. Create config.sqlsrv.php to test)\n\n";
 }
 
-// Example 5: Connection pooling (without default connection)
+// Example 5: Oracle Connection (if config exists)
+echo "5. Connecting to Oracle...\n";
+$oracleConfig = __DIR__ . '/../config.oracle.php';
+$oracle = tryConnect('oci', $oracleConfig);
+
+if ($oracle instanceof PdoDb) {
+    echo "✓ Oracle connected successfully\n";
+    $config = require $oracleConfig;
+    echo "  Server: {$config['host']}:{$config['port']}\n";
+    echo "  Service Name: {$config['service_name']}\n\n";
+} elseif ($oracle === false) {
+    echo "  (Check your Oracle server and config.oracle.php settings)\n\n";
+} else {
+    echo "  ℹ️  Config not found: $oracleConfig\n";
+    echo "  (This is OK - Oracle is optional. Create config.oracle.php to test)\n\n";
+}
+
+// Example 6: Connection pooling (without default connection)
 echo "5. Connection pooling example...\n";
 $db = new PdoDb();
 
@@ -119,4 +136,4 @@ $result = $db->rawQueryValue('SELECT "Connected to analytics"');
 echo "✓ $result\n\n";
 
 echo "All connection examples completed!\n";
-echo "\nℹ️  Tip: Create config.mysql.php, config.pgsql.php, and config.sqlsrv.php to test all databases\n";
+echo "\nℹ️  Tip: Create config.mysql.php, config.pgsql.php, config.sqlsrv.php, and config.oracle.php to test all databases\n";

@@ -1,6 +1,6 @@
 # Dialect Support
 
-PDOdb provides unified API across MySQL, MariaDB, PostgreSQL, SQLite, and Microsoft SQL Server (MSSQL) while handling dialect-specific differences automatically.
+PDOdb provides unified API across MySQL, MariaDB, PostgreSQL, SQLite, Microsoft SQL Server (MSSQL), and Oracle while handling dialect-specific differences automatically.
 
 ## Supported Databases
 
@@ -11,6 +11,7 @@ PDOdb provides unified API across MySQL, MariaDB, PostgreSQL, SQLite, and Micros
 | PostgreSQL | 9.4+ | JSONB support, advanced types |
 | SQLite | 3.38+ | In-memory, file-based |
 | Microsoft SQL Server | 2019+ | JSON support, MERGE statements, CROSS APPLY |
+| Oracle | 12c+ | JSON support, MERGE statements, LATERAL JOINs |
 
 ## Automatic Dialect Handling
 
@@ -85,6 +86,16 @@ $db = new PdoDb('sqlsrv', [
     'dbname' => 'mydb',
     'port' => 1433
 ]);
+
+// Oracle
+$db = new PdoDb('oci', [
+    'host' => 'localhost',
+    'port' => 1521,
+    'username' => 'user',
+    'password' => 'pass',
+    'dbname' => 'XE', // Service name
+    'charset' => 'UTF8'
+]);
 ```
 
 ## Data Type Differences
@@ -107,6 +118,10 @@ $id = $db->find()->table('users')->insert(['name' => 'Alice']);
 // Microsoft SQL Server
 $id = $db->find()->table('users')->insert(['name' => 'Alice']);
 // Returns: IDENTITY(1,1) integer
+
+// Oracle
+$id = $db->find()->table('users')->insert(['name' => 'Alice']);
+// Returns: Sequence-generated integer
 ```
 
 ### Timestamps
@@ -126,6 +141,7 @@ $db->find()->table('users')->update([
 - PostgreSQL: `CURRENT_TIMESTAMP`
 - SQLite: `CURRENT_TIMESTAMP`
 - MSSQL: `GETDATE()`
+- Oracle: `SYSTIMESTAMP`
 
 ### Boolean Values
 
@@ -156,6 +172,7 @@ $db->find()->table('users')->insert([
 - PostgreSQL: JSONB column
 - SQLite: TEXT column with JSON functions
 - MSSQL: NVARCHAR(MAX) or JSON column (2016+)
+- Oracle: JSON column (12c+)
 
 ### Querying JSON
 
@@ -186,6 +203,7 @@ $db->find()->from('users')->select(['id', 'name']);  // No need to quote
 - PostgreSQL: `SELECT "id", "name" FROM "users"`
 - SQLite: `SELECT "id", "name" FROM "users"`
 - MSSQL: `SELECT [id], [name] FROM [users]`
+- Oracle: `SELECT "id", "name" FROM "users"`
 
 ### String Concatenation
 
@@ -203,6 +221,7 @@ $users = $db->find()
 - PostgreSQL: `first_name || ' ' || last_name`
 - SQLite: `first_name || ' ' || last_name`
 - MSSQL: `first_name + ' ' + last_name`
+- Oracle: `first_name || ' ' || last_name`
 
 ## LIMIT and OFFSET
 
@@ -219,8 +238,9 @@ $users = $db->find()
 - PostgreSQL: `... LIMIT 10 OFFSET 20`
 - SQLite: `... LIMIT 10 OFFSET 20`
 - MSSQL: `... ORDER BY (SELECT NULL) OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY`
+- Oracle: `... OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY`
 
-> **Note:** SQLite requires LIMIT when using OFFSET. MSSQL requires ORDER BY when using OFFSET/FETCH.
+> **Note:** SQLite requires LIMIT when using OFFSET. MSSQL requires ORDER BY when using OFFSET/FETCH. Oracle 12c+ uses OFFSET/FETCH syntax.
 
 ## UPSERT Operations
 
@@ -271,6 +291,18 @@ WHEN NOT MATCHED THEN INSERT (email, name, age)
     VALUES (source.email, source.name, source.age);
 ```
 
+**Oracle:**
+```sql
+MERGE INTO users target
+USING (SELECT :email AS email, :name AS name, :age AS age FROM DUAL) source
+ON (target.email = source.email)
+WHEN MATCHED THEN UPDATE SET 
+    age = target.age + 1,
+    updated_at = SYSTIMESTAMP
+WHEN NOT MATCHED THEN INSERT (email, name, age) 
+    VALUES (source.email, source.name, source.age)
+```
+
 ## REPLACE Operations
 
 ```php
@@ -302,6 +334,15 @@ WHEN MATCHED THEN UPDATE SET name = source.name
 WHEN NOT MATCHED THEN INSERT (id, name) VALUES (source.id, source.name);
 ```
 
+**Oracle:**
+```sql
+MERGE INTO users target
+USING (SELECT :id AS id, :name AS name FROM DUAL) source
+ON (target.id = source.id)
+WHEN MATCHED THEN UPDATE SET name = source.name
+WHEN NOT MATCHED THEN INSERT (id, name) VALUES (source.id, source.name)
+```
+
 ## TRUNCATE Operations
 
 ```php
@@ -322,6 +363,11 @@ DELETE FROM sqlite_sequence WHERE name = 'users';
 ```
 
 **MSSQL:**
+```sql
+TRUNCATE TABLE users
+```
+
+**Oracle:**
 ```sql
 TRUNCATE TABLE users
 ```
@@ -360,6 +406,12 @@ BEGIN TRANSACTION
 COMMIT TRANSACTION
 ```
 
+**Oracle:**
+```sql
+LOCK TABLE users, orders IN EXCLUSIVE MODE
+-- Locks released on COMMIT/ROLLBACK
+```
+
 ## Bulk Loading
 
 ### CSV Loader
@@ -373,6 +425,7 @@ $db->find()->table('users')->loadCsv('/path/to/file.csv');
 - PostgreSQL: `COPY FROM`
 - SQLite: Row-by-row inserts in transaction
 - MSSQL: `BULK INSERT` or row-by-row inserts
+- Oracle: SQL*Loader or row-by-row inserts
 
 ### XML Loader
 
@@ -433,38 +486,38 @@ Returns dialect-specific execution plans.
 
 ## Feature Compatibility Matrix
 
-| Feature | MySQL | MariaDB | PostgreSQL | SQLite | MSSQL |
-|---------|-------|---------|------------|--------|-------|
+| Feature | MySQL | MariaDB | PostgreSQL | SQLite | MSSQL | Oracle |
+|---------|-------|---------|------------|--------|-------|--------|
 | **Core Features** |
-| Prepared statements | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Transactions | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Savepoints | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Prepared statements | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Transactions | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Savepoints | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
 | **Data Types** |
-| JSON support | ✅ | ✅ | ✅ (JSONB) | ✅ (if JSON1) | ✅ |
-| Boolean type | TINYINT(1) | TINYINT(1) | BOOLEAN | INTEGER | BIT |
-| Auto-increment | AUTO_INCREMENT | AUTO_INCREMENT | SERIAL | AUTOINCREMENT | IDENTITY(1,1) |
+| JSON support | ✅ | ✅ | ✅ (JSONB) | ✅ (if JSON1) | ✅ | ✅ (12c+) |
+| Boolean type | TINYINT(1) | TINYINT(1) | BOOLEAN | INTEGER | BIT | NUMBER(1) |
+| Auto-increment | AUTO_INCREMENT | AUTO_INCREMENT | SERIAL | AUTOINCREMENT | IDENTITY(1,1) | SEQUENCE |
 | **Operations** |
-| UPSERT | ✅ | ✅ | ✅ | ✅ | ✅ (MERGE) |
-| Bulk loading | ✅ | ✅ | ✅ | ✅ (emulated) | ✅ |
-| Table locking | ✅ | ✅ | ✅ | ✅ (BEGIN IMMEDIATE) | ✅ |
+| UPSERT | ✅ | ✅ | ✅ | ✅ | ✅ (MERGE) | ✅ (MERGE) |
+| Bulk loading | ✅ | ✅ | ✅ | ✅ (emulated) | ✅ | ✅ |
+| Table locking | ✅ | ✅ | ✅ | ✅ (BEGIN IMMEDIATE) | ✅ | ✅ |
 | **Advanced Features** |
-| Schema support | ❌ | ❌ | ✅ | ❌ | ✅ |
-| Table prefixes | ✅ | ✅ | ✅ | ✅ | ✅ |
-| REPEAT/REVERSE/LPAD/RPAD | ✅ | ✅ | ✅ (emulated) | ✅ (emulated) | ✅ |
-| MERGE statements | ❌ (emulated) | ❌ (emulated) | ✅ | ❌ (emulated) | ✅ |
-| LATERAL JOINs | ✅ | ✅ | ✅ | ❌ | ✅ (CROSS APPLY) |
-| Window functions | ✅ (8.0+) | ✅ (10.2+) | ✅ | ✅ (3.25+) | ✅ |
-| Recursive CTEs | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Full-text search | ✅ | ✅ | ✅ | ✅ (FTS5) | ✅ |
+| Schema support | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ |
+| Table prefixes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| REPEAT/REVERSE/LPAD/RPAD | ✅ | ✅ | ✅ (emulated) | ✅ (emulated) | ✅ | ✅ |
+| MERGE statements | ❌ (emulated) | ❌ (emulated) | ✅ | ❌ (emulated) | ✅ | ✅ |
+| LATERAL JOINs | ✅ | ✅ | ✅ | ❌ | ✅ (CROSS APPLY) | ✅ (12c+) |
+| Window functions | ✅ (8.0+) | ✅ (10.2+) | ✅ | ✅ (3.25+) | ✅ | ✅ |
+| Recursive CTEs | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Full-text search | ✅ | ✅ | ✅ | ✅ (FTS5) | ✅ | ✅ (Oracle Text) |
 | **String Functions** |
-| LENGTH() | ✅ | ✅ | ✅ | ✅ | LEN() |
-| SUBSTRING() | ✅ | ✅ | ✅ | SUBSTR() | ✅ |
-| CONCAT() | ✅ | ✅ | ✅ (||) | ✅ (||) | ✅ (+) |
+| LENGTH() | ✅ | ✅ | ✅ | ✅ | LEN() | ✅ |
+| SUBSTRING() | ✅ | ✅ | ✅ | SUBSTR() | ✅ | SUBSTR() |
+| CONCAT() | ✅ | ✅ | ✅ (||) | ✅ (||) | ✅ (+) | ✅ (||) |
 | **Date Functions** |
-| NOW() | ✅ | ✅ | CURRENT_TIMESTAMP | CURRENT_TIMESTAMP | GETDATE() |
-| DATE() | ✅ | ✅ | ✅ | ✅ | CAST() |
+| NOW() | ✅ | ✅ | CURRENT_TIMESTAMP | CURRENT_TIMESTAMP | GETDATE() | SYSTIMESTAMP |
+| DATE() | ✅ | ✅ | ✅ | ✅ | CAST() | TRUNC() |
 | **LIMIT/OFFSET** |
-| LIMIT/OFFSET | ✅ | ✅ | ✅ | ✅ | OFFSET/FETCH |
+| LIMIT/OFFSET | ✅ | ✅ | ✅ | ✅ | OFFSET/FETCH | OFFSET/FETCH (12c+) |
 
 ## Migration Between Databases
 

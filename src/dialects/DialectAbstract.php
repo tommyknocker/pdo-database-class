@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\dialects;
 
 use PDO;
+use PDOStatement;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
@@ -41,6 +42,59 @@ abstract class DialectAbstract implements DialectInterface
             $this->fileLoader = new FileLoader($this->pdo, $this);
         }
         return $this->fileLoader;
+    }
+
+    /**
+     * Enhance INSERT options if needed (e.g., add RETURNING clause for Oracle).
+     * Default implementation returns options unchanged.
+     *
+     * @param array<int|string, mixed> $options Original options
+     * @param array<int, string> $columns Column names
+     * @param string $table Table name
+     *
+     * @return array<int|string, mixed> Enhanced options
+     */
+    public function enhanceInsertOptions(array $options, array $columns, string $table): array
+    {
+        return $options;
+    }
+
+    /**
+     * Extract inserted ID from statement result.
+     * Default implementation returns null to use lastInsertId().
+     *
+     * @param PDOStatement $stmt The executed statement
+     * @param string $sql The SQL query that was executed
+     * @param array<string, string|int|float|bool|null> $params The parameters that were used
+     *
+     * @return int|null The inserted ID, or null to use lastInsertId()
+     */
+    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): ?int
+    {
+        return null;
+    }
+
+    /**
+     * Build multi-row insert sql.
+     * Default implementation uses INSERT ... VALUES (...), (...).
+     *
+     * @param string $table
+     * @param array<int, string> $columns
+     * @param array<int, string> $tuples Array of tuple strings like "(ph1, ph2)" or "(raw, ph)"
+     * @param array<int|string, mixed> $options
+     *
+     * @return string SQL for multi-row insert
+     */
+    public function buildInsertMultiSql(
+        string $table,
+        array $columns,
+        array $tuples,
+        array $options
+    ): string {
+        $colsQuoted = implode(', ', array_map([$this, 'quoteIdentifier'], $columns));
+        $opt = !empty($options) ? ' ' . implode(',', $options) : '';
+        return 'INSERT' . $opt . ' INTO ' . $table
+            . ' (' . $colsQuoted . ') VALUES ' . implode(', ', $tuples);
     }
 
     /**

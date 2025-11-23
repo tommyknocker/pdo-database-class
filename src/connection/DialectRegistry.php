@@ -9,6 +9,7 @@ use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\mariadb\MariaDBDialect;
 use tommyknocker\pdodb\dialects\mssql\MSSQLDialect;
 use tommyknocker\pdodb\dialects\mysql\MySQLDialect;
+use tommyknocker\pdodb\dialects\oracle\OracleDialect;
 use tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect;
 use tommyknocker\pdodb\dialects\sqlite\SqliteDialect;
 
@@ -27,6 +28,7 @@ class DialectRegistry
         'sqlite' => SqliteDialect::class,
         'pgsql' => PostgreSQLDialect::class,
         'sqlsrv' => MSSQLDialect::class,
+        'oci' => OracleDialect::class,
     ];
 
     /**

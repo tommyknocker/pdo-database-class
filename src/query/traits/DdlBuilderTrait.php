@@ -28,9 +28,95 @@ trait DdlBuilderTrait
         // Get table name without quotes (dialect will quote it)
         $tableName = $this->prefix ? ($this->prefix . $table) : $table;
         $sql = $this->dialect->buildCreateTableSql($tableName, $columns, $options);
-        $this->connection->query($sql);
+        
+        // Oracle may return multiple SQL statements (sequences + CREATE TABLE)
+        // Split by semicolon and execute separately
+        if (str_contains($sql, ';') && str_contains($sql, 'CREATE SEQUENCE')) {
+            // Drop existing sequences and triggers first (Oracle doesn't support IF EXISTS)
+            if ($this->dialect->getDriverName() === 'oci') {
+                $this->dropOracleSequencesAndTriggers($tableName, $columns);
+            }
+            
+            $statements = array_filter(array_map('trim', explode(';', $sql)));
+            foreach ($statements as $stmt) {
+                if ($stmt !== '') {
+                    $this->connection->query($stmt);
+                }
+            }
+            
+            // Create triggers for auto-increment columns in Oracle
+            if ($this->dialect->getDriverName() === 'oci') {
+                $this->createOracleTriggers($tableName, $columns);
+            }
+        } else {
+            $this->connection->query($sql);
+            
+            // Create triggers for auto-increment columns in Oracle
+            if ($this->dialect->getDriverName() === 'oci') {
+                $this->createOracleTriggers($tableName, $columns);
+            }
+        }
 
         return $this;
+    }
+    
+    /**
+     * Drop sequences and triggers for auto-increment columns in Oracle.
+     *
+     * @param string $tableName Table name
+     * @param array<string, ColumnSchema|array<string, mixed>|string> $columns Column definitions
+     */
+    protected function dropOracleSequencesAndTriggers(string $tableName, array $columns): void
+    {
+        foreach ($columns as $columnName => $def) {
+            $schema = $this->normalizeColumnSchema($def);
+            if ($schema->isAutoIncrement()) {
+                $sequenceName = strtolower($tableName . '_' . $columnName . '_seq');
+                $seqQuoted = $this->dialect->quoteIdentifier($sequenceName);
+                $triggerName = strtolower($tableName . '_' . $columnName . '_trigger');
+                $triggerQuoted = $this->dialect->quoteIdentifier($triggerName);
+                
+                // Drop trigger if exists (Oracle doesn't support IF EXISTS)
+                try {
+                    $this->connection->query("DROP TRIGGER {$triggerQuoted}");
+                } catch (\Throwable) {
+                    // Trigger doesn't exist, continue
+                }
+                
+                // Drop sequence if exists
+                try {
+                    $this->connection->query("DROP SEQUENCE {$seqQuoted}");
+                } catch (\Throwable) {
+                    // Sequence doesn't exist, continue
+                }
+            }
+        }
+    }
+    
+    /**
+     * Create triggers for auto-increment columns in Oracle.
+     *
+     * @param string $tableName Table name
+     * @param array<string, ColumnSchema|array<string, mixed>|string> $columns Column definitions
+     */
+    protected function createOracleTriggers(string $tableName, array $columns): void
+    {
+        $tableQuoted = $this->dialect->quoteTable($tableName);
+        $tableQuotedUpper = strtoupper($tableQuoted);
+        
+        foreach ($columns as $columnName => $def) {
+            $schema = $this->normalizeColumnSchema($def);
+            if ($schema->isAutoIncrement()) {
+                $sequenceName = strtolower($tableName . '_' . $columnName . '_seq');
+                $seqQuoted = $this->dialect->quoteIdentifier($sequenceName);
+                $columnQuoted = $this->dialect->quoteIdentifier($columnName);
+                $triggerName = strtolower($tableName . '_' . $columnName . '_trigger');
+                $triggerQuoted = $this->dialect->quoteIdentifier($triggerName);
+                
+                $triggerSql = "CREATE OR REPLACE TRIGGER {$triggerQuoted} BEFORE INSERT ON {$tableQuotedUpper} FOR EACH ROW BEGIN IF :NEW.{$columnQuoted} IS NULL THEN SELECT {$seqQuoted}.NEXTVAL INTO :NEW.{$columnQuoted} FROM DUAL; END IF; END;";
+                $this->connection->query($triggerSql);
+            }
+        }
     }
 
     /**

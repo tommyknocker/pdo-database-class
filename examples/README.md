@@ -1,6 +1,6 @@
 # PDOdb Examples
 
-Complete collection of **55 runnable examples** demonstrating PDOdb features across **all 5 database dialects** (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL).
+Complete collection of **55 runnable examples** demonstrating PDOdb features across **all 6 database dialects** (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL, Oracle).
 
 ## 🚀 Quick Start
 
@@ -50,6 +50,16 @@ nano config.sqlsrv.php
 PDODB_DRIVER=sqlsrv php 01-basic/02-simple-crud.php
 ```
 
+### Option 6: Oracle
+```bash
+# Edit config.oracle.php with your credentials
+# File already exists in examples/ directory
+nano config.oracle.php
+
+# Run with Oracle
+PDODB_DRIVER=oci php 01-basic/02-simple-crud.php
+```
+
 ### Test All Examples on All Databases
 ```bash
 ./scripts/test-examples.sh
@@ -70,6 +80,7 @@ PDOdb examples use **separate config files per database**:
 | `config.mariadb.php` | MariaDB | ✅ Included, update credentials |
 | `config.pgsql.php` | PostgreSQL | ✅ Included, update credentials |
 | `config.sqlsrv.php` | Microsoft SQL Server | ✅ Included, update credentials |
+| `config.oracle.php` | Oracle | ✅ Included, update credentials |
 
 **Environment variable `PDODB_DRIVER`** controls which config to use:
 - `sqlite` (default) - loads `config.sqlite.php`
@@ -77,6 +88,7 @@ PDOdb examples use **separate config files per database**:
 - `mariadb` - loads `config.mariadb.php`
 - `pgsql` - loads `config.pgsql.php`
 - `sqlsrv` - loads `config.sqlsrv.php`
+- `oci` - loads `config.oracle.php`
 
 **No environment variable?** Defaults to SQLite with `:memory:` database.
 
@@ -276,6 +288,7 @@ If you encounter issues:
    php -m | grep pdo_mysql
    php -m | grep pdo_pgsql
    php -m | grep pdo_sqlite
+   php -m | grep oci
    ```
 3. **Verify database server** is running
 4. **Set PDODB_DRIVER** environment variable:

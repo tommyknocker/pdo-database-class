@@ -1,6 +1,6 @@
 # Dialect Differences
 
-Differences between MySQL, MariaDB, PostgreSQL, and SQLite.
+Differences between MySQL, MariaDB, PostgreSQL, SQLite, MSSQL, and Oracle.
 
 ## JSON Operations
 
@@ -48,8 +48,8 @@ Db::raw("json_set(data, '$.status', 'active')")
 ### SUBSTRING
 
 ```php
-// MySQL, MariaDB, PostgreSQL, SQLite
-Db::substring('name', 1, 10)
+// MySQL, MariaDB, PostgreSQL, SQLite, Oracle
+Db::substring('name', 1, 10)  // SUBSTR() in Oracle
 ```
 
 ### CONCAT
@@ -61,7 +61,7 @@ Db::concat('first', ' ', 'last')
 // PostgreSQL
 Db::raw("first || ' ' || last")
 
-// SQLite
+// SQLite, Oracle
 Db::raw("first || ' ' || last")
 ```
 
@@ -78,6 +78,9 @@ Db::now()  // NOW()
 
 // SQLite
 Db::now()  // datetime('now')
+
+// Oracle
+Db::now()  // SYSTIMESTAMP
 ```
 
 ### DATE_ADD
@@ -91,6 +94,9 @@ Db::raw("created_at + INTERVAL '1 DAY'")
 
 // SQLite
 Db::raw("datetime(created_at, '+1 day')")
+
+// Oracle
+Db::raw("created_at + INTERVAL '1 DAY'")
 ```
 
 ## Identifier Quotes
@@ -108,6 +114,12 @@ SELECT * FROM "users"
 ```
 
 ### SQLite
+
+```sql
+SELECT * FROM "users"
+```
+
+### Oracle
 
 ```sql
 SELECT * FROM "users"

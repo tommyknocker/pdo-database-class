@@ -1,6 +1,6 @@
 # Configuration
 
-Database connection configuration for MySQL, MariaDB, PostgreSQL, SQLite, and Microsoft SQL Server (MSSQL).
+Database connection configuration for MySQL, MariaDB, PostgreSQL, SQLite, Microsoft SQL Server (MSSQL), and Oracle Database.
 
 ## MySQL Configuration
 
@@ -421,6 +421,101 @@ $db = new PdoDb('sqlsrv', [
 ```
 
 **Note**: MSSQL uses the `sqlsrv` driver name. The Microsoft ODBC Driver for SQL Server must be installed, and the PHP `sqlsrv` extension must be enabled.
+
+## Oracle Database Configuration
+
+### Basic Configuration
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+$db = new PdoDb('oci', [
+    'host' => 'localhost',
+    'port' => 1521,
+    'username' => 'testuser',
+    'password' => 'testpass',
+    'service_name' => 'XEPDB1', // Oracle service name (or use 'sid' for SID)
+    'charset' => 'UTF8'
+]);
+```
+
+### Full Configuration Options
+
+```php
+$db = new PdoDb('oci', [
+    // Connection options
+    'pdo'          => null,            // Optional: Existing PDO object
+    'host'         => 'localhost',     // Required: Oracle host
+    'port'         => 1521,            // Optional: Oracle port (default: 1521)
+    'username'     => 'testuser',      // Required: Oracle username
+    'password'     => 'testpass',       // Required: Oracle password
+    'service_name' => 'XEPDB1',        // Required: Oracle service name (preferred)
+    // OR use 'sid' instead of 'service_name' for SID-based connections
+    'sid'          => 'XE',            // Optional: Oracle SID (alternative to service_name)
+    'dbname'       => 'XEPDB1',        // Optional: Fallback to dbname if service_name/sid not provided
+    'prefix'       => 'app_',          // Optional: Table prefix
+    'charset'      => 'UTF8',          // Optional: Connection charset (default: UTF8)
+]);
+```
+
+### Using Service Name (Recommended)
+
+Oracle 12c+ uses service names for Pluggable Databases (PDBs):
+
+```php
+$db = new PdoDb('oci', [
+    'host' => 'localhost',
+    'port' => 1521,
+    'username' => 'testuser',
+    'password' => 'testpass',
+    'service_name' => 'XEPDB1' // Pluggable Database service name
+]);
+```
+
+### Using SID (Legacy)
+
+For older Oracle installations or non-CDB databases:
+
+```php
+$db = new PdoDb('oci', [
+    'host' => 'localhost',
+    'port' => 1521,
+    'username' => 'testuser',
+    'password' => 'testpass',
+    'sid' => 'XE' // Oracle SID
+]);
+```
+
+### Using Existing PDO Connection
+
+```php
+$pdo = new PDO(
+    'oci:dbname=//localhost:1521/XEPDB1',
+    'user',
+    'pass'
+);
+
+$db = new PdoDb('oci', [
+    'pdo' => $pdo,
+    'prefix' => 'app_'
+]);
+```
+
+### Environment Variables
+
+Oracle configuration via environment variables:
+
+```bash
+export PDODB_DRIVER=oci
+export PDODB_HOST=localhost
+export PDODB_PORT=1521
+export PDODB_USERNAME=testuser
+export PDODB_PASSWORD=testpass
+export PDODB_SERVICE_NAME=XEPDB1
+export PDODB_CHARSET=UTF8
+```
+
+**Note**: Oracle uses the `oci` driver name. The PHP `pdo_oci` extension must be installed and enabled. Oracle Database 12c+ is recommended for full feature support (JSON operations, LATERAL JOINs, etc.).
 
 ## Next Steps
 

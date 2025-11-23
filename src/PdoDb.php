@@ -890,7 +890,9 @@ class PdoDb
     public function ping(): bool
     {
         try {
-            $stmt = $this->connection->query('SELECT 1');
+            // Oracle requires FROM DUAL for SELECT statements
+            $pingSql = $this->connection->getDialect()->getDriverName() === 'oci' ? 'SELECT 1 FROM DUAL' : 'SELECT 1';
+            $stmt = $this->connection->query($pingSql);
             if ($stmt !== false) {
                 $stmt->execute();
             }

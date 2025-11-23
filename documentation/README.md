@@ -1,6 +1,6 @@
 # PDOdb Documentation
 
-Complete documentation for the PDOdb library - a lightweight, framework-agnostic PHP database library providing a unified API across MySQL, MariaDB, PostgreSQL, SQLite, and Microsoft SQL Server (MSSQL).
+Complete documentation for the PDOdb library - a lightweight, framework-agnostic PHP database library providing a unified API across MySQL, MariaDB, PostgreSQL, SQLite, Microsoft SQL Server (MSSQL), and Oracle.
 
 ## 📖 Table of Contents
 
@@ -119,7 +119,7 @@ composer require tommyknocker/pdo-database-class
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\helpers\Db;
 
-// Works with MySQL, MariaDB, PostgreSQL, SQLite, and MSSQL
+// Works with MySQL, MariaDB, PostgreSQL, SQLite, MSSQL, and Oracle
 $db = new PdoDb('sqlite', [
     'path' => ':memory:'  // SQLite - no setup required!
 ]);
@@ -138,7 +138,7 @@ $users = $db->find()
 ## 📚 Key Features
 
 - **Fluent Query Builder** - Intuitive chainable API
-- **Cross-Database Support** - Works with MySQL, MariaDB, PostgreSQL, SQLite, and Microsoft SQL Server (MSSQL)
+- **Cross-Database Support** - Works with MySQL, MariaDB, PostgreSQL, SQLite, Microsoft SQL Server (MSSQL), and Oracle
 - **Query Caching** - PSR-16 integration for 10-1000x faster queries
 - **Read/Write Splitting** - Horizontal scaling with master-replica architecture
 - **Sharding** - Horizontal partitioning across multiple databases with automatic query routing
@@ -162,7 +162,7 @@ $users = $db->find()
 
 ## 📝 Examples
 
-PDOdb includes **55+ runnable examples** demonstrating all features across **all 5 database dialects** (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL).
+PDOdb includes **55+ runnable examples** demonstrating all features across **all 6 database dialects** (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL, Oracle).
 
 - **[Examples Directory](../examples/)** - Complete collection of runnable examples
 - **[Examples README](../examples/README.md)** - Overview and quick start guide

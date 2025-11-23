@@ -9,13 +9,13 @@
 [![Downloads](https://img.shields.io/packagist/dt/tommyknocker/pdo-database-class.svg)](https://packagist.org/packages/tommyknocker/pdo-database-class)
 [![GitHub Stars](https://img.shields.io/github/stars/tommyknocker/pdo-database-class?style=social)](https://github.com/tommyknocker/pdo-database-class)
 
-**PDOdb** is a lightweight, framework-agnostic PHP database library providing a **unified API** across MySQL, MariaDB, PostgreSQL, SQLite, and Microsoft SQL Server (MSSQL).
+**PDOdb** is a lightweight, framework-agnostic PHP database library providing a **unified API** across MySQL, MariaDB, PostgreSQL, SQLite, Microsoft SQL Server (MSSQL), and Oracle.
 
 Built on top of PDO with **zero external dependencies**, it offers:
 
 **Core Features:**
 - **Fluent Query Builder** - Intuitive, chainable API for all database operations
-- **Cross-Database Compatibility** - Automatic SQL dialect handling (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL)
+- **Cross-Database Compatibility** - Automatic SQL dialect handling (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL, Oracle)
 - **80+ Helper Functions** - SQL helpers for strings, dates, math, JSON, aggregations, and more (REPEAT, REVERSE, LPAD, RPAD emulated for SQLite; REGEXP operations supported across all dialects)
 
 **Performance:**
@@ -75,7 +75,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 
 **Perfect for:**
 - ✅ **Beginners** - Simple, intuitive API with zero configuration needed
-- ✅ **Cross-database projects** - Switch between MySQL, PostgreSQL, SQLite, MSSQL without code changes
+- ✅ **Cross-database projects** - Switch between MySQL, PostgreSQL, SQLite, MSSQL, Oracle without code changes
 - ✅ **Performance-critical apps** - Built-in caching, query optimization, profiling
 - ✅ **Modern PHP** - Type-safe, PSR-compliant, PHP 8.4+ features
 
@@ -129,11 +129,13 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
   - `pdo_pgsql` for PostgreSQL
   - `pdo_sqlite` for SQLite
   - `sqlsrv` for Microsoft SQL Server (requires Microsoft ODBC Driver for SQL Server)
+  - `oci` for Oracle Database
 - **Supported Databases**:
   - MySQL 5.7+ / MariaDB 10.3+
   - PostgreSQL 9.4+
   - SQLite 3.38+
   - Microsoft SQL Server 2019+ / Azure SQL Database
+  - Oracle Database 12c+
 
 Check if your SQLite has JSON support:
 ```bash
@@ -172,7 +174,7 @@ vendor/bin/pdodb init
 ```
 
 The wizard will guide you through:
-- Database connection settings (MySQL, PostgreSQL, SQLite, MSSQL)
+- Database connection settings (MySQL, PostgreSQL, SQLite, MSSQL, Oracle)
 - Configuration file format (`.env` or `config/db.php`)
 - Directory structure creation (migrations, models, repositories, services)
 - Connection testing

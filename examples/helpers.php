@@ -60,6 +60,31 @@ function getExampleConfig(): array
         }
     }
     
+    // For Oracle CI environments, check for PDODB_USERNAME and PDODB_PASSWORD
+    if ($driver === 'oci') {
+        $dbUser = getenv('PDODB_USERNAME');
+        $dbPass = getenv('PDODB_PASSWORD');
+        $dbHost = getenv('PDODB_HOST') ?: 'localhost';
+        $dbPort = getenv('PDODB_PORT') ?: '1521';
+        $dbName = getenv('PDODB_DATABASE') ?: 'XE';
+        $serviceName = getenv('PDODB_SERVICE_NAME') ?: getenv('PDODB_SID') ?: 'XEPDB1';
+        $dbCharset = getenv('PDODB_CHARSET') ?: 'UTF8';
+        
+        // If environment variables are set (CI), use them
+        if ($dbUser !== false && $dbPass !== false) {
+            return [
+                'driver' => 'oci',
+                'host' => $dbHost,
+                'port' => (int)$dbPort,
+                'username' => $dbUser,
+                'password' => $dbPass,
+                'dbname' => $dbName,
+                'service_name' => $serviceName,
+                'charset' => $dbCharset,
+            ];
+        }
+    }
+    
     $configFile = __DIR__ . "/config.{$driver}.php";
     
     if (!file_exists($configFile)) {

@@ -4,7 +4,7 @@ SQL helper functions for common operations across all database dialects.
 
 ## Overview
 
-PDOdb provides 50+ SQL helper functions through the `Db` class. These helpers abstract dialect-specific SQL syntax, providing a unified API that works across MySQL, PostgreSQL, and SQLite.
+PDOdb provides 50+ SQL helper functions through the `Db` class. These helpers abstract dialect-specific SQL syntax, providing a unified API that works across MySQL, MariaDB, PostgreSQL, SQLite, MSSQL, and Oracle.
 
 ## Examples
 
@@ -145,16 +145,26 @@ PDODB_DRIVER=mysql php 01-string-helpers.php
 PDODB_DRIVER=pgsql php 01-string-helpers.php
 ```
 
+### MSSQL
+```bash
+PDODB_DRIVER=sqlsrv php 01-string-helpers.php
+```
+
+### Oracle
+```bash
+PDODB_DRIVER=oci php 01-string-helpers.php
+```
+
 ## Cross-Dialect Compatibility
 
 All helper functions produce dialect-specific SQL:
 
-| Function | MySQL | PostgreSQL | SQLite |
-|----------|-------|------------|--------|
-| `concat()` | `CONCAT()` | `\|\|` operator | `\|\|` operator |
-| `ilike()` | `LOWER() LIKE` | `ILIKE` | `LOWER() LIKE` |
-| `now()` | `NOW()` | `NOW()` | `datetime('now')` |
-| `true()` | `TRUE` | `TRUE` | `1` |
+| Function | MySQL | PostgreSQL | SQLite | MSSQL | Oracle |
+|----------|-------|------------|--------|-------|--------|
+| `concat()` | `CONCAT()` | `\|\|` operator | `\|\|` operator | `+` operator | `\|\|` operator |
+| `ilike()` | `LOWER() LIKE` | `ILIKE` | `LOWER() LIKE` | `LOWER() LIKE` | `UPPER() LIKE` |
+| `now()` | `NOW()` | `CURRENT_TIMESTAMP` | `datetime('now')` | `GETDATE()` | `SYSTIMESTAMP` |
+| `true()` | `TRUE` | `TRUE` | `1` | `1` | `1` |
 
 ## Complete Reference
 

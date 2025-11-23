@@ -221,11 +221,19 @@ class ExecutionEngine implements ExecutionEngineInterface
                 return $stmt->rowCount();
             }
 
+            // Let dialect extract ID from statement if it supports RETURNING or similar
+            $dialect = $this->connection->getDialect();
+            $id = $dialect->extractInsertId($stmt, $sql, $params);
+            if ($id !== null) {
+                return $id;
+            }
+
             try {
                 $id = (int)$this->connection->getLastInsertId();
                 return $id > 0 ? $id : 1;
             } catch (PDOException $e) {
                 // PostgreSQL: lastval is not yet defined (no SERIAL column)
+                // Oracle: lastInsertId not supported, should use RETURNING
                 // Convert to specialized exception for better error handling
                 $dbException = ExceptionFactory::createFromPdoException(
                     $e,

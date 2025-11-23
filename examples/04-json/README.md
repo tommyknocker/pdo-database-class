@@ -1,6 +1,6 @@
 # JSON Operations Examples
 
-Working with JSON data across all five database dialects (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL).
+Working with JSON data across all six database dialects (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL, Oracle).
 
 ## Overview
 
@@ -8,8 +8,10 @@ PDOdb provides a unified API for JSON operations that works seamlessly across:
 - **MySQL**: Native JSON type
 - **PostgreSQL**: JSONB type
 - **SQLite**: TEXT type with JSON functions
+- **MSSQL**: NVARCHAR(MAX) or JSON type
+- **Oracle**: VARCHAR2(4000) IS JSON or JSON type (12c+)
 
-All examples work identically on all five databases.
+All examples work identically on all six databases.
 
 ## Examples
 
@@ -88,16 +90,26 @@ PDODB_DRIVER=mysql php 01-json-basics.php
 PDODB_DRIVER=pgsql php 01-json-basics.php
 ```
 
+### MSSQL
+```bash
+PDODB_DRIVER=sqlsrv php 01-json-basics.php
+```
+
+### Oracle
+```bash
+PDODB_DRIVER=oci php 01-json-basics.php
+```
+
 ## Dialect Differences
 
 While the API is unified, there are some internal differences:
 
-| Feature | MySQL | PostgreSQL | SQLite |
-|---------|-------|------------|--------|
-| Native type | JSON | JSONB | TEXT |
-| Path syntax | `$.path` | Array notation | `$.path` |
-| Performance | Good | Excellent | Good |
-| Indexing | Supported | Supported | Limited |
+| Feature | MySQL | PostgreSQL | SQLite | MSSQL | Oracle |
+|---------|-------|------------|--------|-------|--------|
+| Native type | JSON | JSONB | TEXT | NVARCHAR(MAX)/JSON | VARCHAR2(4000) IS JSON |
+| Path syntax | `$.path` | Array notation | `$.path` | `$.path` | `$.path` |
+| Performance | Good | Excellent | Good | Good | Good |
+| Indexing | Supported | Supported | Limited | Supported | Limited |
 
 ## Next Steps
 

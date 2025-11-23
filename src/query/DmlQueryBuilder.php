@@ -532,7 +532,10 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
             $placeholders[] = $result['sql'];
         }
 
-        $sql = $this->dialect->buildInsertSql($this->normalizeTable(), $columns, $placeholders, $this->options);
+        // Let dialect enhance options if needed (e.g., Oracle RETURNING clause)
+        $options = $this->dialect->enhanceInsertOptions($this->options, $columns, $this->normalizeTable());
+
+        $sql = $this->dialect->buildInsertSql($this->normalizeTable(), $columns, $placeholders, $options);
         if (!empty($this->onDuplicate)) {
             // if no id column in columns, use first column for $defaultConflictTarget
             $defaultConflictTarget = in_array('id', $columns, true) ? 'id' : (string)($columns[0] ?? 'id');
@@ -735,8 +738,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
         $tableName = $this->table; // Use getter to ensure not null
         assert(is_string($tableName)); // PHPStan assertion
         $tableSql = $this->dialect->quoteTable($tableName);
-        $sql = 'INSERT' . $opt . ' INTO ' . $tableSql
-            . ' (' . implode(',', $colsQuoted) . ') VALUES ' . implode(', ', $tuples);
+        $sql = $this->dialect->buildInsertMultiSql($tableSql, $columns, $tuples, $this->options);
 
         if (!empty($this->onDuplicate)) {
             // if no id column in columns, use first column for $defaultConflictTarget
