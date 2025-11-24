@@ -116,7 +116,11 @@ class OracleDmlBuilder implements DmlBuilderInterface
 
         foreach ($tuples as $tuple) {
             // Remove outer parentheses from tuple if present
-            $tuple = trim($tuple, '()');
+            // Only remove parentheses if tuple starts with '(' and ends with ')'
+            // Don't use trim() as it removes ALL parentheses, including those in TO_DATE() etc.
+            if (str_starts_with($tuple, '(') && str_ends_with($tuple, ')')) {
+                $tuple = substr($tuple, 1, -1);
+            }
             $sql .= ' INTO ' . $table . ' (' . $colsQuoted . ') VALUES (' . $tuple . ')';
         }
 

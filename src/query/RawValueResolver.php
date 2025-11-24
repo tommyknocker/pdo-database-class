@@ -401,11 +401,13 @@ class RawValueResolver
 
         foreach ($filterConditions as $condition) {
             $column = $this->dialect->quoteIdentifier($condition['column']);
+            // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
+            $columnForComparison = $this->dialect->formatColumnForComparison($column);
             $operator = $condition['operator'];
             $paramKey = ':filter_' . uniqid();
 
             $this->parameterManager->setParam($paramKey, $condition['value']);
-            $whereParts[] = "{$column} {$operator} {$paramKey}";
+            $whereParts[] = "{$columnForComparison} {$operator} {$paramKey}";
         }
 
         $whereClause = implode(' AND ', $whereParts);

@@ -73,6 +73,14 @@ interface DialectInterface
      */
     public function quoteTable(string $table): string;
 
+    /**
+     * Get table alias keyword (e.g., "AS" or empty string).
+     * Some dialects (like Oracle) do not support AS keyword for table aliases.
+     *
+     * @return string The keyword to use before table alias (e.g., " AS " or " ")
+     */
+    public function getTableAliasKeyword(): string;
+
     /* ---------------- DML / DDL builders ---------------- */
 
     /**

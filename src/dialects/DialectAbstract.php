@@ -114,6 +114,17 @@ abstract class DialectAbstract implements DialectInterface
     abstract public function quoteIdentifier(string $name): string;
 
     /**
+     * Get table alias keyword (e.g., "AS" or empty string).
+     * Default implementation returns " AS " for most dialects.
+     *
+     * @return string The keyword to use before table alias (e.g., " AS " or " ")
+     */
+    public function getTableAliasKeyword(): string
+    {
+        return ' AS ';
+    }
+
+    /**
      * Quote table name with optional alias.
      *
      * @param string $table

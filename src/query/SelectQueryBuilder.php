@@ -802,14 +802,19 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                     $rawValue = $processedCol->getValue();
                     // Check if it's a simple qualified identifier (table.column pattern)
                     if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*$/', $rawValue)) {
-                        $groups[] = $this->quoteQualifiedIdentifier($rawValue);
+                        $quoted = $this->quoteQualifiedIdentifier($rawValue);
+                        // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
+                        $columnForGroup = $this->dialect->formatColumnForComparison($quoted);
+                        $groups[] = $columnForGroup;
                     } else {
                         $groups[] = $this->resolveRawValue($processedCol);
                     }
                 } else {
                     $quoted = $this->quoteQualifiedIdentifier((string)$processedCol);
-                    // Use column as-is in GROUP BY (formatColumnForComparison is only for WHERE)
-                    $groups[] = $quoted;
+                    // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
+                    // GROUP BY also needs TO_CHAR() for CLOB columns
+                    $columnForGroup = $this->dialect->formatColumnForComparison($quoted);
+                    $groups[] = $columnForGroup;
                 }
             }
         }
@@ -1128,6 +1133,25 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 if ($this->distinct) {
                     $columnForSelect = $this->dialect->formatColumnForComparison($quoted);
                     return $columnForSelect;
+                }
+                // For GROUP BY with CLOB columns, also apply formatColumnForComparison
+                // Oracle requires SELECT expressions to match GROUP BY expressions
+                if (!empty($this->group)) {
+                    // Check if this column is in GROUP BY
+                    $groupCols = array_map('trim', explode(',', $this->group));
+                    foreach ($groupCols as $groupCol) {
+                        // Extract column name from GROUP BY (may be wrapped in TO_CHAR())
+                        $groupColNormalized = preg_replace('/^TO_CHAR\((.+)\)$/i', '$1', trim($groupCol));
+                        $groupColNormalized = trim($groupColNormalized, '"');
+                        $valueNormalized = trim($quoted, '"');
+                        // Check if column matches (case-insensitive)
+                        if (strcasecmp($groupColNormalized, $valueNormalized) === 0 ||
+                            strcasecmp($groupCol, $quoted) === 0) {
+                            // Column is in GROUP BY, apply formatColumnForComparison for CLOB compatibility
+                            $columnForSelect = $this->dialect->formatColumnForComparison($quoted);
+                            return $columnForSelect;
+                        }
+                    }
                 }
                 return $quoted;
             }, $this->select));
@@ -1600,9 +1624,32 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         // For cursor pagination, we need numeric indices, so convert indexed array back if needed
         $numericItems = $this->indexColumn !== null ? array_values($rawItems) : $rawItems;
         /** @var array<int, array<string, mixed>> $numericItems */
-        $nextCursor = $hasMore && count($numericItems) > 0
-            ? Cursor::fromItem($numericItems[count($numericItems) - 1], $cursorColumns)
-            : null;
+        // Normalize column keys for cursor (e.g., Oracle returns uppercase keys)
+        $lastItem = $hasMore && count($numericItems) > 0 ? $numericItems[count($numericItems) - 1] : null;
+        if ($lastItem !== null) {
+            // Normalize keys to match cursorColumns (which are normalized)
+            $normalizedItem = [];
+            foreach ($cursorColumns as $col) {
+                // Try original column name first, then normalized (uppercase for Oracle)
+                $normalizedCol = $this->dialect->normalizeColumnKey($col);
+                if (isset($lastItem[$col])) {
+                    $normalizedItem[$col] = $lastItem[$col];
+                } elseif (isset($lastItem[$normalizedCol])) {
+                    $normalizedItem[$col] = $lastItem[$normalizedCol];
+                } else {
+                    // Try case-insensitive lookup
+                    foreach ($lastItem as $key => $value) {
+                        if (strcasecmp($key, $col) === 0 || strcasecmp($key, $normalizedCol) === 0) {
+                            $normalizedItem[$col] = $value;
+                            break;
+                        }
+                    }
+                }
+            }
+            $nextCursor = Cursor::fromItem($normalizedItem, $cursorColumns);
+        } else {
+            $nextCursor = null;
+        }
 
         return new CursorPaginationResult($numericItems, $perPage, $previousCursor, $nextCursor, $options);
     }
@@ -1616,10 +1663,19 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     {
         $columns = [];
         foreach ($this->order as $orderExpr) {
-            // Extract column name from "column ASC" or "column DESC"
-            if (preg_match('/^([^\s]+)/', $orderExpr, $matches)) {
+            // Extract column name from "column ASC" or "column DESC" or "TO_CHAR(column) DESC"
+            // Try to extract column name from function calls (e.g., TO_CHAR("ID") -> ID)
+            $column = null;
+            if (preg_match('/\([`"\[]?([A-Za-z0-9_]+)[`"\]]?\)/i', $orderExpr, $funcMatches)) {
+                // Column wrapped in function (e.g., TO_CHAR("ID"))
+                $column = $funcMatches[1];
+            } elseif (preg_match('/^([^\s]+)/', $orderExpr, $matches)) {
                 // Remove quotes and brackets (MySQL/MariaDB use backticks, PostgreSQL/SQLite use double quotes, MSSQL uses square brackets)
                 $column = trim($matches[1], '"`[]');
+            }
+            if ($column !== null) {
+                // Normalize column name according to dialect (e.g., Oracle returns uppercase keys)
+                $column = $this->dialect->normalizeColumnKey($column);
                 $columns[] = $column;
             }
         }

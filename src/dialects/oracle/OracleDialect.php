@@ -171,6 +171,55 @@ class OracleDialect extends DialectAbstract
 
     /**
      * {@inheritDoc}
+     * Oracle does not support AS keyword for table aliases.
+     */
+    public function getTableAliasKeyword(): string
+    {
+        return ' ';
+    }
+
+    /**
+     * Quote table name with optional alias.
+     * Oracle does not support AS keyword for table aliases in JOIN clauses.
+     *
+     * @param string $table
+     *
+     * @return string
+     */
+    protected function quoteTableWithAlias(string $table): string
+    {
+        $table = trim($table);
+
+        // supported formats:
+        //  - "schema.table"         (without alias)
+        //  - "schema.table alias"   (alias with space)
+        //  - "schema.table AS alias" (AS - will be removed for Oracle)
+        //  - "table alias" / "table AS alias"
+        //  - "table"                (without alias)
+
+        if (preg_match('/\s+AS\s+/i', $table)) {
+            $parts = preg_split('/\s+AS\s+/i', $table, 2);
+            if ($parts === false || count($parts) < 2) {
+                return $this->quoteIdentifier($table);
+            }
+            [$name, $alias] = $parts;
+            $name = trim($name);
+            $alias = trim($alias);
+            // Oracle does not support AS keyword for table aliases
+            return $this->quoteIdentifier($name) . ' ' . $this->quoteIdentifier($alias);
+        }
+
+        $parts = preg_split('/\s+/', $table, 2);
+        if ($parts === false || count($parts) === 1) {
+            return $this->quoteIdentifier($table);
+        }
+
+        [$name, $alias] = $parts;
+        return $this->quoteIdentifier($name) . ' ' . $this->quoteIdentifier($alias);
+    }
+
+    /**
+     * {@inheritDoc}
      */
     public function buildInsertSql(string $table, array $columns, array $placeholders, array $options = []): string
     {
@@ -2044,22 +2093,23 @@ class OracleDialect extends DialectAbstract
     public function formatLateralJoin(string $tableSql, string $type, string $aliasQuoted, string|RawValue|null $condition = null): string
     {
         // Oracle supports LATERAL JOINs
+        // Note: tableSql already contains "LATERAL" prefix from JoinBuilder
         $typeUpper = strtoupper(trim($type));
         $isCross = ($typeUpper === 'CROSS' || $typeUpper === 'CROSS JOIN');
 
         if ($condition !== null) {
             $onSql = $condition instanceof RawValue ? $condition->getValue() : (string)$condition;
             if ($isCross) {
-                return "CROSS JOIN LATERAL {$tableSql} ON {$onSql}";
+                return "CROSS JOIN {$tableSql} ON {$onSql}";
             }
-            return "{$typeUpper} JOIN LATERAL {$tableSql} ON {$onSql}";
+            return "{$typeUpper} JOIN {$tableSql} ON {$onSql}";
         }
 
         if ($isCross) {
-            return "CROSS JOIN LATERAL {$tableSql}";
+            return "CROSS JOIN {$tableSql}";
         }
 
-        return "{$typeUpper} JOIN LATERAL {$tableSql} ON 1=1";
+        return "{$typeUpper} JOIN {$tableSql} ON 1=1";
     }
 
     /**

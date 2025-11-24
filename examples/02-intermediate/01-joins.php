@@ -67,6 +67,7 @@ $results = $db->find()
 
 echo "  Orders (INNER JOIN):\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ordered {$row['product']} (\${$row['amount']})\n";
 }
 echo "\n";
@@ -82,6 +83,7 @@ $results = $db->find()
 echo "  All users:\n";
 $current = null;
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     if ($current !== $row['name']) {
         $current = $row['name'];
         echo "  • {$row['name']}:";
@@ -108,6 +110,7 @@ $results = $db->find()
 
 echo "  User activity summary:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']}: {$row['order_count']} orders, {$row['review_count']} reviews\n";
 }
 echo "\n";
@@ -127,6 +130,7 @@ $results = $db->find()
 
 echo "  User spending:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']}: \$" . number_format($row['total_spent'], 2) . "\n";
 }
 echo "\n";
@@ -149,6 +153,7 @@ $results = $db->find()
 
 echo "  High-value NYC customers:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['city']}): {$row['order_count']} orders, \$" . number_format($row['total'], 2) . "\n";
 }
 
@@ -179,6 +184,7 @@ if ($dialect->supportsLateralJoin()) {
     
     echo "  Latest order per user:\n";
     foreach ($results as $row) {
+        $row = normalizeRowKeys($row);
         if ($row['product']) {
             echo "  • {$row['name']}: {$row['product']} (\${$row['amount']})\n";
         } else {

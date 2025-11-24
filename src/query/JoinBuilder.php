@@ -159,7 +159,8 @@ class JoinBuilder implements JoinBuilderInterface
                 $alias = 'lateral_' . substr(hash('sha256', $subquerySql), 0, 16);
             }
             $aliasQuoted = $this->dialect->quoteIdentifier($alias);
-            $tableSql = "LATERAL ({$subquerySql}) AS {$aliasQuoted}";
+            $asKeyword = $this->dialect->getTableAliasKeyword();
+            $tableSql = "LATERAL ({$subquerySql}){$asKeyword}{$aliasQuoted}";
         } else {
             // Handle table name (simple case, e.g., table-valued function)
             // For string input, use as-is (may contain function calls like generate_series)
