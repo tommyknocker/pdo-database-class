@@ -3,7 +3,7 @@
 /**
  * Full-Text Search Examples
  * 
- * Demonstrates full-text search functionality across MySQL, PostgreSQL, and SQLite
+ * Demonstrates full-text search functionality across MySQL, MariaDB, PostgreSQL, SQLite, MSSQL, and Oracle
  */
 
 require_once __DIR__ . '/../../vendor/autoload.php';
@@ -46,6 +46,19 @@ try {
     if ($driver === 'sqlite') {
         $schema->dropTable('articles');
         $db->rawQuery("CREATE VIRTUAL TABLE articles USING fts5(title, content)");
+    }
+    
+    // Create full-text index for Oracle (Oracle Text - requires CTXSYS.CONTEXT)
+    if ($driver === 'oci') {
+        try {
+            // Oracle Text requires CONTEXT index
+            // Note: This requires Oracle Text option to be installed
+            $db->rawQuery("CREATE INDEX articles_ft_idx ON articles (title, content) INDEXTYPE IS CTXSYS.CONTEXT");
+        } catch (\Exception $e) {
+            // If Oracle Text is not available, continue without index
+            // The example will use LIKE fallback
+            echo "Note: Oracle Text index not created. Full-text search will use LIKE fallback.\n";
+        }
     }
     
     echo "✓ Table created\n\n";

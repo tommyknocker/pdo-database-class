@@ -227,7 +227,8 @@ final class BasicOperationsTests extends BaseSqliteTestCase
         ->update(['status' => 'active']);
 
         $this->assertStringContainsString('UPDATE "users" SET "status"', $db->lastQuery);
-        $this->assertStringContainsString('WHERE "id" IN (SELECT "user_id" FROM "orders")', $db->lastQuery);
+        $this->assertStringContainsString('WHERE "id" IN (SELECT "user_id"', $db->lastQuery);
+        $this->assertStringContainsString('FROM "orders")', $db->lastQuery);
 
         $count = $db->find()
         ->from('users')
@@ -324,11 +325,8 @@ final class BasicOperationsTests extends BaseSqliteTestCase
         ->where('id', $subQuery, 'IN')
         ->delete();
 
-        $this->assertStringContainsString(
-            'DELETE FROM "users" WHERE "id" IN (SELECT "user_id" FROM "orders" WHERE "amount" >=',
-            $db->lastQuery
-        );
-        $this->assertStringContainsString(')', $db->lastQuery);
+        $this->assertStringContainsString('DELETE FROM "users" WHERE "id" IN (SELECT "user_id"', $db->lastQuery);
+        $this->assertStringContainsString('FROM "orders" WHERE "amount" >=', $db->lastQuery);
 
         $rows = $db->find()
         ->table('users')

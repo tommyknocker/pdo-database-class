@@ -32,7 +32,7 @@ echo "=== Read/Write Splitting - Sticky Writes ===\n\n";
 echo "1. Setting up read/write splitting with sticky writes\n";
 
 // Create initial database instance
-$db = new PdoDb($driver, $config);
+$db = createPdoDbWithErrorHandling($driver, $config);
 $db->enableReadWriteSplitting(new RoundRobinLoadBalancer());
 
 // Add connections

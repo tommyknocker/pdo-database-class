@@ -414,6 +414,36 @@ interface DialectInterface
     public function formatLike(string $column, string $pattern): string;
 
     /**
+     * Format column for comparison operations (equality, inequality, etc.).
+     * Used when comparing CLOB/TEXT columns with string values in Oracle.
+     *
+     * @param string $column Column name (already quoted)
+     *
+     * @return string SQL expression (e.g., "column" or "TO_CHAR(column)" for Oracle CLOB)
+     */
+    public function formatColumnForComparison(string $column): string;
+
+    /**
+     * Normalize JOIN ON condition.
+     * Used to quote identifiers in ON conditions for dialects that require it (e.g., Oracle).
+     *
+     * @param string $condition ON condition (e.g., "o.user_id = u.id")
+     *
+     * @return string Normalized condition with quoted identifiers if needed
+     */
+    public function normalizeJoinCondition(string $condition): string;
+
+    /**
+     * Normalize column key for result set.
+     * Used to normalize column keys returned by database (e.g., Oracle returns uppercase keys).
+     *
+     * @param string $key Column key from result set
+     *
+     * @return string Normalized key
+     */
+    public function normalizeColumnKey(string $key): string;
+
+    /**
      * Format IFNULL expression.
      *
      * @param string $expr

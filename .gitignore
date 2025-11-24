@@ -28,6 +28,7 @@ infection-summary.txt
 
 # Migrations directory (user-generated files)
 /migrations/
+/examples/11-schema/migrations
 
 # File-based cache directory
 /storage/

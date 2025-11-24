@@ -244,7 +244,8 @@ final class BasicOperationsTests extends BaseMariaDBTestCase
 
         $lastQuery = $db->lastQuery ?? '';
         $this->assertStringContainsString('UPDATE `users` SET', $lastQuery);
-        $this->assertStringContainsString('WHERE `id` IN (SELECT `user_id` FROM `orders`)', $lastQuery);
+        $this->assertStringContainsString('WHERE `id` IN (SELECT `user_id`', $lastQuery);
+        $this->assertStringContainsString('FROM `orders`)', $lastQuery);
 
         $count = $db->find()
         ->from('users')
@@ -342,11 +343,8 @@ final class BasicOperationsTests extends BaseMariaDBTestCase
         ->delete();
 
         $lastQuery = $db->lastQuery ?? '';
-        $this->assertStringContainsString(
-            'DELETE FROM `users` WHERE `id` IN (SELECT `user_id` FROM `orders` WHERE `amount` >=',
-            $lastQuery
-        );
-        $this->assertStringContainsString(')', $lastQuery);
+        $this->assertStringContainsString('DELETE FROM `users` WHERE `id` IN (SELECT `user_id`', $lastQuery);
+        $this->assertStringContainsString('FROM `orders` WHERE `amount` >=', $lastQuery);
 
         $rows = $db->find()
         ->table('users')

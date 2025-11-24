@@ -32,7 +32,7 @@ echo "=== Read/Write Splitting - Basic Setup ===\n\n";
 echo "1. Setting up read/write splitting\n";
 
 // Create initial database instance with write connection
-$db = new PdoDb($driver, $config);
+$db = createPdoDbWithErrorHandling($driver, $config);
 
 // Enable read/write splitting with round-robin load balancer
 $db->enableReadWriteSplitting(new RoundRobinLoadBalancer());

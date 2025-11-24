@@ -167,17 +167,19 @@ if [ -n "$PDODB_USERNAME" ] && [ -n "$PDODB_PASSWORD" ] && [ "$PDODB_DRIVER" == 
     fi
 elif [ -f "examples/config.oracle.php" ]; then
     if php -r "
+        require 'vendor/autoload.php';
         \$config = require 'examples/config.oracle.php';
         try {
-            \$host = \$config['host'] ?? 'localhost';
-            \$port = \$config['port'] ?? 1521;
-            \$serviceName = \$config['service_name'] ?? \$config['sid'] ?? \$config['dbname'] ?? 'XEPDB1';
-            \$dsn = 'oci:dbname=//' . \$host . ':' . \$port . '/' . \$serviceName;
-            if (isset(\$config['charset'])) {
-                \$dsn .= ';charset=' . \$config['charset'];
+            // Use the same DSN building logic as OracleDialect
+            \$dialect = new tommyknocker\pdodb\dialects\oracle\OracleDialect();
+            \$dsn = \$dialect->buildDsn(\$config);
+            \$pdo = new PDO(\$dsn, \$config['username'], \$config['password'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+            // Try to execute a simple query to verify connection
+            \$stmt = \$pdo->query('SELECT 1 FROM DUAL');
+            if (\$stmt !== false) {
+                exit(0);
             }
-            new PDO(\$dsn, \$config['username'], \$config['password']);
-            exit(0);
+            exit(1);
         } catch (Exception \$e) {
             exit(1);
         }

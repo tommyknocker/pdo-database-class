@@ -122,7 +122,7 @@ class OracleDdlBuilder implements DdlBuilderInterface
         // Remove quotes for USER_TABLES query (Oracle stores unquoted names in uppercase)
         $tableUnquoted = str_replace(['"', "'"], '', $table);
         $tableUpper = strtoupper($tableUnquoted);
-        
+
         return "BEGIN
     EXECUTE IMMEDIATE 'DROP TABLE {$tableQuoted} CASCADE CONSTRAINTS';
 EXCEPTION

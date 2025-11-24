@@ -106,7 +106,8 @@ if ($oracle instanceof PdoDb) {
     echo "✓ Oracle connected successfully\n";
     $config = require $oracleConfig;
     echo "  Server: {$config['host']}:{$config['port']}\n";
-    echo "  Service Name: {$config['service_name']}\n\n";
+    $serviceName = $config['service_name'] ?? $config['sid'] ?? $config['dbname'] ?? 'N/A';
+    echo "  Service Name: {$serviceName}\n\n";
 } elseif ($oracle === false) {
     echo "  (Check your Oracle server and config.oracle.php settings)\n\n";
 } else {

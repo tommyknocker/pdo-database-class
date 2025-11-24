@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use PDOException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\helpers\values\LikeValue;
+use tommyknocker\pdodb\helpers\values\NotLikeValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
@@ -595,10 +596,18 @@ class ConditionBuilder implements ConditionBuilderInterface
         foreach ($items as $i => $w) {
             if ($w instanceof RawValue) {
                 $sql = $this->resolveRawValue($w);
+                // Normalize column references in aggregate functions (e.g., SUM(o.amount) -> SUM("O"."AMOUNT"))
+                if (preg_match('/^(SUM|COUNT|AVG|MIN|MAX|GROUP_CONCAT)\s*\(/i', $sql)) {
+                    $sql = $this->dialect->normalizeJoinCondition($sql);
+                }
                 $clauses[] = ($i === 0 ? '' : QueryConstants::BOOLEAN_AND . ' ') . $sql;
                 continue;
             }
             if (is_string($w)) {
+                // Normalize column references in aggregate functions
+                if (preg_match('/^(SUM|COUNT|AVG|MIN|MAX|GROUP_CONCAT)\s*\(/i', $w)) {
+                    $w = $this->dialect->normalizeJoinCondition($w);
+                }
                 $clauses[] = ($i === 0 ? '' : QueryConstants::BOOLEAN_AND . ' ') . $w;
                 continue;
             }
@@ -609,6 +618,10 @@ class ConditionBuilder implements ConditionBuilderInterface
             }
             if ($sql instanceof RawValue) {
                 $sql = $this->resolveRawValue($sql);
+            }
+            // Normalize column references in aggregate functions
+            if (is_string($sql) && preg_match('/^(SUM|COUNT|AVG|MIN|MAX|GROUP_CONCAT)\s*\(/i', $sql)) {
+                $sql = $this->dialect->normalizeJoinCondition($sql);
             }
             $clauses[] = ($i === 0 || $cond === '') ? $sql : strtoupper($cond) . ' ' . $sql;
         }
@@ -695,11 +708,34 @@ class ConditionBuilder implements ConditionBuilderInterface
                 $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
                 return $this;
             }
+            // Special handling for NotLikeValue when passed as first argument
+            if ($exprOrColumn instanceof NotLikeValue) {
+                $quotedColumn = $this->quoteQualifiedIdentifier($exprOrColumn->getColumn());
+                $resolved = $this->dialect->formatLike($quotedColumn, $exprOrColumn->getPattern());
+                // Add pattern parameter
+                $patternParam = $this->parameterManager->addParam('pattern', $exprOrColumn->getPattern());
+                // Replace :pattern with the actual parameter name
+                $resolved = str_replace(':pattern', $patternParam, $resolved);
+                $this->{$prop}[] = ['sql' => 'NOT (' . $resolved . ')', 'cond' => $cond];
+                return $this;
+            }
 
             // When a raw expression is provided without a right-hand value,
             // treat it as a complete condition and insert as-is.
             if ($exprOrColumn instanceof RawValue) {
                 $resolved = $this->resolveRawValue($exprOrColumn);
+                // Check if this is an IN/NOT IN condition (needs formatColumnForComparison for CLOB)
+                $isInCondition = stripos($resolved, ' IN (') !== false || stripos($resolved, ' NOT IN (') !== false;
+                if ($isInCondition) {
+                    // Extract column name from RawValue (e.g., "name IN (...)" -> "name")
+                    // Apply formatColumnForComparison for CLOB compatibility
+                    if (preg_match('/^(\w+)\s+(IN|NOT\s+IN)/i', $resolved, $matches)) {
+                        $columnName = $matches[1];
+                        $columnQuoted = $this->quoteQualifiedIdentifier($columnName);
+                        $columnForComparison = $this->dialect->formatColumnForComparison($columnQuoted);
+                        $resolved = preg_replace('/^' . preg_quote($columnName, '/') . '\s+(IN|NOT\s+IN)/i', $columnForComparison . ' $1', $resolved);
+                    }
+                }
                 $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
                 return $this;
             }
@@ -720,6 +756,22 @@ class ConditionBuilder implements ConditionBuilderInterface
 
         if ($exprOrColumn instanceof RawValue) {
             $left = $this->resolveRawValue($exprOrColumn);
+            // Check if this is an IN/NOT IN condition (needs formatColumnForComparison for CLOB)
+            $isInCondition = stripos($left, ' IN (') !== false || stripos($left, ' NOT IN (') !== false;
+            if ($isInCondition) {
+                // Extract column name from RawValue (e.g., "name IN (...)" -> "name")
+                // Apply formatColumnForComparison for CLOB compatibility
+                if (preg_match('/^(\w+)\s+(IN|NOT\s+IN)/i', $left, $matches)) {
+                    $columnName = $matches[1];
+                    $columnQuoted = $this->quoteQualifiedIdentifier($columnName);
+                    $columnForComparison = $this->dialect->formatColumnForComparison($columnQuoted);
+                    $left = preg_replace('/^' . preg_quote($columnName, '/') . '\s+(IN|NOT\s+IN)/i', $columnForComparison . ' $1', $left);
+                }
+                // For IN/NOT IN conditions, use the resolved SQL directly (it's already a complete condition)
+                $this->{$prop}[] = ['sql' => $left, 'cond' => $cond];
+                return $this;
+            }
+
             if ($value instanceof RawValue) {
                 $right = $this->resolveRawValue($value);
                 $this->{$prop}[] = ['sql' => "{$left} {$operator} {$right}", 'cond' => $cond];
@@ -782,7 +834,9 @@ class ConditionBuilder implements ConditionBuilderInterface
             }
 
             $inSql = '(' . implode(', ', $placeholders) . ')';
-            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$opUpper} {$inSql}", 'cond' => $cond];
+            // Use formatColumnForComparison for CLOB compatibility (e.g., Oracle)
+            $columnForComparison = $this->dialect->formatColumnForComparison($exprQuoted);
+            $this->{$prop}[] = ['sql' => "{$columnForComparison} {$opUpper} {$inSql}", 'cond' => $cond];
             return $this;
         }
 
@@ -828,12 +882,39 @@ class ConditionBuilder implements ConditionBuilderInterface
                 // Replace :pattern with the actual parameter name
                 $resolved = str_replace(':pattern', $patternParam, $resolved);
                 $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
+            } elseif ($value instanceof NotLikeValue) {
+                // Special handling for NotLikeValue: pass quoted column to formatLike() and wrap in NOT
+                $pattern = $value->getPattern();
+                $resolved = $this->dialect->formatLike($exprQuoted, $pattern);
+                // Add pattern parameter
+                $patternParam = $this->parameterManager->addParam('pattern', $pattern);
+                // Replace :pattern with the actual parameter name
+                $resolved = str_replace(':pattern', $patternParam, $resolved);
+                $this->{$prop}[] = ['sql' => 'NOT (' . $resolved . ')', 'cond' => $cond];
             } else {
                 $resolved = $this->resolveRawValue($value);
                 // Check if RawValue already contains the column name (full condition)
                 // e.g., "TO_CHAR(email) LIKE :pattern" from formatLike()
                 $quotedCol = $this->dialect->quoteIdentifier((string)$exprOrColumn);
-                if (stripos($resolved, (string)$exprOrColumn) !== false || stripos($resolved, $quotedCol) !== false || stripos($resolved, 'LIKE') !== false) {
+                // Check if this is an IN/NOT IN condition (needs formatColumnForComparison for CLOB)
+                $isInCondition = stripos($resolved, ' IN (') !== false || stripos($resolved, ' NOT IN (') !== false;
+
+                if ($isInCondition && (stripos($resolved, (string)$exprOrColumn) !== false || stripos($resolved, $quotedCol) !== false)) {
+                    // IN/NOT IN condition with column name - apply formatColumnForComparison for CLOB compatibility
+                    $columnForComparison = $this->dialect->formatColumnForComparison($exprQuoted);
+                    // Replace column name with formatted version (try both quoted and unquoted)
+                    // First try to replace quoted column (e.g., "name" -> TO_CHAR("name"))
+                    if (stripos($resolved, $quotedCol) !== false) {
+                        $resolved = str_ireplace($quotedCol, $columnForComparison, $resolved);
+                    }
+                    // Also replace unquoted column name if present (e.g., name -> TO_CHAR("name"))
+                    // Use word boundary to avoid partial matches, but check it's at the start of the condition
+                    if (stripos($resolved, (string)$exprOrColumn) !== false) {
+                        // Match column name at the start of the condition (before IN/NOT IN)
+                        $resolved = preg_replace('/^' . preg_quote((string)$exprOrColumn, '/') . '\s+(IN|NOT\s+IN)/i', $columnForComparison . ' $1', $resolved);
+                    }
+                    $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
+                } elseif (stripos($resolved, (string)$exprOrColumn) !== false || stripos($resolved, $quotedCol) !== false || stripos($resolved, 'LIKE') !== false) {
                     // Full condition - use as is
                     $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
                 } else {
@@ -845,8 +926,10 @@ class ConditionBuilder implements ConditionBuilderInterface
                 }
             }
         } else {
+            // Format column for comparison (e.g., TO_CHAR() for Oracle CLOB)
+            $columnForComparison = $this->dialect->formatColumnForComparison($exprQuoted);
             $ph = $this->parameterManager->addParam((string)$exprOrColumn, $value);
-            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$ph}", 'cond' => $cond];
+            $this->{$prop}[] = ['sql' => "{$columnForComparison} {$operator} {$ph}", 'cond' => $cond];
         }
 
         return $this;

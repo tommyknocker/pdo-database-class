@@ -20,8 +20,8 @@ use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\tests\fixtures\ArrayCache;
 
 // Get database configuration
+$driver = mb_strtolower(getenv('PDODB_DRIVER') ?: 'sqlite', 'UTF-8');
 $config = getExampleConfig();
-$driver = $config['driver'] ?? 'sqlite';
 
 echo "PDOdb Cache Management Examples\n";
 echo "================================\n\n";
@@ -36,7 +36,13 @@ putenv('PDODB_CACHE_TYPE=array');
 putenv('PDODB_NON_INTERACTIVE=1');
 
 // Create database connection with cache enabled
-$db = new PdoDb($driver, $config, [], null, $cache);
+try {
+    $db = new PdoDb($driver, $config, [], null, $cache);
+} catch (\Throwable $e) {
+    echo "⚠️  Connection failed: {$e->getMessage()}\n";
+    echo "   (Check your database server and config settings)\n";
+    exit(1);
+}
 
 // Create a test table
 $schema = $db->schema();

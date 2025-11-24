@@ -53,7 +53,11 @@ class JoinBuilder implements JoinBuilderInterface
     {
         $type = strtoupper(trim($type));
         $tableSql = $this->normalizeTable($tableAlias);
-        $onSql = $condition instanceof RawValue ? $this->resolveRawValue($condition) : (string)$condition;
+        if ($condition instanceof RawValue) {
+            $onSql = $this->resolveRawValue($condition);
+        } else {
+            $onSql = $this->dialect->normalizeJoinCondition((string)$condition);
+        }
         $this->joins[] = "{$type} JOIN {$tableSql} ON {$onSql}";
         return $this;
     }

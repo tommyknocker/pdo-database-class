@@ -14,6 +14,13 @@ function getExampleConfig(): array
 {
     $driver = mb_strtolower(getenv('PDODB_DRIVER') ?: 'sqlite', 'UTF-8');
     
+    // Map driver names to config file names
+    $configFileMap = [
+        'oci' => 'oracle',
+        'sqlsrv' => 'sqlsrv',
+    ];
+    $configFileName = $configFileMap[$driver] ?? $driver;
+    
     // For CI environments, use environment variables directly
     if ($driver === 'sqlsrv') {
         $dbUser = getenv('PDODB_USERNAME');
@@ -85,7 +92,7 @@ function getExampleConfig(): array
         }
     }
     
-    $configFile = __DIR__ . "/config.{$driver}.php";
+    $configFile = __DIR__ . "/config.{$configFileName}.php";
     
     if (!file_exists($configFile)) {
         // Fallback to generic config.php or SQLite
@@ -101,7 +108,9 @@ function getExampleConfig(): array
 }
 
 /**
- * Create a PdoDb instance for examples
+ * Create a PdoDb instance for examples with unified error handling
+ * 
+ * @throws \Throwable if connection fails
  */
 function createExampleDb(): PdoDb
 {
@@ -109,7 +118,31 @@ function createExampleDb(): PdoDb
     $driver = $config['driver'];
     unset($config['driver']);
     
-    return new PdoDb($driver, $config);
+    try {
+        return new PdoDb($driver, $config);
+    } catch (\Throwable $e) {
+        echo "⚠️  Connection failed: {$e->getMessage()}\n";
+        echo "   (Check your database server and config settings)\n";
+        exit(1);
+    }
+}
+
+/**
+ * Create a PdoDb instance with custom config and unified error handling
+ * 
+ * @param string $driver Database driver
+ * @param array $config Database configuration
+ * @return PdoDb
+ */
+function createPdoDbWithErrorHandling(string $driver, array $config): PdoDb
+{
+    try {
+        return new PdoDb($driver, $config);
+    } catch (\Throwable $e) {
+        echo "⚠️  Connection failed: {$e->getMessage()}\n";
+        echo "   (Check your database server and config settings)\n";
+        exit(1);
+    }
 }
 
 /**
@@ -209,5 +242,21 @@ function getCurrentDriver(PdoDb $db): string
         return 'unknown';
     }
     return $connection->getDriverName();
+}
+
+/**
+ * Normalize array keys to lowercase for Oracle compatibility
+ * Oracle returns column names in uppercase, but examples use lowercase
+ * 
+ * @param array<string, mixed> $row
+ * @return array<string, mixed>
+ */
+function normalizeRowKeys(array $row): array
+{
+    $normalized = [];
+    foreach ($row as $key => $value) {
+        $normalized[strtolower($key)] = $value;
+    }
+    return $normalized;
 }
 

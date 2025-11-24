@@ -9,7 +9,6 @@ return [
     'port' => 1521,
     'username' => 'testuser',
     'password' => 'testpass',
-    'dbname' => 'XE', // Oracle service name
+    'service_name' => 'XEPDB1', // Oracle service name
     'charset' => 'UTF8',
 ];
-

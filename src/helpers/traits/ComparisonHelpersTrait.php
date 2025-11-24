@@ -49,7 +49,19 @@ trait ComparisonHelpersTrait
      */
     public static function not(RawValue $value): RawValue
     {
-        return new RawValue('NOT (' . $value->getValue() . ')', $value->getParams());
+        // For LikeValue, create a special NOT LIKE value that will be handled in ConditionBuilder
+        if ($value instanceof \tommyknocker\pdodb\helpers\values\LikeValue) {
+            // Return a RawValue that ConditionBuilder can recognize and handle
+            // The actual SQL will be generated in ConditionBuilder using formatLike()
+            return new \tommyknocker\pdodb\helpers\values\NotLikeValue($value->getColumn(), $value->getPattern());
+        }
+        // For other RawValue, wrap in NOT (...)
+        $valueStr = $value->getValue();
+        // If value is already wrapped in parentheses or is a complete condition, use as-is
+        if (str_starts_with(trim($valueStr), '(') && str_ends_with(trim($valueStr), ')')) {
+            return new RawValue('NOT ' . $valueStr, $value->getParams());
+        }
+        return new RawValue('NOT (' . $valueStr . ')', $value->getParams());
     }
 
     /**
@@ -99,6 +111,8 @@ trait ComparisonHelpersTrait
             $placeholders[] = ":$key";
         }
 
+        // Note: formatColumnForComparison() will be applied in ConditionBuilder
+        // for CLOB compatibility (e.g., Oracle)
         return new RawValue("$column IN (" . implode(', ', $placeholders) . ')', $params);
     }
 

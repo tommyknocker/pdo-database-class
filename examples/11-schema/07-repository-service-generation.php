@@ -19,8 +19,8 @@ use tommyknocker\pdodb\cli\Application;
 use tommyknocker\pdodb\PdoDb;
 
 // Get database configuration
+$driver = mb_strtolower(getenv('PDODB_DRIVER') ?: 'sqlite', 'UTF-8');
 $config = getExampleConfig();
-$driver = $config['driver'] ?? 'sqlite';
 
 // For SQLite, use a temporary file instead of :memory: so CLI commands use the same database
 if ($driver === 'sqlite') {
@@ -58,7 +58,7 @@ if (isset($config['path'])) {
 }
 
 // Create database connection
-$db = new PdoDb($driver, $config);
+$db = createPdoDbWithErrorHandling($driver, $config);
 
 // Create a test table
 $schema = $db->schema();

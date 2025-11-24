@@ -119,7 +119,7 @@ $config = getExampleConfig();
 $driver = $config['driver'];
 unset($config['driver']);
 
-$db = new PdoDb($driver, $config);
+$db = createPdoDbWithErrorHandling($driver, $config);
 $db->setEventDispatcher($dispatcher);
 
 echo "=== PSR-14 Event Dispatcher Example ===\n\n";

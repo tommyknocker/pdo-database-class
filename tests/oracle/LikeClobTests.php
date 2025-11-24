@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\oracle;
 
 use tommyknocker\pdodb\helpers\Db;
-use tommyknocker\pdodb\tests\oracle\BaseOracleTestCase;
 
 /**
  * Tests for LIKE operations with CLOB columns in Oracle.
@@ -56,4 +55,3 @@ class LikeClobTests extends BaseOracleTestCase
         $this->assertCount(0, $result);
     }
 }
-

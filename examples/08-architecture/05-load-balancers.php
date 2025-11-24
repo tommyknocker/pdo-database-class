@@ -17,8 +17,12 @@ use tommyknocker\pdodb\connection\loadbalancer\RoundRobinLoadBalancer;
 use tommyknocker\pdodb\connection\loadbalancer\RandomLoadBalancer;
 use tommyknocker\pdodb\connection\loadbalancer\WeightedLoadBalancer;
 
-$driver = getenv('PDODB_DRIVER') ?: 'mysql';
+$driver = mb_strtolower(getenv('PDODB_DRIVER') ?: 'mysql', 'UTF-8');
 $config = getExampleConfig();
+// Ensure driver is set in config for load balancer connections
+if (!isset($config['driver'])) {
+    $config['driver'] = $driver;
+}
 
 // For SQLite, use a temporary file instead of :memory: for read/write splitting
 if ($driver === 'sqlite') {
@@ -27,24 +31,27 @@ if ($driver === 'sqlite') {
 
 echo "=== Read/Write Splitting - Load Balancers ===\n\n";
 
+$db1 = createPdoDbWithErrorHandling($driver, $config);
+
 // ========================================
 // 1. Round-Robin Load Balancer
 // ========================================
 echo "1. Round-Robin Load Balancer\n";
 echo "   Distributes load evenly in circular order\n\n";
 
-$db1 = new PdoDb($driver, $config);
 $db1->enableReadWriteSplitting(new RoundRobinLoadBalancer());
 
-$writeConfig = $config;
-$writeConfig['driver'] = $driver;
-$writeConfig['type'] = 'write';
+$writeConfig = array_merge($config, [
+    'driver' => $driver,
+    'type' => 'write',
+]);
 $db1->addConnection('write', $writeConfig);
 
 for ($i = 1; $i <= 3; $i++) {
-    $readConfig = $config;
-    $readConfig['driver'] = $driver;
-    $readConfig['type'] = 'read';
+    $readConfig = array_merge($config, [
+        'driver' => $driver,
+        'type' => 'read',
+    ]);
     $db1->addConnection("read-$i", $readConfig);
 }
 
@@ -75,18 +82,20 @@ echo "\n";
 echo "2. Random Load Balancer\n";
 echo "   Randomly selects a replica for each request\n\n";
 
-$db2 = new PdoDb($driver, $config);
+$db2 = createPdoDbWithErrorHandling($driver, $config);
 $db2->enableReadWriteSplitting(new RandomLoadBalancer());
 
-$writeConfig = $config;
-$writeConfig['driver'] = $driver;
-$writeConfig['type'] = 'write';
+$writeConfig = array_merge($config, [
+    'driver' => $driver,
+    'type' => 'write',
+]);
 $db2->addConnection('write', $writeConfig);
 
 for ($i = 1; $i <= 3; $i++) {
-    $readConfig = $config;
-    $readConfig['driver'] = $driver;
-    $readConfig['type'] = 'read';
+    $readConfig = array_merge($config, [
+        'driver' => $driver,
+        'type' => 'read',
+    ]);
     $db2->addConnection("read-$i", $readConfig);
 }
 
@@ -114,18 +123,20 @@ $weightedBalancer->setWeights([
     'read-3' => 1,  // Gets 1x traffic (baseline)
 ]);
 
-$db3 = new PdoDb($driver, $config);
+$db3 = createPdoDbWithErrorHandling($driver, $config);
 $db3->enableReadWriteSplitting($weightedBalancer);
 
-$writeConfig = $config;
-$writeConfig['driver'] = $driver;
-$writeConfig['type'] = 'write';
+$writeConfig = array_merge($config, [
+    'driver' => $driver,
+    'type' => 'write',
+]);
 $db3->addConnection('write', $writeConfig);
 
 for ($i = 1; $i <= 3; $i++) {
-    $readConfig = $config;
-    $readConfig['driver'] = $driver;
-    $readConfig['type'] = 'read';
+    $readConfig = array_merge($config, [
+        'driver' => $driver,
+        'type' => 'read',
+    ]);
     $db3->addConnection("read-$i", $readConfig);
 }
 
@@ -169,7 +180,7 @@ echo "   ✓ All connections reset\n\n";
 // ========================================
 echo "5. Switching Load Balancers at Runtime\n\n";
 
-$db4 = new PdoDb($driver, $config);
+$db4 = createPdoDbWithErrorHandling($driver, $config);
 $db4->enableReadWriteSplitting(new RoundRobinLoadBalancer());
 
 $writeConfig = $config;

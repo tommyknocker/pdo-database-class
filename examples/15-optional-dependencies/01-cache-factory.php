@@ -90,7 +90,13 @@ $cacheConfig = [
 
 $cache = CacheFactory::create($cacheConfig);
 if ($cache !== null) {
-    $db = new PdoDb($driver, $config, [], null, $cache);
+    try {
+        $db = new PdoDb($driver, $config, [], null, $cache);
+    } catch (\Throwable $e) {
+        echo "⚠️  Connection failed: {$e->getMessage()}\n";
+        echo "   (Check your database server and config settings)\n";
+        exit(1);
+    }
     echo "   ✓ PdoDb created with cache\n";
 
     // Setup test table

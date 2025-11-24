@@ -635,6 +635,45 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatColumnForComparison(string $column): string
+    {
+        // Oracle: CLOB columns cannot be compared directly with VARCHAR2
+        // Use TO_CHAR() to convert CLOB to VARCHAR2 for comparison operations
+        // This works for both CLOB and VARCHAR2 columns
+        return "TO_CHAR({$column})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeColumnKey(string $key): string
+    {
+        // Oracle returns column keys in uppercase
+        return strtoupper($key);
+    }
+
+    public function normalizeJoinCondition(string $condition): string
+    {
+        // Oracle: identifiers in ON conditions must be quoted
+        // Pattern: table.column or alias.column
+        // Replace unquoted identifiers with quoted ones
+        return preg_replace_callback(
+            '/(\w+)\.(\w+)/',
+            function ($matches) {
+                $table = $this->quoteIdentifier($matches[1]);
+                $column = $this->quoteIdentifier($matches[2]);
+                return "{$table}.{$column}";
+            },
+            $condition
+        ) ?? $condition;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatIfNull(string $expr, mixed $default): string
     {
         return $this->sqlFormatter->formatIfNull($expr, $default);

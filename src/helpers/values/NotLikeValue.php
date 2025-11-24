@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\helpers\values;
 
 /**
- * Value class for LIKE conditions.
- * Allows dialect-specific formatting (e.g., TO_CHAR() for Oracle CLOB columns).
+ * Value class for NOT LIKE conditions.
+ * Similar to LikeValue but for NOT LIKE operations.
  */
-class LikeValue extends RawValue
+class NotLikeValue extends RawValue
 {
     protected string $column;
     protected string $pattern;
@@ -17,7 +17,7 @@ class LikeValue extends RawValue
     {
         $this->column = $column;
         $this->pattern = $pattern;
-        // Placeholder SQL - will be replaced by RawValueResolver using dialect->formatLike()
+        // Placeholder SQL - will be replaced by ConditionBuilder using dialect->formatLike()
         parent::__construct('', ['pattern' => $pattern, '__like_column__' => $column]);
     }
 

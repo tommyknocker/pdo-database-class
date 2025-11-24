@@ -95,7 +95,7 @@ try {
     echo "User 2 exists: " . ($user2 ? 'yes' : 'no') . "\n";
 } catch (\Exception $e) {
     echo "Error: " . $e->getMessage() . "\n";
-    if ($driverName === 'sqlite') {
+    if ($currentDriver === 'sqlite') {
         echo "Note: SQLite doesn't support JOIN in DELETE statements.\n";
     }
 }

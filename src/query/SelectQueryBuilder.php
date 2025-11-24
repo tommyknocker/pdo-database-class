@@ -251,9 +251,24 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     public function select(RawValue|callable|string|array $cols): static
     {
         if (!is_array($cols)) {
-            $cols = [$cols];
+            // If string contains commas, split it into array
+            if (is_string($cols) && str_contains($cols, ',')) {
+                $cols = array_map('trim', explode(',', $cols));
+            } else {
+                $cols = [$cols];
+            }
         }
         foreach ($cols as $index => $col) {
+            // Handle wildcard (*) - skip quoting
+            if ($col === '*' || (is_string($col) && trim($col) === '*')) {
+                $this->select[] = '*';
+                continue;
+            }
+            // Handle qualified wildcard (table.*)
+            if (is_string($col) && preg_match('/^([a-zA-Z_][a-zA-Z0-9_]*|\"[^\"]+\"|`[^`]+`|\[[^\]]+\])\.\*$/', trim($col))) {
+                $this->select[] = trim($col);
+                continue;
+            }
             if ($col instanceof AsValue) {
                 // Handle AsValue - use its alias
                 $value = $col->getValue();
@@ -293,7 +308,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                     $this->select[] = $this->resolveRawValue($processedCol) . ' AS ' . $alias;
                 } else {
                     $colStr = is_string($col) ? $col : (string)$col;
-                    $this->select[] = $colStr . ' AS ' . $alias;
+                    // Normalize column references in aggregate functions (e.g., SUM(o.amount) -> SUM("O"."AMOUNT"))
+                    $normalized = $this->dialect->normalizeJoinCondition($colStr);
+                    $this->select[] = $normalized . ' AS ' . $alias;
                 }
             } else {
                 // Process external references in column names
@@ -301,7 +318,17 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 if ($processedCol instanceof RawValue) {
                     $this->select[] = $this->resolveRawValue($processedCol);
                 } else {
-                    $this->select[] = $col;
+                    $colStr = (string)$col;
+                    // Check if column already contains AS (e.g., "name AS username")
+                    if (preg_match('/\s+AS\s+/i', $colStr)) {
+                        // Column already has alias, use as-is after processing external references
+                        $quoted = $this->quoteQualifiedIdentifier($colStr);
+                        $this->select[] = $quoted;
+                    } else {
+                        // Simple column name - quote it
+                        $quoted = $this->quoteQualifiedIdentifier($colStr);
+                        $this->select[] = $quoted;
+                    }
                 }
             }
         }
@@ -495,11 +522,27 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             return [];
         }
 
+        // Normalize key according to dialect (e.g., Oracle returns uppercase keys)
+        $normalizedKey = $this->dialect->normalizeColumnKey($key);
+
         // Extract column values while preserving array keys from indexed results
         $result = [];
         foreach ($rows as $rowKey => $row) {
-            if (is_array($row) && array_key_exists($key, $row)) {
-                $result[$rowKey] = $row[$key];
+            if (is_array($row)) {
+                // Try exact match first with normalized key
+                if (array_key_exists($normalizedKey, $row)) {
+                    $result[$rowKey] = $row[$normalizedKey];
+                } else {
+                    // Try case-insensitive match (for dialects that return different case)
+                    $found = false;
+                    foreach ($row as $rowKeyName => $value) {
+                        if (strcasecmp($normalizedKey, (string)$rowKeyName) === 0) {
+                            $result[$rowKey] = $value;
+                            $found = true;
+                            break;
+                        }
+                    }
+                }
             }
         }
 
@@ -606,7 +649,10 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                     if ($processedExpr instanceof RawValue) {
                         $this->order[] = $this->resolveRawValue($processedExpr) . ' ' . $partDir;
                     } else {
-                        $this->order[] = $this->quoteQualifiedIdentifier($col) . ' ' . $partDir;
+                        $quoted = $this->quoteQualifiedIdentifier($col);
+                        // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
+                        $columnForOrder = $this->dialect->formatColumnForComparison($quoted);
+                        $this->order[] = $columnForOrder . ' ' . $partDir;
                     }
                 } else {
                     // No direction specified, use default
@@ -614,7 +660,10 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                     if ($processedExpr instanceof RawValue) {
                         $this->order[] = $this->resolveRawValue($processedExpr) . ' ' . $dir;
                     } else {
-                        $this->order[] = $this->quoteQualifiedIdentifier($part) . ' ' . $dir;
+                        $quoted = $this->quoteQualifiedIdentifier($part);
+                        // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
+                        $columnForOrder = $this->dialect->formatColumnForComparison($quoted);
+                        $this->order[] = $columnForOrder . ' ' . $dir;
                     }
                 }
             }
@@ -627,7 +676,11 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             if ($processedExpr instanceof RawValue) {
                 $this->order[] = $this->resolveRawValue($processedExpr) . ' ' . $dir;
             } else {
-                $this->order[] = $this->quoteQualifiedIdentifier($expr) . ' ' . $dir;
+                $quoted = $this->quoteQualifiedIdentifier($expr);
+                // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
+                // ORDER BY also needs TO_CHAR() for CLOB columns
+                $columnForOrder = $this->dialect->formatColumnForComparison($quoted);
+                $this->order[] = $columnForOrder . ' ' . $dir;
             }
         }
 
@@ -754,7 +807,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                         $groups[] = $this->resolveRawValue($processedCol);
                     }
                 } else {
-                    $groups[] = $this->quoteQualifiedIdentifier((string)$processedCol);
+                    $quoted = $this->quoteQualifiedIdentifier((string)$processedCol);
+                    // Use column as-is in GROUP BY (formatColumnForComparison is only for WHERE)
+                    $groups[] = $quoted;
                 }
             }
         }
@@ -1061,8 +1116,20 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*\\.\*(\s*,\s*[A-Za-z_][A-Za-z0-9_]*\\.\*)+$/', $value) === 1) {
                     return $value;
                 }
+                // Check if it's an aggregate function (SUM, COUNT, AVG, etc.) with column reference
+                // Normalize column references in aggregate functions (e.g., SUM(o.amount) -> SUM("O"."AMOUNT"))
+                if (preg_match('/^(SUM|COUNT|AVG|MIN|MAX|GROUP_CONCAT)\s*\(/i', $value)) {
+                    return $this->dialect->normalizeJoinCondition($value);
+                }
 
-                return $this->quoteQualifiedIdentifier($value);
+                $quoted = $this->quoteQualifiedIdentifier($value);
+                // For DISTINCT with CLOB columns in Oracle, apply formatColumnForComparison
+                // DISTINCT requires TO_CHAR() for CLOB columns
+                if ($this->distinct) {
+                    $columnForSelect = $this->dialect->formatColumnForComparison($quoted);
+                    return $columnForSelect;
+                }
+                return $quoted;
             }, $this->select));
         }
 
@@ -1226,9 +1293,16 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         }
 
         // 2) If expression is a simple identifier (table.col or col), return last segment
-        if (preg_match('/^[A-Za-z0-9_\.]+$/', $expr)) {
-            $parts = explode('.', $expr);
-            return end($parts);
+        //    Remove quotes if present
+        $cleanExpr = preg_replace('/^[`"\[]+|[`"\]]+$/', '', $expr) ?? $expr;
+        if (preg_match('/^[A-Za-z0-9_\.]+$/', $cleanExpr)) {
+            $parts = explode('.', $cleanExpr);
+            $key = end($parts);
+            if ($key === false) {
+                return $expr;
+            }
+            // Normalize key according to dialect (e.g., Oracle returns uppercase keys)
+            return $this->dialect->normalizeColumnKey($key);
         }
 
         // 3) Complex expression without alias — cannot determine key
@@ -1255,9 +1329,16 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         }
 
         // 2) If expression is a simple identifier (table.col or col), return last segment
-        if (preg_match('/^[A-Za-z0-9_\.]+$/', $expr)) {
-            $parts = explode('.', $expr);
-            return end($parts);
+        //    Remove quotes if present
+        $cleanExpr = preg_replace('/^[`"\[]+|[`"\]]+$/', '', $expr) ?? $expr;
+        if (preg_match('/^[A-Za-z0-9_\.]+$/', $cleanExpr)) {
+            $parts = explode('.', $cleanExpr);
+            $key = end($parts);
+            if ($key === false) {
+                return null;
+            }
+            // Normalize key according to dialect (e.g., Oracle returns uppercase keys)
+            return $this->dialect->normalizeColumnKey($key);
         }
 
         // 3) Complex expression without alias — cannot determine key

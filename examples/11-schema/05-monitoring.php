@@ -20,15 +20,15 @@ use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\PdoDb;
 
 // Get database configuration
+$driver = mb_strtolower(getenv('PDODB_DRIVER') ?: 'sqlite', 'UTF-8');
 $config = getExampleConfig();
-$driver = $config['driver'] ?? 'sqlite';
 
 echo "PDOdb Database Monitoring Examples\n";
 echo "===================================\n\n";
 echo "Driver: {$driver}\n\n";
 
 // Create database connection
-$db = new PdoDb($driver, $config);
+$db = createPdoDbWithErrorHandling($driver, $config);
 
 // Create a test table
 $schema = $db->schema();

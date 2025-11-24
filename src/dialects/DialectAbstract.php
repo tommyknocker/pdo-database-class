@@ -595,6 +595,33 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function formatColumnForComparison(string $column): string
+    {
+        // Default: return column as-is
+        return $column;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeJoinCondition(string $condition): string
+    {
+        // Default: return condition as-is
+        return $condition;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeColumnKey(string $key): string
+    {
+        // Default: return key as-is (case-sensitive)
+        return $key;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatDateOnly(string|RawValue $value): string
     {
         return 'DATE(' . $this->resolveValue($value) . ')';

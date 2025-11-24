@@ -54,11 +54,12 @@ try {
     $schema = $db->schema();
 
     // Drop tables if they exist (for clean example)
-    // Disable foreign key checks temporarily
+    // Disable foreign key checks temporarily (MySQL/MariaDB only)
     if ($driver === 'mysql' || $driver === 'mariadb') {
         $db->rawQuery('SET FOREIGN_KEY_CHECKS = 0');
     }
     
+    // Drop in reverse order to avoid foreign key constraints
     if ($schema->tableExists('products')) {
         $schema->dropTable('products');
     }
@@ -70,7 +71,7 @@ try {
     }
     // Note: Don't drop __seeds table as it's needed for seed tracking
     
-    // Re-enable foreign key checks
+    // Re-enable foreign key checks (MySQL/MariaDB only)
     if ($driver === 'mysql' || $driver === 'mariadb') {
         $db->rawQuery('SET FOREIGN_KEY_CHECKS = 1');
     }
@@ -101,18 +102,38 @@ try {
 
     // Create products table
     {
-        $schema->createTable('products', [
-            'id' => $schema->primaryKey(),
-            'name' => $schema->string(200)->notNull(),
-            'category_id' => $schema->integer()->notNull(),
-            'price' => $schema->decimal(10, 2)->notNull(),
-            'description' => $schema->text(),
-            'in_stock' => $schema->boolean()->defaultValue(true),
-            'created_at' => $schema->timestamp()->notNull()->defaultExpression('CURRENT_TIMESTAMP'),
-        ]);
-
-        // Add foreign key (only for non-SQLite databases)
-        if ($driver !== 'sqlite') {
+        // For SQLite and Oracle, foreign key must be in CREATE TABLE
+        if ($driver === 'sqlite' || $driver === 'oci') {
+            $schema->createTable('products', [
+                'id' => $schema->primaryKey(),
+                'name' => $schema->string(200)->notNull(),
+                'category_id' => $schema->integer()->notNull(),
+                'price' => $schema->decimal(10, 2)->notNull(),
+                'description' => $schema->text(),
+                'in_stock' => $schema->boolean()->defaultValue(true),
+                'created_at' => $schema->timestamp()->notNull()->defaultExpression('CURRENT_TIMESTAMP'),
+            ], [
+                'foreignKeys' => [
+                    [
+                        'name' => 'fk_products_category',
+                        'columns' => ['category_id'],
+                        'refTable' => 'categories',
+                        'refColumns' => ['id'],
+                        'onDelete' => 'CASCADE',
+                        'onUpdate' => 'CASCADE',
+                    ],
+                ],
+            ]);
+        } else {
+            $schema->createTable('products', [
+                'id' => $schema->primaryKey(),
+                'name' => $schema->string(200)->notNull(),
+                'category_id' => $schema->integer()->notNull(),
+                'price' => $schema->decimal(10, 2)->notNull(),
+                'description' => $schema->text(),
+                'in_stock' => $schema->boolean()->defaultValue(true),
+                'created_at' => $schema->timestamp()->notNull()->defaultExpression('CURRENT_TIMESTAMP'),
+            ]);
             $schema->addForeignKey('fk_products_category', 'products', 'category_id', 'categories', 'id', 'CASCADE', 'CASCADE');
         }
         echo "   ✓ Created products table\n";
