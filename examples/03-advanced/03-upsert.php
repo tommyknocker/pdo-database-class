@@ -15,12 +15,12 @@ $driver = getCurrentDriver($db);
 
 echo "=== UPSERT Operations Example (on $driver) ===\n\n";
 
-// MSSQL doesn't support INSERT ... ON DUPLICATE KEY UPDATE, so we skip this example
-if ($driver === 'sqlsrv') {
-    echo "⚠ Note: MSSQL uses MERGE statement for UPSERT operations, which requires a different syntax.\n";
+// MSSQL and Oracle don't support INSERT ... ON DUPLICATE KEY UPDATE, so we skip this example
+if ($driver === 'sqlsrv' || $driver === 'oci') {
+    echo "⚠ Note: {$driver} uses MERGE statement for UPSERT operations, which requires a different syntax.\n";
     echo "   This example demonstrates INSERT ... ON DUPLICATE KEY UPDATE syntax used by MySQL, PostgreSQL, and SQLite.\n";
-    echo "   For MSSQL, use the QueryBuilder::merge() method instead.\n\n";
-    echo "Example completed (skipped for MSSQL - use merge() method for UPSERT operations)\n";
+    echo "   For {$driver}, use the QueryBuilder::merge() method instead.\n\n";
+    echo "Example completed (skipped for {$driver} - use merge() method for UPSERT operations)\n";
     exit(0);
 }
 

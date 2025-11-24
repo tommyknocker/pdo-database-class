@@ -27,18 +27,34 @@ $schema->createTable('sales', [
 ], ['engine' => 'InnoDB']); // MySQL/MariaDB table option
 
 // Insert sample data
-$db->find()->table('sales')->insertMulti([
-    ['product' => 'Laptop', 'region' => 'North', 'amount' => 1200, 'sale_date' => '2025-01-15'],
-    ['product' => 'Mouse', 'region' => 'North', 'amount' => 25, 'sale_date' => '2025-01-16'],
-    ['product' => 'Keyboard', 'region' => 'North', 'amount' => 75, 'sale_date' => '2025-01-17'],
-    ['product' => 'Monitor', 'region' => 'North', 'amount' => 400, 'sale_date' => '2025-01-18'],
-    ['product' => 'Laptop', 'region' => 'South', 'amount' => 1300, 'sale_date' => '2025-01-15'],
-    ['product' => 'Mouse', 'region' => 'South', 'amount' => 30, 'sale_date' => '2025-01-16'],
-    ['product' => 'Monitor', 'region' => 'South', 'amount' => 450, 'sale_date' => '2025-01-17'],
-    ['product' => 'Keyboard', 'region' => 'East', 'amount' => 80, 'sale_date' => '2025-01-15'],
-    ['product' => 'Laptop', 'region' => 'East', 'amount' => 1250, 'sale_date' => '2025-01-16'],
-    ['product' => 'Mouse', 'region' => 'East', 'amount' => 28, 'sale_date' => '2025-01-17'],
-]);
+// Oracle requires TO_DATE() for date literals
+if ($driver === 'oci') {
+    $db->find()->table('sales')->insertMulti([
+        ['product' => 'Laptop', 'region' => 'North', 'amount' => 1200, 'sale_date' => Db::raw("TO_DATE('2025-01-15', 'YYYY-MM-DD')")],
+        ['product' => 'Mouse', 'region' => 'North', 'amount' => 25, 'sale_date' => Db::raw("TO_DATE('2025-01-16', 'YYYY-MM-DD')")],
+        ['product' => 'Keyboard', 'region' => 'North', 'amount' => 75, 'sale_date' => Db::raw("TO_DATE('2025-01-17', 'YYYY-MM-DD')")],
+        ['product' => 'Monitor', 'region' => 'North', 'amount' => 400, 'sale_date' => Db::raw("TO_DATE('2025-01-18', 'YYYY-MM-DD')")],
+        ['product' => 'Laptop', 'region' => 'South', 'amount' => 1300, 'sale_date' => Db::raw("TO_DATE('2025-01-15', 'YYYY-MM-DD')")],
+        ['product' => 'Mouse', 'region' => 'South', 'amount' => 30, 'sale_date' => Db::raw("TO_DATE('2025-01-16', 'YYYY-MM-DD')")],
+        ['product' => 'Monitor', 'region' => 'South', 'amount' => 450, 'sale_date' => Db::raw("TO_DATE('2025-01-17', 'YYYY-MM-DD')")],
+        ['product' => 'Keyboard', 'region' => 'East', 'amount' => 80, 'sale_date' => Db::raw("TO_DATE('2025-01-15', 'YYYY-MM-DD')")],
+        ['product' => 'Laptop', 'region' => 'East', 'amount' => 1250, 'sale_date' => Db::raw("TO_DATE('2025-01-16', 'YYYY-MM-DD')")],
+        ['product' => 'Mouse', 'region' => 'East', 'amount' => 28, 'sale_date' => Db::raw("TO_DATE('2025-01-17', 'YYYY-MM-DD')")],
+    ]);
+} else {
+    $db->find()->table('sales')->insertMulti([
+        ['product' => 'Laptop', 'region' => 'North', 'amount' => 1200, 'sale_date' => '2025-01-15'],
+        ['product' => 'Mouse', 'region' => 'North', 'amount' => 25, 'sale_date' => '2025-01-16'],
+        ['product' => 'Keyboard', 'region' => 'North', 'amount' => 75, 'sale_date' => '2025-01-17'],
+        ['product' => 'Monitor', 'region' => 'North', 'amount' => 400, 'sale_date' => '2025-01-18'],
+        ['product' => 'Laptop', 'region' => 'South', 'amount' => 1300, 'sale_date' => '2025-01-15'],
+        ['product' => 'Mouse', 'region' => 'South', 'amount' => 30, 'sale_date' => '2025-01-16'],
+        ['product' => 'Monitor', 'region' => 'South', 'amount' => 450, 'sale_date' => '2025-01-17'],
+        ['product' => 'Keyboard', 'region' => 'East', 'amount' => 80, 'sale_date' => '2025-01-15'],
+        ['product' => 'Laptop', 'region' => 'East', 'amount' => 1250, 'sale_date' => '2025-01-16'],
+        ['product' => 'Mouse', 'region' => 'East', 'amount' => 28, 'sale_date' => '2025-01-17'],
+    ]);
+}
 
 echo "Sample sales data inserted.\n\n";
 
@@ -59,6 +75,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     printf(
         "%-15s %-10s $%-6d Row: %d\n",
         $row['product'],
@@ -86,6 +103,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     printf(
         "%-15s %-10s $%-6d Rank: %d\n",
         $row['product'],
@@ -114,6 +132,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     printf(
         "%-15s %-10s $%-6d Dense Rank: %d\n",
         $row['product'],
@@ -142,6 +161,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     $diff = $row['amount'] - $row['prev_amount'];
     printf(
         "%-15s %-10s $%-6d Previous: $%-6d Difference: %+d\n",
@@ -172,6 +192,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     $next = $row['next_amount'] ? '$' . $row['next_amount'] : 'None';
     printf(
         "%-15s %-10s $%-6d Next: %s\n",
@@ -204,6 +225,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     printf(
         "%-15s %-10s $%-6d Running Total: $%-6d\n",
         $row['product'],
@@ -235,6 +257,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     printf(
         "%-15s %-10s $%-6d Moving Avg: $%.0f\n",
         $row['product'],
@@ -267,6 +290,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     printf(
         "%-15s %-10s $%-6d First: $%-6d Last: $%-6d\n",
         $row['product'],
@@ -293,6 +317,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     printf(
         "%-15s $%-6d Quartile: %d\n",
         $row['product'],
@@ -325,6 +350,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     $percentage = round(($row['running_sum'] / $row['region_total']) * 100);
     printf(
         "%-15s %-10s $%-6d Rank: %d  Cumulative: $%-6d (%.0f%% of region)\n",

@@ -52,14 +52,26 @@ $pdoDb->find()->table('products')->insertMulti([
     ['id' => 5, 'name' => 'Monitor', 'category' => 'Electronics', 'price' => 399.99],
 ]);
 
-$pdoDb->find()->table('sales')->insertMulti([
-    ['product_id' => 1, 'quantity' => 10, 'sale_date' => '2024-01-15'],
-    ['product_id' => 1, 'quantity' => 5, 'sale_date' => '2024-02-20'],
-    ['product_id' => 2, 'quantity' => 50, 'sale_date' => '2024-01-10'],
-    ['product_id' => 3, 'quantity' => 8, 'sale_date' => '2024-01-25'],
-    ['product_id' => 4, 'quantity' => 12, 'sale_date' => '2024-02-05'],
-    ['product_id' => 5, 'quantity' => 15, 'sale_date' => '2024-02-15'],
-]);
+// Oracle requires TO_DATE() for date literals
+if ($driver === 'oci') {
+    $pdoDb->find()->table('sales')->insertMulti([
+        ['product_id' => 1, 'quantity' => 10, 'sale_date' => Db::raw("TO_DATE('2024-01-15', 'YYYY-MM-DD')")],
+        ['product_id' => 1, 'quantity' => 5, 'sale_date' => Db::raw("TO_DATE('2024-02-20', 'YYYY-MM-DD')")],
+        ['product_id' => 2, 'quantity' => 50, 'sale_date' => Db::raw("TO_DATE('2024-01-10', 'YYYY-MM-DD')")],
+        ['product_id' => 3, 'quantity' => 8, 'sale_date' => Db::raw("TO_DATE('2024-01-25', 'YYYY-MM-DD')")],
+        ['product_id' => 4, 'quantity' => 12, 'sale_date' => Db::raw("TO_DATE('2024-02-05', 'YYYY-MM-DD')")],
+        ['product_id' => 5, 'quantity' => 15, 'sale_date' => Db::raw("TO_DATE('2024-02-15', 'YYYY-MM-DD')")],
+    ]);
+} else {
+    $pdoDb->find()->table('sales')->insertMulti([
+        ['product_id' => 1, 'quantity' => 10, 'sale_date' => '2024-01-15'],
+        ['product_id' => 1, 'quantity' => 5, 'sale_date' => '2024-02-20'],
+        ['product_id' => 2, 'quantity' => 50, 'sale_date' => '2024-01-10'],
+        ['product_id' => 3, 'quantity' => 8, 'sale_date' => '2024-01-25'],
+        ['product_id' => 4, 'quantity' => 12, 'sale_date' => '2024-02-05'],
+        ['product_id' => 5, 'quantity' => 15, 'sale_date' => '2024-02-15'],
+    ]);
+}
 
 $pdoDb->find()->table('employees')->insertMulti([
     ['id' => 1, 'name' => 'Alice', 'manager_id' => null],

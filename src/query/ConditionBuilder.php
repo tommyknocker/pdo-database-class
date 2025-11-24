@@ -784,6 +784,34 @@ class ConditionBuilder implements ConditionBuilderInterface
             return $this;
         }
 
+        // Check if exprOrColumn is an external reference (e.g., "users.department")
+        // If so, we need to apply formatColumnForComparison to the left side column
+        $isExternalRef = is_string($exprOrColumn) && $this->isExternalReference((string)$exprOrColumn);
+        if ($isExternalRef) {
+            // External reference on left side - apply formatColumnForComparison for CLOB compatibility
+            $exprQuoted = $this->quoteQualifiedIdentifier((string)$exprOrColumn);
+            $columnForComparison = $this->dialect->formatColumnForComparison($exprQuoted);
+            
+            // Process external references in value
+            $value = $this->processExternalReferences($value);
+            
+            if ($value instanceof RawValue) {
+                $right = $this->resolveRawValue($value);
+                // Check if resolved value is a table.column pattern (external reference)
+                // Apply formatColumnForComparison for CLOB compatibility
+                if (is_string($right) && preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*$/', $right)) {
+                    $externalRefQuoted = $this->quoteQualifiedIdentifier($right);
+                    $right = $this->dialect->formatColumnForComparison($externalRefQuoted);
+                }
+                $this->{$prop}[] = ['sql' => "{$columnForComparison} {$operator} {$right}", 'cond' => $cond];
+                return $this;
+            }
+            
+            $ph = $this->parameterManager->addParam((string)$exprOrColumn, $value);
+            $this->{$prop}[] = ['sql' => "{$columnForComparison} {$operator} {$ph}", 'cond' => $cond];
+            return $this;
+        }
+
         $exprQuoted = $this->quoteQualifiedIdentifier((string)$exprOrColumn);
 
         // Process external references
@@ -794,7 +822,9 @@ class ConditionBuilder implements ConditionBuilderInterface
             $sub = $value->toSQL();
             $map = $this->parameterManager->mergeSubParams($sub['params'], 'sq');
             $subSql = $this->parameterManager->replacePlaceholdersInSql($sub['sql'], $map);
-            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} ({$subSql})", 'cond' => $cond];
+            // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
+            $columnForComparison = $this->dialect->formatColumnForComparison($exprQuoted);
+            $this->{$prop}[] = ['sql' => "{$columnForComparison} {$operator} ({$subSql})", 'cond' => $cond];
             return $this;
         }
 
@@ -805,7 +835,9 @@ class ConditionBuilder implements ConditionBuilderInterface
             $sub = $subQuery->toSQL();
             $map = $this->parameterManager->mergeSubParams($sub['params'], 'sq');
             $subSql = $this->parameterManager->replacePlaceholdersInSql($sub['sql'], $map);
-            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} ({$subSql})", 'cond' => $cond];
+            // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
+            $columnForComparison = $this->dialect->formatColumnForComparison($exprQuoted);
+            $this->{$prop}[] = ['sql' => "{$columnForComparison} {$operator} ({$subSql})", 'cond' => $cond];
             return $this;
         }
 
@@ -914,13 +946,29 @@ class ConditionBuilder implements ConditionBuilderInterface
                         $resolved = preg_replace('/^' . preg_quote((string)$exprOrColumn, '/') . '\s+(IN|NOT\s+IN)/i', $columnForComparison . ' $1', $resolved);
                     }
                     $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
-                } elseif (stripos($resolved, (string)$exprOrColumn) !== false || stripos($resolved, $quotedCol) !== false || stripos($resolved, 'LIKE') !== false) {
-                    // Full condition - use as is
+                } elseif (stripos($resolved, 'LIKE') !== false || stripos($resolved, 'IN (') !== false || stripos($resolved, 'NOT IN (') !== false) {
+                    // Full condition with LIKE, IN, or NOT IN - use as is
                     $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
                 } else {
                     // Just a value - add column and operator
+                    // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
+                    // when comparing with external references (e.g., users.department)
+                    $columnForComparison = $this->dialect->formatColumnForComparison($exprQuoted);
+                    // If resolved value looks like an external reference (e.g., "users.department"), 
+                    // also apply formatColumnForComparison to it for CLOB compatibility
+                    // Check pattern first (table.column), then apply formatColumnForComparison
+                    // In subqueries, external references from outer query need TO_CHAR() for CLOB compatibility
+                    // Trim resolved value to handle any whitespace
+                    $resolvedTrimmed = is_string($resolved) ? trim($resolved) : $resolved;
+                    if (is_string($resolvedTrimmed) && preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*$/', $resolvedTrimmed)) {
+                        // It's a table.column pattern - apply formatColumnForComparison for CLOB compatibility
+                        // This handles external references in subqueries (e.g., users.department in subquery)
+                        $externalRefQuoted = $this->quoteQualifiedIdentifier($resolvedTrimmed);
+                        $externalRefFormatted = $this->dialect->formatColumnForComparison($externalRefQuoted);
+                        $resolved = $externalRefFormatted;
+                    }
                     $this->{$prop}[] = [
-                        'sql' => "{$exprQuoted} {$operator} {$resolved}",
+                        'sql' => "{$columnForComparison} {$operator} {$resolved}",
                         'cond' => $cond,
                     ];
                 }

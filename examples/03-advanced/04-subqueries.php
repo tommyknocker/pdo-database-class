@@ -86,6 +86,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']}): \${$row['salary']}\n";
     echo "    Orders: {$row['total_orders']}, Total: \${$row['total_amount']}\n";
 }
@@ -102,20 +103,32 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']}: \${$row['salary']} (above average)\n";
 }
 echo "\n";
 
 // Example 3: Subquery in FROM
 echo "3. Subquery in FROM...\n";
-$results = $db->rawQuery('
-    SELECT department, avg_salary, emp_count 
-    FROM (SELECT department, AVG(salary) as avg_salary, COUNT(*) as emp_count 
-          FROM users GROUP BY department) as dept_stats 
-    ORDER BY avg_salary DESC
-');
+// Oracle doesn't support AS keyword for subquery aliases and requires TO_CHAR() for CLOB in ORDER BY
+if ($driver === 'oci') {
+    $results = $db->rawQuery('
+        SELECT department, avg_salary, emp_count 
+        FROM (SELECT TO_CHAR(department) as department, AVG(salary) as avg_salary, COUNT(*) as emp_count 
+              FROM users GROUP BY TO_CHAR(department)) dept_stats 
+        ORDER BY avg_salary DESC
+    ');
+} else {
+    $results = $db->rawQuery('
+        SELECT department, avg_salary, emp_count 
+        FROM (SELECT department, AVG(salary) as avg_salary, COUNT(*) as emp_count 
+              FROM users GROUP BY department) as dept_stats 
+        ORDER BY avg_salary DESC
+    ');
+}
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['department']}: \${$row['avg_salary']} average salary, {$row['emp_count']} employees\n";
 }
 echo "\n";
@@ -132,6 +145,7 @@ $results = $db->find()
 
 echo "  Users who have placed orders:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']})\n";
 }
 echo "\n";
@@ -148,6 +162,7 @@ $results = $db->find()
 
 echo "  Users who have NOT placed orders:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']})\n";
 }
 echo "\n";
@@ -167,6 +182,7 @@ $results = $db->find()
 
 echo "  Users who have completed orders:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']})\n";
 }
 echo "\n";
@@ -189,6 +205,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']}): \${$row['salary']}\n";
     echo "    Dept avg: \${$row['dept_avg_salary']}, Difference: \${$row['salary_vs_dept']}\n";
 }
@@ -196,16 +213,28 @@ echo "\n";
 
 // Example 8: Subquery with JOIN
 echo "8. Subquery with JOIN...\n";
-$results = $db->rawQuery('
-    SELECT users.name, users.department, order_stats.order_count, order_stats.total_spent
-    FROM users
-    JOIN (SELECT user_id, COUNT(*) as order_count, SUM(amount) as total_spent 
-          FROM orders GROUP BY user_id) as order_stats 
-    ON order_stats.user_id = users.id
-');
+// Oracle doesn't support AS keyword for subquery aliases
+if ($driver === 'oci') {
+    $results = $db->rawQuery('
+        SELECT users.name, users.department, order_stats.order_count, order_stats.total_spent
+        FROM users
+        JOIN (SELECT user_id, COUNT(*) as order_count, SUM(amount) as total_spent 
+              FROM orders GROUP BY user_id) order_stats 
+        ON order_stats.user_id = users.id
+    ');
+} else {
+    $results = $db->rawQuery('
+        SELECT users.name, users.department, order_stats.order_count, order_stats.total_spent
+        FROM users
+        JOIN (SELECT user_id, COUNT(*) as order_count, SUM(amount) as total_spent 
+              FROM orders GROUP BY user_id) as order_stats 
+        ON order_stats.user_id = users.id
+    ');
+}
 
 echo "  Users with order statistics:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']}): {$row['order_count']} orders, \${$row['total_spent']} total\n";
 }
 echo "\n";
@@ -238,6 +267,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']}): \${$row['salary']}\n";
     echo "    Overall rank: {$row['salary_rank']}/{$row['total_users']}, Dept rank: {$row['dept_rank']}/{$row['dept_users']}\n";
 }
@@ -254,6 +284,7 @@ $results = $db->rawQuery('
 
 echo "  Departments with above-average salaries:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['department']}: \${$row['avg_salary']} avg salary, {$row['emp_count']} employees\n";
 }
 echo "\n";
@@ -282,6 +313,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']}): \${$row['salary']}\n";
     echo "    Performance: {$row['performance_category']}\n";
     echo "    Orders: {$row['order_count']}, Revenue: \${$row['total_revenue']}\n";
@@ -303,6 +335,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']}): \${$row['salary']}\n";
     echo "    Overall percentile: " . round($row['salary_percentile'], 1) . "%\n";
     echo "    Dept percentile: " . round($row['dept_salary_percentile'], 1) . "%\n";
