@@ -505,8 +505,15 @@ class OracleSqlFormatter extends SqlFormatterAbstract
     public function formatRepeat(string|RawValue $value, int $count): string
     {
         $val = $this->resolveValue($value);
+        // Apply formatColumnForComparison for CLOB compatibility only if it's a column (not a literal)
+        // Check if it's a quoted identifier (column) or a literal string
+        if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $val) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $val)) {
+            $valFormatted = $this->dialect->formatColumnForComparison($val);
+        } else {
+            $valFormatted = $val;
+        }
         // Oracle uses RPAD with empty string trick
-        return "RPAD('', $count * LENGTH($val), $val)";
+        return "RPAD('', $count * LENGTH($valFormatted), $valFormatted)";
     }
 
     /**
@@ -515,9 +522,16 @@ class OracleSqlFormatter extends SqlFormatterAbstract
     public function formatReverse(string|RawValue $value): string
     {
         $val = $this->resolveValue($value);
+        // Apply formatColumnForComparison for CLOB compatibility only if it's a column (not a literal)
+        // Check if it's a quoted identifier (column) or a literal string
+        if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $val) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $val)) {
+            $valFormatted = $this->dialect->formatColumnForComparison($val);
+        } else {
+            $valFormatted = $val;
+        }
         // Oracle doesn't have REVERSE, use recursive CTE or LISTAGG trick
         // Simple implementation using LISTAGG
-        return "(SELECT LISTAGG(SUBSTR($val, LEVEL, 1)) WITHIN GROUP (ORDER BY LEVEL DESC) FROM DUAL CONNECT BY LEVEL <= LENGTH($val))";
+        return "(SELECT LISTAGG(SUBSTR($valFormatted, LEVEL, 1)) WITHIN GROUP (ORDER BY LEVEL DESC) FROM DUAL CONNECT BY LEVEL <= LENGTH($valFormatted))";
     }
 
     /**
