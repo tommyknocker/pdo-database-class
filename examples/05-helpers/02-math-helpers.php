@@ -45,6 +45,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']}: {$row['value']} → |{$row['absolute']}|\n";
 }
 echo "\n";
@@ -64,6 +65,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']}: {$row['value']}\n";
     echo "    0 decimals: {$row['rounded_0']}\n";
     echo "    1 decimal: {$row['rounded_1']}\n";
@@ -83,6 +85,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     $evenOdd = ($row['remainder'] == 0) ? 'even' : 'odd';
     echo "  • {$row['name']}: reading {$row['reading']} is {$evenOdd} (remainder: {$row['remainder']})\n";
 }
@@ -125,6 +128,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']}: reading={$row['reading']}, alt={$row['alt_reading']}, max={$row['max_reading']}\n";
 }
 echo "\n";
@@ -166,6 +170,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']}: reading={$row['reading']}, alt={$row['alt_reading']}, min={$row['min_reading']}\n";
 }
 echo "\n";
@@ -235,6 +240,7 @@ $results = $db->find()
 
 echo "  Measurements ordered by absolute value:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['name']}: {$row['value']} → abs: {$row['abs_value']}, normalized: {$row['normalized']}, mod 10: {$row['modulo_10']}\n";
 }
 echo "\n";
@@ -271,6 +277,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     $isEven = $row['is_even'] == 0 ? 'even' : 'odd';
     echo "  • {$row['name']}: value={$row['value']}, reading={$row['reading']} ({$isEven})\n";
     echo "    percentage={$row['percentage']}%, range_check={$row['range_check']}\n";

@@ -44,6 +44,7 @@ $users = $db->find()
     ->get();
 
 foreach ($users as $user) {
+    $user = normalizeRowKeys($user);
     echo "  • {$user['full_name']}\n";
 }
 echo "\n";
@@ -61,6 +62,7 @@ $sides = $db->find()
     ->get();
 
 foreach ($sides as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['first_name']} → LEFT(2)={$row['left2']}, RIGHT(2)={$row['right2']}\n";
 }
 echo "\n";
@@ -77,6 +79,7 @@ $positions = $db->find()
     ->get();
 
 foreach ($positions as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['email']} → '@' at position {$row['at_pos']}\n";
 }
 echo "\n";
@@ -94,6 +97,7 @@ $banners = $db->find()
     ->get();
 
 foreach ($banners as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['first_name']} → banner={$row['banner']}, reversed={$row['reversed']}\n";
 }
 echo "\n";
@@ -111,6 +115,7 @@ $padded = $db->find()
     ->get();
 
 foreach ($padded as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • '{$row['left_padded']}' | '{$row['right_padded']}'\n";
 }
 echo "\n";
@@ -145,6 +150,7 @@ $users = $db->find()
     ->get();
 
 foreach ($users as $user) {
+    $user = normalizeRowKeys($user);
     echo "  Before: \"{$user['bio']}\" (length: {$user['length_before']})\n";
     echo "  After:  \"{$user['trimmed']}\" (length: {$user['length_after']})\n";
 }
@@ -160,6 +166,7 @@ $users = $db->find()
 
 echo "  Users with long bios:\n";
 foreach ($users as $user) {
+    $user = normalizeRowKeys($user);
     echo "  • {$user['first_name']} (bio length: {$user['bio_length']})\n";
 }
 echo "\n";
@@ -175,6 +182,7 @@ $users = $db->find()
     ->get();
 
 foreach ($users as $user) {
+    $user = normalizeRowKeys($user);
     echo "  • {$user['first_name']} → {$user['short_name']}\n";
 }
 echo "\n";
@@ -190,6 +198,7 @@ $users = $db->find()
     ->get();
 
 foreach ($users as $user) {
+    $user = normalizeRowKeys($user);
     echo "  • {$user['first_name']}: {$user['masked_email']}\n";
 }
 echo "\n";
@@ -208,6 +217,7 @@ $users = $db->find()
     ->get();
 
 foreach ($users as $user) {
+    $user = normalizeRowKeys($user);
     echo "  Original: \"{$user['bio']}\"\n";
     echo "  LTRIM:    \"{$user['left_trimmed']}\"\n";
     echo "  RTRIM:    \"{$user['right_trimmed']}\"\n";
@@ -233,6 +243,7 @@ $users = $db->find()
 
 echo "  Combined operations:\n";
 foreach ($users as $user) {
+    $user = normalizeRowKeys($user);
     echo "  • Original: {$user['first_name']} {$user['last_name']}\n";
     echo "    Full name (UPPER): {$user['full_name_upper']}\n";
     echo "    Email (lower): {$user['email_lower']}\n";
@@ -261,6 +272,7 @@ $users = $db->find()
     ->get();
 
 foreach ($users as $user) {
+    $user = normalizeRowKeys($user);
     echo "  • {$user['email']}\n";
     echo "    Length: {$user['email_length']}, '@' at position: {$user['at_position']}\n";
     echo "    Prefix (first 5): {$user['email_prefix']}, Suffix (last 10): {$user['email_suffix']}\n";

@@ -74,7 +74,10 @@ $darkThemeUsers = $db->find()
 
 echo "  Found " . count($darkThemeUsers) . " users:\n";
 foreach ($darkThemeUsers as $user) {
-    $settings = json_decode($user['settings'], true);
+    $user = normalizeRowKeys($user);
+    // Oracle returns CLOB as resource, need to read it
+    $settingsJson = is_resource($user['settings']) ? stream_get_contents($user['settings']) : $user['settings'];
+    $settings = json_decode($settingsJson, true);
     echo "  • {$user['name']} (theme: {$settings['theme']}, lang: {$settings['language']})\n";
 }
 echo "\n";
@@ -88,7 +91,10 @@ $developers = $db->find()
 
 echo "  Found " . count($developers) . " developers:\n";
 foreach ($developers as $user) {
-    $tags = json_decode($user['tags'], true);
+    $user = normalizeRowKeys($user);
+    // Oracle returns CLOB as resource, need to read it
+    $tagsJson = is_resource($user['tags']) ? stream_get_contents($user['tags']) : $user['tags'];
+    $tags = json_decode($tagsJson, true);
     echo "  • {$user['name']}: " . implode(', ', $tags) . "\n";
 }
 echo "\n";
@@ -107,6 +113,7 @@ $users = $db->find()
 
 echo "  User settings:\n";
 foreach ($users as $user) {
+    $user = normalizeRowKeys($user);
     echo "  • {$user['name']}: {$user['theme']} theme, {$user['language']}, font size {$user['fontSize']}\n";
 }
 echo "\n";
@@ -138,6 +145,7 @@ $sorted = $db->find()
 
 echo "  Users sorted by font size (largest first):\n";
 foreach ($sorted as $user) {
+    $user = normalizeRowKeys($user);
     echo "  • {$user['name']}: {$user['fontSize']}px\n";
 }
 
