@@ -117,9 +117,20 @@ class OracleDdlBuilder implements DdlBuilderInterface
      */
     public function buildDropTableIfExistsSql(string $table): string
     {
-        // Oracle doesn't support IF EXISTS, but we can use a PL/SQL block
-        // For simplicity, just return DROP TABLE (error handling should be done at application level)
-        return 'DROP TABLE ' . $this->quoteTable($table);
+        // Oracle doesn't support IF EXISTS, so we use a PL/SQL block to check existence
+        $tableQuoted = $this->quoteTable($table);
+        // Remove quotes for USER_TABLES query (Oracle stores unquoted names in uppercase)
+        $tableUnquoted = str_replace(['"', "'"], '', $table);
+        $tableUpper = strtoupper($tableUnquoted);
+        
+        return "BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE {$tableQuoted} CASCADE CONSTRAINTS';
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLCODE != -942 THEN
+            RAISE;
+        END IF;
+END;";
     }
 
     /**
@@ -438,7 +449,9 @@ class OracleDdlBuilder implements DdlBuilderInterface
         } elseif ($type === 'BIGINT') {
             $type = 'NUMBER(19)';
         } elseif ($type === 'TEXT' || $type === 'LONGTEXT') {
-            $type = 'CLOB';
+            // Use VARCHAR2(4000) instead of CLOB for better compatibility with LIKE and other operations
+            // CLOB has limitations (cannot be used directly in WHERE with LIKE, cannot be indexed, etc.)
+            $type = 'VARCHAR2(4000)';
         } elseif ($type === 'VARCHAR' && $schema->getLength() === null) {
             $type = 'VARCHAR2(4000)';
         } elseif ($type === 'VARCHAR') {

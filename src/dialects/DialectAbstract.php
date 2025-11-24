@@ -586,6 +586,15 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function formatLike(string $column, string $pattern): string
+    {
+        // Default implementation: simple LIKE
+        return "{$column} LIKE :pattern";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatDateOnly(string|RawValue $value): string
     {
         return 'DATE(' . $this->resolveValue($value) . ')';

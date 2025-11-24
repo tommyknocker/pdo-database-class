@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\query;
 use InvalidArgumentException;
 use PDOException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\helpers\values\LikeValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
@@ -806,7 +807,30 @@ class ConditionBuilder implements ConditionBuilderInterface
         }
 
         if ($value instanceof RawValue) {
-            $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$this->resolveRawValue($value)}", 'cond' => $cond];
+            // Special handling for LikeValue: pass quoted column to formatLike()
+            if ($value instanceof LikeValue) {
+                $resolved = $this->dialect->formatLike($exprQuoted, $value->getPattern());
+                // Add pattern parameter
+                $patternParam = $this->parameterManager->addParam('pattern', $value->getPattern());
+                // Replace :pattern with the actual parameter name
+                $resolved = str_replace(':pattern', $patternParam, $resolved);
+                $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
+            } else {
+                $resolved = $this->resolveRawValue($value);
+                // Check if RawValue already contains the column name (full condition)
+                // e.g., "TO_CHAR(email) LIKE :pattern" from formatLike()
+                $quotedCol = $this->dialect->quoteIdentifier((string)$exprOrColumn);
+                if (stripos($resolved, (string)$exprOrColumn) !== false || stripos($resolved, $quotedCol) !== false || stripos($resolved, 'LIKE') !== false) {
+                    // Full condition - use as is
+                    $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
+                } else {
+                    // Just a value - add column and operator
+                    $this->{$prop}[] = [
+                        'sql' => "{$exprQuoted} {$operator} {$resolved}",
+                        'cond' => $cond,
+                    ];
+                }
+            }
         } else {
             $ph = $this->parameterManager->addParam((string)$exprOrColumn, $value);
             $this->{$prop}[] = ['sql' => "{$exprQuoted} {$operator} {$ph}", 'cond' => $cond];

@@ -16,6 +16,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../helpers.php';
 
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\PdoDb;
 
 // Get database configuration
@@ -46,7 +47,7 @@ for ($i = 1; $i <= 10; $i++) {
     $db->find()->table('monitor_test')->insert([
         'name' => "Item {$i}",
         'value' => $i * 10,
-        'created_at' => date('Y-m-d H:i:s'),
+        'created_at' => Db::now(), // Use Db::now() helper for better compatibility across dialects
     ]);
 }
 echo "✓ Inserted 10 test records\n\n";

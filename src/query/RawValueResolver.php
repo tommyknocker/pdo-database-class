@@ -22,6 +22,7 @@ use tommyknocker\pdodb\helpers\values\IfNullValue;
 use tommyknocker\pdodb\helpers\values\ILikeValue;
 use tommyknocker\pdodb\helpers\values\IntervalValue;
 use tommyknocker\pdodb\helpers\values\JsonContainsValue;
+use tommyknocker\pdodb\helpers\values\LikeValue;
 use tommyknocker\pdodb\helpers\values\JsonExistsValue;
 use tommyknocker\pdodb\helpers\values\JsonGetValue;
 use tommyknocker\pdodb\helpers\values\JsonKeysValue;
@@ -84,6 +85,7 @@ class RawValueResolver
         }
         $result = match (true) {
             $value instanceof NowValue => $this->dialect->now($value->getValue(), $value->getAsTimestamp()),
+            // LikeValue is handled directly in ConditionBuilder with quoted column
             $value instanceof ILikeValue => $this->resolveRawValue($this->dialect->ilike($value->getValue(), (string)$value->getParams()[0])),
             $value instanceof EscapeValue => $this->connection->quote($value->getValue()) ?: "'" . str_replace("'", "''", $value->getValue()) . "'",
             $value instanceof FulltextMatchValue => $this->resolveFulltextMatchValue($value),
@@ -179,12 +181,20 @@ class RawValueResolver
 
         if ($result instanceof RawValue) { // Allow nested RawValue resolution
             $value = $result;
+        } elseif ($value instanceof LikeValue) {
+            // LikeValue returns SQL from formatLike(), need to handle parameters
+            $sql = $result;
+            $params = ['pattern' => $value->getPattern()];
         } else {
             return $result;
         }
 
-        $sql = $value->getValue();
-        $params = $value->getParams();
+        if (!isset($sql)) {
+            $sql = $value->getValue();
+        }
+        if (!isset($params)) {
+            $params = $value->getParams();
+        }
 
         // Normalize DEFAULT keyword for dialect-specific handling
         $sql = $this->dialect->normalizeDefaultValue($sql);

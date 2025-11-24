@@ -403,6 +403,17 @@ interface DialectInterface
     /* ---------------- SQL helpers and dialect-specific expressions ---------------- */
 
     /**
+     * Format LIKE condition.
+     * For Oracle, this handles CLOB columns by wrapping them in TO_CHAR().
+     *
+     * @param string $column Column name (may be qualified, e.g., "table.column")
+     * @param string $pattern LIKE pattern
+     *
+     * @return string SQL expression (e.g., "column LIKE :pattern" or "TO_CHAR(column) LIKE :pattern" for Oracle CLOB)
+     */
+    public function formatLike(string $column, string $pattern): string;
+
+    /**
      * Format IFNULL expression.
      *
      * @param string $expr

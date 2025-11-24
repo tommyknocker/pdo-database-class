@@ -623,6 +623,18 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatLike(string $column, string $pattern): string
+    {
+        // Oracle: CLOB columns cannot be used directly in LIKE, need TO_CHAR()
+        // We wrap the column in TO_CHAR() to handle both VARCHAR2 and CLOB columns
+        // TO_CHAR() works for both types and is safe to use
+        // Column is already quoted when passed from ConditionBuilder
+        return "TO_CHAR({$column}) LIKE :pattern";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatIfNull(string $expr, mixed $default): string
     {
         return $this->sqlFormatter->formatIfNull($expr, $default);

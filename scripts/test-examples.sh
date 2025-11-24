@@ -22,6 +22,7 @@ MYSQL_AVAILABLE=0
 MARIADB_AVAILABLE=0
 PGSQL_AVAILABLE=0
 MSSQL_AVAILABLE=0
+ORACLE_AVAILABLE=0
 SQLITE_AVAILABLE=1  # SQLite always available
 
 # Check MySQL
@@ -141,6 +142,55 @@ else
     echo -e "${YELLOW}⊘ MSSQL config not found (examples/config.sqlsrv.php)${NC}"
 fi
 
+# Check Oracle
+# First check if environment variables are set (CI), then fallback to config file
+if [ -n "$PDODB_USERNAME" ] && [ -n "$PDODB_PASSWORD" ] && [ "$PDODB_DRIVER" == "oci" ]; then
+    # Use environment variables (CI)
+    if php -r "
+        \$host = getenv('PDODB_HOST') ?: 'localhost';
+        \$port = getenv('PDODB_PORT') ?: '1521';
+        \$serviceName = getenv('PDODB_SERVICE_NAME') ?: getenv('PDODB_SID') ?: 'XEPDB1';
+        \$username = getenv('PDODB_USERNAME');
+        \$password = getenv('PDODB_PASSWORD');
+        try {
+            \$dsn = 'oci:dbname=//' . \$host . ':' . \$port . '/' . \$serviceName;
+            new PDO(\$dsn, \$username, \$password);
+            exit(0);
+        } catch (Exception \$e) {
+            exit(1);
+        }
+    " 2>/dev/null; then
+        ORACLE_AVAILABLE=1
+        echo -e "${GREEN}✓ Oracle available (via environment variables)${NC}"
+    else
+        echo -e "${YELLOW}⊘ Oracle not available (environment variables set but connection failed)${NC}"
+    fi
+elif [ -f "examples/config.oracle.php" ]; then
+    if php -r "
+        \$config = require 'examples/config.oracle.php';
+        try {
+            \$host = \$config['host'] ?? 'localhost';
+            \$port = \$config['port'] ?? 1521;
+            \$serviceName = \$config['service_name'] ?? \$config['sid'] ?? \$config['dbname'] ?? 'XEPDB1';
+            \$dsn = 'oci:dbname=//' . \$host . ':' . \$port . '/' . \$serviceName;
+            if (isset(\$config['charset'])) {
+                \$dsn .= ';charset=' . \$config['charset'];
+            }
+            new PDO(\$dsn, \$config['username'], \$config['password']);
+            exit(0);
+        } catch (Exception \$e) {
+            exit(1);
+        }
+    " 2>/dev/null; then
+        ORACLE_AVAILABLE=1
+        echo -e "${GREEN}✓ Oracle available${NC}"
+    else
+        echo -e "${YELLOW}⊘ Oracle not available (config exists but connection failed)${NC}"
+    fi
+else
+    echo -e "${YELLOW}⊘ Oracle config not found (examples/config.oracle.php)${NC}"
+fi
+
 echo -e "${GREEN}✓ SQLite available (always)${NC}"
 echo ""
 
@@ -161,6 +211,9 @@ RESULTS["sqlite_failed"]=0
 RESULTS["mssql_total"]=0
 RESULTS["mssql_passed"]=0
 RESULTS["mssql_failed"]=0
+RESULTS["oracle_total"]=0
+RESULTS["oracle_passed"]=0
+RESULTS["oracle_failed"]=0
 
 echo "================================================"
 echo "Running Tests"
@@ -301,6 +354,27 @@ for file in $FILE_PATTERN; do
             fi
         fi
     fi
+    
+    # Test on Oracle if available
+    if [ $ORACLE_AVAILABLE -eq 1 ]; then
+        RESULTS["oracle_total"]=$((${RESULTS["oracle_total"]} + 1))
+        echo -n -e "${CYAN}[$category/$filename]${NC} on ${BLUE}Oracle${NC} ... "
+        
+        export PDODB_DRIVER="oci"
+        if timeout 30 php "$file" > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ PASSED${NC}"
+            RESULTS["oracle_passed"]=$((${RESULTS["oracle_passed"]} + 1))
+        else
+            echo -e "${RED}✗ FAILED${NC}"
+            RESULTS["oracle_failed"]=$((${RESULTS["oracle_failed"]} + 1))
+            
+            if [ "$1" == "--verbose" ] || [ "$1" == "-v" ] || [ "$2" == "--verbose" ] || [ "$2" == "-v" ]; then
+                echo -e "${YELLOW}Error output:${NC}"
+                php "$file" 2>&1 | tail -10
+                echo ""
+            fi
+        fi
+    fi
 done
 
 echo ""
@@ -350,6 +424,14 @@ if [ ${RESULTS["mssql_total"]} -gt 0 ]; then
     fi
 fi
 
+if [ ${RESULTS["oracle_total"]} -gt 0 ]; then
+    echo -e "${BLUE}Oracle:${NC} ${GREEN}${RESULTS["oracle_passed"]}${NC}/${RESULTS["oracle_total"]} passed"
+    if [ ${RESULTS["oracle_failed"]} -gt 0 ]; then
+        echo -e "  Failed: ${RED}${RESULTS["oracle_failed"]}${NC}"
+        TOTAL_FAILED=$((TOTAL_FAILED + ${RESULTS["oracle_failed"]}))
+    fi
+fi
+
 echo "================================================"
 
 if [ $TOTAL_FAILED -gt 0 ]; then
@@ -372,6 +454,9 @@ else
     fi
     if [ $MSSQL_AVAILABLE -eq 0 ]; then
         MISSING_DBS+=("MSSQL (create examples/config.sqlsrv.php)")
+    fi
+    if [ $ORACLE_AVAILABLE -eq 0 ]; then
+        MISSING_DBS+=("Oracle (create examples/config.oracle.php)")
     fi
     
     if [ ${#MISSING_DBS[@]} -gt 0 ]; then

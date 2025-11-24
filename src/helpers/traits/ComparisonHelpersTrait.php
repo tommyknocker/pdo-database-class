@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\helpers\traits;
 
 use tommyknocker\pdodb\helpers\values\ILikeValue;
+use tommyknocker\pdodb\helpers\values\LikeValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
@@ -13,16 +14,17 @@ use tommyknocker\pdodb\helpers\values\RawValue;
 trait ComparisonHelpersTrait
 {
     /**
-     * Returns a RawValue instance representing a LIKE condition.
+     * Returns a LikeValue instance representing a LIKE condition.
+     * Allows dialect-specific formatting (e.g., TO_CHAR() for Oracle CLOB columns).
      *
      * @param string $column The column name.
      * @param string $pattern The pattern to match.
      *
-     * @return RawValue The RawValue instance.
+     * @return LikeValue The LikeValue instance.
      */
-    public static function like(string $column, string $pattern): RawValue
+    public static function like(string $column, string $pattern): LikeValue
     {
-        return new RawValue("$column LIKE :pattern", ['pattern' => $pattern]);
+        return new LikeValue($column, $pattern);
     }
 
     /**
