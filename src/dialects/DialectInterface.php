@@ -200,6 +200,17 @@ interface DialectInterface
     public function needsUnionParentheses(): bool;
 
     /**
+     * Format ORDER BY clause for UNION queries.
+     * Some dialects (like Oracle) require positional numbers instead of column names.
+     *
+     * @param array<string> $orderBy Array of ORDER BY expressions (e.g., ['name', 'price DESC'])
+     * @param array<string> $selectColumns Array of SELECT column expressions (e.g., ['name', 'price'])
+     *
+     * @return string Formatted ORDER BY clause
+     */
+    public function formatUnionOrderBy(array $orderBy, array $selectColumns): string;
+
+    /**
      * Build upsert clause.
      *
      * @param array<int, string>|array<string, mixed> $updateColumns Either array of column names or associative array with expressions

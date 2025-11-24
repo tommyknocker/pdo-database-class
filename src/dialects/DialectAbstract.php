@@ -696,6 +696,15 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function formatUnionOrderBy(array $orderBy, array $selectColumns): string
+    {
+        // Default implementation: return column names as-is
+        return implode(', ', $orderBy);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatLateralJoin(string $tableSql, string $type, string $aliasQuoted, string|RawValue|null $condition = null): string
     {
         // Standard LATERAL JOIN syntax for PostgreSQL, MySQL, etc.

@@ -961,6 +961,52 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatUnionOrderBy(array $orderBy, array $selectColumns): string
+    {
+        // Oracle requires positional numbers in ORDER BY after UNION
+        // Map column names to their positions in SELECT clause
+        $orderByFormatted = [];
+        foreach ($orderBy as $orderExpr) {
+            // Extract column name and direction (ASC/DESC)
+            $parts = preg_split('/\s+/', trim($orderExpr), 2);
+            $column = $parts[0];
+            $direction = isset($parts[1]) ? ' ' . $parts[1] : '';
+
+            // Remove quotes and find position in SELECT columns
+            $columnNormalized = trim($column, '"`[]');
+            $position = null;
+            foreach ($selectColumns as $index => $selectCol) {
+                // Normalize SELECT column (remove quotes, extract column name from expressions)
+                $selectColNormalized = trim($selectCol, '"`[]');
+                // Handle aliases (e.g., "name AS product_name" -> "product_name")
+                if (preg_match('/\s+AS\s+([a-zA-Z_][a-zA-Z0-9_]*)/i', $selectCol, $aliasMatches)) {
+                    $selectColNormalized = $aliasMatches[1];
+                }
+                // Handle qualified identifiers (e.g., "table.column" -> "column")
+                if (preg_match('/\.([a-zA-Z_][a-zA-Z0-9_]*)$/', $selectColNormalized, $qualifiedMatches)) {
+                    $selectColNormalized = $qualifiedMatches[1];
+                }
+                // Check if column matches (case-insensitive)
+                if (strcasecmp($columnNormalized, $selectColNormalized) === 0) {
+                    $position = $index + 1; // 1-based position
+                    break;
+                }
+            }
+
+            if ($position !== null) {
+                $orderByFormatted[] = $position . $direction;
+            } else {
+                // If column not found, use as-is (might be an expression)
+                $orderByFormatted[] = $orderExpr;
+            }
+        }
+
+        return implode(', ', $orderByFormatted);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatGreatest(array $values): string
     {
         return $this->sqlFormatter->formatGreatest($values);

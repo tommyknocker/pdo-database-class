@@ -79,6 +79,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     printf("   %s - $%.2f\n", $row['name'], $row['price']);
 }
 echo "\n";
@@ -95,6 +96,7 @@ $results = $db->find()
 
 echo "   Total products: " . count($results) . "\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     printf("   - %s\n", $row['name']);
 }
 echo "\n";
@@ -110,6 +112,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     printf("   - %s\n", $row['name']);
 }
 echo "\n";
@@ -126,6 +129,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     printf("   - %s\n", $row['name']);
 }
 echo "\n";
@@ -143,6 +147,7 @@ $results = $db->find()
 
 echo "   Total combined orders: " . count($results) . "\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     printf("   Product #%d: $%.2f\n", $row['product_id'], $row['amount']);
 }
 echo "\n";

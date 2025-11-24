@@ -1224,7 +1224,10 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
 
             // Add ORDER BY/LIMIT/OFFSET after UNION operations
             if (!empty($this->order)) {
-                $sql .= ' ORDER BY ' . implode(', ', $this->order);
+                // Format ORDER BY for UNION using dialect-specific method (e.g., Oracle requires positional numbers)
+                // Use compiled SELECT columns (already formatted) for position mapping
+                $orderByFormatted = $this->dialect->formatUnionOrderBy($this->order, explode(', ', $select));
+                $sql .= ' ORDER BY ' . $orderByFormatted;
             }
 
             // Format LIMIT/OFFSET using dialect-specific method

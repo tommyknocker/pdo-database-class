@@ -8,8 +8,9 @@ require_once __DIR__ . '/../helpers.php';
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\PdoDb;
 
-$driver = getenv('PDODB_DRIVER') ?: 'sqlite';
+$driverEnv = getenv('PDODB_DRIVER') ?: 'sqlite';
 $config = getExampleConfig();
+$driver = $config['driver'] ?? $driverEnv;
 
 echo "=== Materialized Common Table Expressions (CTEs) Examples ===\n\n";
 echo "Database: $driver\n\n";
@@ -59,12 +60,22 @@ $pdoDb->find()->table('customers')->insertMulti([
     ['id' => 3, 'name' => 'Charlie', 'email' => 'charlie@example.com'],
 ]);
 
-$pdoDb->find()->table('orders')->insertMulti([
-    ['customer_id' => 1, 'order_date' => '2024-01-15', 'total' => 150.00],
-    ['customer_id' => 1, 'order_date' => '2024-02-10', 'total' => 250.00],
-    ['customer_id' => 2, 'order_date' => '2024-01-20', 'total' => 300.00],
-    ['customer_id' => 3, 'order_date' => '2024-02-05', 'total' => 100.00],
-]);
+// Oracle requires TO_DATE() for date literals
+if ($driver === 'oci') {
+    $pdoDb->find()->table('orders')->insertMulti([
+        ['customer_id' => 1, 'order_date' => Db::raw("TO_DATE('2024-01-15', 'YYYY-MM-DD')"), 'total' => 150.00],
+        ['customer_id' => 1, 'order_date' => Db::raw("TO_DATE('2024-02-10', 'YYYY-MM-DD')"), 'total' => 250.00],
+        ['customer_id' => 2, 'order_date' => Db::raw("TO_DATE('2024-01-20', 'YYYY-MM-DD')"), 'total' => 300.00],
+        ['customer_id' => 3, 'order_date' => Db::raw("TO_DATE('2024-02-05', 'YYYY-MM-DD')"), 'total' => 100.00],
+    ]);
+} else {
+    $pdoDb->find()->table('orders')->insertMulti([
+        ['customer_id' => 1, 'order_date' => '2024-01-15', 'total' => 150.00],
+        ['customer_id' => 1, 'order_date' => '2024-02-10', 'total' => 250.00],
+        ['customer_id' => 2, 'order_date' => '2024-01-20', 'total' => 300.00],
+        ['customer_id' => 3, 'order_date' => '2024-02-05', 'total' => 100.00],
+    ]);
+}
 
 $pdoDb->find()->table('order_items')->insertMulti([
     ['order_id' => 1, 'product_name' => 'Widget A', 'quantity' => 2, 'price' => 50.00],
@@ -86,6 +97,7 @@ $results = $pdoDb->find()
     ->get();
 
 foreach ($results as $order) {
+    $order = normalizeRowKeys($order);
     printf("  - Order ID %d: $%.2f on %s\n", 
         $order['id'], 
         $order['total'], 
@@ -143,6 +155,7 @@ $results = $pdoDb->find()
     ->get();
 
 foreach ($results as $customer) {
+    $customer = normalizeRowKeys($customer);
     printf("  - %s (%s): %d orders, $%.2f total, $%.2f avg\n", 
         $customer['name'], 
         $customer['email'],
@@ -167,6 +180,7 @@ $results = $pdoDb->find()
     ->get();
 
 foreach ($results as $order) {
+    $order = normalizeRowKeys($order);
     printf("  - Order %d: $%.2f on %s\n", 
         $order['order_id'], 
         $order['amount'], 
@@ -203,6 +217,7 @@ $results = $pdoDb->find()
     ->get();
 
 foreach ($results as $order) {
+    $order = normalizeRowKeys($order);
     printf("  - Order %d: $%.2f with %d items (%d total units)\n", 
         $order['id'], 
         $order['total'], 
