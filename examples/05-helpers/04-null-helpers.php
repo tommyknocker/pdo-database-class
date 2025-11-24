@@ -72,6 +72,7 @@ $users = $db->find()
     ->get();
 
 foreach ($users as $user) {
+    $user = normalizeRowKeys($user);
     echo "  • {$user['name']}\n";
     echo "    Phone: {$user['phone']}\n";
     echo "    Bio: {$user['bio']}\n";
@@ -184,6 +185,7 @@ $users = $db->find()
     ->get();
 
 foreach ($users as $user) {
+    $user = normalizeRowKeys($user);
     echo "  • {$user['name']}\n";
     echo "    Display: {$user['display_name']}\n";
     echo "    Contact: {$user['contact_info']}\n";
@@ -211,6 +213,7 @@ $users = $db->find()
     ->get();
 
 foreach ($users as $user) {
+    $user = normalizeRowKeys($user);
     echo "  • {$user['name']}:\n";
     echo "    Email: '{$user['email']}' → " . ($user['clean_email'] ?? 'NULL') . "\n";
     echo "    Phone: '{$user['phone']}' → " . ($user['clean_phone'] ?? 'NULL') . "\n";
@@ -229,6 +232,7 @@ $users = $db->find()
 
 echo "  Users with valid contact info:\n";
 foreach ($users as $user) {
+    $user = normalizeRowKeys($user);
     $contact = $user['email'] ?? $user['phone'] ?? 'None';
     echo "  • {$user['name']}: {$contact}\n";
 }

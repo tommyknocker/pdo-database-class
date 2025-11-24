@@ -333,8 +333,15 @@ class OracleSqlFormatter extends SqlFormatterAbstract
      */
     public function formatIfNull(string $expr, mixed $default): string
     {
+        // Apply formatColumnForComparison for CLOB compatibility only if it's a column (not a literal)
+        // Check if it's a quoted identifier (column) or a literal string
+        if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $expr) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $expr)) {
+            $exprFormatted = $this->dialect->formatColumnForComparison($expr);
+        } else {
+            $exprFormatted = $expr;
+        }
         // Oracle uses NVL instead of IFNULL
-        return "NVL($expr, {$this->formatDefaultValue($default)})";
+        return "NVL($exprFormatted, {$this->formatDefaultValue($default)})";
     }
 
     /**
