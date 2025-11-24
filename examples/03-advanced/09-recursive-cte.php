@@ -78,6 +78,7 @@ $results = $pdoDb->find()
     ->get();
 
 foreach ($results as $category) {
+    $category = normalizeRowKeys($category);
     $indent = str_repeat('  ', (int)$category['level']);
     printf("%s- %s (Level %d)\n", $indent, $category['name'], $category['level']);
 }
@@ -117,6 +118,7 @@ $results = $pdoDb->find()
     ->get();
 
 foreach ($results as $employee) {
+    $employee = normalizeRowKeys($employee);
     printf("Level %d: %s (Salary: $%s)\n  Path: %s\n", 
         $employee['level'],
         $employee['name'],
@@ -172,6 +174,7 @@ $hierarchyResults = $pdoDb->find()
 // Group by manager
 $managerCounts = [];
 foreach ($hierarchyResults as $row) {
+    $row = normalizeRowKeys($row);
     $id = $row['id'];
     if (!isset($managerCounts[$id])) {
         $managerCounts[$id] = ['name' => $row['name'], 'count' => 0];

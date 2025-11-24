@@ -1225,8 +1225,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             // Add ORDER BY/LIMIT/OFFSET after UNION operations
             if (!empty($this->order)) {
                 // Format ORDER BY for UNION using dialect-specific method (e.g., Oracle requires positional numbers)
-                // Use compiled SELECT columns (already formatted) for position mapping
-                $orderByFormatted = $this->dialect->formatUnionOrderBy($this->order, explode(', ', $select));
+                // Parse SELECT columns properly (handle commas inside expressions)
+                $selectColumns = $this->parseSelectColumns($select);
+                $orderByFormatted = $this->dialect->formatUnionOrderBy($this->order, $selectColumns);
                 $sql .= ' ORDER BY ' . $orderByFormatted;
             }
 
@@ -1235,6 +1236,59 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         }
 
         return trim($sql);
+    }
+
+    /**
+     * Parse SELECT columns from compiled SELECT string.
+     * Handles commas inside expressions, quotes, and function calls.
+     *
+     * @param string $select Compiled SELECT clause (e.g., '"NAME", "PRICE"')
+     *
+     * @return array<int, string> Array of column expressions
+     */
+    protected function parseSelectColumns(string $select): array
+    {
+        $columns = [];
+        $current = '';
+        $depth = 0; // Track parentheses depth
+        $inQuotes = false;
+        $quoteChar = '';
+
+        for ($i = 0; $i < strlen($select); $i++) {
+            $char = $select[$i];
+            $prevChar = $i > 0 ? $select[$i - 1] : '';
+
+            // Handle quotes
+            if (($char === '"' || $char === "'" || $char === '`') && $prevChar !== '\\') {
+                if (!$inQuotes) {
+                    $inQuotes = true;
+                    $quoteChar = $char;
+                } elseif ($char === $quoteChar) {
+                    $inQuotes = false;
+                    $quoteChar = '';
+                }
+                $current .= $char;
+            } elseif ($char === '(' && !$inQuotes) {
+                $depth++;
+                $current .= $char;
+            } elseif ($char === ')' && !$inQuotes) {
+                $depth--;
+                $current .= $char;
+            } elseif ($char === ',' && !$inQuotes && $depth === 0) {
+                // Comma at top level - split here
+                $columns[] = trim($current);
+                $current = '';
+            } else {
+                $current .= $char;
+            }
+        }
+
+        // Add last column
+        if ($current !== '') {
+            $columns[] = trim($current);
+        }
+
+        return $columns;
     }
 
     /**

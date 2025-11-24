@@ -115,9 +115,9 @@ class OracleDmlBuilder implements DmlBuilderInterface
         $sql = 'INSERT ALL';
 
         foreach ($tuples as $tuple) {
-            // Remove outer parentheses from tuple if present
-            // Only remove parentheses if tuple starts with '(' and ends with ')'
-            // Don't use trim() as it removes ALL parentheses, including those in TO_DATE() etc.
+            // Always remove outer parentheses from tuple if present
+            // VALUES clause will add its own parentheses
+            // This is safe even for TO_TIMESTAMP/TO_DATE as they are function calls, not tuple wrappers
             if (str_starts_with($tuple, '(') && str_ends_with($tuple, ')')) {
                 $tuple = substr($tuple, 1, -1);
             }

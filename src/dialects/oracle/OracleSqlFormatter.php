@@ -516,8 +516,12 @@ class OracleSqlFormatter extends SqlFormatterAbstract
         // Check if it's a quoted identifier (column) or a literal string
         if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $val) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $val)) {
             $valFormatted = $this->dialect->formatColumnForComparison($val);
-        } else {
+        } elseif (preg_match("/^'.*'$/", $val)) {
+            // It's already a quoted string literal - use as-is
             $valFormatted = $val;
+        } else {
+            // It's an unquoted string literal - add quotes
+            $valFormatted = "'{$val}'";
         }
         // Oracle uses RPAD with empty string trick
         return "RPAD('', $count * LENGTH($valFormatted), $valFormatted)";

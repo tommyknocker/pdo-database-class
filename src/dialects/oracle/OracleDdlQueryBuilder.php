@@ -148,6 +148,21 @@ class OracleDdlQueryBuilder extends DdlQueryBuilder
     }
 
     /**
+     * Create TIME column schema.
+     * Oracle doesn't have TIME type, use TIMESTAMP instead.
+     *
+     * @return ColumnSchema
+     *
+     * @example
+     * $schema->time() // TIMESTAMP
+     */
+    public function time(): ColumnSchema
+    {
+        // Oracle doesn't support TIME type, use TIMESTAMP instead
+        return new ColumnSchema('TIMESTAMP');
+    }
+
+    /**
      * Create UUID column schema (RAW(16) in Oracle).
      *
      * @return ColumnSchema

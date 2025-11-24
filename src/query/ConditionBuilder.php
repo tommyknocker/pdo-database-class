@@ -10,6 +10,7 @@ use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\helpers\values\LikeValue;
 use tommyknocker\pdodb\helpers\values\NotLikeValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\helpers\values\RegexpMatchValue;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
@@ -717,6 +718,24 @@ class ConditionBuilder implements ConditionBuilderInterface
                 // Replace :pattern with the actual parameter name
                 $resolved = str_replace(':pattern', $patternParam, $resolved);
                 $this->{$prop}[] = ['sql' => 'NOT (' . $resolved . ')', 'cond' => $cond];
+                return $this;
+            }
+            // Special handling for RegexpMatchValue when passed as first argument
+            if ($exprOrColumn instanceof RegexpMatchValue) {
+                $sourceValue = $exprOrColumn->getSourceValue();
+                // Handle string or RawValue source
+                if ($sourceValue instanceof RawValue) {
+                    $quotedColumn = $this->resolveRawValue($sourceValue);
+                } else {
+                    $quotedColumn = $this->quoteQualifiedIdentifier((string)$sourceValue);
+                }
+                // Apply formatColumnForComparison for CLOB compatibility
+                $columnForComparison = $this->dialect->formatColumnForComparison($quotedColumn);
+                $pattern = $exprOrColumn->getPattern();
+                $pat = str_replace("'", "''", $pattern);
+                // For WHERE clause, use REGEXP_LIKE directly (not CASE WHEN)
+                $resolved = "REGEXP_LIKE($columnForComparison, '$pat')";
+                $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
                 return $this;
             }
 

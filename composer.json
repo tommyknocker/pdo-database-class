@@ -168,8 +168,7 @@
       "@pdodb:phpstan",
       "@pdodb:cs-check",
       "@pdodb:test",
-      "@pdodb:test-examples",
-      "@pdodb:fix-markdown"
+      "@pdodb:test-examples"
     ],
     "pdodb:migrate": "php scripts/migrate.php",
     "pdodb:migrate:create": "php scripts/migrate.php create",

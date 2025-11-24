@@ -78,3 +78,4 @@ final class GroupByTests extends BaseOracleTestCase
         $this->assertEquals(1, $map['Y']);
     }
 }
+

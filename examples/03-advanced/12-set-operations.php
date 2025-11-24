@@ -156,6 +156,8 @@ echo "\n";
 echo "6. Aggregation per table (using separate queries):\n";
 $orders2023 = $db->find()->from('orders_2023')->select(['total_revenue' => Db::sum('amount')])->getOne();
 $orders2024 = $db->find()->from('orders_2024')->select(['total_revenue' => Db::sum('amount')])->getOne();
+$orders2023 = normalizeRowKeys($orders2023);
+$orders2024 = normalizeRowKeys($orders2024);
 printf("   2023: $%.2f\n", $orders2023['total_revenue']);
 printf("   2024: $%.2f\n", $orders2024['total_revenue']);
 echo "\n";

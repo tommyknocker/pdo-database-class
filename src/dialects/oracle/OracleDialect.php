@@ -972,20 +972,14 @@ class OracleDialect extends DialectAbstract
             $column = $parts[0];
             $direction = isset($parts[1]) ? ' ' . $parts[1] : '';
 
-            // Remove quotes and find position in SELECT columns
-            $columnNormalized = trim($column, '"`[]');
+            // Extract column name from ORDER BY expression (handle TO_CHAR("NAME"), "NAME", etc.)
+            $columnNormalized = $this->extractColumnNameFromExpression($column);
+            
             $position = null;
             foreach ($selectColumns as $index => $selectCol) {
-                // Normalize SELECT column (remove quotes, extract column name from expressions)
-                $selectColNormalized = trim($selectCol, '"`[]');
-                // Handle aliases (e.g., "name AS product_name" -> "product_name")
-                if (preg_match('/\s+AS\s+([a-zA-Z_][a-zA-Z0-9_]*)/i', $selectCol, $aliasMatches)) {
-                    $selectColNormalized = $aliasMatches[1];
-                }
-                // Handle qualified identifiers (e.g., "table.column" -> "column")
-                if (preg_match('/\.([a-zA-Z_][a-zA-Z0-9_]*)$/', $selectColNormalized, $qualifiedMatches)) {
-                    $selectColNormalized = $qualifiedMatches[1];
-                }
+                // Extract column name from SELECT column (handle TO_CHAR("NAME"), "NAME", aliases, etc.)
+                $selectColNormalized = $this->extractColumnNameFromExpression($selectCol);
+                
                 // Check if column matches (case-insensitive)
                 if (strcasecmp($columnNormalized, $selectColNormalized) === 0) {
                     $position = $index + 1; // 1-based position
@@ -1002,6 +996,42 @@ class OracleDialect extends DialectAbstract
         }
 
         return implode(', ', $orderByFormatted);
+    }
+
+    /**
+     * Extract column name from SQL expression.
+     * Handles TO_CHAR("NAME"), "NAME", table.column, etc.
+     *
+     * @param string $expr SQL expression
+     *
+     * @return string Column name (normalized)
+     */
+    protected function extractColumnNameFromExpression(string $expr): string
+    {
+        $expr = trim($expr);
+        
+        // Handle function calls like TO_CHAR("NAME") -> extract "NAME"
+        if (preg_match('/\([`"\[]?([A-Za-z0-9_]+)[`"\]]?\)$/i', $expr, $matches)) {
+            return strtoupper($matches[1]);
+        }
+        
+        // Handle quoted identifiers like "NAME" -> NAME
+        if (preg_match('/^[`"\[]?([A-Za-z0-9_]+)[`"\]]?$/i', $expr, $matches)) {
+            return strtoupper($matches[1]);
+        }
+        
+        // Handle qualified identifiers like table.column -> column
+        if (preg_match('/\.([A-Za-z0-9_]+)$/i', $expr, $matches)) {
+            return strtoupper($matches[1]);
+        }
+        
+        // Handle aliases like "name AS product_name" -> product_name
+        if (preg_match('/\s+AS\s+([a-zA-Z_][a-zA-Z0-9_]*)/i', $expr, $aliasMatches)) {
+            return strtoupper($aliasMatches[1]);
+        }
+        
+        // Default: return uppercase version of expression
+        return strtoupper(trim($expr, '"`[]'));
     }
 
     /**
@@ -1304,7 +1334,95 @@ class OracleDialect extends DialectAbstract
      */
     public function normalizeRawValue(string $sql): string
     {
-        // Oracle-specific normalization if needed
+        // Oracle-specific normalization: handle COALESCE with CLOB columns
+        // COALESCE(phone, email, 'No contact') -> COALESCE(TO_CHAR("PHONE"), TO_CHAR("EMAIL"), 'No contact')
+        if (preg_match('/^COALESCE\s*\((.*)\)$/i', trim($sql), $matches)) {
+            $argsStr = $matches[1];
+            // Split by comma, but respect quoted strings
+            $args = [];
+            $current = '';
+            $inQuotes = false;
+            $quoteChar = '';
+            for ($i = 0; $i < strlen($argsStr); $i++) {
+                $char = $argsStr[$i];
+                if (($char === '"' || $char === "'" || $char === '`') && ($i === 0 || $argsStr[$i - 1] !== '\\')) {
+                    if (!$inQuotes) {
+                        $inQuotes = true;
+                        $quoteChar = $char;
+                    } elseif ($char === $quoteChar) {
+                        $inQuotes = false;
+                        $quoteChar = '';
+                    }
+                    $current .= $char;
+                } elseif ($char === ',' && !$inQuotes) {
+                    $args[] = trim($current);
+                    $current = '';
+                } else {
+                    $current .= $char;
+                }
+            }
+            if ($current !== '') {
+                $args[] = trim($current);
+            }
+            
+            $formattedArgs = [];
+            foreach ($args as $arg) {
+                $arg = trim($arg);
+                // Check if it's a quoted string literal (single quotes for string literals in SQL)
+                // Must start and end with single quote
+                if (preg_match("/^'.*'$/", $arg)) {
+                    // It's a string literal (single quotes) - keep as-is
+                    $formattedArgs[] = $arg;
+                } elseif (preg_match('/^"([^"]+)"$/', $arg, $matches)) {
+                    // It's a quoted identifier - check if it contains single quotes (string literal in double quotes)
+                    $inner = $matches[1];
+                    if (preg_match("/^'.*'$/", $inner)) {
+                        // It's a string literal wrapped in double quotes (e.g., "'No contact'")
+                        // Extract the inner string literal and keep as-is
+                        $formattedArgs[] = $inner;
+                    } else {
+                        // It's a quoted identifier (column) - apply formatColumnForComparison for CLOB compatibility
+                        $formattedArgs[] = $this->formatColumnForComparison($arg);
+                    }
+                } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $arg)) {
+                    // It's an unquoted column identifier - quote and apply formatColumnForComparison
+                    $quoted = $this->quoteIdentifier($arg);
+                    $formattedArgs[] = $this->formatColumnForComparison($quoted);
+                } else {
+                    // It's an expression or something else - keep as-is
+                    $formattedArgs[] = $arg;
+                }
+            }
+            // Wrap entire COALESCE in TO_CHAR() to ensure VARCHAR2 return type
+            // Even if all arguments are TO_CHAR(), Oracle may return CLOB if any argument was originally CLOB
+            return 'TO_CHAR(COALESCE(' . implode(', ', $formattedArgs) . '))';
+        }
+        
+        // Oracle-specific normalization: handle NULLIF with CLOB columns
+        // NULLIF(email, '') -> NULLIF(TO_CHAR("EMAIL"), '')
+        if (preg_match('/^NULLIF\s*\((.*),\s*(.*)\)$/i', trim($sql), $matches)) {
+            $expr1 = trim($matches[1]);
+            $expr2 = trim($matches[2]);
+            
+            // Apply formatColumnForComparison to first expression if it's a column
+            if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $expr1) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $expr1)) {
+                // It's a column identifier
+                $quoted = preg_match('/^["`\[\]]/', $expr1) ? $expr1 : $this->quoteIdentifier($expr1);
+                $expr1Formatted = $this->formatColumnForComparison($quoted);
+            } else {
+                // It's an expression - keep as-is
+                $expr1Formatted = $expr1;
+            }
+            
+            return "NULLIF($expr1Formatted, $expr2)";
+        }
+        
+        // Oracle-specific normalization: handle LOG10() -> LOG(10, ...)
+        // Oracle doesn't support LOG10(), use LOG(10, ...) instead
+        if (preg_match('/LOG10\s*\(/i', $sql)) {
+            $sql = preg_replace('/LOG10\s*\(/i', 'LOG(10, ', $sql);
+        }
+        
         return $sql;
     }
 

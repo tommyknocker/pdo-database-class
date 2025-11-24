@@ -255,6 +255,10 @@ function normalizeRowKeys(array $row): array
 {
     $normalized = [];
     foreach ($row as $key => $value) {
+        // Convert CLOB resources to strings for Oracle
+        if (is_resource($value) && get_resource_type($value) === 'stream') {
+            $value = stream_get_contents($value);
+        }
         $normalized[strtolower($key)] = $value;
     }
     return $normalized;

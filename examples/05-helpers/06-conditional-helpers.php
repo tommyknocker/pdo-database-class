@@ -27,13 +27,25 @@ recreateTable($db, 'orders', [
     'discount_percent' => $schema->decimal(5, 2),
 ]);
 
-$db->find()->table('orders')->insertMulti([
-    ['customer_name' => 'Alice Johnson', 'amount' => 150.00, 'status' => 'pending', 'priority' => 'high', 'order_date' => '2024-01-15', 'discount_percent' => 0],
-    ['customer_name' => 'Bob Smith', 'amount' => 75.50, 'status' => 'completed', 'priority' => 'medium', 'order_date' => '2024-01-14', 'discount_percent' => 5],
-    ['customer_name' => 'Carol Davis', 'amount' => 300.00, 'status' => 'pending', 'priority' => 'low', 'order_date' => '2024-01-16', 'discount_percent' => 10],
-    ['customer_name' => 'Dave Wilson', 'amount' => 25.00, 'status' => 'cancelled', 'priority' => 'high', 'order_date' => '2024-01-13', 'discount_percent' => 0],
-    ['customer_name' => 'Eve Brown', 'amount' => 500.00, 'status' => 'shipped', 'priority' => 'medium', 'order_date' => '2024-01-12', 'discount_percent' => 15],
-]);
+$driver = getCurrentDriver($db);
+if ($driver === 'oci') {
+    // Oracle requires explicit TO_DATE for date values
+    $db->find()->table('orders')->insertMulti([
+        ['customer_name' => 'Alice Johnson', 'amount' => 150.00, 'status' => 'pending', 'priority' => 'high', 'order_date' => Db::raw("TO_DATE('2024-01-15', 'YYYY-MM-DD')"), 'discount_percent' => 0],
+        ['customer_name' => 'Bob Smith', 'amount' => 75.50, 'status' => 'completed', 'priority' => 'medium', 'order_date' => Db::raw("TO_DATE('2024-01-14', 'YYYY-MM-DD')"), 'discount_percent' => 5],
+        ['customer_name' => 'Carol Davis', 'amount' => 300.00, 'status' => 'pending', 'priority' => 'low', 'order_date' => Db::raw("TO_DATE('2024-01-16', 'YYYY-MM-DD')"), 'discount_percent' => 10],
+        ['customer_name' => 'Dave Wilson', 'amount' => 25.00, 'status' => 'cancelled', 'priority' => 'high', 'order_date' => Db::raw("TO_DATE('2024-01-13', 'YYYY-MM-DD')"), 'discount_percent' => 0],
+        ['customer_name' => 'Eve Brown', 'amount' => 500.00, 'status' => 'shipped', 'priority' => 'medium', 'order_date' => Db::raw("TO_DATE('2024-01-12', 'YYYY-MM-DD')"), 'discount_percent' => 15],
+    ]);
+} else {
+    $db->find()->table('orders')->insertMulti([
+        ['customer_name' => 'Alice Johnson', 'amount' => 150.00, 'status' => 'pending', 'priority' => 'high', 'order_date' => '2024-01-15', 'discount_percent' => 0],
+        ['customer_name' => 'Bob Smith', 'amount' => 75.50, 'status' => 'completed', 'priority' => 'medium', 'order_date' => '2024-01-14', 'discount_percent' => 5],
+        ['customer_name' => 'Carol Davis', 'amount' => 300.00, 'status' => 'pending', 'priority' => 'low', 'order_date' => '2024-01-16', 'discount_percent' => 10],
+        ['customer_name' => 'Dave Wilson', 'amount' => 25.00, 'status' => 'cancelled', 'priority' => 'high', 'order_date' => '2024-01-13', 'discount_percent' => 0],
+        ['customer_name' => 'Eve Brown', 'amount' => 500.00, 'status' => 'shipped', 'priority' => 'medium', 'order_date' => '2024-01-12', 'discount_percent' => 15],
+    ]);
+}
 
 echo "✓ Test data inserted\n\n";
 
@@ -54,6 +66,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} ({$row['status']}, priority: {$row['priority_level']})\n";
 }
 echo "\n";
@@ -75,6 +88,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} (discount: \${$row['discount_amount']})\n";
 }
 echo "\n";
@@ -96,6 +110,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: {$row['status_description']}\n";
 }
 echo "\n";
@@ -118,6 +133,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} ({$row['priority']}) → {$row['processing_time']}\n";
 }
 echo "\n";
@@ -133,6 +149,10 @@ if ($driver === 'sqlite') {
     // MSSQL uses DATEPART(WEEKDAY, date) - returns 1 (Sunday) to 7 (Saturday)
     // We need to adjust: DATEPART(WEEKDAY, order_date) - 1 gives 0-6 (Sunday-Saturday)
     $dayOfWeekFunc = 'DATEPART(WEEKDAY, order_date) - 1';
+} elseif ($driver === 'oci') {
+    // Oracle uses TO_CHAR(order_date, 'D') - returns 1 (Sunday) to 7 (Saturday)
+    // We need to adjust: TO_CHAR(order_date, 'D') - 1 gives 0-6 (Sunday-Saturday)
+    $dayOfWeekFunc = "TO_CHAR(order_date, 'D') - 1";
 } else {
     // PostgreSQL
     $dayOfWeekFunc = 'EXTRACT(DOW FROM order_date::DATE)';
@@ -156,6 +176,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: {$row['order_date']} ({$row['day_of_week']})\n";
 }
 echo "\n";
@@ -174,6 +195,7 @@ $results = $db->find()
 
 echo "  Orders with adjusted amount > \$100:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} ({$row['status']})\n";
 }
 echo "\n";
@@ -187,16 +209,17 @@ $results = $db->find()
         'count' => Db::count(),
         'total_amount' => Db::sum('amount'),
         'avg_amount' => Db::avg('amount'),
-        'status_category' => Db::case([
+        'status_category' => Db::max(Db::case([
             'status IN (\'pending\', \'shipped\')' => '\'Active\'',
             'status = \'completed\'' => '\'Finished\'',
             'status = \'cancelled\'' => '\'Cancelled\''
-        ], '\'Unknown\'')
+        ], '\'Unknown\''))
     ])
     ->groupBy('status')
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['status']} ({$row['status_category']}): {$row['count']} orders, \${$row['total_amount']} total, \${$row['avg_amount']} avg\n";
 }
 echo "\n";
@@ -230,6 +253,7 @@ $results = $db->find()
 
 echo "  Orders by urgency score:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} ({$row['priority']}, {$row['status']}) → score: {$row['urgency_score']}\n";
 }
 echo "\n";
@@ -251,6 +275,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} → \${$row['final_amount']} (discount: {$row['discount_percent']}%)\n";
 }
 echo "\n";
@@ -278,6 +303,7 @@ $results = $db->find()
 
 echo "  Customer tiers based on order amount:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} → {$row['customer_tier']} ({$row['tier_benefits']})\n";
 }
 
