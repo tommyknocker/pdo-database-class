@@ -684,6 +684,18 @@ class ConditionBuilder implements ConditionBuilderInterface
 
         // handle NULL comparisons
         if ($value === null) {
+            // Special handling for LikeValue when passed as first argument
+            if ($exprOrColumn instanceof LikeValue) {
+                $quotedColumn = $this->quoteQualifiedIdentifier($exprOrColumn->getColumn());
+                $resolved = $this->dialect->formatLike($quotedColumn, $exprOrColumn->getPattern());
+                // Add pattern parameter
+                $patternParam = $this->parameterManager->addParam('pattern', $exprOrColumn->getPattern());
+                // Replace :pattern with the actual parameter name
+                $resolved = str_replace(':pattern', $patternParam, $resolved);
+                $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
+                return $this;
+            }
+
             // When a raw expression is provided without a right-hand value,
             // treat it as a complete condition and insert as-is.
             if ($exprOrColumn instanceof RawValue) {
@@ -809,9 +821,10 @@ class ConditionBuilder implements ConditionBuilderInterface
         if ($value instanceof RawValue) {
             // Special handling for LikeValue: pass quoted column to formatLike()
             if ($value instanceof LikeValue) {
-                $resolved = $this->dialect->formatLike($exprQuoted, $value->getPattern());
+                $pattern = $value->getPattern();
+                $resolved = $this->dialect->formatLike($exprQuoted, $pattern);
                 // Add pattern parameter
-                $patternParam = $this->parameterManager->addParam('pattern', $value->getPattern());
+                $patternParam = $this->parameterManager->addParam('pattern', $pattern);
                 // Replace :pattern with the actual parameter name
                 $resolved = str_replace(':pattern', $patternParam, $resolved);
                 $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];

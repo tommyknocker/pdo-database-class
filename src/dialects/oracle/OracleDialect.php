@@ -625,11 +625,11 @@ class OracleDialect extends DialectAbstract
      */
     public function formatLike(string $column, string $pattern): string
     {
-        // Oracle: CLOB columns cannot be used directly in LIKE, need TO_CHAR()
-        // We wrap the column in TO_CHAR() to handle both VARCHAR2 and CLOB columns
-        // TO_CHAR() works for both types and is safe to use
+        // Oracle: CLOB columns cannot be used directly in LIKE
+        // Use CAST(SUBSTR(TO_CHAR(...), 1, 4000) AS VARCHAR2(4000)) to convert CLOB to VARCHAR2
+        // This ensures the result is VARCHAR2, not CLOB, which is required for LIKE operations
         // Column is already quoted when passed from ConditionBuilder
-        return "TO_CHAR({$column}) LIKE :pattern";
+        return "CAST(SUBSTR(TO_CHAR({$column}), 1, 4000) AS VARCHAR2(4000)) LIKE :pattern";
     }
 
     /**

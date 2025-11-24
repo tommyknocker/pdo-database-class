@@ -7,9 +7,9 @@ namespace tommyknocker\pdodb\migrations;
 /**
  * Migration: create_users_table
  *
- * Created: 2025_11_23_180232_create_users_table
+ * Created: 2025_11_24_035000_create_users_table
  */
-class m20251123180232CreateUsersTable extends Migration
+class m20251124035000CreateUsersTable extends Migration
 {
     /**
      * {@inheritDoc}
