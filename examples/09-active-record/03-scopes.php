@@ -13,6 +13,7 @@
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../helpers.php';
 
+use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\orm\Model;
 
 // Define models with scopes
@@ -199,16 +200,18 @@ echo "2. Scope with Parameters\n";
 echo "-------------------------\n";
 
 $now = time();
+$recentDate = date('Y-m-d H:i:s', $now - 2 * 24 * 3600);
+$oldDate = date('Y-m-d H:i:s', $now - 10 * 24 * 3600);
 $db->find()->table('posts')->insert([
     'title' => 'Recent Post',
     'status' => 'published',
-    'created_at' => date('Y-m-d H:i:s', $now - 2 * 24 * 3600), // 2 days ago
+    'created_at' => $driver === 'oci' ? Db::raw("TO_TIMESTAMP('{$recentDate}', 'YYYY-MM-DD HH24:MI:SS')") : $recentDate,
 ]);
 
 $db->find()->table('posts')->insert([
     'title' => 'Old Post',
     'status' => 'published',
-    'created_at' => date('Y-m-d H:i:s', $now - 10 * 24 * 3600), // 10 days ago
+    'created_at' => $driver === 'oci' ? Db::raw("TO_TIMESTAMP('{$oldDate}', 'YYYY-MM-DD HH24:MI:SS')") : $oldDate,
 ]);
 
 // Use scope with parameter
@@ -228,10 +231,11 @@ echo "\n";
 echo "3. Global Scopes (Automatically Applied)\n";
 echo "-----------------------------------------\n";
 
+$deletedDate = date('Y-m-d H:i:s');
 $db->find()->table('posts')->insert([
     'title' => 'Deleted Post',
     'status' => 'published',
-    'deleted_at' => date('Y-m-d H:i:s'),
+    'deleted_at' => $driver === 'oci' ? Db::raw("TO_TIMESTAMP('{$deletedDate}', 'YYYY-MM-DD HH24:MI:SS')") : $deletedDate,
 ]);
 
 // Global scope automatically filters out deleted posts
@@ -269,12 +273,13 @@ echo "5. Combining Global and Local Scopes\n";
 echo "-------------------------------------\n";
 
 // Insert users
+$verifiedDate = date('Y-m-d H:i:s');
 $userId1 = $db->find()->table('users')->insert([
     'name' => 'John Doe',
     'email' => 'john@example.com',
     'role' => 'admin',
     'is_active' => 1,
-    'email_verified_at' => date('Y-m-d H:i:s'),
+    'email_verified_at' => $driver === 'oci' ? Db::raw("TO_TIMESTAMP('{$verifiedDate}', 'YYYY-MM-DD HH24:MI:SS')") : $verifiedDate,
 ]);
 
 $userId2 = $db->find()->table('users')->insert([

@@ -311,17 +311,32 @@ echo "\n";
 
 // Example 12: Subquery with window functions simulation
 echo "12. Subquery with window functions simulation...\n";
-$results = $db->find()
-    ->from('users')
-    ->select([
-        'name',
-        'department',
-        'salary',
-        'salary_percentile' => Db::raw('(SELECT COUNT(*) * 100.0 / (SELECT COUNT(*) FROM users) FROM users u2 WHERE u2.salary <= users.salary)'),
-        'dept_salary_percentile' => Db::raw('(SELECT COUNT(*) * 100.0 / (SELECT COUNT(*) FROM users u3 WHERE u3.department = users.department) FROM users u2 WHERE u2.department = users.department AND u2.salary <= users.salary)')
-    ])
-    ->orderBy('salary', 'DESC')
-    ->get();
+if ($driver === 'oci') {
+    // Oracle requires separate calculation for percentile - use scalar subqueries
+    $results = $db->find()
+        ->from('users')
+        ->select([
+            'name',
+            'department',
+            'salary',
+            'salary_percentile' => Db::raw('ROUND((SELECT COUNT(*) FROM users u2 WHERE u2.salary <= users.salary) * 100.0 / NULLIF((SELECT COUNT(*) FROM users), 0), 1)'),
+            'dept_salary_percentile' => Db::raw('ROUND((SELECT COUNT(*) FROM users u2 WHERE u2.department = users.department AND u2.salary <= users.salary) * 100.0 / NULLIF((SELECT COUNT(*) FROM users u3 WHERE u3.department = users.department), 0), 1)')
+        ])
+        ->orderBy('salary', 'DESC')
+        ->get();
+} else {
+    $results = $db->find()
+        ->from('users')
+        ->select([
+            'name',
+            'department',
+            'salary',
+            'salary_percentile' => Db::raw('(SELECT COUNT(*) * 100.0 / (SELECT COUNT(*) FROM users) FROM users u2 WHERE u2.salary <= users.salary)'),
+            'dept_salary_percentile' => Db::raw('(SELECT COUNT(*) * 100.0 / (SELECT COUNT(*) FROM users u3 WHERE u3.department = users.department) FROM users u2 WHERE u2.department = users.department AND u2.salary <= users.salary)')
+        ])
+        ->orderBy('salary', 'DESC')
+        ->get();
+}
 
 foreach ($results as $row) {
     echo "  • {$row['name']} ({$row['department']}): \${$row['salary']}\n";

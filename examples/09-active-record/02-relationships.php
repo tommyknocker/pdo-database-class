@@ -421,8 +421,23 @@ $project2->save();
 
 // Link user to projects through junction table
 $user3Id = $user3->id;
-$db->find()->table('user_project')->insert(['user_id' => $user3Id, 'project_id' => $project1->id]);
-$db->find()->table('user_project')->insert(['user_id' => $user3Id, 'project_id' => $project2->id]);
+// Check if link already exists before inserting (Oracle composite PK doesn't allow duplicates)
+$existing = $db->find()
+    ->from('user_project')
+    ->where('user_id', $user3Id)
+    ->andWhere('project_id', $project1->id)
+    ->getOne();
+if (!$existing) {
+    $db->find()->table('user_project')->insert(['user_id' => $user3Id, 'project_id' => $project1->id]);
+}
+$existing = $db->find()
+    ->from('user_project')
+    ->where('user_id', $user3Id)
+    ->andWhere('project_id', $project2->id)
+    ->getOne();
+if (!$existing) {
+    $db->find()->table('user_project')->insert(['user_id' => $user3Id, 'project_id' => $project2->id]);
+}
 
 // Access many-to-many relationship (lazy loading)
 $userWithProjects = UserWithProjects::findOne($user3Id);

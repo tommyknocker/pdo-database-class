@@ -13,6 +13,7 @@
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../helpers.php';
 
+use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\query\QueryBuilder;
 
 $db = createExampleDb();
@@ -164,11 +165,12 @@ QueryBuilder::macro('recent', function (QueryBuilder $query, int $days = 7) {
 });
 
 // Insert a recent product
+$createdDate = date('Y-m-d H:i:s');
 $db->find()->table('products')->insert([
     'name' => 'New Product',
     'price' => 75.00,
     'status' => 'active',
-    'created_at' => date('Y-m-d H:i:s'),
+    'created_at' => $driver === 'oci' ? Db::raw("TO_TIMESTAMP('{$createdDate}', 'YYYY-MM-DD HH24:MI:SS')") : $createdDate,
 ]);
 
 // Use macro with default parameter

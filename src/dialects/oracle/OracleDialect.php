@@ -1447,8 +1447,17 @@ class OracleDialect extends DialectAbstract
                             // It's a column - apply TO_CHAR() for CLOB compatibility before CAST
                             $castQuoted = preg_match('/^["`\[\]]/', $castExpr) ? $castExpr : $this->quoteIdentifier($castExpr);
                             $castExprFormatted = $this->formatColumnForComparison($castQuoted);
-                            // Replace CAST(column AS type) with CAST(TO_CHAR(column) AS type)
-                            $arg = preg_replace('/CAST\s*\(' . preg_quote($castExpr, '/') . '\s+AS\s+' . preg_quote($castType, '/') . '\)/i', "CAST($castExprFormatted AS $castType)", $arg);
+                            
+                            // For numeric types (INTEGER, NUMBER, etc.), use CASE WHEN for safe casting
+                            // Oracle CAST throws error on invalid values, so we need to catch it
+                            if (preg_match('/^(INTEGER|NUMBER|DECIMAL|NUMERIC|REAL|FLOAT|DOUBLE)/i', $castType)) {
+                                // Use CASE WHEN REGEXP_LIKE for safe numeric casting
+                                // CASE WHEN REGEXP_LIKE(TO_CHAR(column), '^-?[0-9]+(\.[0-9]+)?$') THEN CAST(TO_CHAR(column) AS type) ELSE NULL END
+                                $arg = "CASE WHEN REGEXP_LIKE($castExprFormatted, '^-?[0-9]+(\\.[0-9]+)?\$') THEN CAST($castExprFormatted AS $castType) ELSE NULL END";
+                            } else {
+                                // For non-numeric types, use CAST directly
+                                $arg = preg_replace('/CAST\s*\(' . preg_quote($castExpr, '/') . '\s+AS\s+' . preg_quote($castType, '/') . '\)/i', "CAST($castExprFormatted AS $castType)", $arg);
+                            }
                         }
                     }
                     // Check if it contains || operator (Oracle concatenation)
@@ -1556,9 +1565,10 @@ class OracleDialect extends DialectAbstract
                     $formattedArgs[] = $arg;
                 }
             }
-            // Wrap entire COALESCE in TO_CHAR() to ensure VARCHAR2 return type
-            // Even if all arguments are TO_CHAR(), Oracle may return CLOB if any argument was originally CLOB
-            return 'TO_CHAR(COALESCE(' . implode(', ', $formattedArgs) . '))';
+            // Return COALESCE without wrapping in TO_CHAR()
+            // COALESCE may return non-string types (INTEGER, NUMBER, etc.) from CAST operations
+            // Wrapping in TO_CHAR() would cause type conversion issues
+            return 'COALESCE(' . implode(', ', $formattedArgs) . ')';
         }
         
         // Oracle-specific normalization: handle NULLIF with CLOB columns
