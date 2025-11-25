@@ -2683,4 +2683,40 @@ class OracleDialect extends DialectAbstract
     {
         return (string)$value;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeRowKeys(array $rows, array $options = []): array
+    {
+        // Check if normalization is enabled
+        if (!isset($options['normalize_row_keys']) || $options['normalize_row_keys'] !== true) {
+            return $rows;
+        }
+
+        $normalized = [];
+        foreach ($rows as $row) {
+            $normalizedRow = [];
+            foreach ($row as $key => $value) {
+                // Convert CLOB resources to strings for Oracle
+                if (is_resource($value) && get_resource_type($value) === 'stream') {
+                    $value = stream_get_contents($value);
+                }
+                // Extract column name from expressions like TO_CHAR("table"."column") or TO_CHAR("column")
+                // Pattern: TO_CHAR("table"."column") -> column
+                // Pattern: TO_CHAR("column") -> column
+                $normalizedKey = $key;
+                if (preg_match('/^to_char\s*\(\s*"[^"]*"\s*\.\s*"([^"]+)"\s*\)$/i', $key, $matches)) {
+                    // TO_CHAR("table"."column") -> column
+                    $normalizedKey = $matches[1];
+                } elseif (preg_match('/^to_char\s*\(\s*"([^"]+)"\s*\)$/i', $key, $matches)) {
+                    // TO_CHAR("column") -> column
+                    $normalizedKey = $matches[1];
+                }
+                $normalizedRow[strtolower($normalizedKey)] = $value;
+            }
+            $normalized[] = $normalizedRow;
+        }
+        return $normalized;
+    }
 }

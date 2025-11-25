@@ -893,6 +893,17 @@ interface DialectInterface
     public function normalizeRawValue(string $sql): string;
 
     /**
+     * Normalize row keys for dialect-specific requirements.
+     * For example, Oracle may need to convert CLOB resources to strings and lowercase keys.
+     *
+     * @param array<int, array<string, mixed>> $rows Result rows
+     * @param array<string, mixed> $options Connection options
+     *
+     * @return array<int, array<string, mixed>> Normalized rows
+     */
+    public function normalizeRowKeys(array $rows, array $options = []): array;
+
+    /**
      * Build EXISTS expression for dialect.
      *
      * @param string $subquery Subquery SQL

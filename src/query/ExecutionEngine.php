@@ -136,13 +136,9 @@ class ExecutionEngine implements ExecutionEngineInterface
         try {
             try {
                 $result = $stmt->fetchAll($this->fetchMode);
-                // Normalize row keys for Oracle if enabled
-                if ($this->connection->getDialect()->getDriverName() === 'oci') {
-                    $options = $this->connection->getOptions();
-                    if (isset($options['normalize_row_keys']) && $options['normalize_row_keys'] === true) {
-                        $result = $this->normalizeRowKeys($result);
-                    }
-                }
+                // Normalize row keys using dialect-specific logic
+                $options = $this->connection->getOptions();
+                $result = $this->connection->getDialect()->normalizeRowKeys($result, $options);
                 return $result;
             } catch (PDOException $e) {
                 // Check if this is a "no fields" error that should be handled gracefully
@@ -195,13 +191,11 @@ class ExecutionEngine implements ExecutionEngineInterface
         try {
             try {
                 $result = $stmt->fetch($this->fetchMode);
-                // Normalize row keys for Oracle if enabled
-                if ($result !== false && $this->connection->getDialect()->getDriverName() === 'oci') {
+                // Normalize row keys using dialect-specific logic
+                if ($result !== false) {
                     $options = $this->connection->getOptions();
-                    if (isset($options['normalize_row_keys']) && $options['normalize_row_keys'] === true) {
-                        $normalized = $this->normalizeRowKeys([$result]);
-                        $result = $normalized[0] ?? false;
-                    }
+                    $normalized = $this->connection->getDialect()->normalizeRowKeys([$result], $options);
+                    $result = $normalized[0] ?? false;
                 }
                 return $result;
             } catch (PDOException $e) {
@@ -291,40 +285,6 @@ class ExecutionEngine implements ExecutionEngineInterface
         return $this->fetchMode;
     }
 
-    /**
-     * Normalize row keys to lowercase and convert CLOB resources to strings (for Oracle).
-     *
-     * @param array<int, array<string, mixed>> $rows
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    protected function normalizeRowKeys(array $rows): array
-    {
-        $normalized = [];
-        foreach ($rows as $row) {
-            $normalizedRow = [];
-            foreach ($row as $key => $value) {
-                // Convert CLOB resources to strings for Oracle
-                if (is_resource($value) && get_resource_type($value) === 'stream') {
-                    $value = stream_get_contents($value);
-                }
-                // Extract column name from expressions like TO_CHAR("table"."column") or TO_CHAR("column")
-                // Pattern: TO_CHAR("table"."column") -> column
-                // Pattern: TO_CHAR("column") -> column
-                $normalizedKey = $key;
-                if (preg_match('/^to_char\s*\(\s*"[^"]*"\s*\.\s*"([^"]+)"\s*\)$/i', $key, $matches)) {
-                    // TO_CHAR("table"."column") -> column
-                    $normalizedKey = $matches[1];
-                } elseif (preg_match('/^to_char\s*\(\s*"([^"]+)"\s*\)$/i', $key, $matches)) {
-                    // TO_CHAR("column") -> column
-                    $normalizedKey = $matches[1];
-                }
-                $normalizedRow[strtolower($normalizedKey)] = $value;
-            }
-            $normalized[] = $normalizedRow;
-        }
-        return $normalized;
-    }
 
     /**
      * Resolve RawValue instances.

@@ -37,15 +37,15 @@ try {
     echo "1. Creating example seed files...\n";
 
     // Create users table seed
-    createUsersSeed($seedPath);
+    createUsersSeed($seedPath, $driver);
     echo "   ✓ Created users seed\n";
 
     // Create categories seed
-    createCategoriesSeed($seedPath);
+    createCategoriesSeed($seedPath, $driver);
     echo "   ✓ Created categories seed\n";
 
     // Create products seed
-    createProductsSeed($seedPath);
+    createProductsSeed($seedPath, $driver);
     echo "   ✓ Created products seed\n";
 
     echo "\n2. Setting up database tables...\n";
@@ -261,13 +261,59 @@ try {
 /**
  * Create users seed file.
  */
-function createUsersSeed(string $seedPath): void
+function createUsersSeed(string $seedPath, string $driver): void
 {
     $timestamp = date('YmdHis');
     $filename = "s{$timestamp}_example_users_data.php";
     $filepath = $seedPath . '/' . $filename;
 
-    $content = <<<'PHP'
+    // Oracle requires TO_TIMESTAMP for date strings
+    if ($driver === 'oci') {
+        $content = <<<'EOT'
+<?php
+declare(strict_types=1);
+use tommyknocker\pdodb\seeds\Seed;
+use tommyknocker\pdodb\helpers\Db;
+
+class ExampleUsersDataSeed extends Seed
+{
+    public function run(): void
+    {
+        $dateStr = date('Y-m-d H:i:s');
+        $users = [
+            [
+                'name' => 'John Doe',
+                'email' => 'john@example.com',
+                'role' => 'admin',
+                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+            ],
+            [
+                'name' => 'Jane Smith',
+                'email' => 'jane@example.com',
+                'role' => 'user',
+                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+            ],
+            [
+                'name' => 'Bob Johnson',
+                'email' => 'bob@example.com',
+                'role' => 'moderator',
+                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+            ],
+        ];
+
+        $this->insertMulti('users', $users);
+    }
+
+    public function rollback(): void
+    {
+        $this->delete('users', ['email' => 'john@example.com']);
+        $this->delete('users', ['email' => 'jane@example.com']);
+        $this->delete('users', ['email' => 'bob@example.com']);
+    }
+}
+EOT;
+    } else {
+        $content = <<<'PHP'
 <?php
 declare(strict_types=1);
 use tommyknocker\pdodb\seeds\Seed;
@@ -308,6 +354,7 @@ class ExampleUsersDataSeed extends Seed
     }
 }
 PHP;
+    }
 
     file_put_contents($filepath, $content);
     sleep(1); // Ensure different timestamps
@@ -316,13 +363,59 @@ PHP;
 /**
  * Create categories seed file.
  */
-function createCategoriesSeed(string $seedPath): void
+function createCategoriesSeed(string $seedPath, string $driver): void
 {
     $timestamp = date('YmdHis');
     $filename = "s{$timestamp}_example_categories_data.php";
     $filepath = $seedPath . '/' . $filename;
 
-    $content = <<<'PHP'
+    // Oracle requires TO_TIMESTAMP for date strings
+    if ($driver === 'oci') {
+        $content = <<<'EOT'
+<?php
+declare(strict_types=1);
+use tommyknocker\pdodb\seeds\Seed;
+use tommyknocker\pdodb\helpers\Db;
+
+class ExampleCategoriesDataSeed extends Seed
+{
+    public function run(): void
+    {
+        $dateStr = date('Y-m-d H:i:s');
+        $categories = [
+            [
+                'name' => 'Electronics',
+                'slug' => 'electronics',
+                'description' => 'Electronic devices and gadgets',
+                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+            ],
+            [
+                'name' => 'Books',
+                'slug' => 'books',
+                'description' => 'Books and literature',
+                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+            ],
+            [
+                'name' => 'Clothing',
+                'slug' => 'clothing',
+                'description' => 'Apparel and fashion',
+                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+            ],
+        ];
+
+        $this->insertMulti('categories', $categories);
+    }
+
+    public function rollback(): void
+    {
+        $this->delete('categories', ['slug' => 'electronics']);
+        $this->delete('categories', ['slug' => 'books']);
+        $this->delete('categories', ['slug' => 'clothing']);
+    }
+}
+EOT;
+    } else {
+        $content = <<<'PHP'
 <?php
 declare(strict_types=1);
 use tommyknocker\pdodb\seeds\Seed;
@@ -363,6 +456,7 @@ class ExampleCategoriesDataSeed extends Seed
     }
 }
 PHP;
+    }
 
     file_put_contents($filepath, $content);
     sleep(1); // Ensure different timestamps
@@ -371,13 +465,83 @@ PHP;
 /**
  * Create products seed file.
  */
-function createProductsSeed(string $seedPath): void
+function createProductsSeed(string $seedPath, string $driver): void
 {
     $timestamp = date('YmdHis');
     $filename = "s{$timestamp}_example_products_data.php";
     $filepath = $seedPath . '/' . $filename;
 
-    $content = <<<'PHP'
+    // Oracle requires TO_TIMESTAMP for date strings
+    if ($driver === 'oci') {
+        $content = <<<'EOT'
+<?php
+declare(strict_types=1);
+use tommyknocker\pdodb\seeds\Seed;
+use tommyknocker\pdodb\helpers\Db;
+
+class ExampleProductsDataSeed extends Seed
+{
+    public function run(): void
+    {
+        // Get category IDs
+        $electronics = $this->find()->table('categories')->where('slug', 'electronics')->first();
+        $books = $this->find()->table('categories')->where('slug', 'books')->first();
+        $clothing = $this->find()->table('categories')->where('slug', 'clothing')->first();
+
+        if (!$electronics || !$books || !$clothing) {
+            throw new \Exception('Categories must be seeded first');
+        }
+
+        $dateStr = date('Y-m-d H:i:s');
+        $products = [
+            [
+                'name' => 'Smartphone',
+                'category_id' => $electronics['id'],
+                'price' => 599.99,
+                'description' => 'Latest smartphone with advanced features',
+                'in_stock' => 1,
+                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+            ],
+            [
+                'name' => 'Laptop',
+                'category_id' => $electronics['id'],
+                'price' => 1299.99,
+                'description' => 'High-performance laptop for work and gaming',
+                'in_stock' => 1,
+                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+            ],
+            [
+                'name' => 'Programming Book',
+                'category_id' => $books['id'],
+                'price' => 49.99,
+                'description' => 'Learn programming with this comprehensive guide',
+                'in_stock' => 1,
+                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+            ],
+            [
+                'name' => 'T-Shirt',
+                'category_id' => $clothing['id'],
+                'price' => 19.99,
+                'description' => 'Comfortable cotton t-shirt',
+                'in_stock' => 0,
+                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+            ],
+        ];
+
+        $this->insertMulti('products', $products);
+    }
+
+    public function rollback(): void
+    {
+        $this->delete('products', ['name' => 'Smartphone']);
+        $this->delete('products', ['name' => 'Laptop']);
+        $this->delete('products', ['name' => 'Programming Book']);
+        $this->delete('products', ['name' => 'T-Shirt']);
+    }
+}
+EOT;
+    } else {
+        $content = <<<'PHP'
 <?php
 declare(strict_types=1);
 use tommyknocker\pdodb\seeds\Seed;
@@ -442,6 +606,7 @@ class ExampleProductsDataSeed extends Seed
     }
 }
 PHP;
+    }
 
     file_put_contents($filepath, $content);
 }

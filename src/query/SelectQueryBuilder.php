@@ -952,15 +952,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     public function explainAdvice(?string $tableName = null): ExplainAnalysis
     {
         $sqlData = $this->toSQL();
-        // Use executeExplain for Oracle to handle EXPLAIN PLAN FOR correctly
-        $driverName = $this->dialect->getDriverName();
-        if ($driverName === 'oci') {
-            $pdo = $this->connection->getPdo();
-            $explainResults = $this->dialect->executeExplain($pdo, $sqlData['sql'], $sqlData['params']);
-        } else {
-            $explainSql = $this->dialect->buildExplainSql($sqlData['sql']);
-            $explainResults = $this->executionEngine->fetchAll($explainSql, $sqlData['params']);
-        }
+        // Use dialect-specific executeExplain method
+        $pdo = $this->connection->getPdo();
+        $explainResults = $this->dialect->executeExplain($pdo, $sqlData['sql'], $sqlData['params']);
 
         $analyzer = new ExplainAnalyzer($this->dialect, $this->executionEngine);
         $targetTable = $tableName ?? $this->table;

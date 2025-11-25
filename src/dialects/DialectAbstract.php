@@ -1305,4 +1305,13 @@ abstract class DialectAbstract implements DialectInterface
         // Default implementation does nothing
         // Dialects can override to drop existing objects (e.g., sequences, triggers)
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function normalizeRowKeys(array $rows, array $options = []): array
+    {
+        // Default implementation returns rows unchanged
+        return $rows;
+    }
 }
