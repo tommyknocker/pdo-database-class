@@ -112,3 +112,4 @@ final class DdlQueryBuilderTests extends BaseOracleTestCase
     }
 }
 
+

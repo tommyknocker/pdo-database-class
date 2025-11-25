@@ -79,3 +79,4 @@ final class GroupByTests extends BaseOracleTestCase
     }
 }
 
+

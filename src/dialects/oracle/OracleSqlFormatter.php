@@ -187,7 +187,12 @@ class OracleSqlFormatter extends SqlFormatterAbstract
         // For path ['a', 'c'], we need {"a": {"c": value}}
         $mergeObject = $this->buildNestedJsonObject($parts, $param);
 
-        $sql = "JSON_MERGEPATCH($colQuoted, $mergeObject)";
+        // Oracle JSON_MERGEPATCH works with CLOB/TEXT columns directly
+        // It returns JSON type, but UPDATE requires CLOB/VARCHAR2
+        // Cast result to CLOB to ensure type compatibility
+        // Note: Both operands must be JSON type, so cast column to JSON if needed
+        // For CLOB columns containing JSON, Oracle can work with them directly
+        $sql = "TO_CLOB(JSON_MERGEPATCH(CAST($colQuoted AS JSON), CAST($mergeObject AS JSON)))";
 
         return [$sql, [$param => $jsonText]];
     }
@@ -203,14 +208,20 @@ class OracleSqlFormatter extends SqlFormatterAbstract
     protected function buildNestedJsonObject(array $parts, string $param): string
     {
         if (empty($parts)) {
+            // For leaf values, parameter is already a JSON string
             return $param;
         }
 
         // Build nested structure: {"part1": {"part2": {"partN": value}}}
+        // Use parameter only once at the leaf level
+        // Build structure from inside out
         $structure = $param;
         for ($i = count($parts) - 1; $i >= 0; $i--) {
             $part = $parts[$i];
             $key = is_numeric($part) ? (int)$part : "'" . str_replace("'", "''", (string)$part) . "'";
+            // JSON_OBJECT creates nested structure
+            // For Oracle, JSON_OBJECT requires string values, so we use the parameter directly
+            // The parameter is already a JSON-encoded string from encodeToJson()
             $structure = "JSON_OBJECT($key : $structure)";
         }
 
@@ -243,7 +254,9 @@ class OracleSqlFormatter extends SqlFormatterAbstract
 
         // Oracle uses JSON_TRANSFORM for replacement (21c+)
         // For older versions, use JSON_MERGEPATCH
-        $sql = "JSON_MERGEPATCH($colQuoted, JSON_OBJECT('$jsonPath' : $param))";
+        // Cast to CLOB to ensure type compatibility
+        // Ensure parameter is treated as JSON string
+        $sql = "TO_CLOB(JSON_MERGEPATCH($colQuoted, JSON_OBJECT('$jsonPath' : TO_CLOB($param))))";
 
         return [$sql, [$param => $jsonText]];
     }

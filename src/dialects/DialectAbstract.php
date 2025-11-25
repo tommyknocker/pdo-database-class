@@ -933,6 +933,15 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function normalizeRecursiveCteSql(string $sql, string $cteName, bool $isRecursive): string
+    {
+        // Default implementation: no normalization needed
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function createDatabase(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool
     {
         $sql = $this->buildCreateDatabaseSql($databaseName);

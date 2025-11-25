@@ -129,7 +129,8 @@ class CteManager
             );
         }
 
-        $name = $this->dialect->quoteIdentifier($cte->getName());
+        $cteName = $this->dialect->quoteIdentifier($cte->getName());
+        $name = $cteName;
 
         // Add column list if specified
         if ($cte->hasColumns()) {
@@ -162,6 +163,12 @@ class CteManager
         } else {
             // Raw SQL string
             $sql = $query;
+        }
+
+        // Normalize recursive CTE SQL using dialect-specific method
+        // Pass only CTE name (without column list) for normalization
+        if ($cte->isRecursive()) {
+            $sql = $this->dialect->normalizeRecursiveCteSql($sql, $cteName, true);
         }
 
         // Apply materialization using dialect-specific formatting

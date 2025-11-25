@@ -40,3 +40,4 @@ final class HavingTests extends BaseOracleTestCase
     }
 }
 
+

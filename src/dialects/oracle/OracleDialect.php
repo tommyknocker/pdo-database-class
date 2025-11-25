@@ -2523,6 +2523,84 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function normalizeRecursiveCteSql(string $sql, string $cteName, bool $isRecursive): string
+    {
+        if (!$isRecursive) {
+            return $sql;
+        }
+
+        // Oracle requires CTE name qualification instead of aliases in recursive part
+        // Extract unquoted CTE name for pattern matching
+        $unquotedCteName = trim($cteName, '"');
+        $unquotedCteNameUpper = strtoupper($unquotedCteName);
+
+        // Replace aliases in recursive part (after UNION ALL)
+        // Pattern: "CT"."COLUMN" or ct.column -> CTE_NAME.COLUMN
+        if (preg_match('/UNION\s+ALL\s+(.+)$/is', $sql, $matches)) {
+            $recursivePart = $matches[1];
+            // Replace quoted aliases like "CT" with CTE name
+            // Match pattern: "ALIAS"."COLUMN" where ALIAS matches CTE name
+            $recursivePart = preg_replace_callback(
+                '/"([^"]+)"\s*\.\s*"([^"]+)"/i',
+                function ($m) use ($cteName, $unquotedCteNameUpper) {
+                    $alias = strtoupper($m[1]);
+                    $column = $m[2];
+                    // Check if alias matches CTE name (case-insensitive)
+                    // Also check for common alias patterns like CT, CTE, etc.
+                    if ($alias === $unquotedCteNameUpper ||
+                        preg_match('/^' . preg_quote($unquotedCteNameUpper, '/') . '\d*$/i', $alias) ||
+                        // Common alias patterns for CTE references
+                        preg_match('/^(CT|CTE|REC|RECURSIVE)$/i', $alias)) {
+                        return $cteName . '.' . $this->quoteIdentifier($column);
+                    }
+                    return $m[0];
+                },
+                $recursivePart
+            );
+            // Replace unquoted aliases like ct.column or ct.level
+            // Match pattern: alias.column (not in quotes)
+            $recursivePart = preg_replace_callback(
+                '/(\b)([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*|\*)(\b)/',
+                function ($m) use ($cteName, $unquotedCteNameUpper) {
+                    $alias = strtoupper($m[2]);
+                    $column = $m[3];
+                    // Check if alias matches CTE name (case-insensitive)
+                    // Also check for common alias patterns
+                    if ($alias === $unquotedCteNameUpper ||
+                        preg_match('/^' . preg_quote($unquotedCteNameUpper, '/') . '\d*$/i', $alias) ||
+                        // Common alias patterns for CTE references
+                        preg_match('/^(CT|CTE|REC|RECURSIVE)$/i', $alias)) {
+                        $quotedColumn = $column === '*' ? '*' : $this->quoteIdentifier($column);
+                        return $m[1] . $cteName . '.' . $quotedColumn . $m[4];
+                    }
+                    return $m[0];
+                },
+                $recursivePart
+            );
+            // Also replace CTE aliases in JOIN conditions (e.g., "CT"."ID" -> "CATEGORY_TREE"."ID")
+            // This handles cases like: INNER JOIN "CATEGORY_TREE" "CT" ON ... = "CT"."ID"
+            $recursivePart = preg_replace_callback(
+                '/INNER\s+JOIN\s+"([^"]+)"\s+"([^"]+)"/i',
+                function ($m) use ($cteName, $unquotedCteNameUpper) {
+                    $tableName = strtoupper($m[1]);
+                    // If table name matches CTE name, keep the join but note the alias
+                    if ($tableName === $unquotedCteNameUpper) {
+                        // Keep the join structure but we'll replace alias references later
+                        return 'INNER JOIN ' . $cteName . ' ' . $this->quoteIdentifier($m[2]);
+                    }
+                    return $m[0];
+                },
+                $recursivePart
+            );
+            $sql = preg_replace('/UNION\s+ALL\s+.+$/is', 'UNION ALL ' . $recursivePart, $sql);
+        }
+
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatLateralJoin(string $tableSql, string $type, string $aliasQuoted, string|RawValue|null $condition = null): string
     {
         // Oracle supports LATERAL JOINs

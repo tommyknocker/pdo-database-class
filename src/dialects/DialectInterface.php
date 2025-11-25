@@ -1540,6 +1540,18 @@ interface DialectInterface
      */
     public function getRecursiveCteKeyword(): string;
 
+    /**
+     * Normalize recursive CTE SQL for dialect-specific requirements.
+     * Some dialects require special handling of CTE references in recursive parts.
+     *
+     * @param string $sql CTE SQL to normalize
+     * @param string $cteName CTE name (quoted)
+     * @param bool $isRecursive Whether this is a recursive CTE
+     *
+     * @return string Normalized SQL
+     */
+    public function normalizeRecursiveCteSql(string $sql, string $cteName, bool $isRecursive): string;
+
     /* ---------------- Database Management ---------------- */
 
     /**
