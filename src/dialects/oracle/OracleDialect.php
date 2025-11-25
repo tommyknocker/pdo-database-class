@@ -1389,7 +1389,21 @@ class OracleDialect extends DialectAbstract
                     $quoted = $this->quoteIdentifier($arg);
                     $formattedArgs[] = $this->formatColumnForComparison($quoted);
                 } else {
-                    // It's an expression or something else - keep as-is
+                    // It's an expression or something else - check if it contains CAST
+                    // Apply CAST normalization if needed
+                    if (preg_match('/CAST\s*\(([^,]+)\s+AS\s+([^)]+)\)/i', $arg, $castMatches)) {
+                        $castExpr = trim($castMatches[1]);
+                        $castType = trim($castMatches[2]);
+                        
+                        // Check if CAST expression is a column identifier
+                        if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $castExpr) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $castExpr)) {
+                            // It's a column - apply TO_CHAR() for CLOB compatibility before CAST
+                            $castQuoted = preg_match('/^["`\[\]]/', $castExpr) ? $castExpr : $this->quoteIdentifier($castExpr);
+                            $castExprFormatted = $this->formatColumnForComparison($castQuoted);
+                            // Replace CAST(column AS type) with CAST(TO_CHAR(column) AS type)
+                            $arg = preg_replace('/CAST\s*\(' . preg_quote($castExpr, '/') . '\s+AS\s+' . preg_quote($castType, '/') . '\)/i', "CAST($castExprFormatted AS $castType)", $arg);
+                        }
+                    }
                     $formattedArgs[] = $arg;
                 }
             }
@@ -1417,11 +1431,32 @@ class OracleDialect extends DialectAbstract
             return "NULLIF($expr1Formatted, $expr2)";
         }
         
+        // Oracle-specific normalization: handle CAST with CLOB columns
+        // CAST(text_value AS NUMBER) -> CAST(TO_CHAR("TEXT_VALUE") AS NUMBER)
+        if (preg_match('/CAST\s*\(([^,]+)\s+AS\s+([^)]+)\)/i', $sql, $matches)) {
+            $expr = trim($matches[1]);
+            $type = trim($matches[2]);
+            
+            // Check if expression is a column identifier (quoted or unquoted)
+            if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $expr) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $expr)) {
+                // It's a column - apply TO_CHAR() for CLOB compatibility before CAST
+                $quoted = preg_match('/^["`\[\]]/', $expr) ? $expr : $this->quoteIdentifier($expr);
+                $exprFormatted = $this->formatColumnForComparison($quoted);
+                // Replace CAST(column AS type) with CAST(TO_CHAR(column) AS type)
+                $sql = preg_replace('/CAST\s*\(' . preg_quote($expr, '/') . '\s+AS\s+' . preg_quote($type, '/') . '\)/i', "CAST($exprFormatted AS $type)", $sql);
+            }
+        }
+        
         // Oracle-specific normalization: handle LOG10() -> LOG(10, ...)
         // Oracle doesn't support LOG10(), use LOG(10, ...) instead
         if (preg_match('/LOG10\s*\(/i', $sql)) {
             $sql = preg_replace('/LOG10\s*\(/i', 'LOG(10, ', $sql);
         }
+        
+        // Oracle-specific normalization: handle TRUE/FALSE -> 1/0
+        // Oracle doesn't support TRUE/FALSE constants, use 1/0 instead
+        $sql = preg_replace('/\bTRUE\b/i', '1', $sql);
+        $sql = preg_replace('/\bFALSE\b/i', '0', $sql);
         
         return $sql;
     }

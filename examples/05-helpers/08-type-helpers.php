@@ -38,8 +38,8 @@ echo "✓ Test data inserted\n\n";
 // Example 1: Type casting
 echo "1. Type casting...\n";
 $intType = ($driver === 'mysql' || $driver === 'mariadb') ? 'SIGNED' : 'INTEGER';
-$realType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'pgsql' ? 'NUMERIC' : 'REAL');
-$textType = ($driver === 'mysql' || $driver === 'mariadb') ? 'CHAR(255)' : (($driver === 'sqlsrv') ? 'NVARCHAR(255)' : 'TEXT');
+$realType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'pgsql' ? 'NUMERIC' : ($driver === 'oci' ? 'NUMBER' : 'REAL'));
+$textType = ($driver === 'mysql' || $driver === 'mariadb') ? 'CHAR(255)' : (($driver === 'sqlsrv') ? 'NVARCHAR(255)' : ($driver === 'oci' ? 'VARCHAR2(4000)' : 'TEXT'));
 
 // Use COALESCE to handle invalid cast values gracefully
 // This demonstrates safe type conversion using library helpers
@@ -57,6 +57,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • {$row['text_value']} → int: {$row['cast_to_int']}, real: {$row['cast_to_real']}\n";
     echo "    {$row['numeric_value']} → text: {$row['cast_to_text']}\n";
     echo "    {$row['mixed_value']} → real: {$row['cast_mixed_to_real']}\n";
@@ -65,7 +66,7 @@ echo "\n";
 
 // Example 2: GREATEST function
 echo "2. GREATEST function...\n";
-$realType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'pgsql' ? 'NUMERIC' : 'REAL');
+$realType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'pgsql' ? 'NUMERIC' : ($driver === 'oci' ? 'NUMBER' : 'REAL'));
 $results = $db->find()
     ->from('data_types')
     ->select([
@@ -79,6 +80,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • Text: {$row['text_value']}, Numeric: {$row['numeric_value']}, Mixed: {$row['mixed_value']}\n";
     echo "    Greatest numeric: {$row['greatest_numeric']}\n";
     echo "    Greatest mixed: {$row['greatest_mixed']}\n";
@@ -88,7 +90,7 @@ echo "\n";
 
 // Example 3: LEAST function
 echo "3. LEAST function...\n";
-$realType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'pgsql' ? 'NUMERIC' : 'REAL');
+$realType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'pgsql' ? 'NUMERIC' : ($driver === 'oci' ? 'NUMBER' : 'REAL'));
 $results = $db->find()
     ->from('data_types')
     ->select([
@@ -102,6 +104,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • Text: {$row['text_value']}, Numeric: {$row['numeric_value']}, Mixed: {$row['mixed_value']}\n";
     echo "    Least numeric: {$row['least_numeric']}\n";
     echo "    Least mixed: {$row['least_mixed']}\n";
@@ -111,7 +114,7 @@ echo "\n";
 
 // Example 4: Type checking with CASE
 echo "4. Type checking with CASE...\n";
-$castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : 'REAL';
+$castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'oci' ? 'NUMBER' : 'REAL');
 $castTextExpr = Db::cast('text_value', $castRealType)->getValue();
 $castMixedExpr = Db::cast('mixed_value', $castRealType)->getValue();
 $results = $db->find()
@@ -128,13 +131,14 @@ $results = $db->find()
             ($castMixedExpr . ' IS NULL') => '\'No\''
         ], '\'Unknown\''),
         'is_date_mixed' => Db::case([
-            (Db::cast('mixed_value', 'DATE')->getValue() . ' IS NOT NULL') => '\'Yes\'',
-            (Db::cast('mixed_value', 'DATE')->getValue() . ' IS NULL') => '\'No\''
+            ($driver === 'oci' ? "CAST(TO_CHAR(\"MIXED_VALUE\") AS DATE) IS NOT NULL" : (Db::cast('mixed_value', 'DATE')->getValue() . ' IS NOT NULL')) => '\'Yes\'',
+            ($driver === 'oci' ? "CAST(TO_CHAR(\"MIXED_VALUE\") AS DATE) IS NULL" : (Db::cast('mixed_value', 'DATE')->getValue() . ' IS NULL')) => '\'No\''
         ], '\'Unknown\'')
     ])
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • Text: '{$row['text_value']}' → numeric: {$row['is_numeric_text']}\n";
     echo "    Mixed: '{$row['mixed_value']}' → numeric: {$row['is_numeric_mixed']}, date: {$row['is_date_mixed']}\n";
 }
@@ -142,7 +146,7 @@ echo "\n";
 
 // Example 5: Type conversion in WHERE clauses
 echo "5. Type conversion in WHERE clauses...\n";
-$castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : 'REAL';
+$castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'oci' ? 'NUMBER' : 'REAL');
 $results = $db->find()
     ->from('data_types')
     ->where(Db::cast('text_value', $castRealType), 100, '>')
@@ -151,13 +155,14 @@ $results = $db->find()
 
 echo "  Records where text_value as REAL > 100:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • Text: {$row['text_value']}, Numeric: {$row['numeric_value']}\n";
 }
 echo "\n";
 
 // Example 6: Type conversion in ORDER BY
 echo "6. Type conversion in ORDER BY...\n";
-$castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : 'REAL';
+$castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'oci' ? 'NUMBER' : 'REAL');
 $results = $db->find()
     ->from('data_types')
     ->select(['text_value', 'numeric_value', 'mixed_value'])
@@ -166,13 +171,14 @@ $results = $db->find()
 
 echo "  Records ordered by text_value as REAL (descending):\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • Text: {$row['text_value']}, Numeric: {$row['numeric_value']}, Mixed: {$row['mixed_value']}\n";
 }
 echo "\n";
 
 // Example 7: Complex type operations
 echo "7. Complex type operations...\n";
-$castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : 'REAL';
+$castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'oci' ? 'NUMBER' : 'REAL');
 $results = $db->find()
     ->from('data_types')
     ->select([
@@ -190,6 +196,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • Text: '{$row['text_value']}' ({$row['type_category']})\n";
     echo "    Safe numeric: {$row['safe_numeric']}\n";
     echo "    Converted sum: {$row['converted_sum']}\n";
@@ -198,7 +205,7 @@ echo "\n";
 
 // Example 8: Type conversion with aggregation
 echo "8. Type conversion with aggregation...\n";
-$castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : 'REAL';
+$castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'oci' ? 'NUMBER' : 'REAL');
 // Note: AVG/MAX/MIN with TRY_CAST may return NULL for invalid values
 // In production, you might want to use COALESCE or filter out NULL values
 $stats = $db->find()
@@ -222,7 +229,7 @@ echo "\n";
 
 // Example 9: Type conversion with GREATEST/LEAST
 echo "9. Type conversion with GREATEST/LEAST...\n";
-$realType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'pgsql' ? 'NUMERIC' : 'REAL');
+$realType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'pgsql' ? 'NUMERIC' : ($driver === 'oci' ? 'NUMBER' : 'REAL'));
 // Use library helpers for range_min and range_max
 // For range_span, we need to subtract two expressions
 // We'll resolve the helpers to SQL strings for use in Db::raw()
@@ -253,6 +260,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • Text: {$row['text_value']}, Numeric: {$row['numeric_value']}, Mixed: {$row['mixed_value']}\n";
     echo "    Range: {$row['range_min']} to {$row['range_max']} (span: {$row['range_span']})\n";
 }
@@ -260,7 +268,7 @@ echo "\n";
 
 // Example 10: Type validation
 echo "10. Type validation...\n";
-$castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : 'REAL';
+$castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'oci' ? 'NUMBER' : 'REAL');
 $intType = ($driver === 'mysql' || $driver === 'mariadb') ? 'SIGNED' : 'INTEGER';
 // Use COALESCE with CAST to safely check if value can be converted
 // COALESCE(CAST(...), NULL) returns NULL if CAST fails (for dialects that use TRY_CAST or safe CAST)
@@ -295,6 +303,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • Text '{$row['text_value']}': {$row['is_valid_numeric']}\n";
     echo "    Mixed '{$row['mixed_value']}': {$row['is_valid_date']}\n";
 }

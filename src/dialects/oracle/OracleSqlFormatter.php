@@ -350,7 +350,32 @@ class OracleSqlFormatter extends SqlFormatterAbstract
     public function formatGreatest(array $values): string
     {
         $args = $this->resolveValues($values);
-        return 'GREATEST(' . implode(', ', $args) . ')';
+        // Apply formatColumnForComparison for CLOB compatibility
+        $formattedArgs = [];
+        foreach ($args as $arg) {
+            // Check if it's a CAST expression with a column
+            if (preg_match('/CAST\s*\(([^,]+)\s+AS\s+([^)]+)\)/i', $arg, $castMatches)) {
+                $castExpr = trim($castMatches[1]);
+                $castType = trim($castMatches[2]);
+                // Check if CAST expression is a column identifier
+                if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $castExpr) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $castExpr)) {
+                    // It's a column - apply TO_CHAR() for CLOB compatibility before CAST
+                    $castQuoted = preg_match('/^["`\[\]]/', $castExpr) ? $castExpr : $this->dialect->quoteIdentifier($castExpr);
+                    $castExprFormatted = $this->dialect->formatColumnForComparison($castQuoted);
+                    $formattedArgs[] = "CAST($castExprFormatted AS $castType)";
+                } else {
+                    // It's an expression - keep as-is
+                    $formattedArgs[] = $arg;
+                }
+            } elseif (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $arg) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $arg)) {
+                // It's a column - apply formatColumnForComparison for CLOB compatibility
+                $formattedArgs[] = $this->dialect->formatColumnForComparison($arg);
+            } else {
+                // It's a literal or expression - keep as-is
+                $formattedArgs[] = $arg;
+            }
+        }
+        return 'GREATEST(' . implode(', ', $formattedArgs) . ')';
     }
 
     /**
@@ -359,7 +384,32 @@ class OracleSqlFormatter extends SqlFormatterAbstract
     public function formatLeast(array $values): string
     {
         $args = $this->resolveValues($values);
-        return 'LEAST(' . implode(', ', $args) . ')';
+        // Apply formatColumnForComparison for CLOB compatibility
+        $formattedArgs = [];
+        foreach ($args as $arg) {
+            // Check if it's a CAST expression with a column
+            if (preg_match('/CAST\s*\(([^,]+)\s+AS\s+([^)]+)\)/i', $arg, $castMatches)) {
+                $castExpr = trim($castMatches[1]);
+                $castType = trim($castMatches[2]);
+                // Check if CAST expression is a column identifier
+                if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $castExpr) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $castExpr)) {
+                    // It's a column - apply TO_CHAR() for CLOB compatibility before CAST
+                    $castQuoted = preg_match('/^["`\[\]]/', $castExpr) ? $castExpr : $this->dialect->quoteIdentifier($castExpr);
+                    $castExprFormatted = $this->dialect->formatColumnForComparison($castQuoted);
+                    $formattedArgs[] = "CAST($castExprFormatted AS $castType)";
+                } else {
+                    // It's an expression - keep as-is
+                    $formattedArgs[] = $arg;
+                }
+            } elseif (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $arg) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $arg)) {
+                // It's a column - apply formatColumnForComparison for CLOB compatibility
+                $formattedArgs[] = $this->dialect->formatColumnForComparison($arg);
+            } else {
+                // It's a literal or expression - keep as-is
+                $formattedArgs[] = $arg;
+            }
+        }
+        return 'LEAST(' . implode(', ', $formattedArgs) . ')';
     }
 
     /**

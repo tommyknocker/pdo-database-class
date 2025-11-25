@@ -48,6 +48,7 @@ $results = $db->find()
 
 echo "  Active settings:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • User {$row['user_id']}: {$row['setting_name']} = {$row['setting_value']}\n";
 }
 echo "\n";
@@ -62,6 +63,7 @@ $results = $db->find()
 
 echo "  Default settings:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • User {$row['user_id']}: {$row['setting_name']} = {$row['setting_value']} (default)\n";
 }
 echo "\n";
@@ -77,6 +79,7 @@ $results = $db->find()
 
 echo "  Active, non-default settings:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • User {$row['user_id']}: {$row['setting_name']} = {$row['setting_value']} (active, not default)\n";
 }
 echo "\n";
@@ -93,6 +96,7 @@ $results = $db->find()
 
 echo "  Public non-required OR inactive settings:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     $active = $row['is_active'] ? 'Yes' : 'No';
     $public = $row['is_public'] ? 'Yes' : 'No';
     $required = $row['is_required'] ? 'Yes' : 'No';
@@ -122,6 +126,7 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     $editable = $row['is_editable'] ? 'Yes' : 'No';
     echo "  • User {$row['user_id']}: {$row['setting_name']} = {$row['setting_value']} ({$row['status']}, editable: {$editable})\n";
 }
@@ -148,6 +153,7 @@ $results = $db->find()
 
 echo "  User settings summary:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • User {$row['user_id']}: {$row['total_settings']} total, {$row['active_settings']} active, {$row['default_settings']} default\n";
     echo "    Public: {$row['public_settings']}, Required: {$row['required_settings']}\n";
 }
@@ -165,6 +171,7 @@ $results = $db->find()
 
 echo "  Active, public, non-required settings:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     echo "  • User {$row['user_id']}: {$row['setting_name']} = {$row['setting_value']}\n";
 }
 echo "\n";
@@ -186,6 +193,7 @@ $newSetting = $db->find()
     ->where('user_id', 4)
     ->andWhere('setting_name', 'language')
     ->getOne();
+$newSetting = normalizeRowKeys($newSetting);
 
 echo "  New setting with DEFAULT values:\n";
 echo "  • User {$newSetting['user_id']}: {$newSetting['setting_name']} = {$newSetting['setting_value']}\n";
@@ -205,6 +213,7 @@ $results = $db->find()
 
 echo "  Settings ordered by boolean flags:\n";
 foreach ($results as $row) {
+    $row = normalizeRowKeys($row);
     $active = $row['is_active'] ? 'Active' : 'Inactive';
     $default = $row['is_default'] ? 'Default' : 'Custom';
     echo "  • User {$row['user_id']}: {$row['setting_name']} ({$active}, {$default})\n";
@@ -226,6 +235,7 @@ $stats = $db->find()
         'active_percentage' => Db::round(Db::raw("(SUM(CASE WHEN is_active = {$trueValue} THEN 1 ELSE 0 END) * 100.0 / COUNT(*))"), 1)
     ])
     ->getOne();
+$stats = normalizeRowKeys($stats);
 
 echo "  Settings statistics:\n";
 echo "  • Total settings: {$stats['total_settings']}\n";
