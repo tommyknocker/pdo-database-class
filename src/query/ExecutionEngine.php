@@ -308,7 +308,18 @@ class ExecutionEngine implements ExecutionEngineInterface
                 if (is_resource($value) && get_resource_type($value) === 'stream') {
                     $value = stream_get_contents($value);
                 }
-                $normalizedRow[strtolower($key)] = $value;
+                // Extract column name from expressions like TO_CHAR("table"."column") or TO_CHAR("column")
+                // Pattern: TO_CHAR("table"."column") -> column
+                // Pattern: TO_CHAR("column") -> column
+                $normalizedKey = $key;
+                if (preg_match('/^to_char\s*\(\s*"[^"]*"\s*\.\s*"([^"]+)"\s*\)$/i', $key, $matches)) {
+                    // TO_CHAR("table"."column") -> column
+                    $normalizedKey = $matches[1];
+                } elseif (preg_match('/^to_char\s*\(\s*"([^"]+)"\s*\)$/i', $key, $matches)) {
+                    // TO_CHAR("column") -> column
+                    $normalizedKey = $matches[1];
+                }
+                $normalizedRow[strtolower($normalizedKey)] = $value;
             }
             $normalized[] = $normalizedRow;
         }

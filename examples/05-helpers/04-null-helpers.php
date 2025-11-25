@@ -170,18 +170,34 @@ echo "9. Advanced COALESCE scenarios...\n";
 // Resolve ConcatValue to SQL string before using in coalesce
 // ConcatValue cannot be used directly in coalesce() because it throws exception on getValue()
 // We need to resolve it through the dialect first to get the SQL string
-$resolver = new \tommyknocker\pdodb\query\RawValueResolver($db->connection, new \tommyknocker\pdodb\query\ParameterManager());
-$concatRawValue = $db->connection->getDialect()->concat(Db::concat('Name: ', 'name'));
-$concatExpr = $concatRawValue->getValue();
-$users = $db->find()
-    ->from('users')
-    ->select([
-        'name',
-        'display_name' => Db::coalesce('name', "'Anonymous'"),
-        'contact_info' => Db::coalesce('phone', 'email', 'address', "'No contact info'"),
-        'profile_summary' => Db::coalesce('bio', Db::raw($concatExpr), "'No profile'")
-    ])
-    ->get();
+// For Oracle, CONCAT is converted to || operator, so we need to handle it differently
+$driver = getenv('PDODB_DRIVER') ?: 'mysql';
+if ($driver === 'oci') {
+    // Oracle: use || operator directly in COALESCE
+    $users = $db->find()
+        ->from('users')
+        ->select([
+            'name',
+            'display_name' => Db::coalesce('name', "'Anonymous'"),
+            'contact_info' => Db::coalesce('phone', 'email', 'address', "'No contact info'"),
+            'profile_summary' => Db::coalesce('bio', Db::raw("'Name: ' || \"NAME\""), "'No profile'")
+        ])
+        ->get();
+} else {
+    // Other dialects: use CONCAT function
+    $resolver = new \tommyknocker\pdodb\query\RawValueResolver($db->connection, new \tommyknocker\pdodb\query\ParameterManager());
+    $concatRawValue = $db->connection->getDialect()->concat(Db::concat('Name: ', 'name'));
+    $concatExpr = $concatRawValue->getValue();
+    $users = $db->find()
+        ->from('users')
+        ->select([
+            'name',
+            'display_name' => Db::coalesce('name', "'Anonymous'"),
+            'contact_info' => Db::coalesce('phone', 'email', 'address', "'No contact info'"),
+            'profile_summary' => Db::coalesce('bio', Db::raw($concatExpr), "'No profile'")
+        ])
+        ->get();
+}
 
 foreach ($users as $user) {
     echo "  • {$user['name']}\n";

@@ -330,13 +330,25 @@ trait ActiveRecord
 
             // Set primary key if auto-increment
             if (count($pk) === 1 && (!isset($this->attributes[$pk[0]]) || ($this->attributes[$pk[0]] ?? null) === null)) {
-                // Get connection from QueryBuilder to access getLastInsertId
-                $queryBuilder = $db->find();
-                $connection = $queryBuilder->getConnection();
-                $lastId = $connection->getLastInsertId();
-                if ($lastId !== false && $lastId !== '0') {
-                    $insertId = is_numeric($lastId) ? (int)$lastId : $lastId;
+                // Use the result from insert() which already contains the ID (via extractInsertId for Oracle)
+                // For Oracle, extractInsertId() uses sequence.currval, which is already called in executeInsert()
+                if ($result > 0 && is_numeric($result)) {
+                    $insertId = (int)$result;
                     $this->attributes[$pk[0]] = $insertId;
+                } else {
+                    // Fallback: try getLastInsertId (for databases that support it)
+                    $queryBuilder = $db->find();
+                    $connection = $queryBuilder->getConnection();
+                    try {
+                        $lastId = $connection->getLastInsertId();
+                        if ($lastId !== false && $lastId !== '0') {
+                            $insertId = is_numeric($lastId) ? (int)$lastId : $lastId;
+                            $this->attributes[$pk[0]] = $insertId;
+                        }
+                    } catch (\PDOException) {
+                        // Oracle and some databases don't support getLastInsertId
+                        // The ID should already be in $result from extractInsertId()
+                    }
                 }
             } else {
                 $insertId = $this->attributes[$pk[0]] ?? null;

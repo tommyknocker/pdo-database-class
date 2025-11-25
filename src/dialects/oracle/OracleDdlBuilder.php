@@ -84,7 +84,46 @@ class OracleDdlBuilder implements DdlBuilderInterface
             $columnDefs[] = 'PRIMARY KEY (' . implode(', ', $pkQuoted) . ')';
         }
 
-        $sql = "CREATE TABLE {$tableQuoted} (\n    " . implode(",\n    ", $columnDefs) . "\n)";
+        // Add FOREIGN KEY constraints from options if specified
+        // Oracle requires foreign keys to be defined in CREATE TABLE
+        if (!empty($options['foreignKeys']) && is_array($options['foreignKeys'])) {
+            foreach ($options['foreignKeys'] as $fk) {
+                if (!isset($fk['columns']) || !isset($fk['refTable']) || !isset($fk['refColumns'])) {
+                    continue;
+                }
+                $fkName = $fk['name'] ?? null;
+                $fkColumns = is_array($fk['columns']) ? $fk['columns'] : [$fk['columns']];
+                $fkRefTable = $fk['refTable'];
+                $fkRefColumns = is_array($fk['refColumns']) ? $fk['refColumns'] : [$fk['refColumns']];
+                $fkDelete = $fk['onDelete'] ?? null;
+                $fkUpdate = $fk['onUpdate'] ?? null;
+
+                $fkColsQuoted = array_map([$this, 'quoteIdentifier'], $fkColumns);
+                $fkRefColsQuoted = array_map([$this, 'quoteIdentifier'], $fkRefColumns);
+                $fkColsList = implode(', ', $fkColsQuoted);
+                $fkRefColsList = implode(', ', $fkRefColsQuoted);
+                $fkRefTableQuoted = $this->quoteTable($fkRefTable);
+
+                $fkSql = '';
+                if ($fkName !== null) {
+                    $fkNameQuoted = $this->quoteIdentifier($fkName);
+                    $fkSql .= "CONSTRAINT {$fkNameQuoted} ";
+                }
+                $fkSql .= "FOREIGN KEY ({$fkColsList}) REFERENCES {$fkRefTableQuoted} ({$fkRefColsList})";
+
+                if ($fkDelete !== null) {
+                    $fkSql .= ' ON DELETE ' . strtoupper($fkDelete);
+                }
+                // Oracle doesn't support ON UPDATE CASCADE
+                if ($fkUpdate !== null && strtoupper($fkUpdate) !== 'CASCADE') {
+                    // Oracle doesn't support ON UPDATE, ignore it
+                }
+
+                $columnDefs[] = $fkSql;
+            }
+        }
+
+        $sql = "CREATE TABLE {$tableQuoted} (" . implode(", ", $columnDefs) . ")";
 
         // Add table options
         if (!empty($options['tablespace'])) {
@@ -448,10 +487,16 @@ END;";
             $type = 'NUMBER(5)';
         } elseif ($type === 'BIGINT') {
             $type = 'NUMBER(19)';
-        } elseif ($type === 'TEXT' || $type === 'LONGTEXT') {
-            // Use VARCHAR2(4000) instead of CLOB for better compatibility with LIKE and other operations
+        } elseif ($type === 'TEXT' || $type === 'LONGTEXT' || $type === 'MEDIUMTEXT' || $type === 'TINYTEXT' || $type === 'CLOB') {
+            // Oracle doesn't support UNIQUE or PRIMARY KEY on CLOB columns
+            // Use VARCHAR2(4000) instead of CLOB if column has UNIQUE constraint
+            // Also use VARCHAR2(4000) for better compatibility with LIKE and other operations
             // CLOB has limitations (cannot be used directly in WHERE with LIKE, cannot be indexed, etc.)
-            $type = 'VARCHAR2(4000)';
+            if ($schema->isUnique()) {
+                $type = 'VARCHAR2(4000)';
+            } else {
+                $type = 'VARCHAR2(4000)';
+            }
         } elseif ($type === 'VARCHAR' && $schema->getLength() === null) {
             $type = 'VARCHAR2(4000)';
         } elseif ($type === 'VARCHAR') {
@@ -490,11 +535,22 @@ END;";
         // DEFAULT
         if ($schema->getDefaultValue() !== null && !$schema->isAutoIncrement()) {
             if ($schema->isDefaultExpression()) {
-                $parts[] = 'DEFAULT ' . $schema->getDefaultValue();
+                $defaultExpr = $schema->getDefaultValue();
+                // Oracle doesn't support CURRENT_TIMESTAMP in DEFAULT for TIMESTAMP
+                // Convert to SYSTIMESTAMP for TIMESTAMP columns (SYSDATE doesn't work with TIMESTAMP)
+                if (strtoupper(trim($defaultExpr)) === 'CURRENT_TIMESTAMP' && strtoupper($schema->getType()) === 'TIMESTAMP') {
+                    $defaultExpr = 'SYSTIMESTAMP';
+                }
+                $parts[] = 'DEFAULT ' . $defaultExpr;
             } else {
                 $default = $this->formatDefaultValue($schema->getDefaultValue());
                 $parts[] = 'DEFAULT ' . $default;
             }
+        }
+
+        // UNIQUE constraint on column
+        if ($schema->isUnique()) {
+            $parts[] = 'UNIQUE';
         }
 
         // AUTO_INCREMENT is handled via sequences (created separately)

@@ -36,27 +36,15 @@ echo "✓ Table created\n\n";
 
 // Example 1: First UPSERT (will INSERT)
 echo "1. First UPSERT for user 1 (will INSERT)...\n";
-if ($driver === 'sqlsrv') {
-    // MSSQL uses MERGE instead of INSERT ... ON DUPLICATE KEY UPDATE
-    $db->find()->table('user_stats')
-        ->merge(
-            function ($q) {
-                $q->select([Db::raw('1 as user_id'), Db::raw('1 as login_count')]);
-            },
-            'user_stats.user_id = source.user_id',
-            ['login_count' => Db::raw('user_stats.login_count + 1')],
-            ['user_id' => Db::raw('source.user_id'), 'login_count' => Db::raw('source.login_count')]
-        );
-} else {
-    $db->find()->table('user_stats')
-        ->onDuplicate([
-            'login_count' => Db::inc(1)
-        ])
-        ->insert([
-            'user_id' => 1,
-            'login_count' => 1
-        ]);
-}
+
+$db->find()->table('user_stats')
+    ->onDuplicate([
+        'login_count' => Db::inc(1)
+    ])
+    ->insert([
+        'user_id' => 1,
+        'login_count' => 1
+    ]);
 
 $stats = $db->find()->from('user_stats')->where('user_id', 1)->getOne();
 echo "  ✓ User 1 stats: login_count={$stats['login_count']}, points={$stats['total_points']}\n\n";

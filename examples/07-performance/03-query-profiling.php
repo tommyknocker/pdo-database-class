@@ -15,6 +15,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/../helpers.php';
 
+use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\PdoDb;
 
 // Get database from environment or default to SQLite
@@ -74,9 +75,9 @@ for ($i = 0; $i < 10; $i++) {
 $db->find()
     ->from('profiling_demo')
     ->select([
-        'category' => 'category',
-        'total' => \tommyknocker\pdodb\helpers\Db::count(),
-        'avg_value' => \tommyknocker\pdodb\helpers\Db::avg('value'),
+        'category',
+        'total' => Db::count(),
+        'avg_value' => Db::avg('value'),
     ])
     ->groupBy('category')
     ->get();

@@ -164,7 +164,7 @@ $storageUsage = $db->find()
     ->from('documents AS d')
     ->join('tenants AS t', 't.id = d.tenant_id')
     ->select([
-        't.name AS tenant_name',
+        't.name',
         't.max_storage_mb',
         'total_docs' => Db::count(),
         'total_size_kb' => Db::sum('d.size_kb'),
@@ -179,7 +179,7 @@ foreach ($storageUsage as $usage) {
     $usedMb = number_format($usage['total_size_kb'] / 1024, 2);
     $percentUsed = number_format(($usage['total_size_kb'] / 1024 / $usage['max_storage_mb']) * 100, 1);
     $avgKb = number_format($usage['avg_size_kb'], 0);
-    echo "  • {$usage['tenant_name']}: {$usedMb} MB / {$usage['max_storage_mb']} MB ({$percentUsed}%)\n";
+    echo "  • {$usage['name']}: {$usedMb} MB / {$usage['max_storage_mb']} MB ({$percentUsed}%)\n";
     echo "    {$usage['total_docs']} docs, avg size: {$avgKb} KB\n";
 }
 echo "\n";
@@ -208,13 +208,13 @@ echo "\n";
 echo "7. Recording API usage...\n";
 
 $apiUsage = [
-    ['tenant_id' => 1, 'endpoint' => '/api/documents', 'requests_count' => 1250, 'date' => '2025-10-20'],
-    ['tenant_id' => 1, 'endpoint' => '/api/users', 'requests_count' => 340, 'date' => '2025-10-20'],
-    ['tenant_id' => 2, 'endpoint' => '/api/documents', 'requests_count' => 680, 'date' => '2025-10-20'],
-    ['tenant_id' => 2, 'endpoint' => '/api/search', 'requests_count' => 420, 'date' => '2025-10-20'],
-    ['tenant_id' => 3, 'endpoint' => '/api/documents', 'requests_count' => 85, 'date' => '2025-10-20'],
-    ['tenant_id' => 4, 'endpoint' => '/api/documents', 'requests_count' => 920, 'date' => '2025-10-20'],
-    ['tenant_id' => 4, 'endpoint' => '/api/analytics', 'requests_count' => 150, 'date' => '2025-10-20'],
+    ['tenant_id' => 1, 'endpoint' => '/api/documents', 'requests_count' => 1250, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
+    ['tenant_id' => 1, 'endpoint' => '/api/users', 'requests_count' => 340, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
+    ['tenant_id' => 2, 'endpoint' => '/api/documents', 'requests_count' => 680, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
+    ['tenant_id' => 2, 'endpoint' => '/api/search', 'requests_count' => 420, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
+    ['tenant_id' => 3, 'endpoint' => '/api/documents', 'requests_count' => 85, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
+    ['tenant_id' => 4, 'endpoint' => '/api/documents', 'requests_count' => 920, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
+    ['tenant_id' => 4, 'endpoint' => '/api/analytics', 'requests_count' => 150, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
 ];
 
 $db->find()->table('api_usage')->insertMulti($apiUsage);

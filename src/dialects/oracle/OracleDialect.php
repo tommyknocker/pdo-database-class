@@ -465,10 +465,31 @@ class OracleDialect extends DialectAbstract
      */
     public function executeExplain(\PDO $pdo, string $sql, array $params = []): array
     {
-        // Oracle EXPLAIN PLAN requires separate execution and then querying PLAN_TABLE
+        // Oracle EXPLAIN PLAN FOR doesn't support bind parameters
+        // Substitute parameter values directly into SQL
         $explainSql = $this->buildExplainSql($sql);
-        $stmt = $pdo->prepare($explainSql);
-        $stmt->execute($params);
+        if (!empty($params)) {
+            // Replace named parameters with their values
+            foreach ($params as $key => $value) {
+                $paramName = is_string($key) && str_starts_with($key, ':') ? $key : ':' . $key;
+                if (is_string($value)) {
+                    $quotedValue = $pdo->quote($value);
+                } elseif (is_numeric($value)) {
+                    $quotedValue = (string)$value;
+                } elseif (is_bool($value)) {
+                    $quotedValue = $value ? '1' : '0';
+                } elseif ($value === null) {
+                    $quotedValue = 'NULL';
+                } else {
+                    $quotedValue = $pdo->quote((string)$value);
+                }
+                $explainSql = str_replace($paramName, $quotedValue, $explainSql);
+            }
+        }
+        $stmt = $pdo->query($explainSql);
+        if ($stmt === false) {
+            return [];
+        }
 
         // Query PLAN_TABLE for the explain results
         $planSql = 'SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY())';
@@ -944,6 +965,23 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function appendLimitOffset(string $sql, int $limit, int $offset): string
+    {
+        // Oracle 12c+ uses OFFSET ... ROWS FETCH NEXT ... ROWS ONLY
+        // Check if ORDER BY exists in SQL
+        if (stripos($sql, 'ORDER BY') === false) {
+            // Oracle requires ORDER BY for OFFSET/FETCH
+            // Use a simple ordering that works for any query
+            return $sql . " ORDER BY 1 OFFSET {$offset} ROWS FETCH NEXT {$limit} ROWS ONLY";
+        } else {
+            // ORDER BY exists, just add OFFSET/FETCH
+            return $sql . " OFFSET {$offset} ROWS FETCH NEXT {$limit} ROWS ONLY";
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatUnionSelect(string $selectSql, bool $isBaseQuery = false): string
     {
         // Oracle doesn't require parentheses in UNION
@@ -1334,6 +1372,15 @@ class OracleDialect extends DialectAbstract
      */
     public function normalizeRawValue(string $sql): string
     {
+        // Oracle-specific normalization: handle LENGTH(COALESCE(...)) with CLOB columns
+        // LENGTH(COALESCE(email, phone, 'N/A')) -> LENGTH(TO_CHAR(COALESCE(TO_CHAR("EMAIL"), TO_CHAR("PHONE"), 'N/A')))
+        if (preg_match('/^LENGTH\s*\(\s*COALESCE\s*\((.*)\)\s*\)$/i', trim($sql), $lengthMatches)) {
+            $coalesceArgs = $lengthMatches[1];
+            // Normalize COALESCE arguments
+            $normalizedCoalesce = $this->normalizeCoalesceArgs($coalesceArgs);
+            return "LENGTH(TO_CHAR(COALESCE($normalizedCoalesce)))";
+        }
+        
         // Oracle-specific normalization: handle COALESCE with CLOB columns
         // COALESCE(phone, email, 'No contact') -> COALESCE(TO_CHAR("PHONE"), TO_CHAR("EMAIL"), 'No contact')
         if (preg_match('/^COALESCE\s*\((.*)\)$/i', trim($sql), $matches)) {
@@ -1389,7 +1436,7 @@ class OracleDialect extends DialectAbstract
                     $quoted = $this->quoteIdentifier($arg);
                     $formattedArgs[] = $this->formatColumnForComparison($quoted);
                 } else {
-                    // It's an expression or something else - check if it contains CAST
+                    // It's an expression or something else - check if it contains CAST or CONCAT
                     // Apply CAST normalization if needed
                     if (preg_match('/CAST\s*\(([^,]+)\s+AS\s+([^)]+)\)/i', $arg, $castMatches)) {
                         $castExpr = trim($castMatches[1]);
@@ -1403,6 +1450,108 @@ class OracleDialect extends DialectAbstract
                             // Replace CAST(column AS type) with CAST(TO_CHAR(column) AS type)
                             $arg = preg_replace('/CAST\s*\(' . preg_quote($castExpr, '/') . '\s+AS\s+' . preg_quote($castType, '/') . '\)/i', "CAST($castExprFormatted AS $castType)", $arg);
                         }
+                    }
+                    // Check if it contains || operator (Oracle concatenation)
+                    // 'Name: ' || name -> 'Name: ' || TO_CHAR("NAME")
+                    if (preg_match('/\|\|/', $arg)) {
+                        // Handle || operator (Oracle concatenation)
+                        // Split by || but respect quoted strings
+                        $parts = [];
+                        $current = '';
+                        $inQuotes = false;
+                        $quoteChar = '';
+                        for ($i = 0; $i < strlen($arg); $i++) {
+                            $char = $arg[$i];
+                            if (($char === '"' || $char === "'") && ($i === 0 || $arg[$i - 1] !== '\\')) {
+                                if (!$inQuotes) {
+                                    $inQuotes = true;
+                                    $quoteChar = $char;
+                                } elseif ($char === $quoteChar) {
+                                    $inQuotes = false;
+                                    $quoteChar = '';
+                                }
+                                $current .= $char;
+                            } elseif ($char === '|' && $i + 1 < strlen($arg) && $arg[$i + 1] === '|' && !$inQuotes) {
+                                // Found || operator
+                                $parts[] = trim($current);
+                                $current = '';
+                                $i++; // Skip second |
+                            } else {
+                                $current .= $char;
+                            }
+                        }
+                        if ($current !== '') {
+                            $parts[] = trim($current);
+                        }
+                        
+                        // Process each part
+                        $formattedParts = [];
+                        foreach ($parts as $part) {
+                            $part = trim($part);
+                            // If it's a quoted string literal, keep as-is
+                            if (preg_match("/^'.*'$/", $part)) {
+                                $formattedParts[] = $part;
+                            } elseif (preg_match('/^"([^"]+)"$/', $part, $matches)) {
+                                // It's a quoted identifier (column) - apply formatColumnForComparison
+                                $formattedParts[] = $this->formatColumnForComparison($part);
+                            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $part)) {
+                                // It's an unquoted column identifier - quote and apply formatColumnForComparison
+                                $quoted = $this->quoteIdentifier($part);
+                                $formattedParts[] = $this->formatColumnForComparison($quoted);
+                            } else {
+                                // It's already an expression or quoted identifier - keep as-is
+                                $formattedParts[] = $part;
+                            }
+                        }
+                        // Rebuild with || operator
+                        $arg = implode(' || ', $formattedParts);
+                    } elseif (preg_match('/CONCAT\s*\(([^)]+)\)/i', $arg, $concatMatches)) {
+                        $concatArgs = $concatMatches[1];
+                        // Split CONCAT arguments by comma, but respect quoted strings
+                        $concatParts = [];
+                        $current = '';
+                        $inQuotes = false;
+                        $quoteChar = '';
+                        for ($i = 0; $i < strlen($concatArgs); $i++) {
+                            $char = $concatArgs[$i];
+                            if (($char === '"' || $char === "'") && ($i === 0 || $concatArgs[$i - 1] !== '\\')) {
+                                if (!$inQuotes) {
+                                    $inQuotes = true;
+                                    $quoteChar = $char;
+                                } elseif ($char === $quoteChar) {
+                                    $inQuotes = false;
+                                    $quoteChar = '';
+                                }
+                                $current .= $char;
+                            } elseif ($char === ',' && !$inQuotes) {
+                                $concatParts[] = trim($current);
+                                $current = '';
+                            } else {
+                                $current .= $char;
+                            }
+                        }
+                        if ($current !== '') {
+                            $concatParts[] = trim($current);
+                        }
+                        
+                        // Process each CONCAT argument
+                        $formattedConcatParts = [];
+                        foreach ($concatParts as $part) {
+                            $part = trim($part);
+                            // If it's a quoted string literal, keep as-is
+                            if (preg_match("/^'.*'$/", $part)) {
+                                $formattedConcatParts[] = $part;
+                            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $part)) {
+                                // It's an unquoted column identifier - quote and apply formatColumnForComparison
+                                $quoted = $this->quoteIdentifier($part);
+                                $formattedConcatParts[] = $this->formatColumnForComparison($quoted);
+                            } else {
+                                // It's already an expression or quoted identifier - keep as-is
+                                $formattedConcatParts[] = $part;
+                            }
+                        }
+                        // Rebuild CONCAT with formatted parts
+                        $arg = 'CONCAT(' . implode(', ', $formattedConcatParts) . ')';
                     }
                     $formattedArgs[] = $arg;
                 }
@@ -1459,6 +1608,73 @@ class OracleDialect extends DialectAbstract
         $sql = preg_replace('/\bFALSE\b/i', '0', $sql);
         
         return $sql;
+    }
+    
+    /**
+     * Normalize COALESCE arguments for CLOB compatibility.
+     *
+     * @param string $argsStr The COALESCE arguments string
+     *
+     * @return string Normalized arguments string
+     */
+    protected function normalizeCoalesceArgs(string $argsStr): string
+    {
+        // Split by comma, but respect quoted strings
+        $args = [];
+        $current = '';
+        $inQuotes = false;
+        $quoteChar = '';
+        for ($i = 0; $i < strlen($argsStr); $i++) {
+            $char = $argsStr[$i];
+            if (($char === '"' || $char === "'" || $char === '`') && ($i === 0 || $argsStr[$i - 1] !== '\\')) {
+                if (!$inQuotes) {
+                    $inQuotes = true;
+                    $quoteChar = $char;
+                } elseif ($char === $quoteChar) {
+                    $inQuotes = false;
+                    $quoteChar = '';
+                }
+                $current .= $char;
+            } elseif ($char === ',' && !$inQuotes) {
+                $args[] = trim($current);
+                $current = '';
+            } else {
+                $current .= $char;
+            }
+        }
+        if ($current !== '') {
+            $args[] = trim($current);
+        }
+        
+        $formattedArgs = [];
+        foreach ($args as $arg) {
+            $arg = trim($arg);
+            // Check if it's a quoted string literal (single quotes for string literals in SQL)
+            if (preg_match("/^'.*'$/", $arg)) {
+                // It's a string literal (single quotes) - keep as-is
+                $formattedArgs[] = $arg;
+            } elseif (preg_match('/^"([^"]+)"$/', $arg, $matches)) {
+                // It's a quoted identifier - check if it contains single quotes (string literal in double quotes)
+                $inner = $matches[1];
+                if (preg_match("/^'.*'$/", $inner)) {
+                    // It's a string literal wrapped in double quotes (e.g., "'No contact'")
+                    // Extract the inner string literal and keep as-is
+                    $formattedArgs[] = $inner;
+                } else {
+                    // It's a quoted identifier (column) - apply formatColumnForComparison for CLOB compatibility
+                    $formattedArgs[] = $this->formatColumnForComparison($arg);
+                }
+            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $arg)) {
+                // It's an unquoted column identifier - quote and apply formatColumnForComparison
+                $quoted = $this->quoteIdentifier($arg);
+                $formattedArgs[] = $this->formatColumnForComparison($quoted);
+            } else {
+                // It's an expression or something else - keep as-is
+                $formattedArgs[] = $arg;
+            }
+        }
+        
+        return implode(', ', $formattedArgs);
     }
 
     /**
