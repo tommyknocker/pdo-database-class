@@ -649,6 +649,14 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function getTimestampDefaultExpression(): string
+    {
+        return 'CURRENT_TIMESTAMP';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatLimitOffset(string $sql, ?int $limit, ?int $offset): string
     {
         // Default implementation: append LIMIT and OFFSET

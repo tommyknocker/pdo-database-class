@@ -526,6 +526,14 @@ interface DialectInterface
     public function formatCurTime(): string;
 
     /**
+     * Get default timestamp expression for TIMESTAMP columns.
+     * Returns dialect-specific expression (e.g., 'CURRENT_TIMESTAMP', 'SYSTIMESTAMP').
+     *
+     * @return string Default timestamp expression
+     */
+    public function getTimestampDefaultExpression(): string;
+
+    /**
      * Format YEAR extraction.
      *
      * @param string|RawValue $value

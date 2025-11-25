@@ -78,24 +78,26 @@ try {
 
     // Create users table
     {
+        $createdAtDefault = $driver === 'oci' ? 'SYSTIMESTAMP' : 'CURRENT_TIMESTAMP';
         $schema->createTable('users', [
             'id' => $schema->primaryKey(),
             'name' => $schema->string(100)->notNull(),
             'email' => $schema->string(255)->notNull()->unique(),
             'role' => $schema->string(50)->defaultValue('user'),
-            'created_at' => $schema->timestamp()->notNull()->defaultExpression('CURRENT_TIMESTAMP'),
+            'created_at' => $schema->timestamp()->notNull()->defaultExpression($createdAtDefault),
         ]);
         echo "   ✓ Created users table\n";
     }
 
     // Create categories table
     {
+        $createdAtDefault = $driver === 'oci' ? 'SYSTIMESTAMP' : 'CURRENT_TIMESTAMP';
         $schema->createTable('categories', [
             'id' => $schema->primaryKey(),
             'name' => $schema->string(100)->notNull(),
             'slug' => $schema->string(100)->notNull()->unique(),
             'description' => $schema->text(),
-            'created_at' => $schema->timestamp()->notNull()->defaultExpression('CURRENT_TIMESTAMP'),
+            'created_at' => $schema->timestamp()->notNull()->defaultExpression($createdAtDefault),
         ]);
         echo "   ✓ Created categories table\n";
     }
@@ -104,6 +106,7 @@ try {
     {
         // For SQLite and Oracle, foreign key must be in CREATE TABLE
         if ($driver === 'sqlite' || $driver === 'oci') {
+            $createdAtDefault = $driver === 'oci' ? 'SYSTIMESTAMP' : 'CURRENT_TIMESTAMP';
             $schema->createTable('products', [
                 'id' => $schema->primaryKey(),
                 'name' => $schema->string(200)->notNull(),
@@ -111,7 +114,7 @@ try {
                 'price' => $schema->decimal(10, 2)->notNull(),
                 'description' => $schema->text(),
                 'in_stock' => $schema->boolean()->defaultValue(true),
-                'created_at' => $schema->timestamp()->notNull()->defaultExpression('CURRENT_TIMESTAMP'),
+                'created_at' => $schema->timestamp()->notNull()->defaultExpression($createdAtDefault),
             ], [
                 'foreignKeys' => [
                     [

@@ -104,11 +104,13 @@ class SeedRunner
         $schema = $this->db->schema();
 
         if (!$schema->tableExists($this->seedTable)) {
+            $dialect = $this->db->connection->getDialect();
+            $timestampDefault = $dialect->getTimestampDefaultExpression();
             $schema->createTable($this->seedTable, [
                 'id' => $schema->primaryKey(),
                 'seed' => $schema->string(255)->notNull(),
                 'batch' => $schema->integer()->notNull(),
-                'executed_at' => $schema->timestamp()->notNull()->defaultExpression('CURRENT_TIMESTAMP'),
+                'executed_at' => $schema->timestamp()->notNull()->defaultExpression($timestampDefault),
             ]);
         }
     }

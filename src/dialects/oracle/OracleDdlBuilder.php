@@ -527,12 +527,7 @@ END;";
 
         $parts = [$nameQuoted, $typeDef];
 
-        // NOT NULL / NULL
-        if ($schema->isNotNull()) {
-            $parts[] = 'NOT NULL';
-        }
-
-        // DEFAULT
+        // DEFAULT (must come before NOT NULL in Oracle)
         if ($schema->getDefaultValue() !== null && !$schema->isAutoIncrement()) {
             if ($schema->isDefaultExpression()) {
                 $defaultExpr = $schema->getDefaultValue();
@@ -546,6 +541,11 @@ END;";
                 $default = $this->formatDefaultValue($schema->getDefaultValue());
                 $parts[] = 'DEFAULT ' . $default;
             }
+        }
+
+        // NOT NULL / NULL
+        if ($schema->isNotNull()) {
+            $parts[] = 'NOT NULL';
         }
 
         // UNIQUE constraint on column

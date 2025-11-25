@@ -776,6 +776,14 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function getTimestampDefaultExpression(): string
+    {
+        return 'SYSTIMESTAMP';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatYear(string|RawValue $value): string
     {
         return $this->sqlFormatter->formatYear($value);
