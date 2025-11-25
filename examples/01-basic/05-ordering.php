@@ -48,7 +48,6 @@ $byPriceAsc = $db->find()
     ->get();
 
 foreach ($byPriceAsc as $p) {
-    $p = normalizeRowKeys($p);
     echo "  • {$p['name']}: \${$p['price']}\n";
 }
 echo "\n";
@@ -63,7 +62,6 @@ $byRatingDesc = $db->find()
     ->get();
 
 foreach ($byRatingDesc as $p) {
-    $p = normalizeRowKeys($p);
     echo "  • {$p['name']}: {$p['rating']} ⭐\n";
 }
 echo "\n";
@@ -78,7 +76,6 @@ $multipleChained = $db->find()
     ->get();
 
 foreach ($multipleChained as $p) {
-    $p = normalizeRowKeys($p);
     echo "  • [{$p['category']}] {$p['name']}: \${$p['price']}\n";
 }
 echo "\n";
@@ -92,7 +89,6 @@ $arrayExplicit = $db->find()
     ->get();
 
 foreach ($arrayExplicit as $p) {
-    $p = normalizeRowKeys($p);
     echo "  • [{$p['category']}] {$p['name']}: {$p['rating']} ⭐\n";
 }
 echo "\n";
@@ -106,7 +102,6 @@ $arrayDefault = $db->find()
     ->get();
 
 foreach ($arrayDefault as $p) {
-    $p = normalizeRowKeys($p);
     echo "  • {$p['name']}: {$p['stock']} in stock\n";
 }
 echo "\n";
@@ -120,7 +115,6 @@ $commaSeparated = $db->find()
     ->get();
 
 foreach ($commaSeparated as $p) {
-    $p = normalizeRowKeys($p);
     echo "  • [{$p['category']}] {$p['name']}: \${$p['price']}\n";
 }
 echo "\n";
@@ -135,7 +129,6 @@ $commaPartial = $db->find()
     ->get();
 
 foreach ($commaPartial as $p) {
-    $p = normalizeRowKeys($p);
     echo "  • {$p['name']}: \${$p['price']}\n";
 }
 echo "\n";
@@ -154,7 +147,6 @@ $byPriority = $db->find()
     ->get();
 
 foreach ($byPriority as $p) {
-    $p = normalizeRowKeys($p);
     echo "  • [{$p['category']}] {$p['name']}: \${$p['price']}\n";
 }
 echo "\n";
@@ -169,7 +161,6 @@ $mixed = $db->find()
     ->get();
 
 foreach ($mixed as $p) {
-    $p = normalizeRowKeys($p);
     echo "  • [{$p['category']}] {$p['name']}: {$p['stock']} in stock\n";
 }
 echo "\n";
@@ -185,7 +176,6 @@ $paginated = $db->find()
     ->get();
 
 foreach ($paginated as $p) {
-    $p = normalizeRowKeys($p);
     echo "  • {$p['name']}: {$p['rating']} ⭐\n";
 }
 echo "\n";
@@ -201,7 +191,6 @@ $categories = $db->find()
 
 echo "  Available categories:\n";
 foreach ($categories as $cat) {
-    $cat = normalizeRowKeys($cat);
     echo "  • {$cat['category']}\n";
 }
 echo "\n";
@@ -218,7 +207,6 @@ $uniqueCombinations = $db->find()
     ->get();
 
 foreach ($uniqueCombinations as $combo) {
-    $combo = normalizeRowKeys($combo);
     echo "  • {$combo['category']}: {$combo['stock']} in stock\n";
 }
 echo "\n";
@@ -228,7 +216,6 @@ echo "13. first() - Get first product by ID (default)...\n";
 $firstById = $db->find()
     ->from('products')
     ->first();
-$firstById = normalizeRowKeys($firstById);
 echo "  • First product: {$firstById['name']} (ID: {$firstById['id']})\n\n";
 
 // Example 14: first() - Get first row by custom field
@@ -236,7 +223,6 @@ echo "14. first() - Get first product by name (alphabetically)...\n";
 $firstByName = $db->find()
     ->from('products')
     ->first('name');
-$firstByName = normalizeRowKeys($firstByName);
 echo "  • First by name: {$firstByName['name']}\n\n";
 
 // Example 15: first() - With WHERE condition
@@ -245,7 +231,6 @@ $firstExpensive = $db->find()
     ->from('products')
     ->where('price', 300, '>')
     ->first('price');
-$firstExpensive = normalizeRowKeys($firstExpensive);
 echo "  • First expensive: {$firstExpensive['name']} (\${$firstExpensive['price']})\n\n";
 
 // Example 16: last() - Get last row by field
@@ -253,7 +238,6 @@ echo "16. last() - Get last product by ID (default)...\n";
 $lastById = $db->find()
     ->from('products')
     ->last();
-$lastById = normalizeRowKeys($lastById);
 echo "  • Last product: {$lastById['name']} (ID: {$lastById['id']})\n\n";
 
 // Example 17: last() - Get last row by custom field
@@ -261,7 +245,6 @@ echo "17. last() - Get last product by price (most expensive)...\n";
 $lastByPrice = $db->find()
     ->from('products')
     ->last('price');
-$lastByPrice = normalizeRowKeys($lastByPrice);
 echo "  • Most expensive: {$lastByPrice['name']} (\${$lastByPrice['price']})\n\n";
 
 // Example 18: last() - With WHERE condition
@@ -270,7 +253,6 @@ $lastRated = $db->find()
     ->from('products')
     ->where('category', 'Electronics')
     ->last('rating');
-$lastRated = normalizeRowKeys($lastRated);
 echo "  • Last by rating: {$lastRated['name']} ({$lastRated['rating']} ⭐)\n\n";
 
 // Example 19: first() and last() - Empty result handling

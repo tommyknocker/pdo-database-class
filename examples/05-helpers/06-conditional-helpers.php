@@ -66,7 +66,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} ({$row['status']}, priority: {$row['priority_level']})\n";
 }
 echo "\n";
@@ -88,7 +87,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} (discount: \${$row['discount_amount']})\n";
 }
 echo "\n";
@@ -110,7 +108,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: {$row['status_description']}\n";
 }
 echo "\n";
@@ -133,7 +130,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} ({$row['priority']}) → {$row['processing_time']}\n";
 }
 echo "\n";
@@ -176,7 +172,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: {$row['order_date']} ({$row['day_of_week']})\n";
 }
 echo "\n";
@@ -195,7 +190,6 @@ $results = $db->find()
 
 echo "  Orders with adjusted amount > \$100:\n";
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} ({$row['status']})\n";
 }
 echo "\n";
@@ -219,7 +213,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['status']} ({$row['status_category']}): {$row['count']} orders, \${$row['total_amount']} total, \${$row['avg_amount']} avg\n";
 }
 echo "\n";
@@ -253,7 +246,6 @@ $results = $db->find()
 
 echo "  Orders by urgency score:\n";
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} ({$row['priority']}, {$row['status']}) → score: {$row['urgency_score']}\n";
 }
 echo "\n";
@@ -275,7 +267,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} → \${$row['final_amount']} (discount: {$row['discount_percent']}%)\n";
 }
 echo "\n";
@@ -303,7 +294,6 @@ $results = $db->find()
 
 echo "  Customer tiers based on order amount:\n";
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['customer_name']}: \${$row['amount']} → {$row['customer_tier']} ({$row['tier_benefits']})\n";
 }
 

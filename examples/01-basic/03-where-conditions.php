@@ -147,7 +147,6 @@ $complex = $db->find()
 echo "  Found " . count($complex) . " products (active AND (cheap OR high stock)):\n";
 foreach ($complex as $p) {
     // Normalize keys for Oracle compatibility
-    $p = normalizeRowKeys($p);
     echo "    • {$p['name']}: \${$p['price']} (stock: {$p['stock']})\n";
 }
 

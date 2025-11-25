@@ -4,6 +4,7 @@
  */
 
 return [
+    'normalize_row_keys' => true,
     'driver' => 'oci',
     'host' => '127.0.0.1',
     'port' => 1521,

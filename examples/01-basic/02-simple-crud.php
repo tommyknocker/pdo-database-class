@@ -47,7 +47,6 @@ $user = $db->find()
     ->getOne();
 
 // Normalize keys for Oracle compatibility (Oracle returns uppercase keys)
-$user = normalizeRowKeys($user);
 
 echo "✓ Found user:\n";
 echo "  Name: {$user['name']}\n";
@@ -66,7 +65,6 @@ echo "✓ Updated $affected row(s)\n\n";
 // Verify update
 $user = $db->find()->from('users')->where('id', $userId)->getOne();
 // Normalize keys for Oracle compatibility
-$user = normalizeRowKeys($user);
 echo "  New age: {$user['age']}\n\n";
 
 // DELETE - Remove row

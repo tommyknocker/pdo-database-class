@@ -79,7 +79,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     printf("   %s - $%.2f\n", $row['name'], $row['price']);
 }
 echo "\n";
@@ -96,7 +95,6 @@ $results = $db->find()
 
 echo "   Total products: " . count($results) . "\n";
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     printf("   - %s\n", $row['name']);
 }
 echo "\n";
@@ -112,7 +110,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     printf("   - %s\n", $row['name']);
 }
 echo "\n";
@@ -129,7 +126,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     printf("   - %s\n", $row['name']);
 }
 echo "\n";
@@ -147,7 +143,6 @@ $results = $db->find()
 
 echo "   Total combined orders: " . count($results) . "\n";
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     printf("   Product #%d: $%.2f\n", $row['product_id'], $row['amount']);
 }
 echo "\n";
@@ -156,8 +151,6 @@ echo "\n";
 echo "6. Aggregation per table (using separate queries):\n";
 $orders2023 = $db->find()->from('orders_2023')->select(['total_revenue' => Db::sum('amount')])->getOne();
 $orders2024 = $db->find()->from('orders_2024')->select(['total_revenue' => Db::sum('amount')])->getOne();
-$orders2023 = normalizeRowKeys($orders2023);
-$orders2024 = normalizeRowKeys($orders2024);
 printf("   2023: $%.2f\n", $orders2023['total_revenue']);
 printf("   2024: $%.2f\n", $orders2024['total_revenue']);
 echo "\n";

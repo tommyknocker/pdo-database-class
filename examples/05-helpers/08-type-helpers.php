@@ -57,7 +57,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['text_value']} → int: {$row['cast_to_int']}, real: {$row['cast_to_real']}\n";
     echo "    {$row['numeric_value']} → text: {$row['cast_to_text']}\n";
     echo "    {$row['mixed_value']} → real: {$row['cast_mixed_to_real']}\n";
@@ -80,7 +79,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • Text: {$row['text_value']}, Numeric: {$row['numeric_value']}, Mixed: {$row['mixed_value']}\n";
     echo "    Greatest numeric: {$row['greatest_numeric']}\n";
     echo "    Greatest mixed: {$row['greatest_mixed']}\n";
@@ -104,7 +102,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • Text: {$row['text_value']}, Numeric: {$row['numeric_value']}, Mixed: {$row['mixed_value']}\n";
     echo "    Least numeric: {$row['least_numeric']}\n";
     echo "    Least mixed: {$row['least_mixed']}\n";
@@ -115,8 +112,16 @@ echo "\n";
 // Example 4: Type checking with CASE
 echo "4. Type checking with CASE...\n";
 $castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'oci' ? 'NUMBER' : 'REAL');
-$castTextExpr = Db::cast('text_value', $castRealType)->getValue();
-$castMixedExpr = Db::cast('mixed_value', $castRealType)->getValue();
+if ($driver === 'oci') {
+    // Oracle requires TO_CHAR() for CLOB columns before CAST
+    $castTextExpr = "CAST(TO_CHAR(\"TEXT_VALUE\") AS $castRealType)";
+    $castMixedExpr = "CAST(TO_CHAR(\"MIXED_VALUE\") AS $castRealType)";
+    $castDateExpr = "CAST(TO_CHAR(\"MIXED_VALUE\") AS DATE)";
+} else {
+    $castTextExpr = Db::cast('text_value', $castRealType)->getValue();
+    $castMixedExpr = Db::cast('mixed_value', $castRealType)->getValue();
+    $castDateExpr = Db::cast('mixed_value', 'DATE')->getValue();
+}
 $results = $db->find()
     ->from('data_types')
     ->select([
@@ -131,14 +136,13 @@ $results = $db->find()
             ($castMixedExpr . ' IS NULL') => '\'No\''
         ], '\'Unknown\''),
         'is_date_mixed' => Db::case([
-            ($driver === 'oci' ? "CAST(TO_CHAR(\"MIXED_VALUE\") AS DATE) IS NOT NULL" : (Db::cast('mixed_value', 'DATE')->getValue() . ' IS NOT NULL')) => '\'Yes\'',
-            ($driver === 'oci' ? "CAST(TO_CHAR(\"MIXED_VALUE\") AS DATE) IS NULL" : (Db::cast('mixed_value', 'DATE')->getValue() . ' IS NULL')) => '\'No\''
+            ($castDateExpr . ' IS NOT NULL') => '\'Yes\'',
+            ($castDateExpr . ' IS NULL') => '\'No\''
         ], '\'Unknown\'')
     ])
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • Text: '{$row['text_value']}' → numeric: {$row['is_numeric_text']}\n";
     echo "    Mixed: '{$row['mixed_value']}' → numeric: {$row['is_numeric_mixed']}, date: {$row['is_date_mixed']}\n";
 }
@@ -155,7 +159,6 @@ $results = $db->find()
 
 echo "  Records where text_value as REAL > 100:\n";
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • Text: {$row['text_value']}, Numeric: {$row['numeric_value']}\n";
 }
 echo "\n";
@@ -171,7 +174,6 @@ $results = $db->find()
 
 echo "  Records ordered by text_value as REAL (descending):\n";
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • Text: {$row['text_value']}, Numeric: {$row['numeric_value']}, Mixed: {$row['mixed_value']}\n";
 }
 echo "\n";
@@ -187,16 +189,15 @@ $results = $db->find()
         'mixed_value',
         'safe_numeric' => Db::coalesce(Db::cast('text_value', $castRealType), 'numeric_value', '0'),
         'type_category' => Db::case([
-            (Db::cast('text_value', $castRealType)->getValue() . ' IS NOT NULL') => '\'Numeric Text\'',
+            (($driver === 'oci' ? "CAST(TO_CHAR(\"TEXT_VALUE\") AS $castRealType)" : Db::cast('text_value', $castRealType)->getValue()) . ' IS NOT NULL') => '\'Numeric Text\'',
             'text_value = \'true\' OR text_value = \'false\'' => '\'Boolean Text\'',
-            (Db::cast('text_value', 'DATE')->getValue() . ' IS NOT NULL') => '\'Date Text\''
+            (($driver === 'oci' ? "CAST(TO_CHAR(\"TEXT_VALUE\") AS DATE)" : Db::cast('text_value', 'DATE')->getValue()) . ' IS NOT NULL') => '\'Date Text\''
         ], '\'Other Text\''),
-        'converted_sum' => Db::raw('(' . Db::cast('text_value', $castRealType)->getValue() . ') + (' . Db::cast('mixed_value', $castRealType)->getValue() . ')')
+        'converted_sum' => Db::raw('(' . ($driver === 'oci' ? "CAST(TO_CHAR(\"TEXT_VALUE\") AS $castRealType)" : Db::cast('text_value', $castRealType)->getValue()) . ') + (' . ($driver === 'oci' ? "CAST(TO_CHAR(\"MIXED_VALUE\") AS $castRealType)" : Db::cast('mixed_value', $castRealType)->getValue()) . ')')
     ])
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • Text: '{$row['text_value']}' ({$row['type_category']})\n";
     echo "    Safe numeric: {$row['safe_numeric']}\n";
     echo "    Converted sum: {$row['converted_sum']}\n";
@@ -260,7 +261,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • Text: {$row['text_value']}, Numeric: {$row['numeric_value']}, Mixed: {$row['mixed_value']}\n";
     echo "    Range: {$row['range_min']} to {$row['range_max']} (span: {$row['range_span']})\n";
 }
@@ -303,7 +303,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • Text '{$row['text_value']}': {$row['is_valid_numeric']}\n";
     echo "    Mixed '{$row['mixed_value']}': {$row['is_valid_date']}\n";
 }

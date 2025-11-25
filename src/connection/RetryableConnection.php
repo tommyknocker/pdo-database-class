@@ -40,9 +40,10 @@ class RetryableConnection extends Connection
         PDO $pdo,
         DialectInterface $dialect,
         ?LoggerInterface $logger = null,
-        array $retryConfig = []
+        array $retryConfig = [],
+        array $options = []
     ) {
-        parent::__construct($pdo, $dialect, $logger);
+        parent::__construct($pdo, $dialect, $logger, $options);
 
         $this->retryConfig = array_merge([
             'enabled' => false,

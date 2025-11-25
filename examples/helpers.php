@@ -88,6 +88,7 @@ function getExampleConfig(): array
                 'dbname' => $dbName,
                 'service_name' => $serviceName,
                 'charset' => $dbCharset,
+                'normalize_row_keys' => true,
             ];
         }
     }
@@ -244,23 +245,4 @@ function getCurrentDriver(PdoDb $db): string
     return $connection->getDriverName();
 }
 
-/**
- * Normalize array keys to lowercase for Oracle compatibility
- * Oracle returns column names in uppercase, but examples use lowercase
- * 
- * @param array<string, mixed> $row
- * @return array<string, mixed>
- */
-function normalizeRowKeys(array $row): array
-{
-    $normalized = [];
-    foreach ($row as $key => $value) {
-        // Convert CLOB resources to strings for Oracle
-        if (is_resource($value) && get_resource_type($value) === 'stream') {
-            $value = stream_get_contents($value);
-        }
-        $normalized[strtolower($key)] = $value;
-    }
-    return $normalized;
-}
 

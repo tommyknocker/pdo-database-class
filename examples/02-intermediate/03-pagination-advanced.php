@@ -60,7 +60,6 @@ echo "  Has more pages: " . ($result->hasMorePages() ? 'Yes' : 'No') . "\n\n";
 
 echo "First 3 posts:\n";
 foreach (array_slice($result->items(), 0, 3) as $post) {
-    $post = normalizeRowKeys($post);
     echo "  - {$post['title']} by {$post['author']} ({$post['views']} views)\n";
 }
 echo "\n";
@@ -91,7 +90,6 @@ echo "  Total: Not calculated (faster query!)\n\n";
 
 echo "Top 3 most viewed posts:\n";
 foreach (array_slice($result2->items(), 0, 3) as $post) {
-    $post = normalizeRowKeys($post);
     echo "  - {$post['title']} ({$post['views']} views)\n";
 }
 echo "\n";
@@ -121,7 +119,6 @@ echo "  Next cursor: " . substr($result3->nextCursor() ?? 'null', 0, 20) . "...\
 
 echo "First 3 posts:\n";
 foreach (array_slice($result3->items(), 0, 3) as $post) {
-    $post = normalizeRowKeys($post);
     echo "  - {$post['title']}\n";
 }
 echo "\n";
@@ -139,7 +136,6 @@ if ($result3->hasMorePages()) {
 
     echo "First 3 posts on page 2:\n";
     foreach (array_slice($result3Next->items(), 0, 3) as $post) {
-        $post = normalizeRowKeys($post);
         echo "  - {$post['title']}\n";
     }
     echo "\n";

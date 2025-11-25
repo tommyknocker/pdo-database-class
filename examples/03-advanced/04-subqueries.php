@@ -86,7 +86,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']}): \${$row['salary']}\n";
     echo "    Orders: {$row['total_orders']}, Total: \${$row['total_amount']}\n";
 }
@@ -103,7 +102,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['name']}: \${$row['salary']} (above average)\n";
 }
 echo "\n";
@@ -128,7 +126,6 @@ if ($driver === 'oci') {
 }
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['department']}: \${$row['avg_salary']} average salary, {$row['emp_count']} employees\n";
 }
 echo "\n";
@@ -145,7 +142,6 @@ $results = $db->find()
 
 echo "  Users who have placed orders:\n";
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']})\n";
 }
 echo "\n";
@@ -162,7 +158,6 @@ $results = $db->find()
 
 echo "  Users who have NOT placed orders:\n";
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']})\n";
 }
 echo "\n";
@@ -182,7 +177,6 @@ $results = $db->find()
 
 echo "  Users who have completed orders:\n";
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']})\n";
 }
 echo "\n";
@@ -205,7 +199,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']}): \${$row['salary']}\n";
     echo "    Dept avg: \${$row['dept_avg_salary']}, Difference: \${$row['salary_vs_dept']}\n";
 }
@@ -234,7 +227,6 @@ if ($driver === 'oci') {
 
 echo "  Users with order statistics:\n";
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']}): {$row['order_count']} orders, \${$row['total_spent']} total\n";
 }
 echo "\n";
@@ -267,7 +259,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']}): \${$row['salary']}\n";
     echo "    Overall rank: {$row['salary_rank']}/{$row['total_users']}, Dept rank: {$row['dept_rank']}/{$row['dept_users']}\n";
 }
@@ -284,7 +275,6 @@ $results = $db->rawQuery('
 
 echo "  Departments with above-average salaries:\n";
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['department']}: \${$row['avg_salary']} avg salary, {$row['emp_count']} employees\n";
 }
 echo "\n";
@@ -313,7 +303,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']}): \${$row['salary']}\n";
     echo "    Performance: {$row['performance_category']}\n";
     echo "    Orders: {$row['order_count']}, Revenue: \${$row['total_revenue']}\n";
@@ -335,7 +324,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['name']} ({$row['department']}): \${$row['salary']}\n";
     echo "    Overall percentile: " . round($row['salary_percentile'], 1) . "%\n";
     echo "    Dept percentile: " . round($row['dept_salary_percentile'], 1) . "%\n";

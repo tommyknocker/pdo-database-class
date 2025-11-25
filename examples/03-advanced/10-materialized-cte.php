@@ -97,7 +97,6 @@ $results = $pdoDb->find()
     ->get();
 
 foreach ($results as $order) {
-    $order = normalizeRowKeys($order);
     printf("  - Order ID %d: $%.2f on %s\n", 
         $order['id'], 
         $order['total'], 
@@ -155,7 +154,6 @@ $results = $pdoDb->find()
     ->get();
 
 foreach ($results as $customer) {
-    $customer = normalizeRowKeys($customer);
     printf("  - %s (%s): %d orders, $%.2f total, $%.2f avg\n", 
         $customer['name'], 
         $customer['email'],
@@ -180,7 +178,6 @@ $results = $pdoDb->find()
     ->get();
 
 foreach ($results as $order) {
-    $order = normalizeRowKeys($order);
     printf("  - Order %d: $%.2f on %s\n", 
         $order['order_id'], 
         $order['amount'], 
@@ -217,7 +214,6 @@ $results = $pdoDb->find()
     ->get();
 
 foreach ($results as $order) {
-    $order = normalizeRowKeys($order);
     printf("  - Order %d: $%.2f with %d items (%d total units)\n", 
         $order['id'], 
         $order['total'], 

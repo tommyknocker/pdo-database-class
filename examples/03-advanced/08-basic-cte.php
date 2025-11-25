@@ -92,7 +92,6 @@ $results = $pdoDb->find()
     ->get();
 
 foreach ($results as $product) {
-    $product = normalizeRowKeys($product);
     printf("  - %s: $%.2f\n", $product['name'], $product['price']);
 }
 echo "\n";
@@ -110,7 +109,6 @@ $results = $pdoDb->find()
     ->get();
 
 foreach ($results as $product) {
-    $product = normalizeRowKeys($product);
     printf("  - %s: $%.2f\n", $product['name'], $product['price']);
 }
 echo "\n";
@@ -184,7 +182,6 @@ $results = $pdoDb->find()
     ->get();
 
 foreach ($results as $product) {
-    $product = normalizeRowKeys($product);
     printf("  - %s: $%.2f\n", $product['product_name'], $product['product_price']);
 }
 echo "\n";

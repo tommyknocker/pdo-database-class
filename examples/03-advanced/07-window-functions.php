@@ -75,7 +75,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     printf(
         "%-15s %-10s $%-6d Row: %d\n",
         $row['product'],
@@ -103,7 +102,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     printf(
         "%-15s %-10s $%-6d Rank: %d\n",
         $row['product'],
@@ -132,7 +130,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     printf(
         "%-15s %-10s $%-6d Dense Rank: %d\n",
         $row['product'],
@@ -161,7 +158,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     $diff = $row['amount'] - $row['prev_amount'];
     printf(
         "%-15s %-10s $%-6d Previous: $%-6d Difference: %+d\n",
@@ -192,7 +188,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     $next = $row['next_amount'] ? '$' . $row['next_amount'] : 'None';
     printf(
         "%-15s %-10s $%-6d Next: %s\n",
@@ -225,7 +220,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     printf(
         "%-15s %-10s $%-6d Running Total: $%-6d\n",
         $row['product'],
@@ -257,7 +251,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     printf(
         "%-15s %-10s $%-6d Moving Avg: $%.0f\n",
         $row['product'],
@@ -290,7 +283,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     printf(
         "%-15s %-10s $%-6d First: $%-6d Last: $%-6d\n",
         $row['product'],
@@ -317,7 +309,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     printf(
         "%-15s $%-6d Quartile: %d\n",
         $row['product'],
@@ -350,7 +341,6 @@ $results = $db->find()
     ->get();
 
 foreach ($results as $row) {
-    $row = normalizeRowKeys($row);
     $percentage = round(($row['running_sum'] / $row['region_total']) * 100);
     printf(
         "%-15s %-10s $%-6d Rank: %d  Cumulative: $%-6d (%.0f%% of region)\n",

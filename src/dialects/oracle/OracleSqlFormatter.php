@@ -430,7 +430,8 @@ class OracleSqlFormatter extends SqlFormatterAbstract
      */
     public function formatCurDate(): string
     {
-        return 'CURRENT_DATE';
+        // Oracle: TRUNC(SYSDATE) returns DATE without time component
+        return 'TRUNC(SYSDATE)';
     }
 
     /**
@@ -438,7 +439,9 @@ class OracleSqlFormatter extends SqlFormatterAbstract
      */
     public function formatCurTime(): string
     {
-        return 'CURRENT_TIME';
+        // Oracle: SYSTIMESTAMP returns TIMESTAMP with time component
+        // For TIME type compatibility, extract time part
+        return 'SYSTIMESTAMP';
     }
 
     /**
@@ -502,7 +505,10 @@ class OracleSqlFormatter extends SqlFormatterAbstract
      */
     public function formatTimeOnly(string|RawValue $value): string
     {
-        return 'TRUNC(' . $this->resolveValue($value) . ', \'HH24:MI:SS\')';
+        // Oracle: Extract time part from TIMESTAMP using TO_CHAR
+        // Return as TIMESTAMP for compatibility with TIME type
+        $resolved = $this->resolveValue($value);
+        return "TO_TIMESTAMP(TO_CHAR($resolved, 'HH24:MI:SS'), 'HH24:MI:SS')";
     }
 
     /**

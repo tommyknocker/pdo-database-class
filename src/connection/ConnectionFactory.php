@@ -72,10 +72,12 @@ class ConnectionFactory
         // Use RetryableConnection if retry is enabled
         $retryConfig = $config['retry'] ?? [];
         $connection = null;
+        // Pass config options (including normalize_row_keys) to Connection
+        $connectionOptions = $config;
         if (!empty($retryConfig['enabled'])) {
-            $connection = new RetryableConnection($pdo, $dialect, $logger, $retryConfig);
+            $connection = new RetryableConnection($pdo, $dialect, $logger, $retryConfig, $connectionOptions);
         } else {
-            $connection = new Connection($pdo, $dialect, $logger);
+            $connection = new Connection($pdo, $dialect, $logger, $connectionOptions);
         }
 
         // Configure prepared statement pool if enabled

@@ -63,7 +63,6 @@ $byCategory = $db->find()
     ->get();
 
 foreach ($byCategory as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['category']}: {$row['sale_count']} sales\n";
 }
 echo "\n";
@@ -81,7 +80,6 @@ $revenue = $db->find()
     ->get();
 
 foreach ($revenue as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['category']}: \$" . number_format($row['total_revenue'], 2) . "\n";
 }
 echo "\n";
@@ -98,7 +96,6 @@ $avgByRegion = $db->find()
     ->get();
 
 foreach ($avgByRegion as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['region']}: \$" . number_format($row['avg_amount'], 2) . " average\n";
 }
 echo "\n";
@@ -116,7 +113,6 @@ $priceRange = $db->find()
     ->get();
 
 foreach ($priceRange as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['category']}: \$" . number_format($row['min_price'], 2) . " - \$" . number_format($row['max_price'], 2) . "\n";
 }
 echo "\n";
@@ -138,7 +134,6 @@ $stats = $db->find()
     ->get();
 
 foreach ($stats as $row) {
-    $row = normalizeRowKeys($row);
     echo "  {$row['category']}:\n";
     echo "    Sales: {$row['total_sales']}\n";
     echo "    Units: {$row['total_quantity']}\n";
@@ -160,7 +155,6 @@ $highRevenue = $db->find()
     ->get();
 
 foreach ($highRevenue as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['category']}: \$" . number_format($row['total_revenue'], 2) . "\n";
 }
 echo "\n";
@@ -181,7 +175,6 @@ $detailed = $db->find()
     ->get();
 
 foreach ($detailed as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['category']} ({$row['region']}): {$row['sales']} sales, \$" . number_format($row['revenue'], 2) . "\n";
 }
 echo "\n";
@@ -203,7 +196,6 @@ $concat = $db->find()
     ->get();
 
 foreach ($concat as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['category']}: {$row['products']}\n";
 }
 echo "\n";
@@ -227,7 +219,6 @@ $filtered = $db->find()
 
 echo "  Category breakdown by region:\n";
 foreach ($filtered as $row) {
-    $row = normalizeRowKeys($row);
     echo "  • {$row['category']}:\n";
     echo "    Total: {$row['total_sales']} sales, \$" . number_format($row['total_revenue'], 2) . "\n";
     echo "    North: {$row['north_sales']} sales, \$" . number_format($row['north_revenue'], 2) . "\n";
@@ -250,7 +241,6 @@ $highValue = $db->find()
     ->get();
 
 foreach ($highValue as $row) {
-    $row = normalizeRowKeys($row);
     $highValueTotal = $row['high_value_total'] ?? 0;
     echo "  • {$row['region']}: {$row['high_value_sales']}/{$row['all_sales']} high-value sales, \$" . number_format($highValueTotal, 2) . "\n";
 }

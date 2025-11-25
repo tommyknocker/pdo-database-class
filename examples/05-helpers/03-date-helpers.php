@@ -28,12 +28,12 @@ recreateTable($db, 'events', [
 echo "1. Inserting events with current timestamp...\n";
 $driver = getCurrentDriver($db);
 if ($driver === 'oci') {
-    // Oracle requires explicit TO_TIMESTAMP for time values
+    // Oracle requires explicit TO_DATE for date values and TO_TIMESTAMP for time values
     $db->find()->table('events')->insertMulti([
-        ['title' => 'Morning Meeting', 'event_date' => '2025-10-20', 'event_time' => Db::raw("TO_TIMESTAMP('2025-10-20 09:00:00', 'YYYY-MM-DD HH24:MI:SS')")],
-        ['title' => 'Lunch Break', 'event_date' => '2025-10-20', 'event_time' => Db::raw("TO_TIMESTAMP('2025-10-20 12:30:00', 'YYYY-MM-DD HH24:MI:SS')")],
-        ['title' => 'Code Review', 'event_date' => '2025-10-21', 'event_time' => Db::raw("TO_TIMESTAMP('2025-10-21 14:00:00', 'YYYY-MM-DD HH24:MI:SS')")],
-        ['title' => 'Team Standup', 'event_date' => '2025-10-19', 'event_time' => Db::raw("TO_TIMESTAMP('2025-10-19 10:00:00', 'YYYY-MM-DD HH24:MI:SS')")],
+        ['title' => 'Morning Meeting', 'event_date' => Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')"), 'event_time' => Db::raw("TO_TIMESTAMP('2025-10-20 09:00:00', 'YYYY-MM-DD HH24:MI:SS')")],
+        ['title' => 'Lunch Break', 'event_date' => Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')"), 'event_time' => Db::raw("TO_TIMESTAMP('2025-10-20 12:30:00', 'YYYY-MM-DD HH24:MI:SS')")],
+        ['title' => 'Code Review', 'event_date' => Db::raw("TO_DATE('2025-10-21', 'YYYY-MM-DD')"), 'event_time' => Db::raw("TO_TIMESTAMP('2025-10-21 14:00:00', 'YYYY-MM-DD HH24:MI:SS')")],
+        ['title' => 'Team Standup', 'event_date' => Db::raw("TO_DATE('2025-10-19', 'YYYY-MM-DD')"), 'event_time' => Db::raw("TO_TIMESTAMP('2025-10-19 10:00:00', 'YYYY-MM-DD HH24:MI:SS')")],
     ]);
 } else {
     $db->find()->table('events')->insertMulti([
@@ -61,7 +61,6 @@ $events = $db->find()
     ->get();
 
 foreach ($events as $event) {
-    $event = normalizeRowKeys($event);
     echo "  • {$event['title']}: Year={$event['year']}, Month={$event['month']}, Day={$event['day']}\n";
 }
 echo "\n";
@@ -79,7 +78,6 @@ $events = $db->find()
     ->get();
 
 foreach ($events as $event) {
-    $event = normalizeRowKeys($event);
     $minute = str_pad($event['minute'], 2, '0', STR_PAD_LEFT);
     echo "  • {$event['title']} at {$event['hour']}:$minute\n";
 }
@@ -117,7 +115,7 @@ echo "6. Using current date/time functions...\n";
 $db->find()->table('events')->insert([
     'title' => 'Auto Event',
     'event_date' => Db::curDate(),
-    'event_time' => Db::curTime()
+    'event_time' => Db::curTime(),
 ]);
 
 $autoEvent = $db->find()
@@ -181,7 +179,6 @@ $events = $db->find()
     ->get();
 
 foreach ($events as $event) {
-    $event = normalizeRowKeys($event);
     echo "  • {$event['title']}: {$event['event_date']}\n";
     echo "    Created: {$event['created_at']}\n";
 }
@@ -202,7 +199,6 @@ $events = $db->find()
     ->get();
 
 foreach ($events as $event) {
-    $event = normalizeRowKeys($event);
     echo "  • {$event['title']}\n";
     echo "    Created: {$event['created_at']}\n";
     echo "    Future (+1 day): {$event['future_timestamp']}\n";
@@ -246,7 +242,6 @@ $events = $db->find()
     ->get();
 
 foreach ($events as $event) {
-    $event = normalizeRowKeys($event);
     echo "  • {$event['title']}\n";
     echo "    Date: {$event['date_only']}, Time: {$event['time_only']}\n";
     echo "    Event time: {$event['event_time']}\n";

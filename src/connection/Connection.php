@@ -48,18 +48,23 @@ class Connection implements ConnectionInterface
     /** @var EventDispatcherInterface|null Event dispatcher */
     protected ?EventDispatcherInterface $eventDispatcher = null;
 
+    /** @var array<string, mixed> Connection options */
+    protected array $options = [];
+
     /**
      * Connection constructor.
      *
      * @param PDO $pdo The PDO instance to use.
      * @param DialectInterface $dialect The dialect to use.
      * @param LoggerInterface|null $logger The logger to use.
+     * @param array<string, mixed> $options Connection options
      */
-    public function __construct(PDO $pdo, DialectInterface $dialect, ?LoggerInterface $logger = null)
+    public function __construct(PDO $pdo, DialectInterface $dialect, ?LoggerInterface $logger = null, array $options = [])
     {
         $this->pdo = $pdo;
         $this->dialect = $dialect;
         $this->logger = $logger;
+        $this->options = $options;
         $this->state = new ConnectionState();
     }
 
@@ -139,6 +144,16 @@ class Connection implements ConnectionInterface
     public function getEventDispatcher(): ?EventDispatcherInterface
     {
         return $this->eventDispatcher;
+    }
+
+    /**
+     * Get connection options.
+     *
+     * @return array<string, mixed> Connection options
+     */
+    public function getOptions(): array
+    {
+        return $this->options;
     }
 
     /**

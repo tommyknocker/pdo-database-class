@@ -36,7 +36,6 @@ echo "  ✓ Inserted counter with ID: $id\n\n";
 // Example 2: INSERT with auto-increment value
 echo "2. INSERT and retrieve auto-increment ID...\n";
 $counter = $db->find()->from('counters')->where('id', $id)->getOne();
-$counter = normalizeRowKeys($counter);
 echo "  ✓ Counter '{$counter['name']}' value: {$counter['value']}\n\n";
 
 // Example 3: Increment operation
@@ -47,7 +46,6 @@ $db->find()
     ->update(['value' => Db::inc(5)]);
 
 $counter = $db->find()->from('counters')->where('id', $id)->getOne();
-$counter = normalizeRowKeys($counter);
 echo "  ✓ After increment: {$counter['value']}\n\n";
 
 // Example 4: Decrement operation
@@ -58,7 +56,6 @@ $db->find()
     ->update(['value' => Db::dec(2)]);
 
 $counter = $db->find()->from('counters')->where('id', $id)->getOne();
-$counter = normalizeRowKeys($counter);
 echo "  ✓ After decrement: {$counter['value']}\n\n";
 
 // Example 5: UPDATE with raw SQL expression
@@ -72,7 +69,6 @@ $db->find()
     ]);
 
 $counter = $db->find()->from('counters')->where('id', $id)->getOne();
-$counter = normalizeRowKeys($counter);
 echo "  ✓ After doubling: {$counter['value']}\n\n";
 
 // Example 6: INSERT multiple rows
@@ -123,7 +119,6 @@ $counter = $db->find()
     ->getOne();
 
 if ($counter) {
-    $counter = normalizeRowKeys($counter);
     echo "  ✓ Renamed to '{$counter['name']}', value: {$counter['value']}\n\n";
 } else {
     echo "  ✗ Counter not found\n\n";
@@ -138,7 +133,6 @@ $all = $db->find()
     ->get();
 
 foreach ($all as $c) {
-    $c = normalizeRowKeys($c);
     echo "  • {$c['name']}: {$c['value']}\n";
 }
 
