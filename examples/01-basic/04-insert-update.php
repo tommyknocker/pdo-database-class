@@ -108,8 +108,8 @@ $db->find()
     ->where('name', 'page_views')
     ->update([
         'value' => Db::inc(50),
-        // Use raw SQL concatenation for Oracle compatibility
-        'name' => Db::raw("name || '_total'"),
+        // Use cross-dialect string concatenation
+        'name' => Db::concat(Db::raw('name'), "'_total'"),
         'updated_at' => Db::now()
     ]);
 

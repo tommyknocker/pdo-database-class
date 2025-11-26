@@ -188,7 +188,7 @@ if ($driver === 'oci') {
     $results = $db->find()
         ->from('data_types')
         ->select(['text_value', 'numeric_value', 'mixed_value'])
-        ->orderBy(Db::coalesce(Db::cast('text_value', $castRealType), '0'), 'DESC')
+        ->orderBy(Db::coalesce(Db::cast('text_value', $castRealType), Db::raw('0')), 'DESC')
         ->get();
 } else {
     $results = $db->find()
@@ -218,9 +218,9 @@ if ($driver === 'oci') {
             'text_value',
             'numeric_value',
             'mixed_value',
-            'safe_numeric' => Db::coalesce(Db::cast('text_value', $castRealType), 'numeric_value', '0'),
+            'safe_numeric' => Db::coalesce(Db::cast('text_value', $castRealType), Db::raw('TO_NUMBER("NUMERIC_VALUE")'), Db::raw('0')),
             'type_category' => '\'Numeric Text\'',
-            'converted_sum' => Db::raw('(' . Db::cast('text_value', $castRealType)->getValue() . ') + (' . Db::cast('mixed_value', $castRealType)->getValue() . ')')
+            'converted_sum' => Db::raw('NVL(' . Db::cast('text_value', $castRealType)->getValue() . ', 0) + NVL(' . Db::cast('mixed_value', $castRealType)->getValue() . ', 0)')
         ])
         ->get();
 } else {
@@ -230,7 +230,7 @@ if ($driver === 'oci') {
             'text_value',
             'numeric_value',
             'mixed_value',
-            'safe_numeric' => Db::coalesce(Db::cast('text_value', $castRealType), 'numeric_value', '0'),
+            'safe_numeric' => Db::coalesce(Db::cast('text_value', $castRealType), 'numeric_value', Db::raw('0')),
             'type_category' => Db::case([
                 (Db::cast('text_value', $castRealType)->getValue() . ' IS NOT NULL') => '\'Numeric Text\'',
                 'text_value = \'true\' OR text_value = \'false\'' => '\'Boolean Text\'',
@@ -258,6 +258,7 @@ if ($driver === 'oci') {
     $stats = $db->find()
         ->from('data_types')
         ->whereRaw('REGEXP_LIKE(TO_CHAR("TEXT_VALUE"), \'^-?[0-9]+(\\.[0-9]+)?$\')')
+        ->whereRaw('REGEXP_LIKE(TO_CHAR("MIXED_VALUE"), \'^-?[0-9]+(\\.[0-9]+)?$\')')
         ->select([
             'total_records' => Db::count(),
             'avg_numeric' => Db::avg('numeric_value'),
@@ -333,9 +334,9 @@ $intType = ($driver === 'mysql' || $driver === 'mariadb') ? 'SIGNED' : 'INTEGER'
 // COALESCE(CAST(...), NULL) returns NULL if CAST fails (for dialects that use TRY_CAST or safe CAST)
 // Then use CASE to categorize based on whether cast succeeded
 // This demonstrates combining CAST, COALESCE, and CASE helpers for type validation
-$castRealSafe = Db::coalesce(Db::cast('text_value', $castRealType), Db::null());
-$castIntSafe = Db::coalesce(Db::cast('text_value', $intType), Db::null());
-$castDateSafe = Db::coalesce(Db::cast('mixed_value', 'DATE'), Db::null());
+$castRealSafe = Db::coalesce(Db::cast('text_value', $castRealType), Db::raw('NULL'));
+$castIntSafe = Db::coalesce(Db::cast('text_value', $intType), Db::raw('NULL'));
+$castDateSafe = Db::coalesce(Db::cast('mixed_value', 'DATE'), Db::raw('NULL'));
 // Resolve expressions to SQL strings for use in CASE conditions
 $resolver = new \tommyknocker\pdodb\query\RawValueResolver($db->connection, new \tommyknocker\pdodb\query\ParameterManager());
 $castRealSql = $resolver->resolveRawValue($castRealSafe);

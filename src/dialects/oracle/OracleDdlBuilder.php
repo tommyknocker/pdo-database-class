@@ -517,7 +517,7 @@ END;";
             if ($scale !== null) {
                 $typeDef .= '(' . $length . ',' . $scale . ')';
             } else {
-                if (in_array(strtoupper($type), ['VARCHAR2', 'CHAR', 'NVARCHAR2', 'NCHAR'], true)) {
+                if (in_array(strtoupper($type), ['VARCHAR2', 'CHAR', 'NVARCHAR2', 'NCHAR', 'RAW'], true)) {
                     $typeDef .= '(' . $length . ')';
                 } elseif (strtoupper($type) === 'NUMBER') {
                     $typeDef = 'NUMBER(' . $length . ')';

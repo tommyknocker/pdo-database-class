@@ -732,9 +732,14 @@ class ConditionBuilder implements ConditionBuilderInterface
                 // Apply formatColumnForComparison for CLOB compatibility
                 $columnForComparison = $this->dialect->formatColumnForComparison($quotedColumn);
                 $pattern = $exprOrColumn->getPattern();
-                $pat = str_replace("'", "''", $pattern);
-                // For WHERE clause, use REGEXP_LIKE directly (not CASE WHEN)
-                $resolved = "REGEXP_LIKE($columnForComparison, '$pat')";
+                // Use dialect-specific regexp formatting
+                // formatRegexpMatch returns expression for SELECT (may include CASE WHEN),
+                // but for WHERE we need boolean condition - use "= 1" to convert
+                $resolved = $this->dialect->formatRegexpMatch($columnForComparison, $pattern);
+                // If formatted result contains CASE WHEN, compare to 1 for WHERE clause
+                if (stripos($resolved, 'CASE WHEN') !== false) {
+                    $resolved = "($resolved) = 1";
+                }
                 $this->{$prop}[] = ['sql' => $resolved, 'cond' => $cond];
                 return $this;
             }
@@ -810,10 +815,37 @@ class ConditionBuilder implements ConditionBuilderInterface
             // External reference on left side - apply formatColumnForComparison for CLOB compatibility
             $exprQuoted = $this->quoteQualifiedIdentifier((string)$exprOrColumn);
             $columnForComparison = $this->dialect->formatColumnForComparison($exprQuoted);
-            
+
             // Process external references in value
             $value = $this->processExternalReferences($value);
-            
+
+            // Handle IN/NOT IN with array values for external references
+            $opUpper = $this->normalizeOperator($operator);
+            if (($opUpper === QueryConstants::OP_IN || $opUpper === QueryConstants::OP_NOT_IN) && is_array($value)) {
+                if (empty($value)) {
+                    // Empty array: IN is always false, NOT IN is always true
+                    if ($opUpper === QueryConstants::OP_IN) {
+                        $this->{$prop}[] = ['sql' => '0=1', 'cond' => $cond];
+                    } else {
+                        $this->{$prop}[] = ['sql' => '1=1', 'cond' => $cond];
+                    }
+                    return $this;
+                }
+
+                $placeholders = [];
+                foreach ($value as $i => $v) {
+                    if ($v instanceof RawValue) {
+                        $placeholders[] = $this->resolveRawValue($v);
+                        continue;
+                    }
+                    $placeholders[] = $this->parameterManager->addParam((string)$exprOrColumn . '_in_' . $i, $v);
+                }
+
+                $inSql = '(' . implode(', ', $placeholders) . ')';
+                $this->{$prop}[] = ['sql' => "{$columnForComparison} {$opUpper} {$inSql}", 'cond' => $cond];
+                return $this;
+            }
+
             if ($value instanceof RawValue) {
                 $right = $this->resolveRawValue($value);
                 // Check if resolved value is a table.column pattern (external reference)
@@ -825,7 +857,7 @@ class ConditionBuilder implements ConditionBuilderInterface
                 $this->{$prop}[] = ['sql' => "{$columnForComparison} {$operator} {$right}", 'cond' => $cond];
                 return $this;
             }
-            
+
             $ph = $this->parameterManager->addParam((string)$exprOrColumn, $value);
             $this->{$prop}[] = ['sql' => "{$columnForComparison} {$operator} {$ph}", 'cond' => $cond];
             return $this;

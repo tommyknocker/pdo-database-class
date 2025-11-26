@@ -280,6 +280,15 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatConcatExpression(array $parts): string
+    {
+        // PostgreSQL uses || operator for concatenation
+        return implode(' || ', $parts);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
     {
         return $this->dmlBuilder->buildUpsertClause($updateColumns, $defaultConflictTarget, $tableName);

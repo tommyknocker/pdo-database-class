@@ -301,9 +301,16 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 $alias = is_string($index) ? $this->dialect->quoteIdentifier($index) : '';
                 $this->select[] = is_string($index) ? "({$subSql}) AS {$alias}" : "({$subSql})";
             } elseif (is_string($index)) { // ['total' => 'SUM(amount)] Treat it as SUM(amount) AS total
+                $alias = $this->dialect->quoteIdentifier($index);
+
+                // If column is already a RawValue (e.g., FilterValue from Db::count()), use it as-is
+                if ($col instanceof RawValue) {
+                    $this->select[] = $this->resolveRawValue($col) . ' AS ' . $alias;
+                    continue;
+                }
+
                 // Process external references in column expressions
                 $processedCol = $this->processExternalReferences($col);
-                $alias = $this->dialect->quoteIdentifier($index);
                 if ($processedCol instanceof RawValue) {
                     $this->select[] = $this->resolveRawValue($processedCol) . ' AS ' . $alias;
                 } else {
@@ -803,18 +810,19 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                     // Check if it's a simple qualified identifier (table.column pattern)
                     if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*$/', $rawValue)) {
                         $quoted = $this->quoteQualifiedIdentifier($rawValue);
-                        // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
-                        $columnForGroup = $this->dialect->formatColumnForComparison($quoted);
-                        $groups[] = $columnForGroup;
+                        // Do NOT apply formatColumnForComparison for GROUP BY
+                        // GROUP BY must use the same expressions as in SELECT clause
+                        // If user needs TO_CHAR() for CLOB, they should use Db::raw() explicitly
+                        $groups[] = $quoted;
                     } else {
                         $groups[] = $this->resolveRawValue($processedCol);
                     }
                 } else {
                     $quoted = $this->quoteQualifiedIdentifier((string)$processedCol);
-                    // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
-                    // GROUP BY also needs TO_CHAR() for CLOB columns
-                    $columnForGroup = $this->dialect->formatColumnForComparison($quoted);
-                    $groups[] = $columnForGroup;
+                    // Do NOT apply formatColumnForComparison for GROUP BY
+                    // GROUP BY must use the same expressions as in SELECT clause
+                    // If user needs TO_CHAR() for CLOB, they should use Db::raw() explicitly
+                    $groups[] = $quoted;
                 }
             }
         }
@@ -1135,25 +1143,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                     $columnForSelect = $this->dialect->formatColumnForComparison($quoted);
                     return $columnForSelect;
                 }
-                // For GROUP BY with CLOB columns, also apply formatColumnForComparison
-                // Oracle requires SELECT expressions to match GROUP BY expressions
-                if (!empty($this->group)) {
-                    // Check if this column is in GROUP BY
-                    $groupCols = array_map('trim', explode(',', $this->group));
-                    foreach ($groupCols as $groupCol) {
-                        // Extract column name from GROUP BY (may be wrapped in TO_CHAR())
-                        $groupColNormalized = preg_replace('/^TO_CHAR\((.+)\)$/i', '$1', trim($groupCol));
-                        $groupColNormalized = trim($groupColNormalized, '"');
-                        $valueNormalized = trim($quoted, '"');
-                        // Check if column matches (case-insensitive)
-                        if (strcasecmp($groupColNormalized, $valueNormalized) === 0 ||
-                            strcasecmp($groupCol, $quoted) === 0) {
-                            // Column is in GROUP BY, apply formatColumnForComparison for CLOB compatibility
-                            $columnForSelect = $this->dialect->formatColumnForComparison($quoted);
-                            return $columnForSelect;
-                        }
-                    }
-                }
+                // For GROUP BY queries, SELECT columns must match GROUP BY expressions exactly
+                // Do NOT apply formatColumnForComparison() here - GROUP BY doesn't use it anymore
+                // Simply return the quoted column as-is
                 return $quoted;
             }, $this->select));
         }

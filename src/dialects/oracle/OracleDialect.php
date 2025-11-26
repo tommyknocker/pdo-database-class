@@ -152,6 +152,39 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function registerRegexpFunctions(\PDO $pdo, bool $force = false): void
+    {
+        // Set Oracle session date/timestamp formats to match PHP's date() output
+        // This allows datetime strings like "2025-11-25" and "2025-11-25 16:20:30"
+        // to be inserted directly without TO_DATE/TO_TIMESTAMP wrappers
+        try {
+            $pdo->exec("ALTER SESSION SET NLS_DATE_FORMAT='YYYY-MM-DD'");
+            $pdo->exec("ALTER SESSION SET NLS_TIMESTAMP_FORMAT='YYYY-MM-DD HH24:MI:SS'");
+        } catch (PDOException $e) {
+            // Silently ignore errors - session settings are not critical
+            // and may fail in restricted environments
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function transformValueForBinding(mixed $value, string $columnName): mixed
+    {
+        // Convert UUID strings to hex format for RAW columns
+        // UUID format: 8-4-4-4-12 hexadecimal digits with hyphens
+        // Oracle RAW type accepts hex strings (uppercase, no hyphens) via PDO binding
+        if (is_string($value) && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value)) {
+            // Remove hyphens and convert to uppercase hex
+            return strtoupper(str_replace('-', '', $value));
+        }
+
+        return $value;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function quoteIdentifier(string $name): string
     {
         // Oracle preserves case when quoted, but unquoted identifiers are uppercase
@@ -1157,10 +1190,10 @@ class OracleDialect extends DialectAbstract
     public function buildShowConstraintsSql(string $table): string
     {
         return "SELECT
-            CONSTRAINT_NAME,
-            CONSTRAINT_TYPE,
-            TABLE_NAME,
-            COLUMN_NAME
+            uc.CONSTRAINT_NAME,
+            uc.CONSTRAINT_TYPE,
+            uc.TABLE_NAME,
+            ucc.COLUMN_NAME
             FROM USER_CONSTRAINTS uc
             LEFT JOIN USER_CONS_COLUMNS ucc ON uc.CONSTRAINT_NAME = ucc.CONSTRAINT_NAME
             WHERE uc.TABLE_NAME = UPPER('{$table}')";
@@ -1440,9 +1473,16 @@ class OracleDialect extends DialectAbstract
                         $formattedArgs[] = $this->formatColumnForComparison($arg);
                     }
                 } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $arg)) {
-                    // It's an unquoted column identifier - quote and apply formatColumnForComparison
-                    $quoted = $this->quoteIdentifier($arg);
-                    $formattedArgs[] = $this->formatColumnForComparison($quoted);
+                    // Check if it's a SQL keyword that should not be quoted
+                    $upperArg = strtoupper($arg);
+                    if (in_array($upperArg, ['NULL', 'TRUE', 'FALSE', 'DEFAULT', 'CURRENT_DATE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'SYSDATE', 'SYSTIMESTAMP'])) {
+                        // It's a SQL keyword - keep as-is without quoting
+                        $formattedArgs[] = $upperArg;
+                    } else {
+                        // It's an unquoted column identifier - quote and apply formatColumnForComparison
+                        $quoted = $this->quoteIdentifier($arg);
+                        $formattedArgs[] = $this->formatColumnForComparison($quoted);
+                    }
                 } else {
                     // It's an expression or something else - check if it contains CAST or CONCAT
                     // Apply CAST normalization if needed
@@ -1451,9 +1491,14 @@ class OracleDialect extends DialectAbstract
                         $castType = trim($castMatches[2]);
                         
                         // Check if CAST expression is a column identifier
-                        if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $castExpr) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $castExpr)) {
+                        $isCastQuotedIdentifier = preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $castExpr);
+                        $isCastUnquotedIdentifier = preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $castExpr);
+                        $upperCastExpr = strtoupper($castExpr);
+                        $isCastSqlKeyword = in_array($upperCastExpr, ['NULL', 'TRUE', 'FALSE', 'DEFAULT', 'CURRENT_DATE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'SYSDATE', 'SYSTIMESTAMP']);
+
+                        if (($isCastQuotedIdentifier || $isCastUnquotedIdentifier) && !$isCastSqlKeyword) {
                             // It's a column - apply TO_CHAR() for CLOB compatibility before CAST
-                            $castQuoted = preg_match('/^["`\[\]]/', $castExpr) ? $castExpr : $this->quoteIdentifier($castExpr);
+                            $castQuoted = $isCastQuotedIdentifier ? $castExpr : $this->quoteIdentifier($castExpr);
                             $castExprFormatted = $this->formatColumnForComparison($castQuoted);
                             
                             // For numeric types (INTEGER, NUMBER, etc.), use CASE WHEN for safe casting
@@ -1462,8 +1507,13 @@ class OracleDialect extends DialectAbstract
                                 // Use CASE WHEN REGEXP_LIKE for safe numeric casting
                                 // CASE WHEN REGEXP_LIKE(TO_CHAR(column), '^-?[0-9]+(\.[0-9]+)?$') THEN CAST(TO_CHAR(column) AS type) ELSE NULL END
                                 $arg = "CASE WHEN REGEXP_LIKE($castExprFormatted, '^-?[0-9]+(\\.[0-9]+)?\$') THEN CAST($castExprFormatted AS $castType) ELSE NULL END";
+                            } elseif (preg_match('/^(DATE|TIMESTAMP)/i', $castType)) {
+                                // Use CASE WHEN with TO_DATE for safe date casting
+                                // Try common date formats: YYYY-MM-DD, DD-MON-YYYY, etc.
+                                // CASE WHEN REGEXP_LIKE(column, '^\d{4}-\d{2}-\d{2}') THEN TO_DATE(column, 'YYYY-MM-DD') ELSE NULL END
+                                $arg = "CASE WHEN REGEXP_LIKE($castExprFormatted, '^\\d{4}-\\d{2}-\\d{2}') THEN TO_DATE($castExprFormatted, 'YYYY-MM-DD') ELSE NULL END";
                             } else {
-                                // For non-numeric types, use CAST directly
+                                // For other types, use CAST directly
                                 $arg = preg_replace('/CAST\s*\(' . preg_quote($castExpr, '/') . '\s+AS\s+' . preg_quote($castType, '/') . '\)/i', "CAST($castExprFormatted AS $castType)", $arg);
                             }
                         }
@@ -1512,9 +1562,16 @@ class OracleDialect extends DialectAbstract
                                 // It's a quoted identifier (column) - apply formatColumnForComparison
                                 $formattedParts[] = $this->formatColumnForComparison($part);
                             } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $part)) {
-                                // It's an unquoted column identifier - quote and apply formatColumnForComparison
-                                $quoted = $this->quoteIdentifier($part);
-                                $formattedParts[] = $this->formatColumnForComparison($quoted);
+                                // Check if it's a SQL keyword that should not be quoted
+                                $upperPart = strtoupper($part);
+                                if (in_array($upperPart, ['NULL', 'TRUE', 'FALSE', 'DEFAULT', 'CURRENT_DATE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'SYSDATE', 'SYSTIMESTAMP'])) {
+                                    // It's a SQL keyword - keep as-is without quoting
+                                    $formattedParts[] = $upperPart;
+                                } else {
+                                    // It's an unquoted column identifier - quote and apply formatColumnForComparison
+                                    $quoted = $this->quoteIdentifier($part);
+                                    $formattedParts[] = $this->formatColumnForComparison($quoted);
+                                }
                             } else {
                                 // It's already an expression or quoted identifier - keep as-is
                                 $formattedParts[] = $part;
@@ -2534,23 +2591,38 @@ class OracleDialect extends DialectAbstract
         $unquotedCteName = trim($cteName, '"');
         $unquotedCteNameUpper = strtoupper($unquotedCteName);
 
+        // Oracle requires column list for recursive CTEs (ORA-32039 without it)
+        // When column list is present, column aliases in SELECT must be removed
+        // Pattern: AS identifier or AS "identifier" (case-insensitive)
+        // This removes aliases like "0 as level" -> "0" or "name AS \"PATH\"" -> "name"
+        $sql = preg_replace('/\s+AS\s+(?:"[^"]+"|[a-zA-Z_][a-zA-Z0-9_]*)/i', '', $sql);
+
         // Replace aliases in recursive part (after UNION ALL)
         // Pattern: "CT"."COLUMN" or ct.column -> CTE_NAME.COLUMN
         if (preg_match('/UNION\s+ALL\s+(.+)$/is', $sql, $matches)) {
             $recursivePart = $matches[1];
+
+            // Extract CTE alias from JOIN clause to avoid false matches
+            // Pattern: JOIN "CTE_NAME" "ALIAS" or JOIN cte_name alias
+            $cteAlias = null;
+            if (preg_match('/JOIN\s+"?' . preg_quote($unquotedCteNameUpper, '/') . '"?\s+"?([a-zA-Z_][a-zA-Z0-9_]*)"?/i', $recursivePart, $joinMatch)) {
+                $cteAlias = strtoupper($joinMatch[1]);
+            }
+
             // Replace quoted aliases like "CT" with CTE name
             // Match pattern: "ALIAS"."COLUMN" where ALIAS matches CTE name
             $recursivePart = preg_replace_callback(
                 '/"([^"]+)"\s*\.\s*"([^"]+)"/i',
-                function ($m) use ($cteName, $unquotedCteNameUpper) {
+                function ($m) use ($cteName, $unquotedCteNameUpper, $cteAlias) {
                     $alias = strtoupper($m[1]);
                     $column = $m[2];
-                    // Check if alias matches CTE name (case-insensitive)
-                    // Also check for common alias patterns like CT, CTE, etc.
-                    if ($alias === $unquotedCteNameUpper ||
-                        preg_match('/^' . preg_quote($unquotedCteNameUpper, '/') . '\d*$/i', $alias) ||
-                        // Common alias patterns for CTE references
-                        preg_match('/^(CT|CTE|REC|RECURSIVE)$/i', $alias)) {
+                    // Check if alias matches CTE name or the detected CTE alias
+                    $isCtReference = (
+                        $alias === $unquotedCteNameUpper ||
+                        ($cteAlias !== null && $alias === $cteAlias)
+                    );
+
+                    if ($isCtReference) {
                         return $cteName . '.' . $this->quoteIdentifier($column);
                     }
                     return $m[0];
@@ -2561,15 +2633,16 @@ class OracleDialect extends DialectAbstract
             // Match pattern: alias.column (not in quotes)
             $recursivePart = preg_replace_callback(
                 '/(\b)([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*|\*)(\b)/',
-                function ($m) use ($cteName, $unquotedCteNameUpper) {
+                function ($m) use ($cteName, $unquotedCteNameUpper, $cteAlias) {
                     $alias = strtoupper($m[2]);
                     $column = $m[3];
-                    // Check if alias matches CTE name (case-insensitive)
-                    // Also check for common alias patterns
-                    if ($alias === $unquotedCteNameUpper ||
-                        preg_match('/^' . preg_quote($unquotedCteNameUpper, '/') . '\d*$/i', $alias) ||
-                        // Common alias patterns for CTE references
-                        preg_match('/^(CT|CTE|REC|RECURSIVE)$/i', $alias)) {
+                    // Check if alias matches CTE name or the detected CTE alias
+                    $isCtReference = (
+                        $alias === $unquotedCteNameUpper ||
+                        ($cteAlias !== null && $alias === $cteAlias)
+                    );
+
+                    if ($isCtReference) {
                         $quotedColumn = $column === '*' ? '*' : $this->quoteIdentifier($column);
                         return $m[1] . $cteName . '.' . $quotedColumn . $m[4];
                     }
@@ -2577,16 +2650,16 @@ class OracleDialect extends DialectAbstract
                 },
                 $recursivePart
             );
-            // Also replace CTE aliases in JOIN conditions (e.g., "CT"."ID" -> "CATEGORY_TREE"."ID")
-            // This handles cases like: INNER JOIN "CATEGORY_TREE" "CT" ON ... = "CT"."ID"
+            // Remove aliases from CTE references in JOIN
+            // Oracle doesn't allow aliases for CTE in recursive queries
+            // Change: INNER JOIN "TREE" "T" -> INNER JOIN "TREE"
             $recursivePart = preg_replace_callback(
                 '/INNER\s+JOIN\s+"([^"]+)"\s+"([^"]+)"/i',
                 function ($m) use ($cteName, $unquotedCteNameUpper) {
                     $tableName = strtoupper($m[1]);
-                    // If table name matches CTE name, keep the join but note the alias
+                    // If table name matches CTE name, remove the alias
                     if ($tableName === $unquotedCteNameUpper) {
-                        // Keep the join structure but we'll replace alias references later
-                        return 'INNER JOIN ' . $cteName . ' ' . $this->quoteIdentifier($m[2]);
+                        return 'INNER JOIN ' . $cteName;
                     }
                     return $m[0];
                 },
@@ -2780,18 +2853,26 @@ class OracleDialect extends DialectAbstract
                 if (is_resource($value) && get_resource_type($value) === 'stream') {
                     $value = stream_get_contents($value);
                 }
+
                 // Extract column name from expressions like TO_CHAR("table"."column") or TO_CHAR("column")
                 // Pattern: TO_CHAR("table"."column") -> column
                 // Pattern: TO_CHAR("column") -> column
                 $normalizedKey = $key;
-                if (preg_match('/^to_char\s*\(\s*"[^"]*"\s*\.\s*"([^"]+)"\s*\)$/i', $key, $matches)) {
-                    // TO_CHAR("table"."column") -> column
-                    $normalizedKey = $matches[1];
-                } elseif (preg_match('/^to_char\s*\(\s*"([^"]+)"\s*\)$/i', $key, $matches)) {
-                    // TO_CHAR("column") -> column
-                    $normalizedKey = $matches[1];
+
+                // Only apply regex normalization to string keys (not numeric)
+                if (is_string($key)) {
+                    if (preg_match('/^to_char\s*\(\s*"[^"]*"\s*\.\s*"([^"]+)"\s*\)$/i', $key, $matches)) {
+                        // TO_CHAR("table"."column") -> column
+                        $normalizedKey = $matches[1];
+                    } elseif (preg_match('/^to_char\s*\(\s*"([^"]+)"\s*\)$/i', $key, $matches)) {
+                        // TO_CHAR("column") -> column
+                        $normalizedKey = $matches[1];
+                    }
                 }
-                $normalizedRow[strtolower($normalizedKey)] = $value;
+
+                // For numeric keys, keep them as-is, otherwise convert to lowercase
+                $finalKey = is_int($normalizedKey) ? $normalizedKey : strtolower((string)$normalizedKey);
+                $normalizedRow[$finalKey] = $value;
             }
             $normalized[] = $normalizedRow;
         }

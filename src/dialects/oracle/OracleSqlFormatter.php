@@ -218,7 +218,9 @@ class OracleSqlFormatter extends SqlFormatterAbstract
         $structure = $param;
         for ($i = count($parts) - 1; $i >= 0; $i--) {
             $part = $parts[$i];
-            $key = is_numeric($part) ? (int)$part : "'" . str_replace("'", "''", (string)$part) . "'";
+            // Oracle JSON_OBJECT requires string keys for all keys, including array indices
+            // Convert numeric indices to strings to avoid ORA-00932 error
+            $key = "'" . str_replace("'", "''", (string)$part) . "'";
             // JSON_OBJECT creates nested structure
             // For Oracle, JSON_OBJECT requires string values, so we use the parameter directly
             // The parameter is already a JSON-encoded string from encodeToJson()

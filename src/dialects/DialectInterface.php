@@ -1892,4 +1892,14 @@ interface DialectInterface
         string $tableName,
         array $columns
     ): void;
+
+    /**
+     * Transform a value before it's bound as a parameter in INSERT/UPDATE operations.
+     * Dialects can override this to handle special conversions (e.g., UUID format for Oracle RAW).
+     *
+     * @param mixed $value The value to transform
+     * @param string $columnName The column name this value is for
+     * @return mixed The transformed value, or original value if no transformation needed
+     */
+    public function transformValueForBinding(mixed $value, string $columnName): mixed;
 }

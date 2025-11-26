@@ -799,7 +799,9 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
                             // Parameters are added to ParameterManager by RawValueResolver
                             $setParts[] = "{$qid} = " . $rawSql;
                         } else {
-                            $ph = $this->parameterManager->addParam("upd_{$col}", $valueForParam);
+                            // Allow dialect to transform value before binding
+                            $transformedValue = $this->dialect->transformValueForBinding($valueForParam, $col);
+                            $ph = $this->parameterManager->addParam("upd_{$col}", $transformedValue);
                             $setParts[] = "{$qid} = {$ph}";
                         }
                         break;
@@ -809,7 +811,9 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
                 // Parameters are added to ParameterManager by RawValueResolver
                 $setParts[] = "{$qid} = {$sql}";
             } else {
-                $ph = $this->parameterManager->addParam("upd_{$col}", $val);
+                // Allow dialect to transform value before binding
+                $transformedValue = $this->dialect->transformValueForBinding($val, $col);
+                $ph = $this->parameterManager->addParam("upd_{$col}", $transformedValue);
                 $setParts[] = "{$qid} = {$ph}";
             }
         }
@@ -863,9 +867,12 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
             return ['sql' => $sql, 'params' => []];
         }
 
+        // Allow dialect to transform value before binding (e.g., UUID conversion for Oracle)
+        $transformedValue = $this->dialect->transformValueForBinding($value, $columnName);
+
         // Create placeholder with original column name and add to ParameterManager
         $paramName = $prefix === '' ? ':' . $columnName : ':' . $prefix . $columnName;
-        $this->parameterManager->setParam($paramName, $value);
+        $this->parameterManager->setParam($paramName, $transformedValue);
         return ['sql' => $paramName, 'params' => []];
     }
 

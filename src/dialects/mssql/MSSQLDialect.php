@@ -229,6 +229,15 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatConcatExpression(array $parts): string
+    {
+        // MSSQL uses + operator for concatenation
+        return implode(' + ', $parts);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatLimitOffset(string $sql, ?int $limit, ?int $offset): string
     {
         return $this->sqlFormatter->formatLimitOffset($sql, $limit, $offset);

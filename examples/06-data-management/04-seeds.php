@@ -267,7 +267,7 @@ function createUsersSeed(string $seedPath, string $driver): void
     $filename = "s{$timestamp}_example_users_data.php";
     $filepath = $seedPath . '/' . $filename;
 
-    // Oracle requires TO_TIMESTAMP for date strings
+    // Oracle can use SYSTIMESTAMP directly or rely on DEFAULT
     if ($driver === 'oci') {
         $content = <<<'EOT'
 <?php
@@ -279,25 +279,24 @@ class ExampleUsersDataSeed extends Seed
 {
     public function run(): void
     {
-        $dateStr = date('Y-m-d H:i:s');
         $users = [
             [
                 'name' => 'John Doe',
                 'email' => 'john@example.com',
                 'role' => 'admin',
-                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+                'created_at' => Db::raw('SYSTIMESTAMP'),
             ],
             [
                 'name' => 'Jane Smith',
                 'email' => 'jane@example.com',
                 'role' => 'user',
-                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+                'created_at' => Db::raw('SYSTIMESTAMP'),
             ],
             [
                 'name' => 'Bob Johnson',
                 'email' => 'bob@example.com',
                 'role' => 'moderator',
-                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+                'created_at' => Db::raw('SYSTIMESTAMP'),
             ],
         ];
 
@@ -369,7 +368,7 @@ function createCategoriesSeed(string $seedPath, string $driver): void
     $filename = "s{$timestamp}_example_categories_data.php";
     $filepath = $seedPath . '/' . $filename;
 
-    // Oracle requires TO_TIMESTAMP for date strings
+    // Oracle can use SYSTIMESTAMP directly or rely on DEFAULT
     if ($driver === 'oci') {
         $content = <<<'EOT'
 <?php
@@ -381,25 +380,24 @@ class ExampleCategoriesDataSeed extends Seed
 {
     public function run(): void
     {
-        $dateStr = date('Y-m-d H:i:s');
         $categories = [
             [
                 'name' => 'Electronics',
                 'slug' => 'electronics',
                 'description' => 'Electronic devices and gadgets',
-                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+                'created_at' => Db::raw('SYSTIMESTAMP'),
             ],
             [
                 'name' => 'Books',
                 'slug' => 'books',
                 'description' => 'Books and literature',
-                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+                'created_at' => Db::raw('SYSTIMESTAMP'),
             ],
             [
                 'name' => 'Clothing',
                 'slug' => 'clothing',
                 'description' => 'Apparel and fashion',
-                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+                'created_at' => Db::raw('SYSTIMESTAMP'),
             ],
         ];
 
@@ -471,7 +469,7 @@ function createProductsSeed(string $seedPath, string $driver): void
     $filename = "s{$timestamp}_example_products_data.php";
     $filepath = $seedPath . '/' . $filename;
 
-    // Oracle requires TO_TIMESTAMP for date strings
+    // Oracle can use SYSTIMESTAMP directly or rely on DEFAULT
     if ($driver === 'oci') {
         $content = <<<'EOT'
 <?php
@@ -492,7 +490,6 @@ class ExampleProductsDataSeed extends Seed
             throw new \Exception('Categories must be seeded first');
         }
 
-        $dateStr = date('Y-m-d H:i:s');
         $products = [
             [
                 'name' => 'Smartphone',
@@ -500,7 +497,7 @@ class ExampleProductsDataSeed extends Seed
                 'price' => 599.99,
                 'description' => 'Latest smartphone with advanced features',
                 'in_stock' => 1,
-                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+                'created_at' => Db::raw('SYSTIMESTAMP'),
             ],
             [
                 'name' => 'Laptop',
@@ -508,7 +505,7 @@ class ExampleProductsDataSeed extends Seed
                 'price' => 1299.99,
                 'description' => 'High-performance laptop for work and gaming',
                 'in_stock' => 1,
-                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+                'created_at' => Db::raw('SYSTIMESTAMP'),
             ],
             [
                 'name' => 'Programming Book',
@@ -516,7 +513,7 @@ class ExampleProductsDataSeed extends Seed
                 'price' => 49.99,
                 'description' => 'Learn programming with this comprehensive guide',
                 'in_stock' => 1,
-                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+                'created_at' => Db::raw('SYSTIMESTAMP'),
             ],
             [
                 'name' => 'T-Shirt',
@@ -524,7 +521,7 @@ class ExampleProductsDataSeed extends Seed
                 'price' => 19.99,
                 'description' => 'Comfortable cotton t-shirt',
                 'in_stock' => 0,
-                'created_at' => Db::raw('TO_TIMESTAMP(\'' . $dateStr . '\', \'YYYY-MM-DD HH24:MI:SS\')'),
+                'created_at' => Db::raw('SYSTIMESTAMP'),
             ],
         ];
 

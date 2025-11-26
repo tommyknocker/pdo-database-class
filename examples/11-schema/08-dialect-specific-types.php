@@ -510,14 +510,15 @@ function demonstrateOracleTypes(PdoDb $db): void
         'code' => 'PROD001',
         'description' => 'Long description text for CLOB field',
         'unicode_text' => 'Unicode text content',
-        'binary_data' => 'binary_content_here',
+        // Note: binary_data (BLOB) is omitted for simplicity
+        // BLOB fields require actual binary data, not text strings
         'updated_at' => '2023-01-01',
         'uuid_field' => '550e8400-e29b-41d4-a716-446655440000',
         'xml_data' => '<root><item>value</item></root>',
         'is_active' => true,
         'metadata' => '{"key": "value", "number": 42}',
     ]);
-    
+
     echo "✓ Sample data inserted!\n\n";
     
     // Query and display

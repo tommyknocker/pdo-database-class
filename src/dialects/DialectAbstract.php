@@ -247,6 +247,7 @@ abstract class DialectAbstract implements DialectInterface
             foreach ($pieces as &$p) {
                 match ($dialect) {
                     'pgsql', 'sqlite' => $p = '"' . str_replace('"', '""', $p) . '"',
+                    'oci' => $p = '"' . str_replace('"', '""', strtoupper($p)) . '"',
                     default => $p = '`' . str_replace('`', '``', $p) . '`'
                 };
             }
@@ -1322,5 +1323,14 @@ abstract class DialectAbstract implements DialectInterface
     {
         // Default implementation returns rows unchanged
         return $rows;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function transformValueForBinding(mixed $value, string $columnName): mixed
+    {
+        // Default: no transformation
+        return $value;
     }
 }
