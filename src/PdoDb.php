@@ -14,6 +14,8 @@ use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionFactory;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\connection\ConnectionRouter;
+use tommyknocker\pdodb\connection\DialectRegistry;
+use tommyknocker\pdodb\connection\EnvLoader;
 use tommyknocker\pdodb\connection\loadbalancer\LoadBalancerInterface;
 use tommyknocker\pdodb\connection\sharding\ShardConfig;
 use tommyknocker\pdodb\connection\sharding\ShardConfigBuilder;
@@ -165,6 +167,72 @@ class PdoDb
             // use default connection
             $this->connection(QueryConstants::CONNECTION_DEFAULT);
         }
+    }
+
+    /**
+     * Create PdoDb instance from .env file.
+     *
+     * Loads database configuration from a .env file and creates a new PdoDb instance.
+     * The .env file should contain PDODB_* environment variables.
+     *
+     * @param string|null $envPath Custom path to .env file. If null, uses current working directory.
+     * @param array<int|string, mixed> $pdoOptions PDO options
+     * @param LoggerInterface|null $logger Logger instance
+     * @param CacheInterface|null $cache Cache instance
+     *
+     * @return static
+     *
+     * @throws InvalidArgumentException If PDODB_DRIVER is not set in .env file
+     *
+     * @example
+     * // Load from .env file in current directory
+     * $db = PdoDb::fromEnv();
+     *
+     * // Load from custom .env file
+     * $db = PdoDb::fromEnv('/path/to/.env.local');
+     */
+    public static function fromEnv(
+        ?string $envPath = null,
+        array $pdoOptions = [],
+        ?LoggerInterface $logger = null,
+        ?CacheInterface $cache = null
+    ): static {
+        // Load .env file
+        EnvLoader::load($envPath);
+
+        // Get driver from environment
+        $driver = mb_strtolower(getenv('PDODB_DRIVER') ?: '', 'UTF-8');
+        if ($driver === '') {
+            throw new InvalidArgumentException('PDODB_DRIVER not set in .env file');
+        }
+
+        // Collect environment variables
+        $envVars = [];
+        // Always use getenv() to ensure we get variables set via putenv()
+        // $_ENV may not be updated when putenv() is called
+        $envVarNames = ['PDODB_HOST', 'PDODB_PORT', 'PDODB_DATABASE', 'PDODB_USERNAME', 'PDODB_PASSWORD', 'PDODB_CHARSET', 'PDODB_PATH'];
+        foreach ($envVarNames as $envVar) {
+            $envValue = getenv($envVar);
+            if ($envValue !== false) {
+                $envVars[$envVar] = $envValue;
+            }
+        }
+
+        // Check required variables (SQLite doesn't require username/database)
+        if ($driver !== 'sqlite') {
+            if (!isset($envVars['PDODB_DATABASE']) || !isset($envVars['PDODB_USERNAME'])) {
+                throw new InvalidArgumentException(
+                    'PDODB_DATABASE and PDODB_USERNAME must be set in .env file for driver: ' . $driver
+                );
+            }
+        }
+
+        // Build configuration from environment variables
+        $dialect = DialectRegistry::resolve($driver);
+        $config = $dialect->buildConfigFromEnv($envVars);
+
+        // Create and return new instance
+        return new static($driver, $config, $pdoOptions, $logger, $cache);
     }
 
     /**

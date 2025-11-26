@@ -287,6 +287,8 @@ CLI tools automatically detect database configuration from:
 3. **Environment variables** (`PDODB_DRIVER`, `PDODB_HOST`, etc.)
 4. **Examples config** (for testing only)
 
+**Note:** The `.env` file support is unified across CLI tools and the `PdoDb` class. You can use the same `.env` file with both CLI commands and `PdoDb::fromEnv()` method. See [Configuration - Using .env Files](../01-getting-started/04-configuration.md#using-env-files) for details.
+
 You can also explicitly point to custom locations using global options:
 
 ```bash
@@ -333,10 +335,10 @@ The wizard guides you through:
    - Driver-specific options (charset for MySQL, path for SQLite, etc.)
 
 2. **Configuration Format Selection**
-   - `.env` file (environment-based, simple)
+   - `.env` file (environment-based, simple) - Can be used with both CLI tools and `PdoDb::fromEnv()`
    - `config/db.php` (PHP array, more flexible)
    
-   **Note:** PDOdb uses either `.env` or `config/db.php`, not both. If `PDODB_*` environment variables are set, `.env` takes priority and `config/db.php` is ignored.
+   **Note:** PDOdb uses either `.env` or `config/db.php`, not both. If `PDODB_*` environment variables are set, `.env` takes priority and `config/db.php` is ignored. The `.env` file format is unified and works with both CLI tools and the `PdoDb::fromEnv()` static method.
 
 3. **Project Structure**
    - Create directory structure (migrations, models, repositories, services, seeds)
@@ -410,7 +412,7 @@ vendor/bin/pdodb init
 | `--config-only` | Create `config/db.php` only |
 | `--no-structure` | Don't create directory structure |
 
-**Note:** PDOdb uses either `.env` or `config/db.php`, not both simultaneously. Environment variables from `.env` (if set) take priority over `config/db.php`.
+**Note:** PDOdb uses either `.env` or `config/db.php`, not both simultaneously. Environment variables from `.env` (if set) take priority over `config/db.php`. The `.env` file format is unified and can be used with both CLI tools and `PdoDb::fromEnv()` method.
 
 ### Generated Files
 

@@ -293,9 +293,142 @@ $users = $db->connection('mysql_main')->find()->from('users')->get();
 $stats = $db->connection('pgsql_analytics')->find()->from('stats')->get();
 ```
 
-## Environment-Based Configuration
+## Using .env Files
 
-Best practice: Use environment variables for configuration:
+PDOdb supports loading configuration from `.env` files using the `PdoDb::fromEnv()` static method. This provides a convenient way to manage database configuration without hardcoding credentials.
+
+### Basic Usage
+
+Create a `.env` file in your project root:
+
+```bash
+PDODB_DRIVER=mysql
+PDODB_HOST=localhost
+PDODB_PORT=3306
+PDODB_DATABASE=testdb
+PDODB_USERNAME=testuser
+PDODB_PASSWORD=testpass
+PDODB_CHARSET=utf8mb4
+```
+
+Then load the configuration:
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+// Load from .env file in current directory
+$db = PdoDb::fromEnv();
+
+// Or specify a custom .env file path
+$db = PdoDb::fromEnv('/path/to/.env.local');
+```
+
+### Environment Variables
+
+The following environment variables are supported in `.env` files:
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `PDODB_DRIVER` | Yes | Database driver name | `mysql`, `pgsql`, `sqlite`, `sqlsrv`, `oci` |
+| `PDODB_HOST` | Yes* | Database host | `localhost`, `127.0.0.1` |
+| `PDODB_PORT` | No | Database port | `3306`, `5432`, `1433`, `1521` |
+| `PDODB_DATABASE` | Yes* | Database name | `testdb`, `mydb` |
+| `PDODB_USERNAME` | Yes* | Database username | `testuser`, `root` |
+| `PDODB_PASSWORD` | No | Database password | `secret123` |
+| `PDODB_CHARSET` | No | Connection charset | `utf8mb4`, `UTF8` |
+| `PDODB_PATH` | Yes* | SQLite database path | `:memory:`, `/path/to/db.sqlite` |
+
+\* Required for most databases, except SQLite which only requires `PDODB_DRIVER` and `PDODB_PATH`.
+
+### .env File Format
+
+The `.env` file supports:
+
+- **Key-value pairs**: `KEY=value`
+- **Comments**: Lines starting with `#` are ignored
+- **Quoted values**: Both single and double quotes are supported and automatically removed
+- **Empty lines**: Ignored
+
+Example `.env` file:
+
+```bash
+# Database Configuration
+PDODB_DRIVER=mysql
+PDODB_HOST=localhost
+PDODB_PORT=3306
+PDODB_DATABASE=testdb
+
+# Credentials
+PDODB_USERNAME=testuser
+PDODB_PASSWORD="secret123"
+PDODB_CHARSET=utf8mb4
+```
+
+### Custom .env File Path
+
+You can specify a custom path to the `.env` file:
+
+```php
+$db = PdoDb::fromEnv('/path/to/.env.production');
+```
+
+Or set the `PDODB_ENV_PATH` environment variable:
+
+```bash
+export PDODB_ENV_PATH=/path/to/.env.production
+php your-script.php
+```
+
+### With PDO Options, Logger, and Cache
+
+You can pass additional options to `fromEnv()`:
+
+```php
+use Psr\Log\NullLogger;
+use tommyknocker\pdodb\cache\CacheFactory;
+
+$pdoOptions = [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+];
+
+$logger = new NullLogger();
+$cache = CacheFactory::create(['type' => 'array', 'enabled' => true]);
+
+$db = PdoDb::fromEnv(
+    null,           // Use default .env path
+    $pdoOptions,    // PDO options
+    $logger,        // Logger instance
+    $cache          // Cache instance
+);
+```
+
+### Error Handling
+
+If `PDODB_DRIVER` is not set in the `.env` file, `fromEnv()` will throw an `InvalidArgumentException`:
+
+```php
+try {
+    $db = PdoDb::fromEnv();
+} catch (InvalidArgumentException $e) {
+    echo "Error: " . $e->getMessage();
+    // Error: PDODB_DRIVER not set in .env file
+}
+```
+
+For non-SQLite databases, if required variables (`PDODB_DATABASE`, `PDODB_USERNAME`) are missing, an exception will be thrown:
+
+```php
+try {
+    $db = PdoDb::fromEnv();
+} catch (InvalidArgumentException $e) {
+    echo "Error: " . $e->getMessage();
+    // Error: PDODB_DATABASE and PDODB_USERNAME must be set in .env file for driver: mysql
+}
+```
+
+### Environment-Based Configuration (Alternative)
+
+You can also use environment variables directly without `.env` files:
 
 ```php
 // config.php

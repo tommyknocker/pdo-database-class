@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\cli;
 
 use Psr\SimpleCache\CacheInterface;
 use tommyknocker\pdodb\cache\CacheFactory;
+use tommyknocker\pdodb\connection\EnvLoader;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -145,44 +146,7 @@ abstract class BaseCliCommand
      */
     protected static function loadEnvFile(): void
     {
-        $customEnv = getenv('PDODB_ENV_PATH');
-        $envFile = ($customEnv !== false && is_string($customEnv) && $customEnv !== '')
-            ? (string)$customEnv
-            : (getcwd() . '/.env');
-        if (!file_exists($envFile)) {
-            return;
-        }
-
-        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        if ($lines === false) {
-            return;
-        }
-
-        foreach ($lines as $line) {
-            $line = trim($line);
-            // Skip comments
-            if (str_starts_with($line, '#')) {
-                continue;
-            }
-            // Parse KEY=VALUE
-            $equalsPos = strpos($line, '=');
-            if ($equalsPos !== false && $equalsPos > 0) {
-                $keyPart = substr($line, 0, $equalsPos);
-                $valuePart = substr($line, $equalsPos + 1);
-                // substr can only return false if start > length, which is impossible here
-                /** @var string $keyPart */
-                /** @var string $valuePart */
-                $key = trim($keyPart);
-                $value = trim($valuePart);
-                // Remove quotes if present
-                $value = trim($value, '"\'');
-                // Set environment variable if not already set
-                if (getenv($key) === false) {
-                    putenv("{$key}={$value}");
-                    $_ENV[$key] = $value;
-                }
-            }
-        }
+        EnvLoader::load();
     }
 
     /**
