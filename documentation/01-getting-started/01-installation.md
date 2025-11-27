@@ -10,11 +10,13 @@ Installation guide for the PDOdb library.
   - `pdo_pgsql` for PostgreSQL
   - `pdo_sqlite` for SQLite
   - `pdo_sqlsrv` for Microsoft SQL Server (MSSQL)
+  - `pdo_oci` for Oracle Database
 - **Supported Databases**:
   - MySQL 5.7+ / MariaDB 10.3+
   - PostgreSQL 9.4+
   - SQLite 3.38+
   - Microsoft SQL Server 2019+ (MSSQL)
+  - Oracle Database 12c+
 
 ## Installing via Composer
 
@@ -74,6 +76,7 @@ You should see:
 - `pdo_pgsql` (for PostgreSQL)
 - `pdo_sqlite` (for SQLite)
 - `pdo_sqlsrv` (for MSSQL, if installed)
+- `pdo_oci` (for Oracle, if installed)
 
 ### Installing PDO Extensions
 
@@ -91,6 +94,9 @@ sudo apt-get install php8.4-sqlite3
 
 # MSSQL (Microsoft SQL Server)
 # Note: MSSQL requires additional setup - see MSSQL section below
+
+# Oracle
+# Note: Oracle requires additional setup - see Oracle section below
 ```
 
 #### macOS
@@ -111,6 +117,9 @@ sudo yum install php-pgsql
 
 # SQLite
 sudo yum install php-sqlite3
+
+# Oracle
+# Note: Oracle requires additional setup - see Oracle section below
 ```
 
 ### Verifying SQLite JSON Support
@@ -165,6 +174,58 @@ php -m | grep pdo_sqlsrv
 ```
 
 If you see `pdo_sqlsrv`, the extension is installed correctly.
+
+### Oracle Database
+
+Oracle requires the `pdo_oci` extension, which needs Oracle Instant Client:
+
+**Ubuntu/Debian:**
+
+```bash
+# Install Oracle Instant Client
+# Download Oracle Instant Client Basic and SDK packages from Oracle website
+# https://www.oracle.com/database/technologies/instant-client/linux-x86-64-downloads.html
+
+# Extract packages to /opt/oracle/instantclient_21_1
+sudo mkdir -p /opt/oracle
+sudo unzip instantclient-basic-linux.x64-21.1.0.0.0.zip -d /opt/oracle
+sudo unzip instantclient-sdk-linux.x64-21.1.0.0.0.zip -d /opt/oracle
+
+# Set environment variables
+echo 'export ORACLE_HOME=/opt/oracle/instantclient_21_1' | sudo tee -a /etc/environment
+echo 'export LD_LIBRARY_PATH=$ORACLE_HOME:$LD_LIBRARY_PATH' | sudo tee -a /etc/environment
+sudo ldconfig
+
+# Install pdo_oci extension
+sudo pecl install pdo_oci
+echo "extension=pdo_oci.so" | sudo tee /etc/php/8.4/mods-available/pdo_oci.ini
+sudo phpenmod pdo_oci
+```
+
+**macOS:**
+
+```bash
+# Install Oracle Instant Client via Homebrew
+brew tap InstantClientTap/instantclient
+brew install instantclient-basic instantclient-sdk
+
+# Install pdo_oci extension
+pecl install pdo_oci
+```
+
+**Windows:**
+
+The `pdo_oci` extension is typically included with PHP installations on Windows. Ensure you have Oracle Instant Client installed and configured.
+
+**Verifying Oracle Extension:**
+
+```bash
+php -m | grep pdo_oci
+```
+
+If you see `pdo_oci`, the extension is installed correctly.
+
+**Note:** Oracle uses service names instead of database names. When configuring Oracle connections, use `service_name` (for Oracle 12c+ PDBs) or `sid` (for older installations) instead of `dbname`. See [Configuration Documentation](04-configuration.md#oracle-database-configuration) for details.
 
 ## Next Steps
 

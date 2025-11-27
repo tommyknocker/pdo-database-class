@@ -1017,6 +1017,7 @@ The project includes comprehensive PHPUnit tests for all supported databases.
 - **PostgreSQL**: Running instance on localhost:5432
 - **SQLite**: No setup required (uses `:memory:`)
 - **MSSQL**: Running instance on localhost:1433
+- **Oracle**: Running instance on localhost:1521 (requires Oracle Instant Client and `pdo_oci` extension)
 
 ---
 
@@ -1028,7 +1029,7 @@ Contributions are welcome! Please follow these guidelines:
 2. **Include failing tests** that demonstrate the problem
 3. **Follow PSR-12** coding standards
 4. **Write tests** for all new functionality
-5. **Test against all five dialects** (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL)
+5. **Test against all six dialects** (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL, Oracle)
 
 ### Pull Request Process
 
