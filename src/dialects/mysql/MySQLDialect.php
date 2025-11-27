@@ -1699,6 +1699,23 @@ class MySQLDialect extends DialectAbstract
             $config['charset'] = 'utf8mb4';
         }
 
+        // MySQL/MariaDB specific options
+        if (isset($envVars['PDODB_UNIX_SOCKET'])) {
+            $config['unix_socket'] = $envVars['PDODB_UNIX_SOCKET'];
+        }
+        if (isset($envVars['PDODB_SSLCA'])) {
+            $config['sslca'] = $envVars['PDODB_SSLCA'];
+        }
+        if (isset($envVars['PDODB_SSLCERT'])) {
+            $config['sslcert'] = $envVars['PDODB_SSLCERT'];
+        }
+        if (isset($envVars['PDODB_SSLKEY'])) {
+            $config['sslkey'] = $envVars['PDODB_SSLKEY'];
+        }
+        if (isset($envVars['PDODB_COMPRESS'])) {
+            $config['compress'] = filter_var($envVars['PDODB_COMPRESS'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? (strtolower($envVars['PDODB_COMPRESS']) === 'true');
+        }
+
         return $config;
     }
 

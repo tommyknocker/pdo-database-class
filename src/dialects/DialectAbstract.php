@@ -1252,6 +1252,9 @@ abstract class DialectAbstract implements DialectInterface
         if (isset($envVars['PDODB_PASSWORD'])) {
             $config['password'] = $envVars['PDODB_PASSWORD'];
         }
+        if (isset($envVars['PDODB_PREFIX'])) {
+            $config['prefix'] = $envVars['PDODB_PREFIX'];
+        }
 
         return $config;
     }

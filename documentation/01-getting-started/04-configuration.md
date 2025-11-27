@@ -646,9 +646,185 @@ export PDODB_USERNAME=testuser
 export PDODB_PASSWORD=testpass
 export PDODB_SERVICE_NAME=XEPDB1
 export PDODB_CHARSET=UTF8
+export PDODB_PREFIX=app_
 ```
 
 **Note**: Oracle uses the `oci` driver name. The PHP `pdo_oci` extension must be installed and enabled. Oracle Database 12c+ is recommended for full feature support (JSON operations, LATERAL JOINs, etc.).
+
+## Environment Variables Reference
+
+All database dialects support configuration via `.env` file or environment variables. The following variables are available:
+
+### Common Variables (All Dialects)
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `PDODB_DRIVER` | Database driver (`mysql`, `mariadb`, `pgsql`, `sqlite`, `sqlsrv`, `oci`) | Yes | - |
+| `PDODB_HOST` | Database host | Yes* | `localhost` |
+| `PDODB_PORT` | Database port | No | Driver default |
+| `PDODB_DATABASE` | Database name | Yes* | - |
+| `PDODB_USERNAME` | Database username | Yes* | - |
+| `PDODB_PASSWORD` | Database password | Yes* | - |
+| `PDODB_CHARSET` | Connection charset | No | Driver default |
+| `PDODB_PREFIX` | Table prefix | No | Empty |
+
+\* Not required for SQLite
+
+### MySQL/MariaDB Specific Variables
+
+| Variable | Description | Type | Default |
+|----------|-------------|------|---------|
+| `PDODB_UNIX_SOCKET` | Unix socket path | String | - |
+| `PDODB_SSLCA` | SSL CA certificate path | String | - |
+| `PDODB_SSLCERT` | SSL client certificate path | String | - |
+| `PDODB_SSLKEY` | SSL client key path | String | - |
+| `PDODB_COMPRESS` | Enable protocol compression | Boolean | `false` |
+
+**Example:**
+```bash
+PDODB_DRIVER=mysql
+PDODB_HOST=localhost
+PDODB_DATABASE=mydb
+PDODB_USERNAME=user
+PDODB_PASSWORD=pass
+PDODB_PREFIX=wp_
+PDODB_UNIX_SOCKET=/var/run/mysqld/mysqld.sock
+PDODB_SSLCA=/path/ca.pem
+PDODB_SSLCERT=/path/client-cert.pem
+PDODB_SSLKEY=/path/client-key.pem
+PDODB_COMPRESS=true
+```
+
+### PostgreSQL Specific Variables
+
+| Variable | Description | Type | Default |
+|----------|-------------|------|---------|
+| `PDODB_SSLMODE` | SSL mode (`disable`, `allow`, `prefer`, `require`, `verify-ca`, `verify-full`) | String | - |
+| `PDODB_SSLKEY` | SSL private key path | String | - |
+| `PDODB_SSLCERT` | SSL client certificate path | String | - |
+| `PDODB_SSLROOTCERT` | SSL root certificate path | String | - |
+| `PDODB_APPLICATION_NAME` | Application name (visible in `pg_stat_activity`) | String | - |
+| `PDODB_CONNECT_TIMEOUT` | Connection timeout in seconds | Integer | - |
+| `PDODB_HOSTADDR` | Direct IP address (bypasses DNS) | String | - |
+| `PDODB_SERVICE` | Service name from `pg_service.conf` | String | - |
+| `PDODB_TARGET_SESSION_ATTRS` | Target session attributes (`any`, `read-write`) | String | - |
+| `PDODB_OPTIONS` | Extra connection options | String | - |
+
+**Example:**
+```bash
+PDODB_DRIVER=pgsql
+PDODB_HOST=localhost
+PDODB_DATABASE=mydb
+PDODB_USERNAME=user
+PDODB_PASSWORD=pass
+PDODB_PREFIX=app_
+PDODB_SSLMODE=require
+PDODB_SSLCERT=/path/client.crt
+PDODB_SSLKEY=/path/client.key
+PDODB_SSLROOTCERT=/path/ca.crt
+PDODB_APPLICATION_NAME=MyApp
+PDODB_CONNECT_TIMEOUT=5
+```
+
+### SQLite Specific Variables
+
+| Variable | Description | Type | Default |
+|----------|-------------|------|---------|
+| `PDODB_PATH` | Path to SQLite file (use `:memory:` for in-memory) | String | `./database.sqlite` |
+| `PDODB_MODE` | Open mode (`ro`, `rw`, `rwc`, `memory`) | String | `rwc` |
+| `PDODB_CACHE` | Cache mode (`shared`, `private`) | String | - |
+| `PDODB_ENABLE_REGEXP` | Enable REGEXP functions | Boolean | `true` |
+
+**Example:**
+```bash
+PDODB_DRIVER=sqlite
+PDODB_PATH=:memory:
+PDODB_PREFIX=test_
+PDODB_MODE=rwc
+PDODB_CACHE=shared
+PDODB_ENABLE_REGEXP=true
+```
+
+### MSSQL Specific Variables
+
+| Variable | Description | Type | Default |
+|----------|-------------|------|---------|
+| `PDODB_TRUST_SERVER_CERTIFICATE` | Trust server certificate | Boolean | `true` |
+| `PDODB_ENCRYPT` | Enable encryption | Boolean | `true` |
+
+**Example:**
+```bash
+PDODB_DRIVER=sqlsrv
+PDODB_HOST=localhost
+PDODB_DATABASE=mydb
+PDODB_USERNAME=user
+PDODB_PASSWORD=pass
+PDODB_PREFIX=mssql_
+PDODB_TRUST_SERVER_CERTIFICATE=true
+PDODB_ENCRYPT=true
+```
+
+### Oracle Specific Variables
+
+| Variable | Description | Type | Default |
+|----------|-------------|------|---------|
+| `PDODB_SERVICE_NAME` | Oracle service name (preferred for 12c+) | String | - |
+| `PDODB_SID` | Oracle SID (alternative to service_name) | String | - |
+
+**Note:** Use `PDODB_SERVICE_NAME` for Oracle 12c+ Pluggable Databases (PDBs), or `PDODB_SID` for older installations.
+
+**Example:**
+```bash
+PDODB_DRIVER=oci
+PDODB_HOST=localhost
+PDODB_PORT=1521
+PDODB_USERNAME=testuser
+PDODB_PASSWORD=testpass
+PDODB_SERVICE_NAME=XEPDB1
+PDODB_CHARSET=UTF8
+PDODB_PREFIX=app_
+```
+
+### Using .env File
+
+Create a `.env` file in your project root:
+
+```bash
+# .env
+PDODB_DRIVER=mysql
+PDODB_HOST=localhost
+PDODB_DATABASE=mydb
+PDODB_USERNAME=user
+PDODB_PASSWORD=pass
+PDODB_PREFIX=app_
+PDODB_CHARSET=utf8mb4
+```
+
+Then use `PdoDb::fromEnv()`:
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+// Load from .env file in current directory
+$db = PdoDb::fromEnv();
+
+// Or specify custom path
+$db = PdoDb::fromEnv('/path/to/.env.local');
+```
+
+### Boolean Values
+
+Boolean environment variables accept the following values:
+- `true`, `1`, `yes`, `on` → `true`
+- `false`, `0`, `no`, `off` → `false`
+
+Examples:
+```bash
+PDODB_COMPRESS=true
+PDODB_ENABLE_REGEXP=1
+PDODB_TRUST_SERVER_CERTIFICATE=yes
+PDODB_ENCRYPT=false
+```
 
 ## Next Steps
 

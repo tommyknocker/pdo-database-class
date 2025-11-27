@@ -1492,9 +1492,34 @@ class SqliteDialect extends DialectAbstract
         $config = parent::buildConfigFromEnv($envVars);
 
         if (isset($envVars['PDODB_PATH'])) {
-            $config['path'] = $envVars['PDODB_PATH'];
+            // Extract path from DSN if it contains parameters (e.g., ":memory:;mode=rwc" -> ":memory:")
+            $path = $envVars['PDODB_PATH'];
+            // Remove DSN parameters (everything after first semicolon that's not part of the path)
+            // For :memory:, keep it as-is
+            if (str_starts_with($path, ':memory:')) {
+                $config['path'] = ':memory:';
+            } else {
+                // For file paths, remove any DSN parameters (e.g., "/path/to/db.sqlite;mode=rwc" -> "/path/to/db.sqlite")
+                $semicolonPos = strpos($path, ';');
+                if ($semicolonPos !== false) {
+                    $config['path'] = substr($path, 0, $semicolonPos);
+                } else {
+                    $config['path'] = $path;
+                }
+            }
         } else {
             $config['path'] = './database.sqlite';
+        }
+
+        // SQLite specific options
+        if (isset($envVars['PDODB_MODE'])) {
+            $config['mode'] = $envVars['PDODB_MODE'];
+        }
+        if (isset($envVars['PDODB_CACHE'])) {
+            $config['cache'] = $envVars['PDODB_CACHE'];
+        }
+        if (isset($envVars['PDODB_ENABLE_REGEXP'])) {
+            $config['enable_regexp'] = filter_var($envVars['PDODB_ENABLE_REGEXP'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? (strtolower($envVars['PDODB_ENABLE_REGEXP']) === 'true');
         }
 
         return $config;

@@ -210,15 +210,27 @@ class PdoDb
         // Validate that required extension is available
         ExtensionChecker::validate($driver);
 
-        // Collect environment variables
+        // Collect all PDODB_* environment variables
         $envVars = [];
         // Always use getenv() to ensure we get variables set via putenv()
         // $_ENV may not be updated when putenv() is called
-        $envVarNames = ['PDODB_HOST', 'PDODB_PORT', 'PDODB_DATABASE', 'PDODB_USERNAME', 'PDODB_PASSWORD', 'PDODB_CHARSET', 'PDODB_PATH'];
-        foreach ($envVarNames as $envVar) {
-            $envValue = getenv($envVar);
-            if ($envValue !== false) {
-                $envVars[$envVar] = $envValue;
+        // Collect all PDODB_* variables from environment
+        // Check $_ENV first (most reliable)
+        foreach ($_ENV as $key => $value) {
+            if (is_string($key) && str_starts_with($key, 'PDODB_')) {
+                $envValue = getenv($key);
+                if ($envValue !== false) {
+                    $envVars[$key] = $envValue;
+                }
+            }
+        }
+        // Also check $_SERVER for variables that might not be in $_ENV
+        foreach ($_SERVER as $key => $value) {
+            if (is_string($key) && str_starts_with($key, 'PDODB_') && !isset($envVars[$key])) {
+                $envValue = getenv($key);
+                if ($envValue !== false) {
+                    $envVars[$key] = $envValue;
+                }
             }
         }
 

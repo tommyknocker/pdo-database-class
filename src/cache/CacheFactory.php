@@ -50,6 +50,10 @@ class CacheFactory
 
         $directory = $config['directory'] ?? $config['path'] ?? sys_get_temp_dir() . '/pdodb_cache';
         $directory = is_string($directory) ? $directory : sys_get_temp_dir() . '/pdodb_cache';
+        // Don't use SQLite :memory: as cache directory
+        if ($directory === ':memory:' || str_starts_with($directory, ':memory:')) {
+            $directory = sys_get_temp_dir() . '/pdodb_cache';
+        }
 
         $namespace = $config['namespace'] ?? '';
         $namespace = is_string($namespace) ? $namespace : '';

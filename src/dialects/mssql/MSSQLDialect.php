@@ -2050,8 +2050,16 @@ class MSSQLDialect extends DialectAbstract
         }
 
         // MSSQL-specific options
-        $config['trust_server_certificate'] = true;
-        $config['encrypt'] = true;
+        if (isset($envVars['PDODB_TRUST_SERVER_CERTIFICATE'])) {
+            $config['trust_server_certificate'] = filter_var($envVars['PDODB_TRUST_SERVER_CERTIFICATE'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? (strtolower($envVars['PDODB_TRUST_SERVER_CERTIFICATE']) === 'true');
+        } else {
+            $config['trust_server_certificate'] = true;
+        }
+        if (isset($envVars['PDODB_ENCRYPT'])) {
+            $config['encrypt'] = filter_var($envVars['PDODB_ENCRYPT'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? (strtolower($envVars['PDODB_ENCRYPT']) === 'true');
+        } else {
+            $config['encrypt'] = true;
+        }
 
         return $config;
     }

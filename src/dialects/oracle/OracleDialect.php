@@ -2102,14 +2102,20 @@ class OracleDialect extends DialectAbstract
                 $default = $col['DATA_DEFAULT'] !== null ? (string)$col['DATA_DEFAULT'] : null;
 
                 // Build type with length/precision
-                if ($col['DATA_LENGTH'] !== null) {
-                    $dataType .= '(' . (int)$col['DATA_LENGTH'] . ')';
-                } elseif ($col['DATA_PRECISION'] !== null) {
-                    $dataType .= '(' . (int)$col['DATA_PRECISION'];
-                    if ($col['DATA_SCALE'] !== null) {
-                        $dataType .= ',' . (int)$col['DATA_SCALE'];
+                // Skip if type already contains precision (e.g., TIMESTAMP(6))
+                if (!preg_match('/\(\d+\)/', $dataType)) {
+                    // NUMBER types use DATA_PRECISION/DATA_SCALE
+                    if (stripos($dataType, 'NUMBER') !== false && $col['DATA_PRECISION'] !== null) {
+                        $dataType .= '(' . (int)$col['DATA_PRECISION'];
+                        if ($col['DATA_SCALE'] !== null && (int)$col['DATA_SCALE'] > 0) {
+                            $dataType .= ',' . (int)$col['DATA_SCALE'];
+                        }
+                        $dataType .= ')';
                     }
-                    $dataType .= ')';
+                    // VARCHAR2, CHAR, etc. use DATA_LENGTH
+                    elseif (stripos($dataType, 'CHAR') !== false && $col['DATA_LENGTH'] !== null) {
+                        $dataType .= '(' . (int)$col['DATA_LENGTH'] . ')';
+                    }
                 }
 
                 $def = $colName . ' ' . $dataType;
@@ -2136,20 +2142,28 @@ class OracleDialect extends DialectAbstract
             $indexRows = array_map(fn($row) => array_change_key_case($row, CASE_UPPER), $indexRows);
 
             foreach ($indexRows as $idxRow) {
+                $indexName = (string)$idxRow['INDEX_NAME'];
+
+                // Skip system-generated indexes (SYS_C*)
+                // Oracle auto-creates these for PK and UNIQUE constraints
+                if (str_starts_with($indexName, 'SYS_C')) {
+                    continue;
+                }
+
                 // Get index columns
                 $idxCols = $db->rawQuery(
                     'SELECT COLUMN_NAME, COLUMN_POSITION
                      FROM USER_IND_COLUMNS
                      WHERE INDEX_NAME = ?
                      ORDER BY COLUMN_POSITION',
-                    [$idxRow['INDEX_NAME']]
+                    [$indexName]
                 );
                 // Normalize keys to uppercase
                 $idxCols = array_map(fn($row) => array_change_key_case($row, CASE_UPPER), $idxCols);
 
                 $colNames = array_map(fn ($c) => $this->quoteIdentifier((string)$c['COLUMN_NAME']), $idxCols);
                 $unique = (string)$idxRow['UNIQUENESS'] === 'UNIQUE' ? 'UNIQUE ' : '';
-                $idxName = $this->quoteIdentifier((string)$idxRow['INDEX_NAME']);
+                $idxName = $this->quoteIdentifier($indexName);
                 $output[] = "CREATE {$unique}INDEX {$idxName} ON {$quotedTable} (" . implode(', ', $colNames) . ');';
             }
         }
@@ -2310,24 +2324,31 @@ class OracleDialect extends DialectAbstract
      */
     public function getActiveQueries(\tommyknocker\pdodb\PdoDb $db): array
     {
-        $sql = "SELECT SID, SERIAL#, USERNAME, STATUS, SQL_TEXT, ELAPSED_TIME, CPU_TIME
-                FROM V\$SESSION s
-                JOIN V\$SQLAREA sa ON s.SQL_ADDRESS = sa.ADDRESS
-                WHERE s.STATUS = 'ACTIVE' AND s.SQL_TEXT IS NOT NULL";
-        $rows = $db->rawQuery($sql);
-        $result = [];
-        foreach ($rows as $row) {
-            $result[] = [
-                'sid' => $this->toString($row['SID'] ?? ''),
-                'serial' => $this->toString($row['SERIAL#'] ?? ''),
-                'user' => $this->toString($row['USERNAME'] ?? ''),
-                'status' => $this->toString($row['STATUS'] ?? ''),
-                'elapsed_time' => $this->toString($row['ELAPSED_TIME'] ?? ''),
-                'cpu_time' => $this->toString($row['CPU_TIME'] ?? ''),
-                'query' => $this->toString($row['SQL_TEXT'] ?? ''),
-            ];
+        // V$SESSION requires SELECT_CATALOG_ROLE or DBA privileges
+        // Return empty array if user doesn't have access
+        try {
+            $sql = "SELECT SID, SERIAL#, USERNAME, STATUS, SQL_TEXT, ELAPSED_TIME, CPU_TIME
+                    FROM V\$SESSION s
+                    JOIN V\$SQLAREA sa ON s.SQL_ADDRESS = sa.ADDRESS
+                    WHERE s.STATUS = 'ACTIVE' AND s.SQL_TEXT IS NOT NULL";
+            $rows = $db->rawQuery($sql);
+            $result = [];
+            foreach ($rows as $row) {
+                $result[] = [
+                    'sid' => $this->toString($row['SID'] ?? ''),
+                    'serial' => $this->toString($row['SERIAL#'] ?? ''),
+                    'user' => $this->toString($row['USERNAME'] ?? ''),
+                    'status' => $this->toString($row['STATUS'] ?? ''),
+                    'elapsed_time' => $this->toString($row['ELAPSED_TIME'] ?? ''),
+                    'cpu_time' => $this->toString($row['CPU_TIME'] ?? ''),
+                    'query' => $this->toString($row['SQL_TEXT'] ?? ''),
+                ];
+            }
+            return $result;
+        } catch (\Exception $e) {
+            // User doesn't have required privileges
+            return [];
         }
-        return $result;
     }
 
     /**
@@ -2335,32 +2356,46 @@ class OracleDialect extends DialectAbstract
      */
     public function getActiveConnections(\tommyknocker\pdodb\PdoDb $db): array
     {
-        $rows = $db->rawQuery('SELECT SID, SERIAL#, USERNAME, STATUS, PROGRAM FROM V$SESSION WHERE USERNAME IS NOT NULL');
-        $result = [];
-        foreach ($rows as $row) {
-            $result[] = [
-                'sid' => $this->toString($row['SID'] ?? ''),
-                'serial' => $this->toString($row['SERIAL#'] ?? ''),
-                'user' => $this->toString($row['USERNAME'] ?? ''),
-                'status' => $this->toString($row['STATUS'] ?? ''),
-                'program' => $this->toString($row['PROGRAM'] ?? ''),
+        // V$SESSION requires SELECT_CATALOG_ROLE or DBA privileges
+        // Return empty result if user doesn't have access
+        try {
+            $rows = $db->rawQuery('SELECT SID, SERIAL#, USERNAME, STATUS, PROGRAM FROM V$SESSION WHERE USERNAME IS NOT NULL');
+            $result = [];
+            foreach ($rows as $row) {
+                $result[] = [
+                    'sid' => $this->toString($row['SID'] ?? ''),
+                    'serial' => $this->toString($row['SERIAL#'] ?? ''),
+                    'user' => $this->toString($row['USERNAME'] ?? ''),
+                    'status' => $this->toString($row['STATUS'] ?? ''),
+                    'program' => $this->toString($row['PROGRAM'] ?? ''),
+                ];
+            }
+
+            // Get connection limits
+            $maxConn = $db->rawQueryValue("SELECT VALUE FROM V\$PARAMETER WHERE NAME = 'processes'");
+            $current = count($result);
+            $maxVal = $maxConn ?? 0;
+            $max = is_int($maxVal) ? $maxVal : (is_string($maxVal) ? (int)$maxVal : 0);
+
+            return [
+                'connections' => $result,
+                'summary' => [
+                    'current' => $current,
+                    'max' => $max,
+                    'usage_percent' => $max > 0 ? round(($current / $max) * 100, 2) : 0,
+                ],
+            ];
+        } catch (\Exception $e) {
+            // User doesn't have required privileges
+            return [
+                'connections' => [],
+                'summary' => [
+                    'current' => 0,
+                    'max' => 0,
+                    'usage_percent' => 0,
+                ],
             ];
         }
-
-        // Get connection limits
-        $maxConn = $db->rawQueryValue("SELECT VALUE FROM V\$PARAMETER WHERE NAME = 'processes'");
-        $current = count($result);
-        $maxVal = $maxConn ?? 0;
-        $max = is_int($maxVal) ? $maxVal : (is_string($maxVal) ? (int)$maxVal : 0);
-
-        return [
-            'connections' => $result,
-            'summary' => [
-                'current' => $current,
-                'max' => $max,
-                'usage_percent' => $max > 0 ? round(($current / $max) * 100, 2) : 0,
-            ],
-        ];
     }
 
     /**
@@ -2368,25 +2403,32 @@ class OracleDialect extends DialectAbstract
      */
     public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
     {
-        // Oracle uses V$SQLAREA for slow queries
-        $thresholdMicroseconds = (int)($thresholdSeconds * 1000000);
-        $sql = 'SELECT SQL_TEXT, ELAPSED_TIME, CPU_TIME, EXECUTIONS, BUFFER_GETS
-                FROM V$SQLAREA
-                WHERE ELAPSED_TIME >= ?
-                ORDER BY ELAPSED_TIME DESC
-                FETCH NEXT ? ROWS ONLY';
-        $rows = $db->rawQuery($sql, [$thresholdMicroseconds, $limit]);
-        $result = [];
-        foreach ($rows as $row) {
-            $result[] = [
-                'query' => $this->toString($row['SQL_TEXT'] ?? ''),
-                'elapsed_time' => $this->toString($row['ELAPSED_TIME'] ?? '') . 'μs',
-                'cpu_time' => $this->toString($row['CPU_TIME'] ?? '') . 'μs',
-                'executions' => $this->toString($row['EXECUTIONS'] ?? ''),
-                'buffer_gets' => $this->toString($row['BUFFER_GETS'] ?? ''),
-            ];
+        // V$SQLAREA requires SELECT_CATALOG_ROLE or DBA privileges
+        // Return empty array if user doesn't have access
+        try {
+            // Oracle uses V$SQLAREA for slow queries
+            $thresholdMicroseconds = (int)($thresholdSeconds * 1000000);
+            $sql = 'SELECT SQL_TEXT, ELAPSED_TIME, CPU_TIME, EXECUTIONS, BUFFER_GETS
+                    FROM V$SQLAREA
+                    WHERE ELAPSED_TIME >= ?
+                    ORDER BY ELAPSED_TIME DESC
+                    FETCH NEXT ? ROWS ONLY';
+            $rows = $db->rawQuery($sql, [$thresholdMicroseconds, $limit]);
+            $result = [];
+            foreach ($rows as $row) {
+                $result[] = [
+                    'query' => $this->toString($row['SQL_TEXT'] ?? ''),
+                    'elapsed_time' => $this->toString($row['ELAPSED_TIME'] ?? '') . 'μs',
+                    'cpu_time' => $this->toString($row['CPU_TIME'] ?? '') . 'μs',
+                    'executions' => $this->toString($row['EXECUTIONS'] ?? ''),
+                    'buffer_gets' => $this->toString($row['BUFFER_GETS'] ?? ''),
+                ];
+            }
+            return $result;
+        } catch (\Exception $e) {
+            // User doesn't have required privileges
+            return [];
         }
-        return $result;
     }
 
     /* ---------------- Table Management ---------------- */
@@ -2468,6 +2510,14 @@ class OracleDialect extends DialectAbstract
         // Oracle uses service name in dbname
         if (isset($envVars['PDODB_DATABASE'])) {
             $config['dbname'] = $envVars['PDODB_DATABASE'];
+        }
+
+        // Oracle specific options
+        if (isset($envVars['PDODB_SERVICE_NAME'])) {
+            $config['service_name'] = $envVars['PDODB_SERVICE_NAME'];
+        }
+        if (isset($envVars['PDODB_SID'])) {
+            $config['sid'] = $envVars['PDODB_SID'];
         }
 
         if (isset($envVars['PDODB_CHARSET'])) {

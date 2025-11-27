@@ -2165,6 +2165,38 @@ class PostgreSQLDialect extends DialectAbstract
             $config['dbname'] = $envVars['PDODB_DATABASE'];
         }
 
+        // PostgreSQL specific options
+        if (isset($envVars['PDODB_SSLMODE'])) {
+            $config['sslmode'] = $envVars['PDODB_SSLMODE'];
+        }
+        if (isset($envVars['PDODB_SSLKEY'])) {
+            $config['sslkey'] = $envVars['PDODB_SSLKEY'];
+        }
+        if (isset($envVars['PDODB_SSLCERT'])) {
+            $config['sslcert'] = $envVars['PDODB_SSLCERT'];
+        }
+        if (isset($envVars['PDODB_SSLROOTCERT'])) {
+            $config['sslrootcert'] = $envVars['PDODB_SSLROOTCERT'];
+        }
+        if (isset($envVars['PDODB_APPLICATION_NAME'])) {
+            $config['application_name'] = $envVars['PDODB_APPLICATION_NAME'];
+        }
+        if (isset($envVars['PDODB_CONNECT_TIMEOUT'])) {
+            $config['connect_timeout'] = (int)$envVars['PDODB_CONNECT_TIMEOUT'];
+        }
+        if (isset($envVars['PDODB_HOSTADDR'])) {
+            $config['hostaddr'] = $envVars['PDODB_HOSTADDR'];
+        }
+        if (isset($envVars['PDODB_SERVICE'])) {
+            $config['service'] = $envVars['PDODB_SERVICE'];
+        }
+        if (isset($envVars['PDODB_TARGET_SESSION_ATTRS'])) {
+            $config['target_session_attrs'] = $envVars['PDODB_TARGET_SESSION_ATTRS'];
+        }
+        if (isset($envVars['PDODB_OPTIONS'])) {
+            $config['options'] = $envVars['PDODB_OPTIONS'];
+        }
+
         return $config;
     }
 
