@@ -908,23 +908,16 @@ final class InitWizardTests extends TestCase
 
     public function testLoadConfigFromEnvWithUnsupportedDriver(): void
     {
-        putenv('PDODB_DRIVER=unsupported');
-
-        $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
-
-        try {
-            $method->invoke($wizard);
-            // Should handle unsupported driver gracefully
-            $this->assertTrue(true);
-        } catch (\Throwable $e) {
-            // May fail if error() is called
-            $this->assertInstanceOf(\Throwable::class, $e);
-        } finally {
-            putenv('PDODB_DRIVER');
-        }
+        // Test that DialectRegistry correctly identifies unsupported driver
+        // This is what loadConfigFromEnv() checks before calling static::error()
+        $this->assertFalse(\tommyknocker\pdodb\connection\DialectRegistry::isSupported('unsupported'));
+        
+        // Verify that ExtensionChecker also returns null for unsupported driver
+        $this->assertNull(\tommyknocker\pdodb\connection\ExtensionChecker::getRequiredExtension('unsupported'));
+        
+        // Note: We can't test the actual loadConfigFromEnv() method with unsupported driver
+        // because static::error() calls exit(), which terminates the PHP process.
+        // The logic is verified above - unsupported drivers are correctly identified.
     }
 
     public function testAskMysqlConnectionWithAllOptions(): void
@@ -1524,27 +1517,16 @@ final class InitWizardTests extends TestCase
 
     public function testLoadConfigFromEnvWithInvalidDriver(): void
     {
-        putenv('PDODB_DRIVER=invalid_driver');
-
-        $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
-
-        try {
-            $method->invoke($wizard);
-            // Should handle invalid driver gracefully (catches InvalidArgumentException)
-            $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
-            $config = $configProperty->getValue($wizard);
-            $this->assertIsArray($config);
-            $this->assertEquals('invalid_driver', $config['driver']);
-        } catch (\Throwable $e) {
-            // May fail if error() is called for missing driver
-            $this->assertInstanceOf(\Throwable::class, $e);
-        } finally {
-            putenv('PDODB_DRIVER');
-        }
+        // Test that DialectRegistry correctly identifies invalid driver
+        // This is what loadConfigFromEnv() checks before calling static::error()
+        $this->assertFalse(\tommyknocker\pdodb\connection\DialectRegistry::isSupported('invalid_driver'));
+        
+        // Verify that ExtensionChecker also returns null for invalid driver
+        $this->assertNull(\tommyknocker\pdodb\connection\ExtensionChecker::getRequiredExtension('invalid_driver'));
+        
+        // Note: We can't test the actual loadConfigFromEnv() method with invalid driver
+        // because static::error() calls exit(), which terminates the PHP process.
+        // The logic is verified above - invalid drivers are correctly identified.
     }
 
     public function testLoadConfigFromEnvWithCacheDefaultValues(): void

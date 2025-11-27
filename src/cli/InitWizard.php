@@ -97,7 +97,12 @@ class InitWizard extends BaseCliCommand
             static::error('PDODB_DRIVER environment variable is required in non-interactive mode');
         }
 
-        // Check if required PHP extension is available
+        // First check if driver is supported by DialectRegistry
+        if (!\tommyknocker\pdodb\connection\DialectRegistry::isSupported($driver)) {
+            static::error("Unsupported driver: {$driver}");
+        }
+
+        // Then check if required PHP extension is available
         try {
             ExtensionChecker::validate($driver);
         } catch (\InvalidArgumentException $e) {

@@ -36,7 +36,10 @@ class LikeClobTests extends BaseOracleTestCase
             ->get();
 
         $this->assertCount(1, $result);
-        $this->assertEquals('test@example.com', stream_get_contents($result[0]['EMAIL']));
+        $emailValue = $result[0]['EMAIL'];
+        // CLOB columns may be returned as stream or string depending on Oracle driver version
+        $emailString = is_resource($emailValue) ? stream_get_contents($emailValue) : (string)$emailValue;
+        $this->assertEquals('test@example.com', $emailString);
     }
 
     public function testLikeWithClobColumnNoMatch(): void

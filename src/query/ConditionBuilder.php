@@ -808,6 +808,20 @@ class ConditionBuilder implements ConditionBuilderInterface
             return $this;
         }
 
+        // Check if value is a QueryBuilder (subquery) - handle this before external reference check
+        // because subqueries need special handling regardless of external references
+        if ($value instanceof QueryBuilder) {
+            $exprQuoted = $this->quoteQualifiedIdentifier((string)$exprOrColumn);
+            $sub = $value->toSQL();
+            $map = $this->parameterManager->mergeSubParams($sub['params'], 'sq');
+            $subSql = $this->parameterManager->replacePlaceholdersInSql($sub['sql'], $map);
+            // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
+            $columnForComparison = $this->dialect->formatColumnForComparison($exprQuoted);
+            $opUpper = $this->normalizeOperator($operator);
+            $this->{$prop}[] = ['sql' => "{$columnForComparison} {$opUpper} ({$subSql})", 'cond' => $cond];
+            return $this;
+        }
+
         // Check if exprOrColumn is an external reference (e.g., "users.department")
         // If so, we need to apply formatColumnForComparison to the left side column
         $isExternalRef = is_string($exprOrColumn) && $this->isExternalReference((string)$exprOrColumn);
@@ -818,6 +832,16 @@ class ConditionBuilder implements ConditionBuilderInterface
 
             // Process external references in value
             $value = $this->processExternalReferences($value);
+
+            // Handle QueryBuilder subquery for external references
+            if ($value instanceof QueryBuilder) {
+                $sub = $value->toSQL();
+                $map = $this->parameterManager->mergeSubParams($sub['params'], 'sq');
+                $subSql = $this->parameterManager->replacePlaceholdersInSql($sub['sql'], $map);
+                $opUpper = $this->normalizeOperator($operator);
+                $this->{$prop}[] = ['sql' => "{$columnForComparison} {$opUpper} ({$subSql})", 'cond' => $cond];
+                return $this;
+            }
 
             // Handle IN/NOT IN with array values for external references
             $opUpper = $this->normalizeOperator($operator);
@@ -848,12 +872,11 @@ class ConditionBuilder implements ConditionBuilderInterface
 
             if ($value instanceof RawValue) {
                 $right = $this->resolveRawValue($value);
-                // Check if resolved value is a table.column pattern (external reference)
-                // Apply formatColumnForComparison for CLOB compatibility
-                if (is_string($right) && preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*$/', $right)) {
-                    $externalRefQuoted = $this->quoteQualifiedIdentifier($right);
-                    $right = $this->dialect->formatColumnForComparison($externalRefQuoted);
-                }
+                // For RawValue, use resolved value as-is (it's already raw SQL)
+                // Don't apply quoteQualifiedIdentifier as RawValue is meant to be used directly
+                // For external references in RawValue, they should be used as raw SQL without quotes
+                // formatColumnForComparison is only needed for Oracle CLOB compatibility, but for RawValue
+                // we preserve the raw SQL as-is since it's explicitly marked as raw
                 $this->{$prop}[] = ['sql' => "{$columnForComparison} {$operator} {$right}", 'cond' => $cond];
                 return $this;
             }
@@ -868,16 +891,8 @@ class ConditionBuilder implements ConditionBuilderInterface
         // Process external references
         $value = $this->processExternalReferences($value);
 
-        // subquery handling
-        if ($value instanceof QueryBuilder) {
-            $sub = $value->toSQL();
-            $map = $this->parameterManager->mergeSubParams($sub['params'], 'sq');
-            $subSql = $this->parameterManager->replacePlaceholdersInSql($sub['sql'], $map);
-            // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
-            $columnForComparison = $this->dialect->formatColumnForComparison($exprQuoted);
-            $this->{$prop}[] = ['sql' => "{$columnForComparison} {$operator} ({$subSql})", 'cond' => $cond];
-            return $this;
-        }
+        // Note: QueryBuilder subquery handling is now done earlier (before external reference check)
+        // to ensure subqueries are properly handled regardless of column name format
 
         // callback handling for subqueries
         if (is_callable($value)) {

@@ -237,7 +237,8 @@ final class LateralJoinTests extends BaseMySQLTestCase
         $this->assertStringContainsString('LATERAL', $query['sql']);
         $this->assertStringContainsString('latest_order', $query['sql']);
         // Verify that u.id is used as raw SQL (not as a parameter)
-        $this->assertStringContainsString('u.id', $query['sql']);
+        // MySQL uses backticks for identifiers, so check for `u`.`id` pattern
+        $this->assertMatchesRegularExpression('/`u`\s*\.\s*`id`/', $query['sql']);
         $this->assertStringNotContainsString(':u_id', $query['sql']);
 
         // Now execute the query to verify it works correctly
