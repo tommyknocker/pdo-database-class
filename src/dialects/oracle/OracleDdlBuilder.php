@@ -148,7 +148,7 @@ class OracleDdlBuilder implements DdlBuilderInterface
      */
     public function buildDropTableSql(string $table): string
     {
-        return 'DROP TABLE ' . $this->quoteTable($table);
+        return 'DROP TABLE ' . $this->quoteTable($table) . ' CASCADE CONSTRAINTS';
     }
 
     /**

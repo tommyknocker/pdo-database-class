@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\cli;
 use tommyknocker\pdodb\cache\CacheFactory;
 use tommyknocker\pdodb\cli\commands\InitCommand;
 use tommyknocker\pdodb\connection\DialectRegistry;
+use tommyknocker\pdodb\connection\ExtensionChecker;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -94,6 +95,13 @@ class InitWizard extends BaseCliCommand
         $driver = mb_strtolower(getenv('PDODB_DRIVER') ?: '', 'UTF-8');
         if ($driver === '') {
             static::error('PDODB_DRIVER environment variable is required in non-interactive mode');
+        }
+
+        // Check if required PHP extension is available
+        try {
+            ExtensionChecker::validate($driver);
+        } catch (\InvalidArgumentException $e) {
+            static::error($e->getMessage());
         }
 
         $this->config['driver'] = $driver;
@@ -188,6 +196,13 @@ class InitWizard extends BaseCliCommand
 
         if (!in_array($driver, $drivers, true)) {
             static::error("Unsupported driver: {$driver}");
+        }
+
+        // Check if required PHP extension is available
+        try {
+            ExtensionChecker::validate($driver);
+        } catch (\InvalidArgumentException $e) {
+            static::error($e->getMessage());
         }
 
         $this->config['driver'] = $driver;

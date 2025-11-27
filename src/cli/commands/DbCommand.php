@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\DatabaseManager;
+use tommyknocker\pdodb\connection\ExtensionChecker;
 use tommyknocker\pdodb\exceptions\ResourceException;
 
 /**
@@ -206,6 +207,17 @@ class DbCommand extends Command
         $this->showDatabaseHeader();
 
         try {
+            // Validate extension before attempting connection
+            $config = static::loadDatabaseConfig();
+            if (isset($config['driver']) && is_string($config['driver'])) {
+                $driver = mb_strtolower($config['driver'], 'UTF-8');
+                try {
+                    ExtensionChecker::validate($driver);
+                } catch (\InvalidArgumentException $e) {
+                    $this->showError($e->getMessage());
+                }
+            }
+
             $db = $this->getDb();
             $info = DatabaseManager::getInfo($db);
 

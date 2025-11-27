@@ -740,10 +740,10 @@ class OracleDialect extends DialectAbstract
      */
     public function formatColumnForComparison(string $column): string
     {
-        // Oracle: CLOB columns cannot be compared directly with VARCHAR2
-        // Use TO_CHAR() to convert CLOB to VARCHAR2 for comparison operations
-        // This works for both CLOB and VARCHAR2 columns
-        return "TO_CHAR({$column})";
+        // Return column as-is for proper type handling
+        // TO_CHAR() was breaking TIMESTAMP comparisons (ORA-01843)
+        // CLOB comparisons work without TO_CHAR() in WHERE clauses
+        return $column;
     }
 
     /**
@@ -2091,6 +2091,9 @@ class OracleDialect extends DialectAbstract
                 continue;
             }
 
+            // Normalize column keys to uppercase (PDO returns them in lowercase by default)
+            $columns = array_map(fn($row) => array_change_key_case($row, CASE_UPPER), $columns);
+
             $colDefs = [];
             foreach ($columns as $col) {
                 $colName = $this->quoteIdentifier((string)$col['COLUMN_NAME']);
@@ -2129,6 +2132,9 @@ class OracleDialect extends DialectAbstract
                  ORDER BY INDEX_NAME',
                 [$tableName]
             );
+            // Normalize keys to uppercase
+            $indexRows = array_map(fn($row) => array_change_key_case($row, CASE_UPPER), $indexRows);
+
             foreach ($indexRows as $idxRow) {
                 // Get index columns
                 $idxCols = $db->rawQuery(
@@ -2138,6 +2144,9 @@ class OracleDialect extends DialectAbstract
                      ORDER BY COLUMN_POSITION',
                     [$idxRow['INDEX_NAME']]
                 );
+                // Normalize keys to uppercase
+                $idxCols = array_map(fn($row) => array_change_key_case($row, CASE_UPPER), $idxCols);
+
                 $colNames = array_map(fn ($c) => $this->quoteIdentifier((string)$c['COLUMN_NAME']), $idxCols);
                 $unique = (string)$idxRow['UNIQUENESS'] === 'UNIQUE' ? 'UNIQUE ' : '';
                 $idxName = $this->quoteIdentifier((string)$idxRow['INDEX_NAME']);

@@ -16,6 +16,7 @@ use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\connection\ConnectionRouter;
 use tommyknocker\pdodb\connection\DialectRegistry;
 use tommyknocker\pdodb\connection\EnvLoader;
+use tommyknocker\pdodb\connection\ExtensionChecker;
 use tommyknocker\pdodb\connection\loadbalancer\LoadBalancerInterface;
 use tommyknocker\pdodb\connection\sharding\ShardConfig;
 use tommyknocker\pdodb\connection\sharding\ShardConfigBuilder;
@@ -205,6 +206,9 @@ class PdoDb
         if ($driver === '') {
             throw new InvalidArgumentException('PDODB_DRIVER not set in .env file');
         }
+
+        // Validate that required extension is available
+        ExtensionChecker::validate($driver);
 
         // Collect environment variables
         $envVars = [];
