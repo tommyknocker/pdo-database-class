@@ -201,7 +201,6 @@ abstract class DialectAbstract implements DialectInterface
     public function concat(ConcatValue $value): RawValue
     {
         $parts = $value->getValues();
-        $dialect = $this->getDriverName();
 
         $mapped = [];
         foreach ($parts as $part) {
@@ -245,11 +244,7 @@ abstract class DialectAbstract implements DialectInterface
             // simple identifier (maybe schema.table or table.column) — quote each part
             $pieces = explode('.', $s);
             foreach ($pieces as &$p) {
-                match ($dialect) {
-                    'pgsql', 'sqlite' => $p = '"' . str_replace('"', '""', $p) . '"',
-                    'oci' => $p = '"' . str_replace('"', '""', strtoupper($p)) . '"',
-                    default => $p = '`' . str_replace('`', '``', $p) . '`'
-                };
+                $p = $this->quoteIdentifier($p);
             }
             $mapped[] = implode('.', $pieces);
         }
