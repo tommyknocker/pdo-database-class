@@ -416,11 +416,17 @@ jobs:
         run: |
           cd /tmp
           # Download Oracle Instant Client
-          wget -q --show-progress https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip
+          # Note: Oracle may require authentication or the URL may have changed
+          wget --timeout=30 --tries=3 --progress=bar:force https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip 2>&1 || WGET_EXIT=$?
           if [ ! -f instantclient-basic-linux.x64-21.1.0.0.0.zip ]; then
             echo "Error: Failed to download Oracle Instant Client"
+            echo "wget exit code: ${WGET_EXIT:-unknown}"
+            echo "Files in /tmp:"
+            ls -la /tmp/ | grep -i instant || echo "No instantclient files found"
+            echo "Please verify the Oracle Instant Client download URL is still valid"
             exit 1
           fi
+          echo "Downloaded file size: $(stat -c%s instantclient-basic-linux.x64-21.1.0.0.0.zip) bytes"
           # Extract and install
           unzip -q instantclient-basic-linux.x64-21.1.0.0.0.zip
           if [ ! -d instantclient_21_1 ]; then
