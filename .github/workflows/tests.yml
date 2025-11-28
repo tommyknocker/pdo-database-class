@@ -414,18 +414,26 @@ jobs:
           fi
       - name: Install Oracle Instant Client
         run: |
-          set +e
           cd /tmp
-          wget -q https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip
+          # Download Oracle Instant Client
+          wget -q --show-progress https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip
+          if [ ! -f instantclient-basic-linux.x64-21.1.0.0.0.zip ]; then
+            echo "Error: Failed to download Oracle Instant Client"
+            exit 1
+          fi
+          # Extract and install
           unzip -q instantclient-basic-linux.x64-21.1.0.0.0.zip
+          if [ ! -d instantclient_21_1 ]; then
+            echo "Error: Failed to extract Oracle Instant Client"
+            exit 1
+          fi
           sudo mkdir -p /usr/lib/oracle/21/client64/lib
-          sudo mv instantclient_21_1/* /usr/lib/oracle/21/client64/lib/ 2>&1
-          echo '/usr/lib/oracle/21/client64/lib' | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf > /dev/null
-          sudo ldconfig 2>&1
-          set -e
+          sudo mv instantclient_21_1/* /usr/lib/oracle/21/client64/lib/
+          echo '/usr/lib/oracle/21/client64/lib' | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
+          sudo ldconfig
           # Verify installation succeeded
           if [ ! -f /usr/lib/oracle/21/client64/lib/libclntsh.so ]; then
-            echo "Error: Oracle Instant Client installation failed"
+            echo "Error: Oracle Instant Client installation failed - libclntsh.so not found"
             exit 1
           fi
       - name: Install pdo_oci extension
