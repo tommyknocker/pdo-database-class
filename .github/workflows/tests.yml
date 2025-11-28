@@ -395,37 +395,22 @@ jobs:
           coverage: xdebug
       - name: Install Oracle Instant Client
         run: |
-          set +e
-          # Helper function to safely run apt-get commands (ignore exit code 8)
-          safe_apt_get() {
-            "$@" 2>&1
-            local exit_code=$?
-            if [ $exit_code -eq 8 ] || [ $exit_code -eq 0 ]; then
-              return 0
-            fi
-            return $exit_code
-          }
-          
-          # Helper function to install package only if not already installed
-          install_if_missing() {
-            local pkg=$1
-            if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
-              safe_apt_get sudo apt-get install -y "$pkg"
-            fi
-          }
-          
           # Update package list (ignore exit code 8)
-          safe_apt_get sudo apt-get update
+          sudo apt-get update || true
           
           # Install wget and unzip only if not already installed
-          install_if_missing wget
-          install_if_missing unzip
+          if ! dpkg-query -W -f='${Status}' wget 2>/dev/null | grep -q "install ok installed"; then
+            sudo apt-get install -y wget || true
+          fi
+          if ! dpkg-query -W -f='${Status}' unzip 2>/dev/null | grep -q "install ok installed"; then
+            sudo apt-get install -y unzip || true
+          fi
           
           # Install libaio (required for Oracle Instant Client)
           # In Ubuntu 24.04+, libaio1 is replaced with libaio1t64
           if ! dpkg-query -W -f='${Status}' libaio1t64 2>/dev/null | grep -q "install ok installed"; then
             if ! dpkg-query -W -f='${Status}' libaio1 2>/dev/null | grep -q "install ok installed"; then
-              safe_apt_get sudo apt-get install -y libaio1t64 || safe_apt_get sudo apt-get install -y libaio1
+              sudo apt-get install -y libaio1t64 || sudo apt-get install -y libaio1 || true
             fi
           fi
           
@@ -434,8 +419,7 @@ jobs:
             sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1 || true
           fi
           
-          # Download and install Oracle Instant Client (critical commands - exit on error)
-          set -e
+          # Download and install Oracle Instant Client (critical commands)
           cd /tmp
           wget -q https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip
           unzip -q instantclient-basic-linux.x64-21.1.0.0.0.zip
