@@ -394,6 +394,7 @@ jobs:
           extensions: pdo, redis, memcached, apcu, bz2
           coverage: xdebug
       - name: Install Oracle Instant Client
+        shell: bash
         run: |
           # Update package list (ignore exit code 8)
           sudo apt-get update || true
@@ -420,6 +421,7 @@ jobs:
           fi
           
           # Download and install Oracle Instant Client (critical commands)
+          set -e
           cd /tmp
           wget -q https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip
           unzip -q instantclient-basic-linux.x64-21.1.0.0.0.zip
