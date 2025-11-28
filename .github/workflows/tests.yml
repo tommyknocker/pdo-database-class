@@ -399,8 +399,9 @@ jobs:
           sudo apt-get install -y wget unzip
           # Install libaio (required for Oracle Instant Client)
           # In Ubuntu 24.04+, libaio1 is replaced with libaio1t64
+          # Check if package is installed, install only if not present
           if ! dpkg -l | grep -q "^ii.*libaio1t64" && ! dpkg -l | grep -q "^ii.*libaio1"; then
-            sudo apt-get install -y libaio1t64 2>&1 || sudo apt-get install -y libaio1 2>&1 || echo "libaio package installation skipped"
+            sudo apt-get install -y libaio1t64 || sudo apt-get install -y libaio1 || true
           fi
           # Create symlink for compatibility with Oracle Instant Client (Ubuntu 24.04+)
           if [ -f /usr/lib/x86_64-linux-gnu/libaio.so.1t64 ] && [ ! -L /usr/lib/x86_64-linux-gnu/libaio.so.1 ]; then
