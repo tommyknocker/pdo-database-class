@@ -394,32 +394,40 @@ jobs:
           extensions: pdo, redis, memcached, apcu, bz2
           coverage: xdebug
       - name: Install Oracle dependencies
-        continue-on-error: true
         run: |
-          sudo apt-get update
-          if ! dpkg-query -W -f='${Status}' wget 2>/dev/null | grep -q "install ok installed"; then
-            sudo apt-get install -y wget
+          # Check if packages are already installed (common in GitHub Actions runners)
+          if ! command -v wget >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y wget
           fi
-          if ! dpkg-query -W -f='${Status}' unzip 2>/dev/null | grep -q "install ok installed"; then
-            sudo apt-get install -y unzip
+          if ! command -v unzip >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y unzip
           fi
+          # Install libaio only if not installed
           if ! dpkg-query -W -f='${Status}' libaio1t64 2>/dev/null | grep -q "install ok installed"; then
             if ! dpkg-query -W -f='${Status}' libaio1 2>/dev/null | grep -q "install ok installed"; then
-              sudo apt-get install -y libaio1t64 || sudo apt-get install -y libaio1
+              sudo apt-get update && (sudo apt-get install -y libaio1t64 || sudo apt-get install -y libaio1)
             fi
           fi
+          # Create symlink for compatibility with Oracle Instant Client (Ubuntu 24.04+)
           if [ -f /usr/lib/x86_64-linux-gnu/libaio.so.1t64 ] && [ ! -L /usr/lib/x86_64-linux-gnu/libaio.so.1 ]; then
             sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
           fi
       - name: Install Oracle Instant Client
         run: |
+          set +e
           cd /tmp
           wget -q https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip
           unzip -q instantclient-basic-linux.x64-21.1.0.0.0.zip
           sudo mkdir -p /usr/lib/oracle/21/client64/lib
-          sudo mv instantclient_21_1/* /usr/lib/oracle/21/client64/lib/ || true
-          echo '/usr/lib/oracle/21/client64/lib' | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
-          sudo ldconfig || true
+          sudo mv instantclient_21_1/* /usr/lib/oracle/21/client64/lib/ 2>&1
+          echo '/usr/lib/oracle/21/client64/lib' | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf > /dev/null
+          sudo ldconfig 2>&1
+          set -e
+          # Verify installation succeeded
+          if [ ! -f /usr/lib/oracle/21/client64/lib/libclntsh.so ]; then
+            echo "Error: Oracle Instant Client installation failed"
+            exit 1
+          fi
       - name: Install pdo_oci extension
         run: |
           export ORACLE_HOME=/usr/lib/oracle/21/client64
