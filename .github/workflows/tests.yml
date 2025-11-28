@@ -419,13 +419,13 @@ jobs:
           ORACLE_BASIC_URL="https://download.oracle.com/otn_software/linux/instantclient/2326000/instantclient-basic-linux.x64-23.26.0.0.0.zip"
           echo "Downloading Oracle Instant Client Basic from: $ORACLE_BASIC_URL"
           wget --timeout=30 --tries=3 --progress=bar:force "$ORACLE_BASIC_URL"
-          unzip -q instantclient-basic-linux.x64-23.26.0.0.0.zip
+          unzip -o -q instantclient-basic-linux.x64-23.26.0.0.0.zip
           
           # Download Oracle Instant Client SDK (headers needed for pdo_oci compilation)
           ORACLE_SDK_URL="https://download.oracle.com/otn_software/linux/instantclient/2326000/instantclient-sdk-linux.x64-23.26.0.0.0.zip"
           echo "Downloading Oracle Instant Client SDK from: $ORACLE_SDK_URL"
           wget --timeout=30 --tries=3 --progress=bar:force "$ORACLE_SDK_URL"
-          unzip -q instantclient-sdk-linux.x64-23.26.0.0.0.zip
+          unzip -o -q instantclient-sdk-linux.x64-23.26.0.0.0.zip
           
           # Install to /usr/lib/oracle/23/client64
           # Files extract directly to instantclient_23_26/, need to organize structure
@@ -491,7 +491,7 @@ jobs:
           # Install sqlplus for health check
           cd /tmp
           wget -q https://download.oracle.com/otn_software/linux/instantclient/2326000/instantclient-sqlplus-linux.x64-23.26.0.0.0.zip
-          unzip -q instantclient-sqlplus-linux.x64-23.26.0.0.0.zip
+          unzip -o -q instantclient-sqlplus-linux.x64-23.26.0.0.0.zip
           sudo mv instantclient_23_26/sqlplus /usr/local/bin/
           sudo mv instantclient_23_26/* /usr/lib/oracle/23/client64/lib/
           sudo ldconfig
