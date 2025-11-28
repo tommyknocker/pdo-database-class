@@ -28,16 +28,18 @@ if ($driver === 'sqlite') {
     $dbPath = sys_get_temp_dir() . '/pdodb_dump_example_' . uniqid() . '.sqlite';
     $db = new PdoDb('sqlite', ['path' => $dbPath]);
     // Ensure CLI commands use the same SQLite database file
+    putenv('PDODB_DRIVER=sqlite');
     putenv('PDODB_PATH=' . $dbPath);
 } else {
     $db = createExampleDb();
+    // Set environment variables from config for CLI commands
+    // This ensures BaseCliCommand can access the same database configuration
+    $config = getExampleConfig();
+    setEnvFromConfig($config);
 }
 $driver = $db->connection?->getDriverName() ?? 'sqlite';
 $schema = $db->schema();
 
-// Set driver and non-interactive mode for CLI commands
-// This ensures BaseCliCommand loads config from examples/config.{driver}.php or environment variables
-putenv('PDODB_DRIVER=' . $driver);
 putenv('PDODB_NON_INTERACTIVE=1');
 
 // Create CLI application

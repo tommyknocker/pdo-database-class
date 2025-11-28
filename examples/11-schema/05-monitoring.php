@@ -30,6 +30,10 @@ echo "Driver: {$driver}\n\n";
 // Create database connection
 $db = createPdoDbWithErrorHandling($driver, $config);
 
+// Set environment variables from config for CLI commands
+setEnvFromConfig($config);
+putenv('PDODB_NON_INTERACTIVE=1');
+
 // Create a test table
 $schema = $db->schema();
 $schema->dropTableIfExists('monitor_test');

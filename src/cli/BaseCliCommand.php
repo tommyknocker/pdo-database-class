@@ -219,7 +219,7 @@ abstract class BaseCliCommand
             $envVars = [];
             // Always use getenv() to ensure we get variables set via putenv()
             // $_ENV may not be updated when putenv() is called
-            $envVarNames = ['PDODB_HOST', 'PDODB_PORT', 'PDODB_DATABASE', 'PDODB_USERNAME', 'PDODB_PASSWORD', 'PDODB_CHARSET', 'PDODB_PATH', 'PDODB_DRIVER'];
+            $envVarNames = ['PDODB_HOST', 'PDODB_PORT', 'PDODB_DATABASE', 'PDODB_USERNAME', 'PDODB_PASSWORD', 'PDODB_CHARSET', 'PDODB_PATH', 'PDODB_DRIVER', 'PDODB_SERVICE_NAME', 'PDODB_SID'];
             foreach ($envVarNames as $envVar) {
                 $envValue = getenv($envVar);
                 if ($envValue !== false) {
@@ -228,7 +228,12 @@ abstract class BaseCliCommand
             }
 
             // Check required variables
-            if (!isset($envVars['PDODB_DATABASE']) || !isset($envVars['PDODB_USERNAME'])) {
+            if ($driver === 'oci') {
+                // Oracle requires username and either SERVICE_NAME or SID
+                if (!isset($envVars['PDODB_USERNAME']) || (!isset($envVars['PDODB_SERVICE_NAME']) && !isset($envVars['PDODB_SID']))) {
+                    return null;
+                }
+            } elseif (!isset($envVars['PDODB_DATABASE']) || !isset($envVars['PDODB_USERNAME'])) {
                 // SQLite doesn't require username/database
                 if ($driver !== 'sqlite') {
                     return null;

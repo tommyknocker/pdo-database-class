@@ -33,29 +33,9 @@ echo "PDOdb Repository and Service Generation Examples\n";
 echo "================================================\n\n";
 echo "Driver: {$driver}\n\n";
 
-// Set non-interactive mode for CLI commands
+// Set environment variables from config for CLI commands
+setEnvFromConfig($config);
 putenv('PDODB_NON_INTERACTIVE=1');
-
-// Export database config to environment for CLI commands
-putenv('PDODB_DRIVER=' . $driver);
-if (isset($config['host'])) {
-    putenv('PDODB_HOST=' . $config['host']);
-}
-if (isset($config['port'])) {
-    putenv('PDODB_PORT=' . (string)$config['port']);
-}
-if (isset($config['database'])) {
-    putenv('PDODB_DATABASE=' . $config['database']);
-}
-if (isset($config['username'])) {
-    putenv('PDODB_USERNAME=' . $config['username']);
-}
-if (isset($config['password'])) {
-    putenv('PDODB_PASSWORD=' . $config['password']);
-}
-if (isset($config['path'])) {
-    putenv('PDODB_PATH=' . $config['path']);
-}
 
 // Create database connection
 $db = createPdoDbWithErrorHandling($driver, $config);

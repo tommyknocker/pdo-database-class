@@ -245,4 +245,51 @@ function getCurrentDriver(PdoDb $db): string
     return $connection->getDriverName();
 }
 
+/**
+ * Set environment variables from database configuration for CLI commands
+ * 
+ * This function ensures that CLI commands can access the same database configuration
+ * that was used to create the PdoDb instance. It reads the configuration array
+ * and sets all necessary PDODB_* environment variables.
+ * 
+ * @param array<string, mixed> $config Database configuration array
+ */
+function setEnvFromConfig(array $config): void
+{
+    if (isset($config['driver'])) {
+        putenv('PDODB_DRIVER=' . $config['driver']);
+    }
+    if (isset($config['host'])) {
+        putenv('PDODB_HOST=' . $config['host']);
+    }
+    if (isset($config['port'])) {
+        putenv('PDODB_PORT=' . (string)$config['port']);
+    }
+    if (isset($config['username'])) {
+        putenv('PDODB_USERNAME=' . $config['username']);
+    }
+    if (isset($config['password'])) {
+        putenv('PDODB_PASSWORD=' . $config['password']);
+    }
+    if (isset($config['database'])) {
+        putenv('PDODB_DATABASE=' . $config['database']);
+    }
+    if (isset($config['dbname'])) {
+        putenv('PDODB_DATABASE=' . $config['dbname']);
+    }
+    if (isset($config['charset'])) {
+        putenv('PDODB_CHARSET=' . $config['charset']);
+    }
+    if (isset($config['path'])) {
+        putenv('PDODB_PATH=' . $config['path']);
+    }
+    // Oracle-specific
+    if (isset($config['service_name'])) {
+        putenv('PDODB_SERVICE_NAME=' . $config['service_name']);
+    }
+    if (isset($config['sid'])) {
+        putenv('PDODB_SID=' . $config['sid']);
+    }
+}
+
 

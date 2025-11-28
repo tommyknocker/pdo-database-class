@@ -21,7 +21,14 @@ echo "=== DDL Query Builder Basics (on $driver) ===\n\n";
 $schema = $db->schema();
 
 // Drop table if exists (cleanup)
+// For MySQL/MariaDB, disable foreign key checks to avoid constraint violations
+if ($driver === 'mysql' || $driver === 'mariadb') {
+    $db->rawQuery("SET FOREIGN_KEY_CHECKS=0");
+}
 $schema->dropTableIfExists('users');
+if ($driver === 'mysql' || $driver === 'mariadb') {
+    $db->rawQuery("SET FOREIGN_KEY_CHECKS=1");
+}
 
 // Example 1: Create table with ColumnSchema fluent API
 echo "1. Creating table with ColumnSchema fluent API:\n";

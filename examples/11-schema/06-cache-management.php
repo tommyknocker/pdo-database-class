@@ -30,7 +30,8 @@ echo "Driver: {$driver}\n\n";
 // Create cache instance
 $cache = new ArrayCache();
 
-// Set cache environment variables for CLI commands to use the same cache
+// Set environment variables from config for CLI commands
+setEnvFromConfig($config);
 putenv('PDODB_CACHE_ENABLED=true');
 putenv('PDODB_CACHE_TYPE=array');
 putenv('PDODB_NON_INTERACTIVE=1');
