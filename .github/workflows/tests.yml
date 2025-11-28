@@ -417,9 +417,9 @@ jobs:
           wget -q https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip
           unzip -q instantclient-basic-linux.x64-21.1.0.0.0.zip
           sudo mkdir -p /usr/lib/oracle/21/client64/lib
-          sudo mv instantclient_21_1/* /usr/lib/oracle/21/client64/lib/
+          sudo mv instantclient_21_1/* /usr/lib/oracle/21/client64/lib/ || true
           echo '/usr/lib/oracle/21/client64/lib' | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
-          sudo ldconfig
+          sudo ldconfig || true
       - name: Install pdo_oci extension
         run: |
           export ORACLE_HOME=/usr/lib/oracle/21/client64
