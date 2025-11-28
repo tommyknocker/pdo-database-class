@@ -428,41 +428,27 @@ jobs:
           unzip -o -q instantclient-sdk-linux.x64-23.26.0.0.0.zip
           
           # Install to /usr/lib/oracle/23/client64
-          sudo mkdir -p /usr/lib/oracle/23/client64/lib
-          sudo mkdir -p /usr/lib/oracle/23/client64/bin
+          sudo mkdir -p /usr/lib/oracle/23/client64
+          sudo mv instantclient_23_26/* /usr/lib/oracle/23/client64/
           
-          # Move library files to lib/
-          sudo mv instantclient_23_26/*.so* /usr/lib/oracle/23/client64/lib/ 2>/dev/null || true
-          sudo mv instantclient_23_26/lib* /usr/lib/oracle/23/client64/lib/ 2>/dev/null || true
-          
-          # Move executables to bin/
-          sudo mv instantclient_23_26/adrci /usr/lib/oracle/23/client64/bin/ 2>/dev/null || true
-          sudo mv instantclient_23_26/genezi /usr/lib/oracle/23/client64/bin/ 2>/dev/null || true
-          
-          # Move SDK files
-          if [ -d instantclient_23_26/sdk ]; then
-            sudo mv instantclient_23_26/sdk /usr/lib/oracle/23/client64/
-          fi
-          
-          # Move any remaining files
-          sudo mv instantclient_23_26/* /usr/lib/oracle/23/client64/ 2>/dev/null || true
-          
-          echo '/usr/lib/oracle/23/client64/lib' | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
+          echo '/usr/lib/oracle/23/client64' | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
           sudo ldconfig
           
-          if [ ! -f /usr/lib/oracle/23/client64/lib/libclntsh.so ] || [ ! -f /usr/lib/oracle/23/client64/sdk/include/oci.h ]; then
+          if [ ! -f /usr/lib/oracle/23/client64/libclntsh.so ] || [ ! -f /usr/lib/oracle/23/client64/sdk/include/oci.h ]; then
             exit 1
           fi
       - name: Install pdo_oci extension
         run: |
           export ORACLE_HOME=/usr/lib/oracle/23/client64
-          export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+          export LD_LIBRARY_PATH=$ORACLE_HOME:$LD_LIBRARY_PATH
           export C_INCLUDE_PATH=$ORACLE_HOME/sdk/include:$C_INCLUDE_PATH
           export CPPFLAGS="-I$ORACLE_HOME/sdk/include"
-          export LDFLAGS="-L$ORACLE_HOME/lib"
+          export LDFLAGS="-L$ORACLE_HOME -Wl,-rpath,$ORACLE_HOME"
+          
+          sudo ldconfig
           
           if ! php -m | grep -q pdo_oci; then
-            echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" pecl install pdo_oci || echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" pecl install -f pdo_oci
+            echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install pdo_oci || echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install -f pdo_oci
             echo "extension=pdo_oci.so" | sudo tee $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||")/conf.d/pdo_oci.ini
             sudo ldconfig
           fi
@@ -470,15 +456,15 @@ jobs:
       - name: Wait for Oracle to be ready
         run: |
           export ORACLE_HOME=/usr/lib/oracle/23/client64
-          export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
-          export PATH=$ORACLE_HOME/bin:$PATH
+          export LD_LIBRARY_PATH=$ORACLE_HOME:$LD_LIBRARY_PATH
+          export PATH=$ORACLE_HOME:$PATH
           echo "Waiting for Oracle to be ready..."
           # Install sqlplus for health check
           cd /tmp
           wget -q https://download.oracle.com/otn_software/linux/instantclient/2326000/instantclient-sqlplus-linux.x64-23.26.0.0.0.zip
           unzip -o -q instantclient-sqlplus-linux.x64-23.26.0.0.0.zip
           sudo mv instantclient_23_26/sqlplus /usr/local/bin/
-          sudo mv instantclient_23_26/* /usr/lib/oracle/23/client64/lib/
+          sudo mv instantclient_23_26/* $ORACLE_HOME/
           sudo ldconfig
           for i in {1..120}; do
             if echo "SELECT 1 FROM DUAL;" | sqlplus -S system/System123456@localhost:1521/XEPDB1 2>&1 | grep -q "1"; then
@@ -496,8 +482,8 @@ jobs:
       - name: Setup Oracle test user
         run: |
           export ORACLE_HOME=/usr/lib/oracle/23/client64
-          export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
-          export PATH=$ORACLE_HOME/bin:$PATH
+          export LD_LIBRARY_PATH=$ORACLE_HOME:$LD_LIBRARY_PATH
+          export PATH=$ORACLE_HOME:$PATH
           # Connect to XEPDB1 PDB and create testuser
           sqlplus -S system/System123456@localhost:1521/XEPDB1 <<EOF
           ALTER SESSION SET CONTAINER=XEPDB1;
@@ -518,7 +504,7 @@ jobs:
       - run: composer install --no-interaction --prefer-dist
       - run: |
           export ORACLE_HOME=/usr/lib/oracle/23/client64
-          export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+          export LD_LIBRARY_PATH=$ORACLE_HOME:$LD_LIBRARY_PATH
           export PDODB_DRIVER=oci
           export PDODB_HOST=localhost
           export PDODB_PORT=1521
@@ -529,7 +515,7 @@ jobs:
       - name: Test Oracle Examples
         run: |
           export ORACLE_HOME=/usr/lib/oracle/23/client64
-          export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+          export LD_LIBRARY_PATH=$ORACLE_HOME:$LD_LIBRARY_PATH
           export PDODB_DRIVER=oci
           export PDODB_USERNAME="testuser"
           export PDODB_PASSWORD="testpass"
