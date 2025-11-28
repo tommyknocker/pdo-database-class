@@ -415,44 +415,43 @@ jobs:
       - name: Install Oracle Instant Client
         run: |
           cd /tmp
-          # Download Oracle Instant Client
-          # Correct URL format: /otn_software/linux/instantclient/211000/ (version without dots)
-          ORACLE_URL="https://download.oracle.com/otn_software/linux/instantclient/211000/instantclient-basic-linux.x64-21.1.0.0.0.zip"
-          
-          echo "Downloading Oracle Instant Client from: $ORACLE_URL"
-          if ! wget --timeout=30 --tries=3 --progress=bar:force "$ORACLE_URL"; then
-            echo "Error: Failed to download Oracle Instant Client"
-            exit 1
-          fi
-          
-          if [ ! -f instantclient-basic-linux.x64-21.1.0.0.0.zip ]; then
-            echo "Error: Downloaded file not found"
-            exit 1
-          fi
-          
-          echo "Downloaded file size: $(stat -c%s instantclient-basic-linux.x64-21.1.0.0.0.zip) bytes"
-          
-          # Extract and install
+          # Download Oracle Instant Client Basic (libraries)
+          ORACLE_BASIC_URL="https://download.oracle.com/otn_software/linux/instantclient/211000/instantclient-basic-linux.x64-21.1.0.0.0.zip"
+          echo "Downloading Oracle Instant Client Basic from: $ORACLE_BASIC_URL"
+          wget --timeout=30 --tries=3 --progress=bar:force "$ORACLE_BASIC_URL"
           unzip -q instantclient-basic-linux.x64-21.1.0.0.0.zip
-          if [ ! -d instantclient_21_1 ]; then
-            echo "Error: Failed to extract Oracle Instant Client"
-            ls -la /tmp/ | head -20
-            exit 1
-          fi
-          sudo mkdir -p /usr/lib/oracle/21/client64/lib
-          sudo mv instantclient_21_1/* /usr/lib/oracle/21/client64/lib/
+          
+          # Download Oracle Instant Client SDK (headers needed for pdo_oci compilation)
+          ORACLE_SDK_URL="https://download.oracle.com/otn_software/linux/instantclient/211000/instantclient-sdk-linux.x64-21.1.0.0.0.zip"
+          echo "Downloading Oracle Instant Client SDK from: $ORACLE_SDK_URL"
+          wget --timeout=30 --tries=3 --progress=bar:force "$ORACLE_SDK_URL"
+          unzip -q instantclient-sdk-linux.x64-21.1.0.0.0.zip
+          
+          # Install to /usr/lib/oracle/21/client64
+          sudo mkdir -p /usr/lib/oracle/21/client64
+          sudo mv instantclient_21_1/* /usr/lib/oracle/21/client64/
           echo '/usr/lib/oracle/21/client64/lib' | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
           sudo ldconfig
-          # Verify installation succeeded
+          
+          # Verify installation
           if [ ! -f /usr/lib/oracle/21/client64/lib/libclntsh.so ]; then
             echo "Error: Oracle Instant Client installation failed - libclntsh.so not found"
-            ls -la /usr/lib/oracle/21/client64/lib/ | head -20
+            exit 1
+          fi
+          if [ ! -f /usr/lib/oracle/21/client64/sdk/include/oci.h ]; then
+            echo "Error: Oracle Instant Client SDK installation failed - oci.h not found"
+            ls -la /usr/lib/oracle/21/client64/ | head -20
             exit 1
           fi
       - name: Install pdo_oci extension
         run: |
           export ORACLE_HOME=/usr/lib/oracle/21/client64
           export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+          # Set include path for oci.h header file
+          export C_INCLUDE_PATH=$ORACLE_HOME/sdk/include:$C_INCLUDE_PATH
+          export CPPFLAGS="-I$ORACLE_HOME/sdk/include"
+          export LDFLAGS="-L$ORACLE_HOME/lib"
+          
           if ! php -m | grep -q pdo_oci; then
             echo "Installing pdo_oci extension..."
             # Pass Oracle Instant Client path to pecl install
