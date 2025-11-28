@@ -7,6 +7,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.11.0] - 2025-11-28
+
+### Added
+- **Oracle Database Support** - Full support for Oracle Database (OCI driver):
+  - Complete Oracle dialect implementation with all query builder features
+  - Support for Oracle-specific data types and functions
+  - CLOB handling for large text fields in WHERE, ORDER BY, and DISTINCT clauses
+  - Oracle-specific SQL formatting (INSERT ALL, FILTER clause, etc.)
+  - Support for recursive CTEs, window functions, and advanced Oracle features
+  - `normalize_row_keys` option for automatic column name normalization
+  - Oracle examples and comprehensive test coverage
+  - Oracle CI integration in GitHub Actions with Oracle Instant Client installation
+
+- **PdoDb::fromEnv() Method** - Unified .env file support:
+  - Static method `PdoDb::fromEnv(?string $envPath = null)` for easy database connection from .env files
+  - Automatic .env file detection (respects `PDODB_ENV_PATH` environment variable)
+  - Support for all database dialects and configuration options
+  - Reusable `EnvLoader` class for .env parsing logic
+
+- **PHP Extension Validation** - Automatic validation of required PHP extensions:
+  - `ExtensionChecker` class validates required PDO extensions before connection
+  - Helpful error messages with installation suggestions for missing extensions
+  - Support for all database dialects (MySQL, PostgreSQL, SQLite, MSSQL, Oracle)
+  - Integration with `DialectRegistry` for automatic extension checking
+
+- **Extended .env File Support** - Support for all dialect-specific options in .env files:
+  - Oracle-specific options (`PDODB_SERVICE_NAME`, `PDODB_SID`)
+  - All database-specific configuration options can be set via environment variables
+  - Unified .env parsing across CLI tools and application code
+
+- **Connection Management CLI Commands** (`pdodb connection`):
+  - `pdodb connection list` - List all configured database connections
+  - `pdodb connection test [name]` - Test database connection(s)
+  - `pdodb connection info [name]` - Show detailed connection information
+  - Support for multiple named connections
+
+- **Database Seeds Functionality** (`pdodb seed`):
+  - `pdodb seed create <name>` - Create seed file
+  - `pdodb seed run [name]` - Run seed files
+  - Support for database seeding in development and testing
+
+- **Dump Command Backup Features** (`pdodb dump`):
+  - Compression support (gzip, bzip2)
+  - Auto-naming with timestamps
+  - Backup rotation with configurable retention
+  - Enhanced backup management capabilities
+
+- **Table Management Commands** (`pdodb table`):
+  - `pdodb table count [table]` - Count rows in table(s) with improved formatting
+  - `pdodb table sample <table> [limit]` - Get random sample rows from table
+
+- **Comprehensive Test Coverage**:
+  - Extended test coverage to 85%+
+  - Tests for CLI commands (MigrateCommand, ModelCommand, DbCommand, UserCommand)
+  - Tests for DDL builders (MySQL, PostgreSQL, MSSQL, SQLite)
+  - Tests for RepositoryGenerator, ServiceGenerator, MigrationGenerator
+  - Tests for CacheManager, ConnectionCommand, MonitorManager
+  - Tests for edge cases and error handling
+
+### Changed
+- **Oracle Compatibility Improvements**:
+  - Improved Oracle support for TRUE/FALSE, CAST, GREATEST, and LEAST functions
+  - Enhanced REGEXP_MATCH, COALESCE, and NULLIF support for Oracle
+  - Improved CLOB handling in formatIfNull, formatRepeat, and formatReverse
+  - Added formatUnionOrderBy() for Oracle ORDER BY in UNION queries
+  - Better date handling in INSERT ALL statements
+  - Cursor pagination support for Oracle
+
+- **Refactoring**:
+  - Removed dialect-specific logic from general classes (ConditionBuilder, concat() method)
+  - Moved dialect-specific logic to dialect implementations
+  - Improved code organization and maintainability
+
+### Fixed
+- **Oracle CI in GitHub Actions**:
+  - Fixed Oracle Instant Client installation (version 23.26.0.0.0)
+  - Fixed apt-get exit code 8 handling
+  - Fixed pdo_oci and oci8 extension compilation
+  - Fixed Oracle Instant Client SDK installation for headers
+  - Improved error handling and diagnostics
+
+- **Oracle CLI Examples**:
+  - Fixed BaseCliCommand::buildConfigFromEnv() to check PDODB_SERVICE_NAME/PDODB_SID for Oracle
+  - Added setEnvFromConfig() helper function for CLI examples
+  - Fixed environment variable propagation for Oracle examples
+  - All Oracle CLI examples now work correctly in GitHub Actions
+
+- **Oracle Examples**:
+  - Fixed recursive CTE examples
+  - Fixed type helpers and JSON basics
+  - Fixed window functions and CTEs
+  - Fixed INSERT ALL dates and FILTER clause CLOB handling
+  - Fixed cursor pagination
+
+- **Other Fixes**:
+  - Fixed Memcached adapter creation in CacheFactory
+  - Fixed foreign key constraint handling in DDL examples for MySQL/MariaDB
+  - Fixed PHPStan errors
+  - Fixed test assertions and improved test reliability
+
+### Documentation
+- Added Oracle Database installation instructions
+- Fixed all documentation links to use correct file names with numeric prefixes
+- Created bidirectional links between documentation and examples
+- Optimized README.md for better readability
+- Updated TOC with missing sections
+- Added CLI Tools section to table of contents
+- Added bash completion installation instructions
+
 ## [2.10.3] - 2025-11-21
 
 ### Added
@@ -1714,7 +1823,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.3...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.0...HEAD
+[2.11.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.3...v2.11.0
 [2.10.3]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.2...v2.10.3
 [2.10.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.1...v2.10.2
 [2.10.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.0...v2.10.1
