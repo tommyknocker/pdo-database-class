@@ -428,7 +428,6 @@ jobs:
           unzip -o -q instantclient-sdk-linux.x64-23.26.0.0.0.zip
           
           # Install to /usr/lib/oracle/23/client64
-          # Files extract directly to instantclient_23_26/, need to organize structure
           sudo mkdir -p /usr/lib/oracle/23/client64/lib
           sudo mkdir -p /usr/lib/oracle/23/client64/bin
           
@@ -440,7 +439,7 @@ jobs:
           sudo mv instantclient_23_26/adrci /usr/lib/oracle/23/client64/bin/ 2>/dev/null || true
           sudo mv instantclient_23_26/genezi /usr/lib/oracle/23/client64/bin/ 2>/dev/null || true
           
-          # Move SDK files (sdk/ directory should be in instantclient_23_26/)
+          # Move SDK files
           if [ -d instantclient_23_26/sdk ]; then
             sudo mv instantclient_23_26/sdk /usr/lib/oracle/23/client64/
           fi
@@ -451,37 +450,23 @@ jobs:
           echo '/usr/lib/oracle/23/client64/lib' | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
           sudo ldconfig
           
-          # Verify installation
-          if [ ! -f /usr/lib/oracle/23/client64/lib/libclntsh.so ]; then
-            echo "Error: Oracle Instant Client installation failed - libclntsh.so not found"
-            echo "Looking for libclntsh.so:"
-            find /usr/lib/oracle/23/client64 -name "libclntsh.so*" 2>/dev/null || echo "libclntsh.so not found"
-            exit 1
-          fi
-          if [ ! -f /usr/lib/oracle/23/client64/sdk/include/oci.h ]; then
-            echo "Error: Oracle Instant Client SDK installation failed - oci.h not found"
-            echo "Looking for oci.h:"
-            find /usr/lib/oracle/23/client64 -name "oci.h" 2>/dev/null || echo "oci.h not found"
+          if [ ! -f /usr/lib/oracle/23/client64/lib/libclntsh.so ] || [ ! -f /usr/lib/oracle/23/client64/sdk/include/oci.h ]; then
             exit 1
           fi
       - name: Install pdo_oci extension
         run: |
           export ORACLE_HOME=/usr/lib/oracle/23/client64
           export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
-          # Set include path for oci.h header file
           export C_INCLUDE_PATH=$ORACLE_HOME/sdk/include:$C_INCLUDE_PATH
           export CPPFLAGS="-I$ORACLE_HOME/sdk/include"
           export LDFLAGS="-L$ORACLE_HOME/lib"
           
           if ! php -m | grep -q pdo_oci; then
-            echo "Installing pdo_oci extension..."
-            # Pass Oracle Instant Client path to pecl install
-            # Format: instantclient,/path/to/instant/client/lib
-            echo "instantclient,$ORACLE_HOME/lib" | sudo pecl install pdo_oci || echo "instantclient,$ORACLE_HOME/lib" | sudo pecl install -f pdo_oci
+            echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" pecl install pdo_oci || echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" pecl install -f pdo_oci
             echo "extension=pdo_oci.so" | sudo tee $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||")/conf.d/pdo_oci.ini
             sudo ldconfig
           fi
-          php -m | grep pdo_oci || echo "Warning: pdo_oci extension not loaded"
+          php -m | grep pdo_oci
       - name: Wait for Oracle to be ready
         run: |
           export ORACLE_HOME=/usr/lib/oracle/23/client64
