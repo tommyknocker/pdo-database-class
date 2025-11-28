@@ -396,28 +396,21 @@ jobs:
       - name: Install Oracle Instant Client
         run: |
           # Update package list (ignore exit code 8)
-          sudo apt-get update 2>&1; EXIT_CODE=$?
-          if [ $EXIT_CODE -ne 0 ] && [ $EXIT_CODE -ne 8 ]; then exit $EXIT_CODE; fi
+          (sudo apt-get update 2>&1) || [ $? -eq 8 ] || exit $?
           
           # Install wget and unzip only if not already installed
           if ! dpkg-query -W -f='${Status}' wget 2>/dev/null | grep -q "install ok installed"; then
-            sudo apt-get install -y wget 2>&1; EXIT_CODE=$?
-            if [ $EXIT_CODE -ne 0 ] && [ $EXIT_CODE -ne 8 ]; then exit $EXIT_CODE; fi
+            (sudo apt-get install -y wget 2>&1) || [ $? -eq 8 ] || exit $?
           fi
           if ! dpkg-query -W -f='${Status}' unzip 2>/dev/null | grep -q "install ok installed"; then
-            sudo apt-get install -y unzip 2>&1; EXIT_CODE=$?
-            if [ $EXIT_CODE -ne 0 ] && [ $EXIT_CODE -ne 8 ]; then exit $EXIT_CODE; fi
+            (sudo apt-get install -y unzip 2>&1) || [ $? -eq 8 ] || exit $?
           fi
           
           # Install libaio (required for Oracle Instant Client)
           # In Ubuntu 24.04+, libaio1 is replaced with libaio1t64
           if ! dpkg-query -W -f='${Status}' libaio1t64 2>/dev/null | grep -q "install ok installed"; then
             if ! dpkg-query -W -f='${Status}' libaio1 2>/dev/null | grep -q "install ok installed"; then
-              sudo apt-get install -y libaio1t64 2>&1; EXIT_CODE=$?
-              if [ $EXIT_CODE -ne 0 ] && [ $EXIT_CODE -ne 8 ]; then
-                sudo apt-get install -y libaio1 2>&1; EXIT_CODE=$?
-                if [ $EXIT_CODE -ne 0 ] && [ $EXIT_CODE -ne 8 ]; then exit $EXIT_CODE; fi
-              fi
+              (sudo apt-get install -y libaio1t64 2>&1) || [ $? -eq 8 ] || (sudo apt-get install -y libaio1 2>&1) || [ $? -eq 8 ] || exit $?
             fi
           fi
           
