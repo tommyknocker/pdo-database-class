@@ -428,18 +428,25 @@ jobs:
           unzip -q instantclient-sdk-linux.x64-21.1.0.0.0.zip
           
           # Install to /usr/lib/oracle/21/client64
+          # SDK extracts to the same directory, so we need to preserve the structure
           sudo mkdir -p /usr/lib/oracle/21/client64
-          sudo mv instantclient_21_1/* /usr/lib/oracle/21/client64/
+          sudo cp -r instantclient_21_1/* /usr/lib/oracle/21/client64/
           echo '/usr/lib/oracle/21/client64/lib' | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf
           sudo ldconfig
           
           # Verify installation
           if [ ! -f /usr/lib/oracle/21/client64/lib/libclntsh.so ]; then
             echo "Error: Oracle Instant Client installation failed - libclntsh.so not found"
+            echo "Contents of /usr/lib/oracle/21/client64:"
+            ls -la /usr/lib/oracle/21/client64/ | head -20
+            echo "Contents of instantclient_21_1:"
+            ls -la instantclient_21_1/ | head -20
             exit 1
           fi
           if [ ! -f /usr/lib/oracle/21/client64/sdk/include/oci.h ]; then
             echo "Error: Oracle Instant Client SDK installation failed - oci.h not found"
+            echo "Looking for oci.h:"
+            find /usr/lib/oracle/21/client64 -name "oci.h" 2>/dev/null || echo "oci.h not found"
             ls -la /usr/lib/oracle/21/client64/ | head -20
             exit 1
           fi
