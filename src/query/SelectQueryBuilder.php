@@ -303,12 +303,6 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             } elseif (is_string($index)) { // ['total' => 'SUM(amount)] Treat it as SUM(amount) AS total
                 $alias = $this->dialect->quoteIdentifier($index);
 
-                // If column is already a RawValue (e.g., FilterValue from Db::count()), use it as-is
-                if ($col instanceof RawValue) {
-                    $this->select[] = $this->resolveRawValue($col) . ' AS ' . $alias;
-                    continue;
-                }
-
                 // Process external references in column expressions
                 $processedCol = $this->processExternalReferences($col);
                 if ($processedCol instanceof RawValue) {

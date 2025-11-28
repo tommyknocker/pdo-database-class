@@ -875,6 +875,15 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function normalizeSqlForExecution(string $sql): string
+    {
+        // Default: return SQL as-is (most dialects don't need normalization)
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildMigrationTableSql(string $tableName): string
     {
         // Default implementation for MySQL/MariaDB

@@ -7,9 +7,8 @@ namespace tommyknocker\pdodb\tests\shared;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
-use Psr\SimpleCache\CacheInterface;
-use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\cache\CacheFactory;
+use tommyknocker\pdodb\PdoDb;
 
 /**
  * Tests for PdoDb::fromEnv().
@@ -74,7 +73,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithSqlite(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -94,7 +93,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithCustomPath(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -111,7 +110,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvThrowsExceptionWhenDriverNotSet(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_PATH=:memory:");
+        file_put_contents($envFile, 'PDODB_PATH=/tmp/test.sqlite');
 
         try {
             $this->expectException(InvalidArgumentException::class);
@@ -129,7 +128,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithQuotedValues(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=\"sqlite\"\nPDODB_PATH=':memory:'");
+        file_put_contents($envFile, "PDODB_DRIVER=\"sqlite\"\nPDODB_PATH='/tmp/test.sqlite'");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -146,7 +145,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithComments(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "# This is a comment\nPDODB_DRIVER=sqlite\n# Another comment\nPDODB_PATH=:memory:");
+        file_put_contents($envFile, "# This is a comment\nPDODB_DRIVER=sqlite\n# Another comment\nPDODB_PATH=/tmp/test.sqlite");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -163,7 +162,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvDoesNotOverwriteExistingEnvVars(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=mysql\nPDODB_PATH=:memory:");
+        file_put_contents($envFile, "PDODB_DRIVER=mysql\nPDODB_PATH=/tmp/test.sqlite");
 
         // Set existing environment variable
         putenv('PDODB_DRIVER=sqlite');
@@ -174,7 +173,7 @@ class PdoDbFromEnvTests extends TestCase
 
             // Should use existing value (sqlite), not value from file (mysql)
             $this->assertInstanceOf(PdoDb::class, $db);
-            // Verify it's using SQLite (should work with :memory:)
+            // Verify it's using SQLite (should work with /tmp/test.sqlite)
             $result = $db->rawQuery('SELECT 1 as test');
             $this->assertTrue($result !== false);
         } finally {
@@ -188,7 +187,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithPdoOptions(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite");
 
         $pdoOptions = [
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
@@ -209,7 +208,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithLogger(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite");
 
         $logger = new NullLogger();
 
@@ -228,7 +227,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithCache(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite");
 
         $cacheConfig = [
             'type' => 'array',
@@ -275,7 +274,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvThrowsExceptionWhenRequiredVarsMissing(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=mysql");
+        file_put_contents($envFile, 'PDODB_DRIVER=mysql');
 
         try {
             $this->expectException(InvalidArgumentException::class);
@@ -293,7 +292,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithInvalidDriver(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=invalid_driver\nPDODB_PATH=:memory:");
+        file_put_contents($envFile, "PDODB_DRIVER=invalid_driver\nPDODB_PATH=/tmp/test.sqlite");
 
         try {
             $this->expectException(InvalidArgumentException::class);
@@ -315,7 +314,7 @@ class PdoDbFromEnvTests extends TestCase
         $backupContent = $backupExists ? file_get_contents($envFile) : null;
 
         try {
-            file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:");
+            file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite");
 
             $db = PdoDb::fromEnv();
 
@@ -335,7 +334,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithPrefix(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_PREFIX=test_");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_PREFIX=test_");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -353,7 +352,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithSqliteMode(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_MODE=rwc");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_MODE=rwc");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -373,7 +372,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithSqliteCache(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_CACHE=shared");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_CACHE=shared");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -393,7 +392,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithSqliteEnableRegexp(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_ENABLE_REGEXP=true");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_ENABLE_REGEXP=true");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -413,7 +412,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithMysqlUnixSocket(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_UNIX_SOCKET=/tmp/mysql.sock");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_UNIX_SOCKET=/tmp/mysql.sock");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -431,7 +430,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithMysqlSslOptions(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_SSLCA=/path/ca.pem\nPDODB_SSLCERT=/path/cert.pem\nPDODB_SSLKEY=/path/key.pem");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_SSLCA=/path/ca.pem\nPDODB_SSLCERT=/path/cert.pem\nPDODB_SSLKEY=/path/key.pem");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -449,7 +448,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithMysqlCompress(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_COMPRESS=true");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_COMPRESS=true");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -467,7 +466,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithPostgresqlSslOptions(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_SSLMODE=require\nPDODB_SSLCERT=/path/cert.crt\nPDODB_SSLKEY=/path/key.key\nPDODB_SSLROOTCERT=/path/ca.crt");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_SSLMODE=require\nPDODB_SSLCERT=/path/cert.crt\nPDODB_SSLKEY=/path/key.key\nPDODB_SSLROOTCERT=/path/ca.crt");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -485,7 +484,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithPostgresqlApplicationName(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_APPLICATION_NAME=MyApp");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_APPLICATION_NAME=MyApp");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -503,7 +502,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithPostgresqlConnectTimeout(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_CONNECT_TIMEOUT=5");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_CONNECT_TIMEOUT=5");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -521,7 +520,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithMssqlTrustServerCertificate(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_TRUST_SERVER_CERTIFICATE=false");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_TRUST_SERVER_CERTIFICATE=false");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -539,7 +538,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithMssqlEncrypt(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_ENCRYPT=false");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_ENCRYPT=false");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -557,7 +556,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithOracleServiceName(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_SERVICE_NAME=XEPDB1");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_SERVICE_NAME=XEPDB1");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -575,7 +574,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithOracleSid(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_SID=XE");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_SID=XE");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -593,7 +592,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvCollectsAllPdodbVariables(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_PREFIX=test_\nPDODB_MODE=rwc\nPDODB_CACHE=shared\nPDODB_ENABLE_REGEXP=true\nPDODB_CUSTOM_OPTION=value");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_PREFIX=test_\nPDODB_MODE=rwc\nPDODB_CACHE=shared\nPDODB_ENABLE_REGEXP=true\nPDODB_CUSTOM_OPTION=value");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -614,7 +613,7 @@ class PdoDbFromEnvTests extends TestCase
     public function testFromEnvWithBooleanValues(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=:memory:\nPDODB_COMPRESS=true\nPDODB_ENABLE_REGEXP=false\nPDODB_TRUST_SERVER_CERTIFICATE=1\nPDODB_ENCRYPT=0");
+        file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_PATH=/tmp/test.sqlite\nPDODB_COMPRESS=true\nPDODB_ENABLE_REGEXP=false\nPDODB_TRUST_SERVER_CERTIFICATE=1\nPDODB_ENCRYPT=0");
 
         try {
             $db = PdoDb::fromEnv($envFile);
@@ -628,4 +627,3 @@ class PdoDbFromEnvTests extends TestCase
         }
     }
 }
-

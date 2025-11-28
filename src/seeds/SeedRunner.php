@@ -582,8 +582,9 @@ class SeedRunner
     {
         // Use rawQueryOne to avoid QueryBuilder adding ORDER BY which causes issues
         // with aggregate functions in PostgreSQL
-        // Table name is controlled by us and safe to use directly
-        $sql = "SELECT MAX(batch) as max_batch FROM {$this->seedTable}";
+        // Table name must be quoted for Oracle compatibility
+        $tableQuoted = $this->db->connection->getDialect()->quoteTable($this->seedTable);
+        $sql = "SELECT MAX(batch) as max_batch FROM {$tableQuoted}";
         $result = $this->db->rawQueryOne($sql);
 
         $maxBatch = $result['max_batch'] ?? null;

@@ -123,7 +123,7 @@ class OracleDdlBuilder implements DdlBuilderInterface
             }
         }
 
-        $sql = "CREATE TABLE {$tableQuoted} (" . implode(", ", $columnDefs) . ")";
+        $sql = "CREATE TABLE {$tableQuoted} (" . implode(', ', $columnDefs) . ')';
 
         // Add table options
         if (!empty($options['tablespace'])) {

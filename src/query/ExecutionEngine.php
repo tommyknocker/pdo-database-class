@@ -285,7 +285,6 @@ class ExecutionEngine implements ExecutionEngineInterface
         return $this->fetchMode;
     }
 
-
     /**
      * Resolve RawValue instances.
      *

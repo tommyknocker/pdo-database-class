@@ -74,9 +74,10 @@ class ExtensionChecker
 
         if (!extension_loaded($extension)) {
             $driverName = ucfirst($driver);
+
             throw new InvalidArgumentException(
                 "PHP extension '{$extension}' is required for {$driverName} driver but is not installed. " .
-                "Please install it using: " . static::getInstallCommand($extension)
+                'Please install it using: ' . static::getInstallCommand($extension)
             );
         }
     }
@@ -127,4 +128,3 @@ class ExtensionChecker
         return array_keys(static::$driverExtensions);
     }
 }
-

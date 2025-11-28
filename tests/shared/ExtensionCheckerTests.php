@@ -123,4 +123,3 @@ class ExtensionCheckerTests extends TestCase
         $this->assertTrue(ExtensionChecker::isAvailable('Sqlite'));
     }
 }
-

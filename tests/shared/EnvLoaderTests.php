@@ -189,7 +189,7 @@ class EnvLoaderTests extends TestCase
     public function testLoadDoesNotOverwriteExisting(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_TEST=new_value");
+        file_put_contents($envFile, 'PDODB_TEST=new_value');
 
         // Set existing environment variable
         putenv('PDODB_TEST=existing_value');
@@ -213,7 +213,7 @@ class EnvLoaderTests extends TestCase
     public function testLoadOverwritesWhenRequested(): void
     {
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
-        file_put_contents($envFile, "PDODB_TEST=new_value");
+        file_put_contents($envFile, 'PDODB_TEST=new_value');
 
         // Set existing environment variable
         putenv('PDODB_TEST=existing_value');
@@ -338,4 +338,3 @@ class EnvLoaderTests extends TestCase
         }
     }
 }
-

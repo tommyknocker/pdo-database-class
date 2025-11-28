@@ -4,16 +4,23 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use PDO;
+use PDOException;
+use PDOStatement;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use RuntimeException;
+use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\connection\ConnectionRouter;
+use tommyknocker\pdodb\connection\loadbalancer\LoadBalancerInterface;
 use tommyknocker\pdodb\connection\loadbalancer\WeightedLoadBalancer;
+use tommyknocker\pdodb\dialects\DialectInterface;
 
 /**
  * Tests for ConnectionRouter class.
  */
 final class ConnectionRouterTests extends BaseSharedTestCase
 {
-    protected function createMockConnection(): \tommyknocker\pdodb\connection\ConnectionInterface
+    protected function createMockConnection(): ConnectionInterface
     {
         // Use a real connection wrapper for testing
         return self::$db->connection;
@@ -183,7 +190,7 @@ final class ConnectionRouterTests extends BaseSharedTestCase
         $router = new ConnectionRouter();
         $loadBalancer = $router->getLoadBalancer();
 
-        $this->assertInstanceOf(\tommyknocker\pdodb\connection\loadbalancer\LoadBalancerInterface::class, $loadBalancer);
+        $this->assertInstanceOf(LoadBalancerInterface::class, $loadBalancer);
     }
 
     public function testSetLoadBalancer(): void
@@ -209,17 +216,17 @@ final class ConnectionRouterTests extends BaseSharedTestCase
         $router = new ConnectionRouter();
 
         // Create a connection that throws exception on query
-        $unhealthyConnection = new class (self::$db->connection) implements \tommyknocker\pdodb\connection\ConnectionInterface {
-            public function __construct(protected \tommyknocker\pdodb\connection\ConnectionInterface $connection)
+        $unhealthyConnection = new class (self::$db->connection) implements ConnectionInterface {
+            public function __construct(protected ConnectionInterface $connection)
             {
             }
 
-            public function getPdo(): \PDO
+            public function getPdo(): PDO
             {
                 return $this->connection->getPdo();
             }
 
-            public function getDialect(): \tommyknocker\pdodb\dialects\DialectInterface
+            public function getDialect(): DialectInterface
             {
                 return $this->connection->getDialect();
             }
@@ -239,14 +246,14 @@ final class ConnectionRouterTests extends BaseSharedTestCase
                 return $this->connection->prepare($sql, $params);
             }
 
-            public function execute(array $params = []): \PDOStatement
+            public function execute(array $params = []): PDOStatement
             {
                 return $this->connection->execute($params);
             }
 
-            public function query(string $sql): \PDOStatement|false
+            public function query(string $sql): PDOStatement|false
             {
-                throw new \PDOException('Connection failed', 2002);
+                throw new PDOException('Connection failed', 2002);
             }
 
             public function quote(mixed $value): string|false
@@ -309,12 +316,12 @@ final class ConnectionRouterTests extends BaseSharedTestCase
                 return $this->connection->getAttribute($attribute);
             }
 
-            public function setEventDispatcher(?\Psr\EventDispatcher\EventDispatcherInterface $dispatcher): void
+            public function setEventDispatcher(?EventDispatcherInterface $dispatcher): void
             {
                 $this->connection->setEventDispatcher($dispatcher);
             }
 
-            public function getEventDispatcher(): ?\Psr\EventDispatcher\EventDispatcherInterface
+            public function getEventDispatcher(): ?EventDispatcherInterface
             {
                 return $this->connection->getEventDispatcher();
             }
@@ -322,6 +329,14 @@ final class ConnectionRouterTests extends BaseSharedTestCase
             public function setTempQueryContext(?array $queryContext): void
             {
                 $this->connection->setTempQueryContext($queryContext);
+            }
+
+            /**
+             * @inheritDoc
+             */
+            public function getOptions(): array
+            {
+                return [];
             }
         };
 

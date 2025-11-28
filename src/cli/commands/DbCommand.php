@@ -211,6 +211,7 @@ class DbCommand extends Command
             $config = static::loadDatabaseConfig();
             if (isset($config['driver']) && is_string($config['driver'])) {
                 $driver = mb_strtolower($config['driver'], 'UTF-8');
+
                 try {
                     ExtensionChecker::validate($driver);
                 } catch (\InvalidArgumentException $e) {

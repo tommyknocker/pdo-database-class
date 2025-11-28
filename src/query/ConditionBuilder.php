@@ -824,7 +824,7 @@ class ConditionBuilder implements ConditionBuilderInterface
 
         // Check if exprOrColumn is an external reference (e.g., "users.department")
         // If so, we need to apply formatColumnForComparison to the left side column
-        $isExternalRef = is_string($exprOrColumn) && $this->isExternalReference((string)$exprOrColumn);
+        $isExternalRef = $this->isExternalReference($exprOrColumn);
         if ($isExternalRef) {
             // External reference on left side - apply formatColumnForComparison for CLOB compatibility
             $exprQuoted = $this->quoteQualifiedIdentifier((string)$exprOrColumn);
@@ -1020,13 +1020,13 @@ class ConditionBuilder implements ConditionBuilderInterface
                     // Apply formatColumnForComparison for CLOB compatibility (e.g., Oracle)
                     // when comparing with external references (e.g., users.department)
                     $columnForComparison = $this->dialect->formatColumnForComparison($exprQuoted);
-                    // If resolved value looks like an external reference (e.g., "users.department"), 
+                    // If resolved value looks like an external reference (e.g., "users.department"),
                     // also apply formatColumnForComparison to it for CLOB compatibility
                     // Check pattern first (table.column), then apply formatColumnForComparison
                     // In subqueries, external references from outer query need TO_CHAR() for CLOB compatibility
                     // Trim resolved value to handle any whitespace
-                    $resolvedTrimmed = is_string($resolved) ? trim($resolved) : $resolved;
-                    if (is_string($resolvedTrimmed) && preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*$/', $resolvedTrimmed)) {
+                    $resolvedTrimmed = trim($resolved);
+                    if (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*$/', $resolvedTrimmed)) {
                         // It's a table.column pattern - apply formatColumnForComparison for CLOB compatibility
                         // This handles external references in subqueries (e.g., users.department in subquery)
                         $externalRefQuoted = $this->quoteQualifiedIdentifier($resolvedTrimmed);

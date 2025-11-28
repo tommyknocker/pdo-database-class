@@ -893,6 +893,17 @@ interface DialectInterface
     public function normalizeRawValue(string $sql): string;
 
     /**
+     * Normalize SQL statement before execution (prepare/query/exec).
+     * This is called before SQL is sent to PDO for execution.
+     * Dialects can use this to remove trailing semicolons, fix syntax, etc.
+     *
+     * @param string $sql SQL statement to normalize
+     *
+     * @return string Normalized SQL statement
+     */
+    public function normalizeSqlForExecution(string $sql): string;
+
+    /**
      * Normalize row keys for dialect-specific requirements.
      * For example, Oracle may need to convert CLOB resources to strings and lowercase keys.
      *
@@ -1899,6 +1910,7 @@ interface DialectInterface
      *
      * @param mixed $value The value to transform
      * @param string $columnName The column name this value is for
+     *
      * @return mixed The transformed value, or original value if no transformation needed
      */
     public function transformValueForBinding(mixed $value, string $columnName): mixed;

@@ -911,10 +911,10 @@ final class InitWizardTests extends TestCase
         // Test that DialectRegistry correctly identifies unsupported driver
         // This is what loadConfigFromEnv() checks before calling static::error()
         $this->assertFalse(\tommyknocker\pdodb\connection\DialectRegistry::isSupported('unsupported'));
-        
+
         // Verify that ExtensionChecker also returns null for unsupported driver
         $this->assertNull(\tommyknocker\pdodb\connection\ExtensionChecker::getRequiredExtension('unsupported'));
-        
+
         // Note: We can't test the actual loadConfigFromEnv() method with unsupported driver
         // because static::error() calls exit(), which terminates the PHP process.
         // The logic is verified above - unsupported drivers are correctly identified.
@@ -1520,10 +1520,10 @@ final class InitWizardTests extends TestCase
         // Test that DialectRegistry correctly identifies invalid driver
         // This is what loadConfigFromEnv() checks before calling static::error()
         $this->assertFalse(\tommyknocker\pdodb\connection\DialectRegistry::isSupported('invalid_driver'));
-        
+
         // Verify that ExtensionChecker also returns null for invalid driver
         $this->assertNull(\tommyknocker\pdodb\connection\ExtensionChecker::getRequiredExtension('invalid_driver'));
-        
+
         // Note: We can't test the actual loadConfigFromEnv() method with invalid driver
         // because static::error() calls exit(), which terminates the PHP process.
         // The logic is verified above - invalid drivers are correctly identified.

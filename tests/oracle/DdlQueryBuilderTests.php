@@ -111,6 +111,3 @@ final class DdlQueryBuilderTests extends BaseOracleTestCase
         $schema->dropTable('test_oracle_types');
     }
 }
-
-
-

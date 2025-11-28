@@ -112,6 +112,14 @@ final class LoadBalancerTests extends BaseSharedTestCase
                 public function setTempQueryContext(?array $queryContext): void
                 {
                 }
+
+                /**
+                 * @inheritDoc
+                 */
+                public function getOptions(): array
+                {
+                    return [];
+                }
             };
         };
 
@@ -268,6 +276,14 @@ final class LoadBalancerTests extends BaseSharedTestCase
                 public function setTempQueryContext(?array $queryContext): void
                 {
                 }
+
+                /**
+                 * @inheritDoc
+                 */
+                public function getOptions(): array
+                {
+                    return [];
+                }
             };
         };
 
@@ -395,6 +411,14 @@ final class LoadBalancerTests extends BaseSharedTestCase
 
                 public function setTempQueryContext(?array $queryContext): void
                 {
+                }
+
+                /**
+                 * @inheritDoc
+                 */
+                public function getOptions(): array
+                {
+                    return [];
                 }
             };
         };
@@ -524,6 +548,14 @@ final class LoadBalancerTests extends BaseSharedTestCase
 
                 public function setTempQueryContext(?array $queryContext): void
                 {
+                }
+
+                /**
+                 * @inheritDoc
+                 */
+                public function getOptions(): array
+                {
+                    return [];
                 }
             };
         };
@@ -674,6 +706,14 @@ final class LoadBalancerTests extends BaseSharedTestCase
                 public function setTempQueryContext(?array $queryContext): void
                 {
                 }
+
+                /**
+                 * @inheritDoc
+                 */
+                public function getOptions(): array
+                {
+                    return [];
+                }
             };
         };
 
@@ -800,6 +840,14 @@ final class LoadBalancerTests extends BaseSharedTestCase
 
                 public function setTempQueryContext(?array $queryContext): void
                 {
+                }
+
+                /**
+                 * @inheritDoc
+                 */
+                public function getOptions(): array
+                {
+                    return [];
                 }
             };
         };
@@ -928,6 +976,14 @@ final class LoadBalancerTests extends BaseSharedTestCase
 
                 public function setTempQueryContext(?array $queryContext): void
                 {
+                }
+
+                /**
+                 * @inheritDoc
+                 */
+                public function getOptions(): array
+                {
+                    return [];
                 }
             };
         };

@@ -248,6 +248,9 @@ class Connection implements ConnectionInterface
      */
     public function prepare(string $sql, array $params = []): static
     {
+        // Normalize SQL for dialect-specific requirements
+        $sql = $this->dialect->normalizeSqlForExecution($sql);
+
         $this->logOperationStart('prepare', $sql);
 
         try {
@@ -350,6 +353,9 @@ class Connection implements ConnectionInterface
      */
     public function query(string $sql): PDOStatement|false
     {
+        // Normalize SQL for dialect-specific requirements
+        $sql = $this->dialect->normalizeSqlForExecution($sql);
+
         $this->resetState();
         $this->logOperationStart('query', $sql);
         $startTime = microtime(true);

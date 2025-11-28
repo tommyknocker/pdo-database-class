@@ -1048,17 +1048,20 @@ class OracleDialect extends DialectAbstract
         foreach ($orderBy as $orderExpr) {
             // Extract column name and direction (ASC/DESC)
             $parts = preg_split('/\s+/', trim($orderExpr), 2);
+            if ($parts === false) {
+                continue;
+            }
             $column = $parts[0];
             $direction = isset($parts[1]) ? ' ' . $parts[1] : '';
 
             // Extract column name from ORDER BY expression (handle TO_CHAR("NAME"), "NAME", etc.)
             $columnNormalized = $this->extractColumnNameFromExpression($column);
-            
+
             $position = null;
             foreach ($selectColumns as $index => $selectCol) {
                 // Extract column name from SELECT column (handle TO_CHAR("NAME"), "NAME", aliases, etc.)
                 $selectColNormalized = $this->extractColumnNameFromExpression($selectCol);
-                
+
                 // Check if column matches (case-insensitive)
                 if (strcasecmp($columnNormalized, $selectColNormalized) === 0) {
                     $position = $index + 1; // 1-based position
@@ -1088,27 +1091,27 @@ class OracleDialect extends DialectAbstract
     protected function extractColumnNameFromExpression(string $expr): string
     {
         $expr = trim($expr);
-        
+
         // Handle function calls like TO_CHAR("NAME") -> extract "NAME"
         if (preg_match('/\([`"\[]?([A-Za-z0-9_]+)[`"\]]?\)$/i', $expr, $matches)) {
             return strtoupper($matches[1]);
         }
-        
+
         // Handle quoted identifiers like "NAME" -> NAME
         if (preg_match('/^[`"\[]?([A-Za-z0-9_]+)[`"\]]?$/i', $expr, $matches)) {
             return strtoupper($matches[1]);
         }
-        
+
         // Handle qualified identifiers like table.column -> column
         if (preg_match('/\.([A-Za-z0-9_]+)$/i', $expr, $matches)) {
             return strtoupper($matches[1]);
         }
-        
+
         // Handle aliases like "name AS product_name" -> product_name
         if (preg_match('/\s+AS\s+([a-zA-Z_][a-zA-Z0-9_]*)/i', $expr, $aliasMatches)) {
             return strtoupper($aliasMatches[1]);
         }
-        
+
         // Default: return uppercase version of expression
         return strtoupper(trim($expr, '"`[]'));
     }
@@ -1411,8 +1414,22 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function normalizeSqlForExecution(string $sql): string
+    {
+        // Oracle PDO doesn't support semicolons at the end of SQL statements
+        // But PL/SQL blocks (BEGIN...END) require semicolon, so don't remove it for them
+        if (!preg_match('/\bBEGIN\b.*\bEND\b/si', $sql)) {
+            $sql = rtrim($sql, " \t\n\r\0\x0B;");
+        }
+        return $sql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function normalizeRawValue(string $sql): string
     {
+        /** @var string $sql */
         // Oracle-specific normalization: handle LENGTH(COALESCE(...)) with CLOB columns
         // LENGTH(COALESCE(email, phone, 'N/A')) -> LENGTH(TO_CHAR(COALESCE(TO_CHAR("EMAIL"), TO_CHAR("PHONE"), 'N/A')))
         if (preg_match('/^LENGTH\s*\(\s*COALESCE\s*\((.*)\)\s*\)$/i', trim($sql), $lengthMatches)) {
@@ -1421,7 +1438,7 @@ class OracleDialect extends DialectAbstract
             $normalizedCoalesce = $this->normalizeCoalesceArgs($coalesceArgs);
             return "LENGTH(TO_CHAR(COALESCE($normalizedCoalesce)))";
         }
-        
+
         // Oracle-specific normalization: handle COALESCE with CLOB columns
         // COALESCE(phone, email, 'No contact') -> COALESCE(TO_CHAR("PHONE"), TO_CHAR("EMAIL"), 'No contact')
         if (preg_match('/^COALESCE\s*\((.*)\)$/i', trim($sql), $matches)) {
@@ -1452,7 +1469,7 @@ class OracleDialect extends DialectAbstract
             if ($current !== '') {
                 $args[] = trim($current);
             }
-            
+
             $formattedArgs = [];
             foreach ($args as $arg) {
                 $arg = trim($arg);
@@ -1489,7 +1506,7 @@ class OracleDialect extends DialectAbstract
                     if (preg_match('/CAST\s*\(([^,]+)\s+AS\s+([^)]+)\)/i', $arg, $castMatches)) {
                         $castExpr = trim($castMatches[1]);
                         $castType = trim($castMatches[2]);
-                        
+
                         // Check if CAST expression is a column identifier
                         $isCastQuotedIdentifier = preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $castExpr);
                         $isCastUnquotedIdentifier = preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $castExpr);
@@ -1500,7 +1517,7 @@ class OracleDialect extends DialectAbstract
                             // It's a column - apply TO_CHAR() for CLOB compatibility before CAST
                             $castQuoted = $isCastQuotedIdentifier ? $castExpr : $this->quoteIdentifier($castExpr);
                             $castExprFormatted = $this->formatColumnForComparison($castQuoted);
-                            
+
                             // For numeric types (INTEGER, NUMBER, etc.), use CASE WHEN for safe casting
                             // Oracle CAST throws error on invalid values, so we need to catch it
                             if (preg_match('/^(INTEGER|NUMBER|DECIMAL|NUMERIC|REAL|FLOAT|DOUBLE)/i', $castType)) {
@@ -1520,14 +1537,15 @@ class OracleDialect extends DialectAbstract
                     }
                     // Check if it contains || operator (Oracle concatenation)
                     // 'Name: ' || name -> 'Name: ' || TO_CHAR("NAME")
-                    if (preg_match('/\|\|/', $arg)) {
+                    if ($arg !== null && preg_match('/\|\|/', $arg)) {
                         // Handle || operator (Oracle concatenation)
                         // Split by || but respect quoted strings
                         $parts = [];
                         $current = '';
                         $inQuotes = false;
                         $quoteChar = '';
-                        for ($i = 0; $i < strlen($arg); $i++) {
+                        $argLength = strlen($arg);
+                        for ($i = 0; $i < $argLength; $i++) {
                             $char = $arg[$i];
                             if (($char === '"' || $char === "'") && ($i === 0 || $arg[$i - 1] !== '\\')) {
                                 if (!$inQuotes) {
@@ -1538,7 +1556,7 @@ class OracleDialect extends DialectAbstract
                                     $quoteChar = '';
                                 }
                                 $current .= $char;
-                            } elseif ($char === '|' && $i + 1 < strlen($arg) && $arg[$i + 1] === '|' && !$inQuotes) {
+                            } elseif ($char === '|' && $i + 1 < $argLength && $arg[$i + 1] === '|' && !$inQuotes) {
                                 // Found || operator
                                 $parts[] = trim($current);
                                 $current = '';
@@ -1550,7 +1568,7 @@ class OracleDialect extends DialectAbstract
                         if ($current !== '') {
                             $parts[] = trim($current);
                         }
-                        
+
                         // Process each part
                         $formattedParts = [];
                         foreach ($parts as $part) {
@@ -1579,7 +1597,7 @@ class OracleDialect extends DialectAbstract
                         }
                         // Rebuild with || operator
                         $arg = implode(' || ', $formattedParts);
-                    } elseif (preg_match('/CONCAT\s*\(([^)]+)\)/i', $arg, $concatMatches)) {
+                    } elseif ($arg !== null && preg_match('/CONCAT\s*\(([^)]+)\)/i', $arg, $concatMatches)) {
                         $concatArgs = $concatMatches[1];
                         // Split CONCAT arguments by comma, but respect quoted strings
                         $concatParts = [];
@@ -1607,7 +1625,7 @@ class OracleDialect extends DialectAbstract
                         if ($current !== '') {
                             $concatParts[] = trim($current);
                         }
-                        
+
                         // Process each CONCAT argument
                         $formattedConcatParts = [];
                         foreach ($concatParts as $part) {
@@ -1635,13 +1653,13 @@ class OracleDialect extends DialectAbstract
             // Wrapping in TO_CHAR() would cause type conversion issues
             return 'COALESCE(' . implode(', ', $formattedArgs) . ')';
         }
-        
+
         // Oracle-specific normalization: handle NULLIF with CLOB columns
         // NULLIF(email, '') -> NULLIF(TO_CHAR("EMAIL"), '')
         if (preg_match('/^NULLIF\s*\((.*),\s*(.*)\)$/i', trim($sql), $matches)) {
             $expr1 = trim($matches[1]);
             $expr2 = trim($matches[2]);
-            
+
             // Apply formatColumnForComparison to first expression if it's a column
             if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $expr1) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $expr1)) {
                 // It's a column identifier
@@ -1651,40 +1669,54 @@ class OracleDialect extends DialectAbstract
                 // It's an expression - keep as-is
                 $expr1Formatted = $expr1;
             }
-            
+
             return "NULLIF($expr1Formatted, $expr2)";
         }
-        
+
         // Oracle-specific normalization: handle CAST with CLOB columns
         // CAST(text_value AS NUMBER) -> CAST(TO_CHAR("TEXT_VALUE") AS NUMBER)
         if (preg_match('/CAST\s*\(([^,]+)\s+AS\s+([^)]+)\)/i', $sql, $matches)) {
             $expr = trim($matches[1]);
             $type = trim($matches[2]);
-            
+
             // Check if expression is a column identifier (quoted or unquoted)
             if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $expr) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $expr)) {
                 // It's a column - apply TO_CHAR() for CLOB compatibility before CAST
                 $quoted = preg_match('/^["`\[\]]/', $expr) ? $expr : $this->quoteIdentifier($expr);
                 $exprFormatted = $this->formatColumnForComparison($quoted);
                 // Replace CAST(column AS type) with CAST(TO_CHAR(column) AS type)
-                $sql = preg_replace('/CAST\s*\(' . preg_quote($expr, '/') . '\s+AS\s+' . preg_quote($type, '/') . '\)/i', "CAST($exprFormatted AS $type)", $sql);
+                $result = preg_replace('/CAST\s*\(' . preg_quote($expr, '/') . '\s+AS\s+' . preg_quote($type, '/') . '\)/i', "CAST($exprFormatted AS $type)", $sql);
+                if (is_string($result)) {
+                    $sql = $result;
+                }
             }
         }
-        
+
         // Oracle-specific normalization: handle LOG10() -> LOG(10, ...)
         // Oracle doesn't support LOG10(), use LOG(10, ...) instead
         if (preg_match('/LOG10\s*\(/i', $sql)) {
-            $sql = preg_replace('/LOG10\s*\(/i', 'LOG(10, ', $sql);
+            $result = preg_replace('/LOG10\s*\(/i', 'LOG(10, ', $sql);
+            if (is_string($result)) {
+                $sql = $result;
+            }
         }
-        
+
         // Oracle-specific normalization: handle TRUE/FALSE -> 1/0
         // Oracle doesn't support TRUE/FALSE constants, use 1/0 instead
-        $sql = preg_replace('/\bTRUE\b/i', '1', $sql);
-        $sql = preg_replace('/\bFALSE\b/i', '0', $sql);
-        
+        if ($sql !== '') {
+            $result = preg_replace('/\bTRUE\b/i', '1', $sql);
+            if (is_string($result)) {
+                $sql = $result;
+            }
+            $result = preg_replace('/\bFALSE\b/i', '0', $sql);
+            if (is_string($result)) {
+                $sql = $result;
+            }
+        }
+
         return $sql;
     }
-    
+
     /**
      * Normalize COALESCE arguments for CLOB compatibility.
      *
@@ -1720,7 +1752,7 @@ class OracleDialect extends DialectAbstract
         if ($current !== '') {
             $args[] = trim($current);
         }
-        
+
         $formattedArgs = [];
         foreach ($args as $arg) {
             $arg = trim($arg);
@@ -1748,7 +1780,7 @@ class OracleDialect extends DialectAbstract
                 $formattedArgs[] = $arg;
             }
         }
-        
+
         return implode(', ', $formattedArgs);
     }
 
@@ -2092,7 +2124,7 @@ class OracleDialect extends DialectAbstract
             }
 
             // Normalize column keys to uppercase (PDO returns them in lowercase by default)
-            $columns = array_map(fn($row) => array_change_key_case($row, CASE_UPPER), $columns);
+            $columns = array_map(fn ($row) => array_change_key_case($row, CASE_UPPER), $columns);
 
             $colDefs = [];
             foreach ($columns as $col) {
@@ -2130,6 +2162,23 @@ class OracleDialect extends DialectAbstract
 
             $output[] = "CREATE TABLE {$quotedTable} (\n  " . implode(",\n  ", $colDefs) . "\n);";
 
+            // Add primary key constraint
+            $pkRows = $db->rawQuery(
+                "SELECT ac.CONSTRAINT_NAME, acc.COLUMN_NAME
+                 FROM USER_CONSTRAINTS ac
+                 JOIN USER_CONS_COLUMNS acc ON ac.CONSTRAINT_NAME = acc.CONSTRAINT_NAME
+                 WHERE ac.TABLE_NAME = UPPER(?) AND ac.CONSTRAINT_TYPE = 'P'
+                 ORDER BY acc.POSITION",
+                [$tableName]
+            );
+            $pkRows = array_map(fn ($row) => array_change_key_case($row, CASE_UPPER), $pkRows);
+
+            if (!empty($pkRows)) {
+                $pkName = $this->quoteIdentifier((string)$pkRows[0]['CONSTRAINT_NAME']);
+                $pkCols = array_map(fn ($r) => $this->quoteIdentifier((string)$r['COLUMN_NAME']), $pkRows);
+                $output[] = "ALTER TABLE {$quotedTable} ADD CONSTRAINT {$pkName} PRIMARY KEY (" . implode(', ', $pkCols) . ');';
+            }
+
             // Get indexes
             $indexRows = $db->rawQuery(
                 'SELECT INDEX_NAME, INDEX_TYPE, UNIQUENESS
@@ -2139,7 +2188,7 @@ class OracleDialect extends DialectAbstract
                 [$tableName]
             );
             // Normalize keys to uppercase
-            $indexRows = array_map(fn($row) => array_change_key_case($row, CASE_UPPER), $indexRows);
+            $indexRows = array_map(fn ($row) => array_change_key_case($row, CASE_UPPER), $indexRows);
 
             foreach ($indexRows as $idxRow) {
                 $indexName = (string)$idxRow['INDEX_NAME'];
@@ -2159,13 +2208,56 @@ class OracleDialect extends DialectAbstract
                     [$indexName]
                 );
                 // Normalize keys to uppercase
-                $idxCols = array_map(fn($row) => array_change_key_case($row, CASE_UPPER), $idxCols);
+                $idxCols = array_map(fn ($row) => array_change_key_case($row, CASE_UPPER), $idxCols);
 
                 $colNames = array_map(fn ($c) => $this->quoteIdentifier((string)$c['COLUMN_NAME']), $idxCols);
                 $unique = (string)$idxRow['UNIQUENESS'] === 'UNIQUE' ? 'UNIQUE ' : '';
                 $idxName = $this->quoteIdentifier($indexName);
                 $output[] = "CREATE {$unique}INDEX {$idxName} ON {$quotedTable} (" . implode(', ', $colNames) . ');';
             }
+        }
+
+        // Add foreign key constraints
+        $fkQuery = "SELECT
+                ac.CONSTRAINT_NAME,
+                ac.TABLE_NAME,
+                acc.COLUMN_NAME,
+                ac.R_CONSTRAINT_NAME,
+                ac.DELETE_RULE,
+                ac2.TABLE_NAME AS R_TABLE_NAME,
+                acc2.COLUMN_NAME AS R_COLUMN_NAME
+            FROM USER_CONSTRAINTS ac
+            JOIN USER_CONS_COLUMNS acc ON ac.CONSTRAINT_NAME = acc.CONSTRAINT_NAME
+            JOIN USER_CONSTRAINTS ac2 ON ac.R_CONSTRAINT_NAME = ac2.CONSTRAINT_NAME
+            JOIN USER_CONS_COLUMNS acc2 ON ac2.CONSTRAINT_NAME = acc2.CONSTRAINT_NAME
+            WHERE ac.CONSTRAINT_TYPE = 'R'";
+
+        if ($table !== null) {
+            $fkQuery .= ' AND ac.TABLE_NAME = ?';
+            $fkRows = $db->rawQuery($fkQuery, [mb_strtoupper($table, 'UTF-8')]);
+        } else {
+            $fkQuery .= ' ORDER BY ac.TABLE_NAME, ac.CONSTRAINT_NAME';
+            $fkRows = $db->rawQuery($fkQuery);
+        }
+
+        // Normalize keys to uppercase
+        $fkRows = array_map(fn ($row) => array_change_key_case($row, CASE_UPPER), $fkRows);
+
+        foreach ($fkRows as $fk) {
+            $fkName = $this->quoteIdentifier((string)$fk['CONSTRAINT_NAME']);
+            $fkTable = $this->quoteIdentifier((string)$fk['TABLE_NAME']);
+            $fkColumn = $this->quoteIdentifier((string)$fk['COLUMN_NAME']);
+            $refTable = $this->quoteIdentifier((string)$fk['R_TABLE_NAME']);
+            $refColumn = $this->quoteIdentifier((string)$fk['R_COLUMN_NAME']);
+            $deleteRule = (string)$fk['DELETE_RULE'];
+
+            $fkSql = "ALTER TABLE {$fkTable} ADD CONSTRAINT {$fkName} FOREIGN KEY ({$fkColumn}) REFERENCES {$refTable} ({$refColumn})";
+            if ($deleteRule === 'CASCADE') {
+                $fkSql .= ' ON DELETE CASCADE';
+            } elseif ($deleteRule === 'SET NULL') {
+                $fkSql .= ' ON DELETE SET NULL';
+            }
+            $output[] = $fkSql . ';';
         }
 
         return implode("\n\n", $output);
@@ -2200,6 +2292,8 @@ class OracleDialect extends DialectAbstract
             $quotedColumns = array_map([$this, 'quoteIdentifier'], $columns);
             $columnsList = implode(', ', $quotedColumns);
 
+            // Oracle doesn't support multi-row INSERT VALUES syntax
+            // Use INSERT ALL ... SELECT FROM DUAL instead
             $batchSize = 100;
             $batch = [];
             foreach ($rows as $row) {
@@ -2214,16 +2308,16 @@ class OracleDialect extends DialectAbstract
                         $values[] = "'" . str_replace(["'", '\\'], ["''", '\\\\'], (string)$val) . "'";
                     }
                 }
-                $batch[] = '(' . implode(', ', $values) . ')';
+                $batch[] = "  INTO {$quotedTable} ({$columnsList}) VALUES (" . implode(', ', $values) . ')';
 
                 if (count($batch) >= $batchSize) {
-                    $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
+                    $output[] = "INSERT ALL\n" . implode("\n", $batch) . "\nSELECT * FROM DUAL;";
                     $batch = [];
                 }
             }
 
             if (!empty($batch)) {
-                $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
+                $output[] = "INSERT ALL\n" . implode("\n", $batch) . "\nSELECT * FROM DUAL;";
             }
         }
 
@@ -2292,10 +2386,19 @@ class OracleDialect extends DialectAbstract
             try {
                 $db->rawQuery($stmt);
             } catch (\Throwable $e) {
+                $errorMsg = $e->getMessage();
+                $isDrop = stripos($stmt, 'DROP TABLE') === 0 || stripos($stmt, 'DROP ') === 0;
+                $isTableNotFound = str_contains($errorMsg, 'ORA-00942') || str_contains($errorMsg, 'table or view does not exist');
+
+                // Ignore "table does not exist" errors for DROP statements
+                if ($isDrop && $isTableNotFound) {
+                    continue;
+                }
+
                 if (!$continueOnError) {
                     throw new \tommyknocker\pdodb\exceptions\ResourceException('Failed to execute SQL statement: ' . $e->getMessage() . "\nStatement: " . substr($stmt, 0, 200));
                 }
-                $errors[] = $e->getMessage();
+                $errors[] = $errorMsg;
             }
         }
 
@@ -2644,6 +2747,7 @@ class OracleDialect extends DialectAbstract
         if (!$isRecursive) {
             return $sql;
         }
+        /** @var string $sql */
 
         // Oracle requires CTE name qualification instead of aliases in recursive part
         // Extract unquoted CTE name for pattern matching
@@ -2654,7 +2758,10 @@ class OracleDialect extends DialectAbstract
         // When column list is present, column aliases in SELECT must be removed
         // Pattern: AS identifier or AS "identifier" (case-insensitive)
         // This removes aliases like "0 as level" -> "0" or "name AS \"PATH\"" -> "name"
-        $sql = preg_replace('/\s+AS\s+(?:"[^"]+"|[a-zA-Z_][a-zA-Z0-9_]*)/i', '', $sql);
+        $result = preg_replace('/\s+AS\s+(?:"[^"]+"|[a-zA-Z_][a-zA-Z0-9_]*)/i', '', $sql);
+        if (is_string($result)) {
+            $sql = $result;
+        }
 
         // Replace aliases in recursive part (after UNION ALL)
         // Pattern: "CT"."COLUMN" or ct.column -> CTE_NAME.COLUMN
@@ -2670,7 +2777,7 @@ class OracleDialect extends DialectAbstract
 
             // Replace quoted aliases like "CT" with CTE name
             // Match pattern: "ALIAS"."COLUMN" where ALIAS matches CTE name
-            $recursivePart = preg_replace_callback(
+            $result = preg_replace_callback(
                 '/"([^"]+)"\s*\.\s*"([^"]+)"/i',
                 function ($m) use ($cteName, $unquotedCteNameUpper, $cteAlias) {
                     $alias = strtoupper($m[1]);
@@ -2688,9 +2795,12 @@ class OracleDialect extends DialectAbstract
                 },
                 $recursivePart
             );
+            if (is_string($result)) {
+                $recursivePart = $result;
+            }
             // Replace unquoted aliases like ct.column or ct.level
             // Match pattern: alias.column (not in quotes)
-            $recursivePart = preg_replace_callback(
+            $result = preg_replace_callback(
                 '/(\b)([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*|\*)(\b)/',
                 function ($m) use ($cteName, $unquotedCteNameUpper, $cteAlias) {
                     $alias = strtoupper($m[2]);
@@ -2709,22 +2819,35 @@ class OracleDialect extends DialectAbstract
                 },
                 $recursivePart
             );
+            if (is_string($result)) {
+                $recursivePart = $result;
+            }
             // Remove aliases from CTE references in JOIN
             // Oracle doesn't allow aliases for CTE in recursive queries
             // Change: INNER JOIN "TREE" "T" -> INNER JOIN "TREE"
-            $recursivePart = preg_replace_callback(
-                '/INNER\s+JOIN\s+"([^"]+)"\s+"([^"]+)"/i',
-                function ($m) use ($cteName, $unquotedCteNameUpper) {
-                    $tableName = strtoupper($m[1]);
-                    // If table name matches CTE name, remove the alias
-                    if ($tableName === $unquotedCteNameUpper) {
-                        return 'INNER JOIN ' . $cteName;
+            if ($recursivePart !== '') {
+                $result = preg_replace_callback(
+                    '/INNER\s+JOIN\s+"([^"]+)"\s+"([^"]+)"/i',
+                    function ($m) use ($cteName, $unquotedCteNameUpper) {
+                        $tableName = strtoupper($m[1]);
+                        // If table name matches CTE name, remove the alias
+                        if ($tableName === $unquotedCteNameUpper) {
+                            return 'INNER JOIN ' . $cteName;
+                        }
+                        return $m[0];
+                    },
+                    $recursivePart
+                );
+                if (is_string($result)) {
+                    $recursivePart = $result;
+                }
+                if ($recursivePart !== '') {
+                    $result = preg_replace('/UNION\s+ALL\s+.+$/is', 'UNION ALL ' . $recursivePart, $sql);
+                    if (is_string($result)) {
+                        $sql = $result;
                     }
-                    return $m[0];
-                },
-                $recursivePart
-            );
-            $sql = preg_replace('/UNION\s+ALL\s+.+$/is', 'UNION ALL ' . $recursivePart, $sql);
+                }
+            }
         }
 
         return $sql;

@@ -36,6 +36,3 @@ final class TransactionTests extends BaseOracleTestCase
         $this->assertTrue($exists, 'Committed insert should exist');
     }
 }
-
-
-

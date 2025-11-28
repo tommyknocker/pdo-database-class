@@ -182,7 +182,6 @@ class PdoDb
      * @param CacheInterface|null $cache Cache instance
      *
      * @return static
-     *
      * @throws InvalidArgumentException If PDODB_DRIVER is not set in .env file
      *
      * @example
@@ -248,6 +247,7 @@ class PdoDb
         $config = $dialect->buildConfigFromEnv($envVars);
 
         // Create and return new instance
+        /* @phpstan-ignore-next-line */
         return new static($driver, $config, $pdoOptions, $logger, $cache);
     }
 

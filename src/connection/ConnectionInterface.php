@@ -164,6 +164,13 @@ interface ConnectionInterface
     public function getAttribute(int $attribute): mixed;
 
     /**
+     * Get connection options.
+     *
+     * @return array<string, mixed>
+     */
+    public function getOptions(): array;
+
+    /**
      * Set the event dispatcher.
      *
      * @param EventDispatcherInterface|null $dispatcher The dispatcher instance or null to disable

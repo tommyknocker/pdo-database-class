@@ -121,4 +121,3 @@ class EnvLoader
             : (getcwd() . '/.env');
     }
 }
-

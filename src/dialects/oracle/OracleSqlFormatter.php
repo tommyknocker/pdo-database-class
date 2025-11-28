@@ -377,7 +377,7 @@ class OracleSqlFormatter extends SqlFormatterAbstract
                     // It's a column - apply TO_CHAR() for CLOB compatibility before CAST
                     $castQuoted = preg_match('/^["`\[\]]/', $castExpr) ? $castExpr : $this->dialect->quoteIdentifier($castExpr);
                     $castExprFormatted = $this->dialect->formatColumnForComparison($castQuoted);
-                    
+
                     // For numeric types (INTEGER, NUMBER, etc.), use CASE WHEN for safe casting
                     // Oracle CAST throws error on invalid values, so we need to catch it
                     if (preg_match('/^(INTEGER|NUMBER|DECIMAL|NUMERIC|REAL|FLOAT|DOUBLE)/i', $castType)) {
@@ -420,7 +420,7 @@ class OracleSqlFormatter extends SqlFormatterAbstract
                     // It's a column - apply TO_CHAR() for CLOB compatibility before CAST
                     $castQuoted = preg_match('/^["`\[\]]/', $castExpr) ? $castExpr : $this->dialect->quoteIdentifier($castExpr);
                     $castExprFormatted = $this->dialect->formatColumnForComparison($castQuoted);
-                    
+
                     // For numeric types (INTEGER, NUMBER, etc.), use CASE WHEN for safe casting
                     // Oracle CAST throws error on invalid values, so we need to catch it
                     if (preg_match('/^(INTEGER|NUMBER|DECIMAL|NUMERIC|REAL|FLOAT|DOUBLE)/i', $castType)) {
