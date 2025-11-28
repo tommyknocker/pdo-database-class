@@ -416,21 +416,27 @@ jobs:
         run: |
           cd /tmp
           # Download Oracle Instant Client
-          # Note: Oracle may require authentication or the URL may have changed
-          wget --timeout=30 --tries=3 --progress=bar:force https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip 2>&1 || WGET_EXIT=$?
-          if [ ! -f instantclient-basic-linux.x64-21.1.0.0.0.zip ]; then
+          # Correct URL format: /otn_software/linux/instantclient/211000/ (version without dots)
+          ORACLE_URL="https://download.oracle.com/otn_software/linux/instantclient/211000/instantclient-basic-linux.x64-21.1.0.0.0.zip"
+          
+          echo "Downloading Oracle Instant Client from: $ORACLE_URL"
+          if ! wget --timeout=30 --tries=3 --progress=bar:force "$ORACLE_URL"; then
             echo "Error: Failed to download Oracle Instant Client"
-            echo "wget exit code: ${WGET_EXIT:-unknown}"
-            echo "Files in /tmp:"
-            ls -la /tmp/ | grep -i instant || echo "No instantclient files found"
-            echo "Please verify the Oracle Instant Client download URL is still valid"
             exit 1
           fi
+          
+          if [ ! -f instantclient-basic-linux.x64-21.1.0.0.0.zip ]; then
+            echo "Error: Downloaded file not found"
+            exit 1
+          fi
+          
           echo "Downloaded file size: $(stat -c%s instantclient-basic-linux.x64-21.1.0.0.0.zip) bytes"
+          
           # Extract and install
           unzip -q instantclient-basic-linux.x64-21.1.0.0.0.zip
           if [ ! -d instantclient_21_1 ]; then
             echo "Error: Failed to extract Oracle Instant Client"
+            ls -la /tmp/ | head -20
             exit 1
           fi
           sudo mkdir -p /usr/lib/oracle/21/client64/lib
@@ -440,6 +446,7 @@ jobs:
           # Verify installation succeeded
           if [ ! -f /usr/lib/oracle/21/client64/lib/libclntsh.so ]; then
             echo "Error: Oracle Instant Client installation failed - libclntsh.so not found"
+            ls -la /usr/lib/oracle/21/client64/lib/ | head -20
             exit 1
           fi
       - name: Install pdo_oci extension
