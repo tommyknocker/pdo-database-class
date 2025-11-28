@@ -393,36 +393,26 @@ jobs:
           php-version: '8.4'
           extensions: pdo, redis, memcached, apcu, bz2
           coverage: xdebug
-      - name: Install Oracle Instant Client
-        shell: bash -e {0}
+      - name: Install Oracle dependencies
+        continue-on-error: true
         run: |
-          set +e
           sudo apt-get update
-          set -e
-          
           if ! dpkg-query -W -f='${Status}' wget 2>/dev/null | grep -q "install ok installed"; then
-            set +e
             sudo apt-get install -y wget
-            set -e
           fi
           if ! dpkg-query -W -f='${Status}' unzip 2>/dev/null | grep -q "install ok installed"; then
-            set +e
             sudo apt-get install -y unzip
-            set -e
           fi
-          
           if ! dpkg-query -W -f='${Status}' libaio1t64 2>/dev/null | grep -q "install ok installed"; then
             if ! dpkg-query -W -f='${Status}' libaio1 2>/dev/null | grep -q "install ok installed"; then
-              set +e
               sudo apt-get install -y libaio1t64 || sudo apt-get install -y libaio1
-              set -e
             fi
           fi
-          
           if [ -f /usr/lib/x86_64-linux-gnu/libaio.so.1t64 ] && [ ! -L /usr/lib/x86_64-linux-gnu/libaio.so.1 ]; then
             sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
           fi
-          
+      - name: Install Oracle Instant Client
+        run: |
           cd /tmp
           wget -q https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip
           unzip -q instantclient-basic-linux.x64-21.1.0.0.0.zip
