@@ -449,7 +449,9 @@ jobs:
           
           if ! php -m | grep -q pdo_oci; then
             echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install pdo_oci || echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install -f pdo_oci
-            echo "extension=pdo_oci.so" | sudo tee $(dirname $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||"))/conf.d/pdo_oci.ini
+            PHP_INI_DIR=$(dirname $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||"))
+            sudo mkdir -p "$PHP_INI_DIR/conf.d"
+            echo "extension=pdo_oci.so" | sudo tee "$PHP_INI_DIR/conf.d/pdo_oci.ini"
             sudo ldconfig
           fi
           php -m | grep pdo_oci
