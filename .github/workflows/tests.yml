@@ -395,6 +395,7 @@ jobs:
           coverage: xdebug
       - name: Install Oracle Instant Client
         run: |
+          set +e
           # Helper function to safely run apt-get commands (ignore exit code 8)
           safe_apt_get() {
             "$@" 2>&1
@@ -433,7 +434,8 @@ jobs:
             sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1 || true
           fi
           
-          # Download and install Oracle Instant Client (critical commands)
+          # Download and install Oracle Instant Client (critical commands - exit on error)
+          set -e
           cd /tmp
           wget -q https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip
           unzip -q instantclient-basic-linux.x64-21.1.0.0.0.zip
