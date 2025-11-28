@@ -455,7 +455,9 @@ jobs:
           export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
           if ! php -m | grep -q pdo_oci; then
             echo "Installing pdo_oci extension..."
-            sudo pecl install pdo_oci <<< "" || sudo pecl install -f pdo_oci <<< ""
+            # Pass Oracle Instant Client path to pecl install
+            # Format: instantclient,/path/to/instant/client/lib
+            echo "instantclient,$ORACLE_HOME/lib" | sudo pecl install pdo_oci || echo "instantclient,$ORACLE_HOME/lib" | sudo pecl install -f pdo_oci
             echo "extension=pdo_oci.so" | sudo tee $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||")/conf.d/pdo_oci.ini
             sudo ldconfig
           fi
