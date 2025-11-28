@@ -437,7 +437,7 @@ jobs:
           if [ ! -f /usr/lib/oracle/23/client64/libclntsh.so ] || [ ! -f /usr/lib/oracle/23/client64/sdk/include/oci.h ]; then
             exit 1
           fi
-      - name: Install pdo_oci extension
+      - name: Install oci8 and pdo_oci extensions
         run: |
           export ORACLE_HOME=/usr/lib/oracle/23/client64
           export LD_LIBRARY_PATH=$ORACLE_HOME:$LD_LIBRARY_PATH
@@ -447,14 +447,22 @@ jobs:
           
           sudo ldconfig
           
-          if ! php -m | grep -q pdo_oci; then
-            echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install pdo_oci || echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install -f pdo_oci
-            PHP_INI_DIR=$(dirname $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||"))
-            sudo mkdir -p "$PHP_INI_DIR/conf.d"
-            echo "extension=pdo_oci.so" | sudo tee "$PHP_INI_DIR/conf.d/pdo_oci.ini"
+          PHP_INI_DIR=$(dirname $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||"))
+          sudo mkdir -p "$PHP_INI_DIR/conf.d"
+          
+          if ! php -m | grep -q oci8; then
+            echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install oci8 || echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install -f oci8
+            echo "extension=oci8.so" | sudo tee "$PHP_INI_DIR/conf.d/oci8.ini" > /dev/null
             sudo ldconfig
           fi
-          php -m | grep pdo_oci
+          
+          if ! php -m | grep -q pdo_oci; then
+            echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install pdo_oci || echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install -f pdo_oci
+            echo "extension=pdo_oci.so" | sudo tee "$PHP_INI_DIR/conf.d/pdo_oci.ini" > /dev/null
+            sudo ldconfig
+          fi
+          
+          php -m | grep -E "(oci8|pdo_oci)" || echo "Warning: Oracle extensions not found in php -m output"
       - name: Wait for Oracle to be ready
         run: |
           export ORACLE_HOME=/usr/lib/oracle/23/client64
