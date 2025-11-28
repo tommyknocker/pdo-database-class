@@ -395,16 +395,21 @@ jobs:
           coverage: xdebug
       - name: Install Oracle Instant Client
         run: |
+          set +e
           # Helper function to install package only if not already installed
           install_if_missing() {
             local pkg=$1
             if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed"; then
-              sudo apt-get install -y "$pkg" || return 0
+              sudo apt-get install -y "$pkg" 2>&1
             fi
           }
           
-          # Update package list
-          sudo apt-get update || true
+          # Update package list (ignore exit code)
+          sudo apt-get update 2>&1
+          UPDATE_EXIT=$?
+          if [ $UPDATE_EXIT -ne 0 ] && [ $UPDATE_EXIT -ne 8 ]; then
+            echo "Warning: apt-get update returned exit code $UPDATE_EXIT"
+          fi
           
           # Install wget and unzip only if not already installed
           install_if_missing wget
@@ -414,16 +419,17 @@ jobs:
           # In Ubuntu 24.04+, libaio1 is replaced with libaio1t64
           if ! dpkg-query -W -f='${Status}' libaio1t64 2>/dev/null | grep -q "install ok installed"; then
             if ! dpkg-query -W -f='${Status}' libaio1 2>/dev/null | grep -q "install ok installed"; then
-              sudo apt-get install -y libaio1t64 2>&1 || sudo apt-get install -y libaio1 2>&1 || true
+              sudo apt-get install -y libaio1t64 2>&1 || sudo apt-get install -y libaio1 2>&1
             fi
           fi
           
           # Create symlink for compatibility with Oracle Instant Client (Ubuntu 24.04+)
           if [ -f /usr/lib/x86_64-linux-gnu/libaio.so.1t64 ] && [ ! -L /usr/lib/x86_64-linux-gnu/libaio.so.1 ]; then
-            sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1 || true
+            sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
           fi
           
-          # Download and install Oracle Instant Client (critical commands)
+          # Download and install Oracle Instant Client (critical commands - exit on error)
+          set -e
           cd /tmp
           wget -q https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip
           unzip -q instantclient-basic-linux.x64-21.1.0.0.0.zip
