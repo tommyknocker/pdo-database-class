@@ -395,22 +395,19 @@ jobs:
           coverage: xdebug
       - name: Install Oracle Instant Client
         run: |
+          set -e
           sudo apt-get update
           sudo apt-get install -y wget unzip
           # Install libaio (required for Oracle Instant Client)
           # In Ubuntu 24.04+, libaio1 is replaced with libaio1t64
-          # Try to install libaio1t64 (ignore error if already installed)
-          sudo apt-get install -y libaio1t64 || true
-          # Check if libaio1t64 is installed or try libaio1
-          if dpkg -l | grep -q libaio1t64 || [ -f /usr/lib/x86_64-linux-gnu/libaio.so.1t64 ]; then
-            # Create symlink for compatibility with Oracle Instant Client
-            if [ -f /usr/lib/x86_64-linux-gnu/libaio.so.1t64 ]; then
-              sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
+          if ! dpkg -l | grep -q "^ii.*libaio1t64"; then
+            if ! dpkg -l | grep -q "^ii.*libaio1"; then
+              sudo apt-get install -y libaio1t64 || sudo apt-get install -y libaio1
             fi
-          elif sudo apt-get install -y libaio1 2>/dev/null; then
-            echo "libaio1 installed successfully"
-          else
-            echo "Warning: libaio package not found, continuing anyway"
+          fi
+          # Create symlink for compatibility with Oracle Instant Client (Ubuntu 24.04+)
+          if [ -f /usr/lib/x86_64-linux-gnu/libaio.so.1t64 ] && [ ! -f /usr/lib/x86_64-linux-gnu/libaio.so.1 ]; then
+            sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
           fi
           cd /tmp
           wget -q https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux.x64-21.1.0.0.0.zip
