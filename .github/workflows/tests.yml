@@ -394,10 +394,10 @@ jobs:
           extensions: pdo, redis, memcached, apcu, bz2
           coverage: xdebug
       - name: Install Oracle Instant Client
-        shell: bash
+        continue-on-error: false
         run: |
           # Update package list (ignore exit code 8)
-          sudo apt-get update || true
+          sudo apt-get update 2>&1 || [ $? -eq 8 ] || exit $?
           
           # Install wget and unzip only if not already installed
           if ! dpkg-query -W -f='${Status}' wget 2>/dev/null | grep -q "install ok installed"; then
