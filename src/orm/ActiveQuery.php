@@ -13,10 +13,14 @@ use tommyknocker\pdodb\query\QueryBuilder;
  *
  * This class wraps QueryBuilder and adds methods to return model instances
  * instead of raw arrays.
+ *
+ * @template TModel of Model
+ *
+ * @mixin QueryBuilder
  */
 class ActiveQuery
 {
-    /** @var string Model class name */
+    /** @var class-string<TModel> Model class name */
     protected string $modelClass;
 
     /** @var QueryBuilder QueryBuilder instance */
@@ -31,7 +35,7 @@ class ActiveQuery
     /**
      * ActiveQuery constructor.
      *
-     * @param string $modelClass Model class name
+     * @param class-string<TModel> $modelClass Model class name
      */
     public function __construct(string $modelClass)
     {
@@ -150,7 +154,7 @@ class ActiveQuery
      * Get one model instance.
      * Uses QueryBuilder::getOne() internally.
      *
-     * @return Model|null Model instance or null if not found
+     * @return TModel|null Model instance or null if not found
      */
     public function one(): ?Model
     {
@@ -174,7 +178,7 @@ class ActiveQuery
      * Get all model instances.
      * Uses QueryBuilder::get() internally.
      *
-     * @return array<int, Model> Array of model instances
+     * @return array<int, TModel> Array of model instances
      */
     public function all(): array
     {
@@ -251,11 +255,11 @@ class ActiveQuery
      *
      * @param array<string, mixed> $data Data array
      *
-     * @return Model Model instance
+     * @return TModel Model instance
      */
     protected function populateModel(array $data): Model
     {
-        /** @var Model $model */
+        /** @var TModel $model */
         $model = new $this->modelClass();
         $model->populate($data);
 
@@ -324,7 +328,7 @@ class ActiveQuery
     /**
      * Load relationships for models.
      *
-     * @param array<int, Model> $models Array of model instances
+     * @param array<int, TModel> $models Array of model instances
      * @param array<int|string, string|array<string>> $relations Relationships to load
      */
     protected function loadRelations(array $models, array $relations): void

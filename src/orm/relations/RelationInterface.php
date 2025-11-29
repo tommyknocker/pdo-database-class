@@ -56,7 +56,7 @@ interface RelationInterface
      * Returns an ActiveQuery instance with relationship conditions already applied.
      * Allows Yii2-like syntax: $user->posts()->where('published', 1)->all()
      *
-     * @return ActiveQuery ActiveQuery instance with relationship conditions
+     * @return ActiveQuery<Model> ActiveQuery instance with relationship conditions
      */
     public function prepareQuery(): ActiveQuery;
 }

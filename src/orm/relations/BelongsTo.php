@@ -165,6 +165,8 @@ class BelongsTo implements RelationInterface
 
     /**
      * {@inheritDoc}
+     *
+     * @return ActiveQuery<Model>
      */
     public function prepareQuery(): ActiveQuery
     {

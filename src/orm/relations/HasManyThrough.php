@@ -181,7 +181,7 @@ class HasManyThrough implements RelationInterface
     /**
      * Build query using viaTable (direct junction table).
      *
-     * @param ActiveQuery $query Base query
+     * @param ActiveQuery<Model> $query Base query
      *
      * @return array<int, Model> Related models
      */
@@ -257,7 +257,7 @@ class HasManyThrough implements RelationInterface
     /**
      * Build query using via (intermediate relationship).
      *
-     * @param ActiveQuery $query Base query
+     * @param ActiveQuery<Model> $query Base query
      *
      * @return array<int, Model> Related models
      */
@@ -370,6 +370,8 @@ class HasManyThrough implements RelationInterface
 
     /**
      * {@inheritDoc}
+     *
+     * @return ActiveQuery<Model>
      */
     public function prepareQuery(): ActiveQuery
     {

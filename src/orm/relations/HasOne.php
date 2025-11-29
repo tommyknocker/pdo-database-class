@@ -171,6 +171,8 @@ class HasOne implements RelationInterface
 
     /**
      * {@inheritDoc}
+     *
+     * @return ActiveQuery<Model>
      */
     public function prepareQuery(): ActiveQuery
     {

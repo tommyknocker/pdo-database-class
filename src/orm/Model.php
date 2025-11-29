@@ -217,7 +217,7 @@ abstract class Model
     /**
      * Find records (returns ActiveQuery).
      *
-     * @return ActiveQuery Query builder instance
+     * @return ActiveQuery<static> Query builder instance
      */
     public static function find(): ActiveQuery
     {
@@ -247,7 +247,7 @@ abstract class Model
                 // Associative array - treat as condition
                 $query = static::find();
                 foreach ($condition as $key => $value) {
-                    $query->where($key, $value); // @phpstan-ignore-line
+                    $query->where($key, $value);
                 }
                 /** @var static|null $result */
                 $result = $query->one();
@@ -258,7 +258,7 @@ abstract class Model
             if (count($pk) === count($condition)) {
                 $query = static::find();
                 foreach ($pk as $i => $key) {
-                    $query->where($key, $condition[$i] ?? null); // @phpstan-ignore-line
+                    $query->where($key, $condition[$i] ?? null);
                 }
                 /** @var static|null $result */
                 $result = $query->one();
@@ -268,8 +268,11 @@ abstract class Model
 
         // Single value with single primary key
         if (count($pk) === 1) {
+            /** @var ActiveQuery<static> $query */
+            $query = static::find();
+            $query->where($pk[0], $condition);
             /** @var static|null $result */
-            $result = static::find()->where($pk[0], $condition)->one(); // @phpstan-ignore-line
+            $result = $query->one();
             return $result;
         }
 
@@ -289,10 +292,10 @@ abstract class Model
         $query = static::find();
         if (is_array($condition)) {
             foreach ($condition as $key => $value) {
-                $query->where($key, $value); // @phpstan-ignore-line
+                $query->where($key, $value);
             }
         } else {
-            $query->where($condition); // @phpstan-ignore-line
+            $query->where($condition);
         }
         /** @var array<int, static> $result */
         $result = $query->all();
