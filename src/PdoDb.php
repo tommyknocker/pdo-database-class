@@ -247,7 +247,7 @@ class PdoDb
         $config = $dialect->buildConfigFromEnv($envVars);
 
         // Create and return new instance
-        /* @phpstan-ignore-next-line */
+        /* @phpstan-ignore-next-line new.static - factory method intentionally returns static */
         return new static($driver, $config, $pdoOptions, $logger, $cache);
     }
 

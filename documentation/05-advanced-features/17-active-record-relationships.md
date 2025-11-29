@@ -427,6 +427,34 @@ $totalViews = $user->posts()
        ->all();
    ```
 
+6. **Improve IDE Autocompletion for Relationships**: Use `@method` annotations on your model classes to help IDEs understand relationship methods:
+   ```php
+   use tommyknocker\pdodb\orm\ActiveQuery;
+   use tommyknocker\pdodb\orm\Model;
+
+   /**
+    * User model.
+    *
+    * @method ActiveQuery<Post> posts()   Relationship query for user's posts.
+    * @method ActiveQuery<Profile> profile() Relationship query for user's profile.
+    */
+   class User extends Model
+   {
+       public static function relations(): array
+       {
+           return [
+               'profile' => ['hasOne', 'modelClass' => Profile::class],
+               'posts' => ['hasMany', 'modelClass' => Post::class],
+           ];
+       }
+   }
+   ```
+
+   These annotations are optional but highly recommended when you want your IDE to:
+   - Autocomplete relationship method names (e.g. `posts()`, `profile()`).
+   - Infer that `posts()` returns `ActiveQuery<Post>` and `profile()` returns `ActiveQuery<Profile>`.
+   - Provide correct autocompletion for chained ActiveQuery methods after calling a relationship.
+
 5. **Clear Unused Data**: Clear relation data when no longer needed (memory optimization):
    ```php
    $users = User::find()->with('posts')->all();
