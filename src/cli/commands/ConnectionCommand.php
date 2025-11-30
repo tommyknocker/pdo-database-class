@@ -281,6 +281,9 @@ class ConnectionCommand extends Command
             : (getcwd() . '/config/db.php');
 
         if (!file_exists($rootConfig)) {
+            // Load .env file first to ensure environment variables are available
+            static::loadEnvFile();
+            
             // Try to get from environment
             $driver = getenv('PDODB_DRIVER') ?: '';
             if ($driver !== '') {
