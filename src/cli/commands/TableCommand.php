@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
+use tommyknocker\pdodb\cli\IndexSuggestionAnalyzer;
 use tommyknocker\pdodb\cli\TableManager;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\ResourceException;
+use tommyknocker\pdodb\PdoDb;
 
 class TableCommand extends Command
 {
@@ -206,43 +208,146 @@ class TableCommand extends Command
         $op = $this->getArgument(1);
         $table = $this->getArgument(2);
         if (!is_string($op) || !is_string($table) || $table === '') {
-            return $this->showError('Usage: pdodb table indexes <list|add|drop> <table> ...');
+            return $this->showError('Usage: pdodb table indexes <list|add|drop|suggest> <table> ...');
         }
         $db = $this->getDb();
-        if ($op === 'list') {
-            $info = TableManager::info($db, $table);
-            return $this->printFormatted(['indexes' => $info['indexes']], (string)$this->getOption('format', 'table'));
+        return match ($op) {
+            'list' => $this->indexesList($db, $table),
+            'add' => $this->indexesAdd($db, $table),
+            'drop' => $this->indexesDrop($db, $table),
+            'suggest' => $this->indexesSuggest($db, $table),
+            default => $this->showError("Unknown indexes operation: {$op}"),
+        };
+    }
+
+    protected function indexesList(PdoDb $db, string $table): int
+    {
+        $info = TableManager::info($db, $table);
+        return $this->printFormatted(['indexes' => $info['indexes']], (string)$this->getOption('format', 'table'));
+    }
+
+    protected function indexesAdd(PdoDb $db, string $table): int
+    {
+        $name = (string)$this->getArgument(3, '');
+        $cols = (string)$this->getOption('columns', '');
+        if ($name === '' || $cols === '') {
+            return $this->showError('Index name and --columns are required');
         }
-        if ($op === 'add') {
-            $name = (string)$this->getArgument(3, '');
-            $cols = (string)$this->getOption('columns', '');
-            if ($name === '' || $cols === '') {
-                return $this->showError('Index name and --columns are required');
+        $columns = array_map('trim', explode(',', $cols));
+        $unique = (bool)$this->getOption('unique', false);
+        TableManager::createIndex($db, $name, $table, $columns, $unique);
+        static::success("Index '{$name}' created");
+        return 0;
+    }
+
+    protected function indexesDrop(PdoDb $db, string $table): int
+    {
+        $name = (string)$this->getArgument(3, '');
+        if ($name === '') {
+            return $this->showError('Index name is required');
+        }
+        $force = (bool)$this->getOption('force', false);
+        if (!$force) {
+            $confirmed = static::readConfirmation("Are you sure you want to drop index '{$name}' on '{$table}'?", false);
+            if (!$confirmed) {
+                static::info('Operation cancelled');
+                return 0;
             }
-            $columns = array_map('trim', explode(',', $cols));
-            $unique = (bool)$this->getOption('unique', false);
-            TableManager::createIndex($db, $name, $table, $columns, $unique);
-            static::success("Index '{$name}' created");
+        }
+        TableManager::dropIndex($db, $name, $table);
+        static::success("Index '{$name}' dropped");
+        return 0;
+    }
+
+    protected function indexesSuggest(\tommyknocker\pdodb\PdoDb $db, string $table): int
+    {
+        if (!TableManager::tableExists($db, $table)) {
+            return $this->showError("Table '{$table}' does not exist");
+        }
+
+        $format = (string)$this->getOption('format', 'table');
+        $priority = (string)$this->getOption('priority', 'all');
+
+        $analyzer = new IndexSuggestionAnalyzer($db);
+        $options = ['priority' => $priority];
+        $suggestions = $analyzer->analyze($table, $options);
+
+        if ($format === 'json') {
+            echo json_encode(['suggestions' => $suggestions], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
             return 0;
         }
-        if ($op === 'drop') {
-            $name = (string)$this->getArgument(3, '');
-            if ($name === '') {
-                return $this->showError('Index name is required');
+
+        if ($format === 'yaml') {
+            $this->printYaml(['suggestions' => $suggestions]);
+            return 0;
+        }
+
+        // Table format (default)
+        $this->printIndexSuggestions($table, $suggestions);
+        return 0;
+    }
+
+    /**
+     * Print index suggestions in formatted table.
+     *
+     * @param string $table Table name
+     * @param array<int, array<string, mixed>> $suggestions Suggestions
+     */
+    protected function printIndexSuggestions(string $table, array $suggestions): void
+    {
+        echo "\nAnalyzing table '{$table}'...\n\n";
+
+        if (empty($suggestions)) {
+            static::info('No index suggestions found. Table appears to be well-indexed.');
+            return;
+        }
+
+        // Group by priority
+        $byPriority = ['high' => [], 'medium' => [], 'low' => []];
+        foreach ($suggestions as $suggestion) {
+            $priority = $suggestion['priority'] ?? 'low';
+            $byPriority[$priority][] = $suggestion;
+        }
+
+        $priorityIcons = [
+            'high' => '🔴',
+            'medium' => '🟡',
+            'low' => 'ℹ️ ',
+        ];
+
+        $priorityLabels = [
+            'high' => 'High Priority',
+            'medium' => 'Medium Priority',
+            'low' => 'Low Priority',
+        ];
+
+        $count = 0;
+        foreach (['high', 'medium', 'low'] as $priority) {
+            if (empty($byPriority[$priority])) {
+                continue;
             }
-            $force = (bool)$this->getOption('force', false);
-            if (!$force) {
-                $confirmed = static::readConfirmation("Are you sure you want to drop index '{$name}' on '{$table}'?", false);
-                if (!$confirmed) {
-                    static::info('Operation cancelled');
-                    return 0;
+
+            $icon = $priorityIcons[$priority];
+            $label = $priorityLabels[$priority];
+            echo "{$icon} {$label}:\n";
+
+            foreach ($byPriority[$priority] as $i => $suggestion) {
+                $count++;
+                $num = $count;
+                $columns = implode(', ', $suggestion['columns'] ?? []);
+                $reason = $suggestion['reason'] ?? 'No reason provided';
+                $sql = $suggestion['sql'] ?? '';
+
+                echo "  {$num}. Index on ({$columns})\n";
+                echo "     Reason: {$reason}\n";
+                if ($sql !== '') {
+                    echo "     SQL: {$sql}\n";
                 }
+                echo "\n";
             }
-            TableManager::dropIndex($db, $name, $table);
-            static::success("Index '{$name}' dropped");
-            return 0;
         }
-        return $this->showError("Unknown indexes operation: {$op}");
+
+        echo "Total: {$count} suggestion(s)\n\n";
     }
 
     protected function keys(): int
@@ -789,7 +894,7 @@ class TableCommand extends Command
         echo "  sample <table> [--limit=N]           Show sample data (default: 10 rows)\n";
         echo "  select <table> [--limit=N]           Alias for sample\n";
         echo "  columns <op> <table> [...]           Manage columns (list/add/alter/drop)\n";
-        echo "  indexes <op> <table> [...]           Manage indexes (list/add/drop)\n";
+        echo "  indexes <op> <table> [...]           Manage indexes (list/add/drop/suggest)\n";
         echo "  keys <op> <table> [...]              Manage foreign keys (list/add/drop)\n";
         echo "  keys check                           Check foreign key integrity\n\n";
         echo "Options:\n";
@@ -804,6 +909,9 @@ class TableCommand extends Command
         echo "    alter: [--not-null] [--drop-default] [--rename=NEW]\n";
         echo "  indexes add:\n";
         echo "    <name> --columns=\"c1,c2\" [--unique]\n";
+        echo "  indexes suggest:\n";
+        echo "    <table> [--format=table|json|yaml] [--priority=high|medium|low|all]\n";
+        echo "    Analyze table structure and suggest missing indexes\n";
         echo "  keys add:\n";
         echo "    <name> --columns=\"c1,c2\" --ref-table=table --ref-columns=\"c1,c2\" [--on-delete=ACTION] [--on-update=ACTION]\n";
         echo "  keys check:\n";

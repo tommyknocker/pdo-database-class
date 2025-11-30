@@ -202,10 +202,42 @@ _pdodb() {
                 # Count command has no options
                 COMPREPLY=()
             fi
+        elif [[ "${subcmd}" == "indexes" ]]; then
+            local indexes_op=""
+            if [[ ${COMP_CWORD} -ge 3 ]]; then
+                indexes_op="${COMP_WORDS[3]}"
+            fi
+            if [[ ${COMP_CWORD} -eq 3 ]]; then
+                # Complete indexes operations
+                local indexes_ops="list add drop suggest"
+                COMPREPLY=($(compgen -W "${indexes_ops}" -- "${cur}"))
+            elif [[ ${COMP_CWORD} -eq 4 ]] && [[ "${indexes_op}" != "list" ]]; then
+                # Complete table names for add/drop/suggest
+                _pdodb_complete_tables
+            elif [[ "${indexes_op}" == "suggest" ]]; then
+                if [[ ${COMP_CWORD} -eq 5 ]]; then
+                    # Complete table names
+                    _pdodb_complete_tables
+                else
+                    local indexes_opts="--format=table --format=json --format=yaml --format --priority=high --priority=medium --priority=low --priority=all --priority"
+                    COMPREPLY=($(compgen -W "${indexes_opts}" -- "${cur}"))
+                fi
+            elif [[ "${indexes_op}" == "add" ]] || [[ "${indexes_op}" == "drop" ]]; then
+                local indexes_opts="--columns= --unique --force"
+                COMPREPLY=($(compgen -W "${indexes_opts}" -- "${cur}"))
+            elif [[ "${indexes_op}" == "list" ]]; then
+                if [[ ${COMP_CWORD} -eq 4 ]]; then
+                    # Complete table names
+                    _pdodb_complete_tables
+                else
+                    local indexes_opts="--format=table --format=json --format=yaml --format"
+                    COMPREPLY=($(compgen -W "${indexes_opts}" -- "${cur}"))
+                fi
+            fi
         elif [[ "${subcmd}" == "info" ]] || [[ "${subcmd}" == "exists" ]] || \
              [[ "${subcmd}" == "drop" ]] || [[ "${subcmd}" == "truncate" ]] || \
              [[ "${subcmd}" == "describe" ]] || [[ "${subcmd}" == "columns" ]] || \
-             [[ "${subcmd}" == "indexes" ]] || [[ "${subcmd}" == "keys" ]] || \
+             [[ "${subcmd}" == "keys" ]] || \
              [[ "${subcmd}" == "rename" ]]; then
             if [[ ${COMP_CWORD} -eq 3 ]]; then
                 # Complete table names

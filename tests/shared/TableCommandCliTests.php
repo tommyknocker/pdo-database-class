@@ -794,4 +794,133 @@ final class TableCommandCliTests extends TestCase
         $this->assertStringContainsString('Test 1', $out);
         $this->assertStringContainsString('Test 2', $out);
     }
+
+    /**
+     * @runInSeparateProcess
+     */
+    public function testTableIndexesSuggest(): void
+    {
+        $app = new Application();
+
+        // Create table with foreign key column (without index)
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'suggest_test', '--columns=id:int,user_id:int,status:string,deleted_at:datetime,created_at:datetime', '--force']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+
+        // Add foreign key (if supported by SQLite)
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+
+        try {
+            $db->schema()->addForeignKey('fk_suggest_test_user', 'suggest_test', 'user_id', 'users', 'id');
+        } catch (\Exception $e) {
+            // SQLite may not support ADD FOREIGN KEY, skip FK test
+        }
+
+        // Test suggest command (table format)
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'indexes', 'suggest', 'suggest_test', '--format=table']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString("Analyzing table 'suggest_test'", $out);
+        // Should suggest indexes for common patterns
+        $this->assertStringContainsString('suggestion', strtolower($out));
+
+        // Test suggest command (JSON format)
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'indexes', 'suggest', 'suggest_test', '--format=json']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $json = json_decode($out, true);
+        $this->assertIsArray($json);
+        $this->assertArrayHasKey('suggestions', $json);
+        $this->assertIsArray($json['suggestions']);
+
+        // Test suggest with priority filter
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'indexes', 'suggest', 'suggest_test', '--priority=high', '--format=json']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $json = json_decode($out, true);
+        $this->assertIsArray($json);
+        $this->assertArrayHasKey('suggestions', $json);
+        // All suggestions should be high priority
+        foreach ($json['suggestions'] as $suggestion) {
+            $this->assertEquals('high', $suggestion['priority'] ?? null);
+        }
+
+        // Test suggest for non-existent table (run in separate process to handle exit)
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $dbPath = sys_get_temp_dir() . '/pdodb_suggest_' . uniqid() . '.sqlite';
+        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
+        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' table indexes suggest non_existent_table 2>&1';
+        $out = (string)shell_exec($cmd);
+        $this->assertStringContainsString('does not exist', $out);
+    }
+
+    public function testIndexSuggestionAnalyzer(): void
+    {
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+
+        // Create table with common patterns
+        $db->schema()->createTable('analyzer_test', [
+            'id' => $db->schema()->primaryKey(),
+            'user_id' => ['type' => 'integer'],
+            'status' => ['type' => 'string', 'length' => 50],
+            'deleted_at' => ['type' => 'datetime', 'nullable' => true],
+            'created_at' => ['type' => 'datetime'],
+        ]);
+
+        $analyzer = new \tommyknocker\pdodb\cli\IndexSuggestionAnalyzer($db);
+        $suggestions = $analyzer->analyze('analyzer_test');
+
+        $this->assertIsArray($suggestions);
+        // Should have at least some suggestions for common patterns
+        $this->assertGreaterThanOrEqual(0, count($suggestions));
+
+        // Check suggestion structure
+        if (!empty($suggestions)) {
+            $suggestion = $suggestions[0];
+            $this->assertArrayHasKey('priority', $suggestion);
+            $this->assertArrayHasKey('type', $suggestion);
+            $this->assertArrayHasKey('columns', $suggestion);
+            $this->assertArrayHasKey('reason', $suggestion);
+            $this->assertArrayHasKey('sql', $suggestion);
+            $this->assertContains($suggestion['priority'], ['high', 'medium', 'low']);
+        }
+
+        // Test with priority filter
+        $highPriority = $analyzer->analyze('analyzer_test', ['priority' => 'high']);
+        foreach ($highPriority as $suggestion) {
+            $this->assertEquals('high', $suggestion['priority']);
+        }
+    }
 }

@@ -199,6 +199,8 @@ vendor/bin/pdodb table columns drop users price --force
 vendor/bin/pdodb table indexes list users --format=json
 vendor/bin/pdodb table indexes add users idx_users_name --columns="name" --unique
 vendor/bin/pdodb table indexes drop users idx_users_name --force
+vendor/bin/pdodb table indexes suggest users
+vendor/bin/pdodb table indexes suggest users --priority=high --format=json
 
 # Foreign Keys
 vendor/bin/pdodb table keys list users --format=json
@@ -242,6 +244,107 @@ vendor/bin/pdodb table keys check
 - The `check` command verifies all foreign key constraints across all tables and reports orphaned records.
 - Options like ENGINE/CHARSET/COLLATION are dialect-specific and applied where supported.
 - If an operation is not supported by a dialect, a typed exception is thrown.
+
+#### Index Suggestions
+
+Analyze table structure and get intelligent suggestions for missing indexes:
+
+```bash
+# Analyze table and suggest indexes
+vendor/bin/pdodb table indexes suggest users
+
+# Filter by priority (high, medium, low, all)
+vendor/bin/pdodb table indexes suggest users --priority=high
+
+# Output in JSON format
+vendor/bin/pdodb table indexes suggest users --format=json
+
+# Output in YAML format
+vendor/bin/pdodb table indexes suggest users --format=yaml
+```
+
+**Options:**
+- `--format=table|json|yaml` - Output format (default: table)
+- `--priority=high|medium|low|all` - Filter suggestions by priority (default: all)
+
+**What It Analyzes:**
+
+The `suggest` command analyzes your table structure and identifies:
+
+1. **Foreign Keys Without Indexes** (High Priority)
+   - Foreign key columns that don't have indexes
+   - Critical for JOIN performance
+
+2. **Common Patterns** (Medium Priority)
+   - Status/enum columns (`status`, `type`, `category`) frequently used in WHERE clauses
+   - Soft delete columns (`deleted_at`, `is_deleted`) for filtering active records
+   - Composite indexes for common patterns (e.g., `status` + `created_at`)
+
+3. **Timestamp Columns** (Low Priority)
+   - Timestamp columns (`created_at`, `updated_at`, `last_login_at`) that may be used for sorting
+   - Useful for ORDER BY optimization on large tables
+
+**Example Output:**
+
+```bash
+$ vendor/bin/pdodb table indexes suggest users
+
+Analyzing table 'users'...
+
+🔴 High Priority:
+  1. Index on (user_id)
+     Reason: Foreign key column "user_id" (references profiles.id) without index. Foreign keys should be indexed for JOIN performance.
+     SQL: CREATE INDEX idx_users_user_id ON users (user_id);
+
+  2. Index on (deleted_at)
+     Reason: Soft delete column "deleted_at" should be indexed for efficient filtering of active records (WHERE deleted_at IS NULL).
+     SQL: CREATE INDEX idx_users_deleted_at ON users (deleted_at);
+
+🟡 Medium Priority:
+  3. Index on (status, created_at)
+     Reason: Common pattern: filtering by status and ordering by created_at. Composite index can optimize both operations.
+     SQL: CREATE INDEX idx_users_status_created_at ON users (status, created_at);
+
+ℹ️  Low Priority:
+  4. Index on (last_login_at)
+     Reason: Timestamp column "last_login_at" may be used for sorting (ORDER BY). Index can improve sorting performance for large tables.
+     SQL: CREATE INDEX idx_users_last_login_at ON users (last_login_at);
+
+Total: 4 suggestion(s)
+```
+
+**JSON Format:**
+
+```bash
+$ vendor/bin/pdodb table indexes suggest users --format=json
+
+{
+    "suggestions": [
+        {
+            "priority": "high",
+            "type": "foreign_key",
+            "columns": ["user_id"],
+            "reason": "Foreign key column \"user_id\" (references profiles.id) without index...",
+            "sql": "CREATE INDEX idx_users_user_id ON users (user_id);",
+            "index_name": "idx_users_user_id"
+        },
+        ...
+    ]
+}
+```
+
+**Best Practices:**
+
+1. **Review High Priority First** - Foreign keys and soft delete columns are critical for performance
+2. **Consider Your Query Patterns** - The suggestions are based on common patterns, but review against your actual queries
+3. **Test Before Applying** - Create indexes in a development environment first and measure performance impact
+4. **Monitor Index Usage** - Use `EXPLAIN` to verify indexes are being used after creation
+
+**Notes:**
+- The analyzer checks existing indexes to avoid duplicate suggestions
+- Suggestions are prioritized based on impact (foreign keys > common patterns > timestamps)
+- Index names are automatically generated using the pattern `idx_{table}_{columns}`
+- The command works with all supported database dialects
 
 #### Row Count and Sample Data
 
