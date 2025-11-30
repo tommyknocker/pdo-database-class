@@ -441,32 +441,64 @@ class BenchmarkCommand extends Command
     {
         $withCache = (bool)$this->getOption('cache', false);
         $withoutCache = (bool)$this->getOption('no-cache', false);
-        $query = (string)$this->getOption('query', 'SELECT 1');
+        $queryOption = $this->getOption('query', null);
+        $query = is_string($queryOption) ? $queryOption : null;
         $iterations = (int)$this->getOption('iterations', 100);
+
+        // Check if query is specified
+        if ($query === null || $query === '') {
+            static::warning('No query specified. Use --query option to specify the SQL query to benchmark.');
+            static::info('Example: pdodb benchmark compare --query="SELECT * FROM users"');
+            return 1;
+        }
+
+        $db = $this->getDb();
+        $cacheManager = $db->getCacheManager();
+
+        // Check if cache is available
+        if ($cacheManager === null) {
+            static::warning('Cache is not configured. Comparison requires cache to be enabled.');
+            static::info('To enable cache, configure it in your database configuration.');
+            static::info('Running benchmark without comparison...');
+            // Run single benchmark without comparison
+            $results = ['no-cache' => $this->runSingleBenchmark($db, $query, $iterations)];
+            $this->printCompareResults($results);
+            return 0;
+        }
 
         if (!$withCache && !$withoutCache) {
             // Run both by default
             $withCache = true;
             $withoutCache = true;
+        } elseif ($withCache && !$withoutCache) {
+            // Only --cache specified, warn that comparison needs both
+            static::warning('Only --cache option specified. For comparison, both --cache and --no-cache are needed.');
+            static::info('Running benchmark with cache enabled only...');
+            $results = ['cache' => $this->runSingleBenchmark($db, $query, $iterations)];
+            $this->printCompareResults($results);
+            return 0;
+        } elseif (!$withCache && $withoutCache) {
+            // Only --no-cache specified, warn that comparison needs both
+            static::warning('Only --no-cache option specified. For comparison, both --cache and --no-cache are needed.');
+            static::info('Running benchmark with cache disabled only...');
+            $results = ['no-cache' => $this->runSingleBenchmark($db, $query, $iterations)];
+            $this->printCompareResults($results);
+            return 0;
         }
 
         $results = [];
 
         if ($withoutCache) {
-            $db = $this->getDb();
             // Disable cache if enabled
-            $cacheManager = $db->getCacheManager();
-            if ($cacheManager !== null && method_exists($cacheManager, 'setEnabled')) {
+            if (method_exists($cacheManager, 'setEnabled')) {
                 $cacheManager->setEnabled(false);
             }
             $results['no-cache'] = $this->runSingleBenchmark($db, $query, $iterations);
         }
 
         if ($withCache) {
-            $db = $this->getDb();
             // Enable cache if available
-            $cacheManager = $db->getCacheManager();
-            if ($cacheManager !== null && method_exists($cacheManager, 'setEnabled')) {
+            if (method_exists($cacheManager, 'setEnabled')) {
                 $cacheManager->setEnabled(true);
             }
             $results['cache'] = $this->runSingleBenchmark($db, $query, $iterations);
