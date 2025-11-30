@@ -199,8 +199,7 @@
     "pdodb:fix-all": [
       "@pdodb:cs-fix",
       "@pdodb:test"
-    ],
-    "pdodb:fix-markdown": "bash scripts/fix-markdown-eof.sh"
+    ]
   },
   "config": {
     "allow-plugins": {

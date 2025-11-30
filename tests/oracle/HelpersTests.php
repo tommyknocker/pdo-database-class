@@ -60,3 +60,4 @@ final class HelpersTests extends BaseOracleTestCase
         $this->assertEquals('Frank', $notInResults[0]['NAME']);
     }
 }
+

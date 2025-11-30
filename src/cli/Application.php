@@ -167,12 +167,13 @@ class Application
                     $name = substr($optionName, 0, $equalsPos);
                     $value = substr($optionName, $equalsPos + 1);
                     $options[$name] = $value;
+                    $currentOption = null;
                 } else {
                     $options[$optionName] = true;
                     $currentOption = $optionName;
                 }
-            } elseif ($currentOption !== null && !isset($options[$currentOption])) {
-                // Value for previous option
+            } elseif ($currentOption !== null) {
+                // Value for previous option (replace true with actual value)
                 $options[$currentOption] = $arg;
                 $currentOption = null;
             } else {

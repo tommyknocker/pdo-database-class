@@ -42,3 +42,4 @@ final class RawValueTests extends BaseOracleTestCase
         $this->assertEquals(35, (int)$row['AGE']);
     }
 }
+

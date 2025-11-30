@@ -897,7 +897,14 @@ class BenchmarkCommand extends Command
      */
     protected function generateHtmlReport(array $results, array $stats, string $query): string
     {
-        $html = <<<'HTML'
+        $generatedDate = date('Y-m-d H:i:s');
+        $escapedQuery = htmlspecialchars($query, ENT_QUOTES, 'UTF-8');
+        $iterations = $results['iterations'];
+        $totalTime = round($results['total_time'], 4);
+        $avgTime = round($results['avg_time'] * 1000, 2);
+        $qps = round($results['qps'], 2);
+
+        $html = <<<HTML
 <!DOCTYPE html>
 <html>
 <head>
@@ -909,14 +916,15 @@ class BenchmarkCommand extends Command
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
         .metric { font-weight: bold; }
+        pre { background-color: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
     </style>
 </head>
 <body>
     <h1>PDOdb Benchmark Report</h1>
-    <p>Generated: <?php echo date('Y-m-d H:i:s'); ?></p>
+    <p>Generated: {$generatedDate}</p>
 
     <h2>Query</h2>
-    <pre><?php echo htmlspecialchars($query); ?></pre>
+    <pre>{$escapedQuery}</pre>
 
     <h2>Results</h2>
     <table>
@@ -924,24 +932,27 @@ class BenchmarkCommand extends Command
             <th>Metric</th>
             <th>Value</th>
         </tr>
+        <tr><td class='metric'>Iterations</td><td>{$iterations}</td></tr>
+        <tr><td class='metric'>Total Time</td><td>{$totalTime}s</td></tr>
+        <tr><td class='metric'>Average Time</td><td>{$avgTime}ms</td></tr>
+        <tr><td class='metric'>Queries Per Second</td><td>{$qps}</td></tr>
+    </table>
 HTML;
 
-        $html .= "<tr><td class='metric'>Iterations</td><td>{$results['iterations']}</td></tr>\n";
-        $html .= "<tr><td class='metric'>Total Time</td><td>" . round($results['total_time'], 4) . "s</td></tr>\n";
-        $html .= "<tr><td class='metric'>Average Time</td><td>" . round($results['avg_time'] * 1000, 2) . "ms</td></tr>\n";
-        $html .= "<tr><td class='metric'>Queries Per Second</td><td>" . round($results['qps'], 2) . "</td></tr>\n";
-
         if (!empty($stats)) {
-            $html .= "</table>\n<h2>Query Statistics</h2>\n<table>\n";
-            $html .= "<tr><th>SQL</th><th>Count</th><th>Avg Time</th><th>Total Time</th></tr>\n";
+            $html .= "\n    <h2>Query Statistics</h2>\n    <table>\n";
+            $html .= "        <tr><th>SQL</th><th>Count</th><th>Avg Time</th><th>Total Time</th></tr>\n";
             foreach ($stats as $stat) {
-                $sql = htmlspecialchars(substr($stat['sql'], 0, 100));
-                $html .= "<tr><td>{$sql}...</td><td>{$stat['count']}</td><td>" . round($stat['avg_time'] * 1000, 2) . 'ms</td><td>' . round($stat['total_time'], 4) . "s</td></tr>\n";
+                $sql = htmlspecialchars(substr($stat['sql'], 0, 100), ENT_QUOTES, 'UTF-8');
+                $count = $stat['count'];
+                $avgTimeMs = round($stat['avg_time'] * 1000, 2);
+                $totalTimeSec = round($stat['total_time'], 4);
+                $html .= "        <tr><td>{$sql}...</td><td>{$count}</td><td>{$avgTimeMs}ms</td><td>{$totalTimeSec}s</td></tr>\n";
             }
+            $html .= "    </table>\n";
         }
 
         $html .= <<<'HTML'
-    </table>
 </body>
 </html>
 HTML;
