@@ -129,6 +129,18 @@ class Application
             return 0;
         }
 
+        // Check for global --version option
+        if ($argv[0] === '--version' || $argv[0] === '-v') {
+            $this->showVersion();
+            return 0;
+        }
+
+        // Check for version command
+        if ($argv[0] === 'version') {
+            $this->showVersion();
+            return 0;
+        }
+
         $commandName = $argv[0];
         $command = $this->getCommand($commandName);
 
@@ -275,9 +287,18 @@ class Application
 
         echo "\nGlobal options:\n";
         echo "  --help               Show help message\n";
+        echo "  --version, -v         Show version information\n";
         echo "  --connection=<name>  Use a named connection from config/db.php\n";
         echo "  --config=<path>      Path to db.php configuration file\n";
         echo "  --env=<path>         Path to .env file\n";
         echo "\nUse 'pdodb <command> --help' for more information about a command.\n";
+    }
+
+    /**
+     * Show version information.
+     */
+    protected function showVersion(): void
+    {
+        echo "{$this->name} v{$this->getVersion()}\n";
     }
 }

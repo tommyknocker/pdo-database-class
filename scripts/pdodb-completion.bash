@@ -20,14 +20,26 @@ _pdodb() {
     subcmd="${COMP_WORDS[2]}"
 
     # Global options available for all commands
-    local global_opts="--help --connection= --config= --env="
+    local global_opts="--help --version -v --connection= --config= --env="
 
     # Main commands
-    local commands="migrate seed schema query model repository service db user table connection dump monitor cache init"
+    local commands="migrate seed schema query model repository service db user table connection dump monitor cache init version"
 
     # If no command yet, complete with commands
     if [[ ${COMP_CWORD} -eq 1 ]]; then
         COMPREPLY=($(compgen -W "${commands} ${global_opts}" -- "${cur}"))
+        return 0
+    fi
+
+    # Handle global --version and -v options
+    if [[ "${cur}" == "--version" ]] || [[ "${cur}" == "-v" ]] || [[ "${prev}" == "--version" ]] || [[ "${prev}" == "-v" ]]; then
+        COMPREPLY=()
+        return 0
+    fi
+
+    # Handle version command
+    if [[ "${cmd}" == "version" ]]; then
+        COMPREPLY=()
         return 0
     fi
 

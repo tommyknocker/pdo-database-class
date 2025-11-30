@@ -270,4 +270,67 @@ PHP;
         $this->assertStringContainsString('User Management', $output);
         $this->assertStringContainsString('Subcommands:', $output);
     }
+
+    public function testVersionCommand(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'version']);
+            $output = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('PDOdb CLI', $output);
+        $this->assertStringContainsString('v', $output);
+        // Version should be in format like "2.11.0" or similar
+        $this->assertMatchesRegularExpression('/v\d+\.\d+\.\d+/', $output);
+    }
+
+    public function testVersionFlag(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', '--version']);
+            $output = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('PDOdb CLI', $output);
+        $this->assertStringContainsString('v', $output);
+        // Version should be in format like "2.11.0" or similar
+        $this->assertMatchesRegularExpression('/v\d+\.\d+\.\d+/', $output);
+    }
+
+    public function testVersionShortFlag(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', '-v']);
+            $output = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('PDOdb CLI', $output);
+        $this->assertStringContainsString('v', $output);
+        // Version should be in format like "2.11.0" or similar
+        $this->assertMatchesRegularExpression('/v\d+\.\d+\.\d+/', $output);
+    }
 }
