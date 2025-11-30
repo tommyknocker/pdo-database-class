@@ -23,7 +23,7 @@ _pdodb() {
     local global_opts="--help --version -v --connection= --config= --env="
 
     # Main commands
-    local commands="migrate seed schema query model repository service db user table connection dump monitor cache init version"
+    local commands="migrate seed schema query model repository service db user table connection dump monitor cache benchmark init version"
 
     # If no command yet, complete with commands
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -347,6 +347,44 @@ _pdodb() {
                 local cache_opts="--format=table --format=json --format"
                 COMPREPLY=($(compgen -W "${cache_opts}" -- "${cur}"))
             fi
+        fi
+        return 0
+    fi
+
+    # Benchmark command
+    if [[ "${cmd}" == "benchmark" ]]; then
+        local benchmark_subcommands="query crud load compare profile report"
+        
+        if [[ ${COMP_CWORD} -eq 2 ]]; then
+            COMPREPLY=($(compgen -W "${benchmark_subcommands} --help" -- "${cur}"))
+        elif [[ "${subcmd}" == "query" ]]; then
+            if [[ ${COMP_CWORD} -eq 3 ]]; then
+                # SQL query - no completion
+                COMPREPLY=()
+            else
+                local benchmark_opts="--iterations= --warmup="
+                COMPREPLY=($(compgen -W "${benchmark_opts}" -- "${cur}"))
+            fi
+        elif [[ "${subcmd}" == "crud" ]]; then
+            if [[ ${COMP_CWORD} -eq 3 ]]; then
+                # Complete table names
+                _pdodb_complete_tables
+            else
+                local benchmark_opts="--iterations="
+                COMPREPLY=($(compgen -W "${benchmark_opts}" -- "${cur}"))
+            fi
+        elif [[ "${subcmd}" == "load" ]]; then
+            local benchmark_opts="--connections= --duration= --query="
+            COMPREPLY=($(compgen -W "${benchmark_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "compare" ]]; then
+            local benchmark_opts="--cache --no-cache --query= --iterations="
+            COMPREPLY=($(compgen -W "${benchmark_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "profile" ]]; then
+            local benchmark_opts="--query= --iterations= --slow-threshold="
+            COMPREPLY=($(compgen -W "${benchmark_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "report" ]]; then
+            local benchmark_opts="--query= --iterations= --output="
+            COMPREPLY=($(compgen -W "${benchmark_opts}" -- "${cur}"))
         fi
         return 0
     fi

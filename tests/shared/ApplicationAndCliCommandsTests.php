@@ -333,4 +333,177 @@ PHP;
         // Version should be in format like "2.11.0" or similar
         $this->assertMatchesRegularExpression('/v\d+\.\d+\.\d+/', $output);
     }
+
+    public function testBenchmarkCommandHelp(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'benchmark', 'help']);
+            $output = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Benchmark and Performance Testing', $output);
+        $this->assertStringContainsString('Subcommands:', $output);
+        $this->assertStringContainsString('query', $output);
+        $this->assertStringContainsString('crud', $output);
+        $this->assertStringContainsString('load', $output);
+    }
+
+    public function testBenchmarkQueryCommand(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'benchmark', 'query', 'SELECT 1', '--iterations=10']);
+            $output = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Query Benchmark Results', $output);
+        $this->assertStringContainsString('Iterations:', $output);
+        $this->assertStringContainsString('Total time:', $output);
+        $this->assertStringContainsString('Queries per second:', $output);
+    }
+
+    public function testBenchmarkQueryCommandWithError(): void
+    {
+        // Run in separate process to avoid exit() terminating PHPUnit
+        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php vendor/bin/pdodb benchmark query 2>&1';
+        $output = shell_exec($cmd);
+        $hasError = $output !== null && str_contains($output, 'SQL query is required');
+
+        $this->assertTrue($hasError, 'Should show error when SQL query is not provided');
+        $this->assertStringContainsString('SQL query is required', $output ?? '');
+    }
+
+    public function testBenchmarkCrudCommand(): void
+    {
+        // Run in separate process to avoid exit() terminating PHPUnit
+        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php vendor/bin/pdodb benchmark crud non_existent_table 2>&1';
+        $output = shell_exec($cmd);
+        $hasError = $output !== null && str_contains($output, 'does not exist');
+
+        $this->assertTrue($hasError, 'Should show error for non-existent table');
+        $this->assertStringContainsString('does not exist', $output ?? '');
+    }
+
+    public function testBenchmarkCrudCommandWithNonExistentTable(): void
+    {
+        // Run in separate process to avoid exit() terminating PHPUnit
+        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php vendor/bin/pdodb benchmark crud non_existent_table 2>&1';
+        $output = shell_exec($cmd);
+        $hasError = $output !== null && str_contains($output, 'does not exist');
+
+        $this->assertTrue($hasError, 'Should show error for non-existent table');
+        $this->assertStringContainsString('does not exist', $output ?? '');
+    }
+
+    public function testBenchmarkLoadCommand(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'benchmark', 'load', '--connections=5', '--duration=2', '--query=SELECT 1']);
+            $output = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Load Testing', $output);
+        $this->assertStringContainsString('Connections:', $output);
+        $this->assertStringContainsString('Duration:', $output);
+        $this->assertStringContainsString('Total queries:', $output);
+    }
+
+    public function testBenchmarkProfileCommand(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'benchmark', 'profile', '--query=SELECT 1', '--iterations=10', '--slow-threshold=100ms']);
+            $output = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Query Profile Results', $output);
+        $this->assertStringContainsString('Aggregated Statistics:', $output);
+    }
+
+    public function testBenchmarkProfileCommandWithoutQuery(): void
+    {
+        // Run in separate process to avoid exit() terminating PHPUnit
+        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php vendor/bin/pdodb benchmark profile 2>&1';
+        $output = shell_exec($cmd);
+        // Command may show help or error, both are acceptable
+        $hasMessage = $output !== null && (str_contains($output, 'Please specify a query') || str_contains($output, 'help'));
+
+        $this->assertTrue($hasMessage, 'Should show error or help when query is not specified');
+    }
+
+    public function testBenchmarkCompareCommand(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'benchmark', 'compare', '--query=SELECT 1', '--iterations=10']);
+            $output = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Benchmark Comparison', $output);
+    }
+
+    public function testBenchmarkReportCommand(): void
+    {
+        $app = new Application();
+        $reportFile = sys_get_temp_dir() . '/benchmark-report-' . uniqid() . '.html';
+
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'benchmark', 'report', '--query=SELECT 1', '--iterations=10', '--output=' . $reportFile]);
+            $output = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('saved to:', $output);
+        $this->assertFileExists($reportFile);
+
+        // Check report content
+        $content = file_get_contents($reportFile);
+        $this->assertStringContainsString('PDOdb Benchmark Report', $content);
+        $this->assertStringContainsString('SELECT 1', $content);
+
+        @unlink($reportFile);
+    }
 }

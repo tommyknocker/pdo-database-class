@@ -20,6 +20,7 @@ PDOdb provides convenient command-line tools for common development tasks, inclu
 - [Query Tester (REPL)](#query-tester-repl)
 - [Database Monitoring](#database-monitoring)
 - [Cache Management](#cache-management)
+- [Benchmark and Performance Testing](#benchmark-and-performance-testing)
 - [Seed Management](#seed-management)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -30,15 +31,21 @@ PDOdb provides convenient command-line tools for common development tasks, inclu
 
 The CLI tools are designed to streamline your development workflow:
 
+- **Project Initialization** - Interactive wizard to set up PDOdb configuration
 - **Database Management** - Create, drop, list, and check database existence
 - **Connection Management** - Test, inspect, and manage database connections
 - **User Management** - Create, drop, list, and manage database users and privileges
+- **Database Dump and Restore** - Export and import database schema and data
+- **Table Management** - Create, drop, rename, truncate, and manage table structure
 - **Migration Generator** - Create database migrations with interactive prompts
 - **Model Generator** - Generate ActiveRecord models from existing database tables
 - **Repository Generator** - Generate repository classes with CRUD operations
 - **Service Generator** - Generate service classes for business logic
 - **Schema Inspector** - Inspect database schema structure
 - **Query Tester** - Interactive REPL for testing SQL queries
+- **Database Monitoring** - Monitor queries, connections, and performance metrics
+- **Cache Management** - Manage query result cache (clear, invalidate, statistics)
+- **Benchmark and Performance Testing** - Benchmark queries and operations, compare configurations
 - **Seed Management** - Create, run, and rollback database seeds for test and initial data
 
 ## Database Dump and Restore
@@ -1819,6 +1826,285 @@ vendor/bin/pdodb cache invalidate "pdodb_table_users_*" --force
 - **Maintenance**: Invalidate specific table caches after data updates without clearing all cache
 - **Performance**: Use selective invalidation to maintain cache for unchanged tables while refreshing updated tables
 
+## Benchmark and Performance Testing
+
+The benchmark command provides comprehensive performance testing capabilities for your database queries and operations. This feature helps you identify performance bottlenecks, compare different configurations, and generate detailed performance reports.
+
+### Usage
+
+```bash
+# Benchmark a specific query
+vendor/bin/pdodb benchmark query "SELECT * FROM users WHERE id = :id"
+
+# Benchmark with custom iterations and warmup
+vendor/bin/pdodb benchmark query "SELECT * FROM users" --iterations=1000 --warmup=50
+
+# Benchmark CRUD operations on a table
+vendor/bin/pdodb benchmark crud users --iterations=1000
+
+# Load testing with concurrent connections
+vendor/bin/pdodb benchmark load --connections=50 --duration=60 --query="SELECT 1"
+
+# Compare performance with/without cache
+vendor/bin/pdodb benchmark compare --query="SELECT * FROM users" --iterations=100
+
+# Profile queries with detailed statistics
+vendor/bin/pdodb benchmark profile --query="SELECT * FROM users" --slow-threshold=100ms --iterations=100
+
+# Generate HTML benchmark report
+vendor/bin/pdodb benchmark report --query="SELECT * FROM users" --iterations=100 --output=report.html
+```
+
+### Subcommands
+
+#### `benchmark query`
+
+Benchmark a specific SQL query with detailed performance metrics.
+
+**Usage:**
+```bash
+vendor/bin/pdodb benchmark query "<SQL>" [options]
+```
+
+**Options:**
+- `--iterations=N` - Number of iterations to run (default: 100)
+- `--warmup=N` - Number of warmup iterations before actual benchmark (default: 10)
+
+**Example:**
+```bash
+vendor/bin/pdodb benchmark query "SELECT * FROM users WHERE id = :id" --iterations=500
+```
+
+**Output:**
+```
+Query Benchmark Results
+=======================
+
+Iterations: 500
+Total time: 0.1234s
+Average time: 0.2468ms
+Min time: 0.1234ms
+Max time: 0.5678ms
+Queries per second: 4051.23
+Average memory: 1.23 KB
+```
+
+#### `benchmark crud`
+
+Benchmark Create, Read, Update, and Delete operations on a table.
+
+**Usage:**
+```bash
+vendor/bin/pdodb benchmark crud <table> [options]
+```
+
+**Options:**
+- `--iterations=N` - Number of iterations for each operation (default: 1000)
+
+**Example:**
+```bash
+vendor/bin/pdodb benchmark crud users --iterations=500
+```
+
+**Output:**
+```
+CRUD Benchmark Results
+=====================
+
+Create:
+  Iterations: 500
+  Total time: 0.5678s
+  Average time: 1.1356ms
+  Operations per second: 880.23
+
+Read:
+  Iterations: 500
+  Total time: 0.1234s
+  Average time: 0.2468ms
+  Operations per second: 4051.23
+
+Update:
+  Iterations: 500
+  Total time: 0.3456s
+  Average time: 0.6912ms
+  Operations per second: 1446.78
+
+Delete:
+  Iterations: 500
+  Total time: 0.2345s
+  Average time: 0.4690ms
+  Operations per second: 2132.20
+```
+
+#### `benchmark load`
+
+Perform load testing with simulated concurrent connections.
+
+**Usage:**
+```bash
+vendor/bin/pdodb benchmark load [options]
+```
+
+**Options:**
+- `--connections=N` - Number of concurrent connections to simulate (default: 10)
+- `--duration=N` - Duration in seconds (default: 60)
+- `--query=SQL` - SQL query to execute (default: SELECT 1)
+
+**Example:**
+```bash
+vendor/bin/pdodb benchmark load --connections=50 --duration=30 --query="SELECT * FROM users LIMIT 10"
+```
+
+**Output:**
+```
+Load Testing
+============
+Connections: 50
+Duration: 30s
+Query: SELECT * FROM users LIMIT 10
+
+Results:
+--------
+Total queries: 15234
+Errors: 0
+Duration: 30.00s
+Queries per second: 507.80
+Avg query time: 1.97ms
+Min query time: 0.12ms
+Max query time: 15.67ms
+```
+
+#### `benchmark compare`
+
+Compare performance between different configurations (e.g., with/without cache).
+
+**Usage:**
+```bash
+vendor/bin/pdodb benchmark compare [options]
+```
+
+**Options:**
+- `--cache` - Enable cache for comparison
+- `--no-cache` - Disable cache for comparison
+- `--query=SQL` - SQL query to benchmark (default: SELECT 1)
+- `--iterations=N` - Number of iterations (default: 100)
+
+**Example:**
+```bash
+vendor/bin/pdodb benchmark compare --query="SELECT * FROM users" --iterations=100
+```
+
+**Output:**
+```
+Benchmark Comparison
+====================
+
+No-cache:
+  Iterations: 100
+  Total time: 0.1234s
+  Average time: 1.2340ms
+  Queries per second: 810.46
+
+Cache:
+  Iterations: 100
+  Total time: 0.0234s
+  Average time: 0.2340ms
+  Queries per second: 4273.50
+
+Speedup with cache: 5.27x
+```
+
+#### `benchmark profile`
+
+Profile queries with detailed statistics and slow query detection.
+
+**Usage:**
+```bash
+vendor/bin/pdodb benchmark profile [options]
+```
+
+**Options:**
+- `--query=SQL` - SQL query to profile (required)
+- `--iterations=N` - Number of iterations (default: 100)
+- `--slow-threshold=TIME` - Slow query threshold (e.g., 100ms, 1s) (default: 100ms)
+
+**Example:**
+```bash
+vendor/bin/pdodb benchmark profile --query="SELECT * FROM users" --iterations=100 --slow-threshold=50ms
+```
+
+**Output:**
+```
+Query Profile Results
+====================
+
+Aggregated Statistics:
+  Total queries: 100
+  Total time: 0.1234s
+  Average time: 1.2340ms
+  Min time: 0.1234ms
+  Max time: 5.6789ms
+  Slow queries (>0.1s): 0
+
+Slowest Queries:
+  1. Avg: 5.6789ms, Max: 5.6789ms, Count: 1
+     SQL: SELECT * FROM users...
+```
+
+#### `benchmark report`
+
+Generate an HTML report with benchmark results and statistics.
+
+**Usage:**
+```bash
+vendor/bin/pdodb benchmark report [options]
+```
+
+**Options:**
+- `--query=SQL` - SQL query to benchmark (default: SELECT 1)
+- `--iterations=N` - Number of iterations (default: 100)
+- `--output=FILE` - Output file path (default: benchmark-report.html)
+
+**Example:**
+```bash
+vendor/bin/pdodb benchmark report --query="SELECT * FROM users" --iterations=100 --output=users-benchmark.html
+```
+
+The generated HTML report includes:
+- Query information
+- Performance metrics (iterations, total time, average time, QPS)
+- Detailed query statistics
+- Formatted tables for easy reading
+
+### Best Practices
+
+1. **Use Warmup Iterations**: Always include warmup iterations to account for cold start effects and query plan caching.
+
+2. **Run Multiple Iterations**: Use sufficient iterations (100+) to get statistically meaningful results.
+
+3. **Test Realistic Queries**: Benchmark queries that represent your actual workload, not just simple SELECT 1 queries.
+
+4. **Compare Configurations**: Use `benchmark compare` to evaluate the impact of caching, connection pooling, and other optimizations.
+
+5. **Monitor Slow Queries**: Use `benchmark profile` with appropriate thresholds to identify performance bottlenecks.
+
+6. **Generate Reports**: Use `benchmark report` to create shareable performance reports for documentation and analysis.
+
+### Integration with Development Workflow
+
+Benchmarking can be integrated into your development workflow:
+
+```bash
+# Before optimization
+vendor/bin/pdodb benchmark query "SELECT * FROM users WHERE email = :email" > before.txt
+
+# After optimization (e.g., adding index)
+vendor/bin/pdodb benchmark query "SELECT * FROM users WHERE email = :email" > after.txt
+
+# Compare results
+diff before.txt after.txt
+```
+
 ## Seed Management
 
 Database seeds are classes that populate your database with test or initial data. Seeds are useful for development, testing, and setting up initial application data.
@@ -2491,18 +2777,23 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 
 ### Available Commands
 
+- **`init`** - Project initialization wizard (interactive setup)
 - **`db`** - Manage databases (create, drop, list, check existence, show info)
 - **`connection`** - Manage database connections (test, info, list, ping)
 - **`user`** - Manage database users (create, drop, list, grant/revoke privileges, change password)
 - **`dump`** - Dump and restore database (schema and data export/import)
-- **`migrate`** - Manage database migrations
-- **`schema`** - Inspect database schema
-- **`query`** - Test SQL queries interactively
-- **`model`** - Generate ActiveRecord models
 - **`table`** - Manage tables (info, list, exists, create, drop, rename, truncate, describe, columns, indexes, foreign keys)
+- **`migrate`** - Manage database migrations
+- **`model`** - Generate ActiveRecord models from existing tables
+- **`repository`** - Generate repository classes with CRUD operations
+- **`service`** - Generate service classes for business logic
+- **`schema`** - Inspect database schema structure
+- **`query`** - Test SQL queries interactively (REPL)
 - **`monitor`** - Monitor database queries, connections, and performance
 - **`cache`** - Manage query result cache (clear, invalidate, statistics)
+- **`benchmark`** - Benchmark and performance testing
 - **`seed`** - Manage database seeds (create, run, list, rollback)
+- **`version`** - Show application version (also available as `--version` or `-v` flag)
 
 ### Getting Help
 
@@ -2510,13 +2801,27 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 # Show all available commands
 vendor/bin/pdodb
 
+# Show application version
+vendor/bin/pdodb version
+vendor/bin/pdodb --version
+vendor/bin/pdodb -v
+
 # Show help for a specific command
+vendor/bin/pdodb init --help
 vendor/bin/pdodb db --help
 vendor/bin/pdodb connection --help
+vendor/bin/pdodb user --help
+vendor/bin/pdodb dump --help
+vendor/bin/pdodb table --help
 vendor/bin/pdodb migrate --help
+vendor/bin/pdodb model --help
+vendor/bin/pdodb repository --help
+vendor/bin/pdodb service --help
 vendor/bin/pdodb schema --help
 vendor/bin/pdodb query --help
-vendor/bin/pdodb model --help
+vendor/bin/pdodb monitor --help
+vendor/bin/pdodb cache --help
+vendor/bin/pdodb benchmark --help
 vendor/bin/pdodb seed --help
 ```
 

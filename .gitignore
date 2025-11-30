@@ -1,5 +1,6 @@
 .idea
 .cursor
+.claude
 .env
 /nbproject
 vendor
