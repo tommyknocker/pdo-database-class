@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\postgresql;
 
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\Db;
 
 /**
@@ -875,5 +876,44 @@ final class HelpersTests extends BasePostgreSQLTestCase
             ->get();
         $this->assertCount(1, $results);
         $this->assertEquals('invalid-email', $results[0]['email']);
+    }
+
+    public function testToTsThrowsException(): void
+    {
+        $db = self::$db;
+
+        // Test toTs() throws UnsupportedOperationException
+        $this->expectException(UnsupportedOperationException::class);
+        $this->expectExceptionMessage('TO_TIMESTAMP is only supported in Oracle');
+        $db->find()
+            ->from('users')
+            ->select(['ts' => Db::toTs('2025-10-20 09:00:00')])
+            ->getOne();
+    }
+
+    public function testToDateThrowsException(): void
+    {
+        $db = self::$db;
+
+        // Test toDate() throws UnsupportedOperationException
+        $this->expectException(UnsupportedOperationException::class);
+        $this->expectExceptionMessage('TO_DATE is only supported in Oracle');
+        $db->find()
+            ->from('users')
+            ->select(['date' => Db::toDate('2025-10-20')])
+            ->getOne();
+    }
+
+    public function testToCharThrowsException(): void
+    {
+        $db = self::$db;
+
+        // Test toChar() throws UnsupportedOperationException
+        $this->expectException(UnsupportedOperationException::class);
+        $this->expectExceptionMessage('TO_CHAR is only supported in Oracle');
+        $db->find()
+            ->from('users')
+            ->select(['char' => Db::toChar('name')])
+            ->getOne();
     }
 }
