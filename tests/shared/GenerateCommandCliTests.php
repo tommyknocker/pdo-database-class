@@ -308,6 +308,122 @@ final class GenerateCommandCliTests extends TestCase
         $this->assertStringContainsString('Primary key', $schema['properties']['id']['description'] ?? '');
     }
 
+    public function testGenerateModel(): void
+    {
+        $this->createTestTable();
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'model', '--model=TestUser', '--table=test_users', '--output=' . $this->outputDir, '--force']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Model file created', $out);
+        $this->assertFileExists($this->outputDir . '/TestUser.php');
+
+        $content = file_get_contents($this->outputDir . '/TestUser.php');
+        $this->assertStringContainsString('namespace app\\models', $content);
+        $this->assertStringContainsString('class TestUser', $content);
+        $this->assertStringContainsString('tableName()', $content);
+    }
+
+    /**
+     * @runInSeparateProcess
+     *
+     * @preserveGlobalState disabled
+     */
+    public function testGenerateModelErrorNoModel(): void
+    {
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $dbPath = sys_get_temp_dir() . '/pdodb_generate_' . uniqid() . '.sqlite';
+        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
+        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate model --table=test_users 2>&1';
+        $out = (string)shell_exec($cmd);
+        $this->assertStringContainsString('--model option is required', $out);
+    }
+
+    public function testGenerateRepository(): void
+    {
+        $this->createTestTable();
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'repository', '--repository=TestUserRepository', '--model=TestUser', '--table=test_users', '--output=' . $this->outputDir, '--force']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Repository file created', $out);
+        $this->assertFileExists($this->outputDir . '/TestUserRepository.php');
+
+        $content = file_get_contents($this->outputDir . '/TestUserRepository.php');
+        $this->assertStringContainsString('namespace app\\repositories', $content);
+        $this->assertStringContainsString('class TestUserRepository', $content);
+        $this->assertStringContainsString('use app\\models\\TestUser', $content);
+    }
+
+    /**
+     * @runInSeparateProcess
+     *
+     * @preserveGlobalState disabled
+     */
+    public function testGenerateRepositoryErrorNoRepository(): void
+    {
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $dbPath = sys_get_temp_dir() . '/pdodb_generate_' . uniqid() . '.sqlite';
+        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
+        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate repository --model=TestUser 2>&1';
+        $out = (string)shell_exec($cmd);
+        $this->assertStringContainsString('--repository option is required', $out);
+    }
+
+    public function testGenerateService(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'service', '--service=TestUserService', '--repository=TestUserRepository', '--output=' . $this->outputDir, '--force']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Service file created', $out);
+        $this->assertFileExists($this->outputDir . '/TestUserService.php');
+
+        $content = file_get_contents($this->outputDir . '/TestUserService.php');
+        $this->assertStringContainsString('namespace app\\services', $content);
+        $this->assertStringContainsString('class TestUserService', $content);
+        $this->assertStringContainsString('use app\\repositories\\TestUserRepository', $content);
+    }
+
+    /**
+     * @runInSeparateProcess
+     *
+     * @preserveGlobalState disabled
+     */
+    public function testGenerateServiceErrorNoService(): void
+    {
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $dbPath = sys_get_temp_dir() . '/pdodb_generate_' . uniqid() . '.sqlite';
+        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
+        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate service --repository=TestUserRepository 2>&1';
+        $out = (string)shell_exec($cmd);
+        $this->assertStringContainsString('--service option is required', $out);
+    }
+
     /**
      * @runInSeparateProcess
      *

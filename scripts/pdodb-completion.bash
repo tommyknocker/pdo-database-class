@@ -168,10 +168,19 @@ _pdodb() {
 
     # Generate command
     if [[ "${cmd}" == "generate" ]]; then
-        local generate_subcommands="api tests dto enum docs"
+        local generate_subcommands="model repository service api tests dto enum docs"
         
         if [[ ${COMP_CWORD} -eq 2 ]]; then
             COMPREPLY=($(compgen -W "${generate_subcommands} --help" -- "${cur}"))
+        elif [[ "${subcmd}" == "model" ]]; then
+            local generate_opts="--model= --table= --namespace= --output= --force --connection="
+            COMPREPLY=($(compgen -W "${generate_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "repository" ]]; then
+            local generate_opts="--repository= --model= --table= --namespace= --model-namespace= --output= --force --connection="
+            COMPREPLY=($(compgen -W "${generate_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "service" ]]; then
+            local generate_opts="--service= --repository= --namespace= --repository-namespace= --output= --force --connection="
+            COMPREPLY=($(compgen -W "${generate_opts}" -- "${cur}"))
         elif [[ "${subcmd}" == "api" ]]; then
             local generate_opts="--table= --model= --format=rest --format --namespace= --output= --force --connection="
             COMPREPLY=($(compgen -W "${generate_opts}" -- "${cur}"))

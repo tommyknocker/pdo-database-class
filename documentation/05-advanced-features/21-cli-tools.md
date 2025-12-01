@@ -1042,6 +1042,7 @@ Generate ActiveRecord model classes from existing database tables.
 
 ### Usage
 
+**Legacy syntax (still supported):**
 ```bash
 # Auto-detect table name from model name
 vendor/bin/pdodb model make User
@@ -1053,13 +1054,25 @@ vendor/bin/pdodb model make User users
 vendor/bin/pdodb model make User users app/Models
 
 # Specify namespace for generated model
-vendor/bin/pdodb model make User users app/Models --namespace=App\\Entities
+vendor/bin/pdodb model make User users app/Models --namespace=app\\entities
 
 # Overwrite without confirmation
 vendor/bin/pdodb model make User users app/Models --force
 
 # Use a named connection from config/db.php (global option)
 vendor/bin/pdodb model make User users app/Models --connection=reporting
+```
+
+**Unified syntax (recommended):**
+```bash
+# Generate model with unified syntax
+vendor/bin/pdodb generate model --model=User --table=users
+
+# Specify output path and namespace
+vendor/bin/pdodb generate model --model=User --table=users --output=app/Models --namespace=app\\entities
+
+# Overwrite without confirmation
+vendor/bin/pdodb generate model --model=User --table=users --force
 ```
 
 ### Example
@@ -1147,6 +1160,7 @@ Generate repository classes with CRUD operations for models and database tables.
 
 ### Usage
 
+**Legacy syntax (still supported):**
 ```bash
 # Auto-detect model name from repository name (UserRepository -> User)
 vendor/bin/pdodb repository make UserRepository
@@ -1158,10 +1172,25 @@ vendor/bin/pdodb repository make UserRepository User
 vendor/bin/pdodb repository make UserRepository User app/Repositories
 
 # Specify namespaces
-vendor/bin/pdodb repository make UserRepository User app/Repositories --namespace=App\\Repositories --model-namespace=App\\Models
+vendor/bin/pdodb repository make UserRepository User app/Repositories --namespace=app\\repositories --model-namespace=app\\models
 
 # Overwrite without confirmation
 vendor/bin/pdodb repository make UserRepository User app/Repositories --force
+```
+
+**Unified syntax (recommended):**
+```bash
+# Generate repository with unified syntax
+vendor/bin/pdodb generate repository --repository=UserRepository --model=User
+
+# Specify table name explicitly
+vendor/bin/pdodb generate repository --repository=UserRepository --model=User --table=users
+
+# Specify output path and namespaces
+vendor/bin/pdodb generate repository --repository=UserRepository --model=User --output=app/Repositories --namespace=app\\repositories --model-namespace=app\\models
+
+# Overwrite without confirmation
+vendor/bin/pdodb generate repository --repository=UserRepository --model=User --force
 ```
 
 ### Example
@@ -1260,6 +1289,7 @@ Generate service classes with business logic structure, typically working with r
 
 ### Usage
 
+**Legacy syntax (still supported):**
 ```bash
 # Auto-detect repository name from service name (UserService -> UserRepository)
 vendor/bin/pdodb service make UserService
@@ -1271,10 +1301,22 @@ vendor/bin/pdodb service make UserService UserRepository
 vendor/bin/pdodb service make UserService UserRepository app/Services
 
 # Specify namespaces
-vendor/bin/pdodb service make UserService UserRepository app/Services --namespace=App\\Services --repository-namespace=App\\Repositories
+vendor/bin/pdodb service make UserService UserRepository app/Services --namespace=app\\services --repository-namespace=app\\repositories
 
 # Overwrite without confirmation
 vendor/bin/pdodb service make UserService UserRepository app/Services --force
+```
+
+**Unified syntax (recommended):**
+```bash
+# Generate service with unified syntax
+vendor/bin/pdodb generate service --service=UserService --repository=UserRepository
+
+# Specify output path and namespaces
+vendor/bin/pdodb generate service --service=UserService --repository=UserRepository --output=app/Services --namespace=app\\services --repository-namespace=app\\repositories
+
+# Overwrite without confirmation
+vendor/bin/pdodb generate service --service=UserService --repository=UserRepository --force
 ```
 
 ### Example
@@ -1371,13 +1413,20 @@ The generator searches for services directory in this order:
 
 ## Extended Code Generation
 
-The `generate` command provides extended code generation capabilities for API endpoints, tests, DTOs, Enum classes, and API documentation. It follows a unified parameter syntax across all subcommands.
+The `generate` command provides extended code generation capabilities for models, repositories, services, API endpoints, tests, DTOs, Enum classes, and API documentation. It follows a unified parameter syntax across all subcommands.
+
+> **Note:** The `generate` command now includes `model`, `repository`, and `service` subcommands with unified syntax. The legacy commands (`pdodb model`, `pdodb repository`, `pdodb service`) continue to work for backward compatibility, but the unified syntax is recommended for new projects.
 
 ### Usage
 
 ```bash
 # Show help
 vendor/bin/pdodb generate --help
+
+# Generate models, repositories, and services (unified syntax)
+vendor/bin/pdodb generate model --model=User --table=users
+vendor/bin/pdodb generate repository --repository=UserRepository --model=User
+vendor/bin/pdodb generate service --service=UserService --repository=UserRepository
 
 # Generate REST API endpoints
 vendor/bin/pdodb generate api --table=users --format=rest

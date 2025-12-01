@@ -10,6 +10,9 @@ use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\DocsGenerator;
 use tommyknocker\pdodb\cli\DtoGenerator;
 use tommyknocker\pdodb\cli\EnumGenerator;
+use tommyknocker\pdodb\cli\ModelGenerator;
+use tommyknocker\pdodb\cli\RepositoryGenerator;
+use tommyknocker\pdodb\cli\ServiceGenerator;
 use tommyknocker\pdodb\cli\TestGenerator;
 
 /**
@@ -45,6 +48,9 @@ class GenerateCommand extends Command
             'dto' => $this->generateDto(),
             'enum' => $this->generateEnum(),
             'docs' => $this->generateDocs(),
+            'model' => $this->generateModel(),
+            'repository' => $this->generateRepository(),
+            'service' => $this->generateService(),
             default => $this->showError("Unknown subcommand: {$subcommand}"),
         };
     }
@@ -220,6 +226,107 @@ class GenerateCommand extends Command
     }
 
     /**
+     * Generate model.
+     *
+     * @return int Exit code
+     */
+    protected function generateModel(): int
+    {
+        $model = $this->getOption('model');
+        $table = $this->getOption('table');
+        $namespace = $this->getOption('namespace');
+        $output = $this->getOption('output');
+        $force = (bool)$this->getOption('force', false);
+
+        if ($model === null) {
+            $this->showError('--model option is required');
+        }
+
+        try {
+            ModelGenerator::generate(
+                $model,
+                is_string($table) ? $table : null,
+                is_string($output) ? $output : null,
+                $this->getDb(),
+                is_string($namespace) ? $namespace : null,
+                $force
+            );
+            return 0;
+        } catch (Exception $e) {
+            $this->showError($e->getMessage());
+        }
+    }
+
+    /**
+     * Generate repository.
+     *
+     * @return int Exit code
+     */
+    protected function generateRepository(): int
+    {
+        $repository = $this->getOption('repository');
+        $model = $this->getOption('model');
+        $table = $this->getOption('table');
+        $namespace = $this->getOption('namespace');
+        $modelNamespace = $this->getOption('model-namespace');
+        $output = $this->getOption('output');
+        $force = (bool)$this->getOption('force', false);
+
+        if ($repository === null) {
+            $this->showError('--repository option is required');
+        }
+
+        try {
+            RepositoryGenerator::generate(
+                $repository,
+                is_string($model) ? $model : null,
+                is_string($output) ? $output : null,
+                $this->getDb(),
+                is_string($namespace) ? $namespace : null,
+                is_string($modelNamespace) ? $modelNamespace : null,
+                $force
+            );
+            return 0;
+        } catch (Exception $e) {
+            $this->showError($e->getMessage());
+        }
+    }
+
+    /**
+     * Generate service.
+     *
+     * @return int Exit code
+     */
+    protected function generateService(): int
+    {
+        $service = $this->getOption('service');
+        $repository = $this->getOption('repository');
+        $namespace = $this->getOption('namespace');
+        $repositoryNamespace = $this->getOption('repository-namespace');
+        $output = $this->getOption('output');
+        $force = (bool)$this->getOption('force', false);
+
+        if ($service === null) {
+            $this->showError('--service option is required');
+        }
+
+        try {
+            ServiceGenerator::generate(
+                $service,
+                is_string($repository) ? $repository : null,
+                is_string($output) ? $output : null,
+                $this->getDb(),
+                is_string($namespace) ? $namespace : null,
+                is_string($repositoryNamespace) ? $repositoryNamespace : null,
+                $force
+            );
+            return 0;
+        } catch (Exception $e) {
+            $this->showError($e->getMessage());
+        }
+    }
+
+    /**
      * Show help message.
      *
      * @return int Exit code
@@ -229,6 +336,9 @@ class GenerateCommand extends Command
         echo "Extended Code Generation\n\n";
         echo "Usage: pdodb generate <subcommand> [options]\n\n";
         echo "Subcommands:\n";
+        echo "  model            Generate ActiveRecord models\n";
+        echo "  repository       Generate repository classes\n";
+        echo "  service          Generate service classes\n";
         echo "  api              Generate REST API endpoints/controllers\n";
         echo "  tests            Generate unit/integration tests\n";
         echo "  dto              Generate Data Transfer Objects\n";
@@ -242,6 +352,18 @@ class GenerateCommand extends Command
         echo "  --force              Overwrite existing files without confirmation\n";
         echo "  --connection=<name>  Use specific database connection\n\n";
         echo "Subcommand-specific Options:\n";
+        echo "  generate model:\n";
+        echo "    --model=<name>     Model class name (required)\n";
+        echo "    --table=<name>     Table name (optional, auto-detected from model name)\n\n";
+        echo "  generate repository:\n";
+        echo "    --repository=<name>  Repository class name (required)\n";
+        echo "    --model=<name>       Model class name (optional, auto-detected from repository name)\n";
+        echo "    --table=<name>       Table name (optional, auto-detected from model name)\n";
+        echo "    --model-namespace=<ns>  Model namespace (default: app\\\\models)\n\n";
+        echo "  generate service:\n";
+        echo "    --service=<name>      Service class name (required)\n";
+        echo "    --repository=<name>   Repository class name (optional, auto-detected from service name)\n";
+        echo "    --repository-namespace=<ns>  Repository namespace (default: app\\\\repositories)\n\n";
         echo "  generate api:\n";
         echo "    --format=rest      Output format (default: rest)\n";
         echo "    --table=<name> or --model=<name>  Required\n\n";
@@ -257,6 +379,9 @@ class GenerateCommand extends Command
         echo "    --format=openapi   Output format (default: openapi)\n";
         echo "    --table=<name> or --model=<name>  Required\n\n";
         echo "Examples:\n";
+        echo "  pdodb generate model --model=User --table=users\n";
+        echo "  pdodb generate repository --repository=UserRepository --model=User\n";
+        echo "  pdodb generate service --service=UserService --repository=UserRepository\n";
         echo "  pdodb generate api --table=users --format=rest\n";
         echo "  pdodb generate api --model=User --format=rest\n";
         echo "  pdodb generate tests --model=User --type=unit\n";
