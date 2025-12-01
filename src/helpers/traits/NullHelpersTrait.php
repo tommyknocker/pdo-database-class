@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers\traits;
 
+use RuntimeException;
+use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\IfNullValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
@@ -52,11 +54,18 @@ trait NullHelpersTrait
      * @param mixed ...$values The values to check.
      *
      * @return RawValue The RawValue instance for COALESCE.
+     * @throws RuntimeException If ConcatValue is passed directly (use Db::raw() with resolved SQL instead).
      */
     public static function coalesce(...$values): RawValue
     {
         $args = [];
         foreach ($values as $val) {
+            if ($val instanceof ConcatValue) {
+                throw new RuntimeException(
+                    'ConcatValue cannot be used directly in coalesce(). ' .
+                    'Use Db::raw() with the resolved SQL expression instead, or use string literals and column names directly.'
+                );
+            }
             if ($val instanceof RawValue) {
                 $args[] = $val->getValue();
             } elseif (is_string($val)) {
