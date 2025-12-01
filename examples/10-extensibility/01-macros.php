@@ -170,7 +170,7 @@ $db->find()->table('products')->insert([
     'name' => 'New Product',
     'price' => 75.00,
     'status' => 'active',
-    'created_at' => $driver === 'oci' ? Db::raw("TO_TIMESTAMP('{$createdDate}', 'YYYY-MM-DD HH24:MI:SS')") : $createdDate,
+    'created_at' => $driver === 'oci' ? Db::toTs($createdDate) : $createdDate,
 ]);
 
 // Use macro with default parameter

@@ -114,6 +114,8 @@ use tommyknocker\pdodb\helpers\values\YearValue;
  * @method static MonthValue month(string|RawValue $value) Extracts month from date.
  * @method static DayValue day(string|RawValue $value) Extracts day from date.
  * @method static HourValue hour(string|RawValue $value) Extracts hour from time.
+ * @method static \tommyknocker\pdodb\helpers\values\ToTimestampValue toTs(string $timestampString, string $format = 'YYYY-MM-DD HH24:MI:SS') Converts string to TIMESTAMP (Oracle-specific).
+ * @method static \tommyknocker\pdodb\helpers\values\ToDateValue toDate(string $dateString, string $format = 'YYYY-MM-DD') Converts string to DATE (Oracle-specific).
  * @method static MinuteValue minute(string|RawValue $value) Extracts minute from time.
  * @method static SecondValue second(string|RawValue $value) Extracts second from time.
  * @method static IntervalValue addInterval(string|RawValue $expr, string $value, string $unit) Adds interval to date/datetime.

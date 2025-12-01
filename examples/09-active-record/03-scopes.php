@@ -205,13 +205,13 @@ $oldDate = date('Y-m-d H:i:s', $now - 10 * 24 * 3600);
 $db->find()->table('posts')->insert([
     'title' => 'Recent Post',
     'status' => 'published',
-    'created_at' => $driver === 'oci' ? Db::raw("TO_TIMESTAMP('{$recentDate}', 'YYYY-MM-DD HH24:MI:SS')") : $recentDate,
+    'created_at' => $driver === 'oci' ? Db::toTs($recentDate) : $recentDate,
 ]);
 
 $db->find()->table('posts')->insert([
     'title' => 'Old Post',
     'status' => 'published',
-    'created_at' => $driver === 'oci' ? Db::raw("TO_TIMESTAMP('{$oldDate}', 'YYYY-MM-DD HH24:MI:SS')") : $oldDate,
+    'created_at' => $driver === 'oci' ? Db::toTs($oldDate) : $oldDate,
 ]);
 
 // Use scope with parameter
@@ -235,7 +235,7 @@ $deletedDate = date('Y-m-d H:i:s');
 $db->find()->table('posts')->insert([
     'title' => 'Deleted Post',
     'status' => 'published',
-    'deleted_at' => $driver === 'oci' ? Db::raw("TO_TIMESTAMP('{$deletedDate}', 'YYYY-MM-DD HH24:MI:SS')") : $deletedDate,
+    'deleted_at' => $driver === 'oci' ? Db::toTs($deletedDate) : $deletedDate,
 ]);
 
 // Global scope automatically filters out deleted posts
@@ -279,7 +279,7 @@ $userId1 = $db->find()->table('users')->insert([
     'email' => 'john@example.com',
     'role' => 'admin',
     'is_active' => 1,
-    'email_verified_at' => $driver === 'oci' ? Db::raw("TO_TIMESTAMP('{$verifiedDate}', 'YYYY-MM-DD HH24:MI:SS')") : $verifiedDate,
+    'email_verified_at' => $driver === 'oci' ? Db::toTs($verifiedDate) : $verifiedDate,
 ]);
 
 $userId2 = $db->find()->table('users')->insert([

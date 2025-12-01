@@ -881,6 +881,46 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatToTimestamp(string $timestampString, string $format): string
+    {
+        $timestampEscaped = str_replace("'", "''", $timestampString);
+        $formatEscaped = str_replace("'", "''", $format);
+        return "TO_TIMESTAMP('{$timestampEscaped}', '{$formatEscaped}')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatToDate(string $dateString, string $format): string
+    {
+        $dateEscaped = str_replace("'", "''", $dateString);
+        $formatEscaped = str_replace("'", "''", $format);
+        return "TO_DATE('{$dateEscaped}', '{$formatEscaped}')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatToChar(string|RawValue $value): string
+    {
+        // If it's a RawValue, use getValue() directly (it's already SQL)
+        // If it's a string, check if it looks like a column name (simple identifier)
+        // or if it's already a SQL expression (contains parentheses, quotes, etc.)
+        if ($value instanceof RawValue) {
+            $val = $value->getValue();
+        } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $value)) {
+            // Simple identifier - quote it
+            $val = $this->quoteIdentifier($value);
+        } else {
+            // Already a SQL expression - use as is
+            $val = $value;
+        }
+        return "TO_CHAR({$val})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
     {
         return $this->sqlFormatter->formatInterval($expr, $value, $unit, $isAdd);

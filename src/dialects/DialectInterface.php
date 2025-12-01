@@ -606,6 +606,41 @@ interface DialectInterface
     public function formatTimeOnly(string|RawValue $value): string;
 
     /**
+     * Format TO_TIMESTAMP expression (Oracle-specific).
+     * Converts a string to TIMESTAMP with specified format.
+     *
+     * @param string $timestampString The timestamp string to convert
+     * @param string $format The format string (e.g., 'YYYY-MM-DD HH24:MI:SS')
+     *
+     * @return string SQL expression (e.g., "TO_TIMESTAMP('2025-10-20 09:00:00', 'YYYY-MM-DD HH24:MI:SS')")
+     * @throws \tommyknocker\pdodb\exceptions\UnsupportedOperationException For non-Oracle dialects
+     */
+    public function formatToTimestamp(string $timestampString, string $format): string;
+
+    /**
+     * Format TO_DATE expression (Oracle-specific).
+     * Converts a string to DATE with specified format.
+     *
+     * @param string $dateString The date string to convert
+     * @param string $format The format string (e.g., 'YYYY-MM-DD')
+     *
+     * @return string SQL expression (e.g., "TO_DATE('2024-01-15', 'YYYY-MM-DD')")
+     * @throws \tommyknocker\pdodb\exceptions\UnsupportedOperationException For non-Oracle dialects
+     */
+    public function formatToDate(string $dateString, string $format): string;
+
+    /**
+     * Format TO_CHAR expression (Oracle-specific).
+     * Converts a value to character string (useful for CLOB columns).
+     *
+     * @param string|RawValue $value The value to convert to character string
+     *
+     * @return string SQL expression (e.g., "TO_CHAR(column)")
+     * @throws \tommyknocker\pdodb\exceptions\UnsupportedOperationException For non-Oracle dialects
+     */
+    public function formatToChar(string|RawValue $value): string;
+
+    /**
      * Format DATE_ADD / DATE_SUB interval expression.
      *
      * @param string|RawValue $expr Source date/datetime expression

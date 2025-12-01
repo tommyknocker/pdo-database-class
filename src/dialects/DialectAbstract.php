@@ -8,6 +8,7 @@ use PDO;
 use PDOStatement;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -640,6 +641,45 @@ abstract class DialectAbstract implements DialectInterface
     public function formatTimeOnly(string|RawValue $value): string
     {
         return 'TIME(' . $this->resolveValue($value) . ')';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatToTimestamp(string $timestampString, string $format): string
+    {
+        throw new UnsupportedOperationException(
+            'TO_TIMESTAMP is only supported in Oracle. Use date/time string literals for other dialects.',
+            0,
+            null,
+            $this->getDriverName()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatToDate(string $dateString, string $format): string
+    {
+        throw new UnsupportedOperationException(
+            'TO_DATE is only supported in Oracle. Use date string literals for other dialects.',
+            0,
+            null,
+            $this->getDriverName()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatToChar(string|RawValue $value): string
+    {
+        throw new UnsupportedOperationException(
+            'TO_CHAR is only supported in Oracle.',
+            0,
+            null,
+            $this->getDriverName()
+        );
     }
 
     /**

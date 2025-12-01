@@ -30,10 +30,10 @@ $driver = getCurrentDriver($db);
 if ($driver === 'oci') {
     // Oracle requires explicit TO_DATE for date values and TO_TIMESTAMP for time values
     $db->find()->table('events')->insertMulti([
-        ['title' => 'Morning Meeting', 'event_date' => Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')"), 'event_time' => Db::raw("TO_TIMESTAMP('2025-10-20 09:00:00', 'YYYY-MM-DD HH24:MI:SS')")],
-        ['title' => 'Lunch Break', 'event_date' => Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')"), 'event_time' => Db::raw("TO_TIMESTAMP('2025-10-20 12:30:00', 'YYYY-MM-DD HH24:MI:SS')")],
-        ['title' => 'Code Review', 'event_date' => Db::raw("TO_DATE('2025-10-21', 'YYYY-MM-DD')"), 'event_time' => Db::raw("TO_TIMESTAMP('2025-10-21 14:00:00', 'YYYY-MM-DD HH24:MI:SS')")],
-        ['title' => 'Team Standup', 'event_date' => Db::raw("TO_DATE('2025-10-19', 'YYYY-MM-DD')"), 'event_time' => Db::raw("TO_TIMESTAMP('2025-10-19 10:00:00', 'YYYY-MM-DD HH24:MI:SS')")],
+        ['title' => 'Morning Meeting', 'event_date' => Db::toDate('2025-10-20'), 'event_time' => Db::toTs('2025-10-20 09:00:00')],
+        ['title' => 'Lunch Break', 'event_date' => Db::toDate('2025-10-20'), 'event_time' => Db::toTs('2025-10-20 12:30:00')],
+        ['title' => 'Code Review', 'event_date' => Db::toDate('2025-10-21'), 'event_time' => Db::toTs('2025-10-21 14:00:00')],
+        ['title' => 'Team Standup', 'event_date' => Db::toDate('2025-10-19'), 'event_time' => Db::toTs('2025-10-19 10:00:00')],
     ]);
 } else {
     $db->find()->table('events')->insertMulti([

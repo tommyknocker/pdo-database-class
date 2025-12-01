@@ -116,6 +116,8 @@ if ($driver === 'oci') {
     // Oracle requires TO_CHAR() for CLOB columns before CAST
     // Use CASE to safely check if value can be converted to NUMBER
     // Oracle doesn't have TRY_CAST, so we use REGEXP_LIKE to validate number format first
+    // Note: For complex expressions with TO_CHAR inside CASE, we use raw SQL
+    // For simple TO_DATE/TO_TIMESTAMP, use Db::toDate() and Db::toTs() helpers
     $castTextExpr = "CASE WHEN REGEXP_LIKE(TO_CHAR(\"TEXT_VALUE\"), '^-?[0-9]+(\\.[0-9]+)?$') THEN CAST(TO_CHAR(\"TEXT_VALUE\") AS $castRealType) ELSE NULL END";
     $castMixedExpr = "CASE WHEN REGEXP_LIKE(TO_CHAR(\"MIXED_VALUE\"), '^-?[0-9]+(\\.[0-9]+)?$') THEN CAST(TO_CHAR(\"MIXED_VALUE\") AS $castRealType) ELSE NULL END";
     // Use CASE to safely check if value can be converted to DATE

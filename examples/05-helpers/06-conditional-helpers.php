@@ -31,11 +31,11 @@ $driver = getCurrentDriver($db);
 if ($driver === 'oci') {
     // Oracle requires explicit TO_DATE for date values
     $db->find()->table('orders')->insertMulti([
-        ['customer_name' => 'Alice Johnson', 'amount' => 150.00, 'status' => 'pending', 'priority' => 'high', 'order_date' => Db::raw("TO_DATE('2024-01-15', 'YYYY-MM-DD')"), 'discount_percent' => 0],
-        ['customer_name' => 'Bob Smith', 'amount' => 75.50, 'status' => 'completed', 'priority' => 'medium', 'order_date' => Db::raw("TO_DATE('2024-01-14', 'YYYY-MM-DD')"), 'discount_percent' => 5],
-        ['customer_name' => 'Carol Davis', 'amount' => 300.00, 'status' => 'pending', 'priority' => 'low', 'order_date' => Db::raw("TO_DATE('2024-01-16', 'YYYY-MM-DD')"), 'discount_percent' => 10],
-        ['customer_name' => 'Dave Wilson', 'amount' => 25.00, 'status' => 'cancelled', 'priority' => 'high', 'order_date' => Db::raw("TO_DATE('2024-01-13', 'YYYY-MM-DD')"), 'discount_percent' => 0],
-        ['customer_name' => 'Eve Brown', 'amount' => 500.00, 'status' => 'shipped', 'priority' => 'medium', 'order_date' => Db::raw("TO_DATE('2024-01-12', 'YYYY-MM-DD')"), 'discount_percent' => 15],
+        ['customer_name' => 'Alice Johnson', 'amount' => 150.00, 'status' => 'pending', 'priority' => 'high', 'order_date' => $driver === 'oci' ? Db::toDate('2024-01-15') : '2024-01-15', 'discount_percent' => 0],
+        ['customer_name' => 'Bob Smith', 'amount' => 75.50, 'status' => 'completed', 'priority' => 'medium', 'order_date' => $driver === 'oci' ? Db::toDate('2024-01-14') : '2024-01-14', 'discount_percent' => 5],
+        ['customer_name' => 'Carol Davis', 'amount' => 300.00, 'status' => 'pending', 'priority' => 'low', 'order_date' => $driver === 'oci' ? Db::toDate('2024-01-16') : '2024-01-16', 'discount_percent' => 10],
+        ['customer_name' => 'Dave Wilson', 'amount' => 25.00, 'status' => 'cancelled', 'priority' => 'high', 'order_date' => $driver === 'oci' ? Db::toDate('2024-01-13') : '2024-01-13', 'discount_percent' => 0],
+        ['customer_name' => 'Eve Brown', 'amount' => 500.00, 'status' => 'shipped', 'priority' => 'medium', 'order_date' => $driver === 'oci' ? Db::toDate('2024-01-12') : '2024-01-12', 'discount_percent' => 15],
     ]);
 } else {
     $db->find()->table('orders')->insertMulti([

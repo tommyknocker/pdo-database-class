@@ -50,6 +50,9 @@ use tommyknocker\pdodb\helpers\values\RightValue;
 use tommyknocker\pdodb\helpers\values\SecondValue;
 use tommyknocker\pdodb\helpers\values\SubstringValue;
 use tommyknocker\pdodb\helpers\values\TimeOnlyValue;
+use tommyknocker\pdodb\helpers\values\ToCharValue;
+use tommyknocker\pdodb\helpers\values\ToDateValue;
+use tommyknocker\pdodb\helpers\values\ToTimestampValue;
 use tommyknocker\pdodb\helpers\values\TruncValue;
 use tommyknocker\pdodb\helpers\values\WindowFunctionValue;
 use tommyknocker\pdodb\helpers\values\YearValue;
@@ -173,6 +176,17 @@ class RawValueResolver
             ),
             $value instanceof TimeOnlyValue => $this->dialect->formatTimeOnly(
                 $value->getSourceValue()
+            ),
+            $value instanceof ToTimestampValue => $this->dialect->formatToTimestamp(
+                $value->getTimestampString(),
+                $value->getFormat()
+            ),
+            $value instanceof ToDateValue => $this->dialect->formatToDate(
+                $value->getDateString(),
+                $value->getFormat()
+            ),
+            $value instanceof ToCharValue => $this->dialect->formatToChar(
+                $this->resolveRawValue($value->getSourceValue())
             ),
             $value instanceof WindowFunctionValue => $this->resolveWindowFunctionValue($value),
             $value instanceof FilterValue => $this->resolveFilterValue($value),

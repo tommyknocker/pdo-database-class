@@ -16,6 +16,7 @@ use tommyknocker\pdodb\helpers\values\RepeatValue;
 use tommyknocker\pdodb\helpers\values\ReverseValue;
 use tommyknocker\pdodb\helpers\values\RightValue;
 use tommyknocker\pdodb\helpers\values\SubstringValue;
+use tommyknocker\pdodb\helpers\values\ToCharValue;
 
 /**
  * Trait for string operations.
@@ -305,5 +306,18 @@ trait StringHelpersTrait
     public static function regexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): RegexpExtractValue
     {
         return new RegexpExtractValue($value, $pattern, $groupIndex);
+    }
+
+    /**
+     * Converts a value to character string (Oracle-specific).
+     * Throws UnsupportedOperationException for non-Oracle dialects.
+     *
+     * @param string|RawValue $value The value to convert to character string
+     *
+     * @return ToCharValue The ToCharValue instance
+     */
+    public static function toChar(string|RawValue $value): ToCharValue
+    {
+        return new ToCharValue($value);
     }
 }

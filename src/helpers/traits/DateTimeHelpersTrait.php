@@ -16,6 +16,8 @@ use tommyknocker\pdodb\helpers\values\NowValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\helpers\values\SecondValue;
 use tommyknocker\pdodb\helpers\values\TimeOnlyValue;
+use tommyknocker\pdodb\helpers\values\ToDateValue;
+use tommyknocker\pdodb\helpers\values\ToTimestampValue;
 use tommyknocker\pdodb\helpers\values\YearValue;
 
 /**
@@ -190,5 +192,33 @@ trait DateTimeHelpersTrait
     public static function subInterval(string|RawValue $expr, string $value, string $unit): IntervalValue
     {
         return new IntervalValue($expr, $value, $unit, false);
+    }
+
+    /**
+     * Converts a string to TIMESTAMP (Oracle-specific).
+     * Throws UnsupportedOperationException for non-Oracle dialects.
+     *
+     * @param string $timestampString The timestamp string to convert (e.g., '2025-10-20 09:00:00')
+     * @param string $format The format string (default: 'YYYY-MM-DD HH24:MI:SS')
+     *
+     * @return ToTimestampValue The ToTimestampValue instance
+     */
+    public static function toTs(string $timestampString, string $format = 'YYYY-MM-DD HH24:MI:SS'): ToTimestampValue
+    {
+        return new ToTimestampValue($timestampString, $format);
+    }
+
+    /**
+     * Converts a string to DATE (Oracle-specific).
+     * Throws UnsupportedOperationException for non-Oracle dialects.
+     *
+     * @param string $dateString The date string to convert (e.g., '2024-01-15')
+     * @param string $format The format string (default: 'YYYY-MM-DD')
+     *
+     * @return ToDateValue The ToDateValue instance
+     */
+    public static function toDate(string $dateString, string $format = 'YYYY-MM-DD'): ToDateValue
+    {
+        return new ToDateValue($dateString, $format);
     }
 }

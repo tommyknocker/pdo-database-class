@@ -208,13 +208,13 @@ echo "\n";
 echo "7. Recording API usage...\n";
 
 $apiUsage = [
-    ['tenant_id' => 1, 'endpoint' => '/api/documents', 'requests_count' => 1250, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
-    ['tenant_id' => 1, 'endpoint' => '/api/users', 'requests_count' => 340, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
-    ['tenant_id' => 2, 'endpoint' => '/api/documents', 'requests_count' => 680, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
-    ['tenant_id' => 2, 'endpoint' => '/api/search', 'requests_count' => 420, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
-    ['tenant_id' => 3, 'endpoint' => '/api/documents', 'requests_count' => 85, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
-    ['tenant_id' => 4, 'endpoint' => '/api/documents', 'requests_count' => 920, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
-    ['tenant_id' => 4, 'endpoint' => '/api/analytics', 'requests_count' => 150, 'date' => $driver === 'oci' ? Db::raw("TO_DATE('2025-10-20', 'YYYY-MM-DD')") : '2025-10-20'],
+    ['tenant_id' => 1, 'endpoint' => '/api/documents', 'requests_count' => 1250, 'date' => $driver === 'oci' ? Db::toDate('2025-10-20') : '2025-10-20'],
+    ['tenant_id' => 1, 'endpoint' => '/api/users', 'requests_count' => 340, 'date' => $driver === 'oci' ? Db::toDate('2025-10-20') : '2025-10-20'],
+    ['tenant_id' => 2, 'endpoint' => '/api/documents', 'requests_count' => 680, 'date' => $driver === 'oci' ? Db::toDate('2025-10-20') : '2025-10-20'],
+    ['tenant_id' => 2, 'endpoint' => '/api/search', 'requests_count' => 420, 'date' => $driver === 'oci' ? Db::toDate('2025-10-20') : '2025-10-20'],
+    ['tenant_id' => 3, 'endpoint' => '/api/documents', 'requests_count' => 85, 'date' => $driver === 'oci' ? Db::toDate('2025-10-20') : '2025-10-20'],
+    ['tenant_id' => 4, 'endpoint' => '/api/documents', 'requests_count' => 920, 'date' => $driver === 'oci' ? Db::toDate('2025-10-20') : '2025-10-20'],
+    ['tenant_id' => 4, 'endpoint' => '/api/analytics', 'requests_count' => 150, 'date' => $driver === 'oci' ? Db::toDate('2025-10-20') : '2025-10-20'],
 ];
 
 $db->find()->table('api_usage')->insertMulti($apiUsage);
