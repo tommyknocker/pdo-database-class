@@ -10,6 +10,8 @@ use PDOStatement;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\events\ConnectionClosedEvent;
+use tommyknocker\pdodb\events\QueryBeforeExecuteEvent;
 use tommyknocker\pdodb\events\QueryErrorEvent;
 use tommyknocker\pdodb\events\QueryExecutedEvent;
 use tommyknocker\pdodb\events\TransactionCommittedEvent;
@@ -51,6 +53,12 @@ class Connection implements ConnectionInterface
     /** @var array<string, mixed> Connection options */
     protected array $options = [];
 
+    /** @var float Connection creation time (for duration calculation) */
+    protected float $createdAt;
+
+    /** @var string|null DSN for connection closed event */
+    protected ?string $dsn = null;
+
     /**
      * Connection constructor.
      *
@@ -66,6 +74,7 @@ class Connection implements ConnectionInterface
         $this->logger = $logger;
         $this->options = $options;
         $this->state = new ConnectionState();
+        $this->createdAt = microtime(true);
     }
 
     /**
@@ -154,6 +163,41 @@ class Connection implements ConnectionInterface
     public function getOptions(): array
     {
         return $this->options;
+    }
+
+    /**
+     * Set DSN for connection closed event.
+     *
+     * @param string $dsn Data Source Name
+     */
+    public function setDsn(string $dsn): void
+    {
+        $this->dsn = $dsn;
+    }
+
+    /**
+     * Get DSN.
+     *
+     * @return string|null
+     */
+    public function getDsn(): ?string
+    {
+        return $this->dsn;
+    }
+
+    /**
+     * Destructor - dispatch connection closed event.
+     */
+    public function __destruct()
+    {
+        if ($this->eventDispatcher !== null && $this->dsn !== null) {
+            $duration = microtime(true) - $this->createdAt;
+            $this->eventDispatcher->dispatch(new ConnectionClosedEvent(
+                $this->getDriverName(),
+                $this->dsn,
+                $duration
+            ));
+        }
     }
 
     /**
@@ -311,6 +355,33 @@ class Connection implements ConnectionInterface
         $this->logOperationStart('execute', $stmt->queryString);
         $startTime = microtime(true);
 
+        // Dispatch query before execute event (allows SQL/params modification)
+        $beforeExecuteEvent = new QueryBeforeExecuteEvent(
+            $stmt->queryString,
+            $params,
+            $this->getDriverName()
+        );
+        $this->dispatch($beforeExecuteEvent);
+
+        // Check if event propagation was stopped (query cancelled)
+        if ($beforeExecuteEvent->isPropagationStopped()) {
+            throw new \RuntimeException('Query execution was cancelled by event listener');
+        }
+
+        // Use modified SQL/params if event modified them
+        $sql = $beforeExecuteEvent->getSql();
+        $params = $beforeExecuteEvent->getParams();
+
+        // If SQL was modified, we need to re-prepare the statement
+        if ($sql !== $stmt->queryString) {
+            // Re-prepare with new SQL
+            $this->prepare($sql);
+            $stmt = $this->stmt;
+            if ($stmt === null) {
+                throw new \RuntimeException('Failed to prepare modified SQL statement');
+            }
+        }
+
         try {
             $this->state->setExecuteState($stmt->execute($params));
             $this->state->setLastQuery($stmt->queryString);
@@ -355,6 +426,22 @@ class Connection implements ConnectionInterface
     {
         // Normalize SQL for dialect-specific requirements
         $sql = $this->dialect->normalizeSqlForExecution($sql);
+
+        // Dispatch query before execute event (allows SQL modification)
+        $beforeExecuteEvent = new QueryBeforeExecuteEvent(
+            $sql,
+            [],
+            $this->getDriverName()
+        );
+        $this->dispatch($beforeExecuteEvent);
+
+        // Check if event propagation was stopped (query cancelled)
+        if ($beforeExecuteEvent->isPropagationStopped()) {
+            return false;
+        }
+
+        // Use modified SQL if event modified it
+        $sql = $beforeExecuteEvent->getSql();
 
         $this->resetState();
         $this->logOperationStart('query', $sql);

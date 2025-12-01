@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query\traits;
 
+use tommyknocker\pdodb\events\DdlOperationEvent;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 /**
@@ -48,6 +49,9 @@ trait DdlBuilderTrait
 
         // Call dialect's afterCreateTable hook for post-processing
         $this->dialect->afterCreateTable($this->connection, $tableName, $columns, $sql);
+
+        // Dispatch DDL operation event
+        $this->dispatchDdlEvent('CREATE_TABLE', $tableName, $sql);
 
         return $this;
     }
@@ -96,6 +100,9 @@ trait DdlBuilderTrait
         $sql = $this->dialect->buildDropTableSql($tableName);
         $this->connection->query($sql);
 
+        // Dispatch DDL operation event
+        $this->dispatchDdlEvent('DROP_TABLE', $tableName, $sql);
+
         return $this;
     }
 
@@ -111,6 +118,9 @@ trait DdlBuilderTrait
         $tableName = $this->prefix ? ($this->prefix . $table) : $table;
         $sql = $this->dialect->buildDropTableIfExistsSql($tableName);
         $this->connection->query($sql);
+
+        // Dispatch DDL operation event
+        $this->dispatchDdlEvent('DROP_TABLE', $tableName, $sql);
 
         return $this;
     }
@@ -129,6 +139,9 @@ trait DdlBuilderTrait
         $newTableName = $this->prefix ? ($this->prefix . $newName) : $newName;
         $sql = $this->dialect->buildRenameTableSql($tableName, $newTableName);
         $this->connection->query($sql);
+
+        // Dispatch DDL operation event
+        $this->dispatchDdlEvent('RENAME_TABLE', $tableName, $sql);
 
         return $this;
     }
@@ -165,6 +178,9 @@ trait DdlBuilderTrait
         $sql = $this->dialect->buildAddColumnSql($tableName, $column, $schema);
         $this->connection->query($sql);
 
+        // Dispatch DDL operation event
+        $this->dispatchDdlEvent('ADD_COLUMN', $tableName, $sql);
+
         return $this;
     }
 
@@ -181,6 +197,9 @@ trait DdlBuilderTrait
         $tableName = $this->prefix ? ($this->prefix . $table) : $table;
         $sql = $this->dialect->buildDropColumnSql($tableName, $column);
         $this->connection->query($sql);
+
+        // Dispatch DDL operation event
+        $this->dispatchDdlEvent('DROP_COLUMN', $tableName, $sql);
 
         return $this;
     }
@@ -201,6 +220,9 @@ trait DdlBuilderTrait
         $sql = $this->dialect->buildAlterColumnSql($tableName, $column, $schema);
         $this->connection->query($sql);
 
+        // Dispatch DDL operation event
+        $this->dispatchDdlEvent('ALTER_COLUMN', $tableName, $sql);
+
         return $this;
     }
 
@@ -218,6 +240,9 @@ trait DdlBuilderTrait
         $tableName = $this->prefix ? ($this->prefix . $table) : $table;
         $sql = $this->dialect->buildRenameColumnSql($tableName, $oldName, $newName);
         $this->connection->query($sql);
+
+        // Dispatch DDL operation event
+        $this->dispatchDdlEvent('RENAME_COLUMN', $tableName, $sql);
 
         return $this;
     }
@@ -328,6 +353,9 @@ trait DdlBuilderTrait
         );
         $this->connection->query($sql);
 
+        // Dispatch DDL operation event
+        $this->dispatchDdlEvent('CREATE_INDEX', $tableName, $sql);
+
         return $this;
     }
 
@@ -344,6 +372,9 @@ trait DdlBuilderTrait
         $tableName = $this->prefix ? ($this->prefix . $table) : $table;
         $sql = $this->dialect->buildDropIndexSql($name, $tableName);
         $this->connection->query($sql);
+
+        // Dispatch DDL operation event
+        $this->dispatchDdlEvent('DROP_INDEX', $tableName, $sql);
 
         return $this;
     }
@@ -1040,5 +1071,25 @@ trait DdlBuilderTrait
             }
         }
         return $uniqueConstraints;
+    }
+
+    /**
+     * Dispatch DDL operation event.
+     *
+     * @param string $operation Operation type
+     * @param string $table Table name
+     * @param string $sql SQL statement
+     */
+    protected function dispatchDdlEvent(string $operation, string $table, string $sql): void
+    {
+        $dispatcher = $this->connection->getEventDispatcher();
+        if ($dispatcher !== null) {
+            $dispatcher->dispatch(new DdlOperationEvent(
+                $operation,
+                $table,
+                $sql,
+                $this->connection->getDriverName()
+            ));
+        }
     }
 }

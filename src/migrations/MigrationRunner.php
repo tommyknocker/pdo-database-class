@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\migrations;
 
 use PDOException;
+use tommyknocker\pdodb\events\MigrationCompletedEvent;
+use tommyknocker\pdodb\events\MigrationRolledBackEvent;
+use tommyknocker\pdodb\events\MigrationStartedEvent;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\PdoDb;
 
@@ -241,11 +244,32 @@ class MigrationRunner
 
         foreach ($newMigrations as $version) {
             try {
+                // Dispatch migration started event
+                $dispatcher = $this->getEventDispatcher();
+                if ($dispatcher !== null) {
+                    $dispatcher->dispatch(new MigrationStartedEvent(
+                        $version,
+                        $this->getDriverName()
+                    ));
+                }
+
+                $startTime = microtime(true);
                 $this->db->startTransaction();
                 $migration = $this->loadMigration($version);
                 $migration->up();
                 $this->recordMigration($version, $batch);
                 $this->db->commit();
+                $duration = (microtime(true) - $startTime) * 1000; // milliseconds
+
+                // Dispatch migration completed event
+                if ($dispatcher !== null) {
+                    $dispatcher->dispatch(new MigrationCompletedEvent(
+                        $version,
+                        $this->getDriverName(),
+                        $duration
+                    ));
+                }
+
                 $applied[] = $version;
             } catch (\Throwable $e) {
                 $this->db->rollback();
@@ -260,6 +284,26 @@ class MigrationRunner
         }
 
         return $applied;
+    }
+
+    /**
+     * Get event dispatcher from database connection.
+     *
+     * @return \Psr\EventDispatcher\EventDispatcherInterface|null
+     */
+    protected function getEventDispatcher(): ?\Psr\EventDispatcher\EventDispatcherInterface
+    {
+        return $this->db->connection->getEventDispatcher();
+    }
+
+    /**
+     * Get driver name from database connection.
+     *
+     * @return string
+     */
+    protected function getDriverName(): string
+    {
+        return $this->db->connection->getDriverName();
     }
 
     /**
@@ -340,6 +384,15 @@ class MigrationRunner
             $migration->down();
             $this->removeMigrationRecord($version);
             $this->db->commit();
+
+            // Dispatch migration rolled back event
+            $dispatcher = $this->getEventDispatcher();
+            if ($dispatcher !== null) {
+                $dispatcher->dispatch(new MigrationRolledBackEvent(
+                    $version,
+                    $this->getDriverName()
+                ));
+            }
         } catch (\Throwable $e) {
             $this->db->rollback();
             $previous = $e instanceof PDOException ? $e : null;

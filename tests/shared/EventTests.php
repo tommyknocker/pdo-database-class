@@ -4,11 +4,28 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\events\CacheClearedEvent;
+use tommyknocker\pdodb\events\CacheDeleteEvent;
+use tommyknocker\pdodb\events\CacheHitEvent;
+use tommyknocker\pdodb\events\CacheMissEvent;
+use tommyknocker\pdodb\events\CacheSetEvent;
+use tommyknocker\pdodb\events\ConnectionClosedEvent;
 use tommyknocker\pdodb\events\ConnectionOpenedEvent;
+use tommyknocker\pdodb\events\DdlOperationEvent;
+use tommyknocker\pdodb\events\MigrationCompletedEvent;
+use tommyknocker\pdodb\events\MigrationRolledBackEvent;
+use tommyknocker\pdodb\events\MigrationStartedEvent;
 use tommyknocker\pdodb\events\ModelAfterDeleteEvent;
 use tommyknocker\pdodb\events\ModelAfterInsertEvent;
 use tommyknocker\pdodb\events\ModelAfterSaveEvent;
 use tommyknocker\pdodb\events\ModelAfterUpdateEvent;
+use tommyknocker\pdodb\events\QueryBeforeExecuteEvent;
+use tommyknocker\pdodb\events\SavepointCreatedEvent;
+use tommyknocker\pdodb\events\SavepointReleasedEvent;
+use tommyknocker\pdodb\events\SavepointRolledBackEvent;
+use tommyknocker\pdodb\events\SeedCompletedEvent;
+use tommyknocker\pdodb\events\SeedStartedEvent;
+use tommyknocker\pdodb\orm\Model;
 
 /**
  * Tests for Event classes.
@@ -106,14 +123,189 @@ final class EventTests extends BaseSharedTestCase
         $this->assertEquals(0, $event->getRowsAffected());
     }
 
+    public function testConnectionClosedEvent(): void
+    {
+        $event = new ConnectionClosedEvent('mysql', 'mysql:host=localhost;dbname=test', 1.5);
+
+        $this->assertEquals('mysql', $event->getDriver());
+        $this->assertEquals('mysql:host=localhost;dbname=test', $event->getDsn());
+        $this->assertEquals(1.5, $event->getDuration());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testQueryBeforeExecuteEvent(): void
+    {
+        $event = new QueryBeforeExecuteEvent('SELECT * FROM users', ['id' => 1], 'mysql');
+
+        $this->assertEquals('SELECT * FROM users', $event->getSql());
+        $this->assertEquals(['id' => 1], $event->getParams());
+        $this->assertEquals('mysql', $event->getDriver());
+        $this->assertFalse($event->isPropagationStopped());
+
+        // Test modification
+        $event->setSql('SELECT * FROM users WHERE id = ?');
+        $event->setParams(['id' => 2]);
+        $this->assertEquals('SELECT * FROM users WHERE id = ?', $event->getSql());
+        $this->assertEquals(['id' => 2], $event->getParams());
+
+        // Test stoppable
+        $event->stopPropagation();
+        $this->assertTrue($event->isPropagationStopped());
+    }
+
+    public function testSavepointCreatedEvent(): void
+    {
+        $event = new SavepointCreatedEvent('sp1', 'mysql');
+
+        $this->assertEquals('sp1', $event->getName());
+        $this->assertEquals('mysql', $event->getDriver());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testSavepointRolledBackEvent(): void
+    {
+        $event = new SavepointRolledBackEvent('sp1', 'mysql');
+
+        $this->assertEquals('sp1', $event->getName());
+        $this->assertEquals('mysql', $event->getDriver());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testSavepointReleasedEvent(): void
+    {
+        $event = new SavepointReleasedEvent('sp1', 'mysql');
+
+        $this->assertEquals('sp1', $event->getName());
+        $this->assertEquals('mysql', $event->getDriver());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testCacheHitEvent(): void
+    {
+        $event = new CacheHitEvent('key1', 'value1', 3600);
+
+        $this->assertEquals('key1', $event->getKey());
+        $this->assertEquals('value1', $event->getValue());
+        $this->assertEquals(3600, $event->getTtl());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testCacheHitEventWithNullTtl(): void
+    {
+        $event = new CacheHitEvent('key1', 'value1', null);
+
+        $this->assertNull($event->getTtl());
+    }
+
+    public function testCacheMissEvent(): void
+    {
+        $event = new CacheMissEvent('key1');
+
+        $this->assertEquals('key1', $event->getKey());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testCacheSetEvent(): void
+    {
+        $event = new CacheSetEvent('key1', 'value1', 3600, ['users']);
+
+        $this->assertEquals('key1', $event->getKey());
+        $this->assertEquals('value1', $event->getValue());
+        $this->assertEquals(3600, $event->getTtl());
+        $this->assertEquals(['users'], $event->getTables());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testCacheSetEventWithNullTables(): void
+    {
+        $event = new CacheSetEvent('key1', 'value1', 3600, null);
+
+        $this->assertNull($event->getTables());
+    }
+
+    public function testCacheDeleteEvent(): void
+    {
+        $event = new CacheDeleteEvent('key1', true);
+
+        $this->assertEquals('key1', $event->getKey());
+        $this->assertTrue($event->isSuccess());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testCacheClearedEvent(): void
+    {
+        $event = new CacheClearedEvent(true);
+
+        $this->assertTrue($event->isSuccess());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testMigrationStartedEvent(): void
+    {
+        $event = new MigrationStartedEvent('m20231111_120000', 'mysql');
+
+        $this->assertEquals('m20231111_120000', $event->getVersion());
+        $this->assertEquals('mysql', $event->getDriver());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testMigrationCompletedEvent(): void
+    {
+        $event = new MigrationCompletedEvent('m20231111_120000', 'mysql', 150.5);
+
+        $this->assertEquals('m20231111_120000', $event->getVersion());
+        $this->assertEquals('mysql', $event->getDriver());
+        $this->assertEquals(150.5, $event->getDuration());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testMigrationRolledBackEvent(): void
+    {
+        $event = new MigrationRolledBackEvent('m20231111_120000', 'mysql');
+
+        $this->assertEquals('m20231111_120000', $event->getVersion());
+        $this->assertEquals('mysql', $event->getDriver());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testDdlOperationEvent(): void
+    {
+        $event = new DdlOperationEvent('CREATE_TABLE', 'users', 'CREATE TABLE users (id INT)', 'mysql');
+
+        $this->assertEquals('CREATE_TABLE', $event->getOperation());
+        $this->assertEquals('users', $event->getTable());
+        $this->assertEquals('CREATE TABLE users (id INT)', $event->getSql());
+        $this->assertEquals('mysql', $event->getDriver());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testSeedStartedEvent(): void
+    {
+        $event = new SeedStartedEvent('s20231111_120000', 'mysql');
+
+        $this->assertEquals('s20231111_120000', $event->getName());
+        $this->assertEquals('mysql', $event->getDriver());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
+    public function testSeedCompletedEvent(): void
+    {
+        $event = new SeedCompletedEvent('s20231111_120000', 'mysql', 150.5);
+
+        $this->assertEquals('s20231111_120000', $event->getName());
+        $this->assertEquals('mysql', $event->getDriver());
+        $this->assertEquals(150.5, $event->getDuration());
+        $this->assertFalse($event->isPropagationStopped());
+    }
+
     /**
      * Create a mock model for testing.
      *
-     * @return \tommyknocker\pdodb\orm\Model
+     * @return Model
      */
-    protected function createMockModel(): \tommyknocker\pdodb\orm\Model
+    protected function createMockModel(): Model
     {
-        return new class () extends \tommyknocker\pdodb\orm\Model {
+        return new class () extends Model {
             protected string $table = 'test_table';
         };
     }

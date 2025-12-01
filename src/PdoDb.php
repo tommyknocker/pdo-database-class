@@ -21,6 +21,9 @@ use tommyknocker\pdodb\connection\loadbalancer\LoadBalancerInterface;
 use tommyknocker\pdodb\connection\sharding\ShardConfig;
 use tommyknocker\pdodb\connection\sharding\ShardConfigBuilder;
 use tommyknocker\pdodb\connection\sharding\ShardRouter;
+use tommyknocker\pdodb\events\SavepointCreatedEvent;
+use tommyknocker\pdodb\events\SavepointReleasedEvent;
+use tommyknocker\pdodb\events\SavepointRolledBackEvent;
 use tommyknocker\pdodb\exceptions\TransactionException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\plugin\PluginInterface;
@@ -145,6 +148,10 @@ class PdoDb
         if ($cache !== null) {
             $cacheConfig = isset($config['cache']) && is_array($config['cache']) ? $config['cache'] : [];
             $this->cacheManager = new CacheManager($cache, $cacheConfig);
+            // Set event dispatcher if already available
+            if ($this->eventDispatcher !== null) {
+                $this->cacheManager->setEventDispatcher($this->eventDispatcher);
+            }
 
             // Initialize compilation cache using the same cache backend
             $this->compilationCache = new QueryCompilationCache($cache);
@@ -520,6 +527,11 @@ class PdoDb
             $connection->setEventDispatcher($dispatcher);
         }
 
+        // Update cache manager with the new dispatcher
+        if ($this->cacheManager !== null) {
+            $this->cacheManager->setEventDispatcher($dispatcher);
+        }
+
         return $this;
     }
 
@@ -723,6 +735,15 @@ class PdoDb
         $sql = "SAVEPOINT {$name}";
         $this->connection->query($sql);
         $this->savepointStack[] = $name;
+
+        // Dispatch savepoint created event
+        $dispatcher = $this->connection->getEventDispatcher();
+        if ($dispatcher !== null) {
+            $dispatcher->dispatch(new SavepointCreatedEvent(
+                $name,
+                $this->connection->getDriverName()
+            ));
+        }
     }
 
     /**
@@ -757,6 +778,15 @@ class PdoDb
         // Remove all savepoints created after this one from the stack
         // Keep the savepoint we rolled back to (it still exists in database)
         $this->savepointStack = array_slice($this->savepointStack, 0, $index + 1);
+
+        // Dispatch savepoint rolled back event
+        $dispatcher = $this->connection->getEventDispatcher();
+        if ($dispatcher !== null) {
+            $dispatcher->dispatch(new SavepointRolledBackEvent(
+                $name,
+                $this->connection->getDriverName()
+            ));
+        }
     }
 
     /**
@@ -790,6 +820,15 @@ class PdoDb
 
         // Remove this savepoint from the stack (but keep earlier savepoints)
         array_splice($this->savepointStack, $index, 1);
+
+        // Dispatch savepoint released event
+        $dispatcher = $this->connection->getEventDispatcher();
+        if ($dispatcher !== null) {
+            $dispatcher->dispatch(new SavepointReleasedEvent(
+                $name,
+                $this->connection->getDriverName()
+            ));
+        }
     }
 
     /**

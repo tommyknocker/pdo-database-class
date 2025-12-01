@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cache;
 
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\SimpleCache\CacheInterface;
 use Psr\SimpleCache\InvalidArgumentException;
 use ReflectionClass;
 use ReflectionException;
+use tommyknocker\pdodb\events\CacheClearedEvent;
+use tommyknocker\pdodb\events\CacheDeleteEvent;
+use tommyknocker\pdodb\events\CacheHitEvent;
+use tommyknocker\pdodb\events\CacheMissEvent;
+use tommyknocker\pdodb\events\CacheSetEvent;
 
 /**
  * Manages query result caching.
@@ -49,6 +55,9 @@ class CacheManager
     /** @var bool|null Cached flag for atomic operations support */
     private ?bool $atomicSupport = null;
 
+    /** @var EventDispatcherInterface|null Event dispatcher */
+    protected ?EventDispatcherInterface $eventDispatcher = null;
+
     /**
      * Create a new cache manager.
      *
@@ -62,6 +71,36 @@ class CacheManager
         $this->config = $config instanceof CacheConfig
             ? $config
             : CacheConfig::fromArray($config);
+    }
+
+    /**
+     * Set the event dispatcher.
+     *
+     * @param EventDispatcherInterface|null $dispatcher The dispatcher instance or null to disable
+     */
+    public function setEventDispatcher(?EventDispatcherInterface $dispatcher): void
+    {
+        $this->eventDispatcher = $dispatcher;
+    }
+
+    /**
+     * Get the event dispatcher.
+     *
+     * @return EventDispatcherInterface|null The dispatcher instance or null if not set
+     */
+    public function getEventDispatcher(): ?EventDispatcherInterface
+    {
+        return $this->eventDispatcher;
+    }
+
+    /**
+     * Dispatch an event if dispatcher is available.
+     *
+     * @param object $event The event to dispatch
+     */
+    protected function dispatch(object $event): void
+    {
+        $this->eventDispatcher?->dispatch($event);
     }
 
     /**
@@ -82,9 +121,23 @@ class CacheManager
         if ($result !== null) {
             $this->hits++;
             $this->incrementStatAtomic('hits');
+
+            // Try to get TTL from metadata
+            $ttl = null;
+            $metaKey = self::META_KEY_PREFIX . $key;
+            $metadata = $this->cache->get($metaKey);
+            if (is_array($metadata) && isset($metadata['ttl'])) {
+                $ttl = (int)$metadata['ttl'];
+            }
+
+            // Dispatch cache hit event
+            $this->dispatch(new CacheHitEvent($key, $result, $ttl));
         } else {
             $this->misses++;
             $this->incrementStatAtomic('misses');
+
+            // Dispatch cache miss event
+            $this->dispatch(new CacheMissEvent($key));
         }
 
         $this->operationCount++;
@@ -123,6 +176,9 @@ class CacheManager
             if ($tables !== null && !empty($tables)) {
                 $this->addKeyToMetadata($key, $tables);
             }
+
+            // Dispatch cache set event
+            $this->dispatch(new CacheSetEvent($key, $value, $ttl, $tables));
         }
 
         $this->operationCount++;
@@ -150,6 +206,9 @@ class CacheManager
             $this->deletes++;
             $this->incrementStatAtomic('deletes');
         }
+
+        // Dispatch cache delete event
+        $this->dispatch(new CacheDeleteEvent($key, $result));
 
         if ($this->config->isEnabled()) {
             $this->operationCount++;
@@ -183,7 +242,12 @@ class CacheManager
      */
     public function clear(): bool
     {
-        return $this->cache->clear();
+        $result = $this->cache->clear();
+
+        // Dispatch cache cleared event
+        $this->dispatch(new CacheClearedEvent($result));
+
+        return $result;
     }
 
     /**

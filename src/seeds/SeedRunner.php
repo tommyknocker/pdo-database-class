@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\seeds;
 
 use PDOException;
+use tommyknocker\pdodb\events\SeedCompletedEvent;
+use tommyknocker\pdodb\events\SeedStartedEvent;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\migrations\SqlQueryCollector;
 use tommyknocker\pdodb\PdoDb;
@@ -306,12 +308,32 @@ class SeedRunner
         }
 
         try {
+            // Dispatch seed started event
+            $dispatcher = $this->getEventDispatcher();
+            if ($dispatcher !== null) {
+                $dispatcher->dispatch(new SeedStartedEvent(
+                    $name,
+                    $this->getDriverName()
+                ));
+            }
+
+            $startTime = microtime(true);
             $this->db->startTransaction();
             $seed = $this->loadSeed($name);
             $seed->run();
             $batch = $this->getNextBatchNumber();
             $this->recordSeed($name, $batch);
             $this->db->commit();
+            $duration = (microtime(true) - $startTime) * 1000; // milliseconds
+
+            // Dispatch seed completed event
+            if ($dispatcher !== null) {
+                $dispatcher->dispatch(new SeedCompletedEvent(
+                    $name,
+                    $this->getDriverName(),
+                    $duration
+                ));
+            }
         } catch (\Throwable $e) {
             $this->db->rollback();
             $previous = $e instanceof PDOException ? $e : null;
@@ -681,5 +703,25 @@ class {$className} extends Seed
     }
 }
 PHP;
+    }
+
+    /**
+     * Get event dispatcher from database connection.
+     *
+     * @return \Psr\EventDispatcher\EventDispatcherInterface|null
+     */
+    protected function getEventDispatcher(): ?\Psr\EventDispatcher\EventDispatcherInterface
+    {
+        return $this->db->connection->getEventDispatcher();
+    }
+
+    /**
+     * Get driver name from database connection.
+     *
+     * @return string
+     */
+    protected function getDriverName(): string
+    {
+        return $this->db->connection->getDriverName();
     }
 }

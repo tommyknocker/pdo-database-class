@@ -93,6 +93,11 @@ class ConnectionFactory
             $connection->setEventDispatcher($this->eventDispatcher);
         }
 
+        // Set DSN for connection closed event
+        if ($dsn !== '') {
+            $connection->setDsn($dsn);
+        }
+
         // Dispatch connection opened event
         if ($this->eventDispatcher !== null && $dsn !== '') {
             $this->eventDispatcher->dispatch(new ConnectionOpenedEvent(
