@@ -70,7 +70,7 @@ class DtoGenerator extends BaseCliCommand
         }
 
         // Generate DTO code
-        $dtoNamespace = $namespace !== null && $namespace !== '' ? $namespace : 'App\\DTOs';
+        $dtoNamespace = $namespace !== null && $namespace !== '' ? strtolower($namespace) : 'app\\dtos';
         $dtoCode = static::generateDtoCode($dtoName, $resolvedTableName, $columns, $dtoNamespace);
 
         // Write DTO file
@@ -120,7 +120,7 @@ class DtoGenerator extends BaseCliCommand
 
         if ($modelName !== null) {
             // Try to find model class and get table name from it
-            $possibleNamespaces = ['App\\Models', 'App\\Entities', 'Models', 'Entities'];
+            $possibleNamespaces = ['app\\models', 'app\\entities', 'models', 'entities'];
             foreach ($possibleNamespaces as $ns) {
                 $className = $ns . '\\' . $modelName;
                 if (class_exists($className)) {

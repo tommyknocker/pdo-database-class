@@ -253,7 +253,7 @@ final class InitWizardTests extends TestCase
         $structure = $structureProperty->getValue($wizard);
 
         $this->assertIsArray($structure);
-        $this->assertEquals('TestApp', $structure['namespace']);
+        $this->assertEquals('testapp', $structure['namespace']);
         $this->assertEquals('./custom/migrations', $structure['migrations']);
         $this->assertEquals('./custom/Models', $structure['models']);
         $this->assertEquals('./custom/Repositories', $structure['repositories']);
@@ -284,7 +284,7 @@ final class InitWizardTests extends TestCase
         $structure = $structureProperty->getValue($wizard);
 
         $this->assertIsArray($structure);
-        $this->assertEquals('App', $structure['namespace']);
+        $this->assertEquals('app', $structure['namespace']);
         $this->assertEquals('./migrations', $structure['migrations']);
         $this->assertEquals('./app/Models', $structure['models']);
         $this->assertEquals('./app/Repositories', $structure['repositories']);

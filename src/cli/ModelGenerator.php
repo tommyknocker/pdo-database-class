@@ -73,7 +73,7 @@ class ModelGenerator extends BaseCliCommand
         $foreignKeys = static::getForeignKeys($db, $tableName);
 
         // Generate model code
-        $modelNamespace = $namespace !== null && $namespace !== '' ? $namespace : 'App\\Models';
+        $modelNamespace = $namespace !== null && $namespace !== '' ? strtolower($namespace) : 'app\\models';
         $modelCode = static::generateModelCode($modelName, $tableName, $columns, $primaryKey, $foreignKeys, $modelNamespace);
 
         // Write model file

@@ -86,11 +86,11 @@ final class ServiceGeneratorTests extends TestCase
         $method = $reflection->getMethod('generateServiceCode');
         $method->setAccessible(true);
 
-        $code = $method->invoke(null, 'UserService', 'UserRepository', 'App\\Services', 'App\\Repositories');
+        $code = $method->invoke(null, 'UserService', 'UserRepository', 'app\\services', 'app\\repositories');
 
-        $this->assertStringContainsString('namespace App\\Services', $code);
+        $this->assertStringContainsString('namespace app\\services', $code);
         $this->assertStringContainsString('class UserService', $code);
-        $this->assertStringContainsString('use App\\Repositories\\UserRepository', $code);
+        $this->assertStringContainsString('use app\\repositories\\UserRepository', $code);
         $this->assertStringContainsString('protected UserRepository $repository', $code);
     }
 
@@ -146,8 +146,8 @@ final class ServiceGeneratorTests extends TestCase
             'TestRepository',
             $this->tempDir,
             $this->db,
-            'App\\Services',
-            'App\\Repositories',
+            'app\\services',
+            'app\\repositories',
             true
         );
         $out = ob_get_clean();
@@ -166,7 +166,7 @@ final class ServiceGeneratorTests extends TestCase
 
         $content = file_get_contents($filename);
         $this->assertStringContainsString('class TestService', $content);
-        $this->assertStringContainsString('namespace App\\Services', $content);
+        $this->assertStringContainsString('namespace app\\services', $content);
     }
 
     /**
@@ -192,8 +192,8 @@ final class ServiceGeneratorTests extends TestCase
             'UserRepository',
             $this->tempDir,
             $this->db,
-            'App\\Services',
-            'App\\Repositories',
+            'app\\services',
+            'app\\repositories',
             true
         );
         ob_end_clean();
@@ -203,9 +203,9 @@ final class ServiceGeneratorTests extends TestCase
 
         $this->assertStringContainsString('<?php', $content);
         $this->assertStringContainsString('declare(strict_types=1);', $content);
-        $this->assertStringContainsString('namespace App\\Services', $content);
+        $this->assertStringContainsString('namespace app\\services', $content);
         $this->assertStringContainsString('class UserService', $content);
-        $this->assertStringContainsString('use App\\Repositories\\UserRepository', $content);
+        $this->assertStringContainsString('use app\\repositories\\UserRepository', $content);
         $this->assertStringContainsString('protected UserRepository $repository', $content);
     }
 
@@ -224,8 +224,8 @@ final class ServiceGeneratorTests extends TestCase
             'TestRepository',
             $this->tempDir,
             $this->db,
-            'App\\Services',
-            'App\\Repositories',
+            'app\\services',
+            'app\\repositories',
             true
         );
         ob_end_clean();

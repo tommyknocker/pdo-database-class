@@ -93,15 +93,15 @@ class RepositoryCommand extends Command
         echo "  output_path       Output directory path (optional)\n\n";
         echo "Options:\n";
         echo "  --force              Overwrite existing file without confirmation\n";
-        echo "  --namespace=NS       Set the PHP namespace for the generated repository (default: App\\\\Repositories)\n";
-        echo "  --model-namespace=NS Set the PHP namespace for the model class (default: App\\\\Models)\n";
+        echo "  --namespace=NS       Set the PHP namespace for the generated repository (default: app\\\\repositories)\n";
+        echo "  --model-namespace=NS Set the PHP namespace for the model class (default: app\\\\models)\n";
         echo "  --connection=NAME    Use a named connection from config/db.php\n\n";
         echo "Examples:\n";
         echo "  pdodb repository make UserRepository\n";
         echo "  pdodb repository make UserRepository User\n";
         echo "  pdodb repository make UserRepository User app/Repositories\n";
-        echo "  pdodb repository make UserRepository User app/Repositories --namespace=App\\\\Repositories\n";
-        echo "  pdodb repository make UserRepository User app/Repositories --model-namespace=App\\\\Entities --force\n";
+        echo "  pdodb repository make UserRepository User app/Repositories --namespace=app\\\\repositories\n";
+        echo "  pdodb repository make UserRepository User app/Repositories --model-namespace=app\\\\entities --force\n";
         return 0;
     }
 }

@@ -84,13 +84,13 @@ class ModelCommand extends Command
         echo "  output_path      Output directory path (optional)\n\n";
         echo "Options:\n";
         echo "  --force          Overwrite existing file without confirmation\n";
-        echo "  --namespace=NS   Set the PHP namespace for the generated model (default: App\\\\Models)\n";
+        echo "  --namespace=NS   Set the PHP namespace for the generated model (default: app\\\\models)\n";
         echo "  --connection=NAME  Use a named connection from config/db.php\n\n";
         echo "Examples:\n";
         echo "  pdodb model make User\n";
         echo "  pdodb model make User users\n";
         echo "  pdodb model make User users app/Models\n";
-        echo "  pdodb model make User users app/Models --namespace=App\\\\Entities\n";
+        echo "  pdodb model make User users app/Models --namespace=app\\\\entities\n";
         echo "  pdodb model make User users app/Models --force\n";
         return 0;
     }

@@ -85,7 +85,7 @@ class EnumGenerator extends BaseCliCommand
         }
 
         // Generate enum code
-        $enumNamespace = $namespace !== null && $namespace !== '' ? $namespace : 'App\\Enums';
+        $enumNamespace = $namespace !== null && $namespace !== '' ? strtolower($namespace) : 'app\\enums';
         $enumCode = static::generateEnumCode($enumName, $enumValues, $enumNamespace, $tableName, $columnName);
 
         // Write enum file

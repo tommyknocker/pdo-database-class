@@ -176,7 +176,7 @@ class InitWizard extends BaseCliCommand
     protected function loadStructureFromEnv(): void
     {
         $this->structure = [
-            'namespace' => getenv('PDODB_NAMESPACE') ?: 'App',
+            'namespace' => strtolower(getenv('PDODB_NAMESPACE') ?: 'app'),
             'migrations' => getenv('PDODB_MIGRATION_PATH') ?: './migrations',
             'models' => getenv('PDODB_MODEL_PATH') ?: './app/Models',
             'repositories' => getenv('PDODB_REPOSITORY_PATH') ?: './app/Repositories',
@@ -409,10 +409,11 @@ class InitWizard extends BaseCliCommand
             return;
         }
 
-        $namespace = static::readInput('Namespace prefix', 'App');
+        $namespace = static::readInput('Namespace prefix', 'app');
         if ($namespace === '') {
-            $namespace = 'App';
+            $namespace = 'app';
         }
+        $namespace = strtolower($namespace);
 
         $cwd = getcwd();
         if ($cwd === false) {

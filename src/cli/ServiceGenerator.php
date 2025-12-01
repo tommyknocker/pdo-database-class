@@ -63,8 +63,8 @@ class ServiceGenerator extends BaseCliCommand
         }
 
         // Generate service code
-        $serviceNamespace = $namespace !== null && $namespace !== '' ? $namespace : 'App\\Services';
-        $repositoryNamespaceFinal = $repositoryNamespace !== null && $repositoryNamespace !== '' ? $repositoryNamespace : 'App\\Repositories';
+        $serviceNamespace = $namespace !== null && $namespace !== '' ? strtolower($namespace) : 'app\\services';
+        $repositoryNamespaceFinal = $repositoryNamespace !== null && $repositoryNamespace !== '' ? strtolower($repositoryNamespace) : 'app\\repositories';
         $serviceCode = static::generateServiceCode(
             $serviceName,
             $repositoryName,

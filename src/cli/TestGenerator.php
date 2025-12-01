@@ -96,7 +96,7 @@ class TestGenerator extends BaseCliCommand
         }
 
         // Generate test code
-        $testNamespace = $namespace !== null && $namespace !== '' ? $namespace : 'Tests\\' . ucfirst($type);
+        $testNamespace = $namespace !== null && $namespace !== '' ? strtolower($namespace) : 'tests\\' . strtolower($type);
         $testCode = static::generateTestCode(
             $testName,
             $targetClass,
@@ -148,7 +148,7 @@ class TestGenerator extends BaseCliCommand
      */
     protected static function resolveTableFromModel(string $modelName, PdoDb $db): ?string
     {
-        $possibleNamespaces = ['App\\Models', 'App\\Entities', 'Models', 'Entities'];
+        $possibleNamespaces = ['app\\models', 'app\\entities', 'models', 'entities'];
         foreach ($possibleNamespaces as $ns) {
             $className = $ns . '\\' . $modelName;
             if (class_exists($className)) {
@@ -175,7 +175,7 @@ class TestGenerator extends BaseCliCommand
      */
     protected static function resolveTableFromRepository(string $repositoryName, PdoDb $db): ?string
     {
-        $possibleNamespaces = ['App\\Repositories', 'App\\Repository', 'Repositories', 'Repository'];
+        $possibleNamespaces = ['app\\repositories', 'app\\repository', 'repositories', 'repository'];
         foreach ($possibleNamespaces as $ns) {
             $className = $ns . '\\' . $repositoryName;
             if (class_exists($className)) {

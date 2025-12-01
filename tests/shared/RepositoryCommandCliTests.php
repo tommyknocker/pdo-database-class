@@ -65,7 +65,7 @@ final class RepositoryCommandCliTests extends TestCase
         ob_start();
 
         try {
-            $code1 = $app->run(['pdodb', 'repository', 'make', $repositoryName, $modelName, $this->repositoriesDir, '--namespace=App\\Repositories', '--model-namespace=App\\Models', '--force']);
+            $code1 = $app->run(['pdodb', 'repository', 'make', $repositoryName, $modelName, $this->repositoriesDir, '--namespace=app\\repositories', '--model-namespace=app\\models', '--force']);
             $out1 = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
@@ -77,9 +77,9 @@ final class RepositoryCommandCliTests extends TestCase
         $this->assertFileExists($file);
         $content = file_get_contents($file);
         $this->assertIsString($content);
-        $this->assertStringContainsString('namespace App\\Repositories;', $content);
+        $this->assertStringContainsString('namespace app\\repositories;', $content);
         $this->assertStringContainsString('class RcUserRepository', $content);
-        $this->assertStringContainsString('use App\\Models\\RcUser;', $content);
+        $this->assertStringContainsString('use app\\models\\RcUser;', $content);
         $this->assertStringContainsString('protected PdoDb $db;', $content);
         $this->assertStringContainsString('public function findById', $content);
         $this->assertStringContainsString('public function create', $content);
@@ -90,7 +90,7 @@ final class RepositoryCommandCliTests extends TestCase
         ob_start();
 
         try {
-            $code2 = $app->run(['pdodb', 'repository', 'make', $repositoryName, $modelName, $this->repositoriesDir, '--namespace=App\\Repositories', '--model-namespace=App\\Entities', '--force']);
+            $code2 = $app->run(['pdodb', 'repository', 'make', $repositoryName, $modelName, $this->repositoriesDir, '--namespace=app\\repositories', '--model-namespace=app\\entities', '--force']);
             $out2 = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
@@ -100,7 +100,7 @@ final class RepositoryCommandCliTests extends TestCase
         $this->assertSame(0, $code2);
         $content2 = file_get_contents($file);
         $this->assertIsString($content2);
-        $this->assertStringContainsString('use App\\Entities\\RcUser;', $content2);
+        $this->assertStringContainsString('use app\\entities\\RcUser;', $content2);
     }
 
     public function testMakeRepositoryWithoutModelName(): void
@@ -149,7 +149,7 @@ final class RepositoryCommandCliTests extends TestCase
         $modelName = 'RcUser'; // Maps to rc_users table
 
         ob_start();
-        $code = $app->run(['pdodb', 'repository', 'make', $repositoryName, $modelName, $this->repositoriesDir, '--namespace=App\\Repositories', '--model-namespace=App\\Models', '--force']);
+        $code = $app->run(['pdodb', 'repository', 'make', $repositoryName, $modelName, $this->repositoriesDir, '--namespace=app\\repositories', '--model-namespace=app\\models', '--force']);
         ob_end_clean();
 
         $this->assertSame(0, $code);

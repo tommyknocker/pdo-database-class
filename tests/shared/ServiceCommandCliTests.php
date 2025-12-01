@@ -64,7 +64,7 @@ final class ServiceCommandCliTests extends TestCase
         ob_start();
 
         try {
-            $code1 = $app->run(['pdodb', 'service', 'make', $serviceName, $repositoryName, $this->servicesDir, '--namespace=App\\Services', '--repository-namespace=App\\Repositories']);
+            $code1 = $app->run(['pdodb', 'service', 'make', $serviceName, $repositoryName, $this->servicesDir, '--namespace=app\\services', '--repository-namespace=app\\repositories']);
             $out1 = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
@@ -76,9 +76,9 @@ final class ServiceCommandCliTests extends TestCase
         $this->assertFileExists($file);
         $content = file_get_contents($file);
         $this->assertIsString($content);
-        $this->assertStringContainsString('namespace App\\Services;', $content);
+        $this->assertStringContainsString('namespace app\\services;', $content);
         $this->assertStringContainsString('class UserService', $content);
-        $this->assertStringContainsString('use App\\Repositories\\UserRepository;', $content);
+        $this->assertStringContainsString('use app\\repositories\\UserRepository;', $content);
         $this->assertStringContainsString('protected PdoDb $db;', $content);
         $this->assertStringContainsString('protected UserRepository $repository;', $content);
         $this->assertStringContainsString('protected function getRepository', $content);
@@ -87,7 +87,7 @@ final class ServiceCommandCliTests extends TestCase
         ob_start();
 
         try {
-            $code2 = $app->run(['pdodb', 'service', 'make', $serviceName, $repositoryName, $this->servicesDir, '--namespace=App\\Services', '--repository-namespace=App\\Data\\Repositories', '--force']);
+            $code2 = $app->run(['pdodb', 'service', 'make', $serviceName, $repositoryName, $this->servicesDir, '--namespace=app\\services', '--repository-namespace=app\\data\\repositories', '--force']);
             $out2 = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
@@ -97,7 +97,7 @@ final class ServiceCommandCliTests extends TestCase
         $this->assertSame(0, $code2);
         $content2 = file_get_contents($file);
         $this->assertIsString($content2);
-        $this->assertStringContainsString('use App\\Data\\Repositories\\UserRepository;', $content2);
+        $this->assertStringContainsString('use app\\data\\repositories\\UserRepository;', $content2);
     }
 
     public function testMakeServiceWithoutRepositoryName(): void
@@ -124,7 +124,7 @@ final class ServiceCommandCliTests extends TestCase
             $file = $this->servicesDir . '/' . $serviceName . '.php';
             $this->assertFileExists($file);
             $content = file_get_contents($file);
-            $this->assertStringContainsString('use App\\Repositories\\UserRepository;', $content);
+            $this->assertStringContainsString('use app\\repositories\\UserRepository;', $content);
         }
     }
 
@@ -147,7 +147,7 @@ final class ServiceCommandCliTests extends TestCase
         $repositoryName = 'UserRepository';
 
         ob_start();
-        $code = $app->run(['pdodb', 'service', 'make', $serviceName, $repositoryName, $this->servicesDir, '--namespace=App\\Services', '--repository-namespace=App\\Repositories']);
+        $code = $app->run(['pdodb', 'service', 'make', $serviceName, $repositoryName, $this->servicesDir, '--namespace=app\\services', '--repository-namespace=app\\repositories']);
         ob_end_clean();
 
         $this->assertSame(0, $code);

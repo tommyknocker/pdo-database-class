@@ -76,7 +76,7 @@ class ApiGenerator extends BaseCliCommand
         }
 
         // Generate controller code
-        $controllerNamespace = $namespace !== null && $namespace !== '' ? $namespace : 'App\\Controllers';
+        $controllerNamespace = $namespace !== null && $namespace !== '' ? strtolower($namespace) : 'app\\controllers';
         $controllerCode = static::generateControllerCode(
             $controllerName,
             $resolvedTableName,
@@ -134,7 +134,7 @@ class ApiGenerator extends BaseCliCommand
 
         if ($modelName !== null) {
             // Try to find model class and get table name from it
-            $possibleNamespaces = ['App\\Models', 'App\\Entities', 'Models', 'Entities'];
+            $possibleNamespaces = ['app\\models', 'app\\entities', 'models', 'entities'];
             foreach ($possibleNamespaces as $ns) {
                 $className = $ns . '\\' . $modelName;
                 if (class_exists($className)) {
@@ -265,7 +265,7 @@ class ApiGenerator extends BaseCliCommand
         $modelType = '';
         $modelInstantiate = '';
         if ($modelName !== null) {
-            $modelNamespace = 'App\\Models';
+            $modelNamespace = 'app\\models';
             $modelUse = "use {$modelNamespace}\\{$modelName};\n";
             $modelType = $modelName . ' ';
             $modelInstantiate = "new {$modelName}(\$this->db)";

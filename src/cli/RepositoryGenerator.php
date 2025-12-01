@@ -86,8 +86,8 @@ class RepositoryGenerator extends BaseCliCommand
         $primaryKey = static::detectPrimaryKey($db, $tableName);
 
         // Generate repository code
-        $repositoryNamespace = $namespace !== null && $namespace !== '' ? $namespace : 'App\\Repositories';
-        $modelNamespaceFinal = $modelNamespace !== null && $modelNamespace !== '' ? $modelNamespace : 'App\\Models';
+        $repositoryNamespace = $namespace !== null && $namespace !== '' ? strtolower($namespace) : 'app\\repositories';
+        $modelNamespaceFinal = $modelNamespace !== null && $modelNamespace !== '' ? strtolower($modelNamespace) : 'app\\models';
         $repositoryCode = static::generateRepositoryCode(
             $repositoryName,
             $modelName,

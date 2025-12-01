@@ -587,10 +587,10 @@ class CliToolsTests extends BaseSharedTestCase
             ['name' => 'name', 'type' => 'string'],
         ];
 
-        $code = $method->invoke(null, 'TestModel', 'test_table', $columns, ['id'], [], 'App\\Models');
+        $code = $method->invoke(null, 'TestModel', 'test_table', $columns, ['id'], [], 'app\\models');
         $this->assertIsString($code);
         $this->assertStringContainsString('class TestModel', $code);
-        $this->assertStringContainsString('namespace App\\Models', $code);
+        $this->assertStringContainsString('namespace app\\models', $code);
         $this->assertStringContainsString('test_table', $code);
     }
 
@@ -608,7 +608,7 @@ class CliToolsTests extends BaseSharedTestCase
             ['name' => 'role_id', 'type' => 'integer'],
         ];
 
-        $code = $method->invoke(null, 'TestModel', 'test_table', $columns, ['user_id', 'role_id'], [], 'App\\Models');
+        $code = $method->invoke(null, 'TestModel', 'test_table', $columns, ['user_id', 'role_id'], [], 'app\\models');
         $this->assertIsString($code);
         $this->assertStringContainsString('user_id', $code);
         $this->assertStringContainsString('role_id', $code);
@@ -636,7 +636,7 @@ class CliToolsTests extends BaseSharedTestCase
             ],
         ];
 
-        $code = $method->invoke(null, 'TestModel', 'test_table', $columns, ['id'], $foreignKeys, 'App\\Models');
+        $code = $method->invoke(null, 'TestModel', 'test_table', $columns, ['id'], $foreignKeys, 'app\\models');
         $this->assertIsString($code);
         $this->assertStringContainsString('class TestModel', $code);
     }
@@ -844,7 +844,7 @@ class CliToolsTests extends BaseSharedTestCase
 
             $this->assertFileExists($filename);
             $content = file_get_contents($filename);
-            $this->assertStringContainsString('namespace Custom\\Namespace', $content);
+            $this->assertStringContainsString('namespace custom\namespace', $content);
         } catch (\Throwable $e) {
             ob_end_clean();
 

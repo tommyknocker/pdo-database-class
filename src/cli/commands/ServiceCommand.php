@@ -93,15 +93,15 @@ class ServiceCommand extends Command
         echo "  output_path         Output directory path (optional)\n\n";
         echo "Options:\n";
         echo "  --force                  Overwrite existing file without confirmation\n";
-        echo "  --namespace=NS           Set the PHP namespace for the generated service (default: App\\\\Services)\n";
-        echo "  --repository-namespace=NS Set the PHP namespace for the repository class (default: App\\\\Repositories)\n";
+        echo "  --namespace=NS           Set the PHP namespace for the generated service (default: app\\\\services)\n";
+        echo "  --repository-namespace=NS Set the PHP namespace for the repository class (default: app\\\\repositories)\n";
         echo "  --connection=NAME        Use a named connection from config/db.php\n\n";
         echo "Examples:\n";
         echo "  pdodb service make UserService\n";
         echo "  pdodb service make UserService UserRepository\n";
         echo "  pdodb service make UserService UserRepository app/Services\n";
-        echo "  pdodb service make UserService UserRepository app/Services --namespace=App\\\\Services\n";
-        echo "  pdodb service make UserService UserRepository app/Services --repository-namespace=App\\\\Repositories --force\n";
+        echo "  pdodb service make UserService UserRepository app/Services --namespace=app\\\\services\n";
+        echo "  pdodb service make UserService UserRepository app/Services --repository-namespace=app\\\\repositories --force\n";
         return 0;
     }
 }

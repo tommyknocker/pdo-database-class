@@ -90,11 +90,11 @@ final class RepositoryGeneratorTests extends TestCase
         $method = $reflection->getMethod('generateRepositoryCode');
         $method->setAccessible(true);
 
-        $code = $method->invoke(null, 'UserRepository', 'User', 'test_users', ['id'], 'App\\Repositories', 'App\\Models');
+        $code = $method->invoke(null, 'UserRepository', 'User', 'test_users', ['id'], 'app\\repositories', 'app\\models');
 
-        $this->assertStringContainsString('namespace App\\Repositories', $code);
+        $this->assertStringContainsString('namespace app\\repositories', $code);
         $this->assertStringContainsString('class UserRepository', $code);
-        $this->assertStringContainsString('use App\\Models\\User', $code);
+        $this->assertStringContainsString('use app\\models\\User', $code);
         // Table name should be used in queries
         $this->assertStringContainsString("from('test_users')", $code);
     }
@@ -153,8 +153,8 @@ final class RepositoryGeneratorTests extends TestCase
                 'User',
                 $this->tempDir,
                 $this->db,
-                'App\\Repositories',
-                'App\\Models',
+                'app\\repositories',
+                'app\\models',
                 true
             );
             $out = ob_get_clean();
@@ -181,7 +181,7 @@ final class RepositoryGeneratorTests extends TestCase
 
         $content = file_get_contents($filename);
         $this->assertStringContainsString('class UserRepository', $content);
-        $this->assertStringContainsString('namespace App\\Repositories', $content);
+        $this->assertStringContainsString('namespace app\\repositories', $content);
     }
 
     /**
@@ -209,8 +209,8 @@ final class RepositoryGeneratorTests extends TestCase
                 'User',
                 $this->tempDir,
                 $this->db,
-                'App\\Repositories',
-                'App\\Models',
+                'app\\repositories',
+                'app\\models',
                 true
             );
             ob_end_clean();
@@ -225,9 +225,9 @@ final class RepositoryGeneratorTests extends TestCase
 
         $this->assertStringContainsString('<?php', $content);
         $this->assertStringContainsString('declare(strict_types=1);', $content);
-        $this->assertStringContainsString('namespace App\\Repositories', $content);
+        $this->assertStringContainsString('namespace app\\repositories', $content);
         $this->assertStringContainsString('class UserRepository', $content);
-        $this->assertStringContainsString('use App\\Models\\User', $content);
+        $this->assertStringContainsString('use app\\models\\User', $content);
         // Check that table name is used in the code (e.g., ->from('users'))
         $this->assertStringContainsString("from('users')", $content);
     }
@@ -249,8 +249,8 @@ final class RepositoryGeneratorTests extends TestCase
                 'User',
                 $this->tempDir,
                 $this->db,
-                'App\\Repositories',
-                'App\\Models',
+                'app\\repositories',
+                'app\\models',
                 true
             );
             ob_end_clean();
@@ -317,9 +317,9 @@ final class RepositoryGeneratorTests extends TestCase
         $method = $reflection->getMethod('generateRepositoryCode');
         $method->setAccessible(true);
 
-        $code = $method->invoke(null, 'UserRepository', 'User', 'test_users', ['user_id', 'role_id'], 'App\\Repositories', 'App\\Models');
+        $code = $method->invoke(null, 'UserRepository', 'User', 'test_users', ['user_id', 'role_id'], 'app\\repositories', 'app\\models');
 
-        $this->assertStringContainsString('namespace App\\Repositories', $code);
+        $this->assertStringContainsString('namespace app\\repositories', $code);
         $this->assertStringContainsString('class UserRepository', $code);
         $this->assertStringContainsString('array $ids', $code);
         $this->assertStringContainsString('foreach ($ids', $code);
@@ -414,8 +414,8 @@ final class RepositoryGeneratorTests extends TestCase
                 'User',
                 $this->tempDir,
                 $this->db,
-                'App\\Repositories',
-                'App\\Models',
+                'app\\repositories',
+                'app\\models',
                 true
             );
             $out = ob_end_clean();
@@ -426,7 +426,7 @@ final class RepositoryGeneratorTests extends TestCase
             // But modelNameToTableName converts User to users, so the code may use 'users'
             // The important thing is that the generation succeeded
             $this->assertStringContainsString('class UserRepository', $content);
-            $this->assertStringContainsString('namespace App\\Repositories', $content);
+            $this->assertStringContainsString('namespace app\\repositories', $content);
         } catch (\Throwable $e) {
             ob_end_clean();
 
@@ -445,9 +445,9 @@ final class RepositoryGeneratorTests extends TestCase
         $method = $reflection->getMethod('generateRepositoryCode');
         $method->setAccessible(true);
 
-        $code = $method->invoke(null, 'UserRepository', 'User', 'test_users', ['user_id'], 'App\\Repositories', 'App\\Models');
+        $code = $method->invoke(null, 'UserRepository', 'User', 'test_users', ['user_id'], 'app\\repositories', 'app\\models');
 
-        $this->assertStringContainsString('namespace App\\Repositories', $code);
+        $this->assertStringContainsString('namespace app\\repositories', $code);
         $this->assertStringContainsString('class UserRepository', $code);
         $this->assertStringContainsString('array $ids', $code);
     }
