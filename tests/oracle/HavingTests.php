@@ -39,4 +39,3 @@ final class HavingTests extends BaseOracleTestCase
         $this->assertEquals([300, 500, 700], $totals);
     }
 }
-

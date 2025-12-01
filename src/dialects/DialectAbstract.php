@@ -1132,6 +1132,66 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function extractEnumValues(array $column, \tommyknocker\pdodb\PdoDb $db, string $tableName, string $columnName): array
+    {
+        $type = $column['Type'] ?? $column['data_type'] ?? $column['type'] ?? '';
+        if (!is_string($type)) {
+            return [];
+        }
+
+        $typeUpper = strtoupper($type);
+
+        // Check if it's an ENUM type
+        if (!str_starts_with($typeUpper, 'ENUM')) {
+            return [];
+        }
+
+        // Extract values from ENUM definition: ENUM('value1','value2','value3')
+        if (preg_match("/^ENUM\s*\((.+)\)$/i", $type, $matches)) {
+            $valuesStr = $matches[1];
+            // Split by comma, but handle quoted values
+            $values = [];
+            $current = '';
+            $inQuotes = false;
+            $quoteChar = '';
+
+            for ($i = 0; $i < strlen($valuesStr); $i++) {
+                $char = $valuesStr[$i];
+
+                if (($char === '"' || $char === "'") && ($i === 0 || $valuesStr[$i - 1] !== '\\')) {
+                    if (!$inQuotes) {
+                        $inQuotes = true;
+                        $quoteChar = $char;
+                    } elseif ($char === $quoteChar) {
+                        $inQuotes = false;
+                        $quoteChar = '';
+                    } else {
+                        $current .= $char;
+                    }
+                } elseif ($char === ',' && !$inQuotes) {
+                    if (trim($current) !== '') {
+                        $values[] = trim($current, " \t\n\r\0\x0B\"'");
+                    }
+                    $current = '';
+                } else {
+                    $current .= $char;
+                }
+            }
+
+            if (trim($current) !== '') {
+                $values[] = trim($current, " \t\n\r\0\x0B\"'");
+            }
+
+            return array_filter($values, fn ($v) => $v !== '');
+        }
+
+        // Fallback: return empty array (no database queries to avoid connection issues)
+        return [];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function dumpData(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
     {
         throw new \tommyknocker\pdodb\exceptions\ResourceException(

@@ -142,6 +142,9 @@ final class RepositoryGeneratorTests extends TestCase
      */
     public function testGenerateWithAllParameters(): void
     {
+        // Temporarily unset PHPUNIT to allow output
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -157,8 +160,18 @@ final class RepositoryGeneratorTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            }
 
             throw $e;
+        }
+
+        // Restore PHPUNIT
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
         }
 
         $this->assertFileExists($filename);

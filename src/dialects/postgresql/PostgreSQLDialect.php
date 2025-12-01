@@ -2043,6 +2043,79 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function extractEnumValues(array $column, \tommyknocker\pdodb\PdoDb $db, string $tableName, string $columnName): array
+    {
+        $type = $column['Type'] ?? $column['data_type'] ?? $column['type'] ?? '';
+        if (!is_string($type)) {
+            return [];
+        }
+
+        // PostgreSQL: ENUM is a custom type
+        // data_type is 'USER-DEFINED' for ENUM, need to get actual type name from udt_name
+        $udtName = $column['udt_name'] ?? null;
+        if ($udtName !== null && is_string($udtName) && str_ends_with($udtName, '_enum')) {
+            return $this->extractPostgresEnumValues($udtName, $db);
+        }
+
+        // If udt_name is not available, try to query it
+        if ($type === 'USER-DEFINED') {
+            try {
+                $typeInfo = $db->rawQueryOne(
+                    "SELECT udt_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = ? AND column_name = ?",
+                    [$tableName, $columnName]
+                );
+                if ($typeInfo !== null && isset($typeInfo['udt_name']) && is_string($typeInfo['udt_name']) && str_ends_with($typeInfo['udt_name'], '_enum')) {
+                    return $this->extractPostgresEnumValues($typeInfo['udt_name'], $db);
+                }
+            } catch (\Exception $e) {
+                // Ignore, fall through to empty array
+            }
+        }
+
+        // Fallback: if type ends with _enum
+        if (str_ends_with($type, '_enum')) {
+            return $this->extractPostgresEnumValues($type, $db);
+        }
+
+        return [];
+    }
+
+    /**
+     * Extract ENUM values from PostgreSQL custom type.
+     *
+     * @param string $enumTypeName ENUM type name (e.g., "test_users_status_enum")
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return array<int, string>
+     */
+    protected function extractPostgresEnumValues(string $enumTypeName, \tommyknocker\pdodb\PdoDb $db): array
+    {
+        try {
+            // Query PostgreSQL system catalog to get ENUM values
+            $query = '
+                SELECT enumlabel as value
+                FROM pg_enum
+                JOIN pg_type ON pg_enum.enumtypid = pg_type.oid
+                WHERE pg_type.typname = ?
+                ORDER BY pg_enum.enumsortorder
+            ';
+            $result = $db->rawQuery($query, [$enumTypeName]);
+            $values = [];
+            foreach ($result as $row) {
+                $value = $row['value'] ?? $row['VALUE'] ?? null;
+                if ($value !== null && is_string($value)) {
+                    $values[] = $value;
+                }
+            }
+            return $values;
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
     {
         // Try pg_stat_statements first

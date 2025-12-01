@@ -16,6 +16,7 @@ PDOdb provides convenient command-line tools for common development tasks, inclu
 - [Model Generator](#model-generator)
 - [Repository Generator](#repository-generator)
 - [Service Generator](#service-generator)
+- [Extended Code Generation](#extended-code-generation)
 - [Schema Inspector](#schema-inspector)
 - [Query Tester (REPL)](#query-tester-repl)
 - [Database Monitoring](#database-monitoring)
@@ -41,6 +42,7 @@ The CLI tools are designed to streamline your development workflow:
 - **Model Generator** - Generate ActiveRecord models from existing database tables
 - **Repository Generator** - Generate repository classes with CRUD operations
 - **Service Generator** - Generate service classes for business logic
+- **Extended Code Generation** - Generate API endpoints, tests, DTOs, Enum classes, and API documentation
 - **Schema Inspector** - Inspect database schema structure
 - **Query Tester** - Interactive REPL for testing SQL queries
 - **Database Monitoring** - Monitor queries, connections, and performance metrics
@@ -1366,6 +1368,205 @@ The generator searches for services directory in this order:
 3. `src/Services` directory
 4. `services` directory in current working directory
 5. Creates `services` directory if none found
+
+## Extended Code Generation
+
+The `generate` command provides extended code generation capabilities for API endpoints, tests, DTOs, Enum classes, and API documentation. It follows a unified parameter syntax across all subcommands.
+
+### Usage
+
+```bash
+# Show help
+vendor/bin/pdodb generate --help
+
+# Generate REST API endpoints
+vendor/bin/pdodb generate api --table=users --format=rest
+vendor/bin/pdodb generate api --model=User --format=rest
+
+# Generate tests
+vendor/bin/pdodb generate tests --model=User --type=unit
+vendor/bin/pdodb generate tests --table=users --type=integration
+vendor/bin/pdodb generate tests --repository=UserRepository --type=unit
+
+# Generate DTO
+vendor/bin/pdodb generate dto --table=users
+vendor/bin/pdodb generate dto --model=User
+
+# Generate Enum class from database ENUM column
+vendor/bin/pdodb generate enum --table=users --column=status
+
+# Generate API documentation
+vendor/bin/pdodb generate docs --table=users --format=openapi
+vendor/bin/pdodb generate docs --model=User --format=openapi
+```
+
+### Common Options
+
+All generators support the following common options:
+
+- `--table=<name>` - Work with table directly
+- `--model=<name>` - Work with model class (if applicable)
+- `--namespace=<ns>` - Set PHP namespace (default varies by generator)
+- `--output=<path>` - Output directory path
+- `--force` - Overwrite existing files without confirmation
+- `--connection=<name>` - Use specific database connection (global option)
+
+### Generate API
+
+Generate REST API endpoints/controllers with CRUD operations.
+
+#### Usage
+
+```bash
+# Generate from table
+vendor/bin/pdodb generate api --table=users --format=rest
+
+# Generate from model
+vendor/bin/pdodb generate api --model=User --format=rest
+
+# Specify output path and namespace
+vendor/bin/pdodb generate api --table=users --format=rest --output=app/Controllers --namespace=App\\Controllers
+```
+
+#### Options
+
+- `--table=<name>` or `--model=<name>` - Required (one of them)
+- `--format=rest` - Output format (default: rest)
+- `--namespace=<ns>` - Controller namespace (default: `App\\Controllers`)
+- `--output=<path>` - Output directory path
+- `--force` - Overwrite existing file
+
+#### Generated Controller
+
+The generated controller includes standard REST endpoints:
+
+- `index()` - List all records (GET /table)
+- `show($id)` - Get single record (GET /table/{id})
+- `store($data)` - Create new record (POST /table)
+- `update($id, $data)` - Update record (PUT /table/{id})
+- `destroy($id)` - Delete record (DELETE /table/{id})
+
+### Generate Tests
+
+Generate unit or integration tests for models, tables, or repositories.
+
+#### Usage
+
+```bash
+# Generate unit tests for model
+vendor/bin/pdodb generate tests --model=User --type=unit
+
+# Generate integration tests for table
+vendor/bin/pdodb generate tests --table=users --type=integration
+
+# Generate unit tests for repository
+vendor/bin/pdodb generate tests --repository=UserRepository --type=unit
+```
+
+#### Options
+
+- `--model=<name>`, `--table=<name>`, or `--repository=<name>` - Required (one of them)
+- `--type=unit|integration` - Test type (default: unit)
+- `--namespace=<ns>` - Test namespace (default: `Tests\\Unit` or `Tests\\Integration`)
+- `--output=<path>` - Output directory path
+- `--force` - Overwrite existing file
+
+#### Generated Test
+
+The generated test includes:
+\
+- Basic test structure with PHPUnit
+- Setup and teardown methods (for integration tests)
+- Example test methods
+- Database connection setup (for integration tests)
+
+### Generate DTO
+
+Generate Data Transfer Objects with properties matching table columns.
+
+#### Usage
+
+```bash
+# Generate from table
+vendor/bin/pdodb generate dto --table=users
+
+# Generate from model
+vendor/bin/pdodb generate dto --model=User
+```
+
+#### Options
+
+- `--table=<name>` or `--model=<name>` - Required (one of them)
+- `--namespace=<ns>` - DTO namespace (default: `App\\DTOs`)
+- `--output=<path>` - Output directory path
+- `--force` - Overwrite existing file
+
+#### Generated DTO
+
+The generated DTO includes:
+
+- Properties matching table columns with proper types
+- Constructor accepting data array
+- Getter methods for each property
+- `toArray()` method for serialization
+
+### Generate Enum
+
+Generate PHP Enum classes from database ENUM columns.
+
+#### Usage
+
+```bash
+# Generate enum from table column
+vendor/bin/pdodb generate enum --table=users --column=status
+```
+
+#### Options
+
+- `--table=<name>` - Required
+- `--column=<name>` - Required (ENUM column name)
+- `--namespace=<ns>` - Enum namespace (default: `App\\Enums`)
+- `--output=<path>` - Output directory path
+- `--force` - Overwrite existing file
+
+#### Generated Enum
+
+The generated enum includes:
+
+- Enum cases for each value in the database ENUM column
+- Backed enum with string values
+- `values()` method to get all enum values as array
+- `cases()` method to get all enum cases
+
+### Generate Docs
+
+Generate API documentation in OpenAPI format.
+
+#### Usage
+
+```bash
+# Generate from table
+vendor/bin/pdodb generate docs --table=users --format=openapi
+
+# Generate from model
+vendor/bin/pdodb generate docs --model=User --format=openapi
+```
+
+#### Options
+
+- `--table=<name>` or `--model=<name>` - Required (one of them)
+- `--format=openapi` - Output format (default: openapi)
+- `--output=<path>` - Output directory path
+- `--force` - Overwrite existing file
+
+#### Generated Documentation
+
+The generated OpenAPI specification includes:
+
+- Complete API paths for CRUD operations
+- Request/response schemas based on table structure
+- Parameter definitions
+- Response codes and descriptions
 
 ## Schema Inspector
 

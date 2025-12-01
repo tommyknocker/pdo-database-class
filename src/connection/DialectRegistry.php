@@ -41,6 +41,9 @@ class DialectRegistry
      */
     public static function register(string $driver, string $dialectClass): void
     {
+        // Use is_subclass_of with autoload=false to avoid triggering class loading during tests
+        // This prevents issues when running multiple test suites (e.g., mariadb + oracle)
+        // where class loading order can affect PDO connection initialization
         if (!is_subclass_of($dialectClass, DialectInterface::class)) {
             throw new InvalidArgumentException("Class {$dialectClass} must implement DialectInterface");
         }

@@ -83,4 +83,17 @@ abstract class BasePostgreSQLTestCase extends TestCase
         self::$db->rawQuery('TRUNCATE TABLE orders, archive_users, users RESTART IDENTITY CASCADE');
         parent::setUp();
     }
+
+    public static function tearDownAfterClass(): void
+    {
+        // Explicitly close connection to avoid conflicts with subsequent test suites
+        if (isset(self::$db)) {
+            try {
+                self::$db->disconnect();
+            } catch (\Throwable) {
+                // Ignore errors during cleanup
+            }
+        }
+        parent::tearDownAfterClass();
+    }
 }

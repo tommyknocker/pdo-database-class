@@ -95,4 +95,3 @@ final class SubqueryTests extends BaseOracleTestCase
         $this->assertFalse(self::$db->find()->table('nonexistent')->tableExists());
     }
 }
-

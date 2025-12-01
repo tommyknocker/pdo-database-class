@@ -105,6 +105,9 @@ final class CacheCommandCliTests extends TestCase
         $this->db->find()->from('cache_test')->cache(3600)->get();
 
         $app = new Application();
+        // Temporarily unset PHPUNIT to allow output
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -112,8 +115,18 @@ final class CacheCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            }
 
             throw $e;
+        }
+
+        // Restore PHPUNIT
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
         }
 
         $this->assertSame(0, $code);

@@ -537,7 +537,9 @@ abstract class BaseCliCommand
      */
     protected static function success(string $message): void
     {
-        echo "✓ {$message}\n";
+        if (getenv('PHPUNIT') === false) {
+            echo "✓ {$message}\n";
+        }
     }
 
     /**
@@ -547,7 +549,9 @@ abstract class BaseCliCommand
      */
     protected static function info(string $message): void
     {
-        echo "ℹ {$message}\n";
+        if (getenv('PHPUNIT') === false) {
+            echo "ℹ {$message}\n";
+        }
     }
 
     /**

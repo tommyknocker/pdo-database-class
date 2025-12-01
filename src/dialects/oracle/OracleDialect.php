@@ -2089,6 +2089,16 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function extractEnumValues(array $column, \tommyknocker\pdodb\PdoDb $db, string $tableName, string $columnName): array
+    {
+        // Oracle does not support ENUM types natively
+        // Return empty array to indicate no ENUM values
+        return [];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string
     {
         $output = [];

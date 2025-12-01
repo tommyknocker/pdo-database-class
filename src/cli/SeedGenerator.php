@@ -26,15 +26,19 @@ class SeedGenerator extends BaseCliCommand
         $db = static::createDatabase();
         $driver = static::getDriverName($db);
 
-        echo "PDOdb Seed Generator\n";
-        echo "Database: {$driver}\n\n";
+        if (getenv('PHPUNIT') === false) {
+            echo "PDOdb Seed Generator\n";
+            echo "Database: {$driver}\n\n";
+        }
 
         // Get seed path
         if ($seedPath === null) {
             $seedPath = static::getSeedPath();
         }
 
-        echo "Seeds path: {$seedPath}\n\n";
+        if (getenv('PHPUNIT') === false) {
+            echo "Seeds path: {$seedPath}\n\n";
+        }
 
         // Get seed name
         if ($name === null) {
@@ -70,7 +74,9 @@ class SeedGenerator extends BaseCliCommand
         $filename = $runner->create($name);
 
         static::success('Seed file created: ' . basename($filename));
-        echo "  Path: {$filename}\n";
+        if (getenv('PHPUNIT') === false) {
+            echo "  Path: {$filename}\n";
+        }
 
         return $filename;
     }

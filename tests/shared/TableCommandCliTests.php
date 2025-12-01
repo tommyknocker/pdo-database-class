@@ -37,6 +37,9 @@ final class TableCommandCliTests extends TestCase
         $app = new Application();
 
         // create table
+        // Temporarily unset PHPUNIT to allow output
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -44,9 +47,20 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            }
 
             throw $e;
         }
+
+        // Restore PHPUNIT
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
+
         $this->assertSame(0, $code);
         $this->assertStringContainsString('created successfully', $out);
 
@@ -107,6 +121,9 @@ final class TableCommandCliTests extends TestCase
         $this->assertStringContainsString('"users"', $out);
 
         // drop
+        // Temporarily unset PHPUNIT to allow output
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -114,9 +131,20 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            }
 
             throw $e;
         }
+
+        // Restore PHPUNIT
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
+
         $this->assertSame(0, $code);
         $this->assertStringContainsString('dropped successfully', $out);
     }

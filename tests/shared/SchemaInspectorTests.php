@@ -64,9 +64,19 @@ final class SchemaInspectorTests extends TestCase
      */
     public function testInspectListAllTables(): void
     {
+        // Temporarily unset PHPUNIT to allow output
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
         ob_start();
         SchemaInspector::inspect(null, null, $this->db);
         $out = ob_get_clean();
+
+        // Restore PHPUNIT
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
 
         $this->assertStringContainsString('PDOdb Schema Inspector', $out);
         $this->assertStringContainsString('Database:', $out);
@@ -484,9 +494,19 @@ final class SchemaInspectorTests extends TestCase
         $method = $reflection->getMethod('listTables');
         $method->setAccessible(true);
 
+        // Temporarily unset PHPUNIT to allow output
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
         ob_start();
         $method->invoke(null, $emptyDb, null);
         $out = ob_get_clean();
+
+        // Restore PHPUNIT
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
 
         $this->assertStringContainsString('No tables found', $out);
 
@@ -730,9 +750,19 @@ final class SchemaInspectorTests extends TestCase
         $method = $reflection->getMethod('listTables');
         $method->setAccessible(true);
 
+        // Temporarily unset PHPUNIT to allow output
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
         ob_start();
         $method->invoke(null, $emptyDb, 'json');
         $out = ob_get_clean();
+
+        // Restore PHPUNIT
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
 
         // When empty, listTables shows info message instead of JSON
         // So output may not be valid JSON

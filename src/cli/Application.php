@@ -55,6 +55,7 @@ class Application
         $this->addCommand(new commands\ModelCommand());
         $this->addCommand(new commands\RepositoryCommand());
         $this->addCommand(new commands\ServiceCommand());
+        $this->addCommand(new commands\GenerateCommand());
 
         // Database management
         $this->addCommand(new commands\DbCommand());

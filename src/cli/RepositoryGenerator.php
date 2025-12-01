@@ -41,8 +41,10 @@ class RepositoryGenerator extends BaseCliCommand
         }
         $driver = static::getDriverName($db);
 
-        echo "PDOdb Repository Generator\n";
-        echo "Database: {$driver}\n\n";
+        if (getenv('PHPUNIT') === false) {
+            echo "PDOdb Repository Generator\n";
+            echo "Database: {$driver}\n\n";
+        }
 
         // Validate repository name
         if (!preg_match('/^[A-Z][a-zA-Z0-9]*$/', $repositoryName)) {
@@ -108,9 +110,11 @@ class RepositoryGenerator extends BaseCliCommand
         file_put_contents($filename, $repositoryCode);
 
         static::success('Repository file created: ' . basename($filename));
-        echo "  Path: {$filename}\n";
-        echo "  Model: {$modelNamespaceFinal}\\{$modelName}\n";
-        echo "  Table: {$tableName}\n";
+        if (getenv('PHPUNIT') === false) {
+            echo "  Path: {$filename}\n";
+            echo "  Model: {$modelNamespaceFinal}\\{$modelName}\n";
+            echo "  Table: {$tableName}\n";
+        }
 
         return $filename;
     }

@@ -23,7 +23,7 @@ _pdodb() {
     local global_opts="--help --version -v --connection= --config= --env="
 
     # Main commands
-    local commands="migrate seed schema query model repository service db user table connection dump monitor cache benchmark init version"
+    local commands="migrate seed schema query model repository service generate db user table connection dump monitor cache benchmark init version"
 
     # If no command yet, complete with commands
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -162,6 +162,31 @@ _pdodb() {
         else
             local service_opts="--force --namespace= --repository-namespace= --connection="
             COMPREPLY=($(compgen -W "${service_opts}" -- "${cur}"))
+        fi
+        return 0
+    fi
+
+    # Generate command
+    if [[ "${cmd}" == "generate" ]]; then
+        local generate_subcommands="api tests dto enum docs"
+        
+        if [[ ${COMP_CWORD} -eq 2 ]]; then
+            COMPREPLY=($(compgen -W "${generate_subcommands} --help" -- "${cur}"))
+        elif [[ "${subcmd}" == "api" ]]; then
+            local generate_opts="--table= --model= --format=rest --format --namespace= --output= --force --connection="
+            COMPREPLY=($(compgen -W "${generate_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "tests" ]]; then
+            local generate_opts="--model= --table= --repository= --type=unit --type=integration --type --namespace= --output= --force --connection="
+            COMPREPLY=($(compgen -W "${generate_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "dto" ]]; then
+            local generate_opts="--table= --model= --namespace= --output= --force --connection="
+            COMPREPLY=($(compgen -W "${generate_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "enum" ]]; then
+            local generate_opts="--table= --column= --namespace= --output= --force --connection="
+            COMPREPLY=($(compgen -W "${generate_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "docs" ]]; then
+            local generate_opts="--table= --model= --format=openapi --format --output= --force --connection="
+            COMPREPLY=($(compgen -W "${generate_opts}" -- "${cur}"))
         fi
         return 0
     fi

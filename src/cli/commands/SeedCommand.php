@@ -139,8 +139,10 @@ class SeedCommand extends Command
                 $count = count($executed);
                 if ($count > 0) {
                     static::success("Successfully executed {$count} seed(s):");
-                    foreach ($executed as $seedName) {
-                        echo "  - {$seedName}\n";
+                    if (getenv('PHPUNIT') === false) {
+                        foreach ($executed as $seedName) {
+                            echo "  - {$seedName}\n";
+                        }
                     }
                 } else {
                     static::info('No seeds were executed.');
@@ -270,8 +272,10 @@ class SeedCommand extends Command
                 $count = count($rolledBack);
                 if ($count > 0) {
                     static::success("Successfully rolled back {$count} seed(s):");
-                    foreach ($rolledBack as $seedName) {
-                        echo "  - {$seedName}\n";
+                    if (getenv('PHPUNIT') === false) {
+                        foreach ($rolledBack as $seedName) {
+                            echo "  - {$seedName}\n";
+                        }
                     }
                 } else {
                     static::info('No seeds were rolled back.');

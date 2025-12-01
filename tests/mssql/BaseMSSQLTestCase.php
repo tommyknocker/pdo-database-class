@@ -106,4 +106,17 @@ abstract class BaseMSSQLTestCase extends TestCase
         $connection->query('DBCC CHECKIDENT(\'archive_users\', RESEED, 0)');
         parent::setUp();
     }
+
+    public static function tearDownAfterClass(): void
+    {
+        // Explicitly close connection to avoid conflicts with subsequent test suites
+        if (isset(self::$db)) {
+            try {
+                self::$db->disconnect();
+            } catch (\Throwable) {
+                // Ignore errors during cleanup
+            }
+        }
+        parent::tearDownAfterClass();
+    }
 }

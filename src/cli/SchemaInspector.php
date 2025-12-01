@@ -31,8 +31,10 @@ class SchemaInspector extends BaseCliCommand
 
         // Skip header for JSON/YAML formats
         if ($format !== 'json' && $format !== 'yaml') {
-            echo "PDOdb Schema Inspector\n";
-            echo "Database: {$driver}\n\n";
+            if (getenv('PHPUNIT') === false) {
+                echo "PDOdb Schema Inspector\n";
+                echo "Database: {$driver}\n\n";
+            }
         }
 
         if ($tableName === null) {

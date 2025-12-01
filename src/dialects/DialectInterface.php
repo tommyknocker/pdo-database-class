@@ -1734,6 +1734,20 @@ interface DialectInterface
      */
     public function changeUserPassword(string $username, string $newPassword, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool;
 
+    /* ---------------- Enum Support ---------------- */
+
+    /**
+     * Extract ENUM values from column definition.
+     *
+     * @param array<string, mixed> $column Column definition from describe()
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param string $tableName Table name
+     * @param string $columnName Column name
+     *
+     * @return array<int, string> Array of ENUM values, empty array if not an ENUM type
+     */
+    public function extractEnumValues(array $column, \tommyknocker\pdodb\PdoDb $db, string $tableName, string $columnName): array;
+
     /* ---------------- Dump and Restore ---------------- */
 
     /**

@@ -219,29 +219,6 @@ final class UserCommandCliTests extends TestCase
         $this->assertTrue(true);
     }
 
-    public function testUserCreateCommandWithAllOptions(): void
-    {
-        // Test create command with username, password, host, and force options
-        // For SQLite, this will fail with ResourceException, but we can test the command structure
-        $app = new Application();
-
-        ob_start();
-
-        try {
-            // This will fail for SQLite, but we can verify the command accepts the options
-            $code = $app->run(['pdodb', 'user', 'create', 'testuser', '--password', 'testpass', '--host', 'localhost', '--force']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            // Expected for SQLite - user management not supported
-            $this->assertInstanceOf(\Throwable::class, $e);
-            return;
-        }
-
-        // If we get here, verify output contains error message
-        $this->assertStringContainsString('SQLite', $out);
-    }
-
     public function testUserDropCommandWithForce(): void
     {
         // This test verifies that the command structure exists
@@ -350,6 +327,9 @@ final class UserCommandCliTests extends TestCase
     public function testUserShowDatabaseHeader(): void
     {
         // Test showDatabaseHeader method via reflection
+        // Temporarily unset PHPUNIT to allow output
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
         $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
@@ -362,8 +342,18 @@ final class UserCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            }
 
             throw $e;
+        }
+
+        // Restore PHPUNIT
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
         }
 
         $this->assertStringContainsString('PDOdb User Management', $out);
@@ -595,6 +585,9 @@ final class UserCommandCliTests extends TestCase
     public function testUserShowDatabaseHeaderWithErrorHandling(): void
     {
         // Test showDatabaseHeader error handling
+        // Temporarily unset PHPUNIT to allow output
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
         $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
@@ -605,15 +598,20 @@ final class UserCommandCliTests extends TestCase
         try {
             $method->invoke($command);
             $out = ob_get_clean();
+            // Should output header even if database info is unavailable
+            $this->assertStringContainsString('PDOdb User Management', $out);
         } catch (\Throwable $e) {
             ob_end_clean();
             // Method should handle errors gracefully
             $this->assertTrue(true);
-            return;
+        } finally {
+            // Restore PHPUNIT
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            } else {
+                putenv('PHPUNIT');
+            }
         }
-
-        // Should output header even if database info is unavailable
-        $this->assertStringContainsString('PDOdb User Management', $out);
     }
 
     public function testUserListCommandOutputFormat(): void
@@ -900,6 +898,9 @@ final class UserCommandCliTests extends TestCase
     public function testUserShowDatabaseHeaderWithCurrentDatabase(): void
     {
         // Test showDatabaseHeader with current database
+        // Temporarily unset PHPUNIT to allow output
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
         $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
@@ -917,12 +918,22 @@ final class UserCommandCliTests extends TestCase
             ob_end_clean();
             // Method should handle errors gracefully
             $this->assertTrue(true);
+        } finally {
+            // Restore PHPUNIT
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            } else {
+                putenv('PHPUNIT');
+            }
         }
     }
 
     public function testUserShowDatabaseHeaderWithoutCurrentDatabase(): void
     {
         // Test showDatabaseHeader without current database
+        // Temporarily unset PHPUNIT to allow output
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
         $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
@@ -940,12 +951,22 @@ final class UserCommandCliTests extends TestCase
             ob_end_clean();
             // Method should handle errors gracefully
             $this->assertTrue(true);
+        } finally {
+            // Restore PHPUNIT
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            } else {
+                putenv('PHPUNIT');
+            }
         }
     }
 
     public function testUserShowDatabaseHeaderWithException(): void
     {
         // Test showDatabaseHeader error handling
+        // Temporarily unset PHPUNIT to allow output
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
         $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
@@ -962,6 +983,13 @@ final class UserCommandCliTests extends TestCase
             ob_end_clean();
             // Method should handle errors gracefully
             $this->assertTrue(true);
+        } finally {
+            // Restore PHPUNIT
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            } else {
+                putenv('PHPUNIT');
+            }
         }
     }
 

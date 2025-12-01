@@ -137,6 +137,9 @@ final class ServiceGeneratorTests extends TestCase
      */
     public function testGenerateWithAllParameters(): void
     {
+        // Temporarily unset PHPUNIT to allow output
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
         ob_start();
         $filename = ServiceGenerator::generate(
             'TestService',
@@ -148,6 +151,13 @@ final class ServiceGeneratorTests extends TestCase
             true
         );
         $out = ob_get_clean();
+
+        // Restore PHPUNIT
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
 
         $this->assertFileExists($filename);
         $this->assertStringContainsString('TestService.php', $filename);

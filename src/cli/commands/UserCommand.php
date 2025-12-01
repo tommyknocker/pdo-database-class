@@ -439,22 +439,28 @@ class UserCommand extends Command
             $driver = static::getDriverName($db);
             $info = DatabaseManager::getInfo($db);
 
-            echo "PDOdb User Management\n";
-            echo "Database: {$driver}";
-            if (isset($info['current_database']) && is_string($info['current_database']) && $info['current_database'] !== '') {
-                echo " ({$info['current_database']})";
+            if (getenv('PHPUNIT') === false) {
+                echo "PDOdb User Management\n";
+                echo "Database: {$driver}";
+                if (isset($info['current_database']) && is_string($info['current_database']) && $info['current_database'] !== '') {
+                    echo " ({$info['current_database']})";
+                }
+                echo "\n\n";
             }
-            echo "\n\n";
         } catch (\Exception $e) {
             // If we can't get database info, just show driver
             try {
                 $db = $this->getDb();
                 $driver = static::getDriverName($db);
-                echo "PDOdb User Management\n";
-                echo "Database: {$driver}\n\n";
+                if (getenv('PHPUNIT') === false) {
+                    echo "PDOdb User Management\n";
+                    echo "Database: {$driver}\n\n";
+                }
             } catch (\Exception $e2) {
                 // If even that fails, just show header
-                echo "PDOdb User Management\n\n";
+                if (getenv('PHPUNIT') === false) {
+                    echo "PDOdb User Management\n\n";
+                }
             }
         }
     }
