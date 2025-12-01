@@ -105,19 +105,22 @@ final class GenerateCommandCliTests extends TestCase
         $this->assertFileExists($this->outputDir . '/TestUserController.php');
     }
 
-    /**
-     * @runInSeparateProcess
-     *
-     * @preserveGlobalState disabled
-     */
-    public function testGenerateApiErrorNoTableOrModel(): void
+    public function testGenerateApiShowsHelpWhenNoTableOrModelWithFormat(): void
     {
-        $bin = realpath(__DIR__ . '/../../bin/pdodb');
-        $dbPath = sys_get_temp_dir() . '/pdodb_generate_' . uniqid() . '.sqlite';
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
-        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate api --format=rest 2>&1';
-        $out = (string)shell_exec($cmd);
-        $this->assertStringContainsString('Either --table or --model option is required', $out);
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'api', '--format=rest']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate api', $out);
+        $this->assertStringContainsString('Required Options', $out);
     }
 
     public function testGenerateTestsWithTable(): void
@@ -144,14 +147,22 @@ final class GenerateCommandCliTests extends TestCase
      *
      * @preserveGlobalState disabled
      */
-    public function testGenerateTestsErrorNoOptions(): void
+    public function testGenerateTestsShowsHelpWhenNoOptionsWithType(): void
     {
-        $bin = realpath(__DIR__ . '/../../bin/pdodb');
-        $dbPath = sys_get_temp_dir() . '/pdodb_generate_' . uniqid() . '.sqlite';
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
-        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate tests --type=unit 2>&1';
-        $out = (string)shell_exec($cmd);
-        $this->assertStringContainsString('One of --model, --table, or --repository option is required', $out);
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'tests', '--type=unit']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate tests', $out);
+        $this->assertStringContainsString('Required Options', $out);
     }
 
     public function testGenerateDtoWithTable(): void
@@ -173,49 +184,60 @@ final class GenerateCommandCliTests extends TestCase
         $this->assertFileExists($this->outputDir . '/TestUserDTO.php');
     }
 
-    /**
-     * @runInSeparateProcess
-     *
-     * @preserveGlobalState disabled
-     */
-    public function testGenerateDtoErrorNoTableOrModel(): void
+    public function testGenerateDtoShowsHelpWhenNoTableOrModel(): void
     {
-        $bin = realpath(__DIR__ . '/../../bin/pdodb');
-        $dbPath = sys_get_temp_dir() . '/pdodb_generate_' . uniqid() . '.sqlite';
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
-        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate dto 2>&1';
-        $out = (string)shell_exec($cmd);
-        $this->assertStringContainsString('Either --table or --model option is required', $out);
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'dto']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate dto', $out);
+        $this->assertStringContainsString('Required Options', $out);
     }
 
-    /**
-     * @runInSeparateProcess
-     *
-     * @preserveGlobalState disabled
-     */
-    public function testGenerateEnumErrorNoTable(): void
+    public function testGenerateEnumShowsHelpWhenNoTable(): void
     {
-        $bin = realpath(__DIR__ . '/../../bin/pdodb');
-        $dbPath = sys_get_temp_dir() . '/pdodb_generate_' . uniqid() . '.sqlite';
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
-        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate enum --column=status 2>&1';
-        $out = (string)shell_exec($cmd);
-        $this->assertStringContainsString('--table option is required', $out);
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'enum', '--column=status']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate enum', $out);
+        $this->assertStringContainsString('--table', $out);
+        $this->assertStringContainsString('Required Options', $out);
     }
 
-    /**
-     * @runInSeparateProcess
-     *
-     * @preserveGlobalState disabled
-     */
-    public function testGenerateEnumErrorNoColumn(): void
+    public function testGenerateEnumShowsHelpWhenNoColumn(): void
     {
-        $bin = realpath(__DIR__ . '/../../bin/pdodb');
-        $dbPath = sys_get_temp_dir() . '/pdodb_generate_' . uniqid() . '.sqlite';
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
-        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate enum --table=test_users 2>&1';
-        $out = (string)shell_exec($cmd);
-        $this->assertStringContainsString('--column option is required', $out);
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'enum', '--table=test_users']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate enum', $out);
+        $this->assertStringContainsString('--column', $out);
+        $this->assertStringContainsString('Required Options', $out);
     }
 
     public function testGenerateDocsWithTable(): void
@@ -332,19 +354,23 @@ final class GenerateCommandCliTests extends TestCase
         $this->assertStringContainsString('tableName()', $content);
     }
 
-    /**
-     * @runInSeparateProcess
-     *
-     * @preserveGlobalState disabled
-     */
-    public function testGenerateModelErrorNoModel(): void
+    public function testGenerateModelShowsHelpWhenNoModelWithTable(): void
     {
-        $bin = realpath(__DIR__ . '/../../bin/pdodb');
-        $dbPath = sys_get_temp_dir() . '/pdodb_generate_' . uniqid() . '.sqlite';
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
-        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate model --table=test_users 2>&1';
-        $out = (string)shell_exec($cmd);
-        $this->assertStringContainsString('--model option is required', $out);
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'model', '--table=test_users']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate model', $out);
+        $this->assertStringContainsString('--model', $out);
+        $this->assertStringContainsString('Required Options', $out);
     }
 
     public function testGenerateRepository(): void
@@ -371,19 +397,23 @@ final class GenerateCommandCliTests extends TestCase
         $this->assertStringContainsString('use app\\models\\TestUser', $content);
     }
 
-    /**
-     * @runInSeparateProcess
-     *
-     * @preserveGlobalState disabled
-     */
-    public function testGenerateRepositoryErrorNoRepository(): void
+    public function testGenerateRepositoryShowsHelpWhenNoRepository(): void
     {
-        $bin = realpath(__DIR__ . '/../../bin/pdodb');
-        $dbPath = sys_get_temp_dir() . '/pdodb_generate_' . uniqid() . '.sqlite';
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
-        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate repository --model=TestUser 2>&1';
-        $out = (string)shell_exec($cmd);
-        $this->assertStringContainsString('--repository option is required', $out);
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'repository', '--model=TestUser']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate repository', $out);
+        $this->assertStringContainsString('--repository', $out);
+        $this->assertStringContainsString('Required Options', $out);
     }
 
     public function testGenerateService(): void
@@ -409,34 +439,41 @@ final class GenerateCommandCliTests extends TestCase
         $this->assertStringContainsString('use app\\repositories\\TestUserRepository', $content);
     }
 
-    /**
-     * @runInSeparateProcess
-     *
-     * @preserveGlobalState disabled
-     */
-    public function testGenerateServiceErrorNoService(): void
+    public function testGenerateServiceShowsHelpWhenNoService(): void
     {
-        $bin = realpath(__DIR__ . '/../../bin/pdodb');
-        $dbPath = sys_get_temp_dir() . '/pdodb_generate_' . uniqid() . '.sqlite';
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
-        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate service --repository=TestUserRepository 2>&1';
-        $out = (string)shell_exec($cmd);
-        $this->assertStringContainsString('--service option is required', $out);
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'service', '--repository=TestUserRepository']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate service', $out);
+        $this->assertStringContainsString('--service', $out);
+        $this->assertStringContainsString('Required Options', $out);
     }
 
-    /**
-     * @runInSeparateProcess
-     *
-     * @preserveGlobalState disabled
-     */
-    public function testGenerateDocsErrorNoTableOrModel(): void
+    public function testGenerateDocsShowsHelpWhenNoTableOrModel(): void
     {
-        $bin = realpath(__DIR__ . '/../../bin/pdodb');
-        $dbPath = sys_get_temp_dir() . '/pdodb_generate_' . uniqid() . '.sqlite';
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
-        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate docs --format=openapi 2>&1';
-        $out = (string)shell_exec($cmd);
-        $this->assertStringContainsString('Either --table or --model option is required', $out);
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'docs', '--format=openapi']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate docs', $out);
+        $this->assertStringContainsString('Required Options', $out);
     }
 
     /**
@@ -452,5 +489,164 @@ final class GenerateCommandCliTests extends TestCase
         $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate unknown 2>&1';
         $out = (string)shell_exec($cmd);
         $this->assertStringContainsString('Unknown subcommand: unknown', $out);
+    }
+
+    public function testGenerateApiShowsHelpWhenNoParameters(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'api']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate api', $out);
+        $this->assertStringContainsString('--table', $out);
+        $this->assertStringContainsString('--model', $out);
+        $this->assertStringContainsString('Required Options', $out);
+        $this->assertStringContainsString('Examples:', $out);
+    }
+
+    public function testGenerateTestsShowsHelpWhenNoParameters(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'tests']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate tests', $out);
+        $this->assertStringContainsString('--model', $out);
+        $this->assertStringContainsString('--table', $out);
+        $this->assertStringContainsString('--repository', $out);
+        $this->assertStringContainsString('Required Options', $out);
+    }
+
+    public function testGenerateDtoShowsHelpWhenNoParameters(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'dto']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate dto', $out);
+        $this->assertStringContainsString('--table', $out);
+        $this->assertStringContainsString('--model', $out);
+        $this->assertStringContainsString('Required Options', $out);
+    }
+
+    public function testGenerateEnumShowsHelpWhenNoParameters(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'enum']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate enum', $out);
+        $this->assertStringContainsString('--table', $out);
+        $this->assertStringContainsString('--column', $out);
+        $this->assertStringContainsString('Required Options', $out);
+    }
+
+    public function testGenerateDocsShowsHelpWhenNoParameters(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'docs']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate docs', $out);
+        $this->assertStringContainsString('--table', $out);
+        $this->assertStringContainsString('--model', $out);
+        $this->assertStringContainsString('Required Options', $out);
+    }
+
+    public function testGenerateModelShowsHelpWhenNoParameters(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'model']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate model', $out);
+        $this->assertStringContainsString('--model', $out);
+        $this->assertStringContainsString('Required Options', $out);
+    }
+
+    public function testGenerateRepositoryShowsHelpWhenNoParameters(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'repository']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate repository', $out);
+        $this->assertStringContainsString('--repository', $out);
+        $this->assertStringContainsString('Required Options', $out);
+    }
+
+    public function testGenerateServiceShowsHelpWhenNoParameters(): void
+    {
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'service']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Generate service', $out);
+        $this->assertStringContainsString('--service', $out);
+        $this->assertStringContainsString('Required Options', $out);
     }
 }
