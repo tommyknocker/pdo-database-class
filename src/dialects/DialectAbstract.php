@@ -659,7 +659,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function formatToDate(string $dateString, string $format): string
+    public function formatToDate(string|RawValue $dateString, string $format): string
     {
         throw new UnsupportedOperationException(
             'TO_DATE is only supported in Oracle. Use date string literals for other dialects.',
@@ -1439,5 +1439,16 @@ abstract class DialectAbstract implements DialectInterface
     {
         // Default: no transformation
         return $value;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatRegexpLike(string|RawValue $value, string $pattern): string
+    {
+        $val = $this->resolveValue($value);
+        $pat = str_replace("'", "''", $pattern);
+        // Default implementation: use REGEXP operator
+        return "($val REGEXP '$pat')";
     }
 }

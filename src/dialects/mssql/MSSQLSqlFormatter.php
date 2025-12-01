@@ -527,6 +527,18 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
         return "(dbo.regexp_match($val, '%{$sqlPatternEscaped}%') = 1)";
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function formatRegexpLike(string|RawValue $value, string $pattern): string
+    {
+        $val = $this->resolveValue($value);
+        // Use registered user-defined function
+        $sqlPattern = $this->convertRegexToSqlPattern($pattern);
+        $sqlPatternEscaped = str_replace("'", "''", $sqlPattern);
+        return "(dbo.regexp_match($val, '%{$sqlPatternEscaped}%') = 1)";
+    }
+
     public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
     {
         $val = $this->resolveValue($value);

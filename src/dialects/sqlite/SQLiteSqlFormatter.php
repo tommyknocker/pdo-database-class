@@ -533,6 +533,17 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatRegexpLike(string|RawValue $value, string $pattern): string
+    {
+        // SQLite REGEXP requires extension to be loaded
+        $val = $this->resolveValue($value);
+        $pat = str_replace("'", "''", $pattern);
+        return "($val REGEXP '$pat')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
     {
         // SQLite doesn't have native REGEXP_REPLACE

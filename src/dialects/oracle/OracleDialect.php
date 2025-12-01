@@ -891,11 +891,18 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function formatToDate(string $dateString, string $format): string
+    public function formatToDate(string|RawValue $dateString, string $format): string
     {
-        $dateEscaped = str_replace("'", "''", $dateString);
+        // If it's a RawValue, use getValue() directly (it's already SQL)
+        // If it's a string, treat it as a literal date string
+        if ($dateString instanceof RawValue) {
+            $dateExpr = $dateString->getValue();
+        } else {
+            $dateEscaped = str_replace("'", "''", $dateString);
+            $dateExpr = "'{$dateEscaped}'";
+        }
         $formatEscaped = str_replace("'", "''", $format);
-        return "TO_DATE('{$dateEscaped}', '{$formatEscaped}')";
+        return "TO_DATE({$dateExpr}, '{$formatEscaped}')";
     }
 
     /**
@@ -996,6 +1003,14 @@ class OracleDialect extends DialectAbstract
     public function formatRegexpMatch(string|RawValue $value, string $pattern): string
     {
         return $this->sqlFormatter->formatRegexpMatch($value, $pattern);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatRegexpLike(string|RawValue $value, string $pattern): string
+    {
+        return $this->sqlFormatter->formatRegexpLike($value, $pattern);
     }
 
     /**

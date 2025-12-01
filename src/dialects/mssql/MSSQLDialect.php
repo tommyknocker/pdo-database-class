@@ -573,6 +573,14 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatRegexpLike(string|RawValue $value, string $pattern): string
+    {
+        return $this->sqlFormatter->formatRegexpLike($value, $pattern);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
     {
         return $this->sqlFormatter->formatRegexpReplace($value, $pattern, $replacement);

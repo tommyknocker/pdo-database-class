@@ -521,6 +521,17 @@ class PostgreSQLSqlFormatter extends SqlFormatterAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatRegexpLike(string|RawValue $value, string $pattern): string
+    {
+        $val = $this->resolveValue($value);
+        $pat = str_replace("'", "''", $pattern);
+        // PostgreSQL uses ~ operator for case-sensitive match
+        return "($val ~ '$pat')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
     {
         $val = $this->resolveValue($value);

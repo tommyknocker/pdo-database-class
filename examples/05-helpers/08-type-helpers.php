@@ -294,22 +294,8 @@ echo "\n";
 echo "9. Type conversion with GREATEST/LEAST...\n";
 $realType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'pgsql' ? 'NUMERIC' : ($driver === 'oci' ? 'NUMBER' : 'REAL'));
 // Use library helpers for range_min and range_max
-// For range_span, we need to subtract two expressions
-// We'll resolve the helpers to SQL strings for use in Db::raw()
-$castTextExpr = Db::cast('text_value', $realType)->getValue();
-$castMixedExpr = Db::cast('mixed_value', $realType)->getValue();
-// Build GREATEST/LEAST expressions manually for range_span since we need to subtract them
-// This demonstrates combining helpers with raw SQL for complex expressions
-$greatestExpr = $db->connection->getDialect()->formatGreatest([
-    Db::cast('text_value', $realType),
-    Db::cast('mixed_value', $realType),
-    'numeric_value'
-]);
-$leastExpr = $db->connection->getDialect()->formatLeast([
-    Db::cast('text_value', $realType),
-    Db::cast('mixed_value', $realType),
-    'numeric_value'
-]);
+// For range_span, we calculate it using the difference between max and min
+// This demonstrates using GREATEST and LEAST helpers for finding ranges
 $results = $db->find()
     ->from('data_types')
     ->select([
@@ -317,14 +303,16 @@ $results = $db->find()
         'numeric_value',
         'mixed_value',
         'range_min' => Db::least(Db::cast('text_value', $realType), Db::cast('mixed_value', $realType), 'numeric_value'),
-        'range_max' => Db::greatest(Db::cast('text_value', $realType), Db::cast('mixed_value', $realType), 'numeric_value'),
-        'range_span' => Db::raw("({$greatestExpr}) - ({$leastExpr})")
+        'range_max' => Db::greatest(Db::cast('text_value', $realType), Db::cast('mixed_value', $realType), 'numeric_value')
     ])
     ->get();
 
 foreach ($results as $row) {
+    $rangeSpan = $row['range_max'] !== null && $row['range_min'] !== null 
+        ? (float)$row['range_max'] - (float)$row['range_min'] 
+        : null;
     echo "  • Text: {$row['text_value']}, Numeric: {$row['numeric_value']}, Mixed: {$row['mixed_value']}\n";
-    echo "    Range: {$row['range_min']} to {$row['range_max']} (span: {$row['range_span']})\n";
+    echo "    Range: {$row['range_min']} to {$row['range_max']}" . ($rangeSpan !== null ? " (span: {$rangeSpan})" : '') . "\n";
 }
 echo "\n";
 
@@ -332,34 +320,44 @@ echo "\n";
 echo "10. Type validation...\n";
 $castRealType = ($driver === 'mysql' || $driver === 'mariadb') ? 'DECIMAL(10,2)' : ($driver === 'oci' ? 'NUMBER' : 'REAL');
 $intType = ($driver === 'mysql' || $driver === 'mariadb') ? 'SIGNED' : 'INTEGER';
-// Use COALESCE with CAST to safely check if value can be converted
-// COALESCE(CAST(...), NULL) returns NULL if CAST fails (for dialects that use TRY_CAST or safe CAST)
-// Then use CASE to categorize based on whether cast succeeded
-// This demonstrates combining CAST, COALESCE, and CASE helpers for type validation
-$castRealSafe = Db::coalesce(Db::cast('text_value', $castRealType), Db::raw('NULL'));
-$castIntSafe = Db::coalesce(Db::cast('text_value', $intType), Db::raw('NULL'));
-$castDateSafe = Db::coalesce(Db::cast('mixed_value', 'DATE'), Db::raw('NULL'));
-// Resolve expressions to SQL strings for use in CASE conditions
-$resolver = new \tommyknocker\pdodb\query\RawValueResolver($db->connection, new \tommyknocker\pdodb\query\ParameterManager());
-$castRealSql = $resolver->resolveRawValue($castRealSafe);
-$castIntSql = $resolver->resolveRawValue($castIntSafe);
-$castDateSql = $resolver->resolveRawValue($castDateSafe);
-// Build CASE conditions using resolved SQL expressions
-// Note: For checking NULL on expressions, we need to use SQL directly since isNull/isNotNull helpers
-// are designed for column names, not expressions. This demonstrates combining helpers with raw SQL.
+// Use CASE with regexpLike and helpers to safely check if value can be converted
+// This demonstrates combining CAST, COALESCE, CASE, regexpLike, toChar, and toDate helpers
+if ($driver === 'oci') {
+    // For Oracle, use regexpLike with toChar for safe validation before CAST
+    $numericPattern = '^-?[0-9]+(\\.[0-9]+)?$';
+    $datePattern = '^[0-9]{4}-[0-9]{2}-[0-9]{2}$';
+    // For Oracle, we need to build SQL manually because ToCharValue::getValue() returns empty string
+    // and Db::cast() uses getValue() which doesn't work correctly with ToCharValue
+    // Use raw SQL to build the CASE expressions properly
+    $castRealSafe = Db::raw("CASE WHEN REGEXP_LIKE(TO_CHAR(\"TEXT_VALUE\"), '$numericPattern') THEN CAST(TO_CHAR(\"TEXT_VALUE\") AS $castRealType) ELSE NULL END");
+    $castIntSafe = Db::raw("CASE WHEN REGEXP_LIKE(TO_CHAR(\"TEXT_VALUE\"), '$numericPattern') THEN CAST(TO_CHAR(\"TEXT_VALUE\") AS $intType) ELSE NULL END");
+    // For date, use regexpLike with toChar and toDate
+    $castDateSafe = Db::raw("CASE WHEN REGEXP_LIKE(TO_CHAR(\"MIXED_VALUE\"), '$datePattern') THEN TO_DATE(TO_CHAR(\"MIXED_VALUE\"), 'YYYY-MM-DD') ELSE NULL END");
+} else {
+    $castRealSafe = Db::coalesce(Db::cast('text_value', $castRealType), Db::null());
+    $castIntSafe = Db::coalesce(Db::cast('text_value', $intType), Db::null());
+    $castDateSafe = Db::coalesce(Db::cast('mixed_value', 'DATE'), Db::null());
+}
+// Use RawValue expressions directly in CASE conditions
+// Note: Db::case() now accepts RawValue instances in both keys and values
+// For checking NULL on expressions, we need to use raw SQL since isNull/isNotNull helpers
+// are designed for column names, not expressions
+// Use RawValue directly in nested CASE - RawValueResolver will properly resolve nested expressions
 $results = $db->find()
     ->from('data_types')
     ->select([
         'text_value',
         'mixed_value',
+        // Use nested CASE to check if cast expressions are NULL
+        // Use getValue() to get SQL string from RawValue for array keys
         'is_valid_numeric' => Db::case([
-            ($castRealSql . ' IS NOT NULL AND ' . $castIntSql . ' IS NOT NULL AND ' . $castRealSql . ' = ' . $castIntSql) => '\'Integer\'',
-            ($castRealSql . ' IS NOT NULL') => '\'Real\'',
-            ($castRealSql . ' IS NULL') => '\'Not Numeric\''
+            "({$castRealSafe->getValue()}) IS NOT NULL AND ({$castIntSafe->getValue()}) IS NOT NULL AND ({$castRealSafe->getValue()}) = ({$castIntSafe->getValue()})" => '\'Integer\'',
+            "({$castRealSafe->getValue()}) IS NOT NULL" => '\'Real\'',
+            "({$castRealSafe->getValue()}) IS NULL" => '\'Not Numeric\''
         ], '\'Unknown\''),
         'is_valid_date' => Db::case([
-            ($castDateSql . ' IS NOT NULL') => '\'Valid Date\'',
-            ($castDateSql . ' IS NULL') => '\'Invalid Date\''
+            "({$castDateSafe->getValue()}) IS NOT NULL" => '\'Valid Date\'',
+            "({$castDateSafe->getValue()}) IS NULL" => '\'Invalid Date\''
         ], '\'Unknown\'')
     ])
     ->get();

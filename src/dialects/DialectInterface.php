@@ -797,6 +797,16 @@ interface DialectInterface
     public function formatRegexpMatch(string|RawValue $value, string $pattern): string;
 
     /**
+     * Format REGEXP_LIKE boolean expression for use in CASE statements.
+     *
+     * @param string|RawValue $value Source string.
+     * @param string $pattern Regex pattern.
+     *
+     * @return string SQL boolean expression (e.g., REGEXP_LIKE(...) for Oracle, value REGEXP pattern for MySQL).
+     */
+    public function formatRegexpLike(string|RawValue $value, string $pattern): string;
+
+    /**
      * Format REGEXP replace expression.
      *
      * @param string|RawValue $value Source string.

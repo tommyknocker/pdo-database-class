@@ -212,12 +212,12 @@ trait DateTimeHelpersTrait
      * Converts a string to DATE (Oracle-specific).
      * Throws UnsupportedOperationException for non-Oracle dialects.
      *
-     * @param string $dateString The date string to convert (e.g., '2024-01-15')
+     * @param string|RawValue $dateString The date string to convert (e.g., '2024-01-15') or SQL expression
      * @param string $format The format string (default: 'YYYY-MM-DD')
      *
      * @return ToDateValue The ToDateValue instance
      */
-    public static function toDate(string $dateString, string $format = 'YYYY-MM-DD'): ToDateValue
+    public static function toDate(string|RawValue $dateString, string $format = 'YYYY-MM-DD'): ToDateValue
     {
         return new ToDateValue($dateString, $format);
     }

@@ -485,6 +485,16 @@ class MySQLSqlFormatter extends SqlFormatterAbstract
     /**
      * {@inheritDoc}
      */
+    public function formatRegexpLike(string|RawValue $value, string $pattern): string
+    {
+        $val = $this->resolveValue($value);
+        $pat = str_replace("'", "''", $pattern);
+        return "($val REGEXP '$pat')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
     {
         $val = $this->resolveValue($value);

@@ -10,6 +10,7 @@ use tommyknocker\pdodb\helpers\values\PadValue;
 use tommyknocker\pdodb\helpers\values\PositionValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\helpers\values\RegexpExtractValue;
+use tommyknocker\pdodb\helpers\values\RegexpLikeValue;
 use tommyknocker\pdodb\helpers\values\RegexpMatchValue;
 use tommyknocker\pdodb\helpers\values\RegexpReplaceValue;
 use tommyknocker\pdodb\helpers\values\RepeatValue;
@@ -276,6 +277,20 @@ trait StringHelpersTrait
     public static function regexpMatch(string|RawValue $value, string $pattern): RegexpMatchValue
     {
         return new RegexpMatchValue($value, $pattern);
+    }
+
+    /**
+     * Returns regexp like boolean expression for use in CASE statements (dialect-specific).
+     * Returns a boolean expression that can be used directly in CASE WHEN conditions.
+     *
+     * @param string|RawValue $value The source string.
+     * @param string $pattern The regex pattern.
+     *
+     * @return RegexpLikeValue The RegexpLikeValue instance for REGEXP_LIKE boolean expression.
+     */
+    public static function regexpLike(string|RawValue $value, string $pattern): RegexpLikeValue
+    {
+        return new RegexpLikeValue($value, $pattern);
     }
 
     /**
