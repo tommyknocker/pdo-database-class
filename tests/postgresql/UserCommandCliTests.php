@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\postgresql;
 
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\exceptions\AuthenticationException;
 
 final class UserCommandCliTests extends BasePostgreSQLTestCase
 {
@@ -29,6 +30,11 @@ final class UserCommandCliTests extends BasePostgreSQLTestCase
         try {
             $code = $app->run(['pdodb', 'user', 'create', 'testuser_cli', '--password', 'testpass123', '--force']);
             $out = ob_get_clean();
+        } catch (AuthenticationException $e) {
+            ob_end_clean();
+            // Skip test if user doesn't have CREATEROLE privilege
+            $this->markTestSkipped('User does not have CREATEROLE privilege: ' . $e->getMessage());
+            return;
         } catch (\Throwable $e) {
             ob_end_clean();
 

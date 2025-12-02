@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\mysql;
 
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\exceptions\AuthenticationException;
 
 final class UserCommandCliTests extends BaseMySQLTestCase
 {
@@ -29,6 +30,11 @@ final class UserCommandCliTests extends BaseMySQLTestCase
         try {
             $code = $app->run(['pdodb', 'user', 'create', 'testuser_cli', '--password', 'testpass123', '--host', 'localhost', '--force']);
             $out = ob_get_clean();
+        } catch (AuthenticationException $e) {
+            ob_end_clean();
+            // Skip test if user doesn't have CREATE USER privilege
+            $this->markTestSkipped('User does not have CREATE USER privilege: ' . $e->getMessage());
+            return;
         } catch (\Throwable $e) {
             ob_end_clean();
 
