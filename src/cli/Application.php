@@ -69,6 +69,7 @@ class Application
 
         // Monitoring and performance
         $this->addCommand(new commands\MonitorCommand());
+        $this->addCommand(new commands\UiCommand());
         $this->addCommand(new commands\CacheCommand());
         $this->addCommand(new commands\BenchmarkCommand());
 

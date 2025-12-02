@@ -1612,6 +1612,48 @@ class MySQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $metrics = [];
+
+        try {
+            // Get version
+            $version = $db->rawQueryValue('SELECT VERSION()');
+            $metrics['version'] = is_string($version) ? $version : 'unknown';
+
+            // Get uptime
+            $uptime = $db->rawQueryValue("SHOW STATUS WHERE Variable_name = 'Uptime'");
+            $uptimeValue = is_int($uptime) ? $uptime : (is_string($uptime) ? (int)$uptime : 0);
+            $metrics['uptime_seconds'] = $uptimeValue;
+
+            // Get key status variables
+            $statusVars = [
+                'Threads_connected',
+                'Threads_running',
+                'Questions',
+                'Queries',
+                'Slow_queries',
+                'Connections',
+            ];
+
+            foreach ($statusVars as $var) {
+                $result = $db->rawQuery("SHOW STATUS WHERE Variable_name = '{$var}'");
+                if (!empty($result)) {
+                    $value = $result[0]['Value'] ?? 0;
+                    $metrics[strtolower($var)] = is_int($value) ? $value : (is_string($value) ? (int)$value : 0);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Return empty metrics on error
+            $metrics['error'] = $e->getMessage();
+        }
+
+        return $metrics;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
     {
         $threshold = (int)($thresholdSeconds);
@@ -1752,5 +1794,19 @@ class MySQLDialect extends DialectAbstract
     protected function toString(mixed $value): string
     {
         return (string)$value;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool
+    {
+        try {
+            $processIdInt = is_int($processId) ? $processId : (int)$processId;
+            $db->rawQuery("KILL {$processIdInt}");
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 }

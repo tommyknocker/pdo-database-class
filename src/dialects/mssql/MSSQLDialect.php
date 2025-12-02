@@ -1926,6 +1926,57 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $metrics = [];
+
+        try {
+            // Get version
+            $version = $db->rawQueryValue('SELECT @@VERSION');
+            $metrics['version'] = is_string($version) ? $version : 'unknown';
+
+            // Get key performance counters
+            $counters = $db->rawQuery("
+                SELECT
+                    counter_name,
+                    cntr_value
+                FROM sys.dm_os_performance_counters
+                WHERE counter_name IN (
+                    'User Connections',
+                    'Batch Requests/sec',
+                    'SQL Compilations/sec',
+                    'Page life expectancy'
+                )
+            ");
+
+            foreach ($counters as $counter) {
+                $name = $counter['counter_name'] ?? '';
+                $value = $counter['cntr_value'] ?? 0;
+                if (is_string($name) && $name !== '') {
+                    $key = strtolower(str_replace([' ', '/'], ['_', '_'], $name));
+                    $metrics[$key] = is_int($value) ? $value : (is_string($value) ? (int)$value : 0);
+                }
+            }
+
+            // Get server start time (uptime)
+            $startTime = $db->rawQueryValue('SELECT sqlserver_start_time FROM sys.dm_os_sys_info');
+            if ($startTime !== null) {
+                $startTimestamp = is_string($startTime) ? strtotime($startTime) : 0;
+                if ($startTimestamp > 0) {
+                    $metrics['uptime_seconds'] = time() - $startTimestamp;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Return empty metrics on error
+            $metrics['error'] = $e->getMessage();
+        }
+
+        return $metrics;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
     {
         try {
@@ -2109,5 +2160,19 @@ class MSSQLDialect extends DialectAbstract
     protected function toFloat(mixed $value): float
     {
         return is_float($value) ? $value : (is_numeric($value) ? (float)$value : 0.0);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool
+    {
+        try {
+            $sessionId = is_int($processId) ? $processId : (int)$processId;
+            $db->rawQuery("KILL {$sessionId}");
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 }

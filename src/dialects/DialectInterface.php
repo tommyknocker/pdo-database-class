@@ -1860,6 +1860,25 @@ interface DialectInterface
      */
     public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array;
 
+    /**
+     * Get server metrics for this dialect.
+     *
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return array<string, mixed> Server metrics (version, uptime, key performance indicators)
+     */
+    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array;
+
+    /**
+     * Kill a query/process for this dialect.
+     *
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param int|string $processId Process/query ID to kill
+     *
+     * @return bool True if successful, false otherwise
+     */
+    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool;
+
     /* ---------------- Table Management ---------------- */
 
     /**

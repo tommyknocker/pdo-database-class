@@ -36,7 +36,8 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
 
 **Developer Experience:**
-- **CLI Tools** - Database management, user management, dump/restore, migration generator, seed generator, model generator, schema inspector, and interactive query tester (REPL)
+- **🖥️ Interactive TUI Dashboard** - Real-time database monitoring with full-screen terminal interface. Monitor active queries, connection pool, cache statistics, and server metrics. Kill long-running queries, view query details, and track performance metrics in real-time. Launch with `pdodb ui`
+- **CLI Tools** - Database management, user management, dump/restore, migration generator, seed generator, model generator, schema inspector, interactive query tester (REPL)
 - **Enhanced EXPLAIN** - Automatic detection of full table scans, missing indexes, and optimization recommendations
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Enhanced Error Diagnostics** - Query context, sanitized parameters, and debug information in exceptions
@@ -77,6 +78,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 - ✅ **Beginners** - Simple, intuitive API with zero configuration needed
 - ✅ **Cross-database projects** - Switch between MySQL, PostgreSQL, SQLite, MSSQL, Oracle without code changes
 - ✅ **Performance-critical apps** - Built-in caching, query optimization, profiling
+- ✅ **Database monitoring** - Interactive TUI Dashboard for real-time monitoring (`pdodb ui`)
 - ✅ **Modern PHP** - Type-safe, PSR-compliant, PHP 8.4+ features
 
 **vs. Raw PDO:**
@@ -91,6 +93,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 - ✅ Direct SQL access when needed
 - ✅ Better performance for complex queries
 - ✅ Optional ActiveRecord pattern available
+- ✅ **Built-in TUI Dashboard** - Real-time database monitoring without external tools
 
 ---
 
@@ -353,6 +356,16 @@ $db->find()->table('users')
 // Delete
 $db->find()->table('users')->where('id', $id)->delete();
 ```
+
+### Step 5: Monitor Your Database
+
+Launch the interactive TUI Dashboard to monitor your database in real-time:
+
+```bash
+vendor/bin/pdodb ui
+```
+
+Monitor active queries, connection pool, cache statistics, and server metrics. Press `h` for help, `q` to quit.
 
 **Next:** See [Quick Start](#quick-start) for more examples.
 
@@ -628,8 +641,27 @@ PDOdb provides convenient command-line tools for common development tasks:
 vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 ```
 
+### 🖥️ Interactive TUI Dashboard
+
+**Monitor your database in real-time** with a beautiful full-screen terminal interface:
+
+```bash
+vendor/bin/pdodb ui
+```
+
+**Features:**
+- 📊 **Real-time monitoring** - Active queries, connection pool, cache stats, server metrics
+- 🔍 **Query inspection** - View full query text, execution time, user, database
+- ⚡ **Performance tracking** - Cache hit rates, connection counts, server uptime
+- 🛑 **Query management** - Kill long-running queries with a single keystroke
+- ⌨️ **Keyboard navigation** - Switch panes, scroll, fullscreen mode, refresh intervals
+- 🎨 **Color-coded metrics** - Visual indicators for performance and health
+
+Perfect for debugging, monitoring production databases, and understanding query patterns.
+
 ### Available Commands
 
+- **`ui`** ⭐ - **Interactive TUI Dashboard** - Real-time database monitoring (full-screen terminal interface)
 - **`db`** - Manage databases (create, drop, list, check existence)
 - **`user`** - Manage database users (create, drop, grant/revoke privileges)
 - **`dump`** - Dump and restore database (with compression, auto-naming, rotation)
@@ -656,6 +688,9 @@ echo "source ~/.pdodb-completion.bash" >> ~/.bashrc
 ### Examples
 
 ```bash
+# 🖥️ Launch interactive TUI Dashboard (real-time monitoring)
+vendor/bin/pdodb ui
+
 # Create database
 vendor/bin/pdodb db create myapp
 

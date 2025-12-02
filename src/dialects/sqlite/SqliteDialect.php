@@ -1532,4 +1532,63 @@ class SqliteDialect extends DialectAbstract
 
         return $config;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $metrics = [];
+
+        try {
+            // Get SQLite version
+            $version = $db->rawQueryValue('SELECT sqlite_version()');
+            $metrics['version'] = is_string($version) ? 'SQLite ' . $version : 'unknown';
+
+            // Get database file info (if not in-memory)
+            try {
+                $pdo = $db->getConnection(\tommyknocker\pdodb\query\QueryConstants::CONNECTION_DEFAULT)->getPdo();
+                $stmt = $pdo->query('PRAGMA database_list');
+                if ($stmt === false) {
+                    throw new \RuntimeException('Failed to execute PRAGMA database_list');
+                }
+                $dbPath = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+                if (!empty($dbPath)) {
+                    $mainDb = $dbPath[0] ?? [];
+                    $file = $mainDb['file'] ?? '';
+                    if ($file !== '' && $file !== ':memory:') {
+                        if (file_exists($file)) {
+                            $metrics['file_size'] = filesize($file);
+                            $metrics['file_path'] = $file;
+                        }
+                    } else {
+                        $metrics['file_path'] = ':memory:';
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Ignore errors getting file info
+            }
+
+            // Get page count and size
+            $pageCount = $db->rawQueryValue('PRAGMA page_count');
+            $pageSize = $db->rawQueryValue('PRAGMA page_size');
+            $metrics['page_count'] = is_int($pageCount) ? $pageCount : (is_string($pageCount) ? (int)$pageCount : 0);
+            $metrics['page_size'] = is_int($pageSize) ? $pageSize : (is_string($pageSize) ? (int)$pageSize : 0);
+        } catch (\Throwable $e) {
+            // Return empty metrics on error
+            $metrics['error'] = $e->getMessage();
+        }
+
+        return $metrics;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool
+    {
+        // SQLite does not support killing queries
+        // Queries can only be cancelled via events before execution
+        return false;
+    }
 }

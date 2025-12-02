@@ -23,7 +23,7 @@ _pdodb() {
     local global_opts="--help --version -v --connection= --config= --env="
 
     # Main commands
-    local commands="migrate seed schema query model repository service generate db user table connection dump monitor cache benchmark init version"
+    local commands="migrate seed schema query model repository service generate db user table connection dump monitor ui cache benchmark init version"
 
     # If no command yet, complete with commands
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -356,6 +356,13 @@ _pdodb() {
                 COMPREPLY=($(compgen -W "${monitor_opts}" -- "${cur}"))
             fi
         fi
+        return 0
+    fi
+
+    # UI command
+    if [[ "${cmd}" == "ui" ]]; then
+        local ui_opts="--refresh= --help"
+        COMPREPLY=($(compgen -W "${ui_opts}" -- "${cur}"))
         return 0
     fi
 

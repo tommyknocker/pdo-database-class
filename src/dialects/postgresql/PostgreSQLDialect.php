@@ -2051,6 +2051,58 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $metrics = [];
+
+        try {
+            // Get version
+            $version = $db->rawQueryValue('SELECT version()');
+            $metrics['version'] = is_string($version) ? $version : 'unknown';
+
+            // Get database stats
+            $dbStats = $db->rawQuery('
+                SELECT
+                    numbackends as connections,
+                    xact_commit as commits,
+                    xact_rollback as rollbacks,
+                    blks_read as blocks_read,
+                    blks_hit as blocks_hit,
+                    tup_returned as tuples_returned,
+                    tup_fetched as tuples_fetched,
+                    tup_inserted as tuples_inserted,
+                    tup_updated as tuples_updated,
+                    tup_deleted as tuples_deleted
+                FROM pg_stat_database
+                WHERE datname = current_database()
+            ');
+
+            if (!empty($dbStats)) {
+                $stats = $dbStats[0];
+                foreach ($stats as $key => $value) {
+                    $metrics[$key] = is_int($value) ? $value : (is_string($value) ? (int)$value : 0);
+                }
+            }
+
+            // Get server start time (uptime)
+            $startTime = $db->rawQueryValue('SELECT pg_postmaster_start_time()');
+            if ($startTime !== null) {
+                $startTimestamp = is_string($startTime) ? strtotime($startTime) : 0;
+                if ($startTimestamp > 0) {
+                    $metrics['uptime_seconds'] = time() - $startTimestamp;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Return empty metrics on error
+            $metrics['error'] = $e->getMessage();
+        }
+
+        return $metrics;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function extractEnumValues(array $column, \tommyknocker\pdodb\PdoDb $db, string $tableName, string $columnName): array
     {
         $type = $column['Type'] ?? $column['data_type'] ?? $column['type'] ?? '';
@@ -2306,5 +2358,19 @@ class PostgreSQLDialect extends DialectAbstract
     protected function toString(mixed $value): string
     {
         return (string)$value;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool
+    {
+        try {
+            $pid = is_int($processId) ? $processId : (int)$processId;
+            $result = $db->rawQueryValue("SELECT pg_terminate_backend({$pid})");
+            return (bool)$result;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 }

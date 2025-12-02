@@ -1288,6 +1288,26 @@ abstract class DialectAbstract implements DialectInterface
         return [];
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        // Default implementation returns empty array
+        // Dialects should override this method
+        return [];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool
+    {
+        // Default implementation returns false
+        // Dialects should override this method
+        return false;
+    }
+
     /* ---------------- Table Management ---------------- */
 
     /**

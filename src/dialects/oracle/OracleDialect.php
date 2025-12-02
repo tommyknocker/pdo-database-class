@@ -2569,6 +2569,45 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        $metrics = [];
+
+        try {
+            // Get version
+            $version = $db->rawQueryValue('SELECT banner FROM v$version WHERE rownum = 1');
+            $metrics['version'] = is_string($version) ? $version : 'unknown';
+
+            // Get instance info
+            $instance = $db->rawQuery('SELECT instance_name, host_name, status FROM v$instance');
+            if (!empty($instance)) {
+                $inst = $instance[0];
+                $metrics['instance_name'] = $inst['instance_name'] ?? 'unknown';
+                $metrics['host_name'] = $inst['host_name'] ?? 'unknown';
+                $metrics['status'] = $inst['status'] ?? 'unknown';
+            }
+
+            // Get session stats
+            $sessions = $db->rawQueryValue('SELECT COUNT(*) FROM v$session');
+            $metrics['sessions'] = is_int($sessions) ? $sessions : (is_string($sessions) ? (int)$sessions : 0);
+
+            // Get uptime
+            $uptime = $db->rawQueryValue('
+                SELECT ROUND((SYSDATE - startup_time) * 24 * 60 * 60) as uptime_seconds
+                FROM v$instance
+            ');
+            $metrics['uptime_seconds'] = is_int($uptime) ? $uptime : (is_string($uptime) ? (int)$uptime : 0);
+        } catch (\Throwable $e) {
+            // Return empty metrics on error
+            $metrics['error'] = $e->getMessage();
+        }
+
+        return $metrics;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
     {
         // V$SQLAREA requires SELECT_CATALOG_ROLE or DBA privileges
@@ -3124,5 +3163,30 @@ class OracleDialect extends DialectAbstract
             $normalized[] = $normalizedRow;
         }
         return $normalized;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool
+    {
+        // Oracle requires SID and SERIAL# for killing sessions
+        // This is a simplified version - in practice, you'd need both values
+        // For now, we'll try to extract from processId if it's in format "sid,serial"
+        try {
+            if (is_string($processId) && str_contains($processId, ',')) {
+                [$sid, $serial] = explode(',', $processId, 2);
+                $sidInt = (int)$sid;
+                $serialInt = (int)$serial;
+                $db->rawQuery("ALTER SYSTEM KILL SESSION '{$sidInt},{$serialInt}'");
+                return true;
+            }
+            // If only one value provided, try to use it as SID (may not work)
+            $sid = is_int($processId) ? $processId : (int)$processId;
+            $db->rawQuery("ALTER SYSTEM KILL SESSION '{$sid},0'");
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 }

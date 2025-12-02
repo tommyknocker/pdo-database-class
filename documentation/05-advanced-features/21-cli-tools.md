@@ -20,6 +20,7 @@ PDOdb provides convenient command-line tools for common development tasks, inclu
 - [Schema Inspector](#schema-inspector)
 - [Query Tester (REPL)](#query-tester-repl)
 - [Database Monitoring](#database-monitoring)
+- [TUI Dashboard](#tui-dashboard)
 - [Cache Management](#cache-management)
 - [Benchmark and Performance Testing](#benchmark-and-performance-testing)
 - [Seed Management](#seed-management)
@@ -46,6 +47,7 @@ The CLI tools are designed to streamline your development workflow:
 - **Schema Inspector** - Inspect database schema structure
 - **Query Tester** - Interactive REPL for testing SQL queries
 - **Database Monitoring** - Monitor queries, connections, and performance metrics
+- **TUI Dashboard** - Interactive full-screen terminal dashboard for real-time monitoring
 - **Cache Management** - Manage query result cache (clear, invalidate, statistics)
 - **Benchmark and Performance Testing** - Benchmark queries and operations, compare configurations
 - **Seed Management** - Create, run, and rollback database seeds for test and initial data
@@ -1903,6 +1905,89 @@ The display updates every 2 seconds. Press `Ctrl+C` to exit.
   ```
 
 - **Real-time Updates**: The `--watch` option uses a 2-second polling interval. For production monitoring, consider using dedicated monitoring tools.
+
+## TUI Dashboard
+
+Interactive full-screen terminal dashboard for real-time database monitoring. Provides a k9s/htop-like interface with split panes showing active queries, connection pool, cache statistics, and server metrics.
+
+### Usage
+
+```bash
+# Launch TUI Dashboard
+vendor/bin/pdodb ui
+
+# Launch with custom refresh interval (5 seconds)
+vendor/bin/pdodb ui --refresh=5
+```
+
+### Features
+
+The TUI Dashboard displays four panes in a 2x2 grid:
+
+1. **Active Queries** (Top-left) - Currently executing queries with ID, execution time, database, and query text
+2. **Connection Pool** (Top-right) - Active connections with summary (current/max/usage percentage)
+3. **Cache Stats** (Bottom-left) - Query cache statistics (hits, misses, hit rate, sets, deletes)
+4. **Server Metrics** (Bottom-right) - Database server performance metrics (version, uptime, key indicators)
+
+### Navigation
+
+- **1-4** - Switch directly to a specific pane
+- **Tab / Arrow Keys** - Navigate between panes
+- **q / Esc** - Quit dashboard
+- **k** - Kill selected query/connection (future enhancement)
+
+### Options
+
+- `--refresh=<seconds>` - Refresh interval in seconds (default: 2)
+- `--help` - Show help message
+
+### Examples
+
+#### Launch Dashboard
+
+```bash
+$ vendor/bin/pdodb ui
+
+┌─────────────────────────────┐ ┌─────────────────────────────┐
+│ Active Queries              │ │ Connection Pool             │
+├─────────────────────────────┤ ├─────────────────────────────┤
+│ ID    Time  DB    Query     │ │ Summary:                    │
+│ 123   0.5s  myapp SELECT... │ │ Current: 5 / Max: 100       │
+│ 124   1.2s  myapp UPDATE... │ │ Usage: 5.0%                 │
+└─────────────────────────────┘ └─────────────────────────────┘
+┌─────────────────────────────┐ ┌─────────────────────────────┐
+│ Cache Stats                 │ │ Server Metrics              │
+├─────────────────────────────┤ ├─────────────────────────────┤
+│ Status: Enabled             │ │ Version: MySQL 8.0.35       │
+│ Type: Redis                 │ │ Uptime: 5d 12h              │
+│ Hits: 1,234                 │ │ Connections: 5              │
+│ Misses: 456                 │ │ Queries: 12,345             │
+│ Hit Rate: 73.02%            │ │ Slow Queries: 3             │
+└─────────────────────────────┘ └─────────────────────────────┘
+```
+
+### Requirements
+
+- **Interactive Terminal**: TUI Dashboard requires an interactive terminal (TTY). It will exit gracefully in non-interactive mode (CI, scripts).
+- **ANSI Support**: Terminal must support ANSI escape codes for colors and cursor control.
+- **Unix/Linux/macOS**: Full support. Windows has limited support (use WSL for best experience).
+
+### Dialect Support
+
+All database dialects are supported:
+
+- **MySQL/MariaDB**: Full support for all panes
+- **PostgreSQL**: Full support for all panes
+- **MSSQL**: Full support for all panes
+- **Oracle**: Full support for all panes
+- **SQLite**: Limited support (no active queries/connections at database level, uses QueryProfiler for statistics)
+
+### Notes
+
+- **Performance**: Dashboard refreshes every 2 seconds by default. Adjust with `--refresh` option if needed.
+- **Color Support**: Colors are automatically disabled if terminal doesn't support them or `NO_COLOR` environment variable is set.
+- **Terminal Size**: Dashboard automatically adapts to terminal size. Minimum recommended: 80x24.
+- **Non-Interactive Mode**: In CI or non-interactive environments, the command will display a message and exit gracefully.
 
 ## Cache Management
 
