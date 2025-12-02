@@ -422,7 +422,9 @@ PHP;
     public function testBenchmarkQueryCommandWithError(): void
     {
         // Run in separate process to avoid exit() terminating PHPUnit
-        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php vendor/bin/pdodb benchmark query 2>&1';
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $this->assertNotFalse($bin, 'pdodb binary should exist');
+        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php ' . escapeshellarg($bin) . ' benchmark query 2>&1';
         $output = shell_exec($cmd);
         
         // Check if command executed and returned output
@@ -440,7 +442,9 @@ PHP;
     public function testBenchmarkCrudCommand(): void
     {
         // Run in separate process to avoid exit() terminating PHPUnit
-        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php vendor/bin/pdodb benchmark crud non_existent_table 2>&1';
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $this->assertNotFalse($bin, 'pdodb binary should exist');
+        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php ' . escapeshellarg($bin) . ' benchmark crud non_existent_table 2>&1';
         $output = shell_exec($cmd);
         
         // Check if command executed and returned output
@@ -459,7 +463,9 @@ PHP;
     public function testBenchmarkCrudCommandWithNonExistentTable(): void
     {
         // Run in separate process to avoid exit() terminating PHPUnit
-        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php vendor/bin/pdodb benchmark crud non_existent_table 2>&1';
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $this->assertNotFalse($bin, 'pdodb binary should exist');
+        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php ' . escapeshellarg($bin) . ' benchmark crud non_existent_table 2>&1';
         $output = shell_exec($cmd);
         
         // Check if command executed and returned output
@@ -518,7 +524,9 @@ PHP;
     public function testBenchmarkProfileCommandWithoutQuery(): void
     {
         // Run in separate process to avoid exit() terminating PHPUnit
-        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php vendor/bin/pdodb benchmark profile 2>&1';
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $this->assertNotFalse($bin, 'pdodb binary should exist');
+        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php ' . escapeshellarg($bin) . ' benchmark profile 2>&1';
         $output = shell_exec($cmd);
         
         // Check if command executed and returned output
