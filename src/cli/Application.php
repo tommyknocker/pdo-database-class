@@ -147,8 +147,17 @@ class Application
         $command = $this->getCommand($commandName);
 
         if ($command === null) {
-            BaseCliCommand::error("Unknown command: {$commandName}");
-            // @phpstan-ignore-next-line
+            echo "Error: Unknown command: {$commandName}\n";
+
+            // Suggest similar commands
+            $availableCommands = array_keys($this->commands);
+            $suggestions = CommandSuggestion::findSimilar($commandName, $availableCommands);
+
+            if (!empty($suggestions)) {
+                $message = CommandSuggestion::formatMessage($commandName, $suggestions);
+                echo "\n" . $message . "\n";
+            }
+
             return 1;
         }
 

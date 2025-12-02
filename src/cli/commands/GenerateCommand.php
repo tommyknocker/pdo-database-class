@@ -14,18 +14,31 @@ use tommyknocker\pdodb\cli\ModelGenerator;
 use tommyknocker\pdodb\cli\RepositoryGenerator;
 use tommyknocker\pdodb\cli\ServiceGenerator;
 use tommyknocker\pdodb\cli\TestGenerator;
+use tommyknocker\pdodb\cli\traits\SubcommandSuggestionTrait;
 
 /**
  * Generate command for extended code generation.
  */
 class GenerateCommand extends Command
 {
+    use SubcommandSuggestionTrait;
+
     /**
      * Create generate command.
      */
     public function __construct()
     {
         parent::__construct('generate', 'Extended code generation');
+    }
+
+    /**
+     * Get available subcommands.
+     *
+     * @return array<string>
+     */
+    protected function getAvailableSubcommands(): array
+    {
+        return ['api', 'tests', 'dto', 'enum', 'docs', 'model', 'repository', 'service', 'help'];
     }
 
     /**
@@ -51,7 +64,7 @@ class GenerateCommand extends Command
             'model' => $this->generateModel(),
             'repository' => $this->generateRepository(),
             'service' => $this->generateService(),
-            default => $this->showError("Unknown subcommand: {$subcommand}"),
+            default => $this->showSubcommandError($subcommand),
         };
     }
 

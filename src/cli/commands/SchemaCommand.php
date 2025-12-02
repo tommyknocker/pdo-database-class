@@ -6,18 +6,31 @@ namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\SchemaInspector;
+use tommyknocker\pdodb\cli\traits\SubcommandSuggestionTrait;
 
 /**
  * Schema command for inspecting database schema.
  */
 class SchemaCommand extends Command
 {
+    use SubcommandSuggestionTrait;
+
     /**
      * Create schema command.
      */
     public function __construct()
     {
         parent::__construct('schema', 'Inspect database schema');
+    }
+
+    /**
+     * Get available subcommands.
+     *
+     * @return array<string>
+     */
+    protected function getAvailableSubcommands(): array
+    {
+        return ['inspect', 'help'];
     }
 
     /**
@@ -36,7 +49,7 @@ class SchemaCommand extends Command
 
         return match ($subcommand) {
             'inspect' => $this->inspect(),
-            default => $this->showError("Unknown subcommand: {$subcommand}"),
+            default => $this->showSubcommandError($subcommand),
         };
     }
 

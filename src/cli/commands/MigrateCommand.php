@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\MigrationGenerator;
+use tommyknocker\pdodb\cli\traits\SubcommandSuggestionTrait;
 use tommyknocker\pdodb\migrations\MigrationRunner;
 
 /**
@@ -13,12 +14,24 @@ use tommyknocker\pdodb\migrations\MigrationRunner;
  */
 class MigrateCommand extends Command
 {
+    use SubcommandSuggestionTrait;
+
     /**
      * Create migrate command.
      */
     public function __construct()
     {
         parent::__construct('migrate', 'Manage database migrations');
+    }
+
+    /**
+     * Get available subcommands.
+     *
+     * @return array<string>
+     */
+    protected function getAvailableSubcommands(): array
+    {
+        return ['create', 'up', 'migrate', 'down', 'rollback', 'history', 'new', 'help'];
     }
 
     /**
@@ -42,7 +55,7 @@ class MigrateCommand extends Command
             'history' => $this->history(),
             'new' => $this->new(),
             '--help', 'help' => $this->showHelp(),
-            default => $this->showError("Unknown subcommand: {$subcommand}"),
+            default => $this->showSubcommandError($subcommand),
         };
     }
 

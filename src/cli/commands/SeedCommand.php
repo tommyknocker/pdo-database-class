@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\SeedGenerator;
+use tommyknocker\pdodb\cli\traits\SubcommandSuggestionTrait;
 use tommyknocker\pdodb\seeds\SeedRunner;
 
 /**
@@ -13,12 +14,24 @@ use tommyknocker\pdodb\seeds\SeedRunner;
  */
 class SeedCommand extends Command
 {
+    use SubcommandSuggestionTrait;
+
     /**
      * Create seed command.
      */
     public function __construct()
     {
         parent::__construct('seed', 'Manage database seeds');
+    }
+
+    /**
+     * Get available subcommands.
+     *
+     * @return array<string>
+     */
+    protected function getAvailableSubcommands(): array
+    {
+        return ['create', 'run', 'list', 'rollback', 'help'];
     }
 
     /**
@@ -41,7 +54,7 @@ class SeedCommand extends Command
             'list' => $this->list(),
             'rollback' => $this->rollback(),
             '--help', 'help' => $this->showHelp(),
-            default => $this->showError("Unknown subcommand: {$subcommand}"),
+            default => $this->showSubcommandError($subcommand),
         };
     }
 
