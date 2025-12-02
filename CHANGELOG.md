@@ -7,6 +7,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.11.1] - 2025-12-02
+
+### Added
+- **Interactive TUI Dashboard** - Real-time database monitoring with full-screen terminal interface:
+  - Monitor active queries, connection pool, cache statistics, and server metrics
+  - View query details with full query text, execution time, user, and database
+  - Kill long-running queries with a single keystroke
+  - Keyboard navigation with pane switching, scrolling, and fullscreen mode
+  - Real-time refresh with configurable intervals (realtime, 0.5s, 1s, 2s, 5s)
+  - Color-coded metrics for performance visualization
+  - Launch with `pdodb ui` command
+
+- **Code Generation Command** (`pdodb generate`):
+  - `pdodb generate api` - Generate API controller classes
+  - `pdodb generate tests` - Generate test files
+  - `pdodb generate dto` - Generate Data Transfer Object classes
+  - `pdodb generate enum` - Generate enum classes
+  - `pdodb generate docs` - Generate documentation files
+  - `pdodb generate model` - Generate ActiveRecord model classes
+  - `pdodb generate repository` - Generate repository classes
+  - `pdodb generate service` - Generate service classes
+  - All generated namespaces are automatically converted to lowercase
+
+- **Benchmark Command** (`pdodb benchmark`):
+  - `pdodb benchmark query` - Benchmark SQL query performance
+  - `pdodb benchmark crud` - Benchmark CRUD operations
+  - `pdodb benchmark load` - Load testing with multiple connections
+  - `pdodb benchmark profile` - Query profiling with detailed statistics
+  - `pdodb benchmark compare` - Compare query performance
+
+- **Version Command** (`pdodb version`):
+  - Show application version information
+  - `--version` / `-v` flag support for all commands
+
+- **Index Suggestion Command** (`pdodb table suggest-indexes <table>`):
+  - Analyze table queries and suggest optimal indexes
+  - Help optimize database performance
+
+- **Oracle-Specific Helper Functions**:
+  - `Db::toTs()` - Convert value to Oracle TIMESTAMP
+  - `Db::toDate()` - Convert value to Oracle DATE
+  - `Db::toChar()` - Convert value to Oracle CHAR/VARCHAR2
+
+- **IDE Autocompletion Support**:
+  - Enhanced IDE autocompletion for `Model::find()` method
+  - Improved type hints and documentation
+
+- **Event System Enhancements**:
+  - Added missing events to event system for better monitoring and auditing
+
+- **CLI Improvements**:
+  - "Did you mean?" command suggestions for typos
+  - Help messages for generate subcommands when required parameters are missing
+
+### Changed
+- **Code Generation**:
+  - All generated namespaces are now automatically converted to lowercase for consistency
+
+### Fixed
+- Fixed loading .env file before checking PDODB_DRIVER in connection list command
+- Fixed parsing command line options without equals sign (e.g., `--option=value` and `--option value`)
+- Fixed Oracle type helpers example and PHPStan errors
+- Fixed benchmark command tests to use correct path to pdodb binary
+- Added warning when --query is not specified for benchmark compare command
+- Improved test reliability: skip user creation tests when privileges are missing
+
+### Documentation
+- Improved IDE autocompletion documentation
+- Clarified PHPStan ignore comments in PdoDb::fromEnv method
+
+### Tests
+- Added comprehensive tests for Oracle-specific helpers and exception handling
+- Improved benchmark command tests with better error handling
+
 ## [2.11.0] - 2025-11-28
 
 ### Added
@@ -1823,7 +1897,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.0...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.1...HEAD
+[2.11.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.0...v2.11.1
 [2.11.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.3...v2.11.0
 [2.10.3]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.2...v2.10.3
 [2.10.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.1...v2.10.2

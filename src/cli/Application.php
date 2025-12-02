@@ -263,7 +263,7 @@ class Application
         }
 
         // Ultimate fallback
-        return '2.11.0';
+        return '2.11.1';
     }
 
     /**
@@ -273,7 +273,7 @@ class Application
      */
     public function getVersion(): string
     {
-        return $this->version ?? '2.11.0';
+        return $this->version ?? '2.11.1';
     }
 
     /**
