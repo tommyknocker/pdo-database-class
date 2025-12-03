@@ -426,13 +426,13 @@ PHP;
         $this->assertNotFalse($bin, 'pdodb binary should exist');
         $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php ' . escapeshellarg($bin) . ' benchmark query 2>&1';
         $output = shell_exec($cmd);
-        
+
         // Check if command executed and returned output
         $this->assertNotNull($output, 'Command should return output. Command: ' . $cmd);
         $this->assertNotEmpty($output, 'Command output should not be empty');
-        
+
         // Check for error message (case-insensitive)
-        $hasError = str_contains(strtolower($output), 'sql query is required') || 
+        $hasError = str_contains(strtolower($output), 'sql query is required') ||
                     str_contains(strtolower($output), 'required') ||
                     str_contains(strtolower($output), 'error');
 
@@ -446,11 +446,11 @@ PHP;
         $this->assertNotFalse($bin, 'pdodb binary should exist');
         $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php ' . escapeshellarg($bin) . ' benchmark crud non_existent_table 2>&1';
         $output = shell_exec($cmd);
-        
+
         // Check if command executed and returned output
         $this->assertNotNull($output, 'Command should return output. Command: ' . $cmd);
         $this->assertNotEmpty($output, 'Command output should not be empty');
-        
+
         // Check for error message (case-insensitive, various possible messages)
         $hasError = str_contains(strtolower($output), 'does not exist') ||
                     str_contains(strtolower($output), 'not found') ||
@@ -467,11 +467,11 @@ PHP;
         $this->assertNotFalse($bin, 'pdodb binary should exist');
         $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php ' . escapeshellarg($bin) . ' benchmark crud non_existent_table 2>&1';
         $output = shell_exec($cmd);
-        
+
         // Check if command executed and returned output
         $this->assertNotNull($output, 'Command should return output. Command: ' . $cmd);
         $this->assertNotEmpty($output, 'Command output should not be empty');
-        
+
         // Check for error message (case-insensitive, various possible messages)
         $hasError = str_contains(strtolower($output), 'does not exist') ||
                     str_contains(strtolower($output), 'not found') ||
@@ -528,11 +528,11 @@ PHP;
         $this->assertNotFalse($bin, 'pdodb binary should exist');
         $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php ' . escapeshellarg($bin) . ' benchmark profile 2>&1';
         $output = shell_exec($cmd);
-        
+
         // Check if command executed and returned output
         $this->assertNotNull($output, 'Command should return output. Command: ' . $cmd);
         $this->assertNotEmpty($output, 'Command output should not be empty');
-        
+
         // Command may show help or error, both are acceptable (case-insensitive)
         $outputLower = strtolower($output);
         $hasMessage = str_contains($outputLower, 'please specify') ||

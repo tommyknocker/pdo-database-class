@@ -2175,4 +2175,44 @@ class MSSQLDialect extends DialectAbstract
             return false;
         }
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildColumnSearchCondition(
+        string $columnName,
+        string $searchTerm,
+        array $columnMetadata,
+        bool $searchInJson,
+        array &$params
+    ): ?string {
+        $isJson = $this->isJsonColumn($columnMetadata);
+        $isArray = $this->isArrayColumn($columnMetadata);
+        $isNumeric = $this->isNumericColumn($columnMetadata);
+
+        $paramKey = ':search_' . count($params);
+        $params[$paramKey] = '%' . $searchTerm . '%';
+
+        if ($isJson && $searchInJson) {
+            // MSSQL: CAST(column AS NVARCHAR(MAX)) LIKE pattern
+            return "(CAST({$columnName} AS NVARCHAR(MAX)) LIKE {$paramKey})";
+        }
+
+        if ($isArray && $searchInJson) {
+            // MSSQL doesn't have native arrays, skip
+            return null;
+        }
+
+        if ($isNumeric) {
+            if (is_numeric($searchTerm)) {
+                $exactParamKey = ':exact_' . count($params);
+                $params[$exactParamKey] = $searchTerm;
+                return "({$columnName} = {$exactParamKey} OR CAST({$columnName} AS NVARCHAR(MAX)) LIKE {$paramKey})";
+            }
+            return "(CAST({$columnName} AS NVARCHAR(MAX)) LIKE {$paramKey})";
+        }
+
+        // Text columns
+        return "({$columnName} LIKE {$paramKey})";
+    }
 }

@@ -200,6 +200,13 @@ vendor/bin/pdodb table sample users --format=json
 # Alias for sample
 vendor/bin/pdodb table select users --limit=20
 
+# Search for value across all columns
+vendor/bin/pdodb table search users "john"
+vendor/bin/pdodb table search users "john" --column="name"
+vendor/bin/pdodb table search users "example" --limit=10
+vendor/bin/pdodb table search users "New York" --json=1
+vendor/bin/pdodb table search users "test" --format=json
+
 # Columns
 vendor/bin/pdodb table columns list users --format=json
 vendor/bin/pdodb table columns add users price --type=float
@@ -391,6 +398,68 @@ vendor/bin/pdodb table select users --limit=20
 - Table format automatically adjusts column widths to fit within the terminal width.
 - Use `--format=json` or `--format=yaml` for structured output suitable for scripting.
 - The `select` command is an alias for `sample` and behaves identically.
+
+#### Table Search
+
+Search for values across all columns in a table or within a specific column:
+
+```bash
+# Search across all columns
+vendor/bin/pdodb table search users "john"
+
+# Search in specific column
+vendor/bin/pdodb table search users "john" --column="name"
+
+# Limit results
+vendor/bin/pdodb table search users "example" --limit=10
+
+# Search in JSON/array columns (enabled by default)
+vendor/bin/pdodb table search users "New York" --json=1
+
+# Disable JSON/array search
+vendor/bin/pdodb table search users "test" --json=0
+
+# Output in JSON format
+vendor/bin/pdodb table search users "john" --format=json
+```
+
+**Options:**
+- `--column=COL` - Search only in specific column (default: all columns)
+- `--limit=N` - Maximum number of results (default: 100)
+- `--json=0|1` - Search in JSON/array columns (default: 1)
+- `--format=table|json|yaml` - Output format (default: table)
+
+**How It Works:**
+
+The `search` command searches for the specified term across all columns in the table (or a specific column if `--column` is provided). It uses SQL `LIKE` (or `ILIKE` for PostgreSQL) for text columns and handles different column types appropriately:
+
+- **Text columns**: Uses `LIKE`/`ILIKE` for pattern matching (case-insensitive on PostgreSQL)
+- **Numeric columns**: Tries exact match first, then searches in string representation
+- **JSON columns**: Searches in JSON text representation (when `--json=1`)
+- **Array columns** (PostgreSQL): Searches in array text representation (when `--json=1`)
+
+**Examples:**
+
+```bash
+# Find all users with "john" in any column (name, email, etc.)
+vendor/bin/pdodb table search users "john"
+
+# Find users with "example" in email column only
+vendor/bin/pdodb table search users "example" --column="email"
+
+# Find users with age 30 (numeric search)
+vendor/bin/pdodb table search users "30"
+
+# Find users with "New York" in JSON metadata
+vendor/bin/pdodb table search users "New York" --json=1
+```
+
+**Notes:**
+- Search is case-insensitive on PostgreSQL (uses `ILIKE`), case-sensitive on other databases
+- JSON/array search is enabled by default but can be disabled with `--json=0`
+- The search uses `OR` conditions across all matching columns
+- Results are limited to prevent large result sets (default: 100 rows)
+- Use `--format=json` or `--format=yaml` for structured output suitable for scripting
 
 ## Configuration
 

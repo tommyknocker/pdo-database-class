@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\cli\commands;
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\IndexSuggestionAnalyzer;
 use tommyknocker\pdodb\cli\TableManager;
+use tommyknocker\pdodb\cli\TableSearcher;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\PdoDb;
@@ -39,6 +40,7 @@ class TableCommand extends Command
             'count' => $this->count(),
             'sample' => $this->sample(),
             'select' => $this->sample(), // Alias for sample
+            'search' => $this->search(),
             default => $this->showError("Unknown subcommand: {$sub}"),
         };
     }
@@ -754,6 +756,50 @@ class TableCommand extends Command
         return $this->printFormatted(['data' => $rows], (string)$format);
     }
 
+    protected function search(): int
+    {
+        $table = $this->getArgument(1);
+        $searchTerm = $this->getArgument(2);
+
+        if (!is_string($table) || $table === '') {
+            return $this->showError('Table name is required');
+        }
+
+        if (!is_string($searchTerm) || $searchTerm === '') {
+            return $this->showError('Search term is required');
+        }
+
+        $db = $this->getDb();
+
+        if (!TableManager::tableExists($db, $table)) {
+            return $this->showError("Table '{$table}' does not exist");
+        }
+
+        $column = $this->getOption('column');
+        $limit = (int)$this->getOption('limit', 100);
+        $format = $this->getOption('format', 'table');
+        $searchInJson = (bool)$this->getOption('json', true);
+
+        try {
+            $searcher = new TableSearcher($db);
+            $rows = $searcher->search($table, $searchTerm, [
+                'column' => is_string($column) && $column !== '' ? $column : null,
+                'limit' => $limit,
+                'searchInJson' => $searchInJson,
+            ]);
+
+            if (empty($rows)) {
+                static::info("No rows found matching '{$searchTerm}'");
+                return 0;
+            }
+
+            echo 'Found ' . count($rows) . " row(s) matching '{$searchTerm}':\n\n";
+            return $this->printFormatted(['data' => $rows], (string)$format);
+        } catch (QueryException $e) {
+            return $this->showError('Search failed: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Print data as formatted table (80 chars width).
      *
@@ -893,13 +939,14 @@ class TableCommand extends Command
         echo "  count <table>                        Show row count\n";
         echo "  sample <table> [--limit=N]           Show sample data (default: 10 rows)\n";
         echo "  select <table> [--limit=N]           Alias for sample\n";
+        echo "  search <table> <term> [--column=COL] Search for value across all columns (or specific column)\n";
         echo "  columns <op> <table> [...]           Manage columns (list/add/alter/drop)\n";
         echo "  indexes <op> <table> [...]           Manage indexes (list/add/drop/suggest)\n";
         echo "  keys <op> <table> [...]              Manage foreign keys (list/add/drop)\n";
         echo "  keys check                           Check foreign key integrity\n\n";
         echo "Options:\n";
-        echo "  --format=table|json|yaml             Output format (for info/list/describe/sample)\n";
-        echo "  --limit=N                            Limit rows for sample/select (default: 10)\n";
+        echo "  --format=table|json|yaml             Output format (for info/list/describe/sample/search)\n";
+        echo "  --limit=N                            Limit rows for sample/select/search (default: 10 for sample, 100 for search)\n";
         echo "  --force                              Execute without confirmation\n";
         echo "  --columns=\"col:type:nullable,...\"    Columns for create\n";
         echo "  --engine=, --charset=, --collation=, --comment=   Table options (dialect-specific)\n";
@@ -916,6 +963,12 @@ class TableCommand extends Command
         echo "    <name> --columns=\"c1,c2\" --ref-table=table --ref-columns=\"c1,c2\" [--on-delete=ACTION] [--on-update=ACTION]\n";
         echo "  keys check:\n";
         echo "    Check all foreign key constraints for integrity violations\n";
+        echo "  search:\n";
+        echo "    <table> <term> [--column=COL] [--limit=N] [--json=0|1]\n";
+        echo "    Search for value across all columns (or specific column)\n";
+        echo "    --column=COL                       Search only in specific column\n";
+        echo "    --limit=N                         Maximum number of results (default: 100)\n";
+        echo "    --json=0|1                        Search in JSON/array columns (default: 1)\n";
         return 0;
     }
 }

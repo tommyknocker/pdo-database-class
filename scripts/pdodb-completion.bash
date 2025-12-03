@@ -233,7 +233,7 @@ _pdodb() {
 
     # Table command
     if [[ "${cmd}" == "table" ]]; then
-        local table_subcommands="info list exists create drop rename truncate describe count sample select columns indexes keys"
+        local table_subcommands="info list exists create drop rename truncate describe count sample select search columns indexes keys"
         
         if [[ ${COMP_CWORD} -eq 2 ]]; then
             COMPREPLY=($(compgen -W "${table_subcommands} --help" -- "${cur}"))
@@ -298,6 +298,17 @@ _pdodb() {
                 _pdodb_complete_tables
             else
                 local table_opts="--format=table --format=json --format=yaml --format --limit="
+                COMPREPLY=($(compgen -W "${table_opts}" -- "${cur}"))
+            fi
+        elif [[ "${subcmd}" == "search" ]]; then
+            if [[ ${COMP_CWORD} -eq 3 ]]; then
+                # Complete table names
+                _pdodb_complete_tables
+            elif [[ ${COMP_CWORD} -eq 4 ]]; then
+                # Complete search term (no completion, user types it)
+                COMPREPLY=()
+            else
+                local table_opts="--format=table --format=json --format=yaml --format --limit= --column= --json=0 --json=1 --json"
                 COMPREPLY=($(compgen -W "${table_opts}" -- "${cur}"))
             fi
         elif [[ "${subcmd}" == "create" ]]; then

@@ -1591,4 +1591,44 @@ class SqliteDialect extends DialectAbstract
         // Queries can only be cancelled via events before execution
         return false;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildColumnSearchCondition(
+        string $columnName,
+        string $searchTerm,
+        array $columnMetadata,
+        bool $searchInJson,
+        array &$params
+    ): ?string {
+        $isJson = $this->isJsonColumn($columnMetadata);
+        $isArray = $this->isArrayColumn($columnMetadata);
+        $isNumeric = $this->isNumericColumn($columnMetadata);
+
+        $paramKey = ':search_' . count($params);
+        $params[$paramKey] = '%' . $searchTerm . '%';
+
+        if ($isJson && $searchInJson) {
+            // SQLite: JSON is stored as TEXT, so we can search directly
+            return "({$columnName} LIKE {$paramKey})";
+        }
+
+        if ($isArray && $searchInJson) {
+            // SQLite doesn't have native arrays, skip
+            return null;
+        }
+
+        if ($isNumeric) {
+            if (is_numeric($searchTerm)) {
+                $exactParamKey = ':exact_' . count($params);
+                $params[$exactParamKey] = $searchTerm;
+                return "({$columnName} = {$exactParamKey} OR CAST({$columnName} AS TEXT) LIKE {$paramKey})";
+            }
+            return "(CAST({$columnName} AS TEXT) LIKE {$paramKey})";
+        }
+
+        // Text columns
+        return "({$columnName} LIKE {$paramKey})";
+    }
 }

@@ -2373,4 +2373,44 @@ class PostgreSQLDialect extends DialectAbstract
             return false;
         }
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildColumnSearchCondition(
+        string $columnName,
+        string $searchTerm,
+        array $columnMetadata,
+        bool $searchInJson,
+        array &$params
+    ): ?string {
+        $isJson = $this->isJsonColumn($columnMetadata);
+        $isArray = $this->isArrayColumn($columnMetadata);
+        $isNumeric = $this->isNumericColumn($columnMetadata);
+
+        $paramKey = ':search_' . count($params);
+        $params[$paramKey] = '%' . $searchTerm . '%';
+
+        if ($isJson && $searchInJson) {
+            // PostgreSQL: column::text ILIKE pattern (case-insensitive)
+            return "({$columnName}::text ILIKE {$paramKey})";
+        }
+
+        if ($isArray && $searchInJson) {
+            // PostgreSQL: column::text ILIKE pattern
+            return "({$columnName}::text ILIKE {$paramKey})";
+        }
+
+        if ($isNumeric) {
+            if (is_numeric($searchTerm)) {
+                $exactParamKey = ':exact_' . count($params);
+                $params[$exactParamKey] = $searchTerm;
+                return "({$columnName} = {$exactParamKey} OR {$columnName}::text ILIKE {$paramKey})";
+            }
+            return "({$columnName}::text ILIKE {$paramKey})";
+        }
+
+        // Text columns: use ILIKE for case-insensitive search
+        return "({$columnName} ILIKE {$paramKey})";
+    }
 }

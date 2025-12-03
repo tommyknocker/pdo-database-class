@@ -3189,4 +3189,48 @@ class OracleDialect extends DialectAbstract
             return false;
         }
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildColumnSearchCondition(
+        string $columnName,
+        string $searchTerm,
+        array $columnMetadata,
+        bool $searchInJson,
+        array &$params
+    ): ?string {
+        $isJson = $this->isJsonColumn($columnMetadata);
+        $isArray = $this->isArrayColumn($columnMetadata);
+        $isNumeric = $this->isNumericColumn($columnMetadata);
+
+        $paramKey = ':search_' . count($params);
+        $params[$paramKey] = '%' . $searchTerm . '%';
+
+        if ($isJson && $searchInJson) {
+            // Oracle: TO_CHAR(column) LIKE pattern
+            return "(TO_CHAR({$columnName}) LIKE {$paramKey})";
+        }
+
+        if ($isArray && $searchInJson) {
+            // Oracle: TO_CHAR(column) LIKE pattern for array types
+            return "(TO_CHAR({$columnName}) LIKE {$paramKey})";
+        }
+
+        if ($isNumeric) {
+            if (is_numeric($searchTerm)) {
+                $exactParamKey = ':exact_' . count($params);
+                $params[$exactParamKey] = $searchTerm;
+                return "({$columnName} = {$exactParamKey} OR TO_CHAR({$columnName}) LIKE {$paramKey})";
+            }
+            return "(TO_CHAR({$columnName}) LIKE {$paramKey})";
+        }
+
+        // Text columns: Oracle LIKE is case-sensitive by default
+        // Use UPPER() for case-insensitive search
+        $upperColumn = "UPPER({$columnName})";
+        $upperParamKey = ':upper_search_' . count($params);
+        $params[$upperParamKey] = '%' . strtoupper($searchTerm) . '%';
+        return "({$upperColumn} LIKE {$upperParamKey})";
+    }
 }

@@ -1471,4 +1471,94 @@ abstract class DialectAbstract implements DialectInterface
         // Default implementation: use REGEXP operator
         return "($val REGEXP '$pat')";
     }
+
+    /* ---------------- Table Search ---------------- */
+
+    /**
+     * Check if column is JSON type based on column metadata.
+     *
+     * @param array<string, mixed> $columnMetadata Column metadata from describe
+     *
+     * @return bool
+     */
+    public function isJsonColumn(array $columnMetadata): bool
+    {
+        $type = $this->getColumnType($columnMetadata);
+        return str_contains($type, 'json') || str_contains($type, 'jsonb');
+    }
+
+    /**
+     * Get column type from column metadata.
+     *
+     * @param array<string, mixed> $columnMetadata Column metadata from describe
+     *
+     * @return string Column type in lowercase
+     */
+    protected function getColumnType(array $columnMetadata): string
+    {
+        return strtolower((string)($columnMetadata['Type'] ?? $columnMetadata['type'] ?? $columnMetadata['data_type'] ?? ''));
+    }
+
+    /**
+     * Check if column is array type (PostgreSQL arrays).
+     *
+     * @param array<string, mixed> $columnMetadata Column metadata from describe
+     *
+     * @return bool
+     */
+    public function isArrayColumn(array $columnMetadata): bool
+    {
+        $type = $this->getColumnType($columnMetadata);
+        return str_contains($type, '[]') || str_contains($type, 'array');
+    }
+
+    /**
+     * Check if column is numeric type.
+     *
+     * @param array<string, mixed> $columnMetadata Column metadata from describe
+     *
+     * @return bool
+     */
+    public function isNumericColumn(array $columnMetadata): bool
+    {
+        $type = $this->getColumnType($columnMetadata);
+        return str_contains($type, 'int') ||
+               str_contains($type, 'decimal') ||
+               str_contains($type, 'float') ||
+               str_contains($type, 'double') ||
+               str_contains($type, 'numeric') ||
+               str_contains($type, 'real');
+    }
+
+    /**
+     * Get column name from column metadata.
+     *
+     * @param array<string, mixed> $columnMetadata Column metadata from describe
+     *
+     * @return string|null Column name or null if not found
+     */
+    public function getColumnNameFromMetadata(array $columnMetadata): ?string
+    {
+        return $columnMetadata['Field'] ?? $columnMetadata['field'] ?? $columnMetadata['column_name'] ?? $columnMetadata['name'] ?? null;
+    }
+
+    /**
+     * Build search condition for a column.
+     * Must be implemented by each dialect.
+     *
+     * @param string $columnName Column name (already quoted)
+     * @param string $searchTerm Search term
+     * @param array<string, mixed> $columnMetadata Column metadata from describe
+     * @param bool $searchInJson Whether to search in JSON columns
+     * @param array<string, mixed> $params Query parameters (by reference, will be modified)
+     *
+     * @return string|null SQL condition or null if column should be skipped
+     */
+    abstract public function buildColumnSearchCondition(
+        string $columnName,
+        string $searchTerm,
+        array $columnMetadata,
+        bool $searchInJson,
+        array &$params
+    ): ?string;
 }

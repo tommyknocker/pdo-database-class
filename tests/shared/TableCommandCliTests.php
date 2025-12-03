@@ -951,4 +951,129 @@ final class TableCommandCliTests extends TestCase
             $this->assertEquals('high', $suggestion['priority']);
         }
     }
+
+    public function testTableSearchCommand(): void
+    {
+        $app = new Application();
+
+        // Create table with test data
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'test_search', '--columns=id:int,name:string,email:string,age:int', '--force']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            }
+
+            throw $e;
+        }
+
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
+
+        // Insert test data using the same database connection
+        // Get database path from environment
+        $dbPath = getenv('PDODB_PATH');
+        if ($dbPath === false || $dbPath === '') {
+            $dbPath = $this->dbPath;
+        }
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $dbPath]);
+        $db->find()->table('test_search')->insert(['name' => 'John Doe', 'email' => 'john@example.com', 'age' => 30]);
+        $db->find()->table('test_search')->insert(['name' => 'Jane Smith', 'email' => 'jane@test.com', 'age' => 25]);
+        $db->find()->table('test_search')->insert(['name' => 'Bob Johnson', 'email' => 'bob@example.org', 'age' => 35]);
+
+        // Search across all columns
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'search', 'test_search', 'john', '--format=json']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Found', $out);
+        $this->assertStringContainsString('row(s) matching', $out);
+        $this->assertStringContainsString('john', strtolower($out));
+
+        // Search in specific column
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'search', 'test_search', 'example', '--column=email', '--format=json']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertSame(0, $code);
+        $this->assertStringContainsString('Found', $out);
+
+        // Search with limit
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'search', 'test_search', 'test', '--limit=1', '--format=json']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+
+            throw $e;
+        }
+
+        $this->assertSame(0, $code);
+
+        // Cleanup
+        $app->run(['pdodb', 'table', 'drop', 'test_search', '--force']);
+    }
+
+    public function testTableSearchCommandWithNonExistentTable(): void
+    {
+        // Use shell_exec to handle exit() from error()
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $dbPath = sys_get_temp_dir() . '/pdodb_search_' . uniqid() . '.sqlite';
+        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
+        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' table search nonexistent test 2>&1';
+        $out = (string)shell_exec($cmd);
+        $this->assertStringContainsString('does not exist', $out);
+    }
+
+    public function testTableSearchCommandWithMissingArguments(): void
+    {
+        $app = new Application();
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
+
+        // Missing search term - use shell_exec to handle exit()
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $dbPath = sys_get_temp_dir() . '/pdodb_search_' . uniqid() . '.sqlite';
+        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
+        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' table search users 2>&1';
+        $out = (string)shell_exec($cmd);
+        $this->assertStringContainsString('Search term is required', $out);
+
+        // Missing table name
+        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' table search 2>&1';
+        $out = (string)shell_exec($cmd);
+        $this->assertStringContainsString('Table name is required', $out);
+
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
+    }
 }
