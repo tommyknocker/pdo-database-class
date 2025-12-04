@@ -56,7 +56,7 @@ class InputHandler
                 if ($seq === false) {
                     $seq = '';
                 }
-                
+
                 // If sequence starts with [5 or [6, read one more character for PageUp/PageDown
                 if (strlen($seq) >= 2 && ($seq[0] === '[' && ($seq[1] === '5' || $seq[1] === '6'))) {
                     $read = [STDIN];
@@ -121,7 +121,7 @@ class InputHandler
             }
 
             // Check for single character sequences (arrow keys, etc.)
-            if (strlen($seq) >= 2) {
+            if (strlen($seq) > 2) {
                 switch ($seq[1]) {
                     case 'A':
                         return 'up';

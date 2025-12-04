@@ -2611,11 +2611,11 @@ class OracleDialect extends DialectAbstract
     public function getServerVariables(\tommyknocker\pdodb\PdoDb $db): array
     {
         try {
-            $rows = $db->rawQuery("
+            $rows = $db->rawQuery('
                 SELECT name, value
-                FROM v\$parameter
+                FROM v$parameter
                 ORDER BY name
-            ");
+            ');
             $result = [];
             foreach ($rows as $row) {
                 $result[] = [

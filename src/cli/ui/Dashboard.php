@@ -669,17 +669,17 @@ class Dashboard
         } else {
             $refreshLabel = (int)$refreshValue . 's';
         }
-        
+
         [$rows, $cols] = Terminal::getSize();
         $currentScreen = $this->layout->getCurrentScreen();
         $screenIndicator = $currentScreen === 0 ? '1-4' : '5-8';
         $help = '1-8:Switch | ↑↓:Select | Enter:Full | x:Kill | r:Ref(' . $refreshLabel . ') | h:Help | q:Quit | Screen:' . $screenIndicator;
-        
+
         // Truncate if too long to fit in one line
         if (mb_strlen($help, 'UTF-8') > $cols) {
             $help = mb_substr($help, 0, $cols, 'UTF-8');
         }
-        
+
         echo $help;
 
         Terminal::reset();
@@ -2165,8 +2165,11 @@ class Dashboard
 
         // Find migration file
         $files = glob($migrationPath . '/m*.php');
+        if ($files === false) {
+            $files = [];
+        }
         $migrationFile = null;
-        foreach ($files ?? [] as $file) {
+        foreach ($files as $file) {
             $basename = basename($file, '.php');
             if (str_starts_with($basename, 'm')) {
                 $versionPart = substr($basename, 1);
@@ -2183,100 +2186,125 @@ class Dashboard
             return;
         }
 
+        // Read migration file
+        $content = file_get_contents($migrationFile);
+        if ($content === false) {
+            Terminal::moveTo(1, 1);
+            echo 'Failed to read migration file';
+            return;
+        }
+        $lines = explode("\n", $content);
+
+        // Extract migration name from class name or comment
+        $migrationName = $version;
+        foreach ($lines as $line) {
+            // Try to find class name
+            if (preg_match('/class\s+(\w+)\s+extends/', $line, $matches)) {
+                $migrationName = $matches[1];
+                break;
+            }
+            // Try to find comment with migration name
+            if (preg_match('/Migration:\s*(.+)/', $line, $matches)) {
+                $migrationName = trim($matches[1]);
+                break;
+            }
+        }
+
+        // Parse up() and down() methods
+        $upMethod = self::extractMethod($content, 'up');
+        $downMethod = self::extractMethod($content, 'down');
+
         // Render header
         Terminal::moveTo(1, 1);
         if (Terminal::supportsColors()) {
             Terminal::bold();
             Terminal::color(Terminal::COLOR_CYAN);
         }
-        echo 'Migration: ' . $version . ' (Press any key to close)';
+        echo 'Migration: ' . $migrationName . ' (Press any key to close)';
         Terminal::reset();
 
-        // Read and display file content with syntax highlighting
-        $content = file_get_contents($migrationFile);
-        $lines = explode("\n", $content);
         $row = 3;
         $col = 1;
         $width = $cols - 2;
         $maxRows = $rows - 2;
 
-        // PHP keywords for highlighting
-        $phpKeywords = [
-            'abstract', 'and', 'array', 'as', 'break', 'case', 'catch', 'class', 'clone', 'const',
-            'continue', 'declare', 'default', 'do', 'else', 'elseif', 'enddeclare', 'endfor',
-            'endforeach', 'endif', 'endswitch', 'endwhile', 'extends', 'final', 'for', 'foreach',
-            'function', 'global', 'goto', 'if', 'implements', 'interface', 'instanceof', 'namespace',
-            'new', 'or', 'private', 'protected', 'public', 'static', 'switch', 'throw', 'trait',
-            'try', 'use', 'var', 'while', 'xor', 'return', 'void', 'string', 'int', 'bool', 'float',
-            'null', 'true', 'false', 'self', 'parent', 'static'
-        ];
+        // Display migration name
+        Terminal::moveTo($row, $col);
+        if (Terminal::supportsColors()) {
+            Terminal::bold();
+            Terminal::color(Terminal::COLOR_MAGENTA);
+        }
+        echo 'Name: ' . $migrationName;
+        Terminal::reset();
+        $row += 2;
 
-        foreach ($lines as $lineNum => $line) {
-            if ($row > $maxRows) {
-                break;
-            }
+        // Display up() method
+        if ($row > $maxRows) {
+            return;
+        }
+        Terminal::moveTo($row, $col);
+        if (Terminal::supportsColors()) {
+            Terminal::bold();
+            Terminal::color(Terminal::COLOR_GREEN);
+        }
+        echo 'up() method:';
+        Terminal::reset();
+        $row++;
 
-            Terminal::moveTo($row, $col);
-            $displayLine = mb_substr($line, 0, $width, 'UTF-8');
-
-            if (Terminal::supportsColors()) {
-                // Simple syntax highlighting
-                $result = '';
-                $pos = 0;
-                $len = mb_strlen($displayLine, 'UTF-8');
-                
-                while ($pos < $len) {
-                    // Check for comments first
-                    if (mb_substr($displayLine, $pos, 2, 'UTF-8') === '//') {
-                        Terminal::color(Terminal::COLOR_YELLOW);
-                        $result .= mb_substr($displayLine, $pos, null, 'UTF-8');
-                        Terminal::reset();
-                        break;
-                    }
-                    
-                    // Check for strings
-                    $char = mb_substr($displayLine, $pos, 1, 'UTF-8');
-                    if ($char === '"' || $char === "'") {
-                        $endPos = mb_strpos($displayLine, $char, $pos + 1, 'UTF-8');
-                        if ($endPos !== false) {
-                            Terminal::color(Terminal::COLOR_GREEN);
-                            $result .= mb_substr($displayLine, $pos, $endPos - $pos + 1, 'UTF-8');
-                            Terminal::reset();
-                            $pos = $endPos + 1;
-                            continue;
-                        }
-                    }
-                    
-                    // Check for keywords (word boundaries)
-                    $matched = false;
-                    foreach ($phpKeywords as $keyword) {
-                        $keywordLen = mb_strlen($keyword, 'UTF-8');
-                        if (mb_substr($displayLine, $pos, $keywordLen, 'UTF-8') === $keyword) {
-                            // Check word boundaries
-                            $before = $pos > 0 ? mb_substr($displayLine, $pos - 1, 1, 'UTF-8') : ' ';
-                            $after = mb_substr($displayLine, $pos + $keywordLen, 1, 'UTF-8');
-                            if (!ctype_alnum($before) && !ctype_alnum($after)) {
-                                Terminal::color(Terminal::COLOR_BLUE);
-                                Terminal::bold();
-                                $result .= $keyword;
-                                Terminal::reset();
-                                $pos += $keywordLen;
-                                $matched = true;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if (!$matched) {
-                        $result .= $char;
-                        $pos++;
-                    }
+        if (!empty($upMethod)) {
+            $upLines = explode("\n", $upMethod);
+            foreach ($upLines as $line) {
+                if ($row > $maxRows) {
+                    break;
                 }
-                echo $result;
-            } else {
-                echo $displayLine;
+                Terminal::moveTo($row, $col + 2);
+                $displayLine = mb_substr($line, 0, $width - 2, 'UTF-8');
+                self::renderHighlightedLine($displayLine);
+                $row++;
             }
+        } else {
+            Terminal::moveTo($row, $col + 2);
+            if (Terminal::supportsColors()) {
+                Terminal::color(Terminal::COLOR_YELLOW);
+            }
+            echo '(empty)';
+            Terminal::reset();
+            $row++;
+        }
 
+        $row++;
+
+        // Display down() method
+        if ($row > $maxRows) {
+            return;
+        }
+        Terminal::moveTo($row, $col);
+        if (Terminal::supportsColors()) {
+            Terminal::bold();
+            Terminal::color(Terminal::COLOR_RED);
+        }
+        echo 'down() method:';
+        Terminal::reset();
+        $row++;
+
+        if (!empty($downMethod)) {
+            $downLines = explode("\n", $downMethod);
+            foreach ($downLines as $line) {
+                if ($row > $maxRows) {
+                    break;
+                }
+                Terminal::moveTo($row, $col + 2);
+                $displayLine = mb_substr($line, 0, $width - 2, 'UTF-8');
+                self::renderHighlightedLine($displayLine);
+                $row++;
+            }
+        } else {
+            Terminal::moveTo($row, $col + 2);
+            if (Terminal::supportsColors()) {
+                Terminal::color(Terminal::COLOR_YELLOW);
+            }
+            echo '(empty)';
+            Terminal::reset();
             $row++;
         }
     }
@@ -2393,6 +2421,175 @@ class Dashboard
             }
             echo 'Error: ' . $e->getMessage();
             Terminal::reset();
+        }
+    }
+
+    /**
+     * Extract method body from PHP code.
+     *
+     * @param string $content PHP file content
+     * @param string $methodName Method name (e.g., 'up', 'down')
+     *
+     * @return string Method body (without method signature)
+     */
+    protected static function extractMethod(string $content, string $methodName): string
+    {
+        // Find method signature - more flexible pattern
+        // Matches: public function up(): void { or public function up() { or public function up()\n{
+        $pattern = '/public\s+function\s+' . preg_quote($methodName, '/') . '\s*\([^)]*\)\s*(?::\s*void)?\s*\{/';
+        if (!preg_match($pattern, $content, $matches, PREG_OFFSET_CAPTURE)) {
+            return '';
+        }
+
+        $startPos = $matches[0][1] + strlen($matches[0][0]);
+        $braceCount = 1;
+        $pos = $startPos;
+        $len = strlen($content);
+        $inString = false;
+        $stringChar = null;
+
+        // Find matching closing brace, handling strings and comments
+        while ($pos < $len && $braceCount > 0) {
+            $char = $content[$pos];
+            $nextChar = $pos + 1 < $len ? $content[$pos + 1] : '';
+
+            // Handle strings
+            if (!$inString && ($char === '"' || $char === "'")) {
+                $inString = true;
+                $stringChar = $char;
+            } elseif ($inString && $char === $stringChar && $content[$pos - 1] !== '\\') {
+                $inString = false;
+                $stringChar = null;
+            }
+
+            // Skip string contents
+            if ($inString) {
+                $pos++;
+                continue;
+            }
+
+            // Handle comments
+            if ($char === '/' && $nextChar === '/') {
+                // Single-line comment - skip to end of line
+                while ($pos < $len && $content[$pos] !== "\n") {
+                    $pos++;
+                }
+                continue;
+            }
+            if ($char === '/' && $nextChar === '*') {
+                // Multi-line comment - skip until */
+                $pos += 2;
+                while ($pos < $len - 1) {
+                    if ($content[$pos] === '*' && $content[$pos + 1] === '/') {
+                        $pos += 2;
+                        break;
+                    }
+                    $pos++;
+                }
+                continue;
+            }
+
+            // Count braces
+            if ($char === '{') {
+                $braceCount++;
+            } elseif ($char === '}') {
+                $braceCount--;
+            }
+            $pos++;
+        }
+
+        if ($braceCount === 0) {
+            // Extract method body (without the closing brace)
+            $body = substr($content, $startPos, $pos - $startPos - 1);
+            // Remove leading/trailing whitespace and trim each line
+            $lines = explode("\n", $body);
+            $trimmedLines = array_map('trim', $lines);
+            // Remove empty lines at start and end
+            while (!empty($trimmedLines) && trim($trimmedLines[0]) === '') {
+                array_shift($trimmedLines);
+            }
+            while (!empty($trimmedLines) && trim($trimmedLines[count($trimmedLines) - 1]) === '') {
+                array_pop($trimmedLines);
+            }
+            return implode("\n", $trimmedLines);
+        }
+
+        return '';
+    }
+
+    /**
+     * Render a line with syntax highlighting.
+     *
+     * @param string $line Line to render
+     */
+    protected static function renderHighlightedLine(string $line): void
+    {
+        if (Terminal::supportsColors()) {
+            // PHP keywords for highlighting
+            $phpKeywords = [
+                'abstract', 'and', 'array', 'as', 'break', 'case', 'catch', 'class', 'clone', 'const',
+                'continue', 'declare', 'default', 'do', 'else', 'elseif', 'enddeclare', 'endfor',
+                'endforeach', 'endif', 'endswitch', 'endwhile', 'extends', 'final', 'for', 'foreach',
+                'function', 'global', 'goto', 'if', 'implements', 'interface', 'instanceof', 'namespace',
+                'new', 'or', 'private', 'protected', 'public', 'static', 'switch', 'throw', 'trait',
+                'try', 'use', 'var', 'while', 'xor', 'return', 'void', 'string', 'int', 'bool', 'float',
+                'null', 'true', 'false', 'self', 'parent', 'static', 'void',
+            ];
+
+            $result = '';
+            $pos = 0;
+            $len = mb_strlen($line, 'UTF-8');
+
+            while ($pos < $len) {
+                // Check for comments first
+                if (mb_substr($line, $pos, 2, 'UTF-8') === '//') {
+                    Terminal::color(Terminal::COLOR_YELLOW);
+                    $result .= mb_substr($line, $pos, null, 'UTF-8');
+                    Terminal::reset();
+                    break;
+                }
+
+                // Check for strings
+                $char = mb_substr($line, $pos, 1, 'UTF-8');
+                if ($char === '"' || $char === "'") {
+                    $endPos = mb_strpos($line, $char, $pos + 1, 'UTF-8');
+                    if ($endPos !== false) {
+                        Terminal::color(Terminal::COLOR_GREEN);
+                        $result .= mb_substr($line, $pos, $endPos - $pos + 1, 'UTF-8');
+                        Terminal::reset();
+                        $pos = $endPos + 1;
+                        continue;
+                    }
+                }
+
+                // Check for keywords (word boundaries)
+                $matched = false;
+                foreach ($phpKeywords as $keyword) {
+                    $keywordLen = mb_strlen($keyword, 'UTF-8');
+                    if (mb_substr($line, $pos, $keywordLen, 'UTF-8') === $keyword) {
+                        // Check word boundaries
+                        $before = $pos > 0 ? mb_substr($line, $pos - 1, 1, 'UTF-8') : ' ';
+                        $after = mb_substr($line, $pos + $keywordLen, 1, 'UTF-8');
+                        if (!ctype_alnum($before) && $before !== '_' && !ctype_alnum($after) && $after !== '_') {
+                            Terminal::color(Terminal::COLOR_BLUE);
+                            Terminal::bold();
+                            $result .= $keyword;
+                            Terminal::reset();
+                            $pos += $keywordLen;
+                            $matched = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!$matched) {
+                    $result .= $char;
+                    $pos++;
+                }
+            }
+            echo $result;
+        } else {
+            echo $line;
         }
     }
 }
