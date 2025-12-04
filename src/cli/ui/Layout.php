@@ -62,7 +62,7 @@ class Layout
     protected function calculatePanes(): void
     {
         // Reserve space for header and footer
-        $headerHeight = 2;
+        $headerHeight = 1;
         $footerHeight = 1;
         $availableRows = $this->rows - $headerHeight - $footerHeight;
 

@@ -477,21 +477,51 @@ class Dashboard
      */
     protected function renderHeader(): void
     {
+        [$rows, $cols] = Terminal::getSize();
         Terminal::moveTo(1, 1);
+        Terminal::clearLine();
+
+        $driver = $this->db->schema()->getDialect()->getDriverName();
+        $driverUpper = strtoupper($driver);
+
+        // Build header parts
+        $leftText = 'PDOdb TUI Dashboard';
+        $centerText = 'Updated: ' . date('H:i:s');
+        $rightText = 'Driver: ' . $driverUpper;
+
+        $leftLen = mb_strlen($leftText, 'UTF-8');
+        $centerLen = mb_strlen($centerText, 'UTF-8');
+        $rightLen = mb_strlen($rightText, 'UTF-8');
+
+        // Calculate positions
+        $leftPos = 1;
+        $rightPos = $cols - $rightLen + 1;
+        $centerPos = (int)(($cols - $centerLen) / 2) + 1;
+
+        // Ensure no overlap
+        if ($centerPos <= $leftLen + 1) {
+            $centerPos = $leftLen + 2;
+        }
+        if ($centerPos + $centerLen > $rightPos) {
+            $centerPos = $rightPos - $centerLen - 1;
+        }
+
+        // Left: Title
         if (Terminal::supportsColors()) {
             Terminal::bold();
             Terminal::color(Terminal::COLOR_CYAN);
         }
-        echo 'PDOdb TUI Dashboard';
+        Terminal::moveTo(1, $leftPos);
+        echo $leftText;
         Terminal::reset();
 
-        Terminal::moveTo(1, 50);
-        $driver = $this->db->schema()->getDialect()->getDriverName();
-        $driverUpper = strtoupper($driver);
-        echo 'Driver: ' . $driverUpper;
+        // Center: Updated timestamp
+        Terminal::moveTo(1, $centerPos);
+        echo $centerText;
 
-        Terminal::moveTo(2, 1);
-        echo 'Updated: ' . date('Y-m-d H:i:s');
+        // Right: Driver
+        Terminal::moveTo(1, $rightPos);
+        echo $rightText;
     }
 
     /**
@@ -511,13 +541,21 @@ class Dashboard
         // Format refresh label
         $refreshValue = $this->refreshInterval;
         if ($this->refreshIntervalIndex === 0) {
-            $refreshLabel = 'realtime';
+            $refreshLabel = 'rt';
         } elseif ($refreshValue < 1.0) {
             $refreshLabel = (int)($refreshValue * 1000) . 'ms';
         } else {
             $refreshLabel = (int)$refreshValue . 's';
         }
-        $help = '1-4: Switch | ↑/↓: Select | Enter: Fullscreen | x: Kill | r: Refresh(' . $refreshLabel . ') | h: Help | q: Quit';
+        
+        [$rows, $cols] = Terminal::getSize();
+        $help = '1-4:Switch | ↑↓:Select | Enter:Full | x:Kill | r:Ref(' . $refreshLabel . ') | h:Help | q:Quit';
+        
+        // Truncate if too long to fit in one line
+        if (mb_strlen($help, 'UTF-8') > $cols) {
+            $help = mb_substr($help, 0, $cols, 'UTF-8');
+        }
+        
         echo $help;
 
         Terminal::reset();
