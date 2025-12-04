@@ -52,15 +52,15 @@ class ConnectionPoolPane
             $connectionsData = MonitorManager::getActiveConnections($db);
         }
 
-        // Render border only if not fullscreen
-        if (!$fullscreen) {
-            $layout->renderBorder($paneIndex, 'Connection Pool', $active);
-        }
-
-        // Clear content area
+        // Clear content area first (before border to avoid clearing border)
         for ($i = 0; $i < $content['height']; $i++) {
             Terminal::moveTo($content['row'] + $i, $content['col']);
             Terminal::clearLine();
+        }
+
+        // Render border after clearing content
+        if (!$fullscreen) {
+            $layout->renderBorder($paneIndex, 'Connection Pool', $active);
         }
 
         $connections = $connectionsData['connections'] ?? [];
@@ -82,14 +82,25 @@ class ConnectionPoolPane
         $max = (int)($summary['max'] ?? 0);
         $usage = (float)($summary['usage_percent'] ?? 0);
 
-        echo "Current: {$current}";
+        $text = "Current: {$current}";
         if ($max > 0) {
-            echo " / Max: {$max}";
+            $text .= " / Max: {$max}";
         }
+        // Truncate to fit pane width
+        $maxLen = $content['width'];
+        if (mb_strlen($text, 'UTF-8') > $maxLen) {
+            $text = mb_substr($text, 0, $maxLen, 'UTF-8');
+        }
+        echo $text;
 
         $row++;
         Terminal::moveTo($row, $content['col']);
-        echo 'Usage: ' . number_format($usage, 1) . '%';
+        $usageText = 'Usage: ' . number_format($usage, 1) . '%';
+        // Truncate to fit pane width
+        if (mb_strlen($usageText, 'UTF-8') > $maxLen) {
+            $usageText = mb_substr($usageText, 0, $maxLen, 'UTF-8');
+        }
+        echo $usageText;
 
         // Color code usage
         if (Terminal::supportsColors()) {
@@ -150,7 +161,12 @@ class ConnectionPoolPane
             if (Terminal::supportsColors()) {
                 Terminal::bold();
             }
-            echo str_pad('ID', $colWidth) . str_pad('User', $colWidth) . 'Database';
+            $headerText = str_pad('ID', $colWidth) . str_pad('User', $colWidth) . 'Database';
+            // Truncate if too long
+            if (mb_strlen($headerText, 'UTF-8') > $content['width']) {
+                $headerText = mb_substr($headerText, 0, $content['width'], 'UTF-8');
+            }
+            echo $headerText;
             Terminal::reset();
 
             // Display connections (with scrolling)
@@ -188,7 +204,12 @@ class ConnectionPoolPane
                 $dbName = self::truncate((string)($conn['db'] ?? $conn['database'] ?? $conn['datname'] ?? ''), $content['width'] - ($colWidth * 2));
 
                 $marker = $isSelected ? '> ' : '  ';
-                echo $marker . str_pad($id, $colWidth - 2) . str_pad($user, $colWidth) . $dbName;
+                $rowText = $marker . str_pad($id, $colWidth - 2) . str_pad($user, $colWidth) . $dbName;
+                // Truncate if too long
+                if (mb_strlen($rowText, 'UTF-8') > $content['width']) {
+                    $rowText = mb_substr($rowText, 0, $content['width'], 'UTF-8');
+                }
+                echo $rowText;
                 Terminal::reset();
             }
 

@@ -26,14 +26,14 @@ class CacheStatsPane
         $content = $layout->getContentArea($paneIndex);
         $cacheManager = $db->getCacheManager();
 
-        // Render border
-        $layout->renderBorder($paneIndex, 'Cache Stats', $active);
-
-        // Clear content area
+        // Clear content area first (before border to avoid clearing border)
         for ($i = 0; $i < $content['height']; $i++) {
             Terminal::moveTo($content['row'] + $i, $content['col']);
             Terminal::clearLine();
         }
+
+        // Render border after clearing content
+        $layout->renderBorder($paneIndex, 'Cache Stats', $active);
 
         if ($cacheManager === null) {
             Terminal::moveTo($content['row'], $content['col']);
@@ -44,24 +44,23 @@ class CacheStatsPane
         $stats = $cacheManager->getStats();
         $row = $content['row'];
 
-        // Status
+        // Status / Type (combined in one line)
         Terminal::moveTo($row, $content['col']);
+        $statusText = ($stats['enabled'] ?? false) ? 'Enabled' : 'Disabled';
+        $typeText = $stats['type'] ?? 'unknown';
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
         echo 'Status: ';
         Terminal::reset();
-        echo ($stats['enabled'] ?? false) ? 'Enabled' : 'Disabled';
-
-        // Type
-        $row++;
-        Terminal::moveTo($row, $content['col']);
+        echo $statusText;
+        echo ' / ';
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
         echo 'Type: ';
         Terminal::reset();
-        echo $stats['type'] ?? 'unknown';
+        echo $typeText;
 
         // Hits
         $row++;
@@ -72,7 +71,8 @@ class CacheStatsPane
         echo 'Hits: ';
         Terminal::reset();
         $hits = (int)($stats['hits'] ?? 0);
-        echo number_format($hits);
+        $hitsText = number_format($hits);
+        echo $hitsText;
 
         // Misses
         $row++;

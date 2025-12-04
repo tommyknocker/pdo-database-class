@@ -48,15 +48,15 @@ class ActiveQueriesPane
             $queries = MonitorManager::getActiveQueries($db);
         }
 
-        // Render border only if not fullscreen
-        if (!$fullscreen) {
-            $layout->renderBorder($paneIndex, 'Active Queries', $active);
-        }
-
-        // Clear content area
+        // Clear content area first (before border to avoid clearing border)
         for ($i = 0; $i < $content['height']; $i++) {
             Terminal::moveTo($content['row'] + $i, $content['col']);
             Terminal::clearLine();
+        }
+
+        // Render border after clearing content
+        if (!$fullscreen) {
+            $layout->renderBorder($paneIndex, 'Active Queries', $active);
         }
 
         if (empty($queries)) {
@@ -81,7 +81,12 @@ class ActiveQueriesPane
             Terminal::bold();
         }
         Terminal::moveTo($content['row'], $content['col']);
-        echo str_pad('ID', $colWidth) . str_pad('Time', $colWidth) . str_pad('DB', $colWidth) . 'Query';
+        $headerText = str_pad('ID', $colWidth) . str_pad('Time', $colWidth) . str_pad('DB', $colWidth) . 'Query';
+        // Truncate if too long
+        if (mb_strlen($headerText, 'UTF-8') > $content['width']) {
+            $headerText = mb_substr($headerText, 0, $content['width'], 'UTF-8');
+        }
+        echo $headerText;
         Terminal::reset();
 
         // Display queries (with scrolling)
@@ -129,7 +134,12 @@ class ActiveQueriesPane
             }
 
             $marker = $isSelected ? '> ' : '  ';
-            echo $marker . str_pad($id, $colWidth - 2) . str_pad($time, $colWidth) . str_pad($dbName, $colWidth) . $queryText;
+            $rowText = $marker . str_pad($id, $colWidth - 2) . str_pad($time, $colWidth) . str_pad($dbName, $colWidth) . $queryText;
+            // Truncate if too long
+            if (mb_strlen($rowText, 'UTF-8') > $content['width']) {
+                $rowText = mb_substr($rowText, 0, $content['width'], 'UTF-8');
+            }
+            echo $rowText;
             Terminal::reset();
         }
 

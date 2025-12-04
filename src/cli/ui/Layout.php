@@ -70,20 +70,26 @@ class Layout
         $paneHeight = (int)floor($availableRows / 2);
         $paneWidth = (int)floor($this->cols / 2);
 
+        // Left pane width: paneWidth (includes borders)
+        // Right pane width: remaining space to fill to $this->cols
+        $leftPaneWidth = $paneWidth;
+        $rightPaneCol = $paneWidth + 1;
+        $rightPaneWidth = $this->cols - $rightPaneCol + 1;
+
         // Top-left: Active Queries
         $this->panes[self::PANE_QUERIES] = [
             'row' => $headerHeight + 1,
             'col' => 1,
             'height' => $paneHeight,
-            'width' => $paneWidth - 1, // -1 for border
+            'width' => $leftPaneWidth,
         ];
 
         // Top-right: Connection Pool
         $this->panes[self::PANE_CONNECTIONS] = [
             'row' => $headerHeight + 1,
-            'col' => $paneWidth + 1,
+            'col' => $rightPaneCol,
             'height' => $paneHeight,
-            'width' => $paneWidth - 1,
+            'width' => $rightPaneWidth,
         ];
 
         // Bottom-left: Cache Stats
@@ -91,15 +97,15 @@ class Layout
             'row' => $headerHeight + $paneHeight + 1,
             'col' => 1,
             'height' => $availableRows - $paneHeight,
-            'width' => $paneWidth - 1,
+            'width' => $leftPaneWidth,
         ];
 
         // Bottom-right: Server Metrics
         $this->panes[self::PANE_METRICS] = [
             'row' => $headerHeight + $paneHeight + 1,
-            'col' => $paneWidth + 1,
+            'col' => $rightPaneCol,
             'height' => $availableRows - $paneHeight,
-            'width' => $paneWidth - 1,
+            'width' => $rightPaneWidth,
         ];
     }
 

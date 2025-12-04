@@ -32,14 +32,14 @@ class ServerMetricsPane
             $metrics = $dialect->getServerMetrics($db);
         }
 
-        // Render border
-        $layout->renderBorder($paneIndex, 'Server Metrics', $active);
-
-        // Clear content area
+        // Clear content area first (before border to avoid clearing border)
         for ($i = 0; $i < $content['height']; $i++) {
             Terminal::moveTo($content['row'] + $i, $content['col']);
             Terminal::clearLine();
         }
+
+        // Render border after clearing content
+        $layout->renderBorder($paneIndex, 'Server Metrics', $active);
 
         if (empty($metrics)) {
             Terminal::moveTo($content['row'], $content['col']);
