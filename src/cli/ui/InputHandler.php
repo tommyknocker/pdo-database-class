@@ -51,9 +51,24 @@ class InputHandler
             $except = [];
             // Wait up to 50ms for escape sequence
             if (@stream_select($read, $write, $except, 0, 50000) > 0) {
+                // Read first 2 characters (most sequences need only 2: [A, [B, etc.)
                 $seq = @fread(STDIN, 2);
                 if ($seq === false) {
                     $seq = '';
+                }
+                
+                // If sequence starts with [5 or [6, read one more character for PageUp/PageDown
+                if (strlen($seq) >= 2 && ($seq[0] === '[' && ($seq[1] === '5' || $seq[1] === '6'))) {
+                    $read = [STDIN];
+                    $write = [];
+                    $except = [];
+                    // Wait a bit more for the ~ character
+                    if (@stream_select($read, $write, $except, 0, 10000) > 0) {
+                        $additional = @fread(STDIN, 1);
+                        if ($additional !== false) {
+                            $seq .= $additional;
+                        }
+                    }
                 }
             }
 
@@ -94,21 +109,33 @@ class InputHandler
             return 'esc';
         }
 
-        // Arrow keys: ESC[A, ESC[B, ESC[C, ESC[D
+        // Arrow keys and special keys: ESC[...
         if ($seq[0] === '[') {
-            switch ($seq[1]) {
-                case 'A':
-                    return 'up';
-                case 'B':
-                    return 'down';
-                case 'C':
-                    return 'right';
-                case 'D':
-                    return 'left';
-                case 'H':
-                    return 'home';
-                case 'F':
-                    return 'end';
+            // PageUp: ESC[5~ (standard)
+            if (strlen($seq) >= 3 && $seq[1] === '5' && $seq[2] === '~') {
+                return 'pageup';
+            }
+            // PageDown: ESC[6~ (standard)
+            if (strlen($seq) >= 3 && $seq[1] === '6' && $seq[2] === '~') {
+                return 'pagedown';
+            }
+
+            // Check for single character sequences (arrow keys, etc.)
+            if (strlen($seq) >= 2) {
+                switch ($seq[1]) {
+                    case 'A':
+                        return 'up';
+                    case 'B':
+                        return 'down';
+                    case 'C':
+                        return 'right';
+                    case 'D':
+                        return 'left';
+                    case 'H':
+                        return 'home';
+                    case 'F':
+                        return 'end';
+                }
             }
 
             // Handle extended sequences (e.g., ESC[1;5A for Ctrl+Up)

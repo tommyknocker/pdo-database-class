@@ -1654,6 +1654,26 @@ class MySQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function getServerVariables(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        try {
+            $rows = $db->rawQuery('SHOW VARIABLES');
+            $result = [];
+            foreach ($rows as $row) {
+                $result[] = [
+                    'name' => $row['Variable_name'] ?? '',
+                    'value' => $row['Value'] ?? '',
+                ];
+            }
+            return $result;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
     {
         $threshold = (int)($thresholdSeconds);

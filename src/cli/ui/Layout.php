@@ -10,9 +10,9 @@ namespace tommyknocker\pdodb\cli\ui;
 class Layout
 {
     /**
-     * Number of panes (2x2 grid).
+     * Number of panes (8 panes across 2 screens, 2x2 grid per screen).
      */
-    public const PANE_COUNT = 4;
+    public const PANE_COUNT = 8;
 
     /**
      * Pane indices.
@@ -21,6 +21,10 @@ class Layout
     public const PANE_CONNECTIONS = 1;
     public const PANE_CACHE = 2;
     public const PANE_METRICS = 3;
+    public const PANE_SCHEMA = 4;
+    public const PANE_MIGRATIONS = 5;
+    public const PANE_VARIABLES = 6;
+    public const PANE_SCRATCHPAD = 7;
 
     /**
      * Terminal rows.
@@ -35,6 +39,13 @@ class Layout
      * @var int
      */
     protected int $cols;
+
+    /**
+     * Current screen (0 for panes 0-3, 1 for panes 4-7).
+     *
+     * @var int
+     */
+    protected int $currentScreen = 0;
 
     /**
      * Pane dimensions.
@@ -57,7 +68,7 @@ class Layout
     }
 
     /**
-     * Calculate pane dimensions for 2x2 grid.
+     * Calculate pane dimensions for 2x2 grid (both screens use same layout).
      */
     protected function calculatePanes(): void
     {
@@ -76,6 +87,7 @@ class Layout
         $rightPaneCol = $paneWidth + 1;
         $rightPaneWidth = $this->cols - $rightPaneCol + 1;
 
+        // Screen 1: Panes 0-3
         // Top-left: Active Queries
         $this->panes[self::PANE_QUERIES] = [
             'row' => $headerHeight + 1,
@@ -102,6 +114,39 @@ class Layout
 
         // Bottom-right: Server Metrics
         $this->panes[self::PANE_METRICS] = [
+            'row' => $headerHeight + $paneHeight + 1,
+            'col' => $rightPaneCol,
+            'height' => $availableRows - $paneHeight,
+            'width' => $rightPaneWidth,
+        ];
+
+        // Screen 2: Panes 4-7 (same layout as screen 1)
+        // Top-left: Schema Browser
+        $this->panes[self::PANE_SCHEMA] = [
+            'row' => $headerHeight + 1,
+            'col' => 1,
+            'height' => $paneHeight,
+            'width' => $leftPaneWidth,
+        ];
+
+        // Top-right: Migration Manager
+        $this->panes[self::PANE_MIGRATIONS] = [
+            'row' => $headerHeight + 1,
+            'col' => $rightPaneCol,
+            'height' => $paneHeight,
+            'width' => $rightPaneWidth,
+        ];
+
+        // Bottom-left: Server Variables
+        $this->panes[self::PANE_VARIABLES] = [
+            'row' => $headerHeight + $paneHeight + 1,
+            'col' => 1,
+            'height' => $availableRows - $paneHeight,
+            'width' => $leftPaneWidth,
+        ];
+
+        // Bottom-right: SQL Scratchpad
+        $this->panes[self::PANE_SCRATCHPAD] = [
             'row' => $headerHeight + $paneHeight + 1,
             'col' => $rightPaneCol,
             'height' => $availableRows - $paneHeight,
@@ -207,5 +252,28 @@ class Layout
             'height' => $pane['height'] - 3, // Exclude borders and title
             'width' => $pane['width'] - 2, // Exclude left and right borders
         ];
+    }
+
+    /**
+     * Get current screen (0 for panes 0-3, 1 for panes 4-7).
+     *
+     * @return int
+     */
+    public function getCurrentScreen(): int
+    {
+        return $this->currentScreen;
+    }
+
+    /**
+     * Set current screen (0 for panes 0-3, 1 for panes 4-7).
+     *
+     * @param int $screen Screen index (0 or 1)
+     */
+    public function setCurrentScreen(int $screen): void
+    {
+        if ($screen < 0 || $screen > 1) {
+            return;
+        }
+        $this->currentScreen = $screen;
     }
 }

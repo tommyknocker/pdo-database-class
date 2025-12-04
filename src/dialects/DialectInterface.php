@@ -1870,6 +1870,15 @@ interface DialectInterface
     public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array;
 
     /**
+     * Get server variables (configuration settings).
+     *
+     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     *
+     * @return array<int, array<string, mixed>> Array of variable arrays with 'name' and 'value' keys
+     */
+    public function getServerVariables(\tommyknocker\pdodb\PdoDb $db): array;
+
+    /**
      * Kill a query/process for this dialect.
      *
      * @param \tommyknocker\pdodb\PdoDb $db Database instance

@@ -1585,6 +1585,36 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function getServerVariables(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        // SQLite doesn't have server variables like MySQL/PostgreSQL
+        // Return PRAGMA-based settings as variables
+        try {
+            $pragmas = [
+                'journal_mode',
+                'synchronous',
+                'cache_size',
+                'foreign_keys',
+                'temp_store',
+                'page_size',
+            ];
+            $result = [];
+            foreach ($pragmas as $pragma) {
+                $value = $db->rawQueryValue("PRAGMA {$pragma}");
+                $result[] = [
+                    'name' => $pragma,
+                    'value' => $value !== null ? (string)$value : '',
+                ];
+            }
+            return $result;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool
     {
         // SQLite does not support killing queries

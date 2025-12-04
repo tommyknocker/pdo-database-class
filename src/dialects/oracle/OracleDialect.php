@@ -2608,6 +2608,30 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function getServerVariables(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        try {
+            $rows = $db->rawQuery("
+                SELECT name, value
+                FROM v\$parameter
+                ORDER BY name
+            ");
+            $result = [];
+            foreach ($rows as $row) {
+                $result[] = [
+                    'name' => $row['name'] ?? '',
+                    'value' => $row['value'] ?? '',
+                ];
+            }
+            return $result;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
     {
         // V$SQLAREA requires SELECT_CATALOG_ROLE or DBA privileges

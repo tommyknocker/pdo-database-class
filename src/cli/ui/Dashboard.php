@@ -9,7 +9,11 @@ use tommyknocker\pdodb\cli\ui\actions\KillQueryAction;
 use tommyknocker\pdodb\cli\ui\panes\ActiveQueriesPane;
 use tommyknocker\pdodb\cli\ui\panes\CacheStatsPane;
 use tommyknocker\pdodb\cli\ui\panes\ConnectionPoolPane;
+use tommyknocker\pdodb\cli\ui\panes\MigrationManagerPane;
+use tommyknocker\pdodb\cli\ui\panes\SchemaBrowserPane;
 use tommyknocker\pdodb\cli\ui\panes\ServerMetricsPane;
+use tommyknocker\pdodb\cli\ui\panes\ServerVariablesPane;
+use tommyknocker\pdodb\cli\ui\panes\SqlScratchpadPane;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -69,6 +73,10 @@ class Dashboard
         Layout::PANE_CONNECTIONS => 0,
         Layout::PANE_CACHE => 0,
         Layout::PANE_METRICS => 0,
+        Layout::PANE_SCHEMA => 0,
+        Layout::PANE_MIGRATIONS => 0,
+        Layout::PANE_VARIABLES => 0,
+        Layout::PANE_SCRATCHPAD => 0,
     ];
 
     /**
@@ -81,6 +89,10 @@ class Dashboard
         Layout::PANE_CONNECTIONS => 0,
         Layout::PANE_CACHE => 0,
         Layout::PANE_METRICS => 0,
+        Layout::PANE_SCHEMA => 0,
+        Layout::PANE_MIGRATIONS => 0,
+        Layout::PANE_VARIABLES => 0,
+        Layout::PANE_SCRATCHPAD => 0,
     ];
 
     /**
@@ -144,6 +156,7 @@ class Dashboard
         $this->refreshInterval = $this->refreshIntervals[$this->refreshIntervalIndex];
         [$rows, $cols] = Terminal::getSize();
         $this->layout = new Layout($rows, $cols);
+        $this->updateScreenForPane(); // Initialize screen based on default active pane
     }
 
     /**
@@ -281,7 +294,21 @@ class Dashboard
                     if ($selectedIdx >= 0 && $selectedIdx < count($connections)) {
                         $this->detailViewPane = Layout::PANE_CONNECTIONS;
                     }
+                } elseif ($this->fullscreenPane === Layout::PANE_MIGRATIONS) {
+                    // Show migration file content
+                    $this->detailViewPane = Layout::PANE_MIGRATIONS;
+                } elseif ($this->fullscreenPane === Layout::PANE_SCHEMA) {
+                    // Show table details (Columns/Indexes/Foreign Keys)
+                    $this->detailViewPane = Layout::PANE_SCHEMA;
                 }
+                return false;
+            }
+            if ($key === 'pageup') {
+                $this->handlePageUp();
+                return false;
+            }
+            if ($key === 'pagedown') {
+                $this->handlePageDown();
                 return false;
             }
             // In fullscreen, only allow navigation within the pane
@@ -329,37 +356,73 @@ class Dashboard
                 $this->activePane = Layout::PANE_QUERIES;
                 $this->selectedIndex[$this->activePane] = 0;
                 $this->scrollOffset[$this->activePane] = 0;
+                $this->updateScreenForPane();
                 break;
 
             case '2':
                 $this->activePane = Layout::PANE_CONNECTIONS;
                 $this->selectedIndex[$this->activePane] = 0;
                 $this->scrollOffset[$this->activePane] = 0;
+                $this->updateScreenForPane();
                 break;
 
             case '3':
                 $this->activePane = Layout::PANE_CACHE;
                 $this->selectedIndex[$this->activePane] = 0;
                 $this->scrollOffset[$this->activePane] = 0;
+                $this->updateScreenForPane();
                 break;
 
             case '4':
                 $this->activePane = Layout::PANE_METRICS;
                 $this->selectedIndex[$this->activePane] = 0;
                 $this->scrollOffset[$this->activePane] = 0;
+                $this->updateScreenForPane();
+                break;
+
+            case '5':
+                $this->activePane = Layout::PANE_SCHEMA;
+                $this->selectedIndex[$this->activePane] = 0;
+                $this->scrollOffset[$this->activePane] = 0;
+                $this->updateScreenForPane();
+                break;
+
+            case '6':
+                $this->activePane = Layout::PANE_MIGRATIONS;
+                $this->selectedIndex[$this->activePane] = 0;
+                $this->scrollOffset[$this->activePane] = 0;
+                $this->updateScreenForPane();
+                break;
+
+            case '7':
+                $this->activePane = Layout::PANE_VARIABLES;
+                $this->selectedIndex[$this->activePane] = 0;
+                $this->scrollOffset[$this->activePane] = 0;
+                $this->updateScreenForPane();
+                break;
+
+            case '8':
+                $this->activePane = Layout::PANE_SCRATCHPAD;
+                $this->selectedIndex[$this->activePane] = 0;
+                $this->scrollOffset[$this->activePane] = 0;
+                $this->updateScreenForPane();
                 break;
 
             case 'tab':
             case 'right':
+                // Increment pane, wrap from 7→0 (cycle through screens)
                 $this->activePane = ($this->activePane + 1) % Layout::PANE_COUNT;
                 $this->selectedIndex[$this->activePane] = 0;
                 $this->scrollOffset[$this->activePane] = 0;
+                $this->updateScreenForPane();
                 break;
 
             case 'left':
+                // Decrement pane, wrap from 0→7
                 $this->activePane = ($this->activePane - 1 + Layout::PANE_COUNT) % Layout::PANE_COUNT;
                 $this->selectedIndex[$this->activePane] = 0;
                 $this->scrollOffset[$this->activePane] = 0;
+                $this->updateScreenForPane();
                 break;
 
             case 'up':
@@ -384,6 +447,18 @@ class Dashboard
     }
 
     /**
+     * Update current screen based on active pane.
+     */
+    protected function updateScreenForPane(): void
+    {
+        if ($this->activePane >= 0 && $this->activePane <= 3) {
+            $this->layout->setCurrentScreen(0);
+        } elseif ($this->activePane >= 4 && $this->activePane <= 7) {
+            $this->layout->setCurrentScreen(1);
+        }
+    }
+
+    /**
      * Render dashboard.
      */
     protected function render(): void
@@ -400,7 +475,11 @@ class Dashboard
         // Render header
         $this->renderHeader();
 
-        // Render all panes
+        // Determine which screen to render based on active pane
+        $currentScreen = $this->layout->getCurrentScreen();
+        $isScreen1 = ($currentScreen === 0);
+
+        // Render panes for current screen only
         $isQueriesActive = $this->activePane === Layout::PANE_QUERIES;
         $isConnectionsActive = $this->activePane === Layout::PANE_CONNECTIONS;
 
@@ -462,8 +541,51 @@ class Dashboard
             $this->cachedConnections
         );
 
-        CacheStatsPane::render($this->db, $this->layout, Layout::PANE_CACHE, $this->activePane === Layout::PANE_CACHE);
-        ServerMetricsPane::render($this->db, $this->layout, Layout::PANE_METRICS, $this->activePane === Layout::PANE_METRICS, $this->cachedServerMetrics);
+        if ($isScreen1) {
+            // Screen 1: Panes 0-3
+            CacheStatsPane::render($this->db, $this->layout, Layout::PANE_CACHE, $this->activePane === Layout::PANE_CACHE);
+            ServerMetricsPane::render($this->db, $this->layout, Layout::PANE_METRICS, $this->activePane === Layout::PANE_METRICS, $this->cachedServerMetrics);
+        } else {
+            // Screen 2: Panes 4-7
+            $isSchemaActive = $this->activePane === Layout::PANE_SCHEMA;
+            $isMigrationsActive = $this->activePane === Layout::PANE_MIGRATIONS;
+            $isVariablesActive = $this->activePane === Layout::PANE_VARIABLES;
+            $isScratchpadActive = $this->activePane === Layout::PANE_SCRATCHPAD;
+
+            SchemaBrowserPane::render(
+                $this->db,
+                $this->layout,
+                Layout::PANE_SCHEMA,
+                $isSchemaActive,
+                $isSchemaActive ? $this->selectedIndex[Layout::PANE_SCHEMA] : -1,
+                $isSchemaActive ? $this->scrollOffset[Layout::PANE_SCHEMA] : 0
+            );
+
+            MigrationManagerPane::render(
+                $this->db,
+                $this->layout,
+                Layout::PANE_MIGRATIONS,
+                $isMigrationsActive,
+                $isMigrationsActive ? $this->selectedIndex[Layout::PANE_MIGRATIONS] : -1,
+                $isMigrationsActive ? $this->scrollOffset[Layout::PANE_MIGRATIONS] : 0
+            );
+
+            ServerVariablesPane::render(
+                $this->db,
+                $this->layout,
+                Layout::PANE_VARIABLES,
+                $isVariablesActive,
+                $isVariablesActive ? $this->selectedIndex[Layout::PANE_VARIABLES] : -1,
+                $isVariablesActive ? $this->scrollOffset[Layout::PANE_VARIABLES] : 0
+            );
+
+            SqlScratchpadPane::render(
+                $this->db,
+                $this->layout,
+                Layout::PANE_SCRATCHPAD,
+                $isScratchpadActive
+            );
+        }
 
         // Render footer
         $this->renderFooter();
@@ -549,7 +671,9 @@ class Dashboard
         }
         
         [$rows, $cols] = Terminal::getSize();
-        $help = '1-4:Switch | ↑↓:Select | Enter:Full | x:Kill | r:Ref(' . $refreshLabel . ') | h:Help | q:Quit';
+        $currentScreen = $this->layout->getCurrentScreen();
+        $screenIndicator = $currentScreen === 0 ? '1-4' : '5-8';
+        $help = '1-8:Switch | ↑↓:Select | Enter:Full | x:Kill | r:Ref(' . $refreshLabel . ') | h:Help | q:Quit | Screen:' . $screenIndicator;
         
         // Truncate if too long to fit in one line
         if (mb_strlen($help, 'UTF-8') > $cols) {
@@ -558,6 +682,65 @@ class Dashboard
         
         echo $help;
 
+        Terminal::reset();
+    }
+
+    /**
+     * Render placeholder pane (temporary until real panes are implemented).
+     *
+     * @param int $paneIndex Pane index
+     * @param string $title Pane title
+     */
+    protected function renderPlaceholderPane(int $paneIndex, string $title): void
+    {
+        $this->layout->renderBorder($paneIndex, $title, $this->activePane === $paneIndex);
+        $content = $this->layout->getContentArea($paneIndex);
+        Terminal::moveTo($content['row'], $content['col']);
+        echo 'Coming soon...';
+    }
+
+    /**
+     * Render footer for fullscreen mode.
+     */
+    protected function renderFullscreenFooter(): void
+    {
+        [$rows, $cols] = Terminal::getSize();
+        Terminal::moveTo($rows, 1);
+        Terminal::clearLine();
+
+        if (Terminal::supportsColors()) {
+            Terminal::color(Terminal::BG_BLUE);
+            Terminal::color(Terminal::COLOR_WHITE);
+        }
+
+        // Build fullscreen footer help text
+        $pane = $this->fullscreenPane;
+        $help = '';
+
+        if ($pane === Layout::PANE_QUERIES) {
+            $help = '↑↓:Select | PgUp/PgDn:Page | Enter:Details | x:Kill | Esc:Exit';
+        } elseif ($pane === Layout::PANE_CONNECTIONS) {
+            $help = '↑↓:Select | PgUp/PgDn:Page | Enter:Details | x:Kill | Esc:Exit';
+        } elseif ($pane === Layout::PANE_CACHE || $pane === Layout::PANE_METRICS) {
+            $help = 'Esc:Exit';
+        } elseif ($pane === Layout::PANE_SCHEMA) {
+            $help = '↑↓:Select | PgUp/PgDn:Page | Enter:Table Details | Esc:Exit';
+        } elseif ($pane === Layout::PANE_MIGRATIONS) {
+            $help = '↑↓:Select | PgUp/PgDn:Page | Enter:View Migration | Esc:Exit';
+        } elseif ($pane === Layout::PANE_VARIABLES) {
+            $help = '↑↓:Select | PgUp/PgDn:Page | Esc:Exit';
+        } elseif ($pane === Layout::PANE_SCRATCHPAD) {
+            $help = 'Esc:Exit';
+        } else {
+            $help = 'Esc:Exit';
+        }
+
+        // Truncate if too long to fit in one line
+        if (mb_strlen($help, 'UTF-8') > $cols) {
+            $help = mb_substr($help, 0, $cols, 'UTF-8');
+        }
+
+        echo $help;
         Terminal::reset();
     }
 
@@ -578,7 +761,7 @@ class Dashboard
     protected function handleUp(): void
     {
         $pane = $this->fullscreenPane >= 0 ? $this->fullscreenPane : $this->activePane;
-        if ($pane === Layout::PANE_QUERIES || $pane === Layout::PANE_CONNECTIONS) {
+        if (in_array($pane, [Layout::PANE_QUERIES, Layout::PANE_CONNECTIONS, Layout::PANE_SCHEMA, Layout::PANE_MIGRATIONS, Layout::PANE_VARIABLES], true)) {
             if ($this->selectedIndex[$pane] > 0) {
                 $this->selectedIndex[$pane]--;
             }
@@ -602,6 +785,111 @@ class Dashboard
             if ($this->selectedIndex[Layout::PANE_CONNECTIONS] < count($connections) - 1) {
                 $this->selectedIndex[Layout::PANE_CONNECTIONS]++;
             }
+        } elseif ($pane === Layout::PANE_SCHEMA) {
+            $tables = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+            if ($this->selectedIndex[Layout::PANE_SCHEMA] < count($tables) - 1) {
+                $this->selectedIndex[Layout::PANE_SCHEMA]++;
+            }
+        } elseif ($pane === Layout::PANE_MIGRATIONS) {
+            $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
+            $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+            $newMigrations = $runner->getNewMigrations();
+            $history = $runner->getMigrationHistory();
+            $allMigrations = [];
+            foreach ($newMigrations as $version) {
+                $allMigrations[] = ['version' => $version, 'status' => 'pending'];
+            }
+            foreach ($history as $record) {
+                $allMigrations[] = ['version' => $record['version'], 'status' => 'applied'];
+            }
+            if ($this->selectedIndex[Layout::PANE_MIGRATIONS] < count($allMigrations) - 1) {
+                $this->selectedIndex[Layout::PANE_MIGRATIONS]++;
+            }
+        } elseif ($pane === Layout::PANE_VARIABLES) {
+            $dialect = $this->db->schema()->getDialect();
+            $variables = $dialect->getServerVariables($this->db);
+            if ($this->selectedIndex[Layout::PANE_VARIABLES] < count($variables) - 1) {
+                $this->selectedIndex[Layout::PANE_VARIABLES]++;
+            }
+        }
+    }
+
+    /**
+     * Handle PageUp key (jump up by page).
+     */
+    protected function handlePageUp(): void
+    {
+        $pane = $this->fullscreenPane >= 0 ? $this->fullscreenPane : $this->activePane;
+        [$rows] = Terminal::getSize();
+        $pageSize = max(1, $rows - 4); // Visible items per page
+
+        if (in_array($pane, [Layout::PANE_QUERIES, Layout::PANE_CONNECTIONS, Layout::PANE_SCHEMA, Layout::PANE_MIGRATIONS, Layout::PANE_VARIABLES], true)) {
+            $newIndex = max(0, $this->selectedIndex[$pane] - $pageSize);
+            $this->selectedIndex[$pane] = $newIndex;
+            // Update scroll offset to keep selection visible
+            // In fullscreen, scrollOffset should be set so that selectedIndex is visible
+            $visibleHeight = $rows - 3; // Account for header and footer
+            $this->scrollOffset[$pane] = max(0, $newIndex);
+        }
+    }
+
+    /**
+     * Handle PageDown key (jump down by page).
+     */
+    protected function handlePageDown(): void
+    {
+        $pane = $this->fullscreenPane >= 0 ? $this->fullscreenPane : $this->activePane;
+        [$rows] = Terminal::getSize();
+        $pageSize = max(1, $rows - 4); // Visible items per page
+        $visibleHeight = $rows - 3; // Account for header and footer
+
+        if ($pane === Layout::PANE_QUERIES) {
+            $queries = $this->cachedQueries;
+            $maxIndex = count($queries) - 1;
+            $newIndex = min($maxIndex, $this->selectedIndex[Layout::PANE_QUERIES] + $pageSize);
+            $this->selectedIndex[Layout::PANE_QUERIES] = $newIndex;
+            // Update scroll offset to keep selection visible
+            $this->scrollOffset[Layout::PANE_QUERIES] = max(0, $newIndex - $visibleHeight + 1);
+        } elseif ($pane === Layout::PANE_CONNECTIONS) {
+            $connectionsData = $this->cachedConnections;
+            $connections = $connectionsData['connections'] ?? [];
+            $maxIndex = count($connections) - 1;
+            $newIndex = min($maxIndex, $this->selectedIndex[Layout::PANE_CONNECTIONS] + $pageSize);
+            $this->selectedIndex[Layout::PANE_CONNECTIONS] = $newIndex;
+            // Update scroll offset to keep selection visible
+            $this->scrollOffset[Layout::PANE_CONNECTIONS] = max(0, $newIndex - $visibleHeight + 1);
+        } elseif ($pane === Layout::PANE_SCHEMA) {
+            $tables = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+            $maxIndex = count($tables) - 1;
+            $newIndex = min($maxIndex, $this->selectedIndex[Layout::PANE_SCHEMA] + $pageSize);
+            $this->selectedIndex[Layout::PANE_SCHEMA] = $newIndex;
+            // Update scroll offset to keep selection visible
+            $this->scrollOffset[Layout::PANE_SCHEMA] = max(0, $newIndex - $visibleHeight + 1);
+        } elseif ($pane === Layout::PANE_MIGRATIONS) {
+            $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
+            $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+            $newMigrations = $runner->getNewMigrations();
+            $history = $runner->getMigrationHistory();
+            $allMigrations = [];
+            foreach ($newMigrations as $version) {
+                $allMigrations[] = ['version' => $version, 'status' => 'pending'];
+            }
+            foreach ($history as $record) {
+                $allMigrations[] = ['version' => $record['version'], 'status' => 'applied'];
+            }
+            $maxIndex = count($allMigrations) - 1;
+            $newIndex = min($maxIndex, $this->selectedIndex[Layout::PANE_MIGRATIONS] + $pageSize);
+            $this->selectedIndex[Layout::PANE_MIGRATIONS] = $newIndex;
+            // Update scroll offset to keep selection visible
+            $this->scrollOffset[Layout::PANE_MIGRATIONS] = max(0, $newIndex - $visibleHeight + 1);
+        } elseif ($pane === Layout::PANE_VARIABLES) {
+            $dialect = $this->db->schema()->getDialect();
+            $variables = $dialect->getServerVariables($this->db);
+            $maxIndex = count($variables) - 1;
+            $newIndex = min($maxIndex, $this->selectedIndex[Layout::PANE_VARIABLES] + $pageSize);
+            $this->selectedIndex[Layout::PANE_VARIABLES] = $newIndex;
+            // Update scroll offset to keep selection visible
+            $this->scrollOffset[Layout::PANE_VARIABLES] = max(0, $newIndex - $visibleHeight + 1);
         }
     }
 
@@ -771,12 +1059,16 @@ class Dashboard
                     $this->selectedIndex[Layout::PANE_QUERIES] = $selectedIdx;
                 }
 
+                // Only adjust scrollOffset if selected item is not visible
                 $relativeIndex = $selectedIdx - $this->scrollOffset[Layout::PANE_QUERIES];
                 if ($relativeIndex < 0) {
+                    // Selected item is above visible area - scroll up
                     $this->scrollOffset[Layout::PANE_QUERIES] = $selectedIdx;
                 } elseif ($relativeIndex >= $visibleHeight) {
+                    // Selected item is below visible area - scroll down
                     $this->scrollOffset[Layout::PANE_QUERIES] = max(0, $selectedIdx - $visibleHeight + 1);
                 }
+                // If relativeIndex is in range [0, visibleHeight), keep current scrollOffset
             }
 
             // Render header
@@ -800,6 +1092,9 @@ class Dashboard
                 true,
                 $this->cachedQueries
             );
+
+            // Render footer
+            $this->renderFullscreenFooter();
         } elseif ($this->fullscreenPane === Layout::PANE_CONNECTIONS) {
             // Calculate scroll offset for fullscreen
             $connectionsData = $this->cachedConnections;
@@ -826,12 +1121,16 @@ class Dashboard
                     $this->selectedIndex[Layout::PANE_CONNECTIONS] = $selectedIdx;
                 }
 
+                // Only adjust scrollOffset if selected item is not visible
                 $relativeIndex = $selectedIdx - $this->scrollOffset[Layout::PANE_CONNECTIONS];
                 if ($relativeIndex < 0) {
+                    // Selected item is above visible area - scroll up
                     $this->scrollOffset[Layout::PANE_CONNECTIONS] = $selectedIdx;
                 } elseif ($relativeIndex >= $visibleHeight) {
+                    // Selected item is below visible area - scroll down
                     $this->scrollOffset[Layout::PANE_CONNECTIONS] = max(0, $selectedIdx - $visibleHeight + 1);
                 }
+                // If relativeIndex is in range [0, visibleHeight), keep current scrollOffset
             }
 
             // Render header
@@ -855,6 +1154,9 @@ class Dashboard
                 true,
                 $this->cachedConnections
             );
+
+            // Render footer
+            $this->renderFullscreenFooter();
         } elseif ($this->fullscreenPane === Layout::PANE_CACHE) {
             // Render header
             Terminal::moveTo(1, 1);
@@ -869,14 +1171,7 @@ class Dashboard
             $this->renderCacheStatsFullscreen();
 
             // Render footer
-            Terminal::moveTo($rows, 1);
-            Terminal::clearLine();
-            if (Terminal::supportsColors()) {
-                Terminal::color(Terminal::BG_BLUE);
-                Terminal::color(Terminal::COLOR_WHITE);
-            }
-            echo 'Press Esc to exit fullscreen';
-            Terminal::reset();
+            $this->renderFullscreenFooter();
         } elseif ($this->fullscreenPane === Layout::PANE_METRICS) {
             // Render header
             Terminal::moveTo(1, 1);
@@ -891,14 +1186,15 @@ class Dashboard
             $this->renderServerMetricsFullscreen();
 
             // Render footer
-            Terminal::moveTo($rows, 1);
-            Terminal::clearLine();
-            if (Terminal::supportsColors()) {
-                Terminal::color(Terminal::BG_BLUE);
-                Terminal::color(Terminal::COLOR_WHITE);
-            }
-            echo 'Press Esc to exit fullscreen';
-            Terminal::reset();
+            $this->renderFullscreenFooter();
+        } elseif ($this->fullscreenPane === Layout::PANE_SCHEMA) {
+            $this->renderSchemaBrowserFullscreen();
+        } elseif ($this->fullscreenPane === Layout::PANE_MIGRATIONS) {
+            $this->renderMigrationsFullscreen();
+        } elseif ($this->fullscreenPane === Layout::PANE_VARIABLES) {
+            $this->renderVariablesFullscreen();
+        } elseif ($this->fullscreenPane === Layout::PANE_SCRATCHPAD) {
+            $this->renderScratchpadFullscreen();
         }
 
         flush();
@@ -1252,6 +1548,10 @@ class Dashboard
                     }
                 }
             }
+        } elseif ($this->detailViewPane === Layout::PANE_MIGRATIONS) {
+            $this->renderMigrationDetailView();
+        } elseif ($this->detailViewPane === Layout::PANE_SCHEMA) {
+            $this->renderTableDetailView();
         }
 
         // Render footer
@@ -1620,5 +1920,479 @@ class Dashboard
         }
 
         flush();
+    }
+
+    /**
+     * Render schema browser fullscreen.
+     */
+    protected function renderSchemaBrowserFullscreen(): void
+    {
+        Terminal::clear();
+        [$rows, $cols] = Terminal::getSize();
+
+        // Calculate scroll offset for fullscreen
+        $tables = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+        $visibleHeight = $rows - 3;
+        $selectedIdx = $this->selectedIndex[Layout::PANE_SCHEMA];
+
+        if ($selectedIdx >= 0 && count($tables) > 0) {
+            if ($selectedIdx >= count($tables)) {
+                $selectedIdx = count($tables) - 1;
+                $this->selectedIndex[Layout::PANE_SCHEMA] = $selectedIdx;
+            }
+
+            $relativeIndex = $selectedIdx - $this->scrollOffset[Layout::PANE_SCHEMA];
+            if ($relativeIndex < 0) {
+                $this->scrollOffset[Layout::PANE_SCHEMA] = $selectedIdx;
+            } elseif ($relativeIndex >= $visibleHeight) {
+                $this->scrollOffset[Layout::PANE_SCHEMA] = max(0, $selectedIdx - $visibleHeight + 1);
+            }
+        }
+
+        // Render header
+        Terminal::moveTo(1, 1);
+        if (Terminal::supportsColors()) {
+            Terminal::bold();
+            Terminal::color(Terminal::COLOR_CYAN);
+        }
+        echo 'Schema Browser (Fullscreen)';
+        Terminal::reset();
+
+        // Render pane in fullscreen
+        $dummyLayout = new Layout($rows, $cols);
+        SchemaBrowserPane::render(
+            $this->db,
+            $dummyLayout,
+            Layout::PANE_SCHEMA,
+            true,
+            $this->selectedIndex[Layout::PANE_SCHEMA],
+            $this->scrollOffset[Layout::PANE_SCHEMA],
+            true
+        );
+
+        // Render footer
+        $this->renderFullscreenFooter();
+    }
+
+    /**
+     * Render migrations fullscreen.
+     */
+    protected function renderMigrationsFullscreen(): void
+    {
+        Terminal::clear();
+        [$rows, $cols] = Terminal::getSize();
+
+        // Get migration path
+        $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
+        $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+        $newMigrations = $runner->getNewMigrations();
+        $history = $runner->getMigrationHistory();
+
+        // Combine all migrations
+        $allMigrations = [];
+        foreach ($newMigrations as $version) {
+            $allMigrations[] = ['version' => $version, 'status' => 'pending'];
+        }
+        foreach ($history as $record) {
+            $allMigrations[] = ['version' => $record['version'], 'status' => 'applied'];
+        }
+        usort($allMigrations, function ($a, $b) {
+            return strcmp($a['version'], $b['version']);
+        });
+
+        // Calculate scroll offset
+        $visibleHeight = $rows - 3;
+        $selectedIdx = $this->selectedIndex[Layout::PANE_MIGRATIONS];
+
+        if ($selectedIdx >= 0 && count($allMigrations) > 0) {
+            if ($selectedIdx >= count($allMigrations)) {
+                $selectedIdx = count($allMigrations) - 1;
+                $this->selectedIndex[Layout::PANE_MIGRATIONS] = $selectedIdx;
+            }
+
+            $relativeIndex = $selectedIdx - $this->scrollOffset[Layout::PANE_MIGRATIONS];
+            if ($relativeIndex < 0) {
+                $this->scrollOffset[Layout::PANE_MIGRATIONS] = $selectedIdx;
+            } elseif ($relativeIndex >= $visibleHeight) {
+                $this->scrollOffset[Layout::PANE_MIGRATIONS] = max(0, $selectedIdx - $visibleHeight + 1);
+            }
+        }
+
+        // Render header
+        Terminal::moveTo(1, 1);
+        if (Terminal::supportsColors()) {
+            Terminal::bold();
+            Terminal::color(Terminal::COLOR_CYAN);
+        }
+        echo 'Migration Manager (Fullscreen)';
+        Terminal::reset();
+
+        // Render pane in fullscreen
+        $dummyLayout = new Layout($rows, $cols);
+        MigrationManagerPane::render(
+            $this->db,
+            $dummyLayout,
+            Layout::PANE_MIGRATIONS,
+            true,
+            $this->selectedIndex[Layout::PANE_MIGRATIONS],
+            $this->scrollOffset[Layout::PANE_MIGRATIONS],
+            true,
+            $migrationPath
+        );
+
+        // Render footer
+        $this->renderFullscreenFooter();
+    }
+
+    /**
+     * Render server variables fullscreen.
+     */
+    protected function renderVariablesFullscreen(): void
+    {
+        Terminal::clear();
+        [$rows, $cols] = Terminal::getSize();
+
+        // Get variables
+        $dialect = $this->db->schema()->getDialect();
+        $variables = $dialect->getServerVariables($this->db);
+
+        // Calculate scroll offset
+        $visibleHeight = $rows - 3;
+        $selectedIdx = $this->selectedIndex[Layout::PANE_VARIABLES];
+
+        if ($selectedIdx >= 0 && count($variables) > 0) {
+            if ($selectedIdx >= count($variables)) {
+                $selectedIdx = count($variables) - 1;
+                $this->selectedIndex[Layout::PANE_VARIABLES] = $selectedIdx;
+            }
+
+            $relativeIndex = $selectedIdx - $this->scrollOffset[Layout::PANE_VARIABLES];
+            if ($relativeIndex < 0) {
+                $this->scrollOffset[Layout::PANE_VARIABLES] = $selectedIdx;
+            } elseif ($relativeIndex >= $visibleHeight) {
+                $this->scrollOffset[Layout::PANE_VARIABLES] = max(0, $selectedIdx - $visibleHeight + 1);
+            }
+        }
+
+        // Render header
+        Terminal::moveTo(1, 1);
+        if (Terminal::supportsColors()) {
+            Terminal::bold();
+            Terminal::color(Terminal::COLOR_CYAN);
+        }
+        echo 'Server Variables (Fullscreen)';
+        Terminal::reset();
+
+        // Render pane in fullscreen
+        $dummyLayout = new Layout($rows, $cols);
+        ServerVariablesPane::render(
+            $this->db,
+            $dummyLayout,
+            Layout::PANE_VARIABLES,
+            true,
+            $this->selectedIndex[Layout::PANE_VARIABLES],
+            $this->scrollOffset[Layout::PANE_VARIABLES],
+            true
+        );
+
+        // Render footer
+        $this->renderFullscreenFooter();
+    }
+
+    /**
+     * Render SQL scratchpad fullscreen.
+     */
+    protected function renderScratchpadFullscreen(): void
+    {
+        Terminal::clear();
+        [$rows, $cols] = Terminal::getSize();
+
+        // Render header
+        Terminal::moveTo(1, 1);
+        if (Terminal::supportsColors()) {
+            Terminal::bold();
+            Terminal::color(Terminal::COLOR_CYAN);
+        }
+        echo 'SQL Scratchpad (Fullscreen)';
+        Terminal::reset();
+
+        // Render pane in fullscreen
+        $dummyLayout = new Layout($rows, $cols);
+        SqlScratchpadPane::render(
+            $this->db,
+            $dummyLayout,
+            Layout::PANE_SCRATCHPAD,
+            true,
+            null,
+            null,
+            true
+        );
+
+        // Render footer
+        $this->renderFullscreenFooter();
+    }
+
+    /**
+     * Render migration file content with syntax highlighting.
+     */
+    protected function renderMigrationDetailView(): void
+    {
+        [$rows, $cols] = Terminal::getSize();
+        $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
+        $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+        $newMigrations = $runner->getNewMigrations();
+        $history = $runner->getMigrationHistory();
+
+        // Combine all migrations
+        $allMigrations = [];
+        foreach ($newMigrations as $version) {
+            $allMigrations[] = ['version' => $version, 'status' => 'pending'];
+        }
+        foreach ($history as $record) {
+            $allMigrations[] = ['version' => $record['version'], 'status' => 'applied'];
+        }
+        usort($allMigrations, function ($a, $b) {
+            return strcmp($a['version'], $b['version']);
+        });
+
+        $selectedIdx = $this->selectedIndex[Layout::PANE_MIGRATIONS];
+        if ($selectedIdx < 0 || $selectedIdx >= count($allMigrations)) {
+            return;
+        }
+
+        $migration = $allMigrations[$selectedIdx];
+        $version = $migration['version'];
+
+        // Find migration file
+        $files = glob($migrationPath . '/m*.php');
+        $migrationFile = null;
+        foreach ($files ?? [] as $file) {
+            $basename = basename($file, '.php');
+            if (str_starts_with($basename, 'm')) {
+                $versionPart = substr($basename, 1);
+                if (preg_match('/^(\d{4}_\d{2}_\d{2}_\d{6}|\d{14})_[a-z0-9_]+$/i', $versionPart) === 1 && $versionPart === $version) {
+                    $migrationFile = $file;
+                    break;
+                }
+            }
+        }
+
+        if ($migrationFile === null || !file_exists($migrationFile)) {
+            Terminal::moveTo(1, 1);
+            echo 'Migration file not found';
+            return;
+        }
+
+        // Render header
+        Terminal::moveTo(1, 1);
+        if (Terminal::supportsColors()) {
+            Terminal::bold();
+            Terminal::color(Terminal::COLOR_CYAN);
+        }
+        echo 'Migration: ' . $version . ' (Press any key to close)';
+        Terminal::reset();
+
+        // Read and display file content with syntax highlighting
+        $content = file_get_contents($migrationFile);
+        $lines = explode("\n", $content);
+        $row = 3;
+        $col = 1;
+        $width = $cols - 2;
+        $maxRows = $rows - 2;
+
+        // PHP keywords for highlighting
+        $phpKeywords = [
+            'abstract', 'and', 'array', 'as', 'break', 'case', 'catch', 'class', 'clone', 'const',
+            'continue', 'declare', 'default', 'do', 'else', 'elseif', 'enddeclare', 'endfor',
+            'endforeach', 'endif', 'endswitch', 'endwhile', 'extends', 'final', 'for', 'foreach',
+            'function', 'global', 'goto', 'if', 'implements', 'interface', 'instanceof', 'namespace',
+            'new', 'or', 'private', 'protected', 'public', 'static', 'switch', 'throw', 'trait',
+            'try', 'use', 'var', 'while', 'xor', 'return', 'void', 'string', 'int', 'bool', 'float',
+            'null', 'true', 'false', 'self', 'parent', 'static'
+        ];
+
+        foreach ($lines as $lineNum => $line) {
+            if ($row > $maxRows) {
+                break;
+            }
+
+            Terminal::moveTo($row, $col);
+            $displayLine = mb_substr($line, 0, $width, 'UTF-8');
+
+            if (Terminal::supportsColors()) {
+                // Simple syntax highlighting
+                $result = '';
+                $pos = 0;
+                $len = mb_strlen($displayLine, 'UTF-8');
+                
+                while ($pos < $len) {
+                    // Check for comments first
+                    if (mb_substr($displayLine, $pos, 2, 'UTF-8') === '//') {
+                        Terminal::color(Terminal::COLOR_YELLOW);
+                        $result .= mb_substr($displayLine, $pos, null, 'UTF-8');
+                        Terminal::reset();
+                        break;
+                    }
+                    
+                    // Check for strings
+                    $char = mb_substr($displayLine, $pos, 1, 'UTF-8');
+                    if ($char === '"' || $char === "'") {
+                        $endPos = mb_strpos($displayLine, $char, $pos + 1, 'UTF-8');
+                        if ($endPos !== false) {
+                            Terminal::color(Terminal::COLOR_GREEN);
+                            $result .= mb_substr($displayLine, $pos, $endPos - $pos + 1, 'UTF-8');
+                            Terminal::reset();
+                            $pos = $endPos + 1;
+                            continue;
+                        }
+                    }
+                    
+                    // Check for keywords (word boundaries)
+                    $matched = false;
+                    foreach ($phpKeywords as $keyword) {
+                        $keywordLen = mb_strlen($keyword, 'UTF-8');
+                        if (mb_substr($displayLine, $pos, $keywordLen, 'UTF-8') === $keyword) {
+                            // Check word boundaries
+                            $before = $pos > 0 ? mb_substr($displayLine, $pos - 1, 1, 'UTF-8') : ' ';
+                            $after = mb_substr($displayLine, $pos + $keywordLen, 1, 'UTF-8');
+                            if (!ctype_alnum($before) && !ctype_alnum($after)) {
+                                Terminal::color(Terminal::COLOR_BLUE);
+                                Terminal::bold();
+                                $result .= $keyword;
+                                Terminal::reset();
+                                $pos += $keywordLen;
+                                $matched = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (!$matched) {
+                        $result .= $char;
+                        $pos++;
+                    }
+                }
+                echo $result;
+            } else {
+                echo $displayLine;
+            }
+
+            $row++;
+        }
+    }
+
+    /**
+     * Render table details (Columns/Indexes/Foreign Keys).
+     */
+    protected function renderTableDetailView(): void
+    {
+        [$rows, $cols] = Terminal::getSize();
+        $tables = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+        $selectedIdx = $this->selectedIndex[Layout::PANE_SCHEMA];
+
+        if ($selectedIdx < 0 || $selectedIdx >= count($tables)) {
+            return;
+        }
+
+        $tableName = $tables[$selectedIdx];
+
+        // Render header
+        Terminal::moveTo(1, 1);
+        if (Terminal::supportsColors()) {
+            Terminal::bold();
+            Terminal::color(Terminal::COLOR_CYAN);
+        }
+        echo 'Table: ' . $tableName . ' (Press any key to close)';
+        Terminal::reset();
+
+        $row = 3;
+        $col = 1;
+        $width = $cols - 2;
+
+        try {
+            // Get columns
+            $columns = \tommyknocker\pdodb\cli\TableManager::describe($this->db, $tableName);
+            $dialect = $this->db->schema()->getDialect();
+            $indexSql = $dialect->buildShowIndexesSql($tableName);
+            $indexes = $this->db->rawQuery($indexSql);
+            $foreignKeys = $this->db->schema()->getForeignKeys($tableName);
+
+            // Columns section
+            Terminal::moveTo($row, $col);
+            if (Terminal::supportsColors()) {
+                Terminal::bold();
+                Terminal::color(Terminal::COLOR_YELLOW);
+            }
+            echo 'Columns:';
+            Terminal::reset();
+            $row++;
+
+            foreach ($columns as $column) {
+                if ($row > $rows - 10) {
+                    break;
+                }
+                $colName = $column['Field'] ?? $column['column_name'] ?? $column['name'] ?? 'N/A';
+                $colType = $column['Type'] ?? $column['data_type'] ?? $column['type'] ?? 'N/A';
+                $colNull = ($column['Null'] ?? $column['is_nullable'] ?? '') === 'YES' ? 'NULL' : 'NOT NULL';
+                Terminal::moveTo($row, $col + 2);
+                echo $colName . ' (' . $colType . ', ' . $colNull . ')';
+                $row++;
+            }
+
+            $row++;
+
+            // Indexes section
+            Terminal::moveTo($row, $col);
+            if (Terminal::supportsColors()) {
+                Terminal::bold();
+                Terminal::color(Terminal::COLOR_YELLOW);
+            }
+            echo 'Indexes:';
+            Terminal::reset();
+            $row++;
+
+            foreach ($indexes as $index) {
+                if ($row > $rows - 5) {
+                    break;
+                }
+                $idxName = $index['Key_name'] ?? $index['indexname'] ?? $index['name'] ?? 'N/A';
+                $idxColumns = $index['Column_name'] ?? $index['column_name'] ?? 'N/A';
+                Terminal::moveTo($row, $col + 2);
+                echo $idxName . ' (' . $idxColumns . ')';
+                $row++;
+            }
+
+            $row++;
+
+            // Foreign Keys section
+            Terminal::moveTo($row, $col);
+            if (Terminal::supportsColors()) {
+                Terminal::bold();
+                Terminal::color(Terminal::COLOR_YELLOW);
+            }
+            echo 'Foreign Keys:';
+            Terminal::reset();
+            $row++;
+
+            foreach ($foreignKeys as $fk) {
+                if ($row > $rows - 2) {
+                    break;
+                }
+                $fkName = $fk['constraint_name'] ?? $fk['name'] ?? 'N/A';
+                $fkColumn = $fk['column_name'] ?? 'N/A';
+                $fkRefTable = $fk['referenced_table_name'] ?? $fk['referenced_table'] ?? 'N/A';
+                $fkRefColumn = $fk['referenced_column_name'] ?? $fk['referenced_column'] ?? 'N/A';
+                Terminal::moveTo($row, $col + 2);
+                echo $fkName . ': ' . $fkColumn . ' -> ' . $fkRefTable . '.' . $fkRefColumn;
+                $row++;
+            }
+        } catch (\Throwable $e) {
+            Terminal::moveTo($row, $col);
+            if (Terminal::supportsColors()) {
+                Terminal::color(Terminal::COLOR_RED);
+            }
+            echo 'Error: ' . $e->getMessage();
+            Terminal::reset();
+        }
     }
 }

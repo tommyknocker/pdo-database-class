@@ -2103,6 +2103,26 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function getServerVariables(\tommyknocker\pdodb\PdoDb $db): array
+    {
+        try {
+            $rows = $db->rawQuery('SELECT name, setting as value FROM pg_settings ORDER BY name');
+            $result = [];
+            foreach ($rows as $row) {
+                $result[] = [
+                    'name' => $row['name'] ?? '',
+                    'value' => $row['value'] ?? '',
+                ];
+            }
+            return $result;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function extractEnumValues(array $column, \tommyknocker\pdodb\PdoDb $db, string $tableName, string $columnName): array
     {
         $type = $column['Type'] ?? $column['data_type'] ?? $column['type'] ?? '';
