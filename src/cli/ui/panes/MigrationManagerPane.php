@@ -159,12 +159,12 @@ class MigrationManagerPane
                 Terminal::color(Terminal::COLOR_BLACK);
             }
 
-            $status = $migration['status'] === 'applied' ? '✓' : '✗';
+            $status = $migration['status'] === 'applied' ? '✓' : '⏳';
             if (Terminal::supportsColors() && !$isSelected) {
                 if ($migration['status'] === 'applied') {
                     Terminal::color(Terminal::COLOR_GREEN);
                 } else {
-                    Terminal::color(Terminal::COLOR_RED);
+                    Terminal::color(Terminal::COLOR_YELLOW);
                 }
             }
 
