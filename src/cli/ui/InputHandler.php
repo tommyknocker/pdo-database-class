@@ -129,7 +129,7 @@ class InputHandler
             }
 
             // Check for arrow keys (2 characters: [A, [B, [C, [D)
-            if (strlen($seq) >= 2) {
+            if (strlen($seq) === 2) {
                 switch ($seq[1]) {
                     case 'A':
                         return 'up';

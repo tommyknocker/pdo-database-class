@@ -268,7 +268,18 @@ class Dashboard
     {
         // Handle detail view mode
         if ($this->detailViewPane >= 0) {
-            // Close detail view on any key
+            // In detail view, handle special keys
+            if ($this->detailViewPane === Layout::PANE_MIGRATIONS) {
+                if ($key === 'a') {
+                    $this->handleApplyMigration();
+                    return false;
+                }
+                if ($key === 'r') {
+                    $this->handleRollbackMigration();
+                    return false;
+                }
+            }
+            // Any other key closes detail view
             $this->detailViewPane = -1;
             return false;
         }
@@ -325,6 +336,18 @@ class Dashboard
                     $this->handleKillQuery();
                 } elseif ($this->fullscreenPane === Layout::PANE_CONNECTIONS) {
                     $this->handleKillConnection();
+                }
+                return false;
+            }
+            if ($key === 'a') {
+                if ($this->fullscreenPane === Layout::PANE_MIGRATIONS) {
+                    $this->handleApplyMigration();
+                }
+                return false;
+            }
+            if ($key === 'r') {
+                if ($this->fullscreenPane === Layout::PANE_MIGRATIONS) {
+                    $this->handleRollbackMigration();
                 }
                 return false;
             }
@@ -726,7 +749,32 @@ class Dashboard
         } elseif ($pane === Layout::PANE_SCHEMA) {
             $help = '↑↓:Select | PgUp/PgDn:Page | Enter:Table Details | Esc:Exit';
         } elseif ($pane === Layout::PANE_MIGRATIONS) {
-            $help = '↑↓:Select | PgUp/PgDn:Page | Enter:View Migration | Esc:Exit';
+            // Get current migration status to show appropriate commands
+            $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
+            $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+            $newMigrations = $runner->getNewMigrations();
+            $history = $runner->getMigrationHistory();
+            $allMigrations = [];
+            foreach ($newMigrations as $version) {
+                $allMigrations[] = ['version' => $version, 'status' => 'pending'];
+            }
+            foreach ($history as $record) {
+                $allMigrations[] = ['version' => $record['version'], 'status' => 'applied'];
+            }
+            usort($allMigrations, function ($a, $b) {
+                return strcmp($a['version'], $b['version']);
+            });
+            $selectedIdx = $this->selectedIndex[Layout::PANE_MIGRATIONS];
+            $help = '↑↓:Select | PgUp/PgDn:Page | Enter:View';
+            if ($selectedIdx >= 0 && $selectedIdx < count($allMigrations)) {
+                $migration = $allMigrations[$selectedIdx];
+                if ($migration['status'] === 'pending') {
+                    $help .= ' | a:Apply';
+                } else {
+                    $help .= ' | r:Rollback';
+                }
+            }
+            $help .= ' | Esc:Exit';
         } elseif ($pane === Layout::PANE_VARIABLES) {
             $help = '↑↓:Select | PgUp/PgDn:Page | Esc:Exit';
         } elseif ($pane === Layout::PANE_SCRATCHPAD) {
@@ -933,6 +981,136 @@ class Dashboard
             $this->selectedIndex[Layout::PANE_QUERIES] = 0;
             $this->scrollOffset[Layout::PANE_QUERIES] = 0;
         }
+    }
+
+    /**
+     * Handle apply migration action.
+     */
+    protected function handleApplyMigration(): void
+    {
+        $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
+        $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+        $newMigrations = $runner->getNewMigrations();
+        $history = $runner->getMigrationHistory();
+
+        // Combine all migrations
+        $allMigrations = [];
+        foreach ($newMigrations as $version) {
+            $allMigrations[] = ['version' => $version, 'status' => 'pending'];
+        }
+        foreach ($history as $record) {
+            $allMigrations[] = ['version' => $record['version'], 'status' => 'applied'];
+        }
+        usort($allMigrations, function ($a, $b) {
+            return strcmp($a['version'], $b['version']);
+        });
+
+        $selectedIdx = $this->selectedIndex[Layout::PANE_MIGRATIONS];
+        if ($selectedIdx < 0 || $selectedIdx >= count($allMigrations)) {
+            $this->showMessage('No migration selected', Terminal::COLOR_RED);
+            return;
+        }
+
+        $migration = $allMigrations[$selectedIdx];
+        if ($migration['status'] !== 'pending') {
+            $this->showMessage('Migration is already applied', Terminal::COLOR_YELLOW);
+            return;
+        }
+
+        $version = $migration['version'];
+
+        try {
+            $runner->migrateUp($version);
+            $this->showMessage("Migration {$version} applied successfully", Terminal::COLOR_GREEN);
+        } catch (\Throwable $e) {
+            $this->showMessage("Failed to apply migration {$version}: " . $e->getMessage(), Terminal::COLOR_RED);
+        }
+    }
+
+    /**
+     * Handle rollback migration action.
+     */
+    protected function handleRollbackMigration(): void
+    {
+        $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
+        $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+        $newMigrations = $runner->getNewMigrations();
+        $history = $runner->getMigrationHistory();
+
+        // Combine all migrations
+        $allMigrations = [];
+        foreach ($newMigrations as $version) {
+            $allMigrations[] = ['version' => $version, 'status' => 'pending'];
+        }
+        foreach ($history as $record) {
+            $allMigrations[] = ['version' => $record['version'], 'status' => 'applied'];
+        }
+        usort($allMigrations, function ($a, $b) {
+            return strcmp($a['version'], $b['version']);
+        });
+
+        $selectedIdx = $this->selectedIndex[Layout::PANE_MIGRATIONS];
+        if ($selectedIdx < 0 || $selectedIdx >= count($allMigrations)) {
+            $this->showMessage('No migration selected', Terminal::COLOR_RED);
+            return;
+        }
+
+        $migration = $allMigrations[$selectedIdx];
+        if ($migration['status'] !== 'applied') {
+            $this->showMessage('Migration is not applied', Terminal::COLOR_YELLOW);
+            return;
+        }
+
+        $version = $migration['version'];
+        // Check if this is the last applied migration (can only rollback last one)
+        $lastApplied = $history[0]['version'] ?? null;
+        if ($lastApplied !== $version) {
+            $this->showMessage("Can only rollback the last applied migration ({$lastApplied})", Terminal::COLOR_YELLOW);
+            return;
+        }
+
+        try {
+            $rolledBack = $runner->migrateDown(1);
+            if (in_array($version, $rolledBack, true)) {
+                $this->showMessage("Migration {$version} rolled back successfully", Terminal::COLOR_GREEN);
+            } else {
+                $this->showMessage("Migration {$version} rollback failed", Terminal::COLOR_RED);
+            }
+        } catch (\Throwable $e) {
+            $this->showMessage("Failed to rollback migration {$version}: " . $e->getMessage(), Terminal::COLOR_RED);
+        }
+    }
+
+    /**
+     * Show a temporary message to the user.
+     *
+     * @param string $message Message to show
+     * @param int $color Color code
+     */
+    protected function showMessage(string $message, int $color = Terminal::COLOR_WHITE): void
+    {
+        [$rows, $cols] = Terminal::getSize();
+        $messageRow = (int)floor($rows / 2);
+        $messageCol = (int)floor(($cols - mb_strlen($message, 'UTF-8')) / 2);
+
+        // Clear line and show message
+        Terminal::moveTo($messageRow, 1);
+        Terminal::clearLine();
+        Terminal::moveTo($messageRow, max(1, $messageCol));
+        if (Terminal::supportsColors()) {
+            Terminal::bold();
+            Terminal::color($color);
+        }
+        echo $message;
+        Terminal::reset();
+        flush();
+
+        // Wait a bit for user to see the message
+        usleep(2000000); // 2 seconds
+
+        // Clear message
+        Terminal::moveTo($messageRow, 1);
+        Terminal::clearLine();
     }
 
     /**
@@ -1561,7 +1739,36 @@ class Dashboard
             Terminal::color(Terminal::BG_BLUE);
             Terminal::color(Terminal::COLOR_WHITE);
         }
-        echo 'Press any key to close';
+        if ($this->detailViewPane === Layout::PANE_MIGRATIONS) {
+            $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
+            $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+            $newMigrations = $runner->getNewMigrations();
+            $history = $runner->getMigrationHistory();
+            $allMigrations = [];
+            foreach ($newMigrations as $version) {
+                $allMigrations[] = ['version' => $version, 'status' => 'pending'];
+            }
+            foreach ($history as $record) {
+                $allMigrations[] = ['version' => $record['version'], 'status' => 'applied'];
+            }
+            usort($allMigrations, function ($a, $b) {
+                return strcmp($a['version'], $b['version']);
+            });
+            $selectedIdx = $this->selectedIndex[Layout::PANE_MIGRATIONS];
+            if ($selectedIdx >= 0 && $selectedIdx < count($allMigrations)) {
+                $migration = $allMigrations[$selectedIdx];
+                $status = $migration['status'];
+                if ($status === 'pending') {
+                    echo 'a:Apply | Any key:Close';
+                } else {
+                    echo 'r:Rollback | Any key:Close';
+                }
+            } else {
+                echo 'Press any key to close';
+            }
+        } else {
+            echo 'Press any key to close';
+        }
         Terminal::reset();
 
         flush();
