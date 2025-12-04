@@ -111,17 +111,25 @@ class InputHandler
 
         // Arrow keys and special keys: ESC[...
         if ($seq[0] === '[') {
-            // PageUp: ESC[5~ (standard)
+            // PageUp: ESC[5~ (standard) - 3 characters
             if (strlen($seq) >= 3 && $seq[1] === '5' && $seq[2] === '~') {
                 return 'pageup';
             }
-            // PageDown: ESC[6~ (standard)
+            // PageDown: ESC[6~ (standard) - 3 characters
             if (strlen($seq) >= 3 && $seq[1] === '6' && $seq[2] === '~') {
                 return 'pagedown';
             }
 
-            // Check for single character sequences (arrow keys, etc.)
-            if (strlen($seq) > 2) {
+            // Handle extended sequences (e.g., ESC[1;5A for Ctrl+Up)
+            if (strlen($seq) > 2 && $seq[1] === '1' && $seq[2] === ';') {
+                $rest = @fread(STDIN, 2);
+                if ($rest !== false) {
+                    return self::parseEscapeSequence('[' . $rest);
+                }
+            }
+
+            // Check for arrow keys (2 characters: [A, [B, [C, [D)
+            if (strlen($seq) >= 2) {
                 switch ($seq[1]) {
                     case 'A':
                         return 'up';
@@ -135,14 +143,6 @@ class InputHandler
                         return 'home';
                     case 'F':
                         return 'end';
-                }
-            }
-
-            // Handle extended sequences (e.g., ESC[1;5A for Ctrl+Up)
-            if (strlen($seq) > 2 && $seq[1] === '1' && $seq[2] === ';') {
-                $rest = @fread(STDIN, 2);
-                if ($rest !== false) {
-                    return self::parseEscapeSequence('[' . $rest);
                 }
             }
         }
