@@ -217,9 +217,14 @@ class Layout
         Terminal::moveTo($row, $col);
         echo '┌' . str_repeat('─', $width - 2) . '┐';
         Terminal::moveTo($row + 1, $col);
-        $titleText = ' ' . substr($title, 0, $width - 4) . ' ';
-        $titlePadding = str_repeat(' ', max(0, $width - 2 - strlen($titleText)));
-        echo '│' . $titleText . $titlePadding . '│';
+        // Center the title
+        $availableWidth = $width - 2; // Exclude left and right borders
+        $titleLength = mb_strlen($title, 'UTF-8');
+        $truncatedTitle = mb_substr($title, 0, $availableWidth - 2, 'UTF-8'); // Leave 1 space on each side
+        $truncatedLength = mb_strlen($truncatedTitle, 'UTF-8');
+        $leftPadding = (int)floor(($availableWidth - $truncatedLength) / 2);
+        $rightPadding = $availableWidth - $truncatedLength - $leftPadding;
+        echo '│' . str_repeat(' ', $leftPadding) . $truncatedTitle . str_repeat(' ', $rightPadding) . '│';
 
         // Side borders
         for ($i = 2; $i < $height; $i++) {
