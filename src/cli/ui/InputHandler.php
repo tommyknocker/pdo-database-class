@@ -57,12 +57,52 @@ class InputHandler
                     $seq = '';
                 }
 
-                // If sequence starts with [5 or [6, read one more character for PageUp/PageDown
-                if (strlen($seq) >= 2 && ($seq[0] === '[' && ($seq[1] === '5' || $seq[1] === '6'))) {
+                // If sequence starts with [, read more characters for special keys
+                if (strlen($seq) >= 2 && $seq[0] === '[') {
+                    $secondChar = $seq[1];
+                    // PageUp/PageDown: [5~ or [6~
+                    if ($secondChar === '5' || $secondChar === '6') {
+                        $read = [STDIN];
+                        $write = [];
+                        $except = [];
+                        if (@stream_select($read, $write, $except, 0, 10000) > 0) {
+                            $additional = @fread(STDIN, 1);
+                            if ($additional !== false) {
+                                $seq .= $additional;
+                            }
+                        }
+                    }
+                    // F-keys: [11~, [12~, [13~, [14~, [15~, etc. or [1;2P, [1;2Q, etc.
+                    if ($secondChar === '1') {
+                        $read = [STDIN];
+                        $write = [];
+                        $except = [];
+                        if (@stream_select($read, $write, $except, 0, 10000) > 0) {
+                            // Try to read up to 3 more characters
+                            $additional = @fread(STDIN, 3);
+                            if ($additional !== false) {
+                                $seq .= $additional;
+                            }
+                        }
+                    }
+                    // F-keys: [20~, [21~, [23~ (F10-F12)
+                    if ($secondChar === '2') {
+                        $read = [STDIN];
+                        $write = [];
+                        $except = [];
+                        if (@stream_select($read, $write, $except, 0, 10000) > 0) {
+                            $additional = @fread(STDIN, 2);
+                            if ($additional !== false) {
+                                $seq .= $additional;
+                            }
+                        }
+                    }
+                }
+                // F-keys: ESCOP (F1), ESCOQ (F2), ESCOR (F3), ESCOS (F4)
+                if (strlen($seq) >= 1 && $seq[0] === 'O') {
                     $read = [STDIN];
                     $write = [];
                     $except = [];
-                    // Wait a bit more for the ~ character
                     if (@stream_select($read, $write, $except, 0, 10000) > 0) {
                         $additional = @fread(STDIN, 1);
                         if ($additional !== false) {
@@ -109,6 +149,15 @@ class InputHandler
             return 'esc';
         }
 
+        // F-keys: ESCOP (F1), ESCOQ (F2), ESCOR (F3), ESCOS (F4) - check first
+        if ($seq[0] === 'O') {
+            $fKey = $seq[1];
+            $fMap = ['P' => 1, 'Q' => 2, 'R' => 3, 'S' => 4];
+            if (isset($fMap[$fKey])) {
+                return 'f' . $fMap[$fKey];
+            }
+        }
+
         // Arrow keys and special keys: ESC[...
         if ($seq[0] === '[') {
             // PageUp: ESC[5~ (standard) - 3 characters
@@ -118,6 +167,30 @@ class InputHandler
             // PageDown: ESC[6~ (standard) - 3 characters
             if (strlen($seq) >= 3 && $seq[1] === '6' && $seq[2] === '~') {
                 return 'pagedown';
+            }
+            // F-keys: ESC[11~, ESC[12~, etc. (F1-F9)
+            if (strlen($seq) >= 4 && $seq[1] === '1' && $seq[3] === '~') {
+                $fNum = (int)$seq[2];
+                if ($fNum >= 1 && $fNum <= 9) {
+                    return 'f' . $fNum;
+                }
+            }
+            // F-keys: ESC[1;2P, ESC[1;2Q, etc. (alternative format)
+            if (strlen($seq) >= 5 && $seq[1] === '1' && $seq[2] === ';' && $seq[3] === '2') {
+                $fKey = $seq[4];
+                $fMap = ['P' => 1, 'Q' => 2, 'R' => 3, 'S' => 4];
+                if (isset($fMap[$fKey])) {
+                    return 'f' . $fMap[$fKey];
+                }
+            }
+            // F-keys: ESC[20~, ESC[21~, ESC[23~ (F10-F12)
+            if (strlen($seq) >= 5 && $seq[1] === '2' && $seq[4] === '~') {
+                $secondDigit = (int)$seq[2];
+                $thirdDigit = (int)$seq[3];
+                if ($secondDigit === 0 && $thirdDigit >= 0 && $thirdDigit <= 2) {
+                    $fNum = 10 + $thirdDigit;
+                    return 'f' . $fNum;
+                }
             }
 
             // Handle extended sequences (e.g., ESC[1;5A for Ctrl+Up)

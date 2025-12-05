@@ -110,6 +110,90 @@ class Dashboard
     protected int $detailViewPane = -1;
 
     /**
+     * SQL Scratchpad query history (last 50 queries).
+     *
+     * @var array<int, string>
+     */
+    protected array $scratchpadHistory = [];
+
+    /**
+     * Current SQL query in editor.
+     *
+     * @var string
+     */
+    protected string $scratchpadQuery = '';
+
+    /**
+     * Cursor position in SQL editor (line, column).
+     *
+     * @var array{line: int, col: int}
+     */
+    protected array $scratchpadCursor = ['line' => 0, 'col' => 0];
+
+    /**
+     * History navigation index (-1 when not navigating).
+     *
+     * @var int
+     */
+    protected int $scratchpadHistoryIndex = -1;
+
+    /**
+     * Scratchpad mode: 'editor' or 'results'.
+     *
+     * @var string
+     */
+    protected string $scratchpadMode = 'editor';
+
+    /**
+     * Transaction mode (auto-commit if false).
+     *
+     * @var bool
+     */
+    protected bool $scratchpadTransactionMode = false;
+
+    /**
+     * Save history to file mode.
+     *
+     * @var bool
+     */
+    protected bool $scratchpadSaveHistory = false;
+
+    /**
+     * Export results mode.
+     *
+     * @var bool
+     */
+    protected bool $scratchpadExportMode = false;
+
+    /**
+     * Last query result.
+     *
+     * @var array<int, array<string, mixed>>|null
+     */
+    protected ?array $scratchpadLastResult = null;
+
+    /**
+     * Last query execution time (seconds).
+     *
+     * @var float
+     */
+    protected float $scratchpadLastQueryTime = 0.0;
+
+    /**
+     * Last query error message.
+     *
+     * @var string|null
+     */
+    protected ?string $scratchpadLastError = null;
+
+    /**
+     * Last query affected rows count.
+     *
+     * @var int
+     */
+    protected int $scratchpadAffectedRows = 0;
+
+    /**
      * Refresh intervals in seconds (realtime, 0.5, 1, 2, 5).
      *
      * @var array<float>
@@ -286,6 +370,11 @@ class Dashboard
 
         // Handle fullscreen mode
         if ($this->fullscreenPane >= 0) {
+            // Handle scratchpad first to allow text input
+            if ($this->fullscreenPane === Layout::PANE_SCRATCHPAD) {
+                return $this->handleScratchpadKey($key);
+            }
+
             if ($key === 'esc') {
                 $this->fullscreenPane = -1;
                 return false;
@@ -602,11 +691,14 @@ class Dashboard
                 $isVariablesActive ? $this->scrollOffset[Layout::PANE_VARIABLES] : 0
             );
 
+            $lastQuery = !empty($this->scratchpadHistory) ? end($this->scratchpadHistory) : null;
             SqlScratchpadPane::render(
                 $this->db,
                 $this->layout,
                 Layout::PANE_SCRATCHPAD,
-                $isScratchpadActive
+                $isScratchpadActive,
+                $lastQuery,
+                $this->scratchpadHistory
             );
         }
 
@@ -778,7 +870,7 @@ class Dashboard
         } elseif ($pane === Layout::PANE_VARIABLES) {
             $help = '↑↓:Select | PgUp/PgDn:Page | Esc:Exit';
         } elseif ($pane === Layout::PANE_SCRATCHPAD) {
-            $help = 'Esc:Exit';
+            $help = 'F5:Execute | Tab:Switch | F2:TX | F3:Save | F4:Export | Esc:Exit';
         } else {
             $help = 'Esc:Exit';
         }
@@ -2320,23 +2412,309 @@ class Dashboard
             Terminal::bold();
             Terminal::color(Terminal::COLOR_CYAN);
         }
-        echo 'SQL Scratchpad (Fullscreen)';
+        $status = [];
+        if ($this->scratchpadTransactionMode) {
+            $status[] = 'TX';
+        }
+        if ($this->scratchpadSaveHistory) {
+            $status[] = 'SAVE';
+        }
+        if ($this->scratchpadExportMode) {
+            $status[] = 'EXPORT';
+        }
+        $statusText = !empty($status) ? ' [' . implode(', ', $status) . ']' : '';
+        echo 'SQL Scratchpad (Fullscreen)' . $statusText;
         Terminal::reset();
 
-        // Render pane in fullscreen
-        $dummyLayout = new Layout($rows, $cols);
-        SqlScratchpadPane::render(
-            $this->db,
-            $dummyLayout,
-            Layout::PANE_SCRATCHPAD,
-            true,
-            null,
-            null,
-            true
-        );
+        // Calculate editor and results areas (40% editor, 60% results)
+        $editorHeight = (int)floor(($rows - 3) * 0.4);
+        $resultsHeight = $rows - 3 - $editorHeight;
+        $editorStartRow = 3;
+        $resultsStartRow = $editorStartRow + $editorHeight + 1;
+
+        // Render editor
+        $this->renderScratchpadEditor($editorStartRow, $editorHeight, $cols);
+
+        // Render separator
+        Terminal::moveTo($resultsStartRow - 1, 1);
+        echo str_repeat('─', $cols);
+
+        // Render results
+        $this->renderScratchpadResults($resultsStartRow, $resultsHeight, $cols);
 
         // Render footer
-        $this->renderFullscreenFooter();
+        $this->renderScratchpadFooter($rows, $cols);
+    }
+
+    /**
+     * Render SQL editor.
+     *
+     * @param int $startRow Start row
+     * @param int $height Height
+     * @param int $width Width
+     */
+    protected function renderScratchpadEditor(int $startRow, int $height, int $width): void
+    {
+        Terminal::moveTo($startRow, 1);
+        if (Terminal::supportsColors()) {
+            Terminal::bold();
+            Terminal::color(Terminal::COLOR_YELLOW);
+        }
+        echo 'SQL Editor:';
+        Terminal::reset();
+
+        $lines = explode("\n", $this->scratchpadQuery);
+        $numLines = count($lines);
+        
+        // Calculate scroll offset for editor
+        $editorScrollOffset = $this->scrollOffset[Layout::PANE_SCRATCHPAD];
+        if ($this->scratchpadMode === 'editor') {
+            // Auto-scroll to cursor line
+            $cursorLine = $this->scratchpadCursor['line'];
+            $visibleHeight = $height - 1;
+            if ($cursorLine < $editorScrollOffset) {
+                $editorScrollOffset = max(0, $cursorLine);
+            } elseif ($cursorLine >= $editorScrollOffset + $visibleHeight) {
+                $editorScrollOffset = max(0, $cursorLine - $visibleHeight + 1);
+            }
+            $this->scrollOffset[Layout::PANE_SCRATCHPAD] = $editorScrollOffset;
+        }
+        
+        $startLine = $editorScrollOffset;
+        $endLine = min($startLine + $height - 1, $numLines);
+        $displayLines = array_slice($lines, $startLine, $endLine - $startLine);
+
+        for ($i = 0; $i < $height - 1; $i++) {
+            Terminal::moveTo($startRow + 1 + $i, 1);
+            Terminal::clearLine();
+            $lineIndex = $startLine + $i;
+            if ($lineIndex < $numLines && isset($displayLines[$i])) {
+                $line = $displayLines[$i];
+                $displayLine = mb_substr($line, 0, $width - 1, 'UTF-8');
+                if ($this->scratchpadMode === 'editor' && $lineIndex === $this->scratchpadCursor['line']) {
+                    // Highlight current line
+                    if (Terminal::supportsColors()) {
+                        Terminal::color(Terminal::BG_BLUE);
+                        Terminal::color(Terminal::COLOR_WHITE);
+                    }
+                }
+                echo $displayLine;
+                Terminal::reset();
+            } elseif ($lineIndex >= $numLines && $i === 0 && $numLines > 0) {
+                // Show continuation indicator if there are more lines above
+                if ($startLine > 0) {
+                    if (Terminal::supportsColors()) {
+                        Terminal::color(Terminal::COLOR_YELLOW);
+                    }
+                    echo '... (more lines above)';
+                    Terminal::reset();
+                }
+            }
+        }
+    }
+
+    /**
+     * Render query results.
+     *
+     * @param int $startRow Start row
+     * @param int $height Height
+     * @param int $width Width
+     */
+    protected function renderScratchpadResults(int $startRow, int $height, int $width): void
+    {
+        Terminal::moveTo($startRow, 1);
+        if (Terminal::supportsColors()) {
+            Terminal::bold();
+            Terminal::color(Terminal::COLOR_YELLOW);
+        }
+        echo 'Results:';
+        Terminal::reset();
+
+        if ($this->scratchpadLastError !== null) {
+            Terminal::moveTo($startRow + 1, 1);
+            if (Terminal::supportsColors()) {
+                Terminal::color(Terminal::COLOR_RED);
+                Terminal::bold();
+            }
+            echo 'Error: ' . mb_substr($this->scratchpadLastError, 0, $width - 8, 'UTF-8');
+            Terminal::reset();
+            return;
+        }
+
+        if ($this->scratchpadLastResult === null) {
+            Terminal::moveTo($startRow + 1, 1);
+            echo 'No query executed yet. Press F5 or Enter to execute.';
+            return;
+        }
+
+        if (empty($this->scratchpadLastResult)) {
+            Terminal::moveTo($startRow + 1, 1);
+            echo 'Query returned no results.';
+            return;
+        }
+
+        // Display results in table format
+        $scrollOffset = $this->scrollOffset[Layout::PANE_SCRATCHPAD];
+        $visibleRows = $height - 2; // Reserve space for header and footer
+        $displayRows = array_slice($this->scratchpadLastResult, $scrollOffset, $visibleRows);
+
+        if (empty($displayRows)) {
+            return;
+        }
+
+        // Get column names
+        $columns = array_keys($displayRows[0]);
+        $numColumns = count($columns);
+
+        // Calculate column widths
+        $colWidths = [];
+        foreach ($columns as $col) {
+            $colName = is_string($col) ? $col : (string)$col;
+            $colWidths[$col] = mb_strlen($colName, 'UTF-8');
+        }
+        foreach ($displayRows as $row) {
+            foreach ($columns as $col) {
+                $cellValue = $row[$col] ?? null;
+                if (is_array($cellValue)) {
+                    $jsonResult = json_encode($cellValue);
+                    $valueStr = $jsonResult !== false ? $jsonResult : '[array]';
+                } elseif (is_object($cellValue)) {
+                    try {
+                        if (method_exists($cellValue, '__toString')) {
+                            $valueStr = (string)$cellValue;
+                        } else {
+                            $valueStr = get_class($cellValue);
+                        }
+                    } catch (\Throwable $e) {
+                        $valueStr = get_class($cellValue);
+                    }
+                } elseif (is_bool($cellValue)) {
+                    $valueStr = $cellValue ? '1' : '0';
+                } elseif ($cellValue === null) {
+                    $valueStr = 'NULL';
+                } else {
+                    $valueStr = (string)$cellValue;
+                }
+                $len = mb_strlen($valueStr, 'UTF-8');
+                if ($len > $colWidths[$col]) {
+                    $colWidths[$col] = min($len, 30); // Max 30 chars per column
+                }
+            }
+        }
+
+        // Adjust column widths to fit screen
+        $totalWidth = array_sum($colWidths) + ($numColumns - 1) * 3; // 3 for separators
+        if ($totalWidth > $width - 2) {
+            $scale = ($width - 2) / $totalWidth;
+            foreach ($colWidths as $col => $w) {
+                $colWidths[$col] = max(5, (int)floor($w * $scale));
+            }
+        }
+
+        // Render header
+        $headerRow = $startRow + 1;
+        Terminal::moveTo($headerRow, 1);
+        if (Terminal::supportsColors()) {
+            Terminal::bold();
+            Terminal::color(Terminal::COLOR_CYAN);
+        }
+        $headerParts = [];
+        foreach ($columns as $col) {
+            $colName = is_string($col) ? $col : (string)$col;
+            $headerParts[] = str_pad(mb_substr($colName, 0, $colWidths[$col], 'UTF-8'), $colWidths[$col], ' ', STR_PAD_RIGHT);
+        }
+        echo implode(' │ ', $headerParts);
+        Terminal::reset();
+
+        // Render separator
+        Terminal::moveTo($headerRow + 1, 1);
+        echo str_repeat('─', min($width - 2, $totalWidth));
+
+        // Render data rows
+        $dataStartRow = $headerRow + 2;
+        for ($i = 0; $i < count($displayRows) && $i < $visibleRows - 3; $i++) {
+            $row = $displayRows[$i];
+            Terminal::moveTo($dataStartRow + $i, 1);
+            $rowParts = [];
+            foreach ($columns as $col) {
+                $cellValue = $row[$col] ?? null;
+                if (is_array($cellValue)) {
+                    $jsonResult = json_encode($cellValue);
+                    $valueStr = $jsonResult !== false ? $jsonResult : '[array]';
+                } elseif (is_object($cellValue)) {
+                    try {
+                        if (method_exists($cellValue, '__toString')) {
+                            $valueStr = (string)$cellValue;
+                        } else {
+                            $valueStr = get_class($cellValue);
+                        }
+                    } catch (\Throwable $e) {
+                        $valueStr = get_class($cellValue);
+                    }
+                } elseif (is_bool($cellValue)) {
+                    $valueStr = $cellValue ? '1' : '0';
+                } elseif ($cellValue === null) {
+                    $valueStr = 'NULL';
+                } else {
+                    $valueStr = (string)$cellValue;
+                }
+                $displayValue = mb_substr($valueStr, 0, $colWidths[$col], 'UTF-8');
+                if (mb_strlen($valueStr, 'UTF-8') > $colWidths[$col]) {
+                    $displayValue = mb_substr($displayValue, 0, $colWidths[$col] - 3, 'UTF-8') . '...';
+                }
+                $rowParts[] = str_pad($displayValue, $colWidths[$col], ' ', STR_PAD_RIGHT);
+            }
+            echo implode(' │ ', $rowParts);
+        }
+
+        // Show stats
+        $statsRow = $startRow + $height - 1;
+        Terminal::moveTo($statsRow, 1);
+        if (Terminal::supportsColors()) {
+            Terminal::color(Terminal::COLOR_YELLOW);
+        }
+        $stats = sprintf(
+            'Rows: %d | Time: %.3fs | Affected: %d',
+            count($this->scratchpadLastResult),
+            $this->scratchpadLastQueryTime,
+            $this->scratchpadAffectedRows
+        );
+        if ($scrollOffset > 0 || count($this->scratchpadLastResult) > $visibleRows) {
+            $stats .= sprintf(' | Scroll: %d-%d/%d', $scrollOffset + 1, min($scrollOffset + $visibleRows, count($this->scratchpadLastResult)), count($this->scratchpadLastResult));
+        }
+        echo mb_substr($stats, 0, $width - 1, 'UTF-8');
+        Terminal::reset();
+    }
+
+    /**
+     * Render scratchpad footer.
+     *
+     * @param int $rows Terminal rows
+     * @param int $cols Terminal columns
+     */
+    protected function renderScratchpadFooter(int $rows, int $cols): void
+    {
+        Terminal::moveTo($rows, 1);
+        Terminal::clearLine();
+
+        if (Terminal::supportsColors()) {
+            Terminal::color(Terminal::BG_BLUE);
+            Terminal::color(Terminal::COLOR_WHITE);
+        }
+
+        if ($this->scratchpadMode === 'editor') {
+            $help = 'F5:Execute | ↑↓:History | Tab:Results | F2:TX | F3:Save | F4:Export | Esc:Exit';
+        } else {
+            $help = '↑↓:Scroll | PgUp/PgDn:Page | Tab:Editor | F4:Export | Esc:Exit';
+        }
+
+        // Truncate if too long
+        if (mb_strlen($help, 'UTF-8') > $cols) {
+            $help = mb_substr($help, 0, $cols, 'UTF-8');
+        }
+
+        echo $help;
+        Terminal::reset();
     }
 
     /**
@@ -2797,6 +3175,573 @@ class Dashboard
             echo $result;
         } else {
             echo $line;
+        }
+    }
+
+    /**
+     * Handle keyboard input for SQL Scratchpad.
+     *
+     * @param string $key Key pressed
+     *
+     * @return bool True if should exit
+     */
+    protected function handleScratchpadKey(string $key): bool
+    {
+        // Handle ESC to exit fullscreen
+        if ($key === 'esc') {
+            $this->fullscreenPane = -1;
+            return false;
+        }
+
+        // Toggle modes (use F-keys to avoid conflicts with text input)
+        if ($key === 'f2') {
+            $this->scratchpadTransactionMode = !$this->scratchpadTransactionMode;
+            return false;
+        }
+        if ($key === 'f3') {
+            $this->scratchpadSaveHistory = !$this->scratchpadSaveHistory;
+            if ($this->scratchpadSaveHistory) {
+                $this->loadScratchpadHistory();
+            }
+            return false;
+        }
+        if ($key === 'f4') {
+            $this->scratchpadExportMode = !$this->scratchpadExportMode;
+            if ($this->scratchpadExportMode && $this->scratchpadLastResult !== null) {
+                $this->exportScratchpadResults();
+            }
+            return false;
+        }
+
+        // Switch between editor and results
+        if ($key === 'tab') {
+            $this->scratchpadMode = $this->scratchpadMode === 'editor' ? 'results' : 'editor';
+            $this->scratchpadHistoryIndex = -1; // Reset history navigation
+            return false;
+        }
+
+        if ($this->scratchpadMode === 'editor') {
+            return $this->handleScratchpadEditorKey($key);
+        } else {
+            return $this->handleScratchpadResultsKey($key);
+        }
+    }
+
+    /**
+     * Handle keyboard input in SQL editor mode.
+     *
+     * @param string $key Key pressed
+     *
+     * @return bool True if should exit
+     */
+    protected function handleScratchpadEditorKey(string $key): bool
+    {
+        // Execute query (F5 or Enter when query is not empty)
+        if ($key === 'f5') {
+            $this->executeScratchpadQuery();
+            $this->scratchpadMode = 'results';
+            return false;
+        }
+
+        // Navigation in editor (up/down arrows move cursor between lines)
+        if ($key === 'up') {
+            if ($this->scratchpadCursor['line'] > 0) {
+                $this->scratchpadCursor['line']--;
+                $lines = explode("\n", $this->scratchpadQuery);
+                $currentLine = $lines[$this->scratchpadCursor['line']] ?? '';
+                $this->scratchpadCursor['col'] = min($this->scratchpadCursor['col'], mb_strlen($currentLine, 'UTF-8'));
+            }
+            $this->scratchpadHistoryIndex = -1; // Reset history navigation
+            return false;
+        }
+        if ($key === 'down') {
+            $lines = explode("\n", $this->scratchpadQuery);
+            if ($this->scratchpadCursor['line'] < count($lines) - 1) {
+                $this->scratchpadCursor['line']++;
+                $currentLine = $lines[$this->scratchpadCursor['line']] ?? '';
+                $this->scratchpadCursor['col'] = min($this->scratchpadCursor['col'], mb_strlen($currentLine, 'UTF-8'));
+            }
+            $this->scratchpadHistoryIndex = -1; // Reset history navigation
+            return false;
+        }
+        if ($key === 'left') {
+            if ($this->scratchpadCursor['col'] > 0) {
+                $this->scratchpadCursor['col']--;
+            }
+            return false;
+        }
+        if ($key === 'right') {
+            $lines = explode("\n", $this->scratchpadQuery);
+            $currentLine = $lines[$this->scratchpadCursor['line']] ?? '';
+            if ($this->scratchpadCursor['col'] < mb_strlen($currentLine, 'UTF-8')) {
+                $this->scratchpadCursor['col']++;
+            }
+            return false;
+        }
+
+        // Clear editor
+        if (($key === 'l' || $key === 'k') && $this->isCtrlPressed()) {
+            $this->scratchpadQuery = '';
+            $this->scratchpadCursor = ['line' => 0, 'col' => 0];
+            $this->scratchpadHistoryIndex = -1;
+            return false;
+        }
+
+        // Regular text input
+        if (strlen($key) === 1 && ord($key) >= 32 && ord($key) <= 126) {
+            $this->insertScratchpadChar($key);
+            $this->scratchpadHistoryIndex = -1; // Reset history navigation when typing
+            return false;
+        }
+
+        // Backspace
+        if ($key === 'backspace') {
+            $this->deleteScratchpadChar();
+            return false;
+        }
+
+        // Enter (new line)
+        if ($key === 'enter') {
+            $this->insertScratchpadChar("\n");
+            return false;
+        }
+
+        return false;
+    }
+
+    /**
+     * Handle keyboard input in results mode.
+     *
+     * @param string $key Key pressed
+     *
+     * @return bool True if should exit
+     */
+    protected function handleScratchpadResultsKey(string $key): bool
+    {
+        if ($key === 'up') {
+            if ($this->scrollOffset[Layout::PANE_SCRATCHPAD] > 0) {
+                $this->scrollOffset[Layout::PANE_SCRATCHPAD]--;
+            }
+            return false;
+        }
+        if ($key === 'down') {
+            if ($this->scratchpadLastResult !== null) {
+                $maxScroll = max(0, count($this->scratchpadLastResult) - 10);
+                if ($this->scrollOffset[Layout::PANE_SCRATCHPAD] < $maxScroll) {
+                    $this->scrollOffset[Layout::PANE_SCRATCHPAD]++;
+                }
+            }
+            return false;
+        }
+        if ($key === 'pageup') {
+            $this->handlePageUp();
+            return false;
+        }
+        if ($key === 'pagedown') {
+            $this->handlePageDown();
+            return false;
+        }
+        if ($key === 'home') {
+            $this->scrollOffset[Layout::PANE_SCRATCHPAD] = 0;
+            return false;
+        }
+        if ($key === 'end') {
+            if ($this->scratchpadLastResult !== null) {
+                $this->scrollOffset[Layout::PANE_SCRATCHPAD] = max(0, count($this->scratchpadLastResult) - 10);
+            }
+            return false;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if Ctrl key is pressed (simplified - in real TUI this is complex).
+     *
+     * @return bool
+     */
+    protected function isCtrlPressed(): bool
+    {
+        // In TUI, we can't easily detect Ctrl key without escape sequences
+        // For now, we'll use a different approach: detect special key combinations
+        // This is a placeholder - actual implementation would need InputHandler support
+        return false;
+    }
+
+    /**
+     * Insert character at cursor position in SQL editor.
+     *
+     * @param string $char Character to insert
+     */
+    protected function insertScratchpadChar(string $char): void
+    {
+        $lines = explode("\n", $this->scratchpadQuery);
+        $line = $this->scratchpadCursor['line'];
+        $col = $this->scratchpadCursor['col'];
+
+        if ($char === "\n") {
+            // Insert new line
+            $currentLine = $lines[$line] ?? '';
+            $before = mb_substr($currentLine, 0, $col, 'UTF-8');
+            $after = mb_substr($currentLine, $col, null, 'UTF-8');
+            $lines[$line] = $before;
+            array_splice($lines, $line + 1, 0, $after);
+            $this->scratchpadCursor['line']++;
+            $this->scratchpadCursor['col'] = 0;
+        } else {
+            // Insert character
+            $currentLine = $lines[$line] ?? '';
+            $before = mb_substr($currentLine, 0, $col, 'UTF-8');
+            $after = mb_substr($currentLine, $col, null, 'UTF-8');
+            $lines[$line] = $before . $char . $after;
+            $this->scratchpadCursor['col']++;
+        }
+
+        $this->scratchpadQuery = implode("\n", $lines);
+    }
+
+    /**
+     * Delete character at cursor position in SQL editor.
+     */
+    protected function deleteScratchpadChar(): void
+    {
+        if ($this->scratchpadQuery === '') {
+            return;
+        }
+
+        $lines = explode("\n", $this->scratchpadQuery);
+        $line = $this->scratchpadCursor['line'];
+        $col = $this->scratchpadCursor['col'];
+
+        if ($col > 0) {
+            // Delete character before cursor
+            $currentLine = $lines[$line] ?? '';
+            $before = mb_substr($currentLine, 0, $col - 1, 'UTF-8');
+            $after = mb_substr($currentLine, $col, null, 'UTF-8');
+            $lines[$line] = $before . $after;
+            $this->scratchpadCursor['col']--;
+        } elseif ($line > 0) {
+            // Merge with previous line
+            $prevLine = $lines[$line - 1] ?? '';
+            $currentLine = $lines[$line] ?? '';
+            $lines[$line - 1] = $prevLine . $currentLine;
+            array_splice($lines, $line, 1);
+            $this->scratchpadCursor['line']--;
+            $this->scratchpadCursor['col'] = mb_strlen($prevLine, 'UTF-8');
+        }
+
+        $this->scratchpadQuery = implode("\n", $lines);
+    }
+
+    /**
+     * Navigate query history.
+     *
+     * @param int $direction Direction (-1 for up, 1 for down)
+     */
+    protected function navigateScratchpadHistory(int $direction): void
+    {
+        if (empty($this->scratchpadHistory)) {
+            return;
+        }
+
+        if ($this->scratchpadHistoryIndex === -1) {
+            // Start navigating from current query
+            $this->scratchpadHistoryIndex = count($this->scratchpadHistory) - 1;
+        } else {
+            $this->scratchpadHistoryIndex += $direction;
+        }
+
+        if ($this->scratchpadHistoryIndex < 0) {
+            $this->scratchpadHistoryIndex = -1;
+            return; // Don't load anything, keep current query
+        }
+
+        if ($this->scratchpadHistoryIndex >= count($this->scratchpadHistory)) {
+            $this->scratchpadHistoryIndex = count($this->scratchpadHistory) - 1;
+        }
+
+        if ($this->scratchpadHistoryIndex >= 0) {
+            $this->scratchpadQuery = $this->scratchpadHistory[$this->scratchpadHistoryIndex];
+            $lines = explode("\n", $this->scratchpadQuery);
+            $lastLine = end($lines);
+            $this->scratchpadCursor = ['line' => count($lines) - 1, 'col' => $lastLine !== false ? mb_strlen($lastLine, 'UTF-8') : 0];
+        }
+    }
+
+    /**
+     * Execute SQL query from scratchpad.
+     */
+    protected function executeScratchpadQuery(): void
+    {
+        $query = $this->scratchpadQuery;
+        // Remove trailing whitespace but keep structure
+        $query = rtrim($query);
+        if ($query === '') {
+            return;
+        }
+        
+        // Split query by semicolons (but be careful with semicolons in strings/comments)
+        // For now, simple approach: split by semicolon and execute each non-empty statement
+        $statements = $this->splitSqlStatements($query);
+        
+        // If multiple statements, execute them all (or just the first one for SELECT)
+        if (count($statements) > 1) {
+            // Execute all statements, but only show results from the last SELECT
+            $lastResult = null;
+            $lastError = null;
+            $totalAffected = 0;
+            
+            foreach ($statements as $stmt) {
+                $stmt = trim($stmt);
+                if ($stmt === '') {
+                    continue;
+                }
+                
+                try {
+                    $result = $this->db->rawQuery($stmt);
+                    if (!empty($result) && isset($result[0]) && is_array($result[0])) {
+                        $lastResult = $result;
+                        $totalAffected = count($result);
+                    } else {
+                        // DML/DDL - try to get affected rows
+                        $totalAffected = 0; // Can't easily get this from rawQuery
+                    }
+                } catch (\Throwable $e) {
+                    $lastError = $e->getMessage();
+                    // Continue with next statement or stop?
+                    // For now, stop on first error
+                    break;
+                }
+            }
+            
+            if ($lastError !== null) {
+                $this->scratchpadLastError = $lastError;
+                $this->scratchpadLastResult = null;
+            } else {
+                $this->scratchpadLastResult = $lastResult;
+                $this->scratchpadAffectedRows = $totalAffected;
+            }
+            
+            // Add to history
+            if (!in_array($query, $this->scratchpadHistory, true)) {
+                $this->scratchpadHistory[] = $query;
+                if (count($this->scratchpadHistory) > 50) {
+                    array_shift($this->scratchpadHistory);
+                }
+            }
+            
+            if ($this->scratchpadSaveHistory) {
+                $this->saveScratchpadHistory();
+            }
+            
+            return;
+        }
+        
+        // Single statement - execute normally
+
+        // Add to history
+        if (!in_array($query, $this->scratchpadHistory, true)) {
+            $this->scratchpadHistory[] = $query;
+            // Keep only last 50 queries
+            if (count($this->scratchpadHistory) > 50) {
+                array_shift($this->scratchpadHistory);
+            }
+        }
+
+        // Save history if enabled
+        if ($this->scratchpadSaveHistory) {
+            $this->saveScratchpadHistory();
+        }
+
+        $this->scratchpadLastError = null;
+        $this->scratchpadLastResult = null;
+        $this->scratchpadAffectedRows = 0;
+        $this->scrollOffset[Layout::PANE_SCRATCHPAD] = 0;
+
+        $startTime = microtime(true);
+
+        try {
+            // Check if transaction mode
+            if ($this->scratchpadTransactionMode && !$this->db->connection->inTransaction()) {
+                $this->db->startTransaction();
+            }
+
+            // Execute query
+            $result = $this->db->rawQuery($query);
+
+            // Check if it's a SELECT query (returns array of rows)
+            if (!empty($result) && isset($result[0]) && is_array($result[0])) {
+                $this->scratchpadLastResult = $result;
+                $this->scratchpadAffectedRows = count($result);
+            } else {
+                // DML/DDL query - rawQuery returns empty array for non-SELECT
+                // For affected rows, we need to check the statement
+                // Since rawQuery doesn't expose statement, we'll use 0 as default
+                // User can see actual affected rows in the query result message
+                $this->scratchpadAffectedRows = 0;
+                $this->scratchpadLastResult = [];
+            }
+
+            // Commit if in transaction mode
+            if ($this->scratchpadTransactionMode && $this->db->connection->inTransaction()) {
+                $this->db->commit();
+            }
+
+            $this->scratchpadLastQueryTime = microtime(true) - $startTime;
+        } catch (\Throwable $e) {
+            $this->scratchpadLastError = $e->getMessage();
+            $this->scratchpadLastQueryTime = microtime(true) - $startTime;
+            
+            // If error contains "multiple statements" or similar, suggest splitting
+            if (stripos($e->getMessage(), 'multiple statements') !== false || 
+                stripos($e->getMessage(), 'syntax error') !== false) {
+                // Check if query has multiple semicolons
+                $semicolonCount = substr_count($query, ';');
+                if ($semicolonCount > 1) {
+                    $this->scratchpadLastError .= ' (Hint: Multiple statements detected. Each statement should be executed separately or use transaction mode)';
+                }
+            }
+
+            // Rollback if in transaction
+            if ($this->scratchpadTransactionMode && $this->db->connection->inTransaction()) {
+                try {
+                    $this->db->rollback();
+                } catch (\Throwable $rollbackError) {
+                    // Ignore rollback errors
+                }
+            }
+        }
+    }
+
+    /**
+     * Load scratchpad history from file.
+     */
+    protected function loadScratchpadHistory(): void
+    {
+        $historyFile = $this->getScratchpadHistoryFile();
+        if (!file_exists($historyFile)) {
+            return;
+        }
+
+        $content = @file_get_contents($historyFile);
+        if ($content === false) {
+            return;
+        }
+
+        $history = json_decode($content, true);
+        if (is_array($history)) {
+            $this->scratchpadHistory = $history;
+        }
+    }
+
+    /**
+     * Save scratchpad history to file.
+     */
+    protected function saveScratchpadHistory(): void
+    {
+        $historyFile = $this->getScratchpadHistoryFile();
+        $dir = dirname($historyFile);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+
+        @file_put_contents($historyFile, json_encode($this->scratchpadHistory, JSON_PRETTY_PRINT));
+    }
+
+    /**
+     * Split SQL query into individual statements.
+     *
+     * @param string $query SQL query (may contain multiple statements)
+     *
+     * @return array<int, string> Array of SQL statements
+     */
+    protected function splitSqlStatements(string $query): array
+    {
+        // Simple splitting by semicolon (doesn't handle semicolons in strings/comments perfectly)
+        // For now, this is a basic implementation
+        $statements = [];
+        $current = '';
+        $inString = false;
+        $stringChar = null;
+        $len = strlen($query);
+        
+        for ($i = 0; $i < $len; $i++) {
+            $char = $query[$i];
+            $nextChar = $i + 1 < $len ? $query[$i + 1] : '';
+            
+            // Handle strings
+            if (!$inString && ($char === '"' || $char === "'")) {
+                $inString = true;
+                $stringChar = $char;
+                $current .= $char;
+            } elseif ($inString && $char === $stringChar && ($i === 0 || $query[$i - 1] !== '\\')) {
+                $inString = false;
+                $stringChar = null;
+                $current .= $char;
+            } elseif ($char === ';' && !$inString) {
+                // End of statement
+                $stmt = trim($current);
+                if ($stmt !== '') {
+                    $statements[] = $stmt;
+                }
+                $current = '';
+            } else {
+                $current .= $char;
+            }
+        }
+        
+        // Add remaining statement
+        $stmt = trim($current);
+        if ($stmt !== '') {
+            $statements[] = $stmt;
+        }
+        
+        return $statements;
+    }
+
+    /**
+     * Get scratchpad history file path.
+     *
+     * @return string
+     */
+    protected function getScratchpadHistoryFile(): string
+    {
+        $home = getenv('HOME') ?: (getenv('USERPROFILE') ?: sys_get_temp_dir());
+        return $home . '/.pdodb_scratchpad_history.json';
+    }
+
+    /**
+     * Export scratchpad results to CSV or JSON.
+     */
+    protected function exportScratchpadResults(): void
+    {
+        if ($this->scratchpadLastResult === null || empty($this->scratchpadLastResult)) {
+            return;
+        }
+
+        $exportDir = sys_get_temp_dir() . '/pdodb_exports';
+        if (!is_dir($exportDir)) {
+            @mkdir($exportDir, 0755, true);
+        }
+
+        $timestamp = date('Y-m-d_H-i-s');
+        $csvFile = $exportDir . '/scratchpad_' . $timestamp . '.csv';
+        $jsonFile = $exportDir . '/scratchpad_' . $timestamp . '.json';
+
+        try {
+            // Export to CSV
+            $csvExporter = new \tommyknocker\pdodb\helpers\exporters\CsvExporter();
+            $csvContent = $csvExporter->export($this->scratchpadLastResult, ',', '"', '\\');
+            @file_put_contents($csvFile, $csvContent);
+
+            // Export to JSON
+            $jsonExporter = new \tommyknocker\pdodb\helpers\exporters\JsonExporter();
+            $jsonContent = $jsonExporter->export($this->scratchpadLastResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE, 512);
+            @file_put_contents($jsonFile, $jsonContent);
+
+            $this->showMessage("Results exported to:\nCSV: {$csvFile}\nJSON: {$jsonFile}", Terminal::COLOR_GREEN);
+        } catch (\Throwable $e) {
+            $this->showMessage('Export failed: ' . $e->getMessage(), Terminal::COLOR_RED);
         }
     }
 }
