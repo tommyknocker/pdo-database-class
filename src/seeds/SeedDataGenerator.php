@@ -33,6 +33,7 @@ class SeedDataGenerator
      *
      * @param string $tableName Table name
      * @param array<string, mixed> $options Generation options
+     *
      * @return array{content: string, rowCount: int, warnings: array<string>}
      */
     public function generate(string $tableName, array $options = []): array
@@ -40,31 +41,22 @@ class SeedDataGenerator
         $limit = null;
         if (isset($options['limit'])) {
             $limitVal = $options['limit'];
-            if ($limitVal !== null && is_numeric($limitVal)) {
+            if (is_numeric($limitVal)) {
                 $limit = (int)$limitVal;
             }
         }
         $where = null;
-        if (isset($options['where'])) {
-            $whereVal = $options['where'];
-            if ($whereVal !== null && is_string($whereVal)) {
-                $where = $whereVal;
-            }
+        if (isset($options['where']) && is_string($options['where'])) {
+            $where = $options['where'];
         }
         $orderBy = null;
-        if (isset($options['order_by'])) {
-            $orderByVal = $options['order_by'];
-            if ($orderByVal !== null && is_string($orderByVal)) {
-                $orderBy = $orderByVal;
-            }
+        if (isset($options['order_by']) && is_string($options['order_by'])) {
+            $orderBy = $options['order_by'];
         }
-        $excludeColumns = isset($options['exclude']) && $options['exclude'] !== null ? $options['exclude'] : [];
+        $excludeColumns = isset($options['exclude']) ? $options['exclude'] : [];
         $includeColumns = null;
         if (isset($options['include'])) {
-            $includeVal = $options['include'];
-            if ($includeVal !== null) {
-                $includeColumns = $includeVal;
-            }
+            $includeColumns = $options['include'];
         }
         $chunkSize = 1000;
         if (isset($options['chunk_size'])) {
@@ -99,7 +91,7 @@ class SeedDataGenerator
         }
 
         if (empty($columnNames)) {
-            throw new QueryException("No columns to export after filtering");
+            throw new QueryException('No columns to export after filtering');
         }
 
         // Get primary key or unique indexes for rollback
@@ -119,7 +111,8 @@ class SeedDataGenerator
                 if ($operator === '=') {
                     $query->where($column, $value);
                 } else {
-                    $query->where($column, new \tommyknocker\pdodb\helpers\values\RawValue("{$operator} " . $this->db->connection->getDialect()->quoteValue($value)));
+                    $quotedValue = $this->db->connection->quote($value);
+                    $query->where($column, new \tommyknocker\pdodb\helpers\values\RawValue("{$operator} {$quotedValue}"));
                 }
             } else {
                 // Use raw WHERE
@@ -128,7 +121,7 @@ class SeedDataGenerator
         }
 
         if ($orderBy !== null) {
-            $orderByColumns = is_array($orderBy) ? $orderBy : explode(',', $orderBy);
+            $orderByColumns = explode(',', $orderBy);
             foreach ($orderByColumns as $col) {
                 $col = trim($col);
                 if (preg_match('/^(\w+)\s+(ASC|DESC)$/i', $col, $matches)) {
@@ -211,6 +204,7 @@ class SeedDataGenerator
      * Get primary key columns for a table.
      *
      * @param string $tableName Table name
+     *
      * @return array<string>|null Primary key columns or null if no primary key
      */
     protected function getPrimaryKey(string $tableName): ?array
@@ -242,11 +236,13 @@ class SeedDataGenerator
      * Get unique indexes for a table.
      *
      * @param string $tableName Table name
+     *
      * @return array<array<string>> Array of unique index column arrays
      */
     protected function getUniqueIndexes(string $tableName): array
     {
         $uniqueIndexes = [];
+
         try {
             $indexes = $this->db->schema()->getIndexes($tableName);
             foreach ($indexes as $index) {
@@ -274,6 +270,7 @@ class SeedDataGenerator
      * Generate class name from table name.
      *
      * @param string $tableName Table name
+     *
      * @return string Class name
      */
     protected function generateClassName(string $tableName): string
@@ -300,6 +297,7 @@ class SeedDataGenerator
      * @param int $chunkSize Chunk size for insertMulti
      * @param bool $preserveIds Whether to preserve IDs
      * @param string $format Code format (pretty/compact)
+     *
      * @return string Generated PHP code
      */
     protected function generateSeedContent(
@@ -367,6 +365,7 @@ PHP;
      * @param bool $preserveIds Whether to preserve IDs
      * @param string $indent Indentation string
      * @param string $newline Newline string for formatting
+     *
      * @return string Generated code
      */
     protected function generateDataArray(
@@ -387,7 +386,7 @@ PHP;
 
         foreach ($chunks as $chunkIndex => $chunk) {
             if (count($chunks) > 1) {
-                $code .= $indent . "// Chunk " . ($chunkIndex + 1) . " of " . count($chunks) . $newline;
+                $code .= $indent . '// Chunk ' . ($chunkIndex + 1) . ' of ' . count($chunks) . $newline;
             }
 
             $code .= $indent . '$data = [' . $newline;
@@ -420,6 +419,7 @@ PHP;
      * @param array<string> $allColumns All column names
      * @param string $indent Indentation string
      * @param string $newline Newline string
+     *
      * @return string Generated code
      */
     protected function generateRollbackCode(
@@ -474,6 +474,7 @@ PHP;
      *
      * @param mixed $value Value to format
      * @param bool $preserveIds Whether to preserve IDs
+     *
      * @return string Formatted PHP code
      */
     protected function formatValue($value, bool $preserveIds): string
@@ -524,6 +525,7 @@ PHP;
      * Escape string for PHP code.
      *
      * @param string $str String to escape
+     *
      * @return string Escaped string
      */
     protected function escapeString(string $str): string
@@ -534,6 +536,4 @@ PHP;
             $str
         );
     }
-
 }
-

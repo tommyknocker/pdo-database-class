@@ -251,7 +251,7 @@ class SeedCommandCliTests extends BaseSharedTestCase
         $output = (string)shell_exec($cmd);
         $exitCode = $output !== '' ? 1 : 0; // If output contains error, exit code is 1
 
-        $this->assertStringContainsString("does not exist", $output);
+        $this->assertStringContainsString('does not exist', $output);
     }
 
     /**

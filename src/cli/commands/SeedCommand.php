@@ -249,7 +249,6 @@ class SeedCommand extends Command
                 $seedNameStr = (string)$seedName;
                 if (!in_array($seedNameStr, $executedSeeds, true)) {
                     $this->showError("Seed '{$seedNameStr}' has not been executed.");
-                    return 1;
                 }
 
                 if (!$force && !$dryRun && !$pretend) {
@@ -323,7 +322,6 @@ class SeedCommand extends Command
         $tableName = $this->getArgument(1);
 
         if ($tableName === null || $tableName === '' || !is_string($tableName)) {
-            $this->showError('Table name is required');
             echo "Usage: pdodb seed generate <table_name> [options]\n";
             echo "Options:\n";
             echo "  --limit=N              Limit number of rows to export\n";
@@ -335,7 +333,7 @@ class SeedCommand extends Command
             echo "  --preserve-ids          Preserve IDs in generated seed (default: true)\n";
             echo "  --skip-timestamps       Skip timestamp columns (created_at, updated_at)\n";
             echo "  --format=pretty|compact Code format (default: pretty)\n";
-            return 1;
+            $this->showError('Table name is required');
         }
 
         $tableNameStr = (string)$tableName;
@@ -369,13 +367,8 @@ class SeedCommand extends Command
 
             // Check if table exists
             $db = $this->getDb();
-            if ($db === null) {
-                $this->showError('Database connection not available');
-                return 1;
-            }
             if (!\tommyknocker\pdodb\cli\TableManager::tableExists($db, $tableNameStr)) {
                 $this->showError("Table '{$tableNameStr}' does not exist");
-                return 1;
             }
 
             // Check row count if no limit specified
@@ -384,7 +377,7 @@ class SeedCommand extends Command
                 try {
                     $countQuery = $db->find()->from($tableNameStr)->select('COUNT(*)');
                     $whereValue = $options['where'];
-                    if ($whereValue !== null && is_string($whereValue)) {
+                    if ($whereValue !== null) {
                         // Parse WHERE condition same way as SeedDataGenerator
                         if (preg_match('/^(\w+)\s*([=<>!]+)\s*(.+)$/', $whereValue, $matches)) {
                             $column = trim($matches[1]);
@@ -393,7 +386,8 @@ class SeedCommand extends Command
                             if ($operator === '=') {
                                 $countQuery->where($column, $value);
                             } else {
-                                $countQuery->where($column, new \tommyknocker\pdodb\helpers\values\RawValue("{$operator} " . $db->connection->getDialect()->quoteValue($value)));
+                                $quotedValue = $db->connection->quote($value);
+                                $countQuery->where($column, new \tommyknocker\pdodb\helpers\values\RawValue("{$operator} {$quotedValue}"));
                             }
                         } else {
                             // Use raw WHERE
@@ -455,7 +449,6 @@ class SeedCommand extends Command
             return 0;
         } catch (\Exception $e) {
             $this->showError($e->getMessage());
-            return 1;
         }
     }
 

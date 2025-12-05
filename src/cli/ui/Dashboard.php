@@ -358,7 +358,7 @@ class Dashboard
                     $this->render();
                 }
                 flush();
-                
+
                 if ($shouldExit) {
                     break; // Exit requested
                 }
@@ -2507,21 +2507,21 @@ class Dashboard
             $editorScrollOffset = $this->scrollOffset[Layout::PANE_SCRATCHPAD];
             $cursorLineInEditor = $this->scratchpadCursor['line'] - $editorScrollOffset;
             $cursorRow = $editorStartRow + 1 + $cursorLineInEditor;
-            
+
             // Try to render autocomplete below cursor line in editor
             $autocompleteStartRow = $cursorRow + 1;
-            
+
             // If not enough space below in editor, render in results area
             if ($autocompleteStartRow + 11 > $resultsStartRow - 1) {
                 // Render in results area instead
                 $autocompleteStartRow = $resultsStartRow + 1;
             }
-            
+
             // Make sure it fits on screen
             if ($autocompleteStartRow + 11 > $rows - 1) {
                 $autocompleteStartRow = max(1, $rows - 12);
             }
-            
+
             $this->renderAutocomplete($autocompleteStartRow, $cols);
         }
 
@@ -2548,7 +2548,7 @@ class Dashboard
 
         $lines = explode("\n", $this->scratchpadQuery);
         $numLines = count($lines);
-        
+
         // Calculate scroll offset for editor
         $editorScrollOffset = $this->scrollOffset[Layout::PANE_SCRATCHPAD];
         if ($this->scratchpadMode === 'editor') {
@@ -2562,7 +2562,7 @@ class Dashboard
             }
             $this->scrollOffset[Layout::PANE_SCRATCHPAD] = $editorScrollOffset;
         }
-        
+
         $startLine = $editorScrollOffset;
         $endLine = min($startLine + $height - 1, $numLines);
         $displayLines = array_slice($lines, $startLine, $endLine - $startLine);
@@ -3606,24 +3606,24 @@ class Dashboard
         if ($query === '') {
             return;
         }
-        
+
         // Split query by semicolons (but be careful with semicolons in strings/comments)
         // For now, simple approach: split by semicolon and execute each non-empty statement
         $statements = $this->splitSqlStatements($query);
-        
+
         // If multiple statements, execute them all (or just the first one for SELECT)
         if (count($statements) > 1) {
             // Execute all statements, but only show results from the last SELECT
             $lastResult = null;
             $lastError = null;
             $totalAffected = 0;
-            
+
             foreach ($statements as $stmt) {
                 $stmt = trim($stmt);
                 if ($stmt === '') {
                     continue;
                 }
-                
+
                 try {
                     $result = $this->db->rawQuery($stmt);
                     if (!empty($result) && isset($result[0]) && is_array($result[0])) {
@@ -3640,7 +3640,7 @@ class Dashboard
                     break;
                 }
             }
-            
+
             if ($lastError !== null) {
                 $this->scratchpadLastError = $lastError;
                 $this->scratchpadLastResult = null;
@@ -3648,7 +3648,7 @@ class Dashboard
                 $this->scratchpadLastResult = $lastResult;
                 $this->scratchpadAffectedRows = $totalAffected;
             }
-            
+
             // Add to history
             if (!in_array($query, $this->scratchpadHistory, true)) {
                 $this->scratchpadHistory[] = $query;
@@ -3656,14 +3656,14 @@ class Dashboard
                     array_shift($this->scratchpadHistory);
                 }
             }
-            
+
             if ($this->scratchpadSaveHistory) {
                 $this->saveScratchpadHistory();
             }
-            
+
             return;
         }
-        
+
         // Single statement - execute normally
 
         // Add to history
@@ -3718,9 +3718,9 @@ class Dashboard
         } catch (\Throwable $e) {
             $this->scratchpadLastError = $e->getMessage();
             $this->scratchpadLastQueryTime = microtime(true) - $startTime;
-            
+
             // If error contains "multiple statements" or similar, suggest splitting
-            if (stripos($e->getMessage(), 'multiple statements') !== false || 
+            if (stripos($e->getMessage(), 'multiple statements') !== false ||
                 stripos($e->getMessage(), 'syntax error') !== false) {
                 // Check if query has multiple semicolons
                 $semicolonCount = substr_count($query, ';');
@@ -3791,11 +3791,11 @@ class Dashboard
         $inString = false;
         $stringChar = null;
         $len = strlen($query);
-        
+
         for ($i = 0; $i < $len; $i++) {
             $char = $query[$i];
             $nextChar = $i + 1 < $len ? $query[$i + 1] : '';
-            
+
             // Handle strings
             if (!$inString && ($char === '"' || $char === "'")) {
                 $inString = true;
@@ -3816,13 +3816,13 @@ class Dashboard
                 $current .= $char;
             }
         }
-        
+
         // Add remaining statement
         $stmt = trim($current);
         if ($stmt !== '') {
             $statements[] = $stmt;
         }
-        
+
         return $statements;
     }
 
@@ -3880,14 +3880,14 @@ class Dashboard
         // Force reset autocomplete state first
         $this->scratchpadAutocompleteActive = false;
         $this->scratchpadAutocompleteOptions = [];
-        
+
         $lines = explode("\n", $this->scratchpadQuery);
         $line = $lines[$this->scratchpadCursor['line']] ?? '';
         $col = $this->scratchpadCursor['col'];
 
         // Get text before cursor on current line
         $beforeCursor = mb_substr($line, 0, $col, 'UTF-8');
-        
+
         // Extract current word/prefix being typed
         $prefix = '';
         if (preg_match('/([a-zA-Z_][a-zA-Z0-9_]*)$/', $beforeCursor, $matches)) {
@@ -3896,7 +3896,7 @@ class Dashboard
             $this->scratchpadAutocompleteActive = false;
             return;
         }
-        
+
         // Debug: always log
         file_put_contents('/tmp/pdodb_autocomplete.log', "triggerAutocomplete called with prefix: '$prefix'\n", FILE_APPEND);
 
@@ -3910,7 +3910,7 @@ class Dashboard
             'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
             'UNION', 'ALL', 'EXISTS', 'EXCEPT', 'INTERSECT',
         ];
-        
+
         $prefixLower = mb_strtolower($prefix, 'UTF-8');
         $keywordOptions = [];
         foreach ($allKeywords as $keyword) {
@@ -3927,7 +3927,7 @@ class Dashboard
         // Step 2: Get tables and columns, filter by prefix
         $tables = $this->getTablesForAutocomplete();
         $tableColumnOptions = [];
-        
+
         // Filter tables
         foreach ($tables as $table) {
             $tableLower = mb_strtolower($table, 'UTF-8');
@@ -3938,7 +3938,7 @@ class Dashboard
                 }
             }
         }
-        
+
         // Filter columns
         foreach ($tables as $table) {
             $columns = $this->getColumnsForAutocomplete($table);
@@ -3958,7 +3958,7 @@ class Dashboard
 
         // Step 3: Combine - keywords first, then tables/columns
         $options = array_merge($keywordOptions, $tableColumnOptions);
-        
+
         // Limit to 20
         if (count($options) > 20) {
             $keywordCount = count($keywordOptions);
@@ -3983,7 +3983,6 @@ class Dashboard
         }
     }
 
-
     /**
      * Filter options by prefix (case-insensitive).
      *
@@ -4001,11 +4000,11 @@ class Dashboard
         $prefixLower = mb_strtolower($prefix, 'UTF-8');
         $prefixLen = mb_strlen($prefixLower, 'UTF-8');
         $filtered = [];
-        
+
         foreach ($options as $option) {
             $optionLower = mb_strtolower($option, 'UTF-8');
             $optionLen = mb_strlen($optionLower, 'UTF-8');
-            
+
             // Match if option starts with prefix (case-insensitive)
             if ($optionLen >= $prefixLen) {
                 $optionPrefix = mb_substr($optionLower, 0, $prefixLen, 'UTF-8');
@@ -4028,6 +4027,7 @@ class Dashboard
      * @param string $after Text after cursor
      *
      * @return string Context type: 'table', 'column', 'keyword', 'table_column', 'select_keyword'
+     *
      * @deprecated Not used in simplified autocomplete
      */
     protected function getAutocompleteContext(string $before, string $after): string
@@ -4061,7 +4061,7 @@ class Dashboard
             // Otherwise suggest AS, ON, WHERE, etc.
             return 'keyword_after_table';
         }
-        
+
         // Check if we're right after FROM/JOIN with just space (no table name yet)
         if (preg_match('/\b(?:FROM|JOIN|INNER\s+JOIN|LEFT\s+JOIN|RIGHT\s+JOIN)\s+$/i', $before)) {
             return 'table';
@@ -4072,9 +4072,9 @@ class Dashboard
         if (preg_match('/\b(?:LEFT|RIGHT|INNER)\s+JOIN\s+[a-zA-Z_][a-zA-Z0-9_]*(?:\s+[a-zA-Z_][a-zA-Z0-9_]*)?\s+$/i', $before)) {
             return 'on_keyword';
         }
-        
+
         // Also check if we're after JOIN table (without LEFT/RIGHT/INNER)
-        if (preg_match('/\bJOIN\s+[a-zA-Z_][a-zA-Z0-9_]*(?:\s+[a-zA-Z_][a-zA-Z0-9_]*)?\s+$/i', $before) && 
+        if (preg_match('/\bJOIN\s+[a-zA-Z_][a-zA-Z0-9_]*(?:\s+[a-zA-Z_][a-zA-Z0-9_]*)?\s+$/i', $before) &&
             !preg_match('/\b(?:LEFT|RIGHT|INNER)\s+JOIN/i', $before)) {
             return 'on_keyword';
         }
@@ -4130,7 +4130,7 @@ class Dashboard
     protected function findTableNameFromAlias(string $alias): ?string
     {
         $query = $this->scratchpadQuery;
-        
+
         // Look for: FROM table AS alias or FROM table alias or JOIN table AS alias
         if (preg_match('/\b(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+(?:AS\s+)?' . preg_quote($alias, '/') . '\b/i', $query, $matches)) {
             return $matches[1];
@@ -4144,8 +4144,6 @@ class Dashboard
 
         return null;
     }
-
-
 
     /**
      * Get tables for autocomplete (cached).
@@ -4264,14 +4262,15 @@ class Dashboard
         }
 
         // Debug: log what we're rendering
-        file_put_contents('/tmp/pdodb_autocomplete.log', 
-            "renderAutocomplete: " . count($this->scratchpadAutocompleteOptions) . " options - " . 
+        file_put_contents(
+            '/tmp/pdodb_autocomplete.log',
+            'renderAutocomplete: ' . count($this->scratchpadAutocompleteOptions) . ' options - ' .
             implode(', ', array_slice($this->scratchpadAutocompleteOptions, 0, 10)) . "\n",
             FILE_APPEND
         );
 
         [$rows, $cols] = Terminal::getSize();
-        
+
         // Calculate available space (leave at least 1 row for footer if needed)
         $availableHeight = max(1, $rows - $startRow - 1);
         $maxHeight = min(10, $availableHeight);
@@ -4300,7 +4299,7 @@ class Dashboard
         foreach ($visibleOptions as $i => $option) {
             $actualIndex = $scrollOffset + $i;
             $row = $startRow + 1 + $i;
-            
+
             // Make sure we don't go beyond screen
             if ($row >= $rows) {
                 break;
