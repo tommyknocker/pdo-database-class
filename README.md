@@ -36,7 +36,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
 
 **Developer Experience:**
-- **🖥️ Interactive TUI Dashboard** - Real-time database monitoring with full-screen terminal interface. Monitor active queries, connection pool, cache statistics, and server metrics. Kill long-running queries, view query details, and track performance metrics in real-time. Launch with `pdodb ui`
+- **🖥️ Interactive TUI Dashboard** - Real-time database monitoring with full-screen terminal interface. 8 panes across 2 screens: Active Queries, Connection Pool, Cache Statistics, Server Metrics, Schema Browser, Migration Manager, Server Variables, and SQL Scratchpad. Features include global search filter, query inspection, performance tracking, query management, and keyboard navigation. Launch with `pdodb ui`
 - **CLI Tools** - Database management, user management, dump/restore, migration generator, seed generator, model generator, schema inspector, interactive query tester (REPL)
 - **Enhanced EXPLAIN** - Automatic detection of full table scans, missing indexes, and optimization recommendations
 - **Exception Hierarchy** - Typed exceptions for precise error handling
@@ -47,7 +47,7 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **Plugin System** - Extend PdoDb with custom plugins for macros, scopes, and event listeners
 
 **Production Ready:**
-- **Fully Tested** - 2325 tests, 7759 assertions across all dialects
+- **Fully Tested** - 3806 tests, 12180 assertions across all dialects
 - **Type-Safe** - PHPStan level 8 validated, PSR-12 compliant
 - **Zero Memory Leaks** - Production-tested memory management with automatic cursor cleanup
 - **Connection Retry** - Automatic retry with exponential backoff
@@ -650,14 +650,20 @@ vendor/bin/pdodb ui
 ```
 
 **Features:**
-- 📊 **Real-time monitoring** - Active queries, connection pool, cache stats, server metrics
-- 🔍 **Query inspection** - View full query text, execution time, user, database
-- ⚡ **Performance tracking** - Cache hit rates, connection counts, server uptime
-- 🛑 **Query management** - Kill long-running queries with a single keystroke
-- ⌨️ **Keyboard navigation** - Switch panes, scroll, fullscreen mode, refresh intervals
+- 📊 **8 Monitoring Panes** - Active Queries, Connection Pool, Cache Statistics, Server Metrics, Schema Browser, Migration Manager, Server Variables, SQL Scratchpad
+- 🔍 **Global Search** - Press `/` to filter tables and server variables in real-time (case-insensitive)
+- 📋 **Schema Browser** - Navigate database schema, view tables, columns, indexes, and foreign keys with tree navigation
+- 🔧 **Migration Manager** - View migration status, run pending migrations, rollback last migration, create new migrations
+- 📈 **Server Variables** - Browse all server configuration variables with highlighting for important performance settings
+- 💻 **SQL Scratchpad** - Interactive SQL editor with query history, autocomplete, transaction mode, and result viewing
+- 🔍 **Query inspection** - View full query text, execution time, user, database in detail view
+- ⚡ **Performance tracking** - Cache hit rates, connection counts, server uptime, query execution times
+- 🛑 **Query management** - Kill long-running queries and connections with a single keystroke
+- ⌨️ **Keyboard navigation** - Switch between 8 panes (1-8 keys), navigate screens (Tab/arrows), fullscreen mode, refresh intervals
 - 🎨 **Color-coded metrics** - Visual indicators for performance and health
+- 📱 **Dual-screen support** - Navigate between two screens (panes 1-4 and 5-8)
 
-Perfect for debugging, monitoring production databases, and understanding query patterns.
+Perfect for debugging, monitoring production databases, understanding query patterns, and managing database schema.
 
 ### Available Commands
 
@@ -909,7 +915,7 @@ $users = $db->rawQuery('SELECT * FROM users WHERE age > :age', ['age' => 18]);
 Yes! PDOdb is framework-agnostic. Works with Laravel, Symfony, Yii, or no framework at all.
 
 ### Is it production-ready?
-Yes! 2325+ tests, PHPStan level 8, used in production environments.
+Yes! 3806+ tests, 12180+ assertions, PHPStan level 8, used in production environments.
 
 ### What about security?
 All queries use **prepared statements** automatically. SQL injection protection is built-in.
