@@ -101,6 +101,16 @@ final class ActiveRecordEdgeCasesTests extends BaseSharedTestCase
         $connection->setEventDispatcher(null);
     }
 
+    protected function tearDown(): void
+    {
+        // Always clear event dispatcher after each test to prevent state leakage
+        $queryBuilder = self::$db->find();
+        $connection = $queryBuilder->getConnection();
+        $connection->setEventDispatcher(null);
+
+        parent::tearDown();
+    }
+
     // ==================== ActiveRecord Edge Cases ====================
 
     public function testNullValuesInAttributes(): void
