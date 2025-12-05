@@ -94,6 +94,167 @@ class SeedCommandCliTests extends BaseSharedTestCase
     }
 
     /**
+     * Test seed generate command via Application.
+     */
+    public function testSeedGenerateCommandViaApplication(): void
+    {
+        // Create test table in CLI database
+        $this->createTestTableInCliDb();
+
+        // Insert test data using CLI database
+        $pdo = new \PDO("sqlite:{$this->testDbPath}");
+        $pdo->exec("INSERT INTO test_users (name, email) VALUES ('John Doe', 'john@example.com')");
+        $pdo->exec("INSERT INTO test_users (name, email) VALUES ('Jane Smith', 'jane@example.com')");
+
+        // Run generate command
+        ob_start();
+        $app = new Application();
+        $exitCode = $app->run(['pdodb', 'seed', 'generate', 'test_users', '--limit=2', '--force']);
+        $output = ob_get_clean();
+
+        $this->assertEquals(0, $exitCode, "Seed generate command should succeed. Output: {$output}");
+
+        // Check that seed file was created
+        $files = glob($this->testSeedPath . '/s*_test_users.php');
+        $this->assertNotEmpty($files, 'Seed file should be created');
+        $this->assertCount(1, $files, 'Only one seed file should be created');
+
+        // Check file content
+        $seedFile = $files[0];
+        $content = file_get_contents($seedFile);
+        $this->assertStringContainsString('class UsersSeed extends Seed', $content);
+        $this->assertStringContainsString('public function run(): void', $content);
+        $this->assertStringContainsString('public function rollback(): void', $content);
+        $this->assertStringContainsString("'name' => 'John Doe'", $content);
+        $this->assertStringContainsString("'email' => 'john@example.com'", $content);
+        $this->assertStringContainsString("'name' => 'Jane Smith'", $content);
+        $this->assertStringContainsString("'email' => 'jane@example.com'", $content);
+        $this->assertStringContainsString("insertMulti('test_users'", $content);
+    }
+
+    /**
+     * Test seed generate command with limit option.
+     */
+    public function testSeedGenerateCommandWithLimit(): void
+    {
+        // Create test table in CLI database
+        $this->createTestTableInCliDb();
+
+        // Insert 5 rows using CLI database
+        $pdo = new \PDO("sqlite:{$this->testDbPath}");
+        for ($i = 1; $i <= 5; $i++) {
+            $pdo->exec("INSERT INTO test_users (name, email) VALUES ('User {$i}', 'user{$i}@example.com')");
+        }
+
+        // Run generate command with limit
+        ob_start();
+        $app = new Application();
+        $exitCode = $app->run(['pdodb', 'seed', 'generate', 'test_users', '--limit=3', '--force']);
+        $output = ob_get_clean();
+
+        $this->assertEquals(0, $exitCode, "Seed generate command should succeed. Output: {$output}");
+
+        // Check that seed file was created
+        $files = glob($this->testSeedPath . '/s*_test_users.php');
+        $this->assertNotEmpty($files);
+
+        // Check file content - should contain only 3 rows
+        $seedFile = $files[0];
+        $content = file_get_contents($seedFile);
+        $this->assertStringContainsString("'name' => 'User 1'", $content);
+        $this->assertStringContainsString("'name' => 'User 2'", $content);
+        $this->assertStringContainsString("'name' => 'User 3'", $content);
+        $this->assertStringNotContainsString("'name' => 'User 4'", $content);
+        $this->assertStringNotContainsString("'name' => 'User 5'", $content);
+    }
+
+    /**
+     * Test seed generate command with where option.
+     */
+    public function testSeedGenerateCommandWithWhere(): void
+    {
+        // Create test table in CLI database with status column
+        $pdo = new \PDO("sqlite:{$this->testDbPath}");
+        $pdo->exec('CREATE TABLE IF NOT EXISTS test_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            status TEXT
+        )');
+
+        // Insert test data
+        $pdo->exec("INSERT INTO test_users (name, email, status) VALUES ('Active User', 'active@example.com', 'active')");
+        $pdo->exec("INSERT INTO test_users (name, email, status) VALUES ('Inactive User', 'inactive@example.com', 'inactive')");
+
+        // Run generate command with where (using simple condition)
+        ob_start();
+        $app = new Application();
+        // Use simple WHERE condition: status=active
+        $exitCode = $app->run(['pdodb', 'seed', 'generate', 'test_users', '--where=status=active', '--force']);
+        $output = ob_get_clean();
+
+        $this->assertEquals(0, $exitCode, "Seed generate command should succeed. Output: {$output}");
+
+        // Check file content - should contain only active user
+        $files = glob($this->testSeedPath . '/s*_test_users.php');
+        $this->assertNotEmpty($files);
+        $seedFile = $files[0];
+        $content = file_get_contents($seedFile);
+        $this->assertStringContainsString("'name' => 'Active User'", $content);
+        $this->assertStringNotContainsString("'name' => 'Inactive User'", $content);
+    }
+
+    /**
+     * Test seed generate command with exclude option.
+     */
+    public function testSeedGenerateCommandWithExclude(): void
+    {
+        // Create test table in CLI database with password column
+        $pdo = new \PDO("sqlite:{$this->testDbPath}");
+        $pdo->exec('CREATE TABLE IF NOT EXISTS test_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            password TEXT
+        )');
+
+        // Insert test data
+        $pdo->exec("INSERT INTO test_users (name, email, password) VALUES ('Test User', 'test@example.com', 'secret')");
+
+        // Run generate command with exclude
+        ob_start();
+        $app = new Application();
+        $exitCode = $app->run(['pdodb', 'seed', 'generate', 'test_users', '--exclude=password', '--force']);
+        $output = ob_get_clean();
+
+        $this->assertEquals(0, $exitCode, "Seed generate command should succeed. Output: {$output}");
+
+        // Check file content - should not contain password
+        $files = glob($this->testSeedPath . '/s*_test_users.php');
+        $this->assertNotEmpty($files);
+        $seedFile = $files[0];
+        $content = file_get_contents($seedFile);
+        $this->assertStringContainsString("'name' => 'Test User'", $content);
+        $this->assertStringContainsString("'email' => 'test@example.com'", $content);
+        $this->assertStringNotContainsString("'password'", $content);
+    }
+
+    /**
+     * Test seed generate command with non-existent table.
+     */
+    public function testSeedGenerateCommandWithNonExistentTable(): void
+    {
+        // Run in separate process to handle exit()
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($this->testDbPath) . ' PDODB_SEED_PATH=' . escapeshellarg($this->testSeedPath) . ' PDODB_NON_INTERACTIVE=1 PHPUNIT=1';
+        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' seed generate non_existent_table --force 2>&1';
+        $output = (string)shell_exec($cmd);
+        $exitCode = $output !== '' ? 1 : 0; // If output contains error, exit code is 1
+
+        $this->assertStringContainsString("does not exist", $output);
+    }
+
+    /**
      * Test seed create command via Application.
      */
     public function testSeedCreateCommandViaApplication(): void
@@ -235,6 +396,7 @@ class SeedCommandCliTests extends BaseSharedTestCase
         $this->assertStringContainsString('run [<name>]', $output);
         $this->assertStringContainsString('list', $output);
         $this->assertStringContainsString('rollback [<name>]', $output);
+        $this->assertStringContainsString('generate <table>', $output);
     }
 
     /**
