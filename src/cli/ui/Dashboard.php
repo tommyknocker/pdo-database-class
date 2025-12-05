@@ -138,6 +138,48 @@ class Dashboard
     protected int $scratchpadHistoryIndex = -1;
 
     /**
+     * Autocomplete active state.
+     *
+     * @var bool
+     */
+    protected bool $scratchpadAutocompleteActive = false;
+
+    /**
+     * Autocomplete options list.
+     *
+     * @var array<int, string>
+     */
+    protected array $scratchpadAutocompleteOptions = [];
+
+    /**
+     * Autocomplete selected index.
+     *
+     * @var int
+     */
+    protected int $scratchpadAutocompleteIndex = 0;
+
+    /**
+     * Autocomplete prefix (text to match).
+     *
+     * @var string
+     */
+    protected string $scratchpadAutocompletePrefix = '';
+
+    /**
+     * Cached table list for autocomplete.
+     *
+     * @var array<int, string>|null
+     */
+    protected ?array $scratchpadTableCache = null;
+
+    /**
+     * Cached columns for tables (table => columns).
+     *
+     * @var array<string, array<int, string>>
+     */
+    protected array $scratchpadColumnCache = [];
+
+    /**
      * Scratchpad mode: 'editor' or 'results'.
      *
      * @var string
@@ -296,11 +338,28 @@ class Dashboard
                 $this->render();
             }
 
+            // Flush output to ensure immediate display
+            if (ob_get_level() > 0) {
+                ob_flush();
+            }
+            flush();
+
             // Handle input (non-blocking)
             $key = InputHandler::readKey(100000); // 0.1 seconds
 
             if ($key !== null) {
-                if ($this->handleKey($key)) {
+                $shouldExit = $this->handleKey($key);
+                // Re-render immediately after key handling (for immediate updates like query execution)
+                if ($this->detailViewPane >= 0) {
+                    $this->renderDetailView();
+                } elseif ($this->fullscreenPane >= 0) {
+                    $this->renderFullscreen();
+                } else {
+                    $this->render();
+                }
+                flush();
+                
+                if ($shouldExit) {
                     break; // Exit requested
                 }
             }
@@ -2442,6 +2501,30 @@ class Dashboard
         // Render results
         $this->renderScratchpadResults($resultsStartRow, $resultsHeight, $cols);
 
+        // Render autocomplete overlay if active (after everything else, so it's on top)
+        if ($this->scratchpadAutocompleteActive && !empty($this->scratchpadAutocompleteOptions)) {
+            // Calculate cursor position in editor
+            $editorScrollOffset = $this->scrollOffset[Layout::PANE_SCRATCHPAD];
+            $cursorLineInEditor = $this->scratchpadCursor['line'] - $editorScrollOffset;
+            $cursorRow = $editorStartRow + 1 + $cursorLineInEditor;
+            
+            // Try to render autocomplete below cursor line in editor
+            $autocompleteStartRow = $cursorRow + 1;
+            
+            // If not enough space below in editor, render in results area
+            if ($autocompleteStartRow + 11 > $resultsStartRow - 1) {
+                // Render in results area instead
+                $autocompleteStartRow = $resultsStartRow + 1;
+            }
+            
+            // Make sure it fits on screen
+            if ($autocompleteStartRow + 11 > $rows - 1) {
+                $autocompleteStartRow = max(1, $rows - 12);
+            }
+            
+            $this->renderAutocomplete($autocompleteStartRow, $cols);
+        }
+
         // Render footer
         $this->renderScratchpadFooter($rows, $cols);
     }
@@ -2511,6 +2594,8 @@ class Dashboard
                 }
             }
         }
+
+        // Autocomplete is now rendered in renderScratchpadFullscreen() after results
     }
 
     /**
@@ -3213,10 +3298,16 @@ class Dashboard
             return false;
         }
 
-        // Switch between editor and results
+        // Switch between editor and results (only if autocomplete is not active)
         if ($key === 'tab') {
+            if ($this->scratchpadMode === 'editor' && $this->scratchpadAutocompleteActive) {
+                // In autocomplete mode, Tab selects current option
+                $this->selectAutocompleteOption();
+                return false;
+            }
             $this->scratchpadMode = $this->scratchpadMode === 'editor' ? 'results' : 'editor';
             $this->scratchpadHistoryIndex = -1; // Reset history navigation
+            $this->scratchpadAutocompleteActive = false; // Close autocomplete when switching modes
             return false;
         }
 
@@ -3236,16 +3327,46 @@ class Dashboard
      */
     protected function handleScratchpadEditorKey(string $key): bool
     {
+        // Handle autocomplete navigation
+        if ($this->scratchpadAutocompleteActive) {
+            if ($key === 'up') {
+                if ($this->scratchpadAutocompleteIndex > 0) {
+                    $this->scratchpadAutocompleteIndex--;
+                } else {
+                    $this->scratchpadAutocompleteIndex = count($this->scratchpadAutocompleteOptions) - 1;
+                }
+                return false;
+            }
+            if ($key === 'down') {
+                if ($this->scratchpadAutocompleteIndex < count($this->scratchpadAutocompleteOptions) - 1) {
+                    $this->scratchpadAutocompleteIndex++;
+                } else {
+                    $this->scratchpadAutocompleteIndex = 0;
+                }
+                return false;
+            }
+            if ($key === 'enter' || $key === 'tab') {
+                $this->selectAutocompleteOption();
+                return false;
+            }
+            if ($key === 'esc') {
+                $this->scratchpadAutocompleteActive = false;
+                return false;
+            }
+        }
+
         // Execute query (F5 or Enter when query is not empty)
         if ($key === 'f5') {
             $this->executeScratchpadQuery();
             $this->scratchpadMode = 'results';
+            $this->scratchpadAutocompleteActive = false;
+            // Return false - the main loop will re-render immediately after handleKey returns
             return false;
         }
 
-        // Navigation in editor (up/down arrows move cursor between lines)
+        // Navigation in editor (up/down arrows move cursor between lines, unless autocomplete is active)
         if ($key === 'up') {
-            if ($this->scratchpadCursor['line'] > 0) {
+            if (!$this->scratchpadAutocompleteActive && $this->scratchpadCursor['line'] > 0) {
                 $this->scratchpadCursor['line']--;
                 $lines = explode("\n", $this->scratchpadQuery);
                 $currentLine = $lines[$this->scratchpadCursor['line']] ?? '';
@@ -3255,11 +3376,13 @@ class Dashboard
             return false;
         }
         if ($key === 'down') {
-            $lines = explode("\n", $this->scratchpadQuery);
-            if ($this->scratchpadCursor['line'] < count($lines) - 1) {
-                $this->scratchpadCursor['line']++;
-                $currentLine = $lines[$this->scratchpadCursor['line']] ?? '';
-                $this->scratchpadCursor['col'] = min($this->scratchpadCursor['col'], mb_strlen($currentLine, 'UTF-8'));
+            if (!$this->scratchpadAutocompleteActive) {
+                $lines = explode("\n", $this->scratchpadQuery);
+                if ($this->scratchpadCursor['line'] < count($lines) - 1) {
+                    $this->scratchpadCursor['line']++;
+                    $currentLine = $lines[$this->scratchpadCursor['line']] ?? '';
+                    $this->scratchpadCursor['col'] = min($this->scratchpadCursor['col'], mb_strlen($currentLine, 'UTF-8'));
+                }
             }
             $this->scratchpadHistoryIndex = -1; // Reset history navigation
             return false;
@@ -3291,12 +3414,16 @@ class Dashboard
         if (strlen($key) === 1 && ord($key) >= 32 && ord($key) <= 126) {
             $this->insertScratchpadChar($key);
             $this->scratchpadHistoryIndex = -1; // Reset history navigation when typing
+            // Trigger autocomplete after typing
+            $this->triggerAutocomplete();
             return false;
         }
 
         // Backspace
         if ($key === 'backspace') {
             $this->deleteScratchpadChar();
+            // Update autocomplete after deletion
+            $this->triggerAutocomplete();
             return false;
         }
 
@@ -3742,6 +3869,470 @@ class Dashboard
             $this->showMessage("Results exported to:\nCSV: {$csvFile}\nJSON: {$jsonFile}", Terminal::COLOR_GREEN);
         } catch (\Throwable $e) {
             $this->showMessage('Export failed: ' . $e->getMessage(), Terminal::COLOR_RED);
+        }
+    }
+
+    /**
+     * Trigger autocomplete based on current cursor position.
+     */
+    protected function triggerAutocomplete(): void
+    {
+        // Force reset autocomplete state first
+        $this->scratchpadAutocompleteActive = false;
+        $this->scratchpadAutocompleteOptions = [];
+        
+        $lines = explode("\n", $this->scratchpadQuery);
+        $line = $lines[$this->scratchpadCursor['line']] ?? '';
+        $col = $this->scratchpadCursor['col'];
+
+        // Get text before cursor on current line
+        $beforeCursor = mb_substr($line, 0, $col, 'UTF-8');
+        
+        // Extract current word/prefix being typed
+        $prefix = '';
+        if (preg_match('/([a-zA-Z_][a-zA-Z0-9_]*)$/', $beforeCursor, $matches)) {
+            $prefix = $matches[1];
+        } else {
+            $this->scratchpadAutocompleteActive = false;
+            return;
+        }
+        
+        // Debug: always log
+        file_put_contents('/tmp/pdodb_autocomplete.log', "triggerAutocomplete called with prefix: '$prefix'\n", FILE_APPEND);
+
+        // Step 1: Get all SQL keywords and filter by prefix
+        $allKeywords = [
+            'SELECT', 'FROM', 'WHERE', 'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN',
+            'ON', 'AS', 'AND', 'OR', 'NOT', 'IN', 'LIKE', 'BETWEEN', 'IS NULL', 'IS NOT NULL',
+            'ORDER BY', 'GROUP BY', 'HAVING', 'LIMIT', 'OFFSET',
+            'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE',
+            'COUNT', 'SUM', 'AVG', 'MAX', 'MIN', 'DISTINCT',
+            'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
+            'UNION', 'ALL', 'EXISTS', 'EXCEPT', 'INTERSECT',
+        ];
+        
+        $prefixLower = mb_strtolower($prefix, 'UTF-8');
+        $keywordOptions = [];
+        foreach ($allKeywords as $keyword) {
+            $keywordLower = mb_strtolower($keyword, 'UTF-8');
+            if (mb_strlen($keywordLower, 'UTF-8') >= mb_strlen($prefixLower, 'UTF-8')) {
+                $keywordPrefix = mb_substr($keywordLower, 0, mb_strlen($prefixLower, 'UTF-8'), 'UTF-8');
+                if ($keywordPrefix === $prefixLower && $keywordLower !== $prefixLower) {
+                    $keywordOptions[] = $keyword;
+                }
+            }
+        }
+        sort($keywordOptions);
+
+        // Step 2: Get tables and columns, filter by prefix
+        $tables = $this->getTablesForAutocomplete();
+        $tableColumnOptions = [];
+        
+        // Filter tables
+        foreach ($tables as $table) {
+            $tableLower = mb_strtolower($table, 'UTF-8');
+            if (mb_strlen($tableLower, 'UTF-8') >= mb_strlen($prefixLower, 'UTF-8')) {
+                $tablePrefix = mb_substr($tableLower, 0, mb_strlen($prefixLower, 'UTF-8'), 'UTF-8');
+                if ($tablePrefix === $prefixLower && $tableLower !== $prefixLower) {
+                    $tableColumnOptions[] = $table;
+                }
+            }
+        }
+        
+        // Filter columns
+        foreach ($tables as $table) {
+            $columns = $this->getColumnsForAutocomplete($table);
+            foreach ($columns as $col) {
+                $colLower = mb_strtolower($col, 'UTF-8');
+                if (mb_strlen($colLower, 'UTF-8') >= mb_strlen($prefixLower, 'UTF-8')) {
+                    $colPrefix = mb_substr($colLower, 0, mb_strlen($prefixLower, 'UTF-8'), 'UTF-8');
+                    if ($colPrefix === $prefixLower && $colLower !== $prefixLower) {
+                        if (!in_array($col, $tableColumnOptions, true)) {
+                            $tableColumnOptions[] = $col;
+                        }
+                    }
+                }
+            }
+        }
+        sort($tableColumnOptions);
+
+        // Step 3: Combine - keywords first, then tables/columns
+        $options = array_merge($keywordOptions, $tableColumnOptions);
+        
+        // Limit to 20
+        if (count($options) > 20) {
+            $keywordCount = count($keywordOptions);
+            if ($keywordCount >= 20) {
+                $options = array_slice($keywordOptions, 0, 20);
+            } else {
+                $options = array_merge(
+                    $keywordOptions,
+                    array_slice($tableColumnOptions, 0, 20 - $keywordCount)
+                );
+            }
+        }
+
+        // Set autocomplete
+        if (!empty($options)) {
+            $this->scratchpadAutocompleteActive = true;
+            $this->scratchpadAutocompleteOptions = $options;
+            $this->scratchpadAutocompletePrefix = $prefix;
+            $this->scratchpadAutocompleteIndex = 0;
+        } else {
+            $this->scratchpadAutocompleteActive = false;
+        }
+    }
+
+
+    /**
+     * Filter options by prefix (case-insensitive).
+     *
+     * @param array<int, string> $options Options to filter
+     * @param string $prefix Prefix to match
+     *
+     * @return array<int, string> Filtered options
+     */
+    protected function filterOptionsByPrefix(array $options, string $prefix): array
+    {
+        if ($prefix === '') {
+            return [];
+        }
+
+        $prefixLower = mb_strtolower($prefix, 'UTF-8');
+        $prefixLen = mb_strlen($prefixLower, 'UTF-8');
+        $filtered = [];
+        
+        foreach ($options as $option) {
+            $optionLower = mb_strtolower($option, 'UTF-8');
+            $optionLen = mb_strlen($optionLower, 'UTF-8');
+            
+            // Match if option starts with prefix (case-insensitive)
+            if ($optionLen >= $prefixLen) {
+                $optionPrefix = mb_substr($optionLower, 0, $prefixLen, 'UTF-8');
+                if ($optionPrefix === $prefixLower) {
+                    // Don't include if prefix is exactly the same as option
+                    if ($optionLower !== $prefixLower) {
+                        $filtered[] = $option;
+                    }
+                }
+            }
+        }
+
+        return $filtered;
+    }
+
+    /**
+     * Get autocomplete context from SQL text (deprecated - not used in simplified autocomplete).
+     *
+     * @param string $before Text before cursor
+     * @param string $after Text after cursor
+     *
+     * @return string Context type: 'table', 'column', 'keyword', 'table_column', 'select_keyword'
+     * @deprecated Not used in simplified autocomplete
+     */
+    protected function getAutocompleteContext(string $before, string $after): string
+    {
+        // Don't trim - we need to check for spaces
+        $beforeLower = mb_strtolower($before, 'UTF-8');
+
+        // Check if we're after a dot (table.column)
+        if (preg_match('/([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*$/', $before, $matches)) {
+            $tableAlias = $matches[1];
+            // Find table name from FROM/JOIN clauses
+            $tableName = $this->findTableNameFromAlias($tableAlias);
+            if ($tableName !== null) {
+                return 'table_column:' . $tableName;
+            }
+            return 'column';
+        }
+
+        // Check if we're right after FROM or JOIN (expecting table name)
+        if (preg_match('/\b(?:FROM|JOIN|INNER\s+JOIN|LEFT\s+JOIN|RIGHT\s+JOIN)\s+$/i', $before)) {
+            return 'table';
+        }
+
+        // Check if we're after FROM/JOIN with space (expecting table name)
+        if (preg_match('/\b(?:FROM|JOIN|INNER\s+JOIN|LEFT\s+JOIN|RIGHT\s+JOIN)\s+\S+\s*$/i', $before)) {
+            // There's a table name, check what comes next
+            // If it's a JOIN, we need ON
+            if (preg_match('/\b(?:LEFT|RIGHT|INNER)?\s*JOIN\s+[a-zA-Z_][a-zA-Z0-9_]*(?:\s+[a-zA-Z_][a-zA-Z0-9_]*)?\s*$/i', $before)) {
+                return 'on_keyword';
+            }
+            // Otherwise suggest AS, ON, WHERE, etc.
+            return 'keyword_after_table';
+        }
+        
+        // Check if we're right after FROM/JOIN with just space (no table name yet)
+        if (preg_match('/\b(?:FROM|JOIN|INNER\s+JOIN|LEFT\s+JOIN|RIGHT\s+JOIN)\s+$/i', $before)) {
+            return 'table';
+        }
+
+        // Check if we're after LEFT JOIN / RIGHT JOIN / INNER JOIN with table name (expecting ON)
+        // Match: LEFT JOIN table or LEFT JOIN table alias
+        if (preg_match('/\b(?:LEFT|RIGHT|INNER)\s+JOIN\s+[a-zA-Z_][a-zA-Z0-9_]*(?:\s+[a-zA-Z_][a-zA-Z0-9_]*)?\s+$/i', $before)) {
+            return 'on_keyword';
+        }
+        
+        // Also check if we're after JOIN table (without LEFT/RIGHT/INNER)
+        if (preg_match('/\bJOIN\s+[a-zA-Z_][a-zA-Z0-9_]*(?:\s+[a-zA-Z_][a-zA-Z0-9_]*)?\s+$/i', $before) && 
+            !preg_match('/\b(?:LEFT|RIGHT|INNER)\s+JOIN/i', $before)) {
+            return 'on_keyword';
+        }
+
+        // Check if we're after SELECT (expecting column or *)
+        if (preg_match('/\bSELECT\s+$/i', $before)) {
+            return 'select_column';
+        }
+
+        // Check if we're after SELECT with some columns already
+        if (preg_match('/\bSELECT\s+/i', $before) && !preg_match('/\bFROM\b/i', $before)) {
+            // Still in SELECT clause, suggest columns or FROM
+            return 'select_column';
+        }
+
+        // Check if we're after WHERE (expecting column name)
+        if (preg_match('/\bWHERE\s+$/i', $before)) {
+            return 'column';
+        }
+
+        // Check if we're after WHERE with some condition already
+        if (preg_match('/\bWHERE\s+/i', $before)) {
+            // Might need column or operator (AND, OR, etc.)
+            // Check if we're in the middle of a condition
+            if (preg_match('/\bWHERE\s+[^=<>!]+[=<>!]+\s*$/i', $before)) {
+                // After operator, suggest value or AND/OR
+                return 'keyword_after_where';
+            }
+            return 'column';
+        }
+
+        // Check if we're after ORDER BY, GROUP BY, HAVING
+        if (preg_match('/\b(?:ORDER\s+BY|GROUP\s+BY|HAVING)\s+$/i', $before)) {
+            return 'column';
+        }
+
+        // Check if we're at the start of query or after semicolon
+        if (trim($before) === '' || preg_match('/;\s*$/', $before)) {
+            return 'select_keyword';
+        }
+
+        // Default: suggest keywords (but filter out inappropriate ones)
+        return 'keyword';
+    }
+
+    /**
+     * Find table name from alias in FROM/JOIN clauses.
+     *
+     * @param string $alias Table alias
+     *
+     * @return string|null Table name or null if not found
+     */
+    protected function findTableNameFromAlias(string $alias): ?string
+    {
+        $query = $this->scratchpadQuery;
+        
+        // Look for: FROM table AS alias or FROM table alias or JOIN table AS alias
+        if (preg_match('/\b(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+(?:AS\s+)?' . preg_quote($alias, '/') . '\b/i', $query, $matches)) {
+            return $matches[1];
+        }
+
+        // If alias matches a table name, return it
+        $tables = $this->getTablesForAutocomplete();
+        if (in_array($alias, $tables, true)) {
+            return $alias;
+        }
+
+        return null;
+    }
+
+
+
+    /**
+     * Get tables for autocomplete (cached).
+     *
+     * @return array<int, string>
+     */
+    protected function getTablesForAutocomplete(): array
+    {
+        if ($this->scratchpadTableCache === null) {
+            try {
+                $this->scratchpadTableCache = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+            } catch (\Throwable $e) {
+                $this->scratchpadTableCache = [];
+            }
+        }
+
+        return $this->scratchpadTableCache;
+    }
+
+    /**
+     * Get columns for table (cached).
+     *
+     * @param string $table Table name
+     *
+     * @return array<int, string>
+     */
+    protected function getColumnsForAutocomplete(string $table): array
+    {
+        if (!isset($this->scratchpadColumnCache[$table])) {
+            try {
+                $columns = \tommyknocker\pdodb\cli\TableManager::describe($this->db, $table);
+                $columnNames = [];
+                foreach ($columns as $col) {
+                    $colName = is_array($col) ? ($col['Field'] ?? $col['column_name'] ?? $col['name'] ?? '') : (string)$col;
+                    if ($colName !== '') {
+                        $columnNames[] = $colName;
+                    }
+                }
+                $this->scratchpadColumnCache[$table] = $columnNames;
+            } catch (\Throwable $e) {
+                $this->scratchpadColumnCache[$table] = [];
+            }
+        }
+
+        return $this->scratchpadColumnCache[$table];
+    }
+
+    /**
+     * Get SQL keywords for autocomplete.
+     *
+     * @return array<int, string>
+     */
+    protected function getSqlKeywords(): array
+    {
+        return [
+            'SELECT', 'FROM', 'WHERE', 'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN',
+            'ON', 'AS', 'AND', 'OR', 'NOT', 'IN', 'LIKE', 'BETWEEN', 'IS NULL', 'IS NOT NULL',
+            'ORDER BY', 'GROUP BY', 'HAVING', 'LIMIT', 'OFFSET',
+            'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE',
+            'COUNT', 'SUM', 'AVG', 'MAX', 'MIN', 'DISTINCT',
+            'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
+            'UNION', 'ALL', 'EXISTS', 'EXCEPT', 'INTERSECT',
+        ];
+    }
+
+    /**
+     * Select current autocomplete option and insert it.
+     */
+    protected function selectAutocompleteOption(): void
+    {
+        if (!$this->scratchpadAutocompleteActive || empty($this->scratchpadAutocompleteOptions)) {
+            return;
+        }
+
+        $selected = $this->scratchpadAutocompleteOptions[$this->scratchpadAutocompleteIndex] ?? '';
+        if ($selected === '') {
+            return;
+        }
+
+        $lines = explode("\n", $this->scratchpadQuery);
+        $line = $lines[$this->scratchpadCursor['line']] ?? '';
+        $col = $this->scratchpadCursor['col'];
+
+        // Get text before and after cursor
+        $before = mb_substr($line, 0, $col, 'UTF-8');
+        $after = mb_substr($line, $col, null, 'UTF-8');
+
+        // Replace prefix with selected option
+        if ($this->scratchpadAutocompletePrefix !== '') {
+            $prefixLen = mb_strlen($this->scratchpadAutocompletePrefix, 'UTF-8');
+            $before = mb_substr($before, 0, -$prefixLen, 'UTF-8');
+        }
+
+        // Insert selected option
+        $newLine = $before . $selected . $after;
+        $lines[$this->scratchpadCursor['line']] = $newLine;
+        $this->scratchpadQuery = implode("\n", $lines);
+
+        // Update cursor position
+        $this->scratchpadCursor['col'] = mb_strlen($before, 'UTF-8') + mb_strlen($selected, 'UTF-8');
+
+        // Close autocomplete
+        $this->scratchpadAutocompleteActive = false;
+    }
+
+    /**
+     * Render autocomplete suggestions.
+     *
+     * @param int $startRow Start row for autocomplete
+     * @param int $width Width
+     */
+    protected function renderAutocomplete(int $startRow, int $width): void
+    {
+        if (empty($this->scratchpadAutocompleteOptions)) {
+            return;
+        }
+
+        // Debug: log what we're rendering
+        file_put_contents('/tmp/pdodb_autocomplete.log', 
+            "renderAutocomplete: " . count($this->scratchpadAutocompleteOptions) . " options - " . 
+            implode(', ', array_slice($this->scratchpadAutocompleteOptions, 0, 10)) . "\n",
+            FILE_APPEND
+        );
+
+        [$rows, $cols] = Terminal::getSize();
+        
+        // Calculate available space (leave at least 1 row for footer if needed)
+        $availableHeight = max(1, $rows - $startRow - 1);
+        $maxHeight = min(10, $availableHeight);
+        $numOptions = count($this->scratchpadAutocompleteOptions);
+
+        // Calculate scroll offset (start from 0, no offset initially)
+        $scrollOffset = 0;
+        if ($this->scratchpadAutocompleteIndex >= $maxHeight) {
+            $scrollOffset = $this->scratchpadAutocompleteIndex - $maxHeight + 1;
+        }
+
+        // Render header (only if it fits)
+        if ($startRow < $rows) {
+            Terminal::moveTo($startRow, 1);
+            Terminal::clearLine();
+            if (Terminal::supportsColors()) {
+                Terminal::bold();
+                Terminal::color(Terminal::COLOR_CYAN);
+            }
+            echo 'Autocomplete:';
+            Terminal::reset();
+        }
+
+        // Render options starting from index 0 (no scroll offset initially)
+        $visibleOptions = array_slice($this->scratchpadAutocompleteOptions, $scrollOffset, $maxHeight);
+        foreach ($visibleOptions as $i => $option) {
+            $actualIndex = $scrollOffset + $i;
+            $row = $startRow + 1 + $i;
+            
+            // Make sure we don't go beyond screen
+            if ($row >= $rows) {
+                break;
+            }
+
+            Terminal::moveTo($row, 1);
+            Terminal::clearLine();
+
+            if ($actualIndex === $this->scratchpadAutocompleteIndex) {
+                // Highlight selected option
+                if (Terminal::supportsColors()) {
+                    Terminal::color(Terminal::BG_BLUE);
+                    Terminal::color(Terminal::COLOR_WHITE);
+                }
+                echo '> ';
+            } else {
+                echo '  ';
+            }
+
+            $displayOption = mb_substr($option, 0, $width - 3, 'UTF-8');
+            echo $displayOption;
+            Terminal::reset();
+        }
+
+        // Show hint
+        if ($numOptions > $maxHeight) {
+            Terminal::moveTo($startRow + $maxHeight + 1, 1);
+            if (Terminal::supportsColors()) {
+                Terminal::color(Terminal::COLOR_YELLOW);
+            }
+            echo sprintf('(%d more, ↑↓:Navigate, Tab/Enter:Select, Esc:Cancel)', $numOptions - $maxHeight);
+            Terminal::reset();
         }
     }
 }
