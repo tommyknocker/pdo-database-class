@@ -24,8 +24,9 @@ class SchemaBrowserPane
      * @param int $selectedIndex Selected item index (-1 if none)
      * @param int $scrollOffset Scroll offset
      * @param bool $fullscreen Whether in fullscreen mode
+     * @param string|null $searchFilter Search filter (optional)
      */
-    public static function render(PdoDb $db, Layout $layout, int $paneIndex, bool $active, int $selectedIndex = -1, int $scrollOffset = 0, bool $fullscreen = false): void
+    public static function render(PdoDb $db, Layout $layout, int $paneIndex, bool $active, int $selectedIndex = -1, int $scrollOffset = 0, bool $fullscreen = false, ?string $searchFilter = null): void
     {
         if ($fullscreen) {
             [$rows, $cols] = Terminal::getSize();
@@ -58,14 +59,26 @@ class SchemaBrowserPane
             return;
         }
 
+        // Filter tables by search if provided
+        if ($searchFilter !== null && $searchFilter !== '') {
+            $tables = array_filter($tables, function ($table) use ($searchFilter) {
+                return stripos($table, $searchFilter) !== false;
+            });
+            $tables = array_values($tables); // Re-index
+        }
+
         if (empty($tables)) {
             Terminal::moveTo($content['row'], $content['col']);
-            echo 'No tables found';
+            if ($searchFilter !== null && $searchFilter !== '') {
+                echo 'No tables found matching: ' . $searchFilter;
+            } else {
+                echo 'No tables found';
+            }
             return;
         }
 
         if ($fullscreen) {
-            self::renderFullscreen($db, $content, $tables, $selectedIndex, $scrollOffset, $active);
+            self::renderFullscreen($db, $content, $tables, $selectedIndex, $scrollOffset, $active, $searchFilter);
         } else {
             self::renderPreview($content, $tables);
         }
@@ -93,8 +106,9 @@ class SchemaBrowserPane
      * @param int $selectedIndex Selected item index
      * @param int $scrollOffset Scroll offset
      * @param bool $active Whether pane is active
+     * @param string|null $searchFilter Search filter
      */
-    protected static function renderFullscreen(PdoDb $db, array $content, array $tables, int $selectedIndex, int $scrollOffset, bool $active): void
+    protected static function renderFullscreen(PdoDb $db, array $content, array $tables, int $selectedIndex, int $scrollOffset, bool $active, ?string $searchFilter = null): void
     {
         // Header
         Terminal::moveTo(1, 1);
@@ -102,7 +116,11 @@ class SchemaBrowserPane
             Terminal::bold();
             Terminal::color(Terminal::COLOR_CYAN);
         }
-        echo 'Schema Browser (Fullscreen)';
+        $headerText = 'Schema Browser (Fullscreen)';
+        if ($searchFilter !== null && $searchFilter !== '') {
+            $headerText .= ' [Search: ' . $searchFilter . ']';
+        }
+        echo $headerText;
         Terminal::reset();
 
         // Clamp selected index

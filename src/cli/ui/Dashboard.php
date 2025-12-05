@@ -96,6 +96,38 @@ class Dashboard
     ];
 
     /**
+     * Search filter per pane.
+     *
+     * @var array<int, string>
+     */
+    protected array $searchFilter = [
+        Layout::PANE_QUERIES => '',
+        Layout::PANE_CONNECTIONS => '',
+        Layout::PANE_CACHE => '',
+        Layout::PANE_METRICS => '',
+        Layout::PANE_SCHEMA => '',
+        Layout::PANE_MIGRATIONS => '',
+        Layout::PANE_VARIABLES => '',
+        Layout::PANE_SCRATCHPAD => '',
+    ];
+
+    /**
+     * Search mode per pane (true when user is typing search query).
+     *
+     * @var array<int, bool>
+     */
+    protected array $searchMode = [
+        Layout::PANE_QUERIES => false,
+        Layout::PANE_CONNECTIONS => false,
+        Layout::PANE_CACHE => false,
+        Layout::PANE_METRICS => false,
+        Layout::PANE_SCHEMA => false,
+        Layout::PANE_MIGRATIONS => false,
+        Layout::PANE_VARIABLES => false,
+        Layout::PANE_SCRATCHPAD => false,
+    ];
+
+    /**
      * Fullscreen pane index (-1 if none).
      *
      * @var int
@@ -434,11 +466,75 @@ class Dashboard
                 return $this->handleScratchpadKey($key);
             }
 
+            // Handle search mode for Schema Browser and Server Variables
+            if (in_array($this->fullscreenPane, [Layout::PANE_SCHEMA, Layout::PANE_VARIABLES], true)) {
+                // Check if we're in search mode
+                if ($this->searchMode[$this->fullscreenPane] ?? false) {
+                    if ($key === 'esc') {
+                        // Cancel search
+                        $this->searchMode[$this->fullscreenPane] = false;
+                        $this->searchFilter[$this->fullscreenPane] = '';
+                        $this->selectedIndex[$this->fullscreenPane] = 0;
+                        $this->scrollOffset[$this->fullscreenPane] = 0;
+                        return false;
+                    }
+                    if ($key === 'enter') {
+                        // Confirm search
+                        $this->searchMode[$this->fullscreenPane] = false;
+                        $this->selectedIndex[$this->fullscreenPane] = 0;
+                        $this->scrollOffset[$this->fullscreenPane] = 0;
+                        return false;
+                    }
+                    if ($key === 'backspace') {
+                        // Remove last character
+                        $filter = $this->searchFilter[$this->fullscreenPane];
+                        if (mb_strlen($filter, 'UTF-8') > 0) {
+                            $this->searchFilter[$this->fullscreenPane] = mb_substr($filter, 0, -1, 'UTF-8');
+                        }
+                        $this->selectedIndex[$this->fullscreenPane] = 0;
+                        $this->scrollOffset[$this->fullscreenPane] = 0;
+                        return false;
+                    }
+                    // Regular text input
+                    if (strlen($key) === 1 && ord($key) >= 32 && ord($key) <= 126) {
+                        $this->searchFilter[$this->fullscreenPane] .= $key;
+                        $this->selectedIndex[$this->fullscreenPane] = 0;
+                        $this->scrollOffset[$this->fullscreenPane] = 0;
+                        return false;
+                    }
+                    // Ignore other keys in search mode
+                    return false;
+                }
+
+                // Activate search mode with "/"
+                if ($key === '/') {
+                    $this->searchMode[$this->fullscreenPane] = true;
+                    $this->searchFilter[$this->fullscreenPane] = '';
+                    return false;
+                }
+            }
+
             if ($key === 'esc') {
+                // Exit search mode if active, otherwise exit fullscreen
+                if (in_array($this->fullscreenPane, [Layout::PANE_SCHEMA, Layout::PANE_VARIABLES], true) && ($this->searchMode[$this->fullscreenPane] ?? false)) {
+                    $this->searchMode[$this->fullscreenPane] = false;
+                    $this->searchFilter[$this->fullscreenPane] = '';
+                    return false;
+                }
+                // Reset search mode and filter when exiting fullscreen
+                if (in_array($this->fullscreenPane, [Layout::PANE_SCHEMA, Layout::PANE_VARIABLES], true)) {
+                    $this->searchMode[$this->fullscreenPane] = false;
+                    $this->searchFilter[$this->fullscreenPane] = '';
+                }
                 $this->fullscreenPane = -1;
                 return false;
             }
             if ($key === 'enter') {
+                // Don't show detail view if in search mode
+                if (in_array($this->fullscreenPane, [Layout::PANE_SCHEMA, Layout::PANE_VARIABLES], true) && ($this->searchMode[$this->fullscreenPane] ?? false)) {
+                    // Search mode handles Enter itself
+                    return false;
+                }
                 // Show detail view for selected item
                 if ($this->fullscreenPane === Layout::PANE_QUERIES) {
                     $queries = $this->cachedQueries;
@@ -898,7 +994,7 @@ class Dashboard
         } elseif ($pane === Layout::PANE_CACHE || $pane === Layout::PANE_METRICS) {
             $help = 'Esc:Exit';
         } elseif ($pane === Layout::PANE_SCHEMA) {
-            $help = '↑↓:Select | PgUp/PgDn:Page | Enter:Table Details | Esc:Exit';
+            $help = '↑↓:Select | PgUp/PgDn:Page | Enter:Table Details | /:Search | Esc:Exit';
         } elseif ($pane === Layout::PANE_MIGRATIONS) {
             // Get current migration status to show appropriate commands
             $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
@@ -927,7 +1023,7 @@ class Dashboard
             }
             $help .= ' | Esc:Exit';
         } elseif ($pane === Layout::PANE_VARIABLES) {
-            $help = '↑↓:Select | PgUp/PgDn:Page | Esc:Exit';
+            $help = '↑↓:Select | PgUp/PgDn:Page | /:Search | Esc:Exit';
         } elseif ($pane === Layout::PANE_SCRATCHPAD) {
             $help = 'F5:Execute | Tab:Switch | F2:TX | F3:Save | F4:Export | Esc:Exit';
         } else {
@@ -2288,8 +2384,18 @@ class Dashboard
         Terminal::clear();
         [$rows, $cols] = Terminal::getSize();
 
-        // Calculate scroll offset for fullscreen
+        // Get tables and apply filter
         $tables = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+        $searchFilter = $this->searchFilter[Layout::PANE_SCHEMA];
+        $searchFilter = $searchFilter !== '' ? $searchFilter : null;
+        if ($searchFilter !== null) {
+            $tables = array_filter($tables, function ($table) use ($searchFilter) {
+                return stripos($table, $searchFilter) !== false;
+            });
+            $tables = array_values($tables); // Re-index
+        }
+
+        // Calculate scroll offset for fullscreen
         $visibleHeight = $rows - 3;
         $selectedIdx = $this->selectedIndex[Layout::PANE_SCHEMA];
 
@@ -2307,15 +2413,6 @@ class Dashboard
             }
         }
 
-        // Render header
-        Terminal::moveTo(1, 1);
-        if (Terminal::supportsColors()) {
-            Terminal::bold();
-            Terminal::color(Terminal::COLOR_CYAN);
-        }
-        echo 'Schema Browser (Fullscreen)';
-        Terminal::reset();
-
         // Render pane in fullscreen
         $dummyLayout = new Layout($rows, $cols);
         SchemaBrowserPane::render(
@@ -2325,11 +2422,28 @@ class Dashboard
             true,
             $this->selectedIndex[Layout::PANE_SCHEMA],
             $this->scrollOffset[Layout::PANE_SCHEMA],
-            true
+            true,
+            $searchFilter
         );
 
-        // Render footer
-        $this->renderFullscreenFooter();
+        // Render search prompt if in search mode, otherwise render footer
+        if ($this->searchMode[Layout::PANE_SCHEMA] ?? false) {
+            Terminal::moveTo($rows, 1);
+            Terminal::clearLine();
+            if (Terminal::supportsColors()) {
+                Terminal::color(Terminal::COLOR_YELLOW);
+                Terminal::bold();
+            }
+            echo '/';
+            if (Terminal::supportsColors()) {
+                Terminal::reset();
+            }
+            echo $this->searchFilter[Layout::PANE_SCHEMA];
+            echo '_'; // Cursor
+            Terminal::reset();
+        } else {
+            $this->renderFullscreenFooter();
+        }
     }
 
     /**
@@ -2410,11 +2524,22 @@ class Dashboard
         Terminal::clear();
         [$rows, $cols] = Terminal::getSize();
 
-        // Get variables
+        // Get variables (filtering is handled in ServerVariablesPane)
         $dialect = $this->db->schema()->getDialect();
-        $variables = $dialect->getServerVariables($this->db);
+        $searchFilter = $this->searchFilter[Layout::PANE_VARIABLES];
+        $searchFilter = $searchFilter !== '' ? $searchFilter : null;
 
         // Calculate scroll offset
+        $variables = $dialect->getServerVariables($this->db);
+        // Apply filter for scroll calculation
+        if ($searchFilter !== null) {
+            $variables = array_filter($variables, function ($var) use ($searchFilter) {
+                $name = $var['name'] ?? '';
+                return stripos($name, $searchFilter) !== false;
+            });
+            $variables = array_values($variables); // Re-index
+        }
+
         $visibleHeight = $rows - 3;
         $selectedIdx = $this->selectedIndex[Layout::PANE_VARIABLES];
 
@@ -2432,15 +2557,6 @@ class Dashboard
             }
         }
 
-        // Render header
-        Terminal::moveTo(1, 1);
-        if (Terminal::supportsColors()) {
-            Terminal::bold();
-            Terminal::color(Terminal::COLOR_CYAN);
-        }
-        echo 'Server Variables (Fullscreen)';
-        Terminal::reset();
-
         // Render pane in fullscreen
         $dummyLayout = new Layout($rows, $cols);
         ServerVariablesPane::render(
@@ -2450,11 +2566,28 @@ class Dashboard
             true,
             $this->selectedIndex[Layout::PANE_VARIABLES],
             $this->scrollOffset[Layout::PANE_VARIABLES],
-            true
+            true,
+            $searchFilter
         );
 
-        // Render footer
-        $this->renderFullscreenFooter();
+        // Render search prompt if in search mode, otherwise render footer
+        if ($this->searchMode[Layout::PANE_VARIABLES] ?? false) {
+            Terminal::moveTo($rows, 1);
+            Terminal::clearLine();
+            if (Terminal::supportsColors()) {
+                Terminal::color(Terminal::COLOR_YELLOW);
+                Terminal::bold();
+            }
+            echo '/';
+            if (Terminal::supportsColors()) {
+                Terminal::reset();
+            }
+            echo $this->searchFilter[Layout::PANE_VARIABLES];
+            echo '_'; // Cursor
+            Terminal::reset();
+        } else {
+            $this->renderFullscreenFooter();
+        }
     }
 
     /**
