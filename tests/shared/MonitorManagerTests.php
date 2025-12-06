@@ -81,4 +81,59 @@ final class MonitorManagerTests extends BaseSharedTestCase
         $this->assertEquals(0.0, $method->invoke(null, null));
         $this->assertEquals(0.0, $method->invoke(null, []));
     }
+
+    public function testMonitorManagerGetActiveQueriesSQLite(): void
+    {
+        $reflection = new ReflectionClass(MonitorManager::class);
+        $method = $reflection->getMethod('getActiveQueriesSQLite');
+        $method->setAccessible(true);
+
+        $result = $method->invoke(null, self::$db);
+        $this->assertIsArray($result);
+        // SQLite doesn't have built-in query monitoring, should return empty array
+        $this->assertEmpty($result);
+    }
+
+    public function testMonitorManagerGetActiveConnectionsSQLite(): void
+    {
+        $reflection = new ReflectionClass(MonitorManager::class);
+        $method = $reflection->getMethod('getActiveConnectionsSQLite');
+        $method->setAccessible(true);
+
+        $result = $method->invoke(null, self::$db);
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('connections', $result);
+        $this->assertArrayHasKey('summary', $result);
+        $this->assertIsArray($result['connections']);
+        $this->assertIsArray($result['summary']);
+    }
+
+    public function testMonitorManagerGetSlowQueriesSQLite(): void
+    {
+        // Enable profiling for SQLite slow queries
+        self::$db->enableProfiling();
+        self::$db->rawQuery('SELECT 1');
+
+        $reflection = new ReflectionClass(MonitorManager::class);
+        $method = $reflection->getMethod('getSlowQueriesSQLite');
+        $method->setAccessible(true);
+
+        $result = $method->invoke(null, self::$db, 0.001, 10);
+        $this->assertIsArray($result);
+    }
+
+    public function testMonitorManagerGetSlowQueriesSQLiteWithoutProfiling(): void
+    {
+        // Disable profiling
+        self::$db->disableProfiling();
+
+        $reflection = new ReflectionClass(MonitorManager::class);
+        $method = $reflection->getMethod('getSlowQueriesSQLite');
+        $method->setAccessible(true);
+
+        $result = $method->invoke(null, self::$db, 0.001, 10);
+        $this->assertIsArray($result);
+        // Without profiling, should return empty array
+        $this->assertEmpty($result);
+    }
 }
