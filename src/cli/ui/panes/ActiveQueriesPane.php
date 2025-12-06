@@ -48,20 +48,21 @@ class ActiveQueriesPane
             $queries = MonitorManager::getActiveQueries($db);
         }
 
-        // Clear content area first (before border to avoid clearing border)
-        for ($i = 0; $i < $content['height']; $i++) {
-            Terminal::moveTo($content['row'] + $i, $content['col']);
-            Terminal::clearLine();
-        }
-
-        // Render border after clearing content
+        // Render border first (before clearing content to avoid clearing border)
         if (!$fullscreen) {
             $layout->renderBorder($paneIndex, 'Active Queries', $active);
         }
 
         if (empty($queries)) {
+            // Clear only first line and show message
             Terminal::moveTo($content['row'], $content['col']);
+            Terminal::clearLine();
             echo 'No active queries';
+            // Clear remaining lines
+            for ($i = 1; $i < $content['height']; $i++) {
+                Terminal::moveTo($content['row'] + $i, $content['col']);
+                Terminal::clearLine();
+            }
             return;
         }
 
@@ -92,6 +93,7 @@ class ActiveQueriesPane
         // Display queries (with scrolling)
         $startIdx = $scrollOffset;
         $endIdx = min($startIdx + $visibleHeight, count($queries));
+        $lastDisplayRow = $content['row']; // Track last row that was actually displayed
 
         for ($i = $startIdx; $i < $endIdx; $i++) {
             $query = $queries[$i];
@@ -112,6 +114,7 @@ class ActiveQueriesPane
             }
 
             Terminal::moveTo($displayRow, $content['col']);
+            Terminal::clearLine(); // Clear line before rendering to avoid artifacts
 
             $isSelected = $active && $selectedIndex === $i;
             if ($isSelected && Terminal::supportsColors()) {
@@ -141,11 +144,38 @@ class ActiveQueriesPane
             }
             echo $rowText;
             Terminal::reset();
+            
+            $lastDisplayRow = $displayRow; // Update last displayed row
+        }
+
+        // Clear remaining rows after last displayed query (to remove old content)
+        // In fullscreen, footer is at $rows, so clear up to $rows - 1
+        // In normal mode, clear up to scroll indicator row
+        if ($fullscreen) {
+            [$totalRows] = Terminal::getSize();
+            $maxRow = $totalRows - 1; // Footer is at $totalRows
+        } else {
+            $maxRow = $content['row'] + $content['height'] - 1; // Scroll indicator row
+        }
+        
+        for ($row = $lastDisplayRow + 1; $row < $maxRow; $row++) {
+            Terminal::moveTo($row, $content['col']);
+            Terminal::clearLine();
         }
 
         // Show scroll indicator
+        // In fullscreen, footer is at $rows, so scroll indicator is at $rows - 1
+        // In normal mode, scroll indicator is at content['row'] + content['height'] - 1
+        if ($fullscreen) {
+            [$totalRows] = Terminal::getSize();
+            $scrollIndicatorRow = $totalRows - 1;
+        } else {
+            $scrollIndicatorRow = $content['row'] + $content['height'] - 1;
+        }
+        
         if ($scrollOffset > 0 || $endIdx < count($queries)) {
-            Terminal::moveTo($content['row'] + $content['height'] - 1, $content['col']);
+            Terminal::moveTo($scrollIndicatorRow, $content['col']);
+            Terminal::clearLine(); // Clear before rendering indicator
             if (Terminal::supportsColors()) {
                 Terminal::color(Terminal::COLOR_YELLOW);
             }
@@ -161,6 +191,10 @@ class ActiveQueriesPane
             }
             echo $info;
             Terminal::reset();
+        } else {
+            // Clear scroll indicator row if no scrolling needed
+            Terminal::moveTo($scrollIndicatorRow, $content['col']);
+            Terminal::clearLine();
         }
     }
 

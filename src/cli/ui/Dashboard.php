@@ -1470,10 +1470,12 @@ class Dashboard
      */
     protected function renderFullscreen(): void
     {
-        Terminal::clear();
         [$rows, $cols] = Terminal::getSize();
 
         if ($this->fullscreenPane === Layout::PANE_QUERIES) {
+            // Don't clear entire screen for queries pane - only clear header and footer
+            // Content area is cleared by ActiveQueriesPane::render() to avoid flickering
+            
             // Calculate scroll offset for fullscreen
             $queries = $this->cachedQueries;
             // Header: row 1, Table header: row 2, Footer: row $rows
@@ -1501,8 +1503,9 @@ class Dashboard
                 // If relativeIndex is in range [0, visibleHeight), keep current scrollOffset
             }
 
-            // Render header
+            // Render header (clear only header line)
             Terminal::moveTo(1, 1);
+            Terminal::clearLine();
             if (Terminal::supportsColors()) {
                 Terminal::bold();
                 Terminal::color(Terminal::COLOR_CYAN);
