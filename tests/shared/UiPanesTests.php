@@ -360,4 +360,123 @@ final class UiPanesTests extends BaseSharedTestCase
         $output = ob_get_clean();
         $this->assertStringContainsString('SQL Scratchpad', $output);
     }
+
+    public function testCacheStatsPaneRenderWithCacheManager(): void
+    {
+        // Test with cache manager (if available)
+        $cacheManager = self::$db->getCacheManager();
+        ob_start();
+        CacheStatsPane::render(
+            self::$db,
+            $this->layout,
+            Layout::PANE_CACHE,
+            true
+        );
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+        // If cache manager exists, should show cache stats
+        // If cache manager is null, should show "Cache not enabled"
+        if ($cacheManager === null) {
+            $this->assertStringContainsString('Cache not enabled', $output);
+        } else {
+            $this->assertStringNotContainsString('Cache not enabled', $output);
+        }
+    }
+
+    public function testActiveQueriesPaneRenderWithQueries(): void
+    {
+        // Execute a query to potentially have active queries
+        self::$db->rawQuery('SELECT 1');
+        ob_start();
+        ActiveQueriesPane::render(
+            self::$db,
+            $this->layout,
+            Layout::PANE_QUERIES,
+            true,
+            0,
+            0,
+            false,
+            []
+        );
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testActiveQueriesPaneRenderFullscreen(): void
+    {
+        ob_start();
+        ActiveQueriesPane::render(
+            self::$db,
+            $this->layout,
+            Layout::PANE_QUERIES,
+            true,
+            0,
+            0,
+            true,
+            []
+        );
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testActiveQueriesPaneRenderWithSelectedIndex(): void
+    {
+        $queries = [
+            ['id' => '1', 'time' => '0.5s', 'db' => 'test', 'query' => 'SELECT 1'],
+            ['id' => '2', 'time' => '1.0s', 'db' => 'test', 'query' => 'SELECT 2'],
+        ];
+        ob_start();
+        ActiveQueriesPane::render(
+            self::$db,
+            $this->layout,
+            Layout::PANE_QUERIES,
+            true,
+            1,
+            0,
+            false,
+            $queries
+        );
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testActiveQueriesPaneRenderWithScrollOffset(): void
+    {
+        $queries = [
+            ['id' => '1', 'time' => '0.5s', 'db' => 'test', 'query' => 'SELECT 1'],
+            ['id' => '2', 'time' => '1.0s', 'db' => 'test', 'query' => 'SELECT 2'],
+            ['id' => '3', 'time' => '1.5s', 'db' => 'test', 'query' => 'SELECT 3'],
+        ];
+        ob_start();
+        ActiveQueriesPane::render(
+            self::$db,
+            $this->layout,
+            Layout::PANE_QUERIES,
+            true,
+            0,
+            1,
+            false,
+            $queries
+        );
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testActiveQueriesPaneRenderWithEmptyQueries(): void
+    {
+        ob_start();
+        ActiveQueriesPane::render(
+            self::$db,
+            $this->layout,
+            Layout::PANE_QUERIES,
+            true,
+            0,
+            0,
+            false,
+            []
+        );
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+        $this->assertStringContainsString('No active queries', $output);
+    }
 }
