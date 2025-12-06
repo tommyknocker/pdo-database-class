@@ -45,6 +45,9 @@ class CacheCommand extends Command
             $this->showError('Cache is not enabled. Enable it in your configuration.');
         }
 
+        // At this point, cacheManager is guaranteed to be non-null
+        // (showError() terminates execution if it was null)
+        /** @var \tommyknocker\pdodb\cache\CacheManager $cacheManager */
         $subStr = is_string($sub) ? $sub : '';
         return match ($subStr) {
             'clear' => $this->clearCache($cacheManager),

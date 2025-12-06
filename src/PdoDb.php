@@ -14,9 +14,7 @@ use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionFactory;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\connection\ConnectionRouter;
-use tommyknocker\pdodb\connection\DialectRegistry;
-use tommyknocker\pdodb\connection\EnvLoader;
-use tommyknocker\pdodb\connection\ExtensionChecker;
+use tommyknocker\pdodb\connection\EnvConfigLoader;
 use tommyknocker\pdodb\connection\loadbalancer\LoadBalancerInterface;
 use tommyknocker\pdodb\connection\sharding\ShardConfig;
 use tommyknocker\pdodb\connection\sharding\ShardConfigBuilder;
@@ -204,54 +202,29 @@ class PdoDb
         ?LoggerInterface $logger = null,
         ?CacheInterface $cache = null
     ): static {
-        // Load .env file
-        EnvLoader::load($envPath);
+        // Load database configuration from environment
+        $dbConfig = EnvConfigLoader::loadDatabaseConfig($envPath);
+        $driver = $dbConfig['driver'];
+        $config = $dbConfig['config'];
+        $envVars = $dbConfig['envVars'];
 
-        // Get driver from environment
-        $driver = mb_strtolower(getenv('PDODB_DRIVER') ?: '', 'UTF-8');
-        if ($driver === '') {
-            throw new InvalidArgumentException('PDODB_DRIVER not set in .env file');
-        }
-
-        // Validate that required extension is available
-        ExtensionChecker::validate($driver);
-
-        // Collect all PDODB_* environment variables
-        $envVars = [];
-        // Always use getenv() to ensure we get variables set via putenv()
-        // $_ENV may not be updated when putenv() is called
-        // Collect all PDODB_* variables from environment
-        // Check $_ENV first (most reliable)
-        foreach ($_ENV as $key => $value) {
-            if (is_string($key) && str_starts_with($key, 'PDODB_')) {
-                $envValue = getenv($key);
-                if ($envValue !== false) {
-                    $envVars[$key] = $envValue;
+        // Auto-create cache from environment variables if not provided and cache is enabled
+        if ($cache === null) {
+            $cacheConfig = EnvConfigLoader::loadCacheConfig($envVars, $config);
+            if (!empty($cacheConfig) && ($cacheConfig['enabled'] ?? false)) {
+                $cache = EnvConfigLoader::createCacheFromEnv($envVars, $config);
+                // Merge cache config into main config for PdoDb
+                if ($cache !== null) {
+                    $config['cache'] = $cacheConfig;
                 }
             }
-        }
-        // Also check $_SERVER for variables that might not be in $_ENV
-        foreach ($_SERVER as $key => $value) {
-            if (is_string($key) && str_starts_with($key, 'PDODB_') && !isset($envVars[$key])) {
-                $envValue = getenv($key);
-                if ($envValue !== false) {
-                    $envVars[$key] = $envValue;
-                }
+        } else {
+            // If cache is provided, still merge cache config from env if available
+            $cacheConfig = EnvConfigLoader::loadCacheConfig($envVars, $config);
+            if (!empty($cacheConfig)) {
+                $config['cache'] = $cacheConfig;
             }
         }
-
-        // Check required variables (SQLite doesn't require username/database)
-        if ($driver !== 'sqlite') {
-            if (!isset($envVars['PDODB_DATABASE']) || !isset($envVars['PDODB_USERNAME'])) {
-                throw new InvalidArgumentException(
-                    'PDODB_DATABASE and PDODB_USERNAME must be set in .env file for driver: ' . $driver
-                );
-            }
-        }
-
-        // Build configuration from environment variables
-        $dialect = DialectRegistry::resolve($driver);
-        $config = $dialect->buildConfigFromEnv($envVars);
 
         // Create and return new instance
         /* @phpstan-ignore-next-line new.static - factory method intentionally returns static */

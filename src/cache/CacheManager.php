@@ -439,26 +439,34 @@ class CacheManager
                 && $this->cache instanceof \Symfony\Component\Cache\Psr16Cache) {
                 $poolProperty = $reflection->getProperty('pool');
                 $poolProperty->setAccessible(true);
-                $pool = $poolProperty->getValue($this->cache);
 
-                if (class_exists(\Symfony\Component\Cache\Adapter\RedisAdapter::class)
-                    && $pool instanceof \Symfony\Component\Cache\Adapter\RedisAdapter) {
-                    $poolReflection = new ReflectionClass($pool);
-                    $redisProperty = $poolReflection->getProperty('redis');
-                    $redisProperty->setAccessible(true);
-                    $redis = $redisProperty->getValue($pool);
+                // Check if property is initialized (for typed properties)
+                if ($poolProperty->isInitialized($this->cache)) {
+                    $pool = $poolProperty->getValue($this->cache);
 
-                    if ($redis instanceof \Redis) {
-                        $this->atomicConnection = $redis;
-                        return $redis;
-                    }
-                    // Check for Predis\Client (optional dependency)
-                    if (class_exists(\Predis\Client::class)) {
-                        /** @var class-string<\Predis\Client> $predisClass */
-                        $predisClass = \Predis\Client::class;
-                        if ($redis instanceof $predisClass) {
-                            $this->atomicConnection = $redis;
-                            return $redis;
+                    if (class_exists(\Symfony\Component\Cache\Adapter\RedisAdapter::class)
+                        && $pool instanceof \Symfony\Component\Cache\Adapter\RedisAdapter) {
+                        $poolReflection = new ReflectionClass($pool);
+                        $redisProperty = $poolReflection->getProperty('redis');
+                        $redisProperty->setAccessible(true);
+
+                        // Check if redis property is initialized
+                        if ($redisProperty->isInitialized($pool)) {
+                            $redis = $redisProperty->getValue($pool);
+
+                            if ($redis instanceof \Redis) {
+                                $this->atomicConnection = $redis;
+                                return $redis;
+                            }
+                            // Check for Predis\Client (optional dependency)
+                            if (class_exists(\Predis\Client::class)) {
+                                /** @var class-string<\Predis\Client> $predisClass */
+                                $predisClass = \Predis\Client::class;
+                                if ($redis instanceof $predisClass) {
+                                    $this->atomicConnection = $redis;
+                                    return $redis;
+                                }
+                            }
                         }
                     }
                 }
@@ -491,6 +499,12 @@ class CacheManager
         foreach ($reflection->getProperties() as $property) {
             try {
                 $property->setAccessible(true);
+
+                // Check if property is initialized (for typed properties)
+                if (!$property->isInitialized($object)) {
+                    continue;
+                }
+
                 $value = $property->getValue($object);
 
                 if ($value instanceof \Redis) {
@@ -513,8 +527,8 @@ class CacheManager
                         return $found;
                     }
                 }
-            } catch (ReflectionException) {
-                // Ignore individual property access errors
+            } catch (\ReflectionException | \Error $e) {
+                // Ignore individual property access errors (ReflectionException or uninitialized typed property Error)
                 continue;
             }
         }

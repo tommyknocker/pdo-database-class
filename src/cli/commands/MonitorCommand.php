@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\MonitorManager;
+use tommyknocker\pdodb\PdoDb;
 
 /**
  * Monitor command for database monitoring.
@@ -132,12 +133,12 @@ class MonitorCommand extends Command
     /**
      * Watch queries in real-time.
      *
-     * @param \tommyknocker\pdodb\PdoDb $db
+     * @param PdoDb $db
      * @param string $format
      *
      * @return int Exit code
      */
-    protected function watchQueries(\tommyknocker\pdodb\PdoDb $db, string $format): int
+    protected function watchQueries(PdoDb $db, string $format): int
     {
         // Use ANSI escape sequence to clear screen (cross-platform)
         $clear = "\033[2J\033[H";
@@ -159,12 +160,12 @@ class MonitorCommand extends Command
     /**
      * Watch connections in real-time.
      *
-     * @param \tommyknocker\pdodb\PdoDb $db
+     * @param PdoDb $db
      * @param string $format
      *
      * @return int Exit code
      */
-    protected function watchConnections(\tommyknocker\pdodb\PdoDb $db, string $format): int
+    protected function watchConnections(PdoDb $db, string $format): int
     {
         // Use ANSI escape sequence to clear screen (cross-platform)
         $clear = "\033[2J\033[H";

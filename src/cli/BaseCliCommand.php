@@ -257,101 +257,52 @@ abstract class BaseCliCommand
      */
     protected static function loadCacheConfig(array $dbConfig): array
     {
-        $cacheConfig = [];
-
-        // Get cache config from dbConfig (if exists)
-        $cacheSection = isset($dbConfig['cache']) && is_array($dbConfig['cache']) ? $dbConfig['cache'] : [];
-
-        // Check if cache is enabled
-        $cacheEnabled = getenv('PDODB_CACHE_ENABLED');
-        if ($cacheEnabled !== false && mb_strtolower($cacheEnabled, 'UTF-8') === 'true') {
-            $cacheConfig['enabled'] = true;
-        } elseif (isset($cacheSection['enabled'])) {
-            $cacheConfig['enabled'] = (bool)$cacheSection['enabled'];
-        } else {
-            $cacheConfig['enabled'] = false;
-        }
-
-        if (!$cacheConfig['enabled']) {
-            return $cacheConfig;
-        }
-
-        // Get cache type
-        $type = getenv('PDODB_CACHE_TYPE');
-        if ($type === false) {
-            $type = $cacheSection['type'] ?? $cacheSection['adapter'] ?? 'filesystem';
-        }
-        $cacheConfig['type'] = is_string($type) ? $type : 'filesystem';
-
-        // Load cache-specific configuration
-        switch (mb_strtolower($cacheConfig['type'], 'UTF-8')) {
-            case 'filesystem':
-            case 'file':
-                $cacheConfig['directory'] = getenv('PDODB_CACHE_DIRECTORY') !== false
-                    ? getenv('PDODB_CACHE_DIRECTORY')
-                    : ($cacheSection['directory'] ?? $cacheSection['path'] ?? sys_get_temp_dir() . '/pdodb_cache');
-                $cacheConfig['namespace'] = getenv('PDODB_CACHE_NAMESPACE') !== false
-                    ? getenv('PDODB_CACHE_NAMESPACE')
-                    : ($cacheSection['namespace'] ?? '');
-                break;
-
-            case 'redis':
-                $cacheConfig['host'] = getenv('PDODB_CACHE_REDIS_HOST') !== false
-                    ? getenv('PDODB_CACHE_REDIS_HOST')
-                    : ($cacheSection['host'] ?? $cacheSection['redis_host'] ?? '127.0.0.1');
-                $cacheConfig['port'] = getenv('PDODB_CACHE_REDIS_PORT') !== false
-                    ? (int)getenv('PDODB_CACHE_REDIS_PORT')
-                    : ($cacheSection['port'] ?? $cacheSection['redis_port'] ?? 6379);
-                $cacheConfig['password'] = getenv('PDODB_CACHE_REDIS_PASSWORD') !== false
-                    ? getenv('PDODB_CACHE_REDIS_PASSWORD')
-                    : ($cacheSection['password'] ?? $cacheSection['redis_password'] ?? null);
-                $cacheConfig['database'] = getenv('PDODB_CACHE_REDIS_DATABASE') !== false
-                    ? (int)getenv('PDODB_CACHE_REDIS_DATABASE')
-                    : ($cacheSection['database'] ?? $cacheSection['redis_database'] ?? $cacheSection['db'] ?? 0);
-                $cacheConfig['namespace'] = getenv('PDODB_CACHE_NAMESPACE') !== false
-                    ? getenv('PDODB_CACHE_NAMESPACE')
-                    : ($cacheSection['namespace'] ?? '');
-                break;
-
-            case 'apcu':
-                $cacheConfig['namespace'] = getenv('PDODB_CACHE_NAMESPACE') !== false
-                    ? getenv('PDODB_CACHE_NAMESPACE')
-                    : ($cacheSection['namespace'] ?? '');
-                break;
-
-            case 'memcached':
-                $servers = getenv('PDODB_CACHE_MEMCACHED_SERVERS');
-                if ($servers !== false && $servers !== '') {
-                    $serversList = explode(',', $servers);
-                    $cacheConfig['servers'] = [];
-                    foreach ($serversList as $server) {
-                        $parts = explode(':', trim($server));
-                        $host = $parts[0] ?? '127.0.0.1';
-                        $port = isset($parts[1]) ? (int)$parts[1] : 11211;
-                        $cacheConfig['servers'][] = [$host, $port];
-                    }
-                } else {
-                    $cacheConfig['servers'] = $cacheSection['servers'] ?? $cacheSection['memcached_servers'] ?? [['127.0.0.1', 11211]];
+        // Collect environment variables
+        // Always use getenv() to ensure we get variables set via putenv()
+        // $_ENV may not be updated when putenv() is called
+        $envVars = [];
+        // Check $_ENV first (most reliable)
+        foreach ($_ENV as $key => $value) {
+            if (is_string($key) && str_starts_with($key, 'PDODB_')) {
+                $envValue = getenv($key);
+                if ($envValue !== false) {
+                    $envVars[$key] = $envValue;
                 }
-                $cacheConfig['namespace'] = getenv('PDODB_CACHE_NAMESPACE') !== false
-                    ? getenv('PDODB_CACHE_NAMESPACE')
-                    : ($cacheSection['namespace'] ?? '');
-                break;
-
-            case 'array':
-                // Array cache (for testing) - no additional configuration needed
-                break;
+            }
+        }
+        // Also check $_SERVER for variables that might not be in $_ENV
+        foreach ($_SERVER as $key => $value) {
+            if (is_string($key) && str_starts_with($key, 'PDODB_') && !isset($envVars[$key])) {
+                $envValue = getenv($key);
+                if ($envValue !== false) {
+                    $envVars[$key] = $envValue;
+                }
+            }
+        }
+        // Also check common PDODB_CACHE_* variables directly via getenv() to catch putenv() calls
+        $cacheEnvVars = [
+            'PDODB_CACHE_ENABLED',
+            'PDODB_CACHE_TYPE',
+            'PDODB_CACHE_TTL',
+            'PDODB_CACHE_PREFIX',
+            'PDODB_CACHE_DIRECTORY',
+            'PDODB_CACHE_REDIS_HOST',
+            'PDODB_CACHE_REDIS_PORT',
+            'PDODB_CACHE_REDIS_PASSWORD',
+            'PDODB_CACHE_REDIS_DATABASE',
+            'PDODB_CACHE_MEMCACHED_SERVERS',
+            'PDODB_CACHE_NAMESPACE',
+        ];
+        foreach ($cacheEnvVars as $key) {
+            if (!isset($envVars[$key])) {
+                $envValue = getenv($key);
+                if ($envValue !== false) {
+                    $envVars[$key] = $envValue;
+                }
+            }
         }
 
-        // Common cache settings
-        $cacheConfig['default_lifetime'] = getenv('PDODB_CACHE_TTL') !== false
-            ? (int)getenv('PDODB_CACHE_TTL')
-            : ($cacheSection['default_lifetime'] ?? $cacheSection['ttl'] ?? 3600);
-        $cacheConfig['prefix'] = getenv('PDODB_CACHE_PREFIX') !== false
-            ? getenv('PDODB_CACHE_PREFIX')
-            : ($cacheSection['prefix'] ?? 'pdodb_');
-
-        return $cacheConfig;
+        return \tommyknocker\pdodb\connection\EnvConfigLoader::loadCacheConfig($envVars, $dbConfig);
     }
 
     /**
