@@ -6,6 +6,9 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use tommyknocker\pdodb\query\analysis\ParsedExplainPlan;
 use tommyknocker\pdodb\query\analysis\RecommendationGenerator;
+use tommyknocker\pdodb\query\ExecutionEngine;
+use tommyknocker\pdodb\query\ParameterManager;
+use tommyknocker\pdodb\query\RawValueResolver;
 
 /**
  * Tests for RecommendationGenerator class.
@@ -15,10 +18,10 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
     protected function createRecommendationGenerator(): RecommendationGenerator
     {
         $connection = self::$db->connection;
-        $executionEngine = new \tommyknocker\pdodb\query\ExecutionEngine(
+        $executionEngine = new ExecutionEngine(
             $connection,
-            new \tommyknocker\pdodb\query\RawValueResolver($connection, new \tommyknocker\pdodb\query\ParameterManager()),
-            new \tommyknocker\pdodb\query\ParameterManager()
+            new RawValueResolver($connection, new ParameterManager()),
+            new ParameterManager()
         );
         return new RecommendationGenerator($executionEngine, $connection->getDialect());
     }

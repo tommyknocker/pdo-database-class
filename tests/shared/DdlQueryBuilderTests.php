@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
@@ -294,7 +295,7 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support ALTER COLUMN to change type
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
         }
 
         // Alter column with ColumnSchema
@@ -338,7 +339,7 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support ALTER COLUMN to change type
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
         }
 
         // Alter column with array
@@ -387,7 +388,7 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support ALTER COLUMN to change type
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
         }
 
         // Alter column with string type
@@ -528,7 +529,7 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support ADD FOREIGN KEY
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
             $schema->addForeignKey(
                 'fk_child_parent',
                 'test_fk_child',
@@ -921,7 +922,7 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support ADD FOREIGN KEY
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
             $schema->addForeignKey(
                 'fk_drop_test',
                 'test_fk_drop_child',
@@ -1675,7 +1676,7 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
 
         // Create functional index
         $schema->createIndex('idx_test_lower', 'test_ddl_functional_index', [
-            \tommyknocker\pdodb\helpers\Db::raw('LOWER(name)'),
+            Db::raw('LOWER(name)'),
         ]);
 
         $this->assertTrue($schema->indexExists('idx_test_lower', 'test_ddl_functional_index'));

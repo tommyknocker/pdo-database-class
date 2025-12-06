@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mariadb;
 
+use tommyknocker\pdodb\exceptions\DatabaseException;
+
 /**
  * FileLoadTests tests for mariadb.
  */
@@ -96,7 +98,7 @@ final class FileLoadTests extends BaseMariaDBTestCase
             $row = self::$db->find()->from('users')->where('name', 'JSONUser 1')->getOne();
             $this->assertEquals('JSONUser 1', $row['name']);
             $this->assertEquals(25, $row['age']);
-        } catch (\PDOException | \tommyknocker\pdodb\exceptions\DatabaseException $e) {
+        } catch (\PDOException | DatabaseException $e) {
             // Check if it's actually a local_infile issue
             if (str_contains($e->getMessage(), 'local_infile') ||
                 str_contains($e->getMessage(), 'LOAD DATA') ||

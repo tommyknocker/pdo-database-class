@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\query\DdlQueryBuilder;
+use tommyknocker\pdodb\query\QueryBuilder;
 use tommyknocker\pdodb\seeds\Seed;
 use tommyknocker\pdodb\seeds\SeedRunner;
 
@@ -548,7 +551,7 @@ PHP;
         };
 
         $seed->run();
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\DdlQueryBuilder::class, $seed->schemaResult);
+        $this->assertInstanceOf(DdlQueryBuilder::class, $seed->schemaResult);
     }
 
     /**
@@ -571,7 +574,7 @@ PHP;
         };
 
         $seed->run();
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\QueryBuilder::class, $seed->queryResult);
+        $this->assertInstanceOf(QueryBuilder::class, $seed->queryResult);
     }
 
     /**
@@ -829,7 +832,7 @@ PHP;
         };
 
         $seed->run();
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\RawValue::class, $seed->rawValue);
+        $this->assertInstanceOf(RawValue::class, $seed->rawValue);
         $this->assertEquals('NOW()', $seed->rawValue->getValue());
     }
 }

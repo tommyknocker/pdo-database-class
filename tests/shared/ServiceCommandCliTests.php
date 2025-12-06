@@ -11,7 +11,7 @@ use tommyknocker\pdodb\PdoDb;
 final class ServiceCommandCliTests extends TestCase
 {
     protected string $servicesDir;
-    protected \tommyknocker\pdodb\PdoDb $db;
+    protected PdoDb $db;
 
     protected function setUp(): void
     {

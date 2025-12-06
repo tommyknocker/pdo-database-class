@@ -6,6 +6,8 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\cli\commands\ModelCommand;
+use tommyknocker\pdodb\PdoDb;
 
 final class ModelCommandCliTests extends TestCase
 {
@@ -22,7 +24,7 @@ final class ModelCommandCliTests extends TestCase
         putenv('PHPUNIT=1');
 
         // Create a test table for model generation
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+        $db = new PdoDb('sqlite', ['path' => $this->dbPath]);
         $db->rawQuery('CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -67,8 +69,8 @@ final class ModelCommandCliTests extends TestCase
     public function testModelCommandMethods(): void
     {
         // Test that ModelCommand class exists and has required methods
-        $command = new \tommyknocker\pdodb\cli\commands\ModelCommand();
-        $this->assertInstanceOf(\tommyknocker\pdodb\cli\commands\ModelCommand::class, $command);
+        $command = new ModelCommand();
+        $this->assertInstanceOf(ModelCommand::class, $command);
 
         // Test that command has correct name and description
         $reflection = new \ReflectionClass($command);
@@ -80,7 +82,7 @@ final class ModelCommandCliTests extends TestCase
     public function testModelMakeCommand(): void
     {
         // Test that make method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\ModelCommand();
+        $command = new ModelCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('make'));
@@ -93,7 +95,7 @@ final class ModelCommandCliTests extends TestCase
     {
         // Test that make method handles missing name
         // In non-interactive mode, should show error
-        $command = new \tommyknocker\pdodb\cli\commands\ModelCommand();
+        $command = new ModelCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('make'));
@@ -104,7 +106,7 @@ final class ModelCommandCliTests extends TestCase
     public function testModelUnknownSubcommand(): void
     {
         // Test that unknown subcommand is handled in execute method
-        $command = new \tommyknocker\pdodb\cli\commands\ModelCommand();
+        $command = new ModelCommand();
         $reflection = new \ReflectionClass($command);
 
         // Verify execute method exists
@@ -116,7 +118,7 @@ final class ModelCommandCliTests extends TestCase
     public function testModelShowHelpMethod(): void
     {
         // Test that showHelp method exists
-        $command = new \tommyknocker\pdodb\cli\commands\ModelCommand();
+        $command = new ModelCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('showHelp'));

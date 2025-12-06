@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\mariadb;
 
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\helpers\values\FulltextMatchValue;
+use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
  * DialectTests tests for mariadb.
@@ -244,7 +246,7 @@ final class DialectTests extends BaseMariaDBTestCase
     public function testFulltextMatchHelper(): void
     {
         $fulltext = Db::match('title, content', 'search term', 'natural');
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\FulltextMatchValue::class, $fulltext);
+        $this->assertInstanceOf(FulltextMatchValue::class, $fulltext);
     }
 
     public function testDistinctOnThrowsExceptionOnMySQL(): void
@@ -272,7 +274,7 @@ final class DialectTests extends BaseMariaDBTestCase
         $this->assertEquals('`test`column`', $quoted);
 
         // Test RawValue (should return as-is)
-        $rawValue = new \tommyknocker\pdodb\helpers\values\RawValue('COUNT(*)');
+        $rawValue = new RawValue('COUNT(*)');
         $this->assertEquals('COUNT(*)', $dialect->quoteIdentifier($rawValue));
 
         // Test identifier with numbers

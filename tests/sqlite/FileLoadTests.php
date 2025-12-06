@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\sqlite;
 
+use tommyknocker\pdodb\exceptions\DatabaseException;
+
 /**
  * FileLoadTests tests for sqlite.
  */
@@ -35,7 +37,7 @@ final class FileLoadTests extends BaseSqliteTestCase
             $row = self::$db->find()->from('users')->where('name', 'XMLUser 2')->getOne();
             $this->assertEquals('XMLUser 2', $row['name']);
             $this->assertEquals(44, $row['age']);
-        } catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
+        } catch (DatabaseException $e) {
             // SQLite doesn't support LOAD XML, so this should be skipped
             $this->markTestSkipped(
                 'SQLite does not support LOAD XML. Error: ' . $e->getMessage()
@@ -68,7 +70,7 @@ final class FileLoadTests extends BaseSqliteTestCase
 
             $this->assertContains('Dave', $names);
             $this->assertContains('Eve', $names);
-        } catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
+        } catch (DatabaseException $e) {
             // SQLite doesn't support LOAD DATA INFILE, so this should be skipped
             $this->markTestSkipped(
                 'SQLite does not support LOAD DATA INFILE. Error: ' . $e->getMessage()
@@ -99,7 +101,7 @@ final class FileLoadTests extends BaseSqliteTestCase
             $row = self::$db->find()->from('users')->where('name', 'JSONUser 1')->getOne();
             $this->assertEquals('JSONUser 1', $row['name']);
             $this->assertEquals(25, $row['age']);
-        } catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
+        } catch (DatabaseException $e) {
             // SQLite doesn't support LOAD JSON, so this should be skipped
             $this->markTestSkipped(
                 'SQLite does not support LOAD JSON. Error: ' . $e->getMessage()

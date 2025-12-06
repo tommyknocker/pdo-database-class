@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PDOException;
 use tommyknocker\pdodb\exceptions\DatabaseException;
+use tommyknocker\pdodb\helpers\Db;
 
 /**
  * Tests for FileLoader edge cases and error handling.
@@ -72,7 +73,7 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
             if ($db->schema()->tableExists('test_fileloader_rollback')) {
                 $count = $db->find()
                     ->from('test_fileloader_rollback')
-                    ->select(['count' => \tommyknocker\pdodb\helpers\Db::count()])
+                    ->select(['count' => Db::count()])
                     ->getValue('count');
                 $this->assertEquals(0, (int)$count, 'No rows should be inserted with invalid data');
             }
@@ -81,7 +82,7 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
             if ($db->schema()->tableExists('test_fileloader_rollback')) {
                 $count = $db->find()
                     ->from('test_fileloader_rollback')
-                    ->select(['count' => \tommyknocker\pdodb\helpers\Db::count()])
+                    ->select(['count' => Db::count()])
                     ->getValue('count');
 
                 // No rows should be inserted due to rollback
@@ -126,7 +127,7 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
             // Empty file might succeed but insert nothing
             $count = $db->find()
                 ->from('test_fileloader_empty')
-                ->select(['count' => \tommyknocker\pdodb\helpers\Db::count()])
+                ->select(['count' => Db::count()])
                 ->getValue('count');
 
             $this->assertIsBool($result);
@@ -215,11 +216,11 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
                 // SQLite supports JSON loading
                 $count = $db->find()
                     ->from('test_fileloader_json')
-                    ->select(['count' => \tommyknocker\pdodb\helpers\Db::count()])
+                    ->select(['count' => Db::count()])
                     ->getValue('count');
                 $this->assertGreaterThanOrEqual(0, (int)$count);
             }
-        } catch (\tommyknocker\pdodb\exceptions\DatabaseException | PDOException $e) {
+        } catch (DatabaseException | PDOException $e) {
             // Some databases might not support JSON loading, which is acceptable
             $this->assertInstanceOf(\Throwable::class, $e);
         } finally {
@@ -259,10 +260,10 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
             // Empty file should insert no rows
             $count = $db->find()
                 ->from('test_fileloader_json_empty')
-                ->select(['count' => \tommyknocker\pdodb\helpers\Db::count()])
+                ->select(['count' => Db::count()])
                 ->getValue('count');
             $this->assertEquals(0, (int)$count, 'Empty JSON file should insert no rows');
-        } catch (\tommyknocker\pdodb\exceptions\DatabaseException | PDOException $e) {
+        } catch (DatabaseException | PDOException $e) {
             // Some databases might throw error for empty file, which is acceptable
             $this->assertInstanceOf(\Throwable::class, $e);
         } finally {
@@ -298,7 +299,7 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
 
             // Result should be boolean indicating success
             $this->assertIsBool($result);
-        } catch (\tommyknocker\pdodb\exceptions\DatabaseException | PDOException $e) {
+        } catch (DatabaseException | PDOException $e) {
             // Some databases might not support XML loading, which is acceptable
             $this->assertInstanceOf(\Throwable::class, $e);
         } finally {
@@ -334,7 +335,7 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
 
             // Result should be boolean indicating success
             $this->assertIsBool($result);
-        } catch (\tommyknocker\pdodb\exceptions\DatabaseException | PDOException $e) {
+        } catch (DatabaseException | PDOException $e) {
             // Some databases might not support XML loading with linesToIgnore, which is acceptable
             $this->assertInstanceOf(\Throwable::class, $e);
         } finally {

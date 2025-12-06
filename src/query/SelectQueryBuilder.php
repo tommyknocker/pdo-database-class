@@ -8,6 +8,7 @@ use PDO;
 use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\cache\CacheManager;
+use tommyknocker\pdodb\cache\QueryCacheKey;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\helpers\values\AsValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -1819,7 +1820,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
 
         // Extract table names from SQL for metadata
         $sqlData = $this->cachedSqlData ?? $this->toSQL();
-        $tables = \tommyknocker\pdodb\cache\QueryCacheKey::extractTables($sqlData['sql']);
+        $tables = QueryCacheKey::extractTables($sqlData['sql']);
 
         $this->cacheManager->set($this->cachedCacheKey, $result, $ttl, $tables);
     }

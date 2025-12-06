@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\cli\commands\DumpCommand;
 use tommyknocker\pdodb\PdoDb;
 
 final class DumpCommandCliTests extends TestCase
@@ -310,7 +311,7 @@ final class DumpCommandCliTests extends TestCase
 
     public function testDumpCommandMethods(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\DumpCommand();
+        $command = new DumpCommand();
         $reflection = new \ReflectionClass($command);
 
         // Verify methods exist
@@ -687,7 +688,7 @@ final class DumpCommandCliTests extends TestCase
         // This test verifies that the command structure exists
         // The actual error handling (which calls exit()) cannot be tested directly
         // as exit() terminates the PHP process
-        $command = new \tommyknocker\pdodb\cli\commands\DumpCommand();
+        $command = new DumpCommand();
         $reflection = new \ReflectionClass($command);
 
         // Verify compression methods exist

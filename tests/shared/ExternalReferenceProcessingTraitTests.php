@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
 use tommyknocker\pdodb\query\traits\ExternalReferenceProcessingTrait;
 
@@ -1268,11 +1269,11 @@ class ExternalReferenceProcessingTraitTests extends BaseSharedTestCase
         $helper = new ExternalReferenceProcessingTraitTestHelper();
         $helper->setTable('orders');
 
-        $rawValue = new \tommyknocker\pdodb\helpers\values\RawValue('users.id');
+        $rawValue = new RawValue('users.id');
         $result = $helper->testProcessExternalReferences($rawValue);
 
         // RawValue should be returned unchanged (not a string, so is_string() returns false)
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\RawValue::class, $result);
+        $this->assertInstanceOf(RawValue::class, $result);
         $this->assertSame($rawValue, $result);
     }
 

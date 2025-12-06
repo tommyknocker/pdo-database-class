@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\cli\BaseCliCommand;
 use tommyknocker\pdodb\cli\DatabaseManager;
 use tommyknocker\pdodb\cli\MigrationGenerator;
 use tommyknocker\pdodb\cli\ModelGenerator;
@@ -11,6 +12,7 @@ use tommyknocker\pdodb\cli\SchemaInspector;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\migrations\MigrationRunner;
+use tommyknocker\pdodb\PdoDb;
 
 /**
  * Shared tests for CLI tools.
@@ -1080,7 +1082,7 @@ class CliToolsTests extends BaseSharedTestCase
         $envFile = sys_get_temp_dir() . '/pdodb_test_env_' . uniqid() . '.env';
         file_put_contents($envFile, "PDODB_DRIVER=sqlite\nPDODB_DATABASE=:memory:\n");
 
-        $reflection = new \ReflectionClass(\tommyknocker\pdodb\cli\BaseCliCommand::class);
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadEnvFile');
         $method->setAccessible(true);
 
@@ -1106,7 +1108,7 @@ class CliToolsTests extends BaseSharedTestCase
         putenv('PDODB_PATH=:memory:');
 
         try {
-            $reflection = new \ReflectionClass(\tommyknocker\pdodb\cli\BaseCliCommand::class);
+            $reflection = new \ReflectionClass(BaseCliCommand::class);
             $method = $reflection->getMethod('buildConfigFromEnv');
             $method->setAccessible(true);
 
@@ -1125,7 +1127,7 @@ class CliToolsTests extends BaseSharedTestCase
      */
     public function testBaseCliCommandSuccess(): void
     {
-        $reflection = new \ReflectionClass(\tommyknocker\pdodb\cli\BaseCliCommand::class);
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('success');
         $method->setAccessible(true);
 
@@ -1149,7 +1151,7 @@ class CliToolsTests extends BaseSharedTestCase
      */
     public function testBaseCliCommandInfo(): void
     {
-        $reflection = new \ReflectionClass(\tommyknocker\pdodb\cli\BaseCliCommand::class);
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('info');
         $method->setAccessible(true);
 
@@ -1173,7 +1175,7 @@ class CliToolsTests extends BaseSharedTestCase
      */
     public function testBaseCliCommandWarning(): void
     {
-        $reflection = new \ReflectionClass(\tommyknocker\pdodb\cli\BaseCliCommand::class);
+        $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('warning');
         $method->setAccessible(true);
 
@@ -1200,7 +1202,7 @@ class CliToolsTests extends BaseSharedTestCase
         $tempFile = sys_get_temp_dir() . '/test_db_create_' . uniqid() . '.sqlite';
 
         try {
-            $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+            $db = new PdoDb('sqlite', ['path' => ':memory:']);
             $result = DatabaseManager::create($tempFile, $db);
 
             $this->assertTrue($result);
@@ -1221,7 +1223,7 @@ class CliToolsTests extends BaseSharedTestCase
         touch($tempFile);
 
         try {
-            $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+            $db = new PdoDb('sqlite', ['path' => ':memory:']);
             $result = DatabaseManager::drop($tempFile, $db);
 
             $this->assertTrue($result);
@@ -1242,7 +1244,7 @@ class CliToolsTests extends BaseSharedTestCase
         touch($tempFile);
 
         try {
-            $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+            $db = new PdoDb('sqlite', ['path' => ':memory:']);
 
             $exists = DatabaseManager::exists($tempFile, $db);
             $this->assertTrue($exists);
@@ -1263,7 +1265,7 @@ class CliToolsTests extends BaseSharedTestCase
      */
     public function testDatabaseManagerListThrowsExceptionForSqlite(): void
     {
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+        $db = new PdoDb('sqlite', ['path' => ':memory:']);
 
         $this->expectException(ResourceException::class);
         $this->expectExceptionMessage('SQLite does not support multiple databases');
@@ -1291,7 +1293,7 @@ class CliToolsTests extends BaseSharedTestCase
         $tempFile = sys_get_temp_dir() . '/test_db_flow_' . uniqid() . '.sqlite';
 
         try {
-            $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+            $db = new PdoDb('sqlite', ['path' => ':memory:']);
 
             // Create database
             $created = DatabaseManager::create($tempFile, $db);
@@ -1338,7 +1340,7 @@ class CliToolsTests extends BaseSharedTestCase
         ];
 
         $connection = DatabaseManager::createServerConnection($config);
-        $this->assertInstanceOf(\tommyknocker\pdodb\PdoDb::class, $connection);
+        $this->assertInstanceOf(PdoDb::class, $connection);
     }
 
     /**
@@ -1353,7 +1355,7 @@ class CliToolsTests extends BaseSharedTestCase
         ];
 
         $connection = DatabaseManager::createServerConnection($config);
-        $this->assertInstanceOf(\tommyknocker\pdodb\PdoDb::class, $connection);
+        $this->assertInstanceOf(PdoDb::class, $connection);
     }
 
     /**
@@ -1367,7 +1369,7 @@ class CliToolsTests extends BaseSharedTestCase
         ];
 
         $connection = DatabaseManager::createServerConnection($config);
-        $this->assertInstanceOf(\tommyknocker\pdodb\PdoDb::class, $connection);
+        $this->assertInstanceOf(PdoDb::class, $connection);
     }
 
     /**

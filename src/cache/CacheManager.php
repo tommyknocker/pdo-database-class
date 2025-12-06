@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cache;
 
+use Predis\Client;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\SimpleCache\CacheInterface;
 use Psr\SimpleCache\InvalidArgumentException;
 use ReflectionClass;
 use ReflectionException;
+use Symfony\Component\Cache\Adapter\ApcuAdapter;
+use Symfony\Component\Cache\Adapter\MemcachedAdapter;
+use Symfony\Component\Cache\Adapter\RedisAdapter;
+use Symfony\Component\Cache\Psr16Cache;
 use tommyknocker\pdodb\events\CacheClearedEvent;
 use tommyknocker\pdodb\events\CacheDeleteEvent;
 use tommyknocker\pdodb\events\CacheHitEvent;
@@ -398,9 +403,9 @@ class CacheManager
         if ($this->atomicConnection !== null) {
             $isRedis = $this->atomicConnection instanceof \Redis;
             $isPredis = false;
-            if (class_exists(\Predis\Client::class)) {
-                /** @var class-string<\Predis\Client> $predisClass */
-                $predisClass = \Predis\Client::class;
+            if (class_exists(Client::class)) {
+                /** @var class-string<Client> $predisClass */
+                $predisClass = Client::class;
                 $isPredis = $this->atomicConnection instanceof $predisClass;
             }
             $redis = $isRedis || $isPredis ? $this->atomicConnection : null;
@@ -414,9 +419,9 @@ class CacheManager
             $this->atomicConnection = $this->cache;
             return $this->cache;
         }
-        if (class_exists(\Predis\Client::class)) {
-            /** @var class-string<\Predis\Client> $predisClass */
-            $predisClass = \Predis\Client::class;
+        if (class_exists(Client::class)) {
+            /** @var class-string<Client> $predisClass */
+            $predisClass = Client::class;
             if ($this->cache instanceof $predisClass) {
                 $this->atomicConnection = $this->cache;
                 return $this->cache;
@@ -435,8 +440,8 @@ class CacheManager
             }
 
             // Check Symfony Cache specifically (for backward compatibility)
-            if (class_exists(\Symfony\Component\Cache\Psr16Cache::class)
-                && $this->cache instanceof \Symfony\Component\Cache\Psr16Cache) {
+            if (class_exists(Psr16Cache::class)
+                && $this->cache instanceof Psr16Cache) {
                 $poolProperty = $reflection->getProperty('pool');
                 $poolProperty->setAccessible(true);
 
@@ -444,8 +449,8 @@ class CacheManager
                 if ($poolProperty->isInitialized($this->cache)) {
                     $pool = $poolProperty->getValue($this->cache);
 
-                    if (class_exists(\Symfony\Component\Cache\Adapter\RedisAdapter::class)
-                        && $pool instanceof \Symfony\Component\Cache\Adapter\RedisAdapter) {
+                    if (class_exists(RedisAdapter::class)
+                        && $pool instanceof RedisAdapter) {
                         $poolReflection = new ReflectionClass($pool);
                         $redisProperty = $poolReflection->getProperty('redis');
                         $redisProperty->setAccessible(true);
@@ -459,9 +464,9 @@ class CacheManager
                                 return $redis;
                             }
                             // Check for Predis\Client (optional dependency)
-                            if (class_exists(\Predis\Client::class)) {
-                                /** @var class-string<\Predis\Client> $predisClass */
-                                $predisClass = \Predis\Client::class;
+                            if (class_exists(Client::class)) {
+                                /** @var class-string<Client> $predisClass */
+                                $predisClass = Client::class;
                                 if ($redis instanceof $predisClass) {
                                     $this->atomicConnection = $redis;
                                     return $redis;
@@ -511,9 +516,9 @@ class CacheManager
                     return $value;
                 }
 
-                if (class_exists(\Predis\Client::class)) {
-                    /** @var class-string<\Predis\Client> $predisClass */
-                    $predisClass = \Predis\Client::class;
+                if (class_exists(Client::class)) {
+                    /** @var class-string<Client> $predisClass */
+                    $predisClass = Client::class;
                     if ($value instanceof $predisClass) {
                         return $value;
                     }
@@ -527,7 +532,7 @@ class CacheManager
                         return $found;
                     }
                 }
-            } catch (\ReflectionException | \Error $e) {
+            } catch (ReflectionException | \Error $e) {
                 // Ignore individual property access errors (ReflectionException or uninitialized typed property Error)
                 continue;
             }
@@ -571,14 +576,14 @@ class CacheManager
             }
 
             // Check Symfony Cache specifically (for backward compatibility)
-            if (class_exists(\Symfony\Component\Cache\Psr16Cache::class)
-                && $this->cache instanceof \Symfony\Component\Cache\Psr16Cache) {
+            if (class_exists(Psr16Cache::class)
+                && $this->cache instanceof Psr16Cache) {
                 $poolProperty = $reflection->getProperty('pool');
                 $poolProperty->setAccessible(true);
                 $pool = $poolProperty->getValue($this->cache);
 
-                if (class_exists(\Symfony\Component\Cache\Adapter\MemcachedAdapter::class)
-                    && $pool instanceof \Symfony\Component\Cache\Adapter\MemcachedAdapter) {
+                if (class_exists(MemcachedAdapter::class)
+                    && $pool instanceof MemcachedAdapter) {
                     $poolReflection = new ReflectionClass($pool);
                     $memcachedProperty = $poolReflection->getProperty('client');
                     $memcachedProperty->setAccessible(true);
@@ -650,8 +655,8 @@ class CacheManager
             return null;
         }
 
-        if (!class_exists(\Symfony\Component\Cache\Psr16Cache::class)
-            || !$this->cache instanceof \Symfony\Component\Cache\Psr16Cache) {
+        if (!class_exists(Psr16Cache::class)
+            || !$this->cache instanceof Psr16Cache) {
             return null;
         }
 
@@ -661,8 +666,8 @@ class CacheManager
             $poolProperty->setAccessible(true);
             $pool = $poolProperty->getValue($this->cache);
 
-            if (class_exists(\Symfony\Component\Cache\Adapter\ApcuAdapter::class)
-                && $pool instanceof \Symfony\Component\Cache\Adapter\ApcuAdapter) {
+            if (class_exists(ApcuAdapter::class)
+                && $pool instanceof ApcuAdapter) {
                 return true;
             }
         } catch (ReflectionException) {
@@ -693,9 +698,9 @@ class CacheManager
         }
 
         // Predis
-        if (class_exists(\Predis\Client::class)) {
-            /** @var class-string<\Predis\Client> $predisClass */
-            $predisClass = \Predis\Client::class;
+        if (class_exists(Client::class)) {
+            /** @var class-string<Client> $predisClass */
+            $predisClass = Client::class;
             if ($redis instanceof $predisClass) {
                 if ($by === 1) {
                     /* @var \Predis\Client $redis */
@@ -745,11 +750,11 @@ class CacheManager
         }
 
         // Predis
-        if (class_exists(\Predis\Client::class)) {
-            /** @var class-string<\Predis\Client> $predisClass */
-            $predisClass = \Predis\Client::class;
+        if (class_exists(Client::class)) {
+            /** @var class-string<Client> $predisClass */
+            $predisClass = Client::class;
             if ($redis instanceof $predisClass) {
-                /** @var \Predis\Client $redis */
+                /** @var Client $redis */
                 $value = $redis->get($key);
                 return $value !== null ? (int)$value : 0;
             }
@@ -785,9 +790,9 @@ class CacheManager
             return;
         }
         // Predis
-        if (class_exists(\Predis\Client::class)) {
-            /** @var class-string<\Predis\Client> $predisClass */
-            $predisClass = \Predis\Client::class;
+        if (class_exists(Client::class)) {
+            /** @var class-string<Client> $predisClass */
+            $predisClass = Client::class;
             if ($redis instanceof $predisClass) {
                 /* @var \Predis\Client $redis */
                 $redis->del($key);
@@ -1156,11 +1161,11 @@ class CacheManager
         }
 
         // Predis
-        if (class_exists(\Predis\Client::class)) {
-            /** @var class-string<\Predis\Client> $predisClass */
-            $predisClass = \Predis\Client::class;
+        if (class_exists(Client::class)) {
+            /** @var class-string<Client> $predisClass */
+            $predisClass = Client::class;
             if ($redis instanceof $predisClass) {
-                /** @var \Predis\Client $redis */
+                /** @var Client $redis */
                 $keys = $redis->keys($pattern);
                 return is_array($keys) ? $keys : [];
             }
@@ -1203,9 +1208,9 @@ class CacheManager
         if ($this->cache instanceof \Memcached) {
             return 'Memcached';
         }
-        if (class_exists(\Predis\Client::class)) {
-            /** @var class-string<\Predis\Client> $predisClass */
-            $predisClass = \Predis\Client::class;
+        if (class_exists(Client::class)) {
+            /** @var class-string<Client> $predisClass */
+            $predisClass = Client::class;
             if ($this->cache instanceof $predisClass) {
                 return 'Redis';
             }
@@ -1227,9 +1232,9 @@ class CacheManager
                     if ($value instanceof \Memcached) {
                         return 'Memcached';
                     }
-                    if (class_exists(\Predis\Client::class)) {
-                        /** @var class-string<\Predis\Client> $predisClass */
-                        $predisClass = \Predis\Client::class;
+                    if (class_exists(Client::class)) {
+                        /** @var class-string<Client> $predisClass */
+                        $predisClass = Client::class;
                         if ($value instanceof $predisClass) {
                             return 'Redis';
                         }
@@ -1255,8 +1260,8 @@ class CacheManager
             }
 
             // Check Symfony Cache adapters specifically
-            if (class_exists(\Symfony\Component\Cache\Psr16Cache::class)
-                && $this->cache instanceof \Symfony\Component\Cache\Psr16Cache) {
+            if (class_exists(Psr16Cache::class)
+                && $this->cache instanceof Psr16Cache) {
                 try {
                     $poolProperty = $reflection->getProperty('pool');
                     $poolProperty->setAccessible(true);

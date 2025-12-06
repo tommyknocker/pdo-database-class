@@ -6,6 +6,8 @@ namespace tommyknocker\pdodb\cli;
 
 use Psr\SimpleCache\CacheInterface;
 use tommyknocker\pdodb\cache\CacheFactory;
+use tommyknocker\pdodb\connection\DialectRegistry;
+use tommyknocker\pdodb\connection\EnvConfigLoader;
 use tommyknocker\pdodb\connection\EnvLoader;
 use tommyknocker\pdodb\connection\ExtensionChecker;
 use tommyknocker\pdodb\PdoDb;
@@ -215,7 +217,7 @@ abstract class BaseCliCommand
         }
 
         try {
-            $dialect = \tommyknocker\pdodb\connection\DialectRegistry::resolve($driver);
+            $dialect = DialectRegistry::resolve($driver);
             $envVars = [];
             // Always use getenv() to ensure we get variables set via putenv()
             // $_ENV may not be updated when putenv() is called
@@ -282,7 +284,7 @@ abstract class BaseCliCommand
             }
         }
 
-        return \tommyknocker\pdodb\connection\EnvConfigLoader::loadCacheConfig($envVars, $dbConfig);
+        return EnvConfigLoader::loadCacheConfig($envVars, $dbConfig);
     }
 
     /**

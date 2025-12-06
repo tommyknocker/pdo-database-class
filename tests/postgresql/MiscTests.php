@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\postgresql;
 
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\helpers\values\FulltextMatchValue;
 
 /**
  * MiscTests for postgresql.
@@ -77,7 +78,7 @@ final class MiscTests extends BasePostgreSQLTestCase
     public function testFulltextMatchHelper(): void
     {
         $fulltext = Db::match('title, content', 'search term', 'natural');
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\FulltextMatchValue::class, $fulltext);
+        $this->assertInstanceOf(FulltextMatchValue::class, $fulltext);
     }
 
     public function testMaterializedCteBasic(): void

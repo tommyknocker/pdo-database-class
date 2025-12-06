@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\QueryTester;
+use tommyknocker\pdodb\query\formatter\SqlFormatter;
 
 /**
  * Query command for testing SQL queries.
@@ -118,7 +119,7 @@ class QueryCommand extends Command
         if (!is_string($sql) || $sql === '') {
             return $this->showError('Query string is required for "format".');
         }
-        $formatter = new \tommyknocker\pdodb\query\formatter\SqlFormatter(false, 4, ' ');
+        $formatter = new SqlFormatter(false, 4, ' ');
         $formatted = $formatter->format($sql);
         echo $formatted . "\n";
         return 0;

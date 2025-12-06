@@ -11,7 +11,9 @@ use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
@@ -1435,7 +1437,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getDatabaseInfo(\tommyknocker\pdodb\PdoDb $db): array
+    public function getDatabaseInfo(PdoDb $db): array
     {
         $info = [];
 
@@ -1462,7 +1464,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function createUser(string $username, string $password, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function createUser(string $username, string $password, ?string $host, PdoDb $db): bool
     {
         // PostgreSQL doesn't use host in user creation
         // Check if user already exists
@@ -1484,7 +1486,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dropUser(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function dropUser(string $username, ?string $host, PdoDb $db): bool
     {
         // PostgreSQL doesn't use host in user deletion
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1498,7 +1500,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function userExists(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function userExists(string $username, ?string $host, PdoDb $db): bool
     {
         // PostgreSQL doesn't use host in user checks
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1511,7 +1513,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function listUsers(\tommyknocker\pdodb\PdoDb $db): array
+    public function listUsers(PdoDb $db): array
     {
         $sql = 'SELECT rolname FROM pg_roles WHERE rolcanlogin = true ORDER BY rolname';
         $result = $db->rawQuery($sql);
@@ -1531,7 +1533,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getUserInfo(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): array
+    public function getUserInfo(string $username, ?string $host, PdoDb $db): array
     {
         // PostgreSQL doesn't use host in user info
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1583,7 +1585,7 @@ class PostgreSQLDialect extends DialectAbstract
         ?string $database,
         ?string $table,
         ?string $host,
-        \tommyknocker\pdodb\PdoDb $db
+        PdoDb $db
     ): bool {
         // PostgreSQL doesn't use host in grants
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1635,7 +1637,7 @@ class PostgreSQLDialect extends DialectAbstract
         ?string $database,
         ?string $table,
         ?string $host,
-        \tommyknocker\pdodb\PdoDb $db
+        PdoDb $db
     ): bool {
         // PostgreSQL doesn't use host in revokes
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1681,7 +1683,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function changeUserPassword(string $username, string $newPassword, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function changeUserPassword(string $username, string $newPassword, ?string $host, PdoDb $db): bool
     {
         // PostgreSQL doesn't use host in password changes
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1698,7 +1700,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string
+    public function dumpSchema(PdoDb $db, ?string $table = null, bool $dropTables = true): string
     {
         $output = [];
         $tables = [];
@@ -1811,7 +1813,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpData(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    public function dumpData(PdoDb $db, ?string $table = null): string
     {
         $output = [];
         $tables = [];
@@ -1872,7 +1874,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function restoreFromSql(\tommyknocker\pdodb\PdoDb $db, string $sql, bool $continueOnError = false): void
+    public function restoreFromSql(PdoDb $db, string $sql, bool $continueOnError = false): void
     {
         // PostgreSQL uses dollar-quoted strings, need more sophisticated parsing
         $statements = [];
@@ -1962,14 +1964,14 @@ class PostgreSQLDialect extends DialectAbstract
                 $db->rawQuery($stmt);
             } catch (\Throwable $e) {
                 if (!$continueOnError) {
-                    throw new \tommyknocker\pdodb\exceptions\ResourceException('Failed to execute SQL statement: ' . $e->getMessage() . "\nStatement: " . substr($stmt, 0, 200));
+                    throw new ResourceException('Failed to execute SQL statement: ' . $e->getMessage() . "\nStatement: " . substr($stmt, 0, 200));
                 }
                 $errors[] = $e->getMessage();
             }
         }
 
         if (!empty($errors) && $continueOnError) {
-            throw new \tommyknocker\pdodb\exceptions\ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
+            throw new ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
         }
     }
 
@@ -1991,7 +1993,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getActiveQueries(\tommyknocker\pdodb\PdoDb $db): array
+    public function getActiveQueries(PdoDb $db): array
     {
         $sql = "SELECT pid, usename, application_name, datname, state, query_start, state_change, wait_event_type, wait_event, query
                 FROM pg_stat_activity
@@ -2016,7 +2018,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getActiveConnections(\tommyknocker\pdodb\PdoDb $db): array
+    public function getActiveConnections(PdoDb $db): array
     {
         $rows = $db->rawQuery('SELECT pid, usename, application_name, datname, state, backend_start, state_change, wait_event_type, wait_event FROM pg_stat_activity');
         $result = [];
@@ -2051,7 +2053,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array
+    public function getServerMetrics(PdoDb $db): array
     {
         $metrics = [];
 
@@ -2103,7 +2105,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getServerVariables(\tommyknocker\pdodb\PdoDb $db): array
+    public function getServerVariables(PdoDb $db): array
     {
         try {
             $rows = $db->rawQuery('SELECT name, setting as value FROM pg_settings ORDER BY name');
@@ -2123,7 +2125,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function extractEnumValues(array $column, \tommyknocker\pdodb\PdoDb $db, string $tableName, string $columnName): array
+    public function extractEnumValues(array $column, PdoDb $db, string $tableName, string $columnName): array
     {
         $type = $column['Type'] ?? $column['data_type'] ?? $column['type'] ?? '';
         if (!is_string($type)) {
@@ -2164,11 +2166,11 @@ class PostgreSQLDialect extends DialectAbstract
      * Extract ENUM values from PostgreSQL custom type.
      *
      * @param string $enumTypeName ENUM type name (e.g., "test_users_status_enum")
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return array<int, string>
      */
-    protected function extractPostgresEnumValues(string $enumTypeName, \tommyknocker\pdodb\PdoDb $db): array
+    protected function extractPostgresEnumValues(string $enumTypeName, PdoDb $db): array
     {
         try {
             // Query PostgreSQL system catalog to get ENUM values
@@ -2196,7 +2198,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
+    public function getSlowQueries(PdoDb $db, float $thresholdSeconds, int $limit): array
     {
         // Try pg_stat_statements first
         $hasExtension = false;
@@ -2256,7 +2258,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function listTables(\tommyknocker\pdodb\PdoDb $db, ?string $schema = null): array
+    public function listTables(PdoDb $db, ?string $schema = null): array
     {
         $schemaName = $schema ?? 'public';
         /** @var array<int, array<string, mixed>> $rows */
@@ -2383,7 +2385,7 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool
+    public function killQuery(PdoDb $db, int|string $processId): bool
     {
         try {
             $pid = is_int($processId) ? $processId : (int)$processId;

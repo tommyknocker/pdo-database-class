@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\cli\commands\MigrateCommand;
 
 final class MigrateCommandCliTests extends TestCase
 {
@@ -88,8 +89,8 @@ final class MigrateCommandCliTests extends TestCase
     public function testMigrateCommandMethods(): void
     {
         // Test that MigrateCommand class exists and has required methods
-        $command = new \tommyknocker\pdodb\cli\commands\MigrateCommand();
-        $this->assertInstanceOf(\tommyknocker\pdodb\cli\commands\MigrateCommand::class, $command);
+        $command = new MigrateCommand();
+        $this->assertInstanceOf(MigrateCommand::class, $command);
 
         // Test that command has correct name and description
         $reflection = new \ReflectionClass($command);
@@ -101,7 +102,7 @@ final class MigrateCommandCliTests extends TestCase
     public function testMigrateCreateCommand(): void
     {
         // Test that create method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\MigrateCommand();
+        $command = new MigrateCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('create'));
@@ -113,7 +114,7 @@ final class MigrateCommandCliTests extends TestCase
     public function testMigrateUpCommand(): void
     {
         // Test that up method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\MigrateCommand();
+        $command = new MigrateCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('up'));
@@ -125,7 +126,7 @@ final class MigrateCommandCliTests extends TestCase
     public function testMigrateDownCommand(): void
     {
         // Test that down method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\MigrateCommand();
+        $command = new MigrateCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('down'));
@@ -137,7 +138,7 @@ final class MigrateCommandCliTests extends TestCase
     public function testMigrateHistoryCommand(): void
     {
         // Test that history method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\MigrateCommand();
+        $command = new MigrateCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('history'));
@@ -149,7 +150,7 @@ final class MigrateCommandCliTests extends TestCase
     public function testMigrateNewCommand(): void
     {
         // Test that new method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\MigrateCommand();
+        $command = new MigrateCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('new'));
@@ -161,7 +162,7 @@ final class MigrateCommandCliTests extends TestCase
     public function testMigrateUnknownSubcommand(): void
     {
         // Test that unknown subcommand is handled in execute method
-        $command = new \tommyknocker\pdodb\cli\commands\MigrateCommand();
+        $command = new MigrateCommand();
         $reflection = new \ReflectionClass($command);
 
         // Verify execute method exists
@@ -175,7 +176,7 @@ final class MigrateCommandCliTests extends TestCase
         // Test that create method handles missing name
         // In non-interactive mode, MigrationGenerator::generate() will throw exception
         // which calls showError() that exits, so we test the method structure instead
-        $command = new \tommyknocker\pdodb\cli\commands\MigrateCommand();
+        $command = new MigrateCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('create'));
@@ -336,7 +337,7 @@ final class MigrateCommandCliTests extends TestCase
     public function testMigrateShowHelpMethod(): void
     {
         // Test that showHelp method exists
-        $command = new \tommyknocker\pdodb\cli\commands\MigrateCommand();
+        $command = new MigrateCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('showHelp'));

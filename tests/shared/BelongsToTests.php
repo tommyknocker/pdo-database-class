@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use tommyknocker\pdodb\orm\ActiveQuery;
 use tommyknocker\pdodb\orm\Model;
 use tommyknocker\pdodb\orm\relations\BelongsTo;
 use tommyknocker\pdodb\PdoDb;
@@ -295,7 +296,7 @@ final class BelongsToTests extends TestCase
         $relation->setModel($post);
 
         $query = $relation->prepareQuery();
-        $this->assertInstanceOf(\tommyknocker\pdodb\orm\ActiveQuery::class, $query);
+        $this->assertInstanceOf(ActiveQuery::class, $query);
     }
 
     /**
@@ -312,6 +313,6 @@ final class BelongsToTests extends TestCase
         $relation->setModel($post);
 
         $query = $relation->prepareQuery();
-        $this->assertInstanceOf(\tommyknocker\pdodb\orm\ActiveQuery::class, $query);
+        $this->assertInstanceOf(ActiveQuery::class, $query);
     }
 }

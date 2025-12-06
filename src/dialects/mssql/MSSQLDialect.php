@@ -9,11 +9,14 @@ use PDO;
 use PDOException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\analysis\parsers\MSSQLExplainParser;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
+use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class MSSQLDialect extends DialectAbstract
@@ -1305,7 +1308,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getDatabaseInfo(\tommyknocker\pdodb\PdoDb $db): array
+    public function getDatabaseInfo(PdoDb $db): array
     {
         $info = [];
 
@@ -1332,7 +1335,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function createUser(string $username, string $password, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function createUser(string $username, string $password, ?string $host, PdoDb $db): bool
     {
         // MSSQL uses logins at server level and users at database level
         // Host is not used in MSSQL
@@ -1358,7 +1361,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dropUser(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function dropUser(string $username, ?string $host, PdoDb $db): bool
     {
         // MSSQL: drop user first, then login
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1385,7 +1388,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function userExists(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function userExists(string $username, ?string $host, PdoDb $db): bool
     {
         // MSSQL: check if login exists
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1398,7 +1401,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function listUsers(\tommyknocker\pdodb\PdoDb $db): array
+    public function listUsers(PdoDb $db): array
     {
         $sql = "SELECT name FROM sys.server_principals WHERE type = 'S' AND is_disabled = 0 ORDER BY name";
         $result = $db->rawQuery($sql);
@@ -1418,7 +1421,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getUserInfo(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): array
+    public function getUserInfo(string $username, ?string $host, PdoDb $db): array
     {
         // MSSQL: get login and user info
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1481,7 +1484,7 @@ class MSSQLDialect extends DialectAbstract
         ?string $database,
         ?string $table,
         ?string $host,
-        \tommyknocker\pdodb\PdoDb $db
+        PdoDb $db
     ): bool {
         // MSSQL: grant permissions
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1514,7 +1517,7 @@ class MSSQLDialect extends DialectAbstract
         ?string $database,
         ?string $table,
         ?string $host,
-        \tommyknocker\pdodb\PdoDb $db
+        PdoDb $db
     ): bool {
         // MSSQL: revoke permissions
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1541,7 +1544,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function changeUserPassword(string $username, string $newPassword, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function changeUserPassword(string $username, string $newPassword, ?string $host, PdoDb $db): bool
     {
         // MSSQL: change login password
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1556,7 +1559,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string
+    public function dumpSchema(PdoDb $db, ?string $table = null, bool $dropTables = true): string
     {
         $output = [];
         $tables = [];
@@ -1665,7 +1668,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpData(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    public function dumpData(PdoDb $db, ?string $table = null): string
     {
         $output = [];
         $tables = [];
@@ -1724,7 +1727,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function restoreFromSql(\tommyknocker\pdodb\PdoDb $db, string $sql, bool $continueOnError = false): void
+    public function restoreFromSql(PdoDb $db, string $sql, bool $continueOnError = false): void
     {
         // Split SQL into statements, handling comments, quoted strings, and nested parentheses
         $statements = [];
@@ -1808,7 +1811,7 @@ class MSSQLDialect extends DialectAbstract
                 $db->rawQuery($stmt);
             } catch (\Throwable $e) {
                 if (!$continueOnError) {
-                    throw new \tommyknocker\pdodb\exceptions\ResourceException(
+                    throw new ResourceException(
                         'Failed to execute SQL statement #' . ($index + 1) . ': ' . $e->getMessage() .
                         "\nStatement (" . strlen($stmt) . ' chars): ' . substr($stmt, 0, 300) .
                         "\nPrevious statement: " . (isset($statements[$index - 1]) ? substr($statements[$index - 1], 0, 200) : 'none')
@@ -1819,7 +1822,7 @@ class MSSQLDialect extends DialectAbstract
         }
 
         if (!empty($errors) && $continueOnError) {
-            throw new \tommyknocker\pdodb\exceptions\ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
+            throw new ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
         }
     }
 
@@ -1841,7 +1844,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getActiveQueries(\tommyknocker\pdodb\PdoDb $db): array
+    public function getActiveQueries(PdoDb $db): array
     {
         try {
             $sql = "SELECT r.session_id, r.request_id, r.start_time, r.status, r.command, r.database_id,
@@ -1878,7 +1881,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getActiveConnections(\tommyknocker\pdodb\PdoDb $db): array
+    public function getActiveConnections(PdoDb $db): array
     {
         try {
             $rows = $db->rawQuery('SELECT session_id, login_name, host_name, program_name, database_id, login_time, last_request_start_time, status FROM sys.dm_exec_sessions WHERE is_user_process = 1');
@@ -1926,7 +1929,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array
+    public function getServerMetrics(PdoDb $db): array
     {
         $metrics = [];
 
@@ -1977,7 +1980,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getServerVariables(\tommyknocker\pdodb\PdoDb $db): array
+    public function getServerVariables(PdoDb $db): array
     {
         try {
             $rows = $db->rawQuery('
@@ -2001,7 +2004,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
+    public function getSlowQueries(PdoDb $db, float $thresholdSeconds, int $limit): array
     {
         try {
             $thresholdMs = (int)($thresholdSeconds * 1000);
@@ -2038,7 +2041,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function listTables(\tommyknocker\pdodb\PdoDb $db, ?string $schema = null): array
+    public function listTables(PdoDb $db, ?string $schema = null): array
     {
         /** @var array<int, array<string, mixed>> $rows */
         $rows = $db->rawQuery("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME");
@@ -2084,7 +2087,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getInsertSelectColumns(string $tableName, ?array $columns, \tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface $executionEngine): array
+    public function getInsertSelectColumns(string $tableName, ?array $columns, ExecutionEngineInterface $executionEngine): array
     {
         // If columns are explicitly provided, use them
         if ($columns !== null) {
@@ -2189,7 +2192,7 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool
+    public function killQuery(PdoDb $db, int|string $processId): bool
     {
         try {
             $sessionId = is_int($processId) ? $processId : (int)$processId;

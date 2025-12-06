@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli\commands;
 
+use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\cli\Command;
 
 /**
@@ -47,7 +48,7 @@ class CacheCommand extends Command
 
         // At this point, cacheManager is guaranteed to be non-null
         // (showError() terminates execution if it was null)
-        /** @var \tommyknocker\pdodb\cache\CacheManager $cacheManager */
+        /** @var CacheManager $cacheManager */
         $subStr = is_string($sub) ? $sub : '';
         return match ($subStr) {
             'clear' => $this->clearCache($cacheManager),
@@ -60,11 +61,11 @@ class CacheCommand extends Command
     /**
      * Clear all cached query results.
      *
-     * @param \tommyknocker\pdodb\cache\CacheManager $cacheManager
+     * @param CacheManager $cacheManager
      *
      * @return int Exit code
      */
-    protected function clearCache(\tommyknocker\pdodb\cache\CacheManager $cacheManager): int
+    protected function clearCache(CacheManager $cacheManager): int
     {
         $force = (bool)$this->getOption('force', false);
 
@@ -90,11 +91,11 @@ class CacheCommand extends Command
     /**
      * Invalidate cache entries matching pattern.
      *
-     * @param \tommyknocker\pdodb\cache\CacheManager $cacheManager
+     * @param CacheManager $cacheManager
      *
      * @return int Exit code
      */
-    protected function invalidateCache(\tommyknocker\pdodb\cache\CacheManager $cacheManager): int
+    protected function invalidateCache(CacheManager $cacheManager): int
     {
         $pattern = $this->getArgument(1);
         if (!is_string($pattern) || $pattern === '') {
@@ -128,11 +129,11 @@ class CacheCommand extends Command
     /**
      * Show cache statistics.
      *
-     * @param \tommyknocker\pdodb\cache\CacheManager $cacheManager
+     * @param CacheManager $cacheManager
      *
      * @return int Exit code
      */
-    protected function showStats(\tommyknocker\pdodb\cache\CacheManager $cacheManager): int
+    protected function showStats(CacheManager $cacheManager): int
     {
         $formatVal = $this->getOption('format', 'table');
         $format = is_string($formatVal) ? $formatVal : 'table';

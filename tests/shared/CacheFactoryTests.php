@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
+use Predis\Client;
 use Psr\SimpleCache\CacheInterface;
 use tommyknocker\pdodb\cache\CacheFactory;
 
@@ -279,7 +280,7 @@ class CacheFactoryTests extends TestCase
     public function testCreateRedisCacheWithPredisConnection(): void
     {
         // Mock Predis connection (only if Predis is available)
-        if (!class_exists(\Predis\Client::class)) {
+        if (!class_exists(Client::class)) {
             // If Predis is not installed, test should still pass (just verify null is returned)
             $config = [
                 'type' => 'redis',
@@ -290,7 +291,7 @@ class CacheFactoryTests extends TestCase
             return;
         }
 
-        $mockPredis = $this->createMock(\Predis\Client::class);
+        $mockPredis = $this->createMock(Client::class);
 
         $config = [
             'type' => 'redis',

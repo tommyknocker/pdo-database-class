@@ -13,9 +13,11 @@ use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\analysis\parsers\OracleExplainParser;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
+use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class OracleDialect extends DialectAbstract
@@ -152,7 +154,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function registerRegexpFunctions(\PDO $pdo, bool $force = false): void
+    public function registerRegexpFunctions(PDO $pdo, bool $force = false): void
     {
         // Set Oracle session date/timestamp formats to match PHP's date() output
         // This allows datetime strings like "2025-11-25" and "2025-11-25 16:20:30"
@@ -389,7 +391,7 @@ class OracleDialect extends DialectAbstract
      * {@inheritDoc}
      */
     public function beforeCreateTable(
-        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        ConnectionInterface $connection,
         string $tableName,
         array $columns
     ): void {
@@ -401,7 +403,7 @@ class OracleDialect extends DialectAbstract
      * {@inheritDoc}
      */
     public function afterCreateTable(
-        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        ConnectionInterface $connection,
         string $tableName,
         array $columns,
         string $sql
@@ -496,7 +498,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function executeExplain(\PDO $pdo, string $sql, array $params = []): array
+    public function executeExplain(PDO $pdo, string $sql, array $params = []): array
     {
         // Oracle EXPLAIN PLAN FOR doesn't support bind parameters
         // Substitute parameter values directly into SQL
@@ -538,7 +540,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function executeExplainAnalyze(\PDO $pdo, string $sql, array $params = []): array
+    public function executeExplainAnalyze(PDO $pdo, string $sql, array $params = []): array
     {
         // Oracle doesn't have EXPLAIN ANALYZE, use EXPLAIN PLAN
         return $this->executeExplain($pdo, $sql, $params);
@@ -1938,7 +1940,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getDatabaseInfo(\tommyknocker\pdodb\PdoDb $db): array
+    public function getDatabaseInfo(PdoDb $db): array
     {
         $info = [];
 
@@ -1960,7 +1962,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function createUser(string $username, string $password, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function createUser(string $username, string $password, ?string $host, PdoDb $db): bool
     {
         // Oracle doesn't use host in user creation
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1977,7 +1979,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dropUser(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function dropUser(string $username, ?string $host, PdoDb $db): bool
     {
         // Oracle doesn't use host in user deletion
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1990,7 +1992,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function userExists(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function userExists(string $username, ?string $host, PdoDb $db): bool
     {
         // Oracle doesn't use host in user checks
         $sql = 'SELECT COUNT(*) FROM ALL_USERS WHERE USERNAME = UPPER(?)';
@@ -2001,7 +2003,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function listUsers(\tommyknocker\pdodb\PdoDb $db): array
+    public function listUsers(PdoDb $db): array
     {
         $sql = 'SELECT USERNAME FROM ALL_USERS ORDER BY USERNAME';
         $result = $db->rawQuery($sql);
@@ -2021,7 +2023,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getUserInfo(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): array
+    public function getUserInfo(string $username, ?string $host, PdoDb $db): array
     {
         // Oracle doesn't use host in user info
         $sql = 'SELECT USERNAME, CREATED, PROFILE FROM ALL_USERS WHERE USERNAME = UPPER(?)';
@@ -2064,7 +2066,7 @@ class OracleDialect extends DialectAbstract
         ?string $database,
         ?string $table,
         ?string $host,
-        \tommyknocker\pdodb\PdoDb $db
+        PdoDb $db
     ): bool {
         // Oracle doesn't use host in grants
         $quotedUsername = $this->quoteIdentifier($username);
@@ -2100,7 +2102,7 @@ class OracleDialect extends DialectAbstract
         ?string $database,
         ?string $table,
         ?string $host,
-        \tommyknocker\pdodb\PdoDb $db
+        PdoDb $db
     ): bool {
         // Oracle doesn't use host in revokes
         $quotedUsername = $this->quoteIdentifier($username);
@@ -2127,7 +2129,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function changeUserPassword(string $username, string $newPassword, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function changeUserPassword(string $username, string $newPassword, ?string $host, PdoDb $db): bool
     {
         // Oracle doesn't use host in password changes
         $quotedUsername = $this->quoteIdentifier($username);
@@ -2144,7 +2146,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function extractEnumValues(array $column, \tommyknocker\pdodb\PdoDb $db, string $tableName, string $columnName): array
+    public function extractEnumValues(array $column, PdoDb $db, string $tableName, string $columnName): array
     {
         // Oracle does not support ENUM types natively
         // Return empty array to indicate no ENUM values
@@ -2154,7 +2156,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string
+    public function dumpSchema(PdoDb $db, ?string $table = null, bool $dropTables = true): string
     {
         $output = [];
         $tables = [];
@@ -2331,7 +2333,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpData(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    public function dumpData(PdoDb $db, ?string $table = null): string
     {
         $output = [];
         $tables = [];
@@ -2392,7 +2394,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function restoreFromSql(\tommyknocker\pdodb\PdoDb $db, string $sql, bool $continueOnError = false): void
+    public function restoreFromSql(PdoDb $db, string $sql, bool $continueOnError = false): void
     {
         // Split SQL into statements
         $statements = [];
@@ -2461,14 +2463,14 @@ class OracleDialect extends DialectAbstract
                 }
 
                 if (!$continueOnError) {
-                    throw new \tommyknocker\pdodb\exceptions\ResourceException('Failed to execute SQL statement: ' . $e->getMessage() . "\nStatement: " . substr($stmt, 0, 200));
+                    throw new ResourceException('Failed to execute SQL statement: ' . $e->getMessage() . "\nStatement: " . substr($stmt, 0, 200));
                 }
                 $errors[] = $errorMsg;
             }
         }
 
         if (!empty($errors) && $continueOnError) {
-            throw new \tommyknocker\pdodb\exceptions\ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
+            throw new ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
         }
     }
 
@@ -2490,7 +2492,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getActiveQueries(\tommyknocker\pdodb\PdoDb $db): array
+    public function getActiveQueries(PdoDb $db): array
     {
         // V$SESSION requires SELECT_CATALOG_ROLE or DBA privileges
         // Return empty array if user doesn't have access
@@ -2522,7 +2524,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getActiveConnections(\tommyknocker\pdodb\PdoDb $db): array
+    public function getActiveConnections(PdoDb $db): array
     {
         // V$SESSION requires SELECT_CATALOG_ROLE or DBA privileges
         // Return empty result if user doesn't have access
@@ -2569,7 +2571,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array
+    public function getServerMetrics(PdoDb $db): array
     {
         $metrics = [];
 
@@ -2608,7 +2610,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getServerVariables(\tommyknocker\pdodb\PdoDb $db): array
+    public function getServerVariables(PdoDb $db): array
     {
         try {
             $rows = $db->rawQuery('
@@ -2632,7 +2634,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
+    public function getSlowQueries(PdoDb $db, float $thresholdSeconds, int $limit): array
     {
         // V$SQLAREA requires SELECT_CATALOG_ROLE or DBA privileges
         // Return empty array if user doesn't have access
@@ -2667,7 +2669,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function listTables(\tommyknocker\pdodb\PdoDb $db, ?string $schema = null): array
+    public function listTables(PdoDb $db, ?string $schema = null): array
     {
         $schemaName = $schema ?? 'USER';
         if ($schemaName === 'USER') {
@@ -3009,7 +3011,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getInsertSelectColumns(string $tableName, ?array $columns, \tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface $executionEngine): array
+    public function getInsertSelectColumns(string $tableName, ?array $columns, ExecutionEngineInterface $executionEngine): array
     {
         // Oracle doesn't have IDENTITY columns like MSSQL, return columns as-is
         return $columns ?? [];
@@ -3018,12 +3020,12 @@ class OracleDialect extends DialectAbstract
     /**
      * Create triggers for auto-increment columns.
      *
-     * @param \tommyknocker\pdodb\connection\ConnectionInterface $connection Database connection
+     * @param ConnectionInterface $connection Database connection
      * @param string $tableName Table name
-     * @param array<string, \tommyknocker\pdodb\query\schema\ColumnSchema|array<string, mixed>|string> $columns Column definitions
+     * @param array<string, ColumnSchema|array<string, mixed>|string> $columns Column definitions
      */
     protected function createTriggersForAutoIncrement(
-        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        ConnectionInterface $connection,
         string $tableName,
         array $columns
     ): void {
@@ -3048,13 +3050,13 @@ class OracleDialect extends DialectAbstract
     /**
      * Normalize column schema from various formats for trigger creation.
      *
-     * @param \tommyknocker\pdodb\query\schema\ColumnSchema|array<string, mixed>|string $def Column definition
+     * @param ColumnSchema|array<string, mixed>|string $def Column definition
      *
-     * @return \tommyknocker\pdodb\query\schema\ColumnSchema
+     * @return ColumnSchema
      */
-    protected function normalizeColumnSchemaForTrigger(\tommyknocker\pdodb\query\schema\ColumnSchema|array|string $def): \tommyknocker\pdodb\query\schema\ColumnSchema
+    protected function normalizeColumnSchemaForTrigger(ColumnSchema|array|string $def): ColumnSchema
     {
-        if ($def instanceof \tommyknocker\pdodb\query\schema\ColumnSchema) {
+        if ($def instanceof ColumnSchema) {
             return $def;
         }
 
@@ -3063,7 +3065,7 @@ class OracleDialect extends DialectAbstract
             $length = $def['length'] ?? $def['size'] ?? null;
             $scale = $def['scale'] ?? null;
 
-            $schema = new \tommyknocker\pdodb\query\schema\ColumnSchema((string)$schemaType, $length, $scale);
+            $schema = new ColumnSchema((string)$schemaType, $length, $scale);
 
             if (isset($def['null']) && $def['null'] === false) {
                 $schema->notNull();
@@ -3082,18 +3084,18 @@ class OracleDialect extends DialectAbstract
             return $schema;
         }
 
-        return new \tommyknocker\pdodb\query\schema\ColumnSchema((string)$def);
+        return new ColumnSchema((string)$def);
     }
 
     /**
      * Drop sequences and triggers for auto-increment columns before table creation.
      *
-     * @param \tommyknocker\pdodb\connection\ConnectionInterface $connection Database connection
+     * @param ConnectionInterface $connection Database connection
      * @param string $tableName Table name
-     * @param array<string, \tommyknocker\pdodb\query\schema\ColumnSchema|array<string, mixed>|string> $columns Column definitions
+     * @param array<string, ColumnSchema|array<string, mixed>|string> $columns Column definitions
      */
     protected function dropSequencesAndTriggers(
-        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        ConnectionInterface $connection,
         string $tableName,
         array $columns
     ): void {
@@ -3125,7 +3127,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function isNoFieldsError(\PDOException $e): bool
+    public function isNoFieldsError(PDOException $e): bool
     {
         // Oracle throws ORA-24374 when trying to fetch from a statement that doesn't return rows
         // This happens with DDL queries (CREATE, DROP, ALTER, etc.)
@@ -3192,7 +3194,7 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool
+    public function killQuery(PdoDb $db, int|string $processId): bool
     {
         // Oracle requires SID and SERIAL# for killing sessions
         // This is a simplified version - in practice, you'd need both values

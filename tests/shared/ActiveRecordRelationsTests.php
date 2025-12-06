@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\orm\ActiveQuery;
 use tommyknocker\pdodb\orm\Model;
 
 /**
@@ -643,7 +645,7 @@ final class ActiveRecordRelationsTests extends BaseSharedTestCase
 
         // Call as method - should return ActiveQuery
         $query = $user->profile();
-        $this->assertInstanceOf(\tommyknocker\pdodb\orm\ActiveQuery::class, $query);
+        $this->assertInstanceOf(ActiveQuery::class, $query);
 
         // Can modify query and get result
         $profile = $query->one();
@@ -668,7 +670,7 @@ final class ActiveRecordRelationsTests extends BaseSharedTestCase
 
         // Call as method - should return ActiveQuery
         $query = $user->posts();
-        $this->assertInstanceOf(\tommyknocker\pdodb\orm\ActiveQuery::class, $query);
+        $this->assertInstanceOf(ActiveQuery::class, $query);
 
         // Can modify query and get result
         $posts = $query->all();
@@ -702,7 +704,7 @@ final class ActiveRecordRelationsTests extends BaseSharedTestCase
 
         // Call as method - should return ActiveQuery
         $query = $post->user();
-        $this->assertInstanceOf(\tommyknocker\pdodb\orm\ActiveQuery::class, $query);
+        $this->assertInstanceOf(ActiveQuery::class, $query);
 
         // Can get result
         $user = $query->one();
@@ -736,7 +738,7 @@ final class ActiveRecordRelationsTests extends BaseSharedTestCase
         $this->assertEquals('Published Post', $publishedPosts[0]->title);
 
         // Count posts with condition
-        $publishedCount = $user->posts()->where('published', 1)->select(['count' => \tommyknocker\pdodb\helpers\Db::count()])->getValue('count');
+        $publishedCount = $user->posts()->where('published', 1)->select(['count' => Db::count()])->getValue('count');
         $this->assertEquals(1, (int)$publishedCount);
 
         // Cleanup
@@ -754,7 +756,7 @@ final class ActiveRecordRelationsTests extends BaseSharedTestCase
 
         // Call as method - should return ActiveQuery with condition that matches nothing
         $query = $user->posts();
-        $this->assertInstanceOf(\tommyknocker\pdodb\orm\ActiveQuery::class, $query);
+        $this->assertInstanceOf(ActiveQuery::class, $query);
 
         // Query should return empty result
         $posts = $query->all();
@@ -835,7 +837,7 @@ final class ActiveRecordRelationsTests extends BaseSharedTestCase
 
         // Call as method - should return ActiveQuery
         $query = $user->projects();
-        $this->assertInstanceOf(\tommyknocker\pdodb\orm\ActiveQuery::class, $query);
+        $this->assertInstanceOf(ActiveQuery::class, $query);
 
         // Can modify query and get result
         $projects = $query->all();

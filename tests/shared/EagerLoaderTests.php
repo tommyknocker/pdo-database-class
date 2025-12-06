@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\tests\shared;
 use RuntimeException;
 use tommyknocker\pdodb\orm\Model;
 use tommyknocker\pdodb\orm\relations\EagerLoader;
+use tommyknocker\pdodb\orm\relations\HasOne;
 
 /**
  * Test models for EagerLoader tests.
@@ -481,7 +482,7 @@ final class EagerLoaderTests extends BaseSharedTestCase
 
         $relation = $method->invoke($loader, $user, 'profile');
         $this->assertNotNull($relation);
-        $this->assertInstanceOf(\tommyknocker\pdodb\orm\relations\HasOne::class, $relation);
+        $this->assertInstanceOf(HasOne::class, $relation);
 
         $relation = $method->invoke($loader, $user, 'nonexistent');
         $this->assertNull($relation);

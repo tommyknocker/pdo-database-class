@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\cli\commands\MonitorCommand;
 use tommyknocker\pdodb\PdoDb;
 
 final class MonitorCommandCliTests extends TestCase
@@ -261,7 +262,7 @@ final class MonitorCommandCliTests extends TestCase
 
     public function testParseTimeThreshold(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\MonitorCommand();
+        $command = new MonitorCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('parseTimeThreshold');
         $method->setAccessible(true);
@@ -291,7 +292,7 @@ final class MonitorCommandCliTests extends TestCase
 
     public function testPrintFormattedJson(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\MonitorCommand();
+        $command = new MonitorCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printFormatted');
         $method->setAccessible(true);
@@ -317,7 +318,7 @@ final class MonitorCommandCliTests extends TestCase
 
     public function testPrintFormattedYaml(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\MonitorCommand();
+        $command = new MonitorCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printFormatted');
         $method->setAccessible(true);
@@ -342,7 +343,7 @@ final class MonitorCommandCliTests extends TestCase
 
     public function testPrintFormattedTable(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\MonitorCommand();
+        $command = new MonitorCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printFormatted');
         $method->setAccessible(true);
@@ -366,7 +367,7 @@ final class MonitorCommandCliTests extends TestCase
 
     public function testPrintTable(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\MonitorCommand();
+        $command = new MonitorCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printTable');
         $method->setAccessible(true);
@@ -396,7 +397,7 @@ final class MonitorCommandCliTests extends TestCase
 
     public function testPrintTableRows(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\MonitorCommand();
+        $command = new MonitorCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printTableRows');
         $method->setAccessible(true);

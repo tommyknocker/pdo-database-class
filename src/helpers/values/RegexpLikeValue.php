@@ -71,7 +71,7 @@ class RegexpLikeValue extends RawValue
             // For ToCharValue and similar, getValue() returns the SQL expression
             // But ToCharValue::getValue() returns empty string, so we need to handle it differently
             // We'll return a placeholder that will be resolved by RawValueResolver
-            if ($this->sourceValue instanceof \tommyknocker\pdodb\helpers\values\ToCharValue) {
+            if ($this->sourceValue instanceof ToCharValue) {
                 $sourceVal = $this->sourceValue->getSourceValue();
                 // For column names, quote them; for RawValue, use getValue()
                 if ($sourceVal instanceof RawValue) {

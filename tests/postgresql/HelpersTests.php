@@ -293,14 +293,14 @@ final class HelpersTests extends BasePostgreSQLTestCase
         'name' => 'TrueUser',
         'company' => 'BoolCorp',
         'age' => 30,
-        'is_active' => db::true(),
+        'is_active' => Db::true(),
         ]);
 
         $db->find()->table('users')->insert([
         'name' => 'FalseUser',
         'company' => 'BoolCorp',
         'age' => 35,
-        'is_active' => db::false(),
+        'is_active' => Db::false(),
         ]);
 
         $trueResults = $db->find()

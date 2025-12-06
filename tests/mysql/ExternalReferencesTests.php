@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mysql;
 
+use tommyknocker\pdodb\helpers\values\RawValue;
+
 /**
  * ExternalReferencesTests tests for mysql.
  */
@@ -298,7 +300,7 @@ final class ExternalReferencesTests extends BaseMySQLTestCase
         ->from('users')
         ->whereExists(function ($query) {
             $query->from('orders')
-            ->where('user_id', new \tommyknocker\pdodb\helpers\values\RawValue('users.id'))  // Explicit RawValue
+            ->where('user_id', new RawValue('users.id'))  // Explicit RawValue
             ->where('amount', 50, '>');
         })
         ->get();

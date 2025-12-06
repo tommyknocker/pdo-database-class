@@ -12,8 +12,11 @@ use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
+use tommyknocker\pdodb\query\analysis\parsers\SqliteExplainParser;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
+use tommyknocker\pdodb\query\QueryConstants;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class SqliteDialect extends DialectAbstract
@@ -1079,13 +1082,13 @@ class SqliteDialect extends DialectAbstract
      */
     public function getExplainParser(): ExplainParserInterface
     {
-        return new \tommyknocker\pdodb\query\analysis\parsers\SqliteExplainParser();
+        return new SqliteExplainParser();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function createDatabase(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool
+    public function createDatabase(string $databaseName, PdoDb $db): bool
     {
         // For SQLite, creating a database means creating a file
         // If databaseName doesn't have extension, add .sqlite
@@ -1102,7 +1105,7 @@ class SqliteDialect extends DialectAbstract
 
         // Create the database file by connecting to it
         try {
-            $newDb = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $filePath]);
+            $newDb = new PdoDb('sqlite', ['path' => $filePath]);
             // Test connection by running a simple query
             $newDb->rawQueryValue('SELECT 1');
             return true;
@@ -1114,7 +1117,7 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dropDatabase(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool
+    public function dropDatabase(string $databaseName, PdoDb $db): bool
     {
         // For SQLite, delete the database file
         // If databaseName doesn't have extension, try both .sqlite and .db
@@ -1160,7 +1163,7 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function databaseExists(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool
+    public function databaseExists(string $databaseName, PdoDb $db): bool
     {
         // For SQLite, check if file exists
         // If databaseName looks like a file path, check it directly
@@ -1176,7 +1179,7 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function listDatabases(\tommyknocker\pdodb\PdoDb $db): array
+    public function listDatabases(PdoDb $db): array
     {
         throw new ResourceException('SQLite does not support multiple databases. Use file paths instead.', 0, null, 'sqlite');
     }
@@ -1220,7 +1223,7 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string
+    public function dumpSchema(PdoDb $db, ?string $table = null, bool $dropTables = true): string
     {
         $tableOutput = [];
         $indexOutput = [];
@@ -1265,7 +1268,7 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpData(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    public function dumpData(PdoDb $db, ?string $table = null): string
     {
         $output = [];
         $tables = [];
@@ -1326,7 +1329,7 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function restoreFromSql(\tommyknocker\pdodb\PdoDb $db, string $sql, bool $continueOnError = false): void
+    public function restoreFromSql(PdoDb $db, string $sql, bool $continueOnError = false): void
     {
         // Split SQL into statements (semicolon-separated, ignoring semicolons in strings and comments)
         $statements = [];
@@ -1432,7 +1435,7 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function listTables(\tommyknocker\pdodb\PdoDb $db, ?string $schema = null): array
+    public function listTables(PdoDb $db, ?string $schema = null): array
     {
         $rows = $db->rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
         /** @var array<int, string> $names */
@@ -1536,7 +1539,7 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array
+    public function getServerMetrics(PdoDb $db): array
     {
         $metrics = [];
 
@@ -1547,12 +1550,12 @@ class SqliteDialect extends DialectAbstract
 
             // Get database file info (if not in-memory)
             try {
-                $pdo = $db->getConnection(\tommyknocker\pdodb\query\QueryConstants::CONNECTION_DEFAULT)->getPdo();
+                $pdo = $db->getConnection(QueryConstants::CONNECTION_DEFAULT)->getPdo();
                 $stmt = $pdo->query('PRAGMA database_list');
                 if ($stmt === false) {
                     throw new \RuntimeException('Failed to execute PRAGMA database_list');
                 }
-                $dbPath = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+                $dbPath = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 if (!empty($dbPath)) {
                     $mainDb = $dbPath[0] ?? [];
                     $file = $mainDb['file'] ?? '';
@@ -1585,7 +1588,7 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getServerVariables(\tommyknocker\pdodb\PdoDb $db): array
+    public function getServerVariables(PdoDb $db): array
     {
         // SQLite doesn't have server variables like MySQL/PostgreSQL
         // Return PRAGMA-based settings as variables
@@ -1615,7 +1618,7 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool
+    public function killQuery(PdoDb $db, int|string $processId): bool
     {
         // SQLite does not support killing queries
         // Queries can only be cancelled via events before execution

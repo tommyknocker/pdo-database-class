@@ -7,6 +7,8 @@ namespace tommyknocker\pdodb\tests\shared;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\commands\InitCommand;
 use tommyknocker\pdodb\cli\InitWizard;
+use tommyknocker\pdodb\connection\DialectRegistry;
+use tommyknocker\pdodb\connection\ExtensionChecker;
 
 final class InitWizardTests extends TestCase
 {
@@ -943,10 +945,10 @@ final class InitWizardTests extends TestCase
     {
         // Test that DialectRegistry correctly identifies unsupported driver
         // This is what loadConfigFromEnv() checks before calling static::error()
-        $this->assertFalse(\tommyknocker\pdodb\connection\DialectRegistry::isSupported('unsupported'));
+        $this->assertFalse(DialectRegistry::isSupported('unsupported'));
 
         // Verify that ExtensionChecker also returns null for unsupported driver
-        $this->assertNull(\tommyknocker\pdodb\connection\ExtensionChecker::getRequiredExtension('unsupported'));
+        $this->assertNull(ExtensionChecker::getRequiredExtension('unsupported'));
 
         // Note: We can't test the actual loadConfigFromEnv() method with unsupported driver
         // because static::error() calls exit(), which terminates the PHP process.
@@ -1552,10 +1554,10 @@ final class InitWizardTests extends TestCase
     {
         // Test that DialectRegistry correctly identifies invalid driver
         // This is what loadConfigFromEnv() checks before calling static::error()
-        $this->assertFalse(\tommyknocker\pdodb\connection\DialectRegistry::isSupported('invalid_driver'));
+        $this->assertFalse(DialectRegistry::isSupported('invalid_driver'));
 
         // Verify that ExtensionChecker also returns null for invalid driver
-        $this->assertNull(\tommyknocker\pdodb\connection\ExtensionChecker::getRequiredExtension('invalid_driver'));
+        $this->assertNull(ExtensionChecker::getRequiredExtension('invalid_driver'));
 
         // Note: We can't test the actual loadConfigFromEnv() method with invalid driver
         // because static::error() calls exit(), which terminates the PHP process.

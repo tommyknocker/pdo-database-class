@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\sqlite;
 
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\helpers\values\FulltextMatchValue;
 
 /**
  * DialectTests tests for sqlite.
@@ -328,7 +329,7 @@ final class DialectTests extends BaseSqliteTestCase
     public function testFulltextMatchHelper(): void
     {
         $fulltext = Db::match('title, content', 'search term', 'natural');
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\FulltextMatchValue::class, $fulltext);
+        $this->assertInstanceOf(FulltextMatchValue::class, $fulltext);
     }
 
     public function testDistinctOnThrowsExceptionOnSQLite(): void

@@ -98,7 +98,7 @@ class InitWizard extends BaseCliCommand
         }
 
         // First check if driver is supported by DialectRegistry
-        if (!\tommyknocker\pdodb\connection\DialectRegistry::isSupported($driver)) {
+        if (!DialectRegistry::isSupported($driver)) {
             static::error("Unsupported driver: {$driver}");
         }
 
@@ -113,7 +113,7 @@ class InitWizard extends BaseCliCommand
 
         // Load driver-specific settings using dialect's buildConfigFromEnv method
         try {
-            $dialect = \tommyknocker\pdodb\connection\DialectRegistry::resolve($driver);
+            $dialect = DialectRegistry::resolve($driver);
             $envVars = [];
             // Always use getenv() to ensure we get variables set via putenv()
             // $_ENV may not be updated when putenv() is called

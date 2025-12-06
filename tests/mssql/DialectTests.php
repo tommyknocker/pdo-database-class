@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\mssql;
 
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
  * DialectTests tests for mssql.
@@ -134,7 +135,7 @@ final class DialectTests extends BaseMSSQLTestCase
         $this->assertEquals('[test]column]', $quoted);
 
         // Test RawValue (should return as-is)
-        $rawValue = new \tommyknocker\pdodb\helpers\values\RawValue('COUNT(*)');
+        $rawValue = new RawValue('COUNT(*)');
         $this->assertEquals('COUNT(*)', $dialect->quoteIdentifier($rawValue));
 
         // Test identifier with numbers

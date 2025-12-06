@@ -6,7 +6,9 @@ namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\SeedGenerator;
+use tommyknocker\pdodb\cli\TableManager;
 use tommyknocker\pdodb\cli\traits\SubcommandSuggestionTrait;
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\seeds\SeedDataGenerator;
 use tommyknocker\pdodb\seeds\SeedRunner;
 
@@ -367,7 +369,7 @@ class SeedCommand extends Command
 
             // Check if table exists
             $db = $this->getDb();
-            if (!\tommyknocker\pdodb\cli\TableManager::tableExists($db, $tableNameStr)) {
+            if (!TableManager::tableExists($db, $tableNameStr)) {
                 $this->showError("Table '{$tableNameStr}' does not exist");
             }
 
@@ -387,11 +389,11 @@ class SeedCommand extends Command
                                 $countQuery->where($column, $value);
                             } else {
                                 $quotedValue = $db->connection->quote($value);
-                                $countQuery->where($column, new \tommyknocker\pdodb\helpers\values\RawValue("{$operator} {$quotedValue}"));
+                                $countQuery->where($column, new RawValue("{$operator} {$quotedValue}"));
                             }
                         } else {
                             // Use raw WHERE
-                            $countQuery->where(new \tommyknocker\pdodb\helpers\values\RawValue($whereValue));
+                            $countQuery->where(new RawValue($whereValue));
                         }
                     }
                     $rowCount = (int)($countQuery->getValue() ?? 0);

@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\helpers\traits;
 
 use tommyknocker\pdodb\helpers\values\ILikeValue;
 use tommyknocker\pdodb\helpers\values\LikeValue;
+use tommyknocker\pdodb\helpers\values\NotLikeValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
@@ -50,10 +51,10 @@ trait ComparisonHelpersTrait
     public static function not(RawValue $value): RawValue
     {
         // For LikeValue, create a special NOT LIKE value that will be handled in ConditionBuilder
-        if ($value instanceof \tommyknocker\pdodb\helpers\values\LikeValue) {
+        if ($value instanceof LikeValue) {
             // Return a RawValue that ConditionBuilder can recognize and handle
             // The actual SQL will be generated in ConditionBuilder using formatLike()
-            return new \tommyknocker\pdodb\helpers\values\NotLikeValue($value->getColumn(), $value->getPattern());
+            return new NotLikeValue($value->getColumn(), $value->getPattern());
         }
         // For other RawValue, wrap in NOT (...)
         $valueStr = $value->getValue();

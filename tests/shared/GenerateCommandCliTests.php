@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\PdoDb;
 
 final class GenerateCommandCliTests extends TestCase
 {
@@ -58,7 +59,7 @@ final class GenerateCommandCliTests extends TestCase
     protected function createTestTable(): void
     {
         // SQLite doesn't support ENUM, so create table directly via PdoDb
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+        $db = new PdoDb('sqlite', ['path' => $this->dbPath]);
         $db->schema()->createTable('test_users', [
             'id' => $db->schema()->primaryKey(),
             'status' => $db->schema()->string(20)->notNull()->defaultValue('active'),
@@ -268,7 +269,7 @@ final class GenerateCommandCliTests extends TestCase
     public function testGenerateDocsWithModel(): void
     {
         // Create table with name that matches model (User -> users)
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+        $db = new PdoDb('sqlite', ['path' => $this->dbPath]);
         $db->schema()->createTable('users', [
             'id' => $db->schema()->primaryKey(),
             'status' => $db->schema()->string(20)->notNull()->defaultValue('active'),

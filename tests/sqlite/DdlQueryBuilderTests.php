@@ -102,7 +102,7 @@ final class DdlQueryBuilderTests extends BaseSqliteTestCase
         if (version_compare($version, '3.25.0', '<')) {
             // Older SQLite versions don't support RENAME COLUMN
             // Verify that an exception is thrown
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
             $schema->renameColumn('test_rename_col_sqlite', 'old_name', 'new_name');
         } else {
             // SQLite 3.25.0+ supports RENAME COLUMN

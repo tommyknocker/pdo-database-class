@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\postgresql;
 
+use tommyknocker\pdodb\dialects\postgresql\PostgreSQLDdlBuilder;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 /**
@@ -16,9 +17,9 @@ final class PostgreSQLDdlBuilderTests extends BasePostgreSQLTestCase
     /**
      * Get PostgreSQL DDL builder instance.
      *
-     * @return \tommyknocker\pdodb\dialects\postgresql\PostgreSQLDdlBuilder
+     * @return PostgreSQLDdlBuilder
      */
-    protected function getDdlBuilder(): \tommyknocker\pdodb\dialects\postgresql\PostgreSQLDdlBuilder
+    protected function getDdlBuilder(): PostgreSQLDdlBuilder
     {
         $db = self::$db;
         $dialect = $db->schema()->getDialect();

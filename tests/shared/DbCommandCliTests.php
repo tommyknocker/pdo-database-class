@@ -6,6 +6,8 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\cli\commands\DbCommand;
+use tommyknocker\pdodb\PdoDb;
 
 final class DbCommandCliTests extends TestCase
 {
@@ -61,8 +63,8 @@ final class DbCommandCliTests extends TestCase
     public function testDbCommandMethods(): void
     {
         // Test that DbCommand class exists and has required methods
-        $command = new \tommyknocker\pdodb\cli\commands\DbCommand();
-        $this->assertInstanceOf(\tommyknocker\pdodb\cli\commands\DbCommand::class, $command);
+        $command = new DbCommand();
+        $this->assertInstanceOf(DbCommand::class, $command);
 
         // Test that command has correct name and description
         $reflection = new \ReflectionClass($command);
@@ -74,7 +76,7 @@ final class DbCommandCliTests extends TestCase
     public function testDbCreateCommand(): void
     {
         // Test that create method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\DbCommand();
+        $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('create'));
@@ -86,7 +88,7 @@ final class DbCommandCliTests extends TestCase
     public function testDbDropCommand(): void
     {
         // Test that drop method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\DbCommand();
+        $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('drop'));
@@ -98,7 +100,7 @@ final class DbCommandCliTests extends TestCase
     public function testDbExistsCommand(): void
     {
         // Test that exists method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\DbCommand();
+        $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('exists'));
@@ -110,7 +112,7 @@ final class DbCommandCliTests extends TestCase
     public function testDbListCommand(): void
     {
         // Test that list method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\DbCommand();
+        $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('list'));
@@ -122,7 +124,7 @@ final class DbCommandCliTests extends TestCase
     public function testDbInfoCommand(): void
     {
         // Test that showInfo method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\DbCommand();
+        $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('showInfo'));
@@ -134,7 +136,7 @@ final class DbCommandCliTests extends TestCase
     public function testDbShowDatabaseHeader(): void
     {
         // Test that showDatabaseHeader method exists
-        $command = new \tommyknocker\pdodb\cli\commands\DbCommand();
+        $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('showDatabaseHeader'));
@@ -145,7 +147,7 @@ final class DbCommandCliTests extends TestCase
     public function testDbUnknownSubcommand(): void
     {
         // Test that unknown subcommand is handled in execute method
-        $command = new \tommyknocker\pdodb\cli\commands\DbCommand();
+        $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
 
         // Verify execute method exists
@@ -158,7 +160,7 @@ final class DbCommandCliTests extends TestCase
     {
         // Test that create method handles missing name
         // In non-interactive mode, readInput returns empty string, so should show error
-        $command = new \tommyknocker\pdodb\cli\commands\DbCommand();
+        $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('create'));
@@ -170,7 +172,7 @@ final class DbCommandCliTests extends TestCase
     {
         // For SQLite, database management is limited
         // Test that command exists and can be called
-        $command = new \tommyknocker\pdodb\cli\commands\DbCommand();
+        $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
 
         // Verify list method exists
@@ -203,7 +205,7 @@ final class DbCommandCliTests extends TestCase
         // For SQLite, list command is not supported (shows error and exits)
         // This test verifies that the command structure exists
         // The actual execution with SQLite will fail, which is expected
-        $command = new \tommyknocker\pdodb\cli\commands\DbCommand();
+        $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
         $this->assertTrue($reflection->hasMethod('list'));
     }
@@ -231,7 +233,7 @@ final class DbCommandCliTests extends TestCase
 
     public function testDbShowDatabaseHeaderMethod(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\DbCommand();
+        $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
         $method->setAccessible(true);
@@ -252,7 +254,7 @@ final class DbCommandCliTests extends TestCase
 
     public function testDbShowDatabaseHeaderWithException(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\DbCommand();
+        $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
         $method->setAccessible(true);
@@ -290,7 +292,7 @@ final class DbCommandCliTests extends TestCase
         $app = new Application();
 
         // Create a database file with some data to test file_size display
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+        $db = new PdoDb('sqlite', ['path' => $this->dbPath]);
         $db->rawQuery('CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT)');
         $db->rawQuery("INSERT INTO test_table (name) VALUES ('test')");
 

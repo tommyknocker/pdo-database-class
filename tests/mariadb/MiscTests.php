@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\mariadb;
 
 use RuntimeException;
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\helpers\values\FulltextMatchValue;
 
 /**
  * Misctests for mariadb.
@@ -78,7 +79,7 @@ final class MiscTests extends BaseMariaDBTestCase
     public function testFulltextMatchHelper(): void
     {
         $fulltext = Db::match('title, content', 'search term', 'natural');
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\FulltextMatchValue::class, $fulltext);
+        $this->assertInstanceOf(FulltextMatchValue::class, $fulltext);
     }
 
     // Edge case: DISTINCT ON not supported on MySQL

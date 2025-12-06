@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\oracle;
 
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 
 /**
  * DialectTests tests for Oracle.
@@ -276,6 +277,6 @@ final class DialectTests extends BaseOracleTestCase
 
         // Oracle explain parser is now implemented
         $parser = $dialect->getExplainParser();
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface::class, $parser);
+        $this->assertInstanceOf(ExplainParserInterface::class, $parser);
     }
 }

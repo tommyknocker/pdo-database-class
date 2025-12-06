@@ -11,7 +11,7 @@ use tommyknocker\pdodb\PdoDb;
 final class RepositoryCommandCliTests extends TestCase
 {
     protected string $repositoriesDir;
-    protected \tommyknocker\pdodb\PdoDb $db;
+    protected PdoDb $db;
 
     protected function setUp(): void
     {

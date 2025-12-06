@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use RuntimeException;
+use tommyknocker\pdodb\query\DdlQueryBuilder;
 
 /**
  * Tests for TableManagementTrait.
@@ -25,7 +26,7 @@ class TableManagementTraitTests extends BaseSharedTestCase
         $method->setAccessible(true);
 
         $result = $method->invoke($schema, 'test_table');
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\DdlQueryBuilder::class, $result);
+        $this->assertInstanceOf(DdlQueryBuilder::class, $result);
     }
 
     /**
@@ -43,11 +44,11 @@ class TableManagementTraitTests extends BaseSharedTestCase
 
         // Set prefix
         $result = $method->invoke($schema, 'pref_');
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\DdlQueryBuilder::class, $result);
+        $this->assertInstanceOf(DdlQueryBuilder::class, $result);
 
         // Set null prefix
         $result = $method->invoke($schema, null);
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\DdlQueryBuilder::class, $result);
+        $this->assertInstanceOf(DdlQueryBuilder::class, $result);
     }
 
     /**
@@ -135,7 +136,7 @@ class TableManagementTraitTests extends BaseSharedTestCase
 
         // Verify fluent interface
         $result = $method->invoke($schema, 'test_table');
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\DdlQueryBuilder::class, $result);
+        $this->assertInstanceOf(DdlQueryBuilder::class, $result);
         $this->assertSame($schema, $result);
     }
 

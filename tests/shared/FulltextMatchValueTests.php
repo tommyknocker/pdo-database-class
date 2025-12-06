@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use tommyknocker\pdodb\helpers\values\FulltextMatchValue;
+use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
  * Tests for FulltextMatchValue class.
@@ -58,6 +59,6 @@ final class FulltextMatchValueTests extends BaseSharedTestCase
     {
         $value = new FulltextMatchValue('title', 'search term');
 
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\RawValue::class, $value);
+        $this->assertInstanceOf(RawValue::class, $value);
     }
 }

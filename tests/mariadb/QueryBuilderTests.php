@@ -585,8 +585,8 @@ final class QueryBuilderTests extends BaseMariaDBTestCase
         $rowsRaw = $db->find()
         ->from('users')
         ->where(['company' => 'G2'])
-        ->groupBy(\tommyknocker\pdodb\helpers\Db::raw('age'))
-        ->select([\tommyknocker\pdodb\helpers\Db::raw('age'), 'COUNT(*) AS cnt'])
+        ->groupBy(Db::raw('age'))
+        ->select([Db::raw('age'), 'COUNT(*) AS cnt'])
         ->get();
 
         $this->assertCount(1, $rowsRaw);

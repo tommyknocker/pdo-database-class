@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\seeds;
 
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -112,11 +113,11 @@ class SeedDataGenerator
                     $query->where($column, $value);
                 } else {
                     $quotedValue = $this->db->connection->quote($value);
-                    $query->where($column, new \tommyknocker\pdodb\helpers\values\RawValue("{$operator} {$quotedValue}"));
+                    $query->where($column, new RawValue("{$operator} {$quotedValue}"));
                 }
             } else {
                 // Use raw WHERE
-                $query->where(new \tommyknocker\pdodb\helpers\values\RawValue($where));
+                $query->where(new RawValue($where));
             }
         }
 

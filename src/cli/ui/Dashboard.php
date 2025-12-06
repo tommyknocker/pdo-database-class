@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli\ui;
 
+use tommyknocker\pdodb\cli\MonitorManager;
+use tommyknocker\pdodb\cli\TableManager;
 use tommyknocker\pdodb\cli\ui\actions\KillConnectionAction;
 use tommyknocker\pdodb\cli\ui\actions\KillQueryAction;
 use tommyknocker\pdodb\cli\ui\panes\ActiveQueriesPane;
@@ -14,6 +16,9 @@ use tommyknocker\pdodb\cli\ui\panes\SchemaBrowserPane;
 use tommyknocker\pdodb\cli\ui\panes\ServerMetricsPane;
 use tommyknocker\pdodb\cli\ui\panes\ServerVariablesPane;
 use tommyknocker\pdodb\cli\ui\panes\SqlScratchpadPane;
+use tommyknocker\pdodb\helpers\exporters\CsvExporter;
+use tommyknocker\pdodb\helpers\exporters\JsonExporter;
+use tommyknocker\pdodb\migrations\MigrationRunner;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -998,7 +1003,7 @@ class Dashboard
         } elseif ($pane === Layout::PANE_MIGRATIONS) {
             // Get current migration status to show appropriate commands
             $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
-            $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+            $runner = new MigrationRunner($this->db, $migrationPath);
             $newMigrations = $runner->getNewMigrations();
             $history = $runner->getMigrationHistory();
             $allMigrations = [];
@@ -1045,8 +1050,8 @@ class Dashboard
     protected function refresh(): void
     {
         // Fetch fresh data from database
-        $this->cachedQueries = \tommyknocker\pdodb\cli\MonitorManager::getActiveQueries($this->db);
-        $this->cachedConnections = \tommyknocker\pdodb\cli\MonitorManager::getActiveConnections($this->db);
+        $this->cachedQueries = MonitorManager::getActiveQueries($this->db);
+        $this->cachedConnections = MonitorManager::getActiveConnections($this->db);
         $this->cachedServerMetrics = $this->db->schema()->getDialect()->getServerMetrics($this->db);
     }
 
@@ -1081,13 +1086,13 @@ class Dashboard
                 $this->selectedIndex[Layout::PANE_CONNECTIONS]++;
             }
         } elseif ($pane === Layout::PANE_SCHEMA) {
-            $tables = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+            $tables = TableManager::listTables($this->db);
             if ($this->selectedIndex[Layout::PANE_SCHEMA] < count($tables) - 1) {
                 $this->selectedIndex[Layout::PANE_SCHEMA]++;
             }
         } elseif ($pane === Layout::PANE_MIGRATIONS) {
             $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
-            $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+            $runner = new MigrationRunner($this->db, $migrationPath);
             $newMigrations = $runner->getNewMigrations();
             $history = $runner->getMigrationHistory();
             $allMigrations = [];
@@ -1154,7 +1159,7 @@ class Dashboard
             // Update scroll offset to keep selection visible
             $this->scrollOffset[Layout::PANE_CONNECTIONS] = max(0, $newIndex - $visibleHeight + 1);
         } elseif ($pane === Layout::PANE_SCHEMA) {
-            $tables = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+            $tables = TableManager::listTables($this->db);
             $maxIndex = count($tables) - 1;
             $newIndex = min($maxIndex, $this->selectedIndex[Layout::PANE_SCHEMA] + $pageSize);
             $this->selectedIndex[Layout::PANE_SCHEMA] = $newIndex;
@@ -1162,7 +1167,7 @@ class Dashboard
             $this->scrollOffset[Layout::PANE_SCHEMA] = max(0, $newIndex - $visibleHeight + 1);
         } elseif ($pane === Layout::PANE_MIGRATIONS) {
             $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
-            $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+            $runner = new MigrationRunner($this->db, $migrationPath);
             $newMigrations = $runner->getNewMigrations();
             $history = $runner->getMigrationHistory();
             $allMigrations = [];
@@ -1236,7 +1241,7 @@ class Dashboard
     protected function handleApplyMigration(): void
     {
         $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
-        $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+        $runner = new MigrationRunner($this->db, $migrationPath);
         $newMigrations = $runner->getNewMigrations();
         $history = $runner->getMigrationHistory();
 
@@ -1280,7 +1285,7 @@ class Dashboard
     protected function handleRollbackMigration(): void
     {
         $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
-        $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+        $runner = new MigrationRunner($this->db, $migrationPath);
         $newMigrations = $runner->getNewMigrations();
         $history = $runner->getMigrationHistory();
 
@@ -1988,7 +1993,7 @@ class Dashboard
         }
         if ($this->detailViewPane === Layout::PANE_MIGRATIONS) {
             $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
-            $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+            $runner = new MigrationRunner($this->db, $migrationPath);
             $newMigrations = $runner->getNewMigrations();
             $history = $runner->getMigrationHistory();
             $allMigrations = [];
@@ -2179,7 +2184,7 @@ class Dashboard
                 Terminal::reset();
                 $size = $stats['size'] ?? $stats['memory_usage'] ?? 0;
                 if (is_numeric($size)) {
-                    echo \tommyknocker\pdodb\cli\ui\panes\ServerMetricsPane::formatBytes((int)$size);
+                    echo ServerMetricsPane::formatBytes((int)$size);
                 } else {
                     echo (string)$size;
                 }
@@ -2265,7 +2270,7 @@ class Dashboard
             echo 'Uptime: ';
             Terminal::reset();
             $uptime = (int)$metrics['uptime_seconds'];
-            echo \tommyknocker\pdodb\cli\ui\panes\ServerMetricsPane::formatUptime($uptime);
+            echo ServerMetricsPane::formatUptime($uptime);
             $row++;
         }
 
@@ -2322,7 +2327,7 @@ class Dashboard
             echo 'File Size: ';
             Terminal::reset();
             $size = (int)$metrics['file_size'];
-            echo \tommyknocker\pdodb\cli\ui\panes\ServerMetricsPane::formatBytes($size);
+            echo ServerMetricsPane::formatBytes($size);
             $row++;
         }
 
@@ -2385,7 +2390,7 @@ class Dashboard
         [$rows, $cols] = Terminal::getSize();
 
         // Get tables and apply filter
-        $tables = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+        $tables = TableManager::listTables($this->db);
         $searchFilter = $this->searchFilter[Layout::PANE_SCHEMA];
         $searchFilter = $searchFilter !== '' ? $searchFilter : null;
         if ($searchFilter !== null) {
@@ -2456,7 +2461,7 @@ class Dashboard
 
         // Get migration path
         $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
-        $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+        $runner = new MigrationRunner($this->db, $migrationPath);
         $newMigrations = $runner->getNewMigrations();
         $history = $runner->getMigrationHistory();
 
@@ -2942,7 +2947,7 @@ class Dashboard
     {
         [$rows, $cols] = Terminal::getSize();
         $migrationPath = getenv('PDODB_MIGRATION_PATH') ?: 'migrations';
-        $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($this->db, $migrationPath);
+        $runner = new MigrationRunner($this->db, $migrationPath);
         $newMigrations = $runner->getNewMigrations();
         $history = $runner->getMigrationHistory();
 
@@ -3118,7 +3123,7 @@ class Dashboard
     protected function renderTableDetailView(): void
     {
         [$rows, $cols] = Terminal::getSize();
-        $tables = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+        $tables = TableManager::listTables($this->db);
         $selectedIdx = $this->selectedIndex[Layout::PANE_SCHEMA];
 
         if ($selectedIdx < 0 || $selectedIdx >= count($tables)) {
@@ -3142,7 +3147,7 @@ class Dashboard
 
         try {
             // Get columns
-            $columns = \tommyknocker\pdodb\cli\TableManager::describe($this->db, $tableName);
+            $columns = TableManager::describe($this->db, $tableName);
             $dialect = $this->db->schema()->getDialect();
             $indexSql = $dialect->buildShowIndexesSql($tableName);
             $indexes = $this->db->rawQuery($indexSql);
@@ -3990,12 +3995,12 @@ class Dashboard
 
         try {
             // Export to CSV
-            $csvExporter = new \tommyknocker\pdodb\helpers\exporters\CsvExporter();
+            $csvExporter = new CsvExporter();
             $csvContent = $csvExporter->export($this->scratchpadLastResult, ',', '"', '\\');
             @file_put_contents($csvFile, $csvContent);
 
             // Export to JSON
-            $jsonExporter = new \tommyknocker\pdodb\helpers\exporters\JsonExporter();
+            $jsonExporter = new JsonExporter();
             $jsonContent = $jsonExporter->export($this->scratchpadLastResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE, 512);
             @file_put_contents($jsonFile, $jsonContent);
 
@@ -4287,7 +4292,7 @@ class Dashboard
     {
         if ($this->scratchpadTableCache === null) {
             try {
-                $this->scratchpadTableCache = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+                $this->scratchpadTableCache = TableManager::listTables($this->db);
             } catch (\Throwable $e) {
                 $this->scratchpadTableCache = [];
             }
@@ -4307,7 +4312,7 @@ class Dashboard
     {
         if (!isset($this->scratchpadColumnCache[$table])) {
             try {
-                $columns = \tommyknocker\pdodb\cli\TableManager::describe($this->db, $table);
+                $columns = TableManager::describe($this->db, $table);
                 $columnNames = [];
                 foreach ($columns as $col) {
                     $colName = is_array($col) ? ($col['Field'] ?? $col['column_name'] ?? $col['name'] ?? '') : (string)$col;

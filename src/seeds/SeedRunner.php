@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\seeds;
 
 use PDOException;
+use Psr\EventDispatcher\EventDispatcherInterface;
+use tommyknocker\pdodb\events\QueryExecutedEvent;
 use tommyknocker\pdodb\events\SeedCompletedEvent;
 use tommyknocker\pdodb\events\SeedStartedEvent;
 use tommyknocker\pdodb\exceptions\QueryException;
@@ -489,9 +491,9 @@ class SeedRunner
         $connection = $this->db->getConnection('write');
         $originalConnectionDispatcher = $connection->getEventDispatcher();
 
-        if (interface_exists(\Psr\EventDispatcher\EventDispatcherInterface::class)) {
+        if (interface_exists(EventDispatcherInterface::class)) {
             // Create a simple event dispatcher that collects SQL queries
-            $collectorDispatcher = new class ($sqlCollector) implements \Psr\EventDispatcher\EventDispatcherInterface {
+            $collectorDispatcher = new class ($sqlCollector) implements EventDispatcherInterface {
                 public function __construct(
                     private SqlQueryCollector $collector
                 ) {
@@ -499,7 +501,7 @@ class SeedRunner
 
                 public function dispatch(object $event): object
                 {
-                    if ($event instanceof \tommyknocker\pdodb\events\QueryExecutedEvent) {
+                    if ($event instanceof QueryExecutedEvent) {
                         $this->collector->handleQueryExecuted($event);
                     }
                     return $event;
@@ -708,9 +710,9 @@ PHP;
     /**
      * Get event dispatcher from database connection.
      *
-     * @return \Psr\EventDispatcher\EventDispatcherInterface|null
+     * @return EventDispatcherInterface|null
      */
-    protected function getEventDispatcher(): ?\Psr\EventDispatcher\EventDispatcherInterface
+    protected function getEventDispatcher(): ?EventDispatcherInterface
     {
         return $this->db->connection->getEventDispatcher();
     }

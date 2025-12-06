@@ -6,10 +6,16 @@ namespace tommyknocker\pdodb\dialects;
 
 use PDO;
 use PDOStatement;
+use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\exceptions\ResourceException;
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
+use tommyknocker\pdodb\query\DdlQueryBuilder;
+use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 interface DialectInterface
@@ -105,7 +111,7 @@ interface DialectInterface
      *
      * @return int|null The inserted ID, or null to use lastInsertId()
      */
-    public function extractInsertId(\PDOStatement $stmt, string $sql, array $params): ?int;
+    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): ?int;
 
     /**
      * Build insert sql.
@@ -613,7 +619,7 @@ interface DialectInterface
      * @param string $format The format string (e.g., 'YYYY-MM-DD HH24:MI:SS')
      *
      * @return string SQL expression (e.g., "TO_TIMESTAMP('2025-10-20 09:00:00', 'YYYY-MM-DD HH24:MI:SS')")
-     * @throws \tommyknocker\pdodb\exceptions\UnsupportedOperationException For non-Oracle dialects
+     * @throws UnsupportedOperationException For non-Oracle dialects
      */
     public function formatToTimestamp(string $timestampString, string $format): string;
 
@@ -625,7 +631,7 @@ interface DialectInterface
      * @param string $format The format string (e.g., 'YYYY-MM-DD')
      *
      * @return string SQL expression (e.g., "TO_DATE('2024-01-15', 'YYYY-MM-DD')")
-     * @throws \tommyknocker\pdodb\exceptions\UnsupportedOperationException For non-Oracle dialects
+     * @throws UnsupportedOperationException For non-Oracle dialects
      */
     public function formatToDate(string $dateString, string $format): string;
 
@@ -636,7 +642,7 @@ interface DialectInterface
      * @param string|RawValue $value The value to convert to character string
      *
      * @return string SQL expression (e.g., "TO_CHAR(column)")
-     * @throws \tommyknocker\pdodb\exceptions\UnsupportedOperationException For non-Oracle dialects
+     * @throws UnsupportedOperationException For non-Oracle dialects
      */
     public function formatToChar(string|RawValue $value): string;
 
@@ -904,28 +910,28 @@ interface DialectInterface
      * For MSSQL, this handles SET SHOWPLAN_ALL ON/OFF separately.
      * For other dialects, this simply executes the explain SQL.
      *
-     * @param \PDO $pdo PDO connection instance
+     * @param PDO $pdo PDO connection instance
      * @param string $sql SQL query to explain
      * @param array<int|string, string|int|float|bool|null> $params Query parameters
      *
      * @return array<int, array<string, mixed>> Explain results
      * @throws \PDOException
      */
-    public function executeExplain(\PDO $pdo, string $sql, array $params = []): array;
+    public function executeExplain(PDO $pdo, string $sql, array $params = []): array;
 
     /**
      * Execute EXPLAIN ANALYZE query with dialect-specific logic.
      * For MSSQL, this handles SET STATISTICS XML ON/OFF separately.
      * For other dialects, this simply executes the explain analyze SQL.
      *
-     * @param \PDO $pdo PDO connection instance
+     * @param PDO $pdo PDO connection instance
      * @param string $sql SQL query to explain and analyze
      * @param array<int|string, string|int|float|bool|null> $params Query parameters
      *
      * @return array<int, array<string, mixed>> Explain analyze results
      * @throws \PDOException
      */
-    public function executeExplainAnalyze(\PDO $pdo, string $sql, array $params = []): array;
+    public function executeExplainAnalyze(PDO $pdo, string $sql, array $params = []): array;
 
     /**
      * Normalize raw SQL value for dialect-specific function replacements.
@@ -1005,12 +1011,12 @@ interface DialectInterface
     /**
      * Get dialect-specific DDL query builder.
      *
-     * @param \tommyknocker\pdodb\connection\ConnectionInterface $connection
+     * @param ConnectionInterface $connection
      * @param string $prefix
      *
-     * @return \tommyknocker\pdodb\query\DdlQueryBuilder
+     * @return DdlQueryBuilder
      */
-    public function getDdlQueryBuilder(\tommyknocker\pdodb\connection\ConnectionInterface $connection, string $prefix = ''): \tommyknocker\pdodb\query\DdlQueryBuilder;
+    public function getDdlQueryBuilder(ConnectionInterface $connection, string $prefix = ''): DdlQueryBuilder;
 
     /**
      * Get foreign keys for a table.
@@ -1533,10 +1539,10 @@ interface DialectInterface
      * This method registers those functions if needed. For dialects that don't support REGEXP
      * or have native support, this method does nothing.
      *
-     * @param \PDO $pdo The PDO instance
+     * @param PDO $pdo The PDO instance
      * @param bool $force Force re-registration even if functions exist
      */
-    public function registerRegexpFunctions(\PDO $pdo, bool $force = false): void;
+    public function registerRegexpFunctions(PDO $pdo, bool $force = false): void;
 
     /**
      * Normalize DEFAULT keyword value for use in UPDATE/INSERT statements.
@@ -1614,52 +1620,52 @@ interface DialectInterface
      * Create a database.
      *
      * @param string $databaseName Database name
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return bool True on success
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If database creation fails
+     * @throws ResourceException If database creation fails
      */
-    public function createDatabase(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool;
+    public function createDatabase(string $databaseName, PdoDb $db): bool;
 
     /**
      * Drop a database.
      *
      * @param string $databaseName Database name
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return bool True on success
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If database deletion fails
+     * @throws ResourceException If database deletion fails
      */
-    public function dropDatabase(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool;
+    public function dropDatabase(string $databaseName, PdoDb $db): bool;
 
     /**
      * Check if a database exists.
      *
      * @param string $databaseName Database name
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return bool True if database exists
      */
-    public function databaseExists(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool;
+    public function databaseExists(string $databaseName, PdoDb $db): bool;
 
     /**
      * List all databases.
      *
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return array<int, string> List of database names
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If listing fails
+     * @throws ResourceException If listing fails
      */
-    public function listDatabases(\tommyknocker\pdodb\PdoDb $db): array;
+    public function listDatabases(PdoDb $db): array;
 
     /**
      * Get database-specific information.
      *
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return array<string, mixed> Database information
      */
-    public function getDatabaseInfo(\tommyknocker\pdodb\PdoDb $db): array;
+    public function getDatabaseInfo(PdoDb $db): array;
 
     /* ---------------- User Management ---------------- */
 
@@ -1669,58 +1675,58 @@ interface DialectInterface
      * @param string $username Username
      * @param string $password Password
      * @param string|null $host Host (for MySQL/MariaDB, default: '%')
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return bool True on success
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If user creation fails or not supported
+     * @throws ResourceException If user creation fails or not supported
      */
-    public function createUser(string $username, string $password, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool;
+    public function createUser(string $username, string $password, ?string $host, PdoDb $db): bool;
 
     /**
      * Drop a database user.
      *
      * @param string $username Username
      * @param string|null $host Host (for MySQL/MariaDB, default: '%')
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return bool True on success
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If user deletion fails or not supported
+     * @throws ResourceException If user deletion fails or not supported
      */
-    public function dropUser(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool;
+    public function dropUser(string $username, ?string $host, PdoDb $db): bool;
 
     /**
      * Check if a database user exists.
      *
      * @param string $username Username
      * @param string|null $host Host (for MySQL/MariaDB, default: '%')
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return bool True if user exists
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If check fails or not supported
+     * @throws ResourceException If check fails or not supported
      */
-    public function userExists(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool;
+    public function userExists(string $username, ?string $host, PdoDb $db): bool;
 
     /**
      * List all database users.
      *
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return array<int, array<string, mixed>> List of users with their information
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If listing fails or not supported
+     * @throws ResourceException If listing fails or not supported
      */
-    public function listUsers(\tommyknocker\pdodb\PdoDb $db): array;
+    public function listUsers(PdoDb $db): array;
 
     /**
      * Get user information and privileges.
      *
      * @param string $username Username
      * @param string|null $host Host (for MySQL/MariaDB, default: '%')
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return array<string, mixed> User information
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If retrieval fails or not supported
+     * @throws ResourceException If retrieval fails or not supported
      */
-    public function getUserInfo(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): array;
+    public function getUserInfo(string $username, ?string $host, PdoDb $db): array;
 
     /**
      * Grant privileges to a user.
@@ -1730,10 +1736,10 @@ interface DialectInterface
      * @param string|null $database Database name (null = all databases, '*' = all databases)
      * @param string|null $table Table name (null = all tables, '*' = all tables)
      * @param string|null $host Host (for MySQL/MariaDB, default: '%')
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return bool True on success
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If grant fails or not supported
+     * @throws ResourceException If grant fails or not supported
      */
     public function grantPrivileges(
         string $username,
@@ -1741,7 +1747,7 @@ interface DialectInterface
         ?string $database,
         ?string $table,
         ?string $host,
-        \tommyknocker\pdodb\PdoDb $db
+        PdoDb $db
     ): bool;
 
     /**
@@ -1752,10 +1758,10 @@ interface DialectInterface
      * @param string|null $database Database name (null = all databases, '*' = all databases)
      * @param string|null $table Table name (null = all tables, '*' = all tables)
      * @param string|null $host Host (for MySQL/MariaDB, default: '%')
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return bool True on success
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If revoke fails or not supported
+     * @throws ResourceException If revoke fails or not supported
      */
     public function revokePrivileges(
         string $username,
@@ -1763,7 +1769,7 @@ interface DialectInterface
         ?string $database,
         ?string $table,
         ?string $host,
-        \tommyknocker\pdodb\PdoDb $db
+        PdoDb $db
     ): bool;
 
     /**
@@ -1772,12 +1778,12 @@ interface DialectInterface
      * @param string $username Username
      * @param string $newPassword New password
      * @param string|null $host Host (for MySQL/MariaDB, default: '%')
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return bool True on success
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If password change fails or not supported
+     * @throws ResourceException If password change fails or not supported
      */
-    public function changeUserPassword(string $username, string $newPassword, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool;
+    public function changeUserPassword(string $username, string $newPassword, ?string $host, PdoDb $db): bool;
 
     /* ---------------- Enum Support ---------------- */
 
@@ -1785,120 +1791,120 @@ interface DialectInterface
      * Extract ENUM values from column definition.
      *
      * @param array<string, mixed> $column Column definition from describe()
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      * @param string $tableName Table name
      * @param string $columnName Column name
      *
      * @return array<int, string> Array of ENUM values, empty array if not an ENUM type
      */
-    public function extractEnumValues(array $column, \tommyknocker\pdodb\PdoDb $db, string $tableName, string $columnName): array;
+    public function extractEnumValues(array $column, PdoDb $db, string $tableName, string $columnName): array;
 
     /* ---------------- Dump and Restore ---------------- */
 
     /**
      * Dump database schema (CREATE TABLE, indexes, foreign keys).
      *
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      * @param string|null $table Table name (null = all tables)
      * @param bool $dropTables Whether to add DROP TABLE IF EXISTS before CREATE TABLE
      *
      * @return string SQL schema dump
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If operation fails or not supported
+     * @throws ResourceException If operation fails or not supported
      */
-    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string;
+    public function dumpSchema(PdoDb $db, ?string $table = null, bool $dropTables = true): string;
 
     /**
      * Dump database data (INSERT statements).
      *
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      * @param string|null $table Table name (null = all tables)
      *
      * @return string SQL data dump
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If operation fails or not supported
+     * @throws ResourceException If operation fails or not supported
      */
-    public function dumpData(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string;
+    public function dumpData(PdoDb $db, ?string $table = null): string;
 
     /**
      * Restore database from SQL dump.
      *
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      * @param string $sql SQL dump content
      * @param bool $continueOnError Continue on errors (skip failed statements)
      *
-     * @throws \tommyknocker\pdodb\exceptions\ResourceException If restore fails
+     * @throws ResourceException If restore fails
      */
-    public function restoreFromSql(\tommyknocker\pdodb\PdoDb $db, string $sql, bool $continueOnError = false): void;
+    public function restoreFromSql(PdoDb $db, string $sql, bool $continueOnError = false): void;
 
     /* ---------------- Monitoring ---------------- */
 
     /**
      * Get active queries for this dialect.
      *
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return array<int, array<string, mixed>> Array of active queries with their details
      */
-    public function getActiveQueries(\tommyknocker\pdodb\PdoDb $db): array;
+    public function getActiveQueries(PdoDb $db): array;
 
     /**
      * Get active connections for this dialect.
      *
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return array<string, mixed> Returns array with 'connections' and 'summary' keys
      */
-    public function getActiveConnections(\tommyknocker\pdodb\PdoDb $db): array;
+    public function getActiveConnections(PdoDb $db): array;
 
     /**
      * Get slow queries for this dialect.
      *
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      * @param float $thresholdSeconds Threshold in seconds for considering a query slow
      * @param int $limit Maximum number of queries to return
      *
      * @return array<int, array<string, mixed>> Array of slow queries sorted by execution time
      */
-    public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array;
+    public function getSlowQueries(PdoDb $db, float $thresholdSeconds, int $limit): array;
 
     /**
      * Get server metrics for this dialect.
      *
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return array<string, mixed> Server metrics (version, uptime, key performance indicators)
      */
-    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array;
+    public function getServerMetrics(PdoDb $db): array;
 
     /**
      * Get server variables (configuration settings).
      *
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      *
      * @return array<int, array<string, mixed>> Array of variable arrays with 'name' and 'value' keys
      */
-    public function getServerVariables(\tommyknocker\pdodb\PdoDb $db): array;
+    public function getServerVariables(PdoDb $db): array;
 
     /**
      * Kill a query/process for this dialect.
      *
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      * @param int|string $processId Process/query ID to kill
      *
      * @return bool True if successful, false otherwise
      */
-    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool;
+    public function killQuery(PdoDb $db, int|string $processId): bool;
 
     /* ---------------- Table Management ---------------- */
 
     /**
      * List all tables in the database.
      *
-     * @param \tommyknocker\pdodb\PdoDb $db Database instance
+     * @param PdoDb $db Database instance
      * @param string|null $schema Schema name (for PostgreSQL, MSSQL)
      *
      * @return array<int, string> Array of table names
      */
-    public function listTables(\tommyknocker\pdodb\PdoDb $db, ?string $schema = null): array;
+    public function listTables(PdoDb $db, ?string $schema = null): array;
 
     /* ---------------- Error Handling ---------------- */
 
@@ -1925,11 +1931,11 @@ interface DialectInterface
      *
      * @param string $tableName Table name
      * @param array<int, string>|null $columns Explicit column list (null = auto-detect)
-     * @param \tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface $executionEngine Execution engine for query execution
+     * @param ExecutionEngineInterface $executionEngine Execution engine for query execution
      *
      * @return array<int, string> Array of column names to use in INSERT
      */
-    public function getInsertSelectColumns(string $tableName, ?array $columns, \tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface $executionEngine): array;
+    public function getInsertSelectColumns(string $tableName, ?array $columns, ExecutionEngineInterface $executionEngine): array;
 
     /* ---------------- Configuration ---------------- */
 
@@ -1964,13 +1970,13 @@ interface DialectInterface
      * This method is called after createTable() to perform dialect-specific operations
      * like creating triggers, sequences, or other database objects.
      *
-     * @param \tommyknocker\pdodb\connection\ConnectionInterface $connection Database connection
+     * @param ConnectionInterface $connection Database connection
      * @param string $tableName Table name
-     * @param array<string, \tommyknocker\pdodb\query\schema\ColumnSchema|array<string, mixed>|string> $columns Column definitions
+     * @param array<string, ColumnSchema|array<string, mixed>|string> $columns Column definitions
      * @param string $sql The SQL that was executed to create the table
      */
     public function afterCreateTable(
-        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        ConnectionInterface $connection,
         string $tableName,
         array $columns,
         string $sql
@@ -1981,12 +1987,12 @@ interface DialectInterface
      * This method is called before createTable() to drop existing objects
      * like sequences, triggers, or other database objects that might conflict.
      *
-     * @param \tommyknocker\pdodb\connection\ConnectionInterface $connection Database connection
+     * @param ConnectionInterface $connection Database connection
      * @param string $tableName Table name
-     * @param array<string, \tommyknocker\pdodb\query\schema\ColumnSchema|array<string, mixed>|string> $columns Column definitions
+     * @param array<string, ColumnSchema|array<string, mixed>|string> $columns Column definitions
      */
     public function beforeCreateTable(
-        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        ConnectionInterface $connection,
         string $tableName,
         array $columns
     ): void;

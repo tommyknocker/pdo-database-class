@@ -6,6 +6,9 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\cli\commands\TableCommand;
+use tommyknocker\pdodb\cli\IndexSuggestionAnalyzer;
+use tommyknocker\pdodb\PdoDb;
 
 final class TableCommandCliTests extends TestCase
 {
@@ -358,7 +361,7 @@ final class TableCommandCliTests extends TestCase
         $this->assertSame(0, $code);
 
         // Insert some data
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+        $db = new PdoDb('sqlite', ['path' => $this->dbPath]);
         $db->find()->table('test_count')->insert(['name' => 'Test 1']);
         $db->find()->table('test_count')->insert(['name' => 'Test 2']);
         $db->find()->table('test_count')->insert(['name' => 'Test 3']);
@@ -422,7 +425,7 @@ final class TableCommandCliTests extends TestCase
         $this->assertSame(0, $code);
 
         // Insert some data
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+        $db = new PdoDb('sqlite', ['path' => $this->dbPath]);
         $db->find()->table('test_sample')->insert(['name' => 'Sample 1']);
         $db->find()->table('test_sample')->insert(['name' => 'Sample 2']);
         $db->find()->table('test_sample')->insert(['name' => 'Sample 3']);
@@ -557,7 +560,7 @@ final class TableCommandCliTests extends TestCase
         }
         $this->assertSame(0, $code);
 
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+        $db = new PdoDb('sqlite', ['path' => $this->dbPath]);
         $db->find()->table('truncate_test')->insert(['name' => 'Test 1']);
         $db->find()->table('truncate_test')->insert(['name' => 'Test 2']);
 
@@ -717,7 +720,7 @@ final class TableCommandCliTests extends TestCase
 
     public function testTableParseColumns(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\TableCommand();
+        $command = new TableCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('parseColumns');
         $method->setAccessible(true);
@@ -741,7 +744,7 @@ final class TableCommandCliTests extends TestCase
 
     public function testTableTypeToSchema(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\TableCommand();
+        $command = new TableCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('typeToSchema');
         $method->setAccessible(true);
@@ -769,7 +772,7 @@ final class TableCommandCliTests extends TestCase
 
     public function testTablePrintFormattedYaml(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\TableCommand();
+        $command = new TableCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printFormatted');
         $method->setAccessible(true);
@@ -794,7 +797,7 @@ final class TableCommandCliTests extends TestCase
 
     public function testTablePrintTable(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\TableCommand();
+        $command = new TableCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printTable');
         $method->setAccessible(true);
@@ -844,7 +847,7 @@ final class TableCommandCliTests extends TestCase
         $this->assertSame(0, $code);
 
         // Add foreign key (if supported by SQLite)
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+        $db = new PdoDb('sqlite', ['path' => $this->dbPath]);
 
         try {
             $db->schema()->addForeignKey('fk_suggest_test_user', 'suggest_test', 'user_id', 'users', 'id');
@@ -916,7 +919,7 @@ final class TableCommandCliTests extends TestCase
 
     public function testIndexSuggestionAnalyzer(): void
     {
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $this->dbPath]);
+        $db = new PdoDb('sqlite', ['path' => $this->dbPath]);
 
         // Create table with common patterns
         $db->schema()->createTable('analyzer_test', [
@@ -927,7 +930,7 @@ final class TableCommandCliTests extends TestCase
             'created_at' => ['type' => 'datetime'],
         ]);
 
-        $analyzer = new \tommyknocker\pdodb\cli\IndexSuggestionAnalyzer($db);
+        $analyzer = new IndexSuggestionAnalyzer($db);
         $suggestions = $analyzer->analyze('analyzer_test');
 
         $this->assertIsArray($suggestions);
@@ -985,7 +988,7 @@ final class TableCommandCliTests extends TestCase
         if ($dbPath === false || $dbPath === '') {
             $dbPath = $this->dbPath;
         }
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => $dbPath]);
+        $db = new PdoDb('sqlite', ['path' => $dbPath]);
         $db->find()->table('test_search')->insert(['name' => 'John Doe', 'email' => 'john@example.com', 'age' => 30]);
         $db->find()->table('test_search')->insert(['name' => 'Jane Smith', 'email' => 'jane@test.com', 'age' => 25]);
         $db->find()->table('test_search')->insert(['name' => 'Bob Johnson', 'email' => 'bob@example.org', 'age' => 35]);

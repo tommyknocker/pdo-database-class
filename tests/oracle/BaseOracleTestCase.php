@@ -160,7 +160,7 @@ abstract class BaseOracleTestCase extends TestCase
         if (isset(self::$db)) {
             try {
                 self::$db->disconnect();
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // Ignore errors during cleanup
             }
         }

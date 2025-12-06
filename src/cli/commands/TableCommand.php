@@ -261,7 +261,7 @@ class TableCommand extends Command
         return 0;
     }
 
-    protected function indexesSuggest(\tommyknocker\pdodb\PdoDb $db, string $table): int
+    protected function indexesSuggest(PdoDb $db, string $table): int
     {
         if (!TableManager::tableExists($db, $table)) {
             return $this->showError("Table '{$table}' does not exist");
@@ -374,14 +374,14 @@ class TableCommand extends Command
         };
     }
 
-    protected function keysList(\tommyknocker\pdodb\PdoDb $db, string $table): int
+    protected function keysList(PdoDb $db, string $table): int
     {
         $foreignKeys = $db->schema()->getForeignKeys($table);
         $format = (string)$this->getOption('format', 'table');
         return $this->printFormatted(['foreign_keys' => $foreignKeys], $format);
     }
 
-    protected function keysAdd(\tommyknocker\pdodb\PdoDb $db, string $table): int
+    protected function keysAdd(PdoDb $db, string $table): int
     {
         $name = (string)$this->getArgument(3, '');
         $columns = (string)$this->getOption('columns', '');
@@ -432,7 +432,7 @@ class TableCommand extends Command
         return 0;
     }
 
-    protected function keysDrop(\tommyknocker\pdodb\PdoDb $db, string $table): int
+    protected function keysDrop(PdoDb $db, string $table): int
     {
         $name = (string)$this->getArgument(3, '');
         if ($name === '') {
@@ -453,7 +453,7 @@ class TableCommand extends Command
         return 0;
     }
 
-    protected function keysCheck(\tommyknocker\pdodb\PdoDb $db): int
+    protected function keysCheck(PdoDb $db): int
     {
         $schema = $db->schema();
         $tables = TableManager::listTables($db);
@@ -532,7 +532,7 @@ class TableCommand extends Command
         return 1;
     }
 
-    protected function columnsAdd(\tommyknocker\pdodb\PdoDb $db, string $table): int
+    protected function columnsAdd(PdoDb $db, string $table): int
     {
         $name = (string)$this->getArgument(3, '');
         $type = $this->getOption('type');
@@ -552,7 +552,7 @@ class TableCommand extends Command
         return 0;
     }
 
-    protected function columnsAlter(\tommyknocker\pdodb\PdoDb $db, string $table): int
+    protected function columnsAlter(PdoDb $db, string $table): int
     {
         $name = (string)$this->getArgument(3, '');
         if ($name === '') {
@@ -590,7 +590,7 @@ class TableCommand extends Command
         return 0;
     }
 
-    protected function columnsDrop(\tommyknocker\pdodb\PdoDb $db, string $table): int
+    protected function columnsDrop(PdoDb $db, string $table): int
     {
         $name = (string)$this->getArgument(3, '');
         if ($name === '') {

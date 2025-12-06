@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mssql;
 
+use tommyknocker\pdodb\dialects\mssql\MSSQLDdlBuilder;
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 /**
@@ -16,9 +18,9 @@ final class MSSQLDdlBuilderTests extends BaseMSSQLTestCase
     /**
      * Get MSSQL DDL builder instance.
      *
-     * @return \tommyknocker\pdodb\dialects\mssql\MSSQLDdlBuilder
+     * @return MSSQLDdlBuilder
      */
-    protected function getDdlBuilder(): \tommyknocker\pdodb\dialects\mssql\MSSQLDdlBuilder
+    protected function getDdlBuilder(): MSSQLDdlBuilder
     {
         $db = self::$db;
         $dialect = $db->schema()->getDialect();
@@ -935,7 +937,7 @@ final class MSSQLDdlBuilderTests extends BaseMSSQLTestCase
         $method->setAccessible(true);
 
         $builder = $this->getDdlBuilder();
-        $rawValue = new \tommyknocker\pdodb\helpers\values\RawValue('GETDATE()');
+        $rawValue = new RawValue('GETDATE()');
         $result = $method->invoke($builder, $rawValue);
 
         $this->assertIsString($result);

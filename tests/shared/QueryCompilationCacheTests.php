@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use Psr\SimpleCache\CacheInterface;
+use Psr\SimpleCache\InvalidArgumentException;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\tests\fixtures\ArrayCache;
 
@@ -228,10 +230,10 @@ final class QueryCompilationCacheTests extends BaseSharedTestCase
 
     public function testGetOrCompileWithInvalidArgumentException(): void
     {
-        $invalidCache = new class () implements \Psr\SimpleCache\CacheInterface {
+        $invalidCache = new class () implements CacheInterface {
             public function get(string $key, mixed $default = null): mixed
             {
-                throw new \Psr\SimpleCache\InvalidArgumentException('Invalid key');
+                throw new InvalidArgumentException('Invalid key');
             }
 
             public function set(string $key, mixed $value, \DateInterval|int|null $ttl = null): bool
@@ -281,7 +283,7 @@ final class QueryCompilationCacheTests extends BaseSharedTestCase
 
     public function testGetOrCompileWithThrowable(): void
     {
-        $throwingCache = new class () implements \Psr\SimpleCache\CacheInterface {
+        $throwingCache = new class () implements CacheInterface {
             public function get(string $key, mixed $default = null): mixed
             {
                 throw new \RuntimeException('Cache error');

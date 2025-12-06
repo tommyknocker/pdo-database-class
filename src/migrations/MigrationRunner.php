@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\migrations;
 
 use PDOException;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use tommyknocker\pdodb\events\MigrationCompletedEvent;
 use tommyknocker\pdodb\events\MigrationRolledBackEvent;
 use tommyknocker\pdodb\events\MigrationStartedEvent;
+use tommyknocker\pdodb\events\QueryExecutedEvent;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\PdoDb;
 
@@ -289,9 +291,9 @@ class MigrationRunner
     /**
      * Get event dispatcher from database connection.
      *
-     * @return \Psr\EventDispatcher\EventDispatcherInterface|null
+     * @return EventDispatcherInterface|null
      */
-    protected function getEventDispatcher(): ?\Psr\EventDispatcher\EventDispatcherInterface
+    protected function getEventDispatcher(): ?EventDispatcherInterface
     {
         return $this->db->connection->getEventDispatcher();
     }
@@ -544,9 +546,9 @@ class MigrationRunner
         $connection = $this->db->connection;
         $originalConnectionDispatcher = $connection->getEventDispatcher();
 
-        if (interface_exists(\Psr\EventDispatcher\EventDispatcherInterface::class)) {
+        if (interface_exists(EventDispatcherInterface::class)) {
             // Create a simple event dispatcher that collects SQL queries
-            $collectorDispatcher = new class ($sqlCollector) implements \Psr\EventDispatcher\EventDispatcherInterface {
+            $collectorDispatcher = new class ($sqlCollector) implements EventDispatcherInterface {
                 public function __construct(
                     private SqlQueryCollector $collector
                 ) {
@@ -554,7 +556,7 @@ class MigrationRunner
 
                 public function dispatch(object $event): object
                 {
-                    if ($event instanceof \tommyknocker\pdodb\events\QueryExecutedEvent) {
+                    if ($event instanceof QueryExecutedEvent) {
                         $this->collector->handleQueryExecuted($event);
                     }
                     return $event;

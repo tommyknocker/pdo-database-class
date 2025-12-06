@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use PDO;
+use tommyknocker\pdodb\connection\Connection;
+use tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy;
 use tommyknocker\pdodb\connection\RetryableConnection;
 use tommyknocker\pdodb\dialects\sqlite\SqliteDialect;
 
@@ -153,7 +155,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
     public function testRetryableConnectionInheritsFromConnection(): void
     {
         $connection = $this->createRetryableConnection();
-        $this->assertInstanceOf(\tommyknocker\pdodb\connection\Connection::class, $connection);
+        $this->assertInstanceOf(Connection::class, $connection);
     }
 
     public function testRetryableConnectionCanExecuteQueries(): void
@@ -164,7 +166,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
         $stmt = $connection->query('SELECT * FROM test_retry');
         $this->assertInstanceOf(\PDOStatement::class, $stmt);
-        $result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $this->assertIsArray($result);
         $this->assertCount(1, $result);
         $this->assertEquals('test', $result[0]['name']);
@@ -180,7 +182,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
         $connection->prepare('SELECT * FROM test_retry');
         $stmt = $connection->execute();
-        $result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         $this->assertIsArray($result);
         $this->assertCount(1, $result);
@@ -274,7 +276,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
     public function testExponentialBackoffDelayCalculation(): void
     {
-        $strategy = new \tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy();
+        $strategy = new ExponentialBackoffRetryStrategy();
         $config = [
             'enabled' => true,
             'max_attempts' => 5,
@@ -308,7 +310,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
     public function testExponentialBackoffMaxDelayEnforcement(): void
     {
-        $strategy = new \tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy();
+        $strategy = new ExponentialBackoffRetryStrategy();
         $config = [
             'enabled' => true,
             'max_attempts' => 10,
@@ -338,7 +340,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
     public function testExponentialBackoffWithDifferentMultipliers(): void
     {
-        $strategy = new \tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy();
+        $strategy = new ExponentialBackoffRetryStrategy();
 
         // Test with multiplier 1.5
         $config1 = [
@@ -383,7 +385,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
     public function testShouldRetryWithRetryableError(): void
     {
-        $strategy = new \tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy();
+        $strategy = new ExponentialBackoffRetryStrategy();
         $config = [
             'enabled' => true,
             'max_attempts' => 3,
@@ -409,7 +411,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
     public function testShouldRetryWithNonRetryableError(): void
     {
-        $strategy = new \tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy();
+        $strategy = new ExponentialBackoffRetryStrategy();
         $config = [
             'enabled' => true,
             'max_attempts' => 3,
@@ -429,7 +431,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
     public function testShouldRetryWithDisabledRetry(): void
     {
-        $strategy = new \tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy();
+        $strategy = new ExponentialBackoffRetryStrategy();
         $config = [
             'enabled' => false,
             'max_attempts' => 3,
@@ -448,7 +450,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
     public function testShouldRetryWithEmptyRetryableErrorsUsesDbError(): void
     {
-        $strategy = new \tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy();
+        $strategy = new ExponentialBackoffRetryStrategy();
         $config = [
             'enabled' => true,
             'max_attempts' => 3,
@@ -545,7 +547,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
         $this->assertEquals(2, $config['max_attempts']);
 
         // Verify that after max attempts, shouldRetry returns false
-        $strategy = new \tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy();
+        $strategy = new ExponentialBackoffRetryStrategy();
         $exception = new \PDOException('Connection lost', 2002);
 
         // Attempt 1: should retry (1 < 2)
@@ -560,7 +562,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
     public function testRetryConfigWithCustomRetryableErrors(): void
     {
-        $strategy = new \tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy();
+        $strategy = new ExponentialBackoffRetryStrategy();
         $config = [
             'enabled' => true,
             'max_attempts' => 3,
@@ -582,7 +584,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
     public function testRetryConfigWithZeroDelay(): void
     {
-        $strategy = new \tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy();
+        $strategy = new ExponentialBackoffRetryStrategy();
         $config = [
             'enabled' => true,
             'max_attempts' => 3,
@@ -603,7 +605,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
     public function testRetryConfigWithOneMaxAttempt(): void
     {
-        $strategy = new \tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy();
+        $strategy = new ExponentialBackoffRetryStrategy();
         $config = [
             'enabled' => true,
             'max_attempts' => 1,
@@ -628,7 +630,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
     public function testRetryConfigWithVeryLargeMaxDelay(): void
     {
-        $strategy = new \tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy();
+        $strategy = new ExponentialBackoffRetryStrategy();
         $config = [
             'enabled' => true,
             'max_attempts' => 10,
@@ -652,7 +654,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
     public function testRetryConfigWithFractionalBackoffMultiplier(): void
     {
-        $strategy = new \tommyknocker\pdodb\connection\ExponentialBackoffRetryStrategy();
+        $strategy = new ExponentialBackoffRetryStrategy();
         $config = [
             'enabled' => true,
             'max_attempts' => 5,

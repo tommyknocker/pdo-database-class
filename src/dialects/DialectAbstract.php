@@ -7,12 +7,16 @@ namespace tommyknocker\pdodb\dialects;
 use PDO;
 use PDOStatement;
 use RuntimeException;
+use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
+use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
+use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 
 abstract class DialectAbstract implements DialectInterface
 {
@@ -708,13 +712,13 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function executeExplain(\PDO $pdo, string $sql, array $params = []): array
+    public function executeExplain(PDO $pdo, string $sql, array $params = []): array
     {
         // Default implementation: build explain SQL and execute it
         $explainSql = $this->buildExplainSql($sql);
         $stmt = $pdo->prepare($explainSql);
         $stmt->execute($params);
-        $results = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $stmt->closeCursor();
         return $results;
     }
@@ -785,12 +789,12 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function executeExplainAnalyze(\PDO $pdo, string $sql, array $params = []): array
+    public function executeExplainAnalyze(PDO $pdo, string $sql, array $params = []): array
     {
         // Default implementation: execute the explain analyze SQL directly
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
-        $result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $stmt->closeCursor();
         return $result;
     }
@@ -897,7 +901,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function registerRegexpFunctions(\PDO $pdo, bool $force = false): void
+    public function registerRegexpFunctions(PDO $pdo, bool $force = false): void
     {
         // Default: no REGEXP function registration needed
         // Dialects that need REGEXP support (SQLite, MSSQL) override this method
@@ -962,7 +966,7 @@ abstract class DialectAbstract implements DialectInterface
      */
     public function getExplainParser(): ExplainParserInterface
     {
-        throw new \RuntimeException(
+        throw new RuntimeException(
             sprintf('EXPLAIN parser not implemented for %s dialect', $this->getDriverName())
         );
     }
@@ -987,7 +991,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function createDatabase(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool
+    public function createDatabase(string $databaseName, PdoDb $db): bool
     {
         $sql = $this->buildCreateDatabaseSql($databaseName);
         $db->rawQuery($sql);
@@ -997,7 +1001,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function dropDatabase(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool
+    public function dropDatabase(string $databaseName, PdoDb $db): bool
     {
         $sql = $this->buildDropDatabaseSql($databaseName);
         $db->rawQuery($sql);
@@ -1007,7 +1011,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function databaseExists(string $databaseName, \tommyknocker\pdodb\PdoDb $db): bool
+    public function databaseExists(string $databaseName, PdoDb $db): bool
     {
         $databases = $this->listDatabases($db);
         return in_array($databaseName, $databases, true);
@@ -1016,7 +1020,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function listDatabases(\tommyknocker\pdodb\PdoDb $db): array
+    public function listDatabases(PdoDb $db): array
     {
         $sql = $this->buildListDatabasesSql();
         $result = $db->rawQuery($sql);
@@ -1060,7 +1064,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function getDatabaseInfo(\tommyknocker\pdodb\PdoDb $db): array
+    public function getDatabaseInfo(PdoDb $db): array
     {
         return [];
     }
@@ -1070,9 +1074,9 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function createUser(string $username, string $password, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function createUser(string $username, string $password, ?string $host, PdoDb $db): bool
     {
-        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+        throw new ResourceException(
             'User management is not supported for ' . $this->getDriverName()
         );
     }
@@ -1080,9 +1084,9 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function dropUser(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function dropUser(string $username, ?string $host, PdoDb $db): bool
     {
-        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+        throw new ResourceException(
             'User management is not supported for ' . $this->getDriverName()
         );
     }
@@ -1090,9 +1094,9 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function userExists(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function userExists(string $username, ?string $host, PdoDb $db): bool
     {
-        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+        throw new ResourceException(
             'User management is not supported for ' . $this->getDriverName()
         );
     }
@@ -1100,9 +1104,9 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function listUsers(\tommyknocker\pdodb\PdoDb $db): array
+    public function listUsers(PdoDb $db): array
     {
-        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+        throw new ResourceException(
             'User management is not supported for ' . $this->getDriverName()
         );
     }
@@ -1110,9 +1114,9 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function getUserInfo(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): array
+    public function getUserInfo(string $username, ?string $host, PdoDb $db): array
     {
-        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+        throw new ResourceException(
             'User management is not supported for ' . $this->getDriverName()
         );
     }
@@ -1126,9 +1130,9 @@ abstract class DialectAbstract implements DialectInterface
         ?string $database,
         ?string $table,
         ?string $host,
-        \tommyknocker\pdodb\PdoDb $db
+        PdoDb $db
     ): bool {
-        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+        throw new ResourceException(
             'User management is not supported for ' . $this->getDriverName()
         );
     }
@@ -1142,9 +1146,9 @@ abstract class DialectAbstract implements DialectInterface
         ?string $database,
         ?string $table,
         ?string $host,
-        \tommyknocker\pdodb\PdoDb $db
+        PdoDb $db
     ): bool {
-        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+        throw new ResourceException(
             'User management is not supported for ' . $this->getDriverName()
         );
     }
@@ -1152,9 +1156,9 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function changeUserPassword(string $username, string $newPassword, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function changeUserPassword(string $username, string $newPassword, ?string $host, PdoDb $db): bool
     {
-        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+        throw new ResourceException(
             'User management is not supported for ' . $this->getDriverName()
         );
     }
@@ -1162,9 +1166,9 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string
+    public function dumpSchema(PdoDb $db, ?string $table = null, bool $dropTables = true): string
     {
-        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+        throw new ResourceException(
             'Database dump is not supported for ' . $this->getDriverName()
         );
     }
@@ -1172,7 +1176,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function extractEnumValues(array $column, \tommyknocker\pdodb\PdoDb $db, string $tableName, string $columnName): array
+    public function extractEnumValues(array $column, PdoDb $db, string $tableName, string $columnName): array
     {
         $type = $column['Type'] ?? $column['data_type'] ?? $column['type'] ?? '';
         if (!is_string($type)) {
@@ -1232,9 +1236,9 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function dumpData(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    public function dumpData(PdoDb $db, ?string $table = null): string
     {
-        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+        throw new ResourceException(
             'Database dump is not supported for ' . $this->getDriverName()
         );
     }
@@ -1242,9 +1246,9 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function restoreFromSql(\tommyknocker\pdodb\PdoDb $db, string $sql, bool $continueOnError = false): void
+    public function restoreFromSql(PdoDb $db, string $sql, bool $continueOnError = false): void
     {
-        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+        throw new ResourceException(
             'Database restore is not supported for ' . $this->getDriverName()
         );
     }
@@ -1254,7 +1258,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function getActiveQueries(\tommyknocker\pdodb\PdoDb $db): array
+    public function getActiveQueries(PdoDb $db): array
     {
         // Default implementation returns empty array
         // Dialects should override this method
@@ -1264,7 +1268,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function getActiveConnections(\tommyknocker\pdodb\PdoDb $db): array
+    public function getActiveConnections(PdoDb $db): array
     {
         // Default implementation returns empty array
         // Dialects should override this method
@@ -1281,7 +1285,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
+    public function getSlowQueries(PdoDb $db, float $thresholdSeconds, int $limit): array
     {
         // Default implementation returns empty array
         // Dialects should override this method
@@ -1291,7 +1295,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array
+    public function getServerMetrics(PdoDb $db): array
     {
         // Default implementation returns empty array
         // Dialects should override this method
@@ -1301,7 +1305,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool
+    public function killQuery(PdoDb $db, int|string $processId): bool
     {
         // Default implementation returns false
         // Dialects should override this method
@@ -1313,10 +1317,10 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function listTables(\tommyknocker\pdodb\PdoDb $db, ?string $schema = null): array
+    public function listTables(PdoDb $db, ?string $schema = null): array
     {
         // Default implementation - dialects should override
-        throw new \tommyknocker\pdodb\exceptions\ResourceException(
+        throw new ResourceException(
             'Table listing is not implemented for ' . $this->getDriverName()
         );
     }
@@ -1348,7 +1352,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function getInsertSelectColumns(string $tableName, ?array $columns, \tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface $executionEngine): array
+    public function getInsertSelectColumns(string $tableName, ?array $columns, ExecutionEngineInterface $executionEngine): array
     {
         // Default implementation returns columns as-is
         // Dialects that need special handling (e.g., MSSQL IDENTITY) should override
@@ -1422,7 +1426,7 @@ abstract class DialectAbstract implements DialectInterface
      * {@inheritDoc}
      */
     public function afterCreateTable(
-        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        ConnectionInterface $connection,
         string $tableName,
         array $columns,
         string $sql
@@ -1435,7 +1439,7 @@ abstract class DialectAbstract implements DialectInterface
      * {@inheritDoc}
      */
     public function beforeCreateTable(
-        \tommyknocker\pdodb\connection\ConnectionInterface $connection,
+        ConnectionInterface $connection,
         string $tableName,
         array $columns
     ): void {

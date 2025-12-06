@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\SchemaInspector;
+use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -215,7 +216,7 @@ final class SchemaInspectorTests extends TestCase
         $method = $reflection->getMethod('inspectTable');
         $method->setAccessible(true);
 
-        $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+        $this->expectException(QueryException::class);
         $method->invoke(null, $this->db, 'non_existent_table', null);
     }
 

@@ -4,7 +4,14 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cache;
 
+use Predis\Client;
 use Psr\SimpleCache\CacheInterface;
+use Symfony\Component\Cache\Adapter\ApcuAdapter;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+use Symfony\Component\Cache\Adapter\MemcachedAdapter;
+use Symfony\Component\Cache\Adapter\RedisAdapter;
+use Symfony\Component\Cache\Psr16Cache;
+use tommyknocker\pdodb\tests\fixtures\ArrayCache;
 
 /**
  * Factory for creating cache adapters from configuration.
@@ -44,7 +51,7 @@ class CacheFactory
      */
     public static function createFilesystemCache(array $config): ?CacheInterface
     {
-        if (!class_exists(\Symfony\Component\Cache\Adapter\FilesystemAdapter::class)) {
+        if (!class_exists(FilesystemAdapter::class)) {
             return null;
         }
 
@@ -61,9 +68,9 @@ class CacheFactory
         $defaultLifetime = $config['default_lifetime'] ?? $config['ttl'] ?? 0;
         $defaultLifetime = is_int($defaultLifetime) ? $defaultLifetime : (is_numeric($defaultLifetime) ? (int)$defaultLifetime : 0);
 
-        $adapter = new \Symfony\Component\Cache\Adapter\FilesystemAdapter($namespace, $defaultLifetime, $directory);
+        $adapter = new FilesystemAdapter($namespace, $defaultLifetime, $directory);
 
-        return new \Symfony\Component\Cache\Psr16Cache($adapter);
+        return new Psr16Cache($adapter);
     }
 
     /**
@@ -75,7 +82,7 @@ class CacheFactory
      */
     public static function createApcuCache(array $config): ?CacheInterface
     {
-        if (!extension_loaded('apcu') || !class_exists(\Symfony\Component\Cache\Adapter\ApcuAdapter::class)) {
+        if (!extension_loaded('apcu') || !class_exists(ApcuAdapter::class)) {
             return null;
         }
 
@@ -88,12 +95,12 @@ class CacheFactory
         $version = $config['version'] ?? null;
         $version = is_string($version) ? $version : null;
 
-        /** @var class-string<\Symfony\Component\Cache\Adapter\ApcuAdapter> $adapterClass */
-        $adapterClass = \Symfony\Component\Cache\Adapter\ApcuAdapter::class;
+        /** @var class-string<ApcuAdapter> $adapterClass */
+        $adapterClass = ApcuAdapter::class;
         $adapter = new $adapterClass($namespace, $defaultLifetime, $version);
 
-        /** @var class-string<\Symfony\Component\Cache\Psr16Cache> $cacheClass */
-        $cacheClass = \Symfony\Component\Cache\Psr16Cache::class;
+        /** @var class-string<Psr16Cache> $cacheClass */
+        $cacheClass = Psr16Cache::class;
         return new $cacheClass($adapter);
     }
 
@@ -106,7 +113,7 @@ class CacheFactory
      */
     public static function createRedisCache(array $config): ?CacheInterface
     {
-        if (!class_exists(\Symfony\Component\Cache\Adapter\RedisAdapter::class)) {
+        if (!class_exists(RedisAdapter::class)) {
             return null;
         }
 
@@ -114,14 +121,14 @@ class CacheFactory
         $redisConnection = $config['redis'] ?? null;
         if ($redisConnection !== null) {
             $isRedis = $redisConnection instanceof \Redis;
-            $isPredis = class_exists(\Predis\Client::class) && $redisConnection instanceof \Predis\Client;
+            $isPredis = class_exists(Client::class) && $redisConnection instanceof Client;
             if ($isRedis || $isPredis) {
-                /** @var class-string<\Symfony\Component\Cache\Adapter\RedisAdapter> $adapterClass */
-                $adapterClass = \Symfony\Component\Cache\Adapter\RedisAdapter::class;
+                /** @var class-string<RedisAdapter> $adapterClass */
+                $adapterClass = RedisAdapter::class;
                 $adapter = new $adapterClass($redisConnection);
 
-                /** @var class-string<\Symfony\Component\Cache\Psr16Cache> $cacheClass */
-                $cacheClass = \Symfony\Component\Cache\Psr16Cache::class;
+                /** @var class-string<Psr16Cache> $cacheClass */
+                $cacheClass = Psr16Cache::class;
                 // phpstan-ignore-next-line - adapter is CacheItemPoolInterface from RedisAdapter
                 return new $cacheClass($adapter);
             }
@@ -172,12 +179,12 @@ class CacheFactory
         $defaultLifetime = $config['default_lifetime'] ?? $config['ttl'] ?? 0;
         $defaultLifetime = is_int($defaultLifetime) ? $defaultLifetime : (is_numeric($defaultLifetime) ? (int)$defaultLifetime : 0);
 
-        /** @var class-string<\Symfony\Component\Cache\Adapter\RedisAdapter> $adapterClass */
-        $adapterClass = \Symfony\Component\Cache\Adapter\RedisAdapter::class;
+        /** @var class-string<RedisAdapter> $adapterClass */
+        $adapterClass = RedisAdapter::class;
         $adapter = new $adapterClass($redis, $namespace, $defaultLifetime);
 
-        /** @var class-string<\Symfony\Component\Cache\Psr16Cache> $cacheClass */
-        $cacheClass = \Symfony\Component\Cache\Psr16Cache::class;
+        /** @var class-string<Psr16Cache> $cacheClass */
+        $cacheClass = Psr16Cache::class;
         // phpstan-ignore-next-line - adapter is CacheItemPoolInterface from RedisAdapter
         return new $cacheClass($adapter);
     }
@@ -191,7 +198,7 @@ class CacheFactory
      */
     public static function createMemcachedCache(array $config): ?CacheInterface
     {
-        if (!extension_loaded('memcached') || !class_exists(\Symfony\Component\Cache\Adapter\MemcachedAdapter::class)) {
+        if (!extension_loaded('memcached') || !class_exists(MemcachedAdapter::class)) {
             return null;
         }
 
@@ -204,12 +211,12 @@ class CacheFactory
             $defaultLifetime = $config['default_lifetime'] ?? $config['ttl'] ?? 0;
             $defaultLifetime = is_int($defaultLifetime) ? $defaultLifetime : (is_numeric($defaultLifetime) ? (int)$defaultLifetime : 0);
 
-            /** @var class-string<\Symfony\Component\Cache\Adapter\MemcachedAdapter> $adapterClass */
-            $adapterClass = \Symfony\Component\Cache\Adapter\MemcachedAdapter::class;
+            /** @var class-string<MemcachedAdapter> $adapterClass */
+            $adapterClass = MemcachedAdapter::class;
             $adapter = new $adapterClass($memcachedConnection, $namespace, $defaultLifetime);
 
-            /** @var class-string<\Symfony\Component\Cache\Psr16Cache> $cacheClass */
-            $cacheClass = \Symfony\Component\Cache\Psr16Cache::class;
+            /** @var class-string<Psr16Cache> $cacheClass */
+            $cacheClass = Psr16Cache::class;
             return new $cacheClass($adapter);
         }
 
@@ -241,16 +248,16 @@ class CacheFactory
         $defaultLifetime = $config['default_lifetime'] ?? $config['ttl'] ?? 0;
         $defaultLifetime = is_int($defaultLifetime) ? $defaultLifetime : (is_numeric($defaultLifetime) ? (int)$defaultLifetime : 0);
 
-        /** @var class-string<\Symfony\Component\Cache\Adapter\MemcachedAdapter> $adapterClass */
-        $adapterClass = \Symfony\Component\Cache\Adapter\MemcachedAdapter::class;
+        /** @var class-string<MemcachedAdapter> $adapterClass */
+        $adapterClass = MemcachedAdapter::class;
 
         try {
             // createConnection returns Memcached instance, need to wrap it in adapter
             $memcached = $adapterClass::createConnection($serverList);
             $adapter = new $adapterClass($memcached, $namespace, $defaultLifetime);
 
-            /** @var class-string<\Symfony\Component\Cache\Psr16Cache> $cacheClass */
-            $cacheClass = \Symfony\Component\Cache\Psr16Cache::class;
+            /** @var class-string<Psr16Cache> $cacheClass */
+            $cacheClass = Psr16Cache::class;
             return new $cacheClass($adapter);
         } catch (\Exception $e) {
             // Memcached server not available or connection failed
@@ -268,8 +275,8 @@ class CacheFactory
     public static function createArrayCache(array $config): ?CacheInterface
     {
         // Use test fixture if available
-        if (class_exists(\tommyknocker\pdodb\tests\fixtures\ArrayCache::class)) {
-            return new \tommyknocker\pdodb\tests\fixtures\ArrayCache();
+        if (class_exists(ArrayCache::class)) {
+            return new ArrayCache();
         }
 
         // Fallback: try to create simple array-based cache

@@ -39,6 +39,10 @@ return $config
             'imports_order' => ['class', 'function', 'const'],
             'sort_algorithm' => 'alpha'
         ],
+        'fully_qualified_strict_types' => [
+            'import_symbols' => true,
+            'leading_backslash_in_global_namespace' => false,
+        ],
         'phpdoc_align' => ['align' => 'left'],
         'phpdoc_indent' => true,
         'phpdoc_no_empty_return' => true,

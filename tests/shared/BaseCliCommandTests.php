@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
+use Psr\SimpleCache\CacheInterface;
 use tommyknocker\pdodb\cli\BaseCliCommand;
+use tommyknocker\pdodb\PdoDb;
 
 /**
  * Tests for BaseCliCommand.
@@ -376,7 +378,7 @@ class BaseCliCommandTests extends TestCase
         $method = $reflection->getMethod('getDriverName');
         $method->setAccessible(true);
 
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+        $db = new PdoDb('sqlite', ['path' => ':memory:']);
         $driverName = $method->invoke(null, $db);
 
         $this->assertIsString($driverName);
@@ -393,7 +395,7 @@ class BaseCliCommandTests extends TestCase
         $method->setAccessible(true);
 
         // Test with SQLite
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+        $db = new PdoDb('sqlite', ['path' => ':memory:']);
         $driverName = $method->invoke(null, $db);
         $this->assertEquals('sqlite', $driverName);
     }
@@ -483,7 +485,7 @@ class BaseCliCommandTests extends TestCase
         try {
             $db = $method->invoke(null);
 
-            $this->assertInstanceOf(\tommyknocker\pdodb\PdoDb::class, $db);
+            $this->assertInstanceOf(PdoDb::class, $db);
             // Verify driver via getDriverName helper
             $getDriverNameMethod = $reflection->getMethod('getDriverName');
             $getDriverNameMethod->setAccessible(true);
@@ -945,7 +947,7 @@ PHP;
         $method->setAccessible(true);
 
         // Test with SQLite
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:']);
+        $db = new PdoDb('sqlite', ['path' => ':memory:']);
         $driverName = $method->invoke(null, $db);
         $this->assertEquals('sqlite', $driverName);
     }
@@ -1343,7 +1345,7 @@ PHP;
         ];
 
         $cache = $method->invoke(null, $cacheConfig);
-        $this->assertInstanceOf(\Psr\SimpleCache\CacheInterface::class, $cache);
+        $this->assertInstanceOf(CacheInterface::class, $cache);
     }
 
     /**

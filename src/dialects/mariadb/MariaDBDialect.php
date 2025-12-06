@@ -10,7 +10,9 @@ use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
@@ -1071,7 +1073,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getDatabaseInfo(\tommyknocker\pdodb\PdoDb $db): array
+    public function getDatabaseInfo(PdoDb $db): array
     {
         $info = [];
 
@@ -1103,7 +1105,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function createUser(string $username, string $password, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function createUser(string $username, string $password, ?string $host, PdoDb $db): bool
     {
         $host = $host ?? '%';
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1121,7 +1123,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dropUser(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function dropUser(string $username, ?string $host, PdoDb $db): bool
     {
         $host = $host ?? '%';
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1135,7 +1137,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function userExists(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function userExists(string $username, ?string $host, PdoDb $db): bool
     {
         $host = $host ?? '%';
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1149,7 +1151,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function listUsers(\tommyknocker\pdodb\PdoDb $db): array
+    public function listUsers(PdoDb $db): array
     {
         $sql = 'SELECT User, Host FROM mysql.user ORDER BY User, Host';
         $result = $db->rawQuery($sql);
@@ -1169,7 +1171,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getUserInfo(string $username, ?string $host, \tommyknocker\pdodb\PdoDb $db): array
+    public function getUserInfo(string $username, ?string $host, PdoDb $db): array
     {
         $host = $host ?? '%';
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1215,7 +1217,7 @@ class MariaDBDialect extends DialectAbstract
         ?string $database,
         ?string $table,
         ?string $host,
-        \tommyknocker\pdodb\PdoDb $db
+        PdoDb $db
     ): bool {
         $host = $host ?? '%';
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1249,7 +1251,7 @@ class MariaDBDialect extends DialectAbstract
         ?string $database,
         ?string $table,
         ?string $host,
-        \tommyknocker\pdodb\PdoDb $db
+        PdoDb $db
     ): bool {
         $host = $host ?? '%';
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1277,7 +1279,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function changeUserPassword(string $username, string $newPassword, ?string $host, \tommyknocker\pdodb\PdoDb $db): bool
+    public function changeUserPassword(string $username, string $newPassword, ?string $host, PdoDb $db): bool
     {
         $host = $host ?? '%';
         $quotedUsername = $this->quoteIdentifier($username);
@@ -1296,7 +1298,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpSchema(\tommyknocker\pdodb\PdoDb $db, ?string $table = null, bool $dropTables = true): string
+    public function dumpSchema(PdoDb $db, ?string $table = null, bool $dropTables = true): string
     {
         $output = [];
         $tables = [];
@@ -1351,7 +1353,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function dumpData(\tommyknocker\pdodb\PdoDb $db, ?string $table = null): string
+    public function dumpData(PdoDb $db, ?string $table = null): string
     {
         $output = [];
         $tables = [];
@@ -1414,7 +1416,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function restoreFromSql(\tommyknocker\pdodb\PdoDb $db, string $sql, bool $continueOnError = false): void
+    public function restoreFromSql(PdoDb $db, string $sql, bool $continueOnError = false): void
     {
         // Split SQL into statements, handling comments and quoted strings
         $statements = [];
@@ -1477,14 +1479,14 @@ class MariaDBDialect extends DialectAbstract
                 $db->rawQuery($stmt);
             } catch (\Throwable $e) {
                 if (!$continueOnError) {
-                    throw new \tommyknocker\pdodb\exceptions\ResourceException('Failed to execute SQL statement: ' . $e->getMessage() . "\nStatement: " . substr($stmt, 0, 200));
+                    throw new ResourceException('Failed to execute SQL statement: ' . $e->getMessage() . "\nStatement: " . substr($stmt, 0, 200));
                 }
                 $errors[] = $e->getMessage();
             }
         }
 
         if (!empty($errors) && $continueOnError) {
-            throw new \tommyknocker\pdodb\exceptions\ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
+            throw new ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
         }
     }
 
@@ -1506,7 +1508,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getActiveQueries(\tommyknocker\pdodb\PdoDb $db): array
+    public function getActiveQueries(PdoDb $db): array
     {
         // MariaDB uses the same SHOW FULL PROCESSLIST as MySQL
         $rows = $db->rawQuery('SHOW FULL PROCESSLIST');
@@ -1533,7 +1535,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getActiveConnections(\tommyknocker\pdodb\PdoDb $db): array
+    public function getActiveConnections(PdoDb $db): array
     {
         $rows = $db->rawQuery('SHOW PROCESSLIST');
         $result = [];
@@ -1570,7 +1572,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getServerMetrics(\tommyknocker\pdodb\PdoDb $db): array
+    public function getServerMetrics(PdoDb $db): array
     {
         $metrics = [];
 
@@ -1612,7 +1614,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getServerVariables(\tommyknocker\pdodb\PdoDb $db): array
+    public function getServerVariables(PdoDb $db): array
     {
         try {
             $rows = $db->rawQuery('SHOW VARIABLES');
@@ -1632,7 +1634,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function getSlowQueries(\tommyknocker\pdodb\PdoDb $db, float $thresholdSeconds, int $limit): array
+    public function getSlowQueries(PdoDb $db, float $thresholdSeconds, int $limit): array
     {
         $threshold = (int)($thresholdSeconds);
         $rows = $db->rawQuery('SHOW FULL PROCESSLIST');
@@ -1660,7 +1662,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function listTables(\tommyknocker\pdodb\PdoDb $db, ?string $schema = null): array
+    public function listTables(PdoDb $db, ?string $schema = null): array
     {
         /** @var array<int, array<string, mixed>> $rows */
         $rows = $db->rawQuery('SHOW FULL TABLES WHERE Table_Type = "BASE TABLE"');
@@ -1760,7 +1762,7 @@ class MariaDBDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
-    public function killQuery(\tommyknocker\pdodb\PdoDb $db, int|string $processId): bool
+    public function killQuery(PdoDb $db, int|string $processId): bool
     {
         try {
             $processIdInt = is_int($processId) ? $processId : (int)$processId;

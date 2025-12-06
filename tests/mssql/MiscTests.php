@@ -6,6 +6,8 @@ namespace tommyknocker\pdodb\tests\mssql;
 
 use RuntimeException;
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\helpers\values\EscapeValue;
+use tommyknocker\pdodb\helpers\values\FulltextMatchValue;
 
 /**
  * MiscTests for MSSQL.
@@ -18,7 +20,7 @@ final class MiscTests extends BaseMSSQLTestCase
         // Note: In MSSQL, prepared statements handle escaping automatically,
         // but Db::escape() should still work for raw SQL contexts
         $escapeValue = Db::escape("O'Reilly");
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\EscapeValue::class, $escapeValue);
+        $this->assertInstanceOf(EscapeValue::class, $escapeValue);
 
         // Test insertion with regular string containing single quote (PDO handles escaping automatically)
         // Note: This test verifies that strings with single quotes are handled correctly
@@ -120,7 +122,7 @@ final class MiscTests extends BaseMSSQLTestCase
     public function testFulltextMatchHelper(): void
     {
         $fulltext = Db::match('title, content', 'search term', 'natural');
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\FulltextMatchValue::class, $fulltext);
+        $this->assertInstanceOf(FulltextMatchValue::class, $fulltext);
     }
 
     // Edge case: DISTINCT ON not supported on MSSQL

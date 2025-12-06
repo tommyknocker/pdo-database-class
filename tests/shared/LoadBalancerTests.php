@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PDO;
 use PDOStatement;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\connection\loadbalancer\RandomLoadBalancer;
@@ -102,10 +103,10 @@ final class LoadBalancerTests extends BaseSharedTestCase
                 {
                     return null;
                 }
-                public function setEventDispatcher(?\Psr\EventDispatcher\EventDispatcherInterface $dispatcher): void
+                public function setEventDispatcher(?EventDispatcherInterface $dispatcher): void
                 {
                 }
-                public function getEventDispatcher(): ?\Psr\EventDispatcher\EventDispatcherInterface
+                public function getEventDispatcher(): ?EventDispatcherInterface
                 {
                     return null;
                 }
@@ -264,11 +265,11 @@ final class LoadBalancerTests extends BaseSharedTestCase
                     return null;
                 }
 
-                public function setEventDispatcher(?\Psr\EventDispatcher\EventDispatcherInterface $dispatcher): void
+                public function setEventDispatcher(?EventDispatcherInterface $dispatcher): void
                 {
                 }
 
-                public function getEventDispatcher(): ?\Psr\EventDispatcher\EventDispatcherInterface
+                public function getEventDispatcher(): ?EventDispatcherInterface
                 {
                     return null;
                 }
@@ -400,11 +401,11 @@ final class LoadBalancerTests extends BaseSharedTestCase
                     return null;
                 }
 
-                public function setEventDispatcher(?\Psr\EventDispatcher\EventDispatcherInterface $dispatcher): void
+                public function setEventDispatcher(?EventDispatcherInterface $dispatcher): void
                 {
                 }
 
-                public function getEventDispatcher(): ?\Psr\EventDispatcher\EventDispatcherInterface
+                public function getEventDispatcher(): ?EventDispatcherInterface
                 {
                     return null;
                 }
@@ -537,11 +538,11 @@ final class LoadBalancerTests extends BaseSharedTestCase
                     return null;
                 }
 
-                public function setEventDispatcher(?\Psr\EventDispatcher\EventDispatcherInterface $dispatcher): void
+                public function setEventDispatcher(?EventDispatcherInterface $dispatcher): void
                 {
                 }
 
-                public function getEventDispatcher(): ?\Psr\EventDispatcher\EventDispatcherInterface
+                public function getEventDispatcher(): ?EventDispatcherInterface
                 {
                     return null;
                 }
@@ -694,11 +695,11 @@ final class LoadBalancerTests extends BaseSharedTestCase
                     return null;
                 }
 
-                public function setEventDispatcher(?\Psr\EventDispatcher\EventDispatcherInterface $dispatcher): void
+                public function setEventDispatcher(?EventDispatcherInterface $dispatcher): void
                 {
                 }
 
-                public function getEventDispatcher(): ?\Psr\EventDispatcher\EventDispatcherInterface
+                public function getEventDispatcher(): ?EventDispatcherInterface
                 {
                     return null;
                 }
@@ -829,11 +830,11 @@ final class LoadBalancerTests extends BaseSharedTestCase
                     return null;
                 }
 
-                public function setEventDispatcher(?\Psr\EventDispatcher\EventDispatcherInterface $dispatcher): void
+                public function setEventDispatcher(?EventDispatcherInterface $dispatcher): void
                 {
                 }
 
-                public function getEventDispatcher(): ?\Psr\EventDispatcher\EventDispatcherInterface
+                public function getEventDispatcher(): ?EventDispatcherInterface
                 {
                     return null;
                 }
@@ -965,11 +966,11 @@ final class LoadBalancerTests extends BaseSharedTestCase
                     return null;
                 }
 
-                public function setEventDispatcher(?\Psr\EventDispatcher\EventDispatcherInterface $dispatcher): void
+                public function setEventDispatcher(?EventDispatcherInterface $dispatcher): void
                 {
                 }
 
-                public function getEventDispatcher(): ?\Psr\EventDispatcher\EventDispatcherInterface
+                public function getEventDispatcher(): ?EventDispatcherInterface
                 {
                     return null;
                 }

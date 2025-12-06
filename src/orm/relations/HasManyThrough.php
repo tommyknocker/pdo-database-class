@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm\relations;
 
 use RuntimeException;
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\orm\ActiveQuery;
 use tommyknocker\pdodb\orm\Model;
 
@@ -449,7 +450,7 @@ class HasManyThrough implements RelationInterface
                         $relatedForeignKey,
                         function ($subQuery) use ($intermediatePk, $intermediateSql, $intermediateParams) {
                             // Build subquery using from with RawValue to preserve all conditions from intermediate query
-                            $subQueryRawValue = new \tommyknocker\pdodb\helpers\values\RawValue("({$intermediateSql}) AS subquery", $intermediateParams);
+                            $subQueryRawValue = new RawValue("({$intermediateSql}) AS subquery", $intermediateParams);
                             $subQuery->from($subQueryRawValue)->select("subquery.{$intermediatePk}");
                         }
                     );

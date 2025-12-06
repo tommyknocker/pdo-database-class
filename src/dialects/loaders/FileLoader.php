@@ -310,7 +310,7 @@ class FileLoader
         }
 
         // Fallback: use PDO driver name (for backward compatibility)
-        $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
         $quoteChar = match ($driver) {
             'mysql' => '`',
             'pgsql' => '"',
@@ -337,7 +337,7 @@ class FileLoader
         }
 
         // Fallback: use PDO driver name (for backward compatibility)
-        $driver = $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
         $quoteChar = match ($driver) {
             'mysql' => '`',
             'pgsql' => '"',

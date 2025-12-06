@@ -15,6 +15,7 @@ use tommyknocker\pdodb\exceptions\ExceptionFactory;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\tests\fixtures\ArrayCache;
 
 /**
@@ -261,7 +262,7 @@ final class QueryBuilderTests extends BaseSharedTestCase
                 ->where('id', 1)
                 ->explainAdvice();
 
-            $this->assertInstanceOf(\tommyknocker\pdodb\query\analysis\ExplainAnalysis::class, $result);
+            $this->assertInstanceOf(ExplainAnalysis::class, $result);
         } else {
             // For other dialects, just verify the method exists
             $this->assertTrue(true, 'explainAdvice is not tested for this dialect');

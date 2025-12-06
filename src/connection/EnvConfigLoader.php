@@ -36,7 +36,7 @@ class EnvConfigLoader
         }
 
         // Validate that required extension is available
-        \tommyknocker\pdodb\connection\ExtensionChecker::validate($driver);
+        ExtensionChecker::validate($driver);
 
         // Collect only database-related PDODB_* environment variables
         // Always use getenv() to ensure we get variables set via putenv()
@@ -75,7 +75,7 @@ class EnvConfigLoader
         }
 
         // Build configuration from environment variables
-        $dialect = \tommyknocker\pdodb\connection\DialectRegistry::resolve($driver);
+        $dialect = DialectRegistry::resolve($driver);
         $config = $dialect->buildConfigFromEnv($envVars);
 
         return [

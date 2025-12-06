@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\postgresql;
 
+use tommyknocker\pdodb\exceptions\DatabaseException;
+
 /**
  * FileLoadTests tests for postgresql.
  */
@@ -28,7 +30,7 @@ final class FileLoadTests extends BasePostgreSQLTestCase
             $names = array_column($db->find()->from('users')->get(), 'name');
             $this->assertContains('Dave', $names);
             $this->assertContains('Eve', $names);
-        } catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
+        } catch (DatabaseException $e) {
             // Check if it's the expected COPY permission/access issue
             if (str_contains($e->getMessage(), 'COPY') ||
             str_contains($e->getMessage(), 'could not open file') ||
@@ -76,7 +78,7 @@ final class FileLoadTests extends BasePostgreSQLTestCase
             $row = self::$db->find()->from('users')->where('name', 'XMLUser 2')->getOne();
             $this->assertEquals('XMLUser 2', $row['name']);
             $this->assertEquals(44, $row['age']);
-        } catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
+        } catch (DatabaseException $e) {
             // Check if it's the expected COPY permission/access issue
             if (str_contains($e->getMessage(), 'COPY') ||
             str_contains($e->getMessage(), 'could not open file') ||
@@ -119,7 +121,7 @@ final class FileLoadTests extends BasePostgreSQLTestCase
             $row = self::$db->find()->from('users')->where('name', 'JSONUser 1')->getOne();
             $this->assertEquals('JSONUser 1', $row['name']);
             $this->assertEquals(25, $row['age']);
-        } catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
+        } catch (DatabaseException $e) {
             if (str_contains($e->getMessage(), 'COPY') ||
                 str_contains($e->getMessage(), 'could not open file') ||
                 str_contains($e->getMessage(), 'No such file') ||

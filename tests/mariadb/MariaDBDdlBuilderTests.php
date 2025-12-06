@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mariadb;
 
+use tommyknocker\pdodb\dialects\mariadb\MariaDBDdlBuilder;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 /**
@@ -16,9 +17,9 @@ final class MariaDBDdlBuilderTests extends BaseMariaDBTestCase
     /**
      * Get MariaDB DDL builder instance.
      *
-     * @return \tommyknocker\pdodb\dialects\mariadb\MariaDBDdlBuilder
+     * @return MariaDBDdlBuilder
      */
-    protected function getDdlBuilder(): \tommyknocker\pdodb\dialects\mariadb\MariaDBDdlBuilder
+    protected function getDdlBuilder(): MariaDBDdlBuilder
     {
         $db = self::$db;
         $dialect = $db->schema()->getDialect();

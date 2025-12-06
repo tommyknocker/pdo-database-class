@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mysql;
 
+use tommyknocker\pdodb\dialects\mysql\MySQLDdlBuilder;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 /**
@@ -16,9 +17,9 @@ final class MySQLDdlBuilderTests extends BaseMySQLTestCase
     /**
      * Get MySQL DDL builder instance.
      *
-     * @return \tommyknocker\pdodb\dialects\mysql\MySQLDdlBuilder
+     * @return MySQLDdlBuilder
      */
-    protected function getDdlBuilder(): \tommyknocker\pdodb\dialects\mysql\MySQLDdlBuilder
+    protected function getDdlBuilder(): MySQLDdlBuilder
     {
         $db = self::$db;
         $dialect = $db->schema()->getDialect();

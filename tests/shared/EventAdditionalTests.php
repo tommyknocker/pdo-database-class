@@ -13,6 +13,7 @@ use tommyknocker\pdodb\events\TransactionCommittedEvent;
 use tommyknocker\pdodb\events\TransactionRolledBackEvent;
 use tommyknocker\pdodb\events\TransactionStartedEvent;
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\orm\Model;
 
 /**
  * Additional tests for Event classes to increase coverage.
@@ -22,11 +23,11 @@ final class EventAdditionalTests extends BaseSharedTestCase
     /**
      * Create a mock model for testing.
      *
-     * @return \tommyknocker\pdodb\orm\Model
+     * @return Model
      */
-    protected function createMockModel(): \tommyknocker\pdodb\orm\Model
+    protected function createMockModel(): Model
     {
-        return new class () extends \tommyknocker\pdodb\orm\Model {
+        return new class () extends Model {
             protected string $table = 'test_table';
         };
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\postgresql;
 
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\query\MergeClause;
 
 /**
  * PostgreSQL-specific tests for MERGE statement.
@@ -96,7 +97,7 @@ final class MergeTests extends BasePostgreSQLTestCase
         $onProp->setValue($dml, ['target.id = source.id']);
         $clauseProp = new \ReflectionProperty($dml, 'mergeClause');
         $clauseProp->setAccessible(true);
-        $clause = new \tommyknocker\pdodb\query\MergeClause();
+        $clause = new MergeClause();
         $clause->whenMatched = ['name' => Db::raw('source.name')];
         $clause->whenNotMatched = ['id' => Db::raw('source.id'), 'name' => Db::raw('source.name')];
         $clauseProp->setValue($dml, $clause);

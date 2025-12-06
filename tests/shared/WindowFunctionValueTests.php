@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\helpers\values\WindowFunctionValue;
 
 /**
@@ -107,7 +108,7 @@ final class WindowFunctionValueTests extends BaseSharedTestCase
     public function testWindowFunctionValueInheritsFromRawValue(): void
     {
         $value = new WindowFunctionValue('ROW_NUMBER');
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\RawValue::class, $value);
+        $this->assertInstanceOf(RawValue::class, $value);
     }
 
     public function testWindowFunctionValueOrderByChaining(): void

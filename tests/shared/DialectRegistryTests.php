@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\tests\shared;
 use InvalidArgumentException;
 use tommyknocker\pdodb\connection\DialectRegistry;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\sqlite\SqliteDialect;
 
 /**
  * Tests for DialectRegistry class.
@@ -63,7 +64,7 @@ final class DialectRegistryTests extends BaseSharedTestCase
     public function testRegisterCustomDialect(): void
     {
         // Use an existing dialect class to test registration
-        $dialectClass = \tommyknocker\pdodb\dialects\sqlite\SqliteDialect::class;
+        $dialectClass = SqliteDialect::class;
 
         // Register it with a test driver name
         DialectRegistry::register('test_driver', $dialectClass);

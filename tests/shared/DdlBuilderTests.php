@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use tommyknocker\pdodb\dialects\builders\DdlBuilderInterface;
+use tommyknocker\pdodb\exceptions\QueryException;
 
 /**
  * Shared tests for DDL Builder functionality.
@@ -133,7 +134,7 @@ class DdlBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support ALTER COLUMN
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
         }
 
         $columnSchema = $schema->string(200)->notNull();
@@ -235,7 +236,7 @@ class DdlBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support adding foreign keys via ALTER TABLE
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
         }
 
         $sql = $builder->buildAddForeignKeySql(
@@ -269,7 +270,7 @@ class DdlBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support dropping foreign keys via ALTER TABLE
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
         }
 
         $sql = $builder->buildDropForeignKeySql('fk_test', 'test_table');
@@ -291,7 +292,7 @@ class DdlBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support adding PRIMARY KEY via ALTER TABLE
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
         }
 
         $sql = $builder->buildAddPrimaryKeySql('pk_test', 'test_table', ['id']);
@@ -314,7 +315,7 @@ class DdlBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support dropping PRIMARY KEY via ALTER TABLE
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
         }
 
         $sql = $builder->buildDropPrimaryKeySql('pk_test', 'test_table');
@@ -392,7 +393,7 @@ class DdlBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support dropping CHECK constraint via ALTER TABLE
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
         }
 
         $sql = $builder->buildDropCheckSql('ck_test', 'test_table');
@@ -414,7 +415,7 @@ class DdlBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support renaming indexes directly
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
         }
 
         $sql = $builder->buildRenameIndexSql('old_idx', 'test_table', 'new_idx');
@@ -436,7 +437,7 @@ class DdlBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support renaming foreign keys
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
         }
 
         $sql = $builder->buildRenameForeignKeySql('old_fk', 'test_table', 'new_fk');
@@ -505,7 +506,7 @@ class DdlBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support FULLTEXT indexes
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
         }
 
         $sql = $builder->buildCreateFulltextIndexSql('ft_idx', 'test_table', ['title', 'content']);
@@ -529,7 +530,7 @@ class DdlBuilderTests extends BaseSharedTestCase
 
         // SQLite doesn't support SPATIAL indexes
         if ($driver === 'sqlite') {
-            $this->expectException(\tommyknocker\pdodb\exceptions\QueryException::class);
+            $this->expectException(QueryException::class);
         }
 
         $sql = $builder->buildCreateSpatialIndexSql('sp_idx', 'test_table', ['location']);

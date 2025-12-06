@@ -56,13 +56,13 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
     /** @var MergeClause|null Merge clause configuration */
     protected ?MergeClause $mergeClause = null;
 
-    /** @var string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface|null Source for MERGE */
+    /** @var string|Closure(QueryBuilder): void|SelectQueryBuilderInterface|null Source for MERGE */
     protected string|\Closure|SelectQueryBuilderInterface|null $mergeSource = null;
 
     /** @var array<string> Join conditions for MERGE ON clause */
     protected array $mergeOnConditions = [];
 
-    /** @var string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface|QueryBuilder|null Source for INSERT ... SELECT */
+    /** @var string|Closure(QueryBuilder): void|SelectQueryBuilderInterface|QueryBuilder|null Source for INSERT ... SELECT */
     protected string|\Closure|SelectQueryBuilderInterface|QueryBuilder|null $insertFromSource = null;
 
     /** @var array<string>|null Column names for INSERT ... SELECT (null = use SELECT columns) */
@@ -200,7 +200,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
      * Supports INSERT ... SELECT with ON DUPLICATE KEY UPDATE (MySQL/MariaDB),
      * ON CONFLICT (PostgreSQL), and MERGE (MSSQL).
      *
-     * @param string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface|QueryBuilder $source Source query (table name, QueryBuilder, SelectQueryBuilderInterface, or Closure)
+     * @param string|Closure(QueryBuilder): void|SelectQueryBuilderInterface|QueryBuilder $source Source query (table name, QueryBuilder, SelectQueryBuilderInterface, or Closure)
      * @param array<string>|null $columns Column names to insert into (null = use SELECT columns)
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
@@ -235,7 +235,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
      * @see documentation/03-query-builder/02-data-manipulation.md#insert--select-copy-data-between-tables
      */
     public function insertFrom(
-        string|\Closure|SelectQueryBuilderInterface|QueryBuilder $source,
+        string|Closure|SelectQueryBuilderInterface|QueryBuilder $source,
         ?array $columns = null,
         array $onDuplicate = []
     ): int {
@@ -634,11 +634,11 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
     /**
      * Build source SQL for INSERT ... SELECT.
      *
-     * @param string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface|QueryBuilder $source
+     * @param string|Closure(QueryBuilder): void|SelectQueryBuilderInterface|QueryBuilder $source
      *
      * @return string
      */
-    protected function buildInsertFromSourceSql(string|\Closure|SelectQueryBuilderInterface|QueryBuilder $source): string
+    protected function buildInsertFromSourceSql(string|Closure|SelectQueryBuilderInterface|QueryBuilder $source): string
     {
         if (is_string($source)) {
             // Simple table name - build SELECT * FROM table
@@ -675,7 +675,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
             return $sql;
         }
 
-        if ($source instanceof \Closure) {
+        if ($source instanceof Closure) {
             // Closure - create QueryBuilder instance and use its selectQueryBuilder
             $queryBuilder = new QueryBuilder(
                 $this->connection,
@@ -882,7 +882,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
      * Performs INSERT ... ON CONFLICT UPDATE (PostgreSQL), INSERT ... ON DUPLICATE KEY UPDATE (MySQL),
      * or MERGE (MSSQL) operations. This is a powerful way to synchronize data between tables.
      *
-     * @param string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface $source Source table/subquery for MERGE
+     * @param string|Closure(QueryBuilder): void|SelectQueryBuilderInterface $source Source table/subquery for MERGE
      * @param string|array<string> $onConditions ON clause conditions (e.g., ['target.id = source.id'])
      * @param array<string, string|int|float|bool|null|RawValue> $whenMatched Update columns when matched
      * @param array<string, string|int|float|bool|null|RawValue> $whenNotMatched Insert columns when not matched
@@ -924,7 +924,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
      * @see documentation/05-advanced-features/05-upsert-operations.md
      */
     public function merge(
-        string|\Closure|SelectQueryBuilderInterface $source,
+        string|Closure|SelectQueryBuilderInterface $source,
         string|array $onConditions,
         array $whenMatched = [],
         array $whenNotMatched = [],
@@ -985,11 +985,11 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
     /**
      * Build source SQL for MERGE.
      *
-     * @param string|\Closure(QueryBuilder): void|SelectQueryBuilderInterface $source
+     * @param string|Closure(QueryBuilder): void|SelectQueryBuilderInterface $source
      *
      * @return string
      */
-    protected function buildMergeSourceSql(string|\Closure|SelectQueryBuilderInterface $source): string
+    protected function buildMergeSourceSql(string|Closure|SelectQueryBuilderInterface $source): string
     {
         if (is_string($source)) {
             // Simple table name - dialect will add alias if needed
@@ -1010,7 +1010,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
             return '(' . $sql . ') AS source';
         }
 
-        if ($source instanceof \Closure) {
+        if ($source instanceof Closure) {
             // Closure - create QueryBuilder instance and use its selectQueryBuilder
             $queryBuilder = new QueryBuilder(
                 $this->connection,

@@ -54,6 +54,7 @@ use tommyknocker\pdodb\helpers\values\PadValue;
 use tommyknocker\pdodb\helpers\values\PositionValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\helpers\values\RegexpExtractValue;
+use tommyknocker\pdodb\helpers\values\RegexpLikeValue;
 use tommyknocker\pdodb\helpers\values\RegexpMatchValue;
 use tommyknocker\pdodb\helpers\values\RegexpReplaceValue;
 use tommyknocker\pdodb\helpers\values\RepeatValue;
@@ -62,6 +63,8 @@ use tommyknocker\pdodb\helpers\values\RightValue;
 use tommyknocker\pdodb\helpers\values\SecondValue;
 use tommyknocker\pdodb\helpers\values\SubstringValue;
 use tommyknocker\pdodb\helpers\values\TimeOnlyValue;
+use tommyknocker\pdodb\helpers\values\ToDateValue;
+use tommyknocker\pdodb\helpers\values\ToTimestampValue;
 use tommyknocker\pdodb\helpers\values\TruncValue;
 use tommyknocker\pdodb\helpers\values\WindowFunctionValue;
 use tommyknocker\pdodb\helpers\values\YearValue;
@@ -114,8 +117,8 @@ use tommyknocker\pdodb\helpers\values\YearValue;
  * @method static MonthValue month(string|RawValue $value) Extracts month from date.
  * @method static DayValue day(string|RawValue $value) Extracts day from date.
  * @method static HourValue hour(string|RawValue $value) Extracts hour from time.
- * @method static \tommyknocker\pdodb\helpers\values\ToTimestampValue toTs(string $timestampString, string $format = 'YYYY-MM-DD HH24:MI:SS') Converts string to TIMESTAMP (Oracle-specific).
- * @method static \tommyknocker\pdodb\helpers\values\ToDateValue toDate(string|RawValue $dateString, string $format = 'YYYY-MM-DD') Converts string to DATE (Oracle-specific).
+ * @method static ToTimestampValue toTs(string $timestampString, string $format = 'YYYY-MM-DD HH24:MI:SS') Converts string to TIMESTAMP (Oracle-specific).
+ * @method static ToDateValue toDate(string|RawValue $dateString, string $format = 'YYYY-MM-DD') Converts string to DATE (Oracle-specific).
  * @method static MinuteValue minute(string|RawValue $value) Extracts minute from time.
  * @method static SecondValue second(string|RawValue $value) Extracts second from time.
  * @method static IntervalValue addInterval(string|RawValue $expr, string $value, string $unit) Adds interval to date/datetime.
@@ -187,7 +190,7 @@ use tommyknocker\pdodb\helpers\values\YearValue;
  * @method static PadValue lpad(string|RawValue $value, int $length, string $padString = ' ') Alias for padLeft().
  * @method static PadValue rpad(string|RawValue $value, int $length, string $padString = ' ') Alias for padRight().
  * @method static RegexpMatchValue regexpMatch(string|RawValue $value, string $pattern) Returns regexp match result (boolean expression).
- * @method static \tommyknocker\pdodb\helpers\values\RegexpLikeValue regexpLike(string|RawValue $value, string $pattern) Returns regexp like boolean expression for use in CASE statements.
+ * @method static RegexpLikeValue regexpLike(string|RawValue $value, string $pattern) Returns regexp like boolean expression for use in CASE statements.
  * @method static RegexpReplaceValue regexpReplace(string|RawValue $value, string $pattern, string $replacement) Returns regexp replace expression.
  * @method static RegexpExtractValue regexpExtract(string|RawValue $value, string $pattern, int|null $groupIndex = null) Returns regexp extract expression.
  *

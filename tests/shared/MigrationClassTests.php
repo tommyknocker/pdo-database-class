@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\migrations\Migration;
+use tommyknocker\pdodb\query\DdlQueryBuilder;
+use tommyknocker\pdodb\query\QueryBuilder;
 
 /**
  * Test concrete migration class.
@@ -58,7 +61,7 @@ class MigrationClassTests extends BaseSharedTestCase
         $schemaMethod->setAccessible(true);
 
         $schema = $schemaMethod->invoke($migration);
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\DdlQueryBuilder::class, $schema);
+        $this->assertInstanceOf(DdlQueryBuilder::class, $schema);
 
         // Cleanup
         $db->schema()->dropTableIfExists('test_migration_base');
@@ -77,7 +80,7 @@ class MigrationClassTests extends BaseSharedTestCase
         $findMethod->setAccessible(true);
 
         $queryBuilder = $findMethod->invoke($migration);
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\QueryBuilder::class, $queryBuilder);
+        $this->assertInstanceOf(QueryBuilder::class, $queryBuilder);
     }
 
     /**
@@ -162,7 +165,7 @@ class MigrationClassTests extends BaseSharedTestCase
 
         $count = $db->find()
             ->from('test_batch_table')
-            ->select(['count' => \tommyknocker\pdodb\helpers\Db::count()])
+            ->select(['count' => Db::count()])
             ->getValue('count');
 
         $this->assertEquals(3, (int)$count);

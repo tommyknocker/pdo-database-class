@@ -4,7 +4,15 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\ExplainAnalyzer;
+use tommyknocker\pdodb\query\analysis\ParsedExplainPlan;
+use tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser;
+use tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser;
+use tommyknocker\pdodb\query\analysis\parsers\SqliteExplainParser;
+use tommyknocker\pdodb\query\ExecutionEngine;
+use tommyknocker\pdodb\query\ParameterManager;
+use tommyknocker\pdodb\query\RawValueResolver;
 
 /**
  * Tests for ExplainAnalyzer class.
@@ -14,10 +22,10 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
     protected function createExplainAnalyzer(): ExplainAnalyzer
     {
         $connection = self::$db->connection;
-        $executionEngine = new \tommyknocker\pdodb\query\ExecutionEngine(
+        $executionEngine = new ExecutionEngine(
             $connection,
-            new \tommyknocker\pdodb\query\RawValueResolver($connection, new \tommyknocker\pdodb\query\ParameterManager()),
-            new \tommyknocker\pdodb\query\ParameterManager()
+            new RawValueResolver($connection, new ParameterManager()),
+            new ParameterManager()
         );
         return new ExplainAnalyzer($connection->getDialect(), $executionEngine);
     }
@@ -39,7 +47,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
         $explainResults = self::$db->find()->from('test_coverage')->explain();
 
         $analysis = $analyzer->analyze($explainResults);
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\analysis\ExplainAnalysis::class, $analysis);
+        $this->assertInstanceOf(ExplainAnalysis::class, $analysis);
         $this->assertIsArray($analysis->issues);
         $this->assertIsArray($analysis->recommendations);
     }
@@ -52,7 +60,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
         $explainResults = self::$db->find()->from('test_coverage')->explain();
 
         $analysis = $analyzer->analyze($explainResults, 'test_coverage');
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\analysis\ExplainAnalysis::class, $analysis);
+        $this->assertInstanceOf(ExplainAnalysis::class, $analysis);
         $this->assertIsArray($analysis->issues);
         $this->assertIsArray($analysis->recommendations);
     }
@@ -62,7 +70,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
         $analyzer = $this->createExplainAnalyzer();
 
         // Create a plan with high row estimate
-        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan = new ParsedExplainPlan();
         $plan->estimatedRows = 15000;
 
         $reflection = new \ReflectionClass($analyzer);
@@ -88,7 +96,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
         $explainResults = self::$db->find()->from('test_coverage')->explain();
 
         $analysis = $analyzer->analyze($explainResults);
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\analysis\ExplainAnalysis::class, $analysis);
+        $this->assertInstanceOf(ExplainAnalysis::class, $analysis);
         $this->assertIsArray($analysis->issues);
     }
 
@@ -96,7 +104,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
     {
         $analyzer = $this->createExplainAnalyzer();
 
-        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan = new ParsedExplainPlan();
         $plan->filtered = 5.5;
         $plan->tableScans = ['users'];
 
@@ -120,7 +128,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
     {
         $analyzer = $this->createExplainAnalyzer();
 
-        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan = new ParsedExplainPlan();
         $plan->possibleKeys = ['idx_email', 'idx_username'];
         $plan->usedIndex = null;
         $plan->tableScans = ['users'];
@@ -145,7 +153,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
     {
         $analyzer = $this->createExplainAnalyzer();
 
-        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan = new ParsedExplainPlan();
         $plan->warnings = ['Dependent subquery detected'];
 
         $reflection = new \ReflectionClass($analyzer);
@@ -168,7 +176,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
     {
         $analyzer = $this->createExplainAnalyzer();
 
-        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan = new ParsedExplainPlan();
         $plan->warnings = ['GROUP BY requires temporary table and filesort'];
 
         $reflection = new \ReflectionClass($analyzer);
@@ -191,7 +199,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
     {
         $analyzer = $this->createExplainAnalyzer();
 
-        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan = new ParsedExplainPlan();
         $plan->totalCost = 150000.0;
 
         $reflection = new \ReflectionClass($analyzer);
@@ -214,7 +222,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
     {
         $analyzer = $this->createExplainAnalyzer();
 
-        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan = new ParsedExplainPlan();
         $plan->joinTypes = ['Nested Loop'];
         $plan->estimatedRows = 15000;
 
@@ -238,7 +246,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
     {
         $analyzer = $this->createExplainAnalyzer();
 
-        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan = new ParsedExplainPlan();
         $plan->accessType = 'index';
         $plan->estimatedRows = 5000;
         $plan->tableScans = ['users'];
@@ -312,7 +320,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
         $analyzer = $this->createExplainAnalyzer();
 
         // Create a plan that will generate multiple recommendations
-        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan = new ParsedExplainPlan();
         $plan->tableScans = ['users'];
         $plan->warnings = ['Query creates temporary table'];
         $plan->filtered = 5.0;
@@ -353,11 +361,11 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
         $parser = $method->invoke($analyzer);
 
         if (in_array($driver, ['mysql', 'mariadb'], true)) {
-            $this->assertInstanceOf(\tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser::class, $parser);
+            $this->assertInstanceOf(MySQLExplainParser::class, $parser);
         } elseif ($driver === 'pgsql') {
-            $this->assertInstanceOf(\tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser::class, $parser);
+            $this->assertInstanceOf(PostgreSQLExplainParser::class, $parser);
         } elseif ($driver === 'sqlite') {
-            $this->assertInstanceOf(\tommyknocker\pdodb\query\analysis\parsers\SqliteExplainParser::class, $parser);
+            $this->assertInstanceOf(SqliteExplainParser::class, $parser);
         }
     }
 
@@ -366,7 +374,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
         $analyzer = $this->createExplainAnalyzer();
 
         // Create a plan with table scans
-        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan = new ParsedExplainPlan();
         $plan->tableScans = ['test_coverage'];
 
         $reflection = new \ReflectionClass($analyzer);
@@ -411,7 +419,7 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
         $analyzer = $this->createExplainAnalyzer();
 
         // Create a plan with warnings about missing index
-        $plan = new \tommyknocker\pdodb\query\analysis\ParsedExplainPlan();
+        $plan = new ParsedExplainPlan();
         $plan->warnings = ['Table "test_coverage" has possible keys but none is used without index usage'];
 
         $reflection = new \ReflectionClass($analyzer);

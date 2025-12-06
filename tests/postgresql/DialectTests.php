@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\postgresql;
 
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\helpers\values\FulltextMatchValue;
+use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
  * DialectTests tests for postgresql.
@@ -228,7 +230,7 @@ final class DialectTests extends BasePostgreSQLTestCase
     public function testFulltextMatchHelper(): void
     {
         $fulltext = Db::match('title, content', 'search term', 'natural');
-        $this->assertInstanceOf(\tommyknocker\pdodb\helpers\values\FulltextMatchValue::class, $fulltext);
+        $this->assertInstanceOf(FulltextMatchValue::class, $fulltext);
     }
 
     public function testQuoteIdentifier(): void
@@ -254,7 +256,7 @@ final class DialectTests extends BasePostgreSQLTestCase
         $dialect = self::$db->connection->getDialect();
 
         // PostgreSQL quoteIdentifier only accepts string, not RawValue
-        $rawValue = new \tommyknocker\pdodb\helpers\values\RawValue('COUNT(*)');
+        $rawValue = new RawValue('COUNT(*)');
         $this->expectException(\TypeError::class);
         $dialect->quoteIdentifier($rawValue);
     }

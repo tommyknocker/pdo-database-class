@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\cli\commands\UserCommand;
 
 final class UserCommandCliTests extends TestCase
 {
@@ -66,7 +67,7 @@ final class UserCommandCliTests extends TestCase
         // For SQLite, user management is not supported
         // Test that command exists and can be called
         // Since showError() calls exit(), we test the command structure instead
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Verify list method exists
@@ -78,8 +79,8 @@ final class UserCommandCliTests extends TestCase
     public function testUserCommandMethods(): void
     {
         // Test that UserCommand class exists and has required methods
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
-        $this->assertInstanceOf(\tommyknocker\pdodb\cli\commands\UserCommand::class, $command);
+        $command = new UserCommand();
+        $this->assertInstanceOf(UserCommand::class, $command);
 
         // Test that command has correct name and description
         $reflection = new \ReflectionClass($command);
@@ -91,7 +92,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserCreateCommand(): void
     {
         // Test that create method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('create'));
@@ -103,7 +104,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserDropCommand(): void
     {
         // Test that drop method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('drop'));
@@ -115,7 +116,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserExistsCommandSignature(): void
     {
         // Test that exists method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('exists'));
@@ -127,7 +128,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserInfoCommandSignature(): void
     {
         // Test that showInfo method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('showInfo'));
@@ -139,7 +140,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserGrantCommandSignature(): void
     {
         // Test that grant method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('grant'));
@@ -151,7 +152,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserRevokeCommandSignature(): void
     {
         // Test that revoke method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('revoke'));
@@ -163,7 +164,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserPasswordCommandSignature(): void
     {
         // Test that password method exists and has correct signature
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('password'));
@@ -175,7 +176,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserShowDatabaseHeaderSignature(): void
     {
         // Test that showDatabaseHeader method exists
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('showDatabaseHeader'));
@@ -186,7 +187,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserUnknownSubcommandSignature(): void
     {
         // Test that unknown subcommand is handled in execute method
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Verify execute method exists
@@ -199,7 +200,7 @@ final class UserCommandCliTests extends TestCase
     {
         // Test that create method handles missing username
         // In non-interactive mode, readInput returns empty string
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('create'));
@@ -211,7 +212,7 @@ final class UserCommandCliTests extends TestCase
     {
         // Test that create method handles missing password
         // In non-interactive mode, readPassword returns empty string
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('create'));
@@ -330,7 +331,7 @@ final class UserCommandCliTests extends TestCase
         // Temporarily unset PHPUNIT to allow output
         $phpunit = getenv('PHPUNIT');
         putenv('PHPUNIT');
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
         $method->setAccessible(true);
@@ -453,7 +454,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserCreateCommandWithHostOption(): void
     {
         // Test that create method handles --host option
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('create'));
@@ -464,7 +465,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserCreateCommandWithForceOption(): void
     {
         // Test that create method handles --force option
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('create'));
@@ -475,7 +476,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserDropCommandWithHostOption(): void
     {
         // Test that drop method handles --host option
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('drop'));
@@ -486,7 +487,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserExistsCommandWithHostOption(): void
     {
         // Test that exists method handles --host option
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('exists'));
@@ -497,7 +498,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserInfoCommandWithHostOption(): void
     {
         // Test that showInfo method handles --host option
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('showInfo'));
@@ -508,7 +509,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserGrantCommandWithDatabaseOption(): void
     {
         // Test that grant method handles --database option
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('grant'));
@@ -519,7 +520,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserGrantCommandWithTableOption(): void
     {
         // Test that grant method handles --table option
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('grant'));
@@ -530,7 +531,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserGrantCommandWithHostOption(): void
     {
         // Test that grant method handles --host option
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('grant'));
@@ -541,7 +542,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserRevokeCommandWithDatabaseOption(): void
     {
         // Test that revoke method handles --database option
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('revoke'));
@@ -552,7 +553,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserRevokeCommandWithTableOption(): void
     {
         // Test that revoke method handles --table option
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('revoke'));
@@ -563,7 +564,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserRevokeCommandWithHostOption(): void
     {
         // Test that revoke method handles --host option
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('revoke'));
@@ -574,7 +575,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserPasswordCommandWithHostOption(): void
     {
         // Test that password method handles --host option
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('password'));
@@ -588,7 +589,7 @@ final class UserCommandCliTests extends TestCase
         // Temporarily unset PHPUNIT to allow output
         $phpunit = getenv('PHPUNIT');
         putenv('PHPUNIT');
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
         $method->setAccessible(true);
@@ -617,7 +618,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserListCommandOutputFormat(): void
     {
         // Test that list method has correct output format logic
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('list'));
@@ -628,7 +629,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserInfoCommandOutputFormat(): void
     {
         // Test that showInfo method has correct output format logic
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('showInfo'));
@@ -639,7 +640,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserGrantCommandTargetFormatting(): void
     {
         // Test that grant method formats target correctly (database.table, database.*, *.*)
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('grant'));
@@ -650,7 +651,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserRevokeCommandTargetFormatting(): void
     {
         // Test that revoke method formats target correctly (database.table, database.*, *.*)
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('revoke'));
@@ -661,7 +662,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserCreateCommandConfirmationLogic(): void
     {
         // Test that create method handles confirmation logic
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('create'));
@@ -672,7 +673,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserDropCommandConfirmationLogic(): void
     {
         // Test that drop method handles confirmation logic
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('drop'));
@@ -683,7 +684,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserExecuteMethodWithNullSubcommand(): void
     {
         // Test that execute method handles null subcommand (should show help)
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('execute'));
@@ -696,7 +697,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserExecuteMethodWithHelpSubcommand(): void
     {
         // Test that execute method handles 'help' subcommand
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         $this->assertTrue($reflection->hasMethod('execute'));
@@ -707,7 +708,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserShowInfoWithEmptyInfo(): void
     {
         // Test showInfo method structure - for SQLite it will call showError which exits
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showInfo');
         $method->setAccessible(true);
@@ -722,7 +723,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserShowInfoWithPrivilegesArray(): void
     {
         // Test showInfo method formatting with privileges array
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showInfo');
         $method->setAccessible(true);
@@ -740,7 +741,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserShowInfoWithPrivilegesNestedArray(): void
     {
         // Test showInfo method formatting with nested privileges array
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method handles nested privileges array
@@ -753,7 +754,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserShowInfoWithBooleanValues(): void
     {
         // Test showInfo method formatting with boolean values
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method converts boolean to 'true'/'false'
@@ -766,7 +767,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserShowInfoWithNullValues(): void
     {
         // Test showInfo method skipping null values
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method skips null values
@@ -779,7 +780,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserListWithEmptyUsers(): void
     {
         // Test list method structure - for SQLite it will call showError which exits
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('list');
         $method->setAccessible(true);
@@ -794,7 +795,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserListWithUsers(): void
     {
         // Test list method formatting with users
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method formats output as:
@@ -809,7 +810,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserListWithUserHostFormat(): void
     {
         // Test list method with user_host field
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method uses 'user_host' field if available
@@ -823,7 +824,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserGrantTargetFormattingWithDatabaseAndTable(): void
     {
         // Test grant method target formatting: database.table
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method formats target as "database.table" when both are provided
@@ -836,7 +837,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserGrantTargetFormattingWithDatabaseOnly(): void
     {
         // Test grant method target formatting: database.*
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method formats target as "database.*" when only database is provided
@@ -849,7 +850,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserGrantTargetFormattingWithoutDatabase(): void
     {
         // Test grant method target formatting: *.*
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method formats target as "*.*" when neither database nor table is provided
@@ -862,7 +863,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserRevokeTargetFormattingWithDatabaseAndTable(): void
     {
         // Test revoke method target formatting: database.table
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method formats target as "database.table" when both are provided
@@ -874,7 +875,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserRevokeTargetFormattingWithDatabaseOnly(): void
     {
         // Test revoke method target formatting: database.*
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method formats target as "database.*" when only database is provided
@@ -886,7 +887,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserRevokeTargetFormattingWithoutDatabase(): void
     {
         // Test revoke method target formatting: *.*
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method formats target as "*.*" when neither database nor table is provided
@@ -901,7 +902,7 @@ final class UserCommandCliTests extends TestCase
         // Temporarily unset PHPUNIT to allow output
         $phpunit = getenv('PHPUNIT');
         putenv('PHPUNIT');
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
         $method->setAccessible(true);
@@ -934,7 +935,7 @@ final class UserCommandCliTests extends TestCase
         // Temporarily unset PHPUNIT to allow output
         $phpunit = getenv('PHPUNIT');
         putenv('PHPUNIT');
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
         $method->setAccessible(true);
@@ -967,7 +968,7 @@ final class UserCommandCliTests extends TestCase
         // Temporarily unset PHPUNIT to allow output
         $phpunit = getenv('PHPUNIT');
         putenv('PHPUNIT');
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
         $method->setAccessible(true);
@@ -996,7 +997,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserCreateWithHostTextFormatting(): void
     {
         // Test create method host text formatting
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method formats host as "@host" when provided
@@ -1009,7 +1010,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserDropWithHostTextFormatting(): void
     {
         // Test drop method host text formatting
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method formats host as "@host" when provided
@@ -1021,7 +1022,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserExistsWithHostTextFormatting(): void
     {
         // Test exists method host text formatting
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method formats host as "@host" when provided
@@ -1033,7 +1034,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserPasswordWithHostTextFormatting(): void
     {
         // Test password method host text formatting
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method formats host as "@host" when provided
@@ -1045,7 +1046,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserGrantWithHostTextFormatting(): void
     {
         // Test grant method host text formatting
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method formats host as "@host" when provided
@@ -1057,7 +1058,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserRevokeWithHostTextFormatting(): void
     {
         // Test revoke method host text formatting
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that method formats host as "@host" when provided
@@ -1069,7 +1070,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserCreateConfirmationWithHost(): void
     {
         // Test create method confirmation message with host
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that confirmation message includes host when provided
@@ -1083,7 +1084,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserDropConfirmationWithHost(): void
     {
         // Test drop method confirmation message with host
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Test that confirmation message includes host when provided
@@ -1095,7 +1096,7 @@ final class UserCommandCliTests extends TestCase
     public function testUserShowHelpOutput(): void
     {
         // Test showHelp method output
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showHelp');
         $method->setAccessible(true);
@@ -1132,7 +1133,7 @@ final class UserCommandCliTests extends TestCase
      */
     public function testCreateMethodStructure(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
 
         // Verify method exists and has correct signature
@@ -1239,7 +1240,7 @@ final class UserCommandCliTests extends TestCase
      */
     public function testExecuteWithNullSubcommand(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $command->setArguments([]);
 
         ob_start();
@@ -1261,7 +1262,7 @@ final class UserCommandCliTests extends TestCase
      */
     public function testExecuteWithHelpSubcommand(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $command->setArguments(['help']);
 
         ob_start();
@@ -1283,7 +1284,7 @@ final class UserCommandCliTests extends TestCase
      */
     public function testExecuteWithHelpOption(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $command->setArguments(['--help']);
 
         ob_start();
@@ -1306,7 +1307,7 @@ final class UserCommandCliTests extends TestCase
      */
     public function testExecuteWithUnknownSubcommand(): void
     {
-        $command = new \tommyknocker\pdodb\cli\commands\UserCommand();
+        $command = new UserCommand();
         $command->setArguments(['unknown']);
 
         // Verify execute method exists

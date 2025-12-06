@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\migrations\MigrationRunner;
+use tommyknocker\pdodb\orm\ActiveQuery;
 use tommyknocker\pdodb\orm\Model;
 use tommyknocker\pdodb\query\QueryBuilder;
 
@@ -229,7 +231,7 @@ PHP;
             $migrations[] = $version;
         }
 
-        $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($db, $migrationPath);
+        $runner = new MigrationRunner($db, $migrationPath);
         $runner->migrate();
 
         // Test with limit
@@ -274,7 +276,7 @@ class m20251101121000Testnew extends Migration {
 PHP;
         file_put_contents($migrationPath . '/m20251101121000_testnew.php', $testMigrationContent);
 
-        $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($db, $migrationPath);
+        $runner = new MigrationRunner($db, $migrationPath);
 
         // Before migration
         $newMigrations = $runner->getNewMigrations();
@@ -338,7 +340,7 @@ PHP;
             $migrations[] = $version;
         }
 
-        $runner = new \tommyknocker\pdodb\migrations\MigrationRunner($db, $migrationPath);
+        $runner = new MigrationRunner($db, $migrationPath);
 
         // Apply all migrations
         $runner->migrate();
@@ -443,11 +445,11 @@ PHP;
     {
         // Test with() method accepts string
         $query = ActiveQueryTestModel::find()->with('someRelation');
-        $this->assertInstanceOf(\tommyknocker\pdodb\orm\ActiveQuery::class, $query);
+        $this->assertInstanceOf(ActiveQuery::class, $query);
 
         // Test with() method accepts array
         $query2 = ActiveQueryTestModel::find()->with(['relation1', 'relation2']);
-        $this->assertInstanceOf(\tommyknocker\pdodb\orm\ActiveQuery::class, $query2);
+        $this->assertInstanceOf(ActiveQuery::class, $query2);
     }
 
     public function testWithMethodChaining(): void
@@ -456,7 +458,7 @@ PHP;
         $query = ActiveQueryTestModel::find()
             ->where('age', 30);
 
-        $this->assertInstanceOf(\tommyknocker\pdodb\orm\ActiveQuery::class, $query);
+        $this->assertInstanceOf(ActiveQuery::class, $query);
         $results = $query->all();
         $this->assertCount(1, $results); // Only Bob is 30 and active
     }

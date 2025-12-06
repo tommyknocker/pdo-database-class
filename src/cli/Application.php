@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli;
 
+use Composer\InstalledVersions;
+
 /**
  * CLI application for managing commands.
  */
@@ -207,9 +209,9 @@ class Application
     protected function detectVersion(): string
     {
         // Try to get version from Composer\InstalledVersions
-        if (class_exists(\Composer\InstalledVersions::class)) {
+        if (class_exists(InstalledVersions::class)) {
             try {
-                $version = \Composer\InstalledVersions::getVersion('tommyknocker/pdo-database-class');
+                $version = InstalledVersions::getVersion('tommyknocker/pdo-database-class');
                 if (is_string($version) && $version !== '') {
                     // Remove 'dev-' prefix and commit hash for dev versions
                     $version = preg_replace('/^dev-[^-]+-/', '', $version);

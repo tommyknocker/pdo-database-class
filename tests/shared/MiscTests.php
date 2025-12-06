@@ -626,7 +626,7 @@ final class MiscTests extends BaseSharedTestCase
                 ->get();
 
             $this->assertGreaterThanOrEqual(2, count($rows));
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Some databases may not support different column sets
             // This is acceptable behavior
             $this->assertInstanceOf(\Throwable::class, $e);

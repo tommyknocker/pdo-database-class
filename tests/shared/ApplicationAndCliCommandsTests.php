@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\cli\MigrationGenerator;
 
 final class ApplicationAndCliCommandsTests extends TestCase
 {
@@ -230,7 +231,7 @@ PHP;
         putenv('PDODB_MIGRATION_PATH=' . $migrationDir);
 
         // Create one empty migration file through MigrationGenerator API to keep dependencies minimal
-        $genClass = new \ReflectionClass(\tommyknocker\pdodb\cli\MigrationGenerator::class);
+        $genClass = new \ReflectionClass(MigrationGenerator::class);
         $generate = $genClass->getMethod('generate');
         $generate->setAccessible(true);
         ob_start();
