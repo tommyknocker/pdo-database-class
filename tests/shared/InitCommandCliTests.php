@@ -34,6 +34,8 @@ final class InitCommandCliTests extends TestCase
         putenv('PDODB_NON_INTERACTIVE');
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
+        putenv('PDODB_CHARSET');
+        unset($_ENV['PDODB_CHARSET']);
         if (is_dir($this->tempDir)) {
             $this->removeDirectory($this->tempDir);
         }

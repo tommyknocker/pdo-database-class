@@ -257,29 +257,9 @@ abstract class BaseCliCommand
      */
     protected static function loadCacheConfig(array $dbConfig): array
     {
-        // Collect environment variables
+        // Collect only cache-related environment variables
         // Always use getenv() to ensure we get variables set via putenv()
         // $_ENV may not be updated when putenv() is called
-        $envVars = [];
-        // Check $_ENV first (most reliable)
-        foreach ($_ENV as $key => $value) {
-            if (is_string($key) && str_starts_with($key, 'PDODB_')) {
-                $envValue = getenv($key);
-                if ($envValue !== false) {
-                    $envVars[$key] = $envValue;
-                }
-            }
-        }
-        // Also check $_SERVER for variables that might not be in $_ENV
-        foreach ($_SERVER as $key => $value) {
-            if (is_string($key) && str_starts_with($key, 'PDODB_') && !isset($envVars[$key])) {
-                $envValue = getenv($key);
-                if ($envValue !== false) {
-                    $envVars[$key] = $envValue;
-                }
-            }
-        }
-        // Also check common PDODB_CACHE_* variables directly via getenv() to catch putenv() calls
         $cacheEnvVars = [
             'PDODB_CACHE_ENABLED',
             'PDODB_CACHE_TYPE',
@@ -293,12 +273,12 @@ abstract class BaseCliCommand
             'PDODB_CACHE_MEMCACHED_SERVERS',
             'PDODB_CACHE_NAMESPACE',
         ];
+
+        $envVars = [];
         foreach ($cacheEnvVars as $key) {
-            if (!isset($envVars[$key])) {
-                $envValue = getenv($key);
-                if ($envValue !== false) {
-                    $envVars[$key] = $envValue;
-                }
+            $envValue = getenv($key);
+            if ($envValue !== false) {
+                $envVars[$key] = $envValue;
             }
         }
 
