@@ -652,4 +652,88 @@ final class UiPanesTests extends BaseSharedTestCase
         $output = ob_get_clean();
         $this->assertIsString($output);
     }
+
+    public function testMigrationManagerPaneRenderPreview(): void
+    {
+        $reflection = new \ReflectionClass(MigrationManagerPane::class);
+        $method = $reflection->getMethod('renderPreview');
+        $method->setAccessible(true);
+
+        $content = ['row' => 1, 'col' => 1, 'height' => 5, 'width' => 80];
+        $newMigrations = ['m001_create_users', 'm002_create_posts'];
+        $history = [
+            ['version' => 'm000_init', 'apply_time' => '2024-01-01 00:00:00'],
+        ];
+        ob_start();
+        $method->invoke(null, $content, $newMigrations, $history);
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+        $this->assertStringContainsString('Pending:', $output);
+        $this->assertStringContainsString('Applied:', $output);
+    }
+
+    public function testMigrationManagerPaneRenderFullscreen(): void
+    {
+        $reflection = new \ReflectionClass(MigrationManagerPane::class);
+        $method = $reflection->getMethod('renderFullscreen');
+        $method->setAccessible(true);
+
+        $content = ['row' => 1, 'col' => 1, 'height' => 24, 'width' => 80];
+        $newMigrations = ['m001_create_users', 'm002_create_posts'];
+        $history = [
+            ['version' => 'm000_init', 'apply_time' => '2024-01-01 00:00:00'],
+        ];
+        ob_start();
+        $method->invoke(null, $content, $newMigrations, $history, 0, 0, true);
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testMigrationManagerPaneRenderFullscreenWithSelectedIndex(): void
+    {
+        $reflection = new \ReflectionClass(MigrationManagerPane::class);
+        $method = $reflection->getMethod('renderFullscreen');
+        $method->setAccessible(true);
+
+        $content = ['row' => 1, 'col' => 1, 'height' => 24, 'width' => 80];
+        $newMigrations = ['m001_create_users', 'm002_create_posts'];
+        $history = [];
+        ob_start();
+        $method->invoke(null, $content, $newMigrations, $history, 1, 0, true);
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testMigrationManagerPaneRenderWithMigrationPath(): void
+    {
+        ob_start();
+        MigrationManagerPane::render(
+            self::$db,
+            $this->layout,
+            Layout::PANE_MIGRATIONS,
+            true,
+            0,
+            0,
+            false,
+            'migrations'
+        );
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testMigrationManagerPaneRenderFullscreenMode(): void
+    {
+        ob_start();
+        MigrationManagerPane::render(
+            self::$db,
+            $this->layout,
+            Layout::PANE_MIGRATIONS,
+            true,
+            0,
+            0,
+            true
+        );
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
 }

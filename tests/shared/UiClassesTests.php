@@ -67,4 +67,32 @@ final class UiClassesTests extends BaseSharedTestCase
         $result = KillConnectionAction::execute(self::$db, -1);
         $this->assertIsBool($result);
     }
+
+    public function testKillConnectionActionExecuteWithZeroProcessId(): void
+    {
+        // Test with zero process ID
+        $result = KillConnectionAction::execute(self::$db, 0);
+        $this->assertIsBool($result);
+    }
+
+    public function testKillConnectionActionExecuteWithNegativeProcessId(): void
+    {
+        // Test with negative process ID
+        $result = KillConnectionAction::execute(self::$db, -100);
+        $this->assertIsBool($result);
+    }
+
+    public function testKillConnectionActionExecuteWithVeryLargeProcessId(): void
+    {
+        // Test with very large process ID
+        $result = KillConnectionAction::execute(self::$db, 999999999);
+        $this->assertIsBool($result);
+    }
+
+    public function testKillConnectionActionExecuteWithEmptyStringProcessId(): void
+    {
+        // Test with empty string process ID (should be converted to 0)
+        $result = KillConnectionAction::execute(self::$db, '');
+        $this->assertIsBool($result);
+    }
 }
