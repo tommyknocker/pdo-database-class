@@ -275,7 +275,7 @@ class Application
      */
     public function getVersion(): string
     {
-        return $this->version ?? '2.11.1';
+        return $this->version ?? '2.11.2';
     }
 
     /**

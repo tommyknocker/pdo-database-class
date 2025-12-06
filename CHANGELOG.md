@@ -7,6 +7,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.11.2] - 2025-12-06
+
+### Added
+- **Extended TUI Dashboard** - Added 4 new panes with dual-screen support:
+  - **Schema Browser pane** - Browse database tables, view columns, indexes, and foreign keys
+  - **Migration Manager pane** - List migrations with status, view file content with syntax highlighting, apply/rollback actions
+  - **Server Variables pane** - View and search server configuration variables across all dialects
+  - **SQL Scratchpad pane** - Interactive SQL query editor with autocomplete and query history
+  - Dual-screen navigation: keys 1-8 work globally, tab/arrows switch between screens
+  - Global search filter for Schema Browser and Server Variables panes (activate with '/' key)
+  - PageUp/PageDown support for paginated navigation in fullscreen mode
+  - Migration actions: 'a' key to apply pending migrations, 'r' key to rollback last applied migration
+  - Improved migration detail view with structured display and syntax highlighting
+
+- **Table Search Command** (`pdodb table search <table>`):
+  - Search values across all columns in a table
+  - Support for JSON and array column search across all dialects
+  - Options: `--column=COL`, `--limit=N`, `--json=0|1`, `--format=table|json|yaml`
+  - Automatic column type detection and appropriate search condition building
+  - Comprehensive unit tests and CLI tests
+
+- **Seed Generate Command** (`pdodb seed generate <table>`):
+  - Extract data from database and generate seed files
+  - Options: `--limit`, `--where`, `--order-by`, `--exclude`, `--include`, `--format`, `--chunk-size`, `--preserve-ids`, `--skip-timestamps`
+  - Support for filtering, sorting, and selective column export
+
+- **IDE Autocompletion for Migrations**:
+  - Enhanced IDE autocompletion for `schema()` method in migration classes
+  - Full support for all DdlQueryBuilder methods with proper type hints
+  - Improved developer experience with better code completion
+
+- **Environment Config Loader**:
+  - New `EnvConfigLoader` class to centralize environment variable parsing
+  - Improved isolation of database and cache configuration loading
+  - Prevents environment variable pollution between tests
+
+### Changed
+- **TUI Dashboard UI Improvements**:
+  - Centered pane titles horizontally in border rendering
+  - Compact header and footer to fit 80x24 terminal
+  - Changed pending migration icon from ✗ to ⏳ (hourglass) with yellow color
+  - Updated README with current test count: 3806 tests, 12180 assertions
+
+- **Code Quality**:
+  - Optimized imports by converting fully qualified names to use statements (74 files)
+  - Added `fully_qualified_strict_types` rule to PHP CS Fixer config
+
+### Fixed
+- **TUI Dashboard Fixes**:
+  - Fixed connection count discrepancy in Connection Pool pane (summary vs. list)
+  - Fixed Server Metrics pane showing incorrect Uptime (0s) and connection metrics
+  - Fixed flickering in Active Queries pane when in fullscreen mode
+  - Fixed right border being overwritten by content in Active Queries pane
+  - Fixed visible height calculation in ConnectionPoolPane to account for all header rows
+  - Fixed dashboard pane borders rendering (Status/Type duplication, border visibility)
+  - Fixed arrow key navigation in TUI Dashboard (2-character escape sequences)
+  - Fixed SQL Scratchpad autocomplete positioning and immediate screen refresh
+  - Fixed SQL Scratchpad editor navigation and multi-statement query execution
+  - Fixed ESC key handling to exit fullscreen mode
+
+- **Database Dialect Fixes**:
+  - Fixed MySQL/MariaDB `getActiveConnections` to use actual visible connections count
+  - Fixed MySQL/MariaDB `getServerMetrics` to properly extract Uptime value from SHOW VARIABLES
+  - Fixed Oracle connection details display (added support for 'sid' and 'schema' keys)
+  - Fixed SchemaBrowserPane to handle array table data correctly
+  - Improved ServerMetricsPane metric labels for clarity
+
+- **Code Fixes**:
+  - Fixed PHPStan errors in SeedCommand and SeedDataGenerator
+  - Fixed unreachable code after `showError()` calls
+  - Fixed event dispatcher state leakage in tests (added tearDown methods)
+  - Fixed Oracle tests failing due to environment variable pollution
+  - Fixed CacheManager reflection issues with typed properties
+
+### Tests
+- **Significant Test Coverage Increase**:
+  - Added comprehensive tests for Oracle classes (OracleDdlBuilder, OracleDdlQueryBuilder, OracleSqlFormatter)
+  - Added tests for all UI panes (ActiveQueriesPane, CacheStatsPane, ConnectionPoolPane, ServerMetricsPane, SchemaBrowserPane, MigrationManagerPane, ServerVariablesPane, SqlScratchpadPane)
+  - Added tests for InputHandler, Terminal, MonitorManager, TestGenerator classes
+  - Added tests for UserCommand, KillConnectionAction, KillQueryAction
+  - Added tests for TableSearcher and seed generate command
+  - Code coverage increased from ~65% to ~67% (Lines: 18519/27596)
+  - Total: 3806 tests, 12180 assertions
+
 ## [2.11.1] - 2025-12-02
 
 ### Added
@@ -1897,7 +1981,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.1...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.2...HEAD
+[2.11.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.1...v2.11.2
 [2.11.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.0...v2.11.1
 [2.11.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.3...v2.11.0
 [2.10.3]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.2...v2.10.3
