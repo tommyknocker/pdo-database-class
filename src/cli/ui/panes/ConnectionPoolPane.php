@@ -137,20 +137,23 @@ class ConnectionPoolPane
             }
 
             // Calculate visible height for connections list
-            // Content area includes: summary (3 rows) + label (1 row) + table header (1 row) + connections list
+            // Content area includes: summary (3 rows) + spacing (2 rows) + label (1 row) + table header (1 row) + connections list
             // In fullscreen: content['height'] = $rows - 2 (header + footer)
             // Connections list starts at row 8 (after summary 3 rows + spacing 2 rows + label 1 row + table header 1 row)
             // Footer is at row $rows, so last connection row = $rows - 1
             // Visible height = ($rows - 1) - 8 + 1 = $rows - 8
             $summaryHeight = 3;
+            $spacingHeight = 2; // Spacing after summary (row += 2)
             $labelHeight = 1;
             $tableHeaderHeight = 1;
             if ($fullscreen) {
                 // In fullscreen: header (row 1) + summary (rows 2-4) + spacing (row 5) + label (row 6) + table header (row 7) + list (starts row 8) + footer (row $rows)
                 // Visible height = $rows - 1 (footer) - 7 (header + summary + spacing + label + table header) = $rows - 8
-                $visibleHeight = $rows - 1 - ($summaryHeight + 2 + $labelHeight + $tableHeaderHeight); // +2 for spacing before label
+                $visibleHeight = $rows - 1 - ($summaryHeight + $spacingHeight + $labelHeight + $tableHeaderHeight);
             } else {
-                $visibleHeight = $content['height'] - $summaryHeight - 2; // -2 for header and spacing
+                // In normal mode: summary (3 rows) + spacing (2 rows) + label (1 row) + table header (1 row) = 7 rows used
+                // Available for connections = content['height'] - 7
+                $visibleHeight = $content['height'] - $summaryHeight - $spacingHeight - $labelHeight - $tableHeaderHeight;
             }
 
             $colWidth = (int)floor($content['width'] / 3);
@@ -199,9 +202,9 @@ class ConnectionPoolPane
                     Terminal::color(Terminal::COLOR_BLACK);
                 }
 
-                $id = self::truncate((string)($conn['id'] ?? $conn['pid'] ?? $conn['session_id'] ?? ''), $colWidth);
+                $id = self::truncate((string)($conn['id'] ?? $conn['pid'] ?? $conn['session_id'] ?? $conn['sid'] ?? ''), $colWidth);
                 $user = self::truncate((string)($conn['user'] ?? $conn['usename'] ?? $conn['login'] ?? ''), $colWidth);
-                $dbName = self::truncate((string)($conn['db'] ?? $conn['database'] ?? $conn['datname'] ?? ''), $content['width'] - ($colWidth * 2));
+                $dbName = self::truncate((string)($conn['db'] ?? $conn['database'] ?? $conn['datname'] ?? $conn['schema'] ?? ''), $content['width'] - ($colWidth * 2));
 
                 $marker = $isSelected ? '> ' : '  ';
                 $rowText = $marker . str_pad($id, $colWidth - 2) . str_pad($user, $colWidth) . $dbName;

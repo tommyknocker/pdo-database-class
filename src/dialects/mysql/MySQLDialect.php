@@ -1625,8 +1625,9 @@ class MySQLDialect extends DialectAbstract
             $metrics['version'] = is_string($version) ? $version : 'unknown';
 
             // Get uptime
-            $uptime = $db->rawQueryValue("SHOW STATUS WHERE Variable_name = 'Uptime'");
-            $uptimeValue = is_int($uptime) ? $uptime : (is_string($uptime) ? (int)$uptime : 0);
+            $uptimeResult = $db->rawQuery("SHOW STATUS WHERE Variable_name = 'Uptime'");
+            $uptimeValue = $uptimeResult[0]['Value'] ?? 0;
+            $uptimeValue = is_int($uptimeValue) ? $uptimeValue : (is_string($uptimeValue) ? (int)$uptimeValue : 0);
             $metrics['uptime_seconds'] = $uptimeValue;
 
             // Get key status variables

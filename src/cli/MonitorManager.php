@@ -172,12 +172,12 @@ class MonitorManager
         }
 
         // Get connection limits
-        $status = $db->rawQuery("SHOW STATUS LIKE 'Threads_connected'");
+        // Use count of visible connections from SHOW PROCESSLIST for current
+        // (SHOW PROCESSLIST only shows connections user has permission to see)
         $maxConn = $db->rawQuery("SHOW VARIABLES LIKE 'max_connections'");
-        $currentVal = $status[0]['Value'] ?? 0;
         $maxVal = $maxConn[0]['Value'] ?? 0;
-        $current = is_int($currentVal) ? $currentVal : (is_string($currentVal) ? (int)$currentVal : 0);
         $max = is_int($maxVal) ? $maxVal : (is_string($maxVal) ? (int)$maxVal : 0);
+        $current = count($result); // Use actual count of visible connections
 
         return [
             'connections' => $result,

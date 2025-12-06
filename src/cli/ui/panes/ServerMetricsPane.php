@@ -77,13 +77,15 @@ class ServerMetricsPane
 
         // Display key metrics (dialect-specific)
         // Note: Questions and Queries are cumulative counters since server start
+        // Use visible_connections if available (matches ConnectionPoolPane), otherwise fall back to threads_connected
         $keyMetrics = [
-            'threads_connected' => 'Connections',
-            'threads_running' => 'Running',
-            'questions' => 'Questions (total)',
+            'visible_connections' => 'Connections',
+            'threads_connected' => 'Current Connections',
+            'threads_running' => 'Active Queries',
+            'questions' => 'Queries (session)',
             'queries' => 'Queries (total)',
             'slow_queries' => 'Slow Queries',
-            'connections' => 'Connections',
+            'connections' => 'Connections (lifetime)',
             'commits' => 'Commits',
             'rollbacks' => 'Rollbacks',
             'sessions' => 'Sessions',

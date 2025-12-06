@@ -152,8 +152,11 @@ class SchemaBrowserPane
                 Terminal::color(Terminal::COLOR_BLACK);
             }
 
+            // Extract table name if $table is an array, otherwise use string directly
+            $tableName = is_array($table) ? ($table['name'] ?? (string)($table[0] ?? '')) : (string)$table;
+
             $marker = $isSelected ? '> ' : '  ';
-            $tableText = $marker . $table;
+            $tableText = $marker . $tableName;
             if (mb_strlen($tableText, 'UTF-8') > $content['width']) {
                 $tableText = mb_substr($tableText, 0, $content['width'] - 3, 'UTF-8') . '...';
             }
