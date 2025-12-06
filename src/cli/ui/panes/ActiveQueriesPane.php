@@ -87,35 +87,35 @@ class ActiveQueriesPane
         // Clear only the content area, not the entire line (to preserve right border)
         echo str_repeat(' ', $availableWidth);
         Terminal::moveTo($content['row'], $content['col']);
-        
+
         // Build header with UTF-8 aware padding
         $headerId = 'ID';
         $headerTime = 'Time';
         $headerDb = 'DB';
         $headerQuery = 'Query';
-        
+
         $idLen = mb_strlen($headerId, 'UTF-8');
         $timeLen = mb_strlen($headerTime, 'UTF-8');
         $dbLen = mb_strlen($headerDb, 'UTF-8');
-        
+
         $headerIdPadded = $headerId . str_repeat(' ', max(0, $colWidth - $idLen));
         $headerTimePadded = $headerTime . str_repeat(' ', max(0, $colWidth - $timeLen));
         $headerDbPadded = $headerDb . str_repeat(' ', max(0, $colWidth - $dbLen));
-        
+
         // Calculate available width for Query header
         $usedWidth = ($colWidth * 3);
         $queryHeaderWidth = max(1, $availableWidth - $usedWidth);
-        $headerQueryTruncated = mb_strlen($headerQuery, 'UTF-8') > $queryHeaderWidth 
+        $headerQueryTruncated = mb_strlen($headerQuery, 'UTF-8') > $queryHeaderWidth
             ? mb_substr($headerQuery, 0, $queryHeaderWidth, 'UTF-8')
             : $headerQuery;
-        
+
         $headerText = $headerIdPadded . $headerTimePadded . $headerDbPadded . $headerQueryTruncated;
-        
+
         // Final safety check
         if (mb_strlen($headerText, 'UTF-8') > $availableWidth) {
             $headerText = mb_substr($headerText, 0, $availableWidth, 'UTF-8');
         }
-        
+
         echo $headerText;
         Terminal::reset();
 
@@ -167,41 +167,41 @@ class ActiveQueriesPane
             }
 
             $marker = $isSelected ? '> ' : '  ';
-            
+
             // Build row text with proper padding (using UTF-8 aware length)
             $idPadded = $id;
             $timePadded = $time;
             $dbNamePadded = $dbName;
-            
+
             // Pad using UTF-8 aware method
             $idLen = mb_strlen($id, 'UTF-8');
             if ($idLen < $colWidth) {
                 $idPadded = $id . str_repeat(' ', $colWidth - $idLen);
             }
-            
+
             $timeLen = mb_strlen($time, 'UTF-8');
             if ($timeLen < $colWidth) {
                 $timePadded = $time . str_repeat(' ', $colWidth - $timeLen);
             }
-            
+
             $dbNameLen = mb_strlen($dbName, 'UTF-8');
             if ($dbNameLen < $colWidth) {
                 $dbNamePadded = $dbName . str_repeat(' ', $colWidth - $dbNameLen);
             }
-            
+
             // Calculate actual used width after padding
             $markerWidth = mb_strlen($marker, 'UTF-8');
             $idPaddedWidth = mb_strlen($idPadded, 'UTF-8');
             $timePaddedWidth = mb_strlen($timePadded, 'UTF-8');
             $dbNamePaddedWidth = mb_strlen($dbNamePadded, 'UTF-8');
             $usedWidth = $markerWidth + $idPaddedWidth + $timePaddedWidth + $dbNamePaddedWidth;
-            
+
             // Calculate available width for query text
             $queryTextWidth = max(1, $availableWidth - $usedWidth);
             $queryText = self::truncate((string)($query['query'] ?? ''), $queryTextWidth);
-            
+
             $rowText = $marker . $idPadded . $timePadded . $dbNamePadded . $queryText;
-            
+
             // Final safety check - ensure total width doesn't exceed available width
             $totalWidth = mb_strlen($rowText, 'UTF-8');
             if ($totalWidth > $availableWidth) {
@@ -214,14 +214,14 @@ class ActiveQueriesPane
                     $rowText = mb_substr($rowText, 0, $availableWidth, 'UTF-8');
                 }
             }
-            
+
             // Ensure we don't output more than available width (strict check)
             $finalWidth = mb_strlen($rowText, 'UTF-8');
             if ($finalWidth > $availableWidth) {
                 // Truncate to exact available width
                 $rowText = mb_substr($rowText, 0, $availableWidth, 'UTF-8');
             }
-            
+
             // Output text and pad to exact width to ensure we don't overwrite anything
             echo $rowText;
             $actualWidth = mb_strlen($rowText, 'UTF-8');
@@ -230,7 +230,7 @@ class ActiveQueriesPane
                 echo str_repeat(' ', $availableWidth - $actualWidth);
             }
             Terminal::reset();
-            
+
             $lastDisplayRow = $displayRow; // Update last displayed row
         }
 
@@ -243,7 +243,7 @@ class ActiveQueriesPane
         } else {
             $maxRow = $content['row'] + $content['height'] - 1; // Scroll indicator row
         }
-        
+
         for ($row = $lastDisplayRow + 1; $row < $maxRow; $row++) {
             Terminal::moveTo($row, $content['col']);
             // Clear only the content area, not the entire line (to preserve right border)
@@ -259,7 +259,7 @@ class ActiveQueriesPane
         } else {
             $scrollIndicatorRow = $content['row'] + $content['height'] - 1;
         }
-        
+
         if ($scrollOffset > 0 || $endIdx < count($queries)) {
             Terminal::moveTo($scrollIndicatorRow, $content['col']);
             // Clear only the content area, not the entire line (to preserve right border)
