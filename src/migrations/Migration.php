@@ -47,12 +47,12 @@ abstract class Migration implements MigrationInterface
      * All methods from DdlQueryBuilder are available through this method.
      *
      * @return DdlQueryBuilder Returns DdlQueryBuilder instance with all schema methods available.
-     *                        IDE will provide autocompletion for methods like:
-     *                        - createTable(), dropTable(), renameTable()
-     *                        - addColumn(), dropColumn(), alterColumn()
-     *                        - createIndex(), dropIndex(), createFulltextIndex()
-     *                        - addForeignKey(), dropForeignKey()
-     *                        - primaryKey(), string(), integer(), text(), etc.
+     *                         IDE will provide autocompletion for methods like:
+     *                         - createTable(), dropTable(), renameTable()
+     *                         - addColumn(), dropColumn(), alterColumn()
+     *                         - createIndex(), dropIndex(), createFulltextIndex()
+     *                         - addForeignKey(), dropForeignKey()
+     *                         - primaryKey(), string(), integer(), text(), etc.
      *
      * @example
      * // Create a table
@@ -61,15 +61,12 @@ abstract class Migration implements MigrationInterface
      *     'name' => $this->schema()->string(255)->notNull(),
      *     'email' => $this->schema()->string(255)->notNull()->unique(),
      * ]);
-     *
      * @example
      * // Add a column
      * $this->schema()->addColumn('users', 'status', $this->schema()->string(20)->defaultValue('active'));
-     *
      * @example
      * // Create an index
      * $this->schema()->createIndex('idx_email', 'users', 'email');
-     *
      * @example
      * // Add foreign key
      * $this->schema()->addForeignKey('fk_user_profile', 'profiles', 'user_id', 'users', 'id', 'CASCADE', 'CASCADE');

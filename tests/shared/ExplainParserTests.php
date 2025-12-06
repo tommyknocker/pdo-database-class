@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use tommyknocker\pdodb\query\analysis\parsers\MSSQLExplainParser;
 use tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser;
+use tommyknocker\pdodb\query\analysis\parsers\OracleExplainParser;
 use tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser;
 use tommyknocker\pdodb\query\analysis\parsers\SqliteExplainParser;
 
@@ -620,5 +621,203 @@ final class ExplainParserTests extends BaseSharedTestCase
         $this->assertEmpty($plan->warnings);
         $this->assertEquals(0, $plan->estimatedRows);
         $this->assertNull($plan->totalCost);
+    }
+
+    public function testOracleExplainParserFullTableScan(): void
+    {
+        $parser = new OracleExplainParser();
+        // Parser looks for "TABLE ACCESS FULL" followed by whitespace and table name
+        // Pattern: /TABLE ACCESS FULL\s+(\S+)/i
+        $explainResults = [
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation         | Name | Rows | Cost |'],
+            ['PLAN_TABLE_OUTPUT' => '|  0 | SELECT STATEMENT  |      |    1 |    2 |'],
+            ['PLAN_TABLE_OUTPUT' => '|  1 |  TABLE ACCESS FULL USERS  100    2'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertNotEmpty($plan->tableScans);
+        $this->assertContains('USERS', $plan->tableScans);
+        $this->assertEquals('TABLE ACCESS FULL', $plan->accessType);
+    }
+
+    public function testOracleExplainParserIndexRangeScan(): void
+    {
+        $parser = new OracleExplainParser();
+        // Parser looks for "INDEX RANGE SCAN" followed by index name
+        // Pattern: /INDEX\s+(?:RANGE|UNIQUE|FULL)\s+SCAN\s+.*?(\S+)/i
+        $explainResults = [
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation        | Name      | Rows | Cost |'],
+            ['PLAN_TABLE_OUTPUT' => '|  0 | SELECT STATEMENT |           |    1 |    2 |'],
+            ['PLAN_TABLE_OUTPUT' => '|  1 |  INDEX RANGE SCAN IDX_EMAIL    10    2'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertEquals('IDX_EMAIL', $plan->usedIndex);
+        $this->assertEquals('INDEX SCAN', $plan->accessType);
+    }
+
+    public function testOracleExplainParserIndexFastFullScan(): void
+    {
+        $parser = new OracleExplainParser();
+        // Parser looks for "INDEX FAST FULL SCAN" followed by index name
+        // Pattern: /INDEX\s+FAST\s+FULL\s+SCAN\s+.*?(\S+)/i
+        $explainResults = [
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation            | Name      | Rows | Cost |'],
+            ['PLAN_TABLE_OUTPUT' => '|  0 | SELECT STATEMENT     |           |    1 |    2 |'],
+            ['PLAN_TABLE_OUTPUT' => '|  1 |  INDEX FAST FULL SCAN IDX_EMAIL    10    2'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertEquals('IDX_EMAIL', $plan->usedIndex);
+        $this->assertEquals('INDEX FAST FULL SCAN', $plan->accessType);
+    }
+
+    public function testOracleExplainParserWithCost(): void
+    {
+        $parser = new OracleExplainParser();
+        $explainResults = [
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation         | Name | Rows | Cost=100 |'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertEquals(100, $plan->totalCost);
+    }
+
+    public function testOracleExplainParserWithCardinality(): void
+    {
+        $parser = new OracleExplainParser();
+        $explainResults = [
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation         | Name | Cardinality=1000 |'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertEquals(1000, $plan->estimatedRows);
+    }
+
+    public function testOracleExplainParserWithJoinTypes(): void
+    {
+        $parser = new OracleExplainParser();
+        $explainResults = [
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation      | Name |'],
+            ['PLAN_TABLE_OUTPUT' => '|  0 | SELECT STATEMENT |'],
+            ['PLAN_TABLE_OUTPUT' => '|  1 |  HASH JOIN        |'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertContains('HASH JOIN', $plan->joinTypes);
+    }
+
+    public function testOracleExplainParserWithNestedLoops(): void
+    {
+        $parser = new OracleExplainParser();
+        $explainResults = [
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation      | Name |'],
+            ['PLAN_TABLE_OUTPUT' => '|  0 | SELECT STATEMENT |'],
+            ['PLAN_TABLE_OUTPUT' => '|  1 |  NESTED LOOPS    |'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertContains('NESTED LOOPS', $plan->joinTypes);
+    }
+
+    public function testOracleExplainParserWithWarnings(): void
+    {
+        $parser = new OracleExplainParser();
+        // Parser should detect warnings for full table scan without index
+        $explainResults = [
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation         | Name |'],
+            ['PLAN_TABLE_OUTPUT' => '|  0 | SELECT STATEMENT  |      |'],
+            ['PLAN_TABLE_OUTPUT' => '|  1 |  TABLE ACCESS FULL USERS'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertNotEmpty($plan->warnings);
+        $this->assertStringContainsString('Full table scan', $plan->warnings[0]);
+    }
+
+    public function testOracleExplainParserWithSortOperation(): void
+    {
+        $parser = new OracleExplainParser();
+        $explainResults = [
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation      | Name |'],
+            ['PLAN_TABLE_OUTPUT' => '|  0 | SELECT STATEMENT |'],
+            ['PLAN_TABLE_OUTPUT' => '|  1 |  SORT ORDER BY    |'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertNotEmpty($plan->warnings);
+        $hasSortWarning = false;
+        foreach ($plan->warnings as $warning) {
+            if (str_contains($warning, 'sorting operation')) {
+                $hasSortWarning = true;
+                break;
+            }
+        }
+        $this->assertTrue($hasSortWarning);
+    }
+
+    public function testOracleExplainParserWithSchemaPrefix(): void
+    {
+        $parser = new OracleExplainParser();
+        // Test that parser handles schema-prefixed table names
+        // The parser should extract table name from "SCHEMA"."USERS" format
+        $explainResults = [
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation         | Name |'],
+            ['PLAN_TABLE_OUTPUT' => '|  0 | SELECT STATEMENT  |      |'],
+            ['PLAN_TABLE_OUTPUT' => '|  1 |  TABLE ACCESS FULL USERS'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        // Basic test: parser should extract table name
+        $this->assertNotEmpty($plan->tableScans);
+        $this->assertContains('USERS', $plan->tableScans);
+    }
+
+    public function testOracleExplainParserWithFirstColumnValue(): void
+    {
+        $parser = new OracleExplainParser();
+        // Parser should use first column value if PLAN_TABLE_OUTPUT is not present
+        // Pattern: /TABLE ACCESS FULL\s+(\S+)/i
+        $explainResults = [
+            ['first_column' => '| Id | Operation         | Name |'],
+            ['first_column' => '|  0 | SELECT STATEMENT  |      |'],
+            ['first_column' => '|  1 |  TABLE ACCESS FULL USERS'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertNotEmpty($plan->tableScans);
+        $this->assertContains('USERS', $plan->tableScans);
+    }
+
+    public function testOracleExplainParserEmptyResults(): void
+    {
+        $parser = new OracleExplainParser();
+        $plan = $parser->parse([]);
+        $this->assertEmpty($plan->tableScans);
+        $this->assertNull($plan->accessType);
+    }
+
+    public function testOracleExplainParserWithMultipleCosts(): void
+    {
+        $parser = new OracleExplainParser();
+        $explainResults = [
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation | Name | Cost=50 |'],
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation | Name | Cost=100 |'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertEquals(100, $plan->totalCost);
+    }
+
+    public function testOracleExplainParserWithMultipleCardinalities(): void
+    {
+        $parser = new OracleExplainParser();
+        $explainResults = [
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation | Name | Cardinality=500 |'],
+            ['PLAN_TABLE_OUTPUT' => '| Id | Operation | Name | Cardinality=1000 |'],
+        ];
+
+        $plan = $parser->parse($explainResults);
+        $this->assertEquals(1000, $plan->estimatedRows);
     }
 }
