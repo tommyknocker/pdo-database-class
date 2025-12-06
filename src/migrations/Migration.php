@@ -14,6 +14,59 @@ use tommyknocker\pdodb\query\QueryBuilder;
  *
  * This class provides common methods for migrations, similar to Yii2's Migration class.
  * All migrations should extend this class and implement up() and down() methods.
+ *
+ * @mixin DdlQueryBuilder
+ *
+ * @method DdlQueryBuilder createTable(string $table, array $columns, array $options = [])
+ * @method DdlQueryBuilder createTableIfNotExists(string $table, array $columns, array $options = [])
+ * @method DdlQueryBuilder dropTable(string $table)
+ * @method DdlQueryBuilder dropTableIfExists(string $table)
+ * @method DdlQueryBuilder renameTable(string $table, string $newName)
+ * @method DdlQueryBuilder truncateTable(string $table)
+ * @method DdlQueryBuilder addColumn(string $table, string $column, \tommyknocker\pdodb\query\schema\ColumnSchema|array|string $type)
+ * @method DdlQueryBuilder dropColumn(string $table, string $column)
+ * @method DdlQueryBuilder alterColumn(string $table, string $column, \tommyknocker\pdodb\query\schema\ColumnSchema|array|string $type)
+ * @method DdlQueryBuilder renameColumn(string $table, string $oldName, string $newName)
+ * @method DdlQueryBuilder createIndex(string $name, string $table, string|array $columns, bool $unique = false, ?string $where = null, ?array $includeColumns = null, array $options = [])
+ * @method DdlQueryBuilder dropIndex(string $name, string $table)
+ * @method DdlQueryBuilder createFulltextIndex(string $name, string $table, string|array $columns, ?string $parser = null)
+ * @method DdlQueryBuilder createSpatialIndex(string $name, string $table, string|array $columns)
+ * @method DdlQueryBuilder renameIndex(string $oldName, string $table, string $newName)
+ * @method DdlQueryBuilder renameForeignKey(string $oldName, string $table, string $newName)
+ * @method DdlQueryBuilder addForeignKey(string $name, string $table, string|array $columns, string $refTable, string|array $refColumns, ?string $delete = null, ?string $update = null)
+ * @method DdlQueryBuilder dropForeignKey(string $name, string $table)
+ * @method DdlQueryBuilder addPrimaryKey(string $name, string $table, string|array $columns)
+ * @method DdlQueryBuilder dropPrimaryKey(string $name, string $table)
+ * @method DdlQueryBuilder addUnique(string $name, string $table, string|array $columns)
+ * @method DdlQueryBuilder dropUnique(string $name, string $table)
+ * @method DdlQueryBuilder addCheck(string $name, string $table, string $expression)
+ * @method DdlQueryBuilder dropCheck(string $name, string $table)
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema primaryKey(?int $length = null)
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema bigPrimaryKey()
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema string(?int $length = null)
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema text()
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema char(?int $length = null)
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema integer(?int $length = null)
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema bigInteger()
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema smallInteger(?int $length = null)
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema boolean()
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema float(?int $precision = null, ?int $scale = null)
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema decimal(int $precision = 10, int $scale = 2)
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema date()
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema time()
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema datetime()
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema timestamp()
+ * @method \tommyknocker\pdodb\query\schema\ColumnSchema json()
+ * @method bool tableExists(string $table)
+ * @method bool indexExists(string $name, string $table)
+ * @method bool foreignKeyExists(string $name, string $table)
+ * @method bool checkExists(string $name, string $table)
+ * @method bool uniqueExists(string $name, string $table)
+ * @method array getIndexes(string $table)
+ * @method array getForeignKeys(string $table)
+ * @method array getCheckConstraints(string $table)
+ * @method array getUniqueConstraints(string $table)
+ * @method \tommyknocker\pdodb\dialects\DialectInterface getDialect()
  */
 abstract class Migration implements MigrationInterface
 {
@@ -43,7 +96,26 @@ abstract class Migration implements MigrationInterface
     /**
      * Get DDL Query Builder for schema operations.
      *
+     * Provides IDE autocompletion for schema operations.
+     * All methods from DdlQueryBuilder are available through this method.
+     *
      * @return DdlQueryBuilder
+     *
+     * @example
+     * // Create a table
+     * $this->schema()->createTable('users', [
+     *     'id' => $this->schema()->primaryKey(),
+     *     'name' => $this->schema()->string(255)->notNull(),
+     *     'email' => $this->schema()->string(255)->notNull()->unique(),
+     * ]);
+     *
+     * @example
+     * // Add a column
+     * $this->schema()->addColumn('users', 'status', $this->schema()->string(20)->defaultValue('active'));
+     *
+     * @example
+     * // Create an index
+     * $this->schema()->createIndex('idx_email', 'users', 'email');
      */
     protected function schema(): DdlQueryBuilder
     {
