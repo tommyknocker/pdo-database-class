@@ -479,4 +479,177 @@ final class UiPanesTests extends BaseSharedTestCase
         $this->assertIsString($output);
         $this->assertStringContainsString('No active queries', $output);
     }
+
+    public function testConnectionPoolPaneRenderFullscreen(): void
+    {
+        ob_start();
+        ConnectionPoolPane::render(
+            self::$db,
+            $this->layout,
+            Layout::PANE_CONNECTIONS,
+            true,
+            0,
+            0,
+            true
+        );
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testConnectionPoolPaneRenderWithConnectionsData(): void
+    {
+        $connectionsData = [
+            'connections' => [
+                ['id' => '1', 'user' => 'test', 'database' => 'test_db'],
+            ],
+            'summary' => [
+                'current' => 1,
+                'max' => 100,
+                'usage_percent' => 1.0,
+            ],
+        ];
+        ob_start();
+        ConnectionPoolPane::render(
+            self::$db,
+            $this->layout,
+            Layout::PANE_CONNECTIONS,
+            true,
+            0,
+            0,
+            false,
+            $connectionsData
+        );
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testConnectionPoolPaneRenderWithSelectedIndex(): void
+    {
+        $connectionsData = [
+            'connections' => [
+                ['id' => '1', 'user' => 'test', 'database' => 'test_db'],
+                ['id' => '2', 'user' => 'test2', 'database' => 'test_db2'],
+            ],
+            'summary' => [
+                'current' => 2,
+                'max' => 100,
+                'usage_percent' => 2.0,
+            ],
+        ];
+        ob_start();
+        ConnectionPoolPane::render(
+            self::$db,
+            $this->layout,
+            Layout::PANE_CONNECTIONS,
+            true,
+            1,
+            0,
+            false,
+            $connectionsData
+        );
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testSchemaBrowserPaneRenderPreview(): void
+    {
+        $reflection = new \ReflectionClass(SchemaBrowserPane::class);
+        $method = $reflection->getMethod('renderPreview');
+        $method->setAccessible(true);
+
+        $content = ['row' => 1, 'col' => 1, 'height' => 5, 'width' => 80];
+        $tables = [
+            ['name' => 'users', 'count' => 10],
+            ['name' => 'posts', 'count' => 20],
+        ];
+        ob_start();
+        $method->invoke(null, $content, $tables);
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testSchemaBrowserPaneRenderFullscreen(): void
+    {
+        $reflection = new \ReflectionClass(SchemaBrowserPane::class);
+        $method = $reflection->getMethod('renderFullscreen');
+        $method->setAccessible(true);
+
+        $content = ['row' => 1, 'col' => 1, 'height' => 24, 'width' => 80];
+        $tables = [
+            ['name' => 'users', 'count' => 10],
+            ['name' => 'posts', 'count' => 20],
+        ];
+        ob_start();
+        $method->invoke(null, self::$db, $content, $tables, 0, 0, true, null);
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testSchemaBrowserPaneRenderFullscreenWithSearchFilter(): void
+    {
+        $reflection = new \ReflectionClass(SchemaBrowserPane::class);
+        $method = $reflection->getMethod('renderFullscreen');
+        $method->setAccessible(true);
+
+        $content = ['row' => 1, 'col' => 1, 'height' => 24, 'width' => 80];
+        $tables = [
+            ['name' => 'users', 'count' => 10],
+            ['name' => 'posts', 'count' => 20],
+        ];
+        ob_start();
+        $method->invoke(null, self::$db, $content, $tables, 0, 0, true, 'user');
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testServerVariablesPaneRenderPreview(): void
+    {
+        $reflection = new \ReflectionClass(ServerVariablesPane::class);
+        $method = $reflection->getMethod('renderPreview');
+        $method->setAccessible(true);
+
+        $content = ['row' => 1, 'col' => 1, 'height' => 5, 'width' => 80];
+        $variables = [
+            ['name' => 'max_connections', 'value' => '100'],
+            ['name' => 'thread_cache_size', 'value' => '8'],
+        ];
+        ob_start();
+        $method->invoke(null, $content, $variables);
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testServerVariablesPaneRenderFullscreen(): void
+    {
+        $reflection = new \ReflectionClass(ServerVariablesPane::class);
+        $method = $reflection->getMethod('renderFullscreen');
+        $method->setAccessible(true);
+
+        $content = ['row' => 1, 'col' => 1, 'height' => 24, 'width' => 80];
+        $variables = [
+            ['name' => 'max_connections', 'value' => '100'],
+            ['name' => 'thread_cache_size', 'value' => '8'],
+        ];
+        ob_start();
+        $method->invoke(null, $content, $variables, 0, 0, true, null);
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
+
+    public function testServerVariablesPaneRenderFullscreenWithSearchFilter(): void
+    {
+        $reflection = new \ReflectionClass(ServerVariablesPane::class);
+        $method = $reflection->getMethod('renderFullscreen');
+        $method->setAccessible(true);
+
+        $content = ['row' => 1, 'col' => 1, 'height' => 24, 'width' => 80];
+        $variables = [
+            ['name' => 'max_connections', 'value' => '100'],
+            ['name' => 'thread_cache_size', 'value' => '8'],
+        ];
+        ob_start();
+        $method->invoke(null, $content, $variables, 0, 0, true, 'max');
+        $output = ob_get_clean();
+        $this->assertIsString($output);
+    }
 }
