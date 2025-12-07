@@ -67,7 +67,9 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [19. Query Scopes](05-advanced-features/19-query-scopes.md) - Global and local scopes for reusable query logic
 - [20. Plugin System](05-advanced-features/20-plugins.md) - Extend PdoDb with custom plugins for macros, scopes, and event listeners
 - [21. CLI Tools](05-advanced-features/21-cli-tools.md) - Database management, migration generator, model generator, schema inspector, and interactive query tester (REPL)
-- [20. Dialect-Specific Schema](05-advanced-features/20-dialect-specific-schema.md) - **NEW!** Database-specific types (MySQL ENUM/SET, PostgreSQL UUID/JSONB/arrays, MSSQL UNIQUEIDENTIFIER, SQLite type affinity)
+- [22. Events](05-advanced-features/22-events.md) - PSR-14 event dispatcher for monitoring, auditing, and middleware
+- [23. AI-Powered Analysis](05-advanced-features/23-ai-analysis.md) - **NEW!** 🤖 Get intelligent database optimization recommendations using OpenAI, Anthropic, Google, Microsoft, or Ollama
+- [20. Dialect-Specific Schema](05-advanced-features/20-dialect-specific-schema.md) - Database-specific types (MySQL ENUM/SET, PostgreSQL UUID/JSONB/arrays, MSSQL UNIQUEIDENTIFIER, SQLite type affinity)
 
 ### Error Handling
 - [01. Exception Hierarchy](06-error-handling/01-exception-hierarchy.md) - Exception types
@@ -155,6 +157,7 @@ $users = $db->find()
 - **Batch Processing** - Handle large datasets efficiently
 - **Connection Pooling** - Manage multiple connections
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations
+- **AI-Powered Analysis** 🤖 - Get intelligent database optimization recommendations using OpenAI, Anthropic, Google, Microsoft, or Ollama
 - **Comprehensive Error Handling** - Detailed exception hierarchy
 - **Zero Dependencies** - Lightweight and fast
 - **Well Tested** - Comprehensive test coverage

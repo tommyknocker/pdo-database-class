@@ -93,9 +93,8 @@ class AiAnalysisContext
     {
         try {
             $columns = $this->db->describe($tableName);
-            $schemaInspector = new \tommyknocker\pdodb\cli\SchemaInspector($this->db);
-            $indexes = $schemaInspector->getIndexes($tableName);
-            $foreignKeys = $schemaInspector->getForeignKeys($tableName);
+            $indexes = $this->db->schema()->getIndexes($tableName);
+            $foreignKeys = $this->db->schema()->getForeignKeys($tableName);
 
             return [
                 'columns' => $columns,

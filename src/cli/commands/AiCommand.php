@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\cli\commands;
 use tommyknocker\pdodb\ai\AiAnalysisService;
 use tommyknocker\pdodb\cli\BaseCliCommand;
 use tommyknocker\pdodb\cli\Command;
+use tommyknocker\pdodb\cli\MarkdownFormatter;
 use tommyknocker\pdodb\cli\SchemaAnalyzer;
 use tommyknocker\pdodb\PdoDb;
 
@@ -63,20 +64,22 @@ class AiCommand extends Command
 
         try {
             $aiService = new AiAnalysisService($db);
+            $actualProvider = $aiService->getProvider($provider);
             $analysis = $aiService->analyzeQuery($sql, $tableName, $provider, $options);
 
             if ($format === 'json') {
                 echo json_encode([
                     'sql' => $sql,
-                    'provider' => $provider ?? 'openai',
+                    'provider' => $actualProvider->getProviderName(),
                     'analysis' => $analysis,
                 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
                 return 0;
             }
 
-            echo "AI Analysis (Provider: " . ($provider ?? 'openai') . ")\n";
+            echo "AI Analysis (Provider: " . $actualProvider->getProviderName() . ")\n";
             echo str_repeat('=', 80) . "\n\n";
-            echo $analysis . "\n";
+            $formatter = new MarkdownFormatter();
+            echo $formatter->format($analysis) . "\n";
 
             return 0;
         } catch (\Throwable $e) {
@@ -161,7 +164,8 @@ class AiCommand extends Command
 
             echo "\n\nAI Analysis (Provider: {$result->provider}" . ($result->model ? ", Model: {$result->model}" : '') . ")\n";
             echo str_repeat('=', 80) . "\n\n";
-            echo $result->aiAnalysis . "\n";
+            $formatter = new MarkdownFormatter();
+            echo $formatter->format($result->aiAnalysis) . "\n";
 
             return 0;
         } catch (\Throwable $e) {
@@ -192,23 +196,25 @@ class AiCommand extends Command
 
         try {
             $aiService = new AiAnalysisService($db);
+            $actualProvider = $aiService->getProvider($provider);
             $analysis = $aiService->analyzeSchema($tableName, $provider, $options);
 
             if ($format === 'json') {
                 echo json_encode([
                     'table' => $tableName,
-                    'provider' => $provider ?? 'openai',
+                    'provider' => $actualProvider->getProviderName(),
                     'analysis' => $analysis,
                 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
                 return 0;
             }
 
-            echo "AI Schema Analysis (Provider: " . ($provider ?? 'openai') . ")\n";
+            echo "AI Schema Analysis (Provider: " . $actualProvider->getProviderName() . ")\n";
             if ($tableName !== null) {
                 echo "Table: {$tableName}\n";
             }
             echo str_repeat('=', 80) . "\n\n";
-            echo $analysis . "\n";
+            $formatter = new MarkdownFormatter();
+            echo $formatter->format($analysis) . "\n";
 
             return 0;
         } catch (\Throwable $e) {
@@ -246,6 +252,7 @@ class AiCommand extends Command
 
             // Get AI suggestions
             $aiService = new AiAnalysisService($db);
+            $actualProvider = $aiService->getProvider($provider);
             $context = [
                 'base_analysis' => $baseAnalysis,
             ];
@@ -255,7 +262,7 @@ class AiCommand extends Command
                 echo json_encode([
                     'base_analysis' => $baseAnalysis,
                     'ai_suggestions' => $aiSuggestions,
-                    'provider' => $provider ?? 'openai',
+                    'provider' => $actualProvider->getProviderName(),
                 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
                 return 0;
             }
@@ -275,9 +282,10 @@ class AiCommand extends Command
                 }
             }
 
-            echo "\n\nAI Optimization Suggestions (Provider: " . ($provider ?? 'openai') . ")\n";
+            echo "\n\nAI Optimization Suggestions (Provider: " . $actualProvider->getProviderName() . ")\n";
             echo str_repeat('=', 80) . "\n\n";
-            echo $aiSuggestions . "\n";
+            $formatter = new MarkdownFormatter();
+            echo $formatter->format($aiSuggestions) . "\n";
 
             return 0;
         } catch (\Throwable $e) {

@@ -1,0 +1,411 @@
+<?php
+
+declare(strict_types=1);
+
+namespace tommyknocker\pdodb\cli;
+
+/**
+ * Formats markdown text for console output.
+ */
+class MarkdownFormatter
+{
+    protected bool $useColors;
+
+    public function __construct(?bool $useColors = null)
+    {
+        if ($useColors === null) {
+            // Check if terminal supports colors and NO_COLOR is not set
+            $this->useColors = function_exists('posix_isatty') && posix_isatty(STDOUT) && getenv('NO_COLOR') === false;
+        } else {
+            $this->useColors = $useColors;
+        }
+    }
+
+    /**
+     * Format markdown text for console output.
+     *
+     * @param string $markdown Markdown text
+     *
+     * @return string Formatted text for console
+     */
+    public function format(string $markdown): string
+    {
+        $text = $markdown;
+
+        // Remove markdown code blocks but keep content
+        $text = preg_replace_callback('/```(\w+)?\n(.*?)```/s', function ($matches) {
+            $code = $matches[2];
+            $lang = $matches[1] ?? '';
+            return $this->formatCodeBlock($code, $lang);
+        }, $text);
+
+        // Format inline code
+        $text = preg_replace('/`([^`]+)`/', $this->useColors ? "\033[36m\$1\033[0m" : '[$1]', $text);
+
+        // Format headers
+        $text = preg_replace('/^### (.*)$/m', $this->formatHeader(3, '$1'), $text);
+        $text = preg_replace('/^## (.*)$/m', $this->formatHeader(2, '$1'), $text);
+        $text = preg_replace('/^# (.*)$/m', $this->formatHeader(1, '$1'), $text);
+
+        // Format bold text
+        $text = preg_replace('/\*\*(.+?)\*\*/', $this->useColors ? "\033[1m\$1\033[0m" : '**$1**', $text);
+        $text = preg_replace('/__(.+?)__/', $this->useColors ? "\033[1m\$1\033[0m" : '__$1__', $text);
+
+        // Format italic text
+        $text = preg_replace('/\*(.+?)\*/', $this->useColors ? "\033[3m\$1\033[0m" : '*$1*', $text);
+        $text = preg_replace('/_(.+?)_/', $this->useColors ? "\033[3m\$1\033[0m" : '_$1_', $text);
+
+        // Format unordered lists
+        $text = preg_replace_callback('/^(\s*)[-*+] (.+)$/m', function ($matches) {
+            $indent = $matches[1];
+            $content = $matches[2];
+            $bullet = $this->useColors ? "\033[0;33m•\033[0m" : '•';
+            return $indent . $bullet . ' ' . $content;
+        }, $text);
+
+        // Format ordered lists
+        $text = preg_replace_callback('/^(\s*)(\d+)\. (.+)$/m', function ($matches) {
+            $indent = $matches[1];
+            $number = $matches[2];
+            $content = $matches[3];
+            $formattedNumber = $this->useColors ? "\033[0;33m{$number}.\033[0m" : "{$number}.";
+            return $indent . $formattedNumber . ' ' . $content;
+        }, $text);
+
+        // Format horizontal rules
+        $text = preg_replace('/^---$/m', str_repeat('─', 80), $text);
+        $text = preg_replace('/^\*\*\*$/m', str_repeat('─', 80), $text);
+
+        // Format blockquotes
+        $text = preg_replace_callback('/^> (.+)$/m', function ($matches) {
+            $content = $matches[1];
+            $prefix = $this->useColors ? "\033[0;90m│\033[0m " : '│ ';
+            return $prefix . $content;
+        }, $text);
+
+        // Format links (show URL in parentheses)
+        $text = preg_replace('/\[([^\]]+)\]\(([^)]+)\)/', '$1 ($2)', $text);
+
+        // Format tables (before other formatting to avoid conflicts)
+        $text = $this->formatTables($text);
+
+        // Clean up multiple blank lines
+        $text = preg_replace('/\n{3,}/', "\n\n", $text);
+
+        return trim($text);
+    }
+
+    /**
+     * Format markdown tables for console output.
+     *
+     * @param string $text Text with markdown tables
+     *
+     * @return string Text with formatted tables
+     */
+    protected function formatTables(string $text): string
+    {
+        // Match markdown tables (more flexible pattern)
+        // Matches: | col1 | col2 |\n|------|------|\n| val1 | val2 |
+        $pattern = '/(\|[^\n]+\|\s*\n(?:\|[-: ]+\|\s*\n)?(?:\|[^\n]+\|\s*\n?)+)/';
+        
+        return preg_replace_callback($pattern, function ($matches) {
+            $table = $matches[0];
+            $formatted = $this->formatTable($table);
+            // Add blank line before and after table for better readability
+            return "\n" . $formatted . "\n";
+        }, $text);
+    }
+
+    /**
+     * Format a single markdown table.
+     *
+     * @param string $table Markdown table
+     *
+     * @return string Formatted table
+     */
+    protected function formatTable(string $table): string
+    {
+        $lines = explode("\n", trim($table));
+        $rows = [];
+        $headerRow = null;
+        $foundSeparator = false;
+
+        // Parse table rows
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+
+            // Check if this is a header separator (|---|---| or |:---|:---:|)
+            if (preg_match('/^\|[-: ]+\|$/', $line)) {
+                $foundSeparator = true;
+                continue;
+            }
+
+            // Parse cells - handle both |cell| and | cell | formats
+            if (preg_match('/^\|(.+)\|$/', $line, $cellMatches)) {
+                // Split by | and filter empty strings
+                $rawCells = explode('|', $cellMatches[1]);
+                $cells = [];
+                foreach ($rawCells as $cell) {
+                    $trimmed = trim($cell);
+                    if ($trimmed !== '') {
+                        $cells[] = $trimmed;
+                    }
+                }
+
+                if (empty($cells)) {
+                    continue;
+                }
+
+                if ($headerRow === null && !$foundSeparator) {
+                    $headerRow = $cells;
+                } else {
+                    $rows[] = $cells;
+                }
+            }
+        }
+
+        if ($headerRow === null) {
+            return $table; // Return original if parsing failed
+        }
+
+        // Calculate column widths (ensure all rows have same number of columns)
+        $columnCount = count($headerRow);
+        $widths = array_fill(0, $columnCount, 0);
+
+        // Calculate width for header
+        foreach ($headerRow as $i => $cell) {
+            $widths[$i] = max($widths[$i], mb_strlen($cell));
+        }
+
+        // Calculate width for all rows
+        foreach ($rows as $row) {
+            for ($i = 0; $i < $columnCount; $i++) {
+                $cell = $row[$i] ?? '';
+                $widths[$i] = max($widths[$i], mb_strlen($cell));
+            }
+        }
+
+        // Ensure minimum width of 1
+        foreach ($widths as $i => $width) {
+            $widths[$i] = max(1, $width);
+        }
+
+        // Build formatted table
+        $result = [];
+        $topBorder = $this->buildTableTopBorder($widths);
+        $separatorBorder = $this->buildTableSeparator($widths);
+        $bottomBorder = $this->buildTableBottomBorder($widths);
+
+        // Top border
+        if ($this->useColors) {
+            $result[] = "\033[0;90m{$topBorder}\033[0m";
+        } else {
+            $result[] = $topBorder;
+        }
+
+        // Header
+        $headerLine = $this->buildTableRow($headerRow, $widths, true);
+        if ($this->useColors) {
+            $result[] = "\033[0;90m│\033[0m {$headerLine} \033[0;90m│\033[0m";
+            $result[] = "\033[0;90m{$separatorBorder}\033[0m";
+        } else {
+            $result[] = "│ {$headerLine} │";
+            $result[] = $separatorBorder;
+        }
+
+        // Rows
+        foreach ($rows as $row) {
+            $rowData = array_pad(array_slice($row, 0, $columnCount), $columnCount, '');
+            $rowLine = $this->buildTableRow($rowData, $widths, false);
+            if ($this->useColors) {
+                $result[] = "\033[0;90m│\033[0m {$rowLine} \033[0;90m│\033[0m";
+            } else {
+                $result[] = "│ {$rowLine} │";
+            }
+        }
+
+        // Bottom border
+        if ($this->useColors) {
+            $result[] = "\033[0;90m{$bottomBorder}\033[0m";
+        } else {
+            $result[] = $bottomBorder;
+        }
+
+        return implode("\n", $result);
+    }
+
+    /**
+     * Build table row.
+     *
+     * @param array<int, string> $cells Row cells
+     * @param array<int, int> $widths Column widths
+     * @param bool $isHeader Whether this is a header row
+     *
+     * @return string Formatted row
+     */
+    protected function buildTableRow(array $cells, array $widths, bool $isHeader): string
+    {
+        $parts = [];
+        for ($i = 0; $i < count($widths); $i++) {
+            $cell = $cells[$i] ?? '';
+            $width = $widths[$i];
+            $padded = str_pad($cell, $width, ' ', STR_PAD_RIGHT);
+
+            if ($isHeader && $this->useColors) {
+                $parts[] = "\033[1;33m{$padded}\033[0m";
+            } else {
+                $parts[] = $padded;
+            }
+
+            if ($i < count($widths) - 1) {
+                if ($this->useColors) {
+                    $parts[] = " \033[0;90m│\033[0m ";
+                } else {
+                    $parts[] = " │ ";
+                }
+            }
+        }
+
+        return implode('', $parts);
+    }
+
+    /**
+     * Build table top border.
+     *
+     * @param array<int, int> $widths Column widths
+     *
+     * @return string Top border string
+     */
+    protected function buildTableTopBorder(array $widths): string
+    {
+        $parts = [];
+        foreach ($widths as $width) {
+            $parts[] = str_repeat('─', $width + 2);
+        }
+        return '┌' . implode('┬', $parts) . '┐';
+    }
+
+    /**
+     * Build table separator (between header and rows).
+     *
+     * @param array<int, int> $widths Column widths
+     *
+     * @return string Separator string
+     */
+    protected function buildTableSeparator(array $widths): string
+    {
+        $parts = [];
+        foreach ($widths as $width) {
+            $parts[] = str_repeat('─', $width + 2);
+        }
+        return '├' . implode('┼', $parts) . '┤';
+    }
+
+    /**
+     * Build table bottom border.
+     *
+     * @param array<int, int> $widths Column widths
+     *
+     * @return string Bottom border string
+     */
+    protected function buildTableBottomBorder(array $widths): string
+    {
+        $parts = [];
+        foreach ($widths as $width) {
+            $parts[] = str_repeat('─', $width + 2);
+        }
+        return '└' . implode('┴', $parts) . '┘';
+    }
+
+    /**
+     * Format code block.
+     *
+     * @param string $code Code content
+     * @param string $lang Language (optional)
+     *
+     * @return string Formatted code block
+     */
+    protected function formatCodeBlock(string $code, string $lang = ''): string
+    {
+        $lines = explode("\n", trim($code));
+        $maxLength = 0;
+        foreach ($lines as $line) {
+            $maxLength = max($maxLength, mb_strlen($line));
+        }
+
+        $border = str_repeat('─', min($maxLength + 2, 80));
+        $langLabel = $lang !== '' ? " {$lang}" : '';
+
+        $result = [];
+        if ($this->useColors) {
+            $result[] = "\033[0;90m┌{$border}┐\033[0m";
+            if ($lang !== '') {
+                $result[] = "\033[0;90m│\033[0m\033[0;36m{$langLabel}\033[0m" . str_repeat(' ', max(0, $maxLength - mb_strlen($lang) + 1)) . "\033[0;90m│\033[0m";
+                $result[] = "\033[0;90m├{$border}┤\033[0m";
+            }
+        } else {
+            $result[] = "┌{$border}┐";
+            if ($lang !== '') {
+                $result[] = "│{$langLabel}" . str_repeat(' ', max(0, $maxLength - mb_strlen($lang) + 1)) . "│";
+                $result[] = "├{$border}┤";
+            }
+        }
+
+        foreach ($lines as $line) {
+            $padded = $line . str_repeat(' ', max(0, $maxLength - mb_strlen($line)));
+            if ($this->useColors) {
+                $result[] = "\033[0;90m│\033[0m \033[36m{$padded}\033[0m \033[0;90m│\033[0m";
+            } else {
+                $result[] = "│ {$padded} │";
+            }
+        }
+
+        if ($this->useColors) {
+            $result[] = "\033[0;90m└{$border}┘\033[0m";
+        } else {
+            $result[] = "└{$border}┘";
+        }
+
+        return implode("\n", $result);
+    }
+
+    /**
+     * Format header.
+     *
+     * @param int $level Header level (1-6)
+     * @param string $text Header text
+     *
+     * @return string Formatted header
+     */
+    protected function formatHeader(int $level, string $text): string
+    {
+        $text = trim($text);
+
+        if ($level === 1) {
+            $underline = str_repeat('=', mb_strlen($text));
+            if ($this->useColors) {
+                return "\033[1;33m{$text}\033[0m\n\033[0;33m{$underline}\033[0m";
+            }
+            return "{$text}\n{$underline}";
+        }
+
+        if ($level === 2) {
+            $underline = str_repeat('─', mb_strlen($text));
+            if ($this->useColors) {
+                return "\033[1;33m{$text}\033[0m\n\033[0;33m{$underline}\033[0m";
+            }
+            return "{$text}\n{$underline}";
+        }
+
+        // Level 3 and below
+        $prefix = str_repeat('#', $level) . ' ';
+        if ($this->useColors) {
+            return "\033[1;36m{$prefix}{$text}\033[0m";
+        }
+        return "{$prefix}{$text}";
+    }
+}
+

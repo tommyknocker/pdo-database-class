@@ -135,20 +135,36 @@ abstract class BaseAiProvider implements AiProviderInterface
     {
         $parts = [];
 
-        if (isset($context['schema'])) {
-            $parts[] = "Database Schema:\n" . json_encode($context['schema'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if (isset($context['schema']) && !empty($context['schema'])) {
+            $schemaJson = json_encode($context['schema'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            if ($schemaJson !== false) {
+                $parts[] = "Database Schema:\n" . $schemaJson;
+            }
         }
 
-        if (isset($context['explain_plan'])) {
-            $parts[] = "Query Execution Plan:\n" . json_encode($context['explain_plan'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if (isset($context['dialect'])) {
+            $parts[] = "Database Dialect: " . $context['dialect'];
         }
 
-        if (isset($context['table_stats'])) {
-            $parts[] = "Table Statistics:\n" . json_encode($context['table_stats'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if (isset($context['explain_plan']) && !empty($context['explain_plan'])) {
+            $planJson = json_encode($context['explain_plan'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            if ($planJson !== false) {
+                $parts[] = "Query Execution Plan:\n" . $planJson;
+            }
         }
 
-        if (isset($context['existing_analysis'])) {
-            $parts[] = "Existing Analysis:\n" . json_encode($context['existing_analysis'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if (isset($context['table_stats']) && !empty($context['table_stats'])) {
+            $statsJson = json_encode($context['table_stats'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            if ($statsJson !== false) {
+                $parts[] = "Table Statistics:\n" . $statsJson;
+            }
+        }
+
+        if (isset($context['existing_analysis']) && !empty($context['existing_analysis'])) {
+            $analysisJson = json_encode($context['existing_analysis'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            if ($analysisJson !== false) {
+                $parts[] = "Existing Analysis:\n" . $analysisJson;
+            }
         }
 
         return implode("\n\n", $parts);

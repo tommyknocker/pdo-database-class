@@ -21,6 +21,7 @@ PDOdb provides convenient command-line tools for common development tasks, inclu
 - [Query Tester (REPL)](#query-tester-repl)
 - [Database Monitoring](#database-monitoring)
 - [TUI Dashboard](#tui-dashboard)
+- [AI-Powered Analysis](#ai-powered-analysis)
 - [Cache Management](#cache-management)
 - [Benchmark and Performance Testing](#benchmark-and-performance-testing)
 - [Seed Management](#seed-management)
@@ -3550,6 +3551,7 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 - **`cache`** - Manage query result cache (clear, invalidate, statistics)
 - **`benchmark`** - Benchmark and performance testing
 - **`optimize`** - Database optimization analysis (schema, structure, slow queries, query analysis)
+- **`ai`** 🤖 - **AI-Powered Analysis** - Get intelligent database optimization recommendations (analyze, query, schema, optimize)
 - **`seed`** - Manage database seeds (create, run, list, rollback)
 - **`version`** - Show application version (also available as `--version` or `-v` flag)
 
@@ -3580,6 +3582,8 @@ vendor/bin/pdodb query --help
 vendor/bin/pdodb monitor --help
 vendor/bin/pdodb cache --help
 vendor/bin/pdodb benchmark --help
+vendor/bin/pdodb optimize --help
+vendor/bin/pdodb ai --help
 vendor/bin/pdodb seed --help
 ```
 

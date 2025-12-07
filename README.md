@@ -36,8 +36,9 @@ Built on top of PDO with **zero external dependencies**, it offers:
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
 
 **Developer Experience:**
+- **🤖 AI-Powered Analysis** - Get intelligent database optimization recommendations using OpenAI, Anthropic, Google, Microsoft, or Ollama. Analyze queries, optimize schema, and get AI-powered suggestions through `explainAiAdvice()` method or CLI commands. Includes MCP server for IDE/agent integration.
 - **🖥️ Interactive TUI Dashboard** - Real-time database monitoring with full-screen terminal interface. 8 panes across 2 screens: Active Queries, Connection Pool, Cache Statistics, Server Metrics, Schema Browser, Migration Manager, Server Variables, and SQL Scratchpad. Features include global search filter, query inspection, performance tracking, query management, and keyboard navigation. Launch with `pdodb ui`
-- **CLI Tools** - Database management, user management, dump/restore, migration generator, seed generator, model generator, schema inspector, interactive query tester (REPL)
+- **CLI Tools** - Database management, user management, dump/restore, migration generator, seed generator, model generator, schema inspector, interactive query tester (REPL), AI analysis commands
 - **Enhanced EXPLAIN** - Automatic detection of full table scans, missing indexes, and optimization recommendations
 - **Exception Hierarchy** - Typed exceptions for precise error handling
 - **Enhanced Error Diagnostics** - Query context, sanitized parameters, and debug information in exceptions
@@ -107,6 +108,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 - [5-Minute Tutorial](#5-minute-tutorial)
 - [Configuration](#configuration)
 - [Quick Start](#quick-start)
+  - [AI-Powered Query Analysis](#-ai-powered-query-analysis)
 - [JSON Operations](#json-operations)
 - [Advanced Usage](#advanced-usage)
 - [CLI Tools](#cli-tools)
@@ -445,6 +447,59 @@ See [Configuration Documentation](documentation/01-getting-started/04-configurat
 
 **Note**: All query examples start with `$db->find()` which returns a `QueryBuilder` instance.
 
+### 🤖 AI-Powered Query Analysis
+
+Get intelligent optimization recommendations for your queries using AI:
+
+```php
+use tommyknocker\pdodb\PdoDb;
+
+$db = PdoDb::fromEnv();
+
+// Configure AI (or use environment variables: PDODB_AI_OPENAI_KEY, etc.)
+$db = new PdoDb('mysql', [
+    'host' => 'localhost',
+    'dbname' => 'mydb',
+    'username' => 'user',
+    'password' => 'pass',
+    'ai' => [
+        'provider' => 'openai',
+        'openai_key' => 'sk-...',
+    ],
+]);
+
+// Get AI-enhanced analysis
+$result = $db->find()
+    ->from('users')
+    ->where('email', 'user@example.com')
+    ->explainAiAdvice(tableName: 'users', provider: 'openai');
+
+// Access base analysis (traditional EXPLAIN)
+foreach ($result->baseAnalysis->issues as $issue) {
+    echo "Issue: {$issue->message}\n";
+}
+
+// Access AI recommendations
+echo "AI Analysis:\n";
+echo $result->aiAnalysis . "\n";
+```
+
+Or use CLI:
+
+```bash
+# Set API key
+export PDODB_AI_OPENAI_KEY=sk-...
+
+# Analyze query
+pdodb ai analyze "SELECT * FROM users WHERE email = 'user@example.com'" \
+    --provider=openai \
+    --table=users
+```
+
+**Supported Providers:** OpenAI, Anthropic, Google, Microsoft, Ollama (local, no API key)
+
+See [AI Analysis Documentation](documentation/05-advanced-features/23-ai-analysis.md) for complete guide.
+
 ### Basic CRUD Operations
 
 ```php
@@ -668,6 +723,7 @@ Perfect for debugging, monitoring production databases, understanding query patt
 ### Available Commands
 
 - **`ui`** ⭐ - **Interactive TUI Dashboard** - Real-time database monitoring (full-screen terminal interface)
+- **`ai`** 🤖 - **AI-Powered Analysis** - Get intelligent database optimization recommendations using OpenAI, Anthropic, Google, Microsoft, or Ollama
 - **`db`** - Manage databases (create, drop, list, check existence)
 - **`user`** - Manage database users (create, drop, grant/revoke privileges)
 - **`dump`** - Dump and restore database (with compression, auto-naming, rotation)
@@ -677,6 +733,7 @@ Perfect for debugging, monitoring production databases, understanding query patt
 - **`model`** - Generate ActiveRecord models
 - **`table`** - Manage tables (info, create, drop, truncate)
 - **`monitor`** - Monitor database queries and performance
+- **`optimize`** - Database optimization analysis (analyze, structure, logs, query, db)
 
 ### Bash Completion
 
@@ -696,6 +753,11 @@ echo "source ~/.pdodb-completion.bash" >> ~/.bashrc
 ```bash
 # 🖥️ Launch interactive TUI Dashboard (real-time monitoring)
 vendor/bin/pdodb ui
+
+# 🤖 AI-powered analysis (requires API keys or Ollama)
+vendor/bin/pdodb ai analyze "SELECT * FROM users WHERE email = 'user@example.com'" --provider=openai
+vendor/bin/pdodb ai query "SELECT * FROM orders" --provider=anthropic --table=orders
+vendor/bin/pdodb ai schema --table=users --provider=ollama
 
 # Create database
 vendor/bin/pdodb db create myapp
