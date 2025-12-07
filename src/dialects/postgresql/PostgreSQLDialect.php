@@ -1318,6 +1318,70 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function getPrimaryKeyColumns(PdoDb $db, string $table): array
+    {
+        // PostgreSQL: use constraints instead of indexes
+        try {
+            $constraints = $db->constraints($table);
+            $constraintName = null;
+
+            // Find PRIMARY KEY constraint name
+            foreach ($constraints as $constraint) {
+                $type = $constraint['constraint_type'] ?? $constraint['CONSTRAINT_TYPE'] ?? null;
+                if (is_string($type) && strtoupper($type) === 'PRIMARY KEY') {
+                    $constraintName = $constraint['constraint_name'] ?? $constraint['CONSTRAINT_NAME'] ?? null;
+                    break;
+                }
+            }
+
+            if ($constraintName === null) {
+                return [];
+            }
+
+            // Query key_column_usage for all PK columns in proper order
+            // This works for both single and composite keys
+            $quotedTable = $this->quoteTable($table);
+            $quotedConstraint = $this->quoteIdentifier($constraintName);
+            $sql = "SELECT column_name
+                    FROM information_schema.key_column_usage
+                    WHERE table_name = {$quotedTable}
+                    AND constraint_name = {$quotedConstraint}
+                    ORDER BY ordinal_position";
+
+            try {
+                $result = $db->rawQuery($sql);
+                $columns = [];
+                foreach ($result as $row) {
+                    $col = $row['column_name'] ?? $row['COLUMN_NAME'] ?? null;
+                    if (is_string($col)) {
+                        $columns[] = $col;
+                    }
+                }
+                return $columns;
+            } catch (\Exception $e) {
+                // Fall back: collect columns from constraints (may not be in order)
+                $pkColumns = [];
+                foreach ($constraints as $constraint) {
+                    $type = $constraint['constraint_type'] ?? $constraint['CONSTRAINT_TYPE'] ?? null;
+                    $constName = $constraint['constraint_name'] ?? $constraint['CONSTRAINT_NAME'] ?? null;
+                    if (is_string($type) && strtoupper($type) === 'PRIMARY KEY' &&
+                        is_string($constName) && $constName === $constraintName) {
+                        $column = $constraint['column_name'] ?? $constraint['COLUMN_NAME'] ?? null;
+                        if (is_string($column)) {
+                            $pkColumns[] = $column;
+                        }
+                    }
+                }
+                return array_unique($pkColumns);
+            }
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function getStringType(): string
     {
         return 'VARCHAR';

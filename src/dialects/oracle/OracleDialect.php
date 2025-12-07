@@ -552,7 +552,10 @@ class OracleDialect extends DialectAbstract
     public function buildTableExistsSql(string $table): string
     {
         // Oracle: check USER_TABLES or ALL_TABLES
-        return "SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME = UPPER('{$table}')";
+        // Oracle stores table names case-sensitively if created with quoted identifiers
+        // Check both exact match and UPPER() match to handle both cases
+        $tableEscaped = str_replace("'", "''", $table);
+        return "SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME = '{$tableEscaped}' OR TABLE_NAME = UPPER('{$tableEscaped}')";
     }
 
     /**
@@ -560,9 +563,12 @@ class OracleDialect extends DialectAbstract
      */
     public function buildDescribeSql(string $table): string
     {
+        // Oracle stores table names case-sensitively if created with quoted identifiers
+        // Try both exact match and UPPER() match to handle both cases
+        $tableEscaped = str_replace("'", "''", $table);
         return "SELECT COLUMN_NAME, DATA_TYPE, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, NULLABLE, DATA_DEFAULT
                 FROM USER_TAB_COLUMNS
-                WHERE TABLE_NAME = UPPER('{$table}')
+                WHERE TABLE_NAME = '{$tableEscaped}' OR TABLE_NAME = UPPER('{$tableEscaped}')
                 ORDER BY COLUMN_ID";
     }
 
@@ -1218,13 +1224,16 @@ class OracleDialect extends DialectAbstract
      */
     public function buildShowIndexesSql(string $table): string
     {
+        // Oracle stores table names case-sensitively if created with quoted identifiers
+        // Try both exact match and UPPER() match to handle both cases
+        $tableEscaped = str_replace("'", "''", $table);
         return "SELECT
             INDEX_NAME as index_name,
             TABLE_NAME as table_name,
             COLUMN_NAME as column_name,
             COLUMN_POSITION as column_position
             FROM USER_IND_COLUMNS
-            WHERE TABLE_NAME = UPPER('{$table}')
+            WHERE TABLE_NAME = '{$tableEscaped}' OR TABLE_NAME = UPPER('{$tableEscaped}')
             ORDER BY INDEX_NAME, COLUMN_POSITION";
     }
 
@@ -1233,15 +1242,21 @@ class OracleDialect extends DialectAbstract
      */
     public function buildShowForeignKeysSql(string $table): string
     {
+        // Oracle stores table names case-sensitively if created with quoted identifiers
+        // Use UPPER() for both sides to handle case-insensitive comparison
+        // This works for both quoted (case-sensitive) and unquoted (uppercase) table names
+        $tableEscaped = str_replace("'", "''", $table);
         return "SELECT
-            CONSTRAINT_NAME,
-            COLUMN_NAME,
-            R_TABLE_NAME as REFERENCED_TABLE_NAME,
-            R_COLUMN_NAME as REFERENCED_COLUMN_NAME
+            ucc.CONSTRAINT_NAME,
+            ucc.COLUMN_NAME,
+            uc.R_OWNER as REFERENCED_TABLE_SCHEMA,
+            (SELECT TABLE_NAME FROM USER_CONSTRAINTS WHERE CONSTRAINT_NAME = uc.R_CONSTRAINT_NAME AND ROWNUM = 1) as REFERENCED_TABLE_NAME,
+            (SELECT COLUMN_NAME FROM USER_CONS_COLUMNS WHERE CONSTRAINT_NAME = uc.R_CONSTRAINT_NAME AND POSITION = ucc.POSITION AND ROWNUM = 1) as REFERENCED_COLUMN_NAME
             FROM USER_CONS_COLUMNS ucc
             JOIN USER_CONSTRAINTS uc ON ucc.CONSTRAINT_NAME = uc.CONSTRAINT_NAME
-            WHERE uc.TABLE_NAME = UPPER('{$table}')
-            AND uc.CONSTRAINT_TYPE = 'R'";
+            WHERE UPPER(uc.TABLE_NAME) = UPPER('{$tableEscaped}')
+            AND uc.CONSTRAINT_TYPE = 'R'
+            ORDER BY ucc.CONSTRAINT_NAME, ucc.POSITION";
     }
 
     /**
@@ -2166,7 +2181,11 @@ class OracleDialect extends DialectAbstract
         } else {
             $rows = $db->rawQuery('SELECT TABLE_NAME FROM USER_TABLES ORDER BY TABLE_NAME');
             foreach ($rows as $row) {
-                $tables[] = (string)$row['TABLE_NAME'];
+                // Oracle may return keys in different cases depending on PDO settings
+                $tableName = $row['TABLE_NAME'] ?? $row['table_name'] ?? $row['Table_Name'] ?? null;
+                if ($tableName !== null) {
+                    $tables[] = (string)$tableName;
+                }
             }
         }
 
@@ -2343,7 +2362,11 @@ class OracleDialect extends DialectAbstract
         } else {
             $rows = $db->rawQuery('SELECT TABLE_NAME FROM USER_TABLES ORDER BY TABLE_NAME');
             foreach ($rows as $row) {
-                $tables[] = (string)$row['TABLE_NAME'];
+                // Oracle may return keys in different cases depending on PDO settings
+                $tableName = $row['TABLE_NAME'] ?? $row['table_name'] ?? $row['Table_Name'] ?? null;
+                if ($tableName !== null) {
+                    $tables[] = (string)$tableName;
+                }
             }
         }
 
@@ -2680,8 +2703,62 @@ class OracleDialect extends DialectAbstract
             $rows = $db->rawQuery($sql, [':schema' => $schemaName]);
         }
         /** @var array<int, string> $names */
-        $names = array_map(static fn (array $r): string => (string)$r['TABLE_NAME'], $rows);
-        return $names;
+        $names = array_map(static function (array $r): string {
+            // Oracle may return keys in different cases depending on PDO settings
+            // Check both uppercase and lowercase variants
+            if (isset($r['TABLE_NAME'])) {
+                return (string)$r['TABLE_NAME'];
+            }
+            if (isset($r['table_name'])) {
+                return (string)$r['table_name'];
+            }
+            if (isset($r['Table_Name'])) {
+                return (string)$r['Table_Name'];
+            }
+            // Fallback: try to get first value if key format is unexpected
+            $values = array_values($r);
+            if (!empty($values)) {
+                return (string)$values[0];
+            }
+            return '';
+        }, $rows);
+        // Filter out empty strings
+        return array_filter($names, static fn (string $name): bool => $name !== '');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getPrimaryKeyColumns(PdoDb $db, string $table): array
+    {
+        // Oracle: use constraints instead of indexes (PRIMARY KEY is a constraint, not an index)
+        try {
+            // Oracle stores table names case-sensitively if created with quoted identifiers
+            // Try both exact match and UPPER() match to handle both cases
+            $pkRows = $db->rawQuery(
+                "SELECT acc.COLUMN_NAME
+                 FROM USER_CONSTRAINTS ac
+                 JOIN USER_CONS_COLUMNS acc ON ac.CONSTRAINT_NAME = acc.CONSTRAINT_NAME
+                 WHERE (ac.TABLE_NAME = ? OR ac.TABLE_NAME = UPPER(?)) AND ac.CONSTRAINT_TYPE = 'P'
+                 ORDER BY acc.POSITION",
+                [$table, $table]
+            );
+
+            // Normalize keys to uppercase (same as in buildDumpSql)
+            $pkRows = array_map(static fn (array $row): array => array_change_key_case($row, CASE_UPPER), $pkRows);
+
+            $columns = [];
+            foreach ($pkRows as $row) {
+                $columnName = $row['COLUMN_NAME'] ?? null;
+                if (is_string($columnName) && $columnName !== '') {
+                    $columns[] = $columnName;
+                }
+            }
+
+            return $columns;
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 
     /* ---------------- Error Handling ---------------- */

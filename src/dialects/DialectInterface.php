@@ -1500,6 +1500,16 @@ interface DialectInterface
     public function getBigPrimaryKeyType(): string;
 
     /**
+     * Get primary key columns for a table.
+     *
+     * @param PdoDb $db Database instance
+     * @param string $table Table name
+     *
+     * @return array<int, string> Array of primary key column names
+     */
+    public function getPrimaryKeyColumns(PdoDb $db, string $table): array;
+
+    /**
      * Get string column type for this dialect.
      *
      * @return string Column type name (e.g., 'VARCHAR', 'TEXT')

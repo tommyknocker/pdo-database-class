@@ -50,6 +50,7 @@ The CLI tools are designed to streamline your development workflow:
 - **TUI Dashboard** - Interactive full-screen terminal dashboard for real-time monitoring
 - **Cache Management** - Manage query result cache (clear, invalidate, statistics)
 - **Benchmark and Performance Testing** - Benchmark queries and operations, compare configurations
+- **Database Optimization** - Analyze schema structure, slow queries, and query performance
 - **Seed Management** - Create, run, and rollback database seeds for test and initial data
 
 ## Database Dump and Restore
@@ -3126,6 +3127,244 @@ class DatabaseTest extends PHPUnit\Framework\TestCase
 
 Seeds provide a powerful and flexible way to manage test and initial data in your PDOdb applications, ensuring consistent and reproducible database states across different environments.
 
+## Database Optimization
+
+The `optimize` command provides comprehensive database optimization analysis tools to help identify performance issues, structural problems, and optimization opportunities.
+
+### Overview
+
+The optimization tools analyze:
+- **Schema Structure** - Missing primary keys, redundant indexes, foreign key issues
+- **Query Performance** - Slow queries, missing indexes, execution plan analysis
+- **Slow Query Logs** - Parse and analyze MySQL/MariaDB slow query logs
+- **Individual Queries** - EXPLAIN analysis with recommendations
+
+### Subcommands
+
+#### `pdodb optimize analyze`
+
+Performs holistic analysis of the entire database schema, checking all tables for common issues.
+
+**Usage:**
+```bash
+# Analyze entire schema
+vendor/bin/pdodb optimize analyze
+
+# Analyze specific schema (PostgreSQL)
+vendor/bin/pdodb optimize analyze --schema=public
+
+# Output as JSON
+vendor/bin/pdodb optimize analyze --format=json
+
+# Output as YAML
+vendor/bin/pdodb optimize analyze --format=yaml
+```
+
+**What it checks:**
+- Missing primary keys (critical issue)
+- Redundant indexes (indexes covered by other indexes)
+- Missing foreign key indexes
+- Large tables (potential partitioning candidates)
+- Overall schema statistics
+
+**Example output:**
+```
+Schema Analysis Report
+=====================
+
+Critical Issues (2):
+  ❌ Table 'users' has no PRIMARY KEY
+  ❌ Table 'orders' has no PRIMARY KEY
+
+Warnings (5):
+  ⚠️  Table 'products': Redundant index 'idx_name' (covered by 'idx_name_status')
+  ⚠️  Table 'orders': Missing index on foreign key 'user_id'
+  ...
+
+Statistics:
+  - Total tables: 25
+  - Tables with issues: 7
+  - Total indexes: 48
+  - Redundant indexes: 3
+```
+
+#### `pdodb optimize structure`
+
+Analyzes table structure for optimization opportunities. Can analyze a single table or all tables.
+
+**Usage:**
+```bash
+# Analyze specific table
+vendor/bin/pdodb optimize structure --table=users
+
+# Analyze all tables (same as analyze)
+vendor/bin/pdodb optimize structure
+
+# Output as JSON
+vendor/bin/pdodb optimize structure --table=users --format=json
+```
+
+**What it checks:**
+- Primary key presence
+- Index structure and redundancy
+- Foreign key indexes
+- Index suggestions based on common patterns
+
+**Example output:**
+```
+Table Structure Analysis: 'users'
+===============================
+
+Primary Key: ✓ Present (id)
+
+Indexes (5):
+  ✓ idx_email (email) - UNIQUE
+  ⚠️  idx_name (name) - REDUNDANT (covered by idx_name_status)
+  ✓ idx_name_status (name, status)
+  ✓ idx_created_at (created_at)
+  ⚠️  idx_user_id (user_id) - MISSING (FK column without index)
+
+Foreign Keys (2):
+  ✓ fk_user_role (role_id -> roles.id) - has index
+  ⚠️  fk_user_company (company_id -> companies.id) - missing index
+
+Suggestions:
+  🔴 HIGH: Add index on 'company_id' (foreign key)
+  🟡 MEDIUM: Remove redundant index 'idx_name'
+  🟢 LOW: Consider index on 'status' for filtering
+```
+
+#### `pdodb optimize logs`
+
+Analyzes MySQL/MariaDB slow query logs to identify performance bottlenecks.
+
+**Usage:**
+```bash
+# Analyze slow query log
+vendor/bin/pdodb optimize logs --file=/var/log/mysql/slow.log
+
+# Output as JSON
+vendor/bin/pdodb optimize logs --file=/var/log/mysql/slow.log --format=json
+```
+
+**What it does:**
+- Parses slow query log file
+- Groups queries by normalized SQL
+- Calculates statistics (count, avg time, max time, total time)
+- Sorts by total time (most problematic queries first)
+- Provides recommendations based on query patterns
+
+**Example output:**
+```
+Slow Query Log Analysis
+=======================
+
+Top 10 Slowest Queries (by total time):
+
+1. SELECT * FROM orders WHERE user_id = ? AND status = ?
+   - Count: 1,234
+   - Avg time: 2.5s
+   - Max time: 8.3s
+   - Total time: 3,085s
+   - Recommendation: Add index on (user_id, status)
+
+2. SELECT u.*, o.* FROM users u JOIN orders o ON u.id = o.user_id
+   - Count: 456
+   - Avg time: 1.2s
+   - Recommendation: Check JOIN performance, consider indexes
+
+Summary:
+  - Total queries: 5,678
+  - Unique queries: 234
+  - Queries > 1s: 123
+  - Total slow time: 12,345s
+```
+
+#### `pdodb optimize query`
+
+Analyzes a single SQL query using EXPLAIN and provides optimization recommendations.
+
+**Usage:**
+```bash
+# Analyze query
+vendor/bin/pdodb optimize query "SELECT * FROM users WHERE email = 'test@example.com'"
+
+# Output as JSON
+vendor/bin/pdodb optimize query "SELECT * FROM users WHERE id = 1" --format=json
+```
+
+**What it does:**
+- Executes EXPLAIN on the query
+- Analyzes execution plan
+- Detects issues (full table scans, missing indexes, etc.)
+- Provides recommendations with severity levels
+
+**Example output:**
+```
+Query Analysis
+==============
+
+SQL: SELECT * FROM users WHERE email = ? AND status = 'active'
+
+EXPLAIN Plan:
+  type: ref
+  key: idx_email
+  rows: 1
+  Extra: Using where
+
+Issues:
+  ⚠️  Full table scan on 'orders' (JOIN)
+  ℹ️  Query requires filesort
+
+Recommendations:
+  🔴 HIGH: Add index on orders.user_id (for JOIN)
+  🟡 MEDIUM: Consider composite index on (email, status) for better filtering
+  🟢 LOW: Add index on ORDER BY column 'created_at'
+```
+
+### Options
+
+| Option | Description | Subcommands |
+|--------|-------------|-------------|
+| `--format=FORMAT` | Output format: `table`, `json`, or `yaml` | All |
+| `--schema=SCHEMA` | Schema name (for analyze) | analyze |
+| `--table=TABLE` | Table name (for structure) | structure |
+| `--file=FILE` | Slow query log file path | logs |
+
+### Integration with Other Tools
+
+The optimization tools integrate seamlessly with other PDOdb CLI commands:
+
+```bash
+# 1. Analyze schema
+pdodb optimize analyze
+
+# 2. Get index suggestions for specific table
+pdodb table indexes suggest users
+
+# 3. Analyze specific query
+pdodb optimize query "SELECT * FROM users WHERE status = 'active'"
+
+# 4. Create suggested indexes
+pdodb table indexes add idx_status users --columns=status
+```
+
+### Best Practices
+
+1. **Regular Analysis** - Run `optimize analyze` regularly (e.g., in CI/CD) to catch structural issues early
+2. **Before Major Releases** - Analyze schema before deploying to production
+3. **After Schema Changes** - Run analysis after migrations to ensure no issues were introduced
+4. **Slow Query Monitoring** - Regularly analyze slow query logs to identify performance regressions
+5. **Query Optimization** - Use `optimize query` when developing new queries to ensure optimal performance
+
+### Limitations
+
+- **Slow Query Logs** - Currently supports MySQL/MariaDB format only
+- **Index Recommendations** - Based on common patterns, may not cover all use cases
+- **No AI Integration** - First phase without AI; AI recommendations will be added in future versions
+
+The optimization tools provide a solid foundation for database performance analysis and will be enhanced with AI-powered recommendations in future releases.
+
 ## Installation
 
 After installing PDOdb via Composer, the CLI tool is automatically available in `vendor/bin/`:
@@ -3196,6 +3435,7 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 - **`monitor`** - Monitor database queries, connections, and performance
 - **`cache`** - Manage query result cache (clear, invalidate, statistics)
 - **`benchmark`** - Benchmark and performance testing
+- **`optimize`** - Database optimization analysis (schema, structure, slow queries, query analysis)
 - **`seed`** - Manage database seeds (create, run, list, rollback)
 - **`version`** - Show application version (also available as `--version` or `-v` flag)
 

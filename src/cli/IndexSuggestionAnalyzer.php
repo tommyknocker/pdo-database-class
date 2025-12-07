@@ -80,9 +80,19 @@ class IndexSuggestionAnalyzer
     {
         $names = [];
         foreach ($columns as $col) {
+            // Try all possible key variations (Oracle may return keys in different cases)
             $name = $col['Field'] ?? $col['COLUMN_NAME'] ?? $col['column_name'] ?? $col['name'] ?? null;
+            // Also try case-insensitive key lookup
+            if ($name === null) {
+                foreach ($col as $key => $value) {
+                    if (strtolower($key) === 'column_name' || strtolower($key) === 'field' || strtolower($key) === 'name') {
+                        $name = $value;
+                        break;
+                    }
+                }
+            }
             if (is_string($name) && $name !== '') {
-                $names[] = $name;
+                $names[] = strtolower($name);
             }
         }
         return $names;
@@ -124,7 +134,9 @@ class IndexSuggestionAnalyzer
         $indexed = [];
         foreach ($indexes as $cols) {
             foreach ($cols as $col) {
-                $indexed[$col] = true;
+                if (is_string($col) && $col !== '') {
+                    $indexed[strtolower($col)] = true;
+                }
             }
         }
         return array_keys($indexed);
@@ -161,27 +173,38 @@ class IndexSuggestionAnalyzer
 
         foreach ($foreignKeys as $fk) {
             // Extract column name from different dialect formats
+            // Try all possible key variations (Oracle may return keys in different cases)
             $column = $fk['COLUMN_NAME'] ?? $fk['column_name'] ?? $fk['from'] ?? null;
+            // Also try case-insensitive key lookup
+            if ($column === null) {
+                foreach ($fk as $key => $value) {
+                    if (strtolower($key) === 'column_name' || strtolower($key) === 'from') {
+                        $column = $value;
+                        break;
+                    }
+                }
+            }
 
             if (!is_string($column) || $column === '') {
                 continue;
             }
 
-            // Check if column is already indexed
-            if (in_array($column, $indexedColumns, true)) {
+            // Check if column is already indexed (compare in lowercase)
+            $columnLower = strtolower($column);
+            if (in_array($columnLower, $indexedColumns, true)) {
                 continue;
             }
 
             $fkName = $fk['CONSTRAINT_NAME'] ?? $fk['constraint_name'] ?? $fk['name'] ?? 'unknown';
             $refTable = $fk['REFERENCED_TABLE_NAME'] ?? $fk['referenced_table_name'] ?? $fk['table'] ?? 'unknown';
 
-            $indexName = $this->generateIndexName($table, [$column]);
+            $indexName = $this->generateIndexName($table, [$columnLower]);
             $sql = $this->buildCreateIndexSql($table, $indexName, [$column]);
 
             $suggestions[] = [
                 'priority' => 'high',
                 'type' => 'foreign_key',
-                'columns' => [$column],
+                'columns' => [$columnLower],
                 'reason' => sprintf(
                     'Foreign key column "%s" (references %s.%s) without index. Foreign keys should be indexed for JOIN performance.',
                     $column,
@@ -213,17 +236,18 @@ class IndexSuggestionAnalyzer
         // Common status/enum columns
         $statusColumns = ['status', 'state', 'type', 'kind', 'category'];
         foreach ($statusColumns as $statusCol) {
-            if (in_array($statusCol, $columnNames, true) && !in_array($statusCol, $indexedColumns, true)) {
+            $statusColLower = strtolower($statusCol);
+            if (in_array($statusColLower, $columnNames, true) && !in_array($statusColLower, $indexedColumns, true)) {
                 // Check if it's an enum or has limited values
                 $colInfo = $this->findColumn($columns, $statusCol);
                 if ($colInfo !== null) {
-                    $indexName = $this->generateIndexName($table, [$statusCol]);
+                    $indexName = $this->generateIndexName($table, [$statusColLower]);
                     $sql = $this->buildCreateIndexSql($table, $indexName, [$statusCol]);
 
                     $suggestions[] = [
                         'priority' => 'medium',
                         'type' => 'status_column',
-                        'columns' => [$statusCol],
+                        'columns' => [$statusColLower],
                         'reason' => sprintf(
                             'Status/enum column "%s" frequently used in WHERE clauses. Consider indexing for filtering performance.',
                             $statusCol
@@ -238,14 +262,15 @@ class IndexSuggestionAnalyzer
         // Common soft delete pattern
         $softDeleteColumns = ['deleted_at', 'deleted', 'is_deleted', 'archived_at', 'archived'];
         foreach ($softDeleteColumns as $delCol) {
-            if (in_array($delCol, $columnNames, true) && !in_array($delCol, $indexedColumns, true)) {
-                $indexName = $this->generateIndexName($table, [$delCol]);
+            $delColLower = strtolower($delCol);
+            if (in_array($delColLower, $columnNames, true) && !in_array($delColLower, $indexedColumns, true)) {
+                $indexName = $this->generateIndexName($table, [$delColLower]);
                 $sql = $this->buildCreateIndexSql($table, $indexName, [$delCol]);
 
                 $suggestions[] = [
                     'priority' => 'high',
                     'type' => 'soft_delete',
-                    'columns' => [$delCol],
+                    'columns' => [$delColLower],
                     'reason' => sprintf(
                         'Soft delete column "%s" should be indexed for efficient filtering of active records (WHERE %s IS NULL).',
                         $delCol,
@@ -299,19 +324,31 @@ class IndexSuggestionAnalyzer
                 continue;
             }
 
-            $type = strtolower($colInfo['Type'] ?? $colInfo['type'] ?? $colInfo['data_type'] ?? '');
+            // Try all possible key variations for type (Oracle may return keys in different cases)
+            $type = $colInfo['Type'] ?? $colInfo['type'] ?? $colInfo['data_type'] ?? $colInfo['DATA_TYPE'] ?? '';
+            // Also try case-insensitive key lookup
+            if ($type === '') {
+                foreach ($colInfo as $key => $value) {
+                    if (strtolower($key) === 'data_type' || strtolower($key) === 'type') {
+                        $type = $value;
+                        break;
+                    }
+                }
+            }
+            $type = strtolower($type);
             if (!str_contains($type, 'timestamp') && !str_contains($type, 'datetime') && !str_contains($type, 'date')) {
                 continue;
             }
 
-            if (!in_array($tsCol, $indexedColumns, true)) {
-                $indexName = $this->generateIndexName($table, [$tsCol]);
+            $tsColLower = strtolower($tsCol);
+            if (!in_array($tsColLower, $indexedColumns, true)) {
+                $indexName = $this->generateIndexName($table, [$tsColLower]);
                 $sql = $this->buildCreateIndexSql($table, $indexName, [$tsCol]);
 
                 $suggestions[] = [
                     'priority' => 'low',
                     'type' => 'timestamp_sorting',
-                    'columns' => [$tsCol],
+                    'columns' => [$tsColLower],
                     'reason' => sprintf(
                         'Timestamp column "%s" may be used for sorting (ORDER BY). Index can improve sorting performance for large tables.',
                         $tsCol
@@ -335,9 +372,20 @@ class IndexSuggestionAnalyzer
      */
     protected function findColumn(array $columns, string $columnName): ?array
     {
+        $columnNameLower = strtolower($columnName);
         foreach ($columns as $col) {
+            // Try all possible key variations (Oracle may return keys in different cases)
             $name = $col['Field'] ?? $col['COLUMN_NAME'] ?? $col['column_name'] ?? $col['name'] ?? null;
-            if (is_string($name) && $name === $columnName) {
+            // Also try case-insensitive key lookup
+            if ($name === null) {
+                foreach ($col as $key => $value) {
+                    if (strtolower($key) === 'column_name' || strtolower($key) === 'field' || strtolower($key) === 'name') {
+                        $name = $value;
+                        break;
+                    }
+                }
+            }
+            if (is_string($name) && strtolower($name) === $columnNameLower) {
                 return $col;
             }
         }

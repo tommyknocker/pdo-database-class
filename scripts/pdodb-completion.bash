@@ -23,7 +23,7 @@ _pdodb() {
     local global_opts="--help --version -v --connection= --config= --env="
 
     # Main commands
-    local commands="migrate seed schema query model repository service generate db user table connection dump monitor ui cache benchmark init version"
+    local commands="migrate seed schema query model repository service generate db user table connection dump monitor ui cache benchmark optimize init version"
 
     # If no command yet, complete with commands
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -461,6 +461,42 @@ _pdodb() {
         elif [[ "${subcmd}" == "list" ]]; then
             local connection_opts="--format=table --format=json --format=yaml --format"
             COMPREPLY=($(compgen -W "${connection_opts}" -- "${cur}"))
+        fi
+        return 0
+    fi
+
+    # Optimize command
+    if [[ "${cmd}" == "optimize" ]]; then
+        local optimize_subcommands="analyze structure logs query help"
+        
+        if [[ ${COMP_CWORD} -eq 2 ]]; then
+            COMPREPLY=($(compgen -W "${optimize_subcommands} --help" -- "${cur}"))
+        elif [[ "${subcmd}" == "analyze" ]]; then
+            local optimize_opts="--schema= --format=table --format=json --format=yaml --format"
+            COMPREPLY=($(compgen -W "${optimize_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "structure" ]]; then
+            if [[ ${COMP_CWORD} -eq 3 ]]; then
+                # Complete table names
+                _pdodb_complete_tables
+            else
+                local optimize_opts="--table= --format=table --format=json --format=yaml --format"
+                COMPREPLY=($(compgen -W "${optimize_opts}" -- "${cur}"))
+            fi
+        elif [[ "${subcmd}" == "logs" ]]; then
+            if [[ "${prev}" == "--file" ]] || [[ "${prev}" == "-f" ]]; then
+                COMPREPLY=($(compgen -f -- "${cur}"))
+            else
+                local optimize_opts="--file= --format=table --format=json --format=yaml --format"
+                COMPREPLY=($(compgen -W "${optimize_opts}" -- "${cur}"))
+            fi
+        elif [[ "${subcmd}" == "query" ]]; then
+            if [[ ${COMP_CWORD} -eq 3 ]]; then
+                # SQL query - no completion
+                COMPREPLY=()
+            else
+                local optimize_opts="--format=table --format=json --format=yaml --format"
+                COMPREPLY=($(compgen -W "${optimize_opts}" -- "${cur}"))
+            fi
         fi
         return 0
     fi

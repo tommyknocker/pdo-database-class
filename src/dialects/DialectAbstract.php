@@ -865,6 +865,31 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function getPrimaryKeyColumns(PdoDb $db, string $table): array
+    {
+        // Default implementation: check indexes for PRIMARY key (MySQL/MariaDB/SQLite)
+        try {
+            $indexes = $db->indexes($table);
+            $pkColumns = [];
+
+            foreach ($indexes as $idx) {
+                $name = $idx['Key_name'] ?? $idx['indexname'] ?? $idx['name'] ?? $idx['INDEX_NAME'] ?? null;
+                $column = $idx['Column_name'] ?? $idx['column_name'] ?? $idx['column'] ?? $idx['COLUMN_NAME'] ?? null;
+
+                if (is_string($name) && strtoupper($name) === 'PRIMARY' && is_string($column)) {
+                    $pkColumns[] = $column;
+                }
+            }
+
+            return array_unique($pkColumns);
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function getStringType(): string
     {
         // Default: VARCHAR for MySQL/MariaDB/MSSQL/PostgreSQL
