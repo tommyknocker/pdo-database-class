@@ -12,6 +12,7 @@ use tommyknocker\pdodb\cache\QueryCacheKey;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\helpers\values\AsValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\AiExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\ExplainAnalyzer;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
@@ -963,6 +964,70 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         $targetTable = $tableName ?? $this->table;
 
         return $analyzer->analyze($explainResults, $targetTable);
+    }
+
+    /**
+     * Analyze EXPLAIN output with AI-powered recommendations.
+     *
+     * @param string|null $tableName Optional table name for index suggestions
+     * @param string|null $provider AI provider name (openai, anthropic, google, microsoft, ollama)
+     * @param array<string, mixed> $options Additional options (temperature, max_tokens, model)
+     *
+     * @return AiExplainAnalysis Analysis result with AI recommendations
+     */
+    public function explainAiAdvice(?string $tableName = null, ?string $provider = null, array $options = []): AiExplainAnalysis
+    {
+        // Get base analysis first
+        $baseAnalysis = $this->explainAdvice($tableName);
+
+        // Get database instance from connection
+        $db = $this->getDatabaseInstance();
+
+        // Use AI service to get additional analysis
+        $aiService = new \tommyknocker\pdodb\ai\AiAnalysisService($db);
+        $sqlData = $this->toSQL();
+        $targetTable = $tableName ?? $this->table;
+
+        try {
+            $aiAnalysis = $aiService->analyzeQuery($sqlData['sql'], $targetTable, $provider, $options);
+            $aiProvider = $aiService->getProvider($provider);
+            $model = $aiProvider->getModel();
+        } catch (\Throwable $e) {
+            // If AI fails, return base analysis with error message
+            $aiAnalysis = 'AI analysis unavailable: ' . $e->getMessage();
+            $model = null;
+        }
+
+        return new AiExplainAnalysis(
+            $baseAnalysis,
+            $aiAnalysis,
+            $provider ?? 'openai',
+            $model
+        );
+    }
+
+    /**
+     * Get PdoDb instance from connection.
+     *
+     * @return \tommyknocker\pdodb\PdoDb Database instance
+     */
+    protected function getDatabaseInstance(): \tommyknocker\pdodb\PdoDb
+    {
+        // Create a minimal PdoDb instance that uses the existing connection
+        $driver = $this->connection->getDriverName();
+        $pdo = $this->connection->getPdo();
+        $dialect = $this->connection->getDialect();
+
+        // Create PdoDb with existing PDO and dialect
+        $db = new \tommyknocker\pdodb\PdoDb();
+        $db->addConnection('default', [
+            'driver' => $driver,
+            'pdo' => $pdo,
+            'dialect' => $dialect,
+        ]);
+        $db->connection('default');
+
+        return $db;
     }
 
     /**

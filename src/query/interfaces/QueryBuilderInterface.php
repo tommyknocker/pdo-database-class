@@ -10,6 +10,7 @@ use PDOStatement;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\AiExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\QueryBuilder;
 
@@ -674,6 +675,17 @@ interface QueryBuilderInterface
      * @return ExplainAnalysis Analysis result with recommendations
      */
     public function explainAdvice(?string $tableName = null): ExplainAnalysis;
+
+    /**
+     * Analyze EXPLAIN output with AI-powered recommendations.
+     *
+     * @param string|null $tableName Optional table name for index suggestions
+     * @param string|null $provider AI provider name (openai, anthropic, google, microsoft, ollama)
+     * @param array<string, mixed> $options Additional options (temperature, max_tokens, model)
+     *
+     * @return AiExplainAnalysis Analysis result with AI recommendations
+     */
+    public function explainAiAdvice(?string $tableName = null, ?string $provider = null, array $options = []): AiExplainAnalysis;
 
     /**
      * @return array<int, array<string, mixed>>

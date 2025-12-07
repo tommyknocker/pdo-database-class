@@ -152,7 +152,8 @@
     }
   },
   "bin": [
-    "bin/pdodb"
+    "bin/pdodb",
+    "bin/pdodb-mcp"
   ],
   "scripts": {
     "pdodb:test": "phpunit",

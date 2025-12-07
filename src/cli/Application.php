@@ -75,6 +75,7 @@ class Application
         $this->addCommand(new commands\CacheCommand());
         $this->addCommand(new commands\BenchmarkCommand());
         $this->addCommand(new commands\OptimizeCommand());
+        $this->addCommand(new commands\AiCommand());
 
         // Utilities
         $this->addCommand(new commands\DumpCommand());

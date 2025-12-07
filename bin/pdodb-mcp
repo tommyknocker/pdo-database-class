@@ -1,0 +1,17 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\ai\mcp\McpServer;
+
+// Load database configuration from environment
+$db = PdoDb::fromEnv();
+
+// Create and run MCP server
+$server = new McpServer($db);
+$server->run();
+

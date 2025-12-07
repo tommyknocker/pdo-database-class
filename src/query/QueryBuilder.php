@@ -16,6 +16,7 @@ use tommyknocker\pdodb\connection\ConnectionRouter;
 use tommyknocker\pdodb\connection\sharding\ShardRouter;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\analysis\AiExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\cte\CteDefinition;
@@ -2103,6 +2104,20 @@ class QueryBuilder implements QueryBuilderInterface
     public function explainAdvice(?string $tableName = null): ExplainAnalysis
     {
         return $this->selectQueryBuilder->explainAdvice($tableName);
+    }
+
+    /**
+     * Analyze EXPLAIN output with AI-powered recommendations.
+     *
+     * @param string|null $tableName Optional table name for index suggestions
+     * @param string|null $provider AI provider name (openai, anthropic, google, microsoft, ollama)
+     * @param array<string, mixed> $options Additional options (temperature, max_tokens, model)
+     *
+     * @return AiExplainAnalysis Analysis result with AI recommendations
+     */
+    public function explainAiAdvice(?string $tableName = null, ?string $provider = null, array $options = []): AiExplainAnalysis
+    {
+        return $this->selectQueryBuilder->explainAiAdvice($tableName, $provider, $options);
     }
 
     /**
