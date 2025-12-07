@@ -1040,7 +1040,9 @@ final class TableCommandCliTests extends TestCase
         $this->assertSame(0, $code);
 
         // Cleanup
+        ob_start();
         $app->run(['pdodb', 'table', 'drop', 'test_search', '--force']);
+        ob_end_clean();
     }
 
     public function testTableSearchCommandWithNonExistentTable(): void

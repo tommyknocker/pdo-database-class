@@ -46,8 +46,8 @@ class TestGenerator extends BaseCliCommand
         if (getenv('PHPUNIT') === false) {
             echo "PDOdb Test Generator\n";
             echo "Database: {$driver}\n";
+            echo "Type: {$type}\n\n";
         }
-        echo "Type: {$type}\n\n";
 
         // Resolve table name and target class
         $resolvedTableName = null;
