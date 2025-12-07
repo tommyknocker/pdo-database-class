@@ -536,7 +536,6 @@ SELECT * FROM users WHERE id = 1;
         $this->assertNotEmpty($result['top_queries']);
     }
 
-
     public function testSchemaAnalyzerStatistics(): void
     {
         $db = PdoDb::fromEnv();

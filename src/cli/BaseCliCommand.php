@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli;
 
-use PHPUnit\Framework\TestCase;
 use Psr\SimpleCache\CacheInterface;
 use tommyknocker\pdodb\cache\CacheFactory;
 use tommyknocker\pdodb\connection\DialectRegistry;
@@ -462,7 +461,7 @@ abstract class BaseCliCommand
     {
         echo "Error: {$message}\n";
         // In test environment, throw exception instead of exit to allow proper test handling
-        if (getenv('PHPUNIT') !== false || class_exists(TestCase::class)) {
+        if (getenv('PHPUNIT') !== false) {
             throw new \RuntimeException("Error: {$message}", $code);
         }
         exit($code);
