@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\mssql;
 
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\cli\DatabaseConfigOptimizer;
 use tommyknocker\pdodb\cli\RedundantIndexDetector;
 use tommyknocker\pdodb\cli\SchemaAnalyzer;
 use tommyknocker\pdodb\cli\SlowQueryAnalyzer;
@@ -1063,5 +1064,55 @@ SELECT * FROM users WHERE id = 1;
             $connection->query('IF OBJECT_ID(\'full_test_with_pk\', \'U\') IS NOT NULL DROP TABLE full_test_with_pk');
         } catch (\Throwable) {
         }
+    }
+
+    public function testOptimizeDbCommand(): void
+    {
+        $app = new Application();
+        $db = self::$db;
+
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT=1');
+        ob_start();
+
+        try {
+            $exitCode = $app->run(['pdodb', 'optimize', 'db', '--memory=5G', '--cpu-cores=32']);
+            ob_get_clean();
+            $this->assertEquals(0, $exitCode, 'Command should succeed');
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            } else {
+                putenv('PHPUNIT');
+            }
+
+            throw $e;
+        }
+
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
+    }
+
+    public function testDatabaseConfigOptimizerClass(): void
+    {
+        $db = self::$db;
+        $optimizer = new DatabaseConfigOptimizer($db);
+
+        $result = $optimizer->analyze(
+            5 * 1024 * 1024 * 1024, // 5GB
+            32, // 32 cores
+            'oltp',
+            'ssd',
+            200
+        );
+
+        $this->assertIsArray($result);
+        $this->assertEquals('sqlsrv', $result['dialect']);
+        $this->assertNotEmpty($result['recommendations'], 'Should have recommendations');
+        $this->assertArrayHasKey('max server memory', $result['recommendations']);
     }
 }

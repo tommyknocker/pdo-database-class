@@ -3322,6 +3322,111 @@ Recommendations:
   🟢 LOW: Add index on ORDER BY column 'created_at'
 ```
 
+#### `pdodb optimize db`
+
+Analyze database server configuration and provide optimization recommendations based on available resources (memory, CPU cores, workload type, disk type).
+
+**Usage:**
+
+```bash
+vendor/bin/pdodb optimize db --memory=5G --cpu-cores=32
+```
+
+**Required Options:**
+
+- `--memory=SIZE` - Available memory for database server (e.g., `5G`, `512M`, `1024`)
+- `--cpu-cores=N` - Number of CPU cores
+
+**Optional Options:**
+
+- `--workload=TYPE` - Workload type: `oltp` (default), `olap`, or `mixed`
+- `--disk-type=TYPE` - Disk type: `ssd` (default), `hdd`, or `nvme`
+- `--connections=N` - Expected number of concurrent connections
+- `--format=FORMAT` - Output format: `table` (default), `json`, or `yaml`
+
+**Examples:**
+
+```bash
+# Basic usage with memory and CPU cores
+vendor/bin/pdodb optimize db --memory=5G --cpu-cores=32
+
+# OLAP workload on NVMe storage
+vendor/bin/pdodb optimize db --memory=8G --cpu-cores=16 --workload=olap --disk-type=nvme
+
+# With expected connections
+vendor/bin/pdodb optimize db --memory=5G --cpu-cores=32 --connections=200
+
+# JSON output
+vendor/bin/pdodb optimize db --memory=5G --cpu-cores=32 --format=json
+```
+
+**What It Does:**
+
+The `optimize db` command analyzes your database server configuration and provides recommendations for optimal settings based on:
+
+- **Available Memory** - Calculates optimal buffer pool sizes, cache sizes, and memory allocations
+- **CPU Cores** - Recommends parallel processing settings, connection limits, and thread configurations
+- **Workload Type** - Adjusts recommendations for OLTP (transactional) vs OLAP (analytical) workloads
+- **Disk Type** - Optimizes I/O settings for SSD, HDD, or NVMe storage
+
+**Supported Databases:**
+
+- **MySQL/MariaDB**: `innodb_buffer_pool_size`, `max_connections`, `innodb_log_file_size`, `tmp_table_size`, `thread_cache_size`, `table_open_cache`, `innodb_flush_log_at_trx_commit`
+- **PostgreSQL**: `shared_buffers`, `effective_cache_size`, `work_mem`, `maintenance_work_mem`, `max_connections`, `random_page_cost`, `effective_io_concurrency`
+- **Oracle**: `sga_target`, `pga_aggregate_target`, `db_cache_size`, `shared_pool_size`, `processes`, `sessions`, `parallel_max_servers`
+- **MSSQL**: `max server memory`, `min server memory`, `max degree of parallelism`, `cost threshold for parallelism`
+- **SQLite**: `cache_size`, `page_size`, `journal_mode`, `synchronous`
+
+**Output:**
+
+The command provides:
+
+1. **Current vs Recommended Settings** - Comparison table showing current values and recommended values with priority levels (high/medium/low)
+2. **Summary** - Count of settings by priority and total settings requiring changes
+3. **SQL Commands** - Ready-to-use SQL commands to apply the recommendations (review before applying in production)
+
+**Example output:**
+
+```
+Database Configuration Optimization Report
+==========================================
+
+Server Resources:
+  Memory: 5.0 GB
+  CPU Cores: 32
+  Workload: OLTP
+  Disk Type: SSD
+
+Current vs Recommended Settings:
+─────────────────────────────────────────────────────────────
+Setting                    Current      Recommended   Priority
+─────────────────────────────────────────────────────────────
+*innodb_buffer_pool_size   1.0 GB       3.5 GB        🔴 HIGH
+*max_connections            151          500           🟡 MEDIUM
+*innodb_log_file_size      48 MB        256 MB        🟡 MEDIUM
+─────────────────────────────────────────────────────────────
+* = needs change
+
+Summary:
+  🔴 High priority: 1 setting
+  🟡 Medium priority: 2 settings
+  🟢 Low priority: 2 settings
+
+Total settings requiring changes: 5
+
+SQL to Apply:
+─────────────────────────────────────────────────────────────
+SET GLOBAL innodb_buffer_pool_size = 3758096384;
+SET GLOBAL max_connections = 500;
+SET GLOBAL innodb_log_file_size = 268435456;
+─────────────────────────────────────────────────────────────
+
+Note: Review and test these commands before applying in production.
+Some settings may require server restart.
+```
+
+**Note:** Some settings may require server restart. Always review and test recommendations before applying in production.
+
 ### Options
 
 | Option | Description | Subcommands |
@@ -3330,6 +3435,11 @@ Recommendations:
 | `--schema=SCHEMA` | Schema name (for analyze) | analyze |
 | `--table=TABLE` | Table name (for structure) | structure |
 | `--file=FILE` | Slow query log file path | logs |
+| `--memory=SIZE` | Available memory (e.g., 5G, 512M) | db |
+| `--cpu-cores=N` | Number of CPU cores | db |
+| `--workload=TYPE` | Workload type: oltp, olap, mixed | db |
+| `--disk-type=TYPE` | Disk type: ssd, hdd, nvme | db |
+| `--connections=N` | Expected number of connections | db |
 
 ### Integration with Other Tools
 
@@ -3345,7 +3455,10 @@ pdodb table indexes suggest users
 # 3. Analyze specific query
 pdodb optimize query "SELECT * FROM users WHERE status = 'active'"
 
-# 4. Create suggested indexes
+# 4. Database configuration optimization
+pdodb optimize db --memory=5G --cpu-cores=32
+
+# 5. Create suggested indexes
 pdodb table indexes add idx_status users --columns=status
 ```
 
@@ -3356,6 +3469,7 @@ pdodb table indexes add idx_status users --columns=status
 3. **After Schema Changes** - Run analysis after migrations to ensure no issues were introduced
 4. **Slow Query Monitoring** - Regularly analyze slow query logs to identify performance regressions
 5. **Query Optimization** - Use `optimize query` when developing new queries to ensure optimal performance
+6. **Configuration Tuning** - Use `optimize db` when setting up new servers or after hardware upgrades to optimize database configuration
 
 ### Limitations
 

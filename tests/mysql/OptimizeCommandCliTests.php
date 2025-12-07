@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\mysql;
 
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\cli\DatabaseConfigOptimizer;
 use tommyknocker\pdodb\cli\RedundantIndexDetector;
 use tommyknocker\pdodb\cli\SchemaAnalyzer;
 use tommyknocker\pdodb\cli\SlowQueryAnalyzer;
@@ -788,5 +789,225 @@ SELECT * FROM users WHERE id = 1;
         // Cleanup
         $db->rawQuery('DROP TABLE IF EXISTS full_test_no_pk');
         $db->rawQuery('DROP TABLE IF EXISTS full_test_with_pk');
+    }
+
+    public function testOptimizeDbCommand(): void
+    {
+        $app = new Application();
+        $db = self::$db;
+
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT=1');
+        ob_start();
+
+        try {
+            $exitCode = $app->run(['pdodb', 'optimize', 'db', '--memory=5G', '--cpu-cores=32']);
+            ob_get_clean();
+            $this->assertEquals(0, $exitCode, 'Command should succeed');
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            } else {
+                putenv('PHPUNIT');
+            }
+
+            throw $e;
+        }
+
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
+    }
+
+    public function testOptimizeDbCommandWithAllOptions(): void
+    {
+        $app = new Application();
+        $db = self::$db;
+
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT=1');
+        ob_start();
+
+        try {
+            $exitCode = $app->run([
+                'pdodb',
+                'optimize',
+                'db',
+                '--memory=8G',
+                '--cpu-cores=16',
+                '--workload=olap',
+                '--disk-type=nvme',
+                '--connections=200',
+            ]);
+            ob_get_clean();
+            $this->assertEquals(0, $exitCode, 'Command should succeed');
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            } else {
+                putenv('PHPUNIT');
+            }
+
+            throw $e;
+        }
+
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
+    }
+
+    public function testOptimizeDbCommandWithJsonFormat(): void
+    {
+        $app = new Application();
+        $db = self::$db;
+
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT=1');
+        ob_start();
+
+        try {
+            $exitCode = $app->run(['pdodb', 'optimize', 'db', '--memory=5G', '--cpu-cores=32', '--format=json']);
+            $output = ob_get_clean();
+            $this->assertEquals(0, $exitCode, 'Command should succeed');
+            $result = json_decode($output, true);
+            $this->assertIsArray($result, 'Output should be valid JSON');
+            $this->assertArrayHasKey('dialect', $result);
+            $this->assertArrayHasKey('resources', $result);
+            $this->assertArrayHasKey('recommendations', $result);
+            $this->assertArrayHasKey('comparison', $result);
+            $this->assertArrayHasKey('summary', $result);
+            $this->assertArrayHasKey('sql_commands', $result);
+            $this->assertEquals('mysql', $result['dialect']);
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            } else {
+                putenv('PHPUNIT');
+            }
+
+            throw $e;
+        }
+
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
+    }
+
+    public function testDatabaseConfigOptimizerClass(): void
+    {
+        $db = self::$db;
+        $optimizer = new DatabaseConfigOptimizer($db);
+
+        $result = $optimizer->analyze(
+            5 * 1024 * 1024 * 1024, // 5GB
+            32, // 32 cores
+            'oltp',
+            'ssd',
+            200
+        );
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('dialect', $result);
+        $this->assertArrayHasKey('resources', $result);
+        $this->assertArrayHasKey('recommendations', $result);
+        $this->assertArrayHasKey('comparison', $result);
+        $this->assertArrayHasKey('summary', $result);
+        $this->assertArrayHasKey('sql_commands', $result);
+
+        $this->assertEquals('mysql', $result['dialect']);
+        $this->assertEquals(5 * 1024 * 1024 * 1024, $result['resources']['memory_bytes']);
+        $this->assertEquals(32, $result['resources']['cpu_cores']);
+        $this->assertEquals('oltp', $result['resources']['workload']);
+
+        // Check that recommendations are present
+        $this->assertNotEmpty($result['recommendations'], 'Should have recommendations');
+        $this->assertArrayHasKey('innodb_buffer_pool_size', $result['recommendations']);
+        $this->assertArrayHasKey('max_connections', $result['recommendations']);
+
+        // Check comparison
+        $this->assertNotEmpty($result['comparison'], 'Should have comparison results');
+
+        // Check summary
+        $summary = $result['summary'];
+        $this->assertArrayHasKey('total_settings', $summary);
+        $this->assertArrayHasKey('needs_change', $summary);
+        $this->assertArrayHasKey('high_priority', $summary);
+
+        // Check SQL commands
+        $this->assertNotEmpty($result['sql_commands'], 'Should have SQL commands');
+        $this->assertStringContainsString('innodb_buffer_pool_size', $result['sql_commands'][0]);
+    }
+
+    public function testOptimizeDbCommandMissingMemory(): void
+    {
+        $app = new Application();
+        $db = self::$db;
+
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT=1');
+        ob_start();
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('--memory parameter is required');
+            $app->run(['pdodb', 'optimize', 'db', '--cpu-cores=32']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            } else {
+                putenv('PHPUNIT');
+            }
+
+            throw $e;
+        }
+
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
+    }
+
+    public function testOptimizeDbCommandMissingCpuCores(): void
+    {
+        $app = new Application();
+        $db = self::$db;
+
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT=1');
+        ob_start();
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('--cpu-cores parameter is required');
+            $app->run(['pdodb', 'optimize', 'db', '--memory=5G']);
+            ob_end_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            } else {
+                putenv('PHPUNIT');
+            }
+
+            throw $e;
+        }
+
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
     }
 }

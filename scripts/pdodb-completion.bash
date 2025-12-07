@@ -467,7 +467,7 @@ _pdodb() {
 
     # Optimize command
     if [[ "${cmd}" == "optimize" ]]; then
-        local optimize_subcommands="analyze structure logs query help"
+        local optimize_subcommands="analyze structure logs query db help"
         
         if [[ ${COMP_CWORD} -eq 2 ]]; then
             COMPREPLY=($(compgen -W "${optimize_subcommands} --help" -- "${cur}"))
@@ -497,6 +497,9 @@ _pdodb() {
                 local optimize_opts="--format=table --format=json --format=yaml --format"
                 COMPREPLY=($(compgen -W "${optimize_opts}" -- "${cur}"))
             fi
+        elif [[ "${subcmd}" == "db" ]]; then
+            local optimize_opts="--memory= --cpu-cores= --workload=oltp --workload=olap --workload=mixed --workload --disk-type=ssd --disk-type=hdd --disk-type=nvme --disk-type --connections= --format=table --format=json --format=yaml --format"
+            COMPREPLY=($(compgen -W "${optimize_opts}" -- "${cur}"))
         fi
         return 0
     fi

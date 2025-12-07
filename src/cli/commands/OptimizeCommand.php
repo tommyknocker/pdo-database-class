@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
+use tommyknocker\pdodb\cli\DatabaseConfigOptimizer;
 use tommyknocker\pdodb\cli\SchemaAnalyzer;
 use tommyknocker\pdodb\cli\SlowQueryAnalyzer;
 use tommyknocker\pdodb\cli\SlowQueryLogParser;
@@ -34,6 +35,7 @@ class OptimizeCommand extends Command
             'structure' => $this->structure(),
             'logs' => $this->logs(),
             'query' => $this->query(),
+            'db' => $this->db(),
             default => $this->showError("Unknown subcommand: {$sub}"),
         };
     }
@@ -95,6 +97,203 @@ class OptimizeCommand extends Command
 
         // All tables analysis (similar to analyze but focused on structure)
         return $this->analyze();
+    }
+
+    /**
+     * Analyze database configuration and provide optimization recommendations.
+     */
+    protected function db(): int
+    {
+        $format = (string)$this->getOption('format', 'table');
+        $db = $this->getDb();
+
+        // Parse memory parameter (e.g., "5G", "512M", "1024")
+        $memoryStr = (string)$this->getOption('memory', '');
+        if ($memoryStr === '') {
+            return $this->showError('--memory parameter is required (e.g., --memory=5G)');
+        }
+        $memoryBytes = $this->parseMemory($memoryStr);
+        if ($memoryBytes <= 0) {
+            return $this->showError("Invalid memory format: {$memoryStr}. Use format like 5G, 512M, or 1024");
+        }
+
+        // Parse CPU cores
+        $cpuCores = (int)$this->getOption('cpu-cores', 0);
+        if ($cpuCores <= 0) {
+            return $this->showError('--cpu-cores parameter is required and must be > 0');
+        }
+
+        // Optional parameters
+        $workload = (string)$this->getOption('workload', 'oltp');
+        if (!in_array($workload, ['oltp', 'olap', 'mixed'], true)) {
+            return $this->showError('--workload must be one of: oltp, olap, mixed');
+        }
+
+        $diskType = (string)$this->getOption('disk-type', 'ssd');
+        if (!in_array($diskType, ['ssd', 'hdd', 'nvme'], true)) {
+            return $this->showError('--disk-type must be one of: ssd, hdd, nvme');
+        }
+
+        $expectedConnections = $this->getOption('connections');
+        $expectedConnections = $expectedConnections !== null ? (int)$expectedConnections : null;
+
+        $optimizer = new DatabaseConfigOptimizer($db);
+        $result = $optimizer->analyze(
+            $memoryBytes,
+            $cpuCores,
+            $workload,
+            $diskType,
+            $expectedConnections
+        );
+
+        if ($format === 'json') {
+            echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+            return 0;
+        }
+
+        if ($format === 'yaml') {
+            $this->printYaml($result);
+            return 0;
+        }
+
+        $this->printDbReport($result);
+        return 0;
+    }
+
+    /**
+     * Parse memory string to bytes.
+     *
+     * @param string $memoryStr Memory string (e.g., "5G", "512M", "1024")
+     *
+     * @return int Bytes
+     */
+    protected function parseMemory(string $memoryStr): int
+    {
+        $memoryStr = trim($memoryStr);
+        if (preg_match('/^(\d+(?:\.\d+)?)\s*([kmgt]?)$/i', $memoryStr, $matches)) {
+            $num = (float)$matches[1];
+            $unit = $matches[2] !== '' ? strtolower($matches[2]) : '';
+            $multiplier = match ($unit) {
+                'k' => 1024,
+                'm' => 1024 * 1024,
+                'g' => 1024 * 1024 * 1024,
+                't' => 1024 * 1024 * 1024 * 1024,
+                default => 1,
+            };
+            return (int)($num * $multiplier);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Print database configuration optimization report.
+     *
+     * @param array<string, mixed> $result Analysis result
+     */
+    protected function printDbReport(array $result): void
+    {
+        $resources = $result['resources'] ?? [];
+        $comparison = $result['comparison'] ?? [];
+        $summary = $result['summary'] ?? [];
+        $sqlCommands = $result['sql_commands'] ?? [];
+
+        echo "\n";
+        echo "Database Configuration Optimization Report\n";
+        echo str_repeat('=', 60) . "\n";
+        echo "\n";
+
+        // Resources section
+        echo "Server Resources:\n";
+        echo '  Memory: ' . ($resources['memory_human'] ?? '') . "\n";
+        echo '  CPU Cores: ' . ($resources['cpu_cores'] ?? '') . "\n";
+        echo '  Workload: ' . strtoupper($resources['workload'] ?? '') . "\n";
+        echo '  Disk Type: ' . strtoupper($resources['disk_type'] ?? '') . "\n";
+        $expectedConnections = $resources['expected_connections'] ?? null;
+        if ($expectedConnections !== null) {
+            echo '  Expected Connections: ' . $expectedConnections . "\n";
+        }
+        echo "\n";
+
+        // Comparison table
+        if (!empty($comparison)) {
+            echo "Current vs Recommended Settings:\n";
+            echo str_repeat('─', 80) . "\n";
+            printf(
+                "%-30s %-15s %-15s %-10s\n",
+                'Setting',
+                'Current',
+                'Recommended',
+                'Priority'
+            );
+            echo str_repeat('─', 80) . "\n";
+
+            foreach ($comparison as $item) {
+                $name = $item['name'] ?? '';
+                $current = $item['current_human'] ?? '';
+                $recommended = $item['recommended_human'] ?? '';
+                $priority = $item['priority'] ?? 'low';
+                $needsChange = $item['needs_change'] ?? false;
+
+                $priorityIcon = match ($priority) {
+                    'high' => '🔴',
+                    'medium' => '🟡',
+                    default => '🟢',
+                };
+
+                $marker = $needsChange ? '*' : ' ';
+
+                printf(
+                    "%s%-29s %-15s %-15s %s %-9s\n",
+                    $marker,
+                    $name,
+                    $current,
+                    $recommended,
+                    $priorityIcon,
+                    strtoupper($priority)
+                );
+            }
+
+            echo str_repeat('─', 80) . "\n";
+            echo "* = needs change\n";
+            echo "\n";
+
+            // Summary
+            if (!empty($summary)) {
+                echo "Summary:\n";
+                $high = $summary['high_priority'] ?? 0;
+                $medium = $summary['medium_priority'] ?? 0;
+                $low = $summary['low_priority'] ?? 0;
+                $needsChange = $summary['needs_change'] ?? 0;
+
+                if ($high > 0) {
+                    echo "  🔴 High priority: {$high} setting" . ($high > 1 ? 's' : '') . "\n";
+                }
+                if ($medium > 0) {
+                    echo "  🟡 Medium priority: {$medium} setting" . ($medium > 1 ? 's' : '') . "\n";
+                }
+                if ($low > 0) {
+                    echo "  🟢 Low priority: {$low} setting" . ($low > 1 ? 's' : '') . "\n";
+                }
+                echo "\n";
+                echo "Total settings requiring changes: {$needsChange}\n";
+                echo "\n";
+            }
+        }
+
+        // SQL commands
+        if (!empty($sqlCommands)) {
+            echo "SQL to Apply:\n";
+            echo str_repeat('─', 80) . "\n";
+            foreach ($sqlCommands as $cmd) {
+                echo $cmd . "\n";
+            }
+            echo str_repeat('─', 80) . "\n";
+            echo "\n";
+            echo "Note: Review and test these commands before applying in production.\n";
+            echo "Some settings may require server restart.\n";
+            echo "\n";
+        }
     }
 
     /**
@@ -563,17 +762,26 @@ class OptimizeCommand extends Command
         echo "    Analyze slow query logs\n\n";
         echo "  query \"SELECT ...\" [--format=FORMAT]\n";
         echo "    EXPLAIN + recommendations for single query\n\n";
+        echo "  db --memory=SIZE --cpu-cores=N [OPTIONS] [--format=FORMAT]\n";
+        echo "    Database configuration optimization recommendations\n\n";
         echo "Options:\n";
         echo "  --format=table|json|yaml    Output format (default: table)\n";
         echo "  --schema=SCHEMA              Schema name (for analyze)\n";
         echo "  --table=TABLE                Table name (for structure)\n";
-        echo "  --file=FILE                  Slow query log file path (for logs)\n\n";
+        echo "  --file=FILE                  Slow query log file path (for logs)\n";
+        echo "  --memory=SIZE                Available memory (e.g., 5G, 512M) (for db)\n";
+        echo "  --cpu-cores=N                Number of CPU cores (for db)\n";
+        echo "  --workload=TYPE              Workload type: oltp|olap|mixed (default: oltp) (for db)\n";
+        echo "  --disk-type=TYPE             Disk type: ssd|hdd|nvme (default: ssd) (for db)\n";
+        echo "  --connections=N              Expected number of connections (for db)\n\n";
         echo "Examples:\n";
         echo "  pdodb optimize analyze\n";
         echo "  pdodb optimize analyze --schema=public --format=json\n";
         echo "  pdodb optimize structure --table=users\n";
         echo "  pdodb optimize logs --file=/var/log/mysql/slow.log\n";
         echo "  pdodb optimize query \"SELECT * FROM users WHERE id = 1\"\n";
+        echo "  pdodb optimize db --memory=5G --cpu-cores=32\n";
+        echo "  pdodb optimize db --memory=8G --cpu-cores=16 --workload=olap --disk-type=nvme\n";
         return 0;
     }
 }
