@@ -358,10 +358,14 @@ abstract class BaseCliCommand
     protected static function readInput(string $prompt, ?string $default = null): string
     {
         // Check if non-interactive mode is enabled (for tests, CI, etc.)
-        // Check for PDODB_NON_INTERACTIVE env var or if STDIN is not a tty
+        // Check for PDODB_NON_INTERACTIVE env var first (fastest check)
         $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false
-            || !stream_isatty(STDIN);
+            || getenv('PHPUNIT') !== false;
+
+        // Only check stream_isatty if not already in non-interactive mode (expensive check)
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
 
         if ($nonInteractive) {
             if ($default !== null) {
@@ -388,9 +392,14 @@ abstract class BaseCliCommand
     protected static function readPassword(string $prompt): string
     {
         // Check if non-interactive mode is enabled (for tests, CI, etc.)
+        // Check for PDODB_NON_INTERACTIVE env var first (fastest check)
         $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false
-            || !stream_isatty(STDIN);
+            || getenv('PHPUNIT') !== false;
+
+        // Only check stream_isatty if not already in non-interactive mode (expensive check)
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
 
         if ($nonInteractive) {
             // In non-interactive mode, return empty string to avoid blocking on fgets(STDIN)
@@ -428,10 +437,14 @@ abstract class BaseCliCommand
     protected static function readConfirmation(string $prompt, bool $default = true): bool
     {
         // Check if non-interactive mode is enabled (for tests, CI, etc.)
-        // Check for PDODB_NON_INTERACTIVE env var or if STDIN is not a tty
+        // Check for PDODB_NON_INTERACTIVE env var first (fastest check)
         $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false
-            || !stream_isatty(STDIN);
+            || getenv('PHPUNIT') !== false;
+
+        // Only check stream_isatty if not already in non-interactive mode (expensive check)
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
 
         if ($nonInteractive) {
             return $default;

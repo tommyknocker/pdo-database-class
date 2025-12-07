@@ -41,6 +41,7 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
         putenv('PDODB_USERNAME');
         putenv('PDODB_PASSWORD');
         putenv('PDODB_NON_INTERACTIVE');
+        putenv('PHPUNIT');
         parent::tearDown();
     }
 
@@ -49,7 +50,18 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
         $app = new Application();
         $db = self::$db;
 
-        // Create test tables
+        // Create test tables (drop first to avoid ORA-00955)
+        try {
+            $db->rawQuery('DROP TABLE "optimize_users" CASCADE CONSTRAINTS');
+        } catch (\Throwable) {
+            // Ignore if table doesn't exist
+        }
+
+        try {
+            $db->rawQuery('DROP TABLE "optimize_orders" CASCADE CONSTRAINTS');
+        } catch (\Throwable) {
+            // Ignore if table doesn't exist
+        }
         $db->rawQuery('CREATE TABLE "optimize_users" ("ID" NUMBER PRIMARY KEY, "NAME" VARCHAR2(100))');
         $db->rawQuery('CREATE TABLE "optimize_orders" ("ID" NUMBER, "USER_ID" NUMBER)'); // No PK
 
@@ -543,6 +555,12 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
         try {
             $connection->query('DROP TABLE "optimize_query_users" CASCADE CONSTRAINTS');
         } catch (\Throwable) {
+        }
+
+        try {
+            $db->rawQuery('DROP TABLE "optimize_query_users" CASCADE CONSTRAINTS');
+        } catch (\Throwable) {
+            // Ignore if table doesn't exist
         }
         $db->rawQuery('CREATE TABLE "optimize_query_users" ("ID" NUMBER PRIMARY KEY, "NAME" VARCHAR2(100))');
         $db->rawQuery('INSERT INTO "optimize_query_users" ("ID", "NAME") VALUES (1, \'Test\')');
