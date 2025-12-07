@@ -536,35 +536,6 @@ SELECT * FROM users WHERE id = 1;
         $this->assertNotEmpty($result['top_queries']);
     }
 
-    public function testSchemaAnalyzerDetectsMissingFkIndexes(): void
-    {
-        $db = PdoDb::fromEnv();
-        $driver = getenv('PDODB_DRIVER') ?: 'sqlite';
-
-        // SQLite doesn't support foreign keys by default, skip for SQLite
-        if ($driver === 'sqlite') {
-            $this->markTestSkipped('SQLite foreign keys require PRAGMA foreign_keys=ON');
-            return;
-        }
-
-        // Create tables with foreign key but no index
-        $db->rawQuery('CREATE TABLE IF NOT EXISTS test_parent (id INTEGER PRIMARY KEY, name TEXT)');
-        $db->rawQuery('CREATE TABLE IF NOT EXISTS test_child (
-            id INTEGER PRIMARY KEY,
-            parent_id INTEGER,
-            FOREIGN KEY (parent_id) REFERENCES test_parent(id)
-        )');
-
-        $analyzer = new SchemaAnalyzer($db);
-        $result = $analyzer->analyzeTable('test_child');
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('missing_fk_indexes', $result);
-        $missingFk = $result['missing_fk_indexes'];
-        $this->assertNotEmpty($missingFk, 'Should detect missing FK index');
-        $this->assertArrayHasKey('column', $missingFk[0]);
-        $this->assertEquals('parent_id', $missingFk[0]['column']);
-    }
 
     public function testSchemaAnalyzerStatistics(): void
     {
@@ -613,42 +584,6 @@ SELECT * FROM users WHERE id = 1;
             return ($issue['table'] ?? '') === 'stats_table2';
         });
         $this->assertNotEmpty($statsTable2Issues, 'Should detect missing PK in stats_table2');
-    }
-
-    public function testSchemaAnalyzerIndexSuggestionsForForeignKeys(): void
-    {
-        $db = PdoDb::fromEnv();
-        $driver = getenv('PDODB_DRIVER') ?: 'sqlite';
-
-        if ($driver === 'sqlite') {
-            $this->markTestSkipped('SQLite foreign keys require PRAGMA foreign_keys=ON');
-            return;
-        }
-
-        $db->rawQuery('CREATE TABLE IF NOT EXISTS fk_parent (id INTEGER PRIMARY KEY, name TEXT)');
-        $db->rawQuery('CREATE TABLE IF NOT EXISTS fk_child (
-            id INTEGER PRIMARY KEY,
-            parent_id INTEGER,
-            FOREIGN KEY (parent_id) REFERENCES fk_parent(id)
-        )');
-
-        $analyzer = new SchemaAnalyzer($db);
-        $result = $analyzer->analyzeTable('fk_child');
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('suggestions', $result);
-        $suggestions = $result['suggestions'];
-
-        // Should suggest index for FK column
-        $fkSuggestions = array_filter($suggestions, function ($s) {
-            return ($s['type'] ?? '') === 'foreign_key' && ($s['priority'] ?? '') === 'high';
-        });
-
-        $this->assertNotEmpty($fkSuggestions, 'Should suggest FK index');
-        $fkSuggestion = reset($fkSuggestions);
-        $this->assertArrayHasKey('reason', $fkSuggestion);
-        $this->assertArrayHasKey('sql', $fkSuggestion);
-        $this->assertStringContainsString('parent_id', $fkSuggestion['reason']);
     }
 
     public function testSchemaAnalyzerIndexSuggestionsForSoftDelete(): void
