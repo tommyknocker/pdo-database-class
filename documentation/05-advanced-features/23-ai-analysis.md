@@ -76,9 +76,40 @@ export PDODB_AI_OLLAMA_MODEL=llama3.2  # Optional: model name
 
 # OpenAI
 export PDODB_AI_OPENAI_MODEL=gpt-4o-mini  # Optional: gpt-4, gpt-3.5-turbo
+export PDODB_AI_OPENAI_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
+export PDODB_AI_OPENAI_MAX_TOKENS=2000  # Optional: default: 2000
+export PDODB_AI_OPENAI_TIMEOUT=30  # Optional: seconds, default: 30
 
 # Anthropic
 export PDODB_AI_ANTHROPIC_MODEL=claude-3-5-sonnet-20241022  # Optional: claude-3-opus
+export PDODB_AI_ANTHROPIC_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
+export PDODB_AI_ANTHROPIC_MAX_TOKENS=2000  # Optional: default: 2000
+export PDODB_AI_ANTHROPIC_TIMEOUT=30  # Optional: seconds, default: 30
+
+# Google
+export PDODB_AI_GOOGLE_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
+export PDODB_AI_GOOGLE_MAX_TOKENS=8192  # Optional: default: 8192
+export PDODB_AI_GOOGLE_TIMEOUT=30  # Optional: seconds, default: 30
+
+# Microsoft
+export PDODB_AI_MICROSOFT_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
+export PDODB_AI_MICROSOFT_MAX_TOKENS=2000  # Optional: default: 2000
+export PDODB_AI_MICROSOFT_TIMEOUT=30  # Optional: seconds, default: 30
+
+# DeepSeek
+export PDODB_AI_DEEPSEEK_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
+export PDODB_AI_DEEPSEEK_MAX_TOKENS=2000  # Optional: default: 2000
+export PDODB_AI_DEEPSEEK_TIMEOUT=30  # Optional: seconds, default: 30
+
+# Yandex
+export PDODB_AI_YANDEX_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
+export PDODB_AI_YANDEX_MAX_TOKENS=4000  # Optional: default: 4000
+export PDODB_AI_YANDEX_TIMEOUT=30  # Optional: seconds, default: 30
+
+# Ollama
+export PDODB_AI_OLLAMA_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
+export PDODB_AI_OLLAMA_MAX_TOKENS=2000  # Optional: default: 2000
+export PDODB_AI_OLLAMA_TIMEOUT=30  # Optional: seconds, default: 30
 ```
 
 ### Configuration Array
@@ -106,33 +137,45 @@ $db = new PdoDb('mysql', [
                 'model' => 'gpt-4o-mini',
                 'temperature' => 0.7,
                 'max_tokens' => 2000,
+                'timeout' => 30,
             ],
             'anthropic' => [
                 'model' => 'claude-3-5-sonnet-20241022',
                 'temperature' => 0.7,
+                'max_tokens' => 2000,
+                'timeout' => 30,
             ],
             'google' => [
                 'model' => 'gemini-2.5-flash',  # or gemini-2.5-pro, gemini-2.0-flash-001, gemini-flash-latest, gemini-pro-latest
                 'temperature' => 0.7,
-                'max_tokens' => 2000,
+                'max_tokens' => 8192,
+                'timeout' => 30,
             ],
             'microsoft' => [
                 'endpoint' => 'https://your-resource.openai.azure.com',
                 'deployment' => 'gpt-4',
+                'temperature' => 0.7,
+                'max_tokens' => 2000,
+                'timeout' => 30,
             ],
             'deepseek' => [
                 'model' => 'deepseek-chat',  # or deepseek-reasoner (thinking mode)
                 'temperature' => 0.7,
                 'max_tokens' => 2000,
+                'timeout' => 30,
             ],
             'yandex' => [
                 'folder_id' => 'b1ge9k4rdlck8g72slht',  # Required: Yandex Cloud folder ID
                 'model' => 'gpt-oss-120b/latest',  # Optional: model name
                 'temperature' => 0.7,
-                'max_tokens' => 2000,
+                'max_tokens' => 4000,
+                'timeout' => 30,
             ],
             'ollama' => [
                 'model' => 'llama3.2',  # or any local model name
+                'temperature' => 0.7,
+                'max_tokens' => 2000,
+                'timeout' => 30,
             ],
         ],
     ],

@@ -67,13 +67,13 @@ class AiCommand extends Command
             $aiService = new AiAnalysisService($db);
             $actualProvider = $aiService->getProvider($provider);
             $model = $actualProvider->getModel();
-            
+
             static::info("Provider: {$actualProvider->getProviderName()}");
             static::info("Model: {$model}");
             static::loading('Sending request to AI API');
-            
+
             $analysis = $aiService->analyzeQuery($sql, $tableName, $provider, $options);
-            
+
             if (getenv('PHPUNIT') === false) {
                 echo "\r" . str_repeat(' ', 80) . "\r"; // Clear loading line
             }
@@ -147,13 +147,13 @@ class AiCommand extends Command
             $aiService = new AiAnalysisService($db);
             $actualProvider = $aiService->getProvider($provider);
             $model = $actualProvider->getModel();
-            
+
             static::info("Provider: {$actualProvider->getProviderName()}");
             static::info("Model: {$model}");
             static::loading('Sending request to AI API');
-            
+
             $aiAnalysis = $aiService->analyzeQuery($sql, $tableName, $provider, $options);
-            
+
             if (getenv('PHPUNIT') === false) {
                 echo "\r" . str_repeat(' ', 80) . "\r"; // Clear loading line
             }
@@ -249,18 +249,18 @@ class AiCommand extends Command
             if ($tableName !== null) {
                 static::info("Table: {$tableName}");
             }
-            
+
             static::info('Initializing AI service...');
             $aiService = new AiAnalysisService($db);
             $actualProvider = $aiService->getProvider($provider);
             $model = $actualProvider->getModel();
-            
+
             static::info("Provider: {$actualProvider->getProviderName()}");
             static::info("Model: {$model}");
             static::loading('Sending request to AI API');
-            
+
             $analysis = $aiService->analyzeSchema($tableName, $provider, $options);
-            
+
             if (getenv('PHPUNIT') === false) {
                 echo "\r" . str_repeat(' ', 80) . "\r"; // Clear loading line
             }
@@ -314,7 +314,7 @@ class AiCommand extends Command
             if ($tableName !== null) {
                 static::info("Table: {$tableName}");
             }
-            
+
             // Get base analysis first
             $schemaAnalyzer = new SchemaAnalyzer($db);
             $baseAnalysis = $tableName !== null
@@ -326,16 +326,16 @@ class AiCommand extends Command
             $aiService = new AiAnalysisService($db);
             $actualProvider = $aiService->getProvider($provider);
             $model = $actualProvider->getModel();
-            
+
             static::info("Provider: {$actualProvider->getProviderName()}");
             static::info("Model: {$model}");
             static::loading('Sending request to AI API');
-            
+
             $context = [
                 'base_analysis' => $baseAnalysis,
             ];
             $aiSuggestions = $aiService->suggestOptimizations($baseAnalysis, $context, $provider, $options);
-            
+
             if (getenv('PHPUNIT') === false) {
                 echo "\r" . str_repeat(' ', 80) . "\r"; // Clear loading line
             }

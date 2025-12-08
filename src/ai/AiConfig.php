@@ -150,10 +150,32 @@ class AiConfig
     {
         $providers = ['openai', 'anthropic', 'google', 'microsoft', 'ollama', 'deepseek', 'yandex'];
         foreach ($providers as $provider) {
+            // Load model
             $envVar = 'PDODB_AI_' . strtoupper($provider) . '_MODEL';
             $model = getenv($envVar);
             if ($model !== false && $model !== '') {
                 $this->setProviderSetting($provider, 'model', $model);
+            }
+
+            // Load temperature
+            $envVar = 'PDODB_AI_' . strtoupper($provider) . '_TEMPERATURE';
+            $temperature = getenv($envVar);
+            if ($temperature !== false && $temperature !== '') {
+                $this->setProviderSetting($provider, 'temperature', (float)$temperature);
+            }
+
+            // Load max_tokens
+            $envVar = 'PDODB_AI_' . strtoupper($provider) . '_MAX_TOKENS';
+            $maxTokens = getenv($envVar);
+            if ($maxTokens !== false && $maxTokens !== '') {
+                $this->setProviderSetting($provider, 'max_tokens', (int)$maxTokens);
+            }
+
+            // Load timeout
+            $envVar = 'PDODB_AI_' . strtoupper($provider) . '_TIMEOUT';
+            $timeout = getenv($envVar);
+            if ($timeout !== false && $timeout !== '') {
+                $this->setProviderSetting($provider, 'timeout', (int)$timeout);
             }
         }
     }

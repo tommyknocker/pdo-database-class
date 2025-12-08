@@ -21,12 +21,23 @@ abstract class BaseAiProvider implements AiProviderInterface
     {
         $this->config = $config ?? new AiConfig();
         $this->initializeDefaults();
+        $this->initializeCommonDefaults();
     }
 
     /**
      * Initialize provider-specific defaults.
      */
     abstract protected function initializeDefaults(): void;
+
+    /**
+     * Initialize common defaults (timeout) that apply to all providers.
+     */
+    protected function initializeCommonDefaults(): void
+    {
+        $providerName = $this->getProviderName();
+        $timeout = $this->config->getProviderSetting($providerName, 'timeout', 30);
+        $this->timeout = (int)$timeout;
+    }
 
     /**
      * Make HTTP request to AI API.

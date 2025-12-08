@@ -116,6 +116,7 @@ class GoogleProvider extends BaseAiProvider
         if (isset($response['error'])) {
             $errorCode = $response['error']['code'] ?? 'unknown';
             $errorMessage = $response['error']['message'] ?? 'Unknown error';
+
             throw new QueryException(
                 "Google API error ({$errorCode}): {$errorMessage}",
                 0
@@ -126,6 +127,7 @@ class GoogleProvider extends BaseAiProvider
         if (!isset($response[self::RESPONSE_KEY_CANDIDATES])) {
             $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
             $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
+
             throw new QueryException(
                 'Invalid response format from Google API: missing "candidates" key. Response: ' . $responseStr,
                 0
@@ -135,6 +137,7 @@ class GoogleProvider extends BaseAiProvider
         if (empty($response[self::RESPONSE_KEY_CANDIDATES])) {
             $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
             $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
+
             throw new QueryException(
                 'Invalid response format from Google API: empty "candidates" array. Response: ' . $responseStr,
                 0
@@ -153,7 +156,7 @@ class GoogleProvider extends BaseAiProvider
                 'OTHER' => 'Response was stopped for an unknown reason.',
             ];
             $message = $reasonMessages[$finishReason] ?? "Response was stopped (reason: {$finishReason}).";
-            
+
             // Try to get partial content if available
             $content = $candidate[self::RESPONSE_KEY_CONTENT] ?? null;
             if ($content !== null && isset($content[self::REQUEST_KEY_PARTS]) && !empty($content[self::REQUEST_KEY_PARTS])) {
@@ -163,7 +166,7 @@ class GoogleProvider extends BaseAiProvider
                     return (string)$part[self::REQUEST_KEY_TEXT] . "\n\n[Note: Response was truncated. {$message}]";
                 }
             }
-            
+
             throw new QueryException(
                 "Google API response issue: {$message}",
                 0
@@ -173,6 +176,7 @@ class GoogleProvider extends BaseAiProvider
         if (!isset($candidate[self::RESPONSE_KEY_CONTENT])) {
             $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
             $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
+
             throw new QueryException(
                 'Invalid response format from Google API: missing "content" key in candidate. Response: ' . $responseStr,
                 0
@@ -184,6 +188,7 @@ class GoogleProvider extends BaseAiProvider
         if (!isset($content[self::REQUEST_KEY_PARTS]) || empty($content[self::REQUEST_KEY_PARTS])) {
             $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
             $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
+
             throw new QueryException(
                 'Invalid response format from Google API: missing or empty "parts" array. Response: ' . $responseStr,
                 0
@@ -195,6 +200,7 @@ class GoogleProvider extends BaseAiProvider
         if (!isset($part[self::REQUEST_KEY_TEXT])) {
             $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
             $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
+
             throw new QueryException(
                 'Invalid response format from Google API: missing "text" key in part. Response: ' . $responseStr,
                 0

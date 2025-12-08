@@ -699,7 +699,7 @@ class InitWizard extends BaseCliCommand
         }
 
         $providers = ['openai', 'anthropic', 'google', 'microsoft', 'ollama', 'deepseek', 'yandex'];
-        echo "  Available providers: " . implode(', ', $providers) . "\n";
+        echo '  Available providers: ' . implode(', ', $providers) . "\n";
         $provider = static::readInput('  Default AI provider', 'openai');
         $provider = mb_strtolower(trim($provider), 'UTF-8');
         if (!in_array($provider, $providers, true)) {
@@ -712,7 +712,7 @@ class InitWizard extends BaseCliCommand
         foreach ($providers as $p) {
             if ($p === 'ollama') {
                 // Ollama doesn't need API key, but ask for URL
-                $url = static::readInput("  Ollama URL", 'http://localhost:11434');
+                $url = static::readInput('  Ollama URL', 'http://localhost:11434');
                 if ($url !== '') {
                     $this->config['ai']['ollama_url'] = $url;
                 }
@@ -754,7 +754,7 @@ class InitWizard extends BaseCliCommand
                 }
 
                 echo "\n  {$p} settings:\n";
-                $model = static::readInput("    Model (optional)", '');
+                $model = static::readInput('    Model (optional)', '');
                 if ($model !== '') {
                     if (!isset($this->config['ai']['providers'][$p])) {
                         $this->config['ai']['providers'][$p] = [];

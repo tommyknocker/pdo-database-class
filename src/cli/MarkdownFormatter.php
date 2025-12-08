@@ -53,7 +53,7 @@ class MarkdownFormatter
         // This protects content from markdown formatting (like asterisks and underscores)
         $inlineCode = [];
         $inlineCodeIndex = 0;
-        
+
         // First, handle double backticks (``code``) - these can contain single backticks
         // Pattern: `` followed by content (which can include `) followed by ``
         // Match the shortest possible sequence to avoid greedy matching
@@ -69,7 +69,7 @@ class MarkdownFormatter
             $text = '';
         }
         $text = (string)$text;
-        
+
         // Then handle single backticks (`code`) - these cannot contain backticks
         // Use non-greedy matching to handle cases correctly
         $text = preg_replace_callback('/`([^`\n]+?)`/', function (array $matches) use (&$inlineCode, &$inlineCodeIndex): string {

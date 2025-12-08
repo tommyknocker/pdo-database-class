@@ -124,6 +124,7 @@ class YandexProvider extends BaseAiProvider
         if (isset($response['error']) && $response['error'] !== '') {
             $error = $response['error'];
             $errorMessage = is_string($error) ? $error : json_encode($error);
+
             throw new QueryException(
                 'Yandex API error: ' . $errorMessage,
                 0
@@ -144,7 +145,7 @@ class YandexProvider extends BaseAiProvider
             $outputArray = $response[self::RESPONSE_KEY_OUTPUT];
             if (!empty($outputArray) && is_array($outputArray[0])) {
                 $firstOutput = $outputArray[0];
-                
+
                 // Try content first (for models like aliceai-llm) - this is the correct field
                 $textArray = null;
                 if (isset($firstOutput[self::RESPONSE_KEY_CONTENT]) && is_array($firstOutput[self::RESPONSE_KEY_CONTENT])) {
@@ -154,7 +155,7 @@ class YandexProvider extends BaseAiProvider
                     // Try summary (for some models like gpt-oss-120b) - but may contain prompt, not response
                     $textArray = $firstOutput[self::RESPONSE_KEY_SUMMARY];
                 }
-                
+
                 if ($textArray !== null) {
                     // Collect all text from all items
                     $textParts = [];
@@ -171,7 +172,7 @@ class YandexProvider extends BaseAiProvider
                         // Filter out prompt-like content (contains instructions or user prompt)
                         // If output looks like a prompt rather than a response, skip it
                         $lowerOutput = strtolower($output);
-                        if (str_contains($lowerOutput, 'the user asks') || 
+                        if (str_contains($lowerOutput, 'the user asks') ||
                             str_contains($lowerOutput, 'need to give recommendations') ||
                             str_contains($lowerOutput, 'provide suggestions') ||
                             (str_contains($lowerOutput, 'analyze') && str_contains($lowerOutput, 'query') && strlen($output) < 500)) {
@@ -195,6 +196,7 @@ class YandexProvider extends BaseAiProvider
                 $responseJson = 'Unable to encode response';
             }
             $responseStr = substr($responseJson, 0, 1000);
+
             throw new QueryException(
                 'Yandex API response was truncated due to max_output_tokens, but output is missing or invalid. ' .
                 'Please increase max_output_tokens. Response: ' . $responseStr,
@@ -208,6 +210,7 @@ class YandexProvider extends BaseAiProvider
             $responseJson = 'Unable to encode response';
         }
         $responseStr = substr($responseJson, 0, 1000);
+
         throw new QueryException(
             'Invalid response format from Yandex API: missing or invalid "output" key. Expected structure: output[0].summary[0].text or output[0].content[0].text. Response: ' . $responseStr,
             0
@@ -304,4 +307,3 @@ class YandexProvider extends BaseAiProvider
         }
     }
 }
-
