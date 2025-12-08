@@ -12,16 +12,27 @@ use tommyknocker\pdodb\exceptions\QueryException;
  */
 class OllamaProvider extends BaseAiProvider
 {
+    private const string DEFAULT_MODEL = 'deepseek-coder:6.7b';
+    private const float DEFAULT_TEMPERATURE = 0.7;
+    private const int DEFAULT_MAX_TOKENS = 2000;
+    private const string API_PATH_GENERATE = '/api/generate';
+    private const string REQUEST_KEY_MODEL = 'model';
+    private const string REQUEST_KEY_PROMPT = 'prompt';
+    private const string REQUEST_KEY_STREAM = 'stream';
+    private const string REQUEST_KEY_OPTIONS = 'options';
+    private const string REQUEST_KEY_NUM_PREDICT = 'num_predict';
+    private const string RESPONSE_KEY_RESPONSE = 'response';
+
     protected string $apiUrl = '';
 
     protected function initializeDefaults(): void
     {
-        $this->model = $this->config->getProviderSetting('ollama', 'model', 'deepseek-coder:6.7b');
-        $this->temperature = (float)$this->config->getProviderSetting('ollama', 'temperature', 0.7);
-        $this->maxTokens = (int)$this->config->getProviderSetting('ollama', 'max_tokens', 2000);
+        $this->model = $this->config->getProviderSetting('ollama', 'model', self::DEFAULT_MODEL);
+        $this->temperature = (float)$this->config->getProviderSetting('ollama', 'temperature', self::DEFAULT_TEMPERATURE);
+        $this->maxTokens = (int)$this->config->getProviderSetting('ollama', 'max_tokens', self::DEFAULT_MAX_TOKENS);
 
         $baseUrl = $this->config->getOllamaUrl();
-        $this->apiUrl = rtrim($baseUrl, '/') . '/api/generate';
+        $this->apiUrl = rtrim($baseUrl, '/') . self::API_PATH_GENERATE;
     }
 
     public function getProviderName(): string
@@ -68,25 +79,25 @@ class OllamaProvider extends BaseAiProvider
     protected function callApi(string $prompt): string
     {
         $data = [
-            'model' => $this->model,
-            'prompt' => $prompt,
-            'stream' => false,
-            'options' => [
+            self::REQUEST_KEY_MODEL => $this->model,
+            self::REQUEST_KEY_PROMPT => $prompt,
+            self::REQUEST_KEY_STREAM => false,
+            self::REQUEST_KEY_OPTIONS => [
                 'temperature' => $this->temperature,
-                'num_predict' => $this->maxTokens,
+                self::REQUEST_KEY_NUM_PREDICT => $this->maxTokens,
             ],
         ];
 
         $response = $this->makeRequest($this->apiUrl, $data);
 
-        if (!isset($response['response'])) {
+        if (!isset($response[self::RESPONSE_KEY_RESPONSE])) {
             throw new QueryException(
                 'Invalid response format from Ollama API',
                 0
             );
         }
 
-        return (string)$response['response'];
+        return (string)$response[self::RESPONSE_KEY_RESPONSE];
     }
 
     protected function buildSystemPrompt(string $type): string

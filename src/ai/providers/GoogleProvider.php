@@ -12,13 +12,27 @@ use tommyknocker\pdodb\exceptions\QueryException;
  */
 class GoogleProvider extends BaseAiProvider
 {
-    protected string $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent'; // v1beta is the latest supported version
+    private const string API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent'; // v1beta is the latest supported version
+    private const string DEFAULT_MODEL = 'gemini-pro';
+    private const float DEFAULT_TEMPERATURE = 0.7;
+    private const int DEFAULT_MAX_TOKENS = 2000;
+    private const string URL_PARAM_KEY = '?key=';
+    private const string REQUEST_KEY_CONTENTS = 'contents';
+    private const string REQUEST_KEY_PARTS = 'parts';
+    private const string REQUEST_KEY_TEXT = 'text';
+    private const string REQUEST_KEY_SYSTEM_INSTRUCTION = 'systemInstruction';
+    private const string REQUEST_KEY_GENERATION_CONFIG = 'generationConfig';
+    private const string REQUEST_KEY_MAX_OUTPUT_TOKENS = 'maxOutputTokens';
+    private const string RESPONSE_KEY_CANDIDATES = 'candidates';
+    private const string RESPONSE_KEY_CONTENT = 'content';
+
+    protected string $apiUrl = self::API_URL;
 
     protected function initializeDefaults(): void
     {
-        $this->model = $this->config->getProviderSetting('google', 'model', 'gemini-pro');
-        $this->temperature = (float)$this->config->getProviderSetting('google', 'temperature', 0.7);
-        $this->maxTokens = (int)$this->config->getProviderSetting('google', 'max_tokens', 2000);
+        $this->model = $this->config->getProviderSetting('google', 'model', self::DEFAULT_MODEL);
+        $this->temperature = (float)$this->config->getProviderSetting('google', 'temperature', self::DEFAULT_TEMPERATURE);
+        $this->maxTokens = (int)$this->config->getProviderSetting('google', 'max_tokens', self::DEFAULT_MAX_TOKENS);
     }
 
     public function getProviderName(): string
@@ -71,41 +85,41 @@ class GoogleProvider extends BaseAiProvider
             throw new QueryException('Google API key not configured', 0);
         }
 
-        $url = sprintf($this->apiUrl, $this->model) . '?key=' . urlencode($apiKey);
+        $url = sprintf($this->apiUrl, $this->model) . self::URL_PARAM_KEY . urlencode($apiKey);
 
         $data = [
-            'contents' => [
+            self::REQUEST_KEY_CONTENTS => [
                 [
-                    'parts' => [
+                    self::REQUEST_KEY_PARTS => [
                         [
-                            'text' => $prompt,
+                            self::REQUEST_KEY_TEXT => $prompt,
                         ],
                     ],
                 ],
             ],
-            'systemInstruction' => [
-                'parts' => [
+            self::REQUEST_KEY_SYSTEM_INSTRUCTION => [
+                self::REQUEST_KEY_PARTS => [
                     [
-                        'text' => $systemInstruction,
+                        self::REQUEST_KEY_TEXT => $systemInstruction,
                     ],
                 ],
             ],
-            'generationConfig' => [
+            self::REQUEST_KEY_GENERATION_CONFIG => [
                 'temperature' => $this->temperature,
-                'maxOutputTokens' => $this->maxTokens,
+                self::REQUEST_KEY_MAX_OUTPUT_TOKENS => $this->maxTokens,
             ],
         ];
 
         $response = $this->makeRequest($url, $data);
 
-        if (!isset($response['candidates'][0]['content']['parts'][0]['text'])) {
+        if (!isset($response[self::RESPONSE_KEY_CANDIDATES][0][self::RESPONSE_KEY_CONTENT][self::REQUEST_KEY_PARTS][0][self::REQUEST_KEY_TEXT])) {
             throw new QueryException(
                 'Invalid response format from Google API',
                 0
             );
         }
 
-        return (string)$response['candidates'][0]['content']['parts'][0]['text'];
+        return (string)$response[self::RESPONSE_KEY_CANDIDATES][0][self::RESPONSE_KEY_CONTENT][self::REQUEST_KEY_PARTS][0][self::REQUEST_KEY_TEXT];
     }
 
     protected function buildSystemPrompt(string $type): string

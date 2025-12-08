@@ -12,13 +12,25 @@ use tommyknocker\pdodb\exceptions\QueryException;
  */
 class OpenAiProvider extends BaseAiProvider
 {
-    protected string $apiUrl = 'https://api.openai.com/v1/chat/completions';
+    private const string API_URL = 'https://api.openai.com/v1/chat/completions';
+    private const string DEFAULT_MODEL = 'gpt-4o-mini';
+    private const float DEFAULT_TEMPERATURE = 0.7;
+    private const int DEFAULT_MAX_TOKENS = 2000;
+    private const string HEADER_AUTHORIZATION = 'Authorization';
+    private const string HEADER_BEARER_PREFIX = 'Bearer ';
+    private const string MESSAGE_ROLE_SYSTEM = 'system';
+    private const string MESSAGE_ROLE_USER = 'user';
+    private const string RESPONSE_KEY_CHOICES = 'choices';
+    private const string RESPONSE_KEY_MESSAGE = 'message';
+    private const string RESPONSE_KEY_CONTENT = 'content';
+
+    protected string $apiUrl = self::API_URL;
 
     protected function initializeDefaults(): void
     {
-        $this->model = $this->config->getProviderSetting('openai', 'model', 'gpt-4o-mini');
-        $this->temperature = (float)$this->config->getProviderSetting('openai', 'temperature', 0.7);
-        $this->maxTokens = (int)$this->config->getProviderSetting('openai', 'max_tokens', 2000);
+        $this->model = $this->config->getProviderSetting('openai', 'model', self::DEFAULT_MODEL);
+        $this->temperature = (float)$this->config->getProviderSetting('openai', 'temperature', self::DEFAULT_TEMPERATURE);
+        $this->maxTokens = (int)$this->config->getProviderSetting('openai', 'max_tokens', self::DEFAULT_MAX_TOKENS);
     }
 
     public function getProviderName(): string
@@ -80,11 +92,11 @@ class OpenAiProvider extends BaseAiProvider
             'model' => $this->model,
             'messages' => [
                 [
-                    'role' => 'system',
+                    'role' => self::MESSAGE_ROLE_SYSTEM,
                     'content' => $systemPrompt,
                 ],
                 [
-                    'role' => 'user',
+                    'role' => self::MESSAGE_ROLE_USER,
                     'content' => $userPrompt,
                 ],
             ],
@@ -93,19 +105,19 @@ class OpenAiProvider extends BaseAiProvider
         ];
 
         $headers = [
-            'Authorization' => "Bearer {$apiKey}",
+            self::HEADER_AUTHORIZATION => self::HEADER_BEARER_PREFIX . $apiKey,
         ];
 
         $response = $this->makeRequest($this->apiUrl, $data, $headers);
 
-        if (!isset($response['choices'][0]['message']['content'])) {
+        if (!isset($response[self::RESPONSE_KEY_CHOICES][0][self::RESPONSE_KEY_MESSAGE][self::RESPONSE_KEY_CONTENT])) {
             throw new QueryException(
                 'Invalid response format from OpenAI API',
                 0
             );
         }
 
-        return (string)$response['choices'][0]['message']['content'];
+        return (string)$response[self::RESPONSE_KEY_CHOICES][0][self::RESPONSE_KEY_MESSAGE][self::RESPONSE_KEY_CONTENT];
     }
 
     /**

@@ -12,13 +12,24 @@ use tommyknocker\pdodb\exceptions\QueryException;
  */
 class AnthropicProvider extends BaseAiProvider
 {
-    protected string $apiUrl = 'https://api.anthropic.com/v1/messages';
+    private const string API_URL = 'https://api.anthropic.com/v1/messages';
+    private const string DEFAULT_MODEL = 'claude-3-5-sonnet-20241022';
+    private const float DEFAULT_TEMPERATURE = 0.7;
+    private const int DEFAULT_MAX_TOKENS = 2000;
+    private const string API_VERSION = '2023-06-01';
+    private const string HEADER_API_KEY = 'x-api-key';
+    private const string HEADER_VERSION = 'anthropic-version';
+    private const string MESSAGE_ROLE_USER = 'user';
+    private const string RESPONSE_KEY_CONTENT = 'content';
+    private const string RESPONSE_KEY_TEXT = 'text';
+
+    protected string $apiUrl = self::API_URL;
 
     protected function initializeDefaults(): void
     {
-        $this->model = $this->config->getProviderSetting('anthropic', 'model', 'claude-3-5-sonnet-20241022');
-        $this->temperature = (float)$this->config->getProviderSetting('anthropic', 'temperature', 0.7);
-        $this->maxTokens = (int)$this->config->getProviderSetting('anthropic', 'max_tokens', 2000);
+        $this->model = $this->config->getProviderSetting('anthropic', 'model', self::DEFAULT_MODEL);
+        $this->temperature = (float)$this->config->getProviderSetting('anthropic', 'temperature', self::DEFAULT_TEMPERATURE);
+        $this->maxTokens = (int)$this->config->getProviderSetting('anthropic', 'max_tokens', self::DEFAULT_MAX_TOKENS);
     }
 
     public function getProviderName(): string
@@ -77,7 +88,7 @@ class AnthropicProvider extends BaseAiProvider
             'system' => $systemPrompt,
             'messages' => [
                 [
-                    'role' => 'user',
+                    'role' => self::MESSAGE_ROLE_USER,
                     'content' => $userPrompt,
                 ],
             ],
@@ -85,20 +96,20 @@ class AnthropicProvider extends BaseAiProvider
         ];
 
         $headers = [
-            'x-api-key' => $apiKey,
-            'anthropic-version' => '2023-06-01',
+            self::HEADER_API_KEY => $apiKey,
+            self::HEADER_VERSION => self::API_VERSION,
         ];
 
         $response = $this->makeRequest($this->apiUrl, $data, $headers);
 
-        if (!isset($response['content'][0]['text'])) {
+        if (!isset($response[self::RESPONSE_KEY_CONTENT][0][self::RESPONSE_KEY_TEXT])) {
             throw new QueryException(
                 'Invalid response format from Anthropic API',
                 0
             );
         }
 
-        return (string)$response['content'][0]['text'];
+        return (string)$response[self::RESPONSE_KEY_CONTENT][0][self::RESPONSE_KEY_TEXT];
     }
 
     protected function buildSystemPrompt(string $type): string

@@ -12,21 +12,35 @@ use tommyknocker\pdodb\exceptions\QueryException;
  */
 class MicrosoftProvider extends BaseAiProvider
 {
+    private const string API_VERSION = '2024-10-21'; // Latest stable version
+    private const string DEFAULT_DEPLOYMENT = 'gpt-4';
+    private const float DEFAULT_TEMPERATURE = 0.7;
+    private const int DEFAULT_MAX_TOKENS = 2000;
+    private const string URL_PATH_DEPLOYMENTS = '/openai/deployments/';
+    private const string URL_PATH_CHAT_COMPLETIONS = '/chat/completions';
+    private const string URL_PARAM_API_VERSION = 'api-version=';
+    private const string HEADER_API_KEY = 'api-key';
+    private const string MESSAGE_ROLE_SYSTEM = 'system';
+    private const string MESSAGE_ROLE_USER = 'user';
+    private const string RESPONSE_KEY_CHOICES = 'choices';
+    private const string RESPONSE_KEY_MESSAGE = 'message';
+    private const string RESPONSE_KEY_CONTENT = 'content';
+
     protected string $apiUrl = '';
-    protected string $apiVersion = '2024-10-21'; // Latest stable version
+    protected string $apiVersion = self::API_VERSION;
 
     protected function initializeDefaults(): void
     {
         $endpoint = $this->config->getProviderSetting('microsoft', 'endpoint', '');
-        $deployment = $this->config->getProviderSetting('microsoft', 'deployment', 'gpt-4');
+        $deployment = $this->config->getProviderSetting('microsoft', 'deployment', self::DEFAULT_DEPLOYMENT);
         $this->model = $deployment;
 
         if ($endpoint !== '') {
-            $this->apiUrl = rtrim($endpoint, '/') . '/openai/deployments/' . urlencode($deployment) . '/chat/completions?api-version=' . $this->apiVersion;
+            $this->apiUrl = rtrim($endpoint, '/') . self::URL_PATH_DEPLOYMENTS . urlencode($deployment) . self::URL_PATH_CHAT_COMPLETIONS . '?' . self::URL_PARAM_API_VERSION . $this->apiVersion;
         }
 
-        $this->temperature = (float)$this->config->getProviderSetting('microsoft', 'temperature', 0.7);
-        $this->maxTokens = (int)$this->config->getProviderSetting('microsoft', 'max_tokens', 2000);
+        $this->temperature = (float)$this->config->getProviderSetting('microsoft', 'temperature', self::DEFAULT_TEMPERATURE);
+        $this->maxTokens = (int)$this->config->getProviderSetting('microsoft', 'max_tokens', self::DEFAULT_MAX_TOKENS);
     }
 
     public function getProviderName(): string
@@ -86,11 +100,11 @@ class MicrosoftProvider extends BaseAiProvider
         $data = [
             'messages' => [
                 [
-                    'role' => 'system',
+                    'role' => self::MESSAGE_ROLE_SYSTEM,
                     'content' => $systemPrompt,
                 ],
                 [
-                    'role' => 'user',
+                    'role' => self::MESSAGE_ROLE_USER,
                     'content' => $userPrompt,
                 ],
             ],
@@ -99,19 +113,19 @@ class MicrosoftProvider extends BaseAiProvider
         ];
 
         $headers = [
-            'api-key' => $apiKey,
+            self::HEADER_API_KEY => $apiKey,
         ];
 
         $response = $this->makeRequest($this->apiUrl, $data, $headers);
 
-        if (!isset($response['choices'][0]['message']['content'])) {
+        if (!isset($response[self::RESPONSE_KEY_CHOICES][0][self::RESPONSE_KEY_MESSAGE][self::RESPONSE_KEY_CONTENT])) {
             throw new QueryException(
                 'Invalid response format from Microsoft API',
                 0
             );
         }
 
-        return (string)$response['choices'][0]['message']['content'];
+        return (string)$response[self::RESPONSE_KEY_CHOICES][0][self::RESPONSE_KEY_MESSAGE][self::RESPONSE_KEY_CONTENT];
     }
 
     protected function buildSystemPrompt(string $type): string
