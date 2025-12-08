@@ -513,4 +513,16 @@ abstract class BaseCliCommand
     {
         echo "⚠ {$message}\n";
     }
+
+    /**
+     * Show loading message.
+     *
+     * @param string $message Loading message
+     */
+    protected static function loading(string $message): void
+    {
+        if (getenv('PHPUNIT') === false) {
+            echo "⏳ {$message}...\n";
+        }
+    }
 }
