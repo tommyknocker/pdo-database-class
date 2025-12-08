@@ -17,8 +17,15 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
     {
         parent::setUp();
         // Set environment variables for Application
-        $username = getenv('PDODB_USERNAME') ?: self::DB_USER;
-        $password = getenv('PDODB_PASSWORD') ?: self::DB_PASSWORD;
+        // Read from environment first (for CI), then fallback to constants
+        $username = getenv('PDODB_USERNAME');
+        if ($username === false || $username === '') {
+            $username = self::DB_USER;
+        }
+        $password = getenv('PDODB_PASSWORD');
+        if ($password === false || $password === '') {
+            $password = self::DB_PASSWORD;
+        }
         putenv('PDODB_DRIVER=sqlsrv');
         putenv('PDODB_HOST=' . self::DB_HOST);
         putenv('PDODB_PORT=' . (string)self::DB_PORT);

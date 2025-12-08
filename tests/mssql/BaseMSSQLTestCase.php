@@ -31,8 +31,14 @@ abstract class BaseMSSQLTestCase extends TestCase
          * PDODB_USERNAME=sa PDODB_PASSWORD=Test123!@#
          */
         // Use environment variables if set (for CI), otherwise use constants
-        $username = getenv('PDODB_USERNAME') ?: self::DB_USER;
-        $password = getenv('PDODB_PASSWORD') ?: self::DB_PASSWORD;
+        $username = getenv('PDODB_USERNAME');
+        if ($username === false || $username === '') {
+            $username = self::DB_USER;
+        }
+        $password = getenv('PDODB_PASSWORD');
+        if ($password === false || $password === '') {
+            $password = self::DB_PASSWORD;
+        }
 
         self::$db = new PdoDb(
             'sqlsrv',
