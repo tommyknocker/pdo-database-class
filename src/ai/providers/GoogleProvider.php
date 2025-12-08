@@ -12,7 +12,7 @@ use tommyknocker\pdodb\exceptions\QueryException;
  */
 class GoogleProvider extends BaseAiProvider
 {
-    protected string $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent';
+    protected string $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent'; // v1beta is the latest supported version
 
     protected function initializeDefaults(): void
     {

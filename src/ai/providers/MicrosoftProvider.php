@@ -13,7 +13,7 @@ use tommyknocker\pdodb\exceptions\QueryException;
 class MicrosoftProvider extends BaseAiProvider
 {
     protected string $apiUrl = '';
-    protected string $apiVersion = '2024-02-15-preview';
+    protected string $apiVersion = '2024-10-21'; // Latest stable version
 
     protected function initializeDefaults(): void
     {
