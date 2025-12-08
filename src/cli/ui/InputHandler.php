@@ -18,8 +18,16 @@ class InputHandler
      */
     public static function readKey(int $timeoutMicroseconds = 100000): ?string
     {
-        // Check if stdin is available
-        if (!stream_isatty(STDIN)) {
+        // Check for non-interactive mode first (fastest check)
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false;
+
+        // Only check stream_isatty if not already in non-interactive mode (expensive check)
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
+
+        if ($nonInteractive) {
             return null;
         }
 
@@ -257,7 +265,16 @@ class InputHandler
      */
     public static function hasKey(): bool
     {
-        if (!stream_isatty(STDIN)) {
+        // Check for non-interactive mode first (fastest check)
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false;
+
+        // Only check stream_isatty if not already in non-interactive mode (expensive check)
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
+
+        if ($nonInteractive) {
             return false;
         }
 

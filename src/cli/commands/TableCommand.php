@@ -100,11 +100,15 @@ class TableCommand extends Command
         $columnsOpt = $this->getOption('columns');
         if (!is_string($columnsOpt) || $columnsOpt === '') {
             // Try interactive prompt for columns definition
-            $columnsOpt = static::readInput('Enter columns (e.g., id:int, name:string:nullable)', null);
+            $inputColumns = static::readInput('Enter columns (e.g., id:int, name:string:nullable)', null);
+            if ($inputColumns === '') {
+                return $this->showError('Columns are required. Use --columns option or provide them interactively.');
+            }
+            $columnsOpt = $inputColumns;
         }
         $options = $this->collectCreateOptions();
-        /** @var string $columnsOpt */
-        $columns = $this->parseColumns($columnsOpt !== '' ? $columnsOpt : null);
+        // At this point $columnsOpt is guaranteed to be a non-empty string
+        $columns = $this->parseColumns($columnsOpt);
         if (empty($columns)) {
             return $this->showError('At least one column is required. Use --columns="id:int, name:string".');
         }

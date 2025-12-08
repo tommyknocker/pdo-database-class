@@ -328,7 +328,16 @@ class Dashboard
     public function run(): void
     {
         // Check if interactive
-        if (!stream_isatty(STDOUT) || getenv('PDODB_NON_INTERACTIVE') !== false) {
+        // Check for PDODB_NON_INTERACTIVE and PHPUNIT first (fastest check)
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false;
+
+        // Only check stream_isatty if not already in non-interactive mode (expensive check)
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDOUT);
+        }
+
+        if ($nonInteractive) {
             echo "TUI Dashboard requires an interactive terminal.\n";
             echo "Please run this command in a terminal with TTY support.\n";
             return;

@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mysql;
 
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use tommyknocker\pdodb\cli\Application;
 use tommyknocker\pdodb\exceptions\AuthenticationException;
 
 final class UserCommandCliTests extends BaseMySQLTestCase
 {
-    /**
-     * @runInSeparateProcess
-     *
-     * @preserveGlobalState disabled
-     */
+    #[PreserveGlobalState(false)]
+    #[RunInSeparateProcess]
     public function testUserCreateCommandWithAllOptions(): void
     {
         putenv('PDODB_DRIVER=mysql');

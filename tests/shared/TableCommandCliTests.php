@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
 use tommyknocker\pdodb\cli\commands\TableCommand;
@@ -22,6 +23,7 @@ final class TableCommandCliTests extends TestCase
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=' . $this->dbPath);
         putenv('PDODB_NON_INTERACTIVE=1');
+        putenv('PHPUNIT=1');
     }
 
     protected function tearDown(): void
@@ -34,6 +36,32 @@ final class TableCommandCliTests extends TestCase
         putenv('PDODB_NON_INTERACTIVE');
         putenv('PHPUNIT');
         parent::tearDown();
+    }
+
+    /**
+     * Temporarily unset PHPUNIT to allow output, then restore it.
+     *
+     * @return string|false Original PHPUNIT value or false if not set
+     */
+    protected function unsetPhpunitForOutput(): string|false
+    {
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
+        return $phpunit;
+    }
+
+    /**
+     * Restore PHPUNIT environment variable.
+     *
+     * @param string|false $phpunit Original PHPUNIT value
+     */
+    protected function restorePhpunit(string|false $phpunit): void
+    {
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
     }
 
     public function testTableCreateInfoExistsDescribeListAndDrop(): void
@@ -170,6 +198,7 @@ final class TableCommandCliTests extends TestCase
         $this->assertSame(0, $code);
 
         // add column
+        $phpunit = $this->unsetPhpunitForOutput();
         ob_start();
 
         try {
@@ -177,9 +206,12 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString("added to 'items'", $out);
 
@@ -198,6 +230,7 @@ final class TableCommandCliTests extends TestCase
         $this->assertStringContainsString('columns', $out);
 
         // create index
+        $phpunit = $this->unsetPhpunitForOutput();
         ob_start();
 
         try {
@@ -205,9 +238,12 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString("Index 'idx_items_name' created", $out);
 
@@ -226,6 +262,7 @@ final class TableCommandCliTests extends TestCase
         $this->assertStringContainsString('indexes', $out);
 
         // drop index
+        $phpunit = $this->unsetPhpunitForOutput();
         ob_start();
 
         try {
@@ -233,9 +270,12 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString("Index 'idx_items_name' dropped", $out);
     }
@@ -303,9 +343,7 @@ final class TableCommandCliTests extends TestCase
         $this->assertContains($code, [0, 1]);
     }
 
-    /**
-     * @runInSeparateProcess
-     */
+    #[RunInSeparateProcess]
     public function testKeysAddWithoutRequiredParamsYieldsError(): void
     {
         $bin = realpath(__DIR__ . '/../../bin/pdodb');
@@ -317,9 +355,7 @@ final class TableCommandCliTests extends TestCase
         $this->assertStringContainsString('required', $out);
     }
 
-    /**
-     * @runInSeparateProcess
-     */
+    #[RunInSeparateProcess]
     public function testKeysDropWithoutNameYieldsError(): void
     {
         $bin = realpath(__DIR__ . '/../../bin/pdodb');
@@ -330,9 +366,7 @@ final class TableCommandCliTests extends TestCase
         $this->assertStringContainsString('Foreign key name is required', $out);
     }
 
-    /**
-     * @runInSeparateProcess
-     */
+    #[RunInSeparateProcess]
     public function testCreateTableWithoutColumnsYieldsError(): void
     {
         // Run in a subprocess to avoid exit() killing PHPUnit
@@ -341,7 +375,8 @@ final class TableCommandCliTests extends TestCase
         $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
         $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' table create no_columns_tbl 2>&1';
         $out = (string)shell_exec($cmd);
-        $this->assertStringContainsString('At least one column is required', $out);
+        // In non-interactive mode, readInput() returns empty string, so we get this error message
+        $this->assertStringContainsString('Columns are required', $out);
     }
 
     public function testTableCountCommand(): void
@@ -516,6 +551,7 @@ final class TableCommandCliTests extends TestCase
         $this->assertSame(0, $code);
 
         // Rename table
+        $phpunit = $this->unsetPhpunitForOutput();
         ob_start();
 
         try {
@@ -523,9 +559,12 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('renamed to', $out);
 
@@ -570,6 +609,7 @@ final class TableCommandCliTests extends TestCase
         $this->assertEquals(2, (int)$count);
 
         // Truncate table
+        $phpunit = $this->unsetPhpunitForOutput();
         ob_start();
 
         try {
@@ -577,9 +617,12 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('truncated', $out);
 
@@ -639,6 +682,7 @@ final class TableCommandCliTests extends TestCase
         $this->assertSame(0, $code);
 
         // Drop column (SQLite has limited DROP COLUMN support)
+        $phpunit = $this->unsetPhpunitForOutput();
         ob_start();
 
         try {
@@ -646,10 +690,13 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
             // SQLite may not support DROP COLUMN directly, which is expected
             $this->assertInstanceOf(\Throwable::class, $e);
             return;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('dropped', $out);
     }
@@ -827,11 +874,13 @@ final class TableCommandCliTests extends TestCase
         $this->assertStringContainsString('Test 2', $out);
     }
 
-    /**
-     * @runInSeparateProcess
-     */
+    #[RunInSeparateProcess]
     public function testTableIndexesSuggest(): void
     {
+        // Use a separate DB path for this test to avoid conflicts
+        $dbPath = sys_get_temp_dir() . '/pdodb_table_suggest_' . uniqid() . '.sqlite';
+        putenv('PDODB_PATH=' . $dbPath);
+
         $app = new Application();
 
         // Create table with foreign key column (without index)
@@ -848,7 +897,7 @@ final class TableCommandCliTests extends TestCase
         $this->assertSame(0, $code);
 
         // Add foreign key (if supported by SQLite)
-        $db = new PdoDb('sqlite', ['path' => $this->dbPath]);
+        $db = new PdoDb('sqlite', ['path' => $dbPath]);
 
         try {
             $db->schema()->addForeignKey('fk_suggest_test_user', 'suggest_test', 'user_id', 'users', 'id');
@@ -908,6 +957,13 @@ final class TableCommandCliTests extends TestCase
         foreach ($json['suggestions'] as $suggestion) {
             $this->assertEquals('high', $suggestion['priority'] ?? null);
         }
+
+        // Clean up test DB
+        if (file_exists($dbPath)) {
+            @unlink($dbPath);
+        }
+        // Restore original DB path
+        putenv('PDODB_PATH=' . $this->dbPath);
 
         // Test suggest for non-existent table (run in separate process to handle exit)
         $bin = realpath(__DIR__ . '/../../bin/pdodb');

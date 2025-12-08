@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
 use tommyknocker\pdodb\PdoDb;
@@ -23,6 +25,7 @@ final class GenerateCommandCliTests extends TestCase
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=' . $this->dbPath);
         putenv('PDODB_NON_INTERACTIVE=1');
+        putenv('PHPUNIT=1');
     }
 
     protected function tearDown(): void
@@ -36,6 +39,7 @@ final class GenerateCommandCliTests extends TestCase
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
         putenv('PDODB_NON_INTERACTIVE');
+        putenv('PHPUNIT');
         parent::tearDown();
     }
 
@@ -90,6 +94,7 @@ final class GenerateCommandCliTests extends TestCase
     public function testGenerateApiWithTable(): void
     {
         $this->createTestTable();
+        $phpunit = $this->unsetPhpunitForOutput();
         $app = new Application();
         ob_start();
 
@@ -98,9 +103,12 @@ final class GenerateCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('API controller file created', $out);
         $this->assertFileExists($this->outputDir . '/TestUserController.php');
@@ -127,6 +135,7 @@ final class GenerateCommandCliTests extends TestCase
     public function testGenerateTestsWithTable(): void
     {
         $this->createTestTable();
+        $phpunit = $this->unsetPhpunitForOutput();
         $app = new Application();
         ob_start();
 
@@ -135,19 +144,17 @@ final class GenerateCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('Test file created', $out);
         $this->assertFileExists($this->outputDir . '/TestUserTest.php');
     }
 
-    /**
-     * @runInSeparateProcess
-     *
-     * @preserveGlobalState disabled
-     */
     public function testGenerateTestsShowsHelpWhenNoOptionsWithType(): void
     {
         $app = new Application();
@@ -169,6 +176,7 @@ final class GenerateCommandCliTests extends TestCase
     public function testGenerateDtoWithTable(): void
     {
         $this->createTestTable();
+        $phpunit = $this->unsetPhpunitForOutput();
         $app = new Application();
         ob_start();
 
@@ -177,9 +185,12 @@ final class GenerateCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('DTO file created', $out);
         $this->assertFileExists($this->outputDir . '/TestUserDTO.php');
@@ -244,6 +255,7 @@ final class GenerateCommandCliTests extends TestCase
     public function testGenerateDocsWithTable(): void
     {
         $this->createTestTable();
+        $phpunit = $this->unsetPhpunitForOutput();
         $app = new Application();
         ob_start();
 
@@ -252,9 +264,12 @@ final class GenerateCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('Documentation file created', $out);
         $this->assertFileExists($this->outputDir . '/test_users_api.yaml');
@@ -277,6 +292,7 @@ final class GenerateCommandCliTests extends TestCase
             'email' => $db->schema()->string(100),
         ]);
 
+        $phpunit = $this->unsetPhpunitForOutput();
         $app = new Application();
         ob_start();
 
@@ -285,9 +301,12 @@ final class GenerateCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('Documentation file created', $out);
         $this->assertFileExists($this->outputDir . '/user_api.yaml');
@@ -301,6 +320,7 @@ final class GenerateCommandCliTests extends TestCase
     public function testGenerateDocsJsonFormat(): void
     {
         $this->createTestTable();
+        $phpunit = $this->unsetPhpunitForOutput();
         $app = new Application();
         ob_start();
 
@@ -309,9 +329,12 @@ final class GenerateCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('Documentation file created', $out);
         $this->assertFileExists($this->outputDir . '/test_users_api.json');
@@ -334,6 +357,7 @@ final class GenerateCommandCliTests extends TestCase
     public function testGenerateModel(): void
     {
         $this->createTestTable();
+        $phpunit = $this->unsetPhpunitForOutput();
         $app = new Application();
         ob_start();
 
@@ -342,9 +366,12 @@ final class GenerateCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('Model file created', $out);
         $this->assertFileExists($this->outputDir . '/TestUser.php');
@@ -377,6 +404,7 @@ final class GenerateCommandCliTests extends TestCase
     public function testGenerateRepository(): void
     {
         $this->createTestTable();
+        $phpunit = $this->unsetPhpunitForOutput();
         $app = new Application();
         ob_start();
 
@@ -385,9 +413,12 @@ final class GenerateCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('Repository file created', $out);
         $this->assertFileExists($this->outputDir . '/TestUserRepository.php');
@@ -419,6 +450,7 @@ final class GenerateCommandCliTests extends TestCase
 
     public function testGenerateService(): void
     {
+        $phpunit = $this->unsetPhpunitForOutput();
         $app = new Application();
         ob_start();
 
@@ -427,9 +459,12 @@ final class GenerateCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
+
+        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('Service file created', $out);
         $this->assertFileExists($this->outputDir . '/TestUserService.php');
@@ -477,11 +512,8 @@ final class GenerateCommandCliTests extends TestCase
         $this->assertStringContainsString('Required Options', $out);
     }
 
-    /**
-     * @runInSeparateProcess
-     *
-     * @preserveGlobalState disabled
-     */
+    #[PreserveGlobalState(false)]
+    #[RunInSeparateProcess]
     public function testGenerateUnknownSubcommand(): void
     {
         $bin = realpath(__DIR__ . '/../../bin/pdodb');
@@ -649,5 +681,31 @@ final class GenerateCommandCliTests extends TestCase
         $this->assertStringContainsString('Generate service', $out);
         $this->assertStringContainsString('--service', $out);
         $this->assertStringContainsString('Required Options', $out);
+    }
+
+    /**
+     * Temporarily unset PHPUNIT to allow output, then restore it.
+     *
+     * @return string|false Original PHPUNIT value or false if not set
+     */
+    protected function unsetPhpunitForOutput(): string|false
+    {
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
+        return $phpunit;
+    }
+
+    /**
+     * Restore PHPUNIT environment variable.
+     *
+     * @param string|false $phpunit Original PHPUNIT value
+     */
+    protected function restorePhpunit(string|false $phpunit): void
+    {
+        if ($phpunit !== false) {
+            putenv('PHPUNIT=' . $phpunit);
+        } else {
+            putenv('PHPUNIT');
+        }
     }
 }
