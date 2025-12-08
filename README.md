@@ -498,7 +498,7 @@ pdodb ai analyze "SELECT * FROM users WHERE email = 'user@example.com'" \
     --table=users
 ```
 
-**Supported Providers:** OpenAI, Anthropic, Google, Microsoft, Ollama (local, no API key)
+**Supported Providers:** OpenAI, Anthropic, Google, Microsoft, DeepSeek, Ollama (local, no API key)
 
 **Model Selection:** Configure models via environment variables (`PDODB_AI_<PROVIDER>_MODEL`) or config array (`ai.providers.<provider>.model`)
 

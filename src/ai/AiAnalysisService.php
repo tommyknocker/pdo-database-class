@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\ai;
 
 use tommyknocker\pdodb\ai\providers\AnthropicProvider;
+use tommyknocker\pdodb\ai\providers\DeepSeekProvider;
 use tommyknocker\pdodb\ai\providers\GoogleProvider;
 use tommyknocker\pdodb\ai\providers\MicrosoftProvider;
 use tommyknocker\pdodb\ai\providers\OllamaProvider;
@@ -82,8 +83,9 @@ class AiAnalysisService
             'google' => new GoogleProvider($this->config),
             'microsoft' => new MicrosoftProvider($this->config),
             'ollama' => new OllamaProvider($this->config),
+            'deepseek' => new DeepSeekProvider($this->config),
             default => throw new QueryException(
-                "Unsupported AI provider: {$providerName}. Supported: openai, anthropic, google, microsoft, ollama",
+                "Unsupported AI provider: {$providerName}. Supported: openai, anthropic, google, microsoft, ollama, deepseek",
                 0
             ),
         };

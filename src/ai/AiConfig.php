@@ -58,6 +58,10 @@ class AiConfig
             $this->apiKeys['microsoft'] = (string)$aiConfig['microsoft_key'];
         }
 
+        if (isset($aiConfig['deepseek_key'])) {
+            $this->apiKeys['deepseek'] = (string)$aiConfig['deepseek_key'];
+        }
+
         if (isset($aiConfig['ollama_url'])) {
             $this->ollamaUrl = (string)$aiConfig['ollama_url'];
         }
@@ -120,7 +124,7 @@ class AiConfig
      */
     protected function loadProviderModelsFromEnvironment(): void
     {
-        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'ollama'];
+        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'ollama', 'deepseek'];
         foreach ($providers as $provider) {
             $envVar = 'PDODB_AI_' . strtoupper($provider) . '_MODEL';
             $model = getenv($envVar);

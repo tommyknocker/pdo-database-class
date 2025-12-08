@@ -32,6 +32,7 @@ PDOdb supports multiple AI providers, each with their own strengths:
 | **Anthropic** | claude-3-5-sonnet, claude-3-opus | Detailed analysis, long context | Yes |
 | **Google** | gemini-2.5-flash, gemini-2.5-pro, gemini-2.0-flash-001, gemini-flash-latest, gemini-pro-latest | Multimodal analysis, large context | Yes |
 | **Microsoft** | Azure OpenAI models | Enterprise environments | Yes |
+| **DeepSeek** | deepseek-chat, deepseek-reasoner | Cost-effective, OpenAI-compatible | Yes |
 | **Ollama** | Any local model (llama2, deepseek-coder, etc.) | Privacy, offline use, no API costs | No |
 
 ## Configuration
@@ -58,6 +59,10 @@ export PDODB_AI_GOOGLE_MODEL=gemini-2.5-flash  # Optional: gemini-2.5-pro, gemin
 export PDODB_AI_MICROSOFT_KEY=...
 export PDODB_AI_MICROSOFT_MODEL=gpt-4  # Optional: model name
 # Also configure endpoint via config array (see below)
+
+# DeepSeek
+export PDODB_AI_DEEPSEEK_KEY=...
+export PDODB_AI_DEEPSEEK_MODEL=deepseek-chat  # Optional: deepseek-reasoner (thinking mode)
 
 # Ollama (local, no API key needed)
 export PDODB_AI_OLLAMA_URL=http://localhost:11434
@@ -86,6 +91,7 @@ $db = new PdoDb('mysql', [
         'anthropic_key' => 'sk-ant-...',
         'google_key' => '...',
         'microsoft_key' => '...',
+        'deepseek_key' => '...',
         'ollama_url' => 'http://localhost:11434',
         'providers' => [
             'openai' => [
@@ -105,6 +111,11 @@ $db = new PdoDb('mysql', [
             'microsoft' => [
                 'endpoint' => 'https://your-resource.openai.azure.com',
                 'deployment' => 'gpt-4',
+            ],
+            'deepseek' => [
+                'model' => 'deepseek-chat',  # or deepseek-reasoner (thinking mode)
+                'temperature' => 0.7,
+                'max_tokens' => 2000,
             ],
             'ollama' => [
                 'model' => 'llama3.2',  # or any local model name
