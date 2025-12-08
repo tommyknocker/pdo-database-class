@@ -63,6 +63,27 @@ class AiCommand extends Command
         $tableName = $this->getOption('table');
 
         try {
+            // Get EXPLAIN plan for better AI analysis
+            static::info('Analyzing query execution plan...');
+            $connection = $db->connection;
+            $dialect = $connection->getDialect();
+            $pdo = $connection->getPdo();
+
+            $explainAnalysis = null;
+            try {
+                $explainResults = $dialect->executeExplain($pdo, $sql, []);
+                $queryBuilder = $db->find();
+                $reflection = new \ReflectionClass($queryBuilder);
+                $executionEngineProperty = $reflection->getProperty('executionEngine');
+                $executionEngineProperty->setAccessible(true);
+                $executionEngine = $executionEngineProperty->getValue($queryBuilder);
+                $analyzer = new ExplainAnalyzer($dialect, $executionEngine);
+                $explainAnalysis = $analyzer->analyze($explainResults, $tableName);
+            } catch (\Throwable $e) {
+                // If EXPLAIN fails, continue without it (e.g., invalid SQL or unsupported)
+                static::info('Note: Could not get execution plan: ' . $e->getMessage());
+            }
+
             static::info('Initializing AI service...');
             $aiService = new AiAnalysisService($db);
             $actualProvider = $aiService->getProvider($provider);
@@ -72,7 +93,7 @@ class AiCommand extends Command
             static::info("Model: {$model}");
             static::loading('Sending request to AI API');
 
-            $analysis = $aiService->analyzeQuery($sql, $tableName, $provider, $options);
+            $analysis = $aiService->analyzeQuery($sql, $tableName, $provider, $options, $explainAnalysis);
 
             if (getenv('PHPUNIT') === false) {
                 echo "\r" . str_repeat(' ', 80) . "\r"; // Clear loading line
@@ -152,7 +173,8 @@ class AiCommand extends Command
             static::info("Model: {$model}");
             static::loading('Sending request to AI API');
 
-            $aiAnalysis = $aiService->analyzeQuery($sql, $tableName, $provider, $options);
+            // Pass baseAnalysis (which includes EXPLAIN plan) to AI for better analysis
+            $aiAnalysis = $aiService->analyzeQuery($sql, $tableName, $provider, $options, $baseAnalysis);
 
             if (getenv('PHPUNIT') === false) {
                 echo "\r" . str_repeat(' ', 80) . "\r"; // Clear loading line

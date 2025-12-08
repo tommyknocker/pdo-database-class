@@ -80,8 +80,8 @@ class ExplainPlanTool implements McpToolInterface
             $analyzer = new ExplainAnalyzer($dialect, $executionEngine);
             $baseAnalysis = $analyzer->analyze($explainResults, $tableName);
 
-            // Then get AI analysis
-            $aiAnalysis = $this->aiService->analyzeQuery($sql, $tableName, $provider);
+            // Then get AI analysis (pass baseAnalysis which includes EXPLAIN plan)
+            $aiAnalysis = $this->aiService->analyzeQuery($sql, $tableName, $provider, [], $baseAnalysis);
             $aiProvider = $this->aiService->getProvider($provider);
             $model = $aiProvider->getModel();
 

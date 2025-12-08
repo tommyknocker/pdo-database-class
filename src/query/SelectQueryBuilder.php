@@ -991,7 +991,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         $targetTable = $tableName ?? $this->table;
 
         try {
-            $aiAnalysis = $aiService->analyzeQuery($sqlData['sql'], $targetTable, $provider, $options);
+            // Pass baseAnalysis (which includes EXPLAIN plan) to AI for better analysis
+            $aiAnalysis = $aiService->analyzeQuery($sqlData['sql'], $targetTable, $provider, $options, $baseAnalysis);
             $aiProvider = $aiService->getProvider($provider);
             $model = $aiProvider->getModel();
         } catch (\Throwable $e) {

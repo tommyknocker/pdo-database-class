@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\ai\mcp\tools;
 
 use tommyknocker\pdodb\ai\AiAnalysisService;
 use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\query\analysis\ExplainAnalyzer;
 
 /**
  * MCP tool for analyzing SQL queries with AI.
@@ -62,7 +63,25 @@ class AnalyzeQueryTool implements McpToolInterface
         $provider = $arguments['provider'] ?? null;
 
         try {
-            $analysis = $this->aiService->analyzeQuery($sql, $tableName, $provider);
+            // Get EXPLAIN plan for better AI analysis
+            $explainAnalysis = null;
+            try {
+                $connection = $this->db->connection;
+                $dialect = $connection->getDialect();
+                $pdo = $connection->getPdo();
+                $explainResults = $dialect->executeExplain($pdo, $sql, []);
+                $queryBuilder = $this->db->find();
+                $reflection = new \ReflectionClass($queryBuilder);
+                $executionEngineProperty = $reflection->getProperty('executionEngine');
+                $executionEngineProperty->setAccessible(true);
+                $executionEngine = $executionEngineProperty->getValue($queryBuilder);
+                $analyzer = new ExplainAnalyzer($dialect, $executionEngine);
+                $explainAnalysis = $analyzer->analyze($explainResults, $tableName);
+            } catch (\Throwable $e) {
+                // If EXPLAIN fails, continue without it
+            }
+
+            $analysis = $this->aiService->analyzeQuery($sql, $tableName, $provider, [], $explainAnalysis);
 
             return [
                 'sql' => $sql,

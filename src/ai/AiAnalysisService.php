@@ -13,6 +13,7 @@ use tommyknocker\pdodb\ai\providers\OpenAiProvider;
 use tommyknocker\pdodb\ai\providers\YandexProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 
 /**
  * Service for AI-powered database analysis.
@@ -100,10 +101,11 @@ class AiAnalysisService
      * @param string|null $tableName Table name
      * @param string|null $provider Provider name
      * @param array<string, mixed> $options Additional options
+     * @param ExplainAnalysis|null $explainAnalysis Optional explain analysis to include in context
      *
      * @return string AI analysis
      */
-    public function analyzeQuery(string $sql, ?string $tableName = null, ?string $provider = null, array $options = []): string
+    public function analyzeQuery(string $sql, ?string $tableName = null, ?string $provider = null, array $options = [], ?ExplainAnalysis $explainAnalysis = null): string
     {
         $aiProvider = $this->getProvider($provider);
 
@@ -120,7 +122,7 @@ class AiAnalysisService
             $aiProvider->setTimeout((int)$options['timeout']);
         }
 
-        $context = $this->contextBuilder->buildQueryContext($sql, $tableName);
+        $context = $this->contextBuilder->buildQueryContext($sql, $tableName, $explainAnalysis);
 
         return $aiProvider->analyzeQuery($sql, $context);
     }
