@@ -33,64 +33,88 @@ class MarkdownFormatter
         $text = $markdown;
 
         // Remove markdown code blocks but keep content
-        $text = preg_replace_callback('/```(\w+)?\n(.*?)```/s', function ($matches) {
+        $text = preg_replace_callback('/```(\w+)?\n(.*?)```/s', function (array $matches): string {
+            // preg_replace_callback guarantees indices 1 and 2 exist for this pattern
             $code = $matches[2];
-            $lang = $matches[1] ?? '';
+            $lang = $matches[1] !== '' ? $matches[1] : '';
             return $this->formatCodeBlock($code, $lang);
         }, $text);
+        if ($text === null) {
+            $text = $markdown;
+        }
 
         // Format inline code
-        $text = preg_replace('/`([^`]+)`/', $this->useColors ? "\033[36m\$1\033[0m" : '[$1]', $text);
+        $replaced = preg_replace('/`([^`]+)`/', $this->useColors ? "\033[36m\$1\033[0m" : '[$1]', $text);
+        $text = $replaced !== null ? $replaced : $text;
 
         // Format headers
-        $text = preg_replace('/^### (.*)$/m', $this->formatHeader(3, '$1'), $text);
-        $text = preg_replace('/^## (.*)$/m', $this->formatHeader(2, '$1'), $text);
-        $text = preg_replace('/^# (.*)$/m', $this->formatHeader(1, '$1'), $text);
+        $text = (string)preg_replace('/^### (.*)$/m', $this->formatHeader(3, '$1'), $text);
+        $text = (string)preg_replace('/^## (.*)$/m', $this->formatHeader(2, '$1'), $text);
+        $text = (string)preg_replace('/^# (.*)$/m', $this->formatHeader(1, '$1'), $text);
 
         // Format bold text
-        $text = preg_replace('/\*\*(.+?)\*\*/', $this->useColors ? "\033[1m\$1\033[0m" : '**$1**', $text);
-        $text = preg_replace('/__(.+?)__/', $this->useColors ? "\033[1m\$1\033[0m" : '__$1__', $text);
+        $text = (string)preg_replace('/\*\*(.+?)\*\*/', $this->useColors ? "\033[1m\$1\033[0m" : '**$1**', $text);
+        $text = (string)preg_replace('/__(.+?)__/', $this->useColors ? "\033[1m\$1\033[0m" : '__$1__', $text);
 
         // Format italic text
-        $text = preg_replace('/\*(.+?)\*/', $this->useColors ? "\033[3m\$1\033[0m" : '*$1*', $text);
-        $text = preg_replace('/_(.+?)_/', $this->useColors ? "\033[3m\$1\033[0m" : '_$1_', $text);
+        $text = (string)preg_replace('/\*(.+?)\*/', $this->useColors ? "\033[3m\$1\033[0m" : '*$1*', $text);
+        $text = (string)preg_replace('/_(.+?)_/', $this->useColors ? "\033[3m\$1\033[0m" : '_$1_', $text);
 
         // Format unordered lists
-        $text = preg_replace_callback('/^(\s*)[-*+] (.+)$/m', function ($matches) {
+        $text = preg_replace_callback('/^(\s*)[-*+] (.+)$/m', function (array $matches): string {
+            // preg_replace_callback guarantees these indices exist
             $indent = $matches[1];
             $content = $matches[2];
             $bullet = $this->useColors ? "\033[0;33m•\033[0m" : '•';
             return $indent . $bullet . ' ' . $content;
         }, $text);
+        if ($text === null) {
+            $text = '';
+        }
+        $text = (string)$text;
 
         // Format ordered lists
-        $text = preg_replace_callback('/^(\s*)(\d+)\. (.+)$/m', function ($matches) {
+        $text = preg_replace_callback('/^(\s*)(\d+)\. (.+)$/m', function (array $matches): string {
+            // preg_replace_callback guarantees these indices exist
             $indent = $matches[1];
             $number = $matches[2];
             $content = $matches[3];
             $formattedNumber = $this->useColors ? "\033[0;33m{$number}.\033[0m" : "{$number}.";
             return $indent . $formattedNumber . ' ' . $content;
         }, $text);
+        if ($text === null) {
+            $text = '';
+        }
+        $text = (string)$text;
 
         // Format horizontal rules
         $text = preg_replace('/^---$/m', str_repeat('─', 80), $text);
+        $text = ($text === null ? '' : (string)$text);
         $text = preg_replace('/^\*\*\*$/m', str_repeat('─', 80), $text);
+        $text = ($text === null ? '' : (string)$text);
 
         // Format blockquotes
-        $text = preg_replace_callback('/^> (.+)$/m', function ($matches) {
+        $text = preg_replace_callback('/^> (.+)$/m', function (array $matches): string {
+            // preg_replace_callback guarantees this index exists
             $content = $matches[1];
             $prefix = $this->useColors ? "\033[0;90m│\033[0m " : '│ ';
             return $prefix . $content;
         }, $text);
+        if ($text === null) {
+            $text = '';
+        }
+        $text = (string)$text;
 
         // Format links (show URL in parentheses)
         $text = preg_replace('/\[([^\]]+)\]\(([^)]+)\)/', '$1 ($2)', $text);
+        $text = ($text === null ? '' : (string)$text);
 
         // Format tables (before other formatting to avoid conflicts)
         $text = $this->formatTables($text);
 
         // Clean up multiple blank lines
         $text = preg_replace('/\n{3,}/', "\n\n", $text);
+        $text = ($text === null ? '' : (string)$text);
 
         return trim($text);
     }
@@ -107,13 +131,16 @@ class MarkdownFormatter
         // Match markdown tables (more flexible pattern)
         // Matches: | col1 | col2 |\n|------|------|\n| val1 | val2 |
         $pattern = '/(\|[^\n]+\|\s*\n(?:\|[-: ]+\|\s*\n)?(?:\|[^\n]+\|\s*\n?)+)/';
-        
-        return preg_replace_callback($pattern, function ($matches) {
+
+        $result = preg_replace_callback($pattern, function (array $matches): string {
+            // preg_replace_callback guarantees index 0 exists
             $table = $matches[0];
             $formatted = $this->formatTable($table);
             // Add blank line before and after table for better readability
             return "\n" . $formatted . "\n";
         }, $text);
+
+        return $result !== null ? $result : $text;
     }
 
     /**
@@ -264,7 +291,7 @@ class MarkdownFormatter
                 if ($this->useColors) {
                     $parts[] = " \033[0;90m│\033[0m ";
                 } else {
-                    $parts[] = " │ ";
+                    $parts[] = ' │ ';
                 }
             }
         }
@@ -349,7 +376,7 @@ class MarkdownFormatter
         } else {
             $result[] = "┌{$border}┐";
             if ($lang !== '') {
-                $result[] = "│{$langLabel}" . str_repeat(' ', max(0, $maxLength - mb_strlen($lang) + 1)) . "│";
+                $result[] = "│{$langLabel}" . str_repeat(' ', max(0, $maxLength - mb_strlen($lang) + 1)) . '│';
                 $result[] = "├{$border}┤";
             }
         }
@@ -408,4 +435,3 @@ class MarkdownFormatter
         return "{$prefix}{$text}";
     }
 }
-

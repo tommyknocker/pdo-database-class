@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai\mcp\tools;
 
-use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\ai\AiAnalysisService;
+use tommyknocker\pdodb\PdoDb;
 
 /**
  * MCP tool for analyzing SQL queries with AI.
@@ -76,4 +76,3 @@ class AnalyzeQueryTool implements McpToolInterface
         }
     }
 }
-

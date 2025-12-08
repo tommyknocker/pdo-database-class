@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai\mcp;
 
-use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\ai\AiAnalysisService;
 use tommyknocker\pdodb\ai\mcp\tools\AnalyzeQueryTool;
 use tommyknocker\pdodb\ai\mcp\tools\ExplainPlanTool;
 use tommyknocker\pdodb\ai\mcp\tools\GetSchemaTool;
+use tommyknocker\pdodb\ai\mcp\tools\McpToolInterface;
 use tommyknocker\pdodb\ai\mcp\tools\SuggestIndexesTool;
+use tommyknocker\pdodb\cli\TableManager;
+use tommyknocker\pdodb\PdoDb;
 
 /**
  * MCP (Model Context Protocol) server for database analysis.
@@ -18,6 +20,7 @@ class McpServer
 {
     protected PdoDb $db;
     protected AiAnalysisService $aiService;
+    /** @var array<string, McpToolInterface> */
     protected array $tools = [];
 
     public function __construct(PdoDb $db, ?AiAnalysisService $aiService = null)
@@ -32,11 +35,16 @@ class McpServer
      */
     protected function registerTools(): void
     {
+        $getSchemaTool = new GetSchemaTool($this->db);
+        $analyzeQueryTool = new AnalyzeQueryTool($this->db, $this->aiService);
+        $suggestIndexesTool = new SuggestIndexesTool($this->db, $this->aiService);
+        $explainPlanTool = new ExplainPlanTool($this->db, $this->aiService);
+
         $this->tools = [
-            new GetSchemaTool($this->db),
-            new AnalyzeQueryTool($this->db, $this->aiService),
-            new SuggestIndexesTool($this->db, $this->aiService),
-            new ExplainPlanTool($this->db, $this->aiService),
+            $getSchemaTool->getName() => $getSchemaTool,
+            $analyzeQueryTool->getName() => $analyzeQueryTool,
+            $suggestIndexesTool->getName() => $suggestIndexesTool,
+            $explainPlanTool->getName() => $explainPlanTool,
         ];
     }
 
@@ -162,7 +170,7 @@ class McpServer
      */
     protected function handleResourcesList(): array
     {
-        $tables = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+        $tables = TableManager::listTables($this->db);
         $resources = [];
 
         foreach ($tables as $table) {
@@ -195,9 +203,8 @@ class McpServer
 
         $tableName = substr($uri, 8);
         $columns = $this->db->describe($tableName);
-        $schemaInspector = new \tommyknocker\pdodb\cli\SchemaInspector($this->db);
-        $indexes = $schemaInspector->getIndexes($tableName);
-        $foreignKeys = $schemaInspector->getForeignKeys($tableName);
+        $indexes = $this->db->schema()->getIndexes($tableName);
+        $foreignKeys = $this->db->schema()->getForeignKeys($tableName);
 
         $schema = [
             'table' => $tableName,
@@ -297,4 +304,3 @@ class McpServer
         }
     }
 }
-

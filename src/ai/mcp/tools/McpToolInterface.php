@@ -35,4 +35,3 @@ interface McpToolInterface
      */
     public function execute(array $arguments): string|array;
 }
-

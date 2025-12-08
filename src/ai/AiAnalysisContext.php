@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai;
 
+use tommyknocker\pdodb\cli\TableManager;
+use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 
@@ -70,7 +72,7 @@ class AiAnalysisContext
                 $tableName => $this->getTableStats($tableName),
             ];
         } else {
-            $tables = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+            $tables = TableManager::listTables($this->db);
             $context['schema'] = [
                 'tables' => [],
             ];
@@ -124,25 +126,25 @@ class AiAnalysisContext
             $stats = [];
 
             // Get row count
-            $count = $this->db->find()->from($tableName)->select([\tommyknocker\pdodb\helpers\Db::count('*')])->getValue();
+            $count = $this->db->find()->from($tableName)->select([Db::count('*')])->getValue();
             $stats['row_count'] = $count;
 
             // Get table size if supported
             if ($driverName === 'mysql' || $driverName === 'mariadb') {
-                $sizeQuery = "SELECT 
+                $sizeQuery = 'SELECT
                     ROUND(((data_length + index_length) / 1024 / 1024), 2) AS size_mb
-                    FROM information_schema.TABLES 
-                    WHERE table_schema = DATABASE() 
-                    AND table_name = ?";
-                $size = $this->db->rawQuery($sizeQuery, [$tableName])->fetchColumn();
-                if ($size !== false) {
-                    $stats['size_mb'] = (float)$size;
+                    FROM information_schema.TABLES
+                    WHERE table_schema = DATABASE()
+                    AND table_name = ?';
+                $result = $this->db->rawQueryOne($sizeQuery, [$tableName]);
+                if ($result !== null && is_array($result) && isset($result['size_mb'])) {
+                    $stats['size_mb'] = (float)$result['size_mb'];
                 }
             } elseif ($driverName === 'pgsql') {
-                $sizeQuery = "SELECT pg_size_pretty(pg_total_relation_size(?)) as size";
-                $size = $this->db->rawQuery($sizeQuery, [$tableName])->fetchColumn();
-                if ($size !== false) {
-                    $stats['size'] = (string)$size;
+                $sizeQuery = 'SELECT pg_size_pretty(pg_total_relation_size(?)) as size';
+                $result = $this->db->rawQueryOne($sizeQuery, [$tableName]);
+                if ($result !== null && is_array($result) && isset($result['size'])) {
+                    $stats['size'] = (string)$result['size'];
                 }
             }
 
@@ -167,25 +169,26 @@ class AiAnalysisContext
             'raw_explain' => $analysis->rawExplain,
             'plan' => [
                 'table_scans' => $analysis->plan->tableScans ?? [],
-                'index_usage' => $analysis->plan->indexUsage ?? [],
-                'join_types' => $analysis->plan->joinTypes ?? [],
+                'used_index' => $analysis->plan->usedIndex ?? null,
+                'used_columns' => $analysis->plan->usedColumns ?? [],
+                'access_type' => $analysis->plan->accessType ?? null,
             ],
             'issues' => array_map(function ($issue) {
                 return [
-                    'type' => $issue->type ?? '',
-                    'severity' => $issue->severity ?? '',
-                    'message' => $issue->message ?? '',
+                    'type' => $issue->type,
+                    'severity' => $issue->severity,
+                    'description' => $issue->description,
+                    'table' => $issue->table ?? null,
                 ];
             }, $analysis->issues),
             'recommendations' => array_map(function ($rec) {
                 return [
-                    'type' => $rec->type ?? '',
-                    'severity' => $rec->severity ?? '',
-                    'message' => $rec->message ?? '',
-                    'sql' => $rec->sql ?? null,
+                    'type' => $rec->type,
+                    'severity' => $rec->severity,
+                    'message' => $rec->message,
+                    'suggestion' => $rec->suggestion ?? null,
                 ];
             }, $analysis->recommendations),
         ];
     }
 }
-

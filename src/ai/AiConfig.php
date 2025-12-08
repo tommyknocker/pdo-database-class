@@ -10,7 +10,9 @@ namespace tommyknocker\pdodb\ai;
 class AiConfig
 {
     protected string $defaultProvider = 'openai';
+    /** @var array<string, string> */
     protected array $apiKeys = [];
+    /** @var array<string, array<string, mixed>> */
     protected array $providerSettings = [];
     protected ?string $ollamaUrl = null;
 
@@ -179,4 +181,3 @@ class AiConfig
         return isset($this->apiKeys[mb_strtolower($provider, 'UTF-8')]);
     }
 }
-

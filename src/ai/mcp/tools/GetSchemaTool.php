@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai\mcp\tools;
 
+use tommyknocker\pdodb\cli\TableManager;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -45,9 +46,8 @@ class GetSchemaTool implements McpToolInterface
 
         if ($tableName !== null) {
             $columns = $this->db->describe($tableName);
-            $schemaInspector = new \tommyknocker\pdodb\cli\SchemaInspector($this->db);
-            $indexes = $schemaInspector->getIndexes($tableName);
-            $foreignKeys = $schemaInspector->getForeignKeys($tableName);
+            $indexes = $this->db->schema()->getIndexes($tableName);
+            $foreignKeys = $this->db->schema()->getForeignKeys($tableName);
 
             return [
                 'table' => $tableName,
@@ -57,19 +57,17 @@ class GetSchemaTool implements McpToolInterface
             ];
         }
 
-        $tables = \tommyknocker\pdodb\cli\TableManager::listTables($this->db);
+        $tables = TableManager::listTables($this->db);
         $schema = [];
-        $schemaInspector = new \tommyknocker\pdodb\cli\SchemaInspector($this->db);
 
         foreach ($tables as $table) {
             $schema[$table] = [
                 'columns' => $this->db->describe($table),
-                'indexes' => $schemaInspector->getIndexes($table),
-                'foreign_keys' => $schemaInspector->getForeignKeys($table),
+                'indexes' => $this->db->schema()->getIndexes($table),
+                'foreign_keys' => $this->db->schema()->getForeignKeys($table),
             ];
         }
 
         return $schema;
     }
 }
-

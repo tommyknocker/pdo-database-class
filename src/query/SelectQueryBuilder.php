@@ -7,11 +7,13 @@ namespace tommyknocker\pdodb\query;
 use PDO;
 use PDOException;
 use RuntimeException;
+use tommyknocker\pdodb\ai\AiAnalysisService;
 use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\cache\QueryCacheKey;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\helpers\values\AsValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\AiExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\ExplainAnalyzer;
@@ -984,7 +986,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         $db = $this->getDatabaseInstance();
 
         // Use AI service to get additional analysis
-        $aiService = new \tommyknocker\pdodb\ai\AiAnalysisService($db);
+        $aiService = new AiAnalysisService($db);
         $sqlData = $this->toSQL();
         $targetTable = $tableName ?? $this->table;
 
@@ -1009,9 +1011,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /**
      * Get PdoDb instance from connection.
      *
-     * @return \tommyknocker\pdodb\PdoDb Database instance
+     * @return PdoDb Database instance
      */
-    protected function getDatabaseInstance(): \tommyknocker\pdodb\PdoDb
+    protected function getDatabaseInstance(): PdoDb
     {
         // Create a minimal PdoDb instance that uses the existing connection
         $driver = $this->connection->getDriverName();
@@ -1019,7 +1021,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         $dialect = $this->connection->getDialect();
 
         // Create PdoDb with existing PDO and dialect
-        $db = new \tommyknocker\pdodb\PdoDb();
+        $db = new PdoDb();
         $db->addConnection('default', [
             'driver' => $driver,
             'pdo' => $pdo,

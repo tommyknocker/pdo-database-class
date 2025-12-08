@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai\mcp\tools;
 
-use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\ai\AiAnalysisService;
+use tommyknocker\pdodb\PdoDb;
 
 /**
  * MCP tool for suggesting indexes with AI.
@@ -57,11 +57,10 @@ class SuggestIndexesTool implements McpToolInterface
         $provider = $arguments['provider'] ?? null;
 
         try {
-            $schemaInspector = new \tommyknocker\pdodb\cli\SchemaInspector($this->db);
             $schema = [
                 'columns' => $this->db->describe($tableName),
-                'indexes' => $schemaInspector->getIndexes($tableName),
-                'foreign_keys' => $schemaInspector->getForeignKeys($tableName),
+                'indexes' => $this->db->schema()->getIndexes($tableName),
+                'foreign_keys' => $this->db->schema()->getForeignKeys($tableName),
             ];
 
             $context = [
@@ -82,4 +81,3 @@ class SuggestIndexesTool implements McpToolInterface
         }
     }
 }
-

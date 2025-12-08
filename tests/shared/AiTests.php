@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
-use tommyknocker\pdodb\PdoDb;
-use tommyknocker\pdodb\ai\AiConfig;
 use tommyknocker\pdodb\ai\AiAnalysisService;
+use tommyknocker\pdodb\ai\AiConfig;
 use tommyknocker\pdodb\ai\providers\OllamaProvider;
+use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\query\analysis\AiExplainAnalysis;
+use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 
 /**
  * Tests for AI functionality.
@@ -17,6 +19,13 @@ use tommyknocker\pdodb\ai\providers\OllamaProvider;
  */
 class AiTests extends TestCase
 {
+    private const int OLLAMA_CHECK_TIMEOUT = 1;
+    private const int OLLAMA_API_TIMEOUT = 30;
+    private const int OLLAMA_MAX_TOKENS = 500;
+    private const string OLLAMA_DEFAULT_URL = 'http://localhost:11434';
+    private const int OLLAMA_DEFAULT_PORT = 11434;
+    private const string OLLAMA_DEFAULT_MODEL = 'deepseek-coder:6.7b';
+
     protected static ?PdoDb $db = null;
     protected static bool $ollamaAvailable = false;
 
@@ -39,15 +48,34 @@ class AiTests extends TestCase
      */
     protected static function checkOllamaAvailability(): bool
     {
-        $url = getenv('PDODB_AI_OLLAMA_URL') ?: 'http://localhost:11434';
+        $url = getenv('PDODB_AI_OLLAMA_URL') ?: self::OLLAMA_DEFAULT_URL;
         $context = stream_context_create([
             'http' => [
                 'method' => 'GET',
-                'timeout' => 2,
+                'timeout' => self::OLLAMA_CHECK_TIMEOUT,
                 'ignore_errors' => true,
             ],
         ]);
 
+        // Use stream_socket_client with timeout instead of file_get_contents for better control
+        $parsed = parse_url($url);
+        $host = $parsed['host'] ?? 'localhost';
+        $port = $parsed['port'] ?? self::OLLAMA_DEFAULT_PORT;
+
+        $socket = @stream_socket_client(
+            "tcp://{$host}:{$port}",
+            $errno,
+            $errstr,
+            self::OLLAMA_CHECK_TIMEOUT
+        );
+
+        if ($socket === false) {
+            return false;
+        }
+
+        fclose($socket);
+
+        // If socket connection works, try HTTP request
         $response = @file_get_contents($url . '/api/tags', false, $context);
         return $response !== false;
     }
@@ -75,11 +103,11 @@ class AiTests extends TestCase
     {
         // Set environment variable
         putenv('PDODB_AI_PROVIDER=ollama');
-        putenv('PDODB_AI_OLLAMA_URL=http://localhost:11434');
+        putenv('PDODB_AI_OLLAMA_URL=' . self::OLLAMA_DEFAULT_URL);
 
         $config = new AiConfig();
         $this->assertEquals('ollama', $config->getDefaultProvider());
-        $this->assertEquals('http://localhost:11434', $config->getOllamaUrl());
+        $this->assertEquals(self::OLLAMA_DEFAULT_URL, $config->getOllamaUrl());
 
         // Cleanup
         putenv('PDODB_AI_PROVIDER');
@@ -88,13 +116,14 @@ class AiTests extends TestCase
 
     public function testAiConfigLoadsFromConfigArray(): void
     {
+        $testModel = 'llama2';
         $configArray = [
             'ai' => [
                 'provider' => 'ollama',
-                'ollama_url' => 'http://localhost:11434',
+                'ollama_url' => self::OLLAMA_DEFAULT_URL,
                 'providers' => [
                     'ollama' => [
-                        'model' => 'llama2',
+                        'model' => $testModel,
                         'temperature' => 0.5,
                     ],
                 ],
@@ -103,8 +132,8 @@ class AiTests extends TestCase
 
         $config = new AiConfig($configArray);
         $this->assertEquals('ollama', $config->getDefaultProvider());
-        $this->assertEquals('http://localhost:11434', $config->getOllamaUrl());
-        $this->assertEquals('llama2', $config->getProviderSetting('ollama', 'model'));
+        $this->assertEquals(self::OLLAMA_DEFAULT_URL, $config->getOllamaUrl());
+        $this->assertEquals($testModel, $config->getProviderSetting('ollama', 'model'));
         $this->assertEquals(0.5, $config->getProviderSetting('ollama', 'temperature'));
     }
 
@@ -112,7 +141,7 @@ class AiTests extends TestCase
     {
         $config = new AiConfig([
             'ai' => [
-                'ollama_url' => 'http://localhost:11434',
+                'ollama_url' => self::OLLAMA_DEFAULT_URL,
             ],
         ]);
 
@@ -126,7 +155,7 @@ class AiTests extends TestCase
         $config = new AiConfig([
             'ai' => [
                 'provider' => 'ollama',
-                'ollama_url' => 'http://localhost:11434',
+                'ollama_url' => self::OLLAMA_DEFAULT_URL,
             ],
         ]);
 
@@ -146,11 +175,11 @@ class AiTests extends TestCase
         $config = new AiConfig([
             'ai' => [
                 'provider' => 'ollama',
-                'ollama_url' => 'http://localhost:11434',
+                'ollama_url' => self::OLLAMA_DEFAULT_URL,
                 'providers' => [
                     'ollama' => [
-                        'model' => 'llama3.2', // Try llama3.2, fallback to any available model
-                        'max_tokens' => 500, // Limit tokens for faster response
+                        'model' => self::OLLAMA_DEFAULT_MODEL,
+                        'max_tokens' => self::OLLAMA_MAX_TOKENS,
                     ],
                 ],
             ],
@@ -159,10 +188,13 @@ class AiTests extends TestCase
         $result = self::$db->find()
             ->from('test_users')
             ->where('id', 1)
-            ->explainAiAdvice(null, 'ollama', ['max_tokens' => 500]);
+            ->explainAiAdvice(null, 'ollama', [
+                'max_tokens' => self::OLLAMA_MAX_TOKENS,
+                'timeout' => self::OLLAMA_API_TIMEOUT,
+            ]);
 
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\analysis\AiExplainAnalysis::class, $result);
-        $this->assertInstanceOf(\tommyknocker\pdodb\query\analysis\ExplainAnalysis::class, $result->baseAnalysis);
+        $this->assertInstanceOf(AiExplainAnalysis::class, $result);
+        $this->assertInstanceOf(ExplainAnalysis::class, $result->baseAnalysis);
         $this->assertEquals('ollama', $result->provider);
         $this->assertNotEmpty($result->aiAnalysis);
     }
@@ -172,11 +204,11 @@ class AiTests extends TestCase
         $config = new AiConfig([
             'ai' => [
                 'provider' => 'ollama',
-                'ollama_url' => 'http://localhost:11434',
+                'ollama_url' => self::OLLAMA_DEFAULT_URL,
                 'providers' => [
                     'ollama' => [
-                        'model' => 'deepseek-coder:6.7b',
-                        'max_tokens' => 500,
+                        'model' => self::OLLAMA_DEFAULT_MODEL,
+                        'max_tokens' => self::OLLAMA_MAX_TOKENS,
                     ],
                 ],
             ],
@@ -185,7 +217,10 @@ class AiTests extends TestCase
         $service = new AiAnalysisService(self::$db, $config);
         $sql = 'SELECT * FROM test_users WHERE id = 1';
 
-        $analysis = $service->analyzeQuery($sql, 'test_users', 'ollama', ['max_tokens' => 500]);
+        $analysis = $service->analyzeQuery($sql, 'test_users', 'ollama', [
+            'max_tokens' => self::OLLAMA_MAX_TOKENS,
+            'timeout' => self::OLLAMA_API_TIMEOUT,
+        ]);
 
         $this->assertIsString($analysis);
         $this->assertNotEmpty($analysis);
@@ -196,11 +231,11 @@ class AiTests extends TestCase
         $config = new AiConfig([
             'ai' => [
                 'provider' => 'ollama',
-                'ollama_url' => 'http://localhost:11434',
+                'ollama_url' => self::OLLAMA_DEFAULT_URL,
                 'providers' => [
                     'ollama' => [
-                        'model' => 'deepseek-coder:6.7b',
-                        'max_tokens' => 500,
+                        'model' => self::OLLAMA_DEFAULT_MODEL,
+                        'max_tokens' => self::OLLAMA_MAX_TOKENS,
                     ],
                 ],
             ],
@@ -208,7 +243,10 @@ class AiTests extends TestCase
 
         $service = new AiAnalysisService(self::$db, $config);
 
-        $analysis = $service->analyzeSchema('test_users', 'ollama', ['max_tokens' => 500]);
+        $analysis = $service->analyzeSchema('test_users', 'ollama', [
+            'max_tokens' => self::OLLAMA_MAX_TOKENS,
+            'timeout' => self::OLLAMA_API_TIMEOUT,
+        ]);
 
         $this->assertIsString($analysis);
         $this->assertNotEmpty($analysis);
@@ -218,12 +256,12 @@ class AiTests extends TestCase
     {
         // Set environment variable
         putenv('PDODB_AI_PROVIDER=ollama');
-        putenv('PDODB_AI_OLLAMA_URL=http://custom:11434');
+        putenv('PDODB_AI_OLLAMA_URL=http://custom:' . self::OLLAMA_DEFAULT_PORT);
 
         $configArray = [
             'ai' => [
                 'provider' => 'openai',
-                'ollama_url' => 'http://localhost:11434',
+                'ollama_url' => self::OLLAMA_DEFAULT_URL,
             ],
         ];
 
@@ -231,7 +269,7 @@ class AiTests extends TestCase
 
         // Environment should take precedence
         $this->assertEquals('ollama', $config->getDefaultProvider());
-        $this->assertEquals('http://custom:11434', $config->getOllamaUrl());
+        $this->assertEquals('http://custom:' . self::OLLAMA_DEFAULT_PORT, $config->getOllamaUrl());
 
         // Cleanup
         putenv('PDODB_AI_PROVIDER');
@@ -249,4 +287,3 @@ class AiTests extends TestCase
         }
     }
 }
-

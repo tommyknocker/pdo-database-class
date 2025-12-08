@@ -73,4 +73,3 @@ class AiExplainAnalysis
         return $this->model;
     }
 }
-

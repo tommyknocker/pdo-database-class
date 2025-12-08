@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai;
 
-use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\ai\providers\AnthropicProvider;
 use tommyknocker\pdodb\ai\providers\GoogleProvider;
 use tommyknocker\pdodb\ai\providers\MicrosoftProvider;
 use tommyknocker\pdodb\ai\providers\OllamaProvider;
 use tommyknocker\pdodb\ai\providers\OpenAiProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\PdoDb;
 
 /**
  * Service for AI-powered database analysis.
@@ -40,7 +40,6 @@ class AiAnalysisService
      * @param string|null $providerName Provider name or null for default
      *
      * @return AiProviderInterface Provider instance
-     *
      * @throws QueryException If provider is not available
      */
     public function getProvider(?string $providerName = null): AiProviderInterface
@@ -71,7 +70,6 @@ class AiAnalysisService
      * @param string $providerName Provider name
      *
      * @return AiProviderInterface Provider instance
-     *
      * @throws QueryException If provider is not supported
      */
     protected function createProvider(string $providerName): AiProviderInterface
@@ -114,6 +112,9 @@ class AiAnalysisService
         if (isset($options['model'])) {
             $aiProvider->setModel((string)$options['model']);
         }
+        if (isset($options['timeout'])) {
+            $aiProvider->setTimeout((int)$options['timeout']);
+        }
 
         $context = $this->contextBuilder->buildQueryContext($sql, $tableName);
 
@@ -141,6 +142,9 @@ class AiAnalysisService
         }
         if (isset($options['model'])) {
             $aiProvider->setModel((string)$options['model']);
+        }
+        if (isset($options['timeout'])) {
+            $aiProvider->setTimeout((int)$options['timeout']);
         }
 
         $context = $this->contextBuilder->buildSchemaContext($tableName);
@@ -171,8 +175,10 @@ class AiAnalysisService
         if (isset($options['model'])) {
             $aiProvider->setModel((string)$options['model']);
         }
+        if (isset($options['timeout'])) {
+            $aiProvider->setTimeout((int)$options['timeout']);
+        }
 
         return $aiProvider->suggestOptimizations($analysis, $context);
     }
 }
-

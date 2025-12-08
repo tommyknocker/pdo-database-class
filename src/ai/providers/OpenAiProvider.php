@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai\providers;
 
-use tommyknocker\pdodb\ai\AiConfig;
 use tommyknocker\pdodb\ai\BaseAiProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
 
@@ -128,6 +127,9 @@ class OpenAiProvider extends BaseAiProvider
     /**
      * Build prompt for query analysis.
      */
+    /**
+     * @param array<string, mixed> $context
+     */
     protected function buildQueryPrompt(string $sql, array $context): string
     {
         $prompt = "Analyze the following SQL query and provide optimization recommendations:\n\n";
@@ -141,13 +143,17 @@ class OpenAiProvider extends BaseAiProvider
         $prompt .= "- Index suggestions\n";
         $prompt .= "- Query structure improvements\n";
         $prompt .= "- Performance bottlenecks\n";
-        $prompt .= "- Estimated impact of optimizations";
+        $prompt .= '- Estimated impact of optimizations';
 
         return $prompt;
     }
 
     /**
      * Build prompt for schema analysis.
+     */
+    /**
+     * @param array<string, mixed> $schema
+     * @param array<string, mixed> $context
      */
     protected function buildSchemaPrompt(array $schema, array $context): string
     {
@@ -158,13 +164,17 @@ class OpenAiProvider extends BaseAiProvider
         $prompt .= "- Missing indexes\n";
         $prompt .= "- Redundant indexes\n";
         $prompt .= "- Table structure improvements\n";
-        $prompt .= "- Foreign key optimizations";
+        $prompt .= '- Foreign key optimizations';
 
         return $prompt;
     }
 
     /**
      * Build prompt for optimization suggestions.
+     */
+    /**
+     * @param array<string, mixed> $analysis
+     * @param array<string, mixed> $context
      */
     protected function buildOptimizationPrompt(array $analysis, array $context): string
     {
@@ -191,4 +201,3 @@ class OpenAiProvider extends BaseAiProvider
         }
     }
 }
-

@@ -36,7 +36,6 @@ abstract class BaseAiProvider implements AiProviderInterface
      * @param array<string, string> $headers HTTP headers
      *
      * @return array<string, mixed> Response data
-     *
      * @throws QueryException If request fails
      */
     protected function makeRequest(string $url, array $data, array $headers = []): array
@@ -55,13 +54,17 @@ abstract class BaseAiProvider implements AiProviderInterface
 
         if ($response === false) {
             $error = error_get_last();
+
             throw new QueryException(
                 'AI API request failed: ' . ($error['message'] ?? 'Unknown error'),
                 0
             );
         }
 
-        $httpCode = $this->getHttpResponseCode($http_response_header ?? []);
+        // $http_response_header is a superglobal that is always set by file_get_contents
+        /** @var array<int, string> $headers */
+        $headers = $http_response_header;
+        $httpCode = $this->getHttpResponseCode($headers);
 
         if ($httpCode >= 400) {
             throw new QueryException(
@@ -143,7 +146,7 @@ abstract class BaseAiProvider implements AiProviderInterface
         }
 
         if (isset($context['dialect'])) {
-            $parts[] = "Database Dialect: " . $context['dialect'];
+            $parts[] = 'Database Dialect: ' . $context['dialect'];
         }
 
         if (isset($context['explain_plan']) && !empty($context['explain_plan'])) {
@@ -217,5 +220,20 @@ abstract class BaseAiProvider implements AiProviderInterface
     {
         $this->maxTokens = max(1, $maxTokens);
     }
-}
 
+    /**
+     * Get timeout.
+     */
+    public function getTimeout(): int
+    {
+        return $this->timeout;
+    }
+
+    /**
+     * Set timeout.
+     */
+    public function setTimeout(int $timeout): void
+    {
+        $this->timeout = max(1, $timeout);
+    }
+}

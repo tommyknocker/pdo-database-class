@@ -52,5 +52,60 @@ interface AiProviderInterface
      * @return bool True if provider can be used
      */
     public function isAvailable(): bool;
-}
 
+    /**
+     * Get model name.
+     *
+     * @return string Model name
+     */
+    public function getModel(): string;
+
+    /**
+     * Set model name.
+     *
+     * @param string $model Model name
+     */
+    public function setModel(string $model): void;
+
+    /**
+     * Get temperature.
+     *
+     * @return float Temperature value
+     */
+    public function getTemperature(): float;
+
+    /**
+     * Set temperature.
+     *
+     * @param float $temperature Temperature value (0.0-2.0)
+     */
+    public function setTemperature(float $temperature): void;
+
+    /**
+     * Get max tokens.
+     *
+     * @return int Maximum tokens
+     */
+    public function getMaxTokens(): int;
+
+    /**
+     * Set max tokens.
+     *
+     * @param int $maxTokens Maximum tokens
+     */
+    public function setMaxTokens(int $maxTokens): void;
+
+    /**
+     * Get timeout.
+     *
+     * @return int Timeout in seconds
+     */
+    public function getTimeout(): int;
+
+    /**
+     * Set timeout.
+     *
+     * @param int $timeout Timeout in seconds
+     */
+    public function setTimeout(int $timeout): void;
+}

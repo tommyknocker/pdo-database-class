@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai\providers;
 
-use tommyknocker\pdodb\ai\AiConfig;
 use tommyknocker\pdodb\ai\BaseAiProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
 
@@ -103,6 +102,9 @@ class OllamaProvider extends BaseAiProvider
         return $basePrompt . ' ' . ($typePrompts[$type] ?? '');
     }
 
+    /**
+     * @param array<string, mixed> $context
+     */
     protected function buildQueryPrompt(string $sql, array $context): string
     {
         $prompt = "Analyze the following SQL query and provide optimization recommendations:\n\n";
@@ -116,11 +118,15 @@ class OllamaProvider extends BaseAiProvider
         $prompt .= "- Index suggestions\n";
         $prompt .= "- Query structure improvements\n";
         $prompt .= "- Performance bottlenecks\n";
-        $prompt .= "- Estimated impact of optimizations";
+        $prompt .= '- Estimated impact of optimizations';
 
         return $prompt;
     }
 
+    /**
+     * @param array<string, mixed> $schema
+     * @param array<string, mixed> $context
+     */
     protected function buildSchemaPrompt(array $schema, array $context): string
     {
         $prompt = "Analyze the following database schema and provide optimization recommendations:\n\n";
@@ -130,11 +136,15 @@ class OllamaProvider extends BaseAiProvider
         $prompt .= "- Missing indexes\n";
         $prompt .= "- Redundant indexes\n";
         $prompt .= "- Table structure improvements\n";
-        $prompt .= "- Foreign key optimizations";
+        $prompt .= '- Foreign key optimizations';
 
         return $prompt;
     }
 
+    /**
+     * @param array<string, mixed> $analysis
+     * @param array<string, mixed> $context
+     */
     protected function buildOptimizationPrompt(array $analysis, array $context): string
     {
         $prompt = "Review the following database analysis and provide additional optimization suggestions:\n\n";
@@ -145,4 +155,3 @@ class OllamaProvider extends BaseAiProvider
         return $prompt;
     }
 }
-

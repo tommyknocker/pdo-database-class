@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\ai\AiAnalysisService;
-use tommyknocker\pdodb\cli\BaseCliCommand;
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\MarkdownFormatter;
 use tommyknocker\pdodb\cli\SchemaAnalyzer;
-use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\query\analysis\AiExplainAnalysis;
+use tommyknocker\pdodb\query\analysis\ExplainAnalyzer;
 
 /**
  * AI-powered database analysis command.
@@ -76,7 +76,7 @@ class AiCommand extends Command
                 return 0;
             }
 
-            echo "AI Analysis (Provider: " . $actualProvider->getProviderName() . ")\n";
+            echo 'AI Analysis (Provider: ' . $actualProvider->getProviderName() . ")\n";
             echo str_repeat('=', 80) . "\n\n";
             $formatter = new MarkdownFormatter();
             echo $formatter->format($analysis) . "\n";
@@ -114,7 +114,34 @@ class AiCommand extends Command
         }
 
         try {
-            $result = $db->rawQuery($sql)->explainAiAdvice($tableName, $provider, $options);
+            // For raw SQL, we need to use ExplainAnalyzer and AiAnalysisService directly
+            $connection = $db->connection;
+            $dialect = $connection->getDialect();
+            $pdo = $connection->getPdo();
+
+            // Get base analysis - use QueryBuilder's internal execution engine
+            $explainResults = $dialect->executeExplain($pdo, $sql, []);
+            $queryBuilder = $db->find();
+            // Access execution engine via reflection or create new one
+            $reflection = new \ReflectionClass($queryBuilder);
+            $executionEngineProperty = $reflection->getProperty('executionEngine');
+            $executionEngineProperty->setAccessible(true);
+            $executionEngine = $executionEngineProperty->getValue($queryBuilder);
+            $analyzer = new ExplainAnalyzer($dialect, $executionEngine);
+            $baseAnalysis = $analyzer->analyze($explainResults, $tableName);
+
+            // Then get AI analysis
+            $aiService = new AiAnalysisService($db);
+            $actualProvider = $aiService->getProvider($provider);
+            $aiAnalysis = $aiService->analyzeQuery($sql, $tableName, $provider, $options);
+            $model = $actualProvider->getModel();
+
+            $result = new AiExplainAnalysis(
+                $baseAnalysis,
+                $aiAnalysis,
+                $actualProvider->getProviderName(),
+                $model
+            );
 
             if ($format === 'json') {
                 echo json_encode([
@@ -122,17 +149,18 @@ class AiCommand extends Command
                         'raw_explain' => $result->baseAnalysis->rawExplain,
                         'issues' => array_map(function ($issue) {
                             return [
-                                'type' => $issue->type ?? '',
-                                'severity' => $issue->severity ?? '',
-                                'message' => $issue->message ?? '',
+                                'type' => $issue->type,
+                                'severity' => $issue->severity,
+                                'description' => $issue->description,
+                                'table' => $issue->table ?? null,
                             ];
                         }, $result->baseAnalysis->issues),
                         'recommendations' => array_map(function ($rec) {
                             return [
-                                'type' => $rec->type ?? '',
-                                'severity' => $rec->severity ?? '',
-                                'message' => $rec->message ?? '',
-                                'sql' => $rec->sql ?? null,
+                                'type' => $rec->type,
+                                'severity' => $rec->severity,
+                                'message' => $rec->message,
+                                'suggestion' => $rec->suggestion ?? null,
                             ];
                         }, $result->baseAnalysis->recommendations),
                     ],
@@ -147,17 +175,17 @@ class AiCommand extends Command
             echo str_repeat('=', 80) . "\n";
             if (!empty($result->baseAnalysis->issues)) {
                 foreach ($result->baseAnalysis->issues as $issue) {
-                    $severity = strtoupper($issue->severity ?? 'info');
-                    echo "[{$severity}] {$issue->message}\n";
+                    $severity = strtoupper($issue->severity);
+                    echo "[{$severity}] {$issue->description}\n";
                 }
             }
             if (!empty($result->baseAnalysis->recommendations)) {
                 echo "\nRecommendations:\n";
                 foreach ($result->baseAnalysis->recommendations as $rec) {
-                    $severity = strtoupper($rec->severity ?? 'info');
+                    $severity = strtoupper($rec->severity);
                     echo "[{$severity}] {$rec->message}\n";
-                    if (isset($rec->sql)) {
-                        echo "  SQL: {$rec->sql}\n";
+                    if (isset($rec->suggestion)) {
+                        echo "  SQL: {$rec->suggestion}\n";
                     }
                 }
             }
@@ -208,7 +236,7 @@ class AiCommand extends Command
                 return 0;
             }
 
-            echo "AI Schema Analysis (Provider: " . $actualProvider->getProviderName() . ")\n";
+            echo 'AI Schema Analysis (Provider: ' . $actualProvider->getProviderName() . ")\n";
             if ($tableName !== null) {
                 echo "Table: {$tableName}\n";
             }
@@ -337,4 +365,3 @@ class AiCommand extends Command
         return 0;
     }
 }
-

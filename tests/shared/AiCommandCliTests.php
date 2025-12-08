@@ -15,6 +15,12 @@ use tommyknocker\pdodb\PdoDb;
  */
 class AiCommandCliTests extends TestCase
 {
+    private const int OLLAMA_CHECK_TIMEOUT = 1;
+    private const int OLLAMA_API_TIMEOUT = 30;
+    private const int OLLAMA_MAX_TOKENS = 500;
+    private const string OLLAMA_DEFAULT_URL = 'http://localhost:11434';
+    private const int OLLAMA_DEFAULT_PORT = 11434;
+
     protected static ?PdoDb $db = null;
     protected static bool $ollamaAvailable = false;
     protected ?Application $app = null;
@@ -42,15 +48,34 @@ class AiCommandCliTests extends TestCase
      */
     protected static function checkOllamaAvailability(): bool
     {
-        $url = getenv('PDODB_AI_OLLAMA_URL') ?: 'http://localhost:11434';
+        $url = getenv('PDODB_AI_OLLAMA_URL') ?: self::OLLAMA_DEFAULT_URL;
         $context = stream_context_create([
             'http' => [
                 'method' => 'GET',
-                'timeout' => 2,
+                'timeout' => self::OLLAMA_CHECK_TIMEOUT,
                 'ignore_errors' => true,
             ],
         ]);
 
+        // Use stream_socket_client with timeout instead of file_get_contents for better control
+        $parsed = parse_url($url);
+        $host = $parsed['host'] ?? 'localhost';
+        $port = $parsed['port'] ?? self::OLLAMA_DEFAULT_PORT;
+
+        $socket = @stream_socket_client(
+            "tcp://{$host}:{$port}",
+            $errno,
+            $errstr,
+            self::OLLAMA_CHECK_TIMEOUT
+        );
+
+        if ($socket === false) {
+            return false;
+        }
+
+        fclose($socket);
+
+        // If socket connection works, try HTTP request
         $response = @file_get_contents($url . '/api/tags', false, $context);
         return $response !== false;
     }
@@ -78,7 +103,7 @@ class AiCommandCliTests extends TestCase
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=:memory:');
         putenv('PDODB_AI_PROVIDER=ollama');
-        putenv('PDODB_AI_OLLAMA_URL=http://localhost:11434');
+        putenv('PDODB_AI_OLLAMA_URL=' . self::OLLAMA_DEFAULT_URL);
         putenv('PDODB_NON_INTERACTIVE=1');
         putenv('PHPUNIT=1');
 
@@ -98,6 +123,7 @@ class AiCommandCliTests extends TestCase
     public function testAiCommandHelp(): void
     {
         ob_start();
+
         try {
             $exitCode = $this->app->run(['pdodb', 'ai', 'help']);
             $output = ob_get_clean();
@@ -105,6 +131,7 @@ class AiCommandCliTests extends TestCase
             $this->assertStringContainsString('AI-Powered Database Analysis', $output);
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
     }
@@ -112,6 +139,7 @@ class AiCommandCliTests extends TestCase
     public function testAiCommandAnalyze(): void
     {
         ob_start();
+
         try {
             $exitCode = $this->app->run([
                 'pdodb',
@@ -119,13 +147,15 @@ class AiCommandCliTests extends TestCase
                 'analyze',
                 'SELECT * FROM test_users WHERE id = 1',
                 '--provider=ollama',
-                '--max-tokens=500',
+                '--max-tokens=' . self::OLLAMA_MAX_TOKENS,
+                '--timeout=' . self::OLLAMA_API_TIMEOUT,
             ]);
             $output = ob_get_clean();
             $this->assertEquals(0, $exitCode);
             $this->assertStringContainsString('AI Analysis', $output);
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
     }
@@ -140,6 +170,7 @@ class AiCommandCliTests extends TestCase
         $db->rawQuery('INSERT INTO test_users (name, email) VALUES (?, ?)', ['John', 'john@example.com']);
 
         ob_start();
+
         try {
             $exitCode = $this->app->run([
                 'pdodb',
@@ -147,7 +178,8 @@ class AiCommandCliTests extends TestCase
                 'query',
                 'SELECT * FROM test_users WHERE id = 1',
                 '--provider=ollama',
-                '--max-tokens=500',
+                '--max-tokens=' . self::OLLAMA_MAX_TOKENS,
+                '--timeout=' . self::OLLAMA_API_TIMEOUT,
             ]);
             $output = ob_get_clean();
             // Note: For :memory: SQLite, Application creates a separate DB instance,
@@ -175,6 +207,7 @@ class AiCommandCliTests extends TestCase
     public function testAiCommandSchema(): void
     {
         ob_start();
+
         try {
             $exitCode = $this->app->run([
                 'pdodb',
@@ -182,13 +215,15 @@ class AiCommandCliTests extends TestCase
                 'schema',
                 '--table=test_users',
                 '--provider=ollama',
-                '--max-tokens=500',
+                '--max-tokens=' . self::OLLAMA_MAX_TOKENS,
+                '--timeout=' . self::OLLAMA_API_TIMEOUT,
             ]);
             $output = ob_get_clean();
             $this->assertEquals(0, $exitCode);
             $this->assertStringContainsString('AI Schema Analysis', $output);
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
     }
@@ -196,6 +231,7 @@ class AiCommandCliTests extends TestCase
     public function testAiCommandAnalyzeWithJsonFormat(): void
     {
         ob_start();
+
         try {
             $exitCode = $this->app->run([
                 'pdodb',
@@ -204,7 +240,8 @@ class AiCommandCliTests extends TestCase
                 'SELECT * FROM test_users',
                 '--provider=ollama',
                 '--format=json',
-                '--max-tokens=500',
+                '--max-tokens=' . self::OLLAMA_MAX_TOKENS,
+                '--timeout=' . self::OLLAMA_API_TIMEOUT,
             ]);
             $output = ob_get_clean();
             $this->assertEquals(0, $exitCode);
@@ -215,6 +252,7 @@ class AiCommandCliTests extends TestCase
             $this->assertArrayHasKey('analysis', $json);
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
     }
@@ -222,6 +260,7 @@ class AiCommandCliTests extends TestCase
     public function testAiCommandWithInvalidProvider(): void
     {
         ob_start();
+
         try {
             $exitCode = $this->app->run([
                 'pdodb',
@@ -240,6 +279,7 @@ class AiCommandCliTests extends TestCase
             $this->assertStringContainsString('failed', mb_strtolower($e->getMessage(), 'UTF-8'));
         } catch (\Throwable $e) {
             ob_end_clean();
+
             throw $e;
         }
     }
@@ -255,4 +295,3 @@ class AiCommandCliTests extends TestCase
         }
     }
 }
-
