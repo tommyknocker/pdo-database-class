@@ -62,6 +62,10 @@ class AiConfig
             $this->apiKeys['deepseek'] = (string)$aiConfig['deepseek_key'];
         }
 
+        if (isset($aiConfig['yandex_key'])) {
+            $this->apiKeys['yandex'] = (string)$aiConfig['yandex_key'];
+        }
+
         if (isset($aiConfig['ollama_url'])) {
             $this->ollamaUrl = (string)$aiConfig['ollama_url'];
         }
@@ -113,6 +117,21 @@ class AiConfig
             $this->apiKeys['deepseek'] = $deepseekKey;
         }
 
+        $yandexKey = getenv('PDODB_AI_YANDEX_KEY');
+        if ($yandexKey !== false && $yandexKey !== '') {
+            $this->apiKeys['yandex'] = $yandexKey;
+        }
+
+        $yandexFolderId = getenv('PDODB_AI_YANDEX_FOLDER_ID');
+        if ($yandexFolderId !== false && $yandexFolderId !== '') {
+            $this->setProviderSetting('yandex', 'folder_id', $yandexFolderId);
+        }
+
+        $yandexModel = getenv('PDODB_AI_YANDEX_MODEL');
+        if ($yandexModel !== false && $yandexModel !== '') {
+            $this->setProviderSetting('yandex', 'model', $yandexModel);
+        }
+
         $ollamaUrl = getenv('PDODB_AI_OLLAMA_URL');
         if ($ollamaUrl !== false && $ollamaUrl !== '') {
             $this->ollamaUrl = $ollamaUrl;
@@ -129,7 +148,7 @@ class AiConfig
      */
     protected function loadProviderModelsFromEnvironment(): void
     {
-        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'ollama', 'deepseek'];
+        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'ollama', 'deepseek', 'yandex'];
         foreach ($providers as $provider) {
             $envVar = 'PDODB_AI_' . strtoupper($provider) . '_MODEL';
             $model = getenv($envVar);

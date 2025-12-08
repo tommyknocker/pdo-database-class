@@ -87,12 +87,17 @@ class InitConfigGenerator
                 $lines[] = 'PDODB_AI_PROVIDER=' . $config['ai']['provider'];
             }
 
-            $providers = ['openai', 'anthropic', 'google', 'microsoft', 'deepseek', 'ollama'];
+            $providers = ['openai', 'anthropic', 'google', 'microsoft', 'deepseek', 'yandex', 'ollama'];
             foreach ($providers as $provider) {
                 $keyName = $provider . '_key';
                 if (isset($config['ai'][$keyName])) {
                     $lines[] = 'PDODB_AI_' . strtoupper($provider) . '_KEY=' . $config['ai'][$keyName];
                 }
+            }
+
+            // Yandex folder ID
+            if (isset($config['ai']['providers']['yandex']['folder_id'])) {
+                $lines[] = 'PDODB_AI_YANDEX_FOLDER_ID=' . $config['ai']['providers']['yandex']['folder_id'];
             }
 
             if (isset($config['ai']['ollama_url'])) {
@@ -102,8 +107,10 @@ class InitConfigGenerator
             // Provider-specific settings
             if (isset($config['ai']['providers']) && is_array($config['ai']['providers'])) {
                 foreach ($config['ai']['providers'] as $provider => $settings) {
-                    if (is_array($settings) && isset($settings['model'])) {
-                        $lines[] = 'PDODB_AI_' . strtoupper($provider) . '_MODEL=' . $settings['model'];
+                    if (is_array($settings)) {
+                        if (isset($settings['model'])) {
+                            $lines[] = 'PDODB_AI_' . strtoupper($provider) . '_MODEL=' . $settings['model'];
+                        }
                     }
                 }
             }

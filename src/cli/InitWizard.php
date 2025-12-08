@@ -201,13 +201,25 @@ class InitWizard extends BaseCliCommand
             $this->config['ai'] = [];
         }
 
-        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'deepseek', 'ollama'];
+        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'deepseek', 'yandex', 'ollama'];
         foreach ($providers as $provider) {
             $envVar = 'PDODB_AI_' . strtoupper($provider) . '_KEY';
             $key = getenv($envVar);
             if ($key !== false && $key !== '') {
                 $this->config['ai'][$provider . '_key'] = $key;
             }
+        }
+
+        // Yandex folder ID
+        $yandexFolderId = getenv('PDODB_AI_YANDEX_FOLDER_ID');
+        if ($yandexFolderId !== false && $yandexFolderId !== '') {
+            if (!isset($this->config['ai']['providers'])) {
+                $this->config['ai']['providers'] = [];
+            }
+            if (!isset($this->config['ai']['providers']['yandex'])) {
+                $this->config['ai']['providers']['yandex'] = [];
+            }
+            $this->config['ai']['providers']['yandex']['folder_id'] = $yandexFolderId;
         }
 
         $ollamaUrl = getenv('PDODB_AI_OLLAMA_URL');
@@ -686,7 +698,7 @@ class InitWizard extends BaseCliCommand
             $this->config['ai'] = [];
         }
 
-        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'ollama', 'deepseek'];
+        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'ollama', 'deepseek', 'yandex'];
         echo "  Available providers: " . implode(', ', $providers) . "\n";
         $provider = static::readInput('  Default AI provider', 'openai');
         $provider = mb_strtolower(trim($provider), 'UTF-8');
@@ -703,6 +715,22 @@ class InitWizard extends BaseCliCommand
                 $url = static::readInput("  Ollama URL", 'http://localhost:11434');
                 if ($url !== '') {
                     $this->config['ai']['ollama_url'] = $url;
+                }
+            } elseif ($p === 'yandex') {
+                // Yandex needs API key and folder ID
+                $key = static::readPassword("  {$p} API key (optional, press Enter to skip)");
+                if ($key !== '') {
+                    $this->config['ai'][$p . '_key'] = $key;
+                    $folderId = static::readInput("  {$p} folder ID (optional, press Enter to skip)");
+                    if ($folderId !== '') {
+                        if (!isset($this->config['ai']['providers'])) {
+                            $this->config['ai']['providers'] = [];
+                        }
+                        if (!isset($this->config['ai']['providers'][$p])) {
+                            $this->config['ai']['providers'][$p] = [];
+                        }
+                        $this->config['ai']['providers'][$p]['folder_id'] = $folderId;
+                    }
                 }
             } else {
                 $key = static::readPassword("  {$p} API key (optional, press Enter to skip)");

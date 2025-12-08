@@ -33,6 +33,7 @@ PDOdb supports multiple AI providers, each with their own strengths:
 | **Google** | gemini-2.5-flash, gemini-2.5-pro, gemini-2.0-flash-001, gemini-flash-latest, gemini-pro-latest | Multimodal analysis, large context | Yes |
 | **Microsoft** | Azure OpenAI models | Enterprise environments | Yes |
 | **DeepSeek** | deepseek-chat, deepseek-reasoner | Cost-effective, OpenAI-compatible | Yes |
+| **Yandex** | gpt-oss-120b/latest | Russian market, Yandex Cloud | Yes (API key + folder ID) |
 | **Ollama** | Any local model (llama2, deepseek-coder, etc.) | Privacy, offline use, no API costs | No |
 
 ## Configuration
@@ -64,6 +65,11 @@ export PDODB_AI_MICROSOFT_MODEL=gpt-4  # Optional: model name
 export PDODB_AI_DEEPSEEK_KEY=...
 export PDODB_AI_DEEPSEEK_MODEL=deepseek-chat  # Optional: deepseek-reasoner (thinking mode)
 
+# Yandex Cloud
+export PDODB_AI_YANDEX_KEY=...
+export PDODB_AI_YANDEX_FOLDER_ID=b1ge9k4rdlck8g72slht  # Required: Yandex Cloud folder ID
+export PDODB_AI_YANDEX_MODEL=gpt-oss-120b/latest  # Optional: model name
+
 # Ollama (local, no API key needed)
 export PDODB_AI_OLLAMA_URL=http://localhost:11434
 export PDODB_AI_OLLAMA_MODEL=llama3.2  # Optional: model name
@@ -92,6 +98,8 @@ $db = new PdoDb('mysql', [
         'google_key' => '...',
         'microsoft_key' => '...',
         'deepseek_key' => '...',
+        'yandex_key' => '...',
+        'yandex_folder_id' => 'b1ge9k4rdlck8g72slht',  # Optional: can also be in providers.yandex.folder_id
         'ollama_url' => 'http://localhost:11434',
         'providers' => [
             'openai' => [
@@ -114,6 +122,12 @@ $db = new PdoDb('mysql', [
             ],
             'deepseek' => [
                 'model' => 'deepseek-chat',  # or deepseek-reasoner (thinking mode)
+                'temperature' => 0.7,
+                'max_tokens' => 2000,
+            ],
+            'yandex' => [
+                'folder_id' => 'b1ge9k4rdlck8g72slht',  # Required: Yandex Cloud folder ID
+                'model' => 'gpt-oss-120b/latest',  # Optional: model name
                 'temperature' => 0.7,
                 'max_tokens' => 2000,
             ],

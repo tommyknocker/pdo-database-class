@@ -10,6 +10,7 @@ use tommyknocker\pdodb\ai\providers\GoogleProvider;
 use tommyknocker\pdodb\ai\providers\MicrosoftProvider;
 use tommyknocker\pdodb\ai\providers\OllamaProvider;
 use tommyknocker\pdodb\ai\providers\OpenAiProvider;
+use tommyknocker\pdodb\ai\providers\YandexProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\PdoDb;
 
@@ -84,8 +85,9 @@ class AiAnalysisService
             'microsoft' => new MicrosoftProvider($this->config),
             'ollama' => new OllamaProvider($this->config),
             'deepseek' => new DeepSeekProvider($this->config),
+            'yandex' => new YandexProvider($this->config),
             default => throw new QueryException(
-                "Unsupported AI provider: {$providerName}. Supported: openai, anthropic, google, microsoft, ollama, deepseek",
+                "Unsupported AI provider: {$providerName}. Supported: openai, anthropic, google, microsoft, ollama, deepseek, yandex",
                 0
             ),
         };
