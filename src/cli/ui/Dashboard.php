@@ -1447,6 +1447,18 @@ class Dashboard
         Terminal::reset();
         flush();
 
+        // Check for non-interactive mode
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false;
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
+
+        if ($nonInteractive) {
+            // In non-interactive mode, return default (false)
+            return false;
+        }
+
         // Wait for Y or N
         while (true) {
             $key = InputHandler::readKey(100000);
@@ -1715,6 +1727,18 @@ class Dashboard
         }
 
         flush();
+
+        // Check for non-interactive mode
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false;
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
+
+        if ($nonInteractive) {
+            // In non-interactive mode, return immediately
+            return;
+        }
 
         // Wait for any key
         while (true) {

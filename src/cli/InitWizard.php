@@ -56,9 +56,14 @@ class InitWizard extends BaseCliCommand
     public function run(): int
     {
         // Check if non-interactive mode
+        // Always check environment variables first (fastest and most reliable)
         $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false
-            || !stream_isatty(STDIN);
+            || getenv('PHPUNIT') !== false;
+
+        // Only check stream_isatty if not already in non-interactive mode (expensive check)
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
 
         if ($nonInteractive) {
             // Load configuration from environment variables
@@ -493,6 +498,16 @@ class InitWizard extends BaseCliCommand
      */
     protected function askAdvancedOptions(): void
     {
+        // Double-check non-interactive mode to prevent hangs
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false;
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
+        if ($nonInteractive) {
+            return; // Skip in non-interactive mode
+        }
+
         echo "\n";
         echo "Step 4: Advanced Options (Optional)\n";
         echo "------------------------------------\n";
@@ -514,6 +529,16 @@ class InitWizard extends BaseCliCommand
      */
     protected function askTablePrefix(): void
     {
+        // Double-check non-interactive mode to prevent hangs
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false;
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
+        if ($nonInteractive) {
+            return; // Skip in non-interactive mode
+        }
+
         echo "\n  Table Prefix\n";
         echo "  ------------\n";
         $usePrefix = static::readConfirmation('  Use table prefix?', false);
@@ -530,6 +555,16 @@ class InitWizard extends BaseCliCommand
      */
     protected function askCaching(): void
     {
+        // Double-check non-interactive mode to prevent hangs
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false;
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
+        if ($nonInteractive) {
+            return; // Skip in non-interactive mode
+        }
+
         echo "\n  Caching\n";
         echo "  -------\n";
         $enableCache = static::readConfirmation('  Enable query result caching?', false);
@@ -650,6 +685,16 @@ class InitWizard extends BaseCliCommand
      */
     protected function askPerformance(): void
     {
+        // Double-check non-interactive mode to prevent hangs
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false;
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
+        if ($nonInteractive) {
+            return; // Skip in non-interactive mode
+        }
+
         echo "\n  Performance\n";
         echo "  -----------\n";
 
@@ -687,6 +732,16 @@ class InitWizard extends BaseCliCommand
      */
     protected function askAiConfiguration(): void
     {
+        // Double-check non-interactive mode to prevent hangs
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false;
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
+        if ($nonInteractive) {
+            return; // Skip in non-interactive mode
+        }
+
         echo "\n  AI Configuration\n";
         echo "  ----------------\n";
         $enableAi = static::readConfirmation('  Enable AI-powered database analysis?', false);
@@ -770,6 +825,16 @@ class InitWizard extends BaseCliCommand
      */
     protected function askMultipleConnections(): void
     {
+        // Double-check non-interactive mode to prevent hangs
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false;
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
+        if ($nonInteractive) {
+            return; // Skip in non-interactive mode
+        }
+
         echo "\n  Multiple Connections\n";
         echo "  --------------------\n";
         $useMultiple = static::readConfirmation('  Configure multiple database connections?', false);
@@ -796,6 +861,13 @@ class InitWizard extends BaseCliCommand
      */
     protected function generateFiles(): void
     {
+        // Double-check non-interactive mode to prevent hangs
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false;
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
+
         echo "\n";
         echo "Creating configuration files...\n";
 
@@ -807,12 +879,17 @@ class InitWizard extends BaseCliCommand
         if ($this->format === 'env') {
             $envPath = $cwd . '/.env';
             if (file_exists($envPath) && !$this->force) {
-                $overwrite = static::readConfirmation('.env file already exists. Overwrite?', false);
-                if (!$overwrite) {
+                if ($nonInteractive) {
+                    // In non-interactive mode, skip overwrite prompt and skip file creation (default behavior)
                     echo "Skipping .env file creation\n";
                 } else {
-                    InitConfigGenerator::generateEnv($this->config, $this->structure, $envPath);
-                    echo "✓ .env file created\n";
+                    $overwrite = static::readConfirmation('.env file already exists. Overwrite?', false);
+                    if (!$overwrite) {
+                        echo "Skipping .env file creation\n";
+                    } else {
+                        InitConfigGenerator::generateEnv($this->config, $this->structure, $envPath);
+                        echo "✓ .env file created\n";
+                    }
                 }
             } else {
                 InitConfigGenerator::generateEnv($this->config, $this->structure, $envPath);
@@ -827,12 +904,17 @@ class InitWizard extends BaseCliCommand
             }
             $configPath = $configDir . '/db.php';
             if (file_exists($configPath) && !$this->force) {
-                $overwrite = static::readConfirmation('config/db.php already exists. Overwrite?', false);
-                if (!$overwrite) {
+                if ($nonInteractive) {
+                    // In non-interactive mode, skip overwrite prompt and skip file creation (default behavior)
                     echo "Skipping config/db.php creation\n";
                 } else {
-                    InitConfigGenerator::generateConfigPhp($this->config, $configPath);
-                    echo "✓ config/db.php created\n";
+                    $overwrite = static::readConfirmation('config/db.php already exists. Overwrite?', false);
+                    if (!$overwrite) {
+                        echo "Skipping config/db.php creation\n";
+                    } else {
+                        InitConfigGenerator::generateConfigPhp($this->config, $configPath);
+                        echo "✓ config/db.php created\n";
+                    }
                 }
             } else {
                 InitConfigGenerator::generateConfigPhp($this->config, $configPath);

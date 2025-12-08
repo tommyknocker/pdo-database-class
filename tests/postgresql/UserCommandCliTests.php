@@ -4,15 +4,11 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\postgresql;
 
-use PHPUnit\Framework\Attributes\PreserveGlobalState;
-use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use tommyknocker\pdodb\cli\Application;
 use tommyknocker\pdodb\exceptions\AuthenticationException;
 
 final class UserCommandCliTests extends BasePostgreSQLTestCase
 {
-    #[PreserveGlobalState(false)]
-    #[RunInSeparateProcess]
     public function testUserCreateCommandWithAllOptions(): void
     {
         putenv('PDODB_DRIVER=pgsql');

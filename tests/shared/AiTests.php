@@ -49,15 +49,8 @@ class AiTests extends TestCase
     protected static function checkOllamaAvailability(): bool
     {
         $url = getenv('PDODB_AI_OLLAMA_URL') ?: self::OLLAMA_DEFAULT_URL;
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'timeout' => self::OLLAMA_CHECK_TIMEOUT,
-                'ignore_errors' => true,
-            ],
-        ]);
 
-        // Use stream_socket_client with timeout instead of file_get_contents for better control
+        // Use stream_socket_client with timeout for quick check
         $parsed = parse_url($url);
         $host = $parsed['host'] ?? 'localhost';
         $port = $parsed['port'] ?? self::OLLAMA_DEFAULT_PORT;
@@ -75,9 +68,9 @@ class AiTests extends TestCase
 
         fclose($socket);
 
-        // If socket connection works, try HTTP request
-        $response = @file_get_contents($url . '/api/tags', false, $context);
-        return $response !== false;
+        // Socket connection works, assume Ollama is available
+        // Don't make HTTP request here to avoid potential hangs
+        return true;
     }
 
     protected function setUp(): void

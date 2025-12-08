@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
-use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
 use tommyknocker\pdodb\cli\commands\TableCommand;
@@ -343,38 +342,70 @@ final class TableCommandCliTests extends TestCase
         $this->assertContains($code, [0, 1]);
     }
 
-    #[RunInSeparateProcess]
     public function testKeysAddWithoutRequiredParamsYieldsError(): void
     {
-        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        putenv('PDODB_DRIVER=sqlite');
         $dbPath = sys_get_temp_dir() . '/pdodb_keys_' . uniqid() . '.sqlite';
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
-        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' table keys add test_table 2>&1';
-        $out = (string)shell_exec($cmd);
+        putenv('PDODB_PATH=' . $dbPath);
+        putenv('PDODB_NON_INTERACTIVE=1');
+        putenv('PHPUNIT=1');
+
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'keys', 'add', 'test_table']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            $out = $e->getMessage();
+        }
+
         // Should show error about missing parameters
         $this->assertStringContainsString('required', $out);
     }
 
-    #[RunInSeparateProcess]
     public function testKeysDropWithoutNameYieldsError(): void
     {
-        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        putenv('PDODB_DRIVER=sqlite');
         $dbPath = sys_get_temp_dir() . '/pdodb_keys_' . uniqid() . '.sqlite';
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
-        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' table keys drop test_table 2>&1';
-        $out = (string)shell_exec($cmd);
+        putenv('PDODB_PATH=' . $dbPath);
+        putenv('PDODB_NON_INTERACTIVE=1');
+        putenv('PHPUNIT=1');
+
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'keys', 'drop', 'test_table']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            $out = $e->getMessage();
+        }
+
         $this->assertStringContainsString('Foreign key name is required', $out);
     }
 
-    #[RunInSeparateProcess]
     public function testCreateTableWithoutColumnsYieldsError(): void
     {
-        // Run in a subprocess to avoid exit() killing PHPUnit
-        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        putenv('PDODB_DRIVER=sqlite');
         $dbPath = sys_get_temp_dir() . '/pdodb_nc_' . uniqid() . '.sqlite';
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
-        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' table create no_columns_tbl 2>&1';
-        $out = (string)shell_exec($cmd);
+        putenv('PDODB_PATH=' . $dbPath);
+        putenv('PDODB_NON_INTERACTIVE=1');
+        putenv('PHPUNIT=1');
+
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'table', 'create', 'no_columns_tbl']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            $out = $e->getMessage();
+        }
+
         // In non-interactive mode, readInput() returns empty string, so we get this error message
         $this->assertStringContainsString('Columns are required', $out);
     }
@@ -874,7 +905,6 @@ final class TableCommandCliTests extends TestCase
         $this->assertStringContainsString('Test 2', $out);
     }
 
-    #[RunInSeparateProcess]
     public function testTableIndexesSuggest(): void
     {
         // Use a separate DB path for this test to avoid conflicts

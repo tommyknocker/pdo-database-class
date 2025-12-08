@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
-use PHPUnit\Framework\Attributes\PreserveGlobalState;
-use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
 use tommyknocker\pdodb\PdoDb;
@@ -512,15 +510,25 @@ final class GenerateCommandCliTests extends TestCase
         $this->assertStringContainsString('Required Options', $out);
     }
 
-    #[PreserveGlobalState(false)]
-    #[RunInSeparateProcess]
     public function testGenerateUnknownSubcommand(): void
     {
-        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        putenv('PDODB_DRIVER=sqlite');
         $dbPath = sys_get_temp_dir() . '/pdodb_generate_' . uniqid() . '.sqlite';
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($dbPath) . ' PDODB_NON_INTERACTIVE=1';
-        $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' generate unknown 2>&1';
-        $out = (string)shell_exec($cmd);
+        putenv('PDODB_PATH=' . $dbPath);
+        putenv('PDODB_NON_INTERACTIVE=1');
+        putenv('PHPUNIT=1');
+
+        $app = new Application();
+        ob_start();
+
+        try {
+            $code = $app->run(['pdodb', 'generate', 'unknown']);
+            $out = ob_get_clean();
+        } catch (\Throwable $e) {
+            ob_end_clean();
+            $out = $e->getMessage();
+        }
+
         $this->assertStringContainsString('Unknown subcommand: unknown', $out);
     }
 

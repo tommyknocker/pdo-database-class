@@ -55,5 +55,15 @@ if (getenv('PHPUNIT') !== false || getenv('PDODB_NON_INTERACTIVE') !== false) {
 }
 
 $application = new Application();
-exit($application->run($argv));
+$exitCode = $application->run($argv);
+
+// In test environment, throw exception instead of exit to allow proper test handling
+if (getenv('PHPUNIT') !== false) {
+    if ($exitCode !== 0) {
+        throw new \RuntimeException("Application exited with code {$exitCode}", $exitCode);
+    }
+    return $exitCode;
+}
+
+exit($exitCode);
 

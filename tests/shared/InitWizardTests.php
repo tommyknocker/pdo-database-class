@@ -1972,6 +1972,7 @@ final class InitWizardTests extends TestCase
         $method = $reflection->getMethod('askCaching');
         $method->setAccessible(true);
 
+        $level = ob_get_level();
         ob_start();
 
         try {
@@ -1980,7 +1981,10 @@ final class InitWizardTests extends TestCase
             // Method should output caching options
             $this->assertStringContainsString('Caching', $out);
         } catch (\Throwable $e) {
-            ob_end_clean();
+            // Ensure we clean up all output buffers
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
             // In non-interactive mode, readConfirmation returns default (false)
             // so method may return early
             $this->assertTrue(true);
@@ -1997,6 +2001,7 @@ final class InitWizardTests extends TestCase
         $method = $reflection->getMethod('askCaching');
         $method->setAccessible(true);
 
+        $level = ob_get_level();
         ob_start();
 
         try {
@@ -2005,7 +2010,10 @@ final class InitWizardTests extends TestCase
             // Method should output caching options
             $this->assertStringContainsString('Caching', $out);
         } catch (\Throwable $e) {
-            ob_end_clean();
+            // Ensure we clean up all output buffers
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
             $this->assertTrue(true);
         }
     }
@@ -2020,6 +2028,7 @@ final class InitWizardTests extends TestCase
         $method = $reflection->getMethod('askCaching');
         $method->setAccessible(true);
 
+        $level = ob_get_level();
         ob_start();
 
         try {
@@ -2028,7 +2037,10 @@ final class InitWizardTests extends TestCase
             // Method should output caching options
             $this->assertStringContainsString('Caching', $out);
         } catch (\Throwable $e) {
-            ob_end_clean();
+            // Ensure we clean up all output buffers
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
             $this->assertTrue(true);
         }
     }
@@ -2043,6 +2055,7 @@ final class InitWizardTests extends TestCase
         $method = $reflection->getMethod('askCaching');
         $method->setAccessible(true);
 
+        $level = ob_get_level();
         ob_start();
 
         try {
@@ -2051,7 +2064,10 @@ final class InitWizardTests extends TestCase
             // Method should handle invalid type and fallback to filesystem
             $this->assertStringContainsString('Caching', $out);
         } catch (\Throwable $e) {
-            ob_end_clean();
+            // Ensure we clean up all output buffers
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
             $this->assertTrue(true);
         }
     }
@@ -2066,6 +2082,7 @@ final class InitWizardTests extends TestCase
         $method = $reflection->getMethod('askCaching');
         $method->setAccessible(true);
 
+        $level = ob_get_level();
         ob_start();
 
         try {
@@ -2074,7 +2091,10 @@ final class InitWizardTests extends TestCase
             // Method should output caching options
             $this->assertStringContainsString('Caching', $out);
         } catch (\Throwable $e) {
-            ob_end_clean();
+            // Ensure we clean up all output buffers
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
             $this->assertTrue(true);
         }
     }
@@ -2089,6 +2109,7 @@ final class InitWizardTests extends TestCase
         $method = $reflection->getMethod('askPerformance');
         $method->setAccessible(true);
 
+        $level = ob_get_level();
         ob_start();
 
         try {
@@ -2097,7 +2118,10 @@ final class InitWizardTests extends TestCase
             // Method should output performance options
             $this->assertStringContainsString('Performance', $out);
         } catch (\Throwable $e) {
-            ob_end_clean();
+            // Ensure we clean up all output buffers
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
             $this->assertTrue(true);
         }
     }
@@ -2112,6 +2136,7 @@ final class InitWizardTests extends TestCase
         $method = $reflection->getMethod('askMultipleConnections');
         $method->setAccessible(true);
 
+        $level = ob_get_level();
         ob_start();
 
         try {
@@ -2120,7 +2145,10 @@ final class InitWizardTests extends TestCase
             // Method should output multiple connections info
             $this->assertStringContainsString('Multiple Connections', $out);
         } catch (\Throwable $e) {
-            ob_end_clean();
+            // Ensure we clean up all output buffers
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
             // In non-interactive mode, readConfirmation returns default (false)
             // so method may return early
             $this->assertTrue(true);

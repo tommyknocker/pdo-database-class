@@ -425,7 +425,8 @@ PHP;
         // Run in separate process to avoid exit() terminating PHPUnit
         $bin = realpath(__DIR__ . '/../../bin/pdodb');
         $this->assertNotFalse($bin, 'pdodb binary should exist');
-        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php ' . escapeshellarg($bin) . ' benchmark query 2>&1';
+        $env = 'PDODB_NON_INTERACTIVE=1';
+        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && ' . $env . ' php ' . escapeshellarg($bin) . ' benchmark query 2>&1';
         $output = shell_exec($cmd);
 
         // Check if command executed and returned output
@@ -445,7 +446,8 @@ PHP;
         // Run in separate process to avoid exit() terminating PHPUnit
         $bin = realpath(__DIR__ . '/../../bin/pdodb');
         $this->assertNotFalse($bin, 'pdodb binary should exist');
-        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php ' . escapeshellarg($bin) . ' benchmark crud non_existent_table 2>&1';
+        $env = 'PDODB_NON_INTERACTIVE=1';
+        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && ' . $env . ' php ' . escapeshellarg($bin) . ' benchmark crud non_existent_table 2>&1';
         $output = shell_exec($cmd);
 
         // Check if command executed and returned output
@@ -466,7 +468,8 @@ PHP;
         // Run in separate process to avoid exit() terminating PHPUnit
         $bin = realpath(__DIR__ . '/../../bin/pdodb');
         $this->assertNotFalse($bin, 'pdodb binary should exist');
-        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php ' . escapeshellarg($bin) . ' benchmark crud non_existent_table 2>&1';
+        $env = 'PDODB_NON_INTERACTIVE=1';
+        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && ' . $env . ' php ' . escapeshellarg($bin) . ' benchmark crud non_existent_table 2>&1';
         $output = shell_exec($cmd);
 
         // Check if command executed and returned output
@@ -527,7 +530,8 @@ PHP;
         // Run in separate process to avoid exit() terminating PHPUnit
         $bin = realpath(__DIR__ . '/../../bin/pdodb');
         $this->assertNotFalse($bin, 'pdodb binary should exist');
-        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && php ' . escapeshellarg($bin) . ' benchmark profile 2>&1';
+        $env = 'PDODB_NON_INTERACTIVE=1';
+        $cmd = 'cd ' . escapeshellarg(getcwd()) . ' && ' . $env . ' php ' . escapeshellarg($bin) . ' benchmark profile 2>&1';
         $output = shell_exec($cmd);
 
         // Check if command executed and returned output
