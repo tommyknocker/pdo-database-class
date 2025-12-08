@@ -38,12 +38,15 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
     public function tearDown(): void
     {
         // Clean up environment variables to avoid affecting other tests
+        // Note: Do not clear PDODB_USERNAME and PDODB_PASSWORD as they are needed
+        // by other tests that may create new connections
         putenv('PDODB_DRIVER');
         putenv('PDODB_HOST');
         putenv('PDODB_PORT');
         putenv('PDODB_DATABASE');
-        putenv('PDODB_USERNAME');
-        putenv('PDODB_PASSWORD');
+        // Keep PDODB_USERNAME and PDODB_PASSWORD for other tests
+        // putenv('PDODB_USERNAME');
+        // putenv('PDODB_PASSWORD');
         putenv('PDODB_NON_INTERACTIVE');
         parent::tearDown();
     }
