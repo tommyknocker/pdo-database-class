@@ -168,6 +168,13 @@ class InitWizard extends BaseCliCommand
                 }
             }
         }
+
+        // Load AI configuration if enabled
+        $aiProvider = getenv('PDODB_AI_PROVIDER');
+        if ($aiProvider !== false && $aiProvider !== '') {
+            $this->config['ai'] = ['provider' => mb_strtolower($aiProvider, 'UTF-8')];
+            $this->loadAiConfigFromEnv();
+        }
     }
 
     /**
@@ -183,6 +190,45 @@ class InitWizard extends BaseCliCommand
             'services' => getenv('PDODB_SERVICE_PATH') ?: './app/Services',
             'seeds' => getenv('PDODB_SEED_PATH') ?: './database/seeds',
         ];
+    }
+
+    /**
+     * Load AI configuration from environment variables.
+     */
+    protected function loadAiConfigFromEnv(): void
+    {
+        if (!isset($this->config['ai']) || !is_array($this->config['ai'])) {
+            $this->config['ai'] = [];
+        }
+
+        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'deepseek', 'ollama'];
+        foreach ($providers as $provider) {
+            $envVar = 'PDODB_AI_' . strtoupper($provider) . '_KEY';
+            $key = getenv($envVar);
+            if ($key !== false && $key !== '') {
+                $this->config['ai'][$provider . '_key'] = $key;
+            }
+        }
+
+        $ollamaUrl = getenv('PDODB_AI_OLLAMA_URL');
+        if ($ollamaUrl !== false && $ollamaUrl !== '') {
+            $this->config['ai']['ollama_url'] = $ollamaUrl;
+        }
+
+        // Load provider-specific settings
+        if (!isset($this->config['ai']['providers'])) {
+            $this->config['ai']['providers'] = [];
+        }
+        foreach ($providers as $provider) {
+            $modelVar = 'PDODB_AI_' . strtoupper($provider) . '_MODEL';
+            $model = getenv($modelVar);
+            if ($model !== false && $model !== '') {
+                if (!isset($this->config['ai']['providers'][$provider])) {
+                    $this->config['ai']['providers'][$provider] = [];
+                }
+                $this->config['ai']['providers'][$provider]['model'] = $model;
+            }
+        }
     }
 
     /**
@@ -447,6 +493,7 @@ class InitWizard extends BaseCliCommand
         $this->askTablePrefix();
         $this->askCaching();
         $this->askPerformance();
+        $this->askAiConfiguration();
         $this->askMultipleConnections();
     }
 
@@ -620,6 +667,73 @@ class InitWizard extends BaseCliCommand
                 'backoff_multiplier' => (float)static::readInput('    Backoff multiplier', '2'),
                 'max_delay_ms' => (int)static::readInput('    Max delay (ms)', '10000'),
             ];
+        }
+    }
+
+    /**
+     * Ask AI configuration.
+     */
+    protected function askAiConfiguration(): void
+    {
+        echo "\n  AI Configuration\n";
+        echo "  ----------------\n";
+        $enableAi = static::readConfirmation('  Enable AI-powered database analysis?', false);
+        if (!$enableAi) {
+            return;
+        }
+
+        if (!isset($this->config['ai'])) {
+            $this->config['ai'] = [];
+        }
+
+        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'ollama', 'deepseek'];
+        echo "  Available providers: " . implode(', ', $providers) . "\n";
+        $provider = static::readInput('  Default AI provider', 'openai');
+        $provider = mb_strtolower(trim($provider), 'UTF-8');
+        if (!in_array($provider, $providers, true)) {
+            $provider = 'openai';
+        }
+        $this->config['ai']['provider'] = $provider;
+
+        // Ask for API keys
+        echo "\n  API Keys (leave empty to skip)\n";
+        foreach ($providers as $p) {
+            if ($p === 'ollama') {
+                // Ollama doesn't need API key, but ask for URL
+                $url = static::readInput("  Ollama URL", 'http://localhost:11434');
+                if ($url !== '') {
+                    $this->config['ai']['ollama_url'] = $url;
+                }
+            } else {
+                $key = static::readPassword("  {$p} API key (optional, press Enter to skip)");
+                if ($key !== '') {
+                    $this->config['ai'][$p . '_key'] = $key;
+                }
+            }
+        }
+
+        // Ask for provider-specific settings
+        $configureProviderSettings = static::readConfirmation('  Configure provider-specific settings (model, temperature, etc.)?', false);
+        if ($configureProviderSettings) {
+            if (!isset($this->config['ai']['providers'])) {
+                $this->config['ai']['providers'] = [];
+            }
+
+            foreach ($providers as $p) {
+                $hasKey = isset($this->config['ai'][$p . '_key']) || ($p === 'ollama');
+                if (!$hasKey) {
+                    continue;
+                }
+
+                echo "\n  {$p} settings:\n";
+                $model = static::readInput("    Model (optional)", '');
+                if ($model !== '') {
+                    if (!isset($this->config['ai']['providers'][$p])) {
+                        $this->config['ai']['providers'][$p] = [];
+                    }
+                    $this->config['ai']['providers'][$p]['model'] = $model;
+                }
+            }
         }
     }
 

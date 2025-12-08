@@ -80,6 +80,36 @@ class InitConfigGenerator
             $lines[] = '';
         }
 
+        // AI configuration
+        if (isset($config['ai']) && is_array($config['ai'])) {
+            $lines[] = '# AI Configuration';
+            if (isset($config['ai']['provider'])) {
+                $lines[] = 'PDODB_AI_PROVIDER=' . $config['ai']['provider'];
+            }
+
+            $providers = ['openai', 'anthropic', 'google', 'microsoft', 'deepseek', 'ollama'];
+            foreach ($providers as $provider) {
+                $keyName = $provider . '_key';
+                if (isset($config['ai'][$keyName])) {
+                    $lines[] = 'PDODB_AI_' . strtoupper($provider) . '_KEY=' . $config['ai'][$keyName];
+                }
+            }
+
+            if (isset($config['ai']['ollama_url'])) {
+                $lines[] = 'PDODB_AI_OLLAMA_URL=' . $config['ai']['ollama_url'];
+            }
+
+            // Provider-specific settings
+            if (isset($config['ai']['providers']) && is_array($config['ai']['providers'])) {
+                foreach ($config['ai']['providers'] as $provider => $settings) {
+                    if (is_array($settings) && isset($settings['model'])) {
+                        $lines[] = 'PDODB_AI_' . strtoupper($provider) . '_MODEL=' . $settings['model'];
+                    }
+                }
+            }
+            $lines[] = '';
+        }
+
         // Project paths
         if (!empty($structure)) {
             $lines[] = '# Project Paths';
@@ -235,6 +265,11 @@ class InitConfigGenerator
         // REGEXP (default true, but can be explicitly set)
         if (isset($config['enable_regexp'])) {
             $result['enable_regexp'] = $config['enable_regexp'];
+        }
+
+        // AI configuration
+        if (isset($config['ai']) && is_array($config['ai'])) {
+            $result['ai'] = $config['ai'];
         }
 
         return $result;

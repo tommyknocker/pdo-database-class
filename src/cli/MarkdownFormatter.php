@@ -32,20 +32,58 @@ class MarkdownFormatter
     {
         $text = $markdown;
 
-        // Remove markdown code blocks but keep content
-        $text = preg_replace_callback('/```(\w+)?\n(.*?)```/s', function (array $matches): string {
+        // First, protect code blocks (```code```) by replacing them with placeholders
+        $codeBlocks = [];
+        $codeBlockIndex = 0;
+        $text = preg_replace_callback('/```(\w+)?\n(.*?)```/s', function (array $matches) use (&$codeBlocks, &$codeBlockIndex): string {
             // preg_replace_callback guarantees indices 1 and 2 exist for this pattern
             $code = $matches[2];
             $lang = $matches[1] !== '' ? $matches[1] : '';
-            return $this->formatCodeBlock($code, $lang);
+            $placeholder = "\x00CODEBLOCK" . $codeBlockIndex . "\x00";
+            $codeBlocks[$placeholder] = $this->formatCodeBlock($code, $lang);
+            $codeBlockIndex++;
+            return $placeholder;
         }, $text);
         if ($text === null) {
             $text = $markdown;
         }
+        $text = (string)$text;
 
-        // Format inline code
-        $replaced = preg_replace('/`([^`]+)`/', $this->useColors ? "\033[36m\$1\033[0m" : '[$1]', $text);
-        $text = $replaced !== null ? $replaced : $text;
+        // Protect inline code blocks (`code`) by replacing them with placeholders
+        // This protects content from markdown formatting (like asterisks and underscores)
+        $inlineCode = [];
+        $inlineCodeIndex = 0;
+        
+        // First, handle double backticks (``code``) - these can contain single backticks
+        // Pattern: `` followed by content (which can include `) followed by ``
+        // Match the shortest possible sequence to avoid greedy matching
+        $text = preg_replace_callback('/``(.*?)``/s', function (array $matches) use (&$inlineCode, &$inlineCodeIndex): string {
+            // preg_replace_callback guarantees index 1 exists
+            $code = $matches[1];
+            $placeholder = "\x00INLINECODE" . $inlineCodeIndex . "\x00";
+            $inlineCode[$placeholder] = $this->useColors ? "\033[36m{$code}\033[0m" : "[{$code}]";
+            $inlineCodeIndex++;
+            return $placeholder;
+        }, $text);
+        if ($text === null) {
+            $text = '';
+        }
+        $text = (string)$text;
+        
+        // Then handle single backticks (`code`) - these cannot contain backticks
+        // Use non-greedy matching to handle cases correctly
+        $text = preg_replace_callback('/`([^`\n]+?)`/', function (array $matches) use (&$inlineCode, &$inlineCodeIndex): string {
+            // preg_replace_callback guarantees index 1 exists
+            $code = $matches[1];
+            $placeholder = "\x00INLINECODE" . $inlineCodeIndex . "\x00";
+            $inlineCode[$placeholder] = $this->useColors ? "\033[36m{$code}\033[0m" : "[{$code}]";
+            $inlineCodeIndex++;
+            return $placeholder;
+        }, $text);
+        if ($text === null) {
+            $text = '';
+        }
+        $text = (string)$text;
 
         // Format headers
         $text = (string)preg_replace('/^### (.*)$/m', $this->formatHeader(3, '$1'), $text);
@@ -56,22 +94,37 @@ class MarkdownFormatter
         $text = (string)preg_replace('/\*\*(.+?)\*\*/', $this->useColors ? "\033[1m\$1\033[0m" : '**$1**', $text);
         $text = (string)preg_replace('/__(.+?)__/', $this->useColors ? "\033[1m\$1\033[0m" : '__$1__', $text);
 
-        // Format italic text
-        $text = (string)preg_replace('/\*(.+?)\*/', $this->useColors ? "\033[3m\$1\033[0m" : '*$1*', $text);
-        $text = (string)preg_replace('/_(.+?)_/', $this->useColors ? "\033[3m\$1\033[0m" : '_$1_', $text);
-
-        // Format unordered lists
-        $text = preg_replace_callback('/^(\s*)[-*+] (.+)$/m', function (array $matches): string {
+        // Format unordered lists BEFORE italic formatting to avoid conflicts
+        // This ensures list markers are processed before italic markers
+        $replaced = preg_replace_callback('/^(\s*)[-*+] (.+)$/m', function (array $matches): string {
             // preg_replace_callback guarantees these indices exist
             $indent = $matches[1];
             $content = $matches[2];
             $bullet = $this->useColors ? "\033[0;33m•\033[0m" : '•';
             return $indent . $bullet . ' ' . $content;
         }, $text);
-        if ($text === null) {
-            $text = '';
-        }
+        $text = $replaced !== null ? $replaced : $text;
         $text = (string)$text;
+
+        // Format italic text AFTER lists to avoid interfering with list markers
+        // Only format if underscores are around words (not inside words like users_created_at)
+        // Pattern: _word_ but not word_word or _word_word
+        // Exclude asterisks that are list markers (at start of line with optional whitespace)
+        $replaced = preg_replace('/(?<!^|\n)(?<!\S)\*(.+?)\*(?!\S)/', $this->useColors ? "\033[3m\$1\033[0m" : '*$1*', $text);
+        $text = $replaced !== null ? $replaced : $text;
+        // Match _text_ only if not preceded/followed by word characters (letters, digits, underscores)
+        $replaced = preg_replace('/(?<![a-zA-Z0-9_])_(.+?)_(?![a-zA-Z0-9_])/', $this->useColors ? "\033[3m\$1\033[0m" : '_$1_', $text);
+        $text = $replaced !== null ? $replaced : $text;
+
+        // Restore inline code blocks
+        foreach ($inlineCode as $placeholder => $formatted) {
+            $text = str_replace($placeholder, $formatted, $text);
+        }
+
+        // Restore code blocks
+        foreach ($codeBlocks as $placeholder => $formatted) {
+            $text = str_replace($placeholder, $formatted, $text);
+        }
 
         // Format ordered lists
         $text = preg_replace_callback('/^(\s*)(\d+)\. (.+)$/m', function (array $matches): string {
@@ -363,26 +416,34 @@ class MarkdownFormatter
             $maxLength = max($maxLength, mb_strlen($line));
         }
 
-        $border = str_repeat('─', min($maxLength + 2, 80));
         $langLabel = $lang !== '' ? " {$lang}" : '';
+        // Calculate border width: max of code width + 2 (for padding) and lang label width + 2
+        // But ensure it doesn't exceed 80 characters
+        $langWidth = $lang !== '' ? mb_strlen($langLabel) : 0;
+        $borderWidth = min(max($maxLength + 2, $langWidth + 2), 80);
+        $border = str_repeat('─', $borderWidth);
 
         $result = [];
         if ($this->useColors) {
             $result[] = "\033[0;90m┌{$border}┐\033[0m";
             if ($lang !== '') {
-                $result[] = "\033[0;90m│\033[0m\033[0;36m{$langLabel}\033[0m" . str_repeat(' ', max(0, $maxLength - mb_strlen($lang) + 1)) . "\033[0;90m│\033[0m";
+                $langPadding = max(0, $borderWidth - mb_strlen($langLabel) - 2);
+                $result[] = "\033[0;90m│\033[0m\033[0;36m{$langLabel}\033[0m" . str_repeat(' ', $langPadding) . "\033[0;90m│\033[0m";
                 $result[] = "\033[0;90m├{$border}┤\033[0m";
             }
         } else {
             $result[] = "┌{$border}┐";
             if ($lang !== '') {
-                $result[] = "│{$langLabel}" . str_repeat(' ', max(0, $maxLength - mb_strlen($lang) + 1)) . '│';
+                $langPadding = max(0, $borderWidth - mb_strlen($langLabel) - 2);
+                $result[] = "│{$langLabel}" . str_repeat(' ', $langPadding) . '│';
                 $result[] = "├{$border}┤";
             }
         }
 
         foreach ($lines as $line) {
-            $padded = $line . str_repeat(' ', max(0, $maxLength - mb_strlen($line)));
+            // Pad line to border width - 2 (for left and right padding spaces)
+            $linePadding = max(0, $borderWidth - mb_strlen($line) - 2);
+            $padded = $line . str_repeat(' ', $linePadding);
             if ($this->useColors) {
                 $result[] = "\033[0;90m│\033[0m \033[36m{$padded}\033[0m \033[0;90m│\033[0m";
             } else {

@@ -108,6 +108,11 @@ class AiConfig
             $this->apiKeys['microsoft'] = $microsoftKey;
         }
 
+        $deepseekKey = getenv('PDODB_AI_DEEPSEEK_KEY');
+        if ($deepseekKey !== false && $deepseekKey !== '') {
+            $this->apiKeys['deepseek'] = $deepseekKey;
+        }
+
         $ollamaUrl = getenv('PDODB_AI_OLLAMA_URL');
         if ($ollamaUrl !== false && $ollamaUrl !== '') {
             $this->ollamaUrl = $ollamaUrl;
