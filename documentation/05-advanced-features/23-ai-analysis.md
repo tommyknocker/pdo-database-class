@@ -30,7 +30,7 @@ PDOdb supports multiple AI providers, each with their own strengths:
 |----------|--------|----------|------------------|
 | **OpenAI** | gpt-4o-mini, gpt-4, gpt-3.5-turbo | General analysis, fast responses | Yes |
 | **Anthropic** | claude-3-5-sonnet, claude-3-opus | Detailed analysis, long context | Yes |
-| **Google** | gemini-pro, gemini-ultra | Multimodal analysis | Yes |
+| **Google** | gemini-2.5-flash, gemini-2.5-pro, gemini-2.0-flash-001, gemini-flash-latest, gemini-pro-latest | Multimodal analysis, large context | Yes |
 | **Microsoft** | Azure OpenAI models | Enterprise environments | Yes |
 | **Ollama** | Any local model (llama2, deepseek-coder, etc.) | Privacy, offline use, no API costs | No |
 
@@ -52,13 +52,22 @@ export PDODB_AI_ANTHROPIC_KEY=sk-ant-...
 
 # Google
 export PDODB_AI_GOOGLE_KEY=...
+export PDODB_AI_GOOGLE_MODEL=gemini-2.5-flash  # Optional: gemini-2.5-pro, gemini-2.0-flash-001, gemini-flash-latest, gemini-pro-latest
 
 # Microsoft Azure OpenAI
 export PDODB_AI_MICROSOFT_KEY=...
+export PDODB_AI_MICROSOFT_MODEL=gpt-4  # Optional: model name
 # Also configure endpoint via config array (see below)
 
 # Ollama (local, no API key needed)
 export PDODB_AI_OLLAMA_URL=http://localhost:11434
+export PDODB_AI_OLLAMA_MODEL=llama3.2  # Optional: model name
+
+# OpenAI
+export PDODB_AI_OPENAI_MODEL=gpt-4o-mini  # Optional: gpt-4, gpt-3.5-turbo
+
+# Anthropic
+export PDODB_AI_ANTHROPIC_MODEL=claude-3-5-sonnet-20241022  # Optional: claude-3-opus
 ```
 
 ### Configuration Array
@@ -88,14 +97,40 @@ $db = new PdoDb('mysql', [
                 'model' => 'claude-3-5-sonnet-20241022',
                 'temperature' => 0.7,
             ],
+            'google' => [
+                'model' => 'gemini-2.5-flash',  # or gemini-2.5-pro, gemini-2.0-flash-001, gemini-flash-latest, gemini-pro-latest
+                'temperature' => 0.7,
+                'max_tokens' => 2000,
+            ],
             'microsoft' => [
                 'endpoint' => 'https://your-resource.openai.azure.com',
                 'deployment' => 'gpt-4',
+            ],
+            'ollama' => [
+                'model' => 'llama3.2',  # or any local model name
             ],
         ],
     ],
 ]);
 ```
+
+### Available Google Gemini Models
+
+Google provides multiple model variants. Recommended models:
+
+- **gemini-2.5-flash** (default) - Stable, fast, versatile model with 1M token context
+- **gemini-2.5-pro** - Best for complex tasks, 1M token context, 65K output tokens
+- **gemini-2.0-flash-001** - Stable version of Gemini 2.0 Flash (January 2025)
+- **gemini-flash-latest** - Always uses the latest Flash model
+- **gemini-pro-latest** - Always uses the latest Pro model
+
+For a complete list of available models, use the provided script:
+
+```bash
+php check-google-models.php
+```
+
+This script will show all models that support `generateContent` with their token limits and descriptions.
 
 ### Priority
 

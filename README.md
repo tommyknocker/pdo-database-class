@@ -489,6 +489,8 @@ Or use CLI:
 ```bash
 # Set API key
 export PDODB_AI_OPENAI_KEY=sk-...
+export PDODB_AI_OPENAI_MODEL=gpt-4o-mini  # Optional: gpt-4, gpt-3.5-turbo
+export PDODB_AI_GOOGLE_MODEL=gemini-2.5-flash  # Optional: gemini-2.5-pro, gemini-2.0-flash-001, gemini-flash-latest
 
 # Analyze query
 pdodb ai analyze "SELECT * FROM users WHERE email = 'user@example.com'" \
@@ -497,6 +499,8 @@ pdodb ai analyze "SELECT * FROM users WHERE email = 'user@example.com'" \
 ```
 
 **Supported Providers:** OpenAI, Anthropic, Google, Microsoft, Ollama (local, no API key)
+
+**Model Selection:** Configure models via environment variables (`PDODB_AI_<PROVIDER>_MODEL`) or config array (`ai.providers.<provider>.model`)
 
 See [AI Analysis Documentation](documentation/05-advanced-features/23-ai-analysis.md) for complete guide.
 

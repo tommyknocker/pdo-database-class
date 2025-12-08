@@ -110,6 +110,24 @@ class AiConfig
         } else {
             $this->ollamaUrl = 'http://localhost:11434';
         }
+
+        // Load provider-specific model settings from environment variables
+        $this->loadProviderModelsFromEnvironment();
+    }
+
+    /**
+     * Load provider model settings from environment variables.
+     */
+    protected function loadProviderModelsFromEnvironment(): void
+    {
+        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'ollama'];
+        foreach ($providers as $provider) {
+            $envVar = 'PDODB_AI_' . strtoupper($provider) . '_MODEL';
+            $model = getenv($envVar);
+            if ($model !== false && $model !== '') {
+                $this->setProviderSetting($provider, 'model', $model);
+            }
+        }
     }
 
     /**

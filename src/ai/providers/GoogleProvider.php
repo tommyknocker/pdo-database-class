@@ -13,9 +13,9 @@ use tommyknocker\pdodb\exceptions\QueryException;
 class GoogleProvider extends BaseAiProvider
 {
     private const string API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent'; // v1beta is the latest supported version
-    private const string DEFAULT_MODEL = 'gemini-pro';
+    private const string DEFAULT_MODEL = 'gemini-2.5-flash';
     private const float DEFAULT_TEMPERATURE = 0.7;
-    private const int DEFAULT_MAX_TOKENS = 2000;
+    private const int DEFAULT_MAX_TOKENS = 8192; // Increased default for Gemini 2.5 models (supports up to 65K output tokens)
     private const string URL_PARAM_KEY = '?key=';
     private const string REQUEST_KEY_CONTENTS = 'contents';
     private const string REQUEST_KEY_PARTS = 'parts';
@@ -112,14 +112,96 @@ class GoogleProvider extends BaseAiProvider
 
         $response = $this->makeRequest($url, $data);
 
-        if (!isset($response[self::RESPONSE_KEY_CANDIDATES][0][self::RESPONSE_KEY_CONTENT][self::REQUEST_KEY_PARTS][0][self::REQUEST_KEY_TEXT])) {
+        // Check for error in response
+        if (isset($response['error'])) {
+            $errorCode = $response['error']['code'] ?? 'unknown';
+            $errorMessage = $response['error']['message'] ?? 'Unknown error';
             throw new QueryException(
-                'Invalid response format from Google API',
+                "Google API error ({$errorCode}): {$errorMessage}",
                 0
             );
         }
 
-        return (string)$response[self::RESPONSE_KEY_CANDIDATES][0][self::RESPONSE_KEY_CONTENT][self::REQUEST_KEY_PARTS][0][self::REQUEST_KEY_TEXT];
+        // Validate response structure
+        if (!isset($response[self::RESPONSE_KEY_CANDIDATES])) {
+            $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
+            throw new QueryException(
+                'Invalid response format from Google API: missing "candidates" key. Response: ' . $responseStr,
+                0
+            );
+        }
+
+        if (empty($response[self::RESPONSE_KEY_CANDIDATES])) {
+            $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
+            throw new QueryException(
+                'Invalid response format from Google API: empty "candidates" array. Response: ' . $responseStr,
+                0
+            );
+        }
+
+        $candidate = $response[self::RESPONSE_KEY_CANDIDATES][0];
+
+        // Check finish reason
+        $finishReason = $candidate['finishReason'] ?? null;
+        if ($finishReason !== null && $finishReason !== 'STOP') {
+            $reasonMessages = [
+                'MAX_TOKENS' => 'Response was truncated due to token limit. Consider increasing max_tokens.',
+                'SAFETY' => 'Response was blocked due to safety filters.',
+                'RECITATION' => 'Response was blocked due to recitation detection.',
+                'OTHER' => 'Response was stopped for an unknown reason.',
+            ];
+            $message = $reasonMessages[$finishReason] ?? "Response was stopped (reason: {$finishReason}).";
+            
+            // Try to get partial content if available
+            $content = $candidate[self::RESPONSE_KEY_CONTENT] ?? null;
+            if ($content !== null && isset($content[self::REQUEST_KEY_PARTS]) && !empty($content[self::REQUEST_KEY_PARTS])) {
+                $part = $content[self::REQUEST_KEY_PARTS][0];
+                if (isset($part[self::REQUEST_KEY_TEXT])) {
+                    // Return partial content with warning
+                    return (string)$part[self::REQUEST_KEY_TEXT] . "\n\n[Note: Response was truncated. {$message}]";
+                }
+            }
+            
+            throw new QueryException(
+                "Google API response issue: {$message}",
+                0
+            );
+        }
+
+        if (!isset($candidate[self::RESPONSE_KEY_CONTENT])) {
+            $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
+            throw new QueryException(
+                'Invalid response format from Google API: missing "content" key in candidate. Response: ' . $responseStr,
+                0
+            );
+        }
+
+        $content = $candidate[self::RESPONSE_KEY_CONTENT];
+
+        if (!isset($content[self::REQUEST_KEY_PARTS]) || empty($content[self::REQUEST_KEY_PARTS])) {
+            $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
+            throw new QueryException(
+                'Invalid response format from Google API: missing or empty "parts" array. Response: ' . $responseStr,
+                0
+            );
+        }
+
+        $part = $content[self::REQUEST_KEY_PARTS][0];
+
+        if (!isset($part[self::REQUEST_KEY_TEXT])) {
+            $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
+            throw new QueryException(
+                'Invalid response format from Google API: missing "text" key in part. Response: ' . $responseStr,
+                0
+            );
+        }
+
+        return (string)$part[self::REQUEST_KEY_TEXT];
     }
 
     protected function buildSystemPrompt(string $type): string
