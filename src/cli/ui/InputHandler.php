@@ -245,6 +245,23 @@ class InputHandler
      */
     public static function waitForKey(array $allowedKeys = []): string
     {
+        // Check for non-interactive mode first (fastest check)
+        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
+            || getenv('PHPUNIT') !== false;
+
+        // Only check stream_isatty if not already in non-interactive mode (expensive check)
+        if (!$nonInteractive) {
+            $nonInteractive = !stream_isatty(STDIN);
+        }
+
+        if ($nonInteractive) {
+            // In non-interactive mode, return empty string or first allowed key
+            if (!empty($allowedKeys)) {
+                return $allowedKeys[0];
+            }
+            return '';
+        }
+
         while (true) {
             $key = self::readKey(1000000); // 1 second timeout, but will loop
 

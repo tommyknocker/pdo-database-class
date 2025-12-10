@@ -65,6 +65,7 @@ class AnalyzeQueryTool implements McpToolInterface
         try {
             // Get EXPLAIN plan for better AI analysis
             $explainAnalysis = null;
+
             try {
                 $connection = $this->db->connection;
                 $dialect = $connection->getDialect();

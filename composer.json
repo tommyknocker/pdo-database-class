@@ -127,6 +127,7 @@
     "ext-pdo": "*",
     "psr/log": "^3.0",
     "psr/simple-cache": "^3.0",
+
     "psr/event-dispatcher": "^1.0"
   },
   "suggest": {
@@ -145,7 +146,7 @@
     "ext-pdo_oci": "Required for Oracle database support"
   },
   "require-dev": {
-    "phpunit/phpunit": "^12.0",
+    "phpunit/phpunit": "^11.5.0",
     "monolog/monolog": "^3.9",
     "symfony/cache": "^7.3",
     "phpstan/phpstan": "^2.0",

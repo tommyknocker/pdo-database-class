@@ -70,6 +70,7 @@ class AiCommand extends Command
             $pdo = $connection->getPdo();
 
             $explainAnalysis = null;
+
             try {
                 $explainResults = $dialect->executeExplain($pdo, $sql, []);
                 $queryBuilder = $db->find();
