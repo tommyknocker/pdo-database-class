@@ -123,14 +123,18 @@ class SchemaAnalyzer
                 $tablesWithIssues++;
             }
 
-            // Info messages (low priority)
-            $rowCount = $this->getTableRowCount($table);
-            if ($rowCount > 1000000) {
-                $info[] = [
-                    'table' => $table,
-                    'message' => "Table '{$table}': " . number_format($rowCount) . ' rows, consider partitioning',
-                    'type' => 'large_table',
-                ];
+            // Info messages (low priority) - only check row count for tables that might be large
+            // Skip row count check for tables without issues to speed up analysis
+            // Only check if we already detected issues (likely to be more important tables)
+            if ($hasIssues) {
+                $rowCount = $this->getTableRowCount($table);
+                if ($rowCount > 1000000) {
+                    $info[] = [
+                        'table' => $table,
+                        'message' => "Table '{$table}': " . number_format($rowCount) . ' rows, consider partitioning',
+                        'type' => 'large_table',
+                    ];
+                }
             }
         }
 
@@ -157,22 +161,24 @@ class SchemaAnalyzer
      */
     public function analyzeTable(string $table): array
     {
-        if (!TableManager::tableExists($this->db, $table)) {
+        // Skip tableExists check - if table doesn't exist, info() will fail and we'll handle it
+        // This saves one query per table
+        try {
+            $info = TableManager::info($this->db, $table);
+        } catch (\Exception $e) {
             return [
                 'table' => $table,
-                'error' => "Table '{$table}' does not exist",
+                'error' => "Table '{$table}' does not exist or cannot be accessed: " . $e->getMessage(),
             ];
         }
-
-        $info = TableManager::info($this->db, $table);
         $indexes = $this->extractIndexes($info['indexes'] ?? []);
         $primaryKey = $this->extractPrimaryKey($table, $info['indexes'] ?? []);
         $foreignKeys = $this->getForeignKeys($table);
         $redundant = $this->redundantIndexDetector->detect($table, $indexes);
         $missingFkIndexes = $this->findMissingFkIndexes($table, $foreignKeys, $indexes);
 
-        // Get index suggestions
-        $suggestions = $this->indexSuggestionAnalyzer->analyze($table, []);
+        // Get index suggestions - pass cached data to avoid duplicate queries
+        $suggestions = $this->indexSuggestionAnalyzer->analyze($table, [], $info, $foreignKeys);
 
         return [
             'table' => $table,

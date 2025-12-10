@@ -2696,7 +2696,12 @@ class OracleDialect extends DialectAbstract
     {
         $schemaName = $schema ?? 'USER';
         if ($schemaName === 'USER') {
-            $sql = 'SELECT TABLE_NAME FROM USER_TABLES ORDER BY TABLE_NAME';
+            // Exclude Oracle system tables and recycle bin objects for better performance
+            $sql = "SELECT TABLE_NAME FROM USER_TABLES
+                    WHERE TABLE_NAME NOT LIKE 'BIN$%'
+                    AND TABLE_NAME NOT LIKE 'SYS_%'
+                    AND TABLE_NAME NOT IN ('DUAL')
+                    ORDER BY TABLE_NAME";
             $rows = $db->rawQuery($sql);
         } else {
             $sql = 'SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER = UPPER(:schema) ORDER BY TABLE_NAME';
@@ -2722,8 +2727,21 @@ class OracleDialect extends DialectAbstract
             }
             return '';
         }, $rows);
-        // Filter out empty strings
-        return array_filter($names, static fn (string $name): bool => $name !== '');
+        // Filter out empty strings and system tables
+        return array_filter($names, static function (string $name): bool {
+            if ($name === '') {
+                return false;
+            }
+            // Additional filtering for system tables (case-insensitive)
+            $nameUpper = strtoupper($name);
+            // Skip Oracle system tables and recycle bin
+            if (str_starts_with($nameUpper, 'BIN$') ||
+                str_starts_with($nameUpper, 'SYS_') ||
+                $nameUpper === 'DUAL') {
+                return false;
+            }
+            return true;
+        });
     }
 
     /**

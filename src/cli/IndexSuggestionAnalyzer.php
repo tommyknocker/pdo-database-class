@@ -23,18 +23,29 @@ class IndexSuggestionAnalyzer
      *
      * @param string $table Table name
      * @param array<string, mixed> $options Analysis options
+     * @param array<string, mixed>|null $cachedInfo Pre-fetched table info (columns, indexes) to avoid duplicate queries
+     * @param array<int, array<string, mixed>>|null $cachedForeignKeys Pre-fetched foreign keys to avoid duplicate queries
      *
      * @return array<int, array<string, mixed>> Array of suggestions with priority, reason, and SQL
      */
-    public function analyze(string $table, array $options = []): array
+    public function analyze(string $table, array $options = [], ?array $cachedInfo = null, ?array $cachedForeignKeys = null): array
     {
         $suggestions = [];
 
-        // Get table structure
-        $info = TableManager::info($this->db, $table);
+        // Use cached data if provided, otherwise fetch
+        if ($cachedInfo !== null) {
+            $info = $cachedInfo;
+        } else {
+            $info = TableManager::info($this->db, $table);
+        }
         $columns = $info['columns'] ?? [];
         $existingIndexes = $this->extractIndexes($info['indexes'] ?? []);
-        $foreignKeys = $this->getForeignKeys($table);
+
+        if ($cachedForeignKeys !== null) {
+            $foreignKeys = $cachedForeignKeys;
+        } else {
+            $foreignKeys = $this->getForeignKeys($table);
+        }
 
         // Analyze columns
         $columnNames = $this->extractColumnNames($columns);
@@ -45,7 +56,7 @@ class IndexSuggestionAnalyzer
         $suggestions = array_merge($suggestions, $fkSuggestions);
 
         // 2. Common patterns (MEDIUM priority)
-        $patternSuggestions = $this->suggestCommonPatterns($table, $columns, $indexedColumns);
+        $patternSuggestions = $this->suggestCommonPatterns($table, $columns, $indexedColumns, $existingIndexes);
         $suggestions = array_merge($suggestions, $patternSuggestions);
 
         // 3. Timestamp columns for sorting (LOW priority)
@@ -225,10 +236,11 @@ class IndexSuggestionAnalyzer
      * @param string $table Table name
      * @param array<int, array<string, mixed>> $columns Table columns
      * @param array<string> $indexedColumns Already indexed columns
+     * @param array<string, array<int, string>> $existingIndexes Existing indexes (for composite index check)
      *
      * @return array<int, array<string, mixed>> Suggestions
      */
-    protected function suggestCommonPatterns(string $table, array $columns, array $indexedColumns): array
+    protected function suggestCommonPatterns(string $table, array $columns, array $indexedColumns, array $existingIndexes): array
     {
         $suggestions = [];
         $columnNames = $this->extractColumnNames($columns);
@@ -285,7 +297,7 @@ class IndexSuggestionAnalyzer
         // Composite index for status + created_at pattern
         if (in_array('status', $columnNames, true) && in_array('created_at', $columnNames, true)) {
             $compositeCols = ['status', 'created_at'];
-            $hasComposite = $this->hasCompositeIndex($table, $compositeCols);
+            $hasComposite = $this->hasCompositeIndex($table, $compositeCols, $existingIndexes);
             if (!$hasComposite) {
                 $indexName = $this->generateIndexName($table, $compositeCols);
                 $sql = $this->buildCreateIndexSql($table, $indexName, $compositeCols);
@@ -397,14 +409,19 @@ class IndexSuggestionAnalyzer
      *
      * @param string $table Table name
      * @param array<int, string> $columns Column names
+     * @param array<string, array<int, string>>|null $cachedIndexes Pre-extracted indexes to avoid duplicate queries
      *
      * @return bool
      */
-    protected function hasCompositeIndex(string $table, array $columns): bool
+    protected function hasCompositeIndex(string $table, array $columns, ?array $cachedIndexes = null): bool
     {
         try {
-            $info = TableManager::info($this->db, $table);
-            $indexes = $this->extractIndexes($info['indexes'] ?? []);
+            if ($cachedIndexes !== null) {
+                $indexes = $cachedIndexes;
+            } else {
+                $info = TableManager::info($this->db, $table);
+                $indexes = $this->extractIndexes($info['indexes'] ?? []);
+            }
 
             foreach ($indexes as $indexCols) {
                 if (count($indexCols) === count($columns)) {

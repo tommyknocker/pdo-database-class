@@ -197,7 +197,6 @@ class AiCommandCliTests extends TestCase
         }
     }
 
-
     public static function tearDownAfterClass(): void
     {
         if (self::$db !== null) {
