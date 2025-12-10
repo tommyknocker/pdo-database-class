@@ -129,30 +129,6 @@ class AiCommandCliTests extends TestCase
         }
     }
 
-    public function testAiCommandAnalyze(): void
-    {
-        ob_start();
-
-        try {
-            $exitCode = $this->app->run([
-                'pdodb',
-                'ai',
-                'analyze',
-                'SELECT * FROM test_users WHERE id = 1',
-                '--provider=ollama',
-                '--max-tokens=' . self::OLLAMA_MAX_TOKENS,
-                '--timeout=' . self::OLLAMA_API_TIMEOUT,
-            ]);
-            $output = ob_get_clean();
-            $this->assertEquals(0, $exitCode);
-            $this->assertStringContainsString('AI Analysis', $output);
-        } catch (\Throwable $e) {
-            ob_end_clean();
-
-            throw $e;
-        }
-    }
-
     public function testAiCommandQuery(): void
     {
         // Create table in the database that Application will use
@@ -221,61 +197,6 @@ class AiCommandCliTests extends TestCase
         }
     }
 
-    public function testAiCommandAnalyzeWithJsonFormat(): void
-    {
-        ob_start();
-
-        try {
-            $exitCode = $this->app->run([
-                'pdodb',
-                'ai',
-                'analyze',
-                'SELECT * FROM test_users',
-                '--provider=ollama',
-                '--format=json',
-                '--max-tokens=' . self::OLLAMA_MAX_TOKENS,
-                '--timeout=' . self::OLLAMA_API_TIMEOUT,
-            ]);
-            $output = ob_get_clean();
-            $this->assertEquals(0, $exitCode);
-            $json = json_decode($output, true);
-            $this->assertIsArray($json);
-            $this->assertArrayHasKey('sql', $json);
-            $this->assertArrayHasKey('provider', $json);
-            $this->assertArrayHasKey('analysis', $json);
-        } catch (\Throwable $e) {
-            ob_end_clean();
-
-            throw $e;
-        }
-    }
-
-    public function testAiCommandWithInvalidProvider(): void
-    {
-        ob_start();
-
-        try {
-            $exitCode = $this->app->run([
-                'pdodb',
-                'ai',
-                'analyze',
-                'SELECT * FROM test_users',
-                '--provider=invalid',
-            ]);
-            $output = ob_get_clean();
-            // Should return error code (non-zero) or throw exception
-            $this->assertNotEquals(0, $exitCode);
-            $this->assertStringContainsString('failed', mb_strtolower($output, 'UTF-8'));
-        } catch (\RuntimeException $e) {
-            ob_end_clean();
-            // Exception is also acceptable - it means error was handled
-            $this->assertStringContainsString('failed', mb_strtolower($e->getMessage(), 'UTF-8'));
-        } catch (\Throwable $e) {
-            ob_end_clean();
-
-            throw $e;
-        }
-    }
 
     public static function tearDownAfterClass(): void
     {

@@ -493,7 +493,7 @@ export PDODB_AI_OPENAI_MODEL=gpt-4o-mini  # Optional: gpt-4, gpt-3.5-turbo
 export PDODB_AI_GOOGLE_MODEL=gemini-2.5-flash  # Optional: gemini-2.5-pro, gemini-2.0-flash-001, gemini-flash-latest
 
 # Analyze query
-pdodb ai analyze "SELECT * FROM users WHERE email = 'user@example.com'" \
+pdodb ai query "SELECT * FROM users WHERE email = 'user@example.com'" \
     --provider=openai \
     --table=users
 ```
@@ -759,7 +759,7 @@ echo "source ~/.pdodb-completion.bash" >> ~/.bashrc
 vendor/bin/pdodb ui
 
 # 🤖 AI-powered analysis (requires API keys or Ollama)
-vendor/bin/pdodb ai analyze "SELECT * FROM users WHERE email = 'user@example.com'" --provider=openai
+vendor/bin/pdodb ai query "SELECT * FROM users WHERE email = 'user@example.com'" --provider=openai
 vendor/bin/pdodb ai query "SELECT * FROM orders" --provider=anthropic --table=orders
 vendor/bin/pdodb ai schema --table=users --provider=ollama
 

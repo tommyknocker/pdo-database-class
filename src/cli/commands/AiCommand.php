@@ -26,98 +26,12 @@ class AiCommand extends Command
         $subcommand = $this->getArgument(0);
 
         return match ($subcommand) {
-            'analyze' => $this->analyze(),
             'query' => $this->query(),
             'schema' => $this->schema(),
             'optimize' => $this->optimize(),
             'help', '--help', '-h', null => $this->showHelp(),
             default => $this->showError("Unknown subcommand: {$subcommand}. Use 'ai --help' for usage."),
         };
-    }
-
-    /**
-     * Analyze SQL query with AI.
-     */
-    protected function analyze(): int
-    {
-        $sql = $this->getArgument(1);
-        if ($sql === null || $sql === '') {
-            return $this->showError('SQL query is required. Usage: pdodb ai analyze "SELECT * FROM users"');
-        }
-
-        $db = $this->getDb();
-        $provider = $this->getOption('provider');
-        $format = (string)$this->getOption('format', 'text');
-
-        $options = [];
-        if (($this->getOption('temperature')) !== null) {
-            $options['temperature'] = (float)$this->getOption('temperature');
-        }
-        if (($this->getOption('max-tokens')) !== null) {
-            $options['max_tokens'] = (int)$this->getOption('max-tokens');
-        }
-        if (($this->getOption('model')) !== null) {
-            $options['model'] = (string)$this->getOption('model');
-        }
-
-        $tableName = $this->getOption('table');
-
-        try {
-            // Get EXPLAIN plan for better AI analysis
-            static::info('Analyzing query execution plan...');
-            $connection = $db->connection;
-            $dialect = $connection->getDialect();
-            $pdo = $connection->getPdo();
-
-            $explainAnalysis = null;
-
-            try {
-                $explainResults = $dialect->executeExplain($pdo, $sql, []);
-                $queryBuilder = $db->find();
-                $reflection = new \ReflectionClass($queryBuilder);
-                $executionEngineProperty = $reflection->getProperty('executionEngine');
-                $executionEngineProperty->setAccessible(true);
-                $executionEngine = $executionEngineProperty->getValue($queryBuilder);
-                $analyzer = new ExplainAnalyzer($dialect, $executionEngine);
-                $explainAnalysis = $analyzer->analyze($explainResults, $tableName);
-            } catch (\Throwable $e) {
-                // If EXPLAIN fails, continue without it (e.g., invalid SQL or unsupported)
-                static::info('Note: Could not get execution plan: ' . $e->getMessage());
-            }
-
-            static::info('Initializing AI service...');
-            $aiService = new AiAnalysisService($db);
-            $actualProvider = $aiService->getProvider($provider);
-            $model = $actualProvider->getModel();
-
-            static::info("Provider: {$actualProvider->getProviderName()}");
-            static::info("Model: {$model}");
-            static::loading('Sending request to AI API');
-
-            $analysis = $aiService->analyzeQuery($sql, $tableName, $provider, $options, $explainAnalysis);
-
-            if (getenv('PHPUNIT') === false) {
-                echo "\r" . str_repeat(' ', 80) . "\r"; // Clear loading line
-            }
-
-            if ($format === 'json') {
-                echo json_encode([
-                    'sql' => $sql,
-                    'provider' => $actualProvider->getProviderName(),
-                    'analysis' => $analysis,
-                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
-                return 0;
-            }
-
-            echo 'AI Analysis (Provider: ' . $actualProvider->getProviderName() . ")\n";
-            echo str_repeat('=', 80) . "\n\n";
-            $formatter = new MarkdownFormatter();
-            echo $formatter->format($analysis) . "\n";
-
-            return 0;
-        } catch (\Throwable $e) {
-            return $this->showError('AI analysis failed: ' . $e->getMessage());
-        }
     }
 
     /**
@@ -414,7 +328,6 @@ class AiCommand extends Command
         echo "============================\n\n";
         echo "Usage: pdodb ai <subcommand> [arguments] [options]\n\n";
         echo "Subcommands:\n";
-        echo "  analyze <sql>     Analyze SQL query with AI\n";
         echo "  query <sql>       Analyze query using explainAiAdvice (includes base analysis)\n";
         echo "  schema            Analyze database schema with AI\n";
         echo "  optimize          Get AI-powered optimization suggestions\n";
@@ -427,7 +340,6 @@ class AiCommand extends Command
         echo "  --table=NAME      Table name for context\n";
         echo "  --format=FORMAT   Output format (text, json)\n\n";
         echo "Examples:\n";
-        echo "  pdodb ai analyze \"SELECT * FROM users WHERE id = 1\"\n";
         echo "  pdodb ai query \"SELECT * FROM users\" --provider=anthropic\n";
         echo "  pdodb ai schema --table=users --format=json\n";
         echo "  pdodb ai optimize --provider=openai --temperature=0.5\n\n";

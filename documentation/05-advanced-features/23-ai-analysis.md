@@ -291,25 +291,6 @@ $suggestions = $aiService->suggestOptimizations(
 
 ## CLI Commands
 
-### `pdodb ai analyze`
-
-Analyze a SQL query with AI:
-
-```bash
-pdodb ai analyze "SELECT * FROM users WHERE email = 'user@example.com'" \
-    --provider=openai \
-    --table=users \
-    --format=json
-```
-
-Options:
-- `--provider=NAME` - AI provider (openai, anthropic, google, microsoft, ollama)
-- `--model=NAME` - Model name (provider-specific)
-- `--temperature=N` - Temperature (0.0-2.0, default: 0.7)
-- `--max-tokens=N` - Maximum tokens (default: 2000)
-- `--table=NAME` - Table name for context
-- `--format=FORMAT` - Output format (text, json)
-
 ### `pdodb ai query`
 
 Analyze query using `explainAiAdvice()` (includes both base and AI analysis):
@@ -366,10 +347,10 @@ The MCP server exposes the following tools:
    }
    ```
 
-2. **`analyze_query`** - Analyze SQL query with AI
+2. **`explain_plan`** - Analyze SQL query with EXPLAIN plan and AI
    ```json
    {
-     "name": "analyze_query",
+     "name": "explain_plan",
      "arguments": {
        "sql": "SELECT * FROM users WHERE id = 1",
        "table": "users",
@@ -412,7 +393,7 @@ The server also exposes database tables as resources:
 
 The server provides prompt templates:
 
-- `analyze_query` - Template for analyzing SQL queries
+- `explain_plan` - Template for analyzing SQL queries with EXPLAIN plan
 - `optimize_schema` - Template for schema optimization
 
 ## Examples
@@ -498,12 +479,6 @@ echo $result->aiAnalysis;
 ### Example 4: CLI Usage
 
 ```bash
-# Analyze query with OpenAI
-pdodb ai analyze "SELECT * FROM users WHERE email LIKE '%@gmail.com'" \
-    --provider=openai \
-    --table=users \
-    --format=json
-
 # Get schema optimization suggestions
 pdodb ai schema --table=orders --provider=anthropic
 
