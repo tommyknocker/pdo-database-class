@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.12.0] - 2025-12-12
+
+### Added
+- **Optimize Command** (`pdodb optimize`) - Comprehensive database optimization tool:
+  - `pdodb optimize analyze` - Analyze database schema for optimization opportunities
+  - `pdodb optimize structure` - Analyze specific table structure
+  - `pdodb optimize logs` - Analyze slow query logs
+  - `pdodb optimize query` - Analyze and optimize specific SQL queries
+  - Detects missing indexes, redundant indexes, missing foreign key indexes
+  - Suggests indexes for common patterns (soft delete, status columns, timestamps)
+  - Identifies large tables that may benefit from partitioning
+  - Provides detailed statistics and recommendations
+  - Support for JSON, table, and YAML output formats
+
+- **AI-Powered Database Analysis** (`pdodb ai`) - Intelligent database optimization with AI:
+  - `pdodb ai query <sql>` - Get AI-powered query analysis and optimization suggestions
+  - `pdodb ai schema [table]` - Analyze database schema with AI recommendations
+  - `pdodb ai optimize` - AI-powered database optimization suggestions
+  - Automatic EXPLAIN plan integration for better AI analysis
+  - Support for multiple AI providers:
+    - **OpenAI** (GPT-4, GPT-3.5-turbo, GPT-4-turbo)
+    - **Anthropic** (Claude 3 Opus, Sonnet, Haiku)
+    - **Google** (Gemini Pro, Gemini Pro Vision)
+    - **Microsoft Azure OpenAI** (GPT-4, GPT-3.5-turbo)
+    - **DeepSeek** (DeepSeek Chat, DeepSeek Coder)
+    - **Yandex Cloud GPT** (YandexGPT, YandexGPT Lite)
+  - Configurable temperature, max_tokens, and timeout settings
+  - Progress indicators for long-running AI requests
+  - Integration with `explainAiAdvice()` method in QueryBuilder
+
+- **AI Provider Configuration**:
+  - Support for temperature, max_tokens, and timeout configuration for all AI providers
+  - Improved error handling and response parsing
+  - Enhanced markdown formatting in AI responses
+  - AI configuration options in `pdodb init` command
+
+### Changed
+- **Performance Optimizations**:
+  - Optimized `SchemaAnalyzer` to reduce duplicate database queries (~25% faster)
+  - Eliminated redundant `TableManager::info()` and `getForeignKeys()` calls
+  - Optimized `getTableRowCount()` to only execute for tables with detected issues
+  - Removed unnecessary `tableExists()` checks
+  - Added filtering for Oracle system tables (`BIN$%`, `SYS_%`, `DUAL`)
+  - Added filtering for MSSQL system schemas (`sys`, `INFORMATION_SCHEMA`)
+  - Improved test execution time for Oracle optimize tests (32s → 24s)
+
+- **Code Quality**:
+  - Removed `#[RunInSeparateProcess]` attributes from tests
+  - Improved test reliability by throwing exceptions instead of `exit()` in test environment
+  - Better handling of non-interactive mode in CLI commands
+  - Extracted magic numbers to constants in AI providers
+
+### Fixed
+- **Test Reliability**:
+  - Fixed blocking input issues in non-interactive test environments
+  - Fixed "risky tests" warnings by properly managing output buffers
+  - Fixed MSSQL test failures in GitHub Actions (environment variable handling)
+  - Fixed Oracle test timeouts and hanging issues
+  - Preserved critical environment variables in test tearDown methods
+  - Improved non-interactive mode detection across all CLI commands
+
+- **AI Command**:
+  - Removed redundant `ai analyze` command (consolidated into `ai query`)
+  - Fixed AI command output formatting
+  - Fixed schema analysis in AI command
+  - Improved Yandex AI provider response handling
+
+- **Database Dialect Fixes**:
+  - Fixed MSSQL `listTables()` to filter system schemas for better performance
+  - Fixed Oracle system table filtering in `listTables()`
+
+### Documentation
+- Updated `composer.json` with AI integration keywords and description
+- Removed references to deprecated `ai analyze` command
+- Updated bash completion script to remove `ai analyze` command
+
 ## [2.11.2] - 2025-12-06
 
 ### Added
@@ -1981,7 +2057,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.2...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.12.0...HEAD
+[2.12.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.2...v2.12.0
 [2.11.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.1...v2.11.2
 [2.11.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.0...v2.11.1
 [2.11.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.10.3...v2.11.0

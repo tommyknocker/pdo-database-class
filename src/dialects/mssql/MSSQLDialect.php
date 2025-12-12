@@ -2043,8 +2043,23 @@ class MSSQLDialect extends DialectAbstract
      */
     public function listTables(PdoDb $db, ?string $schema = null): array
     {
+        // Filter out system schemas for better performance
+        // Exclude sys, INFORMATION_SCHEMA, and other system schemas
+        $sql = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
+                WHERE TABLE_TYPE='BASE TABLE' 
+                AND TABLE_SCHEMA NOT IN ('sys', 'INFORMATION_SCHEMA')";
+        
+        if ($schema !== null) {
+            $sql .= " AND TABLE_SCHEMA = :schema";
+            $params = [':schema' => $schema];
+        } else {
+            $params = [];
+        }
+        
+        $sql .= " ORDER BY TABLE_NAME";
+        
         /** @var array<int, array<string, mixed>> $rows */
-        $rows = $db->rawQuery("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME");
+        $rows = $db->rawQuery($sql, $params);
         /** @var array<int, string> $names */
         $names = array_map(static fn (array $r): string => (string)$r['TABLE_NAME'], $rows);
         return $names;
