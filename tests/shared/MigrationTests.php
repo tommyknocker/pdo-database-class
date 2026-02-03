@@ -173,6 +173,30 @@ PHP;
     }
 
     /**
+     * Test MigrationRunner setDryRun, setPretend, getCollectedQueries, clearCollectedQueries.
+     */
+    public function testMigrationRunnerDryRunAndCollectedQueries(): void
+    {
+        $db = self::getDb();
+        $db->rawQuery('DROP TABLE IF EXISTS __migrations');
+
+        $migrationPath = sys_get_temp_dir() . '/pdodb_migrations_dryrun_test';
+        if (!is_dir($migrationPath)) {
+            mkdir($migrationPath, 0755, true);
+        }
+
+        $runner = new MigrationRunner($db, $migrationPath);
+        $this->assertEmpty($runner->getCollectedQueries());
+
+        $runner->setDryRun(true);
+        $runner->setPretend(true);
+        $runner->clearCollectedQueries();
+        $this->assertEmpty($runner->getCollectedQueries());
+
+        $db->rawQuery('DROP TABLE IF EXISTS __migrations');
+    }
+
+    /**
      * Test migration rollback.
      */
     public function testMigrationRollback(): void

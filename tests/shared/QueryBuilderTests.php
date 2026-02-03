@@ -826,4 +826,41 @@ final class QueryBuilderTests extends BaseSharedTestCase
         $this->assertArrayHasKey('Alice', $indexedWithDuplicates);
         $this->assertEquals(40, $indexedWithDuplicates['Alice']['value']); // Last one wins
     }
+
+    public function testSelectWithJoinAndQualifiedColumnsBuildsSql(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE IF NOT EXISTS test_join_a (id INTEGER PRIMARY KEY, name TEXT)');
+        $db->rawQuery('CREATE TABLE IF NOT EXISTS test_join_b (id INTEGER PRIMARY KEY, a_id INTEGER, val INTEGER)');
+
+        $qb = $db->find()
+            ->from('test_join_a AS a')
+            ->join('test_join_b AS b', 'b.a_id = a.id')
+            ->select(['a.id', 'a.name', 'b.val']);
+
+        $sql = $qb->toSQL();
+        $this->assertArrayHasKey('sql', $sql);
+        $this->assertStringContainsString('test_join_a', $sql['sql']);
+        $this->assertStringContainsString('test_join_b', $sql['sql']);
+        $this->assertArrayHasKey('params', $sql);
+    }
+
+    public function testJoinBuilderRightJoinAndGetDebugInfo(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('CREATE TABLE IF NOT EXISTS test_debug_join_a (id INTEGER PRIMARY KEY)');
+        $db->rawQuery('CREATE TABLE IF NOT EXISTS test_debug_join_b (id INTEGER PRIMARY KEY, a_id INTEGER)');
+
+        $qb = $db->find()
+            ->from('test_debug_join_a AS a')
+            ->rightJoin('test_debug_join_b AS b', 'b.a_id = a.id');
+
+        $debugInfo = $qb->getDebugInfo();
+        $this->assertArrayHasKey('joins', $debugInfo);
+        $this->assertArrayHasKey('join_count', $debugInfo['joins']);
+        $this->assertSame(1, $debugInfo['joins']['join_count']);
+        $this->assertArrayHasKey('joins', $debugInfo['joins']);
+        $this->assertCount(1, $debugInfo['joins']['joins']);
+        $this->assertStringContainsString('RIGHT', $debugInfo['joins']['joins'][0]);
+    }
 }

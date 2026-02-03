@@ -28,6 +28,21 @@ final class JsonModificationTests extends BaseSharedTestCase
         $db->find()->table('json_mod_test')->insert(['meta' => $initialMeta]);
     }
 
+    public function testOrderByJsonAndWhereJsonExistsBuildSql(): void
+    {
+        $db = self::$db;
+
+        $qb = $db->find()
+            ->table('json_mod_test')
+            ->selectJson('meta', ['score'], 'score')
+            ->whereJsonExists('meta', ['status'])
+            ->orderByJson('meta', ['score'], 'DESC');
+
+        $sql = $qb->toSQL();
+        $this->assertArrayHasKey('sql', $sql);
+        $this->assertNotEmpty($sql['sql']);
+    }
+
     public function testJsonSetBasic(): void
     {
         $db = self::$db;

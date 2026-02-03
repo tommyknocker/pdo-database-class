@@ -32,6 +32,7 @@ use tommyknocker\pdodb\query\pagination\Cursor;
 use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
 use tommyknocker\pdodb\query\pagination\PaginationResult;
 use tommyknocker\pdodb\query\pagination\SimplePaginationResult;
+use tommyknocker\pdodb\query\QueryProfiler;
 
 /**
  * MiscTests tests for shared.
@@ -3523,5 +3524,21 @@ final class MiscTests extends BaseSharedTestCase
         $this->assertCount(1, $results);
         $this->assertEquals(1, $results[0]['row_num']);
         $this->assertEquals(1, $results[0]['rank_val']);
+    }
+
+    public function testPdoDbSetProfilerAndGetters(): void
+    {
+        $db = self::$db;
+
+        $this->assertNull($db->getCacheManager());
+        $this->assertNull($db->getCompilationCache());
+
+        $profiler = new QueryProfiler();
+        $result = $db->setProfiler($profiler);
+        $this->assertInstanceOf(PdoDb::class, $result);
+        $this->assertSame($profiler, $db->getProfiler());
+
+        $db->setProfiler(null);
+        $this->assertNull($db->getProfiler());
     }
 }
