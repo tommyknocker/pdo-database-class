@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use Psr\EventDispatcher\EventDispatcherInterface;
+use tommyknocker\pdodb\cache\CacheConfig;
+use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\migrations\MigrationRunner;
 use tommyknocker\pdodb\query\QueryConstants;
+use tommyknocker\pdodb\seeds\SeedDataGenerator;
 use tommyknocker\pdodb\seeds\SeedRunner;
+use tommyknocker\pdodb\tests\fixtures\ArrayCache;
 
 /**
  * Tests to increase line coverage for shared/dialect-independent code.
@@ -136,5 +142,126 @@ final class SharedCoverageTests extends BaseSharedTestCase
             ->getOne();
         $this->assertNotNull($row);
         $this->assertArrayHasKey('val', $row);
+    }
+
+    public function testCacheManagerGettersAndEventDispatcher(): void
+    {
+        $cache = new ArrayCache();
+        $config = new CacheConfig(prefix: 'cov_', enabled: true);
+        $manager = new CacheManager($cache, $config);
+
+        $this->assertSame($config, $manager->getConfig());
+        $this->assertSame($cache, $manager->getCache());
+
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $manager->setEventDispatcher($dispatcher);
+        $this->assertSame($dispatcher, $manager->getEventDispatcher());
+
+        $manager->setEventDispatcher(null);
+        $this->assertNull($manager->getEventDispatcher());
+    }
+
+    public function testCacheManagerGenerateKey(): void
+    {
+        $cache = new ArrayCache();
+        $config = new CacheConfig(prefix: 'q_', enabled: true);
+        $manager = new CacheManager($cache, $config);
+
+        $key = $manager->generateKey('SELECT * FROM t WHERE id = ?', [1], 'sqlite');
+        $this->assertIsString($key);
+        $this->assertNotEmpty($key);
+    }
+
+    public function testSeedDataGeneratorGenerateWithOptions(): void
+    {
+        self::$db->find()->table('test_coverage')->insert(['name' => 'a', 'value' => 1]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'b', 'value' => 2]);
+
+        $generator = new SeedDataGenerator(self::$db);
+        $result = $generator->generate('test_coverage', ['limit' => 1, 'exclude' => ['created_at']]);
+
+        $this->assertArrayHasKey('content', $result);
+        $this->assertArrayHasKey('rowCount', $result);
+        $this->assertArrayHasKey('warnings', $result);
+        $this->assertIsString($result['content']);
+        $this->assertGreaterThanOrEqual(0, $result['rowCount']);
+    }
+
+    public function testQueryBuilderHavingAndGroupBy(): void
+    {
+        self::$db->find()->table('test_coverage')->insert(['name' => 'x', 'value' => 10]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'x', 'value' => 20]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'y', 'value' => 5]);
+
+        $rows = self::$db->find()
+            ->from('test_coverage')
+            ->select(['name', 'total' => Db::raw('SUM(value)')])
+            ->groupBy('name')
+            ->having(Db::raw('SUM(value)'), 15, '>=')
+            ->get();
+
+        $this->assertIsArray($rows);
+        $names = array_column($rows, 'name');
+        $this->assertContains('x', $names);
+    }
+
+    public function testQueryBuilderWhereExists(): void
+    {
+        self::$db->find()->table('test_coverage')->insert(['name' => 'exists', 'value' => 1]);
+
+        $rows = self::$db->find()
+            ->from('test_coverage')
+            ->whereExists(function ($q): void {
+                $q->from('test_coverage')->where('value', 1);
+            })
+            ->get();
+
+        $this->assertIsArray($rows);
+        $this->assertGreaterThanOrEqual(0, count($rows));
+    }
+
+    public function testQueryBuilderOrWhereWithCallback(): void
+    {
+        self::$db->find()->table('test_coverage')->insert(['name' => 'a', 'value' => 1]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'b', 'value' => 2]);
+
+        $rows = self::$db->find()
+            ->from('test_coverage')
+            ->where('name', 'a')
+            ->orWhere('value', function ($q): void {
+                $q->from('test_coverage')->select('value')->where('name', 'b');
+            }, 'IN')
+            ->get();
+
+        $this->assertIsArray($rows);
+        $this->assertGreaterThanOrEqual(1, count($rows));
+    }
+
+    public function testMigrationRunnerGetMigrationHistoryWithLimit(): void
+    {
+        self::$db->rawQuery('DROP TABLE IF EXISTS __migrations');
+        $path = sys_get_temp_dir() . '/pdodb_mig_hist_' . uniqid();
+        mkdir($path, 0755, true);
+
+        $runner = new MigrationRunner(self::$db, $path);
+        $history = $runner->getMigrationHistory(5);
+        $this->assertIsArray($history);
+        $this->assertCount(0, $history);
+
+        self::$db->rawQuery('DROP TABLE IF EXISTS __migrations');
+        rmdir($path);
+    }
+
+    public function testSeedDataGeneratorGenerateWithOrderBy(): void
+    {
+        self::$db->find()->table('test_coverage')->insert(['name' => 'z', 'value' => 1]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'a', 'value' => 2]);
+
+        $generator = new SeedDataGenerator(self::$db);
+        $result = $generator->generate('test_coverage', ['limit' => 1, 'order_by' => 'id ASC']);
+
+        $this->assertArrayHasKey('content', $result);
+        $this->assertArrayHasKey('rowCount', $result);
+        $this->assertGreaterThanOrEqual(0, $result['rowCount']);
     }
 }
