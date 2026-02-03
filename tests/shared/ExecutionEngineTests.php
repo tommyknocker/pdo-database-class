@@ -155,4 +155,17 @@ final class ExecutionEngineTests extends BaseSharedTestCase
         $stats = $profiler->getStats();
         $this->assertNotEmpty($stats);
     }
+
+    public function testSetQueryContextAndGetQueryContext(): void
+    {
+        $this->assertNull($this->executionEngine->getQueryContext());
+
+        $context = ['sql' => 'SELECT 1', 'table' => 'test'];
+        $result = $this->executionEngine->setQueryContext($context);
+        $this->assertSame($this->executionEngine, $result);
+        $this->assertSame($context, $this->executionEngine->getQueryContext());
+
+        $this->executionEngine->setQueryContext(null);
+        $this->assertNull($this->executionEngine->getQueryContext());
+    }
 }

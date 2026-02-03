@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\tests\shared;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use tommyknocker\pdodb\cache\CacheConfig;
 use tommyknocker\pdodb\cache\CacheManager;
+use tommyknocker\pdodb\connection\ConnectionRouter;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\migrations\MigrationRunner;
 use tommyknocker\pdodb\query\QueryConstants;
@@ -263,5 +264,86 @@ final class SharedCoverageTests extends BaseSharedTestCase
         $this->assertArrayHasKey('content', $result);
         $this->assertArrayHasKey('rowCount', $result);
         $this->assertGreaterThanOrEqual(0, $result['rowCount']);
+    }
+
+    public function testQueryBuilderWhereNotExists(): void
+    {
+        self::$db->find()->table('test_coverage')->insert(['name' => 'n', 'value' => 99]);
+
+        $rows = self::$db->find()
+            ->from('test_coverage')
+            ->whereNotExists(function ($q): void {
+                $q->from('test_coverage')->where('value', 999);
+            })
+            ->get();
+
+        $this->assertIsArray($rows);
+        $this->assertGreaterThanOrEqual(1, count($rows));
+    }
+
+    public function testQueryBuilderIndexColumn(): void
+    {
+        self::$db->find()->table('test_coverage')->insert(['name' => 'idx_a', 'value' => 1]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'idx_b', 'value' => 2]);
+
+        $indexed = self::$db->find()
+            ->from('test_coverage')
+            ->select(['id', 'name', 'value'])
+            ->index('id')
+            ->get();
+
+        $this->assertIsArray($indexed);
+        $this->assertGreaterThanOrEqual(2, count($indexed));
+        foreach ($indexed as $key => $row) {
+            $this->assertIsInt($key);
+            $this->assertArrayHasKey('name', $row);
+        }
+    }
+
+    public function testQueryBuilderOrHaving(): void
+    {
+        self::$db->find()->table('test_coverage')->insert(['name' => 'g1', 'value' => 10]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'g1', 'value' => 20]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'g2', 'value' => 5]);
+
+        $rows = self::$db->find()
+            ->from('test_coverage')
+            ->select(['name', 'total' => Db::raw('SUM(value)')])
+            ->groupBy('name')
+            ->having(Db::raw('SUM(value)'), 15, '>=')
+            ->orHaving(Db::raw('SUM(value)'), 5, '=')
+            ->get();
+
+        $this->assertIsArray($rows);
+        $this->assertGreaterThanOrEqual(1, count($rows));
+    }
+
+    public function testQueryBuilderOffsetAndLimit(): void
+    {
+        self::$db->find()->table('test_coverage')->insert(['name' => 'o1', 'value' => 1]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'o2', 'value' => 2]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'o3', 'value' => 3]);
+
+        $rows = self::$db->find()
+            ->from('test_coverage')
+            ->orderBy('id')
+            ->offset(1)
+            ->limit(1)
+            ->get();
+
+        $this->assertCount(1, $rows);
+        $this->assertArrayHasKey('name', $rows[0]);
+    }
+
+    public function testPdoDbConnectionRouterAndReadWriteSplitting(): void
+    {
+        $db = self::$db;
+        $this->assertNull($db->getConnectionRouter());
+
+        $db->enableReadWriteSplitting(null);
+        $this->assertInstanceOf(ConnectionRouter::class, $db->getConnectionRouter());
+
+        $db->disableReadWriteSplitting();
+        $this->assertNull($db->getConnectionRouter());
     }
 }
