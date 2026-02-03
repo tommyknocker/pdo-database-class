@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Psr\Log\LoggerInterface;
+use ReflectionClass;
 use tommyknocker\pdodb\cache\CacheConfig;
 use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionRouter;
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\helpers\values\FulltextMatchValue;
 use tommyknocker\pdodb\migrations\MigrationRunner;
 use tommyknocker\pdodb\query\QueryConstants;
+use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\seeds\SeedDataGenerator;
 use tommyknocker\pdodb\seeds\SeedRunner;
 use tommyknocker\pdodb\tests\fixtures\ArrayCache;
@@ -345,5 +349,106 @@ final class SharedCoverageTests extends BaseSharedTestCase
 
         $db->disableReadWriteSplitting();
         $this->assertNull($db->getConnectionRouter());
+    }
+
+    public function testPdoDbGetCacheManagerAndGetCompilationCache(): void
+    {
+        $cache = new ArrayCache();
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:'], [], null, $cache);
+        $this->assertInstanceOf(CacheManager::class, $db->getCacheManager());
+        $this->assertInstanceOf(QueryCompilationCache::class, $db->getCompilationCache());
+    }
+
+    public function testPdoDbSetCompilationCacheAndGetCompilationCache(): void
+    {
+        $db = self::$db;
+        $compilationCache = new QueryCompilationCache(new ArrayCache());
+        $db->setCompilationCache($compilationCache);
+        $this->assertSame($compilationCache, $db->getCompilationCache());
+        $db->setCompilationCache(null);
+        $this->assertNull($db->getCompilationCache());
+    }
+
+    public function testQueryCompilationCacheGetPrefixAndClear(): void
+    {
+        $cache = new QueryCompilationCache(new ArrayCache());
+        $this->assertSame('pdodb_compiled_', $cache->getPrefix());
+        $cache->clear();
+        $this->assertSame('pdodb_compiled_', $cache->getPrefix());
+    }
+
+    public function testQueryBuilderGetUnionsIsDistinctGetDistinctOnExecuteStatement(): void
+    {
+        $qb = self::$db->find()->from('test_coverage');
+        $this->assertSame([], $qb->getUnions());
+        $this->assertFalse($qb->isDistinct());
+        $this->assertSame([], $qb->getDistinctOn());
+
+        $qb->distinct();
+        $this->assertTrue($qb->isDistinct());
+
+        $qb2 = self::$db->find()->from('test_coverage')->union(self::$db->find()->from('test_coverage')->select('id'));
+        $unions = $qb2->getUnions();
+        $this->assertCount(1, $unions);
+
+        $stmt = self::$db->find()->executeStatement('SELECT 1', []);
+        $this->assertInstanceOf(\PDOStatement::class, $stmt);
+        $stmt->closeCursor();
+    }
+
+    public function testCteManagerClear(): void
+    {
+        $qb = self::$db->find()
+            ->with('cte_cover', self::$db->find()->from('test_coverage')->select('id'))
+            ->from('cte_cover');
+        $cteManager = $qb->getCteManager();
+        $this->assertNotNull($cteManager);
+        $cteManager->clear();
+        $this->assertSame([], $cteManager->getParams());
+    }
+
+    public function testSelectQueryBuilderSetDistinctOnSetCompilationCacheViaReflection(): void
+    {
+        $qb = self::$db->find()->from('test_coverage');
+        $ref = new ReflectionClass($qb);
+        $prop = $ref->getProperty('selectQueryBuilder');
+        $prop->setAccessible(true);
+        $selectQb = $prop->getValue($qb);
+
+        $selectQb->setDistinctOn(['name', 'value']);
+
+        $compilationCache = new QueryCompilationCache(new ArrayCache());
+        $selectQb->setCompilationCache($compilationCache);
+        $cacheProp = (new ReflectionClass($selectQb))->getProperty('compilationCache');
+        $cacheProp->setAccessible(true);
+        $this->assertSame($compilationCache, $cacheProp->getValue($selectQb));
+    }
+
+    public function testQueryProfilerGetLoggerAndSlowQueryLogging(): void
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->atLeastOnce())
+            ->method('warning')
+            ->with('query.slow', $this->anything());
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:'], [], $logger);
+        $db->rawQuery('CREATE TABLE t (id INTEGER)');
+        $db->enableProfiling(0.0);
+        $db->find()->from('t')->get();
+        $profiler = $db->getProfiler();
+        $this->assertSame($logger, $profiler->getLogger());
+    }
+
+    public function testFulltextMatchValueGetters(): void
+    {
+        $value = new FulltextMatchValue(['title', 'body'], 'search term', 'boolean', true);
+        $this->assertSame(['title', 'body'], $value->getColumns());
+        $this->assertSame('search term', $value->getSearchTerm());
+        $this->assertSame('boolean', $value->getMode());
+        $this->assertTrue($value->isWithQueryExpansion());
+
+        $value2 = new FulltextMatchValue('title', 'word', null, false);
+        $this->assertSame('title', $value2->getColumns());
+        $this->assertNull($value2->getMode());
+        $this->assertFalse($value2->isWithQueryExpansion());
     }
 }
