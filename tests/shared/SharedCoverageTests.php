@@ -451,4 +451,101 @@ final class SharedCoverageTests extends BaseSharedTestCase
         $this->assertNull($value2->getMode());
         $this->assertFalse($value2->isWithQueryExpansion());
     }
+
+    public function testDbHelperWindowFunctionsNtileAndNthValue(): void
+    {
+        $qb = self::$db->find()->from('test_coverage')->select(['id', Db::as(Db::ntile(2), 'bucket')]);
+        $sql = $qb->toSQL();
+        $this->assertArrayHasKey('sql', $sql);
+
+        $qb2 = self::$db->find()->from('test_coverage')->select(['id', Db::as(Db::nthValue('value', 1), 'nth')]);
+        $sql2 = $qb2->toSQL();
+        $this->assertArrayHasKey('sql', $sql2);
+    }
+
+    public function testDbHelperStringLpadRpadRegexpMatch(): void
+    {
+        $qb = self::$db->find()->from('test_coverage')->select([Db::as(Db::lpad('name', 10, ' '), 'lp')]);
+        $sql = $qb->toSQL();
+        $this->assertArrayHasKey('sql', $sql);
+
+        $qb2 = self::$db->find()->from('test_coverage')->select([Db::as(Db::rpad('name', 10, 'x'), 'rp')]);
+        $sql2 = $qb2->toSQL();
+        $this->assertArrayHasKey('sql', $sql2);
+
+        $qb3 = self::$db->find()->from('test_coverage')->select([Db::as(Db::regexpMatch('name', '^a'), 'match')]);
+        $sql3 = $qb3->toSQL();
+        $this->assertArrayHasKey('sql', $sql3);
+    }
+
+    public function testDbHelperNumericExpLnLog(): void
+    {
+        $qb = self::$db->find()->from('test_coverage')->select([Db::as(Db::exp('value'), 'e')]);
+        $sql = $qb->toSQL();
+        $this->assertArrayHasKey('sql', $sql);
+
+        $qb2 = self::$db->find()->from('test_coverage')->select([Db::as(Db::ln('value'), 'l')]);
+        $sql2 = $qb2->toSQL();
+        $this->assertArrayHasKey('sql', $sql2);
+
+        $qb3 = self::$db->find()->from('test_coverage')->select([Db::as(Db::log('value', 2), 'log2')]);
+        $sql3 = $qb3->toSQL();
+        $this->assertArrayHasKey('sql', $sql3);
+    }
+
+    public function testDbHelperJsonExtractAndJsonArray(): void
+    {
+        $qb = self::$db->find()->from('test_coverage')->select([Db::as(Db::jsonExtract('meta', '$.x', true), 'j')]);
+        $sql = $qb->toSQL();
+        $this->assertArrayHasKey('sql', $sql);
+
+        $arr = Db::jsonArray(1, 2, 3);
+        $this->assertIsString($arr);
+        $this->assertNotEmpty($arr);
+    }
+
+    public function testDbHelperArrayAggAndJsonArrayAgg(): void
+    {
+        $qb = self::$db->find()->from('test_coverage')->select([Db::as(Db::arrayAgg('name'), 'names')]);
+        $sql = $qb->toSQL();
+        $this->assertArrayHasKey('sql', $sql);
+
+        $qb2 = self::$db->find()->from('test_coverage')->select([Db::as(Db::jsonArrayAgg('name'), 'jnames')]);
+        $sql2 = $qb2->toSQL();
+        $this->assertArrayHasKey('sql', $sql2);
+    }
+
+    public function testParameterManagerSetParams(): void
+    {
+        $qb = self::$db->find()->from('test_coverage');
+        $ref = new ReflectionClass($qb);
+        $prop = $ref->getProperty('parameterManager');
+        $prop->setAccessible(true);
+        $pm = $prop->getValue($qb);
+        $pm->setParams([':x' => 1, ':y' => 2]);
+        $this->assertSame([':x' => 1, ':y' => 2], $pm->getParams());
+    }
+
+    public function testSelectQueryBuilderResultCacheAndGenerateCacheKey(): void
+    {
+        $cache = new ArrayCache();
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:'], [], null, $cache);
+        $db->rawQuery('CREATE TABLE t (id INTEGER)');
+        $db->rawQuery('INSERT INTO t (id) VALUES (1)');
+
+        $result = $db->find()->from('t')->cache(60)->get();
+        $this->assertIsArray($result);
+        $result2 = $db->find()->from('t')->cache(60)->get();
+        $this->assertEquals($result, $result2);
+
+        $qb = $db->find()->from('t');
+        $ref = new ReflectionClass($qb);
+        $prop = $ref->getProperty('selectQueryBuilder');
+        $prop->setAccessible(true);
+        $selectQb = $prop->getValue($qb);
+        $method = (new ReflectionClass($selectQb))->getMethod('generateCacheKey');
+        $method->setAccessible(true);
+        $key = $method->invoke($selectQb);
+        $this->assertIsString($key);
+    }
 }
