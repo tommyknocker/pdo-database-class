@@ -93,7 +93,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildDsn(array $params): string
     {
-        foreach (['host', 'dbname', 'username', 'password'] as $requiredParam) {
+        foreach (['host', 'dbname', 'username'] as $requiredParam) {
             if (empty($params[$requiredParam])) {
                 throw new InvalidArgumentException("Missing '$requiredParam' parameter");
             }
