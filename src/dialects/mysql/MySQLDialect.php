@@ -93,7 +93,7 @@ class MySQLDialect extends DialectAbstract
      */
     public function buildDsn(array $params): string
     {
-        foreach (['host', 'dbname', 'username', 'password'] as $requiredParam) {
+        foreach (['host', 'dbname', 'username'] as $requiredParam) {
             if (empty($params[$requiredParam])) {
                 throw new InvalidArgumentException("Missing '$requiredParam' parameter");
             }
@@ -117,7 +117,7 @@ class MySQLDialect extends DialectAbstract
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
-            PDO::MYSQL_ATTR_LOCAL_INFILE => true,
+            Pdo\Mysql::ATTR_LOCAL_INFILE => true,
         ];
     }
 
