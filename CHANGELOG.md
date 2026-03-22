@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.12.1] - 2026-03-22
+
+### Fixed
+- **PHP 8.5**: `PDO::MYSQL_ATTR_LOCAL_INFILE` is deprecated; use `Pdo\Mysql::ATTR_LOCAL_INFILE` when available for MySQL local-infile handling.
+
+### Changed
+- **MySQL / MariaDB**: `password` is no longer a required connection parameter, so empty passwords are supported as allowed by the servers.
+- **MSSQLDialect**: normalized `listTables()` SQL string formatting.
+
+### Tests
+- Expanded shared test coverage (Db helpers, `ParameterManager::setParams`, result cache and `generateCacheKey`, `PdoDb`, `QueryCompilationCache`, `QueryBuilder`, `CteManager`, `SelectQueryBuilder`, `QueryProfiler`, `FulltextMatchValue`, `ExecutionEngine`, `CacheManager`, `SeedDataGenerator`, `MigrationRunner`, and related CLI/migration paths).
+
 ## [2.12.0] - 2025-12-12
 
 ### Added
@@ -2057,7 +2069,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.12.0...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.12.1...HEAD
+[2.12.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.12.0...v2.12.1
 [2.12.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.2...v2.12.0
 [2.11.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.1...v2.11.2
 [2.11.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.0...v2.11.1
