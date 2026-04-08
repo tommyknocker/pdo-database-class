@@ -81,7 +81,7 @@ class ConditionBuilder implements ConditionBuilderInterface
     /**
      * Add WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue|\Closure $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
@@ -95,7 +95,7 @@ class ConditionBuilder implements ConditionBuilderInterface
     /**
      * Add AND WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue|\Closure $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
@@ -109,7 +109,7 @@ class ConditionBuilder implements ConditionBuilderInterface
     /**
      * Add OR WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue|\Closure $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
@@ -123,7 +123,7 @@ class ConditionBuilder implements ConditionBuilderInterface
     /**
      * Add HAVING clause.
      *
-     * @param string|array<string, mixed>|RawValue|\Closure $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
@@ -137,7 +137,7 @@ class ConditionBuilder implements ConditionBuilderInterface
     /**
      * Add OR HAVING clause.
      *
-     * @param string|array<string, mixed>|RawValue|\Closure $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
@@ -653,7 +653,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      * Add condition to the WHERE or HAVING clause.
      *
      * @param string $prop The property to add the condition to.
-     * @param string|array<string, mixed>|RawValue|\Closure $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      * @param string $cond The condition to use.
