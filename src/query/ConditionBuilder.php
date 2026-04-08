@@ -81,13 +81,13 @@ class ConditionBuilder implements ConditionBuilderInterface
     /**
      * Add WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function where(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         return $this->addCondition(QueryConstants::COND_WHERE, $exprOrColumn, $value, $operator, QueryConstants::BOOLEAN_AND);
     }
@@ -95,13 +95,13 @@ class ConditionBuilder implements ConditionBuilderInterface
     /**
      * Add AND WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function andWhere(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         return $this->where($exprOrColumn, $value, $operator);
     }
@@ -109,13 +109,13 @@ class ConditionBuilder implements ConditionBuilderInterface
     /**
      * Add OR WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function orWhere(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         return $this->addCondition(QueryConstants::COND_WHERE, $exprOrColumn, $value, $operator, QueryConstants::BOOLEAN_OR);
     }
@@ -123,13 +123,13 @@ class ConditionBuilder implements ConditionBuilderInterface
     /**
      * Add HAVING clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function having(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         return $this->addCondition(QueryConstants::COND_HAVING, $exprOrColumn, $value, $operator, QueryConstants::BOOLEAN_AND);
     }
@@ -137,13 +137,13 @@ class ConditionBuilder implements ConditionBuilderInterface
     /**
      * Add OR HAVING clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function orHaving(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         return $this->addCondition(QueryConstants::COND_HAVING, $exprOrColumn, $value, $operator, QueryConstants::BOOLEAN_OR);
     }
@@ -653,7 +653,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      * Add condition to the WHERE or HAVING clause.
      *
      * @param string $prop The property to add the condition to.
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      * @param string $cond The condition to use.
@@ -662,11 +662,31 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     protected function addCondition(
         string $prop,
-        string|array|RawValue $exprOrColumn,
+        string|array|RawValue|\Closure $exprOrColumn,
         mixed $value,
         string $operator,
         string $cond
     ): static {
+        // Handle logical grouping via Closure
+        if ($exprOrColumn instanceof \Closure) {
+            $instance = new QueryBuilder($this->connection, $this->prefix ?? '');
+            $exprOrColumn($instance);
+
+            $subCb = $instance->getConditionBuilder();
+            $items = ($prop === QueryConstants::COND_WHERE) ? $subCb->getWhere() : $subCb->getHaving();
+
+            if (!empty($items)) {
+                $sql = trim($this->buildConditionsClause($items, ''));
+                
+                $subParams = $instance->getParameterManager()->getParams();
+                $map = $this->parameterManager->mergeSubParams($subParams, 'grp');
+                $sql = $this->parameterManager->replacePlaceholdersInSql($sql, $map);
+
+                $this->{$prop}[] = ['sql' => "({$sql})", 'cond' => $cond];
+            }
+            return $this;
+        }
+
         if (is_array($exprOrColumn)) {
             foreach ($exprOrColumn as $col => $val) {
                 $exprQuoted = $this->quoteQualifiedIdentifier((string)$col);
