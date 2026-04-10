@@ -1360,13 +1360,13 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function where(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         // Handle the old signature: where(array $conditions, array $params)
         if (is_array($exprOrColumn) && is_array($value) && $operator === QueryConstants::OP_EQUAL) {
@@ -1393,13 +1393,13 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add AND WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function andWhere(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         $this->conditionBuilder->andWhere($exprOrColumn, $value, $operator);
         return $this;
@@ -1408,13 +1408,13 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add OR WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function orWhere(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         $this->conditionBuilder->orWhere($exprOrColumn, $value, $operator);
         return $this;
@@ -1423,13 +1423,13 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add HAVING clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function having(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         $this->conditionBuilder->having($exprOrColumn, $value, $operator);
         return $this;
@@ -1438,13 +1438,13 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add OR HAVING clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function orHaving(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         $this->conditionBuilder->orHaving($exprOrColumn, $value, $operator);
         return $this;
@@ -2643,5 +2643,25 @@ class QueryBuilder implements QueryBuilderInterface
             'Call to undefined method ' . static::class . '::' . $name . '(). ' .
             'If you intended to call a macro, make sure it is registered using QueryBuilder::macro().'
         );
+    }
+
+    /**
+     * Get the condition builder instance.
+     *
+     * @return ConditionBuilderInterface
+     */
+    public function getConditionBuilder(): ConditionBuilderInterface
+    {
+        return $this->conditionBuilder;
+    }
+
+    /**
+     * Get the parameter manager instance.
+     *
+     * @return ParameterManagerInterface
+     */
+    public function getParameterManager(): ParameterManagerInterface
+    {
+        return $this->parameterManager;
     }
 }
