@@ -12,57 +12,57 @@ interface ConditionBuilderInterface
     /**
      * Add WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function where(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
+    public function where(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * Add AND WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function andWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
+    public function andWhere(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * Add OR WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function orWhere(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
+    public function orWhere(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * Add HAVING clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function having(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
+    public function having(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * Add OR HAVING clause.
      *
-     * @param string|array<string, mixed>|RawValue $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function orHaving(string|array|RawValue $exprOrColumn, mixed $value = null, string $operator = '='): static;
+    public function orHaving(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = '='): static;
 
     /**
      * Add WHERE IN clause with subquery or array.
