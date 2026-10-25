@@ -186,4 +186,39 @@ final class RawValueResolverTests extends BaseSharedTestCase
         $this->assertStringContainsString('CASE WHEN', $result);
         $this->assertStringContainsString('AVG', $result);
     }
+
+    public function testCaseFallbackPreservesAggregateResults(): void
+    {
+        $resolver = $this->createResolver();
+        $method = (new \ReflectionClass($resolver))->getMethod('buildCaseFallback');
+        $pdo = new \PDO('sqlite::memory:');
+        $pdo->exec('CREATE TABLE payments (amount INTEGER, paid INTEGER)');
+        $insert = $pdo->prepare('INSERT INTO payments (amount, paid) VALUES (?, ?)');
+        $cases = [
+            'mixed' => [[null, 1], [5, 1], [5, 1], [0, 1], [7, 0]],
+            'all_null' => [[null, 1], [null, 1]],
+            'no_matches' => [[5, 0], [null, 0]],
+            'empty' => [],
+            'zero' => [[0, 1]],
+        ];
+        $aggregates = [
+            'COUNT(*)', 'COUNT(amount)', 'COUNT(DISTINCT amount)',
+            'COUNT(1)', 'COUNT(NULL)', 'SUM(amount)',
+            'AVG(amount)', 'MIN(amount)', 'MAX(amount)',
+        ];
+
+        foreach ($cases as $name => $rows) {
+            $pdo->exec('DELETE FROM payments');
+            foreach ($rows as $row) {
+                $insert->execute($row);
+            }
+            foreach ($aggregates as $aggregate) {
+                $fallback = $method->invoke($resolver, $aggregate, 'paid = 1');
+                $native = $pdo->query("SELECT {$aggregate} FILTER (WHERE paid = 1) FROM payments")->fetchColumn();
+                $emulated = $pdo->query("SELECT {$fallback} FROM payments")->fetchColumn();
+
+                $this->assertSame($native, $emulated, "{$name}: {$aggregate}");
+            }
+        }
+    }
 }

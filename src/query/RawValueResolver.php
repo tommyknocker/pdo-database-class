@@ -455,9 +455,16 @@ class RawValueResolver
             $func = $matches[1];
             $arg = $matches[2];
 
-            // For COUNT, we need to return 1 or NULL
+            // COUNT(expr) must preserve NULLs; only COUNT(*) counts every matching row.
             if (strtoupper($func) === 'COUNT') {
-                return "{$func}(CASE WHEN {$whereClause} THEN 1 END)";
+                $arg = trim($arg);
+                $modifier = '';
+                if (preg_match('/^DISTINCT\s+(.+)$/is', $arg, $distinctMatch)) {
+                    $modifier = 'DISTINCT ';
+                    $arg = $distinctMatch[1];
+                }
+                $expression = $arg === '*' ? '1' : $arg;
+                return "{$func}({$modifier}CASE WHEN {$whereClause} THEN {$expression} END)";
             }
 
             // For SUM, AVG, etc., use the original argument
