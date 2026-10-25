@@ -304,6 +304,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
                 $subSql = $this->parameterManager->replacePlaceholdersInSql($sub['sql'], $map);
                 $alias = is_string($index) ? $this->dialect->quoteIdentifier($index) : '';
                 $this->select[] = is_string($index) ? "({$subSql}) AS {$alias}" : "({$subSql})";
+            } elseif (is_object($col) && !$col instanceof \Stringable) {
+                throw new \InvalidArgumentException('SELECT expressions must be strings, scalar values, Stringable objects, RawValue instances or callbacks.');
             } elseif (is_string($index)) { // ['total' => 'SUM(amount)] Treat it as SUM(amount) AS total
                 $alias = $this->dialect->quoteIdentifier($index);
 

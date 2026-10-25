@@ -663,11 +663,6 @@ class InitWizard extends BaseCliCommand
             }
         }
 
-        // Ensure cache config is an array (it should be after line 432, but PHPStan needs this)
-        if (!is_array($this->config['cache'])) {
-            $this->config['cache'] = [];
-        }
-        /** @var array<string, mixed> $cacheConfig */
         $cacheConfig = $this->config['cache'];
         $cacheConfig['type'] = $cacheType;
 

@@ -67,53 +67,45 @@ class OracleExplainParser implements ExplainParserInterface
 
         // Parse INDEX RANGE SCAN
         if (preg_match_all('/INDEX\s+(?:RANGE|UNIQUE|FULL)\s+SCAN\s+.*?(\S+)/i', $queryPlan, $matches)) {
-            if (!empty($matches[1])) {
-                $indexNameRaw = $matches[1][0];
-                // @phpstan-ignore-next-line
-                $indexName = is_string($indexNameRaw) ? trim($indexNameRaw) : '';
-                if ($indexName !== '') {
-                    // Remove schema prefix if present
-                    $indexName = preg_replace('/^[^"]*"\."/', '', $indexName);
-                    $indexNameTrimmed = is_string($indexName) ? trim($indexName, '"\'') : '';
-                    if ($indexNameTrimmed !== '') {
-                        $plan->usedIndex = $indexNameTrimmed;
-                        $plan->accessType = 'INDEX SCAN';
-                    }
+            $indexNameRaw = $matches[1][0];
+            // @phpstan-ignore-next-line
+            $indexName = is_string($indexNameRaw) ? trim($indexNameRaw) : '';
+            if ($indexName !== '') {
+                // Remove schema prefix if present
+                $indexName = preg_replace('/^[^"]*"\."/', '', $indexName);
+                $indexNameTrimmed = is_string($indexName) ? trim($indexName, '"\'') : '';
+                if ($indexNameTrimmed !== '') {
+                    $plan->usedIndex = $indexNameTrimmed;
+                    $plan->accessType = 'INDEX SCAN';
                 }
             }
         }
 
         // Parse INDEX FAST FULL SCAN
         if (preg_match_all('/INDEX\s+FAST\s+FULL\s+SCAN\s+.*?(\S+)/i', $queryPlan, $matches)) {
-            if (!empty($matches[1])) {
-                $indexNameRaw = $matches[1][0];
-                // @phpstan-ignore-next-line
-                $indexName = is_string($indexNameRaw) ? trim($indexNameRaw) : '';
-                if ($indexName !== '') {
-                    $indexName = preg_replace('/^[^"]*"\."/', '', $indexName);
-                    $indexNameTrimmed = is_string($indexName) ? trim($indexName, '"\'') : '';
-                    if ($indexNameTrimmed !== '') {
-                        $plan->usedIndex = $indexNameTrimmed;
-                        $plan->accessType = 'INDEX FAST FULL SCAN';
-                    }
+            $indexNameRaw = $matches[1][0];
+            // @phpstan-ignore-next-line
+            $indexName = is_string($indexNameRaw) ? trim($indexNameRaw) : '';
+            if ($indexName !== '') {
+                $indexName = preg_replace('/^[^"]*"\."/', '', $indexName);
+                $indexNameTrimmed = is_string($indexName) ? trim($indexName, '"\'') : '';
+                if ($indexNameTrimmed !== '') {
+                    $plan->usedIndex = $indexNameTrimmed;
+                    $plan->accessType = 'INDEX FAST FULL SCAN';
                 }
             }
         }
 
         // Extract cost (Oracle uses cost-based optimizer)
         if (preg_match_all('/Cost=\s*(\d+)/i', $queryPlan, $matches)) {
-            if (!empty($matches[1])) {
-                $costs = array_map('intval', $matches[1]);
-                $plan->totalCost = max($costs);
-            }
+            $costs = array_map('intval', $matches[1]);
+            $plan->totalCost = max($costs);
         }
 
         // Extract cardinality (estimated rows)
         if (preg_match_all('/Cardinality=\s*(\d+)/i', $queryPlan, $matches)) {
-            if (!empty($matches[1])) {
-                $cardinalities = array_map('intval', $matches[1]);
-                $plan->estimatedRows = max($cardinalities);
-            }
+            $cardinalities = array_map('intval', $matches[1]);
+            $plan->estimatedRows = max($cardinalities);
         }
 
         // Parse JOIN types

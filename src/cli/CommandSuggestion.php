@@ -78,10 +78,8 @@ class CommandSuggestion
             $aType = $a['type'];
             $bType = $b['type'];
             // Type is always one of: 'prefix', 'contains', 'levenshtein'
-            // @phpstan-ignore-next-line
-            $aOrder = $typeOrder[$aType] ?? 3;
-            // @phpstan-ignore-next-line
-            $bOrder = $typeOrder[$bType] ?? 3;
+            $aOrder = $typeOrder[$aType];
+            $bOrder = $typeOrder[$bType];
             $typeDiff = $aOrder <=> $bOrder;
             if ($typeDiff !== 0) {
                 return $typeDiff;

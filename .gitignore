@@ -4,7 +4,6 @@
 .env
 /nbproject
 vendor
-composer.lock
 .phpunit.cache
 .phpunit.result.cache
 

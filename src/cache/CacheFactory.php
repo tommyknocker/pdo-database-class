@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cache;
 
-use Predis\Client;
+use Predis\ClientInterface;
 use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Cache\Adapter\ApcuAdapter;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
@@ -121,7 +121,7 @@ class CacheFactory
         $redisConnection = $config['redis'] ?? null;
         if ($redisConnection !== null) {
             $isRedis = $redisConnection instanceof \Redis;
-            $isPredis = class_exists(Client::class) && $redisConnection instanceof Client;
+            $isPredis = interface_exists(ClientInterface::class) && $redisConnection instanceof ClientInterface;
             if ($isRedis || $isPredis) {
                 /** @var class-string<RedisAdapter> $adapterClass */
                 $adapterClass = RedisAdapter::class;

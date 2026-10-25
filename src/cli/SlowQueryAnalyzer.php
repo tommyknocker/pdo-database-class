@@ -219,10 +219,8 @@ class SlowQueryAnalyzer
             // Extract column names from WHERE
             if (preg_match_all('/(\w+)\s*=/', $whereClause, $colMatches)) {
                 $columns = $colMatches[1];
-                if (!empty($columns)) {
-                    $cols = implode(', ', array_slice($columns, 0, 3));
-                    return "Add index on ({$cols})";
-                }
+                $cols = implode(', ', array_slice($columns, 0, 3));
+                return "Add index on ({$cols})";
             }
         }
 

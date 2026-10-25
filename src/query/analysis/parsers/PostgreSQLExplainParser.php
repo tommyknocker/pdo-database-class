@@ -39,26 +39,20 @@ class PostgreSQLExplainParser implements ExplainParserInterface
 
         // Parse Index Scan
         if (preg_match_all('/Index Scan\s+.*?on\s+\S+\s+using\s+(\S+)/i', $queryPlan, $matches)) {
-            if (!empty($matches[1])) {
-                $plan->usedIndex = trim($matches[1][0]);
-                $plan->accessType = 'Index Scan';
-            }
+            $plan->usedIndex = trim($matches[1][0]);
+            $plan->accessType = 'Index Scan';
         }
 
         // Parse Index Only Scan
         if (preg_match_all('/Index Only Scan\s+.*?on\s+\S+\s+using\s+(\S+)/i', $queryPlan, $matches)) {
-            if (!empty($matches[1])) {
-                $plan->usedIndex = trim($matches[1][0]);
-                $plan->accessType = 'Index Only Scan';
-            }
+            $plan->usedIndex = trim($matches[1][0]);
+            $plan->accessType = 'Index Only Scan';
         }
 
         // Parse Bitmap Index Scan
         if (preg_match_all('/Bitmap Index Scan\s+on\s+(\S+)/i', $queryPlan, $matches)) {
-            if (!empty($matches[1])) {
-                $plan->usedIndex = trim($matches[1][0]);
-                $plan->accessType = 'Bitmap Index Scan';
-            }
+            $plan->usedIndex = trim($matches[1][0]);
+            $plan->accessType = 'Bitmap Index Scan';
         }
 
         // Extract row estimates
@@ -71,18 +65,14 @@ class PostgreSQLExplainParser implements ExplainParserInterface
 
         // Extract total cost (PostgreSQL)
         if (preg_match_all('/cost=([\d.]+)\.\.([\d.]+)/', $queryPlan, $matches)) {
-            if (!empty($matches[2])) {
-                $costs = array_map('floatval', $matches[2]);
-                $plan->totalCost = max($costs);
-            }
+            $costs = array_map('floatval', $matches[2]);
+            $plan->totalCost = max($costs);
         }
 
         // Extract execution time from EXPLAIN ANALYZE (if available)
         if (preg_match_all('/actual time=([\d.]+)\.\.([\d.]+)/', $queryPlan, $matches)) {
-            if (!empty($matches[2])) {
-                $times = array_map('floatval', $matches[2]);
-                $plan->executionTime = max($times);
-            }
+            $times = array_map('floatval', $matches[2]);
+            $plan->executionTime = max($times);
         }
 
         // Detect JOIN types

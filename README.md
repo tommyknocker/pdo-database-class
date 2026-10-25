@@ -1138,6 +1138,16 @@ Contributions are welcome! Please follow these guidelines:
 4. **Write tests** for all new functionality
 5. **Test against all six dialects** (MySQL, MariaDB, PostgreSQL, SQLite, MSSQL, Oracle)
 
+### Reproducible development dependencies
+
+Use `composer install` for development and CI. The repository tracks `composer.lock`
+so PHPStan and the other development dependencies use the same versions in both
+environments. Dependency resolution targets PHP 8.4, the minimum supported version.
+
+Update dependencies deliberately with `composer update`, run the quality checks,
+and include the updated lock file in the change. The library's lock file does not
+constrain dependency versions in applications that install PDOdb as a package.
+
 ### Pull Request Process
 
 1. Fork the repository
@@ -1159,4 +1169,3 @@ This project is open source. See [LICENSE](LICENSE) file for details.
 Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEngineer/PHP-MySQLi-Database-Class) and [Yii2 framework](https://github.com/yiisoft/yii2-framework)
 
 Built with ❤️ for the PHP community.
-

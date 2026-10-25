@@ -70,16 +70,8 @@ class QueryCacheKey
         // Extract tables from JOIN clauses
         $joinMatches = [];
         if (preg_match_all('/JOIN\s+(?:[`"\[ ]*)?(?:[\w.]+\.)?(\w+)(?:[`"\] ]*)/i', $sql, $joinMatches) > 0) {
-            // preg_match_all creates array: [0] = full matches, [1] = first capture group array
-            // When pattern matches, capture group array always exists
-            // @phpstan-ignore-next-line - preg_match_all always creates index 1, but PHPStan sees type variations
-            if (isset($joinMatches[1]) && is_array($joinMatches[1])) {
-                foreach ($joinMatches[1] as $table) {
-                    // @phpstan-ignore-next-line - array elements from preg_match_all are strings, but PHPStan sees type variations
-                    if (is_string($table) && $table !== '') {
-                        $tables[] = $table;
-                    }
-                }
+            foreach ($joinMatches[1] as $table) {
+                $tables[] = $table;
             }
         }
 

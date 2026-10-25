@@ -488,21 +488,16 @@ class BenchmarkCommand extends Command
 
         $results = [];
 
-        if ($withoutCache) {
-            // Disable cache if enabled
-            if (method_exists($cacheManager, 'setEnabled')) {
-                $cacheManager->setEnabled(false);
-            }
-            $results['no-cache'] = $this->runSingleBenchmark($db, $query, $iterations);
+        // Both modes are enabled here; single-mode cases returned above.
+        if (method_exists($cacheManager, 'setEnabled')) {
+            $cacheManager->setEnabled(false);
         }
+        $results['no-cache'] = $this->runSingleBenchmark($db, $query, $iterations);
 
-        if ($withCache) {
-            // Enable cache if available
-            if (method_exists($cacheManager, 'setEnabled')) {
-                $cacheManager->setEnabled(true);
-            }
-            $results['cache'] = $this->runSingleBenchmark($db, $query, $iterations);
+        if (method_exists($cacheManager, 'setEnabled')) {
+            $cacheManager->setEnabled(true);
         }
+        $results['cache'] = $this->runSingleBenchmark($db, $query, $iterations);
 
         $this->printCompareResults($results);
 

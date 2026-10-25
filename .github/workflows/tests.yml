@@ -15,7 +15,9 @@ jobs:
           php-version: '8.4'
           extensions: pdo, pdo_mysql, pdo_pgsql, pdo_sqlite, pdo_oci
           coverage: none
+      - run: composer validate --strict --no-check-publish
       - run: composer install --no-interaction --prefer-dist
+      - run: vendor/bin/phpstan diagnose
       - run: composer pdodb:phpstan
 
   mysql:

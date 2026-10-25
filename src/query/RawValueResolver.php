@@ -199,20 +199,14 @@ class RawValueResolver
         };
 
         if ($result instanceof RawValue) { // Allow nested RawValue resolution
-            $value = $result;
+            $sql = $result->getValue();
+            $params = $result->getParams();
         } elseif ($value instanceof LikeValue) {
             // LikeValue returns SQL from formatLike(), need to handle parameters
             $sql = $result;
             $params = ['pattern' => $value->getPattern()];
         } else {
             return $result;
-        }
-
-        if (!isset($sql)) {
-            $sql = $value->getValue();
-        }
-        if (!isset($params)) {
-            $params = $value->getParams();
         }
 
         // Normalize DEFAULT keyword for dialect-specific handling
