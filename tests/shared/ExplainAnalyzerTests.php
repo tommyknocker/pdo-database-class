@@ -75,7 +75,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('detectIssues');
-        $method->setAccessible(true);
 
         $issues = $method->invoke($analyzer, $plan);
         $highRowIssue = null;
@@ -110,7 +109,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('detectIssues');
-        $method->setAccessible(true);
 
         $issues = $method->invoke($analyzer, $plan);
         $lowFilterIssue = null;
@@ -135,7 +133,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('detectIssues');
-        $method->setAccessible(true);
 
         $issues = $method->invoke($analyzer, $plan);
         $unusedIndexIssue = null;
@@ -158,7 +155,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('detectIssues');
-        $method->setAccessible(true);
 
         $issues = $method->invoke($analyzer, $plan);
         $subqueryIssue = null;
@@ -181,7 +177,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('detectIssues');
-        $method->setAccessible(true);
 
         $issues = $method->invoke($analyzer, $plan);
         $groupByIssue = null;
@@ -204,7 +199,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('detectIssues');
-        $method->setAccessible(true);
 
         $issues = $method->invoke($analyzer, $plan);
         $costIssue = null;
@@ -228,7 +222,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('detectIssues');
-        $method->setAccessible(true);
 
         $issues = $method->invoke($analyzer, $plan);
         $joinIssue = null;
@@ -253,7 +246,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('detectIssues');
-        $method->setAccessible(true);
 
         $issues = $method->invoke($analyzer, $plan);
         $indexScanIssue = null;
@@ -273,7 +265,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('extractTableFromWarning');
-        $method->setAccessible(true);
 
         $table = $method->invoke($analyzer, 'Full table scan on "users" without index usage');
         $this->assertEquals('users', $table);
@@ -285,7 +276,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('extractTableFromWarning');
-        $method->setAccessible(true);
 
         $table = $method->invoke($analyzer, 'Full table scan on `users` without index usage');
         $this->assertEquals('users', $table);
@@ -297,7 +287,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('extractTableFromWarning');
-        $method->setAccessible(true);
 
         $table = $method->invoke($analyzer, 'Sequential scan on users without index');
         $this->assertEquals('users', $table);
@@ -309,7 +298,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('extractTableFromWarning');
-        $method->setAccessible(true);
 
         $table = $method->invoke($analyzer, 'Sequential scan on users');
         $this->assertEquals('users', $table);
@@ -327,7 +315,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $recommendationGenerator = $reflection->getProperty('recommendationGenerator');
-        $recommendationGenerator->setAccessible(true);
         $generator = $recommendationGenerator->getValue($analyzer);
 
         $recommendations = $generator->generate($plan, 'users');
@@ -356,7 +343,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('getParser');
-        $method->setAccessible(true);
 
         $parser = $method->invoke($analyzer);
 
@@ -379,7 +365,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('detectIssues');
-        $method->setAccessible(true);
 
         $issues = $method->invoke($analyzer, $plan);
         $hasTableScanIssue = false;
@@ -397,7 +382,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
         $analyzer = $this->createExplainAnalyzer();
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('extractTableFromWarning');
-        $method->setAccessible(true);
 
         $result = $method->invoke($analyzer, 'Full table scan on "users" without index usage');
         $this->assertEquals('users', $result);
@@ -408,7 +392,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
         $analyzer = $this->createExplainAnalyzer();
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('extractTableFromWarning');
-        $method->setAccessible(true);
 
         $result = $method->invoke($analyzer, 'Warning without table name');
         $this->assertNull($result);
@@ -424,7 +407,6 @@ final class ExplainAnalyzerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('detectIssues');
-        $method->setAccessible(true);
 
         $issues = $method->invoke($analyzer, $plan);
         $hasMissingIndexIssue = false;

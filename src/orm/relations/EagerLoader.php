@@ -144,13 +144,13 @@ class EagerLoader
             ->get();
 
         // Convert to models
-        $models = [];
+        $populatedModels = [];
         foreach ($relatedModels as $row) {
             if (is_array($row)) {
-                $models[] = $this->populateModel($relatedModelClass, $row);
+                $populatedModels[] = $this->populateModel($relatedModelClass, $row);
             }
         }
-        $relatedModels = $models;
+        $relatedModels = $populatedModels;
 
         // If nested relations requested, load them
         if (!empty($subRelations)) {
@@ -169,7 +169,7 @@ class EagerLoader
         // Assign related models to owner models
         foreach ($models as $model) {
             $foreignValue = $model->{$foreignKey} ?? null;
-            $relatedModel = $indexed[$foreignValue] ?? null;
+            $relatedModel = $foreignValue === null ? null : ($indexed[$foreignValue] ?? null);
             $model->setRelationData($relationName, $relatedModel);
         }
     }

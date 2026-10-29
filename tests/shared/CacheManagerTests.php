@@ -24,7 +24,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('incrementStatAtomic');
-        $method->setAccessible(true);
 
         // Test with atomic support disabled (fallback)
         $method->invoke($manager, 'hits');
@@ -46,7 +45,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('supportsAtomicIncrement');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager);
         $this->assertIsBool($result);
@@ -63,7 +61,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('getRedisConnection');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager);
         $this->assertNull($result);
@@ -80,7 +77,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('getMemcachedConnection');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager);
         $this->assertNull($result);
@@ -97,7 +93,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('getApcuConnection');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager);
         $this->assertNull($result);
@@ -114,7 +109,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('incrementAtomic');
-        $method->setAccessible(true);
 
         // Should not throw, but won't increment without atomic support
         $method->invoke($manager, 'test_key', 1);
@@ -133,7 +127,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('getAtomicValue');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager, 'test_key');
         $this->assertEquals(0, $result);
@@ -151,7 +144,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('deleteAtomicValue');
-        $method->setAccessible(true);
 
         $method->invoke($manager, 'test_key');
         $this->assertTrue(true);
@@ -169,7 +161,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('getPersistentStats');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager);
         $this->assertIsArray($result);
@@ -191,7 +182,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('getPersistentStats');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager);
         $this->assertIsArray($result);
@@ -215,11 +205,9 @@ final class CacheManagerTests extends BaseSharedTestCase
         // Set some in-memory stats
         $reflection = new \ReflectionClass($manager);
         $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setAccessible(true);
         $hitsProperty->setValue($manager, 3);
 
         $method = $reflection->getMethod('persistStats');
-        $method->setAccessible(true);
 
         $method->invoke($manager);
         $this->assertTrue(true);
@@ -238,7 +226,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('persistStatsWithRetry');
-        $method->setAccessible(true);
 
         $method->invoke($manager, 3);
         $this->assertTrue(true);
@@ -257,7 +244,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('addKeyToMetadata');
-        $method->setAccessible(true);
 
         $method->invoke($manager, 'test_key', ['users', 'orders']);
         $this->assertTrue(true);
@@ -276,7 +262,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('addKeyToMetadata');
-        $method->setAccessible(true);
 
         $method->invoke($manager, 'new_key', ['users']);
         $this->assertTrue(true);
@@ -293,7 +278,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('normalizeTableName');
-        $method->setAccessible(true);
 
         // Test with alias
         $result = $method->invoke($manager, 'users AS u');
@@ -338,7 +322,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('invalidateByTable');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager, 'users');
         $this->assertIsInt($result);
@@ -357,7 +340,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('invalidateByTable');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager, 'users');
         $this->assertEquals(0, $result);
@@ -376,7 +358,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('invalidateByTablePrefix');
-        $method->setAccessible(true);
 
         // Without pattern matching support, falls back to invalidateByTable
         $result = $method->invoke($manager, 'user');
@@ -394,7 +375,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('invalidateByKeyPattern');
-        $method->setAccessible(true);
 
         // Without pattern matching support, returns 0
         $result = $method->invoke($manager, 'test_*');
@@ -412,7 +392,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('supportsKeyPatternMatching');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager);
         $this->assertIsBool($result);
@@ -431,7 +410,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('getKeysByPattern');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager, 'test_*');
         $this->assertIsArray($result);
@@ -450,7 +428,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('detectCacheType');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager);
         $this->assertIsString($result);
@@ -468,7 +445,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('findRedisInProperties');
-        $method->setAccessible(true);
 
         $reflectionClass = new \ReflectionClass($cache);
         $result = $method->invoke($manager, $reflectionClass, $cache, 4);
@@ -487,7 +463,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('findMemcachedInProperties');
-        $method->setAccessible(true);
 
         $reflectionClass = new \ReflectionClass($cache);
         $result = $method->invoke($manager, $reflectionClass, $cache, 4);
@@ -579,11 +554,9 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setAccessible(true);
         $hitsProperty->setValue($manager, 5);
 
         $method = $reflection->getMethod('persistStatsWithRetry');
-        $method->setAccessible(true);
 
         $method->invoke($manager, 3);
         $this->assertTrue(true);
@@ -603,11 +576,9 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setAccessible(true);
         $hitsProperty->setValue($manager, 3);
 
         $method = $reflection->getMethod('persistStatsWithRetry');
-        $method->setAccessible(true);
 
         $method->invoke($manager, 3);
         $this->assertTrue(true);
@@ -626,11 +597,9 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setAccessible(true);
         $hitsProperty->setValue($manager, 2);
 
         $method = $reflection->getMethod('persistStatsWithRetry');
-        $method->setAccessible(true);
 
         // Should not throw, but will fail silently
         $method->invoke($manager, 2);
@@ -650,11 +619,9 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setAccessible(true);
         $hitsProperty->setValue($manager, 1);
 
         $method = $reflection->getMethod('persistStatsWithRetry');
-        $method->setAccessible(true);
 
         $method->invoke($manager);
         $this->assertTrue(true);
@@ -672,15 +639,12 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $atomicSupportProperty = $reflection->getProperty('atomicSupport');
-        $atomicSupportProperty->setAccessible(true);
         $atomicSupportProperty->setValue($manager, false); // Disable atomic support
 
         $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setAccessible(true);
         $hitsProperty->setValue($manager, 3);
 
         $method = $reflection->getMethod('persistStats');
-        $method->setAccessible(true);
 
         $method->invoke($manager);
         $this->assertTrue(true);
@@ -699,15 +663,12 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $atomicSupportProperty = $reflection->getProperty('atomicSupport');
-        $atomicSupportProperty->setAccessible(true);
         $atomicSupportProperty->setValue($manager, false);
 
         $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setAccessible(true);
         $hitsProperty->setValue($manager, 5);
 
         $method = $reflection->getMethod('persistStats');
-        $method->setAccessible(true);
 
         $method->invoke($manager);
 
@@ -728,7 +689,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('addKeyToMetadata');
-        $method->setAccessible(true);
 
         $method->invoke($manager, 'test_key', ['users']);
         $this->assertTrue(true);
@@ -747,7 +707,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('addKeyToMetadata');
-        $method->setAccessible(true);
 
         // Should not add duplicate key
         $method->invoke($manager, 'test_key', ['users']);
@@ -767,7 +726,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('invalidateByTablePrefix');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager, 'user');
         $this->assertIsInt($result);
@@ -784,7 +742,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('invalidateByKeyPattern');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager, 'test_*');
         $this->assertIsInt($result);
@@ -801,7 +758,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('getKeysByPattern');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager, 'test_*');
         $this->assertIsArray($result);
@@ -818,7 +774,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('detectCacheType');
-        $method->setAccessible(true);
 
         $result = $method->invoke($manager);
         $this->assertIsString($result);

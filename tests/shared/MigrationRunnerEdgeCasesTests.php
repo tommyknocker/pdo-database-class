@@ -33,7 +33,6 @@ class MigrationRunnerEdgeCasesTests extends BaseSharedTestCase
         $runner = new MigrationRunner($db, $migrationPath);
         $reflection = new \ReflectionClass($runner);
         $method = $reflection->getMethod('getAllMigrationFiles');
-        $method->setAccessible(true);
 
         $files = $method->invoke($runner);
         // Invalid files should be filtered out
@@ -80,7 +79,6 @@ class MigrationRunnerEdgeCasesTests extends BaseSharedTestCase
         $runner = new MigrationRunner($db, $migrationPath);
         $reflection = new \ReflectionClass($runner);
         $method = $reflection->getMethod('sanitizeName');
-        $method->setAccessible(true);
 
         $this->assertEquals('test_migration', $method->invoke($runner, 'Test Migration'));
         $this->assertEquals('test_migration', $method->invoke($runner, 'test-migration'));
@@ -108,7 +106,6 @@ class MigrationRunnerEdgeCasesTests extends BaseSharedTestCase
         $runner = new MigrationRunner($db, $migrationPath);
         $reflection = new \ReflectionClass($runner);
         $method = $reflection->getMethod('loadMigration');
-        $method->setAccessible(true);
 
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('Migration file not found');
@@ -147,7 +144,6 @@ PHP;
         $runner = new MigrationRunner($db, $migrationPath);
         $reflection = new \ReflectionClass($runner);
         $method = $reflection->getMethod('loadMigration');
-        $method->setAccessible(true);
 
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('Migration class');
@@ -175,7 +171,6 @@ PHP;
         $runner = new MigrationRunner($db, $migrationPath);
         $reflection = new \ReflectionClass($runner);
         $method = $reflection->getMethod('getNextBatchNumber');
-        $method->setAccessible(true);
 
         $batch = $method->invoke($runner);
         $this->assertEquals(1, $batch);
@@ -219,7 +214,6 @@ PHP;
         $runner->migrate();
         $reflection = new \ReflectionClass($runner);
         $method = $reflection->getMethod('getNextBatchNumber');
-        $method->setAccessible(true);
 
         // Next batch should be 2
         $batch = $method->invoke($runner);
@@ -317,7 +311,6 @@ PHP;
         $runner = new MigrationRunner($db, $migrationPath);
         $reflection = new \ReflectionClass($runner);
         $method = $reflection->getMethod('recordMigration');
-        $method->setAccessible(true);
 
         // Record a migration
         $method->invoke($runner, '20251101120013_testrecord', 1);
@@ -347,9 +340,7 @@ PHP;
         $runner = new MigrationRunner($db, $migrationPath);
         $reflection = new \ReflectionClass($runner);
         $recordMethod = $reflection->getMethod('recordMigration');
-        $recordMethod->setAccessible(true);
         $removeMethod = $reflection->getMethod('removeMigrationRecord');
-        $removeMethod->setAccessible(true);
 
         // Record a migration
         $recordMethod->invoke($runner, '20251101120014_testremove', 1);

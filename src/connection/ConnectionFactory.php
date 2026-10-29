@@ -53,7 +53,9 @@ class ConnectionFactory
             $user = $config['username'] ?? '';
             $pass = $config['password'] ?? '';
             $options = $dialect->defaultPdoOptions() + ($config['options'] ?? []);
-            $pdo = new PDO($dsn, $user, $pass, $options);
+            $pdo = PHP_VERSION_ID >= 80500 && str_starts_with($dsn, 'sqlite:')
+                ? PDO::connect($dsn, $user, $pass, $options)
+                : new PDO($dsn, $user, $pass, $options);
         } else {
             // If PDO is provided, use DSN from config if available, otherwise use empty string
             $dsn = $config['dsn'] ?? '';

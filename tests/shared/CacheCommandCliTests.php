@@ -280,7 +280,6 @@ final class CacheCommandCliTests extends TestCase
         // Force persist metadata by calling persistStats via reflection
         $reflection = new \ReflectionClass($cacheManager);
         $persistMethod = $reflection->getMethod('persistStats');
-        $persistMethod->setAccessible(true);
         $persistMethod->invoke($cacheManager);
 
         // Verify cache exists
@@ -313,7 +312,6 @@ final class CacheCommandCliTests extends TestCase
         $this->assertNotNull($cacheManager);
         $reflection = new \ReflectionClass($cacheManager);
         $persistMethod = $reflection->getMethod('persistStats');
-        $persistMethod->setAccessible(true);
         $persistMethod->invoke($cacheManager);
 
         // Invalidate by table pattern
@@ -368,7 +366,6 @@ final class CacheCommandCliTests extends TestCase
         // to avoid exit() call in test
         $reflection = new \ReflectionClass($cacheManager);
         $method = $reflection->getMethod('invalidateByPattern');
-        $method->setAccessible(true);
 
         // Empty pattern should return 0 (no matches)
         $result = $method->invoke($cacheManager, '');

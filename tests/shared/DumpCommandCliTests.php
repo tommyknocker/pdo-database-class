@@ -698,7 +698,6 @@ final class DumpCommandCliTests extends TestCase
 
         // Test compressContent with invalid format
         $method = $reflection->getMethod('compressContent');
-        $method->setAccessible(true);
         $result = $method->invoke($command, 'test content', 'invalid');
         $this->assertNull($result, 'Invalid compression format should return null');
     }

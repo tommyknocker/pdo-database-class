@@ -74,7 +74,6 @@ final class RepositoryGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(RepositoryGenerator::class);
         $method = $reflection->getMethod('repositoryNameToModelName');
-        $method->setAccessible(true);
 
         $this->assertEquals('User', $method->invoke(null, 'UserRepository'));
         $this->assertEquals('User', $method->invoke(null, 'User'));
@@ -88,7 +87,6 @@ final class RepositoryGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(RepositoryGenerator::class);
         $method = $reflection->getMethod('generateRepositoryCode');
-        $method->setAccessible(true);
 
         $code = $method->invoke(null, 'UserRepository', 'User', 'test_users', ['id'], 'app\\repositories', 'app\\models');
 
@@ -108,7 +106,6 @@ final class RepositoryGeneratorTests extends TestCase
 
         $reflection = new \ReflectionClass(RepositoryGenerator::class);
         $method = $reflection->getMethod('getRepositoryOutputPath');
-        $method->setAccessible(true);
 
         $path = $method->invoke(null);
         $this->assertEquals($this->tempDir, $path);
@@ -127,7 +124,6 @@ final class RepositoryGeneratorTests extends TestCase
         try {
             $reflection = new \ReflectionClass(RepositoryGenerator::class);
             $method = $reflection->getMethod('getRepositoryOutputPath');
-            $method->setAccessible(true);
 
             $path = $method->invoke(null);
             $this->assertTrue(is_dir($path));
@@ -272,7 +268,6 @@ final class RepositoryGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(RepositoryGenerator::class);
         $method = $reflection->getMethod('modelNameToTableName');
-        $method->setAccessible(true);
 
         $this->assertEquals('users', $method->invoke(null, 'User'));
         $this->assertEquals('products', $method->invoke(null, 'Product'));
@@ -286,7 +281,6 @@ final class RepositoryGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(RepositoryGenerator::class);
         $method = $reflection->getMethod('detectPrimaryKey');
-        $method->setAccessible(true);
 
         $primaryKey = $method->invoke(null, $this->db, 'users');
         $this->assertIsArray($primaryKey);
@@ -300,7 +294,6 @@ final class RepositoryGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(RepositoryGenerator::class);
         $method = $reflection->getMethod('detectPrimaryKey');
-        $method->setAccessible(true);
 
         // Use non-existent table to trigger exception fallback
         $primaryKey = $method->invoke(null, $this->db, 'nonexistent_table_xyz');
@@ -315,7 +308,6 @@ final class RepositoryGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(RepositoryGenerator::class);
         $method = $reflection->getMethod('generateRepositoryCode');
-        $method->setAccessible(true);
 
         $code = $method->invoke(null, 'UserRepository', 'User', 'test_users', ['user_id', 'role_id'], 'app\\repositories', 'app\\models');
 
@@ -340,7 +332,6 @@ final class RepositoryGeneratorTests extends TestCase
         try {
             $reflection = new \ReflectionClass(RepositoryGenerator::class);
             $method = $reflection->getMethod('getRepositoryOutputPath');
-            $method->setAccessible(true);
 
             $path = $method->invoke(null);
             $this->assertIsString($path);
@@ -375,7 +366,6 @@ final class RepositoryGeneratorTests extends TestCase
         try {
             $reflection = new \ReflectionClass(RepositoryGenerator::class);
             $method = $reflection->getMethod('getRepositoryOutputPath');
-            $method->setAccessible(true);
 
             $path = $method->invoke(null);
             $this->assertIsString($path);
@@ -443,7 +433,6 @@ final class RepositoryGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(RepositoryGenerator::class);
         $method = $reflection->getMethod('generateRepositoryCode');
-        $method->setAccessible(true);
 
         $code = $method->invoke(null, 'UserRepository', 'User', 'test_users', ['user_id'], 'app\\repositories', 'app\\models');
 

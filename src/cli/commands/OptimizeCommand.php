@@ -356,12 +356,12 @@ class OptimizeCommand extends Command
             // Get ExecutionEngine via reflection from SelectQueryBuilder
             $reflection = new \ReflectionClass($queryBuilder);
             $selectBuilderProperty = $reflection->getProperty('selectQueryBuilder');
-            $selectBuilderProperty->setAccessible(true);
+
             $selectBuilder = $selectBuilderProperty->getValue($queryBuilder);
 
             $selectReflection = new \ReflectionClass($selectBuilder);
             $executionEngineProperty = $selectReflection->getProperty('executionEngine');
-            $executionEngineProperty->setAccessible(true);
+
             $executionEngine = $executionEngineProperty->getValue($selectBuilder);
 
             $dialect = $db->schema()->getDialect();

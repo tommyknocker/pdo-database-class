@@ -30,7 +30,6 @@ final class TestGeneratorTests extends BaseSharedTestCase
     {
         $reflection = new ReflectionClass(TestGenerator::class);
         $method = $reflection->getMethod('modelNameToTableName');
-        $method->setAccessible(true);
 
         $this->assertEquals('users', $method->invoke(null, 'User'));
         $this->assertEquals('test_models', $method->invoke(null, 'TestModel'));
@@ -41,7 +40,6 @@ final class TestGeneratorTests extends BaseSharedTestCase
     {
         $reflection = new ReflectionClass(TestGenerator::class);
         $method = $reflection->getMethod('tableNameToClassName');
-        $method->setAccessible(true);
 
         $this->assertEquals('User', $method->invoke(null, 'users'));
         $this->assertEquals('TestModel', $method->invoke(null, 'test_models'));
@@ -52,7 +50,6 @@ final class TestGeneratorTests extends BaseSharedTestCase
     {
         $reflection = new ReflectionClass(TestGenerator::class);
         $method = $reflection->getMethod('detectPrimaryKey');
-        $method->setAccessible(true);
 
         $result = $method->invoke(null, self::$db, 'test_users');
         $this->assertIsArray($result);

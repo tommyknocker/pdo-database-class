@@ -69,7 +69,6 @@ final class DbCommandCliTests extends TestCase
         // Test that command has correct name and description
         $reflection = new \ReflectionClass($command);
         $nameProperty = $reflection->getProperty('name');
-        $nameProperty->setAccessible(true);
         $this->assertEquals('db', $nameProperty->getValue($command));
     }
 
@@ -236,7 +235,6 @@ final class DbCommandCliTests extends TestCase
         $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
-        $method->setAccessible(true);
 
         ob_start();
 
@@ -257,7 +255,6 @@ final class DbCommandCliTests extends TestCase
         $command = new DbCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
-        $method->setAccessible(true);
 
         // Temporarily break the connection to test exception handling
         $oldPath = getenv('PDODB_PATH');

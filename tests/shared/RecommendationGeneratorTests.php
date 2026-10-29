@@ -197,7 +197,6 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($generator);
         $method = $reflection->getMethod('suggestGroupByIndex');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'test_coverage', $plan);
         $this->assertNotNull($result);
@@ -212,7 +211,6 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($generator);
         $method = $reflection->getMethod('suggestGroupByIndex');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'test_coverage', $plan);
         $this->assertNull($result);
@@ -285,7 +283,6 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($generator);
         $method = $reflection->getMethod('suggestOrderByIndex');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'test_coverage', $plan);
         $this->assertNotNull($result);
@@ -300,7 +297,6 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($generator);
         $method = $reflection->getMethod('suggestOrderByIndex');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'test_coverage', $plan);
         $this->assertNull($result);
@@ -312,7 +308,6 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($generator);
         $method = $reflection->getMethod('getExistingIndexes');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'test_coverage');
         $this->assertIsArray($result);
@@ -324,7 +319,6 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($generator);
         $method = $reflection->getMethod('generateIndexName');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'users', ['email', 'status'], 'idx');
         $this->assertIsString($result);
@@ -338,7 +332,6 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($generator);
         $method = $reflection->getMethod('generateIndexName');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'users', ['email', 'status'], 'order_by');
         $this->assertStringContainsString('order_by', $result);
@@ -350,7 +343,6 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($generator);
         $method = $reflection->getMethod('generateIndexName');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'user-profiles', ['email-address'], 'idx');
         $this->assertStringNotContainsString('-', $result);
@@ -363,7 +355,6 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($generator);
         $method = $reflection->getMethod('generateIndexName');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'users', ['col1', 'col2', 'col3', 'col4', 'col5'], 'idx');
         // Should only include first 3 columns
@@ -379,7 +370,6 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($generator);
         $method = $reflection->getMethod('extractTableFromWarning');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'Full table scan on "users" without index usage');
         $this->assertEquals('users', $result);
@@ -391,7 +381,6 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($generator);
         $method = $reflection->getMethod('extractTableFromWarning');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'Warning without table name');
         $this->assertNull($result);
@@ -412,7 +401,6 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($generator);
         $method = $reflection->getMethod('suggestOrderByIndex');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'test_coverage', $plan);
         // Should return null if index already exists (or may return suggestion if name doesn't match)

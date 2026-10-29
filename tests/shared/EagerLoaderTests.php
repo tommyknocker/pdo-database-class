@@ -241,7 +241,6 @@ final class EagerLoaderTests extends BaseSharedTestCase
         $loader = new EagerLoader();
         $reflection = new \ReflectionClass($loader);
         $method = $reflection->getMethod('normalizeRelations');
-        $method->setAccessible(true);
 
         $relations = ['profile', 'posts'];
         $normalized = $method->invoke($loader, $relations);
@@ -258,7 +257,6 @@ final class EagerLoaderTests extends BaseSharedTestCase
         $loader = new EagerLoader();
         $reflection = new \ReflectionClass($loader);
         $method = $reflection->getMethod('normalizeRelations');
-        $method->setAccessible(true);
 
         $relations = ['profile' => ['user'], 'posts' => []];
         $normalized = $method->invoke($loader, $relations);
@@ -275,7 +273,6 @@ final class EagerLoaderTests extends BaseSharedTestCase
         $loader = new EagerLoader();
         $reflection = new \ReflectionClass($loader);
         $method = $reflection->getMethod('normalizeRelations');
-        $method->setAccessible(true);
 
         $relations = ['profile', 'posts' => ['user']];
         $normalized = $method->invoke($loader, $relations);
@@ -314,6 +311,32 @@ final class EagerLoaderTests extends BaseSharedTestCase
             $this->assertNotNull($user);
             $this->assertInstanceOf(EagerLoaderTestUser::class, $user);
         }
+    }
+
+    public function testBelongsToEagerLoadingHandlesNullAndZeroKeys(): void
+    {
+        self::$db->rawQuery("INSERT INTO eager_loader_users (id, name, email) VALUES (0, 'Zero', 'zero@example.com')");
+        $user = EagerLoaderTestUser::find()->where('name', 'Alice')->one();
+        self::assertNotNull($user);
+
+        $withUser = new EagerLoaderTestPost();
+        $withUser->user_id = $user->id;
+        $withZero = new EagerLoaderTestPost();
+        $withZero->user_id = 0;
+        $withoutUser = new EagerLoaderTestPost();
+        $withoutUser->user_id = null;
+        $withEmpty = new EagerLoaderTestPost();
+        $withEmpty->user_id = '';
+
+        (new EagerLoader())->load([$withUser, $withZero, $withoutUser, $withEmpty], ['user']);
+
+        self::assertSame('Alice', $withUser->getRelationData()['user']->name);
+        self::assertSame('Zero', $withZero->getRelationData()['user']->name);
+        self::assertArrayHasKey('user', $withoutUser->getRelationData());
+        self::assertNull($withoutUser->getRelationData()['user']);
+        self::assertNull($withoutUser->user);
+        self::assertArrayHasKey('user', $withEmpty->getRelationData());
+        self::assertNull($withEmpty->getRelationData()['user']);
     }
 
     public function testLoadHasOne(): void
@@ -385,7 +408,6 @@ final class EagerLoaderTests extends BaseSharedTestCase
         $loader = new EagerLoader();
         $reflection = new \ReflectionClass($loader);
         $method = $reflection->getMethod('loadRelation');
-        $method->setAccessible(true);
 
         $models = [];
         $relationName = 'profile';
@@ -454,7 +476,6 @@ final class EagerLoaderTests extends BaseSharedTestCase
         $loader = new EagerLoader();
         $reflection = new \ReflectionClass($loader);
         $method = $reflection->getMethod('populateModel');
-        $method->setAccessible(true);
 
         $data = [
             'id' => 999,
@@ -478,7 +499,6 @@ final class EagerLoaderTests extends BaseSharedTestCase
         $loader = new EagerLoader();
         $reflection = new \ReflectionClass($loader);
         $method = $reflection->getMethod('getRelationInstance');
-        $method->setAccessible(true);
 
         $relation = $method->invoke($loader, $user, 'profile');
         $this->assertNotNull($relation);
@@ -493,7 +513,6 @@ final class EagerLoaderTests extends BaseSharedTestCase
         $loader = new EagerLoader();
         $reflection = new \ReflectionClass($loader);
         $method = $reflection->getMethod('normalizeRelations');
-        $method->setAccessible(true);
 
         // Test with array value in indexed array (should be skipped)
         $relations = [['invalid']];

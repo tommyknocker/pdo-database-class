@@ -73,7 +73,7 @@ class AiCommand extends Command
             // Access execution engine via reflection or create new one
             $reflection = new \ReflectionClass($queryBuilder);
             $executionEngineProperty = $reflection->getProperty('executionEngine');
-            $executionEngineProperty->setAccessible(true);
+
             $executionEngine = $executionEngineProperty->getValue($queryBuilder);
             $analyzer = new ExplainAnalyzer($dialect, $executionEngine);
             $baseAnalysis = $analyzer->analyze($explainResults, $tableName);

@@ -74,7 +74,7 @@ class AnalyzeQueryTool implements McpToolInterface
                 $queryBuilder = $this->db->find();
                 $reflection = new \ReflectionClass($queryBuilder);
                 $executionEngineProperty = $reflection->getProperty('executionEngine');
-                $executionEngineProperty->setAccessible(true);
+
                 $executionEngine = $executionEngineProperty->getValue($queryBuilder);
                 $analyzer = new ExplainAnalyzer($dialect, $executionEngine);
                 $explainAnalysis = $analyzer->analyze($explainResults, $tableName);

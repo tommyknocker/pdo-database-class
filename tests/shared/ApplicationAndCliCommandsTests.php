@@ -233,7 +233,6 @@ PHP;
         // Create one empty migration file through MigrationGenerator API to keep dependencies minimal
         $genClass = new \ReflectionClass(MigrationGenerator::class);
         $generate = $genClass->getMethod('generate');
-        $generate->setAccessible(true);
         ob_start();
 
         try {

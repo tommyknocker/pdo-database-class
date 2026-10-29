@@ -138,7 +138,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('listTables');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $this->db, null);
@@ -156,7 +155,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('listTables');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $this->db, 'json');
@@ -179,7 +177,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('listTables');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $this->db, 'yaml');
@@ -195,7 +192,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('inspectTable');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $this->db, 'test_users', null);
@@ -214,7 +210,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('inspectTable');
-        $method->setAccessible(true);
 
         $this->expectException(QueryException::class);
         $method->invoke(null, $this->db, 'non_existent_table', null);
@@ -227,7 +222,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getAllTables');
-        $method->setAccessible(true);
 
         $tables = $method->invoke(null, $this->db);
 
@@ -245,7 +239,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableRowCount');
-        $method->setAccessible(true);
 
         // Insert some data
         $this->db->rawQuery('INSERT INTO test_users (name, email) VALUES (?, ?)', ['John', 'john@example.com']);
@@ -261,7 +254,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableRowCount');
-        $method->setAccessible(true);
 
         $count = $method->invoke(null, $this->db, 'test_users');
         $this->assertEquals('0', $count);
@@ -274,7 +266,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableColumns');
-        $method->setAccessible(true);
 
         $columns = $method->invoke(null, $this->db, 'test_users');
 
@@ -293,7 +284,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableIndexes');
-        $method->setAccessible(true);
 
         $indexes = $method->invoke(null, $this->db, 'test_users');
 
@@ -309,7 +299,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableForeignKeys');
-        $method->setAccessible(true);
 
         $foreignKeys = $method->invoke(null, $this->db, 'test_posts');
 
@@ -325,7 +314,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableForeignKeys');
-        $method->setAccessible(true);
 
         $foreignKeys = $method->invoke(null, $this->db, 'test_users');
 
@@ -341,7 +329,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableConstraints');
-        $method->setAccessible(true);
 
         $constraints = $method->invoke(null, $this->db, 'test_users');
 
@@ -357,7 +344,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('arrayToYaml');
-        $method->setAccessible(true);
 
         $array = [
             'name' => 'test',
@@ -382,7 +368,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('arrayToYaml');
-        $method->setAccessible(true);
 
         $array = [
             'level1' => [
@@ -406,7 +391,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('inspectTable');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $this->db, 'test_users', 'json');
@@ -428,7 +412,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('inspectTable');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $this->db, 'test_users', 'yaml');
@@ -446,7 +429,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('inspectTable');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $this->db, 'test_users', null);
@@ -465,7 +447,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('inspectTable');
-        $method->setAccessible(true);
 
         ob_start();
 
@@ -493,7 +474,6 @@ final class SchemaInspectorTests extends TestCase
 
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('listTables');
-        $method->setAccessible(true);
 
         // Temporarily unset PHPUNIT to allow output
         $phpunit = getenv('PHPUNIT');
@@ -522,7 +502,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableRowCount');
-        $method->setAccessible(true);
 
         // Use invalid table name to trigger error
         $count = $method->invoke(null, $this->db, 'nonexistent_table_xyz');
@@ -536,7 +515,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableColumns');
-        $method->setAccessible(true);
 
         $columns = $method->invoke(null, $this->db, 'test_users');
 
@@ -557,7 +535,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableIndexes');
-        $method->setAccessible(true);
 
         // Should return empty array on error, not throw
         $indexes = $method->invoke(null, $this->db, 'test_users');
@@ -571,7 +548,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableForeignKeys');
-        $method->setAccessible(true);
 
         // Should return empty array on error, not throw
         $foreignKeys = $method->invoke(null, $this->db, 'test_users');
@@ -585,7 +561,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableConstraints');
-        $method->setAccessible(true);
 
         $constraints = $method->invoke(null, $this->db, 'test_users');
         $this->assertIsArray($constraints);
@@ -598,7 +573,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('arrayToYaml');
-        $method->setAccessible(true);
 
         $array = [
             'enabled' => true,
@@ -618,7 +592,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('arrayToYaml');
-        $method->setAccessible(true);
 
         $array = [
             'null_value' => null,
@@ -638,7 +611,6 @@ final class SchemaInspectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('arrayToYaml');
-        $method->setAccessible(true);
 
         $array = [
             'integer' => 123,
@@ -749,7 +721,6 @@ final class SchemaInspectorTests extends TestCase
 
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('listTables');
-        $method->setAccessible(true);
 
         // Temporarily unset PHPUNIT to allow output
         $phpunit = getenv('PHPUNIT');
@@ -788,7 +759,6 @@ final class SchemaInspectorTests extends TestCase
 
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('listTables');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $emptyDb, 'yaml');

@@ -11,7 +11,30 @@
 
 **PDOdb** is a lightweight, framework-agnostic PHP database library providing a **unified API** across MySQL, MariaDB, PostgreSQL, SQLite, Microsoft SQL Server (MSSQL), and Oracle.
 
-Built on top of PDO with **zero external dependencies**, it offers:
+Built on top of PDO with no framework dependency (the package requires three small PSR interfaces), it offers:
+
+To try PDOdb with SQLite, install PHP 8.4+ with `pdo_sqlite`, then run:
+
+```bash
+composer require tommyknocker/pdo-database-class
+```
+
+```php
+<?php
+require 'vendor/autoload.php';
+
+use tommyknocker\pdodb\PdoDb;
+
+$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db->rawQuery('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+$id = $db->find()->table('users')->insert(['name' => 'Alice']);
+$user = $db->find()->from('users')->where('id', $id)->getOne();
+if ($user !== false) {
+    echo $user['name'];
+}
+```
+
+See [installation](documentation/01-getting-started/01-installation.md), [database support](documentation/09-reference/05-dialect-differences.md), and [the complete documentation](documentation/README.md).
 
 **Core Features:**
 - **Fluent Query Builder** - Intuitive, chainable API for all database operations
@@ -89,7 +112,7 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 - ✅ Helper functions for common operations
 
 **vs. Eloquent/Doctrine:**
-- ✅ Zero dependencies (no framework required)
+- ✅ No framework dependency
 - ✅ Lightweight (no ORM overhead)
 - ✅ Direct SQL access when needed
 - ✅ Better performance for complex queries
@@ -125,6 +148,19 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 - [License](#license)
 
 ---
+
+## Database test coverage
+
+The CI workflow runs the database-specific suites against these server versions. This is the regularly tested configuration, not an exhaustive compatibility guarantee; individual features may have dialect restrictions.
+
+| Database | CI version |
+| --- | --- |
+| MySQL | 8.0 |
+| MariaDB | 11.2 |
+| PostgreSQL | 16 |
+| SQLite | Runner's bundled version |
+| SQL Server | 2022 |
+| Oracle | XE 21 |
 
 ## Requirements
 
@@ -278,7 +314,7 @@ $db->find()
     ->update(['age' => 31]);
 ```
 
-**That's it!** No configuration, no dependencies, just works.
+**That's it!** SQLite requires no database server. Composer installs the required PSR interfaces.
 
 ---
 
@@ -992,6 +1028,8 @@ Yes! Pass your PDO instance:
 $pdo = new PDO('mysql:host=localhost;dbname=test', 'user', 'pass');
 $db = new PdoDb('mysql', ['pdo' => $pdo]);
 ```
+
+For a new SQLite PDO on PHP 8.4+, use `PDO::connect('sqlite::memory:')` to obtain a `Pdo\Sqlite` instance. On PHP 8.5, an existing plain `new PDO('sqlite:...')` instance still works, but registering the SQLite REGEXP functions uses a deprecated PDO method. Pass `enable_regexp => false` if those functions are not needed, or use a `Pdo\Sqlite` connection when creating a new instance.
 
 ### Which database should I use for development?
 **SQLite** is perfect for development - no server setup needed:

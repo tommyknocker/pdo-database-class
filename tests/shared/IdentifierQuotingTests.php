@@ -35,7 +35,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         $result = $method->invoke($builder, 'table_name');
         $dialect = self::$db->connection->getDialect();
@@ -48,7 +47,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         $result = $method->invoke($builder, 'schema.table_name');
         $dialect = self::$db->connection->getDialect();
@@ -61,7 +59,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         $result = $method->invoke($builder, 'db.schema.table_name');
         $dialect = self::$db->connection->getDialect();
@@ -74,7 +71,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         // Expression with parentheses should pass through
         $result = $method->invoke($builder, 'COUNT(*)');
@@ -86,7 +82,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         // Expression with spaces should pass through
         $result = $method->invoke($builder, 'COUNT(*) AS total');
@@ -98,7 +93,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         // Already quoted identifier should pass through
         $dialect = self::$db->connection->getDialect();
@@ -112,7 +106,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Unsafe SQL expression provided as identifier/expression.');
@@ -124,7 +117,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Unsafe SQL expression provided as identifier/expression.');
@@ -136,7 +128,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Unsafe SQL expression provided as identifier/expression.');
@@ -148,7 +139,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Unsafe SQL expression provided as identifier/expression.');
@@ -160,7 +150,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Unsafe SQL expression provided as identifier/expression.');
@@ -172,7 +161,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         // --comment contains -- which is detected by the unsafe check
         $this->expectException(InvalidArgumentException::class);
@@ -185,7 +173,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid identifier part: 123invalid');
@@ -197,7 +184,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid identifier part: 123invalid');
@@ -209,7 +195,6 @@ final class IdentifierQuotingTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('quoteQualifiedIdentifier');
-        $method->setAccessible(true);
 
         // Valid expression with commas should pass through
         $result = $method->invoke($builder, 'COUNT(*), SUM(amount)');

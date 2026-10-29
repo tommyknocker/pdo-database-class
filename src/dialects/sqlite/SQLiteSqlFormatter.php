@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects\sqlite;
 
+use Pdo\Sqlite;
 use tommyknocker\pdodb\dialects\formatters\SqlFormatterAbstract;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
@@ -694,22 +695,26 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
             }
         }
 
+        $registerFunction = $pdo instanceof Sqlite
+            ? $pdo->createFunction(...)
+            : $pdo->sqliteCreateFunction(...);
+
         // Register regexp function (2 arguments: pattern, subject)
         // Note: In SQLite, REGEXP is a binary operator that calls the 'regexp' function
         // When SQLite sees "subject REGEXP pattern", it calls regexp(pattern, subject)
         // So we register it as regexp(pattern, subject)
-        $pdo->sqliteCreateFunction('regexp', function (string $pattern, string $subject): int {
+        $registerFunction('regexp', function (string $pattern, string $subject): int {
             return preg_match("/$pattern/", $subject) ? 1 : 0;
         }, 2);
 
         // Register regexp_replace function (3 arguments: subject, pattern, replacement)
-        $pdo->sqliteCreateFunction('regexp_replace', function (string $subject, string $pattern, string $replacement): string {
+        $registerFunction('regexp_replace', function (string $subject, string $pattern, string $replacement): string {
             $result = preg_replace("/$pattern/", $replacement, $subject);
             return $result ?? '';
         }, 3);
 
         // Register regexp_extract function (3 arguments: subject, pattern, groupIndex)
-        $pdo->sqliteCreateFunction('regexp_extract', function (string $subject, string $pattern, int $groupIndex = 0): string {
+        $registerFunction('regexp_extract', function (string $subject, string $pattern, int $groupIndex = 0): string {
             if (preg_match("/$pattern/", $subject, $matches)) {
                 $index = (int)$groupIndex;
                 return (string)($matches[$index] ?? '');

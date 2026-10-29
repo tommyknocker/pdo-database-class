@@ -13,8 +13,9 @@ use tommyknocker\pdodb\connection\ConnectionRouter;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\values\FulltextMatchValue;
 use tommyknocker\pdodb\migrations\MigrationRunner;
-use tommyknocker\pdodb\query\QueryConstants;
+use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
+use tommyknocker\pdodb\query\QueryConstants;
 use tommyknocker\pdodb\seeds\SeedDataGenerator;
 use tommyknocker\pdodb\seeds\SeedRunner;
 use tommyknocker\pdodb\tests\fixtures\ArrayCache;
@@ -354,7 +355,7 @@ final class SharedCoverageTests extends BaseSharedTestCase
     public function testPdoDbGetCacheManagerAndGetCompilationCache(): void
     {
         $cache = new ArrayCache();
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:'], [], null, $cache);
+        $db = new PdoDb('sqlite', ['path' => ':memory:'], [], null, $cache);
         $this->assertInstanceOf(CacheManager::class, $db->getCacheManager());
         $this->assertInstanceOf(QueryCompilationCache::class, $db->getCompilationCache());
     }
@@ -412,7 +413,6 @@ final class SharedCoverageTests extends BaseSharedTestCase
         $qb = self::$db->find()->from('test_coverage');
         $ref = new ReflectionClass($qb);
         $prop = $ref->getProperty('selectQueryBuilder');
-        $prop->setAccessible(true);
         $selectQb = $prop->getValue($qb);
 
         $selectQb->setDistinctOn(['name', 'value']);
@@ -420,7 +420,6 @@ final class SharedCoverageTests extends BaseSharedTestCase
         $compilationCache = new QueryCompilationCache(new ArrayCache());
         $selectQb->setCompilationCache($compilationCache);
         $cacheProp = (new ReflectionClass($selectQb))->getProperty('compilationCache');
-        $cacheProp->setAccessible(true);
         $this->assertSame($compilationCache, $cacheProp->getValue($selectQb));
     }
 
@@ -430,7 +429,7 @@ final class SharedCoverageTests extends BaseSharedTestCase
         $logger->expects($this->atLeastOnce())
             ->method('warning')
             ->with('query.slow', $this->anything());
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:'], [], $logger);
+        $db = new PdoDb('sqlite', ['path' => ':memory:'], [], $logger);
         $db->rawQuery('CREATE TABLE t (id INTEGER)');
         $db->enableProfiling(0.0);
         $db->find()->from('t')->get();
@@ -520,7 +519,6 @@ final class SharedCoverageTests extends BaseSharedTestCase
         $qb = self::$db->find()->from('test_coverage');
         $ref = new ReflectionClass($qb);
         $prop = $ref->getProperty('parameterManager');
-        $prop->setAccessible(true);
         $pm = $prop->getValue($qb);
         $pm->setParams([':x' => 1, ':y' => 2]);
         $this->assertSame([':x' => 1, ':y' => 2], $pm->getParams());
@@ -529,7 +527,7 @@ final class SharedCoverageTests extends BaseSharedTestCase
     public function testSelectQueryBuilderResultCacheAndGenerateCacheKey(): void
     {
         $cache = new ArrayCache();
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', ['path' => ':memory:'], [], null, $cache);
+        $db = new PdoDb('sqlite', ['path' => ':memory:'], [], null, $cache);
         $db->rawQuery('CREATE TABLE t (id INTEGER)');
         $db->rawQuery('INSERT INTO t (id) VALUES (1)');
 
@@ -541,10 +539,8 @@ final class SharedCoverageTests extends BaseSharedTestCase
         $qb = $db->find()->from('t');
         $ref = new ReflectionClass($qb);
         $prop = $ref->getProperty('selectQueryBuilder');
-        $prop->setAccessible(true);
         $selectQb = $prop->getValue($qb);
         $method = (new ReflectionClass($selectQb))->getMethod('generateCacheKey');
-        $method->setAccessible(true);
         $key = $method->invoke($selectQb);
         $this->assertIsString($key);
     }

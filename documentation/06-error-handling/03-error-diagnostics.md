@@ -7,8 +7,20 @@ Enhanced error diagnostics help you understand what went wrong with your queries
 PDOdb provides comprehensive error diagnostics that include:
 
 - **Query Context** - Complete information about the query builder state at the time of error
-- **Sanitized Parameters** - Parameter values in error messages (sensitive data masked)
+- **Parameter Formatting** - Some parameter names are masked in formatted error messages; this is not a guarantee that all sensitive data is removed
 - **Debug Information** - Detailed query structure for troubleshooting
+
+## Logging safely
+
+`DatabaseException::toSafeArray()` contains diagnostic metadata only. It omits SQL, parameter values, the driver message and the stack trace because any of them may contain sensitive data:
+
+```php
+catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
+    $logger->error('Database error', $e->toSafeArray());
+}
+```
+
+`toArray()`, `getContext()`, `getQueryContext()`, `getDescription()` and debug output retain detailed information for compatibility and may contain secrets. Name-based masking cannot reliably identify positional or generated parameters. Use detailed output only in a trusted environment.
 
 ## QueryBuilder Debug Information
 

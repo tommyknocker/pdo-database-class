@@ -339,7 +339,6 @@ final class QueryCompilationCacheTests extends BaseSharedTestCase
         $cache = $this->createCache();
         $reflection = new \ReflectionClass($cache);
         $method = $reflection->getMethod('hashQueryStructure');
-        $method->setAccessible(true);
 
         $structure = [
             'table' => 'users',
@@ -368,7 +367,6 @@ final class QueryCompilationCacheTests extends BaseSharedTestCase
         $cache = $this->createCache();
         $reflection = new \ReflectionClass($cache);
         $method = $reflection->getMethod('hashQueryStructure');
-        $method->setAccessible(true);
 
         $structure = [
             'table' => 'users',
@@ -396,7 +394,6 @@ final class QueryCompilationCacheTests extends BaseSharedTestCase
         $cache = $this->createCache();
         $reflection = new \ReflectionClass($cache);
         $method = $reflection->getMethod('normalizeArray');
-        $method->setAccessible(true);
 
         $input = ['a', 'b', 'c'];
         $result = $method->invoke($cache, $input);
@@ -409,7 +406,6 @@ final class QueryCompilationCacheTests extends BaseSharedTestCase
         $cache = $this->createCache();
         $reflection = new \ReflectionClass($cache);
         $method = $reflection->getMethod('normalizeConditions');
-        $method->setAccessible(true);
 
         $conditions = [
             ['sql' => 'id = :id', 'cond' => 'AND'],
@@ -429,7 +425,6 @@ final class QueryCompilationCacheTests extends BaseSharedTestCase
         $cache = $this->createCache();
         $reflection = new \ReflectionClass($cache);
         $method = $reflection->getMethod('normalizeConditions');
-        $method->setAccessible(true);
 
         $conditions = ['id = :id', 'name = :name'];
 
@@ -445,7 +440,6 @@ final class QueryCompilationCacheTests extends BaseSharedTestCase
         $cache = $this->createCache();
         $reflection = new \ReflectionClass($cache);
         $method = $reflection->getMethod('normalizeConditions');
-        $method->setAccessible(true);
 
         $conditions = [123, null, true];
 

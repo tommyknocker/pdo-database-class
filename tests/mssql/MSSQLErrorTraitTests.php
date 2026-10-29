@@ -30,7 +30,6 @@ final class MSSQLErrorTraitTests extends TestCase
     {
         $dummy = $this->getDummy();
         $method = new ReflectionMethod(get_class($dummy), 'getMssqlDescriptions');
-        $method->setAccessible(true);
         /** @var array<string,string> $descs */
         $descs = $method->invoke(null);
 

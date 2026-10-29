@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Preserve NULL and DISTINCT semantics in filtered COUNT fallbacks and handle complex nested WHERE conditions.
+- Align the condition-builder interface with Closure-based WHERE and HAVING methods.
+- Use a selected column as the fallback sort for MSSQL DISTINCT pagination, including queries with CTEs.
+- Clear temporary cache state after scalar reads so a reused builder cannot mix scalar and row results.
+- Preserve parameterized CTE bindings during pagination and bypass compilation caching for CTEs, whose SQL and parameter state are assembled during compilation.
+- Count plain-column JOIN results without constructing a derived table with duplicate column names on MySQL/MariaDB.
+- Avoid PHP 8.5 deprecations in AI HTTP headers, eager loading with null keys, and Reflection-based tests and examples; PHP 8.4 remains supported. Eager-loaded belongs-to relations are now assigned to their original models.
+- Automatically generated result cache keys distinguish connections and result shapes; old automatic entries become cache misses. Explicit cache keys retain their existing behavior and must be unique per database and result shape.
+- Apply QueryBuilder global scopes to pagination and retain UNION and DISTINCT options for single-row, column and scalar reads. Existing queries that depended on omitted scopes or options may return different results.
+- Count grouped and distinct result rows in pagination and return pagination results from ActiveQuery with model scopes applied.
+- Avoid deprecated SQLite function registration and reflection calls in library-created SQLite connections on PHP 8.5.
+
+### Added
+- `DatabaseException::toSafeArray()` for logging metadata without SQL, parameters, driver messages or stack traces. Existing detailed diagnostic methods can contain sensitive data.
+- PHP 8.5 SQLite and shared tests in CI and regression tests for result cache isolation, scopes, pagination and diagnostics.
+
+### Changed
+- Lock development dependencies in `composer.lock` for reproducible static analysis and quality checks.
+
 ## [2.12.1] - 2026-03-22
 
 ### Fixed

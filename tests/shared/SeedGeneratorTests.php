@@ -144,7 +144,6 @@ final class SeedGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SeedGenerator::class);
         $method = $reflection->getMethod('suggestSeedType');
-        $method->setAccessible(true);
 
         $suggestions = $method->invoke(null, 'users_data');
         $this->assertIsArray($suggestions);
@@ -155,7 +154,6 @@ final class SeedGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SeedGenerator::class);
         $method = $reflection->getMethod('suggestSeedType');
-        $method->setAccessible(true);
 
         $suggestions = $method->invoke(null, 'admin_users');
         $this->assertIsArray($suggestions);
@@ -167,7 +165,6 @@ final class SeedGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SeedGenerator::class);
         $method = $reflection->getMethod('suggestSeedType');
-        $method->setAccessible(true);
 
         $suggestions = $method->invoke(null, 'categories');
         $this->assertIsArray($suggestions);
@@ -178,7 +175,6 @@ final class SeedGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SeedGenerator::class);
         $method = $reflection->getMethod('suggestSeedType');
-        $method->setAccessible(true);
 
         $suggestions = $method->invoke(null, 'products');
         $this->assertIsArray($suggestions);
@@ -189,7 +185,6 @@ final class SeedGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SeedGenerator::class);
         $method = $reflection->getMethod('suggestSeedType');
-        $method->setAccessible(true);
 
         $suggestions = $method->invoke(null, 'roles');
         $this->assertIsArray($suggestions);
@@ -200,7 +195,6 @@ final class SeedGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SeedGenerator::class);
         $method = $reflection->getMethod('suggestSeedType');
-        $method->setAccessible(true);
 
         $suggestions = $method->invoke(null, 'settings');
         $this->assertIsArray($suggestions);
@@ -211,7 +205,6 @@ final class SeedGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SeedGenerator::class);
         $method = $reflection->getMethod('suggestSeedType');
-        $method->setAccessible(true);
 
         $suggestions = $method->invoke(null, 'test_data');
         $this->assertIsArray($suggestions);
@@ -222,7 +215,6 @@ final class SeedGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SeedGenerator::class);
         $method = $reflection->getMethod('suggestSeedType');
-        $method->setAccessible(true);
 
         $suggestions = $method->invoke(null, 'demo');
         $this->assertIsArray($suggestions);
@@ -233,7 +225,6 @@ final class SeedGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SeedGenerator::class);
         $method = $reflection->getMethod('suggestSeedType');
-        $method->setAccessible(true);
 
         $suggestions = $method->invoke(null, 'unknown_seed');
         $this->assertIsArray($suggestions);

@@ -57,7 +57,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadEnvFile');
-        $method->setAccessible(true);
 
         // Create temporary .env file
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
@@ -89,7 +88,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadEnvFile');
-        $method->setAccessible(true);
 
         // Set custom env path to non-existent file
         putenv('PDODB_ENV_PATH=/nonexistent/path/.env');
@@ -110,7 +108,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadEnvFile');
-        $method->setAccessible(true);
 
         // Create temporary .env file with quoted values
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
@@ -139,7 +136,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=:memory:');
@@ -163,7 +159,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         $config = $method->invoke(null, '');
 
@@ -177,7 +172,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         $config = $method->invoke(null, 'invalid_driver');
 
@@ -191,7 +185,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         putenv('PDODB_DRIVER=mysql');
         putenv('PDODB_HOST=localhost');
@@ -229,7 +222,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         putenv('PDODB_DRIVER=mysql');
         // Don't set PDODB_DATABASE and PDODB_USERNAME
@@ -251,7 +243,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('readInput');
-        $method->setAccessible(true);
 
         // Should return default value
         $result = $method->invoke(null, 'Enter value', 'default');
@@ -269,7 +260,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('readPassword');
-        $method->setAccessible(true);
 
         // In non-interactive mode, readPassword should return empty string
         // since fgets(STDIN) will return empty when STDIN is not available
@@ -286,7 +276,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('readConfirmation');
-        $method->setAccessible(true);
 
         // Should return default value
         $result = $method->invoke(null, 'Confirm?', true);
@@ -303,7 +292,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadCacheConfig');
-        $method->setAccessible(true);
 
         putenv('PDODB_CACHE_ENABLED=true');
         putenv('PDODB_CACHE_TYPE=filesystem');
@@ -330,7 +318,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadCacheConfig');
-        $method->setAccessible(true);
 
         putenv('PDODB_CACHE_ENABLED=false');
 
@@ -351,7 +338,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadCacheConfig');
-        $method->setAccessible(true);
 
         $dbConfig = [
             'cache' => [
@@ -376,7 +362,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('getDriverName');
-        $method->setAccessible(true);
 
         $db = new PdoDb('sqlite', ['path' => ':memory:']);
         $driverName = $method->invoke(null, $db);
@@ -392,7 +377,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('getDriverName');
-        $method->setAccessible(true);
 
         // Test with SQLite
         $db = new PdoDb('sqlite', ['path' => ':memory:']);
@@ -407,7 +391,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadDatabaseConfig');
-        $method->setAccessible(true);
 
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=:memory:');
@@ -432,7 +415,6 @@ class BaseCliCommandTests extends TestCase
         // Test buildConfigFromEnv directly, which is called by loadDatabaseConfig
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         putenv('PDODB_DRIVER=mysql');
         // Don't set PDODB_DATABASE and PDODB_USERNAME
@@ -458,7 +440,6 @@ class BaseCliCommandTests extends TestCase
         // Test buildConfigFromEnv directly, which is called by loadDatabaseConfig
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $config = $method->invoke(null, 'invalid_driver');
@@ -477,7 +458,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('createDatabase');
-        $method->setAccessible(true);
 
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=:memory:');
@@ -488,7 +468,6 @@ class BaseCliCommandTests extends TestCase
             $this->assertInstanceOf(PdoDb::class, $db);
             // Verify driver via getDriverName helper
             $getDriverNameMethod = $reflection->getMethod('getDriverName');
-            $getDriverNameMethod->setAccessible(true);
             $driverName = $getDriverNameMethod->invoke(null, $db);
             $this->assertEquals('sqlite', $driverName);
         } finally {
@@ -508,7 +487,6 @@ class BaseCliCommandTests extends TestCase
         // we test buildConfigFromEnv which is called by loadDatabaseConfig
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         // Clear all database-related env vars
         putenv('PDODB_DRIVER');
@@ -533,7 +511,6 @@ class BaseCliCommandTests extends TestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadDatabaseConfig');
-        $method->setAccessible(true);
 
         // Create temporary config file with multi-connection structure
         $tempDir = sys_get_temp_dir() . '/pdodb_test_' . uniqid();
@@ -583,7 +560,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadDatabaseConfig');
-        $method->setAccessible(true);
 
         // Create temporary config file with multi-connection structure
         $tempDir = sys_get_temp_dir() . '/pdodb_test_' . uniqid();
@@ -635,7 +611,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadDatabaseConfig');
-        $method->setAccessible(true);
 
         // Create temporary config file with legacy structure
         $tempDir = sys_get_temp_dir() . '/pdodb_test_' . uniqid();
@@ -682,7 +657,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadDatabaseConfig');
-        $method->setAccessible(true);
 
         // Create temporary config file with legacy named connections
         $tempDir = sys_get_temp_dir() . '/pdodb_test_' . uniqid();
@@ -731,7 +705,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadDatabaseConfig');
-        $method->setAccessible(true);
 
         // Create temporary examples config file
         $examplesDir = __DIR__ . '/../../examples';
@@ -778,7 +751,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         putenv('PDODB_DRIVER=pgsql');
         putenv('PDODB_HOST=localhost');
@@ -818,7 +790,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         putenv('PDODB_DRIVER=sqlsrv');
         putenv('PDODB_HOST=localhost');
@@ -853,7 +824,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         putenv('PDODB_DRIVER=mariadb');
         putenv('PDODB_HOST=localhost');
@@ -893,7 +863,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadEnvFile');
-        $method->setAccessible(true);
 
         // Create temporary .env file in temp directory
         $tempDir = sys_get_temp_dir() . '/pdodb_test_' . uniqid();
@@ -928,7 +897,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('createDatabase');
-        $method->setAccessible(true);
 
         // For MySQL, we need valid connection details
         // Since we can't guarantee MySQL is available, we test the method structure
@@ -944,7 +912,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('getDriverName');
-        $method->setAccessible(true);
 
         // Test with SQLite
         $db = new PdoDb('sqlite', ['path' => ':memory:']);
@@ -959,7 +926,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadDatabaseConfig');
-        $method->setAccessible(true);
 
         // Create temporary config file
         $tempDir = sys_get_temp_dir() . '/pdodb_test_' . uniqid();
@@ -1027,7 +993,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('createDatabase');
-        $method->setAccessible(true);
 
         // Verify method exists and has correct signature
         $this->assertTrue($reflection->hasMethod('createDatabase'));
@@ -1045,7 +1010,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('getDriverName');
-        $method->setAccessible(true);
 
         // Test with null database
         try {
@@ -1065,7 +1029,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('createDatabase');
-        $method->setAccessible(true);
 
         // Test with SQLite - database already exists
         putenv('PDODB_DRIVER=sqlite');
@@ -1091,7 +1054,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         // Test with SQLite but missing path
         putenv('PDODB_DRIVER=sqlite');
@@ -1116,7 +1078,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         // Clear all environment variables
         putenv('PDODB_DRIVER');
@@ -1144,7 +1105,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadEnvFile');
-        $method->setAccessible(true);
 
         // Create empty .env file
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
@@ -1169,7 +1129,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadEnvFile');
-        $method->setAccessible(true);
 
         // Create .env file with malformed lines
         $envFile = sys_get_temp_dir() . '/pdodb_test_' . uniqid() . '.env';
@@ -1197,7 +1156,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadDatabaseConfig');
-        $method->setAccessible(true);
 
         // Create invalid config file
         $tempDir = sys_get_temp_dir() . '/pdodb_test_' . uniqid();
@@ -1236,7 +1194,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadDatabaseConfig');
-        $method->setAccessible(true);
 
         // Create config file returning non-array
         $tempDir = sys_get_temp_dir() . '/pdodb_test_' . uniqid();
@@ -1280,7 +1237,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('buildConfigFromEnv');
-        $method->setAccessible(true);
 
         // Test with MySQL but only some variables set
         putenv('PDODB_DRIVER=mysql');
@@ -1307,7 +1263,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('createDatabase');
-        $method->setAccessible(true);
 
         // Test with cache enabled
         putenv('PDODB_DRIVER=sqlite');
@@ -1337,7 +1292,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('createCache');
-        $method->setAccessible(true);
 
         $cacheConfig = [
             'enabled' => true,
@@ -1355,7 +1309,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('createCache');
-        $method->setAccessible(true);
 
         $cacheConfig = [
             'enabled' => false,
@@ -1372,7 +1325,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('createCache');
-        $method->setAccessible(true);
 
         $cacheConfig = [];
 
@@ -1387,7 +1339,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadCacheConfig');
-        $method->setAccessible(true);
 
         putenv('PDODB_CACHE_ENABLED=true');
         putenv('PDODB_CACHE_TYPE=redis');
@@ -1416,7 +1367,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadCacheConfig');
-        $method->setAccessible(true);
 
         putenv('PDODB_CACHE_ENABLED=true');
         putenv('PDODB_CACHE_TYPE=memcached');
@@ -1442,7 +1392,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadCacheConfig');
-        $method->setAccessible(true);
 
         putenv('PDODB_CACHE_ENABLED=true');
         putenv('PDODB_CACHE_PREFIX=test_prefix_');
@@ -1464,7 +1413,6 @@ PHP;
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadCacheConfig');
-        $method->setAccessible(true);
 
         putenv('PDODB_CACHE_ENABLED=true');
         putenv('PDODB_CACHE_TTL=7200');

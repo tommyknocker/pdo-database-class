@@ -63,7 +63,6 @@ try {
             $reflection = new \ReflectionClass($cache);
             if ($reflection->hasProperty('pool')) {
                 $property = $reflection->getProperty('pool');
-                $property->setAccessible(true);
                 $adapter = $property->getValue($cache);
                 if ($adapter instanceof \Symfony\Component\Cache\Adapter\RedisAdapter) {
                     $cacheTypeName = 'Redis';

@@ -29,7 +29,6 @@ final class SubcommandSuggestionTraitTests extends BaseSharedTestCase
         $command = new TestCommandWithSubcommandSuggestion();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showSubcommandError');
-        $method->setAccessible(true);
 
         ob_start();
         $exitCode = $method->invoke($command, 'create');
@@ -44,7 +43,6 @@ final class SubcommandSuggestionTraitTests extends BaseSharedTestCase
         $command = new TestCommandWithSubcommandSuggestion();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showSubcommandError');
-        $method->setAccessible(true);
 
         ob_start();
         $exitCode = $method->invoke($command, 'creat');
@@ -61,7 +59,6 @@ final class SubcommandSuggestionTraitTests extends BaseSharedTestCase
         $command = new TestCommandWithSubcommandSuggestion();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showSubcommandError');
-        $method->setAccessible(true);
 
         ob_start();
         $exitCode = $method->invoke($command, 'migrat');
@@ -77,7 +74,6 @@ final class SubcommandSuggestionTraitTests extends BaseSharedTestCase
         $command = new TestCommandWithSubcommandSuggestion();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showSubcommandError');
-        $method->setAccessible(true);
 
         ob_start();
         $exitCode = $method->invoke($command, 'xyzabc');
@@ -93,7 +89,6 @@ final class SubcommandSuggestionTraitTests extends BaseSharedTestCase
         $command = new TestCommandWithSubcommandSuggestion();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showSubcommandError');
-        $method->setAccessible(true);
 
         ob_start();
         $exitCode = $method->invoke($command, 'rolback');

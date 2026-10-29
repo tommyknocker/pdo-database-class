@@ -75,7 +75,6 @@ final class ModelCommandCliTests extends TestCase
         // Test that command has correct name and description
         $reflection = new \ReflectionClass($command);
         $nameProperty = $reflection->getProperty('name');
-        $nameProperty->setAccessible(true);
         $this->assertEquals('model', $nameProperty->getValue($command));
     }
 

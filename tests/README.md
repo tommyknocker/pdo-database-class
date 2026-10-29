@@ -49,7 +49,7 @@ These are already included in the GitHub Actions workflow configuration.
 
 - **MySQL `local-infile`**: `LOAD DATA LOCAL INFILE` is disabled by default in MySQL 8.0+ for security reasons
 - **PHP Extensions**: XML parsing requires `simplexml` and `xmlreader` extensions
-- The PDO connection is configured with `PDO::MYSQL_ATTR_LOCAL_INFILE => true` in `MySQLDialect.php`
+- The PDO connection is configured with `Pdo\Mysql::ATTR_LOCAL_INFILE => true` in `MySQLDialect.php`
 
 ### PostgreSQL
 
@@ -153,7 +153,7 @@ If you want LoadCsv/LoadXml tests to run (not skip):
 ### For MySQL:
 1. **Enable local_infile globally**: `SET GLOBAL local_infile=1;`
 2. **Check PHP extensions**: `php -m | grep -E "simplexml|xmlreader"`
-3. **Verify PDO option**: The connection has `PDO::MYSQL_ATTR_LOCAL_INFILE => true` (already configured in `MySQLDialect.php`)
+3. **Verify PDO option**: The connection has `Pdo\Mysql::ATTR_LOCAL_INFILE => true` (already configured in `MySQLDialect.php`)
 4. **Check file permissions**: Temporary files are created in `sys_get_temp_dir()`
 
 ### For PostgreSQL:

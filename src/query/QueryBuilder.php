@@ -941,6 +941,8 @@ class QueryBuilder implements QueryBuilderInterface
                 $this->selectQueryBuilder->setCteManager($this->cteManager);
             }
 
+            $this->syncSelectOptions();
+
             return $this->selectQueryBuilder->getOne();
         } finally {
             $this->restoreConnection($originalConnection);
@@ -985,6 +987,8 @@ class QueryBuilder implements QueryBuilderInterface
                 $this->selectQueryBuilder->setCteManager($this->cteManager);
             }
 
+            $this->syncSelectOptions();
+
             return $this->selectQueryBuilder->getColumn($name);
         } finally {
             $this->restoreConnection($originalConnection);
@@ -1026,6 +1030,8 @@ class QueryBuilder implements QueryBuilderInterface
             if ($this->cteManager !== null) {
                 $this->selectQueryBuilder->setCteManager($this->cteManager);
             }
+
+            $this->syncSelectOptions();
 
             return $this->selectQueryBuilder->getValue();
         } finally {
@@ -1360,13 +1366,13 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function where(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function where(string|array|RawValue|Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         // Handle the old signature: where(array $conditions, array $params)
         if (is_array($exprOrColumn) && is_array($value) && $operator === QueryConstants::OP_EQUAL) {
@@ -1393,13 +1399,13 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add AND WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function andWhere(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function andWhere(string|array|RawValue|Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         $this->conditionBuilder->andWhere($exprOrColumn, $value, $operator);
         return $this;
@@ -1408,13 +1414,13 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add OR WHERE clause.
      *
-     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function orWhere(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function orWhere(string|array|RawValue|Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         $this->conditionBuilder->orWhere($exprOrColumn, $value, $operator);
         return $this;
@@ -1423,13 +1429,13 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add HAVING clause.
      *
-     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function having(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function having(string|array|RawValue|Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         $this->conditionBuilder->having($exprOrColumn, $value, $operator);
         return $this;
@@ -1438,13 +1444,13 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Add OR HAVING clause.
      *
-     * @param string|array<string, mixed>|RawValue|\Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
+     * @param string|array<string, mixed>|RawValue|Closure(QueryBuilder): void $exprOrColumn The expression or column to add.
      * @param mixed $value The value to use in the condition.
      * @param string $operator The operator to use in the condition.
      *
      * @return static The current instance.
      */
-    public function orHaving(string|array|RawValue|\Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
+    public function orHaving(string|array|RawValue|Closure $exprOrColumn, mixed $value = null, string $operator = QueryConstants::OP_EQUAL): static
     {
         $this->conditionBuilder->orHaving($exprOrColumn, $value, $operator);
         return $this;
@@ -2392,10 +2398,16 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function paginate(int $perPage = 15, ?int $page = null, array $options = []): pagination\PaginationResult
     {
-        // Integrate JSON selections and orders before paginating
-        $this->integrateJsonSelectionsAndOrders();
+        $this->applyGlobalScopes();
+        $originalConnection = $this->switchToReadConnection();
 
-        return $this->selectQueryBuilder->paginate($perPage, $page, $options);
+        try {
+            $this->integrateJsonSelectionsAndOrders();
+            $this->syncSelectOptions();
+            return $this->selectQueryBuilder->paginate($perPage, $page, $options);
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /**
@@ -2410,10 +2422,16 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function simplePaginate(int $perPage = 15, ?int $page = null, array $options = []): pagination\SimplePaginationResult
     {
-        // Integrate JSON selections and orders before paginating
-        $this->integrateJsonSelectionsAndOrders();
+        $this->applyGlobalScopes();
+        $originalConnection = $this->switchToReadConnection();
 
-        return $this->selectQueryBuilder->simplePaginate($perPage, $page, $options);
+        try {
+            $this->integrateJsonSelectionsAndOrders();
+            $this->syncSelectOptions();
+            return $this->selectQueryBuilder->simplePaginate($perPage, $page, $options);
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
     }
 
     /**
@@ -2431,10 +2449,33 @@ class QueryBuilder implements QueryBuilderInterface
         string|pagination\Cursor|null $cursor = null,
         array $options = []
     ): pagination\CursorPaginationResult {
-        // Integrate JSON selections and orders before paginating
-        $this->integrateJsonSelectionsAndOrders();
+        $this->applyGlobalScopes();
+        $originalConnection = $this->switchToReadConnection();
 
-        return $this->selectQueryBuilder->cursorPaginate($perPage, $cursor, $options);
+        try {
+            $this->integrateJsonSelectionsAndOrders();
+            $this->syncSelectOptions();
+            return $this->selectQueryBuilder->cursorPaginate($perPage, $cursor, $options);
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
+    }
+
+    /** Synchronize query-level SELECT options before executing a query. */
+    protected function syncSelectOptions(): void
+    {
+        if ($this->cteManager !== null) {
+            $this->selectQueryBuilder->setCteManager($this->cteManager);
+        }
+        if (!empty($this->unions)) {
+            $this->selectQueryBuilder->setUnions($this->unions);
+        }
+        if ($this->distinct) {
+            $this->selectQueryBuilder->setDistinct(true);
+        }
+        if (!empty($this->distinctOn)) {
+            $this->selectQueryBuilder->setDistinctOn($this->distinctOn);
+        }
     }
 
     /**

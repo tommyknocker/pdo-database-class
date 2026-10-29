@@ -169,7 +169,6 @@ final class CacheTests extends BaseSharedTestCase
         // Use reflection to access protected method
         $reflection = new \ReflectionClass($compilationCache);
         $method = $reflection->getMethod('hashQueryStructure');
-        $method->setAccessible(true);
 
         $hash1 = $method->invoke($compilationCache, $structure1, 'sqlite');
         $hash2 = $method->invoke($compilationCache, $structure2, 'sqlite');
@@ -332,7 +331,6 @@ final class CacheTests extends BaseSharedTestCase
         // Force persist to ensure stats are saved
         $reflection = new \ReflectionClass($cm1);
         $persistMethod = $reflection->getMethod('persistStats');
-        $persistMethod->setAccessible(true);
         $persistMethod->invoke($cm1);
 
         // Get stats from first instance

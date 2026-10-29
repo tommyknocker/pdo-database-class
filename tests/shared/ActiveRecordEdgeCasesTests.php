@@ -265,10 +265,8 @@ final class ActiveRecordEdgeCasesTests extends BaseSharedTestCase
         // Set oldAttributes to make it think it's an existing record
         $reflection = new \ReflectionClass($model);
         $oldAttributesProp = $reflection->getProperty('oldAttributes');
-        $oldAttributesProp->setAccessible(true);
         $oldAttributesProp->setValue($model, ['id' => 99999]);
         $isNewRecordProp = $reflection->getProperty('isNewRecord');
-        $isNewRecordProp->setAccessible(true);
         $isNewRecordProp->setValue($model, false);
 
         // Can't refresh non-existent record

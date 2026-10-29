@@ -308,7 +308,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(MigrationGenerator::class);
         $method = $reflection->getMethod('suggestMigrationType');
-        $method->setAccessible(true);
 
         // Test create table suggestion
         $suggestions = $method->invoke(null, 'create_users_table');
@@ -448,7 +447,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('modelNameToTableName');
-        $method->setAccessible(true);
 
         $this->assertEquals('users', $method->invoke(null, 'User'));
         $this->assertEquals('user_profiles', $method->invoke(null, 'UserProfile'));
@@ -469,7 +467,6 @@ class CliToolsTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('detectPrimaryKey');
-        $method->setAccessible(true);
 
         $primaryKey = $method->invoke(null, self::$db, 'test_model_pk');
         $this->assertContains('id', $primaryKey);
@@ -509,7 +506,6 @@ class CliToolsTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('getForeignKeys');
-        $method->setAccessible(true);
 
         $foreignKeys = $method->invoke(null, self::$db, 'test_model_fk_child');
         $this->assertIsArray($foreignKeys);
@@ -526,7 +522,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('generateAttributes');
-        $method->setAccessible(true);
 
         $columns = [
             ['name' => 'id', 'type' => 'integer', 'null' => false],
@@ -546,7 +541,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('generateRelationships');
-        $method->setAccessible(true);
 
         $foreignKeys = [
             [
@@ -569,7 +563,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('getModelOutputPath');
-        $method->setAccessible(true);
 
         $path = $method->invoke(null);
         $this->assertIsString($path);
@@ -582,7 +575,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('generateModelCode');
-        $method->setAccessible(true);
 
         $columns = [
             ['name' => 'id', 'type' => 'integer'],
@@ -603,7 +595,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('generateModelCode');
-        $method->setAccessible(true);
 
         $columns = [
             ['name' => 'user_id', 'type' => 'integer'],
@@ -623,7 +614,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('generateModelCode');
-        $method->setAccessible(true);
 
         $columns = [
             ['name' => 'id', 'type' => 'integer'],
@@ -650,7 +640,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('generateAttributes');
-        $method->setAccessible(true);
 
         $columns = [
             ['Field' => 'id', 'Type' => 'integer'], // MySQL format
@@ -672,7 +661,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('generateAttributes');
-        $method->setAccessible(true);
 
         $columns = [
             ['name' => 'id', 'type' => 'integer'],
@@ -691,7 +679,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('generateRelationships');
-        $method->setAccessible(true);
 
         $relationships = $method->invoke(null, []);
         $this->assertEquals('', $relationships);
@@ -711,7 +698,6 @@ class CliToolsTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('detectPrimaryKey');
-        $method->setAccessible(true);
 
         $primaryKey = $method->invoke(null, self::$db, 'test_model_pk_fallback');
         $this->assertIsArray($primaryKey);
@@ -728,7 +714,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('detectPrimaryKey');
-        $method->setAccessible(true);
 
         // Use non-existent table to trigger exception
         try {
@@ -748,7 +733,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('getForeignKeys');
-        $method->setAccessible(true);
 
         // Use non-existent table to trigger exception
         $foreignKeys = $method->invoke(null, self::$db, 'nonexistent_table_xyz');
@@ -769,7 +753,6 @@ class CliToolsTests extends BaseSharedTestCase
         try {
             $reflection = new \ReflectionClass(ModelGenerator::class);
             $method = $reflection->getMethod('getModelOutputPath');
-            $method->setAccessible(true);
 
             $path = $method->invoke(null);
             $this->assertEquals($tempDir, $path);
@@ -796,7 +779,6 @@ class CliToolsTests extends BaseSharedTestCase
         try {
             $reflection = new \ReflectionClass(ModelGenerator::class);
             $method = $reflection->getMethod('getModelOutputPath');
-            $method->setAccessible(true);
 
             $path = $method->invoke(null);
             $this->assertIsString($path);
@@ -919,7 +901,6 @@ class CliToolsTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getAllTables');
-        $method->setAccessible(true);
 
         $tables = $method->invoke(null, self::$db);
         $this->assertIsArray($tables);
@@ -949,7 +930,6 @@ class CliToolsTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableRowCount');
-        $method->setAccessible(true);
 
         $count = $method->invoke(null, self::$db, 'test_inspector_count');
         $this->assertEquals('2', $count);
@@ -973,7 +953,6 @@ class CliToolsTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableColumns');
-        $method->setAccessible(true);
 
         $columns = $method->invoke(null, self::$db, 'test_inspector_columns');
         $this->assertIsArray($columns);
@@ -1007,7 +986,6 @@ class CliToolsTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableIndexes');
-        $method->setAccessible(true);
 
         $indexes = $method->invoke(null, self::$db, 'test_inspector_indexes');
         $this->assertIsArray($indexes);
@@ -1041,7 +1019,6 @@ class CliToolsTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableForeignKeys');
-        $method->setAccessible(true);
 
         $foreignKeys = $method->invoke(null, self::$db, 'test_inspector_fk_child');
         $this->assertIsArray($foreignKeys);
@@ -1065,7 +1042,6 @@ class CliToolsTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('getTableConstraints');
-        $method->setAccessible(true);
 
         $constraints = $method->invoke(null, self::$db, 'test_inspector_constraints');
         $this->assertIsArray($constraints);
@@ -1084,7 +1060,6 @@ class CliToolsTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('loadEnvFile');
-        $method->setAccessible(true);
 
         $oldCwd = getcwd();
         chdir(sys_get_temp_dir());
@@ -1110,7 +1085,6 @@ class CliToolsTests extends BaseSharedTestCase
         try {
             $reflection = new \ReflectionClass(BaseCliCommand::class);
             $method = $reflection->getMethod('buildConfigFromEnv');
-            $method->setAccessible(true);
 
             $config = $method->invoke(null, 'sqlite');
             $this->assertIsArray($config);
@@ -1129,7 +1103,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('success');
-        $method->setAccessible(true);
 
         $output = '';
         ob_start(function ($buffer) use (&$output) {
@@ -1153,7 +1126,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('info');
-        $method->setAccessible(true);
 
         $output = '';
         ob_start(function ($buffer) use (&$output) {
@@ -1177,7 +1149,6 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(BaseCliCommand::class);
         $method = $reflection->getMethod('warning');
-        $method->setAccessible(true);
 
         $output = '';
         ob_start(function ($buffer) use (&$output) {

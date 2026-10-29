@@ -72,6 +72,13 @@ jobs:
           PDODB_USERNAME="testuser" \
           PDODB_PASSWORD="testpass" \
           vendor/bin/phpunit --testsuite="MySQL Tests" --coverage-clover coverage-mysql.xml
+      - name: Test MySQL SELECT regressions
+        env:
+          PDODB_TEST_DRIVER: mysql
+          PDODB_TEST_DSN: "mysql:host=127.0.0.1;port=3306;dbname=testdb;charset=utf8mb4"
+          PDODB_TEST_USER: testuser
+          PDODB_TEST_PASSWORD: testpass
+        run: vendor/bin/phpunit tests/integration/SelectExecutionRegressionTests.php --no-coverage
       - name: Test MySQL Examples
         run: ./scripts/test-examples.sh --verbose
       - name: Upload MySQL coverage to Codecov
@@ -132,6 +139,13 @@ jobs:
           PDODB_USERNAME="testuser" \
           PDODB_PASSWORD="testpass" \
           vendor/bin/phpunit --testsuite="MariaDB Tests" --coverage-clover coverage-mariadb.xml
+      - name: Test MariaDB SELECT regressions
+        env:
+          PDODB_TEST_DRIVER: mariadb
+          PDODB_TEST_DSN: "mysql:host=127.0.0.1;port=3305;dbname=testdb;charset=utf8mb4"
+          PDODB_TEST_USER: testuser
+          PDODB_TEST_PASSWORD: testpass
+        run: vendor/bin/phpunit tests/integration/SelectExecutionRegressionTests.php --no-coverage
       - name: Test MariaDB Examples
         run: |
           export PDODB_DRIVER=mariadb
@@ -202,6 +216,13 @@ jobs:
           PDODB_USERNAME="testuser" \
           PDODB_PASSWORD="testpass" \
           vendor/bin/phpunit --testsuite="PostgreSQL Tests" --coverage-clover coverage-postgres.xml
+      - name: Test PostgreSQL SELECT regressions
+        env:
+          PDODB_TEST_DRIVER: pgsql
+          PDODB_TEST_DSN: "pgsql:host=localhost;port=5433;dbname=testdb"
+          PDODB_TEST_USER: testuser
+          PDODB_TEST_PASSWORD: testpass
+        run: vendor/bin/phpunit tests/integration/SelectExecutionRegressionTests.php --no-coverage
       - name: Test PostgreSQL Examples
         run: ./scripts/test-examples.sh --verbose
       - name: Upload PostgreSQL coverage to Codecov
@@ -254,6 +275,20 @@ jobs:
           files: ./coverage-sqlite.xml
           flags: sqlite
           name: sqlite-coverage
+
+  php85:
+    name: PHP 8.5 SQLite and shared tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: pdo_sqlite, apcu
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist
+      - run: vendor/bin/phpunit --testsuite="SQLite Tests" --fail-on-deprecation
+      - run: vendor/bin/phpunit --testsuite="Shared Tests" --fail-on-deprecation
 
   mssql:
     name: MSSQL Tests
@@ -336,6 +371,15 @@ jobs:
           PDODB_USERNAME="sa" \
           PDODB_PASSWORD="Test123!@#" \
           vendor/bin/phpunit --testsuite="MSSQL Tests" --coverage-clover coverage-mssql.xml
+      - name: Test MSSQL SELECT regressions
+        env:
+          PDODB_TEST_DRIVER: sqlsrv
+          PDODB_TEST_DSN: "sqlsrv:Server=localhost,1433;Database=testdb;TrustServerCertificate=yes"
+          PDODB_TEST_USER: sa
+          PDODB_TEST_PASSWORD: "Test123!@#"
+        run: |
+          vendor/bin/phpunit tests/integration/ReadOnlyDialectRegressionTests.php --no-coverage
+          vendor/bin/phpunit tests/integration/TemporaryDialectRegressionTests.php --no-coverage
       - name: Test MSSQL Examples
         run: |
           export PDODB_DRIVER=sqlsrv
@@ -524,6 +568,17 @@ jobs:
           export PDODB_PASSWORD=testpass
           export PDODB_SERVICE_NAME=XEPDB1
           vendor/bin/phpunit --testsuite="Oracle Tests" --coverage-clover coverage-oracle.xml
+      - name: Test Oracle SELECT regressions
+        env:
+          ORACLE_HOME: /usr/lib/oracle/23/client64
+          LD_LIBRARY_PATH: /usr/lib/oracle/23/client64
+          PDODB_TEST_DRIVER: oci
+          PDODB_TEST_DSN: "oci:dbname=//localhost:1521/XEPDB1;charset=AL32UTF8"
+          PDODB_TEST_USER: testuser
+          PDODB_TEST_PASSWORD: testpass
+        run: |
+          vendor/bin/phpunit tests/integration/ReadOnlyDialectRegressionTests.php --no-coverage
+          vendor/bin/phpunit tests/integration/TemporaryDialectRegressionTests.php --no-coverage
       - name: Test Oracle Examples
         run: |
           export ORACLE_HOME=/usr/lib/oracle/23/client64

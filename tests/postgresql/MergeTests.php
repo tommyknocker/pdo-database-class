@@ -86,23 +86,18 @@ final class MergeTests extends BasePostgreSQLTestCase
         // Just check that SQL is generated (don't execute)
         $reflection = new \ReflectionClass(self::$db->find());
         $prop = $reflection->getProperty('dmlQueryBuilder');
-        $prop->setAccessible(true);
         $dml = $prop->getValue(self::$db->find());
         $dml->setTable('merge_target');
         $srcProp = new \ReflectionProperty($dml, 'mergeSource');
-        $srcProp->setAccessible(true);
         $srcProp->setValue($dml, 'merge_source');
         $onProp = new \ReflectionProperty($dml, 'mergeOnConditions');
-        $onProp->setAccessible(true);
         $onProp->setValue($dml, ['target.id = source.id']);
         $clauseProp = new \ReflectionProperty($dml, 'mergeClause');
-        $clauseProp->setAccessible(true);
         $clause = new MergeClause();
         $clause->whenMatched = ['name' => Db::raw('source.name')];
         $clause->whenNotMatched = ['id' => Db::raw('source.id'), 'name' => Db::raw('source.name')];
         $clauseProp->setValue($dml, $clause);
         $buildMethod = new \ReflectionMethod($dml, 'buildMergeSql');
-        $buildMethod->setAccessible(true);
         [$sql] = $buildMethod->invoke($dml);
 
         $this->assertStringContainsString('MERGE INTO', $sql);

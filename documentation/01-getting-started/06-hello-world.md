@@ -81,7 +81,7 @@ foreach ($allUsers as $user) {
 }
 
 // Get single user
-// What's happening: getOne() returns the first row or null if no rows found
+// What's happening: getOne() returns the first row or false if no rows found
 // This is more efficient than get() when you only need one row
 $user = $db->find()
     ->from('users')

@@ -33,7 +33,6 @@ final class RawValueResolverTests extends BaseSharedTestCase
         $resolver = $this->createResolver();
         $reflection = new \ReflectionClass($resolver);
         $method = $reflection->getMethod('resolveJsonPathValue');
-        $method->setAccessible(true);
 
         $jsonPathValue = new JsonPathValue('data', '$.name', '=', 'John');
         $result = $method->invoke($resolver, $jsonPathValue);
@@ -48,7 +47,6 @@ final class RawValueResolverTests extends BaseSharedTestCase
         $resolver = $this->createResolver();
         $reflection = new \ReflectionClass($resolver);
         $method = $reflection->getMethod('resolveJsonPathValue');
-        $method->setAccessible(true);
 
         $rawValue = new RawValue(':param', ['param' => 'John']);
         $jsonPathValue = new JsonPathValue('data', '$.name', '=', $rawValue);
@@ -63,7 +61,6 @@ final class RawValueResolverTests extends BaseSharedTestCase
         $resolver = $this->createResolver();
         $reflection = new \ReflectionClass($resolver);
         $method = $reflection->getMethod('resolveJsonContainsValue');
-        $method->setAccessible(true);
 
         $jsonContainsValue = new JsonContainsValue('data', 'value', null);
         $result = $method->invoke($resolver, $jsonContainsValue);
@@ -76,7 +73,6 @@ final class RawValueResolverTests extends BaseSharedTestCase
         $resolver = $this->createResolver();
         $reflection = new \ReflectionClass($resolver);
         $method = $reflection->getMethod('resolveJsonSetValue');
-        $method->setAccessible(true);
 
         $jsonSetValue = new JsonSetValue('data', '$.name', 'John');
         $result = $method->invoke($resolver, $jsonSetValue);
@@ -89,7 +85,6 @@ final class RawValueResolverTests extends BaseSharedTestCase
         $resolver = $this->createResolver();
         $reflection = new \ReflectionClass($resolver);
         $method = $reflection->getMethod('resolveJsonRemoveValue');
-        $method->setAccessible(true);
 
         $jsonRemoveValue = new JsonRemoveValue('data', '$.name');
         $result = $method->invoke($resolver, $jsonRemoveValue);
@@ -102,7 +97,6 @@ final class RawValueResolverTests extends BaseSharedTestCase
         $resolver = $this->createResolver();
         $reflection = new \ReflectionClass($resolver);
         $method = $reflection->getMethod('resolveJsonReplaceValue');
-        $method->setAccessible(true);
 
         $jsonReplaceValue = new JsonReplaceValue('data', '$.name', 'John');
         $result = $method->invoke($resolver, $jsonReplaceValue);
@@ -115,7 +109,6 @@ final class RawValueResolverTests extends BaseSharedTestCase
         $resolver = $this->createResolver();
         $reflection = new \ReflectionClass($resolver);
         $method = $reflection->getMethod('resolveFulltextMatchValue');
-        $method->setAccessible(true);
 
         $fulltextMatchValue = new FulltextMatchValue(['title', 'content'], 'search term', 'NATURAL');
         $result = $method->invoke($resolver, $fulltextMatchValue);
@@ -128,7 +121,6 @@ final class RawValueResolverTests extends BaseSharedTestCase
         $resolver = $this->createResolver();
         $reflection = new \ReflectionClass($resolver);
         $method = $reflection->getMethod('resolveWindowFunctionValue');
-        $method->setAccessible(true);
 
         $windowFunctionValue = new WindowFunctionValue('ROW_NUMBER', [], [], [], null);
         $result = $method->invoke($resolver, $windowFunctionValue);
@@ -141,7 +133,6 @@ final class RawValueResolverTests extends BaseSharedTestCase
         $resolver = $this->createResolver();
         $reflection = new \ReflectionClass($resolver);
         $method = $reflection->getMethod('resolveFilterValue');
-        $method->setAccessible(true);
 
         $filterValue = new FilterValue('COUNT(*)', [
             ['column' => 'status', 'operator' => '=', 'value' => 'active'],
@@ -156,7 +147,6 @@ final class RawValueResolverTests extends BaseSharedTestCase
         $resolver = $this->createResolver();
         $reflection = new \ReflectionClass($resolver);
         $method = $reflection->getMethod('resolveFilterValue');
-        $method->setAccessible(true);
 
         $filterValue = new FilterValue('COUNT(*)', []);
         $result = $method->invoke($resolver, $filterValue);
@@ -169,7 +159,6 @@ final class RawValueResolverTests extends BaseSharedTestCase
         $resolver = $this->createResolver();
         $reflection = new \ReflectionClass($resolver);
         $method = $reflection->getMethod('buildCaseFallback');
-        $method->setAccessible(true);
 
         // Test COUNT function
         $result = $method->invoke($resolver, 'COUNT(*)', ':param = 1');

@@ -37,7 +37,6 @@ class FileLoaderTransactionTests extends BaseSharedTestCase
         // by checking that inTransaction() is called correctly
         $reflection = new ReflectionClass($loader);
         $connectionProperty = $reflection->getProperty('connection');
-        $connectionProperty->setAccessible(true);
         $connection = $connectionProperty->getValue($loader);
 
         $this->assertTrue($connection->inTransaction(), 'Connection should be in transaction');

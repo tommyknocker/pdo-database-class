@@ -6,6 +6,10 @@ namespace tommyknocker\pdodb\orm;
 
 use RuntimeException;
 use tommyknocker\pdodb\orm\relations\EagerLoader;
+use tommyknocker\pdodb\query\pagination\Cursor;
+use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
+use tommyknocker\pdodb\query\pagination\PaginationResult;
+use tommyknocker\pdodb\query\pagination\SimplePaginationResult;
 use tommyknocker\pdodb\query\QueryBuilder;
 
 /**
@@ -198,6 +202,31 @@ class ActiveQuery
         }
 
         return $models;
+    }
+
+    /**
+     * Paginate raw query results with model global scopes applied.
+     *
+     * @param array<string, mixed> $options
+     */
+    public function paginate(int $perPage = 15, ?int $page = null, array $options = []): PaginationResult
+    {
+        $this->ensureGlobalScopes();
+        return $this->queryBuilder->paginate($perPage, $page, $options);
+    }
+
+    /** @param array<string, mixed> $options */
+    public function simplePaginate(int $perPage = 15, ?int $page = null, array $options = []): SimplePaginationResult
+    {
+        $this->ensureGlobalScopes();
+        return $this->queryBuilder->simplePaginate($perPage, $page, $options);
+    }
+
+    /** @param array<string, mixed> $options */
+    public function cursorPaginate(int $perPage = 15, string|Cursor|null $cursor = null, array $options = []): CursorPaginationResult
+    {
+        $this->ensureGlobalScopes();
+        return $this->queryBuilder->cursorPaginate($perPage, $cursor, $options);
     }
 
     /**

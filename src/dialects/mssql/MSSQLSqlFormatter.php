@@ -89,14 +89,9 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
             $sql = $replaced !== null ? $replaced : $sql;
             // Ensure ORDER BY exists (required for OFFSET...FETCH NEXT)
             if (!preg_match('/\s+ORDER\s+BY\s+/i', $sql)) {
-                // If no ORDER BY, add a dummy one (MSSQL requires it)
-                // Try to find a primary key or first column
-                if (preg_match('/SELECT\s+.*?\s+FROM\s+(\w+)/i', $sql, $matches)) {
-                    $table = $matches[1];
-                    $sql .= ' ORDER BY (SELECT NULL)';
-                } else {
-                    $sql .= ' ORDER BY (SELECT NULL)';
-                }
+                // DISTINCT requires the ORDER BY expression to be selected.
+                $sql .= preg_match('/(?:^|\))\s*SELECT\s+DISTINCT\b/i', $sql)
+                    ? ' ORDER BY 1' : ' ORDER BY (SELECT NULL)';
             }
             $sql .= " OFFSET {$offset} ROWS FETCH NEXT {$limit} ROWS ONLY";
         } elseif ($offset !== null) {
@@ -105,7 +100,8 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
             $sql = $replaced !== null ? $replaced : $sql;
             // Ensure ORDER BY exists
             if (!preg_match('/\s+ORDER\s+BY\s+/i', $sql)) {
-                $sql .= ' ORDER BY (SELECT NULL)';
+                $sql .= preg_match('/(?:^|\))\s*SELECT\s+DISTINCT\b/i', $sql)
+                    ? ' ORDER BY 1' : ' ORDER BY (SELECT NULL)';
             }
             $sql .= " OFFSET {$offset} ROWS";
         }

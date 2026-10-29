@@ -723,7 +723,6 @@ SELECT * FROM users WHERE id = 1;
         // Use reflection to test getTableRowCount method directly
         $reflection = new \ReflectionClass($analyzer);
         $method = $reflection->getMethod('getTableRowCount');
-        $method->setAccessible(true);
 
         $rowCount = $method->invoke($analyzer, 'large_table_test');
         $this->assertIsInt($rowCount);

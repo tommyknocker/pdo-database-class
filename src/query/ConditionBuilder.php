@@ -677,7 +677,7 @@ class ConditionBuilder implements ConditionBuilderInterface
 
             if (!empty($items)) {
                 $sql = trim($this->buildConditionsClause($items, ''));
-                
+
                 $subParams = $instance->getParameterManager()->getParams();
                 $map = $this->parameterManager->mergeSubParams($subParams, 'grp');
                 $sql = $this->parameterManager->replacePlaceholdersInSql($sql, $map);

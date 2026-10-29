@@ -238,7 +238,6 @@ final class PostgreSQLDmlBuilderTests extends BasePostgreSQLTestCase
     {
         $reflection = new \ReflectionClass($this->builder);
         $method = $reflection->getMethod('buildIncrementExpression');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->builder, '"count"', ['__op' => 'inc', 'val' => 5], 'users');
         $this->assertStringContainsString('"count" = "users"."count" + 5', $result);
@@ -248,7 +247,6 @@ final class PostgreSQLDmlBuilderTests extends BasePostgreSQLTestCase
     {
         $reflection = new \ReflectionClass($this->builder);
         $method = $reflection->getMethod('buildIncrementExpression');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->builder, '"count"', ['__op' => 'dec', 'val' => 3], 'users');
         $this->assertStringContainsString('"count" = "users"."count" - 3', $result);
@@ -258,7 +256,6 @@ final class PostgreSQLDmlBuilderTests extends BasePostgreSQLTestCase
     {
         $reflection = new \ReflectionClass($this->builder);
         $method = $reflection->getMethod('buildRawValueExpression');
-        $method->setAccessible(true);
 
         $rawValue = new RawValue('NOW()');
         $result = $method->invoke($this->builder, '"updated_at"', $rawValue, 'users', 'updated_at');
@@ -269,7 +266,6 @@ final class PostgreSQLDmlBuilderTests extends BasePostgreSQLTestCase
     {
         $reflection = new \ReflectionClass($this->builder);
         $method = $reflection->getMethod('buildDefaultExpression');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->builder, '"name"', 'EXCLUDED."name"', 'name');
         $this->assertStringContainsString('"name" = EXCLUDED."name"', $result);
@@ -279,7 +275,6 @@ final class PostgreSQLDmlBuilderTests extends BasePostgreSQLTestCase
     {
         $reflection = new \ReflectionClass($this->builder);
         $method = $reflection->getMethod('buildDefaultExpression');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->builder, '"name"', 'name', 'name');
         $this->assertStringContainsString('EXCLUDED."name"', $result);

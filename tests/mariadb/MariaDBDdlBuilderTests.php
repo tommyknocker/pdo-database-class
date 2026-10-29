@@ -27,7 +27,6 @@ final class MariaDBDdlBuilderTests extends BaseMariaDBTestCase
         // Get ddlBuilder from dialect via reflection
         $reflection = new \ReflectionClass($dialect);
         $builderProperty = $reflection->getProperty('ddlBuilder');
-        $builderProperty->setAccessible(true);
         return $builderProperty->getValue($dialect);
     }
 
@@ -139,7 +138,6 @@ final class MariaDBDdlBuilderTests extends BaseMariaDBTestCase
         $builder = $this->getDdlBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('formatColumnDefinition');
-        $method->setAccessible(true);
 
         // Test BOOLEAN type (should be converted to TINYINT(1))
         $column = new ColumnSchema('BOOLEAN');

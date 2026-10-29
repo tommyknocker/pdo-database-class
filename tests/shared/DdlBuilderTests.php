@@ -27,7 +27,6 @@ class DdlBuilderTests extends BaseSharedTestCase
         // Get ddlBuilder from dialect via reflection
         $reflection = new \ReflectionClass($dialect);
         $builderProperty = $reflection->getProperty('ddlBuilder');
-        $builderProperty->setAccessible(true);
         return $builderProperty->getValue($dialect);
     }
 

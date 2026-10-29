@@ -443,7 +443,6 @@ class CacheManager
             if (class_exists(Psr16Cache::class)
                 && $this->cache instanceof Psr16Cache) {
                 $poolProperty = $reflection->getProperty('pool');
-                $poolProperty->setAccessible(true);
 
                 // Check if property is initialized (for typed properties)
                 if ($poolProperty->isInitialized($this->cache)) {
@@ -453,7 +452,6 @@ class CacheManager
                         && $pool instanceof RedisAdapter) {
                         $poolReflection = new ReflectionClass($pool);
                         $redisProperty = $poolReflection->getProperty('redis');
-                        $redisProperty->setAccessible(true);
 
                         // Check if redis property is initialized
                         if ($redisProperty->isInitialized($pool)) {
@@ -503,8 +501,6 @@ class CacheManager
 
         foreach ($reflection->getProperties() as $property) {
             try {
-                $property->setAccessible(true);
-
                 // Check if property is initialized (for typed properties)
                 if (!$property->isInitialized($object)) {
                     continue;
@@ -579,14 +575,14 @@ class CacheManager
             if (class_exists(Psr16Cache::class)
                 && $this->cache instanceof Psr16Cache) {
                 $poolProperty = $reflection->getProperty('pool');
-                $poolProperty->setAccessible(true);
+
                 $pool = $poolProperty->getValue($this->cache);
 
                 if (class_exists(MemcachedAdapter::class)
                     && $pool instanceof MemcachedAdapter) {
                     $poolReflection = new ReflectionClass($pool);
                     $memcachedProperty = $poolReflection->getProperty('client');
-                    $memcachedProperty->setAccessible(true);
+
                     $memcached = $memcachedProperty->getValue($pool);
 
                     if ($memcached instanceof \Memcached) {
@@ -620,7 +616,6 @@ class CacheManager
 
         foreach ($reflection->getProperties() as $property) {
             try {
-                $property->setAccessible(true);
                 $value = $property->getValue($object);
 
                 if ($value instanceof \Memcached) {
@@ -663,7 +658,7 @@ class CacheManager
         try {
             $reflection = new ReflectionClass($this->cache);
             $poolProperty = $reflection->getProperty('pool');
-            $poolProperty->setAccessible(true);
+
             $pool = $poolProperty->getValue($this->cache);
 
             if (class_exists(ApcuAdapter::class)
@@ -1223,7 +1218,6 @@ class CacheManager
             // Check properties for backend connections
             foreach ($reflection->getProperties() as $property) {
                 try {
-                    $property->setAccessible(true);
                     $value = $property->getValue($this->cache);
 
                     if ($value instanceof \Redis) {
@@ -1264,7 +1258,7 @@ class CacheManager
                 && $this->cache instanceof Psr16Cache) {
                 try {
                     $poolProperty = $reflection->getProperty('pool');
-                    $poolProperty->setAccessible(true);
+
                     $pool = $poolProperty->getValue($this->cache);
 
                     $poolClass = get_class($pool);

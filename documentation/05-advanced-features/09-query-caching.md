@@ -19,6 +19,10 @@ PDOdb provides built-in support for query result caching using PSR-16 (Simple Ca
 
 Query caching stores the results of SELECT queries in a cache layer, allowing subsequent identical queries to retrieve results from cache instead of executing against the database.
 
+Automatic result cache keys include the connection identity, result shape and fetch mode. This prevents `get()`, `getOne()` and `getValue()` from sharing incompatible values and separates databases with different DSNs. In-memory SQLite and connections without a known DSN use a process-local PDO identity; they do not share cached results across processes. Changing the key format causes existing automatic entries to become cache misses until repopulated.
+
+An explicit key passed to `cache($ttl, $key)` is used as supplied for compatibility. Assign distinct explicit keys to each database, query and result shape. When connection settings such as tenant-specific search paths change without changing the DSN, use distinct cache prefixes or explicit keys.
+
 ### Benefits
 
 - **Reduced Database Load**: Fewer queries executed

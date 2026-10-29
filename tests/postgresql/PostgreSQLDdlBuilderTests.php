@@ -27,7 +27,6 @@ final class PostgreSQLDdlBuilderTests extends BasePostgreSQLTestCase
         // Get ddlBuilder from dialect via reflection
         $reflection = new \ReflectionClass($dialect);
         $builderProperty = $reflection->getProperty('ddlBuilder');
-        $builderProperty->setAccessible(true);
         return $builderProperty->getValue($dialect);
     }
 
@@ -63,7 +62,6 @@ final class PostgreSQLDdlBuilderTests extends BasePostgreSQLTestCase
 
         // Check if buildCreateIndexSql supports include option
         $method = $reflection->getMethod('buildCreateIndexSql');
-        $method->setAccessible(true);
 
         $includeColumns = ['email', 'created_at'];
         $sql = $method->invoke($builder, 'idx_test', 'test_table', ['name'], false, null, $includeColumns);
@@ -85,7 +83,6 @@ final class PostgreSQLDdlBuilderTests extends BasePostgreSQLTestCase
         $reflection = new \ReflectionClass($builder);
 
         $method = $reflection->getMethod('buildCreateIndexSql');
-        $method->setAccessible(true);
 
         $where = 'status = \'active\'';
         $sql = $method->invoke($builder, 'idx_active', 'test_table', ['name'], false, $where);
@@ -139,7 +136,6 @@ final class PostgreSQLDdlBuilderTests extends BasePostgreSQLTestCase
         $builder = $this->getDdlBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('formatColumnDefinition');
-        $method->setAccessible(true);
 
         // Test BOOLEAN type (PostgreSQL uses BOOLEAN, not TINYINT)
         $column = new ColumnSchema('BOOLEAN');

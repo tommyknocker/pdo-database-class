@@ -37,11 +37,9 @@ final class ExternalReferenceProcessingTraitTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new ReflectionClass($builder);
         $method = $reflection->getMethod('isExternalReference');
-        $method->setAccessible(true);
 
         // Set table to 'users'
         $tableProperty = $reflection->getProperty('table');
-        $tableProperty->setAccessible(true);
         $tableProperty->setValue($builder, 'users');
 
         // 'users.id' is not external (table is 'users')
@@ -56,7 +54,6 @@ final class ExternalReferenceProcessingTraitTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new ReflectionClass($builder);
         $method = $reflection->getMethod('isExternalReference');
-        $method->setAccessible(true);
 
         // Invalid patterns
         $this->assertFalse($method->invoke($builder, 'invalid'));
@@ -70,11 +67,9 @@ final class ExternalReferenceProcessingTraitTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new ReflectionClass($builder);
         $method = $reflection->getMethod('isTableInCurrentQuery');
-        $method->setAccessible(true);
 
         // Set table to 'users'
         $tableProperty = $reflection->getProperty('table');
-        $tableProperty->setAccessible(true);
         $tableProperty->setValue($builder, 'users');
 
         $this->assertTrue($method->invoke($builder, 'users'));
@@ -86,11 +81,9 @@ final class ExternalReferenceProcessingTraitTests extends BaseSharedTestCase
         $builder = $this->createConditionBuilder();
         $reflection = new ReflectionClass($builder);
         $method = $reflection->getMethod('processExternalReferences');
-        $method->setAccessible(true);
 
         // Set table to 'users'
         $tableProperty = $reflection->getProperty('table');
-        $tableProperty->setAccessible(true);
         $tableProperty->setValue($builder, 'users');
 
         // External reference should be converted to RawValue

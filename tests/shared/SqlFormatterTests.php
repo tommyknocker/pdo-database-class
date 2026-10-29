@@ -261,7 +261,6 @@ final class SqlFormatterTests extends BaseSharedTestCase
         $formatter = new SqlFormatter();
         $reflection = new \ReflectionClass($formatter);
         $method = $reflection->getMethod('getIndent');
-        $method->setAccessible(true);
 
         // Test with negative level (should be clamped to 0)
         $indent = $method->invoke($formatter, -1);
@@ -273,7 +272,6 @@ final class SqlFormatterTests extends BaseSharedTestCase
         $formatter = new SqlFormatter();
         $reflection = new \ReflectionClass($formatter);
         $method = $reflection->getMethod('getIndent');
-        $method->setAccessible(true);
 
         $indent = $method->invoke($formatter, 0);
         $this->assertEquals('', $indent);
@@ -284,7 +282,6 @@ final class SqlFormatterTests extends BaseSharedTestCase
         $formatter = new SqlFormatter(false, 4);
         $reflection = new \ReflectionClass($formatter);
         $method = $reflection->getMethod('getIndent');
-        $method->setAccessible(true);
 
         $indent = $method->invoke($formatter, 2);
         $this->assertEquals('        ', $indent); // 2 levels * 4 spaces = 8 spaces
@@ -295,7 +292,6 @@ final class SqlFormatterTests extends BaseSharedTestCase
         $formatter = new SqlFormatter();
         $reflection = new \ReflectionClass($formatter);
         $method = $reflection->getMethod('normalizeWhitespace');
-        $method->setAccessible(true);
 
         $sql = 'SELECT     *     FROM    users';
         $normalized = $method->invoke($formatter, $sql);
@@ -307,7 +303,6 @@ final class SqlFormatterTests extends BaseSharedTestCase
         $formatter = new SqlFormatter();
         $reflection = new \ReflectionClass($formatter);
         $method = $reflection->getMethod('normalizeWhitespace');
-        $method->setAccessible(true);
 
         $sql = 'SELECT * FROM ( SELECT id FROM users )';
         $normalized = $method->invoke($formatter, $sql);
@@ -320,7 +315,6 @@ final class SqlFormatterTests extends BaseSharedTestCase
         $formatter = new SqlFormatter();
         $reflection = new \ReflectionClass($formatter);
         $method = $reflection->getMethod('normalizeWhitespace');
-        $method->setAccessible(true);
 
         $sql = 'SELECT id , name , email FROM users';
         $normalized = $method->invoke($formatter, $sql);
@@ -333,7 +327,6 @@ final class SqlFormatterTests extends BaseSharedTestCase
         $formatter = new SqlFormatter();
         $reflection = new \ReflectionClass($formatter);
         $method = $reflection->getMethod('cleanup');
-        $method->setAccessible(true);
 
         $sql = "SELECT *\n\n\n\nFROM users";
         $cleaned = $method->invoke($formatter, $sql);
@@ -345,7 +338,6 @@ final class SqlFormatterTests extends BaseSharedTestCase
         $formatter = new SqlFormatter();
         $reflection = new \ReflectionClass($formatter);
         $method = $reflection->getMethod('cleanup');
-        $method->setAccessible(true);
 
         $sql = "SELECT *   \nFROM users   ";
         $cleaned = $method->invoke($formatter, $sql);
@@ -357,7 +349,6 @@ final class SqlFormatterTests extends BaseSharedTestCase
         $formatter = new SqlFormatter();
         $reflection = new \ReflectionClass($formatter);
         $method = $reflection->getMethod('cleanup');
-        $method->setAccessible(true);
 
         $sql = "SELECT *   \nFROM users";
         $cleaned = $method->invoke($formatter, $sql);

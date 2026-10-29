@@ -23,7 +23,6 @@ class TableManagementTraitTests extends BaseSharedTestCase
         // Test via DdlQueryBuilder which uses TableManagementTrait
         $reflection = new \ReflectionClass($schema);
         $method = $reflection->getMethod('setTable');
-        $method->setAccessible(true);
 
         $result = $method->invoke($schema, 'test_table');
         $this->assertInstanceOf(DdlQueryBuilder::class, $result);
@@ -40,7 +39,6 @@ class TableManagementTraitTests extends BaseSharedTestCase
         // Test via DdlQueryBuilder which uses TableManagementTrait
         $reflection = new \ReflectionClass($schema);
         $method = $reflection->getMethod('setPrefix');
-        $method->setAccessible(true);
 
         // Set prefix
         $result = $method->invoke($schema, 'pref_');
@@ -64,12 +62,10 @@ class TableManagementTraitTests extends BaseSharedTestCase
 
         // Set prefix to test prefix handling
         $prefixProperty = $reflection->getProperty('prefix');
-        $prefixProperty->setAccessible(true);
         $prefixProperty->setValue($schema, 'test_');
 
         // Set table to null
         $tableProperty = $reflection->getProperty('table');
-        $tableProperty->setAccessible(true);
         $tableProperty->setValue($schema, null);
 
         // This should throw RuntimeException when normalizeTable is called with null
@@ -78,7 +74,6 @@ class TableManagementTraitTests extends BaseSharedTestCase
 
         // Call normalizeTable directly
         $method = $reflection->getMethod('normalizeTable');
-        $method->setAccessible(true);
         $method->invoke($schema, null);
     }
 
@@ -93,7 +88,6 @@ class TableManagementTraitTests extends BaseSharedTestCase
         // Use reflection to set prefix
         $reflection = new \ReflectionClass($schema);
         $method = $reflection->getMethod('setPrefix');
-        $method->setAccessible(true);
         $method->invoke($schema, 'test_');
 
         // normalizeTable is protected, test it directly
@@ -102,7 +96,6 @@ class TableManagementTraitTests extends BaseSharedTestCase
 
         // Test normalizeTable directly first
         $normalizeMethod = $reflection->getMethod('normalizeTable');
-        $normalizeMethod->setAccessible(true);
         $normalized = $normalizeMethod->invoke($schema, 'normalize_prefix');
         $this->assertIsString($normalized);
         $this->assertStringContainsString('test_normalize_prefix', $normalized);
@@ -132,7 +125,6 @@ class TableManagementTraitTests extends BaseSharedTestCase
         // Test via DdlQueryBuilder which uses TableManagementTrait
         $reflection = new \ReflectionClass($schema);
         $method = $reflection->getMethod('setTable');
-        $method->setAccessible(true);
 
         // Verify fluent interface
         $result = $method->invoke($schema, 'test_table');
@@ -152,12 +144,10 @@ class TableManagementTraitTests extends BaseSharedTestCase
 
         // Set table
         $setTableMethod = $reflection->getMethod('setTable');
-        $setTableMethod->setAccessible(true);
         $setTableMethod->invoke($schema, 'users');
 
         // Test normalizeTable
         $normalizeMethod = $reflection->getMethod('normalizeTable');
-        $normalizeMethod->setAccessible(true);
         $normalized = $normalizeMethod->invoke($schema);
 
         $this->assertIsString($normalized);

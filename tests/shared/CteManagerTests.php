@@ -194,7 +194,6 @@ final class CteManagerTests extends BaseSharedTestCase
         $manager = $this->createCteManager();
         $reflection = new \ReflectionClass($manager);
         $method = $reflection->getMethod('applyMySQLMaterializationHint');
-        $method->setAccessible(true);
 
         $sql = 'SELECT * FROM users';
         $result = $method->invoke($manager, $sql);

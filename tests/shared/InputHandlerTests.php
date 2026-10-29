@@ -53,7 +53,6 @@ final class InputHandlerTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(InputHandler::class);
         $method = $reflection->getMethod('parseEscapeSequence');
-        $method->setAccessible(true);
 
         // Test arrow keys
         $this->assertEquals('up', $method->invoke(null, '[A'));

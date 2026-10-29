@@ -60,7 +60,6 @@ final class MonitorManagerTests extends BaseSharedTestCase
     {
         $reflection = new ReflectionClass(MonitorManager::class);
         $method = $reflection->getMethod('toString');
-        $method->setAccessible(true);
 
         $this->assertEquals('test', $method->invoke(null, 'test'));
         $this->assertEquals('123', $method->invoke(null, 123));
@@ -73,7 +72,6 @@ final class MonitorManagerTests extends BaseSharedTestCase
     {
         $reflection = new ReflectionClass(MonitorManager::class);
         $method = $reflection->getMethod('toFloat');
-        $method->setAccessible(true);
 
         $this->assertEquals(1.5, $method->invoke(null, 1.5));
         $this->assertEquals(123.0, $method->invoke(null, 123));
@@ -86,7 +84,6 @@ final class MonitorManagerTests extends BaseSharedTestCase
     {
         $reflection = new ReflectionClass(MonitorManager::class);
         $method = $reflection->getMethod('getActiveQueriesSQLite');
-        $method->setAccessible(true);
 
         $result = $method->invoke(null, self::$db);
         $this->assertIsArray($result);
@@ -98,7 +95,6 @@ final class MonitorManagerTests extends BaseSharedTestCase
     {
         $reflection = new ReflectionClass(MonitorManager::class);
         $method = $reflection->getMethod('getActiveConnectionsSQLite');
-        $method->setAccessible(true);
 
         $result = $method->invoke(null, self::$db);
         $this->assertIsArray($result);
@@ -116,7 +112,6 @@ final class MonitorManagerTests extends BaseSharedTestCase
 
         $reflection = new ReflectionClass(MonitorManager::class);
         $method = $reflection->getMethod('getSlowQueriesSQLite');
-        $method->setAccessible(true);
 
         $result = $method->invoke(null, self::$db, 0.001, 10);
         $this->assertIsArray($result);
@@ -129,7 +124,6 @@ final class MonitorManagerTests extends BaseSharedTestCase
 
         $reflection = new ReflectionClass(MonitorManager::class);
         $method = $reflection->getMethod('getSlowQueriesSQLite');
-        $method->setAccessible(true);
 
         $result = $method->invoke(null, self::$db, 0.001, 10);
         $this->assertIsArray($result);

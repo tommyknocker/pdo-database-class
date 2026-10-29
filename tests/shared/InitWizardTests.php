@@ -141,7 +141,6 @@ final class InitWizardTests extends TestCase
 
         // Test readConfirmation with default true
         $method = $reflection->getMethod('readConfirmation');
-        $method->setAccessible(true);
 
         // In non-interactive mode, should return default
         $result = $method->invoke(null, 'Test question?', true);
@@ -160,13 +159,11 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         $method->invoke($wizard);
 
         // Verify config was loaded
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $config = $configProperty->getValue($wizard);
 
         $this->assertIsArray($config);
@@ -191,13 +188,11 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         $method->invoke($wizard);
 
         // Verify cache config was loaded
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $config = $configProperty->getValue($wizard);
 
         $this->assertIsArray($config['cache']);
@@ -224,7 +219,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         // Since error() calls exit(), we can't test this directly
         // Instead, we verify that the method checks for driver
@@ -245,13 +239,11 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadStructureFromEnv');
-        $method->setAccessible(true);
 
         $method->invoke($wizard);
 
         // Verify structure was loaded
         $structureProperty = $reflection->getProperty('structure');
-        $structureProperty->setAccessible(true);
         $structure = $structureProperty->getValue($wizard);
 
         $this->assertIsArray($structure);
@@ -276,13 +268,11 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadStructureFromEnv');
-        $method->setAccessible(true);
 
         $method->invoke($wizard);
 
         // Verify default structure was loaded
         $structureProperty = $reflection->getProperty('structure');
-        $structureProperty->setAccessible(true);
         $structure = $structureProperty->getValue($wizard);
 
         $this->assertIsArray($structure);
@@ -316,16 +306,13 @@ final class InitWizardTests extends TestCase
 
             // Load config and structure first
             $loadConfigMethod = $reflection->getMethod('loadConfigFromEnv');
-            $loadConfigMethod->setAccessible(true);
             $loadConfigMethod->invoke($wizard);
 
             $loadStructureMethod = $reflection->getMethod('loadStructureFromEnv');
-            $loadStructureMethod->setAccessible(true);
             $loadStructureMethod->invoke($wizard);
 
             // Generate files
             $generateMethod = $reflection->getMethod('generateFiles');
-            $generateMethod->setAccessible(true);
 
             ob_start();
             $generateMethod->invoke($wizard);
@@ -368,16 +355,13 @@ final class InitWizardTests extends TestCase
 
             // Load config and structure first
             $loadConfigMethod = $reflection->getMethod('loadConfigFromEnv');
-            $loadConfigMethod->setAccessible(true);
             $loadConfigMethod->invoke($wizard);
 
             $loadStructureMethod = $reflection->getMethod('loadStructureFromEnv');
-            $loadStructureMethod->setAccessible(true);
             $loadStructureMethod->invoke($wizard);
 
             // Generate files
             $generateMethod = $reflection->getMethod('generateFiles');
-            $generateMethod->setAccessible(true);
 
             ob_start();
             $generateMethod->invoke($wizard);
@@ -437,11 +421,9 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askBasicConnection');
-        $method->setAccessible(true);
 
         // Set driver to test different branches
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $configProperty->setValue($wizard, ['driver' => 'sqlite']);
 
         // This method may call error() which exits, so we only verify method structure
@@ -484,7 +466,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askSqliteConnection');
-        $method->setAccessible(true);
 
         ob_start();
 
@@ -499,7 +480,6 @@ final class InitWizardTests extends TestCase
 
         // Verify config was set
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $config = $configProperty->getValue($wizard);
         $this->assertIsArray($config);
         $this->assertArrayHasKey('path', $config);
@@ -514,11 +494,9 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('testConnection');
-        $method->setAccessible(true);
 
         // Set config
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $configProperty->setValue($wizard, ['driver' => 'sqlite', 'path' => ':memory:']);
 
         // Temporarily unset PHPUNIT to allow output
@@ -559,7 +537,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command, format: 'interactive');
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askConfigurationFormat');
-        $method->setAccessible(true);
 
         ob_start();
 
@@ -575,7 +552,6 @@ final class InitWizardTests extends TestCase
 
         // Verify format property was set
         $formatProperty = $reflection->getProperty('format');
-        $formatProperty->setAccessible(true);
         $format = $formatProperty->getValue($wizard);
         $this->assertIsString($format);
     }
@@ -585,7 +561,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askProjectStructure');
-        $method->setAccessible(true);
 
         ob_start();
 
@@ -601,7 +576,6 @@ final class InitWizardTests extends TestCase
 
         // Verify structure property was set
         $structureProperty = $reflection->getProperty('structure');
-        $structureProperty->setAccessible(true);
         $structure = $structureProperty->getValue($wizard);
         $this->assertIsArray($structure);
     }
@@ -663,12 +637,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -702,12 +674,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -744,12 +714,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -780,12 +748,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadStructureFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $structureProperty = $reflection->getProperty('structure');
-            $structureProperty->setAccessible(true);
             $structure = $structureProperty->getValue($wizard);
 
             $this->assertIsArray($structure);
@@ -819,11 +785,9 @@ final class InitWizardTests extends TestCase
             $reflection = new \ReflectionClass($wizard);
 
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $configProperty->setValue($wizard, ['driver' => 'sqlite', 'path' => ':memory:']);
 
             $method = $reflection->getMethod('generateFiles');
-            $method->setAccessible(true);
 
             ob_start();
 
@@ -858,11 +822,9 @@ final class InitWizardTests extends TestCase
             $reflection = new \ReflectionClass($wizard);
 
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $configProperty->setValue($wizard, ['driver' => 'sqlite', 'path' => ':memory:']);
 
             $method = $reflection->getMethod('generateFiles');
-            $method->setAccessible(true);
 
             ob_start();
 
@@ -960,7 +922,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askMysqlConnection');
-        $method->setAccessible(true);
 
         // Method should handle MySQL-specific options (host, port, database, username, password, charset)
         $this->assertTrue($method->isProtected());
@@ -971,7 +932,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askPgsqlConnection');
-        $method->setAccessible(true);
 
         // Method should handle PostgreSQL-specific options
         $this->assertTrue($method->isProtected());
@@ -982,7 +942,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askSqlsrvConnection');
-        $method->setAccessible(true);
 
         // Method should handle MSSQL-specific options (host, port, database, username, password, trust_server_certificate, encrypt)
         $this->assertTrue($method->isProtected());
@@ -994,7 +953,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askBasicConnection');
-        $method->setAccessible(true);
 
         // Method should call askMysqlConnection when mysql is selected
         $this->assertTrue($method->isProtected());
@@ -1006,7 +964,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askBasicConnection');
-        $method->setAccessible(true);
 
         // Method should call askPgsqlConnection when pgsql is selected
         $this->assertTrue($method->isProtected());
@@ -1018,7 +975,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askBasicConnection');
-        $method->setAccessible(true);
 
         // Method should call askSqlsrvConnection when sqlsrv is selected
         $this->assertTrue($method->isProtected());
@@ -1030,7 +986,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askBasicConnection');
-        $method->setAccessible(true);
 
         // Method should call askSqliteConnection when sqlite is selected
         $this->assertTrue($method->isProtected());
@@ -1042,7 +997,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askBasicConnection');
-        $method->setAccessible(true);
 
         // Method should handle unsupported driver (may call error())
         $this->assertTrue($method->isProtected());
@@ -1054,7 +1008,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askMysqlConnection');
-        $method->setAccessible(true);
 
         // Method should use default values when input is empty in non-interactive mode
         $this->assertTrue($method->isProtected());
@@ -1066,7 +1019,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askPgsqlConnection');
-        $method->setAccessible(true);
 
         // Method should use default values when input is empty in non-interactive mode
         $this->assertTrue($method->isProtected());
@@ -1078,7 +1030,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askSqlsrvConnection');
-        $method->setAccessible(true);
 
         // Method should use default values when input is empty in non-interactive mode
         $this->assertTrue($method->isProtected());
@@ -1090,7 +1041,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('testConnection');
-        $method->setAccessible(true);
 
         // Verify method exists and has correct signature
         $this->assertTrue($method->isProtected());
@@ -1104,7 +1054,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command, format: 'env');
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askConfigurationFormat');
-        $method->setAccessible(true);
 
         ob_start();
 
@@ -1113,7 +1062,6 @@ final class InitWizardTests extends TestCase
             $out = ob_get_clean();
             // Format should remain 'env'
             $formatProperty = $reflection->getProperty('format');
-            $formatProperty->setAccessible(true);
             $format = $formatProperty->getValue($wizard);
             $this->assertEquals('env', $format);
         } catch (\Throwable $e) {
@@ -1129,7 +1077,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command, format: 'config');
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askConfigurationFormat');
-        $method->setAccessible(true);
 
         ob_start();
 
@@ -1138,7 +1085,6 @@ final class InitWizardTests extends TestCase
             $out = ob_get_clean();
             // Format should remain 'config'
             $formatProperty = $reflection->getProperty('format');
-            $formatProperty->setAccessible(true);
             $format = $formatProperty->getValue($wizard);
             $this->assertEquals('config', $format);
         } catch (\Throwable $e) {
@@ -1154,7 +1100,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askProjectStructure');
-        $method->setAccessible(true);
 
         ob_start();
 
@@ -1163,7 +1108,6 @@ final class InitWizardTests extends TestCase
             $out = ob_get_clean();
             // Structure should be set
             $structureProperty = $reflection->getProperty('structure');
-            $structureProperty->setAccessible(true);
             $structure = $structureProperty->getValue($wizard);
             $this->assertIsArray($structure);
             $this->assertArrayHasKey('namespace', $structure);
@@ -1228,12 +1172,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1260,12 +1202,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1292,12 +1232,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1327,12 +1265,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1365,11 +1301,9 @@ final class InitWizardTests extends TestCase
             $reflection = new \ReflectionClass($wizard);
 
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $configProperty->setValue($wizard, ['driver' => 'sqlite', 'path' => ':memory:']);
 
             $structureProperty = $reflection->getProperty('structure');
-            $structureProperty->setAccessible(true);
             $structureProperty->setValue($wizard, [
                 'namespace' => 'App',
                 'migrations' => './migrations',
@@ -1380,7 +1314,6 @@ final class InitWizardTests extends TestCase
             ]);
 
             $method = $reflection->getMethod('generateFiles');
-            $method->setAccessible(true);
 
             ob_start();
 
@@ -1415,12 +1348,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1454,12 +1385,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1490,12 +1419,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1526,12 +1453,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1576,12 +1501,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1610,12 +1533,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1648,12 +1569,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1684,12 +1603,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1719,12 +1636,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1751,12 +1666,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1782,12 +1695,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1811,12 +1722,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1841,12 +1750,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1874,12 +1781,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -1908,7 +1813,6 @@ final class InitWizardTests extends TestCase
 
         // Set invalid config to trigger exception
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $configProperty->setValue($wizard, ['driver' => 'invalid']);
 
         $oldCwd = getcwd();
@@ -1970,7 +1874,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askCaching');
-        $method->setAccessible(true);
 
         $level = ob_get_level();
         ob_start();
@@ -1999,7 +1902,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askCaching');
-        $method->setAccessible(true);
 
         $level = ob_get_level();
         ob_start();
@@ -2026,7 +1928,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askCaching');
-        $method->setAccessible(true);
 
         $level = ob_get_level();
         ob_start();
@@ -2053,7 +1954,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askCaching');
-        $method->setAccessible(true);
 
         $level = ob_get_level();
         ob_start();
@@ -2080,7 +1980,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askCaching');
-        $method->setAccessible(true);
 
         $level = ob_get_level();
         ob_start();
@@ -2107,7 +2006,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askPerformance');
-        $method->setAccessible(true);
 
         $level = ob_get_level();
         ob_start();
@@ -2134,7 +2032,6 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('askMultipleConnections');
-        $method->setAccessible(true);
 
         $level = ob_get_level();
         ob_start();
@@ -2166,11 +2063,9 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command, skipConnectionTest: true, force: true, format: 'env');
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('generateFiles');
-        $method->setAccessible(true);
 
         // Set config
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $configProperty->setValue($wizard, ['driver' => 'sqlite', 'path' => ':memory:']);
 
         $oldCwd = getcwd();
@@ -2208,11 +2103,9 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command, skipConnectionTest: true, force: false, format: 'env');
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('generateFiles');
-        $method->setAccessible(true);
 
         // Set config
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $configProperty->setValue($wizard, ['driver' => 'sqlite', 'path' => ':memory:']);
 
         $oldCwd = getcwd();
@@ -2250,11 +2143,9 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command, skipConnectionTest: true, force: true, format: 'config');
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('generateFiles');
-        $method->setAccessible(true);
 
         // Set config
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $configProperty->setValue($wizard, ['driver' => 'sqlite', 'path' => ':memory:']);
 
         $oldCwd = getcwd();
@@ -2289,15 +2180,12 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command, skipConnectionTest: true, force: true, format: 'env', noStructure: true);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('generateFiles');
-        $method->setAccessible(true);
 
         // Set config and empty structure
         $configProperty = $reflection->getProperty('config');
-        $configProperty->setAccessible(true);
         $configProperty->setValue($wizard, ['driver' => 'sqlite', 'path' => ':memory:']);
 
         $structureProperty = $reflection->getProperty('structure');
-        $structureProperty->setAccessible(true);
         $structureProperty->setValue($wizard, []);
 
         $oldCwd = getcwd();
@@ -2337,12 +2225,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
@@ -2379,12 +2265,10 @@ final class InitWizardTests extends TestCase
         $wizard = new InitWizard($this->command);
         $reflection = new \ReflectionClass($wizard);
         $method = $reflection->getMethod('loadConfigFromEnv');
-        $method->setAccessible(true);
 
         try {
             $method->invoke($wizard);
             $configProperty = $reflection->getProperty('config');
-            $configProperty->setAccessible(true);
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);

@@ -28,7 +28,6 @@ final class MSSQLDdlBuilderTests extends BaseMSSQLTestCase
         // Get ddlBuilder from dialect via reflection
         $reflection = new \ReflectionClass($dialect);
         $builderProperty = $reflection->getProperty('ddlBuilder');
-        $builderProperty->setAccessible(true);
         return $builderProperty->getValue($dialect);
     }
 
@@ -175,7 +174,6 @@ final class MSSQLDdlBuilderTests extends BaseMSSQLTestCase
         // parseColumnDefinition converts BOOLEAN to BIT
         $reflection = new \ReflectionClass($builder);
         $parseMethod = $reflection->getMethod('parseColumnDefinition');
-        $parseMethod->setAccessible(true);
 
         $columnSchema = $parseMethod->invoke($builder, ['type' => 'BOOLEAN']);
         $sql = $builder->formatColumnDefinition('test_column', $columnSchema);
@@ -852,7 +850,6 @@ final class MSSQLDdlBuilderTests extends BaseMSSQLTestCase
     {
         $reflection = new \ReflectionClass($this->getDdlBuilder());
         $method = $reflection->getMethod('formatDefaultValue');
-        $method->setAccessible(true);
 
         $builder = $this->getDdlBuilder();
         $result = $method->invoke($builder, 'test value');
@@ -870,7 +867,6 @@ final class MSSQLDdlBuilderTests extends BaseMSSQLTestCase
     {
         $reflection = new \ReflectionClass($this->getDdlBuilder());
         $method = $reflection->getMethod('formatDefaultValue');
-        $method->setAccessible(true);
 
         $builder = $this->getDdlBuilder();
         $result = $method->invoke($builder, 123);
@@ -886,7 +882,6 @@ final class MSSQLDdlBuilderTests extends BaseMSSQLTestCase
     {
         $reflection = new \ReflectionClass($this->getDdlBuilder());
         $method = $reflection->getMethod('formatDefaultValue');
-        $method->setAccessible(true);
 
         $builder = $this->getDdlBuilder();
         $result = $method->invoke($builder, true);
@@ -902,7 +897,6 @@ final class MSSQLDdlBuilderTests extends BaseMSSQLTestCase
     {
         $reflection = new \ReflectionClass($this->getDdlBuilder());
         $method = $reflection->getMethod('formatDefaultValue');
-        $method->setAccessible(true);
 
         $builder = $this->getDdlBuilder();
         $result = $method->invoke($builder, false);
@@ -918,7 +912,6 @@ final class MSSQLDdlBuilderTests extends BaseMSSQLTestCase
     {
         $reflection = new \ReflectionClass($this->getDdlBuilder());
         $method = $reflection->getMethod('formatDefaultValue');
-        $method->setAccessible(true);
 
         $builder = $this->getDdlBuilder();
         $result = $method->invoke($builder, null);
@@ -934,7 +927,6 @@ final class MSSQLDdlBuilderTests extends BaseMSSQLTestCase
     {
         $reflection = new \ReflectionClass($this->getDdlBuilder());
         $method = $reflection->getMethod('formatDefaultValue');
-        $method->setAccessible(true);
 
         $builder = $this->getDdlBuilder();
         $rawValue = new RawValue('GETDATE()');

@@ -144,7 +144,6 @@ final class SeedDataGeneratorTests extends BaseSharedTestCase
         $generator = new SeedDataGenerator(self::$db);
         $reflection = new ReflectionClass($generator);
         $method = $reflection->getMethod('getPrimaryKey');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'seed_test_users');
         // getPrimaryKey can return null or array
@@ -162,7 +161,6 @@ final class SeedDataGeneratorTests extends BaseSharedTestCase
         $generator = new SeedDataGenerator(self::$db);
         $reflection = new ReflectionClass($generator);
         $method = $reflection->getMethod('getUniqueIndexes');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'seed_test_users');
         $this->assertIsArray($result);
@@ -177,7 +175,6 @@ final class SeedDataGeneratorTests extends BaseSharedTestCase
         $generator = new SeedDataGenerator(self::$db);
         $reflection = new ReflectionClass($generator);
         $method = $reflection->getMethod('generateClassName');
-        $method->setAccessible(true);
 
         $result = $method->invoke($generator, 'seed_test_users');
         $this->assertIsString($result);

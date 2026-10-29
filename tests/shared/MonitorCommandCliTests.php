@@ -265,7 +265,6 @@ final class MonitorCommandCliTests extends TestCase
         $command = new MonitorCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('parseTimeThreshold');
-        $method->setAccessible(true);
 
         // Test seconds
         $result = $method->invoke($command, '1s');
@@ -295,7 +294,6 @@ final class MonitorCommandCliTests extends TestCase
         $command = new MonitorCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printFormatted');
-        $method->setAccessible(true);
 
         $data = ['test' => 'value', 'nested' => ['key' => 'val']];
 
@@ -321,7 +319,6 @@ final class MonitorCommandCliTests extends TestCase
         $command = new MonitorCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printFormatted');
-        $method->setAccessible(true);
 
         $data = ['test' => 'value'];
 
@@ -346,7 +343,6 @@ final class MonitorCommandCliTests extends TestCase
         $command = new MonitorCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printFormatted');
-        $method->setAccessible(true);
 
         $data = ['queries' => [['id' => 1, 'query' => 'SELECT 1']]];
 
@@ -370,7 +366,6 @@ final class MonitorCommandCliTests extends TestCase
         $command = new MonitorCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printTable');
-        $method->setAccessible(true);
 
         $data = [
             'test_table' => [
@@ -400,7 +395,6 @@ final class MonitorCommandCliTests extends TestCase
         $command = new MonitorCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printTableRows');
-        $method->setAccessible(true);
 
         $rows = [
             ['id' => 1, 'name' => 'Test 1'],

@@ -37,7 +37,6 @@ final class PreparedStatementPoolTests extends BaseSharedTestCase
         // Use reflection to access protected stmt property for testing
         $reflection = new ReflectionClass($conn);
         $stmtProperty = $reflection->getProperty('stmt');
-        $stmtProperty->setAccessible(true);
         $stmt = $stmtProperty->getValue($conn);
         if ($stmt !== null) {
             $pool->put('key1', $stmt);
@@ -52,7 +51,6 @@ final class PreparedStatementPoolTests extends BaseSharedTestCase
         $conn->prepare('SELECT 1');
         $reflection = new ReflectionClass($conn);
         $stmtProperty = $reflection->getProperty('stmt');
-        $stmtProperty->setAccessible(true);
         $stmt1 = $stmtProperty->getValue($conn);
 
         $conn->prepare('SELECT 2');
@@ -88,7 +86,6 @@ final class PreparedStatementPoolTests extends BaseSharedTestCase
         $conn = self::$db->connection;
         $reflection = new ReflectionClass($conn);
         $stmtProperty = $reflection->getProperty('stmt');
-        $stmtProperty->setAccessible(true);
 
         $conn->prepare('SELECT 1');
         $stmt1 = $stmtProperty->getValue($conn);
@@ -120,7 +117,6 @@ final class PreparedStatementPoolTests extends BaseSharedTestCase
         $conn = self::$db->connection;
         $reflection = new ReflectionClass($conn);
         $stmtProperty = $reflection->getProperty('stmt');
-        $stmtProperty->setAccessible(true);
 
         $conn->prepare('SELECT 1');
         $stmt1 = $stmtProperty->getValue($conn);
@@ -150,7 +146,6 @@ final class PreparedStatementPoolTests extends BaseSharedTestCase
         $conn = self::$db->connection;
         $reflection = new ReflectionClass($conn);
         $stmtProperty = $reflection->getProperty('stmt');
-        $stmtProperty->setAccessible(true);
 
         $conn->prepare('SELECT 1');
         $stmt1 = $stmtProperty->getValue($conn);
@@ -175,7 +170,6 @@ final class PreparedStatementPoolTests extends BaseSharedTestCase
         $conn = self::$db->connection;
         $reflection = new ReflectionClass($conn);
         $stmtProperty = $reflection->getProperty('stmt');
-        $stmtProperty->setAccessible(true);
 
         $conn->prepare('SELECT 1');
         $stmt1 = $stmtProperty->getValue($conn);
@@ -198,7 +192,6 @@ final class PreparedStatementPoolTests extends BaseSharedTestCase
         $conn = self::$db->connection;
         $reflection = new ReflectionClass($conn);
         $stmtProperty = $reflection->getProperty('stmt');
-        $stmtProperty->setAccessible(true);
 
         $conn->prepare('SELECT 1');
         $stmt1 = $stmtProperty->getValue($conn);
@@ -225,7 +218,6 @@ final class PreparedStatementPoolTests extends BaseSharedTestCase
         $conn = self::$db->connection;
         $reflection = new ReflectionClass($conn);
         $stmtProperty = $reflection->getProperty('stmt');
-        $stmtProperty->setAccessible(true);
 
         $stmts = [];
         for ($i = 1; $i <= 5; $i++) {
@@ -340,7 +332,6 @@ final class PreparedStatementPoolTests extends BaseSharedTestCase
         $conn = self::$db->connection;
         $reflection = new ReflectionClass($conn);
         $stmtProperty = $reflection->getProperty('stmt');
-        $stmtProperty->setAccessible(true);
 
         $conn->prepare('SELECT 1');
         $stmt1 = $stmtProperty->getValue($conn);

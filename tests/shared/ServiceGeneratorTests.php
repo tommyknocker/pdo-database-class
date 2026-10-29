@@ -70,7 +70,6 @@ final class ServiceGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(ServiceGenerator::class);
         $method = $reflection->getMethod('serviceNameToRepositoryName');
-        $method->setAccessible(true);
 
         $this->assertEquals('UserRepository', $method->invoke(null, 'UserService'));
         $this->assertEquals('UserRepository', $method->invoke(null, 'User'));
@@ -84,7 +83,6 @@ final class ServiceGeneratorTests extends TestCase
     {
         $reflection = new \ReflectionClass(ServiceGenerator::class);
         $method = $reflection->getMethod('generateServiceCode');
-        $method->setAccessible(true);
 
         $code = $method->invoke(null, 'UserService', 'UserRepository', 'app\\services', 'app\\repositories');
 
@@ -103,7 +101,6 @@ final class ServiceGeneratorTests extends TestCase
 
         $reflection = new \ReflectionClass(ServiceGenerator::class);
         $method = $reflection->getMethod('getServiceOutputPath');
-        $method->setAccessible(true);
 
         $path = $method->invoke(null);
         $this->assertEquals($this->tempDir, $path);
@@ -122,7 +119,6 @@ final class ServiceGeneratorTests extends TestCase
         try {
             $reflection = new \ReflectionClass(ServiceGenerator::class);
             $method = $reflection->getMethod('getServiceOutputPath');
-            $method->setAccessible(true);
 
             $path = $method->invoke(null);
             $this->assertTrue(is_dir($path));

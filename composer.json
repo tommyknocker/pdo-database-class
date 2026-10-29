@@ -1,6 +1,6 @@
 {
   "name": "tommyknocker/pdo-database-class",
-  "description": "Framework-agnostic PHP database library with unified API for MySQL, MariaDB, PostgreSQL, SQLite, MSSQL, and Oracle. Query Builder, caching, sharding, window functions, CTEs, JSON, migrations, ActiveRecord, CLI tools, AI-powered analysis. Zero external dependencies.",
+  "description": "Framework-agnostic PHP database library with unified API for MySQL, MariaDB, PostgreSQL, SQLite, MSSQL, and Oracle. Query Builder, caching, sharding, window functions, CTEs, JSON, migrations, ActiveRecord, CLI tools, AI-powered analysis. No framework dependency.",
   "type": "library",
   "keywords": [
     "pdo",

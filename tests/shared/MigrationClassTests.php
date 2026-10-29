@@ -58,7 +58,6 @@ class MigrationClassTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($migration);
         $schemaMethod = $reflection->getMethod('schema');
-        $schemaMethod->setAccessible(true);
 
         $schema = $schemaMethod->invoke($migration);
         $this->assertInstanceOf(DdlQueryBuilder::class, $schema);
@@ -77,7 +76,6 @@ class MigrationClassTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($migration);
         $findMethod = $reflection->getMethod('find');
-        $findMethod->setAccessible(true);
 
         $queryBuilder = $findMethod->invoke($migration);
         $this->assertInstanceOf(QueryBuilder::class, $queryBuilder);
@@ -94,7 +92,6 @@ class MigrationClassTests extends BaseSharedTestCase
         $migration = new TestMigration($db);
         $reflection = new \ReflectionClass($migration);
         $executeMethod = $reflection->getMethod('execute');
-        $executeMethod->setAccessible(true);
 
         $executeMethod->invoke($migration, 'CREATE TABLE test_execute_table (id INT PRIMARY KEY)');
 
@@ -120,7 +117,6 @@ class MigrationClassTests extends BaseSharedTestCase
         $migration = new TestMigration($db);
         $reflection = new \ReflectionClass($migration);
         $insertMethod = $reflection->getMethod('insert');
-        $insertMethod->setAccessible(true);
 
         $id = $insertMethod->invoke($migration, 'test_insert_table', ['name' => 'Test User']);
 
@@ -155,7 +151,6 @@ class MigrationClassTests extends BaseSharedTestCase
         $migration = new TestMigration($db);
         $reflection = new \ReflectionClass($migration);
         $batchInsertMethod = $reflection->getMethod('batchInsert');
-        $batchInsertMethod->setAccessible(true);
 
         $batchInsertMethod->invoke($migration, 'test_batch_table', ['name', 'value'], [
             ['name' => 'Item 1', 'value' => 10],
@@ -220,7 +215,6 @@ class MigrationClassTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($migration);
         $safeUpMethod = $reflection->getMethod('safeUp');
-        $safeUpMethod->setAccessible(true);
 
         // Call safeUp directly - it should call up()
         $safeUpMethod->invoke($migration);
@@ -259,7 +253,6 @@ class MigrationClassTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($migration);
         $safeDownMethod = $reflection->getMethod('safeDown');
-        $safeDownMethod->setAccessible(true);
 
         // Call safeDown directly - it should call down()
         $safeDownMethod->invoke($migration);
@@ -289,7 +282,6 @@ class MigrationClassTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($migration);
         $safeUpMethod = $reflection->getMethod('safeUp');
-        $safeUpMethod->setAccessible(true);
 
         // Call safeUp - it should propagate the exception from up()
         $this->expectException(\RuntimeException::class);
@@ -319,7 +311,6 @@ class MigrationClassTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($migration);
         $safeDownMethod = $reflection->getMethod('safeDown');
-        $safeDownMethod->setAccessible(true);
 
         // Call safeDown - it should propagate the exception from down()
         $this->expectException(\RuntimeException::class);

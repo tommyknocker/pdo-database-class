@@ -85,7 +85,6 @@ final class UserCommandCliTests extends TestCase
         // Test that command has correct name and description
         $reflection = new \ReflectionClass($command);
         $nameProperty = $reflection->getProperty('name');
-        $nameProperty->setAccessible(true);
         $this->assertEquals('user', $nameProperty->getValue($command));
     }
 
@@ -334,7 +333,6 @@ final class UserCommandCliTests extends TestCase
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
-        $method->setAccessible(true);
 
         ob_start();
 
@@ -592,7 +590,6 @@ final class UserCommandCliTests extends TestCase
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
-        $method->setAccessible(true);
 
         ob_start();
 
@@ -711,7 +708,6 @@ final class UserCommandCliTests extends TestCase
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showInfo');
-        $method->setAccessible(true);
 
         // Verify method exists and has correct signature
         $this->assertTrue($reflection->hasMethod('showInfo'));
@@ -726,7 +722,6 @@ final class UserCommandCliTests extends TestCase
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showInfo');
-        $method->setAccessible(true);
 
         // Test that method handles privileges array formatting
         // The method should format privileges as:
@@ -783,7 +778,6 @@ final class UserCommandCliTests extends TestCase
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('list');
-        $method->setAccessible(true);
 
         // Verify method exists and has correct signature
         $this->assertTrue($reflection->hasMethod('list'));
@@ -905,7 +899,6 @@ final class UserCommandCliTests extends TestCase
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
-        $method->setAccessible(true);
 
         ob_start();
 
@@ -938,7 +931,6 @@ final class UserCommandCliTests extends TestCase
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
-        $method->setAccessible(true);
 
         ob_start();
 
@@ -971,7 +963,6 @@ final class UserCommandCliTests extends TestCase
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
-        $method->setAccessible(true);
 
         ob_start();
 
@@ -1099,7 +1090,6 @@ final class UserCommandCliTests extends TestCase
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showHelp');
-        $method->setAccessible(true);
 
         ob_start();
 

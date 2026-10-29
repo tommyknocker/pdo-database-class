@@ -111,7 +111,26 @@ abstract class DatabaseException extends PDOException
     abstract public function getCategory(): string;
 
     /**
-     * Convert to array for logging.
+     * Return diagnostic metadata safe to send to logs without query data.
+     * Driver messages, SQL, parameters and traces may contain secrets and are omitted.
+     *
+     * @return array<string, mixed>
+     */
+    public function toSafeArray(): array
+    {
+        return [
+            'exception' => static::class,
+            'code' => $this->getCode(),
+            'original_code' => $this->originalCode,
+            'driver' => $this->driver,
+            'category' => $this->getCategory(),
+            'retryable' => $this->isRetryable(),
+        ];
+    }
+
+    /**
+     * Convert to a detailed array for debugging. May contain sensitive data.
+     * Use toSafeArray() for logging.
      *
      * @return array<string, mixed>
      */

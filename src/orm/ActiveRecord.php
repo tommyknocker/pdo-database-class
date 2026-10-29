@@ -750,7 +750,7 @@ trait ActiveRecord
     protected function loadRelation(string $name): mixed
     {
         // Check if eager-loaded
-        if (isset($this->relationData[$name])) {
+        if (array_key_exists($name, $this->relationData)) {
             $relation = $this->getRelationInstance($name);
             if ($relation !== null) {
                 return $relation->getEagerValue($this->relationData[$name]);

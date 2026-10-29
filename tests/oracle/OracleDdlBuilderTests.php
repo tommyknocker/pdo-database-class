@@ -332,7 +332,6 @@ final class OracleDdlBuilderTests extends BaseOracleTestCase
         $builder = $this->createBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('formatColumnDefinition');
-        $method->setAccessible(true);
 
         $column = new ColumnSchema('VARCHAR2', 255);
         $result = $method->invoke($builder, 'test_column', $column);
@@ -346,7 +345,6 @@ final class OracleDdlBuilderTests extends BaseOracleTestCase
         $builder = $this->createBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('formatColumnDefinition');
-        $method->setAccessible(true);
 
         $column = new ColumnSchema('VARCHAR2', 255);
         $column->notNull();
@@ -361,7 +359,6 @@ final class OracleDdlBuilderTests extends BaseOracleTestCase
         $builder = $this->createBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('formatColumnDefinition');
-        $method->setAccessible(true);
 
         $column = new ColumnSchema('VARCHAR2', 255);
         $column->defaultValue('default');
@@ -376,7 +373,6 @@ final class OracleDdlBuilderTests extends BaseOracleTestCase
         $builder = $this->createBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('formatColumnDefinition');
-        $method->setAccessible(true);
 
         $column = new ColumnSchema('TIMESTAMP');
         $column->defaultExpression('CURRENT_TIMESTAMP');
@@ -393,7 +389,6 @@ final class OracleDdlBuilderTests extends BaseOracleTestCase
         $builder = $this->createBuilder();
         $reflection = new \ReflectionClass($builder);
         $method = $reflection->getMethod('generateSequenceName');
-        $method->setAccessible(true);
 
         $result = $method->invoke($builder, 'users', 'id');
         $this->assertIsString($result);

@@ -274,7 +274,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ServerMetricsPane::class);
         $method = $reflection->getMethod('formatUptime');
-        $method->setAccessible(true);
 
         $this->assertEquals('30s', $method->invoke(null, 30));
         $this->assertEquals('5m 30s', $method->invoke(null, 330));
@@ -288,7 +287,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ServerMetricsPane::class);
         $method = $reflection->getMethod('formatBytes');
-        $method->setAccessible(true);
 
         // formatBytes uses number_format($size, 2), so 0 becomes "0.00 B"
         $this->assertEquals('0.00 B', $method->invoke(null, 0));
@@ -302,7 +300,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ServerMetricsPane::class);
         $method = $reflection->getMethod('truncate');
-        $method->setAccessible(true);
 
         $this->assertEquals('test', $method->invoke(null, 'test', 10));
         $this->assertEquals('test...', $method->invoke(null, 'test string that is too long', 7));
@@ -313,7 +310,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(SqlScratchpadPane::class);
         $method = $reflection->getMethod('renderPreview');
-        $method->setAccessible(true);
 
         $content = ['row' => 1, 'col' => 1, 'height' => 5, 'width' => 80];
         ob_start();
@@ -326,7 +322,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(SqlScratchpadPane::class);
         $method = $reflection->getMethod('renderPreview');
-        $method->setAccessible(true);
 
         $content = ['row' => 1, 'col' => 1, 'height' => 5, 'width' => 80];
         ob_start();
@@ -339,7 +334,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(SqlScratchpadPane::class);
         $method = $reflection->getMethod('renderPreview');
-        $method->setAccessible(true);
 
         $content = ['row' => 1, 'col' => 1, 'height' => 5, 'width' => 80];
         ob_start();
@@ -352,7 +346,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(SqlScratchpadPane::class);
         $method = $reflection->getMethod('renderFullscreen');
-        $method->setAccessible(true);
 
         $content = ['row' => 1, 'col' => 1, 'height' => 24, 'width' => 80];
         ob_start();
@@ -555,7 +548,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(SchemaBrowserPane::class);
         $method = $reflection->getMethod('renderPreview');
-        $method->setAccessible(true);
 
         $content = ['row' => 1, 'col' => 1, 'height' => 5, 'width' => 80];
         $tables = [
@@ -572,7 +564,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(SchemaBrowserPane::class);
         $method = $reflection->getMethod('renderFullscreen');
-        $method->setAccessible(true);
 
         $content = ['row' => 1, 'col' => 1, 'height' => 24, 'width' => 80];
         $tables = [
@@ -589,7 +580,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(SchemaBrowserPane::class);
         $method = $reflection->getMethod('renderFullscreen');
-        $method->setAccessible(true);
 
         $content = ['row' => 1, 'col' => 1, 'height' => 24, 'width' => 80];
         $tables = [
@@ -606,7 +596,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ServerVariablesPane::class);
         $method = $reflection->getMethod('renderPreview');
-        $method->setAccessible(true);
 
         $content = ['row' => 1, 'col' => 1, 'height' => 5, 'width' => 80];
         $variables = [
@@ -623,7 +612,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ServerVariablesPane::class);
         $method = $reflection->getMethod('renderFullscreen');
-        $method->setAccessible(true);
 
         $content = ['row' => 1, 'col' => 1, 'height' => 24, 'width' => 80];
         $variables = [
@@ -640,7 +628,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(ServerVariablesPane::class);
         $method = $reflection->getMethod('renderFullscreen');
-        $method->setAccessible(true);
 
         $content = ['row' => 1, 'col' => 1, 'height' => 24, 'width' => 80];
         $variables = [
@@ -657,7 +644,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(MigrationManagerPane::class);
         $method = $reflection->getMethod('renderPreview');
-        $method->setAccessible(true);
 
         $content = ['row' => 1, 'col' => 1, 'height' => 5, 'width' => 80];
         $newMigrations = ['m001_create_users', 'm002_create_posts'];
@@ -676,7 +662,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(MigrationManagerPane::class);
         $method = $reflection->getMethod('renderFullscreen');
-        $method->setAccessible(true);
 
         $content = ['row' => 1, 'col' => 1, 'height' => 24, 'width' => 80];
         $newMigrations = ['m001_create_users', 'm002_create_posts'];
@@ -693,7 +678,6 @@ final class UiPanesTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(MigrationManagerPane::class);
         $method = $reflection->getMethod('renderFullscreen');
-        $method->setAccessible(true);
 
         $content = ['row' => 1, 'col' => 1, 'height' => 24, 'width' => 80];
         $newMigrations = ['m001_create_users', 'm002_create_posts'];

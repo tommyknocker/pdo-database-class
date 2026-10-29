@@ -201,11 +201,9 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($connection);
         $method = $reflection->getMethod('waitBeforeRetry');
-        $method->setAccessible(true);
 
         // Use reflection to set currentAttempt
         $attemptProperty = $reflection->getProperty('currentAttempt');
-        $attemptProperty->setAccessible(true);
         $attemptProperty->setValue($connection, 1);
 
         $start = microtime(true);
@@ -221,7 +219,6 @@ final class RetryableConnectionTests extends BaseSharedTestCase
     {
         $reflection = new \ReflectionClass(RetryableConnection::class);
         $method = $reflection->getMethod('validateRetryConfig');
-        $method->setAccessible(true);
 
         $pdo = new PDO('sqlite::memory:');
         $dialect = new SqliteDialect();
@@ -482,9 +479,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($connection);
         $method = $reflection->getMethod('waitBeforeRetry');
-        $method->setAccessible(true);
         $attemptProperty = $reflection->getProperty('currentAttempt');
-        $attemptProperty->setAccessible(true);
 
         // Attempt 1: delay = 10ms
         $attemptProperty->setValue($connection, 1);
@@ -517,9 +512,7 @@ final class RetryableConnectionTests extends BaseSharedTestCase
 
         $reflection = new \ReflectionClass($connection);
         $method = $reflection->getMethod('waitBeforeRetry');
-        $method->setAccessible(true);
         $attemptProperty = $reflection->getProperty('currentAttempt');
-        $attemptProperty->setAccessible(true);
 
         // Attempt 3: delay = 50 * 3^2 = 450ms, but capped at 100ms
         $attemptProperty->setValue($connection, 3);

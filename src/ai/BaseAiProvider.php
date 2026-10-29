@@ -61,6 +61,7 @@ abstract class BaseAiProvider implements AiProviderInterface
             ],
         ]);
 
+        http_clear_last_response_headers();
         $response = @file_get_contents($url, false, $context);
 
         if ($response === false) {
@@ -72,9 +73,7 @@ abstract class BaseAiProvider implements AiProviderInterface
             );
         }
 
-        // $http_response_header is a superglobal that is always set by file_get_contents
-        /** @var array<int, string> $headers */
-        $headers = $http_response_header;
+        $headers = http_get_last_response_headers() ?? [];
         $httpCode = $this->getHttpResponseCode($headers);
 
         if ($httpCode >= 400) {

@@ -350,7 +350,6 @@ $connection = $dbWithLogging->connection;
 if ($connection instanceof RetryableConnection) {
     $reflection = new \ReflectionClass($connection);
     $loggerProperty = $reflection->getProperty('logger');
-    $loggerProperty->setAccessible(true);
     $loggerProperty->setValue($connection, $logger);
 }
 

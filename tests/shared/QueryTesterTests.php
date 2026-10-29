@@ -52,7 +52,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $this->db, 'SELECT * FROM test_users');
@@ -72,7 +71,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
-        $method->setAccessible(true);
 
         // Temporarily unset PHPUNIT to allow output
         $phpunit = getenv('PHPUNIT');
@@ -102,7 +100,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $this->db, 'SELECT * FROM non_existent_table');
@@ -118,7 +115,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
-        $method->setAccessible(true);
 
         // Temporarily unset PHPUNIT to allow output
         $phpunit = getenv('PHPUNIT');
@@ -144,7 +140,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
-        $method->setAccessible(true);
 
         $results = [
             ['id' => 1, 'name' => 'John', 'email' => 'john@example.com'],
@@ -170,7 +165,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
-        $method->setAccessible(true);
 
         // Create 150 rows
         $results = [];
@@ -193,7 +187,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
-        $method->setAccessible(true);
 
         $longValue = str_repeat('A', 100);
         $results = [
@@ -216,7 +209,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('showHelp');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null);
@@ -236,7 +228,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
-        $method->setAccessible(true);
 
         ob_start();
         // Use SELECT query to get table info (works like DESCRIBE)
@@ -253,7 +244,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $this->db, 'SELECT sql FROM sqlite_master WHERE type="table" AND name="test_users"');
@@ -269,7 +259,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $this->db, 'EXPLAIN QUERY PLAN SELECT * FROM test_users');
@@ -286,7 +275,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
-        $method->setAccessible(true);
 
         ob_start();
         // Invalid query that will throw exception
@@ -303,7 +291,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
-        $method->setAccessible(true);
 
         $results = [
             ['id' => 1, 'data' => ['nested' => 'value'], 'array' => [1, 2, 3]],
@@ -325,7 +312,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
-        $method->setAccessible(true);
 
         $results = [
             ['id' => 1, 'name' => null, 'email' => 'test@example.com'],
@@ -347,7 +333,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
-        $method->setAccessible(true);
 
         // Create exactly 100 rows
         $results = [];
@@ -370,7 +355,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
-        $method->setAccessible(true);
 
         // Create 101 rows
         $results = [];
@@ -393,7 +377,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
-        $method->setAccessible(true);
 
         $exactly50Chars = str_repeat('A', 50);
         $results = [
@@ -415,7 +398,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
-        $method->setAccessible(true);
 
         $exactly51Chars = str_repeat('A', 51);
         $results = [
@@ -439,7 +421,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $this->db, 'select * from test_users');
@@ -456,7 +437,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke(null, $this->db, 'SeLeCt * FrOm test_users');
@@ -473,7 +453,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
-        $method->setAccessible(true);
 
         // Temporarily unset PHPUNIT to allow output
         $phpunit = getenv('PHPUNIT');
@@ -499,7 +478,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
-        $method->setAccessible(true);
 
         // Temporarily unset PHPUNIT to allow output
         $phpunit = getenv('PHPUNIT');
@@ -525,7 +503,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
-        $method->setAccessible(true);
 
         // Temporarily unset PHPUNIT to allow output
         $phpunit = getenv('PHPUNIT');
@@ -574,7 +551,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
-        $method->setAccessible(true);
 
         $results = [
             ['id' => 1, '' => 'empty_key_value'],
@@ -594,7 +570,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
-        $method->setAccessible(true);
 
         $results = [
             ['id' => 1, 'active' => true, 'deleted' => false],
@@ -616,7 +591,6 @@ final class QueryTesterTests extends TestCase
     {
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
-        $method->setAccessible(true);
 
         $results = [
             ['id' => 1, 'price' => 99.99, 'quantity' => 42],

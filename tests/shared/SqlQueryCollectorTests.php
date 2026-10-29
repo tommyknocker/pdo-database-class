@@ -96,7 +96,6 @@ final class SqlQueryCollectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SqlQueryCollector::class);
         $method = $reflection->getMethod('formatSqlWithParams');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->collector, 'SELECT * FROM users WHERE id = ?', [123]);
         $this->assertStringContainsString('123', $result);
@@ -109,7 +108,6 @@ final class SqlQueryCollectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SqlQueryCollector::class);
         $method = $reflection->getMethod('formatSqlWithParams');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->collector, 'SELECT * FROM users WHERE name = ?', ['John']);
         $this->assertStringContainsString("'John'", $result);
@@ -122,7 +120,6 @@ final class SqlQueryCollectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SqlQueryCollector::class);
         $method = $reflection->getMethod('formatSqlWithParams');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->collector, 'SELECT * FROM users WHERE deleted_at IS ?', [null]);
         $this->assertStringContainsString('NULL', $result);
@@ -135,7 +132,6 @@ final class SqlQueryCollectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SqlQueryCollector::class);
         $method = $reflection->getMethod('formatSqlWithParams');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->collector, 'SELECT * FROM users WHERE active = ?', [true]);
         $this->assertStringContainsString('1', $result);
@@ -151,7 +147,6 @@ final class SqlQueryCollectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SqlQueryCollector::class);
         $method = $reflection->getMethod('formatSqlWithParams');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->collector, 'SELECT * FROM products WHERE price = ?', [19.99]);
         $this->assertStringContainsString('19.99', $result);
@@ -164,7 +159,6 @@ final class SqlQueryCollectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SqlQueryCollector::class);
         $method = $reflection->getMethod('formatSqlWithParams');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->collector, 'SELECT * FROM users WHERE tags = ?', [['tag1', 'tag2']]);
         $this->assertStringContainsString("'", $result);
@@ -177,7 +171,6 @@ final class SqlQueryCollectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SqlQueryCollector::class);
         $method = $reflection->getMethod('formatSqlWithParams');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->collector, 'SELECT * FROM users WHERE id = :id', ['id' => 123]);
         $this->assertStringContainsString('123', $result);
@@ -190,7 +183,6 @@ final class SqlQueryCollectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SqlQueryCollector::class);
         $method = $reflection->getMethod('formatValue');
-        $method->setAccessible(true);
 
         $this->assertEquals('NULL', $method->invoke($this->collector, null));
         $this->assertEquals('1', $method->invoke($this->collector, true));
@@ -207,7 +199,6 @@ final class SqlQueryCollectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SqlQueryCollector::class);
         $method = $reflection->getMethod('formatValue');
-        $method->setAccessible(true);
 
         $result = $method->invoke($this->collector, "John's name");
         $this->assertStringContainsString("John\\'s", $result);
@@ -220,7 +211,6 @@ final class SqlQueryCollectorTests extends TestCase
     {
         $reflection = new \ReflectionClass(SqlQueryCollector::class);
         $method = $reflection->getMethod('formatValue');
-        $method->setAccessible(true);
 
         $object = new class () {
             public function __toString(): string

@@ -802,7 +802,6 @@ final class TableCommandCliTests extends TestCase
         $command = new TableCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('parseColumns');
-        $method->setAccessible(true);
 
         // Test simple column parsing
         $result = $method->invoke($command, 'id:int,name:string');
@@ -826,7 +825,6 @@ final class TableCommandCliTests extends TestCase
         $command = new TableCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('typeToSchema');
-        $method->setAccessible(true);
 
         // Test int type
         $result = $method->invoke($command, 'int');
@@ -854,7 +852,6 @@ final class TableCommandCliTests extends TestCase
         $command = new TableCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printFormatted');
-        $method->setAccessible(true);
 
         $data = ['test' => 'value', 'nested' => ['key' => 'val']];
 
@@ -879,7 +876,6 @@ final class TableCommandCliTests extends TestCase
         $command = new TableCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('printTable');
-        $method->setAccessible(true);
 
         $data = [
             'test_table' => [
