@@ -166,6 +166,7 @@ Performance optimization: caching, profiling, and EXPLAIN analysis.
 - **[02-query-compilation-cache.php](07-performance/02-query-compilation-cache.php)** - Compiled SQL caching
 - **[03-query-profiling.php](07-performance/03-query-profiling.php)** - Query performance profiling
 - **[04-explain-analysis.php](07-performance/04-explain-analysis.php)** - EXPLAIN query analysis
+- **[05-ai-query-advice.php](07-performance/05-ai-query-advice.php)** - Three reproducible query-advice cases; isolated SQLite, real plans and measurements, optional live AI
 
 ### 08. Architecture
 Architectural patterns: read/write splitting and sharding.

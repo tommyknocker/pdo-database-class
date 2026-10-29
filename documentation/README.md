@@ -71,6 +71,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [22. Events](05-advanced-features/22-events.md) - PSR-14 event dispatcher for monitoring, auditing, and middleware
 - [23. AI-Powered Analysis](05-advanced-features/23-ai-analysis.md) - **NEW!** 🤖 Get intelligent database optimization recommendations using OpenAI, Anthropic, Google, Microsoft, or Ollama
 - [24. AI Query Advice](05-advanced-features/24-ai-query-advice.md) - Investigate a query from PHP, preview context and use structured findings
+- [25. AI Query Advice in Practice](05-advanced-features/25-ai-query-advice-in-practice.md) - Three runnable use cases with real AI answers and measured before/after plans
 - [20. Dialect-Specific Schema](05-advanced-features/20-dialect-specific-schema.md) - Database-specific types (MySQL ENUM/SET, PostgreSQL UUID/JSONB/arrays, MSSQL UNIQUEIDENTIFIER, SQLite type affinity)
 
 ### Error Handling

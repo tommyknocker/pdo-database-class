@@ -1,0 +1,152 @@
+{
+  "description": "Representative cases selected from two real live runs on the same deterministic SQLite fixture. Selected model responses are unedited; timings and plans belong to each selected capture.",
+  "environment": {
+    "php": "8.5.12",
+    "sqlite": "3.45.1",
+    "fixture": {
+      "users": 2000,
+      "orders": 100000,
+      "pending_orders": 5000,
+      "customers_in_IS": 20
+    },
+    "warmup_runs": 2,
+    "measured_runs": 9,
+    "statistic": "median of SELECT execution plus fetching all result rows, milliseconds",
+    "database": "new SQLite :memory:; no configured application database is used"
+  },
+  "capture_runs": [
+    {
+      "id": "A",
+      "generated_at": "2026-10-29T16:43:19+00:00",
+      "requests": {
+        "count": 3,
+        "max_output_tokens_each": 512,
+        "timeout_seconds_each": 45
+      }
+    },
+    {
+      "id": "B",
+      "generated_at": "2026-10-29T16:45:33+00:00",
+      "requests": {
+        "count": 3,
+        "max_output_tokens_each": 512,
+        "timeout_seconds_each": 45
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "ordered_page",
+      "title": "The first page of pending orders",
+      "sql": "SELECT \"id\", \"user_id\", \"created_at\" FROM \"orders\" WHERE \"status\" = :status_1 ORDER BY \"created_at\" DESC LIMIT 50",
+      "before": {
+        "plan": [
+          "SCAN orders",
+          "USE TEMP B-TREE FOR ORDER BY"
+        ],
+        "median_ms": 4.686,
+        "rows_returned": 50,
+        "result_sha256": "8ea26258e0108ae8e46040d41550c4cb230b47104a03133e46679b1a392cde07"
+      },
+      "context_tables": [
+        "main.orders"
+      ],
+      "context_indexes": {
+        "main.orders": []
+      },
+      "context_complete": true,
+      "ai": {
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4.1-flash",
+        "text": "**Plan:** SQLite reports `SCAN orders` (full table scan) then `USE TEMP B - TREE FOR ORDER BY` — meaning every matching row is found by scanning, then sorted in a temp B-tree, before LIMIT takes page one.\n\n**Findings (prioritized)**\n\n1. *Scan + temp sort for first page.* Evidence: plan nodes above; catalog shows `indexes: []`. Candidate: an index on `(status, created_at DESC)` (or `(status, created_at)`) could let the engine seek to the `status` value and read `created_at` in order, avoiding the temp B-tree for page one. Tradeoffs: extra storage and slower INSERT/UPDATE; `DESC` handling varies by SQLite version. Verify with `EXPLAIN QUERY PLAN` using a bound value and a real plan.\n\n**Missing evidence:** no row counts, no actual execution time, `estimated_rows` null, parameter value unknown. Confirm index usefulness on realistic data before adopting."
+      },
+      "change_applied": "CREATE INDEX idx_orders_status_created ON orders(status, created_at DESC)",
+      "after": {
+        "plan": [
+          "SEARCH orders USING INDEX idx_orders_status_created (status=?)"
+        ],
+        "median_ms": 0.02,
+        "rows_returned": 50,
+        "result_sha256": "8ea26258e0108ae8e46040d41550c4cb230b47104a03133e46679b1a392cde07"
+      },
+      "same_rows": true,
+      "capture_run": "A"
+    },
+    {
+      "id": "join_filter",
+      "title": "Orders from customers in a small country group",
+      "sql": "SELECT \"o\".\"id\", \"o\".\"total_cents\" FROM \"users\" \"u\" INNER JOIN \"orders\" \"o\" ON o.user_id = u.id WHERE \"u\".\"country\" = :u_country_1 AND \"o\".\"total_cents\" >= :o_total_cents_2 ORDER BY o.id ASC",
+      "before": {
+        "plan": [
+          "SCAN o",
+          "SEARCH u USING INTEGER PRIMARY KEY (rowid=?)"
+        ],
+        "median_ms": 16.7845,
+        "rows_returned": 837,
+        "result_sha256": "c3514bf46cd9b3186e24a5185e11c6997b35a66be6468ce47367e85d4a00c9d0"
+      },
+      "context_tables": [
+        "main.users",
+        "main.orders"
+      ],
+      "context_indexes": {
+        "main.users": [],
+        "main.orders": [
+          "idx_orders_status_created"
+        ]
+      },
+      "context_complete": true,
+      "ai": {
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4.1-flash",
+        "text": "**Plan**: SQLite scans `orders` (`SCAN o`), then looks up `users` by primary key (`SEARCH u USING INTEGER PRIMARY KEY`). The `country` filter isn't pushed to `users` first; no index is used on `orders`.\n\n**Findings (prioritized)**\n\n1. **No index for country filter**\n   - Observation: `users` has only a PK; no index on `country`.\n   - Evidence: schema shows `users.indexes: []`; plan chooses scan of `o` and PK lookup of `u`.\n   - Change: candidate `idx_users_country (country)`. This is a heuristic, not measured.\n   - Tradeoffs: extra write/storage; low benefit if `country` is not selective, but context states \"IS\" ≈1%.\n   - Verify: run `EXPLAIN QUERY PLAN` with bound parameter; check index usage and row estimate.\n\n2. **`orders` full scan / ordering**\n   - Observation: `SCAN o` plus `ORDER BY o.id`; existing index `idx_orders_status_created` doesn't cover `user_id` or `total_cents`.\n   - Evidence: plan detail `SCAN o`; `used_index: null`; index columns are `status, created_at DESC`.\n   - Change: consider `idx_orders_user_id_id (user_id, id)` or `idx_orders_user_id_total (user_id, total_cents)`, but only if the join path actually filters/orders on those columns after a `users`-driven plan.\n   - Tradeoffs: additional index maintenance; SQLite may still prefer scanning `orders` if `users` is large.\n   - Verify: `EXPLAIN QUERY PLAN` after candidate index in a test DB; compare `SEARCH`/`SCAN` and row estimates.\n\n**Missing evidence/limitations**: no row counts, cardinality, or actual timing; parameters redacted; equal placeholders don't prove selectivity. Index changes require developer review and are not applied."
+      },
+      "change_applied": "CREATE INDEX idx_users_country ON users(country); CREATE INDEX idx_orders_user_total ON orders(user_id, total_cents)",
+      "after": {
+        "plan": [
+          "SEARCH u USING COVERING INDEX idx_users_country (country=?)",
+          "SEARCH o USING COVERING INDEX idx_orders_user_total (user_id=? AND total_cents>?)",
+          "USE TEMP B-TREE FOR ORDER BY"
+        ],
+        "median_ms": 0.2249,
+        "rows_returned": 837,
+        "result_sha256": "c3514bf46cd9b3186e24a5185e11c6997b35a66be6468ce47367e85d4a00c9d0"
+      },
+      "same_rows": true,
+      "capture_run": "B"
+    },
+    {
+      "id": "existing_index",
+      "title": "Recent orders for one customer",
+      "sql": "SELECT \"id\", \"created_at\", \"total_cents\" FROM \"orders\" WHERE \"user_id\" = :user_id_1 ORDER BY \"created_at\" DESC LIMIT 20",
+      "before": {
+        "plan": [
+          "SEARCH orders USING INDEX idx_orders_user_created (user_id=?)"
+        ],
+        "median_ms": 0.0089,
+        "rows_returned": 20,
+        "result_sha256": "f6b5d1a0ef4b9c197ca86a7d08c74fba6529bb1abd3311a1af593cf8e92bdaa9"
+      },
+      "context_tables": [
+        "main.orders"
+      ],
+      "context_indexes": {
+        "main.orders": [
+          "idx_orders_user_created",
+          "idx_orders_user_total",
+          "idx_orders_status_created"
+        ]
+      },
+      "context_complete": true,
+      "ai": {
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4.1-flash",
+        "text": "**Plan:** SQLite uses `idx_orders_user_created` to seek `user_id = ?`; the index's second key is `created_at DESC`, matching `ORDER BY \"created_at\" DESC`, so ordering likely comes free from that index. It covers `id` (rowid in SQLite) and `created_at`; `total_cents` isn't in it, requiring a table lookup per row.\n\n**Findings (prioritized)**\n1. No new index needed. Evidence: plan `SEARCH orders USING INDEX idx_orders_user_created (user_id = ?)`; index columns `(user_id ASC, created_at DESC)`. A `(user_id, created_at DESC, total_cents)` covering index could avoid table lookups, but adds write/storage cost and duplicates an existing index. Verify with `EXPLAIN QUERY PLAN` and actual timing on real data—estimated cost isn't elapsed time.\n\n**Missing evidence/limitations:** No row counts, cardinality, or measured latency; selectivity of `:user_id_1` unknown. Test with `EXPLAIN QUERY PLAN` and representative data before any index change."
+      },
+      "fixture_setup": "CREATE INDEX idx_orders_user_created ON orders(user_id, created_at DESC)",
+      "change_applied": null,
+      "verification": "The existing idx_orders_user_created is used; no temporary sorting B-tree is needed. No optimization change was applied for this case.",
+      "capture_run": "B"
+    }
+  ]
+}

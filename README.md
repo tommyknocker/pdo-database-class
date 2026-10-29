@@ -500,80 +500,37 @@ See [Configuration Documentation](documentation/01-getting-started/04-configurat
 
 **Note**: All query examples start with `$db->find()` which returns a `QueryBuilder` instance.
 
-### 🤖 AI-Powered Query Analysis
+### Understand a slow query with AI
 
-Get intelligent optimization recommendations for your queries using AI:
+Get advice grounded in your **actual execution plan, table schemas and existing
+indexes**, directly from the query you are investigating:
 
 ```php
-use tommyknocker\pdodb\PdoDb;
+$advice = $db->find()
+    ->from('orders')
+    ->where('status', 'pending')
+    ->orderBy('created_at', 'DESC')
+    ->limit(50)
+    ->explainAiAdvice();
 
-$db = PdoDb::fromEnv();
-
-// Configure AI (or use environment variables: PDODB_AI_OPENAI_KEY, etc.)
-$db = new PdoDb('mysql', [
-    'host' => 'localhost',
-    'dbname' => 'mydb',
-    'username' => 'user',
-    'password' => 'pass',
-    'ai' => [
-        'provider' => 'openai',
-        'openai_key' => 'sk-...',
-    ],
-]);
-
-// Get AI-enhanced analysis
-$result = $db->find()
-    ->from('users')
-    ->where('email', 'user@example.com')
-    ->explainAiAdvice(tableName: 'users', provider: 'openai');
-
-// Access base analysis (traditional EXPLAIN)
-foreach ($result->baseAnalysis->issues as $issue) {
-    echo "Issue: {$issue->message}\n";
-}
-
-// Access AI recommendations
-echo "AI Analysis:\n";
-echo $result->aiAnalysis . "\n";
+echo $advice->aiAnalysis;
 ```
 
-Or use CLI:
+PDOdb collects the database context and makes one request to your configured
+provider. Use `explainAiContext()` to preview that context without calling a model.
+
+**Try three real cases:** fix a scan-and-sort page, investigate a JOIN, and keep
+an index that already fits. The [hands-on walkthrough](documentation/05-advanced-features/25-ai-query-advice-in-practice.md)
+includes reproducible data, captured AI answers and measured before/after plans.
+From a repository checkout, start without an API key:
 
 ```bash
-# Set API key
-export PDODB_AI_OPENAI_KEY=sk-...
-export PDODB_AI_OPENAI_MODEL=gpt-4o-mini  # Optional: gpt-4, gpt-3.5-turbo
-export PDODB_AI_GOOGLE_MODEL=gemini-2.5-flash  # Optional: gemini-2.5-pro, gemini-2.0-flash-001, gemini-flash-latest
-
-# Analyze query
-pdodb ai query "SELECT * FROM users WHERE email = 'user@example.com'" \
-    --provider=openai \
-    --table=users
+php examples/07-performance/05-ai-query-advice.php
 ```
 
-**Supported Providers:** OpenAI, OpenRouter, OpenAI-compatible endpoints, Anthropic, Google, Microsoft, DeepSeek, Yandex, Ollama (local, no API key)
-
-**Model Selection:** Configure models via environment variables (`PDODB_AI_<PROVIDER>_MODEL`) or config array (`ai.providers.<provider>.model`)
-
-**OpenRouter:** Set `PDODB_AI_PROVIDER=openrouter`, `PDODB_AI_OPENROUTER_KEY` and
-`PDODB_AI_OPENROUTER_MODEL`. Other compatible services use
-`PDODB_AI_PROVIDER=openai-compatible` with `PDODB_AI_OPENAI_COMPATIBLE_BASE_URL`,
-`PDODB_AI_OPENAI_COMPATIBLE_KEY` and `PDODB_AI_OPENAI_COMPATIBLE_MODEL`.
-
-**Agent tools:** The bundled MCP server provides context, local documentation
-search, schema discovery and estimated EXPLAIN without an additional LLM key.
-For example, let your editor inspect the actual `users` table before writing a
-PDOdb query. The editor starts the optional local PHP process; no daemon is
-needed. Follow the [AI editor walkthrough](documentation/01-getting-started/08-ai-editor.md)
-for setup, an example prompt, and when to skip MCP.
-
-**Explain a slow query from PHP:** `explainAiAdvice()` combines estimated EXPLAIN,
-FROM/JOIN schemas and existing indexes in one AI request. Preview the context
-without a model call using `explainAiContext()`.
-See the [query advice walkthrough](documentation/05-advanced-features/24-ai-query-advice.md)
-for a complete use case, privacy controls and structured reports.
-
-See [AI Analysis Documentation](documentation/05-advanced-features/23-ai-analysis.md) for complete guide.
+[Provider setup, including OpenRouter and compatible APIs](documentation/05-advanced-features/23-ai-analysis.md#configuration)
+ · [Context, privacy and structured results](documentation/05-advanced-features/24-ai-query-advice.md)
+ · [Optional MCP integration for editors](documentation/01-getting-started/08-ai-editor.md)
 
 ### Basic CRUD Operations
 

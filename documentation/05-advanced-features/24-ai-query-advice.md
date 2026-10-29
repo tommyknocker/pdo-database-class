@@ -1,5 +1,8 @@
 # Explain and improve a query with explainAiAdvice()
 
+Start with [three runnable examples with real AI answers and measured plans](25-ai-query-advice-in-practice.md).
+This page covers the API, context controls and result handling in detail.
+
 Use `explainAiAdvice()` when you have a PDOdb SELECT query and want help
 understanding its execution plan, index use, or a possible rewrite. Typical
 situations include investigating a slow endpoint, reviewing a new JOIN, or
@@ -23,7 +26,7 @@ Use an actual model ID available to your account. Keep the real key in your
 local, untracked environment or secret store. PDOdb also supports other
 [providers and compatible endpoints](23-ai-analysis.md#configuration).
 The dedicated `.env.ai.local` file is loaded by the repository's live-test
-runner, not automatically by this PHP method.
+runner and the showcase with `--ai`, not automatically by this PHP method.
 
 This guide assumes `$db` is your application's configured `PdoDb` instance and
 `orders` contains `id`, `user_id`, `status`, and `created_at`.

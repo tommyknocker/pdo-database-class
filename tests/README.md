@@ -35,6 +35,12 @@ composer pdodb:test:ai:check  # Validate local setup; no API request
 composer pdodb:test:ai:live   # Explicitly make up to three AI requests
 ```
 
+For a complete demonstration with deterministic data, actual query plans and
+before/after measurements, run `php examples/07-performance/05-ai-query-advice.php`.
+It is offline by default. Add `--ai` to explicitly request three short answers
+using the same private settings and 512-token ceiling. The showcase publishes
+model text from synthetic data; the smoke runner below logs only pass/fail.
+
 The live smoke test covers `explainAiAdvice()`, schema analysis and the MCP
 `explain_plan` tool. It uses a synthetic SQLite database in memory, not the
 project's configured databases. A successful run makes three requests; it stops

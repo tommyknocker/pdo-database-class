@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Reproducible AI query-advice showcase with 100,000 synthetic orders, three live-answer use cases, recorded SQLite plans and verified before/after results; shorten the README example and link the hands-on guide.
 - Query-advice context preview, bounded FROM/JOIN catalog collection, database versions, normalized index metadata, optional catalog estimates, task goals and privacy controls. Add optional validated structured AI findings while retaining existing text/base-analysis results.
 - Dedicated PHP query-advice walkthrough and deterministic/native database regression coverage; `composer pdodb:test:ai:db` checks six adapters without an LLM request.
 - MCP visibility policies for tables/schemas, explicit diagnostic connection selection, scoped PostgreSQL/MariaDB statement limits, and MCP-specific diagnostics. Restricted visibility exposes metadata tools only.

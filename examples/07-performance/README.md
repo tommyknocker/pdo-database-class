@@ -43,6 +43,27 @@ EXPLAIN query analysis and optimization recommendations.
 - Optimization recommendations
 - Dialect-specific EXPLAIN formats
 
+### 05-ai-query-advice.php
+
+Three complete use cases: an ordered page, a selective JOIN, and an existing
+index that already fits. Creates 100,000 deterministic orders and 2,000 customers
+in a fresh SQLite database in memory. Always uses SQLite, even if `PDODB_DRIVER`
+selects another database. No application tables or configured database are used.
+
+```bash
+# Real plans and local measurements; no API key or model calls
+php examples/07-performance/05-ai-query-advice.php
+
+# Explicitly request three live AI answers using private local settings
+php examples/07-performance/05-ai-query-advice.php --ai
+```
+
+Run these commands from the repository root. `--ai` reads `.env.ai.local` (or
+`--env=/private/file`) and caps each of three responses at 512 output tokens.
+Use `--json` or `--output=/tmp/query-advice.json` for a machine-readable report.
+See the [illustrated walkthrough](../../documentation/05-advanced-features/25-ai-query-advice-in-practice.md)
+for captured model answers, real plans and measured results.
+
 ## Usage
 
 ```bash
