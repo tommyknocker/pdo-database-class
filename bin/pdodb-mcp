@@ -3,15 +3,33 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../vendor/autoload.php';
+$directory = __DIR__;
+$autoload = null;
+for ($i = 0; $i < 6; $i++) {
+    if (is_file($directory . '/vendor/autoload.php')) {
+        $autoload = $directory . '/vendor/autoload.php';
+        break;
+    }
+    $directory = dirname($directory);
+}
+if ($autoload === null) {
+    fwrite(STDERR, "Composer autoload not found. Run composer install.\n");
+    exit(1);
+}
+require_once $autoload;
 
-use tommyknocker\pdodb\PdoDb;
-use tommyknocker\pdodb\ai\mcp\McpServer;
 
-// Load database configuration from environment
-$db = PdoDb::fromEnv();
-
-// Create and run MCP server
-$server = new McpServer($db);
-$server->run();
-
+// Reuse the CLI's .env / config/db.php connection configuration.
+$command = new tommyknocker\pdodb\cli\commands\McpCommand();
+$command->setArguments(['serve']);
+foreach (array_slice($argv, 1) as $argument) {
+    if (str_starts_with($argument, '--project=')) {
+        $command->setOptions(['project' => substr($argument, strlen('--project='))]);
+    }
+}
+try {
+    exit($command->execute());
+} catch (\Throwable) {
+    fwrite(STDERR, "Unable to start PDOdb MCP; check database configuration and permissions.\n");
+    exit(1);
+}

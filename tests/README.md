@@ -1,5 +1,67 @@
 # Testing Guide
 
+## Local AI tests and private credentials
+
+Run the deterministic AI/MCP suite without an external provider:
+
+```bash
+composer pdodb:test:ai
+```
+
+It checks configuration, HTTP request shape, MCP stdio, Composer installation
+paths and the smoke-test runner using fake keys and a loopback HTTP server.
+It does not load `.env.ai.local` or make paid requests. No database servers
+are needed; fixtures use SQLite in memory.
+
+For real OpenRouter testing, create `.env.ai.local` from
+[the template](../.env.ai.local.example), set its permissions to `600`, then
+edit the key and an actual model ID in your local editor. The local file is
+ignored by Git; the template contains no credentials. Existing shell environment
+variables take precedence over the file. Do not put the actual key in test
+sources, Composer scripts, shell command arguments or committed configuration.
+
+```bash
+chmod 600 .env.ai.local
+composer pdodb:test:ai:check  # Validate local setup; no API request
+composer pdodb:test:ai:live   # Explicitly make up to three AI requests
+```
+
+The live smoke test covers `explainAiAdvice()`, schema analysis and the MCP
+`explain_plan` tool. It uses a synthetic SQLite database in memory, not the
+project's configured databases. A successful run makes three requests; it stops
+at the first failure and does not retry automatically. Defaults are 256 output
+tokens and a 45-second timeout per request, adjustable through
+`PDODB_AI_LIVE_MAX_TOKENS` (64–512) and `PDODB_AI_LIVE_TIMEOUT` (5–90).
+For OpenRouter models that support it, set `PDODB_AI_LIVE_REASONING_EFFORT=none`
+to reserve a small budget for visible output. Leave it empty to use the model's
+default, or choose another supported effort. Reasoning can consume the entire
+token limit and leave `content` empty; that is reported as budget exhaustion.
+Disabling reasoning is model-dependent and is not supported by every model.
+The script logs pass/fail summaries, never the key or raw provider/model output.
+Live requests are blocked when `CI` or `GITHUB_ACTIONS` is present.
+
+The file can also live outside the repository:
+
+```bash
+php scripts/test-ai-live.php --check --env=/absolute/path/to/private-ai.env
+php scripts/test-ai-live.php --run --env=/absolute/path/to/private-ai.env
+```
+
+Without `--run`, the script only checks configuration. `--check` confirms that
+settings and the local SQLite driver are present; it does not validate the key
+against the provider. Network requests occur only with `--run`.
+
+To test a particular PHP version:
+
+```bash
+php8.4 scripts/test-ai-live.php --run
+php8.5 scripts/test-ai-live.php --run
+```
+
+Each live invocation makes its own requests. These are integration smoke tests:
+they check transport, result contracts and a nonempty AI response, not the
+correctness or performance of the model's SQL recommendations.
+
 ## LoadCsv/LoadXml Tests
 
 ### Overview

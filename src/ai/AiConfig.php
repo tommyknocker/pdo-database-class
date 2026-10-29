@@ -9,6 +9,7 @@ namespace tommyknocker\pdodb\ai;
  */
 class AiConfig
 {
+    public const array PROVIDERS = ['openai', 'openai-compatible', 'openrouter', 'anthropic', 'google', 'microsoft', 'ollama', 'deepseek', 'yandex'];
     protected string $defaultProvider = 'openai';
     /** @var array<string, string> */
     protected array $apiKeys = [];
@@ -68,6 +69,13 @@ class AiConfig
 
         if (isset($aiConfig['ollama_url'])) {
             $this->ollamaUrl = (string)$aiConfig['ollama_url'];
+        }
+
+        foreach (['openai-compatible', 'openrouter'] as $provider) {
+            $key = str_replace('-', '_', $provider) . '_key';
+            if (isset($aiConfig[$key])) {
+                $this->apiKeys[$provider] = (string)$aiConfig[$key];
+            }
         }
 
         // Load provider-specific settings
@@ -135,8 +143,6 @@ class AiConfig
         $ollamaUrl = getenv('PDODB_AI_OLLAMA_URL');
         if ($ollamaUrl !== false && $ollamaUrl !== '') {
             $this->ollamaUrl = $ollamaUrl;
-        } else {
-            $this->ollamaUrl = 'http://localhost:11434';
         }
 
         // Load provider-specific model settings from environment variables
@@ -148,31 +154,42 @@ class AiConfig
      */
     protected function loadProviderModelsFromEnvironment(): void
     {
-        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'ollama', 'deepseek', 'yandex'];
+        $providers = self::PROVIDERS;
         foreach ($providers as $provider) {
+            $prefix = 'PDODB_AI_' . strtoupper(str_replace('-', '_', $provider));
+            foreach (['KEY' => 'api_key', 'BASE_URL' => 'base_url', 'ENDPOINT' => 'endpoint', 'DEPLOYMENT' => 'deployment'] as $suffix => $setting) {
+                $value = getenv($prefix . '_' . $suffix);
+                if ($value !== false && $value !== '') {
+                    if ($setting === 'api_key') {
+                        $this->apiKeys[$provider] = $value;
+                    } else {
+                        $this->setProviderSetting($provider, $setting, $value);
+                    }
+                }
+            }
             // Load model
-            $envVar = 'PDODB_AI_' . strtoupper($provider) . '_MODEL';
+            $envVar = $prefix . '_MODEL';
             $model = getenv($envVar);
             if ($model !== false && $model !== '') {
                 $this->setProviderSetting($provider, 'model', $model);
             }
 
             // Load temperature
-            $envVar = 'PDODB_AI_' . strtoupper($provider) . '_TEMPERATURE';
+            $envVar = $prefix . '_TEMPERATURE';
             $temperature = getenv($envVar);
             if ($temperature !== false && $temperature !== '') {
                 $this->setProviderSetting($provider, 'temperature', (float)$temperature);
             }
 
             // Load max_tokens
-            $envVar = 'PDODB_AI_' . strtoupper($provider) . '_MAX_TOKENS';
+            $envVar = $prefix . '_MAX_TOKENS';
             $maxTokens = getenv($envVar);
             if ($maxTokens !== false && $maxTokens !== '') {
                 $this->setProviderSetting($provider, 'max_tokens', (int)$maxTokens);
             }
 
             // Load timeout
-            $envVar = 'PDODB_AI_' . strtoupper($provider) . '_TIMEOUT';
+            $envVar = $prefix . '_TIMEOUT';
             $timeout = getenv($envVar);
             if ($timeout !== false && $timeout !== '') {
                 $this->setProviderSetting($provider, 'timeout', (int)$timeout);
@@ -246,6 +263,6 @@ class AiConfig
      */
     public function hasApiKey(string $provider): bool
     {
-        return isset($this->apiKeys[mb_strtolower($provider, 'UTF-8')]);
+        return ($this->apiKeys[mb_strtolower($provider, 'UTF-8')] ?? '') !== '';
     }
 }

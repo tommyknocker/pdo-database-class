@@ -28,9 +28,30 @@ class OpenAiProvider extends BaseAiProvider
 
     protected function initializeDefaults(): void
     {
-        $this->model = $this->config->getProviderSetting('openai', 'model', self::DEFAULT_MODEL);
-        $this->temperature = (float)$this->config->getProviderSetting('openai', 'temperature', self::DEFAULT_TEMPERATURE);
-        $this->maxTokens = (int)$this->config->getProviderSetting('openai', 'max_tokens', self::DEFAULT_MAX_TOKENS);
+        $provider = $this->getProviderName();
+        $defaultBaseUrl = match ($provider) {
+            'openai' => 'https://api.openai.com/v1',
+            'openrouter' => 'https://openrouter.ai/api/v1',
+            default => '',
+        };
+        $baseUrl = (string)$this->config->getProviderSetting($provider, 'base_url', $defaultBaseUrl);
+        if ($baseUrl !== '') {
+            $parts = parse_url($baseUrl);
+            if ($parts === false || !in_array($parts['scheme'] ?? '', ['http', 'https'], true)
+                || empty($parts['host']) || isset($parts['user']) || isset($parts['pass'])
+                || isset($parts['query']) || isset($parts['fragment'])) {
+                throw new QueryException('AI base_url must be an absolute HTTP(S) URL without credentials, query or fragment', 0);
+            }
+        }
+        // Preserve existing subclasses that override the protected endpoint property.
+        if ($provider !== 'openai' || $this->apiUrl === self::API_URL
+            || $this->config->getProviderSetting($provider, 'base_url') !== null) {
+            $this->apiUrl = $baseUrl === '' ? '' : rtrim($baseUrl, '/') . '/chat/completions';
+        }
+        $defaultModel = $provider === 'openrouter' ? 'openai/' . self::DEFAULT_MODEL : self::DEFAULT_MODEL;
+        $this->model = (string)$this->config->getProviderSetting($provider, 'model', $defaultModel);
+        $this->temperature = (float)$this->config->getProviderSetting($provider, 'temperature', self::DEFAULT_TEMPERATURE);
+        $this->maxTokens = (int)$this->config->getProviderSetting($provider, 'max_tokens', self::DEFAULT_MAX_TOKENS);
     }
 
     public function getProviderName(): string
@@ -40,7 +61,7 @@ class OpenAiProvider extends BaseAiProvider
 
     public function isAvailable(): bool
     {
-        return $this->config->hasApiKey('openai');
+        return $this->apiUrl !== '' && $this->config->hasApiKey($this->getProviderName());
     }
 
     public function analyzeQuery(string $sql, array $context = []): string
@@ -83,7 +104,7 @@ class OpenAiProvider extends BaseAiProvider
      */
     protected function callApi(string $systemPrompt, string $userPrompt): string
     {
-        $apiKey = $this->config->getApiKey('openai');
+        $apiKey = $this->config->getApiKey($this->getProviderName());
         if ($apiKey === null) {
             throw new QueryException('OpenAI API key not configured', 0);
         }
@@ -104,20 +125,44 @@ class OpenAiProvider extends BaseAiProvider
             'max_tokens' => $this->maxTokens,
         ];
 
-        $headers = [
-            self::HEADER_AUTHORIZATION => self::HEADER_BEARER_PREFIX . $apiKey,
-        ];
+        $provider = $this->getProviderName();
+        $requestOptions = $this->config->getProviderSetting($provider, 'request_options', []);
+        if (!is_array($requestOptions) || array_key_exists('model', $requestOptions) || array_key_exists('messages', $requestOptions)
+            || isset($requestOptions['stream']) && $requestOptions['stream'] !== false) {
+            throw new QueryException('AI request_options must be an array and cannot override model/messages or enable streaming', 0);
+        }
+        $data = array_filter(array_replace($data, $requestOptions), static fn ($value) => $value !== null);
+        $headers = $this->config->getProviderSetting($provider, 'headers', []);
+        if (!is_array($headers)) {
+            throw new QueryException('AI headers must be an array of strings', 0);
+        }
+        foreach ($headers as $name => $value) {
+            if (!is_string($name) || !is_string($value) || preg_match('/^[A-Za-z0-9-]+$/D', $name) !== 1
+                || str_contains($value, "\r") || str_contains($value, "\n")
+                || in_array(strtolower($name), ['authorization', 'host', 'content-length', 'content-type'], true)) {
+                throw new QueryException('Invalid or reserved AI HTTP header', 0);
+            }
+        }
+        $headers[self::HEADER_AUTHORIZATION] = self::HEADER_BEARER_PREFIX . $apiKey;
 
         $response = $this->makeRequest($this->apiUrl, $data, $headers);
 
-        if (!isset($response[self::RESPONSE_KEY_CHOICES][0][self::RESPONSE_KEY_MESSAGE][self::RESPONSE_KEY_CONTENT])) {
+        $content = $response[self::RESPONSE_KEY_CHOICES][0][self::RESPONSE_KEY_MESSAGE][self::RESPONSE_KEY_CONTENT] ?? null;
+        if ((!is_string($content) || trim($content) === '')
+            && ($response[self::RESPONSE_KEY_CHOICES][0]['finish_reason'] ?? null) === 'length') {
+            throw new QueryException(
+                'AI response exhausted its output token limit before producing visible text. Reduce reasoning effort or choose a model that can answer within the configured limit.',
+                0
+            );
+        }
+        if (!is_string($content)) {
             throw new QueryException(
                 'Invalid response format from OpenAI API',
                 0
             );
         }
 
-        return (string)$response[self::RESPONSE_KEY_CHOICES][0][self::RESPONSE_KEY_MESSAGE][self::RESPONSE_KEY_CONTENT];
+        return $content;
     }
 
     /**
@@ -155,7 +200,7 @@ class OpenAiProvider extends BaseAiProvider
         $prompt .= "- Index suggestions\n";
         $prompt .= "- Query structure improvements\n";
         $prompt .= "- Performance bottlenecks\n";
-        $prompt .= '- Estimated impact of optimizations';
+        $prompt .= '- Evidence supporting recommendations and limits of available measurements';
 
         return $prompt;
     }
@@ -207,7 +252,7 @@ class OpenAiProvider extends BaseAiProvider
     {
         if (!$this->isAvailable()) {
             throw new QueryException(
-                'OpenAI provider is not available. Please configure PDODB_AI_OPENAI_KEY environment variable.',
+                'AI provider ' . $this->getProviderName() . ' is not available. Configure its API key and base_url.',
                 0
             );
         }

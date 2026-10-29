@@ -17,6 +17,16 @@ function http_get_last_response_headers(): ?array
 
 function file_get_contents(string $url, bool $useIncludePath = false, mixed $context = null): string|false
 {
+    if (str_ends_with($url, '/chat/completions')) {
+        $options = stream_context_get_options($context);
+        $GLOBALS['ai_test_requests'][] = ['url' => $url, 'options' => $options];
+        $GLOBALS['ai_test_headers'] = ['HTTP/1.1 200 OK'];
+        $body = json_decode($options['http']['content'], true);
+        if (($body['model'] ?? '') === 'test/reasoning-budget') {
+            return '{"choices":[{"finish_reason":"length","message":{"content":null,"reasoning":"test-only"}}]}';
+        }
+        return '{"choices":[{"message":{"content":"Test analysis"}}]}';
+    }
     if ($url === 'https://example.test/error') {
         $GLOBALS['ai_test_headers'] = ['HTTP/1.1 429 Too Many Requests'];
         return '{"error":"limited"}';

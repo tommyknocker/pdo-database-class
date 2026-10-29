@@ -58,6 +58,7 @@ abstract class BaseAiProvider implements AiProviderInterface
                 'content' => json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                 'timeout' => $this->timeout,
                 'ignore_errors' => true,
+                'follow_location' => 0,
             ],
         ]);
 
@@ -147,6 +148,10 @@ abstract class BaseAiProvider implements AiProviderInterface
     protected function formatContext(array $context): string
     {
         $parts = [];
+
+        if (isset($context['table_schema'])) {
+            $context['schema'] = $context['table_schema'];
+        }
 
         if (isset($context['schema']) && !empty($context['schema'])) {
             $schemaJson = json_encode($context['schema'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);

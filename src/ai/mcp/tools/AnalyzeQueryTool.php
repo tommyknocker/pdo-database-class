@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\ai\mcp\tools;
 
 use tommyknocker\pdodb\ai\AiAnalysisService;
+use tommyknocker\pdodb\ai\AiConfig;
+use tommyknocker\pdodb\ai\QueryInspectionService;
 use tommyknocker\pdodb\PdoDb;
-use tommyknocker\pdodb\query\analysis\ExplainAnalyzer;
 
 /**
  * MCP tool for analyzing SQL queries with AI.
@@ -39,14 +40,15 @@ class AnalyzeQueryTool implements McpToolInterface
                     'type' => 'string',
                     'description' => 'SQL query to analyze',
                 ],
+                'params' => ['type' => ['array', 'object'], 'description' => 'Positional or named SQL parameters'],
                 'table' => [
                     'type' => 'string',
                     'description' => 'Table name for context (optional)',
                 ],
                 'provider' => [
                     'type' => 'string',
-                    'description' => 'AI provider (openai, anthropic, google, microsoft, ollama)',
-                    'enum' => ['openai', 'anthropic', 'google', 'microsoft', 'ollama'],
+                    'description' => 'AI report provider; defaults to the configured provider',
+                    'enum' => AiConfig::PROVIDERS,
                 ],
             ],
         ];
@@ -65,21 +67,15 @@ class AnalyzeQueryTool implements McpToolInterface
         try {
             // Get EXPLAIN plan for better AI analysis
             $explainAnalysis = null;
+            $warnings = [];
+            $inspection = ['source' => 'unavailable'];
 
             try {
-                $connection = $this->db->connection;
-                $dialect = $connection->getDialect();
-                $pdo = $connection->getPdo();
-                $explainResults = $dialect->executeExplain($pdo, $sql, []);
-                $queryBuilder = $this->db->find();
-                $reflection = new \ReflectionClass($queryBuilder);
-                $executionEngineProperty = $reflection->getProperty('executionEngine');
-
-                $executionEngine = $executionEngineProperty->getValue($queryBuilder);
-                $analyzer = new ExplainAnalyzer($dialect, $executionEngine);
-                $explainAnalysis = $analyzer->analyze($explainResults, $tableName);
+                $inspection = (new QueryInspectionService($this->db))->inspect($sql, $arguments['params'] ?? [], $tableName);
+                $explainAnalysis = $inspection['analysis'];
+                $warnings = $inspection['warnings'];
             } catch (\Throwable $e) {
-                // If EXPLAIN fails, continue without it
+                $warnings[] = 'EXPLAIN could not be collected. This advice is not based on a verified execution plan.';
             }
 
             $analysis = $this->aiService->analyzeQuery($sql, $tableName, $provider, [], $explainAnalysis);
@@ -87,7 +83,9 @@ class AnalyzeQueryTool implements McpToolInterface
             return [
                 'sql' => $sql,
                 'analysis' => $analysis,
-                'provider' => $provider ?? 'openai',
+                'provider' => $this->aiService->getProvider($provider)->getProviderName(),
+                'plan_source' => $inspection['source'],
+                'warnings' => $warnings,
             ];
         } catch (\Throwable $e) {
             return [

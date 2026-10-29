@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\ai;
 
 use tommyknocker\pdodb\cli\TableManager;
-use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 
@@ -125,9 +124,9 @@ class AiAnalysisContext
 
             $stats = [];
 
-            // Get row count
-            $count = $this->db->find()->from($tableName)->select([Db::count('*')])->getValue();
-            $stats['row_count'] = $count;
+            // Metadata collection must not silently scan the entire table.
+            $stats['row_count'] = null;
+            $stats['row_count_exact'] = false;
 
             // Get table size if supported
             if ($driverName === 'mysql' || $driverName === 'mariadb') {

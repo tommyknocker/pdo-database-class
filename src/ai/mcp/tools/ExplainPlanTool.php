@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\ai\mcp\tools;
 
 use tommyknocker\pdodb\ai\AiAnalysisService;
+use tommyknocker\pdodb\ai\AiConfig;
+use tommyknocker\pdodb\ai\QueryInspectionService;
 use tommyknocker\pdodb\PdoDb;
-use tommyknocker\pdodb\query\analysis\AiExplainAnalysis;
-use tommyknocker\pdodb\query\analysis\ExplainAnalyzer;
 
 /**
  * MCP tool for explaining query plans with AI.
@@ -40,14 +40,15 @@ class ExplainPlanTool implements McpToolInterface
                     'type' => 'string',
                     'description' => 'SQL query to explain',
                 ],
+                'params' => ['type' => ['array', 'object'], 'description' => 'Positional or named SQL parameters'],
                 'table' => [
                     'type' => 'string',
                     'description' => 'Table name for context (optional)',
                 ],
                 'provider' => [
                     'type' => 'string',
-                    'description' => 'AI provider (openai, anthropic, google, microsoft, ollama)',
-                    'enum' => ['openai', 'anthropic', 'google', 'microsoft', 'ollama'],
+                    'description' => 'AI report provider; defaults to the configured provider',
+                    'enum' => AiConfig::PROVIDERS,
                 ],
             ],
         ];
@@ -64,57 +65,22 @@ class ExplainPlanTool implements McpToolInterface
         $provider = $arguments['provider'] ?? null;
 
         try {
-            // For raw SQL, we need to use ExplainAnalyzer and AiAnalysisService directly
-            $connection = $this->db->connection;
-            $dialect = $connection->getDialect();
-            $pdo = $connection->getPdo();
-
-            // Get base analysis - use QueryBuilder's internal execution engine
-            $explainResults = $dialect->executeExplain($pdo, $sql, []);
-            $queryBuilder = $this->db->find();
-            // Access execution engine via reflection or create new one
-            $reflection = new \ReflectionClass($queryBuilder);
-            $executionEngineProperty = $reflection->getProperty('executionEngine');
-
-            $executionEngine = $executionEngineProperty->getValue($queryBuilder);
-            $analyzer = new ExplainAnalyzer($dialect, $executionEngine);
-            $baseAnalysis = $analyzer->analyze($explainResults, $tableName);
+            $inspection = (new QueryInspectionService($this->db))->inspect($sql, $arguments['params'] ?? [], $tableName);
+            $baseAnalysis = $inspection['analysis'];
 
             // Then get AI analysis (pass baseAnalysis which includes EXPLAIN plan)
             $aiAnalysis = $this->aiService->analyzeQuery($sql, $tableName, $provider, [], $baseAnalysis);
             $aiProvider = $this->aiService->getProvider($provider);
             $model = $aiProvider->getModel();
 
-            $result = new AiExplainAnalysis(
-                $baseAnalysis,
-                $aiAnalysis,
-                $aiProvider->getProviderName(),
-                $model
-            );
-
             return [
                 'sql' => $sql,
-                'base_analysis' => [
-                    'issues' => array_map(function ($issue) {
-                        return [
-                            'type' => $issue->type,
-                            'severity' => $issue->severity,
-                            'description' => $issue->description,
-                            'table' => $issue->table ?? null,
-                        ];
-                    }, $result->baseAnalysis->issues),
-                    'recommendations' => array_map(function ($rec) {
-                        return [
-                            'type' => $rec->type,
-                            'severity' => $rec->severity,
-                            'message' => $rec->message,
-                            'suggestion' => $rec->suggestion ?? null,
-                        ];
-                    }, $result->baseAnalysis->recommendations),
-                ],
-                'ai_analysis' => $result->aiAnalysis,
-                'provider' => $result->provider,
-                'model' => $result->model,
+                'base_analysis' => QueryInspectionService::format($baseAnalysis),
+                'ai_analysis' => $aiAnalysis,
+                'provider' => $aiProvider->getProviderName(),
+                'model' => $model,
+                'plan_source' => $inspection['source'],
+                'warnings' => $inspection['warnings'],
             ];
         } catch (\Throwable $e) {
             return [

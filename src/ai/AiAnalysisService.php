@@ -9,6 +9,7 @@ use tommyknocker\pdodb\ai\providers\DeepSeekProvider;
 use tommyknocker\pdodb\ai\providers\GoogleProvider;
 use tommyknocker\pdodb\ai\providers\MicrosoftProvider;
 use tommyknocker\pdodb\ai\providers\OllamaProvider;
+use tommyknocker\pdodb\ai\providers\OpenAiCompatibleProvider;
 use tommyknocker\pdodb\ai\providers\OpenAiProvider;
 use tommyknocker\pdodb\ai\providers\YandexProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
@@ -33,7 +34,7 @@ class AiAnalysisService
     public function __construct(PdoDb $db, ?AiConfig $config = null, ?array $configArray = null)
     {
         $this->db = $db;
-        $this->config = $config ?? new AiConfig($configArray);
+        $this->config = $config ?? ($configArray !== null ? new AiConfig($configArray) : $db->getAiConfig());
         $this->contextBuilder = new AiAnalysisContext($db);
     }
 
@@ -47,7 +48,7 @@ class AiAnalysisService
      */
     public function getProvider(?string $providerName = null): AiProviderInterface
     {
-        $providerName = $providerName ?? $this->config->getDefaultProvider();
+        $providerName = mb_strtolower($providerName ?? $this->config->getDefaultProvider(), 'UTF-8');
 
         if ($this->currentProvider !== null && $this->currentProvider->getProviderName() === $providerName) {
             return $this->currentProvider;
@@ -81,6 +82,7 @@ class AiAnalysisService
 
         return match ($providerName) {
             'openai' => new OpenAiProvider($this->config),
+            'openai-compatible', 'openrouter' => new OpenAiCompatibleProvider($this->config, $providerName),
             'anthropic' => new AnthropicProvider($this->config),
             'google' => new GoogleProvider($this->config),
             'microsoft' => new MicrosoftProvider($this->config),
@@ -88,7 +90,7 @@ class AiAnalysisService
             'deepseek' => new DeepSeekProvider($this->config),
             'yandex' => new YandexProvider($this->config),
             default => throw new QueryException(
-                "Unsupported AI provider: {$providerName}. Supported: openai, anthropic, google, microsoft, ollama, deepseek, yandex",
+                "Unsupported AI provider: {$providerName}. Supported: openai, openai-compatible, openrouter, anthropic, google, microsoft, ollama, deepseek, yandex",
                 0
             ),
         };
@@ -107,7 +109,7 @@ class AiAnalysisService
      */
     public function analyzeQuery(string $sql, ?string $tableName = null, ?string $provider = null, array $options = [], ?ExplainAnalysis $explainAnalysis = null): string
     {
-        $aiProvider = $this->getProvider($provider);
+        $aiProvider = clone $this->getProvider($provider);
 
         if (isset($options['temperature'])) {
             $aiProvider->setTemperature((float)$options['temperature']);
@@ -138,7 +140,7 @@ class AiAnalysisService
      */
     public function analyzeSchema(?string $tableName = null, ?string $provider = null, array $options = []): string
     {
-        $aiProvider = $this->getProvider($provider);
+        $aiProvider = clone $this->getProvider($provider);
 
         if (isset($options['temperature'])) {
             $aiProvider->setTemperature((float)$options['temperature']);
@@ -170,7 +172,7 @@ class AiAnalysisService
      */
     public function suggestOptimizations(array $analysis, array $context = [], ?string $provider = null, array $options = []): string
     {
-        $aiProvider = $this->getProvider($provider);
+        $aiProvider = clone $this->getProvider($provider);
 
         if (isset($options['temperature'])) {
             $aiProvider->setTemperature((float)$options['temperature']);

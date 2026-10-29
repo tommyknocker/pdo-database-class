@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\ai\mcp\tools;
 
 use tommyknocker\pdodb\ai\AiAnalysisService;
+use tommyknocker\pdodb\ai\AiConfig;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -40,8 +41,8 @@ class SuggestIndexesTool implements McpToolInterface
                 ],
                 'provider' => [
                     'type' => 'string',
-                    'description' => 'AI provider (openai, anthropic, google, microsoft, ollama)',
-                    'enum' => ['openai', 'anthropic', 'google', 'microsoft', 'ollama'],
+                    'description' => 'AI report provider; defaults to the configured provider',
+                    'enum' => AiConfig::PROVIDERS,
                 ],
             ],
         ];
@@ -57,22 +58,12 @@ class SuggestIndexesTool implements McpToolInterface
         $provider = $arguments['provider'] ?? null;
 
         try {
-            $schema = [
-                'columns' => $this->db->describe($tableName),
-                'indexes' => $this->db->schema()->getIndexes($tableName),
-                'foreign_keys' => $this->db->schema()->getForeignKeys($tableName),
-            ];
-
-            $context = [
-                'schema' => $schema,
-            ];
-
             $suggestions = $this->aiService->analyzeSchema($tableName, $provider);
 
             return [
                 'table' => $tableName,
                 'suggestions' => $suggestions,
-                'provider' => $provider ?? 'openai',
+                'provider' => $this->aiService->getProvider($provider)->getProviderName(),
             ];
         } catch (\Throwable $e) {
             return [

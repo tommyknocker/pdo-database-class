@@ -76,6 +76,7 @@ class Application
         $this->addCommand(new commands\BenchmarkCommand());
         $this->addCommand(new commands\OptimizeCommand());
         $this->addCommand(new commands\AiCommand());
+        $this->addCommand(new commands\McpCommand());
 
         // Utilities
         $this->addCommand(new commands\DumpCommand());

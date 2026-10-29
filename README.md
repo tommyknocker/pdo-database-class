@@ -76,7 +76,7 @@ See [installation](documentation/01-getting-started/01-installation.md), [databa
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations with relationships (hasOne, hasMany, belongsTo, hasManyThrough), eager/lazy loading, and query scopes
 
 **Developer Experience:**
-- **🤖 AI-Powered Analysis** - Get intelligent database optimization recommendations using OpenAI, Anthropic, Google, Microsoft, DeepSeek, Yandex, or Ollama. Analyze queries, optimize schema, and get AI-powered suggestions through `explainAiAdvice()` method or CLI commands. Includes MCP server for IDE/agent integration.
+- **🤖 AI-Powered Analysis** - Get intelligent database optimization recommendations using OpenAI, OpenRouter, OpenAI-compatible endpoints, Anthropic, Google, Microsoft, DeepSeek, Yandex, or Ollama. Analyze queries, optimize schema, and get AI-powered suggestions through `explainAiAdvice()` method or CLI commands. Includes MCP server for IDE/agent integration.
 - **🖥️ Interactive TUI Dashboard** - Real-time database monitoring with full-screen terminal interface. 8 panes across 2 screens: Active Queries, Connection Pool, Cache Statistics, Server Metrics, Schema Browser, Migration Manager, Server Variables, and SQL Scratchpad. Features include global search filter, query inspection, performance tracking, query management, and keyboard navigation. Launch with `pdodb ui`
 - **CLI Tools** - Database management, user management, dump/restore, migration generator, seed generator, model generator, schema inspector, interactive query tester (REPL), AI analysis commands
 - **Enhanced EXPLAIN** - Automatic detection of full table scans, missing indexes, and optimization recommendations
@@ -551,9 +551,18 @@ pdodb ai query "SELECT * FROM users WHERE email = 'user@example.com'" \
     --table=users
 ```
 
-**Supported Providers:** OpenAI, Anthropic, Google, Microsoft, DeepSeek, Yandex, Ollama (local, no API key)
+**Supported Providers:** OpenAI, OpenRouter, OpenAI-compatible endpoints, Anthropic, Google, Microsoft, DeepSeek, Yandex, Ollama (local, no API key)
 
 **Model Selection:** Configure models via environment variables (`PDODB_AI_<PROVIDER>_MODEL`) or config array (`ai.providers.<provider>.model`)
+
+**OpenRouter:** Set `PDODB_AI_PROVIDER=openrouter`, `PDODB_AI_OPENROUTER_KEY` and
+`PDODB_AI_OPENROUTER_MODEL`. Other compatible services use
+`PDODB_AI_PROVIDER=openai-compatible` with `PDODB_AI_OPENAI_COMPATIBLE_BASE_URL`,
+`PDODB_AI_OPENAI_COMPATIBLE_KEY` and `PDODB_AI_OPENAI_COMPATIBLE_MODEL`.
+
+**Agent tools:** The bundled MCP server provides context, local documentation
+search, schema discovery and estimated EXPLAIN without an additional LLM key.
+Run `pdodb ai setup`, `pdodb ai doctor` and `pdodb mcp config` to get started.
 
 See [AI Analysis Documentation](documentation/05-advanced-features/23-ai-analysis.md) for complete guide.
 
@@ -780,7 +789,7 @@ Perfect for debugging, monitoring production databases, understanding query patt
 ### Available Commands
 
 - **`ui`** ⭐ - **Interactive TUI Dashboard** - Real-time database monitoring (full-screen terminal interface)
-- **`ai`** 🤖 - **AI-Powered Analysis** - Get intelligent database optimization recommendations using OpenAI, Anthropic, Google, Microsoft, DeepSeek, Yandex, or Ollama
+- **`ai`** 🤖 - **AI-Powered Analysis** - Get intelligent database optimization recommendations using OpenAI, OpenRouter, OpenAI-compatible endpoints, Anthropic, Google, Microsoft, DeepSeek, Yandex, or Ollama
 - **`db`** - Manage databases (create, drop, list, check existence)
 - **`user`** - Manage database users (create, drop, grant/revoke privileges)
 - **`dump`** - Dump and restore database (with compression, auto-naming, rotation)

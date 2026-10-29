@@ -71,6 +71,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     /** @var int PDO fetch mode */
     protected int $fetchMode = PDO::FETCH_ASSOC;
 
+    /** @var array<string, mixed> */
+    protected array $aiSettings = [];
+
     /** @var array<int|string, mixed> Query options (e.g., FOR UPDATE, IGNORE) */
     protected array $options = [];
 
@@ -122,6 +125,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     protected ConditionBuilderInterface $conditionBuilder;
     protected JoinBuilderInterface $joinBuilder;
 
+    /** @param array<string, mixed> $aiSettings */
     public function __construct(
         ConnectionInterface $connection,
         ParameterManagerInterface $parameterManager,
@@ -130,13 +134,15 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         JoinBuilderInterface $joinBuilder,
         RawValueResolver $rawValueResolver,
         ?CacheManager $cacheManager = null,
-        ?QueryCompilationCache $compilationCache = null
+        ?QueryCompilationCache $compilationCache = null,
+        array $aiSettings = []
     ) {
         $this->initializeCommonDependencies($connection, $parameterManager, $executionEngine, $rawValueResolver);
         $this->conditionBuilder = $conditionBuilder;
         $this->joinBuilder = $joinBuilder;
         $this->cacheManager = $cacheManager;
         $this->compilationCache = $compilationCache;
+        $this->aiSettings = $aiSettings;
     }
 
     /**
@@ -997,7 +1003,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             // Pass baseAnalysis (which includes EXPLAIN plan) to AI for better analysis
             $aiAnalysis = $aiService->analyzeQuery($sqlData['sql'], $targetTable, $provider, $options, $baseAnalysis);
             $aiProvider = $aiService->getProvider($provider);
-            $model = $aiProvider->getModel();
+            $model = isset($options['model']) ? (string)$options['model'] : $aiProvider->getModel();
         } catch (\Throwable $e) {
             // If AI fails, return base analysis with error message
             $aiAnalysis = 'AI analysis unavailable: ' . $e->getMessage();
@@ -1007,7 +1013,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         return new AiExplainAnalysis(
             $baseAnalysis,
             $aiAnalysis,
-            $provider ?? 'openai',
+            $provider ?? $db->getAiConfig()->getDefaultProvider(),
             $model
         );
     }
@@ -1025,7 +1031,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         $dialect = $this->connection->getDialect();
 
         // Create PdoDb with existing PDO and dialect
-        $db = new PdoDb();
+        $db = new PdoDb(null, ['ai' => $this->aiSettings]);
         $db->addConnection('default', [
             'driver' => $driver,
             'pdo' => $pdo,

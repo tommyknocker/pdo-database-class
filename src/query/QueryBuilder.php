@@ -114,13 +114,15 @@ class QueryBuilder implements QueryBuilderInterface
      * @param CacheManager|null $cacheManager
      * @param QueryCompilationCache|null $compilationCache
      * @param QueryProfiler|null $profiler
+     * @param array<string, mixed> $aiSettings
      */
     public function __construct(
         ConnectionInterface $connection,
         string $prefix = '',
         ?CacheManager $cacheManager = null,
         ?QueryCompilationCache $compilationCache = null,
-        ?QueryProfiler $profiler = null
+        ?QueryProfiler $profiler = null,
+        array $aiSettings = []
     ) {
         $this->connection = $connection;
         $this->dialect = $connection->getDialect();
@@ -147,7 +149,8 @@ class QueryBuilder implements QueryBuilderInterface
             $this->joinBuilder,
             $rawValueResolver,
             $cacheManager,
-            $this->compilationCache
+            $this->compilationCache,
+            $aiSettings
         );
         $this->dmlQueryBuilder = new DmlQueryBuilder(
             $connection,

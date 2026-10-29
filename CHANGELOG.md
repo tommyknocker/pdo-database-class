@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- OpenRouter and configurable OpenAI-compatible Chat Completions endpoints, including base URLs, extra headers and endpoint-specific request options. Existing OpenAI configuration remains supported.
+- Agent tools for environment context, local documentation search, paginated table discovery and estimated EXPLAIN without an additional LLM API key.
+- AI setup/doctor/context/docs commands, MCP launch configuration preview, and a bundled PDOdb QueryBuilder skill.
+- Separate offline AI tests and an explicitly invoked live OpenRouter/compatible API smoke test with private local credentials, synthetic SQLite data and bounded requests.
+
+### Fixed
+- Report output-budget exhaustion separately from invalid response format when a compatible reasoning model produces no visible text; allow explicit reasoning effort in the local OpenRouter smoke test.
+- Preserve AI configuration through PdoDb, QueryBuilder and analysis services; retain configured Ollama URLs and isolate per-request provider options.
+- Include table schema in AI query prompts and report the actual provider/model. Default AI metadata collection no longer performs an exact COUNT(*) scan.
+- Correct MCP notification handling, capability serialization, prompt argument resolution, input validation and tool errors; add bounded structured results and explicit protocol-version negotiation.
+- Accept bound SQL parameters in AI CLI/MCP query analysis, report unavailable plans explicitly, and avoid treating the MSSQL synthetic plan as database evidence in the inspection service.
+- Resolve Composer autoloading for the installed MCP executable and share the CLI database configuration loader.
+
 ## [2.13.0] - 2026-10-29
 
 ### Fixed

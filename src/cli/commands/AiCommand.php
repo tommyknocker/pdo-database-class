@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli\commands;
 
+use tommyknocker\pdodb\ai\AgentContextService;
+use tommyknocker\pdodb\ai\AgentDocumentation;
 use tommyknocker\pdodb\ai\AiAnalysisService;
+use tommyknocker\pdodb\ai\AiConfig;
+use tommyknocker\pdodb\ai\QueryInspectionService;
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\MarkdownFormatter;
 use tommyknocker\pdodb\cli\SchemaAnalyzer;
-use tommyknocker\pdodb\query\analysis\AiExplainAnalysis;
-use tommyknocker\pdodb\query\analysis\ExplainAnalyzer;
 
 /**
  * AI-powered database analysis command.
@@ -26,6 +28,9 @@ class AiCommand extends Command
         $subcommand = $this->getArgument(0);
 
         return match ($subcommand) {
+            'context', 'doctor' => $this->context($subcommand === 'doctor'),
+            'docs' => $this->docs(),
+            'setup' => $this->setup(),
             'query' => $this->query(),
             'schema' => $this->schema(),
             'optimize' => $this->optimize(),
@@ -60,87 +65,64 @@ class AiCommand extends Command
             $options['model'] = (string)$this->getOption('model');
         }
 
+        if ($this->getOption('timeout') !== null) {
+            $options['timeout'] = (int)$this->getOption('timeout');
+        }
+
         try {
-            static::info('Analyzing query execution plan...');
-            // For raw SQL, we need to use ExplainAnalyzer and AiAnalysisService directly
-            $connection = $db->connection;
-            $dialect = $connection->getDialect();
-            $pdo = $connection->getPdo();
-
-            // Get base analysis - use QueryBuilder's internal execution engine
-            $explainResults = $dialect->executeExplain($pdo, $sql, []);
-            $queryBuilder = $db->find();
-            // Access execution engine via reflection or create new one
-            $reflection = new \ReflectionClass($queryBuilder);
-            $executionEngineProperty = $reflection->getProperty('executionEngine');
-
-            $executionEngine = $executionEngineProperty->getValue($queryBuilder);
-            $analyzer = new ExplainAnalyzer($dialect, $executionEngine);
-            $baseAnalysis = $analyzer->analyze($explainResults, $tableName);
+            $this->progress('Analyzing query execution plan...');
+            $params = json_decode((string)$this->getOption('params', '[]'), true, 32, JSON_THROW_ON_ERROR);
+            if (!is_array($params)) {
+                throw new \InvalidArgumentException('--params must contain a JSON array or object');
+            }
+            $inspection = (new QueryInspectionService($db))->inspect($sql, $params, $tableName);
+            $baseAnalysis = $inspection['analysis'];
 
             // Then get AI analysis
-            static::info('Initializing AI service...');
+            $this->progress('Initializing AI service...');
             $aiService = new AiAnalysisService($db);
             $actualProvider = $aiService->getProvider($provider);
-            $model = $actualProvider->getModel();
+            $model = $options['model'] ?? $actualProvider->getModel();
 
-            static::info("Provider: {$actualProvider->getProviderName()}");
-            static::info("Model: {$model}");
-            static::loading('Sending request to AI API');
+            $this->progress("Provider: {$actualProvider->getProviderName()}");
+            $this->progress("Model: {$model}");
+            $this->progress('Sending request to AI API');
 
             // Pass baseAnalysis (which includes EXPLAIN plan) to AI for better analysis
             $aiAnalysis = $aiService->analyzeQuery($sql, $tableName, $provider, $options, $baseAnalysis);
 
-            if (getenv('PHPUNIT') === false) {
+            if ($format !== 'json' && getenv('PHPUNIT') === false) {
                 echo "\r" . str_repeat(' ', 80) . "\r"; // Clear loading line
             }
 
-            $result = new AiExplainAnalysis(
-                $baseAnalysis,
-                $aiAnalysis,
-                $actualProvider->getProviderName(),
-                $model
-            );
+            $providerName = $actualProvider->getProviderName();
 
             if ($format === 'json') {
                 echo json_encode([
-                    'base_analysis' => [
-                        'raw_explain' => $result->baseAnalysis->rawExplain,
-                        'issues' => array_map(function ($issue) {
-                            return [
-                                'type' => $issue->type,
-                                'severity' => $issue->severity,
-                                'description' => $issue->description,
-                                'table' => $issue->table ?? null,
-                            ];
-                        }, $result->baseAnalysis->issues),
-                        'recommendations' => array_map(function ($rec) {
-                            return [
-                                'type' => $rec->type,
-                                'severity' => $rec->severity,
-                                'message' => $rec->message,
-                                'suggestion' => $rec->suggestion ?? null,
-                            ];
-                        }, $result->baseAnalysis->recommendations),
-                    ],
-                    'ai_analysis' => $result->aiAnalysis,
-                    'provider' => $result->provider,
-                    'model' => $result->model,
+                    'base_analysis' => QueryInspectionService::format($baseAnalysis),
+                    'plan_source' => $inspection['source'],
+                    'warnings' => $inspection['warnings'],
+                    'ai_analysis' => $aiAnalysis,
+                    'provider' => $providerName,
+                    'model' => $model,
                 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
                 return 0;
             }
 
+            foreach ($inspection['warnings'] as $warning) {
+                echo "Warning: {$warning}\n";
+            }
             echo "Base Analysis\n";
             echo str_repeat('=', 80) . "\n";
-            if (!empty($result->baseAnalysis->issues)) {
-                foreach ($result->baseAnalysis->issues as $issue) {
+            if ($baseAnalysis !== null && $baseAnalysis->issues !== []) {
+                foreach ($baseAnalysis->issues as $issue) {
                     $severity = strtoupper($issue->severity);
                     echo "[{$severity}] {$issue->description}\n";
                 }
             }
-            if (!empty($result->baseAnalysis->recommendations)) {
+            if ($baseAnalysis !== null && $baseAnalysis->recommendations !== []) {
                 echo "\nRecommendations:\n";
-                foreach ($result->baseAnalysis->recommendations as $rec) {
+                foreach ($baseAnalysis->recommendations as $rec) {
                     $severity = strtoupper($rec->severity);
                     echo "[{$severity}] {$rec->message}\n";
                     if (isset($rec->suggestion)) {
@@ -149,10 +131,10 @@ class AiCommand extends Command
                 }
             }
 
-            echo "\n\nAI Analysis (Provider: {$result->provider}" . ($result->model ? ", Model: {$result->model}" : '') . ")\n";
+            echo "\n\nAI Analysis (Provider: {$providerName}" . ($model ? ", Model: {$model}" : '') . ")\n";
             echo str_repeat('=', 80) . "\n\n";
             $formatter = new MarkdownFormatter();
-            echo $formatter->format($result->aiAnalysis) . "\n";
+            echo $formatter->format($aiAnalysis) . "\n";
 
             return 0;
         } catch (\Throwable $e) {
@@ -181,24 +163,28 @@ class AiCommand extends Command
             $options['model'] = (string)$this->getOption('model');
         }
 
+        if ($this->getOption('timeout') !== null) {
+            $options['timeout'] = (int)$this->getOption('timeout');
+        }
+
         try {
-            static::info('Collecting schema information...');
+            $this->progress('Collecting schema information...');
             if ($tableName !== null) {
-                static::info("Table: {$tableName}");
+                $this->progress("Table: {$tableName}");
             }
 
-            static::info('Initializing AI service...');
+            $this->progress('Initializing AI service...');
             $aiService = new AiAnalysisService($db);
             $actualProvider = $aiService->getProvider($provider);
-            $model = $actualProvider->getModel();
+            $model = $options['model'] ?? $actualProvider->getModel();
 
-            static::info("Provider: {$actualProvider->getProviderName()}");
-            static::info("Model: {$model}");
-            static::loading('Sending request to AI API');
+            $this->progress("Provider: {$actualProvider->getProviderName()}");
+            $this->progress("Model: {$model}");
+            $this->progress('Sending request to AI API');
 
             $analysis = $aiService->analyzeSchema($tableName, $provider, $options);
 
-            if (getenv('PHPUNIT') === false) {
+            if ($format !== 'json' && getenv('PHPUNIT') === false) {
                 echo "\r" . str_repeat(' ', 80) . "\r"; // Clear loading line
             }
 
@@ -246,10 +232,14 @@ class AiCommand extends Command
             $options['model'] = (string)$this->getOption('model');
         }
 
+        if ($this->getOption('timeout') !== null) {
+            $options['timeout'] = (int)$this->getOption('timeout');
+        }
+
         try {
-            static::info('Analyzing database schema...');
+            $this->progress('Analyzing database schema...');
             if ($tableName !== null) {
-                static::info("Table: {$tableName}");
+                $this->progress("Table: {$tableName}");
             }
 
             // Get base analysis first
@@ -259,21 +249,21 @@ class AiCommand extends Command
                 : $schemaAnalyzer->analyze();
 
             // Get AI suggestions
-            static::info('Initializing AI service...');
+            $this->progress('Initializing AI service...');
             $aiService = new AiAnalysisService($db);
             $actualProvider = $aiService->getProvider($provider);
-            $model = $actualProvider->getModel();
+            $model = $options['model'] ?? $actualProvider->getModel();
 
-            static::info("Provider: {$actualProvider->getProviderName()}");
-            static::info("Model: {$model}");
-            static::loading('Sending request to AI API');
+            $this->progress("Provider: {$actualProvider->getProviderName()}");
+            $this->progress("Model: {$model}");
+            $this->progress('Sending request to AI API');
 
             $context = [
                 'base_analysis' => $baseAnalysis,
             ];
             $aiSuggestions = $aiService->suggestOptimizations($baseAnalysis, $context, $provider, $options);
 
-            if (getenv('PHPUNIT') === false) {
+            if ($format !== 'json' && getenv('PHPUNIT') === false) {
                 echo "\r" . str_repeat(' ', 80) . "\r"; // Clear loading line
             }
 
@@ -312,6 +302,65 @@ class AiCommand extends Command
         }
     }
 
+    protected function progress(string $message): void
+    {
+        if ($this->getOption('format', 'text') !== 'json') {
+            static::info($message);
+        }
+    }
+
+    protected function context(bool $doctor): int
+    {
+        try {
+            $db = $this->getDb();
+            $result = (new AgentContextService($db))->context();
+            if ($doctor) {
+                $config = $db->getAiConfig();
+                $provider = $config->getDefaultProvider();
+                $result['ai'] = ['provider' => $provider, 'api_key_configured' => $config->hasApiKey($provider),
+                    'provider_network_checked' => false, 'metadata_tools_require_key' => false,
+                    'provider_source' => getenv('PDODB_AI_PROVIDER') ? 'environment' : 'configuration/default',
+                    'configured_model' => $config->getProviderSetting($provider, 'model'),
+                    'settings_precedence' => 'environment > configuration > defaults'];
+                $result['database_connected'] = true;
+            }
+            echo json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n";
+            return 0;
+        } catch (\Throwable) {
+            echo json_encode(['error' => 'Unable to inspect database; check PDO driver, connection configuration and permissions']) . "\n";
+            return 1;
+        }
+    }
+
+    protected function docs(): int
+    {
+        $query = (string)$this->getArgument(1, '');
+
+        try {
+            $result = (new AgentDocumentation())->search($query, (int)$this->getOption('limit', 5));
+            echo json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n";
+            return 0;
+        } catch (\InvalidArgumentException $e) {
+            echo json_encode(['error' => $e->getMessage()]) . "\n";
+            return 1;
+        }
+    }
+
+    protected function setup(): int
+    {
+        echo "PDOdb AI setup\n\n";
+        echo "Agent in your editor (no additional LLM API key):\n";
+        echo "  1. Configure your development database using PDODB_* or config/db.php.\n";
+        echo "  2. Run pdodb ai doctor to check the connection.\n";
+        echo "  3. Run pdodb mcp config to preview the MCP launch configuration.\n";
+        echo "  4. Optionally install the bundled skills/pdodb-query-builder skill in your agent.\n\n";
+        echo "Standalone AI reports:\n";
+        echo '  Choose PDODB_AI_PROVIDER (' . implode(', ', AiConfig::PROVIDERS) . ").\n";
+        echo "  Configure that provider's key and model. OpenAI-compatible endpoints also use BASE_URL.\n";
+        echo "  Run pdodb ai query, schema or optimize.\n";
+        return 0;
+    }
+
     public function getName(): string
     {
         return 'ai';
@@ -328,15 +377,20 @@ class AiCommand extends Command
         echo "============================\n\n";
         echo "Usage: pdodb ai <subcommand> [arguments] [options]\n\n";
         echo "Subcommands:\n";
+        echo "  context / doctor  Inspect environment without calling an LLM\n";
+        echo "  docs <query>      Search bundled documentation (no database needed)\n";
+        echo "  setup             Show agent/report setup instructions\n";
         echo "  query <sql>       Analyze query using explainAiAdvice (includes base analysis)\n";
         echo "  schema            Analyze database schema with AI\n";
         echo "  optimize          Get AI-powered optimization suggestions\n";
         echo "  help              Show this help message\n\n";
         echo "Options:\n";
-        echo "  --provider=NAME   AI provider (openai, anthropic, google, microsoft, ollama)\n";
+        echo "  --provider=NAME   AI provider (openai, openai-compatible, openrouter, anthropic, google, microsoft, ollama, deepseek, yandex)\n";
         echo "  --model=NAME      Model name (provider-specific)\n";
         echo "  --temperature=N   Temperature (0.0-2.0, default: 0.7)\n";
         echo "  --max-tokens=N    Maximum tokens (default: 2000)\n";
+        echo "  --params=JSON     Positional/named parameters for query EXPLAIN\n";
+        echo "  --timeout=N       AI provider timeout in seconds\n";
         echo "  --table=NAME      Table name for context\n";
         echo "  --format=FORMAT   Output format (text, json)\n\n";
         echo "Examples:\n";
@@ -345,6 +399,8 @@ class AiCommand extends Command
         echo "  pdodb ai optimize --provider=openai --temperature=0.5\n\n";
         echo "Environment Variables:\n";
         echo "  PDODB_AI_PROVIDER        Default AI provider\n";
+        echo "  PDODB_AI_OPENROUTER_KEY OpenRouter key (use PDODB_AI_OPENROUTER_MODEL)\n";
+        echo "  PDODB_AI_OPENAI_COMPATIBLE_BASE_URL Custom Chat Completions base URL\n";
         echo "  PDODB_AI_OPENAI_KEY      OpenAI API key\n";
         echo "  PDODB_AI_ANTHROPIC_KEY   Anthropic API key\n";
         echo "  PDODB_AI_GOOGLE_KEY      Google API key\n";

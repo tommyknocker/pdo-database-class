@@ -1,6 +1,6 @@
 # AI-Powered Database Analysis
 
-PDOdb provides AI-powered database analysis capabilities, allowing you to get intelligent recommendations for query optimization, schema improvements, and performance tuning using various AI providers (OpenAI, Anthropic, Google, Microsoft, Ollama).
+PDOdb provides AI-powered database analysis capabilities, allowing you to get intelligent recommendations for query optimization, schema improvements, and performance tuning using various AI providers (OpenAI, OpenRouter, other OpenAI-compatible endpoints, Anthropic, Google, Microsoft, DeepSeek, Yandex and Ollama).
 
 ## Table of Contents
 
@@ -28,6 +28,8 @@ PDOdb supports multiple AI providers, each with their own strengths:
 
 | Provider | Models | Best For | API Key Required |
 |----------|--------|----------|------------------|
+| **OpenRouter** | Configurable `vendor/model` IDs | Access through an aggregator | Yes |
+| **OpenAI-compatible** | Models served by your endpoint | Gateways, proxies and compatible local servers | Yes (a placeholder can be used if your local server ignores authentication) |
 | **OpenAI** | gpt-4o-mini, gpt-4, gpt-3.5-turbo | General analysis, fast responses | Yes |
 | **Anthropic** | claude-3-5-sonnet, claude-3-opus | Detailed analysis, long context | Yes |
 | **Google** | gemini-2.5-flash, gemini-2.5-pro, gemini-2.0-flash-001, gemini-flash-latest, gemini-pro-latest | Multimodal analysis, large context | Yes |
@@ -111,6 +113,78 @@ export PDODB_AI_OLLAMA_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
 export PDODB_AI_OLLAMA_MAX_TOKENS=2000  # Optional: default: 2000
 export PDODB_AI_OLLAMA_TIMEOUT=30  # Optional: seconds, default: 30
 ```
+
+### OpenRouter and OpenAI-compatible endpoints
+
+For this repository's local testing, keep credentials in the ignored
+`.env.ai.local` file, using `.env.ai.local.example` as a template. Run
+`composer pdodb:test:ai` for offline tests, `composer pdodb:test:ai:check` for
+configuration validation and `composer pdodb:test:ai:live` for an explicit live
+smoke test. See the [testing guide](../../tests/README.md#local-ai-tests-and-private-credentials).
+The private file is loaded only by the live-test runner; regular CLI use follows
+the configuration described below.
+
+OpenRouter has a built-in profile:
+
+```bash
+export PDODB_AI_PROVIDER=openrouter
+export PDODB_AI_OPENROUTER_KEY=your-openrouter-key
+export PDODB_AI_OPENROUTER_MODEL=vendor/model
+pdodb ai query "SELECT * FROM users WHERE id = ?" --params='[1]' --table=users
+```
+
+Replace `vendor/model` with an actual model ID from your account. The OpenRouter
+base URL defaults to `https://openrouter.ai/api/v1`.
+
+For another Chat Completions-compatible service:
+
+```bash
+export PDODB_AI_PROVIDER=openai-compatible
+export PDODB_AI_OPENAI_COMPATIBLE_BASE_URL=https://gateway.example.com/v1
+export PDODB_AI_OPENAI_COMPATIBLE_KEY=your-gateway-key
+export PDODB_AI_OPENAI_COMPATIBLE_MODEL=your-model
+```
+
+The base URL includes the service's API prefix; PDOdb appends `/chat/completions`.
+The existing `openai` provider also accepts `PDODB_AI_OPENAI_BASE_URL`.
+URLs must use HTTP(S), without embedded credentials, query strings or fragments.
+Authenticated requests do not follow redirects; use the final endpoint URL.
+Only configure endpoints you trust with the SQL and schema sent for analysis.
+
+Configuration arrays support extra headers and endpoint-specific body parameters:
+
+```php
+$db = new PdoDb('sqlite', [
+    'path' => 'app.sqlite',
+    'ai' => [
+        'provider' => 'openrouter',
+        'openrouter_key' => getenv('PDODB_AI_OPENROUTER_KEY'),
+        'providers' => [
+            'openrouter' => [
+                'model' => 'vendor/model',
+                'headers' => [
+                    'HTTP-Referer' => 'https://your-project.example',
+                ],
+                // Only set options supported by your selected model/endpoint.
+                'request_options' => [
+                    'temperature' => null, // Omit this parameter entirely.
+                    'max_tokens' => null,
+                    'max_completion_tokens' => 2000,
+                ],
+            ],
+        ],
+    ],
+]);
+```
+
+For a custom service, use `provider: openai-compatible`, `openai_compatible_key`
+and `providers['openai-compatible']['base_url']`. Normal OpenAI defaults and
+existing provider names remain supported. Additional headers cannot override
+Authorization, Host, Content-Type or Content-Length. `request_options` cannot
+replace model/messages or enable streaming. These providers support text Chat
+Completions; Responses API, streaming and arbitrary tool-call responses are not
+implemented by this adapter. Compatibility of optional parameters depends on
+the endpoint and model.
 
 ### Configuration Array
 
@@ -331,70 +405,95 @@ PDOdb includes an MCP (Model Context Protocol) server for integration with AI ag
 vendor/bin/pdodb-mcp
 ```
 
-The server reads database configuration from environment variables (same as `PdoDb::fromEnv()`).
+The server uses the same connection configuration as the PDOdb CLI; see setup below.
 
-### Available Tools
+### Agent tools without an additional LLM key
 
-The MCP server exposes the following tools:
+The server can provide facts to the model already used by your editor. These
+tools do not call an AI provider:
 
-1. **`get_schema`** - Get database schema information
-   ```json
-   {
-     "name": "get_schema",
-     "arguments": {
-       "table": "users"  // optional, omit for all tables
-     }
-   }
-   ```
+| Tool | Input | Result |
+| --- | --- | --- |
+| `get_context` | `{}` | PDOdb/PHP/database versions, dialect capabilities, connection names and result contracts; no credentials |
+| `search_docs` | `query`, optional `limit` (1–20) | Excerpts from the installed package documentation with source paths and section line numbers |
+| `search_schema` | Optional table-name `query`, `limit` (1–100), `offset` | Matching table names and `next_offset`; fetch details separately |
+| `get_schema` | Optional `table` | Columns, indexes and foreign keys; omitting the table retains the original full-schema behavior |
+| `inspect_query` | `sql`, optional `params`, `table` | Estimated EXPLAIN evidence, parsed plan, issues, recommendations and warnings |
 
-2. **`explain_plan`** - Analyze SQL query with EXPLAIN plan and AI
-   ```json
-   {
-     "name": "explain_plan",
-     "arguments": {
-       "sql": "SELECT * FROM users WHERE id = 1",
-       "table": "users",
-       "provider": "openai"
-     }
-   }
-   ```
+For example:
 
-3. **`suggest_indexes`** - Get AI-powered index suggestions
-   ```json
-   {
-     "name": "suggest_indexes",
-     "arguments": {
-       "table": "users",
-       "provider": "anthropic"
-     }
-   }
-   ```
+```json
+{
+  "name": "inspect_query",
+  "arguments": {
+    "sql": "SELECT * FROM users WHERE id = ?",
+    "params": [1],
+    "table": "users"
+  }
+}
+```
 
-4. **`explain_plan`** - Get AI analysis of query execution plan
-   ```json
-   {
-     "name": "explain_plan",
-     "arguments": {
-       "sql": "SELECT * FROM users",
-       "table": "users",
-       "provider": "openai"
-     }
-   }
-   ```
+Named parameters are accepted as an object. `inspect_query` accepts one
+SELECT/WITH statement, conservatively rejects internal semicolons, never calls
+EXPLAIN ANALYZE and does not echo parameter values. Plans may still contain SQL
+literals; do not treat the output as fully anonymized. `measurements: false`
+means the plan contains estimates rather than measured execution times.
+MSSQL reports `source: unavailable` because this adapter cannot collect a real
+plan. Oracle EXPLAIN uses PLAN_TABLE and requires appropriate permissions;
+parameterized Oracle plans report `source: unavailable` because the adapter
+cannot safely bind EXPLAIN parameters. Values are not interpolated by this service.
 
-### Resources
+### Existing AI-report tools
 
-The server also exposes database tables as resources:
+`analyze_query`, `explain_plan` and `suggest_indexes` continue to use the configured
+AI provider. They support all provider names, including `openrouter` and
+`openai-compatible`. Query tools accept positional/named `params`.
+`analyze_query` reports warnings when a plan could not be collected.
+Provider identity in results reflects the actual configuration.
 
-- `table://users` - Schema information for the `users` table
-- `table://orders` - Schema information for the `orders` table
+Tool failures have `isError: true`. Array results are also available as
+`structuredContent`. Tool content is limited to 128 KiB; use `search_schema` and a
+specific `get_schema` table instead of requesting an entire large schema.
+Requests are limited to 1 MiB. The server negotiates the 2024-11-05 through
+2025-11-25 protocol revisions; the stateless 2026 revision is not implemented.
 
-### Prompts
+### Setup and diagnostics
 
-The server provides prompt templates:
+```bash
+pdodb ai setup
+pdodb ai doctor                  # Connection/configuration check, no LLM request
+pdodb ai context                 # JSON environment and result contracts
+pdodb ai docs "asObject"          # Local docs search, no database connection needed
+pdodb mcp config                 # JSON launch preview, no files are written
+```
 
-- `explain_plan` - Template for analyzing SQL queries with EXPLAIN plan
-- `optimize_schema` - Template for schema optimization
+The MCP launcher and `pdodb mcp serve` use the same database configuration as the
+CLI: environment/.env, or `config/db.php` / `PDODB_CONFIG_PATH`. Launch in the
+project directory when generating the preview: it records that directory with
+`--project` so the configuration resolves correctly when an editor starts the
+server elsewhere. Generated launch paths are absolute and local to the machine. The preview uses the `mcpServers`
+JSON format; translate it if your client uses a different configuration format.
+Keep secrets in your environment or a local, untracked configuration file.
+
+`doctor` checks the database and shows whether a provider key is configured;
+it does not contact a model or make a paid request. Environment settings take
+precedence over configuration arrays, followed by defaults. Agent tools require
+no LLM key. The server does not expose a general SQL execution tool. Database
+permissions and database-side statement limits remain important: client timeout
+alone does not cancel work in the database.
+
+The portable `skills/pdodb-query-builder/SKILL.md` bundled with PDOdb explains
+result modes, scopes and evidence-based query work. Install its folder using
+your agent's skill installation mechanism. It is optional and not installed
+into your project automatically.
+
+### Resources and prompts
+
+`table://users` returns that table's schema. The prompts `analyze_query` (required
+`sql` argument) and `optimize_schema` (required `table` argument) return resolved
+messages for the client. These metadata tools make no additional provider calls. Your agent client may
+include their output in its own model context; AI-report tools additionally
+send SQL/schema to the configured PDOdb AI provider.
 
 ## Examples
 
@@ -511,8 +610,7 @@ $result = $db->find()
     ->explainAiAdvice(tableName: 'users');
 
 // Less optimal - no table context
-$result = $db->rawQuery('SELECT * FROM users WHERE email = ?')
-    ->explainAiAdvice();
+$result = $db->find()->from('users')->explainAiAdvice();
 ```
 
 ### 3. Combine with Base Analysis

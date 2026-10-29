@@ -10,6 +10,7 @@ use Psr\Log\LoggerInterface;
 use Psr\SimpleCache\CacheInterface;
 use RuntimeException;
 use Throwable;
+use tommyknocker\pdodb\ai\AiConfig;
 use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\connection\ConnectionFactory;
 use tommyknocker\pdodb\connection\ConnectionInterface;
@@ -33,6 +34,14 @@ use tommyknocker\pdodb\query\QueryProfiler;
 
 class PdoDb
 {
+    /** @var array<string, mixed> */
+    protected array $aiSettings = [];
+
+    public function getAiConfig(): AiConfig
+    {
+        return new AiConfig(['ai' => $this->aiSettings]);
+    }
+
     /** @deprecated Use QueryConstants::LOCK_WRITE instead */
     public const string LOCK_WRITE = QueryConstants::LOCK_WRITE;
     /** @deprecated Use QueryConstants::LOCK_READ instead */
@@ -138,6 +147,7 @@ class PdoDb
         ?LoggerInterface $logger = null,
         ?CacheInterface $cache = null
     ) {
+        $this->aiSettings = is_array($config['ai'] ?? null) ? $config['ai'] : [];
         $prefix = $config['prefix'] ?? '';
         $this->prefix = is_string($prefix) ? $prefix : '';
         $this->logger = $logger;
@@ -341,7 +351,7 @@ class PdoDb
      */
     public function find(): QueryBuilder
     {
-        $queryBuilder = new QueryBuilder($this->connection, $this->prefix, $this->cacheManager, $this->compilationCache, $this->profiler);
+        $queryBuilder = new QueryBuilder($this->connection, $this->prefix, $this->cacheManager, $this->compilationCache, $this->profiler, $this->aiSettings);
 
         // Set connection router if read/write splitting is enabled
         if ($this->readWriteSplittingEnabled && $this->connectionRouter !== null) {
