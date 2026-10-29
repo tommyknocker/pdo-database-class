@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai\mcp\tools;
 
-use tommyknocker\pdodb\cli\TableManager;
+use tommyknocker\pdodb\ai\mcp\McpConfig;
+use tommyknocker\pdodb\ai\mcp\McpMetadataService;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -12,9 +13,12 @@ use tommyknocker\pdodb\PdoDb;
  */
 class GetSchemaTool implements McpToolInterface
 {
+    protected McpMetadataService $metadata;
     public function __construct(
-        protected PdoDb $db
+        protected PdoDb $db,
+        ?McpMetadataService $metadata = null
     ) {
+        $this->metadata = $metadata ?? new McpMetadataService($db, new McpConfig());
     }
 
     public function getName(): string
@@ -24,7 +28,7 @@ class GetSchemaTool implements McpToolInterface
 
     public function getDescription(): string
     {
-        return 'Get database schema information for a table or all tables';
+        return 'Get columns, indexes and visible foreign keys in a selected schema. Omit table to describe visible tables in that schema.';
     }
 
     public function getInputSchema(): array
@@ -32,6 +36,7 @@ class GetSchemaTool implements McpToolInterface
         return [
             'type' => 'object',
             'properties' => [
+                'schema' => ['type' => 'string', 'description' => 'Optional schema name; defaults to the selected metadata schema'],
                 'table' => [
                     'type' => 'string',
                     'description' => 'Table name (optional, if not provided returns all tables)',
@@ -43,31 +48,7 @@ class GetSchemaTool implements McpToolInterface
     public function execute(array $arguments): string|array
     {
         $tableName = $arguments['table'] ?? null;
-
-        if ($tableName !== null) {
-            $columns = $this->db->describe($tableName);
-            $indexes = $this->db->schema()->getIndexes($tableName);
-            $foreignKeys = $this->db->schema()->getForeignKeys($tableName);
-
-            return [
-                'table' => $tableName,
-                'columns' => $columns,
-                'indexes' => $indexes,
-                'foreign_keys' => $foreignKeys,
-            ];
-        }
-
-        $tables = TableManager::listTables($this->db);
-        $schema = [];
-
-        foreach ($tables as $table) {
-            $schema[$table] = [
-                'columns' => $this->db->describe($table),
-                'indexes' => $this->db->schema()->getIndexes($table),
-                'foreign_keys' => $this->db->schema()->getForeignKeys($table),
-            ];
-        }
-
-        return $schema;
+        $schema = $arguments['schema'] ?? null;
+        return $tableName === null ? $this->metadata->describeAll($schema) : $this->metadata->describe($tableName, $schema);
     }
 }

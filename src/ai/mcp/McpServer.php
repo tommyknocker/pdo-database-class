@@ -14,7 +14,6 @@ use tommyknocker\pdodb\ai\mcp\tools\GetSchemaTool;
 use tommyknocker\pdodb\ai\mcp\tools\InspectQueryTool;
 use tommyknocker\pdodb\ai\mcp\tools\McpToolInterface;
 use tommyknocker\pdodb\ai\mcp\tools\SuggestIndexesTool;
-use tommyknocker\pdodb\cli\TableManager;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -24,14 +23,26 @@ class McpServer
 {
     private const array PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18', '2025-11-25'];
     protected PdoDb $db;
+    protected McpConfig $config;
+    protected McpMetadataService $metadata;
+    protected McpExecutionGuard $guard;
     protected AiAnalysisService $aiService;
     /** @var array<string, McpToolInterface> */
     protected array $tools = [];
 
-    public function __construct(PdoDb $db, ?AiAnalysisService $aiService = null)
+    public function __construct(PdoDb $db, ?AiAnalysisService $aiService = null, ?McpConfig $config = null)
     {
-        $this->db = $db;
-        $this->aiService = $aiService ?? new AiAnalysisService($db);
+        $this->config = $config ?? new McpConfig();
+        $this->db = clone $db;
+        if ($this->config->connection !== null) {
+            if ($aiService !== null) {
+                throw new \InvalidArgumentException('Select the diagnostic connection before injecting a custom AI service');
+            }
+            $this->db->connection($this->config->connection);
+        }
+        $this->metadata = new McpMetadataService($this->db, $this->config);
+        $this->guard = new McpExecutionGuard($this->db, $this->config->statementTimeoutMs);
+        $this->aiService = $aiService ?? new AiAnalysisService($this->db);
         $this->registerTools();
     }
 
@@ -40,7 +51,7 @@ class McpServer
      */
     protected function registerTools(): void
     {
-        $getSchemaTool = new GetSchemaTool($this->db);
+        $getSchemaTool = new GetSchemaTool($this->db, $this->metadata);
         $analyzeQueryTool = new AnalyzeQueryTool($this->db, $this->aiService);
         $suggestIndexesTool = new SuggestIndexesTool($this->db, $this->aiService);
         $explainPlanTool = new ExplainPlanTool($this->db, $this->aiService);
@@ -50,7 +61,15 @@ class McpServer
             'get_context',
             'Get PDOdb/PHP/database versions, dialect capabilities and result contracts. No credentials or LLM key required.',
             ['type' => 'object', 'properties' => []],
-            static fn (array $args): array => $context->context()
+            function (array $args) use ($context): array {
+                $result = $context->context();
+                $result['mcp_policy'] = $this->config->summary();
+                $result['statement_timeout'] = $this->guard->summary();
+                $default = $this->metadata->defaultSchema();
+                $result['metadata_default_schema'] = $this->config->allowsSchema($default) ? $default : null;
+                $result['connections'] = array_keys(array_filter($this->db->getConnections(), fn ($connection) => $connection === $this->db->connection));
+                return $result;
+            }
         );
         $docsTool = new CallbackTool(
             'search_docs',
@@ -63,13 +82,16 @@ class McpServer
         );
         $schemaTool = new CallbackTool(
             'search_schema',
-            'Find table names without fetching full schemas. Use get_schema with a selected table for details.',
+            'Search visible tables, columns or schemas. Defaults to tables; use get_schema for details. Column search is limited to 200 tables per schema; specify table for larger schemas.',
             ['type' => 'object', 'properties' => [
                 'query' => ['type' => 'string', 'maxLength' => 300],
+                'kind' => ['type' => 'string', 'enum' => ['tables', 'columns', 'schemas']],
+                'schema' => ['type' => 'string'],
+                'table' => ['type' => 'string'],
                 'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 100],
                 'offset' => ['type' => 'integer', 'minimum' => 0],
             ]],
-            static fn (array $args): array => $context->searchSchema($args['query'] ?? '', $args['limit'] ?? 20, $args['offset'] ?? 0)
+            fn (array $args): array => $this->metadata->search($args['query'] ?? '', $args['limit'] ?? 20, $args['offset'] ?? 0, $args['kind'] ?? 'tables', $args['schema'] ?? null, $args['table'] ?? null)
         );
         $inspectTool = new InspectQueryTool($this->db);
         $this->tools = [
@@ -82,6 +104,7 @@ class McpServer
             $suggestIndexesTool->getName() => $suggestIndexesTool,
             $explainPlanTool->getName() => $explainPlanTool,
         ];
+        $this->tools = array_filter($this->tools, fn ($tool) => $this->config->allowsTool($tool->getName()));
     }
 
     /**
@@ -115,8 +138,8 @@ class McpServer
                 'ping' => (object)[],
                 'tools/list' => $this->handleToolsList(),
                 'tools/call' => $this->handleToolCall($params),
-                'resources/list' => $this->handleResourcesList(),
-                'resources/read' => $this->handleResourceRead($params),
+                'resources/list' => $this->guard->run(fn () => $this->handleResourcesList($params)),
+                'resources/read' => $this->guard->run(fn () => $this->handleResourceRead($params)),
                 'prompts/list' => $this->handlePromptsList(),
                 'prompts/get' => $this->handlePromptGet($params),
                 default => null,
@@ -205,7 +228,9 @@ class McpServer
 
         try {
             $this->validateArguments($tool->getInputSchema(), $arguments);
-            $result = $tool->execute($arguments);
+            $result = in_array($name, ['get_context', 'search_docs'], true)
+                ? $tool->execute($arguments)
+                : $this->guard->run(fn () => $tool->execute($arguments));
             $text = is_string($result) ? $result : json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
             if (strlen($text) > 131072) {
                 throw new \InvalidArgumentException('Result exceeds 128 KiB; select a specific table or narrow the query');
@@ -289,25 +314,33 @@ class McpServer
     /**
      * Handle resources/list request.
      *
+     * @param array<string, mixed> $params
+     *
      * @return array<string, mixed> Resources list
      */
-    protected function handleResourcesList(): array
+    protected function handleResourcesList(array $params = []): array
     {
-        $tables = TableManager::listTables($this->db);
-        $resources = [];
-
-        foreach ($tables as $table) {
-            $resources[] = [
-                'uri' => "table://{$table}",
-                'name' => "Table: {$table}",
-                'description' => "Schema information for table {$table}",
-                'mimeType' => 'application/json',
-            ];
+        $cursor = $params['cursor'] ?? '0';
+        if (!is_string($cursor) || !ctype_digit($cursor) || strlen($cursor) > 9) {
+            throw new \InvalidArgumentException('Invalid resource cursor');
         }
-
-        return [
-            'resources' => $resources,
-        ];
+        $resources = [];
+        $schemas = $this->config->restricted()
+            ? $this->metadata->schemas() : [$this->metadata->defaultSchema()];
+        foreach ($schemas as $schema) {
+            foreach ($this->metadata->tables($schema) as $table) {
+                $name = $schema === $this->metadata->defaultSchema() ? $table : $schema . '.' . $table;
+                $resources[] = ['uri' => 'table://' . $name, 'name' => 'Table: ' . $name,
+                    'description' => 'Visible table schema', 'mimeType' => 'application/json'];
+            }
+        }
+        usort($resources, static fn ($a, $b) => strcmp($a['uri'], $b['uri']));
+        $offset = (int)$cursor;
+        $result = ['resources' => array_slice($resources, $offset, 100)];
+        if (count($resources) > $offset + 100) {
+            $result['nextCursor'] = (string)($offset + 100);
+        }
+        return $result;
     }
 
     /**
@@ -320,28 +353,21 @@ class McpServer
     protected function handleResourceRead(array $params): array
     {
         $uri = $params['uri'] ?? '';
-        if (!str_starts_with($uri, 'table://')) {
-            throw new \RuntimeException("Unknown resource URI: {$uri}");
+        if (!is_string($uri) || !str_starts_with($uri, 'table://')) {
+            throw new \InvalidArgumentException('Unknown resource URI');
         }
-
-        $tableName = substr($uri, 8);
-        $columns = $this->db->describe($tableName);
-        $indexes = $this->db->schema()->getIndexes($tableName);
-        $foreignKeys = $this->db->schema()->getForeignKeys($tableName);
-
-        $schema = [
-            'table' => $tableName,
-            'columns' => $columns,
-            'indexes' => $indexes,
-            'foreign_keys' => $foreignKeys,
-        ];
+        $schema = $this->metadata->describe(substr($uri, 8));
+        $text = json_encode($schema, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
+        if (strlen($text) > 131072) {
+            throw new \InvalidArgumentException('Resource exceeds 128 KiB; use search_schema for smaller metadata');
+        }
 
         return [
             'contents' => [
                 [
                     'uri' => $uri,
                     'mimeType' => 'application/json',
-                    'text' => json_encode($schema, JSON_PRETTY_PRINT),
+                    'text' => $text,
                 ],
             ],
         ];
@@ -354,7 +380,7 @@ class McpServer
      */
     protected function handlePromptsList(): array
     {
-        return [
+        $result = [
             'prompts' => [
                 [
                     'name' => 'analyze_query',
@@ -368,6 +394,10 @@ class McpServer
                 ],
             ],
         ];
+        if (!$this->config->queryAnalysisEnabled) {
+            $result['prompts'] = array_values(array_filter($result['prompts'], static fn ($prompt) => $prompt['name'] !== 'analyze_query'));
+        }
+        return $result;
     }
 
     /**
@@ -380,6 +410,9 @@ class McpServer
     protected function handlePromptGet(array $params): array
     {
         $name = $params['name'] ?? '';
+        if ($name === 'analyze_query' && !$this->config->queryAnalysisEnabled) {
+            throw new \InvalidArgumentException('Query analysis is disabled by MCP policy');
+        }
         $argument = match ($name) {
             'analyze_query' => 'sql',
             'optimize_schema' => 'table',

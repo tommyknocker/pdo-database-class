@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- MCP visibility policies for tables/schemas, explicit diagnostic connection selection, scoped PostgreSQL/MariaDB statement limits, and MCP-specific diagnostics. Restricted visibility exposes metadata tools only.
+- MCP discovery of columns and schemas, schema-scoped metadata and paginated resource listings; hide foreign-key references to objects outside the configured view.
 - OpenRouter and configurable OpenAI-compatible Chat Completions endpoints, including base URLs, extra headers and endpoint-specific request options. Existing OpenAI configuration remains supported.
 - Agent tools for environment context, local documentation search, paginated table discovery and estimated EXPLAIN without an additional LLM API key.
 - AI setup/doctor/context/docs commands, MCP launch configuration preview, and a bundled PDOdb QueryBuilder skill.

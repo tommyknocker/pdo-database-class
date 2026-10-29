@@ -62,6 +62,23 @@ Each live invocation makes its own requests. These are integration smoke tests:
 they check transport, result contracts and a nonempty AI response, not the
 correctness or performance of the model's SQL recommendations.
 
+## MCP policy integration tests
+
+`composer pdodb:test:ai` includes offline tests for allowlists, column/schema
+search, hidden foreign keys, isolated connection selection, invalid configuration
+and unsupported timeouts. For native catalog and statement-cancellation checks:
+
+```bash
+composer pdodb:test:mcp:db
+```
+
+This explicitly selected suite requires the same local test servers/accounts as
+the existing MySQL, MariaDB, PostgreSQL, MSSQL and Oracle suites, plus SQLite. It
+creates and removes only randomly named `MCP_*` test tables and PostgreSQL test
+schemas. It verifies scoped metadata on all six engines and actual cancellation
+and session restoration on PostgreSQL/MariaDB. It never calls an AI provider and
+is excluded from the ordinary offline/shared suite.
+
 ## LoadCsv/LoadXml Tests
 
 ### Overview

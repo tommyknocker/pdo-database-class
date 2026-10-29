@@ -416,8 +416,8 @@ tools do not call an AI provider:
 | --- | --- | --- |
 | `get_context` | `{}` | PDOdb/PHP/database versions, dialect capabilities, connection names and result contracts; no credentials |
 | `search_docs` | `query`, optional `limit` (1–20) | Excerpts from the installed package documentation with source paths and section line numbers |
-| `search_schema` | Optional table-name `query`, `limit` (1–100), `offset` | Matching table names and `next_offset`; fetch details separately |
-| `get_schema` | Optional `table` | Columns, indexes and foreign keys; omitting the table retains the original full-schema behavior |
+| `search_schema` | Optional `query`, `kind` (`tables`, `columns`, `schemas`), `schema`, `table`, `limit` (1–100), `offset` | Visible object names or matching columns, with `next_offset` |
+| `get_schema` | Optional `table`, `schema` | Columns, indexes and visible foreign keys; omit table for all visible tables in that schema |
 | `inspect_query` | `sql`, optional `params`, `table` | Estimated EXPLAIN evidence, parsed plan, issues, recommendations and warnings |
 
 For example:
@@ -465,6 +465,7 @@ pdodb ai doctor                  # Connection/configuration check, no LLM reques
 pdodb ai context                 # JSON environment and result contracts
 pdodb ai docs "asObject"          # Local docs search, no database connection needed
 pdodb mcp config                 # JSON launch preview, no files are written
+pdodb mcp doctor                 # Validate the MCP connection, policy and catalog access
 ```
 
 The MCP launcher and `pdodb mcp serve` use the same database configuration as the
@@ -486,6 +487,93 @@ The portable `skills/pdodb-query-builder/SKILL.md` bundled with PDOdb explains
 result modes, scopes and evidence-based query work. Install its folder using
 your agent's skill installation mechanism. It is optional and not installed
 into your project automatically.
+
+### MCP visibility, connections and limits
+
+The optional project file `config/mcp.php` returns a policy array. Start from
+[`config/mcp.example.php`](../../config/mcp.example.php):
+
+```php
+return [
+    'connection' => 'diagnostics',
+    'allowed_schemas' => ['public'],
+    'allowed_tables' => ['users', 'orders'],
+    'external_ai_enabled' => false,
+    'statement_timeout_ms' => 5000, // PostgreSQL/MariaDB; use 0 for other adapters.
+];
+```
+
+Define the `diagnostics` alias in `config/db.php` with a database account whose
+permissions suit the intended use. The name itself does not grant read-only
+permissions. Selecting an explicit MCP alias never falls back to ambient
+`PDODB_DRIVER` credentials or the application's default connection. Existing
+launches without this option keep the original CLI connection selection.
+In PHP, the optional third `McpServer` constructor argument accepts `McpConfig`;
+selection uses a shallow copy of PdoDb so the caller's active alias is unchanged.
+A supplied custom AI service must already target the desired connection; do not
+combine it with automatic alias selection.
+
+Environment overrides take precedence over this file:
+
+| Variable | Format |
+| --- | --- |
+| `PDODB_MCP_CONFIG_PATH` | Explicit policy-file path; a missing file is an error |
+| `PDODB_MCP_CONNECTION` | Named alias in `config/db.php` / `PDODB_CONFIG_PATH` |
+| `PDODB_MCP_ALLOWED_TABLES` | JSON array, e.g. `["users","orders"]` |
+| `PDODB_MCP_ALLOWED_SCHEMAS` | JSON array, e.g. `["public"]` |
+| `PDODB_MCP_QUERY_ANALYSIS_ENABLED` | `true` / `false` or `1` / `0` |
+| `PDODB_MCP_EXTERNAL_AI_ENABLED` | `true` / `false` or `1` / `0` |
+| `PDODB_MCP_STATEMENT_TIMEOUT_MS` | Integer milliseconds, 0–300000 |
+
+`null` allowlists in PHP preserve unrestricted visibility; `[]` explicitly
+exposes no objects. Unknown options, malformed lists and nonboolean flags are
+rejected. Identifier matching is exact and case-sensitive: use the names returned
+by discovery, including Oracle's usual uppercase names. MCP currently accepts
+simple identifiers (letters/digits/underscore/dollar sign), optionally qualified
+as `schema.table`; quoted names with punctuation or spaces are not supported.
+
+An unqualified allowed table applies only to the metadata default schema;
+`public.users` applies only to that exact namespace. The metadata default is the
+connection's current schema, or the first allowed schema if the current one is
+excluded. `get_context` reports it. Schemas, tables, columns, `get_schema` and
+`table://` resources use the same policy; references to hidden foreign-key
+targets are omitted and `foreign_keys_filtered` reports that omission.
+
+**Visibility restrictions force metadata-only mode:** only `get_context`,
+`search_docs`, `search_schema` and `get_schema` are advertised. Raw SQL analysis
+and the three AI-report tools cannot be re-enabled by the boolean flags while
+an allowlist is present. A `table` argument cannot prove that arbitrary SQL
+accesses only that table, so allowing EXPLAIN in this mode would bypass the view.
+The policy controls this MCP server's output, not database permissions or other
+clients' access; it does not analyze expressions inside allowed index definitions.
+Without allowlists, the query/AI flags can independently disable their tools.
+
+Column and schema discovery examples:
+
+```json
+{"name":"search_schema","arguments":{"kind":"columns","query":"email","schema":"public","table":"users"}}
+{"name":"search_schema","arguments":{"kind":"schemas"}}
+{"name":"get_schema","arguments":{"schema":"public","table":"users"}}
+```
+
+Column results identify the schema, table, column and type. To avoid unlimited
+per-table scans, column search requires `table` when a schema has more than 200
+visible tables. Metadata queries bind both schema and table, so equal table or
+constraint names in different namespaces do not mix. `resources/list` returns
+up to 100 entries and a `nextCursor`; `table://public.users` selects a qualified
+resource. Resource contents share the 128 KiB size limit with tool content.
+
+`statement_timeout_ms=0` leaves session settings untouched. PostgreSQL and
+MariaDB support a scoped server-side per-statement limit in this adapter. The
+original setting is restored in `finally`, including after a statement timeout
+or other error, and a stricter existing limit is preserved. An active caller
+transaction is rejected when a scoped timeout is requested. Other adapters
+reject a nonzero limit instead of presenting a connection/lock timeout as query
+cancellation; SQLite busy timeouts and MySQL's SELECT-only execution limit are
+not substitutes for this feature. MariaDB cancellation is checked periodically,
+so it is not a hard wall-clock deadline. These limits do not bound a whole MCP
+request containing several statements or a call to an external AI provider.
+`mcp doctor` reports support and tests catalog access without invoking an LLM.
 
 ### Resources and prompts
 
