@@ -34,6 +34,23 @@ if ($user !== false) {
 }
 ```
 
+By default, rows are associative arrays. Use `asObject()` to fetch rows as
+`stdClass` objects instead:
+
+```php
+// get() returns an array of objects (or an empty array if no rows match)
+$users = $db->find()->from('users')->asObject()->get();
+foreach ($users as $user) {
+    echo $user->name;
+}
+
+// getOne() returns an object, or false if no row matches
+$user = $db->find()->from('users')->where('id', $id)->asObject()->getOne();
+if ($user !== false) {
+    echo $user->name;
+}
+```
+
 See [installation](documentation/01-getting-started/01-installation.md), [database support](documentation/09-reference/05-dialect-differences.md), and [the complete documentation](documentation/README.md).
 
 **Core Features:**
@@ -315,23 +332,6 @@ $db->find()
 ```
 
 **That's it!** SQLite requires no database server. Composer installs the required PSR interfaces.
-
-By default, rows are associative arrays. Use `asObject()` to fetch rows as
-`stdClass` objects instead:
-
-```php
-// get() returns an array of objects (or an empty array if no rows match)
-$users = $db->find()->from('users')->asObject()->get();
-foreach ($users as $user) {
-    echo $user->name;
-}
-
-// getOne() returns an object, or false if no row matches
-$user = $db->find()->from('users')->where('id', $id)->asObject()->getOne();
-if ($user !== false) {
-    echo $user->email;
-}
-```
 
 ---
 
