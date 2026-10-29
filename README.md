@@ -147,8 +147,8 @@ Inspired by [ThingEngineer/PHP-MySQLi-Database-Class](https://github.com/ThingEn
 - [Quick Example](#quick-example)
 - [5-Minute Tutorial](#5-minute-tutorial)
 - [Configuration](#configuration)
+- [Understand a slow query with AI](#understand-a-slow-query-with-ai)
 - [Quick Start](#quick-start)
-  - [AI-Powered Query Analysis](#-ai-powered-query-analysis)
 - [JSON Operations](#json-operations)
 - [Advanced Usage](#advanced-usage)
 - [CLI Tools](#cli-tools)
@@ -496,11 +496,7 @@ See [Configuration Documentation](documentation/01-getting-started/04-configurat
 
 ---
 
-## Quick Start
-
-**Note**: All query examples start with `$db->find()` which returns a `QueryBuilder` instance.
-
-### Understand a slow query with AI
+## Understand a slow query with AI
 
 Get advice grounded in your **actual execution plan, table schemas and existing
 indexes**, directly from the query you are investigating:
@@ -531,6 +527,10 @@ php examples/07-performance/05-ai-query-advice.php
 [Provider setup, including OpenRouter and compatible APIs](documentation/05-advanced-features/23-ai-analysis.md#configuration)
  · [Context, privacy and structured results](documentation/05-advanced-features/24-ai-query-advice.md)
  · [Optional MCP integration for editors](documentation/01-getting-started/08-ai-editor.md)
+
+## Quick Start
+
+**Note**: All query examples start with `$db->find()` which returns a `QueryBuilder` instance.
 
 ### Basic CRUD Operations
 
