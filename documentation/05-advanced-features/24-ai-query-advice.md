@@ -1,6 +1,7 @@
 # Explain and improve a query with explainAiAdvice()
 
-Start with [three runnable examples with real AI answers and measured plans](25-ai-query-advice-in-practice.md).
+Start with the [first-query walkthrough](23-ai-analysis.md), or explore
+[three measured examples](25-ai-query-advice-in-practice.md).
 This page covers the API, context controls and result handling in detail.
 
 Use `explainAiAdvice()` when you have a PDOdb SELECT query and want help
@@ -24,7 +25,7 @@ PDODB_AI_OPENROUTER_MODEL=your-provider/model-id
 
 Use an actual model ID available to your account. Keep the real key in your
 local, untracked environment or secret store. PDOdb also supports other
-[providers and compatible endpoints](23-ai-analysis.md#configuration).
+[providers and compatible endpoints](26-ai-reference.md#configuration).
 The dedicated `.env.ai.local` file is loaded by the repository's live-test
 runner and the showcase with `--ai`, not automatically by this PHP method.
 

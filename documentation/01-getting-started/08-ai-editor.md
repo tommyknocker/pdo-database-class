@@ -40,7 +40,7 @@ Replace `users` with an existing table name. This profile exposes metadata and
 documentation tools; it does not expose query inspection or AI report tools.
 It uses your existing default connection. To select a separate database account,
 define a named connection in `config/db.php` and set `connection` in this file
-to that alias; see [connection policies](../05-advanced-features/23-ai-analysis.md#setup-and-diagnostics).
+to that alias; see [connection policies](../05-advanced-features/26-ai-reference.md#setup-and-diagnostics).
 
 ### 2. Connect the editor
 
@@ -108,7 +108,7 @@ This requires a different profile: no table/schema visibility restrictions,
 `query_analysis_enabled => true`, and preferably a database account with
 read-only permissions. The metadata-only profile above deliberately disables
 SQL tools. Adapter limitations and statement limits are described in the
-[MCP reference](../05-advanced-features/23-ai-analysis.md#mcp-server).
+[MCP reference](../05-advanced-features/26-ai-reference.md#mcp-server).
 
 ## When to skip MCP
 

@@ -69,9 +69,10 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [20. Plugin System](05-advanced-features/20-plugins.md) - Extend PdoDb with custom plugins for macros, scopes, and event listeners
 - [21. CLI Tools](05-advanced-features/21-cli-tools.md) - Database management, migration generator, model generator, schema inspector, and interactive query tester (REPL)
 - [22. Events](05-advanced-features/22-events.md) - PSR-14 event dispatcher for monitoring, auditing, and middleware
-- [23. AI-Powered Analysis](05-advanced-features/23-ai-analysis.md) - **NEW!** 🤖 Get intelligent database optimization recommendations using OpenAI, Anthropic, Google, Microsoft, or Ollama
-- [24. AI Query Advice](05-advanced-features/24-ai-query-advice.md) - Investigate a query from PHP, preview context and use structured findings
-- [25. AI Query Advice in Practice](05-advanced-features/25-ai-query-advice-in-practice.md) - Three runnable use cases with real AI answers and measured before/after plans
+- [23. Get Started with AI Query Advice](05-advanced-features/23-ai-analysis.md) - Why it helps, minimal setup and your first useful result
+- [24. Query Advice API](05-advanced-features/24-ai-query-advice.md) - Context, privacy, status handling and structured findings
+- [25. Query Advice in Practice](05-advanced-features/25-ai-query-advice-in-practice.md) - Three runnable cases with captured answers and measured plans
+- [26. AI Configuration Reference](05-advanced-features/26-ai-reference.md) - Other providers, custom endpoints, CLI and MCP settings
 - [20. Dialect-Specific Schema](05-advanced-features/20-dialect-specific-schema.md) - Database-specific types (MySQL ENUM/SET, PostgreSQL UUID/JSONB/arrays, MSSQL UNIQUEIDENTIFIER, SQLite type affinity)
 
 ### Error Handling

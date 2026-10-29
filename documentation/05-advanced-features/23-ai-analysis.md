@@ -1,818 +1,210 @@
-# AI-Powered Database Analysis
+# Understand and improve a query with AI
 
-PDOdb provides AI-powered database analysis capabilities, allowing you to get intelligent recommendations for query optimization, schema improvements, and performance tuning using various AI providers (OpenAI, OpenRouter, other OpenAI-compatible endpoints, Anthropic, Google, Microsoft, DeepSeek, Yandex and Ollama).
+You know which query makes an endpoint slow. The next question is what to change:
+its filter, a JOIN, an index, or nothing at all. PDOdb can explain that query
+using the database's own plan and existing schema, directly from PHP.
+With an existing PDOdb connection in `$db`, the call looks like this:
 
-Start with [three runnable query-advice examples](25-ai-query-advice-in-practice.md):
-real plans, captured model answers, and measured changes on reproducible data.
-For context preview, privacy, limits and structured results, see the
-[query-advice API guide](24-ai-query-advice.md). No MCP server is required.
+```php
+$advice = $db->find()
+    ->from('orders')
+    ->where('status', 'pending')
+    ->orderBy('created_at', 'DESC')
+    ->limit(50)
+    ->explainAiAdvice();
 
-## Table of Contents
+echo $advice->aiAnalysis;
+```
 
-- [Overview](#overview)
-- [Supported AI Providers](#supported-ai-providers)
-- [Configuration](#configuration)
-- [Code-Level Integration](#code-level-integration)
-- [CLI Commands](#cli-commands)
-- [MCP Server](#mcp-server)
-- [Examples](#examples)
-- [Best Practices](#best-practices)
+The model receives the plan, columns and indexes for the tables involved. You
+get an explanation and candidate changes to review. PDOdb does not create
+indexes or apply the model's SQL.
 
-## Overview
+## What a useful answer looks like
 
-The AI analysis feature combines traditional database analysis (EXPLAIN plans, schema inspection) with AI-powered recommendations to provide comprehensive optimization suggestions. This helps developers:
+On our example orders page, SQLite reported:
 
-- **Optimize SQL queries** - Get AI suggestions for improving query performance
-- **Improve database schema** - Receive recommendations for indexes, constraints, and table structure
-- **Understand query execution** - Combine EXPLAIN analysis with AI explanations
-- **Get optimization suggestions** - Receive actionable recommendations based on your database structure
+```text
+SCAN orders
+USE TEMP B-TREE FOR ORDER BY
+```
 
-## Supported AI Providers
+The captured AI answer identified a candidate index:
 
-PDOdb supports multiple AI providers, each with their own strengths:
+> An index on `(status, created_at DESC)` could let the engine seek to the
+> `status` value and read `created_at` in order, avoiding the temp B-tree for page one.
 
-| Provider | Models | Best For | API Key Required |
-|----------|--------|----------|------------------|
-| **OpenRouter** | Configurable `vendor/model` IDs | Access through an aggregator | Yes |
-| **OpenAI-compatible** | Models served by your endpoint | Gateways, proxies and compatible local servers | Yes (a placeholder can be used if your local server ignores authentication) |
-| **OpenAI** | gpt-4o-mini, gpt-4, gpt-3.5-turbo | General analysis, fast responses | Yes |
-| **Anthropic** | claude-3-5-sonnet, claude-3-opus | Detailed analysis, long context | Yes |
-| **Google** | gemini-2.5-flash, gemini-2.5-pro, gemini-2.0-flash-001, gemini-flash-latest, gemini-pro-latest | Multimodal analysis, large context | Yes |
-| **Microsoft** | Azure OpenAI models | Enterprise environments | Yes |
-| **DeepSeek** | deepseek-chat, deepseek-reasoner | Cost-effective, OpenAI-compatible | Yes |
-| **Yandex** | gpt-oss-120b/latest | Russian market, Yandex Cloud | Yes (API key + folder ID) |
-| **Ollama** | Any local model (llama2, deepseek-coder, etc.) | Privacy, offline use, no API costs | No |
+After we applied that index ourselves in the test fixture, the plan became:
+
+```text
+SEARCH orders USING INDEX idx_orders_status_created (status=?)
+```
+
+The same 50 rows came back in the same order. On that synthetic SQLite fixture,
+the median SELECT time changed from **4.6860 ms to 0.0200 ms**. This is a local
+measurement, not an AI prediction or a promised production speedup.
+
+The point is the connection between **your query, actual database evidence, and
+a change you can verify**. The model does not have to guess whether an index
+exists or ask you to paste a schema.
+
+## Try it before connecting your own database
+
+The repository includes a complete demo with 100,000 synthetic orders and 2,000
+customers. Use PHP 8.4+ with `pdo_sqlite`, then from a PDOdb 2.14+ checkout run:
+
+```bash
+composer install
+php examples/07-performance/05-ai-query-advice.php
+```
+
+It creates a fresh database in memory, shows real plans and timings, and checks
+that each index change preserves the result. This first run is offline: it
+needs no key and does not use your application's database.
+
+The demo covers three different decisions:
+
+| Your task | What to look for |
+| --- | --- |
+| Show the newest pending orders | Can one index serve the filter and the requested order? |
+| Report orders for a small customer group | Does the JOIN start with a full scan when indexed lookups would help? |
+| Review recent orders for one customer | Does an existing composite index already do the job? |
+
+[See the full examples, captured answers and before/after results](25-ai-query-advice-in-practice.md).
 
 ## Configuration
 
-### Environment Variables
+**Choose one provider.** You need its key and a model; you do not need keys for
+other services or a list of generation parameters.
 
-Configure AI providers using environment variables:
+Here is the OpenRouter setup for the demo. Create a local `.env.ai.local` file
+in the repository root with these three values:
 
-```bash
-# Default provider
-export PDODB_AI_PROVIDER=openai
-
-# OpenAI
-export PDODB_AI_OPENAI_KEY=sk-...
-
-# Anthropic
-export PDODB_AI_ANTHROPIC_KEY=sk-ant-...
-
-# Google
-export PDODB_AI_GOOGLE_KEY=...
-export PDODB_AI_GOOGLE_MODEL=gemini-2.5-flash  # Optional: gemini-2.5-pro, gemini-2.0-flash-001, gemini-flash-latest, gemini-pro-latest
-
-# Microsoft Azure OpenAI
-export PDODB_AI_MICROSOFT_KEY=...
-export PDODB_AI_MICROSOFT_MODEL=gpt-4  # Optional: model name
-# Also configure endpoint via config array (see below)
-
-# DeepSeek
-export PDODB_AI_DEEPSEEK_KEY=...
-export PDODB_AI_DEEPSEEK_MODEL=deepseek-chat  # Optional: deepseek-reasoner (thinking mode)
-
-# Yandex Cloud
-export PDODB_AI_YANDEX_KEY=...
-export PDODB_AI_YANDEX_FOLDER_ID=b1ge9k4rdlck8g72slht  # Required: Yandex Cloud folder ID
-export PDODB_AI_YANDEX_MODEL=gpt-oss-120b/latest  # Optional: model name
-
-# Ollama (local, no API key needed)
-export PDODB_AI_OLLAMA_URL=http://localhost:11434
-export PDODB_AI_OLLAMA_MODEL=llama3.2  # Optional: model name
-
-# OpenAI
-export PDODB_AI_OPENAI_MODEL=gpt-4o-mini  # Optional: gpt-4, gpt-3.5-turbo
-export PDODB_AI_OPENAI_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
-export PDODB_AI_OPENAI_MAX_TOKENS=2000  # Optional: default: 2000
-export PDODB_AI_OPENAI_TIMEOUT=30  # Optional: seconds, default: 30
-
-# Anthropic
-export PDODB_AI_ANTHROPIC_MODEL=claude-3-5-sonnet-20241022  # Optional: claude-3-opus
-export PDODB_AI_ANTHROPIC_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
-export PDODB_AI_ANTHROPIC_MAX_TOKENS=2000  # Optional: default: 2000
-export PDODB_AI_ANTHROPIC_TIMEOUT=30  # Optional: seconds, default: 30
-
-# Google
-export PDODB_AI_GOOGLE_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
-export PDODB_AI_GOOGLE_MAX_TOKENS=8192  # Optional: default: 8192
-export PDODB_AI_GOOGLE_TIMEOUT=30  # Optional: seconds, default: 30
-
-# Microsoft
-export PDODB_AI_MICROSOFT_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
-export PDODB_AI_MICROSOFT_MAX_TOKENS=2000  # Optional: default: 2000
-export PDODB_AI_MICROSOFT_TIMEOUT=30  # Optional: seconds, default: 30
-
-# DeepSeek
-export PDODB_AI_DEEPSEEK_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
-export PDODB_AI_DEEPSEEK_MAX_TOKENS=2000  # Optional: default: 2000
-export PDODB_AI_DEEPSEEK_TIMEOUT=30  # Optional: seconds, default: 30
-
-# Yandex
-export PDODB_AI_YANDEX_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
-export PDODB_AI_YANDEX_MAX_TOKENS=4000  # Optional: default: 4000
-export PDODB_AI_YANDEX_TIMEOUT=30  # Optional: seconds, default: 30
-
-# Ollama
-export PDODB_AI_OLLAMA_TEMPERATURE=0.7  # Optional: 0.0-2.0, default: 0.7
-export PDODB_AI_OLLAMA_MAX_TOKENS=2000  # Optional: default: 2000
-export PDODB_AI_OLLAMA_TIMEOUT=30  # Optional: seconds, default: 30
+```dotenv
+PDODB_AI_PROVIDER=openrouter
+PDODB_AI_OPENROUTER_KEY=your-openrouter-key
+PDODB_AI_OPENROUTER_MODEL=openai/gpt-4o-mini
 ```
 
-### OpenRouter and OpenAI-compatible endpoints
+The model shown is the library's default OpenRouter model. You can replace it
+with a text model available to your account. The endpoint, timeout and generation
+settings already have defaults. Keep the real key out of Git.
 
-For this repository's local testing, keep credentials in the ignored
-`.env.ai.local` file, using `.env.ai.local.example` as a template. Run
-`composer pdodb:test:ai` for offline tests, `composer pdodb:test:ai:check` for
-configuration validation and `composer pdodb:test:ai:live` for an explicit live
-smoke test. See the [testing guide](../../tests/README.md#local-ai-tests-and-private-credentials).
-The private file is loaded only by the live-test runner; regular CLI use follows
-the configuration described below.
-
-OpenRouter has a built-in profile:
+Run the same demo with AI enabled:
 
 ```bash
-export PDODB_AI_PROVIDER=openrouter
-export PDODB_AI_OPENROUTER_KEY=your-openrouter-key
-export PDODB_AI_OPENROUTER_MODEL=vendor/model
-pdodb ai query "SELECT * FROM users WHERE id = ?" --params='[1]' --table=users
+php examples/07-performance/05-ai-query-advice.php --ai
 ```
 
-Replace `vendor/model` with an actual model ID from your account. The OpenRouter
-base URL defaults to `https://openrouter.ai/api/v1`.
+Now each query gets its own live answer alongside the plan. The command reports
+progress for three requests, with at most 512 output tokens per answer. The
+fixture still lives only in memory. The printed report includes each model
+answer, the database plans and the before/after result checks.
 
-For another Chat Completions-compatible service:
+Already use another provider? The [provider reference](26-ai-reference.md#configuration)
+shows only what each service requires, including local Ollama and custom
+OpenAI-compatible endpoints. Those alternatives are optional; they are not
+additional setup steps for OpenRouter.
 
-```bash
-export PDODB_AI_PROVIDER=openai-compatible
-export PDODB_AI_OPENAI_COMPATIBLE_BASE_URL=https://gateway.example.com/v1
-export PDODB_AI_OPENAI_COMPATIBLE_KEY=your-gateway-key
-export PDODB_AI_OPENAI_COMPATIBLE_MODEL=your-model
-```
+## Use the same call in your application
 
-The base URL includes the service's API prefix; PDOdb appends `/chat/completions`.
-The existing `openai` provider also accepts `PDODB_AI_OPENAI_BASE_URL`.
-URLs must use HTTP(S), without embedded credentials, query strings or fragments.
-Authenticated requests do not follow redirects; use the final endpoint URL.
-Only configure endpoints you trust with the SQL and schema sent for analysis.
-
-Configuration arrays support extra headers and endpoint-specific body parameters:
+Set the same three provider variables in the environment of your PHP process,
+or in the `.env` file your application already loads. The demo's `.env.ai.local`
+is specific to the demo/live-test scripts; a normal PHP method does not load it.
+Keep your existing database connection and QueryBuilder code.
 
 ```php
-$db = new PdoDb('sqlite', [
-    'path' => 'app.sqlite',
-    'ai' => [
-        'provider' => 'openrouter',
-        'openrouter_key' => getenv('PDODB_AI_OPENROUTER_KEY'),
-        'providers' => [
-            'openrouter' => [
-                'model' => 'vendor/model',
-                'headers' => [
-                    'HTTP-Referer' => 'https://your-project.example',
-                ],
-                // Only set options supported by your selected model/endpoint.
-                'request_options' => [
-                    'temperature' => null, // Omit this parameter entirely.
-                    'max_tokens' => null,
-                    'max_completion_tokens' => 2000,
-                ],
-            ],
-        ],
+$query = $db->find()
+    ->from('orders')
+    ->where('status', 'pending')
+    ->orderBy('created_at', 'DESC')
+    ->limit(50);
+
+$advice = $query->explainAiAdvice();
+
+if ($advice->status === 'ok') {
+    echo $advice->aiAnalysis;
+} else {
+    // The base plan and context are still available when the provider fails.
+    echo 'AI advice is unavailable; use the collected database analysis.';
+}
+```
+
+For a JOIN, PDOdb collects the participating tables' metadata as well. Aliases
+and configured table prefixes are resolved. For complex raw SQL, you can supply
+an explicit physical-table list through the advanced context options.
+
+One advice call makes one model request. Use it during development, an explicit
+diagnostic session, or an administrative action; it adds database and network
+work, so it does not belong in every normal request handler.
+
+## Tell it what matters for this query
+
+Start with the basic call. Add a goal only when the workload changes what a
+useful recommendation would be:
+
+```php
+$advice = $query->explainAiAdvice(options: [
+    'context' => [
+        'goal' => 'Reduce latency for the first page of pending orders',
+        'constraints' => ['Preserve result order', 'This table receives frequent writes'],
+        'language' => 'English',
     ],
 ]);
 ```
 
-For a custom service, use `provider: openai-compatible`, `openai_compatible_key`
-and `providers['openai-compatible']['base_url']`. Normal OpenAI defaults and
-existing provider names remain supported. Additional headers cannot override
-Authorization, Host, Content-Type or Content-Length. `request_options` cannot
-replace model/messages or enable streaming. These providers support text Chat
-Completions; Responses API, streaming and arbitrary tool-call responses are not
-implemented by this adapter. Compatibility of optional parameters depends on
-the endpoint and model.
+This tells the model to consider the write/storage cost of an index alongside
+read performance. A recommendation to keep an existing suitable index can be
+just as useful as a new index suggestion. The
+[third example](25-ai-query-advice-in-practice.md#3-recent-orders-for-one-customer)
+shows an actual response making that decision.
 
-### Configuration Array
-
-You can also configure AI providers in your application config:
+## Check the context before sending it
 
 ```php
-$db = new PdoDb('mysql', [
-    'host' => 'localhost',
-    'dbname' => 'mydb',
-    'username' => 'user',
-    'password' => 'pass',
-    'ai' => [
-        'provider' => 'openai',
-        'openai_key' => 'sk-...',
-        'anthropic_key' => 'sk-ant-...',
-        'google_key' => '...',
-        'microsoft_key' => '...',
-        'deepseek_key' => '...',
-        'yandex_key' => '...',
-        'yandex_folder_id' => 'b1ge9k4rdlck8g72slht',  # Optional: can also be in providers.yandex.folder_id
-        'ollama_url' => 'http://localhost:11434',
-        'providers' => [
-            'openai' => [
-                'model' => 'gpt-4o-mini',
-                'temperature' => 0.7,
-                'max_tokens' => 2000,
-                'timeout' => 30,
-            ],
-            'anthropic' => [
-                'model' => 'claude-3-5-sonnet-20241022',
-                'temperature' => 0.7,
-                'max_tokens' => 2000,
-                'timeout' => 30,
-            ],
-            'google' => [
-                'model' => 'gemini-2.5-flash',  # or gemini-2.5-pro, gemini-2.0-flash-001, gemini-flash-latest, gemini-pro-latest
-                'temperature' => 0.7,
-                'max_tokens' => 8192,
-                'timeout' => 30,
-            ],
-            'microsoft' => [
-                'endpoint' => 'https://your-resource.openai.azure.com',
-                'deployment' => 'gpt-4',
-                'temperature' => 0.7,
-                'max_tokens' => 2000,
-                'timeout' => 30,
-            ],
-            'deepseek' => [
-                'model' => 'deepseek-chat',  # or deepseek-reasoner (thinking mode)
-                'temperature' => 0.7,
-                'max_tokens' => 2000,
-                'timeout' => 30,
-            ],
-            'yandex' => [
-                'folder_id' => 'b1ge9k4rdlck8g72slht',  # Required: Yandex Cloud folder ID
-                'model' => 'gpt-oss-120b/latest',  # Optional: model name
-                'temperature' => 0.7,
-                'max_tokens' => 4000,
-                'timeout' => 30,
-            ],
-            'ollama' => [
-                'model' => 'llama3.2',  # or any local model name
-                'temperature' => 0.7,
-                'max_tokens' => 2000,
-                'timeout' => 30,
-            ],
-        ],
-    ],
-]);
+$context = $query->explainAiContext(); // Database work, no model call
 ```
 
-### Available Google Gemini Models
+The context contains the SQL shape, available plan evidence, database version,
+and schema/index metadata. By default, explicit binding values are omitted,
+SQL literals/comments are lexically redacted, and raw plan text and column
+defaults are excluded. Names and schema information still reach the provider;
+this is not guaranteed anonymization. Preview the context when disclosure matters.
 
-Google provides multiple model variants. Recommended models:
+The result's `context` is the bounded context used for that request. A missing
+plan, failed metadata collection or truncation is reported rather than invented.
+`baseAnalysis` remains available alongside the AI explanation. The
+[API guide](24-ai-query-advice.md) describes the fields and privacy controls.
 
-- **gemini-2.5-flash** (default) - Stable, fast, versatile model with 1M token context
-- **gemini-2.5-pro** - Best for complex tasks, 1M token context, 65K output tokens
-- **gemini-2.0-flash-001** - Stable version of Gemini 2.0 Flash (January 2025)
-- **gemini-flash-latest** - Always uses the latest Flash model
-- **gemini-pro-latest** - Always uses the latest Pro model
+## Review and verify the recommendation
 
-For a complete list of available models, use the provided script:
+Compare the suggested columns and their order with existing indexes. Try a
+candidate change on a test copy, collect a new plan, and measure the actual
+SELECT separately. Check that the returned rows and ordering still match.
 
-```bash
-php check-google-models.php
-```
+The model sees estimated plans, not production latency. It may miss a tradeoff
+or make an incorrect claim; the plan and measured result give you something to
+check. In the demo, all index changes come from fixed, reviewed example code,
+not executable model output.
 
-This script will show all models that support `generateContent` with their token limits and descriptions.
+The current MSSQL adapter reports its plan as unavailable. Parameterized Oracle
+EXPLAIN is also unavailable; those requests can receive SQL/schema advice but
+are labelled as lacking a verified plan. See the
+[adapter details](24-ai-query-advice.md#4-read-status-and-limitations-before-using-the-advice).
 
-### Priority
+## Where to go next
 
-Configuration priority (highest to lowest):
-1. Environment variables
-2. Config array
-3. Default values
-
-## Code-Level Integration
-
-### Using `explainAiAdvice()`
-
-The `explainAiAdvice()` method extends the standard `explainAdvice()` with AI-powered recommendations:
-
-```php
-use tommyknocker\pdodb\PdoDb;
-
-$db = PdoDb::fromEnv();
-
-// Get AI-enhanced analysis
-$result = $db->find()
-    ->from('users')
-    ->where('email', 'user@example.com')
-    ->explainAiAdvice(
-        tableName: 'users',
-        provider: 'openai',
-        options: [
-            'temperature' => 0.5,
-            'max_tokens' => 2000,
-        ]
-    );
-
-// Access base analysis (traditional EXPLAIN)
-$baseAnalysis = $result->baseAnalysis;
-echo "Issues found: " . count($baseAnalysis->issues) . "\n";
-echo "Recommendations: " . count($baseAnalysis->recommendations) . "\n";
-
-// Access AI analysis
-echo "AI Analysis:\n";
-echo $result->aiAnalysis . "\n";
-
-// Provider information
-echo "Provider: {$result->provider}\n";
-echo "Model: {$result->model}\n";
-```
-
-### Using `AiAnalysisService` Directly
-
-For more control, use `AiAnalysisService` directly:
-
-```php
-use tommyknocker\pdodb\PdoDb;
-use tommyknocker\pdodb\ai\AiAnalysisService;
-
-$db = PdoDb::fromEnv();
-
-$aiService = new AiAnalysisService($db);
-
-// Analyze a SQL query
-$sql = "SELECT * FROM users WHERE email = ? AND status = 'active'";
-$analysis = $aiService->analyzeQuery(
-    sql: $sql,
-    tableName: 'users',
-    provider: 'anthropic',
-    options: ['max_tokens' => 3000]
-);
-
-echo $analysis;
-
-// Analyze database schema
-$schemaAnalysis = $aiService->analyzeSchema(
-    tableName: 'users',
-    provider: 'openai'
-);
-
-echo $schemaAnalysis;
-
-// Get optimization suggestions based on existing analysis
-$baseAnalysis = [
-    'issues' => [...],
-    'recommendations' => [...],
-];
-
-$suggestions = $aiService->suggestOptimizations(
-    analysis: $baseAnalysis,
-    context: ['table_stats' => [...]],
-    provider: 'google'
-);
-```
-
-## CLI Commands
-
-### `pdodb ai query`
-
-Analyze query using `explainAiAdvice()` (includes both base and AI analysis):
-
-```bash
-pdodb ai query "SELECT * FROM orders o JOIN users u ON o.user_id = u.id" \
-    --provider=anthropic \
-    --table=orders
-```
-
-### `pdodb ai schema`
-
-Analyze database schema with AI:
-
-```bash
-# Analyze specific table
-pdodb ai schema --table=users --provider=openai
-
-# Analyze all tables
-pdodb ai schema --provider=ollama --format=json
-```
-
-### `pdodb ai optimize`
-
-Get AI-powered optimization suggestions:
-
-```bash
-pdodb ai optimize --table=users --provider=openai --temperature=0.5
-```
+| You want to… | Continue with… |
+| --- | --- |
+| Inspect complete answers and reproduce the changes | [Three measured examples](25-ai-query-advice-in-practice.md) |
+| Build a report/UI or tune context and output limits | [Query-advice API guide](24-ai-query-advice.md) |
+| Use another provider or a custom API endpoint | [Configuration reference](26-ai-reference.md#configuration) |
+| Analyze schema or use CLI reports | [Service and CLI reference](26-ai-reference.md#cli-commands) |
+| Let an editor inspect your development database | [Optional MCP walkthrough](../01-getting-started/08-ai-editor.md) |
 
 ## MCP Server
 
-PDOdb includes an MCP (Model Context Protocol) server for integration with AI agents and IDEs that support MCP.
-
-### Starting the MCP Server
-
-Normally your editor starts the local PHP process using the launch configuration
-printed by `pdodb mcp config`. No separate daemon or network port is needed.
-See the [AI editor walkthrough](../01-getting-started/08-ai-editor.md) for a complete
-example: connect the editor, inspect a real table, and write a PDOdb query.
-
-The executable `vendor/bin/pdodb-mcp` is a stdio protocol endpoint. Starting it
-manually waits for MCP messages on stdin, rather than opening a chat interface.
-It uses the same connection configuration as the PDOdb CLI; see setup below.
-
-### Agent tools without an additional LLM key
-
-The server can provide facts to the model already used by your editor. These
-tools do not call an AI provider:
-
-| Tool | Input | Result |
-| --- | --- | --- |
-| `get_context` | `{}` | PDOdb/PHP/database versions, dialect capabilities, connection names and result contracts; no credentials |
-| `search_docs` | `query`, optional `limit` (1–20) | Excerpts from the installed package documentation with source paths and section line numbers |
-| `search_schema` | Optional `query`, `kind` (`tables`, `columns`, `schemas`), `schema`, `table`, `limit` (1–100), `offset` | Visible object names or matching columns, with `next_offset` |
-| `get_schema` | Optional `table`, `schema` | Columns, indexes and visible foreign keys; omit table for all visible tables in that schema |
-| `inspect_query` | `sql`, optional `params`, `table` | Estimated EXPLAIN evidence, parsed plan, issues, recommendations and warnings |
-
-For example:
-
-```json
-{
-  "name": "inspect_query",
-  "arguments": {
-    "sql": "SELECT * FROM users WHERE id = ?",
-    "params": [1],
-    "table": "users"
-  }
-}
-```
-
-Named parameters are accepted as an object. `inspect_query` accepts one
-SELECT/WITH statement, conservatively rejects internal semicolons, never calls
-EXPLAIN ANALYZE and does not echo parameter values. Plans may still contain SQL
-literals; do not treat the output as fully anonymized. `measurements: false`
-means the plan contains estimates rather than measured execution times.
-MSSQL reports `source: unavailable` because this adapter cannot collect a real
-plan. Oracle EXPLAIN uses PLAN_TABLE and requires appropriate permissions;
-parameterized Oracle plans report `source: unavailable` because the adapter
-cannot safely bind EXPLAIN parameters. Values are not interpolated by this service.
-
-### Existing AI-report tools
-
-`analyze_query`, `explain_plan` and `suggest_indexes` continue to use the configured
-AI provider. They support all provider names, including `openrouter` and
-`openai-compatible`. Query tools accept positional/named `params`.
-`analyze_query` reports warnings when a plan could not be collected.
-Provider identity in results reflects the actual configuration.
-
-Tool failures have `isError: true`. Array results are also available as
-`structuredContent`. Tool content is limited to 128 KiB; use `search_schema` and a
-specific `get_schema` table instead of requesting an entire large schema.
-Requests are limited to 1 MiB. The server negotiates the 2024-11-05 through
-2025-11-25 protocol revisions; the stateless 2026 revision is not implemented.
-
-### Setup and diagnostics
-
-```bash
-pdodb ai setup
-pdodb ai doctor                  # Connection/configuration check, no LLM request
-pdodb ai context                 # JSON environment and result contracts
-pdodb ai docs "asObject"          # Local docs search, no database connection needed
-pdodb mcp config                 # JSON launch preview, no files are written
-pdodb mcp doctor                 # Validate the MCP connection, policy and catalog access
-```
-
-The MCP launcher and `pdodb mcp serve` use the same database configuration as the
-CLI: environment/.env, or `config/db.php` / `PDODB_CONFIG_PATH`. Launch in the
-project directory when generating the preview: it records that directory with
-`--project` so the configuration resolves correctly when an editor starts the
-server elsewhere. Generated launch paths are absolute and local to the machine. The preview uses the `mcpServers`
-JSON format; translate it if your client uses a different configuration format.
-Keep secrets in your environment or a local, untracked configuration file.
-
-`doctor` checks the database and shows whether a provider key is configured;
-it does not contact a model or make a paid request. Environment settings take
-precedence over configuration arrays, followed by defaults. Agent tools require
-no LLM key. The server does not expose a general SQL execution tool. Database
-permissions and database-side statement limits remain important: client timeout
-alone does not cancel work in the database.
-
-The portable `skills/pdodb-query-builder/SKILL.md` bundled with PDOdb explains
-result modes, scopes and evidence-based query work. Install its folder using
-your agent's skill installation mechanism. It is optional and not installed
-into your project automatically.
-
-### MCP visibility, connections and limits
-
-The optional project file `config/mcp.php` returns a policy array. Start from
-[`config/mcp.example.php`](../../config/mcp.example.php):
-
-```php
-return [
-    'connection' => 'diagnostics',
-    'allowed_schemas' => ['public'],
-    'allowed_tables' => ['users', 'orders'],
-    'external_ai_enabled' => false,
-    'statement_timeout_ms' => 5000, // PostgreSQL/MariaDB; use 0 for other adapters.
-];
-```
-
-Define the `diagnostics` alias in `config/db.php` with a database account whose
-permissions suit the intended use. The name itself does not grant read-only
-permissions. Selecting an explicit MCP alias never falls back to ambient
-`PDODB_DRIVER` credentials or the application's default connection. Existing
-launches without this option keep the original CLI connection selection.
-In PHP, the optional third `McpServer` constructor argument accepts `McpConfig`;
-selection uses a shallow copy of PdoDb so the caller's active alias is unchanged.
-A supplied custom AI service must already target the desired connection; do not
-combine it with automatic alias selection.
-
-Environment overrides take precedence over this file:
-
-| Variable | Format |
-| --- | --- |
-| `PDODB_MCP_CONFIG_PATH` | Explicit policy-file path; a missing file is an error |
-| `PDODB_MCP_CONNECTION` | Named alias in `config/db.php` / `PDODB_CONFIG_PATH` |
-| `PDODB_MCP_ALLOWED_TABLES` | JSON array, e.g. `["users","orders"]` |
-| `PDODB_MCP_ALLOWED_SCHEMAS` | JSON array, e.g. `["public"]` |
-| `PDODB_MCP_QUERY_ANALYSIS_ENABLED` | `true` / `false` or `1` / `0` |
-| `PDODB_MCP_EXTERNAL_AI_ENABLED` | `true` / `false` or `1` / `0` |
-| `PDODB_MCP_STATEMENT_TIMEOUT_MS` | Integer milliseconds, 0–300000 |
-
-`null` allowlists in PHP preserve unrestricted visibility; `[]` explicitly
-exposes no objects. Unknown options, malformed lists and nonboolean flags are
-rejected. Identifier matching is exact and case-sensitive: use the names returned
-by discovery, including Oracle's usual uppercase names. MCP currently accepts
-simple identifiers (letters/digits/underscore/dollar sign), optionally qualified
-as `schema.table`; quoted names with punctuation or spaces are not supported.
-
-An unqualified allowed table applies only to the metadata default schema;
-`public.users` applies only to that exact namespace. The metadata default is the
-connection's current schema, or the first allowed schema if the current one is
-excluded. `get_context` reports it. Schemas, tables, columns, `get_schema` and
-`table://` resources use the same policy; references to hidden foreign-key
-targets are omitted and `foreign_keys_filtered` reports that omission.
-
-**Visibility restrictions force metadata-only mode:** only `get_context`,
-`search_docs`, `search_schema` and `get_schema` are advertised. Raw SQL analysis
-and the three AI-report tools cannot be re-enabled by the boolean flags while
-an allowlist is present. A `table` argument cannot prove that arbitrary SQL
-accesses only that table, so allowing EXPLAIN in this mode would bypass the view.
-The policy controls this MCP server's output, not database permissions or other
-clients' access; it does not analyze expressions inside allowed index definitions.
-Without allowlists, the query/AI flags can independently disable their tools.
-
-Column and schema discovery examples:
-
-```json
-{"name":"search_schema","arguments":{"kind":"columns","query":"email","schema":"public","table":"users"}}
-{"name":"search_schema","arguments":{"kind":"schemas"}}
-{"name":"get_schema","arguments":{"schema":"public","table":"users"}}
-```
-
-Column results identify the schema, table, column and type. To avoid unlimited
-per-table scans, column search requires `table` when a schema has more than 200
-visible tables. Metadata queries bind both schema and table, so equal table or
-constraint names in different namespaces do not mix. `resources/list` returns
-up to 100 entries and a `nextCursor`; `table://public.users` selects a qualified
-resource. Resource contents share the 128 KiB size limit with tool content.
-
-`statement_timeout_ms=0` leaves session settings untouched. PostgreSQL and
-MariaDB support a scoped server-side per-statement limit in this adapter. The
-original setting is restored in `finally`, including after a statement timeout
-or other error, and a stricter existing limit is preserved. An active caller
-transaction is rejected when a scoped timeout is requested. Other adapters
-reject a nonzero limit instead of presenting a connection/lock timeout as query
-cancellation; SQLite busy timeouts and MySQL's SELECT-only execution limit are
-not substitutes for this feature. MariaDB cancellation is checked periodically,
-so it is not a hard wall-clock deadline. These limits do not bound a whole MCP
-request containing several statements or a call to an external AI provider.
-`mcp doctor` reports support and tests catalog access without invoking an LLM.
-
-### Resources and prompts
-
-`table://users` returns that table's schema. The prompts `analyze_query` (required
-`sql` argument) and `optimize_schema` (required `table` argument) return resolved
-messages for the client. These metadata tools make no additional provider calls. Your agent client may
-include their output in its own model context; AI-report tools additionally
-send SQL/schema to the configured PDOdb AI provider.
-
-## Examples
-
-### Example 1: Optimize a Slow Query
-
-```php
-$db = PdoDb::fromEnv();
-
-// Get AI analysis for a slow query
-$result = $db->find()
-    ->from('orders')
-    ->join('users', 'orders.user_id = users.id')
-    ->where('orders.status', 'pending')
-    ->orderBy('orders.created_at', 'DESC')
-    ->limit(100)
-    ->explainAiAdvice(
-        tableName: 'orders',
-        provider: 'openai'
-    );
-
-// Check for critical issues
-if ($result->baseAnalysis->hasCriticalIssues()) {
-    echo "⚠️ Critical issues found!\n";
-    foreach ($result->baseAnalysis->issues as $issue) {
-        if ($issue->severity === 'critical') {
-            echo "- {$issue->message}\n";
-        }
-    }
-}
-
-// Read AI recommendations
-echo "\n🤖 AI Recommendations:\n";
-echo $result->aiAnalysis . "\n";
-```
-
-### Example 2: Schema Optimization
-
-```php
-use tommyknocker\pdodb\ai\AiAnalysisService;
-
-$db = PdoDb::fromEnv();
-$aiService = new AiAnalysisService($db);
-
-// Analyze entire schema
-$analysis = $aiService->analyzeSchema(
-    tableName: null,  // null = all tables
-    provider: 'anthropic'
-);
-
-echo "Schema Analysis:\n";
-echo $analysis . "\n";
-```
-
-### Example 3: Using Ollama (Local, No API Key)
-
-```php
-$db = new PdoDb('mysql', [
-    'host' => 'localhost',
-    'dbname' => 'mydb',
-    'username' => 'user',
-    'password' => 'pass',
-    'ai' => [
-        'provider' => 'ollama',
-        'ollama_url' => 'http://localhost:11434',
-        'providers' => [
-            'ollama' => [
-                'model' => 'deepseek-coder:6.7b',
-                'max_tokens' => 1000,
-            ],
-        ],
-    ],
-]);
-
-$result = $db->find()
-    ->from('users')
-    ->where('status', 'active')
-    ->explainAiAdvice(provider: 'ollama');
-
-echo $result->aiAnalysis;
-```
-
-### Example 4: CLI Usage
-
-```bash
-# Get schema optimization suggestions
-pdodb ai schema --table=orders --provider=anthropic
-
-# Analyze with custom model and temperature
-pdodb ai query "SELECT COUNT(*) FROM users" \
-    --provider=openai \
-    --model=gpt-4 \
-    --temperature=0.3 \
-    --max-tokens=1500
-```
-
-## Best Practices
-
-### 1. Choose the Right Provider
-
-- **OpenAI (gpt-4o-mini)**: Fast, cost-effective for general analysis
-- **Anthropic (claude-3-5-sonnet)**: Best for detailed, comprehensive analysis
-- **Google (gemini-pro)**: Good balance of speed and quality
-- **Ollama**: Use for privacy-sensitive environments or when API costs are a concern
-
-### 2. Provide Context
-
-Always provide table names when analyzing queries:
-
-```php
-// Good - provides context
-$result = $db->find()
-    ->from('users')
-    ->where('email', 'user@example.com')
-    ->explainAiAdvice(tableName: 'users');
-
-// Less optimal - no table context
-$result = $db->find()->from('users')->explainAiAdvice();
-```
-
-### 3. Combine with Base Analysis
-
-AI analysis works best when combined with traditional EXPLAIN analysis:
-
-```php
-$result = $db->find()
-    ->from('orders')
-    ->explainAiAdvice(tableName: 'orders');
-
-// Check base analysis first
-if ($result->baseAnalysis->hasCriticalIssues()) {
-    // Handle critical issues
-}
-
-// Then review AI suggestions
-echo $result->aiAnalysis;
-```
-
-### 4. Adjust Parameters for Your Use Case
-
-- **Temperature**: Lower (0.3-0.5) for precise, factual analysis. Higher (0.7-1.0) for creative suggestions.
-- **Max Tokens**: Increase for complex schemas or detailed analysis (2000-4000).
-
-### 5. Cache AI Responses (Optional)
-
-For frequently analyzed queries, consider caching AI responses:
-
-```php
-// Simple caching example
-$cacheKey = 'ai_analysis_' . md5($sql . $tableName);
-$cached = $cache->get($cacheKey);
-
-if ($cached === null) {
-    $result = $db->find()->from('users')->explainAiAdvice();
-    $cache->set($cacheKey, $result->aiAnalysis, 3600); // 1 hour
-    $cached = $result->aiAnalysis;
-}
-```
-
-### 6. Use MCP Server for IDE Integration
-
-Use MCP when the editor's assistant needs the live development schema or an
-estimated query plan while helping you write PHP. The editor starts a local
-process and requests facts when needed; there is no background database monitor.
-
-Follow the [AI editor walkthrough](../01-getting-started/08-ai-editor.md) for
-configuration, a concrete prompt, expected code, and cases where MCP adds little.
-Generate machine-specific launch paths with `pdodb mcp config` and keep database
-credentials in your existing local configuration.
-
-## Troubleshooting
-
-### Provider Not Available
-
-If a provider is not available, check:
-
-1. API key is set correctly (for cloud providers)
-2. Ollama server is running (for Ollama)
-3. Network connectivity (for cloud providers)
-
-```php
-use tommyknocker\pdodb\ai\providers\OpenAiProvider;
-use tommyknocker\pdodb\ai\AiConfig;
-
-$config = new AiConfig();
-$provider = new OpenAiProvider($config);
-
-if (!$provider->isAvailable()) {
-    echo "OpenAI provider is not available. Check PDODB_AI_OPENAI_KEY.\n";
-}
-```
-
-### Model Not Found (Ollama)
-
-If using Ollama and getting "model not found" errors:
-
-```bash
-# List available models
-curl http://localhost:11434/api/tags
-
-# Pull a model if needed
-ollama pull deepseek-coder:6.7b
-```
-
-### Rate Limiting
-
-Cloud providers may rate limit requests. Consider:
-
-- Using Ollama for local development
-- Implementing request throttling
-- Caching AI responses
-
-### Cost Management
-
-To manage API costs:
-
-- Use Ollama for local development
-- Use smaller models (gpt-4o-mini instead of gpt-4)
-- Reduce `max_tokens` for simpler queries
-- Cache AI responses for repeated queries
-
-## See Also
-
-- [Query Analysis](08-query-analysis.md) - Traditional EXPLAIN analysis
-- [CLI Tools](21-cli-tools.md) - Complete CLI documentation
-- [Performance Tips](../../README.md#performance-tips) - General performance optimization
-
+MCP is a separate, optional way for an editor's assistant to retrieve database
+facts. It is not part of the PHP advice call above. See the
+[editor walkthrough](../01-getting-started/08-ai-editor.md) if you want that
+integration, or the [MCP reference](26-ai-reference.md#mcp-server) for its options.

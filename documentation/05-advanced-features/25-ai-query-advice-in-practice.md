@@ -39,20 +39,18 @@ That is enough to create **100,000 orders and 2,000 customers**, show the plans,
 apply the example's reviewed index changes and measure the SELECTs. The default
 run makes no AI requests and needs no database container or API key.
 
-To get your own live answers, put your provider settings in the environment or
-copy [.env.ai.local.example](../../.env.ai.local.example) to `.env.ai.local` and
-fill in the key and a model ID available to your account. For this walkthrough,
-set `PDODB_AI_LIVE_MAX_TOKENS=512`. Keep the file private and untracked. Then run:
+To get your own live answers, follow the [three-value provider setup](23-ai-analysis.md#configuration),
+then run:
 
 ```bash
 php examples/07-performance/05-ai-query-advice.php --ai
 ```
 
-This explicitly makes three requests, each capped at **512 output tokens**.
-The example reuses `PDODB_AI_LIVE_MAX_TOKENS`, `PDODB_AI_LIVE_TIMEOUT`, and the
-optional OpenRouter reasoning-effort setting from the private file. For a
-reasoning model, choose a setting that leaves enough room for visible output.
-A different private file can be selected with `--env=/path/to/private.env`.
+This explicitly makes three requests, each capped at 512 output tokens, and
+shows progress as the answers arrive. The only settings needed to start are
+the provider, its key and a model. Keep the real key in the local, untracked
+`.env.ai.local` file. A different private file can be selected with
+`--env=/path/to/private.env`.
 
 The script always uses a fresh SQLite database **in memory**, even when your
 application environment selects another database. Its deterministic fixture and

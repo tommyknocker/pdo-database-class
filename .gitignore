@@ -2,6 +2,8 @@
 .cursor
 .claude
 .env
+# Local agent instructions; never include in repository or releases
+/AGENTS.md
 # Local AI credentials (the .example template is safe to commit)
 /.env.ai.local
 /nbproject

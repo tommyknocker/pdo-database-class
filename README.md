@@ -238,7 +238,7 @@ The wizard will guide you through:
 - Connection testing
 - Advanced options (caching, table prefix, multiple connections)
 
-See [CLI Tools Documentation](documentation/05-advanced-features/21-cli-tools.md#project-initialization-pdodb-init) for more details.
+See [CLI Tools Documentation](documentation/05-advanced-features/21-cli-tools.md#project-initialization) for more details.
 
 ---
 
@@ -512,21 +512,17 @@ $advice = $db->find()
 echo $advice->aiAnalysis;
 ```
 
-PDOdb collects the database context and makes one request to your configured
-provider. Use `explainAiContext()` to preview that context without calling a model.
+PDOdb collects the plan, table schemas and existing indexes, then makes one
+request to your configured provider. Review the explanation and verify a
+candidate change against the database.
 
-**Try three real cases:** fix a scan-and-sort page, investigate a JOIN, and keep
-an index that already fits. The [hands-on walkthrough](documentation/05-advanced-features/25-ai-query-advice-in-practice.md)
-includes reproducible data, captured AI answers and measured before/after plans.
-From a repository checkout, start without an API key:
+**[Start with the complete walkthrough](documentation/05-advanced-features/23-ai-analysis.md)**:
+what the advice looks like, three-value setup, your first live answer, and
+before/after examples. To explore the included data and real plans without a key:
 
 ```bash
 php examples/07-performance/05-ai-query-advice.php
 ```
-
-[Provider setup, including OpenRouter and compatible APIs](documentation/05-advanced-features/23-ai-analysis.md#configuration)
- · [Context, privacy and structured results](documentation/05-advanced-features/24-ai-query-advice.md)
- · [Optional MCP integration for editors](documentation/01-getting-started/08-ai-editor.md)
 
 ## Quick Start
 
