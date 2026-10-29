@@ -27,8 +27,7 @@ plans, complete selected answers and result checksums are available below.
 
 ## Try it locally
 
-Use the current development checkout with Composer dependencies installed,
-PHP 8.4+ and `pdo_sqlite`. These additions are not in the published v2.13.0 tag.
+Use a PDOdb 2.14.0 or newer repository checkout, PHP 8.4+ and `pdo_sqlite`.
 From the repository root:
 
 ```bash

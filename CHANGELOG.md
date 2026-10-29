@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-10-29
+
 ### Added
 - Reproducible AI query-advice showcase with 100,000 synthetic orders, three live-answer use cases, recorded SQLite plans and verified before/after results; shorten the README example and link the hands-on guide.
 - Query-advice context preview, bounded FROM/JOIN catalog collection, database versions, normalized index metadata, optional catalog estimates, task goals and privacy controls. Add optional validated structured AI findings while retaining existing text/base-analysis results.
@@ -2113,7 +2115,9 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.12.1...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.14.0...HEAD
+[2.14.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.13.0...v2.14.0
+[2.13.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.12.1...v2.13.0
 [2.12.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.12.0...v2.12.1
 [2.12.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.2...v2.12.0
 [2.11.2]: https://github.com/tommyknocker/pdo-database-class/compare/v2.11.1...v2.11.2

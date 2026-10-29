@@ -9,8 +9,8 @@ situations include investigating a slow endpoint, reviewing a new JOIN, or
 checking an ordered/paginated query before deployment.
 
 The method collects database evidence and makes **one request** to your configured
-AI provider. You do not need MCP, tools, an agent loop, or a daemon. These features
-are available in the development branch after v2.13.0.
+AI provider. You do not need MCP, tools, an agent loop, or a daemon. The enhanced
+context, preview and structured results described here require PDOdb 2.14.0 or newer.
 
 ## 1. Configure the provider
 

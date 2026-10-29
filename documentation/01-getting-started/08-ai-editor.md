@@ -5,8 +5,7 @@ assistant needs the **actual database schema** and the **installed PDOdb API** t
 write the right query. Instead of copying table definitions into chat, you let
 the assistant retrieve those facts through PDOdb's optional MCP integration.
 
-This walkthrough uses features in the current development branch, not the
-published v2.13.0 package.
+This walkthrough requires PDOdb 2.14.0 or newer.
 
 ## What runs, and who starts it?
 
