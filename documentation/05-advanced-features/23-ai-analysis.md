@@ -2,6 +2,10 @@
 
 PDOdb provides AI-powered database analysis capabilities, allowing you to get intelligent recommendations for query optimization, schema improvements, and performance tuning using various AI providers (OpenAI, OpenRouter, other OpenAI-compatible endpoints, Anthropic, Google, Microsoft, DeepSeek, Yandex and Ollama).
 
+For a complete PHP use case, start with [Explain and improve a query](24-ai-query-advice.md):
+`explainAiAdvice()`, context preview, JOIN metadata, privacy, limits and structured
+results. No MCP server is required.
+
 ## Table of Contents
 
 - [Overview](#overview)

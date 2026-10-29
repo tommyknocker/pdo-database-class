@@ -38,13 +38,13 @@ class PostgreSQLExplainParser implements ExplainParserInterface
         }
 
         // Parse Index Scan
-        if (preg_match_all('/Index Scan\s+.*?on\s+\S+\s+using\s+(\S+)/i', $queryPlan, $matches)) {
+        if (preg_match_all('/Index Scan\s+(?:Backward\s+)?using\s+(\S+)\s+on\s+\S+/i', $queryPlan, $matches)) {
             $plan->usedIndex = trim($matches[1][0]);
             $plan->accessType = 'Index Scan';
         }
 
         // Parse Index Only Scan
-        if (preg_match_all('/Index Only Scan\s+.*?on\s+\S+\s+using\s+(\S+)/i', $queryPlan, $matches)) {
+        if (preg_match_all('/Index Only Scan\s+(?:Backward\s+)?using\s+(\S+)\s+on\s+\S+/i', $queryPlan, $matches)) {
             $plan->usedIndex = trim($matches[1][0]);
             $plan->accessType = 'Index Only Scan';
         }
@@ -76,7 +76,7 @@ class PostgreSQLExplainParser implements ExplainParserInterface
         }
 
         // Detect JOIN types
-        if (preg_match_all('/(Nested Loop|Hash Join|Merge Join)\s+Join/i', $queryPlan, $matches)) {
+        if (preg_match_all('/(Nested Loop|Hash Join|Merge Join)(?:\s+Join)?/i', $queryPlan, $matches)) {
             $plan->joinTypes = array_map('trim', $matches[1]);
             $plan->joinTypes = array_values(array_unique($plan->joinTypes));
         }

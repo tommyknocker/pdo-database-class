@@ -13,6 +13,15 @@ paths and the smoke-test runner using fake keys and a loopback HTTP server.
 It does not load `.env.ai.local` or make paid requests. No database servers
 are needed; fixtures use SQLite in memory.
 
+The suite also checks actual query-advice payloads, FROM/JOIN/alias/prefix metadata,
+SQLite plan evidence, context budgets/redaction, shared provider prompts and
+structured-response validation. To explicitly exercise catalogs and estimated
+plans on the six configured local databases (creates/drops random test tables):
+
+```bash
+composer pdodb:test:ai:db
+```
+
 For real OpenRouter testing, create `.env.ai.local` from
 [the template](../.env.ai.local.example), set its permissions to `600`, then
 edit the key and an actual model ID in your local editor. The local file is
@@ -61,6 +70,12 @@ php8.5 scripts/test-ai-live.php --run
 Each live invocation makes its own requests. These are integration smoke tests:
 they check transport, result contracts and a nonempty AI response, not the
 correctness or performance of the model's SQL recommendations.
+
+The older `AiTests` / `AiCommandCliTests` use a local Ollama generation model.
+Their readiness check reads `/api/tags` with a one-second timeout and skips the
+optional suite if the configured model (default `deepseek-coder:6.7b`) is absent;
+a listening port alone does not mean generation is available. These live tests
+remain skipped in CI. The deterministic AI suite above does not require Ollama.
 
 ## MCP policy integration tests
 

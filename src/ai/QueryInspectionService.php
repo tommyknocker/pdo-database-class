@@ -38,7 +38,14 @@ class QueryInspectionService
 
         $manager = new ParameterManager();
         $engine = new ExecutionEngine($connection, new RawValueResolver($connection, $manager), $manager);
-        $raw = $this->db->explain($sql, $params);
+        if ($dialect->getDriverName() === 'sqlite') {
+            $statement = $connection->getPdo()->prepare('EXPLAIN QUERY PLAN ' . $sql);
+            $statement->execute($params);
+            $raw = $statement->fetchAll(\PDO::FETCH_ASSOC);
+            $statement->closeCursor();
+        } else {
+            $raw = $this->db->explain($sql, $params);
+        }
         if ($raw === []) {
             return ['source' => 'unavailable', 'analysis' => null,
                 'warnings' => ['The database returned no execution plan. No execution measurements are available.']];

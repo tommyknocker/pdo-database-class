@@ -50,27 +50,22 @@ class AiTests extends TestCase
     {
         $url = getenv('PDODB_AI_OLLAMA_URL') ?: self::OLLAMA_DEFAULT_URL;
 
-        // Use stream_socket_client with timeout for quick check
-        $parsed = parse_url($url);
-        $host = $parsed['host'] ?? 'localhost';
-        $port = $parsed['port'] ?? self::OLLAMA_DEFAULT_PORT;
-
-        $socket = @stream_socket_client(
-            "tcp://{$host}:{$port}",
-            $errno,
-            $errstr,
-            self::OLLAMA_CHECK_TIMEOUT
-        );
-
-        if ($socket === false) {
+        // A listening port is insufficient: Ollama may not have the configured model.
+        // Read only the local model inventory, with a bounded timeout and response size.
+        $context = stream_context_create(['http' => ['timeout' => self::OLLAMA_CHECK_TIMEOUT, 'follow_location' => 0]]);
+        $json = @file_get_contents(rtrim($url, '/') . '/api/tags', false, $context, 0, 1048576);
+        $inventory = $json === false ? null : json_decode($json, true);
+        if (!is_array($inventory) || !is_array($inventory['models'] ?? null)) {
             return false;
         }
-
-        fclose($socket);
-
-        // Socket connection works, assume Ollama is available
-        // Don't make HTTP request here to avoid potential hangs
-        return true;
+        $model = getenv('PDODB_AI_OLLAMA_MODEL') ?: 'deepseek-coder:6.7b';
+        $expected = str_contains($model, ':') ? $model : $model . ':latest';
+        foreach ($inventory['models'] as $entry) {
+            if (is_array($entry) && ($entry['name'] ?? $entry['model'] ?? null) === $expected) {
+                return true;
+            }
+        }
+        return false;
     }
 
     protected function setUp(): void
@@ -83,7 +78,7 @@ class AiTests extends TestCase
 
         // Skip if Ollama is not available
         if (!self::$ollamaAvailable) {
-            $this->markTestSkipped('Ollama server is not available');
+            $this->markTestSkipped('Ollama is unavailable or the configured model is not installed');
             return;
         }
 

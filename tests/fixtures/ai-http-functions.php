@@ -22,6 +22,10 @@ function file_get_contents(string $url, bool $useIncludePath = false, mixed $con
         $GLOBALS['ai_test_requests'][] = ['url' => $url, 'options' => $options];
         $GLOBALS['ai_test_headers'] = ['HTTP/1.1 200 OK'];
         $body = json_decode($options['http']['content'], true);
+        if (($body['model'] ?? '') === 'test/structured-advice') {
+            $advice = ['summary' => 'Review estimated scan', 'findings' => [['severity' => 'info', 'type' => 'scan', 'message' => 'Inspect the scan before adding an index', 'evidence' => ['/explain_plan/nodes/0/detail'], 'suggestion' => null, 'limitations' => ['No execution measurements']]]];
+            return json_encode(['choices' => [['message' => ['content' => json_encode($advice)]]]]);
+        }
         if (($body['model'] ?? '') === 'test/reasoning-budget') {
             return '{"choices":[{"finish_reason":"length","message":{"content":null,"reasoning":"test-only"}}]}';
         }

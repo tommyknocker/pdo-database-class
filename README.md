@@ -567,6 +567,12 @@ PDOdb query. The editor starts the optional local PHP process; no daemon is
 needed. Follow the [AI editor walkthrough](documentation/01-getting-started/08-ai-editor.md)
 for setup, an example prompt, and when to skip MCP.
 
+**Explain a slow query from PHP:** `explainAiAdvice()` combines estimated EXPLAIN,
+FROM/JOIN schemas and existing indexes in one AI request. Preview the context
+without a model call using `explainAiContext()`.
+See the [query advice walkthrough](documentation/05-advanced-features/24-ai-query-advice.md)
+for a complete use case, privacy controls and structured reports.
+
 See [AI Analysis Documentation](documentation/05-advanced-features/23-ai-analysis.md) for complete guide.
 
 ### Basic CRUD Operations

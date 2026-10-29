@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\ai\providers;
 
 use tommyknocker\pdodb\ai\BaseAiProvider;
+use tommyknocker\pdodb\ai\QueryAdvicePrompt;
 use tommyknocker\pdodb\exceptions\QueryException;
 
 /**
@@ -102,6 +103,10 @@ class OllamaProvider extends BaseAiProvider
 
     protected function buildSystemPrompt(string $type): string
     {
+        if ($type === 'query') {
+            return QueryAdvicePrompt::system();
+        }
+
         $basePrompt = 'You are an expert database performance analyst. Provide clear, actionable recommendations for database optimization.';
 
         $typePrompts = [
@@ -118,20 +123,7 @@ class OllamaProvider extends BaseAiProvider
      */
     protected function buildQueryPrompt(string $sql, array $context): string
     {
-        $prompt = "Analyze the following SQL query and provide optimization recommendations:\n\n";
-        $prompt .= "SQL Query:\n```sql\n{$sql}\n```\n\n";
-
-        if (!empty($context)) {
-            $prompt .= $this->formatContext($context);
-        }
-
-        $prompt .= "\n\nProvide specific, actionable recommendations including:\n";
-        $prompt .= "- Index suggestions\n";
-        $prompt .= "- Query structure improvements\n";
-        $prompt .= "- Performance bottlenecks\n";
-        $prompt .= '- Estimated impact of optimizations';
-
-        return $prompt;
+        return QueryAdvicePrompt::user($sql, $context);
     }
 
     /**

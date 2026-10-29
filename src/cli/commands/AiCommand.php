@@ -89,6 +89,7 @@ class AiCommand extends Command
             $this->progress('Sending request to AI API');
 
             // Pass baseAnalysis (which includes EXPLAIN plan) to AI for better analysis
+            $options['params'] = $params;
             $aiAnalysis = $aiService->analyzeQuery($sql, $tableName, $provider, $options, $baseAnalysis);
 
             if ($format !== 'json' && getenv('PHPUNIT') === false) {

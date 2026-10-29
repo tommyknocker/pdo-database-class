@@ -8,6 +8,10 @@ use PDO;
 use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\ai\AiAnalysisService;
+use tommyknocker\pdodb\ai\AiQueryOptions;
+use tommyknocker\pdodb\ai\QueryContextBuilder;
+use tommyknocker\pdodb\ai\QueryInspectionService;
+use tommyknocker\pdodb\ai\StructuredQueryAdvice;
 use tommyknocker\pdodb\cache\CacheManager;
 use tommyknocker\pdodb\cache\QueryCacheKey;
 use tommyknocker\pdodb\connection\ConnectionInterface;
@@ -17,6 +21,7 @@ use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\AiExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\ExplainAnalyzer;
+use tommyknocker\pdodb\query\analysis\ParsedExplainPlan;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\query\formatter\SqlFormatter;
@@ -988,34 +993,93 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
      */
     public function explainAiAdvice(?string $tableName = null, ?string $provider = null, array $options = []): AiExplainAnalysis
     {
-        // Get base analysis first
-        $baseAnalysis = $this->explainAdvice($tableName);
-
-        // Get database instance from connection
-        $db = $this->getDatabaseInstance();
-
-        // Use AI service to get additional analysis
-        $aiService = new AiAnalysisService($db);
-        $sqlData = $this->toSQL();
-        $targetTable = $tableName ?? $this->table;
+        $prepared = $this->prepareAiContext($tableName, $options);
+        $context = $prepared['context'];
+        $warnings = $prepared['warnings'];
+        $status = 'ok';
+        $structured = null;
+        $model = null;
 
         try {
-            // Pass baseAnalysis (which includes EXPLAIN plan) to AI for better analysis
-            $aiAnalysis = $aiService->analyzeQuery($sqlData['sql'], $targetTable, $provider, $options, $baseAnalysis);
-            $aiProvider = $aiService->getProvider($provider);
+            $aiAnalysis = $prepared['service']->analyzeQueryContext($context, $provider, $options);
+            if (trim($aiAnalysis) === '') {
+                throw new RuntimeException('Empty AI response');
+            }
+            $aiProvider = $prepared['service']->getProvider($provider);
             $model = isset($options['model']) ? (string)$options['model'] : $aiProvider->getModel();
-        } catch (\Throwable $e) {
-            // If AI fails, return base analysis with error message
-            $aiAnalysis = 'AI analysis unavailable: ' . $e->getMessage();
-            $model = null;
+            if (!empty($options['structured'])) {
+                $structured = StructuredQueryAdvice::parse($aiAnalysis, $context);
+                if ($structured === null) {
+                    $status = 'invalid_response';
+                    $warnings[] = 'The provider did not return valid structured advice; original text is retained';
+                }
+            }
+        } catch (\Throwable $error) {
+            $description = 'check provider configuration, response budget and network access.';
+            if (str_starts_with($error->getMessage(), 'AI response exhausted its output token limit')) {
+                $description = 'AI response exhausted its output token limit before producing visible text. Increase the output budget or reduce reasoning effort.';
+                $warnings[] = 'AI output token budget was exhausted before visible text; increase the budget or reduce reasoning effort';
+            }
+            if (is_int($error->getCode()) && $error->getCode() >= 400 && $error->getCode() <= 599) {
+                $description = 'Provider returned HTTP ' . $error->getCode() . '; check authentication, model availability and provider limits.';
+            }
+            // Do not embed raw provider bodies/credentials in a user-facing report.
+            $aiAnalysis = 'AI analysis unavailable: ' . $description;
+            $status = 'ai_unavailable';
         }
-
         return new AiExplainAnalysis(
-            $baseAnalysis,
+            $prepared['base'],
             $aiAnalysis,
-            $provider ?? $db->getAiConfig()->getDefaultProvider(),
-            $model
+            $provider ?? $prepared['db']->getAiConfig()->getDefaultProvider(),
+            $model,
+            $status,
+            $structured,
+            $warnings,
+            $context,
+            $prepared['source']
         );
+    }
+
+    /** Inspect the exact bounded context without contacting an AI provider.
+     * @param array<string, mixed> $options
+     *
+     * @return array<string, mixed>
+     */
+    public function explainAiContext(?string $tableName = null, array $options = []): array
+    {
+        return $this->prepareAiContext($tableName, $options)['context'];
+    }
+
+    /** @param array<string, mixed> $options
+     * @return array{context: array<string, mixed>, base: ExplainAnalysis, service: AiAnalysisService, db: PdoDb, warnings: list<string>, source: string}
+     */
+    private function prepareAiContext(?string $tableName, array $options): array
+    {
+        new AiQueryOptions($options);
+        if (isset($options['structured']) && !is_bool($options['structured'])) {
+            throw new \InvalidArgumentException('AI structured option must be boolean');
+        }
+        $db = $this->getDatabaseInstance();
+        $sqlData = $this->toSQL();
+
+        try {
+            // QueryInspectionService refuses synthetic MSSQL plans and Oracle interpolation.
+            // Do not override each JOIN node with the primary table when generating advice.
+            $inspection = (new QueryInspectionService($db))->inspect($sqlData['sql'], $sqlData['params']);
+        } catch (\Throwable) {
+            $inspection = ['source' => 'unavailable', 'analysis' => null, 'warnings' => ['Execution plan could not be collected; advice is limited to SQL and catalog metadata']];
+        }
+        $base = $inspection['analysis'] ?? new ExplainAnalysis([], new ParsedExplainPlan());
+        $service = new AiAnalysisService($db);
+        $options['params'] = $sqlData['params'];
+        $context = $service->previewQueryContext($sqlData['sql'], $tableName ?? $this->table, $options, $inspection['analysis']);
+        // Keep the preview and the actual provider payload identical.
+        if ($inspection['warnings'] !== []) {
+            $context['explain_plan']['availability_warnings'] = $inspection['warnings'];
+            // Reapply the byte budget after adding availability information.
+            $context = (new QueryContextBuilder($db))->limit($context, (new AiQueryOptions($options))->context['max_bytes']);
+        }
+        return ['context' => $context, 'base' => $base, 'service' => $service, 'db' => $db, 'warnings' => $inspection['warnings'], 'source' => $inspection['source']];
     }
 
     /**
@@ -1031,7 +1095,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         $dialect = $this->connection->getDialect();
 
         // Create PdoDb with existing PDO and dialect
-        $db = new PdoDb(null, ['ai' => $this->aiSettings]);
+        $db = new PdoDb(null, ['ai' => $this->aiSettings, 'prefix' => $this->prefix ?? '']);
         $db->addConnection('default', [
             'driver' => $driver,
             'pdo' => $pdo,

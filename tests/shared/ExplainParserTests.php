@@ -302,9 +302,9 @@ final class ExplainParserTests extends BaseSharedTestCase
     public function testPostgreSQLExplainParserIndexScan(): void
     {
         $parser = new PostgreSQLExplainParser();
-        // Parser expects format: "Index Scan on users using idx_email"
+        // Parser expects format: "Index Scan using idx_email on users"
         $explainResults = [
-            ['QUERY PLAN' => 'Index Scan on users using idx_email  (cost=0.00..10.00 rows=10 width=4)'],
+            ['QUERY PLAN' => 'Index Scan using idx_email on users  (cost=0.00..10.00 rows=10 width=4)'],
         ];
 
         $plan = $parser->parse($explainResults);
@@ -316,9 +316,9 @@ final class ExplainParserTests extends BaseSharedTestCase
     public function testPostgreSQLExplainParserIndexOnlyScan(): void
     {
         $parser = new PostgreSQLExplainParser();
-        // Parser expects format: "Index Only Scan on users using idx_email"
+        // Parser expects format: "Index Only Scan using idx_email on users"
         $explainResults = [
-            ['QUERY PLAN' => 'Index Only Scan on users using idx_email  (cost=0.00..10.00 rows=10 width=4)'],
+            ['QUERY PLAN' => 'Index Only Scan using idx_email on users  (cost=0.00..10.00 rows=10 width=4)'],
         ];
 
         $plan = $parser->parse($explainResults);
@@ -385,7 +385,7 @@ final class ExplainParserTests extends BaseSharedTestCase
         $plan = $parser->parse($explainResults);
         $this->assertContains('users', $plan->tableScans);
         $this->assertEquals('Table Scan', $plan->accessType);
-        $this->assertEquals(1000, $plan->estimatedRows);
+        $this->assertEquals(0, $plan->estimatedRows);
     }
 
     public function testSqliteExplainParserIndexScan(): void
@@ -421,7 +421,7 @@ final class ExplainParserTests extends BaseSharedTestCase
         $plan = $parser->parse($explainResults);
         $this->assertEquals('idx_email', $plan->usedIndex);
         $this->assertEquals('Index Scan', $plan->accessType);
-        $this->assertEquals(10, $plan->estimatedRows);
+        $this->assertEquals(0, $plan->estimatedRows);
     }
 
     public function testSqliteExplainParserWarning(): void

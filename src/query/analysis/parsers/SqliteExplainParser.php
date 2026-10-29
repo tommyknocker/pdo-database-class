@@ -17,6 +17,22 @@ class SqliteExplainParser implements ExplainParserInterface
         $plan->nodes = $explainResults;
 
         foreach ($explainResults as $row) {
+            if (isset($row['detail']) && is_string($row['detail'])) {
+                $detail = $row['detail'];
+                if (preg_match('/^(SCAN|SEARCH)\s+(?:TABLE\s+)?(\S+)/i', $detail, $match)) {
+                    $plan->accessType = strtoupper($match[1]) === 'SCAN' ? 'Table Scan' : 'Index Search';
+                    if (strtoupper($match[1]) === 'SCAN') {
+                        $plan->tableScans[] = $match[2];
+                    }
+                }
+                if (preg_match('/USING (?:COVERING )?INDEX (\S+)/i', $detail, $match)) {
+                    $plan->usedIndex = $match[1];
+                }
+                if (str_contains($detail, 'USE TEMP B-TREE')) {
+                    $plan->warnings[] = 'Temporary sorting/grouping B-tree required';
+                }
+                continue;
+            }
             $opcodeValue = $row['opcode'] ?? '';
             $opcode = is_string($opcodeValue) ? $opcodeValue : '';
             $p4Value = $row['p4'] ?? '';
@@ -40,10 +56,6 @@ class SqliteExplainParser implements ExplainParserInterface
                     if ($comment !== '' && preg_match('/INDEX\s+(\S+)/i', $comment, $matches)) {
                         $plan->usedIndex = trim($matches[1]);
                         $plan->accessType = 'Index Scan';
-                    } elseif ($p4 !== '') {
-                        // Sometimes p4 contains table/index info
-                        $plan->usedIndex = trim($p4);
-                        $plan->accessType = 'Index Scan';
                     }
                 }
             } elseif ($opcode === 'IdxScan') {
@@ -51,15 +63,6 @@ class SqliteExplainParser implements ExplainParserInterface
                 $table = $p4 !== '' ? trim($p4) : 'unknown';
                 $plan->usedIndex = $table;
                 $plan->accessType = 'Index Scan';
-            }
-
-            // Extract row estimates from p2 (rows to read)
-            $p2 = $row['p2'] ?? null;
-            if ($p2 !== null && is_numeric($p2)) {
-                $rows = (int)$p2;
-                if ($rows > 0) {
-                    $plan->estimatedRows = max($plan->estimatedRows, $rows);
-                }
             }
         }
 

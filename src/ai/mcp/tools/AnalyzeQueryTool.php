@@ -78,7 +78,7 @@ class AnalyzeQueryTool implements McpToolInterface
                 $warnings[] = 'EXPLAIN could not be collected. This advice is not based on a verified execution plan.';
             }
 
-            $analysis = $this->aiService->analyzeQuery($sql, $tableName, $provider, [], $explainAnalysis);
+            $analysis = $this->aiService->analyzeQuery($sql, $tableName, $provider, ['params' => $arguments['params'] ?? []], $explainAnalysis);
 
             return [
                 'sql' => $sql,

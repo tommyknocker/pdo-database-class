@@ -109,6 +109,16 @@ class AiAnalysisService
      */
     public function analyzeQuery(string $sql, ?string $tableName = null, ?string $provider = null, array $options = [], ?ExplainAnalysis $explainAnalysis = null): string
     {
+        $context = $this->previewQueryContext($sql, $tableName, $options, $explainAnalysis);
+        return $this->analyzeQueryContext($context, $provider, $options);
+    }
+
+    /** Send a previously inspected context. The caller owns its disclosure policy.
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $options
+     */
+    public function analyzeQueryContext(array $context, ?string $provider = null, array $options = []): string
+    {
         $aiProvider = clone $this->getProvider($provider);
 
         if (isset($options['temperature'])) {
@@ -124,9 +134,24 @@ class AiAnalysisService
             $aiProvider->setTimeout((int)$options['timeout']);
         }
 
-        $context = $this->contextBuilder->buildQueryContext($sql, $tableName, $explainAnalysis);
+        return $aiProvider->analyzeQuery((string)($context['sql'] ?? ''), $context);
+    }
 
-        return $aiProvider->analyzeQuery($sql, $context);
+    /** Build the exact query context without making an AI request.
+     * @param array<string, mixed> $options
+     *
+     * @return array<string, mixed>
+     */
+    public function previewQueryContext(string $sql, ?string $tableName = null, array $options = [], ?ExplainAnalysis $explainAnalysis = null): array
+    {
+        $params = $options['params'] ?? [];
+        if (!is_array($params)) {
+            throw new \InvalidArgumentException('AI query params must be an array');
+        }
+        if (isset($options['structured']) && !is_bool($options['structured'])) {
+            throw new \InvalidArgumentException('AI structured option must be boolean');
+        }
+        return $this->contextBuilder->buildEnrichedQueryContext($sql, $tableName, $explainAnalysis, $options, $params);
     }
 
     /**

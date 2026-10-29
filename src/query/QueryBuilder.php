@@ -2129,6 +2129,19 @@ class QueryBuilder implements QueryBuilderInterface
         return $this->selectQueryBuilder->explainAiAdvice($tableName, $provider, $options);
     }
 
+    /** Preview AI context without a model request.
+     * @param array<string, mixed> $options
+     *
+     * @return array<string, mixed>
+     */
+    public function explainAiContext(?string $tableName = null, array $options = []): array
+    {
+        if (!method_exists($this->selectQueryBuilder, 'explainAiContext')) {
+            throw new \LogicException('This custom select builder does not support AI context previews');
+        }
+        return $this->selectQueryBuilder->explainAiContext($tableName, $options);
+    }
+
     /**
      * Execute DESCRIBE query to get table structure.
      *

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Query-advice context preview, bounded FROM/JOIN catalog collection, database versions, normalized index metadata, optional catalog estimates, task goals and privacy controls. Add optional validated structured AI findings while retaining existing text/base-analysis results.
+- Dedicated PHP query-advice walkthrough and deterministic/native database regression coverage; `composer pdodb:test:ai:db` checks six adapters without an LLM request.
 - MCP visibility policies for tables/schemas, explicit diagnostic connection selection, scoped PostgreSQL/MariaDB statement limits, and MCP-specific diagnostics. Restricted visibility exposes metadata tools only.
 - MCP discovery of columns and schemas, schema-scoped metadata and paginated resource listings; hide foreign-key references to objects outside the configured view.
 - OpenRouter and configurable OpenAI-compatible Chat Completions endpoints, including base URLs, extra headers and endpoint-specific request options. Existing OpenAI configuration remains supported.
@@ -16,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Separate offline AI tests and an explicitly invoked live OpenRouter/compatible API smoke test with private local credentials, synthetic SQLite data and bounded requests.
 
 ### Fixed
+- Check installed model availability before running optional Ollama tests, rather than treating any listening server as ready.
+- Resolve AI metadata for aliased/prefixed tables; distinguish missing metadata and unavailable plans. Query advice uses real SQLite QUERY PLAN evidence and refuses synthetic MSSQL plans or Oracle parameter interpolation.
+- Share evidence-oriented query prompts across providers, preserve partial metadata and report truncation. Correct PostgreSQL index/JOIN parsing and stop treating SQLite bytecode fields as index names or row estimates.
 - Report output-budget exhaustion separately from invalid response format when a compatible reasoning model produces no visible text; allow explicit reasoning effort in the local OpenRouter smoke test.
 - Preserve AI configuration through PdoDb, QueryBuilder and analysis services; retain configured Ollama URLs and isolate per-request provider options.
 - Include table schema in AI query prompts and report the actual provider/model. Default AI metadata collection no longer performs an exact COUNT(*) scan.

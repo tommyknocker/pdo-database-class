@@ -31,21 +31,17 @@ class AiAnalysisContext
      */
     public function buildQueryContext(string $sql, ?string $tableName = null, ?ExplainAnalysis $explainAnalysis = null): array
     {
-        $context = [
-            'sql' => $sql,
-            'dialect' => $this->db->connection->getDriverName(),
-        ];
+        return $this->buildEnrichedQueryContext($sql, $tableName, $explainAnalysis);
+    }
 
-        if ($tableName !== null) {
-            $context['table_schema'] = $this->getTableSchema($tableName);
-            $context['table_stats'] = $this->getTableStats($tableName);
-        }
-
-        if ($explainAnalysis !== null) {
-            $context['explain_plan'] = $this->formatExplainAnalysis($explainAnalysis);
-        }
-
-        return $context;
+    /** @param array<string, mixed> $options
+     * @param array<int|string, mixed> $params
+     *
+     * @return array<string, mixed>
+     */
+    public function buildEnrichedQueryContext(string $sql, ?string $tableName = null, ?ExplainAnalysis $explainAnalysis = null, array $options = [], array $params = []): array
+    {
+        return (new QueryContextBuilder($this->db))->build($sql, $tableName, $explainAnalysis, $options, $params);
     }
 
     /**
