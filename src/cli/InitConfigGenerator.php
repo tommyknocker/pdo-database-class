@@ -87,31 +87,9 @@ class InitConfigGenerator
                 $lines[] = 'PDODB_AI_PROVIDER=' . $config['ai']['provider'];
             }
 
-            $providers = ['openai', 'anthropic', 'google', 'microsoft', 'deepseek', 'yandex', 'ollama'];
-            foreach ($providers as $provider) {
-                $keyName = $provider . '_key';
-                if (isset($config['ai'][$keyName])) {
-                    $lines[] = 'PDODB_AI_' . strtoupper($provider) . '_KEY=' . $config['ai'][$keyName];
-                }
-            }
-
-            // Yandex folder ID
-            if (isset($config['ai']['providers']['yandex']['folder_id'])) {
-                $lines[] = 'PDODB_AI_YANDEX_FOLDER_ID=' . $config['ai']['providers']['yandex']['folder_id'];
-            }
-
-            if (isset($config['ai']['ollama_url'])) {
-                $lines[] = 'PDODB_AI_OLLAMA_URL=' . $config['ai']['ollama_url'];
-            }
-
-            // Provider-specific settings
-            if (isset($config['ai']['providers']) && is_array($config['ai']['providers'])) {
-                foreach ($config['ai']['providers'] as $provider => $settings) {
-                    if (is_array($settings)) {
-                        if (isset($settings['model'])) {
-                            $lines[] = 'PDODB_AI_' . strtoupper($provider) . '_MODEL=' . $settings['model'];
-                        }
-                    }
+            foreach (['api_key' => 'API_KEY', 'model' => 'MODEL', 'base_url' => 'BASE_URL', 'folder_id' => 'FOLDER_ID'] as $key => $name) {
+                if (isset($config['ai'][$key])) {
+                    $lines[] = 'PDODB_AI_' . $name . '=' . $config['ai'][$key];
                 }
             }
             $lines[] = '';

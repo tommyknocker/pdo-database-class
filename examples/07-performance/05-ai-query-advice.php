@@ -55,7 +55,7 @@ try {
             }
             $requestOptions['reasoning'] = ['effort' => $effort];
         }
-        $ai = ['provider' => $provider, 'providers' => [$provider => ['request_options' => $requestOptions]]];
+        $ai = ['provider' => $provider, 'request_options' => $requestOptions];
     }
     $request = 0;
     $progress = $withAi ? static function (string $title) use (&$request): void {

@@ -46,8 +46,8 @@ final class AiAdviceShowcaseTests extends TestCase
     public function testAiModeMakesExactlyThreeBoundedCallsWithBothJoinSchemas(): void
     {
         require __DIR__ . '/../fixtures/ai-http-functions.php';
-        $showcase = new QueryAdviceShowcase(10000, ['provider' => 'openrouter', 'openrouter_key' => 'example-key',
-            'providers' => ['openrouter' => ['model' => 'test/model']]]);
+        $showcase = new QueryAdviceShowcase(10000, ['provider' => 'openrouter', 'api_key' => 'example-key',
+            'model' => 'test/model']);
         $report = $showcase->run(true, 9999, 9999);
         self::assertCount(3, $GLOBALS['ai_test_requests']);
         foreach ($GLOBALS['ai_test_requests'] as $request) {

@@ -48,7 +48,7 @@ class AiCommandCliTests extends TestCase
      */
     protected static function checkOllamaAvailability(): bool
     {
-        $url = getenv('PDODB_AI_OLLAMA_URL') ?: self::OLLAMA_DEFAULT_URL;
+        $url = getenv('PDODB_AI_BASE_URL') ?: self::OLLAMA_DEFAULT_URL;
 
         // A listening port is insufficient: Ollama may not have the configured model.
         // Read only the local model inventory, with a bounded timeout and response size.
@@ -58,7 +58,7 @@ class AiCommandCliTests extends TestCase
         if (!is_array($inventory) || !is_array($inventory['models'] ?? null)) {
             return false;
         }
-        $model = getenv('PDODB_AI_OLLAMA_MODEL') ?: 'deepseek-coder:6.7b';
+        $model = getenv('PDODB_AI_MODEL') ?: 'deepseek-coder:6.7b';
         $expected = str_contains($model, ':') ? $model : $model . ':latest';
         foreach ($inventory['models'] as $entry) {
             if (is_array($entry) && ($entry['name'] ?? $entry['model'] ?? null) === $expected) {
@@ -91,7 +91,7 @@ class AiCommandCliTests extends TestCase
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=:memory:');
         putenv('PDODB_AI_PROVIDER=ollama');
-        putenv('PDODB_AI_OLLAMA_URL=' . self::OLLAMA_DEFAULT_URL);
+        putenv('PDODB_AI_BASE_URL=' . self::OLLAMA_DEFAULT_URL);
         putenv('PDODB_NON_INTERACTIVE=1');
         putenv('PHPUNIT=1');
 
@@ -103,7 +103,7 @@ class AiCommandCliTests extends TestCase
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
         putenv('PDODB_AI_PROVIDER');
-        putenv('PDODB_AI_OLLAMA_URL');
+        putenv('PDODB_AI_BASE_URL');
         putenv('PDODB_NON_INTERACTIVE');
         putenv('PHPUNIT');
     }

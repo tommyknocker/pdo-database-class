@@ -350,15 +350,13 @@ class AiCommand extends Command
     protected function setup(): int
     {
         echo "PDOdb AI setup\n\n";
-        echo "Agent in your editor (no additional LLM API key):\n";
-        echo "  1. Configure your development database using PDODB_* or config/db.php.\n";
-        echo "  2. Run pdodb ai doctor to check the connection.\n";
-        echo "  3. Run pdodb mcp config to preview the MCP launch configuration.\n";
-        echo "  4. Optionally install the bundled skills/pdodb-query-builder skill in your agent.\n\n";
-        echo "Standalone AI reports:\n";
+        echo "Query advice with your AI provider:\n";
         echo '  Choose PDODB_AI_PROVIDER (' . implode(', ', AiConfig::PROVIDERS) . ").\n";
-        echo "  Configure that provider's key and model. OpenAI-compatible endpoints also use BASE_URL.\n";
-        echo "  Run pdodb ai query, schema or optimize.\n";
+        echo "  Set PDODB_AI_API_KEY and optionally PDODB_AI_MODEL. Custom endpoints use PDODB_AI_BASE_URL.\n";
+        echo "  Run pdodb ai query \"SELECT * FROM users\" --table=users.\n\n";
+        echo "Optional editor integration (no additional LLM API key):\n";
+        echo "  Run pdodb mcp config to preview the local launch configuration.\n";
+        echo "  Run pdodb mcp doctor to check the database connection.\n";
         return 0;
     }
 
@@ -400,13 +398,9 @@ class AiCommand extends Command
         echo "  pdodb ai optimize --provider=openai --temperature=0.5\n\n";
         echo "Environment Variables:\n";
         echo "  PDODB_AI_PROVIDER        Default AI provider\n";
-        echo "  PDODB_AI_OPENROUTER_KEY OpenRouter key (use PDODB_AI_OPENROUTER_MODEL)\n";
-        echo "  PDODB_AI_OPENAI_COMPATIBLE_BASE_URL Custom Chat Completions base URL\n";
-        echo "  PDODB_AI_OPENAI_KEY      OpenAI API key\n";
-        echo "  PDODB_AI_ANTHROPIC_KEY   Anthropic API key\n";
-        echo "  PDODB_AI_GOOGLE_KEY      Google API key\n";
-        echo "  PDODB_AI_MICROSOFT_KEY   Microsoft API key\n";
-        echo "  PDODB_AI_OLLAMA_URL      Ollama server URL (default: http://localhost:11434)\n";
+        echo "  PDODB_AI_API_KEY         API key for the selected provider\n";
+        echo "  PDODB_AI_MODEL           Model ID (optional for providers with defaults)\n";
+        echo "  PDODB_AI_BASE_URL        Custom endpoint or local Ollama address\n";
 
         return 0;
     }

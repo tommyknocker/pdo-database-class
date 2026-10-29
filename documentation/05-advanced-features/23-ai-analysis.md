@@ -51,7 +51,7 @@ exists or ask you to paste a schema.
 ## Try it before connecting your own database
 
 The repository includes a complete demo with 100,000 synthetic orders and 2,000
-customers. Use PHP 8.4+ with `pdo_sqlite`, then from a PDOdb 2.14+ checkout run:
+customers. Use PHP 8.4+ with `pdo_sqlite`, then from a current PDOdb repository checkout run:
 
 ```bash
 composer install
@@ -82,8 +82,8 @@ in the repository root with these three values:
 
 ```dotenv
 PDODB_AI_PROVIDER=openrouter
-PDODB_AI_OPENROUTER_KEY=your-openrouter-key
-PDODB_AI_OPENROUTER_MODEL=openai/gpt-4o-mini
+PDODB_AI_API_KEY=your-openrouter-key
+PDODB_AI_MODEL=openai/gpt-5.4-mini
 ```
 
 The model shown is the library's default OpenRouter model. You can replace it

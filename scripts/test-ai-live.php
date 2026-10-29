@@ -60,12 +60,11 @@ try {
         $requestOptions['reasoning'] = ['effort' => $reasoningEffort];
     }
     // Enforce the same limits for PHP, service and MCP paths, regardless of ambient settings.
-    $prefix = 'PDODB_AI_' . strtoupper(str_replace('-', '_', $providerName));
-    putenv($prefix . '_MAX_TOKENS=' . $maxTokens);
-    putenv($prefix . '_TIMEOUT=' . $timeout);
+    putenv('PDODB_AI_MAX_TOKENS=' . $maxTokens);
+    putenv('PDODB_AI_TIMEOUT=' . $timeout);
     $db = new PdoDb('sqlite', ['path' => ':memory:', 'ai' => [
         'provider' => $providerName,
-        'providers' => [$providerName => ['request_options' => $requestOptions]],
+        'request_options' => $requestOptions,
     ]]);
     $service = new AiAnalysisService($db);
     $service->getProvider($providerName); // Configuration validation only; no HTTP request.

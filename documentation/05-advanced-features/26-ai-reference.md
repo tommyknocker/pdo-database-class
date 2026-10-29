@@ -9,56 +9,52 @@ command, or MCP policy. For your first query and a working example, start with
 Configure **one provider**. Keys for other providers are not required. PDOdb uses
 existing defaults for generation settings unless you override them.
 
-### Environment Variables
+### Environment variables
 
-`PDODB_AI_PROVIDER` selects the provider. Its credentials are:
+Set the same variables for any provider:
 
-| Provider value | Credential variable | Additional required configuration |
-| --- | --- | --- |
-| `openrouter` | `PDODB_AI_OPENROUTER_KEY` | Choose a model available to your account |
-| `openai-compatible` | `PDODB_AI_OPENAI_COMPATIBLE_KEY` | `PDODB_AI_OPENAI_COMPATIBLE_BASE_URL` and `PDODB_AI_OPENAI_COMPATIBLE_MODEL` |
-| `openai` | `PDODB_AI_OPENAI_KEY` | None for the default endpoint/model |
-| `anthropic` | `PDODB_AI_ANTHROPIC_KEY` | None for the provider defaults |
-| `google` | `PDODB_AI_GOOGLE_KEY` | None for the provider defaults |
-| `microsoft` | `PDODB_AI_MICROSOFT_KEY` | `endpoint` and `deployment` in the provider configuration array |
-| `deepseek` | `PDODB_AI_DEEPSEEK_KEY` | None for the provider defaults |
-| `yandex` | `PDODB_AI_YANDEX_KEY` | `PDODB_AI_YANDEX_FOLDER_ID` |
-| `ollama` | No key | A running Ollama instance with the selected generation model installed |
+```dotenv
+PDODB_AI_PROVIDER=openrouter
+PDODB_AI_API_KEY=your-private-key
+PDODB_AI_MODEL=your-provider/model-id
+```
 
-For the selected provider, replace `<PROVIDER>` with its uppercase name, using
-underscores for hyphens: `OPENROUTER`, `OPENAI_COMPATIBLE`, etc.
+`PDODB_AI_MODEL` is optional when the provider's default suits you. For an
+OpenAI-compatible gateway, also set `PDODB_AI_BASE_URL` to its API prefix.
+Ollama needs no API key; `PDODB_AI_BASE_URL` optionally selects its server.
+Azure requires `PDODB_AI_BASE_URL` (resource endpoint) and `PDODB_AI_MODEL`
+(the deployment name); Yandex requires
+`PDODB_AI_FOLDER_ID`. Other optional overrides are `PDODB_AI_TEMPERATURE`,
+`PDODB_AI_MAX_TOKENS`, and `PDODB_AI_TIMEOUT` (seconds). Choose only the
+settings your application needs.
 
-| Optional variable | Purpose |
-| --- | --- |
-| `PDODB_AI_<PROVIDER>_MODEL` | Select a model available at that provider |
-| `PDODB_AI_<PROVIDER>_TEMPERATURE` | Override sampling temperature if supported |
-| `PDODB_AI_<PROVIDER>_MAX_TOKENS` | Override the output budget |
-| `PDODB_AI_<PROVIDER>_TIMEOUT` | AI HTTP request timeout, seconds |
-| `PDODB_AI_OLLAMA_URL` | Override the default local Ollama address |
+Supported provider names: `openrouter`, `openai-compatible`, `openai`,
+`anthropic`, `google`, `microsoft`, `deepseek`, `yandex`, and `ollama`.
+Model access and supported request parameters depend on your account.
 
-These are independent overrides, not a list to copy into every application.
-Model availability and support for optional parameters depend on your provider.
+### PHP configuration
 
-### Configuration Array
-
-For applications that keep PDOdb settings in PHP, add one `ai` block to the
-existing database configuration. This example configures only OpenRouter:
+Alternatively, place the same settings in your database configuration:
 
 ```php
 'ai' => [
     'provider' => 'openrouter',
-    'openrouter_key' => getenv('PDODB_AI_OPENROUTER_KEY'),
-    'providers' => [
-        'openrouter' => ['model' => 'your-model-id'],
-    ],
+    'api_key' => getenv('PDODB_AI_API_KEY'),
+    'model' => 'your-provider/model-id',
 ],
 ```
 
-Provider credentials use the keys `openai_key`, `anthropic_key`, `google_key`,
-`microsoft_key`, `deepseek_key`, `yandex_key`, `openrouter_key`, or
-`openai_compatible_key`. Configure only the one you use. `ollama_url` sets the local-server address; use `PDODB_AI_OLLAMA_URL` for
-the environment equivalent.
-For Yandex, `yandex_folder_id` or `providers.yandex.folder_id` sets the folder.
+Use `base_url`, `folder_id`, `temperature`,
+`max_tokens`, or `timeout` only when needed. The key and settings belong to the
+selected provider; they are not sent to another provider.
+
+### Migrating existing AI settings
+
+The former provider-specific variables and nested PHP provider settings have
+been replaced. For example, change `PDODB_AI_OPENROUTER_KEY` to
+`PDODB_AI_API_KEY` and `PDODB_AI_OPENROUTER_MODEL` to `PDODB_AI_MODEL`.
+In PHP, move the selected provider's key, model and other settings into the
+flat `ai` array shown above. Configure only the provider you intend to use.
 
 ### Priority
 
@@ -75,13 +71,13 @@ needed for its normal profile. Other compatible services need their API prefix:
 
 ```dotenv
 PDODB_AI_PROVIDER=openai-compatible
-PDODB_AI_OPENAI_COMPATIBLE_BASE_URL=https://gateway.example.com/v1
-PDODB_AI_OPENAI_COMPATIBLE_KEY=your-gateway-key
-PDODB_AI_OPENAI_COMPATIBLE_MODEL=your-model-id
+PDODB_AI_BASE_URL=https://gateway.example.com/v1
+PDODB_AI_API_KEY=your-gateway-key
+PDODB_AI_MODEL=your-model-id
 ```
 
 PDOdb appends `/chat/completions` to the base URL. The existing `openai` profile
-also accepts `PDODB_AI_OPENAI_BASE_URL`. URLs must be HTTP(S), without embedded
+also accepts `PDODB_AI_BASE_URL`. URLs must be HTTP(S), without embedded
 credentials, a query string or a fragment. Requests do not follow redirects.
 
 <details>
@@ -92,17 +88,13 @@ Configure these only if your endpoint requires them:
 ```php
 'ai' => [
     'provider' => 'openrouter',
-    'openrouter_key' => getenv('PDODB_AI_OPENROUTER_KEY'),
-    'providers' => [
-        'openrouter' => [
-            'model' => 'your-model-id',
-            'headers' => ['HTTP-Referer' => 'https://your-project.example'],
-            'request_options' => [
-                'temperature' => null,
-                'max_tokens' => null,
-                'max_completion_tokens' => 2000,
-            ],
-        ],
+    'api_key' => getenv('PDODB_AI_API_KEY'),
+    'model' => 'your-model-id',
+    'headers' => ['HTTP-Referer' => 'https://your-project.example'],
+    'request_options' => [
+        'temperature' => null,
+        'max_tokens' => null,
+        'max_completion_tokens' => 2000,
     ],
 ],
 ```

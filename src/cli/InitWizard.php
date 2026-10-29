@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli;
 
+use tommyknocker\pdodb\ai\AiConfig;
 use tommyknocker\pdodb\cache\CacheFactory;
 use tommyknocker\pdodb\cli\commands\InitCommand;
 use tommyknocker\pdodb\connection\DialectRegistry;
@@ -206,44 +207,10 @@ class InitWizard extends BaseCliCommand
             $this->config['ai'] = [];
         }
 
-        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'deepseek', 'yandex', 'ollama'];
-        foreach ($providers as $provider) {
-            $envVar = 'PDODB_AI_' . strtoupper($provider) . '_KEY';
-            $key = getenv($envVar);
-            if ($key !== false && $key !== '') {
-                $this->config['ai'][$provider . '_key'] = $key;
-            }
-        }
-
-        // Yandex folder ID
-        $yandexFolderId = getenv('PDODB_AI_YANDEX_FOLDER_ID');
-        if ($yandexFolderId !== false && $yandexFolderId !== '') {
-            if (!isset($this->config['ai']['providers'])) {
-                $this->config['ai']['providers'] = [];
-            }
-            if (!isset($this->config['ai']['providers']['yandex'])) {
-                $this->config['ai']['providers']['yandex'] = [];
-            }
-            $this->config['ai']['providers']['yandex']['folder_id'] = $yandexFolderId;
-        }
-
-        $ollamaUrl = getenv('PDODB_AI_OLLAMA_URL');
-        if ($ollamaUrl !== false && $ollamaUrl !== '') {
-            $this->config['ai']['ollama_url'] = $ollamaUrl;
-        }
-
-        // Load provider-specific settings
-        if (!isset($this->config['ai']['providers'])) {
-            $this->config['ai']['providers'] = [];
-        }
-        foreach ($providers as $provider) {
-            $modelVar = 'PDODB_AI_' . strtoupper($provider) . '_MODEL';
-            $model = getenv($modelVar);
-            if ($model !== false && $model !== '') {
-                if (!isset($this->config['ai']['providers'][$provider])) {
-                    $this->config['ai']['providers'][$provider] = [];
-                }
-                $this->config['ai']['providers'][$provider]['model'] = $model;
+        foreach (['API_KEY' => 'api_key', 'MODEL' => 'model', 'BASE_URL' => 'base_url', 'FOLDER_ID' => 'folder_id'] as $env => $key) {
+            $value = getenv('PDODB_AI_' . $env);
+            if ($value !== false && $value !== '') {
+                $this->config['ai'][$key] = $value;
             }
         }
     }
@@ -748,69 +715,33 @@ class InitWizard extends BaseCliCommand
             $this->config['ai'] = [];
         }
 
-        $providers = ['openai', 'anthropic', 'google', 'microsoft', 'ollama', 'deepseek', 'yandex'];
+        $providers = AiConfig::PROVIDERS;
         echo '  Available providers: ' . implode(', ', $providers) . "\n";
-        $provider = static::readInput('  Default AI provider', 'openai');
-        $provider = mb_strtolower(trim($provider), 'UTF-8');
+        $provider = mb_strtolower(trim(static::readInput('  Provider', 'openai')), 'UTF-8');
         if (!in_array($provider, $providers, true)) {
             $provider = 'openai';
         }
         $this->config['ai']['provider'] = $provider;
-
-        // Ask for API keys
-        echo "\n  API Keys (leave empty to skip)\n";
-        foreach ($providers as $p) {
-            if ($p === 'ollama') {
-                // Ollama doesn't need API key, but ask for URL
-                $url = static::readInput('  Ollama URL', 'http://localhost:11434');
-                if ($url !== '') {
-                    $this->config['ai']['ollama_url'] = $url;
-                }
-            } elseif ($p === 'yandex') {
-                // Yandex needs API key and folder ID
-                $key = static::readPassword("  {$p} API key (optional, press Enter to skip)");
-                if ($key !== '') {
-                    $this->config['ai'][$p . '_key'] = $key;
-                    $folderId = static::readInput("  {$p} folder ID (optional, press Enter to skip)");
-                    if ($folderId !== '') {
-                        if (!isset($this->config['ai']['providers'])) {
-                            $this->config['ai']['providers'] = [];
-                        }
-                        if (!isset($this->config['ai']['providers'][$p])) {
-                            $this->config['ai']['providers'][$p] = [];
-                        }
-                        $this->config['ai']['providers'][$p]['folder_id'] = $folderId;
-                    }
-                }
-            } else {
-                $key = static::readPassword("  {$p} API key (optional, press Enter to skip)");
-                if ($key !== '') {
-                    $this->config['ai'][$p . '_key'] = $key;
-                }
+        if ($provider !== 'ollama') {
+            $key = static::readPassword('  API key (optional, press Enter to skip)');
+            if ($key !== '') {
+                $this->config['ai']['api_key'] = $key;
             }
         }
-
-        // Ask for provider-specific settings
-        $configureProviderSettings = static::readConfirmation('  Configure provider-specific settings (model, temperature, etc.)?', false);
-        if ($configureProviderSettings) {
-            if (!isset($this->config['ai']['providers'])) {
-                $this->config['ai']['providers'] = [];
+        $model = static::readInput('  Model (optional)', '');
+        if ($model !== '') {
+            $this->config['ai']['model'] = $model;
+        }
+        if (in_array($provider, ['ollama', 'openai-compatible', 'microsoft'], true)) {
+            $url = static::readInput('  Base URL' . ($provider === 'ollama' ? ' (optional)' : ''), '');
+            if ($url !== '') {
+                $this->config['ai']['base_url'] = $url;
             }
-
-            foreach ($providers as $p) {
-                $hasKey = isset($this->config['ai'][$p . '_key']) || ($p === 'ollama');
-                if (!$hasKey) {
-                    continue;
-                }
-
-                echo "\n  {$p} settings:\n";
-                $model = static::readInput('    Model (optional)', '');
-                if ($model !== '') {
-                    if (!isset($this->config['ai']['providers'][$p])) {
-                        $this->config['ai']['providers'][$p] = [];
-                    }
-                    $this->config['ai']['providers'][$p]['model'] = $model;
-                }
+        }
+        if ($provider === 'yandex') {
+            $folder = static::readInput('  Folder ID', '');
+            if ($folder !== '') {
+                $this->config['ai']['folder_id'] = $folder;
             }
         }
     }

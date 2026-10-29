@@ -14,7 +14,7 @@ use tommyknocker\pdodb\exceptions\QueryException;
 class AnthropicProvider extends BaseAiProvider
 {
     private const string API_URL = 'https://api.anthropic.com/v1/messages';
-    private const string DEFAULT_MODEL = 'claude-3-5-sonnet-20241022';
+    private const string DEFAULT_MODEL = 'claude-sonnet-5-5';
     private const float DEFAULT_TEMPERATURE = 0.7;
     private const int DEFAULT_MAX_TOKENS = 2000;
     private const string API_VERSION = '2023-06-01';
@@ -96,6 +96,13 @@ class AnthropicProvider extends BaseAiProvider
             'temperature' => $this->temperature,
         ];
 
+        if (preg_match('/^claude-(?:sonnet|opus|haiku)-5(?:[.-]|$)/', $this->model) === 1) {
+            unset($data['temperature']);
+            if (str_starts_with($this->model, 'claude-sonnet-5-5')) {
+                $data['thinking'] = ['type' => 'between_tools'];
+            }
+        }
+
         $headers = [
             self::HEADER_API_KEY => $apiKey,
             self::HEADER_VERSION => self::API_VERSION,
@@ -103,14 +110,13 @@ class AnthropicProvider extends BaseAiProvider
 
         $response = $this->makeRequest($this->apiUrl, $data, $headers);
 
-        if (!isset($response[self::RESPONSE_KEY_CONTENT][0][self::RESPONSE_KEY_TEXT])) {
-            throw new QueryException(
-                'Invalid response format from Anthropic API',
-                0
-            );
+        foreach ($response[self::RESPONSE_KEY_CONTENT] ?? [] as $block) {
+            if (is_array($block) && ($block['type'] ?? null) === 'text' && is_string($block[self::RESPONSE_KEY_TEXT] ?? null)) {
+                return $block[self::RESPONSE_KEY_TEXT];
+            }
         }
 
-        return (string)$response[self::RESPONSE_KEY_CONTENT][0][self::RESPONSE_KEY_TEXT];
+        throw new QueryException('Invalid response format from Anthropic API', 0);
     }
 
     protected function buildSystemPrompt(string $type): string
@@ -174,7 +180,7 @@ class AnthropicProvider extends BaseAiProvider
     {
         if (!$this->isAvailable()) {
             throw new QueryException(
-                'Anthropic provider is not available. Please configure PDODB_AI_ANTHROPIC_KEY environment variable.',
+                'Anthropic provider is not available. Please configure PDODB_AI_API_KEY environment variable.',
                 0
             );
         }

@@ -783,9 +783,9 @@ echo "source ~/.pdodb-completion.bash" >> ~/.bashrc
 vendor/bin/pdodb ui
 
 # 🤖 AI-powered analysis (requires API keys or Ollama)
-vendor/bin/pdodb ai query "SELECT * FROM users WHERE email = 'user@example.com'" --provider=openai
-vendor/bin/pdodb ai query "SELECT * FROM orders" --provider=anthropic --table=orders
-vendor/bin/pdodb ai schema --table=users --provider=ollama
+vendor/bin/pdodb ai query "SELECT * FROM users WHERE email = 'user@example.com'"
+vendor/bin/pdodb ai query "SELECT * FROM orders" --table=orders
+vendor/bin/pdodb ai schema --table=users
 
 # Create database
 vendor/bin/pdodb db create myapp

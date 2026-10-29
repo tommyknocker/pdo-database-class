@@ -11,11 +11,15 @@ use tommyknocker\pdodb\ai\AgentDocumentation;
 use tommyknocker\pdodb\ai\AiAnalysisService;
 use tommyknocker\pdodb\ai\AiConfig;
 use tommyknocker\pdodb\ai\mcp\McpServer;
+use tommyknocker\pdodb\ai\providers\AnthropicProvider;
+use tommyknocker\pdodb\ai\providers\GoogleProvider;
+use tommyknocker\pdodb\ai\providers\MicrosoftProvider;
 use tommyknocker\pdodb\ai\providers\OpenAiCompatibleProvider;
 use tommyknocker\pdodb\ai\providers\OpenAiProvider;
 use tommyknocker\pdodb\ai\QueryInspectionService;
 use tommyknocker\pdodb\cli\commands\AiCommand;
 use tommyknocker\pdodb\cli\commands\McpCommand;
+use tommyknocker\pdodb\cli\InitConfigGenerator;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\PdoDb;
 
@@ -50,6 +54,98 @@ final class AiAgentTests extends TestCase
         }
     }
 
+    public function testUnifiedConfigurationAppliesOnlyToSelectedProviderAndEnvironmentWins(): void
+    {
+        $config = new AiConfig(['ai' => [
+            'provider' => 'openrouter', 'api_key' => 'php-secret', 'model' => 'php/model',
+            'base_url' => 'https://example.test/v1',
+        ]]);
+        self::assertSame('php-secret', $config->getApiKey('openrouter'));
+        self::assertNull($config->getApiKey('openai'));
+        self::assertSame('php/model', $config->getProviderSetting('openrouter', 'model'));
+        putenv('PDODB_AI_API_KEY=env-secret');
+        putenv('PDODB_AI_MODEL=env/model');
+        $config = new AiConfig(['ai' => ['provider' => 'openrouter', 'api_key' => 'php-secret', 'model' => 'php/model']]);
+        self::assertSame('env-secret', $config->getApiKey('openrouter'));
+        self::assertSame('env/model', $config->getProviderSetting('openrouter', 'model'));
+        self::assertNull($config->getApiKey('anthropic'));
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testCurrentOpenAiDefaultUsesSupportedCompletionLimit(): void
+    {
+        require __DIR__ . '/../fixtures/ai-http-functions.php';
+        $provider = new OpenAiProvider(new AiConfig(['ai' => ['api_key' => 'fake-key']]));
+        $provider->analyzeQuery('SELECT 1');
+        $body = json_decode(end($GLOBALS['ai_test_requests'])['options']['http']['content'], true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('gpt-5.4-mini', $body['model']);
+        self::assertArrayHasKey('max_completion_tokens', $body);
+        self::assertArrayNotHasKey('max_tokens', $body);
+        self::assertArrayNotHasKey('temperature', $body);
+    }
+
+    public function testCurrentAnthropicModelDoesNotSendUnsupportedTemperature(): void
+    {
+        $provider = new class (new AiConfig(['ai' => ['provider' => 'anthropic', 'api_key' => 'fake-key']])) extends AnthropicProvider {
+            public array $body = [];
+
+            protected function makeRequest(string $url, array $data, array $headers = []): array
+            {
+                $this->body = $data;
+                return ['content' => [['type' => 'thinking', 'thinking' => 'private'], ['type' => 'text', 'text' => 'Advice']]];
+            }
+        };
+        self::assertSame('Advice', $provider->analyzeQuery('SELECT 1'));
+        self::assertSame('claude-sonnet-5-5', $provider->body['model']);
+        self::assertArrayNotHasKey('temperature', $provider->body);
+        self::assertSame(['type' => 'between_tools'], $provider->body['thinking']);
+    }
+
+    public function testAzureUsesTheSameBaseUrlAndModelSettings(): void
+    {
+        $config = new AiConfig(['ai' => ['provider' => 'microsoft', 'api_key' => 'fake-key',
+            'base_url' => 'https://azure.example.test', 'model' => 'my-deployment']]);
+        $provider = new MicrosoftProvider($config);
+        self::assertTrue($provider->isAvailable());
+        self::assertSame('my-deployment', $provider->getModel());
+    }
+
+    public function testInitGeneratesUnifiedAiEnvironment(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'pdodb-ai-config-');
+
+        try {
+            InitConfigGenerator::generateEnv(['driver' => 'sqlite', 'ai' => [
+                'provider' => 'openai-compatible', 'api_key' => 'fake-key',
+                'model' => 'vendor/model', 'base_url' => 'https://gateway.test/v1',
+            ]], [], $path);
+            $env = file_get_contents($path);
+            self::assertStringContainsString('PDODB_AI_PROVIDER=openai-compatible', $env);
+            self::assertStringContainsString('PDODB_AI_API_KEY=fake-key', $env);
+            self::assertStringContainsString('PDODB_AI_MODEL=vendor/model', $env);
+            self::assertStringContainsString('PDODB_AI_BASE_URL=https://gateway.test/v1', $env);
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function testCurrentGoogleModelDoesNotSendDeprecatedSamplingParameter(): void
+    {
+        $provider = new class (new AiConfig(['ai' => ['provider' => 'google', 'api_key' => 'fake-key']])) extends GoogleProvider {
+            public array $body = [];
+
+            protected function makeRequest(string $url, array $data, array $headers = []): array
+            {
+                $this->body = $data;
+                return ['candidates' => [['content' => ['parts' => [['text' => 'Advice']]], 'finishReason' => 'STOP']]];
+            }
+        };
+        self::assertSame('Advice', $provider->analyzeQuery('SELECT 1'));
+        self::assertSame('gemini-3.8-flash', $provider->getModel());
+        self::assertArrayNotHasKey('temperature', $provider->body['generationConfig']);
+    }
+
     private function request(string $method, array $params = []): array
     {
         return $this->server->handleRequest(['jsonrpc' => '2.0', 'id' => 1, 'method' => $method, 'params' => $params]);
@@ -62,13 +158,14 @@ final class AiAgentTests extends TestCase
 
     public function testConfigPreservesOllamaAndEnvironmentOverridesOnlyWhenPresent(): void
     {
-        $config = new AiConfig(['ai' => ['ollama_url' => 'http://remote.test:11434']]);
+        $config = new AiConfig(['ai' => ['provider' => 'ollama', 'base_url' => 'http://remote.test:11434']]);
         self::assertSame('http://remote.test:11434', $config->getOllamaUrl());
-        putenv('PDODB_AI_OLLAMA_URL=http://override.test:11434');
-        self::assertSame('http://override.test:11434', (new AiConfig(['ai' => ['ollama_url' => 'http://remote.test']]))->getOllamaUrl());
-        putenv('PDODB_AI_OPENAI_COMPATIBLE_KEY=example-key');
-        putenv('PDODB_AI_OPENAI_COMPATIBLE_BASE_URL=https://gateway.example.test/v1');
-        putenv('PDODB_AI_OPENAI_COMPATIBLE_MODEL=vendor/model');
+        putenv('PDODB_AI_BASE_URL=http://override.test:11434');
+        self::assertSame('http://override.test:11434', (new AiConfig(['ai' => ['provider' => 'ollama', 'base_url' => 'http://remote.test']]))->getOllamaUrl());
+        putenv('PDODB_AI_PROVIDER=openai-compatible');
+        putenv('PDODB_AI_API_KEY=example-key');
+        putenv('PDODB_AI_BASE_URL=https://gateway.example.test/v1');
+        putenv('PDODB_AI_MODEL=vendor/model');
         $provider = (new AiAnalysisService($this->db))->getProvider('openai-compatible');
         self::assertInstanceOf(OpenAiCompatibleProvider::class, $provider);
         self::assertSame('vendor/model', $provider->getModel());
@@ -176,10 +273,10 @@ final class AiAgentTests extends TestCase
     {
         require __DIR__ . '/../fixtures/ai-http-functions.php';
         $db = new PdoDb('sqlite', ['path' => ':memory:', 'ai' => [
-            'provider' => 'openrouter', 'openrouter_key' => 'example-router-key',
-            'providers' => ['openrouter' => ['base_url' => 'https://gateway.example.test/api/v1/',
+            'provider' => 'openrouter', 'api_key' => 'example-router-key',
+            'base_url' => 'https://gateway.example.test/api/v1/',
                 'model' => 'vendor/model', 'headers' => ['HTTP-Referer' => 'https://project.test'],
-                'request_options' => ['temperature' => null, 'max_tokens' => null, 'max_completion_tokens' => 128]]],
+                'request_options' => ['temperature' => null, 'max_tokens' => null, 'max_completion_tokens' => 128],
         ]]);
         $db->rawQuery('CREATE TABLE people (id INTEGER PRIMARY KEY, unique_column TEXT)');
         $result = $db->find()->from('people')->explainAiAdvice();
@@ -231,20 +328,19 @@ final class AiAgentTests extends TestCase
         require __DIR__ . '/../fixtures/ai-http-functions.php';
         foreach (['openai' => 'https://api.openai.com/v1/chat/completions',
             'openrouter' => 'https://openrouter.ai/api/v1/chat/completions'] as $name => $url) {
-            $config = new AiConfig(['ai' => [$name . '_key' => 'fake-key']]);
+            $config = new AiConfig(['ai' => ['provider' => $name, 'api_key' => 'fake-key']]);
             $provider = (new AiAnalysisService($this->db, $config))->getProvider($name);
             $provider->analyzeQuery('SELECT 1');
             self::assertSame($url, end($GLOBALS['ai_test_requests'])['url']);
         }
-        $legacyProvider = new class (new AiConfig(['ai' => ['openai_key' => 'fake-key']])) extends OpenAiProvider {
+        $legacyProvider = new class (new AiConfig(['ai' => ['api_key' => 'fake-key']])) extends OpenAiProvider {
             protected string $apiUrl = 'https://legacy.test/api/chat/completions';
         };
         $legacyProvider->analyzeQuery('SELECT 1');
         self::assertSame('https://legacy.test/api/chat/completions', end($GLOBALS['ai_test_requests'])['url']);
         foreach ([['headers' => ['Authorization' => 'override']], ['headers' => ['X-Name' => "value\r\nX-Injected: yes"]],
             ['request_options' => ['messages' => null]], ['request_options' => ['stream' => true]]] as $options) {
-            $provider = new OpenAiCompatibleProvider(new AiConfig(['ai' => ['openai_compatible_key' => 'fake-key',
-                'providers' => ['openai-compatible' => ['base_url' => 'https://gateway.test/v1'] + $options]]]));
+            $provider = new OpenAiCompatibleProvider(new AiConfig(['ai' => ['provider' => 'openai-compatible', 'api_key' => 'fake-key', 'base_url' => 'https://gateway.test/v1'] + $options]));
             $before = count($GLOBALS['ai_test_requests']);
 
             try {
@@ -260,9 +356,7 @@ final class AiAgentTests extends TestCase
     {
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('without credentials');
-        new OpenAiCompatibleProvider(new AiConfig(['ai' => ['providers' => ['openai-compatible' => [
-            'base_url' => 'https://user:secret@example.test/v1',
-        ]]]]));
+        new OpenAiCompatibleProvider(new AiConfig(['ai' => ['provider' => 'openai-compatible', 'base_url' => 'https://user:secret@example.test/v1']]));
     }
 
     #[RunInSeparateProcess]
@@ -270,8 +364,7 @@ final class AiAgentTests extends TestCase
     public function testReasoningOnlyCompletionReportsTokenExhaustion(): void
     {
         require __DIR__ . '/../fixtures/ai-http-functions.php';
-        $provider = new OpenAiCompatibleProvider(new AiConfig(['ai' => ['openai_compatible_key' => 'fake-key',
-            'providers' => ['openai-compatible' => ['base_url' => 'https://gateway.test/v1', 'model' => 'test/reasoning-budget']]]]));
+        $provider = new OpenAiCompatibleProvider(new AiConfig(['ai' => ['provider' => 'openai-compatible', 'api_key' => 'fake-key', 'base_url' => 'https://gateway.test/v1', 'model' => 'test/reasoning-budget']]));
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage('exhausted its output token limit before producing visible text');
         $provider->analyzeQuery('SELECT 1');
@@ -325,9 +418,9 @@ final class AiAgentTests extends TestCase
             $address = trim((string)fgets($pipes[1]));
             self::assertStringStartsWith('127.0.0.1:', $address);
             $provider = new OpenAiCompatibleProvider(new AiConfig(['ai' => [
-                'openai_compatible_key' => 'fake-local-key',
-                'providers' => ['openai-compatible' => ['base_url' => 'http://' . $address . '/custom/v1',
-                    'model' => 'vendor/test-model', 'timeout' => 5, 'headers' => ['X-Project' => 'pdodb-test']]],
+                'provider' => 'openai-compatible', 'api_key' => 'fake-local-key',
+                'base_url' => 'http://' . $address . '/custom/v1',
+                    'model' => 'vendor/test-model', 'timeout' => 5, 'headers' => ['X-Project' => 'pdodb-test'],
             ]]));
             $result = json_decode($provider->analyzeQuery('SELECT 1'), true, 512, JSON_THROW_ON_ERROR);
             self::assertSame('POST /custom/v1/chat/completions HTTP/1.1', $result['request']);

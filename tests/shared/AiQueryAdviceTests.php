@@ -25,8 +25,8 @@ final class AiQueryAdviceTests extends TestCase
     private function database(string $prefix = ''): PdoDb
     {
         $db = new PdoDb('sqlite', ['path' => ':memory:', 'prefix' => $prefix, 'ai' => [
-            'provider' => 'openrouter', 'openrouter_key' => 'example-key',
-            'providers' => ['openrouter' => ['model' => 'test/model']],
+            'provider' => 'openrouter', 'api_key' => 'example-key',
+            'model' => 'test/model',
         ]]);
         $db->rawQuery('CREATE TABLE ' . $prefix . 'users (id INTEGER PRIMARY KEY, email TEXT UNIQUE)');
         $db->rawQuery('CREATE TABLE ' . $prefix . 'orders (id INTEGER PRIMARY KEY, user_id INTEGER REFERENCES ' . $prefix . "users(id), status TEXT DEFAULT 'private-default', total INTEGER)");

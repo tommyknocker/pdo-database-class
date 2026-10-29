@@ -14,9 +14,9 @@ use tommyknocker\pdodb\exceptions\QueryException;
 class GoogleProvider extends BaseAiProvider
 {
     private const string API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent'; // v1beta is the latest supported version
-    private const string DEFAULT_MODEL = 'gemini-2.5-flash';
+    private const string DEFAULT_MODEL = 'gemini-3.8-flash';
     private const float DEFAULT_TEMPERATURE = 0.7;
-    private const int DEFAULT_MAX_TOKENS = 8192; // Increased default for Gemini 2.5 models (supports up to 65K output tokens)
+    private const int DEFAULT_MAX_TOKENS = 8192;
     private const string URL_PARAM_KEY = '?key=';
     private const string REQUEST_KEY_CONTENTS = 'contents';
     private const string REQUEST_KEY_PARTS = 'parts';
@@ -110,6 +110,10 @@ class GoogleProvider extends BaseAiProvider
                 self::REQUEST_KEY_MAX_OUTPUT_TOKENS => $this->maxTokens,
             ],
         ];
+
+        if (preg_match('/^gemini-(?:3\.[6-9]|[4-9])/', $this->model) === 1) {
+            unset($data[self::REQUEST_KEY_GENERATION_CONFIG]['temperature']);
+        }
 
         $response = $this->makeRequest($url, $data);
 
@@ -272,7 +276,7 @@ class GoogleProvider extends BaseAiProvider
     {
         if (!$this->isAvailable()) {
             throw new QueryException(
-                'Google provider is not available. Please configure PDODB_AI_GOOGLE_KEY environment variable.',
+                'Google provider is not available. Please configure PDODB_AI_API_KEY environment variable.',
                 0
             );
         }

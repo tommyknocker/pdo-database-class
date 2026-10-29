@@ -33,166 +33,52 @@ class AiConfig
      */
     protected function loadFromConfig(?array $config): void
     {
-        if ($config === null) {
+        $ai = $config['ai'] ?? [];
+        if (!is_array($ai)) {
             return;
         }
-
-        $aiConfig = $config['ai'] ?? [];
-
-        if (isset($aiConfig['provider'])) {
-            $this->defaultProvider = mb_strtolower((string)$aiConfig['provider'], 'UTF-8');
+        $this->defaultProvider = mb_strtolower((string)($ai['provider'] ?? $this->defaultProvider), 'UTF-8');
+        $provider = $this->defaultProvider;
+        if (isset($ai['api_key'])) {
+            $this->apiKeys[$provider] = (string)$ai['api_key'];
         }
-
-        if (isset($aiConfig['openai_key'])) {
-            $this->apiKeys['openai'] = (string)$aiConfig['openai_key'];
-        }
-
-        if (isset($aiConfig['anthropic_key'])) {
-            $this->apiKeys['anthropic'] = (string)$aiConfig['anthropic_key'];
-        }
-
-        if (isset($aiConfig['google_key'])) {
-            $this->apiKeys['google'] = (string)$aiConfig['google_key'];
-        }
-
-        if (isset($aiConfig['microsoft_key'])) {
-            $this->apiKeys['microsoft'] = (string)$aiConfig['microsoft_key'];
-        }
-
-        if (isset($aiConfig['deepseek_key'])) {
-            $this->apiKeys['deepseek'] = (string)$aiConfig['deepseek_key'];
-        }
-
-        if (isset($aiConfig['yandex_key'])) {
-            $this->apiKeys['yandex'] = (string)$aiConfig['yandex_key'];
-        }
-
-        if (isset($aiConfig['ollama_url'])) {
-            $this->ollamaUrl = (string)$aiConfig['ollama_url'];
-        }
-
-        foreach (['openai-compatible', 'openrouter'] as $provider) {
-            $key = str_replace('-', '_', $provider) . '_key';
-            if (isset($aiConfig[$key])) {
-                $this->apiKeys[$provider] = (string)$aiConfig[$key];
+        foreach (['model', 'base_url', 'folder_id', 'temperature', 'max_tokens', 'timeout', 'headers', 'request_options'] as $key) {
+            if (isset($ai[$key])) {
+                $this->setProviderSetting($provider, $key, $ai[$key]);
             }
         }
-
-        // Load provider-specific settings
-        if (isset($aiConfig['providers']) && is_array($aiConfig['providers'])) {
-            foreach ($aiConfig['providers'] as $provider => $settings) {
-                if (is_array($settings)) {
-                    foreach ($settings as $key => $value) {
-                        $this->setProviderSetting($provider, $key, $value);
-                    }
-                }
-            }
+        if ($provider === 'ollama' && isset($ai['base_url'])) {
+            $this->ollamaUrl = (string)$ai['base_url'];
         }
     }
 
-    /**
-     * Load configuration from environment variables.
-     */
+    /** Load environment settings for the selected provider only. */
     protected function loadFromEnvironment(): void
     {
-        $defaultProvider = getenv('PDODB_AI_PROVIDER');
-        if ($defaultProvider !== false && $defaultProvider !== '') {
-            $this->defaultProvider = mb_strtolower($defaultProvider, 'UTF-8');
+        $provider = getenv('PDODB_AI_PROVIDER');
+        if ($provider !== false && $provider !== '') {
+            $this->defaultProvider = mb_strtolower($provider, 'UTF-8');
         }
-
-        $openaiKey = getenv('PDODB_AI_OPENAI_KEY');
-        if ($openaiKey !== false && $openaiKey !== '') {
-            $this->apiKeys['openai'] = $openaiKey;
-        }
-
-        $anthropicKey = getenv('PDODB_AI_ANTHROPIC_KEY');
-        if ($anthropicKey !== false && $anthropicKey !== '') {
-            $this->apiKeys['anthropic'] = $anthropicKey;
-        }
-
-        $googleKey = getenv('PDODB_AI_GOOGLE_KEY');
-        if ($googleKey !== false && $googleKey !== '') {
-            $this->apiKeys['google'] = $googleKey;
-        }
-
-        $microsoftKey = getenv('PDODB_AI_MICROSOFT_KEY');
-        if ($microsoftKey !== false && $microsoftKey !== '') {
-            $this->apiKeys['microsoft'] = $microsoftKey;
-        }
-
-        $deepseekKey = getenv('PDODB_AI_DEEPSEEK_KEY');
-        if ($deepseekKey !== false && $deepseekKey !== '') {
-            $this->apiKeys['deepseek'] = $deepseekKey;
-        }
-
-        $yandexKey = getenv('PDODB_AI_YANDEX_KEY');
-        if ($yandexKey !== false && $yandexKey !== '') {
-            $this->apiKeys['yandex'] = $yandexKey;
-        }
-
-        $yandexFolderId = getenv('PDODB_AI_YANDEX_FOLDER_ID');
-        if ($yandexFolderId !== false && $yandexFolderId !== '') {
-            $this->setProviderSetting('yandex', 'folder_id', $yandexFolderId);
-        }
-
-        $yandexModel = getenv('PDODB_AI_YANDEX_MODEL');
-        if ($yandexModel !== false && $yandexModel !== '') {
-            $this->setProviderSetting('yandex', 'model', $yandexModel);
-        }
-
-        $ollamaUrl = getenv('PDODB_AI_OLLAMA_URL');
-        if ($ollamaUrl !== false && $ollamaUrl !== '') {
-            $this->ollamaUrl = $ollamaUrl;
-        }
-
-        // Load provider-specific model settings from environment variables
-        $this->loadProviderModelsFromEnvironment();
-    }
-
-    /**
-     * Load provider model settings from environment variables.
-     */
-    protected function loadProviderModelsFromEnvironment(): void
-    {
-        $providers = self::PROVIDERS;
-        foreach ($providers as $provider) {
-            $prefix = 'PDODB_AI_' . strtoupper(str_replace('-', '_', $provider));
-            foreach (['KEY' => 'api_key', 'BASE_URL' => 'base_url', 'ENDPOINT' => 'endpoint', 'DEPLOYMENT' => 'deployment'] as $suffix => $setting) {
-                $value = getenv($prefix . '_' . $suffix);
-                if ($value !== false && $value !== '') {
-                    if ($setting === 'api_key') {
-                        $this->apiKeys[$provider] = $value;
-                    } else {
-                        $this->setProviderSetting($provider, $setting, $value);
-                    }
+        $provider = $this->defaultProvider;
+        foreach (['API_KEY' => 'api_key', 'MODEL' => 'model', 'BASE_URL' => 'base_url',
+            'FOLDER_ID' => 'folder_id',
+            'TEMPERATURE' => 'temperature', 'MAX_TOKENS' => 'max_tokens', 'TIMEOUT' => 'timeout'] as $suffix => $key) {
+            $value = getenv('PDODB_AI_' . $suffix);
+            if ($value === false || $value === '') {
+                continue;
+            }
+            if ($key === 'api_key') {
+                $this->apiKeys[$provider] = $value;
+            } else {
+                $value = match ($key) {
+                    'temperature' => (float)$value,
+                    'max_tokens', 'timeout' => (int)$value,
+                    default => $value,
+                };
+                $this->setProviderSetting($provider, $key, $value);
+                if ($provider === 'ollama' && $key === 'base_url') {
+                    $this->ollamaUrl = $value;
                 }
-            }
-            // Load model
-            $envVar = $prefix . '_MODEL';
-            $model = getenv($envVar);
-            if ($model !== false && $model !== '') {
-                $this->setProviderSetting($provider, 'model', $model);
-            }
-
-            // Load temperature
-            $envVar = $prefix . '_TEMPERATURE';
-            $temperature = getenv($envVar);
-            if ($temperature !== false && $temperature !== '') {
-                $this->setProviderSetting($provider, 'temperature', (float)$temperature);
-            }
-
-            // Load max_tokens
-            $envVar = $prefix . '_MAX_TOKENS';
-            $maxTokens = getenv($envVar);
-            if ($maxTokens !== false && $maxTokens !== '') {
-                $this->setProviderSetting($provider, 'max_tokens', (int)$maxTokens);
-            }
-
-            // Load timeout
-            $envVar = $prefix . '_TIMEOUT';
-            $timeout = getenv($envVar);
-            if ($timeout !== false && $timeout !== '') {
-                $this->setProviderSetting($provider, 'timeout', (int)$timeout);
             }
         }
     }

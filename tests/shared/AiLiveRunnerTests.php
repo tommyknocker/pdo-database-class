@@ -26,9 +26,9 @@ final class AiLiveRunnerTests extends TestCase
     {
         file_put_contents($this->envPath, implode("\n", [
             'PDODB_AI_PROVIDER=openrouter',
-            'PDODB_AI_OPENROUTER_KEY=fake-secret-do-not-print',
-            'PDODB_AI_OPENROUTER_MODEL=' . $model,
-            'PDODB_AI_OPENROUTER_BASE_URL=' . $baseUrl,
+            'PDODB_AI_API_KEY=fake-secret-do-not-print',
+            'PDODB_AI_MODEL=' . $model,
+            'PDODB_AI_BASE_URL=' . $baseUrl,
             'PDODB_AI_LIVE_MAX_TOKENS=9999',
             'PDODB_AI_LIVE_TIMEOUT=9999',
             'PDODB_AI_LIVE_REASONING_EFFORT=' . $reasoning,

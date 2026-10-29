@@ -21,7 +21,7 @@ PDOdb provides convenient command-line tools for common development tasks, inclu
 - [Query Tester (REPL)](#query-tester-repl)
 - [Database Monitoring](#database-monitoring)
 - [TUI Dashboard](#tui-dashboard)
-- [AI-Powered Analysis](#ai-powered-analysis)
+- [AI-Powered Analysis](26-ai-reference.md#cli-commands)
 - [Cache Management](#cache-management)
 - [Benchmark and Performance Testing](#benchmark-and-performance-testing)
 - [Seed Management](#seed-management)
@@ -3476,9 +3476,7 @@ pdodb table indexes add idx_status users --columns=status
 
 - **Slow Query Logs** - Currently supports MySQL/MariaDB format only
 - **Index Recommendations** - Based on common patterns, may not cover all use cases
-- **No AI Integration** - First phase without AI; AI recommendations will be added in future versions
-
-The optimization tools provide a solid foundation for database performance analysis and will be enhanced with AI-powered recommendations in future releases.
+- **Heuristic Recommendations** - `optimize` commands do not call an AI provider. For AI-backed advice, use the separate [`ai` commands](26-ai-reference.md#cli-commands).
 
 ## Installation
 
@@ -3551,7 +3549,7 @@ vendor/bin/pdodb <command> [subcommand] [arguments] [options]
 - **`cache`** - Manage query result cache (clear, invalidate, statistics)
 - **`benchmark`** - Benchmark and performance testing
 - **`optimize`** - Database optimization analysis (schema, structure, slow queries, query analysis)
-- **`ai`** 🤖 - **AI-Powered Analysis** - Get intelligent database optimization recommendations (analyze, query, schema, optimize)
+- **`ai`** 🤖 - **AI-Powered Analysis** - Get intelligent database optimization recommendations (query, schema, optimize)
 - **`seed`** - Manage database seeds (create, run, list, rollback)
 - **`version`** - Show application version (also available as `--version` or `-v` flag)
 

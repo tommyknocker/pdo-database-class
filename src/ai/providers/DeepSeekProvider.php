@@ -17,7 +17,7 @@ use tommyknocker\pdodb\exceptions\QueryException;
 class DeepSeekProvider extends BaseAiProvider
 {
     private const string API_URL = 'https://api.deepseek.com/chat/completions';
-    private const string DEFAULT_MODEL = 'deepseek-chat';
+    private const string DEFAULT_MODEL = 'deepseek-flash';
     private const float DEFAULT_TEMPERATURE = 0.7;
     private const int DEFAULT_MAX_TOKENS = 2000;
     private const string HEADER_AUTHORIZATION = 'Authorization';
@@ -199,7 +199,7 @@ class DeepSeekProvider extends BaseAiProvider
     {
         if (!$this->isAvailable()) {
             throw new QueryException(
-                'DeepSeek provider is not available. Please configure PDODB_AI_DEEPSEEK_KEY environment variable.',
+                'DeepSeek provider is not available. Please configure PDODB_AI_API_KEY environment variable.',
                 0
             );
         }

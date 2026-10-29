@@ -19,8 +19,8 @@ For OpenRouter, set these in the environment of your PHP application:
 
 ```dotenv
 PDODB_AI_PROVIDER=openrouter
-PDODB_AI_OPENROUTER_KEY=your-private-key
-PDODB_AI_OPENROUTER_MODEL=your-provider/model-id
+PDODB_AI_API_KEY=your-private-key
+PDODB_AI_MODEL=your-provider/model-id
 ```
 
 Use an actual model ID available to your account. Keep the real key in your

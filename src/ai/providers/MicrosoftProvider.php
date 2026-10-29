@@ -13,8 +13,7 @@ use tommyknocker\pdodb\exceptions\QueryException;
  */
 class MicrosoftProvider extends BaseAiProvider
 {
-    private const string API_VERSION = '2024-10-21'; // Latest stable version
-    private const string DEFAULT_DEPLOYMENT = 'gpt-4';
+    private const string API_VERSION = '2024-10-21';
     private const float DEFAULT_TEMPERATURE = 0.7;
     private const int DEFAULT_MAX_TOKENS = 2000;
     private const string URL_PATH_DEPLOYMENTS = '/openai/deployments/';
@@ -32,11 +31,11 @@ class MicrosoftProvider extends BaseAiProvider
 
     protected function initializeDefaults(): void
     {
-        $endpoint = $this->config->getProviderSetting('microsoft', 'endpoint', '');
-        $deployment = $this->config->getProviderSetting('microsoft', 'deployment', self::DEFAULT_DEPLOYMENT);
+        $endpoint = $this->config->getProviderSetting('microsoft', 'base_url', '');
+        $deployment = $this->config->getProviderSetting('microsoft', 'model', '');
         $this->model = $deployment;
 
-        if ($endpoint !== '') {
+        if ($endpoint !== '' && $deployment !== '') {
             $this->apiUrl = rtrim($endpoint, '/') . self::URL_PATH_DEPLOYMENTS . urlencode($deployment) . self::URL_PATH_CHAT_COMPLETIONS . '?' . self::URL_PARAM_API_VERSION . $this->apiVersion;
         }
 
@@ -190,7 +189,7 @@ class MicrosoftProvider extends BaseAiProvider
     {
         if (!$this->isAvailable()) {
             throw new QueryException(
-                'Microsoft provider is not available. Please configure PDODB_AI_MICROSOFT_KEY and endpoint.',
+                'Microsoft provider is not available. Please configure PDODB_AI_API_KEY, PDODB_AI_BASE_URL and PDODB_AI_MODEL.',
                 0
             );
         }

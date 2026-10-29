@@ -14,7 +14,7 @@ use tommyknocker\pdodb\exceptions\QueryException;
 class OpenAiProvider extends BaseAiProvider
 {
     private const string API_URL = 'https://api.openai.com/v1/chat/completions';
-    private const string DEFAULT_MODEL = 'gpt-4o-mini';
+    private const string DEFAULT_MODEL = 'gpt-5.4-mini';
     private const float DEFAULT_TEMPERATURE = 0.7;
     private const int DEFAULT_MAX_TOKENS = 2000;
     private const string HEADER_AUTHORIZATION = 'Authorization';
@@ -127,6 +127,10 @@ class OpenAiProvider extends BaseAiProvider
         ];
 
         $provider = $this->getProviderName();
+        if ($provider === 'openai' && preg_match('/^gpt-[56](?:[.\-]|$)/', $this->model) === 1) {
+            unset($data['temperature'], $data['max_tokens']);
+            $data['max_completion_tokens'] = $this->maxTokens;
+        }
         $requestOptions = $this->config->getProviderSetting($provider, 'request_options', []);
         if (!is_array($requestOptions) || array_key_exists('model', $requestOptions) || array_key_exists('messages', $requestOptions)
             || isset($requestOptions['stream']) && $requestOptions['stream'] !== false) {

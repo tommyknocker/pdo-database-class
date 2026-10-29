@@ -293,7 +293,7 @@ class YandexProvider extends BaseAiProvider
     {
         if (!$this->isAvailable()) {
             throw new QueryException(
-                'Yandex provider is not available. Please configure PDODB_AI_YANDEX_KEY and PDODB_AI_YANDEX_FOLDER_ID environment variables.',
+                'Yandex provider is not available. Please configure PDODB_AI_API_KEY and PDODB_AI_FOLDER_ID environment variables.',
                 0
             );
         }

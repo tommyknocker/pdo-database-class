@@ -48,7 +48,7 @@ class AiTests extends TestCase
      */
     protected static function checkOllamaAvailability(): bool
     {
-        $url = getenv('PDODB_AI_OLLAMA_URL') ?: self::OLLAMA_DEFAULT_URL;
+        $url = getenv('PDODB_AI_BASE_URL') ?: self::OLLAMA_DEFAULT_URL;
 
         // A listening port is insufficient: Ollama may not have the configured model.
         // Read only the local model inventory, with a bounded timeout and response size.
@@ -58,7 +58,7 @@ class AiTests extends TestCase
         if (!is_array($inventory) || !is_array($inventory['models'] ?? null)) {
             return false;
         }
-        $model = getenv('PDODB_AI_OLLAMA_MODEL') ?: 'deepseek-coder:6.7b';
+        $model = getenv('PDODB_AI_MODEL') ?: 'deepseek-coder:6.7b';
         $expected = str_contains($model, ':') ? $model : $model . ':latest';
         foreach ($inventory['models'] as $entry) {
             if (is_array($entry) && ($entry['name'] ?? $entry['model'] ?? null) === $expected) {
@@ -91,7 +91,7 @@ class AiTests extends TestCase
     {
         // Set environment variable
         putenv('PDODB_AI_PROVIDER=ollama');
-        putenv('PDODB_AI_OLLAMA_URL=' . self::OLLAMA_DEFAULT_URL);
+        putenv('PDODB_AI_BASE_URL=' . self::OLLAMA_DEFAULT_URL);
 
         $config = new AiConfig();
         $this->assertEquals('ollama', $config->getDefaultProvider());
@@ -99,7 +99,7 @@ class AiTests extends TestCase
 
         // Cleanup
         putenv('PDODB_AI_PROVIDER');
-        putenv('PDODB_AI_OLLAMA_URL');
+        putenv('PDODB_AI_BASE_URL');
     }
 
     public function testAiConfigLoadsFromConfigArray(): void
@@ -108,13 +108,9 @@ class AiTests extends TestCase
         $configArray = [
             'ai' => [
                 'provider' => 'ollama',
-                'ollama_url' => self::OLLAMA_DEFAULT_URL,
-                'providers' => [
-                    'ollama' => [
-                        'model' => $testModel,
+                'base_url' => self::OLLAMA_DEFAULT_URL,
+                'model' => $testModel,
                         'temperature' => 0.5,
-                    ],
-                ],
             ],
         ];
 
@@ -129,7 +125,8 @@ class AiTests extends TestCase
     {
         $config = new AiConfig([
             'ai' => [
-                'ollama_url' => self::OLLAMA_DEFAULT_URL,
+                'provider' => 'ollama',
+                'base_url' => self::OLLAMA_DEFAULT_URL,
             ],
         ]);
 
@@ -143,7 +140,7 @@ class AiTests extends TestCase
         $config = new AiConfig([
             'ai' => [
                 'provider' => 'ollama',
-                'ollama_url' => self::OLLAMA_DEFAULT_URL,
+                'base_url' => self::OLLAMA_DEFAULT_URL,
             ],
         ]);
 
@@ -163,13 +160,9 @@ class AiTests extends TestCase
         $config = new AiConfig([
             'ai' => [
                 'provider' => 'ollama',
-                'ollama_url' => self::OLLAMA_DEFAULT_URL,
-                'providers' => [
-                    'ollama' => [
-                        'model' => self::OLLAMA_DEFAULT_MODEL,
+                'base_url' => self::OLLAMA_DEFAULT_URL,
+                'model' => self::OLLAMA_DEFAULT_MODEL,
                         'max_tokens' => self::OLLAMA_MAX_TOKENS,
-                    ],
-                ],
             ],
         ]);
 
@@ -192,13 +185,9 @@ class AiTests extends TestCase
         $config = new AiConfig([
             'ai' => [
                 'provider' => 'ollama',
-                'ollama_url' => self::OLLAMA_DEFAULT_URL,
-                'providers' => [
-                    'ollama' => [
-                        'model' => self::OLLAMA_DEFAULT_MODEL,
+                'base_url' => self::OLLAMA_DEFAULT_URL,
+                'model' => self::OLLAMA_DEFAULT_MODEL,
                         'max_tokens' => self::OLLAMA_MAX_TOKENS,
-                    ],
-                ],
             ],
         ]);
 
@@ -219,13 +208,9 @@ class AiTests extends TestCase
         $config = new AiConfig([
             'ai' => [
                 'provider' => 'ollama',
-                'ollama_url' => self::OLLAMA_DEFAULT_URL,
-                'providers' => [
-                    'ollama' => [
-                        'model' => self::OLLAMA_DEFAULT_MODEL,
+                'base_url' => self::OLLAMA_DEFAULT_URL,
+                'model' => self::OLLAMA_DEFAULT_MODEL,
                         'max_tokens' => self::OLLAMA_MAX_TOKENS,
-                    ],
-                ],
             ],
         ]);
 
@@ -244,12 +229,12 @@ class AiTests extends TestCase
     {
         // Set environment variable
         putenv('PDODB_AI_PROVIDER=ollama');
-        putenv('PDODB_AI_OLLAMA_URL=http://custom:' . self::OLLAMA_DEFAULT_PORT);
+        putenv('PDODB_AI_BASE_URL=http://custom:' . self::OLLAMA_DEFAULT_PORT);
 
         $configArray = [
             'ai' => [
                 'provider' => 'openai',
-                'ollama_url' => self::OLLAMA_DEFAULT_URL,
+                'base_url' => self::OLLAMA_DEFAULT_URL,
             ],
         ];
 
@@ -261,7 +246,7 @@ class AiTests extends TestCase
 
         // Cleanup
         putenv('PDODB_AI_PROVIDER');
-        putenv('PDODB_AI_OLLAMA_URL');
+        putenv('PDODB_AI_BASE_URL');
     }
 
     public static function tearDownAfterClass(): void

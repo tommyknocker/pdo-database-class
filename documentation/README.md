@@ -161,7 +161,7 @@ $users = $db->find()
 - **Batch Processing** - Handle large datasets efficiently
 - **Connection Pooling** - Manage multiple connections
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations
-- **AI-Powered Analysis** 🤖 - Get intelligent database optimization recommendations using OpenAI, Anthropic, Google, Microsoft, or Ollama
+- **AI-Powered Analysis** 🤖 - Get intelligent database optimization recommendations using OpenAI, OpenRouter, OpenAI-compatible gateways, Anthropic, Google, Microsoft, DeepSeek, Yandex, or Ollama
 - **Comprehensive Error Handling** - Detailed exception hierarchy
 - **Zero Dependencies** - Lightweight and fast
 - **Well Tested** - Comprehensive test coverage
