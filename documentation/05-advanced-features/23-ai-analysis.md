@@ -401,11 +401,14 @@ PDOdb includes an MCP (Model Context Protocol) server for integration with AI ag
 
 ### Starting the MCP Server
 
-```bash
-vendor/bin/pdodb-mcp
-```
+Normally your editor starts the local PHP process using the launch configuration
+printed by `pdodb mcp config`. No separate daemon or network port is needed.
+See the [AI editor walkthrough](../01-getting-started/08-ai-editor.md) for a complete
+example: connect the editor, inspect a real table, and write a PDOdb query.
 
-The server uses the same connection configuration as the PDOdb CLI; see setup below.
+The executable `vendor/bin/pdodb-mcp` is a stdio protocol endpoint. Starting it
+manually waits for MCP messages on stdin, rather than opening a chat interface.
+It uses the same connection configuration as the PDOdb CLI; see setup below.
 
 ### Agent tools without an additional LLM key
 
@@ -742,24 +745,14 @@ if ($cached === null) {
 
 ### 6. Use MCP Server for IDE Integration
 
-Integrate with AI-powered IDEs (Cursor, VS Code with MCP extensions) for real-time database analysis:
+Use MCP when the editor's assistant needs the live development schema or an
+estimated query plan while helping you write PHP. The editor starts a local
+process and requests facts when needed; there is no background database monitor.
 
-```json
-{
-  "mcpServers": {
-    "pdodb": {
-      "command": "vendor/bin/pdodb-mcp",
-      "env": {
-        "PDODB_DRIVER": "mysql",
-        "PDODB_HOST": "localhost",
-        "PDODB_DATABASE": "mydb",
-        "PDODB_USERNAME": "user",
-        "PDODB_PASSWORD": "pass"
-      }
-    }
-  }
-}
-```
+Follow the [AI editor walkthrough](../01-getting-started/08-ai-editor.md) for
+configuration, a concrete prompt, expected code, and cases where MCP adds little.
+Generate machine-specific launch paths with `pdodb mcp config` and keep database
+credentials in your existing local configuration.
 
 ## Troubleshooting
 

@@ -562,7 +562,10 @@ pdodb ai query "SELECT * FROM users WHERE email = 'user@example.com'" \
 
 **Agent tools:** The bundled MCP server provides context, local documentation
 search, schema discovery and estimated EXPLAIN without an additional LLM key.
-Run `pdodb ai setup`, `pdodb ai doctor` and `pdodb mcp config` to get started.
+For example, let your editor inspect the actual `users` table before writing a
+PDOdb query. The editor starts the optional local PHP process; no daemon is
+needed. Follow the [AI editor walkthrough](documentation/01-getting-started/08-ai-editor.md)
+for setup, an example prompt, and when to skip MCP.
 
 See [AI Analysis Documentation](documentation/05-advanced-features/23-ai-analysis.md) for complete guide.
 

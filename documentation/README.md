@@ -12,6 +12,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [05. First Connection](01-getting-started/05-first-connection.md) - Your first connection
 - [06. Hello World](01-getting-started/06-hello-world.md) - Simple example
 - [07. Quick Reference](01-getting-started/07-quick-reference.md) - Common tasks with code snippets
+- [08. AI Editor Walkthrough](01-getting-started/08-ai-editor.md) - Let an editor inspect your schema and write a PDOdb query
 
 ### Core Concepts
 - [01. Architecture Overview](02-core-concepts/01-architecture-overview.md) - How PDOdb works internally
