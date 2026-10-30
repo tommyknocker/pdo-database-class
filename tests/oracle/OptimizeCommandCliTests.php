@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\oracle;
 
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\cli\commands\OptimizeCommand;
 use tommyknocker\pdodb\cli\DatabaseConfigOptimizer;
 use tommyknocker\pdodb\cli\RedundantIndexDetector;
 use tommyknocker\pdodb\cli\SchemaAnalyzer;
@@ -47,82 +48,112 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
 
     public function testOptimizeAnalyzeCommand(): void
     {
-        $app = new Application();
         $db = self::$db;
-
-        // Create test tables (drop first to avoid ORA-00955)
-        try {
-            $db->rawQuery('DROP TABLE "optimize_users" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-            // Ignore if table doesn't exist
+        $tables = ['optimize_users', 'optimize_orders'];
+        foreach ($tables as $table) {
+            try {
+                $db->rawQuery('DROP TABLE "' . $table . '" CASCADE CONSTRAINTS');
+            } catch (\Throwable) {
+                // The fixture may not exist yet.
+            }
         }
 
         try {
-            $db->rawQuery('DROP TABLE "optimize_orders" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-            // Ignore if table doesn't exist
-        }
-        $db->rawQuery('CREATE TABLE "optimize_users" ("ID" NUMBER PRIMARY KEY, "NAME" VARCHAR2(100))');
-        $db->rawQuery('CREATE TABLE "optimize_orders" ("ID" NUMBER, "USER_ID" NUMBER)'); // No PK
+            $db->rawQuery('CREATE TABLE "optimize_users" ("ID" NUMBER PRIMARY KEY, "NAME" VARCHAR2(100), "STATUS" VARCHAR2(20), "CREATED_AT" TIMESTAMP)');
+            $db->rawQuery('CREATE TABLE "optimize_orders" ("ID" NUMBER, "USER_ID" NUMBER)');
+            $db->rawQuery('CREATE INDEX PDODB_OPT_NAME ON "optimize_users" ("NAME")');
+            $db->rawQuery('CREATE INDEX PDODB_OPT_NAME_STATUS ON "optimize_users" ("NAME", "STATUS")');
+            $phpunit = getenv('PHPUNIT');
+            putenv('PHPUNIT');
+            ob_start();
+            try {
+                $code = (new Application())->run(['pdodb', 'optimize', 'analyze', '--format=json']);
+                $out = ob_get_clean();
+            } finally {
+                if (ob_get_level() > 0 && !isset($out)) {
+                    ob_end_clean();
+                }
+                if ($phpunit !== false) {
+                    putenv('PHPUNIT=' . $phpunit);
+                }
+            }
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
+            $this->assertSame(0, $code);
+            $data = json_decode($out, true, 512, JSON_THROW_ON_ERROR);
+            $this->assertIsArray($data);
+            $this->assertArrayHasKey('critical_issues', $data);
+            $issues = array_filter($data['critical_issues'], static fn (array $issue): bool => ($issue['type'] ?? '') === 'missing_primary_key');
+            $issueTables = array_map(static fn (array $issue): string => strtolower($issue['table']), $issues);
+            $this->assertContains('optimize_orders', $issueTables);
+            $this->assertNotContains('optimize_users', $issueTables);
+            $this->assertNotContains('', $issueTables);
+            $this->assertGreaterThanOrEqual(2, $data['statistics']['total_tables']);
+            $this->assertGreaterThanOrEqual(1, $data['statistics']['tables_with_issues']);
+            $this->assertIsInt($data['statistics']['total_indexes']);
+            $this->assertIsInt($data['statistics']['redundant_indexes']);
+            $redundant = array_filter($data['warnings'], static fn (array $issue): bool => strtolower($issue['table'] ?? '') === 'optimize_users' && ($issue['type'] ?? '') === 'redundant_index');
+            $this->assertNotEmpty($redundant);
+            $this->assertGreaterThanOrEqual(1, $data['statistics']['redundant_indexes']);
+            $this->assertIsArray($data['info']);
+            foreach (['tables_needing_indexes', 'high_priority_suggestions', 'medium_priority_suggestions', 'low_priority_suggestions'] as $key) {
+                $this->assertArrayHasKey($key, $data['suggestions_summary']);
+            }
+            $this->assertGreaterThanOrEqual(1, $data['suggestions_summary']['tables_needing_indexes']);
+        } finally {
+            foreach ($tables as $table) {
+                try {
+                    $db->rawQuery('DROP TABLE "' . $table . '" CASCADE CONSTRAINTS');
+                } catch (\Throwable) {
+                    // Keep cleanup independent for both fixtures.
+                }
+            }
+        }
+    }
+
+    public function testAnalyzeReportFormats(): void
+    {
+        $command = new class extends OptimizeCommand {
+            public function renderReport(array $result): void
+            {
+                $this->printAnalyzeReport($result);
+            }
+
+            public function renderYaml(array $result): void
+            {
+                $this->printYaml($result);
+            }
+        };
+        $result = [
+            'critical_issues' => [['message' => 'Table orders has no PRIMARY KEY']],
+            'warnings' => [],
+            'info' => [],
+            'statistics' => ['total_tables' => 2],
+            'suggestions_summary' => [
+                'tables_needing_indexes' => 1,
+                'high_priority_suggestions' => 0,
+                'medium_priority_suggestions' => 1,
+                'low_priority_suggestions' => 0,
+                'foreign_key_indexes_needed' => 0,
+                'soft_delete_indexes_needed' => 0,
+                'status_column_indexes_needed' => 1,
+                'timestamp_indexes_needed' => 0,
+            ],
+        ];
+
         ob_start();
+        $command->renderReport($result);
+        $report = ob_get_clean();
+        $this->assertStringContainsString('Table orders has no PRIMARY KEY', $report);
+        $this->assertStringContainsString('Index Suggestions Summary', $report);
+        $this->assertStringContainsString('Tables needing indexes: 1', $report);
+        $this->assertStringContainsString('Tip: Run', $report);
 
-        try {
-            $code = $app->run(['pdodb', 'optimize', 'analyze', '--format=json']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
-
-            throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        }
-
-        $this->assertSame(0, $code);
-        $this->assertStringContainsString('critical_issues', $out);
-        // Verify that table names are correctly extracted (not empty)
-        $data = json_decode($out, true);
-        $this->assertIsArray($data);
-        $this->assertArrayHasKey('critical_issues', $data);
-        $critical = $data['critical_issues'];
-        // Should detect optimize_orders table with missing PK
-        $foundOptimizeOrders = false;
-        foreach ($critical as $issue) {
-            if (isset($issue['table']) && $issue['table'] === 'optimize_orders') {
-                $foundOptimizeOrders = true;
-                break;
-            }
-        }
-        $this->assertTrue($foundOptimizeOrders, 'Should detect optimize_orders table with missing PK');
-        // Verify no empty table names
-        foreach ($critical as $issue) {
-            if (isset($issue['table'])) {
-                $this->assertNotEmpty($issue['table'], 'Table name should not be empty');
-            }
-        }
-
-        // Cleanup
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "optimize_users" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "optimize_orders" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
+        ob_start();
+        $command->renderYaml($result);
+        $yaml = ob_get_clean();
+        $this->assertStringContainsString('critical_issues:', $yaml);
+        $this->assertStringContainsString('Table orders has no PRIMARY KEY', $yaml);
+        $this->assertStringContainsString('tables_needing_indexes: 1', $yaml);
     }
 
     public function testListTablesReturnsNonEmptyNames(): void
@@ -223,193 +254,6 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
         // Cleanup
         try {
             $connection->query('DROP TABLE "test_pk_detection" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-    }
-
-    public function testOptimizeAnalyzeDetectsPrimaryKeysCorrectly(): void
-    {
-        $app = new Application();
-        $db = self::$db;
-
-        // Create tables: one with PK, one without
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "test_with_pk" CASCADE CONSTRAINTS');
-            $connection->query('DROP TABLE "test_without_pk" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-        $db->rawQuery('CREATE TABLE "test_with_pk" ("ID" NUMBER PRIMARY KEY, "NAME" VARCHAR2(100))');
-        $db->rawQuery('CREATE TABLE "test_without_pk" ("ID" NUMBER, "NAME" VARCHAR2(100))'); // No PK
-
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
-        ob_start();
-
-        try {
-            $code = $app->run(['pdodb', 'optimize', 'analyze', '--format=json']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
-
-            throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        }
-
-        $this->assertSame(0, $code);
-        $data = json_decode($out, true);
-        $this->assertIsArray($data);
-        $this->assertArrayHasKey('critical_issues', $data);
-
-        $critical = $data['critical_issues'];
-
-        // Should detect test_without_pk as having no PK
-        $foundWithoutPk = false;
-        $foundWithPk = false;
-        foreach ($critical as $issue) {
-            if (isset($issue['table'])) {
-                $tableName = $issue['table'];
-                if (strtoupper($tableName) === 'TEST_WITHOUT_PK') {
-                    $foundWithoutPk = true;
-                }
-                if (strtoupper($tableName) === 'TEST_WITH_PK') {
-                    $foundWithPk = true;
-                }
-            }
-        }
-
-        $this->assertTrue($foundWithoutPk, 'Should detect test_without_pk as having no PRIMARY KEY');
-        $this->assertFalse($foundWithPk, 'Should NOT detect test_with_pk as having no PRIMARY KEY (it has PK)');
-
-        // Cleanup
-        try {
-            $connection->query('DROP TABLE "test_with_pk" CASCADE CONSTRAINTS');
-            $connection->query('DROP TABLE "test_without_pk" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-    }
-
-    public function testOptimizeAnalyzeIncludesSuggestionsSummary(): void
-    {
-        $app = new Application();
-        $db = self::$db;
-
-        // Create test table with columns that should trigger suggestions
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "analyze_suggestions_test" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-        $db->rawQuery('CREATE TABLE "analyze_suggestions_test" (
-            "ID" NUMBER PRIMARY KEY,
-            "NAME" VARCHAR2(100),
-            "STATUS" VARCHAR2(20),
-            "CREATED_AT" TIMESTAMP,
-            "PARENT_ID" NUMBER
-        )');
-
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
-        ob_start();
-
-        try {
-            $code = $app->run(['pdodb', 'optimize', 'analyze', '--format=json']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
-
-            throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        }
-
-        $this->assertSame(0, $code);
-        $data = json_decode($out, true);
-        $this->assertIsArray($data);
-        $this->assertArrayHasKey('suggestions_summary', $data);
-        $summary = $data['suggestions_summary'];
-        $this->assertIsArray($summary);
-        $this->assertArrayHasKey('tables_needing_indexes', $summary);
-        $this->assertArrayHasKey('high_priority_suggestions', $summary);
-        $this->assertArrayHasKey('medium_priority_suggestions', $summary);
-        $this->assertArrayHasKey('low_priority_suggestions', $summary);
-
-        // Cleanup
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "analyze_suggestions_test" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-    }
-
-    public function testOptimizeAnalyzeShowsSuggestionsSummaryInTableFormat(): void
-    {
-        $app = new Application();
-        $db = self::$db;
-
-        // Create test table with columns that should trigger suggestions
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "analyze_suggestions_table_test" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-        $db->rawQuery('CREATE TABLE "analyze_suggestions_table_test" (
-            "ID" NUMBER PRIMARY KEY,
-            "STATUS" VARCHAR2(20),
-            "CREATED_AT" TIMESTAMP
-        )');
-
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
-        ob_start();
-
-        try {
-            $code = $app->run(['pdodb', 'optimize', 'analyze', '--format=table']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
-
-            throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        }
-
-        $this->assertSame(0, $code);
-        // Should show suggestions summary
-        $this->assertStringContainsString('Index Suggestions Summary', $out);
-        $this->assertStringContainsString('Tables needing indexes', $out);
-        $this->assertStringContainsString('Tip: Run', $out);
-
-        // Cleanup
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "analyze_suggestions_table_test" CASCADE CONSTRAINTS');
         } catch (\Throwable) {
         }
     }
@@ -595,73 +439,6 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
 
         try {
             $connection->query('DROP TABLE "optimize_query_users" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-    }
-
-    public function testOptimizeAnalyzeWithFormatOptions(): void
-    {
-        $app = new Application();
-        $db = self::$db;
-
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "test_format" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-        $db->rawQuery('CREATE TABLE "test_format" ("ID" NUMBER PRIMARY KEY)');
-
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
-
-        // Test JSON format
-        ob_start();
-
-        try {
-            $code = $app->run(['pdodb', 'optimize', 'analyze', '--format=json']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
-
-            throw $e;
-        }
-        $this->assertSame(0, $code);
-        $data = json_decode($out, true);
-        $this->assertIsArray($data);
-        $this->assertArrayHasKey('critical_issues', $data);
-
-        // Test YAML format (basic check)
-        ob_start();
-
-        try {
-            $code = $app->run(['pdodb', 'optimize', 'analyze', '--format=yaml']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
-
-            throw $e;
-        }
-        $this->assertSame(0, $code);
-        $this->assertStringContainsString('critical_issues', $out);
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        }
-
-        // Cleanup
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "test_format" CASCADE CONSTRAINTS');
         } catch (\Throwable) {
         }
     }
@@ -875,107 +652,6 @@ SELECT * FROM users WHERE id = 1;
         }
     }
 
-    public function testSchemaAnalyzerStatistics(): void
-    {
-        $db = self::$db;
-
-        // Clean up first
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "stats_table1" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "stats_table2" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "stats_table3" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-
-        // Create multiple tables with different issues
-        $db->rawQuery('CREATE TABLE "stats_table1" ("ID" NUMBER PRIMARY KEY, "NAME" VARCHAR2(100))');
-        $db->rawQuery('CREATE TABLE "stats_table2" ("ID" NUMBER, "NAME" VARCHAR2(100))'); // No PK
-        $db->rawQuery('CREATE TABLE "stats_table3" (
-            "ID" NUMBER PRIMARY KEY,
-            "NAME" VARCHAR2(100),
-            "EMAIL" VARCHAR2(100)
-        )');
-        // Drop indexes if they exist
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP INDEX idx_name');
-        } catch (\Throwable) {
-        }
-
-        try {
-            $connection->query('DROP INDEX idx_name_email');
-        } catch (\Throwable) {
-        }
-        $db->rawQuery('CREATE INDEX idx_name ON "stats_table3"("NAME")');
-        $db->rawQuery('CREATE INDEX idx_name_email ON "stats_table3"("NAME", "EMAIL")'); // Redundant
-
-        $analyzer = new SchemaAnalyzer($db);
-        $result = $analyzer->analyze();
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('statistics', $result);
-        $stats = $result['statistics'];
-
-        $this->assertArrayHasKey('total_tables', $stats);
-        $this->assertGreaterThanOrEqual(3, $stats['total_tables'], 'Should count at least 3 tables');
-
-        $this->assertArrayHasKey('tables_with_issues', $stats);
-        $this->assertGreaterThanOrEqual(1, $stats['tables_with_issues'], 'Should detect at least 1 table with issues (stats_table2 has no PK)');
-
-        $this->assertArrayHasKey('total_indexes', $stats);
-        $this->assertGreaterThanOrEqual(0, $stats['total_indexes'], 'Should count indexes');
-
-        $this->assertArrayHasKey('redundant_indexes', $stats);
-        $this->assertGreaterThanOrEqual(0, $stats['redundant_indexes'], 'Should count redundant indexes');
-
-        // Verify that stats_table2 is in critical issues
-        $critical = $result['critical_issues'] ?? [];
-        $statsTable2Issues = array_filter($critical, function ($issue) {
-            return ($issue['table'] ?? '') === 'stats_table2';
-        });
-        $this->assertNotEmpty($statsTable2Issues, 'Should detect missing PK in stats_table2');
-
-        // Cleanup
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "stats_table1" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "stats_table2" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "stats_table3" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-    }
-
     public function testSchemaAnalyzerIndexSuggestionsForForeignKeys(): void
     {
         $db = self::$db;
@@ -1175,119 +851,21 @@ SELECT * FROM users WHERE id = 1;
         }
     }
 
-    public function testSchemaAnalyzerLargeTableWarning(): void
+    public function testSchemaAnalyzerCountsRows(): void
     {
         $db = self::$db;
-
-        // Create a table
-        $connection = $db->connection;
-        assert($connection !== null);
-
         try {
-            $connection->query('DROP TABLE "large_table_test" CASCADE CONSTRAINTS');
+            $db->rawQuery('DROP TABLE "PDODB_COUNT_TEST" CASCADE CONSTRAINTS');
         } catch (\Throwable) {
         }
-        $db->rawQuery('CREATE TABLE "large_table_test" ("ID" NUMBER PRIMARY KEY, "NAME" VARCHAR2(100))');
-
-        $analyzer = new SchemaAnalyzer($db);
-
-        // Use reflection to test getTableRowCount method directly
-        $reflection = new \ReflectionClass($analyzer);
-        $method = $reflection->getMethod('getTableRowCount');
-
-        $rowCount = $method->invoke($analyzer, 'large_table_test');
-        $this->assertIsInt($rowCount);
-        $this->assertGreaterThanOrEqual(0, $rowCount);
-
-        // Verify that analyze() includes info array (even if empty for small tables)
-        $result = $analyzer->analyze();
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('info', $result);
-
-        // Cleanup
-        $connection = $db->connection;
-        assert($connection !== null);
-
         try {
-            $connection->query('DROP TABLE "large_table_test" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-    }
-
-    public function testSchemaAnalyzerFullAnalysisWithAllChecks(): void
-    {
-        $db = self::$db;
-
-        // Create comprehensive test scenario
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "full_test_no_pk" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "full_test_with_pk" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-        $db->rawQuery('CREATE TABLE "full_test_no_pk" ("ID" NUMBER, "NAME" VARCHAR2(100))'); // No PK
-        $db->rawQuery('CREATE TABLE "full_test_with_pk" (
-            "ID" NUMBER PRIMARY KEY,
-            "NAME" VARCHAR2(100),
-            "STATUS" VARCHAR2(20),
-            "CREATED_AT" TIMESTAMP,
-            "EMAIL" VARCHAR2(100)
-        )');
-        $db->rawQuery('CREATE INDEX "idx_name" ON "full_test_with_pk"("NAME")');
-        $db->rawQuery('CREATE INDEX "idx_name_email" ON "full_test_with_pk"("NAME", "EMAIL")'); // Redundant
-
-        $analyzer = new SchemaAnalyzer($db);
-        $result = $analyzer->analyze();
-
-        // Check critical issues
-        $this->assertArrayHasKey('critical_issues', $result);
-        $critical = $result['critical_issues'];
-        $noPkIssues = array_filter($critical, function ($issue) {
-            return strtolower($issue['table'] ?? '') === 'full_test_no_pk' && ($issue['type'] ?? '') === 'missing_primary_key';
-        });
-        $this->assertNotEmpty($noPkIssues, 'Should detect missing PK');
-
-        // Check warnings
-        $this->assertArrayHasKey('warnings', $result);
-        $warnings = $result['warnings'];
-        $this->assertIsArray($warnings, 'Warnings should be an array');
-
-        // Check statistics
-        $this->assertArrayHasKey('statistics', $result);
-        $stats = $result['statistics'];
-        $this->assertGreaterThanOrEqual(0, $stats['total_tables'], 'Should have statistics for total_tables');
-        $this->assertGreaterThanOrEqual(0, $stats['tables_with_issues'], 'Should have statistics for tables_with_issues');
-        $this->assertGreaterThanOrEqual(0, $stats['total_indexes'], 'Should have statistics for total_indexes');
-        $this->assertGreaterThanOrEqual(0, $stats['redundant_indexes'], 'Should have statistics for redundant_indexes');
-
-        // Check table analysis includes suggestions
-        $tableResult = $analyzer->analyzeTable('full_test_with_pk');
-        $this->assertArrayHasKey('suggestions', $tableResult);
-        $suggestions = $tableResult['suggestions'];
-        $this->assertNotEmpty($suggestions, 'Should generate index suggestions');
-
-        // Cleanup
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "full_test_no_pk" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
-        }
-        $connection = $db->connection;
-        assert($connection !== null);
-
-        try {
-            $connection->query('DROP TABLE "full_test_with_pk" CASCADE CONSTRAINTS');
-        } catch (\Throwable) {
+            $db->rawQuery('CREATE TABLE "PDODB_COUNT_TEST" ("ID" NUMBER PRIMARY KEY)');
+            $db->rawQuery('INSERT INTO "PDODB_COUNT_TEST" ("ID") VALUES (1)');
+            $db->rawQuery('INSERT INTO "PDODB_COUNT_TEST" ("ID") VALUES (2)');
+            $method = (new \ReflectionClass(SchemaAnalyzer::class))->getMethod('getTableRowCount');
+            $this->assertSame(2, $method->invoke(new SchemaAnalyzer($db), 'PDODB_COUNT_TEST'));
+        } finally {
+            $db->rawQuery('DROP TABLE "PDODB_COUNT_TEST" CASCADE CONSTRAINTS');
         }
     }
 
