@@ -356,7 +356,7 @@ class PostgreSQLDmlBuilder implements DmlBuilderInterface
             }
         }
 
-        // WHEN NOT MATCHED BY SOURCE (PostgreSQL 15+ syntax)
+        // WHEN NOT MATCHED BY SOURCE (PostgreSQL 17+ syntax)
         if ($whenClauses['whenNotMatchedBySourceDelete'] ?? false) {
             $sql .= "WHEN NOT MATCHED BY SOURCE THEN\n";
             $sql .= "  DELETE\n";

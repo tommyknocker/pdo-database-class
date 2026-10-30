@@ -179,7 +179,7 @@ $db->find()->table('users')->insert([
 
 ## Examples
 
-- [JSON Filtering](../../examples/04-json/03-json-filtering.php) - Filter by JSON path values, contains, exists
+- [JSON Filtering](../../examples/04-json/02-json-queries.php) - Filter by JSON path values, contains, exists
 
 ## Next Steps
 

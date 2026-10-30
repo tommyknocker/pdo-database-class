@@ -162,9 +162,7 @@ The nested data will be stored as JSON-encoded strings in the database.
 
 ## Examples
 
-- [File Loading](../../examples/05-file-loading/01-csv-loading.php) - CSV loading examples
-- [File Loading](../../examples/05-file-loading/02-xml-loading.php) - XML loading examples
-- [File Loading](../../examples/05-file-loading/03-json-loading.php) - JSON loading examples
+- [JSON File Loading](../../examples/06-data-management/01-file-loading.php) - JSON and NDJSON examples
 
 ## Next Steps
 

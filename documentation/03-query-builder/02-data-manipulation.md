@@ -479,13 +479,13 @@ $affected = $db->find()
 - **ON conditions**: String or array of join conditions (e.g., `'target.id = source.id'` or `['target.id = source.id', 'target.status = source.status']`)
 - **When Matched**: Array of columns to update when rows match (use `Db::raw('source.column')` to reference source columns)
 - **When Not Matched**: Array of columns to insert when rows don't match (use simple values or `Db::raw()`)
-- **When Not Matched By Source Delete**: Boolean flag to delete target rows not matched by source (PostgreSQL 15+ only)
+- **When Not Matched By Source Delete**: Boolean flag to delete target rows not matched by source (PostgreSQL 17+ and SQL Server)
 
 ### Database-Specific Behavior
 
 **PostgreSQL:**
 - Uses native `MERGE INTO ... USING ... ON ... WHEN MATCHED ... WHEN NOT MATCHED` syntax
-- Supports `WHEN NOT MATCHED BY SOURCE THEN DELETE` clause
+- Supports `WHEN NOT MATCHED BY SOURCE THEN DELETE` on PostgreSQL 17 and newer
 
 **MySQL:**
 - Emulated using `INSERT ... SELECT ... ON DUPLICATE KEY UPDATE`

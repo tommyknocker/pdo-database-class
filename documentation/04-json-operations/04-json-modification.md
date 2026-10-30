@@ -208,7 +208,7 @@ PDOdb handles these differences automatically.
 
 ## Examples
 
-- [JSON Modification](../../examples/04-json/04-json-modification.php) - Update JSON values, set, remove, append
+- [JSON Modification](../../examples/04-json/03-json-modification.php) - Update JSON values, set, remove, append
 
 ## Next Steps
 

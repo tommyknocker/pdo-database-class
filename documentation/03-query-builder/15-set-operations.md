@@ -1,6 +1,6 @@
 # Set Operations (UNION, INTERSECT, EXCEPT)
 
-Set operations allow you to combine results from multiple queries. All operations work across MySQL 8.0+, PostgreSQL, and SQLite 3.8.3+.
+Set operations allow you to combine results from multiple queries. UNION is widely supported; INTERSECT and EXCEPT require MySQL 8.0.31 or newer. PostgreSQL and SQLite also support these operations.
 
 ## Overview
 
@@ -157,9 +157,9 @@ $results = $query1->union($query2)->get();
 - Add indexes on columns used in WHERE clauses
 
 ### Database Support
-- **MySQL 8.0+**: Full support (UNION, UNION ALL, INTERSECT, EXCEPT)
+- **MySQL**: UNION and UNION ALL are supported; INTERSECT and EXCEPT require 8.0.31 or newer
 - **PostgreSQL**: Full support (all operations)
-- **SQLite 3.8.3+**: Full support (all operations)
+- **SQLite 3.38+**: Full support (all operations; PDOdb minimum)
 
 ## Best Practices
 

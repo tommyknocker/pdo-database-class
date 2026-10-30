@@ -195,7 +195,7 @@ $db = new PdoDb('mysql', [
 
 ## Examples
 
-- [Connection Retry](../../examples/12-connection/02-retryable-connection.php) - Automatic retry with exponential backoff
+- [Connection Retry](../../examples/12-reliability/02-connection-retry.php) - Automatic retry with exponential backoff
 
 ## Next Steps
 

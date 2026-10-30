@@ -173,6 +173,6 @@ See [Helper Functions Reference](../../documentation/07-helper-functions/) for c
 ## Next Steps
 
 - [JSON Helpers](../04-json/) - JSON-specific operations
-- [Export Helpers](../11-export-helpers/) - Data export functions
+- [Export Helpers](../06-data-management/03-export-helpers.php) - Data export functions
 - [Real-World Examples](../06-real-world/) - Helper functions in context
 

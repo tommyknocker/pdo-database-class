@@ -148,6 +148,6 @@ function getReferencedTables($db, $tableName): array
 
 ## Related
 
-- [Table Structure Analysis](../05-advanced-features/08-query-analysis.md#table-structure-analysis)
+- [Describe Table](../05-advanced-features/08-query-analysis.md#describe-table)
 - [API Reference](../09-reference/01-api-reference.md)
 - [Dialect Differences](../09-reference/05-dialect-differences.md)

@@ -8,11 +8,8 @@ Examples demonstrating data loading, batch processing, and export operations.
 Loading data from JSON files into database tables.
 
 **Topics covered:**
-- Loading data from JSON files with `loadFromJson()`
-- Batch size configuration for large files
+- Loading data from JSON files with `loadJson()`
 - Error handling in file loading operations
-- Automatic table creation from JSON structure
-- Data type inference and conversion
 
 ### 02-batch-processing.php
 Memory-efficient batch processing for large datasets.
@@ -86,4 +83,4 @@ php 05-seeds-cli.php
 
 - [Bulk Operations](../03-advanced/02-bulk-operations.php) - Bulk inserts and multi-row operations
 - [JSON Operations](../04-json/) - Working with JSON data in queries
-- [Migrations](../05-schema/03-migrations.php) - Database schema versioning
+- [Migrations](../11-schema/02-migrations.php) - Database schema versioning

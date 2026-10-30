@@ -441,8 +441,7 @@ You can create a root `config.php` with multiple database configurations, and th
 
 ## Examples
 
-- [Database Migrations](../../examples/13-migrations/01-basic-migrations.php) - Creating and running migrations
-- [Migration Rollback](../../examples/13-migrations/02-rollback-migrations.php) - Rolling back migrations
+- [Database Migrations](../../examples/11-schema/02-migrations.php) - Creating, running and rolling back migrations
 
 ## Related Documentation
 

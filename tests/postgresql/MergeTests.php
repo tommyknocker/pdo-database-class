@@ -54,7 +54,7 @@ final class MergeTests extends BasePostgreSQLTestCase
         self::$db->find()->table('merge_source')->insert(['id' => 1, 'name' => 'Updated', 'value' => 20]);
         self::$db->find()->table('merge_source')->insert(['id' => 2, 'name' => 'New', 'value' => 30]);
 
-        // Perform MERGE with UPDATE and INSERT (DELETE requires PostgreSQL 15+)
+        // Perform MERGE with UPDATE and INSERT (DELETE BY SOURCE requires PostgreSQL 17+)
         $affected = self::$db->find()
             ->table('merge_target')
             ->merge(
@@ -76,9 +76,30 @@ final class MergeTests extends BasePostgreSQLTestCase
         $inserted = self::$db->find()->from('merge_target')->where('id', 2)->getOne();
         $this->assertEquals('New', $inserted['name']);
         $this->assertEquals(30, $inserted['value']);
+    }
 
-        // Note: DELETE with WHEN NOT MATCHED BY SOURCE requires PostgreSQL 15+
-        // For now, we skip testing this feature
+    public function testMergeDeletesRowsMissingFromSourceOnPostgreSQL17(): void
+    {
+        $version = self::$db->connection->getPdo()->getAttribute(\PDO::ATTR_SERVER_VERSION);
+        if (version_compare($version, '17', '<')) {
+            self::markTestSkipped('WHEN NOT MATCHED BY SOURCE requires PostgreSQL 17 or newer');
+        }
+
+        self::$db->find()->table('merge_target')->insert(['id' => 1, 'name' => 'Kept', 'value' => 10]);
+        self::$db->find()->table('merge_target')->insert(['id' => 2, 'name' => 'Removed', 'value' => 20]);
+        self::$db->find()->table('merge_source')->insert(['id' => 1, 'name' => 'Updated', 'value' => 30]);
+        self::$db->find()->table('merge_target')->merge(
+            'merge_source',
+            'target.id = source.id',
+            ['name' => Db::raw('source.name')],
+            ['id' => Db::raw('source.id'), 'name' => Db::raw('source.name')],
+            true
+        );
+
+        $rows = self::$db->find()->from('merge_target')->get();
+        self::assertCount(1, $rows);
+        self::assertEquals(1, $rows[0]['id']);
+        self::assertSame('Updated', $rows[0]['name']);
     }
 
     public function testPostgreSQLMergeGeneratedSql(): void

@@ -216,7 +216,7 @@ $db->find()->table('users')
 
 ## Examples
 
-- [UPSERT Operations](../../examples/02-intermediate/05-upsert.php) - onDuplicate(), INSERT ... ON CONFLICT
+- [UPSERT Operations](../../examples/03-advanced/03-upsert.php) - onDuplicate(), INSERT ... ON CONFLICT
 
 ## Next Steps
 

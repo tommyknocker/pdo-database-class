@@ -26,7 +26,7 @@ Bulk inserts and data loading from files.
 - Performance optimization for large datasets
 - Error handling in bulk operations
 
-**Note:** For JSON loading, see [05-file-loading/](../05-file-loading/).
+**Note:** For JSON loading, see [data management examples](../06-data-management/01-file-loading.php).
 
 ### 03-upsert.php
 INSERT or UPDATE operations (UPSERT).

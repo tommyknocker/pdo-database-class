@@ -147,7 +147,7 @@ foreach ($batches as $batch) {
 
 ## Examples
 
-- [Bulk Operations](../../examples/08-batch/02-bulk-operations.php) - insertMulti(), CSV/XML import
+- [Bulk Operations](../../examples/03-advanced/02-bulk-operations.php) - Multi-row inserts and transactions
 
 ## Next Steps
 

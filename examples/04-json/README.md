@@ -114,8 +114,8 @@ While the API is unified, there are some internal differences:
 ## Next Steps
 
 For more JSON operations, see:
-- [Documentation: JSON Basics](../../documentation/04-json-operations/json-basics.md)
-- [Documentation: JSON Querying](../../documentation/04-json-operations/json-querying.md)
-- [Documentation: JSON Filtering](../../documentation/04-json-operations/json-filtering.md)
-- [Helper Functions Reference](../../documentation/07-helper-functions/json-helpers.md)
+- [Documentation: JSON Basics](../../documentation/04-json-operations/01-json-basics.md)
+- [Documentation: JSON Querying](../../documentation/04-json-operations/02-json-querying.md)
+- [Documentation: JSON Filtering](../../documentation/04-json-operations/03-json-filtering.md)
+- [Helper Functions Reference](../../documentation/07-helper-functions/07-json-helpers.md)
 

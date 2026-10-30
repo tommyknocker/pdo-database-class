@@ -258,7 +258,7 @@ $db = new PdoDb('mysql', [
 ]);
 ```
 
-**See**: [Connection Management - Prepared Statement Pool](02-core-concepts/02-connection-management.md#prepared-statement-pool) for detailed documentation.
+**See**: [Connection Management - Prepared Statement Pool](../02-core-concepts/02-connection-management.md#prepared-statement-pool) for detailed documentation.
 
 ## Connection Pooling
 

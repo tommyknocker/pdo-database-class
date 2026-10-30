@@ -11,12 +11,15 @@ Installation guide for the PDOdb library.
   - `pdo_sqlite` for SQLite
   - `pdo_sqlsrv` for Microsoft SQL Server (MSSQL)
   - `pdo_oci` for Oracle Database
-- **Supported Databases**:
+- **Database compatibility targets** (individual features may require newer versions):
   - MySQL 5.7+ / MariaDB 10.3+
   - PostgreSQL 9.4+
   - SQLite 3.38+
   - Microsoft SQL Server 2019+ (MSSQL)
   - Oracle Database 12c+
+
+These are compatibility targets, not a claim that every historical version is
+covered by CI or still maintained by its vendor. See the [CI database matrix](../../README.md#database-test-coverage) and check vendor support before deploying.
 
 ## Installing via Composer
 

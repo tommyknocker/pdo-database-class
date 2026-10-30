@@ -354,9 +354,9 @@ $meta = Db::jsonObject([/* thousands of items */]);
 ## Examples
 
 - [JSON Operations](../../examples/04-json/01-json-basics.php) - Basic JSON operations (create, insert, read)
-- [JSON Querying](../../examples/04-json/02-json-querying.php) - Query JSON data with path expressions
-- [JSON Filtering](../../examples/04-json/03-json-filtering.php) - Filter by JSON values
-- [JSON Modification](../../examples/04-json/04-json-modification.php) - Update JSON values
+- [JSON Querying](../../examples/04-json/02-json-queries.php) - Query JSON data with path expressions
+- [JSON Filtering](../../examples/04-json/02-json-queries.php) - Filter by JSON values
+- [JSON Modification](../../examples/04-json/03-json-modification.php) - Update JSON values
 
 ## Next Steps
 

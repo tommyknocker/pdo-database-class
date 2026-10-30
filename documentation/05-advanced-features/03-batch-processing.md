@@ -364,7 +364,7 @@ foreach ($db->find()
 
 ## Examples
 
-- [Batch Processing](../../examples/08-batch/01-batch-processing.php) - batch(), each(), stream() methods
+- [Batch Processing](../../examples/06-data-management/02-batch-processing.php) - batch(), each(), stream() methods
 
 ## Next Steps
 

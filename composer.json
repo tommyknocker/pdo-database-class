@@ -180,6 +180,7 @@
     "pdodb:test:ai:db": "@php vendor/bin/phpunit tests/integration/AiQueryAdviceDatabaseTests.php",
     "pdodb:test:mcp:db": "@php vendor/bin/phpunit tests/integration/McpDatabasePolicyTests.php",
     "pdodb:phpstan": "phpstan analyse",
+    "pdodb:check-doc-links": "@php scripts/check-doc-links.php",
     "pdodb:cs-fix": "php-cs-fixer fix",
     "pdodb:cs-check": "php-cs-fixer fix --dry-run --diff",
     "pdodb:test-examples": "bash scripts/test-examples.sh",

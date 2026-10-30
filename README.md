@@ -186,14 +186,17 @@ The CI workflow runs the database-specific suites against these server versions.
   - `pdo_mysql` for MySQL/MariaDB
   - `pdo_pgsql` for PostgreSQL
   - `pdo_sqlite` for SQLite
-  - `sqlsrv` for Microsoft SQL Server (requires Microsoft ODBC Driver for SQL Server)
-  - `oci` for Oracle Database
-- **Supported Databases**:
+  - `pdo_sqlsrv` for Microsoft SQL Server (requires Microsoft ODBC Driver for SQL Server)
+  - `pdo_oci` for Oracle Database
+- **Database compatibility targets** (individual features may require newer versions):
   - MySQL 5.7+ / MariaDB 10.3+
   - PostgreSQL 9.4+
   - SQLite 3.38+
   - Microsoft SQL Server 2019+ / Azure SQL Database
   - Oracle Database 12c+
+
+These are compatibility targets, not a claim that every historical version is
+covered by CI or still maintained by its vendor. See the [CI database matrix](#database-test-coverage) and check vendor support before deploying.
 
 Check if your SQLite has JSON support:
 ```bash

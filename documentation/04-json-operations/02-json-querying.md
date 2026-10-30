@@ -215,7 +215,7 @@ PDOdb handles this automatically.
 
 ## Examples
 
-- [JSON Querying](../../examples/04-json/02-json-querying.php) - Extract JSON values, filter, order by JSON
+- [JSON Querying](../../examples/04-json/02-json-queries.php) - Extract JSON values, filter, order by JSON
 
 ## Next Steps
 

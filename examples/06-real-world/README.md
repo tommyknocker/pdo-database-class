@@ -166,7 +166,7 @@ These examples provide templates for common application types:
 ## Next Steps
 
 Apply these patterns in your projects:
-- [Exception Handling](../09-exception-handling/) - Robust error handling
-- [Batch Processing](../10-batch-processing/) - Large dataset processing
+- [Exception Handling](../12-reliability/) - Robust error handling
+- [Batch Processing](../06-data-management/02-batch-processing.php) - Large dataset processing
 - [Full Documentation](../../documentation/) - Complete API reference
 
