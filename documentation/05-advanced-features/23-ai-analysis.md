@@ -1,5 +1,7 @@
 # Understand and improve a query with AI
 
+This page is the first result. Next: [provider setup](26-ai-reference.md#configuration), [context and limits](24-ai-query-advice.md), [three measured examples](25-ai-query-advice-in-practice.md).
+
 You know which query makes an endpoint slow. The next question is what to change:
 its filter, a JOIN, an index, or nothing at all. PDOdb can explain that query
 using the database's own plan and existing schema, directly from PHP.

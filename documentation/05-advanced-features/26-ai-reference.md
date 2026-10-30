@@ -1,8 +1,6 @@
 # AI configuration and integration reference
 
-Use this page when you need a specific provider setting, a custom endpoint, CLI
-command, or MCP policy. For your first query and a working example, start with
-[Understand and improve a query with AI](23-ai-analysis.md).
+This page is provider setup, CLI, and MCP. First result: [walkthrough](23-ai-analysis.md). Context and limits: [API guide](24-ai-query-advice.md). Measured cases: [three examples](25-ai-query-advice-in-practice.md).
 
 ## Configuration
 

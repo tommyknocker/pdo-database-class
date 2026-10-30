@@ -1,5 +1,7 @@
 # AI query advice in practice
 
+These are the measured examples. First result: [walkthrough](23-ai-analysis.md). Provider setup: [reference](26-ai-reference.md#configuration). Context and limits: [API guide](24-ai-query-advice.md).
+
 A slow page, a JOIN that scans too much, and a query whose index already fits.
 Here are three complete examples of `explainAiAdvice()` working with real
 SQLite plans and reproducible data, including actual OpenRouter answers.

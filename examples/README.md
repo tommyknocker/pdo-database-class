@@ -301,6 +301,5 @@ If you encounter issues:
    ```bash
    PDODB_DRIVER=mysql php examples/01-basic/02-simple-crud.php
    ```
-5. See main [README.md](../README.md#troubleshooting) for more help
-6. See [Troubleshooting Guide](../documentation/10-cookbook/04-troubleshooting.md) for common issues
+5. See the [troubleshooting guide](../documentation/10-cookbook/04-troubleshooting.md) for common issues
 

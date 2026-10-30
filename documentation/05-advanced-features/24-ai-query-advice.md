@@ -1,8 +1,6 @@
 # Explain and improve a query with explainAiAdvice()
 
-Start with the [first-query walkthrough](23-ai-analysis.md), or explore
-[three measured examples](25-ai-query-advice-in-practice.md).
-This page covers the API, context controls and result handling in detail.
+This page is context, privacy, and result handling. First result: [walkthrough](23-ai-analysis.md). Provider setup: [reference](26-ai-reference.md#configuration). Measured cases: [three examples](25-ai-query-advice-in-practice.md).
 
 Use `explainAiAdvice()` when you have a PDOdb SELECT query and want help
 understanding its execution plan, index use, or a possible rewrite. Typical
