@@ -14,6 +14,10 @@
 
 Built on PDO, with no framework dependency. The package requires three PSR interfaces: `psr/log`, `psr/simple-cache`, and `psr/event-dispatcher`.
 
+<a id="quick-example"></a>
+<a id="quick-start"></a>
+<a id="5-minute-tutorial"></a>
+
 To try it with SQLite, install PHP 8.4+ with `pdo_sqlite`, then run:
 
 ```bash
@@ -59,9 +63,59 @@ if ($user !== false) {
 
 **Several databases in one project.** The same builder calls target MySQL, MariaDB, PostgreSQL, SQLite, SQL Server, and Oracle. Where the SQL itself differs, the [dialect guide](documentation/09-reference/05-dialect-differences.md) says so.
 
+<a id="understand-a-slow-query-with-ai"></a>
+
+## Understand a slow query with your model
+
+You already know which query is slow. The open question is whether to change a filter, a join, an index, or nothing.
+
+```php
+$advice = $db->find()
+    ->from('orders')
+    ->where('status', 'pending')
+    ->orderBy('created_at', 'DESC')
+    ->limit(50)
+    ->explainAiAdvice();
+
+echo $advice->aiAnalysis;
+```
+
+PDOdb collects the available plan, the columns, and the existing indexes, then makes one request to the provider configured for your application. You get an explanation and a hypothesis. PDOdb does not create the index or run the model's SQL. On SQL Server, and for parameterized Oracle `EXPLAIN`, a verified plan is unavailable. Those calls can still discuss the SQL and schema, and they say that the plan is missing. Details: [query-advice limitations](documentation/05-advanced-features/24-ai-query-advice.md#4-read-status-and-limitations-before-using-the-advice).
+
+On the included SQLite fixture the plan before a matching index looked like this:
+
+```text
+SCAN orders
+USE TEMP B-TREE FOR ORDER BY
+```
+
+After the index was applied in that fixture, the same ordered page used the index:
+
+```text
+SEARCH orders USING INDEX idx_orders_status_created (status=?)
+```
+
+The median `SELECT` on that synthetic database moved from 4.6860 ms to 0.0200 ms. That is a local measurement of the fixture, not a production promise. A third case in the same demo needs no new index: the existing one already matches the filter and the order. Walkthrough, setup, and the three cases: [Understand and improve a query with AI](documentation/05-advanced-features/23-ai-analysis.md).
+
+**In an application.** Call `explainAiAdvice()` on the `PdoDb` instance you already use. Put the provider, key, and model in that process environment. [Configuration reference](documentation/05-advanced-features/26-ai-reference.md#configuration).
+
+**Offline demo, no API key.** A Composer installation places the package under `vendor/tommyknocker/pdo-database-class/`; it does not create `examples/` in your project root. To run the demo from a repository checkout, use:
+
+```bash
+composer install
+php examples/07-performance/05-ai-query-advice.php
+```
+
+The command builds 100,000 synthetic orders in memory, prints real SQLite plans, and checks that each reviewed index change preserves the result.
+
+<a id="table-of-contents"></a>
+
 ## Capabilities
 
 Each item below is implemented in the library and documented on its own page.
+
+<a id="advanced-usage"></a>
+<a id="helper-functions"></a>
 
 **Queries**
 
@@ -87,6 +141,8 @@ Each item below is implemented in the library and documented on its own page.
 - [Migrations](documentation/05-advanced-features/15-migrations.md) and [seeds](documentation/05-advanced-features/21-cli-tools.md#seed-management) with rollback
 - [Schema introspection](documentation/03-query-builder/11-schema-introspection.md) for indexes, foreign keys, and constraints
 
+<a id="performance-tips"></a>
+
 **Speed and scale**
 
 - [PSR-16 result cache](documentation/05-advanced-features/09-query-caching.md) for repeated queries
@@ -97,6 +153,8 @@ Each item below is implemented in the library and documented on its own page.
 - [Connection retry](documentation/05-advanced-features/07-connection-retry.md) with exponential backoff
 - [Transactions, savepoints, and table locks](documentation/05-advanced-features/01-transactions.md)
 
+<a id="error-handling"></a>
+
 **Application code**
 
 - Optional [ActiveRecord](documentation/05-advanced-features/16-active-record.md) with [relationships](documentation/05-advanced-features/17-active-record-relationships.md), eager and lazy loading
@@ -105,12 +163,16 @@ Each item below is implemented in the library and documented on its own page.
 - [Typed exceptions](documentation/06-error-handling/01-exception-hierarchy.md) and [query diagnostics](documentation/06-error-handling/03-error-diagnostics.md) with sanitized parameters
 - [JSON, CSV, and XML export](documentation/07-helper-functions/10-export-helpers.md) of result sets
 
+<a id="cli-tools"></a>
+
 **Tools**
 
 - [AI query advice](#understand-a-slow-query-with-your-model) from the PHP call, plus CLI reports
 - Optional [MCP server](documentation/01-getting-started/08-ai-editor.md) so an editor can read the development schema
 - [Terminal dashboard](documentation/05-advanced-features/21-cli-tools.md#tui-dashboard) (`pdodb ui`) for a database configured for the CLI
 - [CLI](documentation/05-advanced-features/21-cli-tools.md) for migrations, seeds, dumps, users, models, and a SQL REPL
+
+<a id="json-operations"></a>
 
 ## Work with JSON the same way on every database
 
@@ -147,49 +209,6 @@ foreach ($users as $user) {
 
 More JSON operations: [create and query JSON](documentation/04-json-operations/01-json-basics.md).
 
-## Understand a slow query with your model
-
-You already know which query is slow. The open question is whether to change a filter, a join, an index, or nothing.
-
-```php
-$advice = $db->find()
-    ->from('orders')
-    ->where('status', 'pending')
-    ->orderBy('created_at', 'DESC')
-    ->limit(50)
-    ->explainAiAdvice();
-
-echo $advice->aiAnalysis;
-```
-
-PDOdb collects the available plan, the columns, and the existing indexes, then makes one request to the provider configured for your application. You get an explanation and a hypothesis. PDOdb does not create the index or run the model's SQL. On SQL Server, and for parameterized Oracle `EXPLAIN`, a verified plan is unavailable. Those calls can still discuss the SQL and schema, and they say that the plan is missing. Details: [query-advice limitations](documentation/05-advanced-features/24-ai-query-advice.md#4-read-status-and-limitations-before-using-the-advice).
-
-On the included SQLite fixture the plan before a matching index looked like this:
-
-```text
-SCAN orders
-USE TEMP B-TREE FOR ORDER BY
-```
-
-After the index was applied in that fixture, the same ordered page used the index:
-
-```text
-SEARCH orders USING INDEX idx_orders_status_created (status=?)
-```
-
-The median `SELECT` on that synthetic database moved from 4.6860 ms to 0.0200 ms. That is a local measurement of the fixture, not a production promise. A third case in the same demo needs no new index: the existing one already matches the filter and the order. Walkthrough, setup, and the three cases: [Understand and improve a query with AI](documentation/05-advanced-features/23-ai-analysis.md).
-
-**In an application.** Call `explainAiAdvice()` on the `PdoDb` instance you already use. Put the provider, key, and model in that process environment. [Configuration reference](documentation/05-advanced-features/26-ai-reference.md#configuration).
-
-**Offline demo, no API key.** The `examples/` directory is part of a repository checkout, not of a `composer require` install. From the repository root:
-
-```bash
-composer install
-php examples/07-performance/05-ai-query-advice.php
-```
-
-The command builds 100,000 synthetic orders in memory, prints real SQLite plans, and checks that each reviewed index change preserves the result.
-
 ## Requirements
 
 - PHP 8.4 or newer
@@ -217,39 +236,58 @@ sqlite3 :memory: "SELECT json_valid('{}')"
 
 `1` means JSON is available.
 
+<a id="configuration"></a>
+
 ## Installation
 
 ```bash
 composer require tommyknocker/pdo-database-class
 ```
 
-```bash
-composer require tommyknocker/pdo-database-class:^2.0
-composer require tommyknocker/pdo-database-class:^1.0
-composer require tommyknocker/pdo-database-class:dev-master
-```
-
 `vendor/bin/pdodb init` writes a connection config (`.env` or `config/db.php`) and can create migration and model directories. Full option list: [CLI tools](documentation/05-advanced-features/21-cli-tools.md#project-initialization). Connection arrays, pooling, and read/write splitting: [configuration](documentation/01-getting-started/04-configuration.md).
+
+<a id="-documentation"></a>
+<a id="-examples"></a>
 
 ## Documentation and examples
 
 Start with the [documentation index](documentation/README.md). Guides are grouped into getting started, the query builder, JSON, advanced features, errors, helpers, and the API reference. A short path for a first connection: [installation](documentation/01-getting-started/01-installation.md), [first connection](documentation/01-getting-started/05-first-connection.md), [hello world](documentation/01-getting-started/06-hello-world.md).
 
+<a id="api-reference"></a>
+<a id="dialect-differences"></a>
+
+Find methods in the [API reference](documentation/09-reference/01-api-reference.md) and database-specific behavior in [dialect differences](documentation/09-reference/05-dialect-differences.md).
+
+<a id="migration-guide"></a>
+<a id="troubleshooting"></a>
+
 Coming from raw PDO or Eloquent: [migration guide](documentation/10-cookbook/03-migration-guide.md). Common failures: [troubleshooting](documentation/10-cookbook/04-troubleshooting.md).
 
-Runnable examples live in this repository, not in an application that only installed the package. [Example catalog](examples/README.md).
+The examples are included under `vendor/tommyknocker/pdo-database-class/examples/` in the Composer package and are also available in a repository checkout. [Example catalog](examples/README.md).
 
 ```bash
-# From the examples/ directory
-cd examples
-php 01-basic/02-simple-crud.php
+# From the repository root
+php examples/01-basic/02-simple-crud.php
 
-# MySQL (update config.mysql.php with your credentials)
-PDODB_DRIVER=mysql php 01-basic/02-simple-crud.php
+# MySQL (update examples/config.mysql.php with your credentials)
+PDODB_DRIVER=mysql php examples/01-basic/02-simple-crud.php
+```
 
-# From the repository root: verify all examples on available databases
+To check all examples on the available databases, also from the repository root:
+
+```bash
 ./scripts/test-examples.sh
 ```
+
+## Frequently Asked Questions
+
+**Is PDOdb an ORM?** It is a query builder with an optional [ActiveRecord layer](documentation/05-advanced-features/16-active-record.md).
+
+**Can I use raw SQL?** Yes. Use `rawQuery()` or the [raw SQL API](documentation/03-query-builder/16-raw-queries.md).
+
+**Can I use it with a framework?** Yes. PDOdb has no framework dependency and can be used in an existing PHP application.
+
+**Does it support transactions?** Yes, including savepoints for nested transactions. See [transactions](documentation/05-advanced-features/01-transactions.md).
 
 ## Testing
 
