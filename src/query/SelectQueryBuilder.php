@@ -974,12 +974,63 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         $sqlData = $this->toSQL();
         // Use dialect-specific executeExplain method
         $pdo = $this->connection->getPdo();
-        $explainResults = $this->dialect->executeExplain($pdo, $sqlData['sql'], $sqlData['params']);
+        $explainResults = $this->dialect->executePlanExplain($pdo, $sqlData['sql'], $sqlData['params']);
 
         $analyzer = new ExplainAnalyzer($this->dialect, $this->executionEngine);
         $targetTable = $tableName ?? $this->table;
 
-        return $analyzer->analyze($explainResults, $targetTable);
+        return $analyzer->analyze(
+            $explainResults,
+            $targetTable,
+            $this->filterColumns(),
+            $this->orderColumns()
+        );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function filterColumns(): array
+    {
+        $columns = [];
+        foreach ($this->conditionBuilder->getWhere() as $item) {
+            if (!is_array($item) || !is_string($item['sql'] ?? null)) {
+                continue;
+            }
+            $column = $this->leadingColumn($item['sql']);
+            if ($column !== null) {
+                $columns[] = $column;
+            }
+        }
+        return $columns;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function orderColumns(): array
+    {
+        $columns = [];
+        foreach ($this->order as $expression) {
+            if (!is_string($expression)) {
+                continue;
+            }
+            $column = $this->leadingColumn($expression);
+            if ($column !== null) {
+                $columns[] = $column;
+            }
+        }
+        return $columns;
+    }
+
+    protected function leadingColumn(string $expression): ?string
+    {
+        if (preg_match('/^(?:[\w]+\.)?(?:"([^"]+)"|`([^`]+)`|\[([^\]]+)\]|([A-Za-z_][A-Za-z0-9_]*))/', trim($expression), $match) !== 1) {
+            return null;
+        }
+        $column = $match[1] !== '' ? $match[1] : ($match[2] !== '' ? $match[2] : ($match[3] !== '' ? $match[3] : ($match[4] ?? '')));
+        $reserved = ['and', 'or', 'not', 'where', 'order', 'group', 'limit'];
+        return in_array(strtolower($column), $reserved, true) ? null : $column;
     }
 
     /**

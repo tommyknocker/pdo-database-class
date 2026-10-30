@@ -172,6 +172,9 @@ vendor/bin/pdodb ai optimize --table=orders
 
 `ai query`, `ai schema` and `ai optimize` call the configured AI provider.
 `ai doctor`, `ai context` and `ai docs "asObject"` do not call a model.
+`pdodb ai doctor` prints a JSON summary: provider, model, whether an API key is configured, whether an endpoint is configured, whether the database is connected, and that no AI request was made. The key and any response body are omitted.
+`pdodb ai doctor --probe` sends one short provider request and may incur a charge. The response body is still omitted.
+`--temperature` must be a number from 0 to 2. `--max-tokens` and `--timeout` must be positive integers. A non-numeric value is rejected.
 The bundled executable is `php bin/pdodb` in the PDOdb repository itself.
 
 ## MCP Server
@@ -244,6 +247,7 @@ Requests are limited to 1 MiB. The server negotiates the 2024-11-05 through
 ```bash
 pdodb ai setup
 pdodb ai doctor                  # Connection/configuration check, no LLM request
+pdodb ai doctor --probe          # One short provider request; it may incur a charge
 pdodb ai context                 # JSON environment and result contracts
 pdodb ai docs "asObject"          # Local docs search, no database connection needed
 pdodb mcp config                 # JSON launch preview, no files are written

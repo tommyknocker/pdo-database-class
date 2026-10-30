@@ -350,4 +350,118 @@ class QueryProfilerTests extends BaseSharedTestCase
         // Should be grouped together (same hash)
         $this->assertLessThanOrEqual(2, count($stats));
     }
+
+    public function testOverlappingQueriesKeepDistinctIds(): void
+    {
+        $profiler = new QueryProfiler();
+        $profiler->enable();
+
+        $first = $profiler->startQuery('SELECT 1');
+        $second = $profiler->startQuery('SELECT 2');
+        $profiler->endQuery($first);
+        $third = $profiler->startQuery('SELECT 3');
+
+        $this->assertNotSame($second, $third);
+        $profiler->endQuery($second);
+        $profiler->endQuery($third);
+        $this->assertCount(3, $profiler->getStats());
+    }
+
+    public function testSlowestQueriesRankByTotalTimeAndFlagRepeatedShapes(): void
+    {
+        $profiler = new QueryProfiler();
+        $stats = new \ReflectionProperty($profiler, 'stats');
+        $stats->setValue($profiler, [
+            'many' => [
+                'sql' => 'SELECT id FROM orders WHERE id = ?',
+                'count' => 20,
+                'total_time' => 2.0,
+                'avg_time' => 0.1,
+                'min_time' => 0.1,
+                'max_time' => 0.1,
+                'total_memory' => 0,
+                'avg_memory' => 0,
+                'slow_queries' => 0,
+            ],
+            'one' => [
+                'sql' => "SELECT * FROM orders WHERE note = 'secret'",
+                'count' => 1,
+                'total_time' => 5.0,
+                'avg_time' => 5.0,
+                'min_time' => 5.0,
+                'max_time' => 5.0,
+                'total_memory' => 0,
+                'avg_memory' => 0,
+                'slow_queries' => 1,
+            ],
+        ]);
+
+        $slowest = $profiler->getSlowestQueries(2);
+
+        $this->assertSame(5.0, $slowest[0]['total_time']);
+        $this->assertSame(1, $slowest[0]['count']);
+        $this->assertFalse($slowest[0]['possible_n_plus_one']);
+        $this->assertStringNotContainsString('secret', $slowest[0]['sql']);
+        $this->assertSame(20, $slowest[1]['count']);
+        $this->assertTrue($slowest[1]['possible_n_plus_one']);
+    }
+
+    public function testSlowQueryLogOmitsParametersUnlessEnabled(): void
+    {
+        $profiler = new QueryProfiler();
+        $profiler->enable();
+        $profiler->setSlowQueryThreshold(0.0);
+        $handler = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handler);
+        $profiler->setLogger($logger);
+
+        $queryId = $profiler->startQuery("SELECT * FROM users WHERE name = 'Ada'", ['name' => 'Ada']);
+        $profiler->endQuery($queryId);
+
+        $context = $handler->getRecords()[0]['context'];
+        $this->assertArrayNotHasKey('params', $context);
+        $this->assertFalse($context['parameters_included']);
+        $this->assertStringNotContainsString('Ada', $context['sql']);
+
+        $profiler->setLogParameters(true);
+        $queryId = $profiler->startQuery("SELECT * FROM users WHERE name = 'Ada'", ['name' => 'Ada']);
+        $profiler->endQuery($queryId);
+        $detailed = $handler->getRecords()[1]['context'];
+        $this->assertSame(['name' => 'Ada'], $detailed['params']);
+    }
+
+    public function testDistinctSqlShapesAreCapped(): void
+    {
+        $profiler = new QueryProfiler();
+        $profiler->enable();
+        $profiler->setMaxTrackedQueries(1);
+
+        $first = $profiler->startQuery('SELECT 1');
+        $profiler->endQuery($first);
+        $second = $profiler->startQuery('SELECT 2');
+        $profiler->endQuery($second);
+
+        $this->assertTrue($profiler->isTruncated());
+        $this->assertCount(1, $profiler->getStats());
+    }
+
+    public function testProfileReportDiagnosesWithoutAModelRequest(): void
+    {
+        self::$db->enableProfiling(0.0);
+
+        try {
+            self::$db->find()->from('test_coverage')->get();
+            $summary = self::$db->profileReport()->summary();
+            $this->assertTrue($summary['enabled']);
+            $this->assertFalse($summary['parameters_included']);
+            $this->assertNotSame('', self::$db->profileReport()->export());
+
+            $diagnosis = self::$db->profileReport()->diagnose('SELECT * FROM test_coverage');
+            $this->assertFalse($diagnosis['model_request']);
+            $this->assertArrayHasKey('source', $diagnosis);
+        } finally {
+            self::$db->disableProfiling();
+        }
+    }
 }

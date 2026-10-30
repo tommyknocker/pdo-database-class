@@ -19,6 +19,18 @@ class QueryProfiler
     /** @var LoggerInterface|null Logger for slow query detection */
     protected ?LoggerInterface $logger = null;
 
+    /** @var int Next id for an in-flight measurement */
+    protected int $nextQueryId = 1;
+
+    /** @var bool Include parameter values in the slow-query log */
+    protected bool $logParameters = false;
+
+    /** @var int Maximum distinct SQL shapes kept in memory */
+    protected int $maxTrackedQueries = 500;
+
+    /** @var bool True when a new SQL shape was dropped to stay within the limit */
+    protected bool $truncated = false;
+
     /** @var float Slow query threshold in seconds */
     protected float $slowQueryThreshold = 1.0;
 
@@ -68,6 +80,8 @@ class QueryProfiler
         $this->enabled = false;
         $this->stats = [];
         $this->activeQueries = [];
+        $this->nextQueryId = 1;
+        $this->truncated = false;
         return $this;
     }
 
@@ -141,7 +155,8 @@ class QueryProfiler
             return -1;
         }
 
-        $queryId = count($this->activeQueries);
+        $queryId = $this->nextQueryId;
+        $this->nextQueryId++;
         $this->activeQueries[$queryId] = [
             'sql' => $sql,
             'params' => $params,
@@ -177,6 +192,14 @@ class QueryProfiler
 
         // Update statistics
         if (!isset($this->stats[$sqlHash])) {
+            if (count($this->stats) >= $this->maxTrackedQueries) {
+                $this->truncated = true;
+                unset($this->activeQueries[$queryId]);
+                return [
+                    'time' => $executionTime,
+                    'memory' => $memoryUsed,
+                ];
+            }
             $this->stats[$sqlHash] = [
                 'sql' => $query['sql'], // Store first occurrence SQL
                 'count' => 0,
@@ -286,6 +309,8 @@ class QueryProfiler
     {
         $this->stats = [];
         $this->activeQueries = [];
+        $this->nextQueryId = 1;
+        $this->truncated = false;
         return $this;
     }
 
@@ -297,32 +322,90 @@ class QueryProfiler
      * @return array<int, array{
      *     sql: string,
      *     count: int,
+     *     total_time: float,
      *     avg_time: float,
      *     max_time: float,
      *     slow_queries: int,
-     *     avg_memory: int
+     *     avg_memory: int,
+     *     possible_n_plus_one: bool
      * }>
      */
     public function getSlowestQueries(int $limit = 10): array
     {
         $sorted = $this->stats;
         usort($sorted, function ($a, $b) {
-            return $b['avg_time'] <=> $a['avg_time'];
+            return $b['total_time'] <=> $a['total_time'];
         });
 
         $result = [];
         foreach (array_slice($sorted, 0, $limit) as $stat) {
             $result[] = [
-                'sql' => $stat['sql'],
+                'sql' => $this->redactLiterals($stat['sql']),
                 'count' => $stat['count'],
+                'total_time' => $stat['total_time'],
                 'avg_time' => $stat['avg_time'],
                 'max_time' => $stat['max_time'],
                 'slow_queries' => $stat['slow_queries'],
                 'avg_memory' => $stat['avg_memory'],
+                'possible_n_plus_one' => $stat['count'] >= 10,
             ];
         }
 
         return $result;
+    }
+
+    /**
+     * Keep parameter values in the slow-query log.
+     *
+     * The default log records redacted SQL and no parameter values.
+     */
+    public function setLogParameters(bool $enabled): static
+    {
+        $this->logParameters = $enabled;
+        return $this;
+    }
+
+    public function logsParameters(): bool
+    {
+        return $this->logParameters;
+    }
+
+    public function setMaxTrackedQueries(int $limit): static
+    {
+        $this->maxTrackedQueries = max(1, $limit);
+        return $this;
+    }
+
+    public function isTruncated(): bool
+    {
+        return $this->truncated;
+    }
+
+    /**
+     * @param array<int|string, mixed> $params
+     *
+     * @return array<string, mixed>
+     */
+    protected function slowQueryContext(string $sql, array $params, float $executionTime, int $memoryUsed): array
+    {
+        $context = [
+            'sql' => $this->logParameters ? $sql : $this->redactLiterals($sql),
+            'execution_time' => $executionTime,
+            'execution_time_ms' => round($executionTime * 1000, 2),
+            'memory_used' => $memoryUsed,
+            'memory_used_formatted' => $this->formatMemory($memoryUsed),
+            'threshold' => $this->slowQueryThreshold,
+            'parameters_included' => $this->logParameters,
+        ];
+        if ($this->logParameters) {
+            $context['params'] = $params;
+        }
+        return $context;
+    }
+
+    protected function redactLiterals(string $sql): string
+    {
+        return preg_replace("/'(?:''|[^'])*'/", '?', $sql) ?? $sql;
     }
 
     /**
@@ -368,15 +451,7 @@ class QueryProfiler
             return;
         }
 
-        $this->logger->warning('query.slow', [
-            'sql' => $sql,
-            'params' => $params,
-            'execution_time' => $executionTime,
-            'execution_time_ms' => round($executionTime * 1000, 2),
-            'memory_used' => $memoryUsed,
-            'memory_used_formatted' => $this->formatMemory($memoryUsed),
-            'threshold' => $this->slowQueryThreshold,
-        ]);
+        $this->logger->warning('query.slow', $this->slowQueryContext($sql, $params, $executionTime, $memoryUsed));
     }
 
     /**

@@ -23,15 +23,25 @@ class RecommendationGenerator
      *
      * @param ParsedExplainPlan $plan Parsed execution plan
      * @param string|null $tableName Optional table name for index suggestions
+     * @param array<string> $filterColumns Equality or range filter columns, in predicate order
+     * @param array<string> $orderColumns Sort columns, in ORDER BY order
      *
      * @return array<Recommendation> List of recommendations
      */
-    public function generate(ParsedExplainPlan $plan, ?string $tableName = null): array
-    {
+    public function generate(
+        ParsedExplainPlan $plan,
+        ?string $tableName = null,
+        array $filterColumns = [],
+        array $orderColumns = []
+    ): array {
         $recommendations = [];
+        $orderedAdvice = $this->adviseColumnOrder($plan, $tableName, $filterColumns, $orderColumns);
+        if ($orderedAdvice !== null) {
+            $recommendations[] = $orderedAdvice;
+        }
 
         // Full table scan recommendations
-        if (!empty($plan->tableScans)) {
+        if ($orderedAdvice === null && !empty($plan->tableScans)) {
             foreach ($plan->tableScans as $table) {
                 $targetTable = $tableName ?? $table;
                 $recommendations[] = new Recommendation(
@@ -66,7 +76,10 @@ class RecommendationGenerator
         }
 
         // Filesort recommendation
-        if (in_array('Query requires filesort (temporary sorting)', $plan->warnings, true)) {
+        if (
+            $orderedAdvice === null
+            && ($plan->temporarySort || in_array('Query requires filesort (temporary sorting)', $plan->warnings, true))
+        ) {
             $recommendations[] = new Recommendation(
                 severity: 'info',
                 type: 'filesort',
@@ -277,6 +290,154 @@ class RecommendationGenerator
             $this->dialect->quoteTable($table),
             $columns
         );
+    }
+
+    /**
+     * Prefer an existing index whose leading columns are the filters followed by the sort.
+     * Otherwise suggest that order when the plan shows a scan or a temporary sort.
+     *
+     * @param array<string> $filterColumns
+     * @param array<string> $orderColumns
+     */
+    protected function adviseColumnOrder(
+        ParsedExplainPlan $plan,
+        ?string $tableName,
+        array $filterColumns,
+        array $orderColumns
+    ): ?Recommendation {
+        if ($tableName === null || $tableName === '') {
+            return null;
+        }
+        $wanted = [];
+        foreach ([...$filterColumns, ...$orderColumns] as $column) {
+            $bare = strtolower($this->bareColumn($column));
+            if ($bare !== '' && !in_array($bare, $wanted, true)) {
+                $wanted[] = $bare;
+            }
+        }
+        if ($wanted === []) {
+            return null;
+        }
+        $needsAdvice = $plan->tableScans !== [] || $plan->temporarySort || $plan->usedIndex !== null;
+        if (!$needsAdvice) {
+            return null;
+        }
+        $match = $this->matchingIndex($tableName, $wanted);
+        if ($match !== null) {
+            $used = $plan->usedIndex !== null && strcasecmp($plan->usedIndex, $match) === 0;
+            return new Recommendation(
+                severity: 'info',
+                type: 'existing_index',
+                message: $used
+                    ? sprintf('Index "%s" already serves the filter and sort columns. A new index is not indicated by this plan.', $match)
+                    : sprintf('Index "%s" matches the filter and sort columns, but this plan does not use it.', $match),
+                suggestion: null,
+                affectedTables: [$tableName]
+            );
+        }
+        if ($plan->tableScans === [] && !$plan->temporarySort) {
+            return null;
+        }
+        $quoted = array_map(fn (string $column): string => $this->dialect->quoteIdentifier($column), $wanted);
+        $sortRequested = false;
+        foreach ($orderColumns as $column) {
+            if ($this->bareColumn($column) !== '') {
+                $sortRequested = true;
+                break;
+            }
+        }
+        $message = $sortRequested
+            ? 'A scan or temporary sort is visible. An index on the filter columns, followed by the sort columns, may remove it. Compare a new plan after you apply the change yourself.'
+            : 'A scan is visible. An index on the filter columns may remove it. Compare a new plan after you apply the change yourself.';
+        return new Recommendation(
+            severity: 'warning',
+            type: 'index_column_order',
+            message: $message,
+            suggestion: sprintf(
+                'CREATE INDEX %s ON %s (%s);',
+                $this->dialect->quoteIdentifier($this->generateIndexName($tableName, $wanted)),
+                $this->dialect->quoteTable($tableName),
+                implode(', ', $quoted)
+            ),
+            affectedTables: [$tableName]
+        );
+    }
+
+    /**
+     * @param array<string> $wanted Lowercased column names in required order
+     */
+    protected function matchingIndex(string $table, array $wanted): ?string
+    {
+        foreach ($this->indexColumns($table) as $name => $columns) {
+            $have = array_map(fn (string $column): string => strtolower($column), $columns);
+            if (array_slice($have, 0, count($wanted)) === $wanted) {
+                return $name;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @return array<string, array<int, string>> Index name to column names
+     */
+    protected function indexColumns(string $table): array
+    {
+        try {
+            $rows = $this->executionEngine->fetchAll($this->dialect->buildShowIndexesSql($table));
+        } catch (\Throwable) {
+            return [];
+        }
+        $grouped = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $lower = array_change_key_case($row, CASE_LOWER);
+            $name = $lower['key_name'] ?? $lower['index_name'] ?? $lower['indexname'] ?? $lower['name'] ?? null;
+            if (!is_string($name) || $name === '') {
+                continue;
+            }
+            $column = $lower['column_name'] ?? null;
+            if (is_string($column) && $this->bareColumn($column) !== '') {
+                $position = (int)($lower['seq_in_index'] ?? $lower['column_position'] ?? $lower['seq'] ?? count($grouped[$name] ?? []) + 1);
+                $grouped[$name][$position] = $this->bareColumn($column);
+                continue;
+            }
+            $definition = $lower['sql'] ?? $lower['definition'] ?? $lower['indexdef'] ?? null;
+            if (!is_string($definition) || preg_match_all('/\(([^)]+)\)/', $definition, $matches) < 1) {
+                continue;
+            }
+            $last = array_key_last($matches[1]);
+            $list = $last === null ? '' : ($matches[1][$last] ?? '');
+            if ($list === '') {
+                continue;
+            }
+            $position = 1;
+            $grouped[$name] = [];
+            foreach (explode(',', $list) as $part) {
+                $bare = $this->bareColumn($part);
+                if ($bare !== '') {
+                    $grouped[$name][$position++] = $bare;
+                }
+            }
+        }
+        $result = [];
+        foreach ($grouped as $name => $columns) {
+            ksort($columns);
+            $result[$name] = array_values($columns);
+        }
+        return $result;
+    }
+
+    protected function bareColumn(string $expression): string
+    {
+        $expression = trim(preg_replace('/\b(ASC|DESC|NULLS FIRST|NULLS LAST)\b/i', '', $expression) ?? $expression);
+        $expression = trim($expression, " \t\"'`[]");
+        $dot = strrpos($expression, '.');
+        if ($dot !== false) {
+            $expression = trim(substr($expression, $dot + 1), " \t\"'`[]");
+        }
+        return $expression;
     }
 
     /**

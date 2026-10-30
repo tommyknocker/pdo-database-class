@@ -66,6 +66,7 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
             $phpunit = getenv('PHPUNIT');
             putenv('PHPUNIT');
             ob_start();
+
             try {
                 $code = (new Application())->run(['pdodb', 'optimize', 'analyze', '--format=json']);
                 $out = ob_get_clean();
@@ -112,7 +113,7 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
 
     public function testAnalyzeReportFormats(): void
     {
-        $command = new class extends OptimizeCommand {
+        $command = new class () extends OptimizeCommand {
             public function renderReport(array $result): void
             {
                 $this->printAnalyzeReport($result);
@@ -854,10 +855,12 @@ SELECT * FROM users WHERE id = 1;
     public function testSchemaAnalyzerCountsRows(): void
     {
         $db = self::$db;
+
         try {
             $db->rawQuery('DROP TABLE "PDODB_COUNT_TEST" CASCADE CONSTRAINTS');
         } catch (\Throwable) {
         }
+
         try {
             $db->rawQuery('CREATE TABLE "PDODB_COUNT_TEST" ("ID" NUMBER PRIMARY KEY)');
             $db->rawQuery('INSERT INTO "PDODB_COUNT_TEST" ("ID") VALUES (1)');

@@ -392,6 +392,36 @@ final class AiAgentTests extends TestCase
         $doctor = json_decode(ob_get_clean(), true, 512, JSON_THROW_ON_ERROR);
         self::assertFalse($doctor['ai']['provider_network_checked']);
         self::assertFalse($doctor['ai']['api_key_configured']);
+        self::assertContains('AI request: not made', $doctor['ai']['summary']);
+        self::assertTrue($doctor['database_connected']);
+    }
+
+    public function testInvalidTemperatureIsRejectedBeforeCast(): void
+    {
+        $command = new AiCommand();
+        $command->setDb(new PdoDb('sqlite', ['path' => ':memory:']))
+            ->setArguments(['query', 'SELECT 1'])
+            ->setOptions(['temperature' => 'abc']);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('temperature');
+        $previous = getenv('PHPUNIT');
+        putenv('PHPUNIT=1');
+
+        try {
+            ob_start();
+
+            try {
+                $command->execute();
+            } finally {
+                ob_end_clean();
+            }
+        } finally {
+            if ($previous === false) {
+                putenv('PHPUNIT');
+            } else {
+                putenv('PHPUNIT=' . $previous);
+            }
+        }
     }
 
     public function testUnsupportedPlansAreExplicitAndDoNotReturnSyntheticEvidence(): void

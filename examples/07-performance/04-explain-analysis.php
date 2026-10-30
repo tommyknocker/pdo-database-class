@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use tommyknocker\pdodb\query\analysis\PlanComparison;
+
 /**
  * EXPLAIN Analysis with Recommendations Examples.
  *
@@ -77,10 +79,11 @@ echo '   Recommendations: ' . count($analysis->recommendations) . "\n\n";
 // Example 2: Query without index (should show warnings)
 echo "3. Analyzing Query without Index (Full Table Scan)\n";
 echo "   ------------------------------------------------\n";
-$analysis = $db->find()
+$before = $db->find()
     ->from('explain_demo')
     ->where('status', 'active')
             ->explainAdvice('explain_demo');
+$analysis = $before;
 
 echo '   Access Type: ' . ($analysis->plan->accessType ?? 'N/A') . "\n";
 echo '   Table Scans: ' . implode(', ', $analysis->plan->tableScans) . "\n";
@@ -102,11 +105,12 @@ echo "\n";
 // Example 3: Create index and analyze again
 echo "4. Creating Index and Re-analyzing\n";
 echo "   --------------------------------\n";
+
 // Use schema API for cross-dialect index creation
 // Try to create index (will fail if already exists, which is OK for this example)
 try {
     $schema->createIndex('idx_explain_demo_status', 'explain_demo', 'status');
-} catch (\Exception $e) {
+} catch (Exception $e) {
     // Index might already exist, continue
 }
 echo "   ✓ Created index on status column\n";
@@ -121,6 +125,11 @@ echo '   Used Index: ' . ($analysis->plan->usedIndex ?? 'N/A') . "\n";
 echo '   Table Scans: ' . (empty($analysis->plan->tableScans) ? 'None' : implode(', ', $analysis->plan->tableScans)) . "\n";
 echo '   Recommendations: ' . count($analysis->recommendations) . "\n";
 echo "   ✓ Query now uses index!\n\n";
+
+$comparison = PlanComparison::compare($before, $analysis);
+echo '   Scan removed: ' . ($comparison['scan_removed'] ? 'yes' : 'no') . "\n";
+echo '   Temporary sort removed: ' . ($comparison['temporary_sort_removed'] ? 'yes' : 'no') . "\n";
+echo "   Comparison does not execute SQL.\n\n";
 
 // Example 4: Query with ORDER BY (may require filesort)
 echo "5. Analyzing Query with ORDER BY\n";
@@ -172,6 +181,12 @@ if ($analysis->hasRecommendations()) {
     echo "   ✓ No recommendations needed\n";
 }
 echo "\n";
+
+$db->enableProfiling(0.0);
+$db->find()->from('explain_demo')->where('status', 'active')->get();
+$summary = $db->profileReport()->summary();
+echo 'Profile enabled: ' . ($summary['enabled'] ? 'yes' : 'no') . "\n";
+echo "Profile parameters included: no\n\n";
 
 // Cleanup
 echo "7. Cleanup\n";

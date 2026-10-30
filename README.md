@@ -67,7 +67,24 @@ if ($user !== false) {
 
 ## Understand a slow query with your model
 
-You already know which query is slow. The open question is whether to change a filter, a join, an index, or nothing.
+You already know which query is slow. The open question is whether to change a filter, a join, an index, or nothing. Start with the plan PDOdb can read. That call does not use a network.
+
+```php
+$analysis = $db->find()
+    ->from('orders')
+    ->where('status', 'pending')
+    ->orderBy('created_at', 'DESC')
+    ->limit(50)
+    ->explainAdvice();
+
+foreach ($analysis->recommendations as $recommendation) {
+    echo $recommendation->message . "\n";
+}
+```
+
+A full scan plus a temporary sort suggests an index on the filter columns, then the sort columns. When that index already exists, the advice says a new one is not indicated. SQL Server does not expose a verified plan through PDO, and a parameterized Oracle `EXPLAIN` is unavailable. Those results say the plan is missing. They do not invent one.
+
+When you want an explanation of that same query, send the collected plan to your model:
 
 ```php
 $advice = $db->find()
@@ -80,7 +97,7 @@ $advice = $db->find()
 echo $advice->aiAnalysis;
 ```
 
-PDOdb collects the available plan, the columns, and the existing indexes, then makes one request to the provider configured for your application. You get an explanation and a hypothesis. PDOdb does not create the index or run the model's SQL. On SQL Server, and for parameterized Oracle `EXPLAIN`, a verified plan is unavailable. Those calls can still discuss the SQL and schema, and they say that the plan is missing. Details: [query-advice limitations](documentation/05-advanced-features/24-ai-query-advice.md#4-read-status-and-limitations-before-using-the-advice).
+PDOdb collects the available plan, the columns, and the existing indexes, then makes one request to the provider configured for your application. You get an explanation and a hypothesis. PDOdb does not create the index or run the model's SQL. Details: [query-advice limitations](documentation/05-advanced-features/24-ai-query-advice.md#4-read-status-and-limitations-before-using-the-advice).
 
 On the included SQLite fixture the plan before a matching index looked like this:
 

@@ -726,6 +726,14 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function executePlanExplain(PDO $pdo, string $sql, array $params = []): array
+    {
+        return $this->executeExplain($pdo, $sql, $params);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function formatUnionSelect(string $selectSql, bool $isBaseQuery = false): string
     {
         // Default implementation: return as-is

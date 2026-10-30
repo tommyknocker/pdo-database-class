@@ -28,6 +28,7 @@ use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\plugin\PluginInterface;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
+use tommyknocker\pdodb\query\ProfileReport;
 use tommyknocker\pdodb\query\QueryBuilder;
 use tommyknocker\pdodb\query\QueryConstants;
 use tommyknocker\pdodb\query\QueryProfiler;
@@ -308,6 +309,14 @@ class PdoDb
     public function getSlowestQueries(int $limit = 10): array
     {
         return $this->profiler?->getSlowestQueries($limit) ?? [];
+    }
+
+    /**
+     * Profile and local diagnosis for this connection only.
+     */
+    public function profileReport(): ProfileReport
+    {
+        return new ProfileReport($this);
     }
 
     /**

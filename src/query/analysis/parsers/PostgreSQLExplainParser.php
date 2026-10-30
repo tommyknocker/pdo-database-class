@@ -97,6 +97,12 @@ class PostgreSQLExplainParser implements ExplainParserInterface
             $plan->possibleKeys = array_values(array_unique($plan->possibleKeys));
         }
 
+        if (preg_match('/(?:^|\n)\s*Sort\b|Sort Method/i', $queryPlan) === 1) {
+            $plan->temporarySort = true;
+            $plan->hasOrderBy = true;
+            $plan->warnings[] = 'Query requires filesort (temporary sorting)';
+        }
+
         // Detect dependent subquery (PostgreSQL)
         // SubPlan typically indicates a correlated/dependent subquery
         if (preg_match('/SubPlan\s+\d+/i', $queryPlan)) {

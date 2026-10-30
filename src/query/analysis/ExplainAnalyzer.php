@@ -30,16 +30,27 @@ class ExplainAnalyzer
      *
      * @param array<int, array<string, mixed>> $explainResults Raw EXPLAIN output
      * @param string|null $tableName Optional table name for index suggestions
+     * @param array<string> $filterColumns
+     * @param array<string> $orderColumns
      *
      * @return ExplainAnalysis Result with recommendations
      */
-    public function analyze(array $explainResults, ?string $tableName = null): ExplainAnalysis
-    {
+    public function analyze(
+        array $explainResults,
+        ?string $tableName = null,
+        array $filterColumns = [],
+        array $orderColumns = []
+    ): ExplainAnalysis {
         $parser = $this->getParser();
         $parsedPlan = $parser->parse($explainResults);
 
         $issues = $this->detectIssues($parsedPlan);
-        $recommendations = $this->recommendationGenerator->generate($parsedPlan, $tableName);
+        $recommendations = $this->recommendationGenerator->generate(
+            $parsedPlan,
+            $tableName,
+            $filterColumns,
+            $orderColumns
+        );
 
         // Sort recommendations by severity
         usort($recommendations, function ($a, $b) {

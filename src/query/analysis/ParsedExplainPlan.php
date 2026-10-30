@@ -41,7 +41,8 @@ class ParsedExplainPlan
         public bool $hasOrderBy = false,
         public ?float $totalCost = null,
         public ?float $executionTime = null,
-        public ?int $indexCardinality = null
+        public ?int $indexCardinality = null,
+        public bool $temporarySort = false
     ) {
     }
 }

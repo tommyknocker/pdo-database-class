@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- In-process `profileReport()` for the current connection's profiler, local plan diagnosis, and a JSON export. Another process does not see that memory.
+- `PlanComparison` for two plans the caller collected. It does not execute DDL or model SQL. PostgreSQL `EXPLAIN ANALYZE` timings mean the statement ran.
+- `pdodb ai doctor` JSON summary of provider, model, key presence, endpoint, and database connection without calling a model. `--probe` makes one short provider request and may incur a charge. The key and response body are not printed.
+
 ### Fixed
+- Keep distinct profiler ids when queries overlap, rank slow queries by total time, and omit parameter values from the slow-query log unless `setLogParameters(true)` is enabled.
+- Recommend a filter-then-sort index from `explainAdvice()`, and recognize when that index already exists, including SQLite temporary sorts and PostgreSQL sorts.
+- Reject a non-numeric `--temperature` and a non-positive `--max-tokens` or `--timeout` before they are cast.
+- Look up quoted Oracle table names in their original letter case as well as the folded form, so catalog columns and `NUM_ROWS` are found.
 - Avoid exposing provider response bodies and API keys in AI transport errors; send Gemini credentials in the request header.
 - Reject invalid numeric AI settings and explicitly configured temperature where the model profile omits sampling parameters.
 - Correct database feature version requirements and broken documentation links; check local Markdown links in CI.

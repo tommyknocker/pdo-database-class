@@ -920,6 +920,20 @@ interface DialectInterface
     public function executeExplain(PDO $pdo, string $sql, array $params = []): array;
 
     /**
+     * Execute the plan used by local query advice.
+     *
+     * SQLite advice reads EXPLAIN QUERY PLAN. Other dialects use executeExplain().
+     *
+     * @param PDO $pdo PDO connection instance
+     * @param string $sql SQL query to explain
+     * @param array<int|string, string|int|float|bool|null> $params Query parameters
+     *
+     * @return array<int, array<string, mixed>>
+     * @throws \PDOException
+     */
+    public function executePlanExplain(PDO $pdo, string $sql, array $params = []): array;
+
+    /**
      * Execute EXPLAIN ANALYZE query with dialect-specific logic.
      * For MSSQL, this handles SET STATISTICS XML ON/OFF separately.
      * For other dialects, this simply executes the explain analyze SQL.

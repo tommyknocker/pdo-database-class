@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\ParsedExplainPlan;
+use tommyknocker\pdodb\query\analysis\PlanComparison;
 use tommyknocker\pdodb\query\analysis\RecommendationGenerator;
 use tommyknocker\pdodb\query\ExecutionEngine;
 use tommyknocker\pdodb\query\ParameterManager;
@@ -405,5 +407,76 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
         $result = $method->invoke($generator, 'test_coverage', $plan);
         // Should return null if index already exists (or may return suggestion if name doesn't match)
         $this->assertIsString($result ?? '');
+    }
+
+    public function testFilterThenSortSuggestsIndexAndRecognizesAnExistingOne(): void
+    {
+        $schema = self::$db->schema();
+        $schema->dropTableIfExists('advice_orders');
+        $schema->createTable('advice_orders', [
+            'id' => $schema->primaryKey(),
+            'status' => $schema->string(20),
+            'created_at' => $schema->string(30),
+        ]);
+
+        try {
+            $generator = $this->createRecommendationGenerator();
+            $plan = new ParsedExplainPlan(tableScans: ['advice_orders'], temporarySort: true);
+            $missing = $generator->generate($plan, 'advice_orders', ['status'], ['created_at']);
+            $types = array_map(static fn ($recommendation) => $recommendation->type, $missing);
+            $this->assertContains('index_column_order', $types);
+
+            $schema->createIndex('idx_advice_orders_status_created', 'advice_orders', ['status', 'created_at']);
+            $present = $generator->generate($plan, 'advice_orders', ['status'], ['created_at']);
+            $matched = null;
+            foreach ($present as $recommendation) {
+                if ($recommendation->type === 'existing_index') {
+                    $matched = $recommendation;
+                }
+            }
+            $this->assertNotNull($matched);
+            $this->assertStringContainsString('idx_advice_orders_status_created', $matched->message);
+        } finally {
+            $schema->dropTableIfExists('advice_orders');
+        }
+    }
+
+    public function testExplainAdviceReadsTheFilterAndSortFromTheQuery(): void
+    {
+        $schema = self::$db->schema();
+        $schema->dropTableIfExists('advice_orders');
+        $schema->createTable('advice_orders', [
+            'id' => $schema->primaryKey(),
+            'status' => $schema->string(20),
+            'created_at' => $schema->string(30),
+        ]);
+
+        try {
+            $analysis = self::$db->find()
+                ->from('advice_orders')
+                ->where('status', 'open')
+                ->orderBy('created_at', 'DESC')
+                ->explainAdvice('advice_orders');
+            $types = array_map(static fn ($recommendation) => $recommendation->type, $analysis->recommendations);
+            $this->assertContains('index_column_order', $types);
+            $this->assertTrue($analysis->plan->temporarySort);
+        } finally {
+            $schema->dropTableIfExists('advice_orders');
+        }
+    }
+
+    public function testPlanComparisonReportsARemovedScanWithoutExecutingSql(): void
+    {
+        $beforePlan = new ParsedExplainPlan(tableScans: ['orders'], temporarySort: true, usedIndex: null);
+        $afterPlan = new ParsedExplainPlan(tableScans: [], temporarySort: false, usedIndex: 'idx_orders_status_created');
+        $before = new ExplainAnalysis([], $beforePlan);
+        $after = new ExplainAnalysis([], $afterPlan);
+
+        $comparison = PlanComparison::compare($before, $after);
+
+        $this->assertTrue($comparison['scan_removed']);
+        $this->assertTrue($comparison['temporary_sort_removed']);
+        $this->assertTrue($comparison['index_changed']);
+        $this->assertStringContainsString('does not execute generated SQL', implode(' ', $comparison['notes']));
     }
 }

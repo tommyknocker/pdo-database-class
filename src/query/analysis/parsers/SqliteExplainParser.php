@@ -28,7 +28,11 @@ class SqliteExplainParser implements ExplainParserInterface
                 if (preg_match('/USING (?:COVERING )?INDEX (\S+)/i', $detail, $match)) {
                     $plan->usedIndex = $match[1];
                 }
-                if (str_contains($detail, 'USE TEMP B-TREE')) {
+                if (str_contains($detail, 'USE TEMP B-TREE FOR ORDER BY')) {
+                    $plan->temporarySort = true;
+                    $plan->hasOrderBy = true;
+                    $plan->warnings[] = 'Query requires filesort (temporary sorting)';
+                } elseif (str_contains($detail, 'USE TEMP B-TREE')) {
                     $plan->warnings[] = 'Temporary sorting/grouping B-tree required';
                 }
                 continue;

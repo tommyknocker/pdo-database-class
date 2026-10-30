@@ -89,6 +89,8 @@ class MySQLExplainParser implements ExplainParserInterface
 
             // Check for Using filesort
             if ($extra !== '' && str_contains($extra, 'Using filesort')) {
+                $plan->temporarySort = true;
+                $plan->hasOrderBy = true;
                 $plan->warnings[] = 'Query requires filesort (temporary sorting)';
             }
 

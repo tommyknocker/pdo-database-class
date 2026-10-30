@@ -49,25 +49,12 @@ class AiCommand extends Command
             return $this->showError('SQL query is required. Usage: pdodb ai query "SELECT * FROM users"');
         }
 
+        $options = $this->generationOptions();
+
         $db = $this->getDb();
         $provider = $this->getOption('provider');
         $format = (string)$this->getOption('format', 'text');
         $tableName = $this->getOption('table');
-
-        $options = [];
-        if (($this->getOption('temperature')) !== null) {
-            $options['temperature'] = (float)$this->getOption('temperature');
-        }
-        if (($this->getOption('max-tokens')) !== null) {
-            $options['max_tokens'] = (int)$this->getOption('max-tokens');
-        }
-        if (($this->getOption('model')) !== null) {
-            $options['model'] = (string)$this->getOption('model');
-        }
-
-        if ($this->getOption('timeout') !== null) {
-            $options['timeout'] = (int)$this->getOption('timeout');
-        }
 
         try {
             $this->progress('Analyzing query execution plan...');
@@ -148,25 +135,12 @@ class AiCommand extends Command
      */
     protected function schema(): int
     {
+        $options = $this->generationOptions();
+
         $db = $this->getDb();
         $provider = $this->getOption('provider');
         $format = (string)$this->getOption('format', 'text');
         $tableName = $this->getOption('table');
-
-        $options = [];
-        if (($this->getOption('temperature')) !== null) {
-            $options['temperature'] = (float)$this->getOption('temperature');
-        }
-        if (($this->getOption('max-tokens')) !== null) {
-            $options['max_tokens'] = (int)$this->getOption('max-tokens');
-        }
-        if (($this->getOption('model')) !== null) {
-            $options['model'] = (string)$this->getOption('model');
-        }
-
-        if ($this->getOption('timeout') !== null) {
-            $options['timeout'] = (int)$this->getOption('timeout');
-        }
 
         try {
             $this->progress('Collecting schema information...');
@@ -217,25 +191,12 @@ class AiCommand extends Command
      */
     protected function optimize(): int
     {
+        $options = $this->generationOptions();
+
         $db = $this->getDb();
         $provider = $this->getOption('provider');
         $format = (string)$this->getOption('format', 'text');
         $tableName = $this->getOption('table');
-
-        $options = [];
-        if (($this->getOption('temperature')) !== null) {
-            $options['temperature'] = (float)$this->getOption('temperature');
-        }
-        if (($this->getOption('max-tokens')) !== null) {
-            $options['max_tokens'] = (int)$this->getOption('max-tokens');
-        }
-        if (($this->getOption('model')) !== null) {
-            $options['model'] = (string)$this->getOption('model');
-        }
-
-        if ($this->getOption('timeout') !== null) {
-            $options['timeout'] = (int)$this->getOption('timeout');
-        }
 
         try {
             $this->progress('Analyzing database schema...');
@@ -318,12 +279,43 @@ class AiCommand extends Command
             if ($doctor) {
                 $config = $db->getAiConfig();
                 $provider = $config->getDefaultProvider();
-                $result['ai'] = ['provider' => $provider, 'api_key_configured' => $config->hasApiKey($provider),
-                    'provider_network_checked' => false, 'metadata_tools_require_key' => false,
+                $model = $config->getProviderSetting($provider, 'model');
+                $baseUrl = $config->getProviderSetting($provider, 'base_url');
+                $hasKey = $config->hasApiKey($provider);
+                $probe = $this->getOption('probe') !== null;
+                $summary = [
+                    'Provider: ' . $provider,
+                    'Model: ' . (is_string($model) && $model !== '' ? $model : 'provider default'),
+                    'API key: ' . ($hasKey ? 'configured' : 'missing'),
+                    'Endpoint: ' . (is_string($baseUrl) && $baseUrl !== '' ? 'configured' : 'provider default'),
+                    'Database: connected',
+                    'AI request: ' . ($probe ? 'one short probe was requested' : 'not made'),
+                ];
+                $result['ai'] = [
+                    'provider' => $provider,
+                    'api_key_configured' => $hasKey,
+                    'provider_network_checked' => false,
+                    'metadata_tools_require_key' => false,
                     'provider_source' => getenv('PDODB_AI_PROVIDER') ? 'environment' : 'configuration/default',
-                    'configured_model' => $config->getProviderSetting($provider, 'model'),
-                    'settings_precedence' => 'environment > configuration > defaults'];
+                    'configured_model' => $model,
+                    'settings_precedence' => 'environment > configuration > defaults',
+                    'summary' => $summary,
+                ];
                 $result['database_connected'] = true;
+                if ($probe) {
+                    $result['ai']['probe_notice'] = 'This check sends one short provider request and may incur a charge. The API key and response body are not shown.';
+
+                    try {
+                        $aiProvider = (new AiAnalysisService($db))->getProvider();
+                        $aiProvider->analyzeQuery('SELECT 1');
+                        $result['ai']['provider_network_checked'] = true;
+                        $result['ai']['probe_status'] = 'ok';
+                    } catch (\Throwable) {
+                        $result['ai']['provider_network_checked'] = true;
+                        $result['ai']['probe_status'] = 'failed';
+                        $result['ai']['probe_error'] = 'The provider request failed. Check the key, model, and endpoint. The response body is omitted.';
+                    }
+                }
             }
             echo json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n";
             return 0;
@@ -360,6 +352,64 @@ class AiCommand extends Command
         return 0;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    protected function generationOptions(): array
+    {
+        $temperature = $this->numericOption('temperature', 0.0, 2.0);
+        if ($temperature === false) {
+            $this->showError('Option --temperature must be a number from 0 to 2.');
+        }
+        $maxTokens = $this->positiveIntOption('max-tokens');
+        if ($maxTokens === false) {
+            $this->showError('Option --max-tokens must be a positive integer.');
+        }
+        $timeout = $this->positiveIntOption('timeout');
+        if ($timeout === false) {
+            $this->showError('Option --timeout must be a positive integer.');
+        }
+        $options = [];
+        if ($temperature !== null) {
+            $options['temperature'] = $temperature;
+        }
+        if ($maxTokens !== null) {
+            $options['max_tokens'] = $maxTokens;
+        }
+        if ($timeout !== null) {
+            $options['timeout'] = $timeout;
+        }
+        if ($this->getOption('model') !== null) {
+            $options['model'] = (string)$this->getOption('model');
+        }
+        return $options;
+    }
+
+    protected function numericOption(string $name, float $min, float $max): float|false|null
+    {
+        $value = $this->getOption($name);
+        if ($value === null) {
+            return null;
+        }
+        if (!is_numeric($value)) {
+            return false;
+        }
+        $number = (float)$value;
+        return $number >= $min && $number <= $max ? $number : false;
+    }
+
+    protected function positiveIntOption(string $name): int|false|null
+    {
+        $value = $this->getOption($name);
+        if ($value === null) {
+            return null;
+        }
+        if (!is_numeric($value) || (int)$value != $value || (int)$value < 1) {
+            return false;
+        }
+        return (int)$value;
+    }
+
     public function getName(): string
     {
         return 'ai';
@@ -391,7 +441,8 @@ class AiCommand extends Command
         echo "  --params=JSON     Positional/named parameters for query EXPLAIN\n";
         echo "  --timeout=N       AI provider timeout in seconds\n";
         echo "  --table=NAME      Table name for context\n";
-        echo "  --format=FORMAT   Output format (text, json)\n\n";
+        echo "  --format=FORMAT   Output format (text, json)\n";
+        echo "  --probe           With doctor, send one short provider request. It may incur a charge.\n\n";
         echo "Examples:\n";
         echo "  pdodb ai query \"SELECT * FROM users\" --provider=anthropic\n";
         echo "  pdodb ai schema --table=users --format=json\n";

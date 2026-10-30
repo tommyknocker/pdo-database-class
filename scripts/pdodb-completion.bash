@@ -23,7 +23,7 @@ _pdodb() {
     local global_opts="--help --version -v --connection= --config= --env="
 
     # Main commands
-    local commands="migrate seed schema query model repository service generate db user table connection dump monitor ui cache benchmark optimize init version"
+    local commands="migrate seed schema query model repository service generate db user table connection dump monitor ui cache benchmark optimize init version ai"
 
     # If no command yet, complete with commands
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -40,6 +40,20 @@ _pdodb() {
     # Handle version command
     if [[ "${cmd}" == "version" ]]; then
         COMPREPLY=()
+        return 0
+    fi
+
+    if [[ "${cmd}" == "ai" ]]; then
+        local ai_subcommands="query schema optimize doctor context docs setup help"
+        if [[ ${COMP_CWORD} -eq 2 ]]; then
+            COMPREPLY=($(compgen -W "${ai_subcommands} --help" -- "${cur}"))
+            return 0
+        fi
+        local ai_opts="--provider= --model= --format=text --format=json --format --table= --temperature= --max-tokens= --timeout= --params="
+        if [[ "${subcmd}" == "doctor" ]]; then
+            ai_opts="${ai_opts} --probe"
+        fi
+        COMPREPLY=($(compgen -W "${ai_opts}" -- "${cur}"))
         return 0
     fi
 

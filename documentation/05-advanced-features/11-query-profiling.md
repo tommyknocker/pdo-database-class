@@ -216,6 +216,23 @@ $db = new PdoDb('mysql', $config, [], $logger);
 $db->enableProfiling(0.1);
 ```
 
+The default slow-query context contains redacted SQL and no parameter values. String literals in the SQL are replaced with `?`. Call `setLogParameters(true)` on the profiler only when a local debugging session should include the bound values:
+
+```php
+$db->getProfiler()?->setLogParameters(true);
+```
+
+`getSlowestQueries()` ranks shapes by total time and includes `count`. `possible_n_plus_one` means one normalized SQL shape ran at least 10 times. It is a hypothesis, not a diagnosis. Distinct SQL shapes are capped so a long process cannot grow the in-memory map without bound. `profileReport()` reads this connection only. `pdodb monitor stats` cannot see another process's profiler. Export the report from the application when another process needs it:
+
+```php
+$report = $db->profileReport();
+$summary = $report->summary();
+$diagnosis = $report->diagnose('SELECT * FROM orders WHERE status = ?', ['pending']);
+file_put_contents('/tmp/pdodb-profile.json', $report->export());
+```
+
+`diagnose()` uses the available plan and local advice. It does not call a model.
+
 ## Performance Considerations
 
 - **Overhead**: Profiling adds minimal overhead (~0.01ms per query)

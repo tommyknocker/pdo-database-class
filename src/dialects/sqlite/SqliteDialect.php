@@ -350,6 +350,19 @@ class SqliteDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function executePlanExplain(PDO $pdo, string $sql, array $params = []): array
+    {
+        $statement = $pdo->prepare($this->buildExplainAnalyzeSql($sql));
+        $statement->execute($params);
+        $results = $statement->fetchAll(PDO::FETCH_ASSOC);
+        $statement->closeCursor();
+
+        return $results;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildExplainAnalyzeSql(string $query): string
     {
         return 'EXPLAIN QUERY PLAN ' . $query;
