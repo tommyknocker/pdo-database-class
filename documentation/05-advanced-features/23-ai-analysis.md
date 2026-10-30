@@ -108,10 +108,23 @@ additional setup steps for OpenRouter.
 
 ## Use the same call in your application
 
-Set the same three provider variables in the environment of your PHP process,
-or in the `.env` file your application already loads. The demo's `.env.ai.local`
-is specific to the demo/live-test scripts; a normal PHP method does not load it.
-Keep your existing database connection and QueryBuilder code.
+You can put the same provider variables in your project's `.env` alongside the
+`PDODB_*` database settings. How they are loaded depends on how you create the
+connection:
+
+- `PdoDb::fromEnv()` loads `.env` from the current working directory (or the
+  path selected by `PDODB_ENV_PATH`). Pass a path to `PdoDb::fromEnv($path)`
+  to load a specific file. The AI settings in that file are available to
+  `explainAiAdvice()` too.
+- `new PdoDb(...)` does not load `.env`. Load it in your application before
+  creating or using the connection, or set the variables in the PHP process
+  environment. The AI configuration reads them with PHP `getenv()`.
+- PDOdb CLI commands load `.env` themselves. The demo's `.env.ai.local` is a
+  separate file loaded by the demo's `--ai` mode and the live-test scripts;
+  normal PHP calls and `PdoDb::fromEnv()` do not select it automatically.
+
+Existing process environment variables take precedence over values loaded from
+`.env`. Keep your existing database connection and QueryBuilder code.
 
 ```php
 $query = $db->find()

@@ -323,6 +323,16 @@ $db = PdoDb::fromEnv();
 $db = PdoDb::fromEnv('/path/to/.env.local');
 ```
 
+`fromEnv()` loads the file into the PHP process environment before creating the
+connection. This also makes AI variables in the same file available to AI
+features; see [AI configuration](../05-advanced-features/26-ai-reference.md#configuration).
+Existing process environment variables take precedence over values in the file.
+
+A direct `new PdoDb(...)` call does **not** load `.env`: load it in your
+application first or set process environment variables yourself. PDOdb CLI
+commands load `.env` separately. A loader used by the application must expose
+variables through PHP `getenv()` for PDOdb to read them.
+
 ### Environment Variables
 
 The following environment variables are supported in `.env` files:

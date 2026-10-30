@@ -26,7 +26,26 @@ Azure requires `PDODB_AI_BASE_URL` (resource endpoint) and `PDODB_AI_MODEL`
 (the deployment name); Yandex requires
 `PDODB_AI_FOLDER_ID`. Other optional overrides are `PDODB_AI_TEMPERATURE`,
 `PDODB_AI_MAX_TOKENS`, and `PDODB_AI_TIMEOUT` (seconds). Choose only the
-settings your application needs.
+settings your application needs. For example, to request a lower temperature:
+
+```dotenv
+PDODB_AI_TEMPERATURE=0.3
+```
+
+A `.env` file is loaded at connection setup, not by an AI method:
+
+- `PdoDb::fromEnv()` loads `.env` from the current working directory (or the
+  file selected by `PDODB_ENV_PATH`); `PdoDb::fromEnv($path)` loads the given
+  file. Include database and AI variables in that file.
+- `new PdoDb(...)` does not load `.env`. Load it in your application or set
+  the process environment first. AI settings must be visible to PHP `getenv()`;
+  a loader that populates only `$_ENV` is insufficient.
+- PDOdb CLI commands load `.env` themselves, including when using a PHP database
+  config file. `.env.ai.local` is only loaded explicitly by the demo's `--ai`
+  mode and live-test scripts, not by `fromEnv()` unless passed as its path.
+
+Values already present in the process environment are not overwritten by
+`.env`. Keep files containing API keys out of version control.
 
 Supported provider names: `openrouter`, `openai-compatible`, `openai`,
 `anthropic`, `google`, `microsoft`, `deepseek`, `yandex`, and `ollama`.
@@ -44,9 +63,14 @@ Alternatively, place the same settings in your database configuration:
 ],
 ```
 
-Use `base_url`, `folder_id`, `temperature`,
-`max_tokens`, or `timeout` only when needed. The key and settings belong to the
-selected provider; they are not sent to another provider.
+Use `base_url`, `folder_id`, `temperature`, `max_tokens`, or `timeout` only
+when needed. For example, add `'temperature' => 0.3` to the `ai` array above.
+The key and settings belong to the selected provider; they are not sent to
+another provider. To override the temperature for a single query instead:
+
+```php
+$advice = $query->explainAiAdvice(options: ['temperature' => 0.3]);
+```
 
 ### Migrating existing AI settings
 
