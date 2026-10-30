@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\ai\providers;
 
 use tommyknocker\pdodb\ai\BaseAiProvider;
-use tommyknocker\pdodb\ai\QueryAdvicePrompt;
 use tommyknocker\pdodb\exceptions\QueryException;
 
 /**
@@ -33,6 +32,7 @@ class OpenAiProvider extends BaseAiProvider
         $defaultBaseUrl = match ($provider) {
             'openai' => 'https://api.openai.com/v1',
             'openrouter' => 'https://openrouter.ai/api/v1',
+            'deepseek' => 'https://api.deepseek.com',
             default => '',
         };
         $baseUrl = (string)$this->config->getProviderSetting($provider, 'base_url', $defaultBaseUrl);
@@ -45,11 +45,17 @@ class OpenAiProvider extends BaseAiProvider
             }
         }
         // Preserve existing subclasses that override the protected endpoint property.
-        if ($provider !== 'openai' || $this->apiUrl === self::API_URL
-            || $this->config->getProviderSetting($provider, 'base_url') !== null) {
+        $customSubclassEndpoint = in_array($provider, ['openai', 'deepseek'], true)
+            && $this->apiUrl !== self::API_URL
+            && $this->config->getProviderSetting($provider, 'base_url') === null;
+        if (!$customSubclassEndpoint) {
             $this->apiUrl = $baseUrl === '' ? '' : rtrim($baseUrl, '/') . '/chat/completions';
         }
-        $defaultModel = $provider === 'openrouter' ? 'openai/' . self::DEFAULT_MODEL : self::DEFAULT_MODEL;
+        $defaultModel = match ($provider) {
+            'openrouter' => 'openai/' . self::DEFAULT_MODEL,
+            'deepseek' => 'deepseek-flash',
+            default => self::DEFAULT_MODEL,
+        };
         $this->model = (string)$this->config->getProviderSetting($provider, 'model', $defaultModel);
         $this->temperature = (float)$this->config->getProviderSetting($provider, 'temperature', self::DEFAULT_TEMPERATURE);
         $this->maxTokens = (int)$this->config->getProviderSetting($provider, 'max_tokens', self::DEFAULT_MAX_TOKENS);
@@ -65,33 +71,8 @@ class OpenAiProvider extends BaseAiProvider
         return $this->apiUrl !== '' && $this->config->hasApiKey($this->getProviderName());
     }
 
-    public function analyzeQuery(string $sql, array $context = []): string
+    protected function dispatchAnalysis(string $systemPrompt, string $userPrompt): string
     {
-        $this->ensureAvailable();
-
-        $systemPrompt = $this->buildSystemPrompt('query');
-        $userPrompt = $this->buildQueryPrompt($sql, $context);
-
-        return $this->callApi($systemPrompt, $userPrompt);
-    }
-
-    public function analyzeSchema(array $schema, array $context = []): string
-    {
-        $this->ensureAvailable();
-
-        $systemPrompt = $this->buildSystemPrompt('schema');
-        $userPrompt = $this->buildSchemaPrompt($schema, $context);
-
-        return $this->callApi($systemPrompt, $userPrompt);
-    }
-
-    public function suggestOptimizations(array $analysis, array $context = []): string
-    {
-        $this->ensureAvailable();
-
-        $systemPrompt = $this->buildSystemPrompt('optimization');
-        $userPrompt = $this->buildOptimizationPrompt($analysis, $context);
-
         return $this->callApi($systemPrompt, $userPrompt);
     }
 
@@ -127,14 +108,25 @@ class OpenAiProvider extends BaseAiProvider
         ];
 
         $provider = $this->getProviderName();
+        $reasoningRequiredForTemperature = false;
         if ($provider === 'openai' && preg_match('/^gpt-[56](?:[.\-]|$)/', $this->model) === 1) {
-            unset($data['temperature'], $data['max_tokens']);
+            unset($data['max_tokens']);
             $data['max_completion_tokens'] = $this->maxTokens;
+            if ($this->temperatureExplicit && preg_match('/^gpt-5\.(?:2|4)(?!-pro(?:[.-]|$))(?:[.-]|$)/', $this->model) === 1) {
+                $reasoningRequiredForTemperature = true;
+                $data['reasoning_effort'] = 'none';
+            } else {
+                $this->requireTemperatureSupport();
+                unset($data['temperature']);
+            }
         }
         $requestOptions = $this->config->getProviderSetting($provider, 'request_options', []);
         if (!is_array($requestOptions) || array_key_exists('model', $requestOptions) || array_key_exists('messages', $requestOptions)
             || isset($requestOptions['stream']) && $requestOptions['stream'] !== false) {
             throw new QueryException('AI request_options must be an array and cannot override model/messages or enable streaming', 0);
+        }
+        if ($reasoningRequiredForTemperature && array_key_exists('reasoning_effort', $requestOptions) && $requestOptions['reasoning_effort'] !== 'none') {
+            throw new \InvalidArgumentException('An explicit temperature requires reasoning_effort=none for this model.');
         }
         $data = array_filter(array_replace($data, $requestOptions), static fn ($value) => $value !== null);
         $headers = $this->config->getProviderSetting($provider, 'headers', []);
@@ -168,75 +160,6 @@ class OpenAiProvider extends BaseAiProvider
         }
 
         return $content;
-    }
-
-    /**
-     * Build system prompt based on analysis type.
-     */
-    protected function buildSystemPrompt(string $type): string
-    {
-        if ($type === 'query') {
-            return QueryAdvicePrompt::system();
-        }
-
-        $basePrompt = 'You are an expert database performance analyst. Provide clear, actionable recommendations for database optimization.';
-
-        $typePrompts = [
-            'query' => 'Analyze SQL queries and provide optimization suggestions. Focus on index usage, query structure, and performance bottlenecks.',
-            'schema' => 'Analyze database schema and provide recommendations for indexes, constraints, and table structure improvements.',
-            'optimization' => 'Review existing analysis results and provide additional optimization suggestions. Build upon the existing recommendations.',
-        ];
-
-        return $basePrompt . ' ' . ($typePrompts[$type] ?? '');
-    }
-
-    /**
-     * Build prompt for query analysis.
-     */
-    /**
-     * @param array<string, mixed> $context
-     */
-    protected function buildQueryPrompt(string $sql, array $context): string
-    {
-        return QueryAdvicePrompt::user($sql, $context);
-    }
-
-    /**
-     * Build prompt for schema analysis.
-     */
-    /**
-     * @param array<string, mixed> $schema
-     * @param array<string, mixed> $context
-     */
-    protected function buildSchemaPrompt(array $schema, array $context): string
-    {
-        $prompt = "Analyze the following database schema and provide optimization recommendations:\n\n";
-        $prompt .= $this->formatContext(array_merge(['schema' => $schema], $context));
-
-        $prompt .= "\n\nProvide specific recommendations for:\n";
-        $prompt .= "- Missing indexes\n";
-        $prompt .= "- Redundant indexes\n";
-        $prompt .= "- Table structure improvements\n";
-        $prompt .= '- Foreign key optimizations';
-
-        return $prompt;
-    }
-
-    /**
-     * Build prompt for optimization suggestions.
-     */
-    /**
-     * @param array<string, mixed> $analysis
-     * @param array<string, mixed> $context
-     */
-    protected function buildOptimizationPrompt(array $analysis, array $context): string
-    {
-        $prompt = "Review the following database analysis and provide additional optimization suggestions:\n\n";
-        $prompt .= $this->formatContext(array_merge(['existing_analysis' => $analysis], $context));
-
-        $prompt .= "\n\nProvide additional recommendations that complement the existing analysis.";
-
-        return $prompt;
     }
 
     /**

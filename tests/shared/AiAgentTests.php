@@ -14,8 +14,10 @@ use tommyknocker\pdodb\ai\mcp\McpServer;
 use tommyknocker\pdodb\ai\providers\AnthropicProvider;
 use tommyknocker\pdodb\ai\providers\GoogleProvider;
 use tommyknocker\pdodb\ai\providers\MicrosoftProvider;
+use tommyknocker\pdodb\ai\providers\OllamaProvider;
 use tommyknocker\pdodb\ai\providers\OpenAiCompatibleProvider;
 use tommyknocker\pdodb\ai\providers\OpenAiProvider;
+use tommyknocker\pdodb\ai\providers\YandexProvider;
 use tommyknocker\pdodb\ai\QueryInspectionService;
 use tommyknocker\pdodb\cli\commands\AiCommand;
 use tommyknocker\pdodb\cli\commands\McpCommand;
@@ -85,6 +87,19 @@ final class AiAgentTests extends TestCase
         self::assertArrayNotHasKey('temperature', $body);
     }
 
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testOpenAi54SupportsExplicitTemperatureWithoutReasoning(): void
+    {
+        require __DIR__ . '/../fixtures/ai-http-functions.php';
+        $provider = new OpenAiProvider(new AiConfig(['ai' => ['api_key' => 'fake-key', 'temperature' => 0.3]]));
+        self::assertSame('Test analysis', $provider->analyzeQuery('SELECT 1'));
+        $body = json_decode(end($GLOBALS['ai_test_requests'])['options']['http']['content'], true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame(0.3, $body['temperature']);
+        self::assertSame('none', $body['reasoning_effort']);
+        self::assertArrayHasKey('max_completion_tokens', $body);
+    }
+
     public function testCurrentAnthropicModelDoesNotSendUnsupportedTemperature(): void
     {
         $provider = new class (new AiConfig(['ai' => ['provider' => 'anthropic', 'api_key' => 'fake-key']])) extends AnthropicProvider {
@@ -144,6 +159,131 @@ final class AiAgentTests extends TestCase
         self::assertSame('Advice', $provider->analyzeQuery('SELECT 1'));
         self::assertSame('gemini-3.8-flash', $provider->getModel());
         self::assertArrayNotHasKey('temperature', $provider->body['generationConfig']);
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testDeepSeekUsesSharedCompatibleTransport(): void
+    {
+        require __DIR__ . '/../fixtures/ai-http-functions.php';
+        $config = new AiConfig(['ai' => ['provider' => 'deepseek', 'api_key' => 'fake-key']]);
+        $provider = (new AiAnalysisService($this->db, $config))->getProvider();
+        self::assertSame('deepseek', $provider->getProviderName());
+        self::assertSame('deepseek-flash', $provider->getModel());
+        self::assertSame('Test analysis', $provider->analyzeQuery('SELECT 1'));
+        $request = end($GLOBALS['ai_test_requests']);
+        self::assertSame('https://api.deepseek.com/chat/completions', $request['url']);
+        self::assertStringContainsString('Authorization: Bearer fake-key', $request['options']['http']['header']);
+    }
+
+    public function testGoogleKeyIsSentInHeader(): void
+    {
+        $provider = new class (new AiConfig(['ai' => ['provider' => 'google', 'api_key' => 'fake-key']])) extends GoogleProvider {
+            public string $url = '';
+            public array $headers = [];
+            protected function makeRequest(string $url, array $data, array $headers = []): array
+            {
+                $this->url = $url;
+                $this->headers = $headers;
+                return ['candidates' => [['content' => ['parts' => [['text' => 'Advice']]], 'finishReason' => 'STOP']]];
+            }
+        };
+        self::assertSame('Advice', $provider->analyzeQuery('SELECT 1'));
+        self::assertStringNotContainsString('fake-key', $provider->url);
+        self::assertSame('fake-key', $provider->headers['x-goog-api-key']);
+    }
+
+    public function testExplicitUnsupportedTemperatureFailsClearly(): void
+    {
+        foreach (['openai', 'anthropic', 'google'] as $name) {
+            $config = new AiConfig(['ai' => ['provider' => $name, 'api_key' => 'fake-key', 'temperature' => 0.3] + ($name === 'openai' ? ['model' => 'gpt-5'] : [])]);
+            $provider = (new AiAnalysisService($this->db, $config))->getProvider();
+
+            try {
+                $provider->analyzeQuery('SELECT 1');
+                self::fail('Unsupported explicit temperature must not be ignored');
+            } catch (\InvalidArgumentException $e) {
+                self::assertStringContainsString('does not support an explicit temperature', $e->getMessage());
+            }
+        }
+    }
+
+    public function testOpenAiProTemperatureIsRejected(): void
+    {
+        $provider = new OpenAiProvider(new AiConfig(['ai' => ['api_key' => 'fake-key', 'model' => 'gpt-5.4-pro', 'temperature' => 0.3]]));
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('does not support an explicit temperature');
+        $provider->analyzeQuery('SELECT 1');
+    }
+
+    public function testOpenAiTemperatureConflictsWithReasoning(): void
+    {
+        $provider = new OpenAiProvider(new AiConfig(['ai' => ['api_key' => 'fake-key', 'temperature' => 0.3,
+            'request_options' => ['reasoning_effort' => 'high']]]));
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('requires reasoning_effort=none');
+        $provider->analyzeQuery('SELECT 1');
+    }
+
+    public function testInvalidEnvironmentSettingsAreRejected(): void
+    {
+        putenv('PDODB_AI_TIMEOUT=not-a-number');
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('timeout must be a positive integer');
+        new AiConfig();
+    }
+
+    public function testEnvironmentOverridesInvalidArraySettingBeforeValidation(): void
+    {
+        putenv('PDODB_AI_TEMPERATURE=0.5');
+        $config = new AiConfig(['ai' => ['provider' => 'deepseek', 'temperature' => 'invalid']]);
+        self::assertSame(0.5, $config->getProviderSetting('deepseek', 'temperature'));
+    }
+
+    public function testInvalidNumericSettingsAreRejected(): void
+    {
+        foreach ([['temperature' => 'not-a-number'], ['temperature' => 2.1], ['max_tokens' => 0], ['timeout' => -1]] as $settings) {
+            try {
+                new AiConfig(['ai' => $settings]);
+                self::fail('Invalid AI setting must be rejected');
+            } catch (\InvalidArgumentException $e) {
+                self::assertStringContainsString('AI ', $e->getMessage());
+            }
+        }
+    }
+
+    public function testAllNativeProvidersShareAnalysisFlow(): void
+    {
+        $createConfig = static fn (string $name): AiConfig => new AiConfig(['ai' => [
+            'provider' => $name, 'api_key' => 'fake-key', 'base_url' => 'https://example.test/v1',
+            'model' => 'fixture-model', 'folder_id' => 'fixture-folder',
+        ]]);
+        $providers = [
+            new class ($createConfig('openai')) extends OpenAiProvider {
+                use AiTransportFixture;
+            },
+            new class ($createConfig('anthropic')) extends AnthropicProvider {
+                use AiTransportFixture;
+            },
+            new class ($createConfig('google')) extends GoogleProvider {
+                use AiTransportFixture;
+            },
+            new class ($createConfig('microsoft')) extends MicrosoftProvider {
+                use AiTransportFixture;
+            },
+            new class ($createConfig('yandex')) extends YandexProvider {
+                use AiTransportFixture;
+            },
+            new class ($createConfig('ollama')) extends OllamaProvider {
+                use AiTransportFixture;
+            },
+        ];
+        foreach ($providers as $provider) {
+            self::assertSame('Fixture advice', $provider->analyzeQuery('SELECT 1'));
+            self::assertSame('Fixture advice', $provider->analyzeSchema(['columns' => []]));
+            self::assertSame('Fixture advice', $provider->suggestOptimizations(['issues' => []]));
+            self::assertCount(3, $provider->requests);
+        }
     }
 
     private function request(string $method, array $params = []): array
@@ -474,5 +614,22 @@ final class AiAgentTests extends TestCase
             }
             rmdir($project);
         }
+    }
+}
+
+trait AiTransportFixture
+{
+    public array $requests = [];
+
+    protected function makeRequest(string $url, array $data, array $headers = []): array
+    {
+        $this->requests[] = $data;
+        return match ($this->getProviderName()) {
+            'google' => ['candidates' => [['content' => ['parts' => [['text' => 'Fixture advice']]], 'finishReason' => 'STOP']]],
+            'anthropic' => ['content' => [['type' => 'text', 'text' => 'Fixture advice']]],
+            'yandex' => ['output' => [['content' => [['text' => 'Fixture advice']]]]],
+            'ollama' => ['response' => 'Fixture advice'],
+            default => ['choices' => [['message' => ['content' => 'Fixture advice']]]],
+        };
     }
 }

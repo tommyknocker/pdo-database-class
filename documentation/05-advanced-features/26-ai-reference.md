@@ -51,6 +51,15 @@ Supported provider names: `openrouter`, `openai-compatible`, `openai`,
 `anthropic`, `google`, `microsoft`, `deepseek`, `yandex`, and `ollama`.
 Model access and supported request parameters depend on your account.
 
+Temperature is optional; omit it to use the model profile's default. An explicit
+`temperature` in PHP, `PDODB_AI_TEMPERATURE`, or per-call options must be a number
+from 0 to 2. OpenAI GPT-5.2 and GPT-5.4 (excluding Pro variants) require `reasoning_effort=none` when
+using temperature; PDOdb sets that automatically. Other GPT-5/6 profiles,
+Anthropic Claude 4.7+/5, and Google Gemini 3.6+ reject an explicit temperature
+in PDOdb rather than silently ignoring it. Compatible gateways may have different
+rules: check your model's documentation and use `request_options` where needed. `max_tokens` and
+`timeout` must be positive integers.
+
 ### PHP configuration
 
 Alternatively, place the same settings in your database configuration:

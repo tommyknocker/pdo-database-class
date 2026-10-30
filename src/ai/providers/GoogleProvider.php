@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\ai\providers;
 
 use tommyknocker\pdodb\ai\BaseAiProvider;
-use tommyknocker\pdodb\ai\QueryAdvicePrompt;
 use tommyknocker\pdodb\exceptions\QueryException;
 
 /**
@@ -17,7 +16,6 @@ class GoogleProvider extends BaseAiProvider
     private const string DEFAULT_MODEL = 'gemini-3.8-flash';
     private const float DEFAULT_TEMPERATURE = 0.7;
     private const int DEFAULT_MAX_TOKENS = 8192;
-    private const string URL_PARAM_KEY = '?key=';
     private const string REQUEST_KEY_CONTENTS = 'contents';
     private const string REQUEST_KEY_PARTS = 'parts';
     private const string REQUEST_KEY_TEXT = 'text';
@@ -46,34 +44,9 @@ class GoogleProvider extends BaseAiProvider
         return $this->config->hasApiKey('google');
     }
 
-    public function analyzeQuery(string $sql, array $context = []): string
+    protected function dispatchAnalysis(string $systemPrompt, string $userPrompt): string
     {
-        $this->ensureAvailable();
-
-        $prompt = $this->buildQueryPrompt($sql, $context);
-        $systemInstruction = $this->buildSystemPrompt('query');
-
-        return $this->callApi($prompt, $systemInstruction);
-    }
-
-    public function analyzeSchema(array $schema, array $context = []): string
-    {
-        $this->ensureAvailable();
-
-        $prompt = $this->buildSchemaPrompt($schema, $context);
-        $systemInstruction = $this->buildSystemPrompt('schema');
-
-        return $this->callApi($prompt, $systemInstruction);
-    }
-
-    public function suggestOptimizations(array $analysis, array $context = []): string
-    {
-        $this->ensureAvailable();
-
-        $prompt = $this->buildOptimizationPrompt($analysis, $context);
-        $systemInstruction = $this->buildSystemPrompt('optimization');
-
-        return $this->callApi($prompt, $systemInstruction);
+        return $this->callApi($userPrompt, $systemPrompt);
     }
 
     /**
@@ -86,7 +59,7 @@ class GoogleProvider extends BaseAiProvider
             throw new QueryException('Google API key not configured', 0);
         }
 
-        $url = sprintf($this->apiUrl, $this->model) . self::URL_PARAM_KEY . urlencode($apiKey);
+        $url = sprintf($this->apiUrl, $this->model);
 
         $data = [
             self::REQUEST_KEY_CONTENTS => [
@@ -112,39 +85,34 @@ class GoogleProvider extends BaseAiProvider
         ];
 
         if (preg_match('/^gemini-(?:3\.[6-9]|[4-9])/', $this->model) === 1) {
+            $this->requireTemperatureSupport();
             unset($data[self::REQUEST_KEY_GENERATION_CONFIG]['temperature']);
         }
 
-        $response = $this->makeRequest($url, $data);
+        $response = $this->makeRequest($url, $data, ['x-goog-api-key' => $apiKey]);
 
         // Check for error in response
         if (isset($response['error'])) {
-            $errorCode = $response['error']['code'] ?? 'unknown';
-            $errorMessage = $response['error']['message'] ?? 'Unknown error';
+            $errorCode = $response['error']['code'] ?? null;
+            $errorCode = is_int($errorCode) ? $errorCode : 'unknown';
 
             throw new QueryException(
-                "Google API error ({$errorCode}): {$errorMessage}",
+                "Google API error ({$errorCode})",
                 0
             );
         }
 
         // Validate response structure
         if (!isset($response[self::RESPONSE_KEY_CANDIDATES])) {
-            $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-            $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
-
             throw new QueryException(
-                'Invalid response format from Google API: missing "candidates" key. Response: ' . $responseStr,
+                'Invalid response format from Google API: missing "candidates" key.',
                 0
             );
         }
 
         if (empty($response[self::RESPONSE_KEY_CANDIDATES])) {
-            $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-            $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
-
             throw new QueryException(
-                'Invalid response format from Google API: empty "candidates" array. Response: ' . $responseStr,
+                'Invalid response format from Google API: empty "candidates" array.',
                 0
             );
         }
@@ -160,7 +128,7 @@ class GoogleProvider extends BaseAiProvider
                 'RECITATION' => 'Response was blocked due to recitation detection.',
                 'OTHER' => 'Response was stopped for an unknown reason.',
             ];
-            $message = $reasonMessages[$finishReason] ?? "Response was stopped (reason: {$finishReason}).";
+            $message = $reasonMessages[$finishReason] ?? 'Response was stopped for an unknown reason.';
 
             // Try to get partial content if available
             $content = $candidate[self::RESPONSE_KEY_CONTENT] ?? null;
@@ -179,11 +147,8 @@ class GoogleProvider extends BaseAiProvider
         }
 
         if (!isset($candidate[self::RESPONSE_KEY_CONTENT])) {
-            $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-            $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
-
             throw new QueryException(
-                'Invalid response format from Google API: missing "content" key in candidate. Response: ' . $responseStr,
+                'Invalid response format from Google API: missing "content" key in candidate.',
                 0
             );
         }
@@ -191,11 +156,8 @@ class GoogleProvider extends BaseAiProvider
         $content = $candidate[self::RESPONSE_KEY_CONTENT];
 
         if (!isset($content[self::REQUEST_KEY_PARTS]) || empty($content[self::REQUEST_KEY_PARTS])) {
-            $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-            $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
-
             throw new QueryException(
-                'Invalid response format from Google API: missing or empty "parts" array. Response: ' . $responseStr,
+                'Invalid response format from Google API: missing or empty "parts" array.',
                 0
             );
         }
@@ -203,73 +165,13 @@ class GoogleProvider extends BaseAiProvider
         $part = $content[self::REQUEST_KEY_PARTS][0];
 
         if (!isset($part[self::REQUEST_KEY_TEXT])) {
-            $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-            $responseStr = is_string($responseJson) ? substr($responseJson, 0, 500) : 'Unable to encode response';
-
             throw new QueryException(
-                'Invalid response format from Google API: missing "text" key in part. Response: ' . $responseStr,
+                'Invalid response format from Google API: missing "text" key in part.',
                 0
             );
         }
 
         return (string)$part[self::REQUEST_KEY_TEXT];
-    }
-
-    protected function buildSystemPrompt(string $type): string
-    {
-        if ($type === 'query') {
-            return QueryAdvicePrompt::system();
-        }
-
-        $basePrompt = 'You are an expert database performance analyst. Provide clear, actionable recommendations for database optimization.';
-
-        $typePrompts = [
-            'query' => 'Analyze SQL queries and provide optimization suggestions. Focus on index usage, query structure, and performance bottlenecks.',
-            'schema' => 'Analyze database schema and provide recommendations for indexes, constraints, and table structure improvements.',
-            'optimization' => 'Review existing analysis results and provide additional optimization suggestions. Build upon the existing recommendations.',
-        ];
-
-        return $basePrompt . ' ' . ($typePrompts[$type] ?? '');
-    }
-
-    /**
-     * @param array<string, mixed> $context
-     */
-    protected function buildQueryPrompt(string $sql, array $context): string
-    {
-        return QueryAdvicePrompt::user($sql, $context);
-    }
-
-    /**
-     * @param array<string, mixed> $schema
-     * @param array<string, mixed> $context
-     */
-    protected function buildSchemaPrompt(array $schema, array $context): string
-    {
-        $prompt = "Analyze the following database schema and provide optimization recommendations:\n\n";
-        $prompt .= $this->formatContext(array_merge(['schema' => $schema], $context));
-
-        $prompt .= "\n\nProvide specific recommendations for:\n";
-        $prompt .= "- Missing indexes\n";
-        $prompt .= "- Redundant indexes\n";
-        $prompt .= "- Table structure improvements\n";
-        $prompt .= '- Foreign key optimizations';
-
-        return $prompt;
-    }
-
-    /**
-     * @param array<string, mixed> $analysis
-     * @param array<string, mixed> $context
-     */
-    protected function buildOptimizationPrompt(array $analysis, array $context): string
-    {
-        $prompt = "Review the following database analysis and provide additional optimization suggestions:\n\n";
-        $prompt .= $this->formatContext(array_merge(['existing_analysis' => $analysis], $context));
-
-        $prompt .= "\n\nProvide additional recommendations that complement the existing analysis.";
-
-        return $prompt;
     }
 
     protected function ensureAvailable(): void

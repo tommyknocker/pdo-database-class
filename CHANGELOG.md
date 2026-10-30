@@ -8,9 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Avoid exposing provider response bodies and API keys in AI transport errors; send Gemini credentials in the request header.
+- Reject invalid numeric AI settings and explicitly configured temperature where the model profile omits sampling parameters.
 - Correct database feature version requirements and broken documentation links; check local Markdown links in CI.
 
 ### Changed
+- Share AI prompt and analysis flow across providers, and use the OpenAI-compatible transport for DeepSeek.
 - **Breaking:** AI configuration now uses one selected provider with `PDODB_AI_API_KEY`, `PDODB_AI_MODEL` and, when needed, `PDODB_AI_BASE_URL`; PHP uses a flat `ai` array. Provider-specific keys and nested provider settings must be migrated as described in the AI configuration reference.
 - Update default OpenAI, Anthropic, Google and DeepSeek models, and simplify the AI setup wizard to configure only the chosen provider.
 

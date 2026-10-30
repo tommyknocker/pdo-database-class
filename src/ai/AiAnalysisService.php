@@ -113,26 +113,42 @@ class AiAnalysisService
         return $this->analyzeQueryContext($context, $provider, $options);
     }
 
+    /** @param array<string, mixed> $options */
+    private function providerWithOptions(?string $provider, array $options): AiProviderInterface
+    {
+        $aiProvider = clone $this->getProvider($provider);
+        if (isset($options['temperature'])) {
+            if (!is_numeric($options['temperature'])) {
+                throw new \InvalidArgumentException('AI temperature must be a number between 0 and 2');
+            }
+            $aiProvider->setTemperature((float)$options['temperature']);
+        }
+        foreach (['max_tokens', 'timeout'] as $key) {
+            if (isset($options[$key])) {
+                $number = filter_var($options[$key], FILTER_VALIDATE_INT);
+                if ($number === false || $number < 1) {
+                    throw new \InvalidArgumentException("AI {$key} must be a positive integer");
+                }
+                if ($key === 'max_tokens') {
+                    $aiProvider->setMaxTokens($number);
+                } else {
+                    $aiProvider->setTimeout($number);
+                }
+            }
+        }
+        if (isset($options['model'])) {
+            $aiProvider->setModel((string)$options['model']);
+        }
+        return $aiProvider;
+    }
+
     /** Send a previously inspected context. The caller owns its disclosure policy.
      * @param array<string, mixed> $context
      * @param array<string, mixed> $options
      */
     public function analyzeQueryContext(array $context, ?string $provider = null, array $options = []): string
     {
-        $aiProvider = clone $this->getProvider($provider);
-
-        if (isset($options['temperature'])) {
-            $aiProvider->setTemperature((float)$options['temperature']);
-        }
-        if (isset($options['max_tokens'])) {
-            $aiProvider->setMaxTokens((int)$options['max_tokens']);
-        }
-        if (isset($options['model'])) {
-            $aiProvider->setModel((string)$options['model']);
-        }
-        if (isset($options['timeout'])) {
-            $aiProvider->setTimeout((int)$options['timeout']);
-        }
+        $aiProvider = $this->providerWithOptions($provider, $options);
 
         return $aiProvider->analyzeQuery((string)($context['sql'] ?? ''), $context);
     }
@@ -165,20 +181,7 @@ class AiAnalysisService
      */
     public function analyzeSchema(?string $tableName = null, ?string $provider = null, array $options = []): string
     {
-        $aiProvider = clone $this->getProvider($provider);
-
-        if (isset($options['temperature'])) {
-            $aiProvider->setTemperature((float)$options['temperature']);
-        }
-        if (isset($options['max_tokens'])) {
-            $aiProvider->setMaxTokens((int)$options['max_tokens']);
-        }
-        if (isset($options['model'])) {
-            $aiProvider->setModel((string)$options['model']);
-        }
-        if (isset($options['timeout'])) {
-            $aiProvider->setTimeout((int)$options['timeout']);
-        }
+        $aiProvider = $this->providerWithOptions($provider, $options);
 
         $context = $this->contextBuilder->buildSchemaContext($tableName);
 
@@ -197,20 +200,7 @@ class AiAnalysisService
      */
     public function suggestOptimizations(array $analysis, array $context = [], ?string $provider = null, array $options = []): string
     {
-        $aiProvider = clone $this->getProvider($provider);
-
-        if (isset($options['temperature'])) {
-            $aiProvider->setTemperature((float)$options['temperature']);
-        }
-        if (isset($options['max_tokens'])) {
-            $aiProvider->setMaxTokens((int)$options['max_tokens']);
-        }
-        if (isset($options['model'])) {
-            $aiProvider->setModel((string)$options['model']);
-        }
-        if (isset($options['timeout'])) {
-            $aiProvider->setTimeout((int)$options['timeout']);
-        }
+        $aiProvider = $this->providerWithOptions($provider, $options);
 
         return $aiProvider->suggestOptimizations($analysis, $context);
     }

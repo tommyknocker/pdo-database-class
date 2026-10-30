@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\ai\providers;
 
 use tommyknocker\pdodb\ai\BaseAiProvider;
-use tommyknocker\pdodb\ai\QueryAdvicePrompt;
 use tommyknocker\pdodb\exceptions\QueryException;
 
 /**
@@ -56,33 +55,8 @@ class YandexProvider extends BaseAiProvider
         return $this->config->hasApiKey('yandex') && $this->folderId !== null;
     }
 
-    public function analyzeQuery(string $sql, array $context = []): string
+    protected function dispatchAnalysis(string $systemPrompt, string $userPrompt): string
     {
-        $this->ensureAvailable();
-
-        $systemPrompt = $this->buildSystemPrompt('query');
-        $userPrompt = $this->buildQueryPrompt($sql, $context);
-
-        return $this->callApi($systemPrompt, $userPrompt);
-    }
-
-    public function analyzeSchema(array $schema, array $context = []): string
-    {
-        $this->ensureAvailable();
-
-        $systemPrompt = $this->buildSystemPrompt('schema');
-        $userPrompt = $this->buildSchemaPrompt($schema, $context);
-
-        return $this->callApi($systemPrompt, $userPrompt);
-    }
-
-    public function suggestOptimizations(array $analysis, array $context = []): string
-    {
-        $this->ensureAvailable();
-
-        $systemPrompt = $this->buildSystemPrompt('optimization');
-        $userPrompt = $this->buildOptimizationPrompt($analysis, $context);
-
         return $this->callApi($systemPrompt, $userPrompt);
     }
 
@@ -123,11 +97,8 @@ class YandexProvider extends BaseAiProvider
 
         // Check for errors
         if (isset($response['error']) && $response['error'] !== '') {
-            $error = $response['error'];
-            $errorMessage = is_string($error) ? $error : json_encode($error);
-
             throw new QueryException(
-                'Yandex API error: ' . $errorMessage,
+                'Yandex API returned an error',
                 0
             );
         }
@@ -216,72 +187,6 @@ class YandexProvider extends BaseAiProvider
             'Invalid response format from Yandex API: missing or invalid "output" key. Expected structure: output[0].summary[0].text or output[0].content[0].text. Response: ' . $responseStr,
             0
         );
-    }
-
-    /**
-     * Build system prompt based on analysis type.
-     */
-    protected function buildSystemPrompt(string $type): string
-    {
-        if ($type === 'query') {
-            return QueryAdvicePrompt::system();
-        }
-
-        $basePrompt = 'You are an expert database performance analyst. Provide clear, actionable recommendations for database optimization.';
-
-        $typePrompts = [
-            'query' => 'Analyze SQL queries and provide optimization suggestions. Focus on index usage, query structure, and performance bottlenecks.',
-            'schema' => 'Analyze database schema and provide recommendations for indexes, constraints, and table structure improvements.',
-            'optimization' => 'Review existing analysis results and provide additional optimization suggestions. Build upon the existing recommendations.',
-        ];
-
-        return $basePrompt . ' ' . ($typePrompts[$type] ?? '');
-    }
-
-    /**
-     * Build prompt for query analysis.
-     *
-     * @param array<string, mixed> $context
-     */
-    protected function buildQueryPrompt(string $sql, array $context): string
-    {
-        return QueryAdvicePrompt::user($sql, $context);
-    }
-
-    /**
-     * Build prompt for schema analysis.
-     *
-     * @param array<string, mixed> $schema
-     * @param array<string, mixed> $context
-     */
-    protected function buildSchemaPrompt(array $schema, array $context): string
-    {
-        $prompt = "Analyze the following database schema and provide optimization recommendations:\n\n";
-        $prompt .= $this->formatContext(array_merge(['schema' => $schema], $context));
-
-        $prompt .= "\n\nProvide specific recommendations for:\n";
-        $prompt .= "- Missing indexes\n";
-        $prompt .= "- Redundant indexes\n";
-        $prompt .= "- Table structure improvements\n";
-        $prompt .= '- Foreign key optimizations';
-
-        return $prompt;
-    }
-
-    /**
-     * Build prompt for optimization suggestions.
-     *
-     * @param array<string, mixed> $analysis
-     * @param array<string, mixed> $context
-     */
-    protected function buildOptimizationPrompt(array $analysis, array $context): string
-    {
-        $prompt = "Review the following database analysis and provide additional optimization suggestions:\n\n";
-        $prompt .= $this->formatContext(array_merge(['existing_analysis' => $analysis], $context));
-
-        $prompt .= "\n\nProvide additional recommendations that complement the existing analysis.";
-
-        return $prompt;
     }
 
     /**

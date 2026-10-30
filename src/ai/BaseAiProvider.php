@@ -14,6 +14,7 @@ abstract class BaseAiProvider implements AiProviderInterface
     protected AiConfig $config;
     protected string $model = '';
     protected float $temperature = 0.7;
+    protected bool $temperatureExplicit = false;
     protected int $maxTokens = 2000;
     protected int $timeout = 30;
 
@@ -22,6 +23,98 @@ abstract class BaseAiProvider implements AiProviderInterface
         $this->config = $config ?? new AiConfig();
         $this->initializeDefaults();
         $this->initializeCommonDefaults();
+    }
+
+    public function analyzeQuery(string $sql, array $context = []): string
+    {
+        $this->ensureAvailable();
+        return $this->dispatchAnalysis($this->buildSystemPrompt('query'), $this->buildQueryPrompt($sql, $context));
+    }
+
+    public function analyzeSchema(array $schema, array $context = []): string
+    {
+        $this->ensureAvailable();
+        return $this->dispatchAnalysis($this->buildSystemPrompt('schema'), $this->buildSchemaPrompt($schema, $context));
+    }
+
+    public function suggestOptimizations(array $analysis, array $context = []): string
+    {
+        $this->ensureAvailable();
+        return $this->dispatchAnalysis($this->buildSystemPrompt('optimization'), $this->buildOptimizationPrompt($analysis, $context));
+    }
+
+    protected function ensureAvailable(): void
+    {
+        if (!$this->isAvailable()) {
+            throw new QueryException('AI provider ' . $this->getProviderName() . ' is not available. Check its configuration.', 0);
+        }
+    }
+
+    protected function requireTemperatureSupport(): void
+    {
+        if ($this->temperatureExplicit) {
+            throw new \InvalidArgumentException('PDOdb does not support an explicit temperature for this model; remove the temperature setting or choose a supported model.');
+        }
+    }
+
+    protected function dispatchAnalysis(string $systemPrompt, string $userPrompt): string
+    {
+        throw new \LogicException('AI provider does not implement analysis dispatch');
+    }
+
+    protected function buildSystemPrompt(string $type): string
+    {
+        if ($type === 'query') {
+            return QueryAdvicePrompt::system();
+        }
+
+        $basePrompt = 'You are an expert database performance analyst. Provide clear, actionable recommendations for database optimization.';
+
+        $typePrompts = [
+            'query' => 'Analyze SQL queries and provide optimization suggestions. Focus on index usage, query structure, and performance bottlenecks.',
+            'schema' => 'Analyze database schema and provide recommendations for indexes, constraints, and table structure improvements.',
+            'optimization' => 'Review existing analysis results and provide additional optimization suggestions. Build upon the existing recommendations.',
+        ];
+
+        return $basePrompt . ' ' . ($typePrompts[$type] ?? '');
+    }
+
+    /** @param array<string, mixed> $context */
+    protected function buildQueryPrompt(string $sql, array $context): string
+    {
+        return QueryAdvicePrompt::user($sql, $context);
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     * @param array<string, mixed> $context
+     */
+    protected function buildSchemaPrompt(array $schema, array $context): string
+    {
+        $prompt = "Analyze the following database schema and provide optimization recommendations:\n\n";
+        $prompt .= $this->formatContext(array_merge(['schema' => $schema], $context));
+
+        $prompt .= "\n\nProvide specific recommendations for:\n";
+        $prompt .= "- Missing indexes\n";
+        $prompt .= "- Redundant indexes\n";
+        $prompt .= "- Table structure improvements\n";
+        $prompt .= '- Foreign key optimizations';
+
+        return $prompt;
+    }
+
+    /**
+     * @param array<string, mixed> $analysis
+     * @param array<string, mixed> $context
+     */
+    protected function buildOptimizationPrompt(array $analysis, array $context): string
+    {
+        $prompt = "Review the following database analysis and provide additional optimization suggestions:\n\n";
+        $prompt .= $this->formatContext(array_merge(['existing_analysis' => $analysis], $context));
+
+        $prompt .= "\n\nProvide additional recommendations that complement the existing analysis.";
+
+        return $prompt;
     }
 
     /**
@@ -35,6 +128,7 @@ abstract class BaseAiProvider implements AiProviderInterface
     protected function initializeCommonDefaults(): void
     {
         $providerName = $this->getProviderName();
+        $this->temperatureExplicit = $this->config->getProviderSetting($providerName, 'temperature') !== null;
         $timeout = $this->config->getProviderSetting($providerName, 'timeout', 30);
         $this->timeout = (int)$timeout;
     }
@@ -66,12 +160,7 @@ abstract class BaseAiProvider implements AiProviderInterface
         $response = @file_get_contents($url, false, $context);
 
         if ($response === false) {
-            $error = error_get_last();
-
-            throw new QueryException(
-                'AI API request failed: ' . ($error['message'] ?? 'Unknown error'),
-                0
-            );
+            throw new QueryException('AI API request failed: unable to connect to provider', 0);
         }
 
         $headers = http_get_last_response_headers() ?? [];
@@ -79,7 +168,7 @@ abstract class BaseAiProvider implements AiProviderInterface
 
         if ($httpCode >= 400) {
             throw new QueryException(
-                "AI API request failed with HTTP {$httpCode}: {$response}",
+                "AI API request failed with HTTP {$httpCode}",
                 $httpCode
             );
         }
@@ -88,7 +177,7 @@ abstract class BaseAiProvider implements AiProviderInterface
 
         if (!is_array($decoded)) {
             throw new QueryException(
-                'Invalid JSON response from AI API: ' . $response,
+                'Invalid JSON response from AI API',
                 0
             );
         }
@@ -217,7 +306,11 @@ abstract class BaseAiProvider implements AiProviderInterface
      */
     public function setTemperature(float $temperature): void
     {
-        $this->temperature = max(0.0, min(2.0, $temperature));
+        if (!is_finite($temperature) || $temperature < 0.0 || $temperature > 2.0) {
+            throw new \InvalidArgumentException('AI temperature must be between 0 and 2');
+        }
+        $this->temperature = $temperature;
+        $this->temperatureExplicit = true;
     }
 
     /**

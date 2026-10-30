@@ -24,6 +24,11 @@ class AiConfig
     {
         $this->loadFromConfig($config);
         $this->loadFromEnvironment();
+        foreach ($this->providerSettings as $provider => $settings) {
+            foreach ($settings as $key => $value) {
+                $this->setProviderSetting($provider, $key, $value);
+            }
+        }
     }
 
     /**
@@ -44,7 +49,7 @@ class AiConfig
         }
         foreach (['model', 'base_url', 'folder_id', 'temperature', 'max_tokens', 'timeout', 'headers', 'request_options'] as $key) {
             if (isset($ai[$key])) {
-                $this->setProviderSetting($provider, $key, $ai[$key]);
+                $this->providerSettings[$provider][$key] = $ai[$key];
             }
         }
         if ($provider === 'ollama' && isset($ai['base_url'])) {
@@ -70,17 +75,30 @@ class AiConfig
             if ($key === 'api_key') {
                 $this->apiKeys[$provider] = $value;
             } else {
-                $value = match ($key) {
-                    'temperature' => (float)$value,
-                    'max_tokens', 'timeout' => (int)$value,
-                    default => $value,
-                };
                 $this->setProviderSetting($provider, $key, $value);
                 if ($provider === 'ollama' && $key === 'base_url') {
                     $this->ollamaUrl = $value;
                 }
             }
         }
+    }
+
+    protected function validateSetting(string $key, mixed $value): mixed
+    {
+        if ($key === 'temperature') {
+            if (!is_numeric($value) || !is_finite((float)$value) || (float)$value < 0 || (float)$value > 2) {
+                throw new \InvalidArgumentException('AI temperature must be a number between 0 and 2');
+            }
+            return (float)$value;
+        }
+        if (in_array($key, ['max_tokens', 'timeout'], true)) {
+            $number = filter_var($value, FILTER_VALIDATE_INT);
+            if ($number === false || $number < 1) {
+                throw new \InvalidArgumentException("AI {$key} must be a positive integer");
+            }
+            return $number;
+        }
+        return $value;
     }
 
     /**
@@ -141,7 +159,7 @@ class AiConfig
         if (!isset($this->providerSettings[$provider])) {
             $this->providerSettings[$provider] = [];
         }
-        $this->providerSettings[$provider][$key] = $value;
+        $this->providerSettings[$provider][$key] = $value === null ? null : $this->validateSetting($key, $value);
     }
 
     /**

@@ -29,6 +29,15 @@ final class AiHttpCompatibilityTests extends TestCase
             self::fail('Expected an HTTP error');
         } catch (QueryException $exception) {
             self::assertStringContainsString('HTTP 429', $exception->getMessage());
+            self::assertStringNotContainsString('fake-response-secret', $exception->getMessage());
+        }
+
+        try {
+            $provider->request('https://example.test/network?key=fake-connection-secret');
+            self::fail('Expected a connection error');
+        } catch (QueryException $exception) {
+            self::assertStringNotContainsString('fake-connection-secret', $exception->getMessage());
+            self::assertStringContainsString('unable to connect', $exception->getMessage());
         }
 
         self::assertSame(['ok' => true], $provider->request('https://example.test/success'));

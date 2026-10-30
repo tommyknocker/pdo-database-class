@@ -31,9 +31,13 @@ function file_get_contents(string $url, bool $useIncludePath = false, mixed $con
         }
         return '{"choices":[{"message":{"content":"Test analysis"}}]}';
     }
+    if ($url === 'https://example.test/network?key=fake-connection-secret') {
+        trigger_error('Unable to open URL with fake-connection-secret', E_USER_WARNING);
+        return false;
+    }
     if ($url === 'https://example.test/error') {
         $GLOBALS['ai_test_headers'] = ['HTTP/1.1 429 Too Many Requests'];
-        return '{"error":"limited"}';
+        return '{"error":"limited fake-response-secret"}';
     }
     if ($url === 'https://example.test/success') {
         $GLOBALS['ai_test_headers'] = ['HTTP/1.1 200 OK'];

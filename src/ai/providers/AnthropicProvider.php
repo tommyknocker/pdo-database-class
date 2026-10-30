@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\ai\providers;
 
 use tommyknocker\pdodb\ai\BaseAiProvider;
-use tommyknocker\pdodb\ai\QueryAdvicePrompt;
 use tommyknocker\pdodb\exceptions\QueryException;
 
 /**
@@ -43,33 +42,8 @@ class AnthropicProvider extends BaseAiProvider
         return $this->config->hasApiKey('anthropic');
     }
 
-    public function analyzeQuery(string $sql, array $context = []): string
+    protected function dispatchAnalysis(string $systemPrompt, string $userPrompt): string
     {
-        $this->ensureAvailable();
-
-        $systemPrompt = $this->buildSystemPrompt('query');
-        $userPrompt = $this->buildQueryPrompt($sql, $context);
-
-        return $this->callApi($systemPrompt, $userPrompt);
-    }
-
-    public function analyzeSchema(array $schema, array $context = []): string
-    {
-        $this->ensureAvailable();
-
-        $systemPrompt = $this->buildSystemPrompt('schema');
-        $userPrompt = $this->buildSchemaPrompt($schema, $context);
-
-        return $this->callApi($systemPrompt, $userPrompt);
-    }
-
-    public function suggestOptimizations(array $analysis, array $context = []): string
-    {
-        $this->ensureAvailable();
-
-        $systemPrompt = $this->buildSystemPrompt('optimization');
-        $userPrompt = $this->buildOptimizationPrompt($analysis, $context);
-
         return $this->callApi($systemPrompt, $userPrompt);
     }
 
@@ -96,7 +70,8 @@ class AnthropicProvider extends BaseAiProvider
             'temperature' => $this->temperature,
         ];
 
-        if (preg_match('/^claude-(?:sonnet|opus|haiku)-5(?:[.-]|$)/', $this->model) === 1) {
+        if (preg_match('/^claude-(?:sonnet|opus|haiku)-(?:5(?:[.-]|$)|4-(?:[7-9]|[1-9][0-9])(?:[.-]|$))/', $this->model) === 1) {
+            $this->requireTemperatureSupport();
             unset($data['temperature']);
             if (str_starts_with($this->model, 'claude-sonnet-5-5')) {
                 $data['thinking'] = ['type' => 'between_tools'];
@@ -117,63 +92,6 @@ class AnthropicProvider extends BaseAiProvider
         }
 
         throw new QueryException('Invalid response format from Anthropic API', 0);
-    }
-
-    protected function buildSystemPrompt(string $type): string
-    {
-        if ($type === 'query') {
-            return QueryAdvicePrompt::system();
-        }
-
-        $basePrompt = 'You are an expert database performance analyst. Provide clear, actionable recommendations for database optimization.';
-
-        $typePrompts = [
-            'query' => 'Analyze SQL queries and provide optimization suggestions. Focus on index usage, query structure, and performance bottlenecks.',
-            'schema' => 'Analyze database schema and provide recommendations for indexes, constraints, and table structure improvements.',
-            'optimization' => 'Review existing analysis results and provide additional optimization suggestions. Build upon the existing recommendations.',
-        ];
-
-        return $basePrompt . ' ' . ($typePrompts[$type] ?? '');
-    }
-
-    /**
-     * @param array<string, mixed> $context
-     */
-    protected function buildQueryPrompt(string $sql, array $context): string
-    {
-        return QueryAdvicePrompt::user($sql, $context);
-    }
-
-    /**
-     * @param array<string, mixed> $schema
-     * @param array<string, mixed> $context
-     */
-    protected function buildSchemaPrompt(array $schema, array $context): string
-    {
-        $prompt = "Analyze the following database schema and provide optimization recommendations:\n\n";
-        $prompt .= $this->formatContext(array_merge(['schema' => $schema], $context));
-
-        $prompt .= "\n\nProvide specific recommendations for:\n";
-        $prompt .= "- Missing indexes\n";
-        $prompt .= "- Redundant indexes\n";
-        $prompt .= "- Table structure improvements\n";
-        $prompt .= '- Foreign key optimizations';
-
-        return $prompt;
-    }
-
-    /**
-     * @param array<string, mixed> $analysis
-     * @param array<string, mixed> $context
-     */
-    protected function buildOptimizationPrompt(array $analysis, array $context): string
-    {
-        $prompt = "Review the following database analysis and provide additional optimization suggestions:\n\n";
-        $prompt .= $this->formatContext(array_merge(['existing_analysis' => $analysis], $context));
-
-        $prompt .= "\n\nProvide additional recommendations that complement the existing analysis.";
-
-        return $prompt;
     }
 
     protected function ensureAvailable(): void
