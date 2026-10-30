@@ -11,7 +11,9 @@ checking an ordered/paginated query before deployment.
 
 The method collects database evidence and makes **one request** to your configured
 AI provider. You do not need MCP, tools, an agent loop, or a daemon. The enhanced
-context, preview and structured results described here require PDOdb 2.14.0 or newer.
+context, preview and structured results described here use the unified AI
+configuration (`PDODB_AI_PROVIDER`, `PDODB_AI_API_KEY`, and optionally
+`PDODB_AI_MODEL`).
 
 ## 1. Configure the provider
 

@@ -278,17 +278,17 @@ Comprehensive, runnable examples are available in the [`examples/`](examples/) d
 
 Each example is self-contained with setup instructions. See [`examples/README.md`](examples/README.md) for the full catalog.
 
-**Quick start:**
-```bash
-cd examples
+**Quick start** (requires a [repository checkout](https://github.com/tommyknocker/pdo-database-class); `composer require` does not install the `examples/` directory):
 
-# SQLite (ready to use, no setup required)
+```bash
+# From the examples/ directory
+cd examples
 php 01-basic/02-simple-crud.php
 
 # MySQL (update config.mysql.php with your credentials)
 PDODB_DRIVER=mysql php 01-basic/02-simple-crud.php
 
-# Test all examples on all available databases
+# From the repository root: verify all examples on available databases
 ./scripts/test-examples.sh
 ```
 
@@ -411,21 +411,18 @@ $db->find()->table('users')
     ->where('id', $id)
     ->update(['name' => 'Bob']);
 
-// Delete
-$db->find()->table('users')->where('id', $id)->delete();
+$user = $db->find()->from('users')->where('id', $id)->getOne();
+if ($user !== false) {
+    echo $user['name']; // Bob
+}
 ```
-
-### Step 5: Monitor Your Database
-
-Launch the interactive TUI Dashboard to monitor your database in real-time:
-
-```bash
-vendor/bin/pdodb ui
-```
-
-Monitor active queries, connection pool, cache statistics, and server metrics. Press `h` for help, `q` to quit.
 
 **Next:** See [Quick Start](#quick-start) for more examples.
+
+**Optional — TUI dashboard:** `vendor/bin/pdodb ui` monitors the database from
+your project configuration (for example after `pdodb init`). It does not attach to
+the `:memory:` connection from the snippet above; use a file-backed SQLite path or
+a server database configured for the CLI.
 
 ---
 
@@ -501,8 +498,9 @@ See [Configuration Documentation](documentation/01-getting-started/04-configurat
 
 ## Understand a slow query with AI
 
-Get advice grounded in your **actual execution plan, table schemas and existing
-indexes**, directly from the query you are investigating:
+Get advice grounded in the **available execution plan** (when the adapter provides
+one), **table schemas and existing indexes**, directly from the query you are
+investigating:
 
 ```php
 $advice = $db->find()
@@ -515,15 +513,21 @@ $advice = $db->find()
 echo $advice->aiAnalysis;
 ```
 
-PDOdb collects the plan, table schemas and existing indexes, then makes one
-request to your configured provider. Review the explanation and verify a
-candidate change against the database.
+PDOdb collects available plan evidence, table schemas and existing indexes, then
+makes one request to your configured provider. Review the explanation and verify
+a candidate change against the database. Plan availability varies by adapter; see
+[query-advice limitations](documentation/05-advanced-features/24-ai-query-advice.md#4-read-status-and-limitations-before-using-the-advice).
 
 **[Start with the complete walkthrough](documentation/05-advanced-features/23-ai-analysis.md)**:
 what the advice looks like, three-value setup, your first live answer, and
-before/after examples. To explore the included data and real plans without a key:
+before/after examples.
+
+In your application, call `explainAiAdvice()` on your configured `PdoDb` instance
+as shown above. To run the bundled offline demo (100k-row fixture, real SQLite
+plans, no API key), clone this repository and from the repository root:
 
 ```bash
+composer install
 php examples/07-performance/05-ai-query-advice.php
 ```
 
@@ -1141,7 +1145,7 @@ The project includes comprehensive PHPUnit tests for all supported databases.
 ./vendor/bin/phpunit
 
 # Run specific dialect tests
-./vendor/bin/phpunit tests/PdoDbMySQLTest.php
+./vendor/bin/phpunit --testsuite "MySQL Tests"
 
 # Run with coverage
 ./vendor/bin/phpunit --coverage-html coverage

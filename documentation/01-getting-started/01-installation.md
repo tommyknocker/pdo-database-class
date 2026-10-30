@@ -141,14 +141,13 @@ MSSQL requires the `pdo_sqlsrv` extension, which needs additional setup:
 
 **Ubuntu/Debian:**
 
-```bash
-# Install Microsoft ODBC Driver
-curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
-sudo apt-get update
-sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+Follow Microsoft's current guide for your distribution and PHP version:
+[Install the Microsoft ODBC driver for SQL Server (Linux)](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server).
 
-# Install pdo_sqlsrv extension
+Then install the `pdo_sqlsrv` PECL extension (adjust the PHP version in the path
+if yours differs):
+
+```bash
 sudo pecl install pdo_sqlsrv
 echo "extension=pdo_sqlsrv.so" | sudo tee /etc/php/8.4/mods-available/pdo_sqlsrv.ini
 sudo phpenmod pdo_sqlsrv

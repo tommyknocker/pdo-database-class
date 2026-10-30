@@ -27,7 +27,7 @@ plans, complete selected answers and result checksums are available below.
 
 ## Try it locally
 
-Use a PDOdb 2.14.0 or newer repository checkout, PHP 8.4+ and `pdo_sqlite`.
+Use a PDOdb repository checkout with PHP 8.4+ and `pdo_sqlite`.
 From the repository root:
 
 ```bash

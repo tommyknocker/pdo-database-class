@@ -122,23 +122,18 @@ composer require tommyknocker/pdo-database-class
 ```
 
 ```php
+<?php
+require 'vendor/autoload.php';
+
 use tommyknocker\pdodb\PdoDb;
-use tommyknocker\pdodb\helpers\Db;
 
-// Works with MySQL, MariaDB, PostgreSQL, SQLite, MSSQL, and Oracle
-$db = new PdoDb('sqlite', [
-    'path' => ':memory:'  // SQLite - no setup required!
-]);
-
-// Or use MySQL/MariaDB/PostgreSQL/MSSQL
-// $db = new PdoDb('mysql', ['host' => 'localhost', 'username' => 'user', 'password' => 'pass', 'dbname' => 'mydb']);
-
-$users = $db->find()
-    ->from('users')
-    ->where('age', 18, '>')
-    ->orderBy('created_at', 'DESC')
-    ->limit(10)
-    ->get();
+$db = new PdoDb('sqlite', ['path' => ':memory:']);
+$db->rawQuery('CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+$id = $db->find()->table('users')->insert(['name' => 'Alice']);
+$user = $db->find()->from('users')->where('id', $id)->getOne();
+if ($user !== false) {
+    echo $user['name'];
+}
 ```
 
 ## 📚 Key Features
@@ -163,7 +158,7 @@ $users = $db->find()
 - **ActiveRecord Pattern** - Optional lightweight ORM for object-based database operations
 - **AI-Powered Analysis** 🤖 - Get intelligent database optimization recommendations using OpenAI, OpenRouter, OpenAI-compatible gateways, Anthropic, Google, Microsoft, DeepSeek, Yandex, or Ollama
 - **Comprehensive Error Handling** - Detailed exception hierarchy
-- **Zero Dependencies** - Lightweight and fast
+- **No framework dependency** - Requires three small PSR interfaces (`psr/log`, `psr/simple-cache`, `psr/event-dispatcher`)
 - **Well Tested** - Comprehensive test coverage
 - **Type Safe** - PHPStan level 8 compliant
 

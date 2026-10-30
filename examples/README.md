@@ -61,9 +61,14 @@ PDODB_DRIVER=oci php 01-basic/02-simple-crud.php
 ```
 
 ### Test All Examples on All Databases
+
+Run from the **repository root** (not from `examples/`):
+
 ```bash
 ./scripts/test-examples.sh
 ```
+
+From inside `examples/`, use `../scripts/test-examples.sh` instead.
 This script automatically:
 - Detects which databases are configured
 - Runs all examples on each available database
