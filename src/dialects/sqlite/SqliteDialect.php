@@ -6,8 +6,8 @@ namespace tommyknocker\pdodb\dialects\sqlite;
 
 use InvalidArgumentException;
 use PDO;
-use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\ai\SqlContextTokenizer;
+use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\catalog\SqliteCatalogQueriesTrait;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
@@ -1712,23 +1712,6 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
 
         // Text columns
         return "({$columnName} LIKE {$paramKey})";
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function buildOutboxReleaseStaleClaimsSql(string $tableName): array
-    {
-        $tableQuoted = $this->quoteTable($tableName);
-
-        return [
-            "UPDATE {$tableQuoted}
-                SET status = 'pending', locked_by = NULL, locked_until = NULL
-                WHERE status = 'processing'
-                  AND locked_until IS NOT NULL
-                  AND replace(replace(locked_until, 'T', ' '), 'Z', '') < datetime('now')",
-            [],
-        ];
     }
 
     public function catalogQueries(): CatalogQueriesInterface

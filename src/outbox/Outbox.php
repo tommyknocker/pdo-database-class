@@ -52,8 +52,7 @@ final class Outbox
         }
 
         $id = OutboxUuid::v4();
-        $createdAt = gmdate('Y-m-d\TH:i:s\Z');
-        $this->storage()->insertPending($id, $eventType, $payload, $createdAt);
+        $this->storage()->insertPending($id, $eventType, $payload);
 
         return $id;
     }

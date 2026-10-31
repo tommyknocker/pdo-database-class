@@ -24,7 +24,9 @@ class McpExecutionGuard
             'supported' => $dialect->supportsMcpStatementTimeout(),
             'scope' => 'per_statement',
             'restored_after_request' => true,
-            'note' => 'Only PostgreSQL and MariaDB have a statement limit in this adapter. It is not a whole-request or LLM timeout.',
+            'note' => $dialect->supportsMcpStatementTimeout()
+                ? 'A per-statement limit is applied for this database. It is not a whole-request or LLM timeout.'
+                : 'This database adapter has no statement limit; configure limits in the database. It is not a whole-request or LLM timeout.',
         ];
     }
 

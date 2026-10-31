@@ -38,21 +38,21 @@ final class OutboxStorage
     /**
      * @param array<string, mixed> $payload
      */
-    public function insertPending(string $id, string $eventType, array $payload, string $createdAt): void
+    public function insertPending(string $id, string $eventType, array $payload): void
     {
-        $tableQuoted = $this->dialect()->quoteTable($this->tableName);
+        $dialect = $this->dialect();
+        $tableQuoted = $dialect->quoteTable($this->tableName);
+        $now = $dialect->outboxNowSql();
         $this->db->rawQuery(
             "INSERT INTO {$tableQuoted}
                 (id, event_type, payload, status, attempts, available_at, created_at)
-             VALUES (:id, :event_type, :payload, :status, :attempts, :available_at, :created_at)",
+             VALUES (:id, :event_type, :payload, :status, :attempts, {$now}, {$now})",
             [
                 'id' => $id,
                 'event_type' => $eventType,
                 'payload' => json_encode($payload, JSON_THROW_ON_ERROR),
                 'status' => OutboxStatuses::PENDING,
                 'attempts' => 0,
-                'available_at' => $createdAt,
-                'created_at' => $createdAt,
             ]
         );
     }
@@ -69,9 +69,6 @@ final class OutboxStorage
     public function releaseStaleClaims(): void
     {
         [$sql, $params] = $this->dialect()->buildOutboxReleaseStaleClaimsSql($this->tableName);
-        if (array_key_exists('now', $params) && $params['now'] === '') {
-            $params['now'] = gmdate('Y-m-d\TH:i:s\Z');
-        }
         $this->db->rawQuery($sql, $params);
     }
 
@@ -88,6 +85,7 @@ final class OutboxStorage
 
         $dialect = $this->dialect();
         if ($dialect->supportsOutboxConcurrentWorkerClaim()) {
+            $this->releaseStaleClaims();
             $messages = [];
             for ($i = 0; $i < $limit; $i++) {
                 $message = $this->claimOneInTransaction($workerToken, $lockSeconds);
@@ -115,7 +113,7 @@ final class OutboxStorage
         return $messages;
     }
 
-    public function markPublished(string $messageId, string $workerToken, string $publishedAt): bool
+    public function markPublished(string $messageId, string $workerToken): bool
     {
         $updated = $this->db->find()
             ->table($this->tableName)
@@ -124,7 +122,7 @@ final class OutboxStorage
             ->where('status', OutboxStatuses::PROCESSING)
             ->update([
                 'status' => OutboxStatuses::PUBLISHED,
-                'published_at' => $publishedAt,
+                'published_at' => new RawValue($this->dialect()->outboxNowSql()),
                 'locked_by' => null,
                 'locked_until' => null,
                 'last_error' => null,
@@ -136,7 +134,7 @@ final class OutboxStorage
     public function markRetry(
         string $messageId,
         string $workerToken,
-        string $availableAt,
+        int $delaySeconds,
         string $errorMessage,
     ): bool {
         $updated = $this->db->find()
@@ -146,7 +144,7 @@ final class OutboxStorage
             ->where('status', OutboxStatuses::PROCESSING)
             ->update([
                 'status' => OutboxStatuses::PENDING,
-                'available_at' => $availableAt,
+                'available_at' => new RawValue($this->dialect()->outboxNowPlusSecondsSql($delaySeconds)),
                 'locked_by' => null,
                 'locked_until' => null,
                 'last_error' => $this->truncateError($errorMessage),
@@ -176,7 +174,6 @@ final class OutboxStorage
     {
         $message = null;
         $this->db->transaction(function () use ($workerToken, $lockSeconds, &$message): void {
-            $this->releaseStaleClaims();
             $message = $this->claimOne($workerToken, $lockSeconds);
         });
 
@@ -187,29 +184,18 @@ final class OutboxStorage
     {
         $dialect = $this->dialect();
         $claimToken = $workerToken . ':' . bin2hex(random_bytes(8));
-        $lockedUntil = gmdate('Y-m-d\TH:i:s\Z', time() + $lockSeconds);
-        $now = gmdate('Y-m-d\TH:i:s\Z');
 
         $lockCandidate = $dialect->buildOutboxLockCandidateSql($this->tableName);
         $pendingIds = $dialect->buildOutboxPendingIdsSql($this->tableName);
         if ($lockCandidate !== null && $pendingIds !== null) {
-            return $this->claimFirstUnlocked($pendingIds, $lockCandidate, $claimToken, $lockedUntil, $now);
+            return $this->claimFirstUnlocked($pendingIds, $lockCandidate, $claimToken, $lockSeconds);
         }
         if ($lockCandidate !== null) {
-            return $this->claimLockedCandidate($lockCandidate, $claimToken, $lockedUntil, $now);
+            return $this->claimLockedCandidate($lockCandidate, $claimToken, $lockSeconds);
         }
 
-        [$sql, $params] = $dialect->buildOutboxClaimOneSql($this->tableName);
+        [$sql, $params] = $dialect->buildOutboxClaimOneSql($this->tableName, $lockSeconds);
         $params['token'] = $claimToken;
-        if (array_key_exists('lock_seconds', $params)) {
-            $params['lock_seconds'] = $lockSeconds;
-        }
-        if (array_key_exists('locked_until', $params)) {
-            $params['locked_until'] = $lockedUntil;
-        }
-        if (array_key_exists('now', $params)) {
-            $params['now'] = $now;
-        }
 
         if ($dialect->outboxClaimSqlReturnsClaimedRow()) {
             $row = $this->db->rawQueryOne($sql, $params);
@@ -242,13 +228,9 @@ final class OutboxStorage
         array $pendingIds,
         array $lockById,
         string $claimToken,
-        string $lockedUntil,
-        string $now,
+        int $lockSeconds,
     ): ?OutboxMessage {
         [$listSql, $listParams] = $pendingIds;
-        if (array_key_exists('now', $listParams)) {
-            $listParams['now'] = $now;
-        }
 
         $candidates = $this->db->rawQuery($listSql, $listParams);
         foreach ($candidates as $candidate) {
@@ -268,7 +250,7 @@ final class OutboxStorage
                 continue;
             }
 
-            $message = $this->markCandidateProcessing($id, $claimToken, $lockedUntil);
+            $message = $this->markCandidateProcessing($id, $claimToken, $lockSeconds);
             if ($message !== null) {
                 return $message;
             }
@@ -277,7 +259,7 @@ final class OutboxStorage
         return null;
     }
 
-    protected function markCandidateProcessing(string $id, string $claimToken, string $lockedUntil): ?OutboxMessage
+    protected function markCandidateProcessing(string $id, string $claimToken, int $lockSeconds): ?OutboxMessage
     {
         $updated = $this->db->find()
             ->table($this->tableName)
@@ -286,7 +268,7 @@ final class OutboxStorage
             ->update([
                 'status' => OutboxStatuses::PROCESSING,
                 'locked_by' => $claimToken,
-                'locked_until' => $lockedUntil,
+                'locked_until' => new RawValue($this->dialect()->outboxNowPlusSecondsSql($lockSeconds)),
                 'attempts' => new RawValue('attempts + 1'),
             ]);
         if ($updated < 1) {
@@ -312,13 +294,9 @@ final class OutboxStorage
     protected function claimLockedCandidate(
         array $lockCandidate,
         string $claimToken,
-        string $lockedUntil,
-        string $now,
+        int $lockSeconds,
     ): ?OutboxMessage {
         [$sql, $params] = $lockCandidate;
-        if (array_key_exists('now', $params)) {
-            $params['now'] = $now;
-        }
 
         $candidate = $this->db->rawQueryOne($sql, $params);
         if (!is_array($candidate) || $candidate === []) {
@@ -331,7 +309,7 @@ final class OutboxStorage
             return null;
         }
 
-        return $this->markCandidateProcessing($id, $claimToken, $lockedUntil);
+        return $this->markCandidateProcessing($id, $claimToken, $lockSeconds);
     }
 
     protected function dialect(): DialectInterface
@@ -433,10 +411,9 @@ final class OutboxStorage
             throw new OutboxException('Outbox message id must not be empty.');
         }
 
-        $now = gmdate('Y-m-d\TH:i:s\Z');
         $update = [
             'status' => OutboxStatuses::PENDING,
-            'available_at' => $now,
+            'available_at' => new RawValue($this->dialect()->outboxNowSql()),
             'locked_by' => null,
             'locked_until' => null,
             'published_at' => null,
@@ -540,6 +517,6 @@ final class OutboxStorage
             return $message;
         }
 
-        return substr($message, 0, 3997) . '...';
+        return mb_strcut($message, 0, 3997, 'UTF-8') . '...';
     }
 }

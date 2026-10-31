@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\dialects;
 
 use PDO;
 use PDOStatement;
+use tommyknocker\pdodb\ai\AgentContextService;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\exceptions\ResourceException;
@@ -14,8 +15,8 @@ use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
-use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
+use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
@@ -1080,7 +1081,7 @@ interface DialectInterface
     public function requiredPdoExtension(): string;
 
     /**
-     * Capabilities for {@see \tommyknocker\pdodb\ai\AgentContextService} (excluding plan explain flags).
+     * Capabilities for {@see AgentContextService} (excluding plan explain flags).
      *
      * @return array<string, bool>
      */
@@ -2255,6 +2256,16 @@ interface DialectInterface
     public function supportsOutboxConcurrentWorkerClaim(): bool;
 
     /**
+     * SQL expression for the current UTC time in the outbox timestamp column representation (database clock).
+     */
+    public function outboxNowSql(): string;
+
+    /**
+     * SQL expression for the database UTC time shifted by a (possibly negative) number of seconds.
+     */
+    public function outboxNowPlusSecondsSql(int $seconds): string;
+
+    /**
      * Release processing locks that expired (worker crashed or callback exceeded lock TTL).
      *
      * @return array{0: string, 1: array<string, mixed>}
@@ -2266,7 +2277,7 @@ interface DialectInterface
      *
      * @return array{0: string, 1: array<string, mixed>}
      */
-    public function buildOutboxClaimOneSql(string $tableName): array;
+    public function buildOutboxClaimOneSql(string $tableName, int $lockSeconds): array;
 
     /**
      * Whether {@see buildOutboxClaimOneSql} returns the claimed row (e.g. RETURNING / OUTPUT).

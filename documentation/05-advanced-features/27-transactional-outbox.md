@@ -158,13 +158,15 @@ Schema creation, enqueue inside a transaction, and a single worker publish are c
 |---------|--------|
 | PostgreSQL | `SKIP LOCKED` and `RETURNING` |
 | MySQL / MariaDB | `SKIP LOCKED`; each claimed row gets its own lock token |
-| SQL Server | `READPAST` and `OUTPUT`; lock duration is bound as an integer |
-| SQLite | One transaction for the batch. Lock expiry compares ISO timestamps with `datetime('now')` |
+| SQL Server | `READPAST` and `OUTPUT` |
+| SQLite | One transaction for the batch |
 | Oracle | Locks one pending id with `FOR UPDATE SKIP LOCKED`, then tries the next id |
 
 Integration tests use several independent `PdoDb` connections per dialect (MySQL, MariaDB, PostgreSQL, SQL Server, Oracle) to assert that many pending rows are published exactly once under concurrent workers. SQLite is validated with a single connection (one worker per process).
 
-Stale `processing` rows (expired `locked_until`) return to `pending` before the next claim. `runOnce()` throws if its connection is already inside a transaction. A lost lock after publish is counted as `unconfirmed` and is not marked published; the row stays `processing` until the lock expires and another worker sends it again (at least once).
+All outbox timestamps (`created_at`, `available_at`, `locked_until`, `published_at`) and every lease or backoff comparison use the database clock (UTC), never the clock of the PHP host, so workers with skewed clocks cannot steal each other's locks. Only `purge` computes its retention cutoff in PHP, since it works in days or hours.
+
+Stale `processing` rows (expired `locked_until`) return to `pending` once per claimed batch. A message that is claimed again after its last allowed attempt ended without confirmation (worker crash or lock expiry, `attempts` above `--max-attempts`) is marked `failed` without being published, so a message that crashes workers cannot be redelivered forever. Because `attempts` is counted when a message is claimed, `retry --keep-attempts` on an exhausted message fails it again on the next claim. `runOnce()` throws if its connection is already inside a transaction. A lost lock after publish is counted as `unconfirmed` and is not marked published; the row stays `processing` until the lock expires and another worker sends it again (at least once).
 
 Deadlocks and other retryable transaction errors are retried a few times inside the worker and by `pdodb outbox work`. The command keeps running after a transient error instead of exiting. On Oracle, claim locks the chosen pending row with `FOR UPDATE SKIP LOCKED` before updating it, so a second worker takes a different row.
 

@@ -2602,6 +2602,22 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
     /**
      * {@inheritDoc}
      */
+    public function outboxNowSql(): string
+    {
+        return 'NOW()';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function outboxNowPlusSecondsSql(int $seconds): string
+    {
+        return "NOW() + INTERVAL '" . $seconds . " seconds'";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildOutboxReleaseStaleClaimsSql(string $tableName): array
     {
         $tableQuoted = $this->quoteTable($tableName);
@@ -2619,7 +2635,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
     /**
      * {@inheritDoc}
      */
-    public function buildOutboxClaimOneSql(string $tableName): array
+    public function buildOutboxClaimOneSql(string $tableName, int $lockSeconds): array
     {
         $tableQuoted = $this->quoteTable($tableName);
 
@@ -2627,11 +2643,11 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
             "UPDATE {$tableQuoted} AS t
                 SET status = 'processing',
                     locked_by = :token,
-                    locked_until = NOW() + (CAST(:lock_seconds AS INTEGER) * INTERVAL '1 second'),
+                    locked_until = {$this->outboxNowPlusSecondsSql($lockSeconds)},
                     attempts = t.attempts + 1
                 FROM (
                     SELECT id FROM {$tableQuoted}
-                    WHERE status = 'pending' AND available_at <= NOW()
+                    WHERE status = 'pending' AND available_at <= {$this->outboxNowSql()}
                     ORDER BY available_at ASC, id ASC
                     LIMIT 1
                     FOR UPDATE SKIP LOCKED
@@ -2639,10 +2655,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
                 WHERE t.id = picked.id
                 RETURNING t.id, t.event_type, t.payload, t.status, t.attempts,
                     t.available_at, t.created_at, t.locked_by, t.locked_until, t.last_error, t.published_at",
-            [
-                'token' => '',
-                'lock_seconds' => 0,
-            ],
+            ['token' => ''],
         ];
     }
 

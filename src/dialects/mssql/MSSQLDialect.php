@@ -2357,10 +2357,14 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
     public function buildOutboxSchemaSql(string $tableName): array
     {
         $tableQuoted = $this->quoteTable($tableName);
-        $indexName = $this->quoteIdentifier($tableName . '_pending_idx');
+        $tableLiteral = str_replace("'", "''", $tableQuoted);
+        $indexRaw = $tableName . '_pending_idx';
+        $indexName = $this->quoteIdentifier($indexRaw);
+        $indexLiteral = str_replace("'", "''", $indexRaw);
 
         return [
-            "CREATE TABLE {$tableQuoted} (
+            "IF OBJECT_ID(N'{$tableLiteral}', N'U') IS NULL
+            CREATE TABLE {$tableQuoted} (
                 id VARCHAR(36) NOT NULL PRIMARY KEY,
                 event_type NVARCHAR(255) NOT NULL,
                 payload NVARCHAR(MAX) NOT NULL,
@@ -2368,12 +2372,13 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
                 attempts INT NOT NULL DEFAULT 0,
                 available_at DATETIME2 NOT NULL,
                 created_at DATETIME2 NOT NULL,
-                    locked_by NVARCHAR(128) NULL,
+                locked_by NVARCHAR(128) NULL,
                 locked_until DATETIME2 NULL,
                 last_error NVARCHAR(MAX) NULL,
                 published_at DATETIME2 NULL
             )",
-            "CREATE INDEX {$indexName} ON {$tableQuoted} (status, available_at)",
+            "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'{$indexLiteral}' AND object_id = OBJECT_ID(N'{$tableLiteral}'))
+            CREATE INDEX {$indexName} ON {$tableQuoted} (status, available_at)",
         ];
     }
 
@@ -2383,6 +2388,22 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
     public function supportsOutboxConcurrentWorkerClaim(): bool
     {
         return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function outboxNowSql(): string
+    {
+        return 'SYSUTCDATETIME()';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function outboxNowPlusSecondsSql(int $seconds): string
+    {
+        return 'DATEADD(second, ' . $seconds . ', SYSUTCDATETIME())';
     }
 
     /**
@@ -2405,7 +2426,7 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
-    public function buildOutboxClaimOneSql(string $tableName): array
+    public function buildOutboxClaimOneSql(string $tableName, int $lockSeconds): array
     {
         $tableQuoted = $this->quoteTable($tableName);
 
@@ -2413,7 +2434,7 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
             "UPDATE t
                 SET t.status = 'processing',
                     t.locked_by = :token,
-                    t.locked_until = DATEADD(second, CAST(:lock_seconds AS int), SYSUTCDATETIME()),
+                    t.locked_until = {$this->outboxNowPlusSecondsSql($lockSeconds)},
                     t.attempts = t.attempts + 1
                 OUTPUT INSERTED.id, INSERTED.event_type, INSERTED.payload, INSERTED.status, INSERTED.attempts,
                     INSERTED.available_at, INSERTED.created_at, INSERTED.locked_by, INSERTED.locked_until,
@@ -2421,13 +2442,10 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
                 FROM {$tableQuoted} AS t WITH (ROWLOCK, READPAST)
                 INNER JOIN (
                     SELECT TOP (1) id FROM {$tableQuoted} WITH (READPAST, ROWLOCK)
-                    WHERE status = 'pending' AND available_at <= SYSUTCDATETIME()
+                    WHERE status = 'pending' AND available_at <= {$this->outboxNowSql()}
                     ORDER BY available_at ASC, id ASC
                 ) AS picked ON t.id = picked.id",
-            [
-                'token' => '',
-                'lock_seconds' => 0,
-            ],
+            ['token' => ''],
         ];
     }
 

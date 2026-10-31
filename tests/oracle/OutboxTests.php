@@ -60,7 +60,6 @@ final class OutboxTests extends BaseOracleTestCase
         $this->assertNotNull($lock);
 
         [$listSql, $listParams] = $pending;
-        $listParams['now'] = gmdate('Y-m-d\TH:i:s\Z');
         $ids = self::$db->rawQuery($listSql, $listParams);
         $this->assertCount(2, $ids);
         $heldId = (string) (array_change_key_case($ids[0], CASE_LOWER)['id'] ?? '');

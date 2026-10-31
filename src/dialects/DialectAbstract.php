@@ -8,6 +8,7 @@ use PDO;
 use PDOStatement;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
@@ -15,7 +16,6 @@ use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
-use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
@@ -1355,6 +1355,22 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function outboxNowSql(): string
+    {
+        return "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function outboxNowPlusSecondsSql(int $seconds): string
+    {
+        return "strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '" . sprintf('%+d', $seconds) . " seconds')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildOutboxReleaseStaleClaimsSql(string $tableName): array
     {
         $tableQuoted = $this->quoteTable($tableName);
@@ -1362,15 +1378,15 @@ abstract class DialectAbstract implements DialectInterface
         return [
             "UPDATE {$tableQuoted}
                 SET status = 'pending', locked_by = NULL, locked_until = NULL
-                WHERE status = 'processing' AND locked_until IS NOT NULL AND locked_until < :now",
-            ['now' => date('c')],
+                WHERE status = 'processing' AND locked_until IS NOT NULL AND locked_until < {$this->outboxNowSql()}",
+            [],
         ];
     }
 
     /**
      * {@inheritDoc}
      */
-    public function buildOutboxClaimOneSql(string $tableName): array
+    public function buildOutboxClaimOneSql(string $tableName, int $lockSeconds): array
     {
         $tableQuoted = $this->quoteTable($tableName);
 
@@ -1378,20 +1394,16 @@ abstract class DialectAbstract implements DialectInterface
             "UPDATE {$tableQuoted}
                 SET status = 'processing',
                     locked_by = :token,
-                    locked_until = :locked_until,
+                    locked_until = {$this->outboxNowPlusSecondsSql($lockSeconds)},
                     attempts = attempts + 1
                 WHERE id = (
                     SELECT id FROM {$tableQuoted}
-                    WHERE status = 'pending' AND available_at <= :now
+                    WHERE status = 'pending' AND available_at <= {$this->outboxNowSql()}
                     ORDER BY available_at ASC, id ASC
                     LIMIT 1
                 )
                 RETURNING id, event_type, payload, status, attempts, available_at, created_at, locked_by, locked_until, last_error, published_at",
-            [
-                'token' => '',
-                'locked_until' => '',
-                'now' => '',
-            ],
+            ['token' => ''],
         ];
     }
 

@@ -207,6 +207,37 @@ final class OutboxTests extends BaseSharedTestCase
         $this->assertSame(1, $result->published);
     }
 
+    public function testExpiredLockPastMaxAttemptsIsFailedWithoutPublishing(): void
+    {
+        $expired = gmdate('Y-m-d\TH:i:s\Z', time() - 120);
+        $id = OutboxUuid::v4();
+        self::$db->find()->table(self::TABLE)->insert([
+            'id' => $id,
+            'event_type' => 'poison',
+            'payload' => '{}',
+            'status' => OutboxStatuses::PROCESSING,
+            'attempts' => 3,
+            'available_at' => $expired,
+            'created_at' => $expired,
+            'locked_by' => 'dead-worker',
+            'locked_until' => $expired,
+        ]);
+
+        $published = false;
+        $result = (new Outbox(self::$db, self::TABLE))->worker('test', maxAttempts: 3)->runOnce(
+            static function () use (&$published): void {
+                $published = true;
+            }
+        );
+
+        $this->assertFalse($published);
+        $this->assertSame(1, $result->claimed);
+        $this->assertSame(1, $result->markedFailed);
+        $row = self::$db->find()->table(self::TABLE)->where('id', $id)->getOne();
+        $this->assertIsArray($row);
+        $this->assertSame(OutboxStatuses::FAILED, $row['status']);
+    }
+
     public function testBatchPublishesEachMessageOnce(): void
     {
         $outbox = new Outbox(self::$db, self::TABLE);

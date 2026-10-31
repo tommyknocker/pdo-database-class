@@ -9,8 +9,8 @@ use InvalidArgumentException;
 use PDO;
 use PDOException;
 use PDOStatement;
-use tommyknocker\pdodb\connection\ConnectionInterface;
 use RuntimeException;
+use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\catalog\OracleCatalogQueriesTrait;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
@@ -3424,6 +3424,22 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
+    public function outboxNowSql(): string
+    {
+        return "TO_CHAR(SYS_EXTRACT_UTC(SYSTIMESTAMP), 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function outboxNowPlusSecondsSql(int $seconds): string
+    {
+        return 'TO_CHAR(SYS_EXTRACT_UTC(SYSTIMESTAMP) + NUMTODSINTERVAL(' . $seconds . ", 'SECOND'), 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildOutboxReleaseStaleClaimsSql(string $tableName): array
     {
         $tableQuoted = $this->quoteTable($tableName);
@@ -3433,15 +3449,15 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
                 SET status = 'pending', locked_by = NULL, locked_until = NULL
                 WHERE status = 'processing'
                   AND locked_until IS NOT NULL
-                  AND locked_until < :now",
-            ['now' => ''],
+                  AND locked_until < {$this->outboxNowSql()}",
+            [],
         ];
     }
 
     /**
      * {@inheritDoc}
      */
-    public function buildOutboxClaimOneSql(string $tableName): array
+    public function buildOutboxClaimOneSql(string $tableName, int $lockSeconds): array
     {
         $tableQuoted = $this->quoteTable($tableName);
 
@@ -3449,22 +3465,18 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
             "UPDATE {$tableQuoted}
                 SET status = 'processing',
                     locked_by = :token,
-                    locked_until = :locked_until,
+                    locked_until = {$this->outboxNowPlusSecondsSql($lockSeconds)},
                     attempts = attempts + 1
                 WHERE id = (
                     SELECT id FROM (
                         SELECT id FROM {$tableQuoted}
-                        WHERE status = 'pending' AND available_at <= :now
+                        WHERE status = 'pending' AND available_at <= {$this->outboxNowSql()}
                         ORDER BY available_at ASC, id ASC
                         FETCH FIRST 1 ROW ONLY
                     )
                 )
                 AND status = 'pending'",
-            [
-                'token' => '',
-                'locked_until' => '',
-                'now' => '',
-            ],
+            ['token' => ''],
         ];
     }
 
@@ -3501,10 +3513,10 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
         return [
             "SELECT id FROM (
                 SELECT id FROM {$tableQuoted}
-                WHERE status = 'pending' AND available_at <= :now
+                WHERE status = 'pending' AND available_at <= {$this->outboxNowSql()}
                 ORDER BY available_at ASC, id ASC
             ) WHERE ROWNUM <= 100",
-            ['now' => ''],
+            [],
         ];
     }
 

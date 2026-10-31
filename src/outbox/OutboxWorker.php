@@ -36,6 +36,17 @@ final class OutboxWorker
         $unconfirmed = 0;
 
         foreach ($claimed as $message) {
+            // Attempts are counted at claim time: a count above the limit means the last allowed
+            // attempt ended without confirmation (worker crash or lock expiry), so stop redelivering.
+            if ($message->attempts > $this->maxAttempts) {
+                if ($this->confirmFailed($message, 'Maximum delivery attempts exceeded without confirmation')) {
+                    $markedFailed++;
+                } else {
+                    $unconfirmed++;
+                }
+                continue;
+            }
+
             try {
                 $publish($message);
                 if ($this->confirmPublished($message)) {
@@ -97,7 +108,7 @@ final class OutboxWorker
     protected function confirmPublished(OutboxMessage $message): bool
     {
         return $this->confirm(function () use ($message): bool {
-            return $this->storage->markPublished($message->id, $message->lockToken, gmdate('Y-m-d\TH:i:s\Z'));
+            return $this->storage->markPublished($message->id, $message->lockToken);
         });
     }
 
@@ -154,8 +165,12 @@ final class OutboxWorker
             return $updated;
         }
 
-        $availableAt = gmdate('Y-m-d\TH:i:s\Z', time() + $this->retryDelaySeconds($message->attempts));
-        $updated = $this->storage->markRetry($message->id, $token, $availableAt, $errorMessage);
+        $updated = $this->storage->markRetry(
+            $message->id,
+            $token,
+            $this->retryDelaySeconds($message->attempts),
+            $errorMessage,
+        );
         if ($updated) {
             $scheduledRetry++;
         }

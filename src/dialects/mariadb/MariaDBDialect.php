@@ -1873,6 +1873,22 @@ class MariaDBDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
+    public function outboxNowSql(): string
+    {
+        return "DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-%dT%TZ')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function outboxNowPlusSecondsSql(int $seconds): string
+    {
+        return 'DATE_FORMAT(UTC_TIMESTAMP() + INTERVAL ' . $seconds . " SECOND, '%Y-%m-%dT%TZ')";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildOutboxReleaseStaleClaimsSql(string $tableName): array
     {
         $tableQuoted = $this->quoteTable($tableName);
@@ -1882,15 +1898,15 @@ class MariaDBDialect extends DialectAbstract implements CatalogQueriesInterface
                 SET status = 'pending', locked_by = NULL, locked_until = NULL
                 WHERE status = 'processing'
                   AND locked_until IS NOT NULL
-                  AND locked_until < :now",
-            ['now' => ''],
+                  AND locked_until < {$this->outboxNowSql()}",
+            [],
         ];
     }
 
     /**
      * {@inheritDoc}
      */
-    public function buildOutboxClaimOneSql(string $tableName): array
+    public function buildOutboxClaimOneSql(string $tableName, int $lockSeconds): array
     {
         $tableQuoted = $this->quoteTable($tableName);
 
@@ -1899,7 +1915,7 @@ class MariaDBDialect extends DialectAbstract implements CatalogQueriesInterface
                 INNER JOIN (
                     SELECT id FROM (
                         SELECT id FROM {$tableQuoted}
-                        WHERE status = 'pending' AND available_at <= :now
+                        WHERE status = 'pending' AND available_at <= {$this->outboxNowSql()}
                         ORDER BY available_at ASC, id ASC
                         LIMIT 1
                         FOR UPDATE SKIP LOCKED
@@ -1907,13 +1923,9 @@ class MariaDBDialect extends DialectAbstract implements CatalogQueriesInterface
                 ) AS picked ON t.id = picked.id
                 SET t.status = 'processing',
                     t.locked_by = :token,
-                    t.locked_until = :locked_until,
+                    t.locked_until = {$this->outboxNowPlusSecondsSql($lockSeconds)},
                     t.attempts = t.attempts + 1",
-            [
-                'token' => '',
-                'locked_until' => '',
-                'now' => '',
-            ],
+            ['token' => ''],
         ];
     }
 
