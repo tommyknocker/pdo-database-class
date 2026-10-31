@@ -2088,4 +2088,35 @@ interface DialectInterface
      * @return string|null Column name or null if not found
      */
     public function getColumnNameFromMetadata(array $columnMetadata): ?string;
+
+    /**
+     * SQL statements to create the transactional outbox table and indexes.
+     *
+     * @return list<string>
+     */
+    public function buildOutboxSchemaSql(string $tableName): array;
+
+    /**
+     * Whether multiple worker processes can claim outbox rows safely (e.g. SKIP LOCKED / READPAST).
+     */
+    public function supportsOutboxConcurrentWorkerClaim(): bool;
+
+    /**
+     * Release processing locks that expired (worker crashed or callback exceeded lock TTL).
+     *
+     * @return array{0: string, 1: array<string, mixed>}
+     */
+    public function buildOutboxReleaseStaleClaimsSql(string $tableName): array;
+
+    /**
+     * Claim one pending outbox row for processing.
+     *
+     * @return array{0: string, 1: array<string, mixed>}
+     */
+    public function buildOutboxClaimOneSql(string $tableName): array;
+
+    /**
+     * Whether {@see buildOutboxClaimOneSql} returns the claimed row (e.g. RETURNING / OUTPUT).
+     */
+    public function outboxClaimSqlReturnsClaimedRow(): bool;
 }

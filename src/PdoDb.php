@@ -728,7 +728,7 @@ class PdoDb
 
         if ($nested) {
             $driver = $connection->getDriverName();
-            if (!in_array($driver, ['mysql', 'pgsql', 'sqlite', 'sqlsrv', 'oci'], true)) {
+            if (!in_array($driver, ['mysql', 'mariadb', 'pgsql', 'sqlite', 'sqlsrv', 'oci'], true)) {
                 throw new TransactionException("Nested transactions are not supported for driver {$driver}.");
             }
             do {

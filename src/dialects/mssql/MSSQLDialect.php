@@ -2257,4 +2257,84 @@ class MSSQLDialect extends DialectAbstract
         // Text columns
         return "({$columnName} LIKE {$paramKey})";
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxSchemaSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+        $indexName = $this->quoteIdentifier($tableName . '_pending_idx');
+
+        return [
+            "CREATE TABLE {$tableQuoted} (
+                id VARCHAR(36) NOT NULL PRIMARY KEY,
+                event_type NVARCHAR(255) NOT NULL,
+                payload NVARCHAR(MAX) NOT NULL,
+                status NVARCHAR(32) NOT NULL DEFAULT 'pending',
+                attempts INT NOT NULL DEFAULT 0,
+                available_at DATETIME2 NOT NULL,
+                created_at DATETIME2 NOT NULL,
+                locked_by NVARCHAR(64) NULL,
+                locked_until DATETIME2 NULL,
+                last_error NVARCHAR(MAX) NULL,
+                published_at DATETIME2 NULL
+            )",
+            "CREATE INDEX {$indexName} ON {$tableQuoted} (status, available_at)",
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsOutboxConcurrentWorkerClaim(): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxReleaseStaleClaimsSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "UPDATE {$tableQuoted}
+                SET status = 'pending', locked_by = NULL, locked_until = NULL
+                WHERE status = 'processing'
+                  AND locked_until IS NOT NULL
+                  AND locked_until < SYSUTCDATETIME()",
+            [],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxClaimOneSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "UPDATE t
+                SET t.status = 'processing',
+                    t.locked_by = :token,
+                    t.locked_until = DATEADD(second, :lock_seconds, SYSUTCDATETIME()),
+                    t.attempts = t.attempts + 1
+                OUTPUT INSERTED.id, INSERTED.event_type, INSERTED.payload, INSERTED.status, INSERTED.attempts,
+                    INSERTED.available_at, INSERTED.created_at, INSERTED.locked_by, INSERTED.locked_until,
+                    INSERTED.last_error, INSERTED.published_at
+                FROM {$tableQuoted} AS t WITH (ROWLOCK, READPAST)
+                INNER JOIN (
+                    SELECT TOP (1) id FROM {$tableQuoted} WITH (READPAST, ROWLOCK)
+                    WHERE status = 'pending' AND available_at <= SYSUTCDATETIME()
+                    ORDER BY available_at ASC, id ASC
+                ) AS picked ON t.id = picked.id",
+            [
+                'token' => '',
+                'lock_seconds' => 0,
+            ],
+        ];
+    }
 }

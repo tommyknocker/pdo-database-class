@@ -156,6 +156,7 @@ Each item below is implemented in the library and documented on its own page.
 - [DDL builder](documentation/03-query-builder/12-ddl-operations.md) for tables, columns, indexes, and foreign keys
 - [Dialect-specific types](documentation/05-advanced-features/20-dialect-specific-schema.md): MySQL `ENUM`/`SET`, PostgreSQL `UUID`/`JSONB`, SQL Server `UNIQUEIDENTIFIER`, SQLite type affinity
 - [Migrations](documentation/05-advanced-features/15-migrations.md) and [seeds](documentation/05-advanced-features/21-cli-tools.md#seed-management) with rollback
+- [Transactional outbox](documentation/05-advanced-features/27-transactional-outbox.md) for reliable events with your own broker or HTTP publisher
 - [Schema introspection](documentation/03-query-builder/11-schema-introspection.md) for indexes, foreign keys, and constraints
 
 <a id="performance-tips"></a>

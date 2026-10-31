@@ -2504,4 +2504,85 @@ class PostgreSQLDialect extends DialectAbstract
         // Text columns: use ILIKE for case-insensitive search
         return "({$columnName} ILIKE {$paramKey})";
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxSchemaSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+        $indexName = $this->quoteIdentifier($tableName . '_pending_idx');
+
+        return [
+            "CREATE TABLE IF NOT EXISTS {$tableQuoted} (
+                id VARCHAR(36) PRIMARY KEY,
+                event_type VARCHAR(255) NOT NULL,
+                payload JSONB NOT NULL,
+                status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                attempts INTEGER NOT NULL DEFAULT 0,
+                available_at TIMESTAMPTZ NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL,
+                locked_by VARCHAR(64) NULL,
+                locked_until TIMESTAMPTZ NULL,
+                last_error TEXT NULL,
+                published_at TIMESTAMPTZ NULL
+            )",
+            "CREATE INDEX IF NOT EXISTS {$indexName} ON {$tableQuoted} (status, available_at)",
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsOutboxConcurrentWorkerClaim(): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxReleaseStaleClaimsSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "UPDATE {$tableQuoted}
+                SET status = 'pending', locked_by = NULL, locked_until = NULL
+                WHERE status = 'processing'
+                  AND locked_until IS NOT NULL
+                  AND locked_until < NOW()",
+            [],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxClaimOneSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "UPDATE {$tableQuoted} AS t
+                SET status = 'processing',
+                    locked_by = :token,
+                    locked_until = NOW() + (:lock_seconds * INTERVAL '1 second'),
+                    attempts = t.attempts + 1
+                FROM (
+                    SELECT id FROM {$tableQuoted}
+                    WHERE status = 'pending' AND available_at <= NOW()
+                    ORDER BY available_at ASC, id ASC
+                    LIMIT 1
+                    FOR UPDATE SKIP LOCKED
+                ) AS picked
+                WHERE t.id = picked.id
+                RETURNING t.id, t.event_type, t.payload, t.status, t.attempts,
+                    t.available_at, t.created_at, t.locked_by, t.locked_until, t.last_error, t.published_at",
+            [
+                'token' => '',
+                'lock_seconds' => 0,
+            ],
+        ];
+    }
 }

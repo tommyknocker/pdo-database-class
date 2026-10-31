@@ -22,12 +22,21 @@ Connection retry: automatic retry with exponential backoff.
 - Retry configuration - Configure retry attempts and delays
 - Error handling - Handle retry failures gracefully
 
+### 03-transactional-outbox.php
+Transactional outbox: enqueue domain events in the same transaction as business writes, then publish with your own callback.
+
+**Topics covered:**
+- `Outbox::add()` inside `transaction()`
+- `OutboxWorker::runOnce()` with a custom publisher
+- Retryable vs permanent publish failures (see documentation)
+
 ## Usage
 
 ```bash
 # Run examples
 php 01-exception-handling.php
 php 02-connection-retry.php
+php 03-transactional-outbox.php
 ```
 
 ## Reliability Features

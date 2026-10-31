@@ -1011,6 +1011,91 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function buildOutboxSchemaSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+        $indexName = $this->quoteIdentifier($tableName . '_pending_idx');
+
+        return [
+            "CREATE TABLE IF NOT EXISTS {$tableQuoted} (
+                id VARCHAR(36) PRIMARY KEY,
+                event_type VARCHAR(255) NOT NULL,
+                payload TEXT NOT NULL,
+                status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                attempts INTEGER NOT NULL DEFAULT 0,
+                available_at TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                locked_by VARCHAR(64) NULL,
+                locked_until TEXT NULL,
+                last_error TEXT NULL,
+                published_at TEXT NULL
+            )",
+            "CREATE INDEX IF NOT EXISTS {$indexName} ON {$tableQuoted} (status, available_at)",
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsOutboxConcurrentWorkerClaim(): bool
+    {
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxReleaseStaleClaimsSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "UPDATE {$tableQuoted}
+                SET status = 'pending', locked_by = NULL, locked_until = NULL
+                WHERE status = 'processing' AND locked_until IS NOT NULL AND locked_until < :now",
+            ['now' => date('c')],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxClaimOneSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "UPDATE {$tableQuoted}
+                SET status = 'processing',
+                    locked_by = :token,
+                    locked_until = :locked_until,
+                    attempts = attempts + 1
+                WHERE id = (
+                    SELECT id FROM {$tableQuoted}
+                    WHERE status = 'pending' AND available_at <= :now
+                    ORDER BY available_at ASC, id ASC
+                    LIMIT 1
+                )
+                RETURNING id, event_type, payload, status, attempts, available_at, created_at, locked_by, locked_until, last_error, published_at",
+            [
+                'token' => '',
+                'locked_until' => '',
+                'now' => '',
+            ],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function outboxClaimSqlReturnsClaimedRow(): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function extractErrorCode(\PDOException $e): string
     {
         // Default: use exception code

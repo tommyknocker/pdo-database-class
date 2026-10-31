@@ -1686,4 +1686,21 @@ class SqliteDialect extends DialectAbstract
         // Text columns
         return "({$columnName} LIKE {$paramKey})";
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxReleaseStaleClaimsSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "UPDATE {$tableQuoted}
+                SET status = 'pending', locked_by = NULL, locked_until = NULL
+                WHERE status = 'processing'
+                  AND locked_until IS NOT NULL
+                  AND locked_until < datetime('now')",
+            [],
+        ];
+    }
 }
