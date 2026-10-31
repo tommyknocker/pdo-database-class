@@ -25,7 +25,7 @@ final class OutboxPublisherLoader
             throw new OutboxException('Publisher file must return a callable(OutboxMessage): void.');
         }
 
-        /** @var callable(OutboxMessage): void $publisher */
+        /* @var callable(OutboxMessage): void $publisher */
         return $publisher;
     }
 }

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli\commands;
 
+use Throwable;
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\traits\SubcommandSuggestionTrait;
 use tommyknocker\pdodb\exceptions\OutboxException;
 use tommyknocker\pdodb\outbox\Outbox;
 use tommyknocker\pdodb\outbox\OutboxPublisherLoader;
 use tommyknocker\pdodb\outbox\OutboxStatuses;
+use tommyknocker\pdodb\outbox\OutboxTransientError;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -31,7 +33,7 @@ class OutboxCommand extends Command
      */
     protected function getAvailableSubcommands(): array
     {
-        return ['work', 'purge', 'help'];
+        return ['work', 'purge', 'status', 'list', 'retry', 'help'];
     }
 
     public function execute(): int
@@ -50,6 +52,9 @@ class OutboxCommand extends Command
         return match ($subcommandStr) {
             'work' => $this->work(),
             'purge' => $this->purge(),
+            'status' => $this->status(),
+            'list' => $this->listMessages(),
+            'retry' => $this->retry(),
             '--help', 'help' => $this->showHelp(),
             default => $this->showSubcommandError($subcommandStr),
         };
@@ -90,19 +95,46 @@ class OutboxCommand extends Command
 
         $worker = $outbox->worker($workerId, $batchSize, $lockSeconds, $maxAttempts);
         $this->registerStopSignals();
+        $transientFailures = 0;
 
         while (true) {
             if ($this->stopRequested) {
                 break;
             }
 
-            $result = $worker->runOnce($publisher);
+            try {
+                $result = $worker->runOnce($publisher);
+                $transientFailures = 0;
+            } catch (Throwable $e) {
+                if (!OutboxTransientError::isRetryable($e)) {
+                    return $this->fail($e->getMessage());
+                }
+
+                $transientFailures++;
+                $this->writeln(sprintf(
+                    'Outbox: transient database error, retrying (%d): %s',
+                    $transientFailures,
+                    $e->getMessage(),
+                ));
+                if ($transientFailures >= 5) {
+                    if ($once) {
+                        return $this->fail('Outbox stopped after repeated transient database errors.');
+                    }
+                    $transientFailures = 0;
+                    sleep($sleepSeconds);
+                    continue;
+                }
+                usleep(100000 * $transientFailures);
+                continue;
+            }
+
             $this->writeln(sprintf(
-                'Outbox: claimed=%d published=%d retry=%d failed=%d',
+                'Outbox: claimed=%d published=%d retry=%d failed=%d unconfirmed=%d',
                 $result->claimed,
                 $result->published,
                 $result->scheduledRetry,
                 $result->markedFailed,
+                $result->unconfirmed,
             ));
 
             if ($once) {
@@ -119,6 +151,193 @@ class OutboxCommand extends Command
         }
 
         return 0;
+    }
+
+    protected function status(): int
+    {
+        $db = $this->getDb();
+        $outbox = $this->createOutbox($db);
+        if (!$this->requireOutboxTable($outbox)) {
+            return 1;
+        }
+
+        try {
+            $counts = $outbox->countByStatus();
+        } catch (OutboxException $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        $format = $this->resolveOutputFormat();
+        if ($format === 'json') {
+            $this->writeln((string) json_encode($counts->toMap(), JSON_THROW_ON_ERROR));
+
+            return 0;
+        }
+
+        foreach ($counts->toMap() as $name => $count) {
+            $this->writeln(sprintf('%s: %d', $name, $count));
+        }
+        $this->writeln(sprintf('total: %d', $counts->total()));
+
+        return 0;
+    }
+
+    protected function listMessages(): int
+    {
+        $statusOption = $this->getOption('status');
+        if (!is_string($statusOption) || $statusOption === '') {
+            return $this->fail('Missing --status (pending, processing, published, or failed).');
+        }
+
+        $limit = $this->parsePositiveIntOption(['limit'], 20);
+        if ($limit === null) {
+            return 1;
+        }
+
+        $db = $this->getDb();
+        $outbox = $this->createOutbox($db);
+        if (!$this->requireOutboxTable($outbox)) {
+            return 1;
+        }
+
+        try {
+            $items = $outbox->listMessages($statusOption, $limit);
+        } catch (OutboxException $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        $format = $this->resolveOutputFormat();
+        if ($format === 'json') {
+            $payload = array_map(static fn ($item) => $item->toArray(), $items);
+            $this->writeln((string) json_encode($payload, JSON_THROW_ON_ERROR));
+
+            return 0;
+        }
+
+        if ($items === []) {
+            $this->writeln('No rows.');
+
+            return 0;
+        }
+
+        foreach ($items as $item) {
+            $error = $item->lastError ?? '';
+            $this->writeln(sprintf(
+                '%s  type=%s  attempts=%d  created=%s  error=%s',
+                $item->id,
+                $item->eventType,
+                $item->attempts,
+                $item->createdAt,
+                $error === '' ? '-' : $error,
+            ));
+        }
+
+        return 0;
+    }
+
+    protected function retry(): int
+    {
+        $db = $this->getDb();
+        $outbox = $this->createOutbox($db);
+        if (!$this->requireOutboxTable($outbox)) {
+            return 1;
+        }
+
+        $idOption = $this->getOption('id');
+        $allFailed = (bool) $this->getOption('all-failed', false);
+        $resetAttempts = !(bool) $this->getOption('keep-attempts', false);
+        $dryRun = $this->isDryRunMode();
+
+        if ($allFailed) {
+            $limit = $this->parsePositiveIntOption(['limit'], 100);
+            if ($limit === null) {
+                return 1;
+            }
+
+            try {
+                $result = $outbox->requeueAllFailed($limit, $resetAttempts, $dryRun);
+            } catch (OutboxException $e) {
+                return $this->fail($e->getMessage());
+            }
+
+            if ($dryRun) {
+                $this->writeln(sprintf(
+                    'Dry run: would requeue %d failed row(s) (limit %d).',
+                    $result->matched,
+                    $limit,
+                ));
+            } else {
+                $this->writeln(sprintf(
+                    'Requeued %d failed row(s) (matched %d, limit %d).',
+                    $result->requeued,
+                    $result->matched,
+                    $limit,
+                ));
+            }
+
+            return 0;
+        }
+
+        if (!is_string($idOption) || $idOption === '') {
+            return $this->fail('Pass --id=<uuid> or --all-failed to requeue failed messages.');
+        }
+
+        if ($dryRun) {
+            $rows = $outbox->listMessages(OutboxStatuses::FAILED, 1000);
+            $would = false;
+            foreach ($rows as $item) {
+                if ($item->id === $idOption) {
+                    $would = true;
+                    break;
+                }
+            }
+            $this->writeln($would
+                ? 'Dry run: would requeue failed message ' . $idOption . '.'
+                : 'Dry run: no failed message with id ' . $idOption . '.');
+
+            return 0;
+        }
+
+        try {
+            $requeued = $outbox->requeueFailed($idOption, $resetAttempts);
+        } catch (OutboxException $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        if (!$requeued) {
+            return $this->fail('No failed outbox message with id "' . $idOption . '".');
+        }
+
+        $this->writeln('Requeued failed message ' . $idOption . '.');
+
+        return 0;
+    }
+
+    protected function requireOutboxTable(Outbox $outbox): bool
+    {
+        if ($this->getDb()->schema()->tableExists($outbox->getTableName())) {
+            return true;
+        }
+
+        $this->fail('Outbox table "' . $outbox->getTableName() . '" does not exist.');
+
+        return false;
+    }
+
+    protected function resolveOutputFormat(): string
+    {
+        $format = $this->getOption('format', 'text');
+        if (!is_string($format) || $format === '') {
+            return 'text';
+        }
+
+        if (!in_array($format, ['text', 'json'], true)) {
+            $this->fail('Invalid --format. Allowed: text, json.');
+
+            return 'text';
+        }
+
+        return $format;
     }
 
     protected function purge(): int
@@ -315,6 +534,9 @@ class OutboxCommand extends Command
         $this->writeln('Subcommands:');
         $this->writeln('  work              Claim pending rows and invoke your publisher');
         $this->writeln('  purge             Delete old published (or failed) rows');
+        $this->writeln('  status            Show row counts by status');
+        $this->writeln('  list              List rows for one status');
+        $this->writeln('  retry             Move failed rows back to pending');
         $this->writeln("  help              Show this help message\n");
         $this->writeln('Work options:');
         $this->writeln('  --publisher=PATH  PHP file returning callable(OutboxMessage): void (or PDODB_OUTBOX_PUBLISHER)');
@@ -332,8 +554,24 @@ class OutboxCommand extends Command
         $this->writeln('  --status=NAME     published (default) or failed');
         $this->writeln('  --dry-run         Count rows without deleting');
         $this->writeln('');
+        $this->writeln('Status / list options:');
+        $this->writeln('  --table=NAME      Outbox table (default pdodb_outbox or PDODB_OUTBOX_TABLE)');
+        $this->writeln('  --format=text|json Output format (default text)');
+        $this->writeln('  --status=NAME     Required for list (pending, processing, published, failed)');
+        $this->writeln('  --limit=N         Max rows for list (default 20)');
+        $this->writeln('');
+        $this->writeln('Retry options:');
+        $this->writeln('  --id=UUID         Requeue one failed message');
+        $this->writeln('  --all-failed      Requeue up to --limit failed messages (default 100)');
+        $this->writeln('  --keep-attempts   Do not reset attempts when requeueing');
+        $this->writeln('  --dry-run         Preview without updating rows');
+        $this->writeln('');
         $this->writeln('Examples:');
         $this->writeln('  pdodb outbox work --once --publisher=config/outbox-publisher.php');
+        $this->writeln('  pdodb outbox status');
+        $this->writeln('  pdodb outbox list --status=failed --limit=10');
+        $this->writeln('  pdodb outbox retry --id=11111111-1111-4111-8111-111111111111');
+        $this->writeln('  pdodb outbox retry --all-failed --limit=50');
         $this->writeln('  pdodb outbox purge --older-than=7d');
         $this->writeln('  pdodb outbox purge --older-than=30d --status=failed --dry-run');
 

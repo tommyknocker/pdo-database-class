@@ -103,7 +103,7 @@ _pdodb() {
 
     # Outbox command
     if [[ "${cmd}" == "outbox" ]]; then
-        local outbox_subcommands="work purge help"
+        local outbox_subcommands="work purge status list retry help"
 
         if [[ ${COMP_CWORD} -eq 2 ]]; then
             COMPREPLY=($(compgen -W "${outbox_subcommands} --help" -- "${cur}"))
@@ -113,6 +113,15 @@ _pdodb() {
         elif [[ "${subcmd}" == "purge" ]]; then
             local outbox_purge_opts="--older-than= --status=published --status=failed --dry-run --table="
             COMPREPLY=($(compgen -W "${outbox_purge_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "status" ]]; then
+            local outbox_status_opts="--table= --format=text --format=json"
+            COMPREPLY=($(compgen -W "${outbox_status_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "list" ]]; then
+            local outbox_list_opts="--status=pending --status=processing --status=published --status=failed --limit= --table= --format=text --format=json"
+            COMPREPLY=($(compgen -W "${outbox_list_opts}" -- "${cur}"))
+        elif [[ "${subcmd}" == "retry" ]]; then
+            local outbox_retry_opts="--id= --all-failed --limit= --keep-attempts --dry-run --table="
+            COMPREPLY=($(compgen -W "${outbox_retry_opts}" -- "${cur}"))
         fi
         return 0
     fi

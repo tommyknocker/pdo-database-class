@@ -102,6 +102,38 @@ vendor/bin/pdodb outbox purge --older-than=30d --status=failed
 
 Only `published` (default) or `failed` may be purged. Pending and processing rows are never deleted by this command.
 
+## Inspect and requeue failed rows
+
+When a message is marked `failed`, fix the publisher or payload and put it back on the queue instead of deleting it.
+
+```bash
+# Counts by status
+vendor/bin/pdodb outbox status
+
+# Failed rows (ops)
+vendor/bin/pdodb outbox list --status=failed --limit=20
+
+# Requeue one failed message, then run the worker again
+vendor/bin/pdodb outbox retry --id=11111111-1111-4111-8111-111111111111
+vendor/bin/pdodb outbox work --once --publisher=config/outbox-publisher.php
+
+# Requeue many failed rows
+vendor/bin/pdodb outbox retry --all-failed --limit=100 --dry-run
+```
+
+Programmatic API:
+
+```php
+use tommyknocker\pdodb\outbox\OutboxStatuses;
+
+$counts = $outbox->countByStatus();
+$failed = $outbox->listMessages(OutboxStatuses::FAILED, 50);
+$outbox->requeueFailed($id);
+$outbox->requeueAllFailed(limit: 100, resetAttempts: true, dryRun: false);
+```
+
+`retry` sets `status` back to `pending`, clears locks and `published_at`, and resets `attempts` unless `--keep-attempts` is passed. `last_error` is kept so you can see the previous failure until the next attempt.
+
 ## Programmatic worker
 
 You can call the worker without the CLI:
@@ -128,11 +160,13 @@ Schema creation, enqueue inside a transaction, and a single worker publish are c
 | MySQL / MariaDB | `SKIP LOCKED`; each claimed row gets its own lock token |
 | SQL Server | `READPAST` and `OUTPUT`; lock duration is bound as an integer |
 | SQLite | One transaction for the batch. Lock expiry compares ISO timestamps with `datetime('now')` |
-| Oracle | One row at a time. `CLOB` payloads are read before the row is decoded |
+| Oracle | Locks one pending id with `FOR UPDATE SKIP LOCKED`, then tries the next id |
 
-Two database connections racing for the same row are not covered by the current tests.
+Integration tests use several independent `PdoDb` connections per dialect (MySQL, MariaDB, PostgreSQL, SQL Server, Oracle) to assert that many pending rows are published exactly once under concurrent workers. SQLite is validated with a single connection (one worker per process).
 
-Stale `processing` rows (expired `locked_until`) return to `pending` before the next claim. `runOnce()` throws if its connection is already inside a transaction.
+Stale `processing` rows (expired `locked_until`) return to `pending` before the next claim. `runOnce()` throws if its connection is already inside a transaction. A lost lock after publish is counted as `unconfirmed` and is not marked published; the row stays `processing` until the lock expires and another worker sends it again (at least once).
+
+Deadlocks and other retryable transaction errors are retried a few times inside the worker and by `pdodb outbox work`. The command keeps running after a transient error instead of exiting. On Oracle, claim locks the chosen pending row with `FOR UPDATE SKIP LOCKED` before updating it, so a second worker takes a different row.
 
 ## Related
 

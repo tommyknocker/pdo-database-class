@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\outbox;
 
+use Throwable;
 use tommyknocker\pdodb\exceptions\OutboxPermanentFailureException;
 use tommyknocker\pdodb\exceptions\OutboxRetryableException;
 
@@ -27,30 +28,41 @@ final class OutboxWorker
     public function runOnce(callable $publish): OutboxProcessResult
     {
         $token = $this->newWorkerToken();
-        $claimed = $this->storage->claimBatch($token, $this->batchSize, $this->lockSeconds);
+        $claimed = $this->claimWithRetry($token);
 
         $published = 0;
         $scheduledRetry = 0;
         $markedFailed = 0;
+        $unconfirmed = 0;
 
         foreach ($claimed as $message) {
             try {
                 $publish($message);
-                if ($this->storage->markPublished($message->id, $message->lockToken, gmdate('Y-m-d\TH:i:s\Z'))) {
+                if ($this->confirmPublished($message)) {
                     $published++;
+                } else {
+                    $unconfirmed++;
                 }
             } catch (OutboxPermanentFailureException $e) {
-                if ($this->storage->markFailed($message->id, $message->lockToken, $e->getMessage())) {
+                if ($this->confirmFailed($message, $e->getMessage())) {
                     $markedFailed++;
+                } else {
+                    $unconfirmed++;
                 }
             } catch (OutboxRetryableException $e) {
-                if ($this->handleRetryOrFail($message, $message->lockToken, $e->getMessage(), $scheduledRetry, $markedFailed)) {
+                if ($this->confirmRetry($message, $e->getMessage(), $scheduledRetry, $markedFailed)) {
                     continue;
                 }
-            } catch (\Throwable $e) {
-                if ($this->handleRetryOrFail($message, $message->lockToken, $e->getMessage(), $scheduledRetry, $markedFailed)) {
+                $unconfirmed++;
+            } catch (Throwable $e) {
+                if (OutboxTransientError::isRetryable($e)) {
+                    $unconfirmed++;
                     continue;
                 }
+                if ($this->confirmRetry($message, $e->getMessage(), $scheduledRetry, $markedFailed)) {
+                    continue;
+                }
+                $unconfirmed++;
             }
         }
 
@@ -59,7 +71,71 @@ final class OutboxWorker
             $published,
             $scheduledRetry,
             $markedFailed,
+            $unconfirmed,
         );
+    }
+
+    /**
+     * @return list<OutboxMessage>
+     */
+    protected function claimWithRetry(string $token): array
+    {
+        $attempt = 0;
+        while (true) {
+            try {
+                return $this->storage->claimBatch($token, $this->batchSize, $this->lockSeconds);
+            } catch (Throwable $e) {
+                $attempt++;
+                if (!OutboxTransientError::isRetryable($e) || $attempt >= 5) {
+                    throw $e;
+                }
+                usleep(50000 * $attempt);
+            }
+        }
+    }
+
+    protected function confirmPublished(OutboxMessage $message): bool
+    {
+        return $this->confirm(function () use ($message): bool {
+            return $this->storage->markPublished($message->id, $message->lockToken, gmdate('Y-m-d\TH:i:s\Z'));
+        });
+    }
+
+    protected function confirmFailed(OutboxMessage $message, string $errorMessage): bool
+    {
+        return $this->confirm(function () use ($message, $errorMessage): bool {
+            return $this->storage->markFailed($message->id, $message->lockToken, $errorMessage);
+        });
+    }
+
+    protected function confirmRetry(
+        OutboxMessage $message,
+        string $errorMessage,
+        int &$scheduledRetry,
+        int &$markedFailed,
+    ): bool {
+        return $this->confirm(function () use ($message, $errorMessage, &$scheduledRetry, &$markedFailed): bool {
+            return $this->handleRetryOrFail($message, $message->lockToken, $errorMessage, $scheduledRetry, $markedFailed);
+        });
+    }
+
+    /**
+     * @param callable(): bool $operation
+     */
+    protected function confirm(callable $operation): bool
+    {
+        $attempt = 0;
+        while (true) {
+            try {
+                return $operation();
+            } catch (Throwable $e) {
+                $attempt++;
+                if (!OutboxTransientError::isRetryable($e) || $attempt >= 5) {
+                    return false;
+                }
+                usleep(50000 * $attempt);
+            }
+        }
     }
 
     protected function handleRetryOrFail(
@@ -70,19 +146,21 @@ final class OutboxWorker
         int &$markedFailed,
     ): bool {
         if ($message->attempts >= $this->maxAttempts) {
-            if ($this->storage->markFailed($message->id, $token, $errorMessage)) {
+            $updated = $this->storage->markFailed($message->id, $token, $errorMessage);
+            if ($updated) {
                 $markedFailed++;
             }
 
-            return true;
+            return $updated;
         }
 
         $availableAt = gmdate('Y-m-d\TH:i:s\Z', time() + $this->retryDelaySeconds($message->attempts));
-        if ($this->storage->markRetry($message->id, $token, $availableAt, $errorMessage)) {
+        $updated = $this->storage->markRetry($message->id, $token, $availableAt, $errorMessage);
+        if ($updated) {
             $scheduledRetry++;
         }
 
-        return true;
+        return $updated;
     }
 
     protected function retryDelaySeconds(int $attempts): int

@@ -2568,6 +2568,37 @@ vendor/bin/pdodb outbox purge --older-than=30d --status=failed --dry-run
 | `--dry-run` | Count matching rows without deleting |
 | `--table=NAME` | Outbox table |
 
+### Status and list
+
+```bash
+vendor/bin/pdodb outbox status
+vendor/bin/pdodb outbox status --format=json
+vendor/bin/pdodb outbox list --status=failed --limit=20
+```
+
+| Option | Description |
+|--------|-------------|
+| `--format=text\|json` | Output format (default text) |
+| `--status=NAME` | Required for `list`: pending, processing, published, failed |
+| `--limit=N` | Max rows for `list` (default 20) |
+| `--table=NAME` | Outbox table |
+
+### Retry failed messages
+
+```bash
+vendor/bin/pdodb outbox retry --id=<uuid>
+vendor/bin/pdodb outbox retry --all-failed --limit=100 --dry-run
+```
+
+| Option | Description |
+|--------|-------------|
+| `--id=UUID` | Requeue one failed row |
+| `--all-failed` | Requeue up to `--limit` failed rows |
+| `--limit=N` | Batch size for `--all-failed` (default 100) |
+| `--keep-attempts` | Do not reset `attempts` |
+| `--dry-run` | Preview without updating |
+| `--table=NAME` | Outbox table |
+
 ## Seed Management
 
 Database seeds are classes that populate your database with test or initial data. Seeds are useful for development, testing, and setting up initial application data.

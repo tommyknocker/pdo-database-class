@@ -6,6 +6,9 @@ namespace tommyknocker\pdodb\tests\postgresql;
 
 use tommyknocker\pdodb\outbox\Outbox;
 use tommyknocker\pdodb\outbox\OutboxMessage;
+use tommyknocker\pdodb\outbox\OutboxStatuses;
+use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\tests\shared\OutboxTestSupport;
 
 final class OutboxTests extends BasePostgreSQLTestCase
 {
@@ -60,5 +63,43 @@ final class OutboxTests extends BasePostgreSQLTestCase
 
         $this->assertSame(1, (int) self::$db->rawQueryValue('SELECT COUNT(*) FROM pdodb_uuid_insert'));
         self::$db->rawQuery('DROP TABLE IF EXISTS pdodb_uuid_insert');
+    }
+
+    public function testIndependentConnectionsPublishEachMessageOnce(): void
+    {
+        $outbox = new Outbox(self::$db, self::TABLE);
+        $outbox->ensureSchema();
+
+        $expectedIds = OutboxTestSupport::enqueueMany(self::$db, self::TABLE, 20);
+        $published = OutboxTestSupport::publishWithIndependentWorkers(
+            fn (): PdoDb => $this->createIndependentConnection(),
+            self::TABLE,
+            workerCount: 4,
+            batchSize: 5,
+        );
+
+        $this->assertCount(20, $expectedIds);
+        $this->assertEqualsCanonicalizing($expectedIds, $published);
+        $this->assertSame(
+            20,
+            (int) self::$db->rawQueryValue(
+                'SELECT COUNT(*) FROM ' . self::TABLE . ' WHERE status = ?',
+                [OutboxStatuses::PUBLISHED]
+            )
+        );
+    }
+
+    private function createIndependentConnection(): PdoDb
+    {
+        return new PdoDb(
+            'pgsql',
+            [
+                'host' => self::DB_HOST,
+                'port' => self::DB_PORT,
+                'username' => self::DB_USER,
+                'password' => self::DB_PASSWORD,
+                'dbname' => self::DB_NAME,
+            ]
+        );
     }
 }

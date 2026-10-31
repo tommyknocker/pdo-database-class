@@ -2119,4 +2119,20 @@ interface DialectInterface
      * Whether {@see buildOutboxClaimOneSql} returns the claimed row (e.g. RETURNING / OUTPUT).
      */
     public function outboxClaimSqlReturnsClaimedRow(): bool;
+
+    /**
+     * Optional SELECT that locks one pending row before the claim update.
+     *
+     * When present, the worker runs this statement inside the claim transaction, then updates that id only while it is still pending.
+     *
+     * @return array{0: string, 1: array<string, mixed>}|null
+     */
+    public function buildOutboxLockCandidateSql(string $tableName): ?array;
+
+    /**
+     * Ordered pending ids tried one by one when a single ordered FOR UPDATE is not valid.
+     *
+     * @return array{0: string, 1: array<string, mixed>}|null
+     */
+    public function buildOutboxPendingIdsSql(string $tableName): ?array;
 }

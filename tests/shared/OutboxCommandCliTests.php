@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\tests\shared;
 use tommyknocker\pdodb\cli\Application;
 use tommyknocker\pdodb\outbox\Outbox;
 use tommyknocker\pdodb\outbox\OutboxStatuses;
+use tommyknocker\pdodb\PdoDb;
 
 /**
  * CLI tests for pdodb outbox work / purge.
@@ -72,6 +73,7 @@ PHP);
         $run = CliTestCapture::runApplication(new Application(), ['pdodb', 'outbox', '--help']);
         $this->assertSame(0, $run['code']);
         $this->assertStringContainsString('work', $run['stdout']);
+        $this->assertStringContainsString('retry', $run['stdout']);
     }
 
     public function testWorkOnceRequiresPublisher(): void
@@ -91,7 +93,7 @@ PHP);
 
         $dbConfig = require __DIR__ . '/../../examples/config.sqlite.php';
         $dbConfig['path'] = $this->testDbPath;
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', $dbConfig);
+        $db = new PdoDb('sqlite', $dbConfig);
 
         $outbox = new Outbox($db, $this->table);
         $outbox->ensureSchema();
@@ -120,7 +122,7 @@ PHP);
     {
         $dbConfig = require __DIR__ . '/../../examples/config.sqlite.php';
         $dbConfig['path'] = $this->testDbPath;
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', $dbConfig);
+        $db = new PdoDb('sqlite', $dbConfig);
 
         $outbox = new Outbox($db, $this->table);
         $outbox->ensureSchema();
@@ -157,7 +159,7 @@ PHP);
     {
         $dbConfig = require __DIR__ . '/../../examples/config.sqlite.php';
         $dbConfig['path'] = $this->testDbPath;
-        $db = new \tommyknocker\pdodb\PdoDb('sqlite', $dbConfig);
+        $db = new PdoDb('sqlite', $dbConfig);
 
         $outbox = new Outbox($db, $this->table);
         $outbox->ensureSchema();
@@ -196,5 +198,63 @@ PHP);
         $this->assertSame(0, $run['code']);
         $remaining = (int) $db->rawQueryValue('SELECT COUNT(*) FROM ' . $this->table);
         $this->assertSame(1, $remaining);
+    }
+
+    public function testStatusShowsCounts(): void
+    {
+        $dbConfig = require __DIR__ . '/../../examples/config.sqlite.php';
+        $dbConfig['path'] = $this->testDbPath;
+        $db = new PdoDb('sqlite', $dbConfig);
+
+        $outbox = new Outbox($db, $this->table);
+        $outbox->ensureSchema();
+
+        $db->transaction(function () use ($outbox): void {
+            $outbox->add('cli.test', ['n' => 1]);
+        });
+
+        $run = CliTestCapture::runApplication(new Application(), [
+            'pdodb',
+            'outbox',
+            'status',
+            '--table=' . $this->table,
+        ]);
+
+        $this->assertSame(0, $run['code']);
+        $this->assertStringContainsString('pending: 1', $run['stdout']);
+    }
+
+    public function testRetryRequeuesFailedMessage(): void
+    {
+        $dbConfig = require __DIR__ . '/../../examples/config.sqlite.php';
+        $dbConfig['path'] = $this->testDbPath;
+        $db = new PdoDb('sqlite', $dbConfig);
+
+        $outbox = new Outbox($db, $this->table);
+        $outbox->ensureSchema();
+
+        $id = '44444444-4444-4444-8444-444444444444';
+        $db->find()->table($this->table)->insert([
+            'id' => $id,
+            'event_type' => 'failed.event',
+            'payload' => '{}',
+            'status' => OutboxStatuses::FAILED,
+            'attempts' => 2,
+            'available_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'last_error' => 'bad',
+        ]);
+
+        $run = CliTestCapture::runApplication(new Application(), [
+            'pdodb',
+            'outbox',
+            'retry',
+            '--id=' . $id,
+            '--table=' . $this->table,
+        ]);
+
+        $this->assertSame(0, $run['code'], $run['stderr']);
+        $status = $db->find()->table($this->table)->where('id', $id)->select(['status'])->getValue();
+        $this->assertSame(OutboxStatuses::PENDING, $status);
     }
 }

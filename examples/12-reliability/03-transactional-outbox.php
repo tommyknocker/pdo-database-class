@@ -25,7 +25,7 @@ recreateTable($db, 'example_orders', [
 ]);
 
 $table = 'example_outbox';
-$db->rawQuery('DROP TABLE IF EXISTS ' . $table);
+$db->schema()->dropTableIfExists($table);
 
 $outbox = new Outbox($db, $table);
 foreach ($outbox->getSchemaSql() as $sql) {

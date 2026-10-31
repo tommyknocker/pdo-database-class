@@ -14,6 +14,7 @@ final class OutboxProcessResult
         public readonly int $published,
         public readonly int $scheduledRetry,
         public readonly int $markedFailed,
+        public readonly int $unconfirmed = 0,
     ) {
     }
 }

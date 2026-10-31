@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Model generator emits `belongsTo` relations from foreign keys and accepts explicit table-to-model mappings for custom names.
 - Transactional outbox (`Outbox`, `OutboxWorker`): atomic `add()` inside a transaction, worker claim/retry with user-defined publish callback, and dialect-specific claim SQL for PostgreSQL, MySQL/MariaDB, SQL Server, and single-worker mode elsewhere.
 - `pdodb outbox work` and `pdodb outbox purge` CLI commands with `--publisher`, retention `--older-than`, and `--dry-run` purge.
+- `pdodb outbox status`, `list`, and `retry` for queue inspection and requeueing failed messages; programmatic `Outbox::countByStatus()`, `listMessages()`, and `requeueFailed()` / `requeueAllFailed()`.
+- Outbox integration tests with multiple independent database connections per dialect (MySQL, MariaDB, PostgreSQL, SQL Server, Oracle) to assert each pending message is published exactly once.
 
 ### Fixed
 - Apply related-model global scopes during lazy and eager relation loading and keep loaded models bound to their original connection.
@@ -28,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Apply ActiveRecord global scopes to query and model writes, preserve terminal method return values, and isolate model connections with an explicit shared default.
 - Nested `transaction()` callbacks use database-specific savepoints instead of committing the outer transaction.
 - Outbox inserts no longer call `lastInsertId()` (PostgreSQL aborted the surrounding transaction). The worker rejects an already open transaction, SQLite releases ISO lock timestamps, and MySQL, MariaDB, SQL Server, and Oracle use dialect-specific outbox schema and claim SQL.
+- Oracle outbox claim locks the pending row with `FOR UPDATE SKIP LOCKED` before updating it. Retryable deadlocks are retried by the worker and by `pdodb outbox work`. A publish whose lock update does not match is reported as unconfirmed and left for a later at-least-once delivery.
 - Migration and seed `--dry-run` no longer execute migration or seed PHP (avoids side effects; SQL from arbitrary PHP is not shown).
 - ActiveRecord `update()` / `delete()` target the original primary key from when the row was loaded; changing a primary key in memory throws `PrimaryKeyMutationException`.
 - ActiveRecord `save()` / `update()` treat zero affected rows as success when the row still matches the intended values (e.g. MySQL no-op updates).

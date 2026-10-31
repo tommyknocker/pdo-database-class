@@ -33,6 +33,9 @@ Transactional outbox: enqueue domain events in the same transaction as business 
 ### 04-outbox-cli.php
 Same flow using `pdodb outbox work --once` and `examples/12-reliability/outbox/publisher.php`.
 
+### 05-outbox-retry.php
+Requeue a failed row with `pdodb outbox retry`, then process it with `outbox work --once`.
+
 ### outbox/publisher.php
 Sample publisher file returned from PHP and loaded by the CLI.
 
@@ -44,6 +47,7 @@ php 01-exception-handling.php
 php 02-connection-retry.php
 php 03-transactional-outbox.php
 php 04-outbox-cli.php
+php 05-outbox-retry.php
 ```
 
 ## Reliability Features

@@ -7,10 +7,12 @@ namespace tommyknocker\pdodb\tests\shared;
 use tommyknocker\pdodb\exceptions\OutboxException;
 use tommyknocker\pdodb\exceptions\OutboxPermanentFailureException;
 use tommyknocker\pdodb\exceptions\OutboxRetryableException;
+use tommyknocker\pdodb\exceptions\TransactionException;
 use tommyknocker\pdodb\outbox\Outbox;
 use tommyknocker\pdodb\outbox\OutboxDuration;
 use tommyknocker\pdodb\outbox\OutboxMessage;
 use tommyknocker\pdodb\outbox\OutboxStatuses;
+use tommyknocker\pdodb\outbox\OutboxTransientError;
 use tommyknocker\pdodb\outbox\OutboxUuid;
 
 /**
@@ -221,5 +223,104 @@ final class OutboxTests extends BaseSharedTestCase
         $this->assertSame(2, $result->claimed);
         $this->assertSame(2, $result->published);
         $this->assertCount(2, array_unique($seen));
+    }
+
+    public function testLostLockIsReportedAsUnconfirmed(): void
+    {
+        $outbox = new Outbox(self::$db, self::TABLE);
+        self::$db->transaction(function () use ($outbox): void {
+            $outbox->add('order.created', ['id' => 1]);
+        });
+
+        $published = false;
+        $result = $outbox->worker('test')->runOnce(function (OutboxMessage $message) use (&$published): void {
+            $published = true;
+            self::$db->find()->table(self::TABLE)->where('id', $message->id)->update([
+                'locked_by' => 'replaced-token',
+            ]);
+        });
+
+        $this->assertTrue($published);
+        $this->assertSame(1, $result->claimed);
+        $this->assertSame(0, $result->published);
+        $this->assertSame(1, $result->unconfirmed);
+        $row = self::$db->find()->table(self::TABLE)->getOne();
+        $this->assertIsArray($row);
+        $this->assertSame(OutboxStatuses::PROCESSING, $row['status']);
+    }
+
+    public function testDeadlockIsRetryable(): void
+    {
+        $deadlock = new TransactionException('SQLSTATE[40001]: Deadlock found when trying to get lock; try restarting transaction', 1213);
+        $this->assertTrue(OutboxTransientError::isRetryable($deadlock));
+        $this->assertFalse(OutboxTransientError::isRetryable(new OutboxException('missing publisher')));
+    }
+
+    public function testCountByStatus(): void
+    {
+        $outbox = new Outbox(self::$db, self::TABLE);
+        self::$db->transaction(function () use ($outbox): void {
+            $outbox->add('pending.event', []);
+        });
+        self::$db->find()->table(self::TABLE)->insert([
+            'id' => OutboxUuid::v4(),
+            'event_type' => 'failed.event',
+            'payload' => '{}',
+            'status' => OutboxStatuses::FAILED,
+            'attempts' => 3,
+            'available_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'last_error' => 'boom',
+        ]);
+
+        $counts = $outbox->countByStatus();
+        $this->assertSame(1, $counts->pending);
+        $this->assertSame(1, $counts->failed);
+        $this->assertSame(0, $counts->published);
+    }
+
+    public function testRequeueFailedThenPublish(): void
+    {
+        $outbox = new Outbox(self::$db, self::TABLE);
+        $id = OutboxUuid::v4();
+        self::$db->find()->table(self::TABLE)->insert([
+            'id' => $id,
+            'event_type' => 'fix.me',
+            'payload' => '{}',
+            'status' => OutboxStatuses::FAILED,
+            'attempts' => 5,
+            'available_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'last_error' => 'permanent',
+        ]);
+
+        $this->assertTrue($outbox->requeueFailed($id));
+        $counts = $outbox->countByStatus();
+        $this->assertSame(1, $counts->pending);
+        $this->assertSame(0, $counts->failed);
+
+        $result = $outbox->worker('test')->runOnce(static function (): void {
+        });
+        $this->assertSame(1, $result->published);
+    }
+
+    public function testRequeueAllFailedDryRun(): void
+    {
+        $outbox = new Outbox(self::$db, self::TABLE);
+        self::$db->find()->table(self::TABLE)->insert([
+            'id' => OutboxUuid::v4(),
+            'event_type' => 'x',
+            'payload' => '{}',
+            'status' => OutboxStatuses::FAILED,
+            'attempts' => 1,
+            'available_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
+        ]);
+
+        $result = $outbox->requeueAllFailed(10, true, true);
+        $this->assertSame(1, $result->matched);
+        $this->assertSame(0, $result->requeued);
+        $this->assertTrue($result->dryRun);
+        $this->assertSame(1, $outbox->countByStatus()->failed);
     }
 }

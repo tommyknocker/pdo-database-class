@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\outbox;
 
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\exceptions\OutboxException;
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -185,17 +186,29 @@ final class OutboxStorage
     protected function claimOne(string $workerToken, int $lockSeconds): ?OutboxMessage
     {
         $dialect = $this->dialect();
-        [$sql, $params] = $dialect->buildOutboxClaimOneSql($this->tableName);
         $claimToken = $workerToken . ':' . bin2hex(random_bytes(8));
+        $lockedUntil = gmdate('Y-m-d\TH:i:s\Z', time() + $lockSeconds);
+        $now = gmdate('Y-m-d\TH:i:s\Z');
+
+        $lockCandidate = $dialect->buildOutboxLockCandidateSql($this->tableName);
+        $pendingIds = $dialect->buildOutboxPendingIdsSql($this->tableName);
+        if ($lockCandidate !== null && $pendingIds !== null) {
+            return $this->claimFirstUnlocked($pendingIds, $lockCandidate, $claimToken, $lockedUntil, $now);
+        }
+        if ($lockCandidate !== null) {
+            return $this->claimLockedCandidate($lockCandidate, $claimToken, $lockedUntil, $now);
+        }
+
+        [$sql, $params] = $dialect->buildOutboxClaimOneSql($this->tableName);
         $params['token'] = $claimToken;
         if (array_key_exists('lock_seconds', $params)) {
             $params['lock_seconds'] = $lockSeconds;
         }
         if (array_key_exists('locked_until', $params)) {
-            $params['locked_until'] = gmdate('Y-m-d\TH:i:s\Z', time() + $lockSeconds);
+            $params['locked_until'] = $lockedUntil;
         }
         if (array_key_exists('now', $params)) {
-            $params['now'] = gmdate('Y-m-d\TH:i:s\Z');
+            $params['now'] = $now;
         }
 
         if ($dialect->outboxClaimSqlReturnsClaimedRow()) {
@@ -219,6 +232,106 @@ final class OutboxStorage
         }
 
         return OutboxMessage::fromRow($row);
+    }
+
+    /**
+     * @param array{0: string, 1: array<string, mixed>} $pendingIds
+     * @param array{0: string, 1: array<string, mixed>} $lockById
+     */
+    protected function claimFirstUnlocked(
+        array $pendingIds,
+        array $lockById,
+        string $claimToken,
+        string $lockedUntil,
+        string $now,
+    ): ?OutboxMessage {
+        [$listSql, $listParams] = $pendingIds;
+        if (array_key_exists('now', $listParams)) {
+            $listParams['now'] = $now;
+        }
+
+        $candidates = $this->db->rawQuery($listSql, $listParams);
+        foreach ($candidates as $candidate) {
+            if (!is_array($candidate)) {
+                continue;
+            }
+            $candidate = array_change_key_case($candidate, CASE_LOWER);
+            $id = (string) ($candidate['id'] ?? '');
+            if ($id === '') {
+                continue;
+            }
+
+            [$lockSql, $lockParams] = $lockById;
+            $lockParams['id'] = $id;
+            $locked = $this->db->rawQueryOne($lockSql, $lockParams);
+            if (!is_array($locked) || $locked === []) {
+                continue;
+            }
+
+            $message = $this->markCandidateProcessing($id, $claimToken, $lockedUntil);
+            if ($message !== null) {
+                return $message;
+            }
+        }
+
+        return null;
+    }
+
+    protected function markCandidateProcessing(string $id, string $claimToken, string $lockedUntil): ?OutboxMessage
+    {
+        $updated = $this->db->find()
+            ->table($this->tableName)
+            ->where('id', $id)
+            ->where('status', OutboxStatuses::PENDING)
+            ->update([
+                'status' => OutboxStatuses::PROCESSING,
+                'locked_by' => $claimToken,
+                'locked_until' => $lockedUntil,
+                'attempts' => new RawValue('attempts + 1'),
+            ]);
+        if ($updated < 1) {
+            return null;
+        }
+
+        $row = $this->db->find()
+            ->table($this->tableName)
+            ->where('id', $id)
+            ->where('locked_by', $claimToken)
+            ->where('status', OutboxStatuses::PROCESSING)
+            ->getOne();
+        if (!is_array($row)) {
+            return null;
+        }
+
+        return OutboxMessage::fromRow($row);
+    }
+
+    /**
+     * @param array{0: string, 1: array<string, mixed>} $lockCandidate
+     */
+    protected function claimLockedCandidate(
+        array $lockCandidate,
+        string $claimToken,
+        string $lockedUntil,
+        string $now,
+    ): ?OutboxMessage {
+        [$sql, $params] = $lockCandidate;
+        if (array_key_exists('now', $params)) {
+            $params['now'] = $now;
+        }
+
+        $candidate = $this->db->rawQueryOne($sql, $params);
+        if (!is_array($candidate) || $candidate === []) {
+            return null;
+        }
+
+        $candidate = array_change_key_case($candidate, CASE_LOWER);
+        $id = (string) ($candidate['id'] ?? '');
+        if ($id === '') {
+            return null;
+        }
+
+        return $this->markCandidateProcessing($id, $claimToken, $lockedUntil);
     }
 
     protected function dialect(): DialectInterface
@@ -251,6 +364,135 @@ final class OutboxStorage
             ->delete();
     }
 
+    public function countByStatus(): OutboxStatusCounts
+    {
+        $rows = $this->db->find()
+            ->table($this->tableName)
+            ->select(['status', 'COUNT(*) AS cnt'])
+            ->groupBy('status')
+            ->get();
+
+        $counts = [
+            OutboxStatuses::PENDING => 0,
+            OutboxStatuses::PROCESSING => 0,
+            OutboxStatuses::PUBLISHED => 0,
+            OutboxStatuses::FAILED => 0,
+        ];
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $row = array_change_key_case($row, CASE_LOWER);
+            $status = (string) ($row['status'] ?? '');
+            if (!array_key_exists($status, $counts)) {
+                continue;
+            }
+            $counts[$status] = (int) ($row['cnt'] ?? 0);
+        }
+
+        return new OutboxStatusCounts(
+            $counts[OutboxStatuses::PENDING],
+            $counts[OutboxStatuses::PROCESSING],
+            $counts[OutboxStatuses::PUBLISHED],
+            $counts[OutboxStatuses::FAILED],
+        );
+    }
+
+    /**
+     * @return list<OutboxListItem>
+     */
+    public function listMessages(string $status, int $limit = 50): array
+    {
+        self::assertListableStatus($status);
+        if ($limit < 1) {
+            return [];
+        }
+
+        $rows = $this->db->find()
+            ->table($this->tableName)
+            ->where('status', $status)
+            ->orderBy('created_at', 'DESC')
+            ->limit($limit)
+            ->get();
+
+        $items = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $items[] = OutboxListItem::fromRow($row);
+        }
+
+        return $items;
+    }
+
+    public function requeueFailed(string $id, bool $resetAttempts = true): bool
+    {
+        if ($id === '') {
+            throw new OutboxException('Outbox message id must not be empty.');
+        }
+
+        $now = gmdate('Y-m-d\TH:i:s\Z');
+        $update = [
+            'status' => OutboxStatuses::PENDING,
+            'available_at' => $now,
+            'locked_by' => null,
+            'locked_until' => null,
+            'published_at' => null,
+        ];
+        if ($resetAttempts) {
+            $update['attempts'] = 0;
+        }
+
+        return $this->db->find()
+            ->table($this->tableName)
+            ->where('id', $id)
+            ->where('status', OutboxStatuses::FAILED)
+            ->update($update) > 0;
+    }
+
+    public function requeueAllFailed(int $limit, bool $resetAttempts, bool $dryRun): OutboxRequeueResult
+    {
+        if ($limit < 1) {
+            return new OutboxRequeueResult(0, 0, $dryRun);
+        }
+
+        $rows = $this->db->find()
+            ->table($this->tableName)
+            ->where('status', OutboxStatuses::FAILED)
+            ->orderBy('created_at', 'ASC')
+            ->limit($limit)
+            ->select(['id'])
+            ->get();
+
+        $ids = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $row = array_change_key_case($row, CASE_LOWER);
+            $messageId = (string) ($row['id'] ?? '');
+            if ($messageId !== '') {
+                $ids[] = $messageId;
+            }
+        }
+
+        $matched = count($ids);
+        if ($dryRun || $matched === 0) {
+            return new OutboxRequeueResult($matched, 0, $dryRun);
+        }
+
+        $requeued = 0;
+        foreach ($ids as $messageId) {
+            if ($this->requeueFailed($messageId, $resetAttempts)) {
+                $requeued++;
+            }
+        }
+
+        return new OutboxRequeueResult($matched, $requeued, false);
+    }
+
     public function purge(
         string $status,
         string $olderThanSpec,
@@ -275,6 +517,20 @@ final class OutboxStorage
     {
         if (!in_array($column, ['published_at', 'created_at'], true)) {
             throw new OutboxException('Invalid purge timestamp column.');
+        }
+    }
+
+    protected static function assertListableStatus(string $status): void
+    {
+        if (!in_array($status, [
+            OutboxStatuses::PENDING,
+            OutboxStatuses::PROCESSING,
+            OutboxStatuses::PUBLISHED,
+            OutboxStatuses::FAILED,
+        ], true)) {
+            throw new OutboxException(
+                'Invalid outbox status for list. Allowed: pending, processing, published, failed.'
+            );
         }
     }
 

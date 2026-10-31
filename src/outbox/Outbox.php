@@ -85,6 +85,29 @@ final class Outbox
         return $this->storage()->purge($resolvedStatus, $olderThanSpec, $dryRun);
     }
 
+    public function countByStatus(): OutboxStatusCounts
+    {
+        return $this->storage()->countByStatus();
+    }
+
+    /**
+     * @return list<OutboxListItem>
+     */
+    public function listMessages(string $status, int $limit = 50): array
+    {
+        return $this->storage()->listMessages($status, $limit);
+    }
+
+    public function requeueFailed(string $id, bool $resetAttempts = true): bool
+    {
+        return $this->storage()->requeueFailed($id, $resetAttempts);
+    }
+
+    public function requeueAllFailed(int $limit = 100, bool $resetAttempts = true, bool $dryRun = false): OutboxRequeueResult
+    {
+        return $this->storage()->requeueAllFailed($limit, $resetAttempts, $dryRun);
+    }
+
     public function getTableName(): string
     {
         return $this->tableName;

@@ -1096,6 +1096,22 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function buildOutboxLockCandidateSql(string $tableName): ?array
+    {
+        return null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxPendingIdsSql(string $tableName): ?array
+    {
+        return null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function extractErrorCode(\PDOException $e): string
     {
         // Default: use exception code

@@ -3437,7 +3437,8 @@ class OracleDialect extends DialectAbstract
                         ORDER BY available_at ASC, id ASC
                         FETCH FIRST 1 ROW ONLY
                     )
-                )",
+                )
+                AND status = 'pending'",
             [
                 'token' => '',
                 'locked_until' => '',
@@ -3452,5 +3453,37 @@ class OracleDialect extends DialectAbstract
     public function outboxClaimSqlReturnsClaimedRow(): bool
     {
         return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxLockCandidateSql(string $tableName): ?array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "SELECT id FROM {$tableQuoted}
+                WHERE id = :id AND status = 'pending'
+                FOR UPDATE SKIP LOCKED",
+            ['id' => ''],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxPendingIdsSql(string $tableName): ?array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "SELECT id FROM (
+                SELECT id FROM {$tableQuoted}
+                WHERE status = 'pending' AND available_at <= :now
+                ORDER BY available_at ASC, id ASC
+            ) WHERE ROWNUM <= 100",
+            ['now' => ''],
+        ];
     }
 }
