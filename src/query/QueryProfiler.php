@@ -32,6 +32,12 @@ class QueryProfiler
     /** @var bool True when a new SQL shape was dropped to stay within the limit */
     protected bool $truncated = false;
 
+    /** @var array<string, array{model: string, relation: string, lazy_loads: int, eager_loads: int, lazy_queries: int, eager_queries: int, sql: list<string>}> */
+    protected array $relationStats = [];
+    /** @var array<int, list<array{key: ?string, mode: string}>> */
+    protected array $relationStacks = [];
+    protected bool $relationStatsTruncated = false;
+
     /** @var float Slow query threshold in seconds */
     protected float $slowQueryThreshold = 1.0;
 
@@ -96,6 +102,9 @@ class QueryProfiler
         $this->activeQueries = [];
         $this->nextQueryId = 1;
         $this->truncated = false;
+        $this->relationStats = [];
+        $this->relationStacks = [];
+        $this->relationStatsTruncated = false;
         return $this;
     }
 
@@ -169,11 +178,34 @@ class QueryProfiler
             return -1;
         }
 
+        $redacted = $this->redactLiterals($sql);
+        $fiber = \Fiber::getCurrent();
+        $stackId = $fiber === null ? 0 : spl_object_id($fiber);
+        $stack = $this->relationStacks[$stackId] ?? [];
+        $frame = $stack === [] ? null : $stack[array_key_last($stack)];
+        if ($frame !== null && $frame['key'] !== null && isset($this->relationStats[$frame['key']])) {
+            $key = $frame['key'];
+            $stat = $this->relationStats[$key];
+            if ($frame['mode'] === 'lazy') {
+                $stat['lazy_queries']++;
+            } else {
+                $stat['eager_queries']++;
+            }
+            $sample = substr($redacted, 0, 2048);
+            while ($sample !== '' && preg_match('//u', $sample) !== 1) {
+                $sample = substr($sample, 0, -1);
+            }
+            if (count($stat['sql']) < 3 && !in_array($sample, $stat['sql'], true)) {
+                $stat['sql'][] = $sample;
+            }
+            $this->relationStats[$key] = $stat;
+        }
+
         $queryId = $this->nextQueryId;
         $this->nextQueryId++;
         $this->activeQueries[$queryId] = [
             'sql' => $sql,
-            'redacted_sql' => $this->redactLiterals($sql),
+            'redacted_sql' => $redacted,
             'params' => $params,
             'start_time' => microtime(true),
             'start_memory' => memory_get_usage(true),
@@ -331,7 +363,63 @@ class QueryProfiler
         $this->activeQueries = [];
         $this->nextQueryId = 1;
         $this->truncated = false;
+        $this->relationStats = [];
+        $this->relationStacks = [];
+        $this->relationStatsTruncated = false;
         return $this;
+    }
+
+    /** Start attributing SQL to a relation on the current fiber. */
+    public function beginRelation(string $model, string $relation, string $mode): bool
+    {
+        if (!$this->enabled || !in_array($mode, ['lazy', 'eager'], true)) {
+            return false;
+        }
+        $key = hash('sha256', $model . "\0" . $relation);
+        if (!isset($this->relationStats[$key])) {
+            if (count($this->relationStats) >= 100) {
+                $this->relationStatsTruncated = true;
+                $key = null;
+            } else {
+                $this->relationStats[$key] = ['model' => $model, 'relation' => $relation,
+                    'lazy_loads' => 0, 'eager_loads' => 0, 'lazy_queries' => 0, 'eager_queries' => 0, 'sql' => []];
+            }
+        }
+        if ($key !== null) {
+            $this->relationStats[$key][$mode . '_loads']++;
+        }
+        $fiber = \Fiber::getCurrent();
+        $stackId = $fiber === null ? 0 : spl_object_id($fiber);
+        $this->relationStacks[$stackId][] = ['key' => $key, 'mode' => $mode];
+        return true;
+    }
+
+    public function endRelation(): void
+    {
+        $fiber = \Fiber::getCurrent();
+        $stackId = $fiber === null ? 0 : spl_object_id($fiber);
+        if (!empty($this->relationStacks[$stackId])) {
+            array_pop($this->relationStacks[$stackId]);
+            if ($this->relationStacks[$stackId] === []) {
+                unset($this->relationStacks[$stackId]);
+            }
+        }
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function getRelationStats(): array
+    {
+        $results = [];
+        foreach ($this->relationStats as $stat) {
+            $stat['possible_n_plus_one'] = $stat['lazy_loads'] >= 10 && $stat['lazy_queries'] >= 10;
+            $results[] = $stat;
+        }
+        return $results;
+    }
+
+    public function areRelationStatsTruncated(): bool
+    {
+        return $this->relationStatsTruncated;
     }
 
     /**

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Opt-in relation query diagnostics in profiler reports, with a possible N+1 warning and a runnable lazy-versus-eager loading example.
 - Bind ActiveRecord queries and models to an explicit `PdoDb` with `Model::on()` and propagate the context through relations.
 - Opt-in ActiveRecord optimistic locking using an integer version column; stale updates and deletes throw `OptimisticLockException`.
 - Opt-in ActiveRecord casts for JSON arrays, backed enums and immutable UTC datetimes; explicit API presentations and model pagination with eager-loaded relations.

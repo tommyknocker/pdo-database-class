@@ -853,3 +853,29 @@ Without `on()`, a related model continues using its own configured connection.
 With `on()`, relationships use the explicitly supplied connection and retain
 related-model global scopes. Do not combine models from different explicit
 contexts in one manual eager-load call.
+
+## Diagnosing relationship queries
+
+An order list can accidentally load a customer separately for every order. Enable profiling on the connection to see how many queries each relation performs:
+
+```php
+$db->enableProfiling(); // Enable before running the code you want to inspect.
+$orders = Order::find()->all();
+foreach ($orders as $order) {
+    echo $order->user->name;
+}
+
+foreach ($db->profileReport()->summary()['relations'] as $relation) {
+    printf("%s::%s: %d lazy SQL queries; possible N+1: %s\n",
+        $relation['model'], $relation['relation'], $relation['lazy_queries'],
+        $relation['possible_n_plus_one'] ? 'yes' : 'no');
+}
+```
+
+Try `Order::find()->with('user')->all()` and compare the report after `$db->getProfiler()->reset()`. In the [runnable SQLite example](../../examples/09-active-record/05-diagnose-relations.php), 12 lazy queries become one eager query. This is a **suspicion**, not proof: ten or more lazy loads and ten or more SQL attempts for the same model and relation trigger the flag. Review the access pattern before changing it.
+
+The report records property/`getRelation()` lazy loads and `with()` eager loads, not manually executed relation queries. Counts are query attempts within relation loading, including any SQL performed by callbacks in that scope. Nested relation SQL is attributed to the innermost relation. Each database connection keeps its own profile. Profiling is opt-in and in-process; reset it between comparisons. It retains up to 100 model/relation pairs and three SQL samples per pair, and sets `relations_truncated` if the pair limit is reached.
+
+Samples omit bound values and redact recognized literals. SQL identifiers and other text may remain visible, so review reports before sharing them; redaction is not a complete privacy boundary. Profiling does not call AI or send data anywhere.
+
+For a slow query, use `explainAdvice()` for local plan advice or `explainAiContext()` to inspect what would be sent. Only an explicit `explainAiAdvice()` call uses the configured AI provider. See [AI-powered query analysis](23-ai-analysis.md) for setup, privacy, and an end-to-end example.

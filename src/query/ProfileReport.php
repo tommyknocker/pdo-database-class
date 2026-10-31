@@ -39,6 +39,8 @@ class ProfileReport
             'aggregated' => $profiler->getAggregatedStats(),
             'queries' => $profiler->getSlowestQueries(20),
             'truncated' => $profiler->isTruncated(),
+            'relations' => $profiler->getRelationStats(),
+            'relations_truncated' => $profiler->areRelationStatsTruncated(),
             'parameters_included' => false,
             'note' => 'Recognized single-quoted string literals, numeric literals, and comments are removed from SQL. Double-quoted text is removed when this connection treats it as a string or when SQLite may execute an unknown double-quoted name as a value. On MySQL and MariaDB without ANSI_QUOTES, double quotes are strings. Otherwise double-quoted text may stay visible because it can be an identifier. Bound parameter values are omitted. This is not a complete privacy boundary. possible_n_plus_one means one SQL shape ran many times; it is not proof of an N+1 bug.',
         ];
@@ -131,6 +133,32 @@ class ProfileReport
 
         if (($data['truncated'] ?? false) === true) {
             $lines[] = 'Note: profiler storage was truncated; counts may be incomplete.';
+        }
+
+        $relations = is_array($data['relations'] ?? null) ? $data['relations'] : [];
+        if ($relations !== []) {
+            $lines[] = '';
+            $lines[] = 'Relation activity (SQL attempts):';
+            foreach ($relations as $relation) {
+                if (!is_array($relation)) {
+                    continue;
+                }
+                $model = is_string($relation['model'] ?? null) ? $relation['model'] : '(unknown model)';
+                $name = is_string($relation['relation'] ?? null) ? $relation['relation'] : '(unknown relation)';
+                $lines[] = sprintf('%s::%s — %d lazy loads / %d SQL, %d eager loads / %d SQL%s',
+                    $model, $name, (int)($relation['lazy_loads'] ?? 0), (int)($relation['lazy_queries'] ?? 0),
+                    (int)($relation['eager_loads'] ?? 0), (int)($relation['eager_queries'] ?? 0),
+                    ($relation['possible_n_plus_one'] ?? false) === true ? ' — possible N+1' : '');
+                $samples = is_array($relation['sql'] ?? null) ? $relation['sql'] : [];
+                foreach ($samples as $sql) {
+                    if (is_string($sql)) {
+                        $lines[] = '   ' . $sql;
+                    }
+                }
+            }
+        }
+        if (($data['relations_truncated'] ?? false) === true) {
+            $lines[] = 'Note: relation statistics were truncated.';
         }
 
         $queries = is_array($data['queries'] ?? null) ? $data['queries'] : [];

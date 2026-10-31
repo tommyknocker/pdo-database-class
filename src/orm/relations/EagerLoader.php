@@ -97,15 +97,19 @@ class EagerLoader
             throw new RuntimeException("Relationship '{$relationName}' not found in model " . $firstModel::class);
         }
 
-        // Load based on relationship type
-        if ($relation instanceof BelongsTo) {
-            $this->loadBelongsTo($models, $relation, $relationName, $subRelations);
-        } elseif ($relation instanceof HasOne) {
-            $this->loadHasOne($models, $relation, $relationName, $subRelations);
-        } elseif ($relation instanceof HasMany) {
-            $this->loadHasMany($models, $relation, $relationName, $subRelations);
-        } elseif ($relation instanceof HasManyThrough) {
-            $this->loadHasManyThrough($models, $relation, $relationName, $subRelations);
+        $traces = RelationTrace::begin($firstModel, $relationName, 'eager', $relation);
+        try {
+            if ($relation instanceof BelongsTo) {
+                $this->loadBelongsTo($models, $relation, $relationName, $subRelations);
+            } elseif ($relation instanceof HasOne) {
+                $this->loadHasOne($models, $relation, $relationName, $subRelations);
+            } elseif ($relation instanceof HasMany) {
+                $this->loadHasMany($models, $relation, $relationName, $subRelations);
+            } elseif ($relation instanceof HasManyThrough) {
+                $this->loadHasManyThrough($models, $relation, $relationName, $subRelations);
+            }
+        } finally {
+            RelationTrace::end($traces);
         }
     }
 

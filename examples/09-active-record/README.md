@@ -63,3 +63,7 @@ php 03-scopes.php
 
 - [Query Builder](../01-basic/) - Basic QueryBuilder operations
 - [Extensibility](../10-extensibility/) - Extending QueryBuilder with macros and plugins
+
+## Diagnosing relationship queries
+
+Run `php examples/09-active-record/05-diagnose-relations.php` for a self-contained SQLite comparison of lazy and eager loading, followed by local EXPLAIN and an AI context preview. No AI provider or network call is needed. See [relationship diagnostics](../../documentation/05-advanced-features/16-active-record.md#diagnosing-relationship-queries).

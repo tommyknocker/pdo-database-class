@@ -23,6 +23,7 @@ use tommyknocker\pdodb\orm\relations\HasMany;
 use tommyknocker\pdodb\orm\relations\HasManyThrough;
 use tommyknocker\pdodb\orm\relations\HasOne;
 use tommyknocker\pdodb\orm\relations\RelationInterface;
+use tommyknocker\pdodb\orm\relations\RelationTrace;
 use tommyknocker\pdodb\orm\validators\ValidatorFactory;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\QueryBuilder;
@@ -948,7 +949,12 @@ trait ActiveRecord
             return null;
         }
 
-        return $relation->getValue();
+        $traces = RelationTrace::begin($this, $name, 'lazy', $relation);
+        try {
+            return $relation->getValue();
+        } finally {
+            RelationTrace::end($traces);
+        }
     }
 
     /**
