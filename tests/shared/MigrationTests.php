@@ -57,7 +57,9 @@ class MigrationTests extends BaseSharedTestCase
 
         $runner = new MigrationRunner($db, $migrationPath);
 
-        // Table should be created automatically
+        $runner->getMigrationHistory();
+
+        // Table is created when history is first used
         $this->assertTrue($db->find()->table('__migrations')->tableExists());
 
         // Cleanup

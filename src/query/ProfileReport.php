@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\query;
 
 use tommyknocker\pdodb\ai\QueryInspectionService;
+use tommyknocker\pdodb\exceptions\ProfileReportException;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -59,6 +60,49 @@ class ProfileReport
             'analysis' => QueryInspectionService::format($inspection['analysis']),
             'model_request' => false,
         ];
+    }
+
+    /**
+     * Diagnose the Nth slowest query on this connection (1 = slowest). Uses raw SQL from the profiler.
+     *
+     * @param array<int|string, mixed> $params
+     *
+     * @return array<string, mixed>
+     */
+    public function diagnoseRankedQuery(int $rank, array $params = []): array
+    {
+        $profiler = $this->db->getProfiler();
+        if ($profiler === null || !$profiler->isEnabled()) {
+            throw new ProfileReportException(
+                'Profiling is not enabled on this connection. Enable it before diagnosing a ranked query.'
+            );
+        }
+
+        $sql = $profiler->getRawSqlBySlowestRank($rank);
+        if ($sql === null || $sql === '') {
+            throw new ProfileReportException("No profiled query at rank {$rank}.");
+        }
+
+        $result = $this->diagnose($sql, $params);
+        $result['rank'] = $rank;
+        $result['sql'] = $sql;
+
+        return $result;
+    }
+
+    /**
+     * Parse JSON from {@see export()}.
+     *
+     * @return array<string, mixed>
+     */
+    public static function parseExport(string $json): array
+    {
+        $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($data)) {
+            throw new ProfileReportException('Profile export must be a JSON object.');
+        }
+
+        return $data;
     }
 
     public function export(): string

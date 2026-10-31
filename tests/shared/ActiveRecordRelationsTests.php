@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\exceptions\LazyRelationException;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\orm\ActiveQuery;
 use tommyknocker\pdodb\orm\Model;
@@ -912,6 +913,25 @@ final class ActiveRecordRelationsTests extends BaseSharedTestCase
             } else {
                 $this->assertCount(1, $user->comments);
             }
+        }
+    }
+
+    public function testPreventLazyLoadingThrowsWhenEnabled(): void
+    {
+        $db = self::$db;
+        $userId = $db->find()->table('users')->insert(['name' => 'Lazy', 'email' => 'lazy@example.com']);
+        $postId = $db->find()->table('posts')->insert(['user_id' => $userId, 'title' => 'T', 'content' => 'C']);
+
+        TestPost::preventLazyLoading(true);
+
+        try {
+            $post = TestPost::findOne($postId);
+            $this->assertNotNull($post);
+
+            $this->expectException(LazyRelationException::class);
+            $unused = $post->user;
+        } finally {
+            TestPost::preventLazyLoading(false);
         }
     }
 }

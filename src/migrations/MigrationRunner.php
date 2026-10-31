@@ -9,7 +9,6 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use tommyknocker\pdodb\events\MigrationCompletedEvent;
 use tommyknocker\pdodb\events\MigrationRolledBackEvent;
 use tommyknocker\pdodb\events\MigrationStartedEvent;
-use tommyknocker\pdodb\events\QueryExecutedEvent;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\PdoDb;
 
@@ -52,8 +51,6 @@ class MigrationRunner
         if (!is_dir($this->migrationPath)) {
             throw new QueryException("Migration path does not exist: {$this->migrationPath}");
         }
-
-        $this->ensureMigrationTable();
     }
 
     /**
@@ -117,6 +114,18 @@ class MigrationRunner
         }
     }
 
+    private function historyTableAvailable(): bool
+    {
+        if ($this->db->schema()->tableExists($this->migrationTable)) {
+            return true;
+        }
+        if ($this->dryRun || $this->pretend) {
+            return false;
+        }
+        $this->ensureMigrationTable();
+        return true;
+    }
+
     /**
      * Get new (not yet applied) migrations.
      *
@@ -173,6 +182,9 @@ class MigrationRunner
      */
     public function getMigrationHistory(?int $limit = null): array
     {
+        if (!$this->historyTableAvailable()) {
+            return [];
+        }
         $query = $this->db->find()
             ->from($this->migrationTable)
             ->orderBy('apply_time', 'DESC');
@@ -330,7 +342,11 @@ class MigrationRunner
             foreach ($history as $record) {
                 $version = $record['version'];
                 $this->collectedQueries[] = "-- Rollback Migration: {$version}";
-                $this->collectedQueries[] = '-- Would execute migration.down()';
+                if ($this->dryRun) {
+                    $this->collectedQueries[] = '-- Dry-run: migration PHP is not executed.';
+                } else {
+                    $this->collectedQueries[] = '-- Would execute migration.down()';
+                }
                 $this->collectedQueries[] = '-- Would remove migration record';
                 $rolledBack[] = $version;
             }
@@ -375,7 +391,11 @@ class MigrationRunner
         // In dry-run or pretend mode, just collect info without executing
         if ($this->dryRun || $this->pretend) {
             $this->collectedQueries[] = "-- Rollback Migration: {$version}";
-            $this->collectedQueries[] = '-- Would execute migration.down()';
+            if ($this->dryRun) {
+                $this->collectedQueries[] = '-- Dry-run: migration PHP is not executed.';
+            } else {
+                $this->collectedQueries[] = '-- Would execute migration.down()';
+            }
             $this->collectedQueries[] = '-- Would remove migration record';
             return;
         }
@@ -477,35 +497,15 @@ class MigrationRunner
             return; // Already applied
         }
 
-        // In dry-run mode, execute migration in transaction and collect SQL
-        if ($this->dryRun) {
-            $this->collectedQueries[] = "-- Migration: {$version}";
-            $this->collectedQueries[] = '';
-
-            try {
-                $this->db->startTransaction();
-                $migration = $this->loadMigration($version);
-
-                // Collect SQL queries during migration execution
-                $this->collectMigrationSql($migration, $version);
-
-                $this->db->rollback(); // Always rollback in dry-run mode
-            } catch (\Throwable $e) {
-                // Rollback if transaction is still active
-                if ($this->db->connection->inTransaction()) {
-                    $this->db->rollback();
-                }
-                // Still collect the error as a comment
-                $this->collectedQueries[] = '-- Error: ' . $e->getMessage();
-            }
-            return;
-        }
-
-        // In pretend mode, just collect info without executing
-        if ($this->pretend) {
+        if ($this->dryRun || $this->pretend) {
             $batch = $this->getNextBatchNumber();
             $this->collectedQueries[] = "-- Migration: {$version}";
-            $this->collectedQueries[] = '-- Would execute migration.up()';
+            if ($this->dryRun) {
+                $this->collectedQueries[] = '-- Dry-run: migration PHP is not executed.';
+                $this->collectedQueries[] = '-- SQL from arbitrary PHP cannot be shown without side effects on some drivers.';
+            } else {
+                $this->collectedQueries[] = '-- Would execute migration.up()';
+            }
             $this->collectedQueries[] = "-- Would record migration in batch {$batch}";
             return;
         }
@@ -530,87 +530,13 @@ class MigrationRunner
     }
 
     /**
-     * Collect SQL queries from migration execution.
-     *
-     * @param Migration $migration Migration instance
-     * @param string $version Migration version
+     * @deprecated Dry-run no longer executes migration code. The method remains for BC if extended.
      */
     protected function collectMigrationSql(Migration $migration, string $version): void
     {
-        // Create SQL collector
-        $sqlCollector = new SqlQueryCollector();
-
-        // Set up event dispatcher with SQL collector if available
-        $originalDispatcher = $this->db->getEventDispatcher();
-        $collectorDispatcher = null;
-        $connection = $this->db->connection;
-        $originalConnectionDispatcher = $connection->getEventDispatcher();
-
-        if (interface_exists(EventDispatcherInterface::class)) {
-            // Create a simple event dispatcher that collects SQL queries
-            $collectorDispatcher = new class ($sqlCollector) implements EventDispatcherInterface {
-                public function __construct(
-                    private SqlQueryCollector $collector
-                ) {
-                }
-
-                public function dispatch(object $event): object
-                {
-                    if ($event instanceof QueryExecutedEvent) {
-                        $this->collector->handleQueryExecuted($event);
-                    }
-                    return $event;
-                }
-            };
-
-            // Temporarily set the collector dispatcher
-            $this->db->setEventDispatcher($collectorDispatcher);
-            $connection->setEventDispatcher($collectorDispatcher);
-        }
-
-        try {
-            // Execute migration - SQL will be collected via event dispatcher
-            $migration->up();
-
-            // Collect SQL from the collector
-            $collectedSql = $sqlCollector->getQueries();
-            if (!empty($collectedSql)) {
-                $this->collectedQueries = array_merge($this->collectedQueries, $collectedSql);
-            } else {
-                // Fallback: try to get SQL from connection's lastQuery
-                $lastQuery = $this->db->lastQuery;
-                if ($lastQuery !== null && $lastQuery !== '') {
-                    $this->collectedQueries[] = $lastQuery;
-                }
-            }
-        } catch (\Throwable $e) {
-            // Migration failed, but we still want to show what SQL was attempted
-            $this->collectedQueries[] = '-- Error during migration execution: ' . $e->getMessage();
-
-            // Still try to collect any SQL that was executed before the error
-            $collectedSql = $sqlCollector->getQueries();
-            if (!empty($collectedSql)) {
-                $this->collectedQueries = array_merge($this->collectedQueries, $collectedSql);
-            }
-        } finally {
-            // Restore original event dispatcher
-            if ($collectorDispatcher !== null) {
-                $this->db->setEventDispatcher($originalDispatcher);
-                $connection->setEventDispatcher($originalConnectionDispatcher);
-            }
-        }
-
-        // Add migration record SQL
         $batch = $this->getNextBatchNumber();
-        $schema = $this->db->schema();
-        $dialect = $schema->getDialect();
-        [$insertSql, $insertParams] = $dialect->buildMigrationInsertSql($this->migrationTable, $version, $batch);
-
-        // Format SQL with parameters
-        $formattedSql = $this->formatSqlWithParams($insertSql, $insertParams);
-        $this->collectedQueries[] = '';
+        $this->collectedQueries[] = '-- Dry-run: migration PHP is not executed.';
         $this->collectedQueries[] = "-- Would record migration in batch {$batch}";
-        $this->collectedQueries[] = $formattedSql;
     }
 
     /**
@@ -703,6 +629,7 @@ class MigrationRunner
      */
     protected function recordMigration(string $version, int $batch): void
     {
+        $this->ensureMigrationTable();
         $schema = $this->db->schema();
         $dialect = $schema->getDialect();
         [$sql, $params] = $dialect->buildMigrationInsertSql($this->migrationTable, $version, $batch);
@@ -729,6 +656,9 @@ class MigrationRunner
      */
     protected function getNextBatchNumber(): int
     {
+        if (!$this->historyTableAvailable()) {
+            return 1;
+        }
         $maxBatch = $this->db->find()
             ->from($this->migrationTable)
             ->select(['max_batch' => 'MAX(batch)'])

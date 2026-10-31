@@ -1961,7 +1961,7 @@ The display updates every 2 seconds. Press `Ctrl+C` to exit.
 - Limited support (no built-in query/connection monitoring at database level)
 - `monitor queries` returns empty (SQLite doesn't track active queries)
 - `monitor connections` shows PDOdb connection pool only
-- `monitor slow` and `monitor stats` require QueryProfiler to be enabled (`$db->enableProfiling()`)
+- `monitor slow` and `monitor stats` read QueryProfiler data **only for the PHP process that enabled profiling**. They do not read another application's in-memory profile or `$db->profileReport()` export from a different process.
 
 ### Notes
 
@@ -1969,6 +1969,8 @@ The display updates every 2 seconds. Press `Ctrl+C` to exit.
   ```php
   $db->enableProfiling(1.0); // Enable with 1 second threshold
   ```
+
+- **Query profiling**: Export a report from the application process with `$db->profileReport()->export()`, then use `pdodb profile import report.json` to inspect it. A separate CLI process cannot access an application’s in-memory profile, even when both use the same database configuration. Use `pdodb profile diagnose "SQL"` to inspect a query supplied directly.
 
 - **PostgreSQL Extensions**: For better slow query statistics on PostgreSQL, install the `pg_stat_statements` extension:
   ```sql
@@ -2674,7 +2676,7 @@ vendor/bin/pdodb seed run
 # Run specific seed
 vendor/bin/pdodb seed run s20240115123456_users_data
 
-# Dry-run (show SQL without executing)
+# Dry-run (list seeds without executing seed PHP)
 vendor/bin/pdodb seed run --dry-run
 
 # Pretend mode (show what would be executed)

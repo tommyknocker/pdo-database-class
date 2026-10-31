@@ -378,6 +378,8 @@ PHP;
         // Create runner - this should create the migration table
         $runner = new MigrationRunner($db, $migrationPath);
 
+        $runner->getMigrationHistory();
+
         // Verify table exists
         $this->assertTrue($db->schema()->tableExists('__migrations'));
 

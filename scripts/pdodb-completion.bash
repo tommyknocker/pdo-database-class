@@ -23,7 +23,7 @@ _pdodb() {
     local global_opts="--help --version -v --connection= --config= --env="
 
     # Main commands
-    local commands="migrate seed schema query model repository service generate db user table connection dump monitor ui cache benchmark optimize init version ai"
+    local commands="migrate seed schema query model repository service generate db user table connection dump monitor profile ui cache benchmark optimize init version ai"
 
     # If no command yet, complete with commands
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -380,6 +380,18 @@ _pdodb() {
                 local monitor_opts="--format=table --format=json --format"
                 COMPREPLY=($(compgen -W "${monitor_opts}" -- "${cur}"))
             fi
+        fi
+        return 0
+    fi
+
+    if [[ "${cmd}" == "profile" ]]; then
+        local profile_subcommands="summary export import diagnose"
+        if [[ ${COMP_CWORD} -eq 2 ]]; then
+            COMPREPLY=($(compgen -W "${profile_subcommands} --help" -- "${cur}"))
+        elif [[ "${subcmd}" == "export" ]]; then
+            COMPREPLY=($(compgen -W "--out= --help" -- "${cur}"))
+        elif [[ "${subcmd}" == "diagnose" ]]; then
+            COMPREPLY=($(compgen -W "--rank= --param= --help" -- "${cur}"))
         fi
         return 0
     fi

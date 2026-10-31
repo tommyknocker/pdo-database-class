@@ -13,6 +13,9 @@ use tommyknocker\pdodb\events\ModelBeforeDeleteEvent;
 use tommyknocker\pdodb\events\ModelBeforeInsertEvent;
 use tommyknocker\pdodb\events\ModelBeforeSaveEvent;
 use tommyknocker\pdodb\events\ModelBeforeUpdateEvent;
+use tommyknocker\pdodb\exceptions\LazyRelationException;
+use tommyknocker\pdodb\exceptions\MassAssignmentException;
+use tommyknocker\pdodb\exceptions\PrimaryKeyMutationException;
 use tommyknocker\pdodb\orm\relations\BelongsTo;
 use tommyknocker\pdodb\orm\relations\HasMany;
 use tommyknocker\pdodb\orm\relations\HasManyThrough;
@@ -149,7 +152,12 @@ trait ActiveRecord
      */
     public function setAttributes(array $values, bool $safeOnly = false): void
     {
-        if ($safeOnly && method_exists(static::class, 'safeAttributes')) {
+        if ($safeOnly) {
+            if (!method_exists(static::class, 'safeAttributes')) {
+                throw new MassAssignmentException(
+                    'safeOnly is enabled but ' . static::class . ' does not declare safeAttributes().'
+                );
+            }
             $safe = static::safeAttributes();
             $values = array_intersect_key($values, array_flip($safe));
         }
@@ -330,10 +338,8 @@ trait ActiveRecord
 
             // Set primary key if auto-increment
             if (count($pk) === 1 && (!isset($this->attributes[$pk[0]]) || ($this->attributes[$pk[0]] ?? null) === null)) {
-                // Use the result from insert() which already contains the ID (via extractInsertId for Oracle)
-                // For Oracle, extractInsertId() uses sequence.currval, which is already called in executeInsert()
-                $insertId = (int)$result;
-                $this->attributes[$pk[0]] = $insertId;
+                $insertId = $result;
+                $this->attributes[$pk[0]] = $result;
             } else {
                 $insertId = $this->attributes[$pk[0]] ?? null;
             }
@@ -381,12 +387,9 @@ trait ActiveRecord
         $tableName = static::tableName();
         $query = $db->find()->table($tableName);
 
-        // Build WHERE condition from primary key
+        $pkValues = $this->primaryKeyValuesForWhere();
         foreach ($pk as $key) {
-            if (!isset($this->attributes[$key])) {
-                throw new RuntimeException("Primary key value '{$key}' is missing for update operation.");
-            }
-            $query->where($key, $this->attributes[$key]);
+            $query->where($key, $pkValues[$key]);
         }
 
         // Remove primary key from update data
@@ -400,11 +403,11 @@ trait ActiveRecord
 
         $result = $query->update($dirty);
 
-        if ($result > 0) {
+        if ($this->updateSucceeded($result, $tableName, $pkValues, $dirty)) {
             $this->oldAttributes = $this->attributes;
 
             // Dispatch afterUpdate event
-            $afterUpdateEvent = new ModelAfterUpdateEvent($this, $dirty, $result);
+            $afterUpdateEvent = new ModelAfterUpdateEvent($this, $dirty, max(0, $result));
             $this->dispatchEvent($afterUpdateEvent);
 
             return true;
@@ -442,12 +445,9 @@ trait ActiveRecord
         $tableName = static::tableName();
         $query = $db->find()->table($tableName);
 
-        // Build WHERE condition from primary key
+        $pkValues = $this->primaryKeyValuesForWhere();
         foreach ($pk as $key) {
-            if (!isset($this->attributes[$key])) {
-                throw new RuntimeException("Primary key value '{$key}' is missing for delete operation.");
-            }
-            $query->where($key, $this->attributes[$key]);
+            $query->where($key, $pkValues[$key]);
         }
 
         $result = $query->delete();
@@ -758,6 +758,12 @@ trait ActiveRecord
         }
 
         // Lazy load
+        if (static::lazyLoadingIsPrevented()) {
+            throw new LazyRelationException(
+                'Lazy loading of relation "' . $name . '" is disabled on ' . static::class . '. Eager load it first.'
+            );
+        }
+
         $relation = $this->getRelationInstance($name);
         if ($relation === null) {
             return null;
@@ -805,5 +811,71 @@ trait ActiveRecord
     public function clearRelationData(): void
     {
         $this->relationData = [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function primaryKeyValuesForWhere(): array
+    {
+        $this->assertPrimaryKeyUnchanged();
+        $values = [];
+        foreach (static::primaryKey() as $key) {
+            if (!array_key_exists($key, $this->oldAttributes)) {
+                throw new RuntimeException("Primary key value '{$key}' is missing for this loaded record.");
+            }
+            $values[$key] = $this->oldAttributes[$key];
+        }
+
+        return $values;
+    }
+
+    protected function assertPrimaryKeyUnchanged(): void
+    {
+        foreach (static::primaryKey() as $key) {
+            $old = $this->oldAttributes[$key] ?? null;
+            $current = $this->attributes[$key] ?? null;
+            if ($old !== $current) {
+                throw new PrimaryKeyMutationException(
+                    "Primary key column '{$key}' was changed in memory. Update or delete the original row explicitly."
+                );
+            }
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $pkValues
+     * @param array<string, mixed> $dirty
+     */
+    protected function updateSucceeded(int $affectedRows, string $tableName, array $pkValues, array $dirty): bool
+    {
+        if ($affectedRows > 0) {
+            return true;
+        }
+
+        $db = static::getDb();
+        if ($db === null) {
+            return false;
+        }
+
+        $query = $db->find()->table($tableName);
+        foreach ($pkValues as $column => $value) {
+            $query->where($column, $value);
+        }
+        $row = $query->getOne();
+        if (!is_array($row)) {
+            return false;
+        }
+
+        foreach ($dirty as $column => $expected) {
+            if (!array_key_exists($column, $row)) {
+                return false;
+            }
+            if ($row[$column] != $expected) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

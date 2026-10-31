@@ -311,7 +311,7 @@ class MigrateCommand extends Command
         echo "  new               Show new migrations\n";
         echo "  help              Show this help message\n\n";
         echo "Options:\n";
-        echo "  --dry-run         Show SQL without executing\n";
+        echo "  --dry-run         List operations without executing migration PHP\n";
         echo "  --force           Execute without confirmation\n";
         echo "  --pretend         Simulate execution\n\n";
         echo "Examples:\n";

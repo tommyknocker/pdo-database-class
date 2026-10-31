@@ -76,6 +76,7 @@ final class AiLiveRunnerTests extends TestCase
         $this->configure('http://127.0.0.1:1/v1');
         $directory = $this->envPath . '-dir';
         mkdir($directory, 0700);
+
         try {
             copy($this->envPath, $directory . '/.env');
             [$status, $output, $errors] = $this->runScript([], cwd: $directory, useDefaultEnv: true);
@@ -98,6 +99,7 @@ final class AiLiveRunnerTests extends TestCase
         self::assertIsResource($server);
         $directory = $this->envPath . '-showcase';
         mkdir($directory, 0700);
+
         try {
             stream_set_timeout($serverPipes[1], 5);
             $address = trim((string)fgets($serverPipes[1]));

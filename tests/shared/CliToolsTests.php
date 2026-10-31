@@ -544,16 +544,16 @@ class CliToolsTests extends BaseSharedTestCase
 
         $foreignKeys = [
             [
-                'column' => 'user_id',
-                'referenced_table' => 'users',
-                'referenced_column' => 'id',
+                'column_name' => 'user_id',
+                'referenced_table_name' => 'users',
+                'referenced_column_name' => 'id',
             ],
         ];
 
-        $relationships = $method->invoke(null, $foreignKeys);
+        $relationships = $method->invoke(null, $foreignKeys, 'app\\models');
         $this->assertIsString($relationships);
-        // Relationships code may be empty or contain user-related code
-        $this->assertTrue(is_string($relationships));
+        $this->assertStringContainsString('belongsTo', $relationships);
+        $this->assertStringContainsString('user_id', $relationships);
     }
 
     /**
@@ -680,7 +680,7 @@ class CliToolsTests extends BaseSharedTestCase
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('generateRelationships');
 
-        $relationships = $method->invoke(null, []);
+        $relationships = $method->invoke(null, [], 'app\\models');
         $this->assertEquals('', $relationships);
     }
 
@@ -1397,13 +1397,8 @@ class CliToolsTests extends BaseSharedTestCase
         $this->assertNotEmpty($queries);
         $allQueries = implode("\n", $queries);
         $this->assertStringContainsString('Migration:', $allQueries);
-        // In dry-run mode, should collect actual SQL or at least migration info
-        $this->assertTrue(
-            str_contains($allQueries, 'CREATE TABLE') ||
-            str_contains($allQueries, 'Would execute') ||
-            str_contains($allQueries, 'Migration:'),
-            'Dry-run should collect SQL queries or migration info'
-        );
+        $this->assertStringContainsString('Dry-run: migration PHP is not executed.', $allQueries);
+        $this->assertStringNotContainsString('CREATE TABLE', $allQueries);
 
         // Verify migration was NOT actually applied
         $history = $runner->getMigrationHistory();
@@ -1481,7 +1476,7 @@ class CliToolsTests extends BaseSharedTestCase
         $queries = $runner->getCollectedQueries();
         $this->assertNotEmpty($queries);
         $this->assertStringContainsString('Rollback Migration:', $queries[0]);
-        $this->assertStringContainsString('Would execute', $queries[1]);
+        $this->assertStringContainsString('Dry-run: migration PHP is not executed.', implode("\n", $queries));
 
         // Verify migration was NOT actually rolled back
         $history = $runner->getMigrationHistory();
@@ -1585,7 +1580,7 @@ class CliToolsTests extends BaseSharedTestCase
     }
 
     /**
-     * Test that dry-run mode collects actual SQL queries from migration execution.
+     * Test that dry-run mode does not execute migration PHP or apply schema changes.
      */
     public function testMigrationRunnerDryRunCollectsActualSql(): void
     {
@@ -1634,13 +1629,9 @@ PHP;
         // Combine all queries into a single string for easier searching
         $allQueries = implode("\n", $queries);
 
-        // Verify that actual SQL is collected, not just comments
-        // Should contain CREATE TABLE statement
-        $this->assertStringContainsString('CREATE TABLE', $allQueries, 'Dry-run should collect CREATE TABLE SQL');
-        // Should contain INSERT statement
-        $this->assertStringContainsString('INSERT', $allQueries, 'Dry-run should collect INSERT SQL');
-        // Should contain table name
-        $this->assertStringContainsString($tableName, $allQueries, 'Dry-run should collect SQL with table name');
+        $this->assertStringContainsString('Dry-run: migration PHP is not executed.', $allQueries);
+        $this->assertStringNotContainsString('CREATE TABLE', $allQueries);
+        $this->assertStringNotContainsString('INSERT', $allQueries);
 
         // Verify migration was NOT actually applied
         $schema = self::$db->schema();

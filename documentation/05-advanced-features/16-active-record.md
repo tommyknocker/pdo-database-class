@@ -628,6 +628,10 @@ $user = new User();
 $user->setAttributes($data, true); // safeOnly = true
 ```
 
+If `safeOnly` is `true`, the model **must** implement `safeAttributes()`. Otherwise `MassAssignmentException` is thrown.
+
+See [Active Record relationships](17-active-record-relationships.md) for `hasManyThrough` and other relation types across supported dialects.
+
 ## Comparison with QueryBuilder
 
 ### QueryBuilder (Array-Based)
@@ -672,8 +676,10 @@ foreach ($users as $user) {
 ## Database Support
 
 ActiveRecord works with all supported databases:
-- ✅ MySQL
+- ✅ MySQL / MariaDB
 - ✅ PostgreSQL
+- ✅ SQL Server
+- ✅ Oracle
 - ✅ SQLite
 
 ## Relationships
@@ -684,13 +690,14 @@ Supported relationship types:
 - **hasOne** - One-to-one relationship
 - **hasMany** - One-to-many relationship
 - **belongsTo** - Many-to-one relationship
+- **hasManyThrough** - Many-to-many via a junction table
 
-Both lazy loading and eager loading are supported to prevent N+1 query problems.
+Both lazy loading and eager loading are supported to prevent N+1 query problems. Call `Post::preventLazyLoading(true)` to throw `LazyRelationException` when a relation on `Post` is accessed without eager loading (useful in development). The setting applies to the selected model class only; call `Post::preventLazyLoading(false)` to restore lazy loading.
 
 ## Limitations
 
-- No automatic schema introspection
-- No migrations (see [Database Migrations](15-migrations.md) for migration support)
+- Schema introspection for code generation is CLI-driven (`pdodb generate model`), not automatic at runtime
+- Schema changes use the [migration system](15-migrations.md); ActiveRecord does not apply migrations for you
 - Lightweight implementation focused on core functionality
 
 These limitations are intentional to keep the library lightweight and optional. You can extend models to add custom functionality as needed.

@@ -88,7 +88,9 @@ class SeedTests extends BaseSharedTestCase
 
         $runner = new SeedRunner($db, $this->testSeedPath);
 
-        // Table should be created automatically
+        $runner->getSeedHistory();
+
+        // Table is created when history is first used
         $this->assertTrue($db->schema()->tableExists('__seeds'));
     }
 

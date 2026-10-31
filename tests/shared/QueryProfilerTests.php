@@ -8,6 +8,7 @@ use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PDOException;
 use tommyknocker\pdodb\ai\QueryContextBuilder;
+use tommyknocker\pdodb\dialects\mysql\SessionQuoteMode;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\QueryProfiler;
 
@@ -544,6 +545,11 @@ class QueryProfilerTests extends BaseSharedTestCase
             $diagnosis = self::$db->profileReport()->diagnose('SELECT * FROM test_coverage');
             $this->assertFalse($diagnosis['model_request']);
             $this->assertArrayHasKey('source', $diagnosis);
+
+            $ranked = self::$db->profileReport()->diagnoseRankedQuery(1);
+            $this->assertSame(1, $ranked['rank']);
+            $this->assertArrayHasKey('sql', $ranked);
+            $this->assertStringContainsString('test_coverage', $ranked['sql']);
         } finally {
             self::$db->disableProfiling();
         }
@@ -552,7 +558,9 @@ class QueryProfilerTests extends BaseSharedTestCase
     {
         $mode = true;
         $profiler = new QueryProfiler();
-        $profiler->setDoubleQuotedTextIsLiteral(static function () use (&$mode): bool { return $mode; });
+        $profiler->setDoubleQuotedTextIsLiteral(static function () use (&$mode): bool {
+            return $mode;
+        });
         $profiler->enable();
         $id = $profiler->startQuery('SELECT "PROFILE_HISTORY_SECRET"');
         $mode = false;
@@ -572,7 +580,6 @@ class QueryProfilerTests extends BaseSharedTestCase
 
     public function testUnknownMysqlQuoteModeUsesSafeDefault(): void
     {
-        $this->assertTrue(\tommyknocker\pdodb\dialects\mysql\SessionQuoteMode::doubleQuotesAreLiterals(null));
+        $this->assertTrue(SessionQuoteMode::doubleQuotesAreLiterals(null));
     }
-
 }

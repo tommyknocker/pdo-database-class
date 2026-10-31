@@ -52,8 +52,6 @@ class SeedRunner
         if (!is_dir($this->seedPath)) {
             throw new QueryException("Seed path does not exist: {$this->seedPath}");
         }
-
-        $this->ensureSeedTable();
     }
 
     /**
@@ -163,6 +161,18 @@ class SeedRunner
         return $seeds;
     }
 
+    private function historyTableAvailable(): bool
+    {
+        if ($this->db->schema()->tableExists($this->seedTable)) {
+            return true;
+        }
+        if ($this->dryRun || $this->pretend) {
+            return false;
+        }
+        $this->ensureSeedTable();
+        return true;
+    }
+
     /**
      * Get executed seeds.
      *
@@ -170,6 +180,9 @@ class SeedRunner
      */
     public function getExecutedSeeds(): array
     {
+        if (!$this->historyTableAvailable()) {
+            return [];
+        }
         $rows = $this->db->find()
             ->from($this->seedTable)
             ->orderBy('executed_at', 'ASC')
@@ -200,6 +213,9 @@ class SeedRunner
      */
     public function getSeedHistory(?int $limit = null): array
     {
+        if (!$this->historyTableAvailable()) {
+            return [];
+        }
         $query = $this->db->find()
             ->from($this->seedTable)
             ->orderBy('executed_at', 'DESC');
@@ -283,28 +299,16 @@ class SeedRunner
      */
     protected function runSeed(string $name): void
     {
-        if ($this->dryRun) {
-            $this->collectedQueries[] = "-- Seed: {$name}";
-            $this->collectedQueries[] = '';
-
-            try {
-                $this->db->startTransaction();
-                $seed = $this->loadSeed($name);
-                $this->collectSeedSql($seed, $name, 'run');
-                $this->db->rollback(); // Always rollback in dry-run mode
-            } catch (\Throwable $e) {
-                if ($this->db->inTransaction()) {
-                    $this->db->rollback();
-                }
-                $this->collectedQueries[] = '-- Error: ' . $e->getMessage();
-            }
-            return;
-        }
-
-        if ($this->pretend) {
+        // Dry-run and pretend never execute seed PHP.
+        if ($this->dryRun || $this->pretend) {
             $batch = $this->getNextBatchNumber();
             $this->collectedQueries[] = "-- Seed: {$name}";
-            $this->collectedQueries[] = '-- Would execute seed.run()';
+            if ($this->dryRun) {
+                $this->collectedQueries[] = '-- Dry-run: seed PHP is not executed.';
+                $this->collectedQueries[] = '-- SQL from arbitrary PHP cannot be shown without side effects on some drivers.';
+            } else {
+                $this->collectedQueries[] = '-- Would execute seed.run()';
+            }
             $this->collectedQueries[] = "-- Would record seed in batch {$batch}";
             return;
         }
@@ -401,27 +405,13 @@ class SeedRunner
      */
     protected function rollbackSeed(string $name): void
     {
-        if ($this->dryRun) {
+        if ($this->dryRun || $this->pretend) {
             $this->collectedQueries[] = "-- Rollback Seed: {$name}";
-            $this->collectedQueries[] = '';
-
-            try {
-                $this->db->startTransaction();
-                $seed = $this->loadSeed($name);
-                $this->collectSeedSql($seed, $name, 'rollback');
-                $this->db->rollback(); // Always rollback in dry-run mode
-            } catch (\Throwable $e) {
-                if ($this->db->inTransaction()) {
-                    $this->db->rollback();
-                }
-                $this->collectedQueries[] = '-- Error: ' . $e->getMessage();
+            if ($this->dryRun) {
+                $this->collectedQueries[] = '-- Dry-run: seed PHP is not executed.';
+            } else {
+                $this->collectedQueries[] = '-- Would execute seed.rollback()';
             }
-            return;
-        }
-
-        if ($this->pretend) {
-            $this->collectedQueries[] = "-- Rollback Seed: {$name}";
-            $this->collectedQueries[] = '-- Would execute seed.rollback()';
             $this->collectedQueries[] = '-- Would remove seed record';
             return;
         }
@@ -604,6 +594,9 @@ class SeedRunner
      */
     public function getLastBatchNumber(): ?int
     {
+        if (!$this->historyTableAvailable()) {
+            return null;
+        }
         // Use rawQueryOne to avoid QueryBuilder adding ORDER BY which causes issues
         // with aggregate functions in PostgreSQL
         // Table name must be quoted for Oracle compatibility

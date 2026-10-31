@@ -123,7 +123,7 @@ class InitWizard extends BaseCliCommand
             $envVars = [];
             // Always use getenv() to ensure we get variables set via putenv()
             // $_ENV may not be updated when putenv() is called
-            $envVarNames = ['PDODB_HOST', 'PDODB_PORT', 'PDODB_DATABASE', 'PDODB_USERNAME', 'PDODB_PASSWORD', 'PDODB_CHARSET', 'PDODB_PATH', 'PDODB_DRIVER'];
+            $envVarNames = ['PDODB_HOST', 'PDODB_PORT', 'PDODB_DATABASE', 'PDODB_USERNAME', 'PDODB_PASSWORD', 'PDODB_CHARSET', 'PDODB_PATH', 'PDODB_PREFIX', 'PDODB_DRIVER'];
             foreach ($envVarNames as $envVar) {
                 $envValue = getenv($envVar);
                 if ($envValue !== false) {
@@ -761,6 +761,11 @@ class InitWizard extends BaseCliCommand
             return; // Skip in non-interactive mode
         }
 
+        if ($this->format !== 'config') {
+            echo "\n  Multiple connections require the PHP config format.\n";
+            return;
+        }
+
         echo "\n  Multiple Connections\n";
         echo "  --------------------\n";
         $useMultiple = static::readConfirmation('  Configure multiple database connections?', false);
@@ -768,18 +773,78 @@ class InitWizard extends BaseCliCommand
             return;
         }
 
-        // For now, we'll keep it simple - just note that multiple connections
-        // can be configured manually in config/db.php later
-        static::info('  Multiple connections are not yet fully supported in the wizard.');
-        static::info('  You can configure them manually in config/db.php after initialization.');
-        static::info('  Example structure:');
-        echo "    return [\n";
-        echo "        'default' => 'main',\n";
-        echo "        'connections' => [\n";
-        echo "            'main' => [ ... ],\n";
-        echo "            'reporting' => [ ... ],\n";
-        echo "        ],\n";
-        echo "    ];\n";
+        $primaryName = static::readInput('  Name for current connection', 'main');
+        if ($primaryName === '') {
+            $primaryName = 'main';
+        }
+
+        $primaryConfig = $this->config;
+
+        $secondName = static::readInput('  Second connection name', 'reporting');
+        if ($secondName === '' || $secondName === $primaryName) {
+            static::warning('  Second connection skipped (invalid or duplicate name).');
+
+            return;
+        }
+
+        $this->config = [
+            'default' => $primaryName,
+            'connections' => [
+                $primaryName => $primaryConfig,
+            ],
+        ];
+
+        static::info("  Configure connection \"{$secondName}\" (driver defaults to primary).");
+        $secondConfig = $this->askSecondaryConnectionConfig($primaryConfig);
+        $this->config['connections'][$secondName] = $secondConfig;
+        static::success('  Multiple connections will be written to config/db.php.');
+    }
+
+    /**
+     * @param array<string, mixed> $primaryConfig
+     *
+     * @return array<string, mixed>
+     */
+    protected function askSecondaryConnectionConfig(array $primaryConfig): array
+    {
+        $driver = mb_strtolower(
+            static::readInput('  Driver', (string)($primaryConfig['driver'] ?? 'mysql')),
+            'UTF-8'
+        );
+        $config = ['driver' => $driver];
+
+        if ($driver === 'sqlite') {
+            $path = static::readInput('  Database path', './database-reporting.sqlite');
+            $config['path'] = $path !== '' ? $path : './database-reporting.sqlite';
+
+            return $config;
+        }
+
+        $config['host'] = static::readInput('  Host', (string)($primaryConfig['host'] ?? 'localhost'));
+        $config['port'] = (int)static::readInput(
+            '  Port',
+            (string)($primaryConfig['port'] ?? ($driver === 'pgsql' ? '5432' : '3306'))
+        );
+        $config['database'] = static::readInput('  Database name', (string)($primaryConfig['database'] ?? ''));
+        if ($config['database'] === '') {
+            static::warning('  Database name is empty; edit config/db.php before use.');
+        }
+        if ($driver !== 'oci') {
+            $config['dbname'] = $config['database'];
+        }
+        $config['username'] = static::readInput('  Username', (string)($primaryConfig['username'] ?? ''));
+        $config['password'] = static::readPassword('  Password');
+
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            $config['charset'] = static::readInput('  Charset', (string)($primaryConfig['charset'] ?? 'utf8mb4'));
+        }
+
+        if ($driver === 'sqlsrv') {
+            $config['trust_server_certificate'] = true;
+            $config['encrypt'] = true;
+        }
+
+        return $config;
     }
 
     /**

@@ -62,6 +62,7 @@ final class ProfileRedactionTests extends BaseMariaDBTestCase
         $logger->pushHandler($handler);
         $db->enableProfiling(0.0);
         $db->getProfiler()?->setLogger($logger);
+
         try {
             $pdo->exec("SET SESSION sql_mode = ''");
             $db->rawQuery('SELECT "prefix\\"ESCAPED_PROFILE_SECRET" AS sample');
@@ -81,5 +82,4 @@ final class ProfileRedactionTests extends BaseMariaDBTestCase
             $db->disableProfiling();
         }
     }
-
 }

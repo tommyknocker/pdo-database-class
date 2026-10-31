@@ -375,6 +375,31 @@ class QueryProfiler
     }
 
     /**
+     * Raw SQL for a ranked slow query (1 = slowest by total time).
+     */
+    public function getRawSqlBySlowestRank(int $rank): ?string
+    {
+        if ($rank < 1) {
+            return null;
+        }
+
+        $sorted = $this->stats;
+        uasort($sorted, static function ($a, $b) {
+            return $b['total_time'] <=> $a['total_time'];
+        });
+
+        $index = 0;
+        foreach ($sorted as $stat) {
+            $index++;
+            if ($index === $rank) {
+                return $stat['sql'];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Keep parameter values in the slow-query log.
      *
      * The default log records redacted SQL and no parameter values.

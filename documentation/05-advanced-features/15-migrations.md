@@ -13,7 +13,7 @@ The migration system tracks applied migrations in a special `__migrations` table
 - **Rollback Support**: Revert migrations individually or in batches
 - **DDL Integration**: Full DDL Query Builder support within migrations
 - **Transaction Safety**: Migrations run in transactions when possible
-- **Cross-Database**: Works with MySQL, MariaDB, PostgreSQL, and SQLite
+- **Cross-Database**: Works with MySQL, MariaDB, PostgreSQL, SQL Server, Oracle, and SQLite
 
 ## Getting Started
 
@@ -163,6 +163,18 @@ foreach ($applied as $version) {
 ```php
 $runner->migrateUp('2025_11_01_120000_create_users_table');
 ```
+
+### Dry-run and pretend
+
+`MigrationRunner::setDryRun(true)` and `setPretend(true)` (and the CLI `--dry-run` / `--pretend` flags) list which migrations would run **without** executing migration PHP. That avoids side effects from arbitrary `up()` / `down()` code. Collected output is informational comments only; it does **not** include SQL extracted by running the migration. Use normal `migrate()` when you need schema changes applied.
+
+```php
+$runner->setDryRun(true);
+$runner->migrate(); // versions listed, __migrations unchanged, no up() calls
+print_r($runner->getCollectedQueries());
+```
+
+The same rules apply to seed dry-run: seed classes are not executed. History tables are created on first normal history access, not when a runner is constructed or a dry-run is performed.
 
 ## Rolling Back Migrations
 

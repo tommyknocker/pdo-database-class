@@ -22,6 +22,22 @@ abstract class Model
     /** @var PdoDb|null Static PdoDb instance */
     protected static ?PdoDb $db = null;
 
+    /** @var array<class-string, bool> Lazy-loading policy per model class */
+    protected static array $preventLazyLoading = [];
+
+    /**
+     * Enable or disable lazy-loading detection for this model class.
+     */
+    public static function preventLazyLoading(bool $prevent = true): void
+    {
+        self::$preventLazyLoading[static::class] = $prevent;
+    }
+
+    public static function lazyLoadingIsPrevented(): bool
+    {
+        return self::$preventLazyLoading[static::class] ?? false;
+    }
+
     /**
      * Get database connection.
      *

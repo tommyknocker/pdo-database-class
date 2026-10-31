@@ -8,6 +8,8 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use tommyknocker\pdodb\events\ModelBeforeInsertEvent;
 use tommyknocker\pdodb\events\ModelBeforeSaveEvent;
 use tommyknocker\pdodb\events\ModelBeforeUpdateEvent;
+use tommyknocker\pdodb\exceptions\MassAssignmentException;
+use tommyknocker\pdodb\exceptions\PrimaryKeyMutationException;
 use tommyknocker\pdodb\orm\Model;
 
 /**
@@ -221,15 +223,10 @@ final class ActiveRecordEdgeCasesTests extends BaseSharedTestCase
         $model->email = 'test@example.com';
         $model->save();
 
-        $oldId = $model->id;
-        $model->id = 999; // Try to change primary key
+        $model->id = 999;
 
-        // Primary key change should be ignored in update
-        $this->assertTrue($model->save());
-
-        // Verify ID didn't change
-        $found = EdgeCaseTestModel::findOne($oldId);
-        $this->assertNotNull($found);
+        $this->expectException(PrimaryKeyMutationException::class);
+        $model->save();
     }
 
     public function testDeleteNewRecord(): void
@@ -1009,5 +1006,58 @@ final class ActiveRecordEdgeCasesTests extends BaseSharedTestCase
         $model->attr_name = 'Test';
 
         $this->assertTrue($model->validate());
+    }
+
+    public function testSetAttributesSafeOnlyWithoutAllowListThrows(): void
+    {
+        $model = new EdgeCaseTestModel();
+
+        $this->expectException(MassAssignmentException::class);
+        $model->setAttributes(['name' => 'x'], true);
+    }
+
+    public function testUpdateUsesOriginalPrimaryKeyAfterAttributeChanges(): void
+    {
+        self::$db->rawQuery('DELETE FROM test_edge_cases');
+        $id = self::$db->find()->table('test_edge_cases')->insert(['name' => 'orig']);
+
+        $model = EdgeCaseTestModel::findOne($id);
+        $this->assertNotNull($model);
+        $model->name = 'updated';
+        $this->assertTrue($model->save());
+
+        $row = self::$db->find()->table('test_edge_cases')->where('id', $id)->getOne();
+        $this->assertSame('updated', $row['name']);
+    }
+
+    public function testChangingPrimaryKeyInMemoryThrowsOnSave(): void
+    {
+        self::$db->rawQuery('DELETE FROM test_edge_cases');
+        $id = self::$db->find()->table('test_edge_cases')->insert(['name' => 'pk']);
+
+        $model = EdgeCaseTestModel::findOne($id);
+        $this->assertNotNull($model);
+        $model->id = $id + 1000;
+
+        $this->expectException(PrimaryKeyMutationException::class);
+        $model->save();
+    }
+
+    public function testUpdateWithUnchangedDataStillSucceeds(): void
+    {
+        self::$db->rawQuery('DELETE FROM test_edge_cases');
+        $id = self::$db->find()->table('test_edge_cases')->insert(['name' => 'same', 'email' => 'a@b.c']);
+
+        $model = EdgeCaseTestModel::findOne($id);
+        $this->assertNotNull($model);
+
+        $reflection = new \ReflectionObject($model);
+        $oldProperty = $reflection->getProperty('oldAttributes');
+        $oldValues = $oldProperty->getValue($model);
+        $oldValues['name'] = 'stale';
+        $oldProperty->setValue($model, $oldValues);
+        $model->name = 'same';
+
+        $this->assertTrue($model->save());
     }
 }

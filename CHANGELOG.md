@@ -9,10 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - In-process `profileReport()` for the current connection's profiler, local plan diagnosis, and a JSON export. Another process does not see that memory.
+- `pdodb profile` CLI (`summary`, `export`, `import`, `diagnose` with optional `--rank`) for the active connection profiler.
+- `Model::preventLazyLoading()` to opt out of lazy-loading relations.
 - `PlanComparison` for two plans the caller collected. It does not execute DDL or model SQL. PostgreSQL `EXPLAIN ANALYZE` timings mean the statement ran.
 - `pdodb ai doctor` JSON summary of provider, model, key presence, endpoint, and database connection without calling a model. `--probe` makes one short provider request and may incur a charge. The key and response body are not printed.
+- Init wizard can write multiple named connections into `config/db.php`.
+- Model generator emits `belongsTo` relations from foreign keys.
 
 ### Fixed
+- Migration and seed `--dry-run` / `--pretend` no longer execute migration or seed PHP (avoids side effects; SQL from arbitrary PHP is not shown).
+- ActiveRecord `update()` / `delete()` target the original primary key from when the row was loaded; changing a primary key in memory throws `PrimaryKeyMutationException`.
+- ActiveRecord `save()` / `update()` treat zero affected rows as success when the row still matches the intended values (e.g. MySQL no-op updates).
+- ActiveRecord insert preserves non-numeric primary key values returned from the driver.
 - Keep distinct profiler ids when queries overlap, rank slow queries by total time, and omit parameter values from the slow-query log unless `setLogParameters(true)` is enabled.
 - Recommend a filter-then-sort index from `explainAdvice()`, and recognize when that index already exists, including SQLite temporary sorts and PostgreSQL sorts.
 - Reject a non-numeric `--temperature` and a non-positive `--max-tokens` or `--timeout` before they are cast.
@@ -24,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Correct database feature version requirements and broken documentation links; check local Markdown links in CI.
 
 ### Changed
+- **Breaking:** `setAttributes(..., safeOnly: true)` throws `MassAssignmentException` when the model does not declare `safeAttributes()`.
 - **Breaking:** `DialectInterface` requires `executePlanExplain()`. A third-party dialect must implement it. `getSlowestQueries()` sorts by total time and includes `count` and `possible_n_plus_one`.
 - Share AI prompt and analysis flow across providers, and use the OpenAI-compatible transport for DeepSeek.
 - **Breaking:** AI configuration now uses one selected provider with `PDODB_AI_API_KEY`, `PDODB_AI_MODEL` and, when needed, `PDODB_AI_BASE_URL`; PHP uses a flat `ai` array. Provider-specific keys and nested provider settings must be migrated as described in the AI configuration reference.

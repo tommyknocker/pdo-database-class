@@ -46,6 +46,10 @@ final class AiAdviceShowcaseTests extends TestCase
     public function testAiModeMakesExactlyThreeBoundedCallsWithBothJoinSchemas(): void
     {
         require __DIR__ . '/../fixtures/ai-http-functions.php';
+        // This isolated process must not inherit local provider settings or credentials.
+        foreach (['PROVIDER', 'API_KEY', 'MODEL', 'BASE_URL', 'FOLDER_ID', 'TEMPERATURE', 'MAX_TOKENS', 'TIMEOUT'] as $setting) {
+            putenv('PDODB_AI_' . $setting);
+        }
         $showcase = new QueryAdviceShowcase(10000, ['provider' => 'openrouter', 'api_key' => 'example-key',
             'model' => 'test/model']);
         $report = $showcase->run(true, 9999, 9999);

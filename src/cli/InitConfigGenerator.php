@@ -24,6 +24,9 @@ class InitConfigGenerator
         ];
 
         // Database connection settings
+        if (isset($config['prefix'])) {
+            $lines[] = 'PDODB_PREFIX=' . $config['prefix'];
+        }
         if (isset($config['host'])) {
             $lines[] = 'PDODB_HOST=' . $config['host'];
         }

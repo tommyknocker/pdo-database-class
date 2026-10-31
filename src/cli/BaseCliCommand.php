@@ -221,7 +221,7 @@ abstract class BaseCliCommand
             $envVars = [];
             // Always use getenv() to ensure we get variables set via putenv()
             // $_ENV may not be updated when putenv() is called
-            $envVarNames = ['PDODB_HOST', 'PDODB_PORT', 'PDODB_DATABASE', 'PDODB_USERNAME', 'PDODB_PASSWORD', 'PDODB_CHARSET', 'PDODB_PATH', 'PDODB_DRIVER', 'PDODB_SERVICE_NAME', 'PDODB_SID'];
+            $envVarNames = ['PDODB_HOST', 'PDODB_PORT', 'PDODB_DATABASE', 'PDODB_USERNAME', 'PDODB_PASSWORD', 'PDODB_CHARSET', 'PDODB_PATH', 'PDODB_PREFIX', 'PDODB_DRIVER', 'PDODB_SERVICE_NAME', 'PDODB_SID'];
             foreach ($envVarNames as $envVar) {
                 $envValue = getenv($envVar);
                 if ($envValue !== false) {

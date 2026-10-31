@@ -90,6 +90,7 @@ final class ProfileRedactionTests extends BaseMySQLTestCase
         $logger->pushHandler($handler);
         $db->enableProfiling(0.0);
         $db->getProfiler()?->setLogger($logger);
+
         try {
             $pdo->exec("SET SESSION sql_mode = ''");
             $db->rawQuery('SELECT "prefix\\"ESCAPED_PROFILE_SECRET" AS sample');
@@ -122,6 +123,7 @@ final class ProfileRedactionTests extends BaseMySQLTestCase
         ]);
         $db->connection->getPdo()->exec("SET SESSION sql_mode = ''");
         $db->enableProfiling(0.0);
+
         try {
             $db->rawQuery('SELECT "HISTORY_MODE_SECRET" AS sample');
             $db->connection('ansi');
@@ -131,5 +133,4 @@ final class ProfileRedactionTests extends BaseMySQLTestCase
             $db->disableProfiling();
         }
     }
-
 }

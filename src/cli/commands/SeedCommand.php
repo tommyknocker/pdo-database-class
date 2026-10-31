@@ -470,7 +470,7 @@ class SeedCommand extends Command
         echo "  generate <table>       Generate seed file from existing database data\n";
         echo "  help                   Show this help message\n\n";
         echo "Options:\n";
-        echo "  --dry-run              Show SQL queries without executing them\n";
+        echo "  --dry-run              List operations without executing seed PHP\n";
         echo "  --pretend              Simulate execution without running queries\n";
         echo "  --force                Skip confirmation prompts\n";
         echo "  --connection=<name>    Use specific database connection\n\n";

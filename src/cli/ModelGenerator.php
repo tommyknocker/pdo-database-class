@@ -74,7 +74,16 @@ class ModelGenerator extends BaseCliCommand
 
         // Generate model code
         $modelNamespace = $namespace !== null && $namespace !== '' ? strtolower($namespace) : 'app\\models';
-        $modelCode = static::generateModelCode($modelName, $tableName, $columns, $primaryKey, $foreignKeys, $modelNamespace);
+        $relatedUses = static::relatedModelUses($foreignKeys, $modelNamespace, $modelName);
+        $modelCode = static::generateModelCode(
+            $modelName,
+            $tableName,
+            $columns,
+            $primaryKey,
+            $foreignKeys,
+            $modelNamespace,
+            $relatedUses
+        );
 
         // Write model file
         $filename = $outputPath . '/' . $modelName . '.php';
@@ -172,6 +181,7 @@ class ModelGenerator extends BaseCliCommand
      * @param array<int, array<string, mixed>> $columns Table columns
      * @param array<int, string> $primaryKey Primary key columns
      * @param array<int, array<string, mixed>> $foreignKeys Foreign keys
+     * @param array<int, string> $relatedUses Fully-qualified class names to import (excluding this model)
      *
      * @return string
      */
@@ -181,14 +191,20 @@ class ModelGenerator extends BaseCliCommand
         array $columns,
         array $primaryKey,
         array $foreignKeys,
-        string $namespace
+        string $namespace,
+        array $relatedUses = []
     ): string {
         $primaryKeyCode = count($primaryKey) === 1 && $primaryKey[0] === 'id'
             ? "        return ['id'];\n"
             : '        return ' . var_export($primaryKey, true) . ";\n";
 
         $attributes = static::generateAttributes($columns);
-        $relationships = static::generateRelationships($foreignKeys);
+        $relationships = static::generateRelationships($foreignKeys, $namespace);
+
+        $useLines = "use tommyknocker\\pdodb\\orm\\Model;\n";
+        foreach ($relatedUses as $relatedClass) {
+            $useLines .= 'use ' . $relatedClass . ";\n";
+        }
 
         $code = <<<PHP
 <?php
@@ -197,8 +213,7 @@ declare(strict_types=1);
 
 namespace {$namespace};
 
-use tommyknocker\pdodb\orm\Model;
-
+{$useLines}
 /**
  * Model class for table: {$tableName}
  *
@@ -265,9 +280,9 @@ PHP;
      *
      * @return string
      */
-    protected static function generateRelationships(array $foreignKeys): string
+    protected static function generateRelationships(array $foreignKeys, string $namespace): string
     {
-        if (empty($foreignKeys)) {
+        if ($foreignKeys === []) {
             return '';
         }
 
@@ -277,11 +292,131 @@ PHP;
         $code .= "    public static function relations(): array\n";
         $code .= "    {\n";
         $code .= "        return [\n";
-        $code .= "            // TODO: Define relationships based on foreign keys\n";
+
+        foreach ($foreignKeys as $foreignKey) {
+            $column = static::foreignKeyColumn($foreignKey);
+            $refTable = static::foreignKeyReferencedTable($foreignKey);
+            if ($column === null || $refTable === null) {
+                continue;
+            }
+
+            $ownerKey = static::foreignKeyReferencedColumn($foreignKey) ?? 'id';
+            $relationName = static::foreignKeyToRelationName($column);
+            $relatedModel = static::tableToModelName($refTable);
+            $modelFqn = $namespace . '\\' . $relatedModel;
+
+            $code .= "            '{$relationName}' => [\n";
+            $code .= "                'belongsTo',\n";
+            $code .= "                'modelClass' => {$relatedModel}::class,\n";
+            $code .= "                'foreignKey' => '{$column}',\n";
+            $code .= "                'ownerKey' => '{$ownerKey}',\n";
+            $code .= "            ],\n";
+        }
+
         $code .= "        ];\n";
         $code .= "    }\n";
 
         return $code;
+    }
+
+    /**
+     * @param array<string, mixed> $foreignKey
+     */
+    protected static function foreignKeyColumn(array $foreignKey): ?string
+    {
+        $column = $foreignKey['column_name']
+            ?? $foreignKey['COLUMN_NAME']
+            ?? $foreignKey['from']
+            ?? null;
+
+        return is_string($column) && $column !== '' ? $column : null;
+    }
+
+    /**
+     * @param array<string, mixed> $foreignKey
+     */
+    protected static function foreignKeyReferencedTable(array $foreignKey): ?string
+    {
+        $table = $foreignKey['referenced_table_name']
+            ?? $foreignKey['REFERENCED_TABLE_NAME']
+            ?? $foreignKey['table']
+            ?? null;
+
+        return is_string($table) && $table !== '' ? $table : null;
+    }
+
+    /**
+     * @param array<string, mixed> $foreignKey
+     */
+    protected static function foreignKeyReferencedColumn(array $foreignKey): ?string
+    {
+        $column = $foreignKey['referenced_column_name']
+            ?? $foreignKey['REFERENCED_COLUMN_NAME']
+            ?? $foreignKey['to']
+            ?? null;
+
+        return is_string($column) && $column !== '' ? $column : null;
+    }
+
+    protected static function foreignKeyToRelationName(string $column): string
+    {
+        if (str_ends_with($column, '_id')) {
+            $base = substr($column, 0, -3);
+
+            return $base !== '' ? $base : $column;
+        }
+
+        return $column;
+    }
+
+    protected static function tableToModelName(string $table): string
+    {
+        $parts = explode('_', $table);
+        $name = '';
+        foreach ($parts as $part) {
+            if ($part === '') {
+                continue;
+            }
+            $name .= ucfirst(mb_strtolower($part, 'UTF-8'));
+        }
+
+        if ($name === '') {
+            return 'Related';
+        }
+
+        if (str_ends_with($name, 'ies') && strlen($name) > 3) {
+            return substr($name, 0, -3) . 'y';
+        }
+
+        if (str_ends_with($name, 's') && !str_ends_with($name, 'ss') && strlen($name) > 1) {
+            $name = substr($name, 0, -1);
+        }
+
+        return $name;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $foreignKeys
+     *
+     * @return array<int, string>
+     */
+    protected static function relatedModelUses(array $foreignKeys, string $namespace, string $modelName): array
+    {
+        $uses = [];
+        foreach ($foreignKeys as $foreignKey) {
+            $refTable = static::foreignKeyReferencedTable($foreignKey);
+            if ($refTable === null) {
+                continue;
+            }
+            $related = static::tableToModelName($refTable);
+            if ($related === $modelName) {
+                continue;
+            }
+            $fqn = $namespace . '\\' . $related;
+            $uses[$fqn] = $fqn;
+        }
+
+        return array_values($uses);
     }
 
     /**
