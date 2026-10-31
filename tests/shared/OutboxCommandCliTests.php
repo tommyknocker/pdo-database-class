@@ -1,0 +1,200 @@
+<?php
+
+declare(strict_types=1);
+
+namespace tommyknocker\pdodb\tests\shared;
+
+use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\outbox\Outbox;
+use tommyknocker\pdodb\outbox\OutboxStatuses;
+
+/**
+ * CLI tests for pdodb outbox work / purge.
+ */
+final class OutboxCommandCliTests extends BaseSharedTestCase
+{
+    protected string $testDbPath;
+
+    protected string $publisherPath;
+
+    protected string $table = 'cli_test_outbox';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->testDbPath = sys_get_temp_dir() . '/pdodb_outbox_cli_' . uniqid() . '.sqlite';
+        $this->publisherPath = sys_get_temp_dir() . '/pdodb_outbox_publisher_' . uniqid() . '.php';
+
+        file_put_contents($this->publisherPath, <<<'PHP'
+<?php
+use tommyknocker\pdodb\outbox\OutboxMessage;
+return static function (OutboxMessage $message): void {
+};
+PHP);
+
+        putenv('PDODB_DRIVER=sqlite');
+        putenv('PDODB_PATH=' . $this->testDbPath);
+        putenv('PDODB_OUTBOX_TABLE=' . $this->table);
+        putenv('PDODB_NON_INTERACTIVE=1');
+        putenv('PHPUNIT=1');
+
+        $_ENV['PDODB_DRIVER'] = 'sqlite';
+        $_ENV['PDODB_PATH'] = $this->testDbPath;
+        $_ENV['PDODB_OUTBOX_TABLE'] = $this->table;
+        $_ENV['PDODB_NON_INTERACTIVE'] = '1';
+        $_ENV['PHPUNIT'] = '1';
+    }
+
+    protected function tearDown(): void
+    {
+        if (isset($this->publisherPath) && file_exists($this->publisherPath)) {
+            unlink($this->publisherPath);
+        }
+        if (isset($this->testDbPath) && file_exists($this->testDbPath)) {
+            unlink($this->testDbPath);
+        }
+
+        putenv('PDODB_DRIVER');
+        putenv('PDODB_PATH');
+        putenv('PDODB_OUTBOX_TABLE');
+        putenv('PDODB_NON_INTERACTIVE');
+        putenv('PHPUNIT');
+
+        unset($_ENV['PDODB_DRIVER'], $_ENV['PDODB_PATH'], $_ENV['PDODB_OUTBOX_TABLE']);
+        unset($_ENV['PDODB_NON_INTERACTIVE'], $_ENV['PHPUNIT']);
+
+        parent::tearDown();
+    }
+
+    public function testOutboxHelp(): void
+    {
+        $run = CliTestCapture::runApplication(new Application(), ['pdodb', 'outbox', '--help']);
+        $this->assertSame(0, $run['code']);
+        $this->assertStringContainsString('work', $run['stdout']);
+    }
+
+    public function testWorkOnceRequiresPublisher(): void
+    {
+        $run = CliTestCapture::runApplication(
+            new Application(),
+            ['pdodb', 'outbox', 'work', '--once', '--ensure-schema'],
+        );
+        $this->assertSame(1, $run['code']);
+        $this->assertStringContainsString('publisher', strtolower($run['stderr']));
+    }
+
+    public function testWorkOnceProcessesPendingMessage(): void
+    {
+        $pdo = new \PDO('sqlite:' . $this->testDbPath);
+        $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+
+        $dbConfig = require __DIR__ . '/../../examples/config.sqlite.php';
+        $dbConfig['path'] = $this->testDbPath;
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', $dbConfig);
+
+        $outbox = new Outbox($db, $this->table);
+        $outbox->ensureSchema();
+
+        $db->transaction(function () use ($outbox): void {
+            $outbox->add('cli.test', ['n' => 1]);
+        });
+
+        $run = CliTestCapture::runApplication(new Application(), [
+            'pdodb',
+            'outbox',
+            'work',
+            '--once',
+            '--publisher=' . $this->publisherPath,
+            '--table=' . $this->table,
+        ]);
+
+        $this->assertSame(0, $run['code'], $run['stdout'] . $run['stderr']);
+        $this->assertStringContainsString('published=1', $run['stdout']);
+
+        $status = $db->find()->table($this->table)->select(['status'])->getValue();
+        $this->assertSame(OutboxStatuses::PUBLISHED, $status);
+    }
+
+    public function testPurgeDryRunDoesNotDelete(): void
+    {
+        $dbConfig = require __DIR__ . '/../../examples/config.sqlite.php';
+        $dbConfig['path'] = $this->testDbPath;
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', $dbConfig);
+
+        $outbox = new Outbox($db, $this->table);
+        $outbox->ensureSchema();
+
+        $old = gmdate('Y-m-d\TH:i:s\Z', time() - 86400 * 10);
+        $db->find()->table($this->table)->insert([
+            'id' => '11111111-1111-4111-8111-111111111111',
+            'event_type' => 'old.event',
+            'payload' => '{}',
+            'status' => OutboxStatuses::PUBLISHED,
+            'attempts' => 1,
+            'available_at' => $old,
+            'created_at' => $old,
+            'published_at' => $old,
+        ]);
+
+        $run = CliTestCapture::runApplication(new Application(), [
+            'pdodb',
+            'outbox',
+            'purge',
+            '--older-than=7d',
+            '--dry-run',
+            '--table=' . $this->table,
+        ]);
+
+        $this->assertSame(0, $run['code']);
+        $this->assertStringContainsString('Dry run', $run['stdout']);
+
+        $remaining = (int) $db->rawQueryValue('SELECT COUNT(*) FROM ' . $this->table);
+        $this->assertSame(1, $remaining);
+    }
+
+    public function testPurgeDeletesOldPublishedRows(): void
+    {
+        $dbConfig = require __DIR__ . '/../../examples/config.sqlite.php';
+        $dbConfig['path'] = $this->testDbPath;
+        $db = new \tommyknocker\pdodb\PdoDb('sqlite', $dbConfig);
+
+        $outbox = new Outbox($db, $this->table);
+        $outbox->ensureSchema();
+
+        $old = gmdate('Y-m-d\TH:i:s\Z', time() - 86400 * 10);
+        $recent = gmdate('Y-m-d\TH:i:s\Z');
+        $db->find()->table($this->table)->insert([
+            'id' => '22222222-2222-4222-8222-222222222222',
+            'event_type' => 'old.event',
+            'payload' => '{}',
+            'status' => OutboxStatuses::PUBLISHED,
+            'attempts' => 1,
+            'available_at' => $old,
+            'created_at' => $old,
+            'published_at' => $old,
+        ]);
+        $db->find()->table($this->table)->insert([
+            'id' => '33333333-3333-4333-8333-333333333333',
+            'event_type' => 'new.event',
+            'payload' => '{}',
+            'status' => OutboxStatuses::PUBLISHED,
+            'attempts' => 1,
+            'available_at' => $recent,
+            'created_at' => $recent,
+            'published_at' => $recent,
+        ]);
+
+        $run = CliTestCapture::runApplication(new Application(), [
+            'pdodb',
+            'outbox',
+            'purge',
+            '--older-than=7d',
+            '--table=' . $this->table,
+        ]);
+
+        $this->assertSame(0, $run['code']);
+        $remaining = (int) $db->rawQueryValue('SELECT COUNT(*) FROM ' . $this->table);
+        $this->assertSame(1, $remaining);
+    }
+}

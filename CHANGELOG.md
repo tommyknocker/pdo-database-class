@@ -19,7 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pdodb ai doctor` JSON summary of provider, model, key presence, endpoint, and database connection without calling a model. `--probe` makes one short provider request and may incur a charge. The key and response body are not printed.
 - Init wizard can write multiple named connections into `config/db.php`.
 - Model generator emits `belongsTo` relations from foreign keys and accepts explicit table-to-model mappings for custom names.
-- Transactional outbox (`Outbox`, `OutboxWorker`): atomic `add()` inside a transaction, worker claim/retry with user-defined publish callback; dialect-specific claim SQL for PostgreSQL, MySQL/MariaDB, SQL Server, and single-worker mode elsewhere. CLI worker and purge are not included yet.
+- Transactional outbox (`Outbox`, `OutboxWorker`): atomic `add()` inside a transaction, worker claim/retry with user-defined publish callback, and dialect-specific claim SQL for PostgreSQL, MySQL/MariaDB, SQL Server, and single-worker mode elsewhere.
+- `pdodb outbox work` and `pdodb outbox purge` CLI commands with `--publisher`, retention `--older-than`, and `--dry-run` purge.
 
 ### Fixed
 - Apply related-model global scopes during lazy and eager relation loading and keep loaded models bound to their original connection.

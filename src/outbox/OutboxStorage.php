@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\outbox;
 
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\exceptions\OutboxException;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -206,6 +207,58 @@ final class OutboxStorage
     protected function dialect(): DialectInterface
     {
         return $this->db->schema()->getDialect();
+    }
+
+    public function countRowsOlderThan(string $status, string $timestampColumn, string $cutoffIso): int
+    {
+        self::assertPurgeTimestampColumn($timestampColumn);
+
+        $value = $this->db->find()
+            ->table($this->tableName)
+            ->where('status', $status)
+            ->where($timestampColumn, $cutoffIso, '<')
+            ->select(['COUNT(*)'])
+            ->getValue();
+
+        return (int) $value;
+    }
+
+    public function deleteRowsOlderThan(string $status, string $timestampColumn, string $cutoffIso): int
+    {
+        self::assertPurgeTimestampColumn($timestampColumn);
+
+        return $this->db->find()
+            ->table($this->tableName)
+            ->where('status', $status)
+            ->where($timestampColumn, $cutoffIso, '<')
+            ->delete();
+    }
+
+    public function purge(
+        string $status,
+        string $olderThanSpec,
+        bool $dryRun = false,
+    ): OutboxPurgeResult {
+        $timestampColumn = $status === OutboxStatuses::PUBLISHED ? 'published_at' : 'created_at';
+        $cutoffIso = OutboxDuration::cutoffIso8601($olderThanSpec);
+        $matched = $this->countRowsOlderThan($status, $timestampColumn, $cutoffIso);
+
+        if ($dryRun) {
+            return new OutboxPurgeResult($status, $cutoffIso, $matched, 0, true);
+        }
+
+        $deleted = $matched > 0
+            ? $this->deleteRowsOlderThan($status, $timestampColumn, $cutoffIso)
+            : 0;
+
+        return new OutboxPurgeResult($status, $cutoffIso, $matched, $deleted, false);
+    }
+
+    protected static function assertPurgeTimestampColumn(string $column): void
+    {
+        if (!in_array($column, ['published_at', 'created_at'], true)) {
+            throw new OutboxException('Invalid purge timestamp column.');
+        }
     }
 
     protected function truncateError(string $message): string

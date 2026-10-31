@@ -73,7 +73,24 @@ final class Outbox
         );
     }
 
-    protected function storage(): OutboxStorage
+    public function purge(string $olderThanSpec, ?string $status = null, bool $dryRun = false): OutboxPurgeResult
+    {
+        $resolvedStatus = $status ?? OutboxStatuses::PUBLISHED;
+        if (!in_array($resolvedStatus, [OutboxStatuses::PUBLISHED, OutboxStatuses::FAILED], true)) {
+            throw new OutboxException(
+                'Purge supports only status "' . OutboxStatuses::PUBLISHED . '" or "' . OutboxStatuses::FAILED . '".'
+            );
+        }
+
+        return $this->storage()->purge($resolvedStatus, $olderThanSpec, $dryRun);
+    }
+
+    public function getTableName(): string
+    {
+        return $this->tableName;
+    }
+
+    public function storage(): OutboxStorage
     {
         return new OutboxStorage($this->db, $this->tableName);
     }

@@ -2526,6 +2526,48 @@ vendor/bin/pdodb benchmark query "SELECT * FROM users WHERE email = :email" > af
 diff before.txt after.txt
 ```
 
+## Outbox
+
+Reliable domain events: write to the outbox table in the same transaction as business data, then publish with your own PHP callback.
+
+See [Transactional outbox](27-transactional-outbox.md) for schema, publisher contract, and retry semantics.
+
+### Work (process queue)
+
+```bash
+vendor/bin/pdodb outbox work --once --publisher=config/outbox-publisher.php
+```
+
+| Option | Description |
+|--------|-------------|
+| `--publisher=PATH` | PHP file returning `callable(OutboxMessage): void` |
+| `--once` | Process one batch and exit (cron-friendly) |
+| `--batch=N` | Messages per batch (default 10) |
+| `--lock=N` | Lock TTL in seconds (default 120) |
+| `--max-attempts=N` | Max attempts before `failed` (default 25) |
+| `--sleep=N` | Sleep when idle in loop mode (default 2) |
+| `--worker-id=ID` | Worker id stored in `locked_by` |
+| `--table=NAME` | Outbox table (default `pdodb_outbox`) |
+| `--ensure-schema` | Create table if missing (local dev) |
+
+Environment: `PDODB_OUTBOX_PUBLISHER`, `PDODB_OUTBOX_TABLE`.
+
+Example publisher: `examples/12-reliability/outbox/publisher.php`.
+
+### Purge (retention)
+
+```bash
+vendor/bin/pdodb outbox purge --older-than=7d
+vendor/bin/pdodb outbox purge --older-than=30d --status=failed --dry-run
+```
+
+| Option | Description |
+|--------|-------------|
+| `--older-than=SPEC` | Required: `7d`, `24h`, `30m`, … |
+| `--status=NAME` | `published` (default) or `failed` |
+| `--dry-run` | Count matching rows without deleting |
+| `--table=NAME` | Outbox table |
+
 ## Seed Management
 
 Database seeds are classes that populate your database with test or initial data. Seeds are useful for development, testing, and setting up initial application data.

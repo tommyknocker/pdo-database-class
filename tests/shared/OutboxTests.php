@@ -8,8 +8,10 @@ use tommyknocker\pdodb\exceptions\OutboxException;
 use tommyknocker\pdodb\exceptions\OutboxPermanentFailureException;
 use tommyknocker\pdodb\exceptions\OutboxRetryableException;
 use tommyknocker\pdodb\outbox\Outbox;
+use tommyknocker\pdodb\outbox\OutboxDuration;
 use tommyknocker\pdodb\outbox\OutboxMessage;
 use tommyknocker\pdodb\outbox\OutboxStatuses;
+use tommyknocker\pdodb\outbox\OutboxUuid;
 
 /**
  * Transactional outbox tests (shared flow; dialect-specific claim SQL tested per driver where needed).
@@ -122,5 +124,42 @@ final class OutboxTests extends BaseSharedTestCase
         });
 
         $this->assertSame(1, $result->published);
+    }
+
+    public function testDurationParsing(): void
+    {
+        $this->assertSame(86400, OutboxDuration::toSeconds('1d'));
+        $this->assertSame(3600, OutboxDuration::toSeconds('1h'));
+    }
+
+    public function testPurgeRemovesOnlyOldPublishedRows(): void
+    {
+        $outbox = new Outbox(self::$db, self::TABLE);
+        $old = gmdate('Y-m-d\TH:i:s\Z', time() - 86400 * 10);
+        $recent = gmdate('Y-m-d\TH:i:s\Z');
+
+        self::$db->find()->table(self::TABLE)->insert([
+            'id' => OutboxUuid::v4(),
+            'event_type' => 'a',
+            'payload' => '{}',
+            'status' => OutboxStatuses::PUBLISHED,
+            'attempts' => 1,
+            'available_at' => $old,
+            'created_at' => $old,
+            'published_at' => $old,
+        ]);
+        self::$db->find()->table(self::TABLE)->insert([
+            'id' => OutboxUuid::v4(),
+            'event_type' => 'b',
+            'payload' => '{}',
+            'status' => OutboxStatuses::PENDING,
+            'attempts' => 0,
+            'available_at' => $recent,
+            'created_at' => $recent,
+        ]);
+
+        $result = $outbox->purge('7d');
+        $this->assertSame(1, $result->deleted);
+        $this->assertSame(1, (int) self::$db->rawQueryValue('SELECT COUNT(*) FROM ' . self::TABLE));
     }
 }

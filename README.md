@@ -188,7 +188,7 @@ Each item below is implemented in the library and documented on its own page.
 - [AI query advice](#understand-a-slow-query-with-your-model) from the PHP call, plus CLI reports
 - Optional [MCP server](documentation/01-getting-started/08-ai-editor.md) so an editor can read the development schema
 - [Terminal dashboard](documentation/05-advanced-features/21-cli-tools.md#tui-dashboard) (`pdodb ui`) for a database configured for the CLI
-- [CLI](documentation/05-advanced-features/21-cli-tools.md) for migrations, seeds, dumps, users, models, and a SQL REPL
+- [CLI](documentation/05-advanced-features/21-cli-tools.md) for migrations, seeds, outbox worker, dumps, users, models, and a SQL REPL
 
 <a id="json-operations"></a>
 

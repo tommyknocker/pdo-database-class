@@ -30,6 +30,12 @@ Transactional outbox: enqueue domain events in the same transaction as business 
 - `OutboxWorker::runOnce()` with a custom publisher
 - Retryable vs permanent publish failures (see documentation)
 
+### 04-outbox-cli.php
+Same flow using `pdodb outbox work --once` and `examples/12-reliability/outbox/publisher.php`.
+
+### outbox/publisher.php
+Sample publisher file returned from PHP and loaded by the CLI.
+
 ## Usage
 
 ```bash
@@ -37,6 +43,7 @@ Transactional outbox: enqueue domain events in the same transaction as business 
 php 01-exception-handling.php
 php 02-connection-retry.php
 php 03-transactional-outbox.php
+php 04-outbox-cli.php
 ```
 
 ## Reliability Features

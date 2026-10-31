@@ -52,6 +52,7 @@ class Application
         // Migrations
         $this->addCommand(new commands\MigrateCommand());
         $this->addCommand(new commands\SeedCommand());
+        $this->addCommand(new commands\OutboxCommand());
 
         // Code generation
         $this->addCommand(new commands\ModelCommand());

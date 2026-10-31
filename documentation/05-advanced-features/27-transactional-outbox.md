@@ -1,12 +1,14 @@
 # Transactional outbox
 
-Publish domain events reliably: write business data and an outbox row in the **same** database transaction, then process pending rows in a worker with your own transport (HTTP, RabbitMQ, Kafka, etc.).
+Publish domain events reliably: write business data and an outbox row in the **same** database transaction, then process pending rows with your own transport (HTTP, RabbitMQ, Kafka, etc.).
 
-PDOdb handles storage, claiming, retries, and multi-worker safety on supported dialects. It does **not** ship a message broker or a long-running CLI worker yet (those come later).
+PDOdb handles storage, claiming, retries, multi-worker safety on supported dialects, CLI worker entrypoint, and retention purge. It does **not** ship a message broker adapter — you provide a small PHP publisher file.
 
 ## Schema
 
 Create the outbox table in a migration using dialect-specific DDL from `Outbox::getSchemaSql()` or `$db->schema()->getDialect()->buildOutboxSchemaSql('pdodb_outbox')`.
+
+For local bootstrap only, `pdodb outbox work --ensure-schema` can create the table (not recommended for production).
 
 ## Writing events
 
@@ -25,33 +27,94 @@ $db->transaction(function () use ($db, $outbox): void {
 
 Nested `transaction()` calls use savepoints, so an inner block can call `add()` without committing the outer unit of work early.
 
-## Processing
+## Publisher file
 
-Run a worker loop in your application process (cron, queue consumer bootstrap, etc.):
+Create a PHP file that **returns** a callable. The CLI and your own bootstrap can load it via `OutboxPublisherLoader::load()`:
 
 ```php
+<?php
+
 use tommyknocker\pdodb\exceptions\OutboxPermanentFailureException;
 use tommyknocker\pdodb\exceptions\OutboxRetryableException;
-use tommyknocker\pdodb\outbox\Outbox;
 use tommyknocker\pdodb\outbox\OutboxMessage;
 
-$outbox = new Outbox($db);
-$worker = $outbox->worker(workerId: 'api-1', batchSize: 20);
-
-$result = $worker->runOnce(function (OutboxMessage $message): void {
-    // Your transport — runs outside any claim transaction
+return function (OutboxMessage $message): void {
     $ok = publishToBroker($message->type, $message->payload);
     if (!$ok) {
         throw new OutboxRetryableException('Broker unavailable');
     }
-});
+};
 ```
 
-- **Claim** happens in a short transaction (release stale locks, mark row `processing` with `locked_by` / `locked_until`).
-- **Publish callback** runs **after** the claim transaction commits.
-- **Success / retry / failure** each use a separate short update guarded by the lock token.
+See `examples/12-reliability/outbox/publisher.php` for a minimal example.
 
-Throw `OutboxRetryableException` for transient errors (exponential backoff, capped attempts). Throw `OutboxPermanentFailureException` to mark the row `failed` immediately.
+## CLI worker
+
+```bash
+# Cron: one batch per invocation
+vendor/bin/pdodb outbox work --once --publisher=config/outbox-publisher.php
+
+# Long-running process
+vendor/bin/pdodb outbox work --publisher=config/outbox-publisher.php --sleep=2
+
+# Environment alternatives
+export PDODB_OUTBOX_PUBLISHER=config/outbox-publisher.php
+export PDODB_OUTBOX_TABLE=pdodb_outbox
+vendor/bin/pdodb outbox work --once
+```
+
+Options:
+
+| Option | Purpose |
+|--------|---------|
+| `--publisher=PATH` | Required unless `PDODB_OUTBOX_PUBLISHER` is set |
+| `--once` | Single batch (recommended for cron) |
+| `--batch=N` | Rows per batch (default 10) |
+| `--lock=N` | Processing lock TTL seconds (default 120) |
+| `--max-attempts=N` | Fail permanently after N attempts (default 25) |
+| `--sleep=N` | Idle sleep when queue empty (default 2) |
+| `--worker-id=ID` | Prefix for `locked_by` (default hostname) |
+| `--table=NAME` | Table name (default `pdodb_outbox`) |
+| `--ensure-schema` | Create table if missing (dev only) |
+
+Processing rules:
+
+- **Claim** runs in a short transaction (stale lock release, row → `processing`).
+- **Publisher** runs **after** the claim transaction commits.
+- **Published / retry / failed** updates use separate short transactions guarded by the lock token.
+
+Throw `OutboxRetryableException` for transient errors (exponential backoff). Throw `OutboxPermanentFailureException` for poison messages.
+
+## Purge (retention)
+
+```bash
+# Delete published rows older than 7 days
+vendor/bin/pdodb outbox purge --older-than=7d
+
+# Preview
+vendor/bin/pdodb outbox purge --older-than=7d --dry-run
+
+# Remove old failed rows explicitly
+vendor/bin/pdodb outbox purge --older-than=30d --status=failed
+```
+
+Only `published` (default) or `failed` may be purged. Pending and processing rows are never deleted by this command.
+
+## Programmatic worker
+
+You can call the worker without the CLI:
+
+```php
+use tommyknocker\pdodb\outbox\Outbox;
+use tommyknocker\pdodb\outbox\OutboxMessage;
+
+$outbox = new Outbox($db);
+$result = $outbox->worker(workerId: 'api-1', batchSize: 20)->runOnce(
+    function (OutboxMessage $message): void {
+        // transport
+    }
+);
+```
 
 ## Dialect notes
 
@@ -63,10 +126,10 @@ Throw `OutboxRetryableException` for transient errors (exponential backoff, capp
 | SQLite     | Single-worker claim in one transaction          |
 | Oracle     | Single-worker claim in one transaction          |
 
-Stale `processing` rows (expired `locked_until`) are returned to `pending` before the next claim.
+Stale `processing` rows (expired `locked_until`) return to `pending` before the next claim.
 
-## Deferred
+## Related
 
-- `pdodb outbox:work` CLI command
-- Built-in broker adapters
-- Purge / retention of published rows
+- [CLI tools](21-cli-tools.md#outbox) — full command reference
+- `examples/12-reliability/03-transactional-outbox.php` — in-process worker
+- `examples/12-reliability/04-outbox-cli.php` — `pdodb outbox work --once`
