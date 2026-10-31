@@ -68,4 +68,36 @@ final class OracleCatalogTests extends BaseOracleTestCase
             $db->rawQuery('DROP TABLE "ADVICE_CASE_MIX" CASCADE CONSTRAINTS');
         }
     }
+
+    public function testQuotedSchemaDoesNotKeepTheUnquotedTableCase(): void
+    {
+        $db = self::$db;
+        $schema = $db->rawQueryValue("SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM DUAL");
+        $this->assertIsString($schema);
+        foreach (['"pdodb_quote_mix"', 'pdodb_quote_mix'] as $table) {
+            try {
+                $db->rawQuery('DROP TABLE ' . $table . ' CASCADE CONSTRAINTS');
+            } catch (\Throwable) {
+                // The tables are created below.
+            }
+        }
+        $db->rawQuery('CREATE TABLE "pdodb_quote_mix" (id NUMBER, lower_only VARCHAR2(20))');
+        $db->rawQuery('CREATE TABLE pdodb_quote_mix (id NUMBER, upper_only VARCHAR2(20))');
+
+        try {
+            $collector = new QueryMetadataCollector($db, (new AiQueryOptions())->context);
+            $folded = $collector->collect('"' . $schema . '".pdodb_quote_mix');
+            $quoted = $collector->collect('"' . $schema . '"."pdodb_quote_mix"');
+            $foldedNames = array_map(static fn (array $column): string => (string)$column['name'], $folded['columns']);
+            $quotedNames = array_map(static fn (array $column): string => (string)$column['name'], $quoted['columns']);
+
+            $this->assertContains('UPPER_ONLY', $foldedNames);
+            $this->assertNotContains('LOWER_ONLY', $foldedNames);
+            $this->assertContains('LOWER_ONLY', $quotedNames);
+            $this->assertNotContains('UPPER_ONLY', $quotedNames);
+        } finally {
+            $db->rawQuery('DROP TABLE "pdodb_quote_mix" CASCADE CONSTRAINTS');
+            $db->rawQuery('DROP TABLE pdodb_quote_mix CASCADE CONSTRAINTS');
+        }
+    }
 }

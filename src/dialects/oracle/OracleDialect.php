@@ -50,6 +50,11 @@ class OracleDialect extends DialectAbstract
         return 'oci';
     }
 
+    public function foldUnquotedIdentifier(string $identifier): string
+    {
+        return strtoupper($identifier);
+    }
+
     /**
      * {@inheritDoc}
      */

@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\ai;
 
 use PDO;
 use RuntimeException;
+use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\PdoDb;
 
 /** Reads only the named object's catalogs, with normalized fields and partial failures. */
@@ -83,20 +84,12 @@ final class QueryMetadataCollector
         if ($name === null) {
             return ['reference' => $reference, 'warnings' => ['Unsupported table reference'], 'complete' => false];
         }
-        $table = $name['table'];
-        $schema = $name['schema'] ?? $this->defaultSchema();
-        if ($name['schema'] === null && $this->driver === 'pgsql') {
-            $lookup = $this->rows('SELECT n.nspname AS schema_name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.oid = to_regclass(?)', [$this->quote($table)], 1);
-            $schema = (string)($lookup[0]['schema_name'] ?? $schema);
-        }
-        // Unquoted Oracle and PostgreSQL identifiers are folded by the server.
-        if (!str_contains($reference, '"') && !str_contains($reference, '`') && !str_contains($reference, '[')) {
-            if ($this->driver === 'oci') {
-                $schema = strtoupper($schema);
-                $table = strtoupper($table);
-            } elseif ($this->driver === 'pgsql') {
-                $schema = strtolower($schema);
-                $table = strtolower($table);
+        [$schema, $table] = $this->foldReferenceIdentifiers($name);
+        if ($schema === null) {
+            $schema = $this->defaultSchema();
+            if ($this->driver === 'pgsql') {
+                $lookup = $this->rows('SELECT n.nspname AS schema_name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.oid = to_regclass(?)', [$this->quote($table)], 1);
+                $schema = (string)($lookup[0]['schema_name'] ?? $schema);
             }
         }
         $result = ['schema' => $schema, 'table' => $table, 'columns' => [], 'indexes' => [], 'foreign_keys' => [], 'warnings' => [], 'complete' => true];
@@ -262,6 +255,31 @@ final class QueryMetadataCollector
             $row['row_count'] = null;
         }
         return $row + ['row_count' => null, 'exact' => false, 'source' => $sql === null ? 'unavailable' : $this->driver . '_catalog', 'freshness' => 'Unknown unless an analyze timestamp is present'];
+    }
+
+    /**
+     * Fold each unquoted identifier on its own. A quote on the schema does not keep the table's original case.
+     *
+     * @param array{schema: ?string, table: string, schema_quoted: bool, table_quoted: bool} $name
+     *
+     * @return array{0: ?string, 1: string}
+     */
+    protected function foldReferenceIdentifiers(array $name): array
+    {
+        $schema = $name['schema'];
+        $table = $name['table'];
+        $dialect = $this->db->connection->getDialect();
+        if (!$dialect instanceof DialectAbstract) {
+            return [$schema, $table];
+        }
+        if (is_string($schema) && !$name['schema_quoted']) {
+            $schema = $dialect->foldUnquotedIdentifier($schema);
+        }
+        if (!$name['table_quoted']) {
+            $table = $dialect->foldUnquotedIdentifier($table);
+        }
+
+        return [$schema, $table];
     }
 
     /**

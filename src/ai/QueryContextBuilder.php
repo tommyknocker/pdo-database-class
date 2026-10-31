@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\ai;
 
 use PDO;
+use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 
@@ -32,11 +33,11 @@ final class QueryContextBuilder
             $version = null;
             $warnings[] = 'Database version unavailable';
         }
-        $context = ['sql' => $settings['privacy'] === 'raw' ? $sql : SqlContextTokenizer::redact($sql), 'dialect' => $driver,
+        $context = ['sql' => $settings['privacy'] === 'raw' ? $sql : SqlContextTokenizer::redact($sql, $this->doubleQuotesAreLiterals($sql)), 'dialect' => $driver,
             'database' => ['version' => $version, 'plan_kind' => 'estimated', 'actual_execution_measured' => false,
                 'capabilities' => ['real_plan' => $driver !== 'sqlsrv', 'bound_explain' => !in_array($driver, ['sqlsrv', 'oci'], true)]],
             'privacy' => ['mode' => $settings['privacy'], 'parameter_values_included' => false, 'raw_plan_included' => $settings['include_raw_plan'],
-                'note' => 'Identifiers remain visible. Redaction is lexical, not guaranteed anonymization. Raw plans/defaults may contain values.'],
+                'note' => 'Identifiers remain visible. Double-quoted text is removed only when this connection treats double quotes as strings. Redaction is lexical, not guaranteed anonymization. Raw plans/defaults may contain values.'],
             'output_format' => !empty($options['structured']) ? 'structured' : 'text',
             'parameter_types' => array_map(static fn ($value) => get_debug_type($value), $params),
             'task' => ['goal' => $settings['goal'], 'constraints' => $settings['constraints'], 'language' => $settings['language']],
@@ -158,5 +159,19 @@ final class QueryContextBuilder
             }
         }
         return $context;
+    }
+
+    /**
+     * Ask the connection only when the SQL contains a double quote.
+     * A missing answer keeps the text, because it may be an identifier.
+     */
+    protected function doubleQuotesAreLiterals(string $sql): bool
+    {
+        if (!str_contains($sql, '"')) {
+            return false;
+        }
+        $dialect = $this->db->connection->getDialect();
+
+        return $dialect instanceof DialectAbstract && $dialect->doubleQuotedTextIsLiteral();
     }
 }

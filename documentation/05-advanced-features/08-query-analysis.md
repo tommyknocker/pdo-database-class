@@ -242,7 +242,7 @@ $after = $db->find()->from('orders')->where('status', 'pending')->orderBy('creat
 $comparison = PlanComparison::compare($before, $after);
 ```
 
-SQL Server does not return a verified plan through PDO. A parameterized Oracle `EXPLAIN` is unavailable. Those inspections report that the plan is missing. They do not substitute a synthetic plan for evidence. An Oracle catalog lookup chooses one object: the exact name, or the folded name only when the exact object is absent.
+SQL Server does not return a verified plan through PDO. A parameterized Oracle `EXPLAIN` is unavailable. Those inspections report that the plan is missing. They do not substitute a synthetic plan for evidence. An Oracle or PostgreSQL catalog lookup folds each unquoted identifier on its own. A quoted schema does not preserve the case of an unquoted table. Oracle then chooses one object: the exact stored name, or the folded name only when that exact object is absent.
 
 To start from what this process has already run:
 

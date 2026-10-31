@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
+use PDOException;
 use tommyknocker\pdodb\query\QueryProfiler;
 
 /**
@@ -483,6 +484,27 @@ class QueryProfilerTests extends BaseSharedTestCase
 
         $this->assertTrue($profiler->isTruncated());
         $this->assertCount(1, $profiler->getStats());
+    }
+
+    public function testDoubleQuotedTextStaysWhenItMayBeAnIdentifier(): void
+    {
+        self::$db->enableProfiling(0.0);
+
+        try {
+            try {
+                self::$db->rawQuery('SELECT "PRIVATE_VALUE_428"');
+            } catch (PDOException) {
+                // A SQLite build may reject the statement. The SQL is still profiled.
+            }
+            $summary = self::$db->profileReport()->summary();
+            $encoded = json_encode($summary);
+            $this->assertIsString($encoded);
+            $this->assertStringContainsString('PRIVATE_VALUE_428', $encoded);
+            $this->assertStringContainsString('Double-quoted text is removed only when', $summary['note']);
+            $this->assertStringContainsString('not a complete privacy boundary', $summary['note']);
+        } finally {
+            self::$db->disableProfiling();
+        }
     }
 
     public function testProfileReportDiagnosesWithoutAModelRequest(): void

@@ -110,6 +110,29 @@ abstract class DialectAbstract implements DialectInterface
     abstract public function getDriverName(): string;
 
     /**
+     * Fold an unquoted identifier the way this server does.
+     *
+     * A quoted identifier keeps the case supplied by the caller. The default
+     * leaves the text unchanged.
+     */
+    public function foldUnquotedIdentifier(string $identifier): string
+    {
+        return $identifier;
+    }
+
+    /**
+     * Whether "..." is a string literal on this connection.
+     *
+     * False means the text may be an identifier and stays visible. SQLite can
+     * still execute an unknown double-quoted name as a string; this method does
+     * not claim that value is hidden.
+     */
+    public function doubleQuotedTextIsLiteral(): bool
+    {
+        return false;
+    }
+
+    /**
      * Quote identifier (column/table name).
      *
      * @param string $name

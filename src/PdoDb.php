@@ -20,6 +20,7 @@ use tommyknocker\pdodb\connection\loadbalancer\LoadBalancerInterface;
 use tommyknocker\pdodb\connection\sharding\ShardConfig;
 use tommyknocker\pdodb\connection\sharding\ShardConfigBuilder;
 use tommyknocker\pdodb\connection\sharding\ShardRouter;
+use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\events\SavepointCreatedEvent;
 use tommyknocker\pdodb\events\SavepointReleasedEvent;
 use tommyknocker\pdodb\events\SavepointRolledBackEvent;
@@ -251,13 +252,15 @@ class PdoDb
      */
     public function enableProfiling(float $slowQueryThreshold = 1.0): static
     {
+        $profiler = $this->profiler ?? new QueryProfiler();
         if ($this->profiler === null) {
-            $this->profiler = new QueryProfiler();
-            $this->profiler->setLogger($this->logger);
+            $profiler->setLogger($this->logger);
+            $this->profiler = $profiler;
         }
+        $this->attachProfilerQuoteMode();
 
-        $this->profiler->enable();
-        $this->profiler->setSlowQueryThreshold($slowQueryThreshold);
+        $profiler->enable();
+        $profiler->setSlowQueryThreshold($slowQueryThreshold);
 
         return $this;
     }
@@ -350,7 +353,22 @@ class PdoDb
     public function setProfiler(?QueryProfiler $profiler): static
     {
         $this->profiler = $profiler;
+        $this->attachProfilerQuoteMode();
         return $this;
+    }
+
+    /**
+     * Double quotes follow the live connection. A profiler with no decision keeps them visible.
+     */
+    protected function attachProfilerQuoteMode(): void
+    {
+        if ($this->profiler === null) {
+            return;
+        }
+        $dialect = $this->connection->getDialect();
+        if ($dialect instanceof DialectAbstract) {
+            $this->profiler->setDoubleQuotedTextIsLiteral($dialect->doubleQuotedTextIsLiteral(...));
+        }
     }
 
     /**

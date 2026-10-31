@@ -10,6 +10,7 @@ use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\dialects\mysql\SessionQuoteMode;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
@@ -45,6 +46,11 @@ class MariaDBDialect extends DialectAbstract
     public function getDriverName(): string
     {
         return 'mariadb';
+    }
+
+    public function doubleQuotedTextIsLiteral(): bool
+    {
+        return SessionQuoteMode::doubleQuotesAreLiterals($this->getPdo());
     }
 
     /**

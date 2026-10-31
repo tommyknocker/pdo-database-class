@@ -39,7 +39,7 @@ class ProfileReport
             'queries' => $profiler->getSlowestQueries(20),
             'truncated' => $profiler->isTruncated(),
             'parameters_included' => false,
-            'note' => 'Recognized string literals, numeric literals, and comments are removed from SQL. Bound parameter values are omitted. This is not a complete privacy boundary. possible_n_plus_one means one SQL shape ran many times; it is not proof of an N+1 bug.',
+            'note' => 'Recognized single-quoted string literals, numeric literals, and comments are removed from SQL. Double-quoted text is removed only when this connection treats double quotes as string delimiters. Otherwise it is kept, because it may be an identifier. On SQLite an unknown double-quoted name can still be a string value. Bound parameter values are omitted. This is not a complete privacy boundary. possible_n_plus_one means one SQL shape ran many times; it is not proof of an N+1 bug.',
         ];
     }
 

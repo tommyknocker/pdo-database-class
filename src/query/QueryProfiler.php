@@ -36,6 +36,14 @@ class QueryProfiler
     protected float $slowQueryThreshold = 1.0;
 
     /**
+     * Live decision for the current connection. Null keeps double-quoted text,
+     * because it may be an identifier.
+     *
+     * @var null|\Closure(): bool
+     */
+    protected ?\Closure $doubleQuotedTextIsLiteral = null;
+
+    /**
      * @var array<string, array{
      *     sql: string,
      *     count: int,
@@ -374,6 +382,16 @@ class QueryProfiler
         return $this->logParameters;
     }
 
+    /**
+     * @param null|\Closure(): bool $decision
+     */
+    public function setDoubleQuotedTextIsLiteral(?\Closure $decision): static
+    {
+        $this->doubleQuotedTextIsLiteral = $decision;
+
+        return $this;
+    }
+
     public function setMaxTrackedQueries(int $limit): static
     {
         $this->maxTrackedQueries = max(1, $limit);
@@ -409,7 +427,12 @@ class QueryProfiler
 
     protected function redactLiterals(string $sql): string
     {
-        return SqlContextTokenizer::redact($sql);
+        $doubleQuotesAreLiterals = false;
+        if ($this->doubleQuotedTextIsLiteral !== null && str_contains($sql, '"')) {
+            $doubleQuotesAreLiterals = ($this->doubleQuotedTextIsLiteral)();
+        }
+
+        return SqlContextTokenizer::redact($sql, $doubleQuotesAreLiterals);
     }
 
     /**

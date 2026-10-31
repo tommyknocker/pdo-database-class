@@ -48,6 +48,11 @@ class PostgreSQLDialect extends DialectAbstract
         return 'pgsql';
     }
 
+    public function foldUnquotedIdentifier(string $identifier): string
+    {
+        return strtolower($identifier);
+    }
+
     /**
      * {@inheritDoc}
      */

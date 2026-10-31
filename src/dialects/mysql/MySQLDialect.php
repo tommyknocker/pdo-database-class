@@ -46,6 +46,11 @@ class MySQLDialect extends DialectAbstract
         return 'mysql';
     }
 
+    public function doubleQuotedTextIsLiteral(): bool
+    {
+        return SessionQuoteMode::doubleQuotesAreLiterals($this->getPdo());
+    }
+
     /**
      * {@inheritDoc}
      */

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reject a non-numeric `--temperature` and a non-positive `--max-tokens` or `--timeout` before they are cast.
 - Look up one Oracle object by its exact name, and use the folded case only when that object is absent, so catalog columns and `NUM_ROWS` are not mixed across similarly named tables.
 - Keep logging a slow query after the profiler stops storing new SQL shapes. Remove recognized string literals, numeric literals, and comments from profiler SQL.
+- Remove double-quoted profiler text only when the connection treats double quotes as strings. Fold each unquoted part of an Oracle or PostgreSQL name on its own, so a quoted schema does not keep an unquoted table's case.
 - Avoid exposing provider response bodies and API keys in AI transport errors; send Gemini credentials in the request header.
 - Reject invalid numeric AI settings and explicitly configured temperature where the model profile omits sampling parameters.
 - Correct database feature version requirements and broken documentation links; check local Markdown links in CI.

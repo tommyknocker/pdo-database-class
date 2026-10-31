@@ -89,23 +89,51 @@ final class SqlContextTokenizer
         return $tokens;
     }
 
-    public static function redact(string $sql): string
+    /**
+     * Replace recognized literals with ?.
+     *
+     * Double-quoted text stays unless $doubleQuotesAreLiterals is true. That flag
+     * is only for a connection that treats " as a string delimiter. It does not
+     * decide SQLite, where an unknown double-quoted name can still be a value.
+     */
+    public static function redact(string $sql, bool $doubleQuotesAreLiterals = false): string
     {
-        return implode(' ', array_map(static fn ($token) => $token['kind'] === 'literal' ? '?' : $token['text'], self::tokens($sql)));
+        return implode(' ', array_map(
+            static fn (array $token): string => $token['kind'] === 'literal'
+                || ($doubleQuotesAreLiterals && $token['kind'] === 'identifier' && str_starts_with($token['text'], '"'))
+                ? '?'
+                : $token['text'],
+            self::tokens($sql)
+        ));
     }
 
-    /** @return array{schema: ?string, table: string}|null */
+    /** @return array{schema: ?string, table: string, schema_quoted: bool, table_quoted: bool}|null */
     public static function table(string $reference): ?array
     {
         $tokens = self::tokens($reference);
         if (!isset($tokens[0]) || !in_array($tokens[0]['kind'], ['word', 'identifier'], true)) {
             return null;
         }
-        $first = self::unquote($tokens[0]['text']);
+        $tableToken = $tokens[0];
+        $schema = null;
+        $schemaQuoted = false;
         if (($tokens[1]['text'] ?? '') === '.' && isset($tokens[2]) && in_array($tokens[2]['kind'], ['word', 'identifier'], true)) {
-            return ['schema' => $first, 'table' => self::unquote($tokens[2]['text'])];
+            $schema = self::unquote($tokens[0]['text']);
+            $schemaQuoted = self::isQuoted($tokens[0]['text']);
+            $tableToken = $tokens[2];
         }
-        return ['schema' => null, 'table' => $first];
+
+        return [
+            'schema' => $schema,
+            'table' => self::unquote($tableToken['text']),
+            'schema_quoted' => $schemaQuoted,
+            'table_quoted' => self::isQuoted($tableToken['text']),
+        ];
+    }
+
+    protected static function isQuoted(string $token): bool
+    {
+        return in_array($token[0] ?? '', ['"', '`', '['], true);
     }
 
     public static function unquote(string $identifier): string

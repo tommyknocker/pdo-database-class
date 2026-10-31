@@ -124,6 +124,16 @@ SQL;
             self::assertStringNotContainsString($secret, $redacted);
         }
         self::assertStringContainsString('"public" . "users"', $redacted);
+        self::assertStringNotContainsString('PRIVATE_VALUE_428', SqlContextTokenizer::redact('SELECT "PRIVATE_VALUE_428"', true));
+        self::assertStringContainsString('PRIVATE_VALUE_428', SqlContextTokenizer::redact('SELECT "PRIVATE_VALUE_428"'));
+        self::assertSame(
+            ['schema' => 'TESTUSER', 'table' => 'pdodb_rev_67231', 'schema_quoted' => true, 'table_quoted' => false],
+            SqlContextTokenizer::table('"TESTUSER".pdodb_rev_67231')
+        );
+        self::assertSame(
+            ['schema' => 'public', 'table' => 'Users', 'schema_quoted' => false, 'table_quoted' => true],
+            SqlContextTokenizer::table('public."Users"')
+        );
         self::assertSame(['"public"."users"'], SqlContextTokenizer::tables($sql));
     }
 
