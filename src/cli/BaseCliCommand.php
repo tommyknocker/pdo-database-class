@@ -20,6 +20,50 @@ use tommyknocker\pdodb\PdoDb;
  */
 abstract class BaseCliCommand
 {
+    protected static ?CliOutput $io = null;
+
+    /**
+     * Shared CLI output (stdout/stderr). Replace in tests via {@see setIo()}.
+     */
+    public static function io(): CliOutput
+    {
+        return static::$io ??= new CliOutput();
+    }
+
+    public static function setIo(CliOutput $io): void
+    {
+        static::$io = $io;
+    }
+
+    public static function resetIo(): void
+    {
+        static::$io = new CliOutput();
+    }
+
+    /**
+     * Write a line to stdout (static helpers for generators and wizards).
+     */
+    protected static function cliWriteln(string $message = ''): void
+    {
+        static::io()->writeln($message);
+    }
+
+    /**
+     * Write to stdout without a trailing newline.
+     */
+    protected static function cliWrite(string $message): void
+    {
+        static::io()->write($message);
+    }
+
+    /**
+     * Write a line to stderr (static helpers for generators and wizards).
+     */
+    protected static function cliWriteErrorLine(string $message = ''): void
+    {
+        static::io()->writeErrorLine($message);
+    }
+
     /**
      * Load database configuration from .env file, config files or environment.
      *
@@ -376,8 +420,8 @@ abstract class BaseCliCommand
         }
 
         $defaultText = $default !== null ? " [{$default}]" : '';
-        echo $prompt . $defaultText . ': ';
-        flush();
+        static::cliWrite($prompt . $defaultText . ': ');
+        static::io()->flushStdout();
         $input = trim((string)fgets(STDIN));
         return $input !== '' ? $input : ($default ?? '');
     }
@@ -413,10 +457,10 @@ abstract class BaseCliCommand
             shell_exec('stty -echo');
         }
 
-        echo $prompt . ': ';
-        flush();
+        static::cliWrite($prompt . ': ');
+        static::io()->flushStdout();
         $input = trim((string)fgets(STDIN));
-        echo "\n";
+        static::cliWriteln();
 
         // Restore stty mode
         if (PHP_OS_FAMILY !== 'Windows' && isset($sttyMode)) {
@@ -451,8 +495,8 @@ abstract class BaseCliCommand
         }
 
         $defaultText = $default ? 'Y/n' : 'y/N';
-        echo $prompt . " [{$defaultText}]: ";
-        flush();
+        static::io()->write($prompt . " [{$defaultText}]: ");
+        static::io()->flushStdout();
         $input = strtolower(trim((string)fgets(STDIN)));
 
         if ($input === '') {
@@ -472,7 +516,7 @@ abstract class BaseCliCommand
      */
     public static function error(string $message, int $code = 1): never
     {
-        echo "Error: {$message}\n";
+        static::io()->writeErrorLine("Error: {$message}");
         // In test environment, throw exception instead of exit to allow proper test handling
         if (getenv('PHPUNIT') !== false) {
             throw new \RuntimeException("Error: {$message}", $code);
@@ -488,7 +532,7 @@ abstract class BaseCliCommand
     protected static function success(string $message): void
     {
         if (getenv('PHPUNIT') === false) {
-            echo "✓ {$message}\n";
+            static::io()->writeln("✓ {$message}");
         }
     }
 
@@ -500,7 +544,7 @@ abstract class BaseCliCommand
     protected static function info(string $message): void
     {
         if (getenv('PHPUNIT') === false) {
-            echo "ℹ {$message}\n";
+            static::io()->writeln("ℹ {$message}");
         }
     }
 
@@ -511,7 +555,7 @@ abstract class BaseCliCommand
      */
     protected static function warning(string $message): void
     {
-        echo "⚠ {$message}\n";
+        static::io()->writeln("⚠ {$message}");
     }
 
     /**
@@ -522,7 +566,7 @@ abstract class BaseCliCommand
     protected static function loading(string $message): void
     {
         if (getenv('PHPUNIT') === false) {
-            echo "⏳ {$message}...\n";
+            static::io()->writeln("⏳ {$message}...");
         }
     }
 }

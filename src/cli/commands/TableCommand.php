@@ -41,7 +41,7 @@ class TableCommand extends Command
             'sample' => $this->sample(),
             'select' => $this->sample(), // Alias for sample
             'search' => $this->search(),
-            default => $this->showError("Unknown subcommand: {$sub}"),
+            default => $this->fail("Unknown subcommand: {$sub}"),
         };
     }
 
@@ -49,7 +49,7 @@ class TableCommand extends Command
     {
         $table = $this->getArgument(1);
         if (!is_string($table) || $table === '') {
-            return $this->showError('Table name is required');
+            return $this->fail('Table name is required');
         }
         $format = $this->getOption('format', 'table');
         $db = $this->getDb();
@@ -74,11 +74,11 @@ class TableCommand extends Command
     {
         $table = $this->getArgument(1);
         if (!is_string($table) || $table === '') {
-            return $this->showError('Table name is required');
+            return $this->fail('Table name is required');
         }
         $db = $this->getDb();
         $exists = TableManager::tableExists($db, $table);
-        echo $exists ? "✓ Table '{$table}' exists\n" : "ℹ Table '{$table}' does not exist\n";
+        $this->write($exists ? "✓ Table '{$table}' exists\n" : "ℹ Table '{$table}' does not exist\n");
         return $exists ? 0 : 1;
     }
 
@@ -86,7 +86,7 @@ class TableCommand extends Command
     {
         $table = $this->getArgument(1);
         if (!is_string($table) || $table === '') {
-            return $this->showError('Table name is required');
+            return $this->fail('Table name is required');
         }
         $force = (bool)$this->getOption('force', false);
         if (!$force) {
@@ -102,7 +102,7 @@ class TableCommand extends Command
             // Try interactive prompt for columns definition
             $inputColumns = static::readInput('Enter columns (e.g., id:int, name:string:nullable)', null);
             if ($inputColumns === '') {
-                return $this->showError('Columns are required. Use --columns option or provide them interactively.');
+                return $this->fail('Columns are required. Use --columns option or provide them interactively.');
             }
             $columnsOpt = $inputColumns;
         }
@@ -110,7 +110,7 @@ class TableCommand extends Command
         // At this point $columnsOpt is guaranteed to be a non-empty string
         $columns = $this->parseColumns($columnsOpt);
         if (empty($columns)) {
-            return $this->showError('At least one column is required. Use --columns="id:int, name:string".');
+            return $this->fail('At least one column is required. Use --columns="id:int, name:string".');
         }
         $db = $this->getDb();
         TableManager::create($db, $table, $columns, $options, $ifNotExists);
@@ -122,7 +122,7 @@ class TableCommand extends Command
     {
         $table = $this->getArgument(1);
         if (!is_string($table) || $table === '') {
-            return $this->showError('Table name is required');
+            return $this->fail('Table name is required');
         }
         $force = (bool)$this->getOption('force', false);
         if (!$force) {
@@ -144,7 +144,7 @@ class TableCommand extends Command
         $old = $this->getArgument(1);
         $new = $this->getArgument(2);
         if (!is_string($old) || $old === '' || !is_string($new) || $new === '') {
-            return $this->showError('Old and new table names are required');
+            return $this->fail('Old and new table names are required');
         }
         $force = (bool)$this->getOption('force', false);
         if (!$force) {
@@ -164,7 +164,7 @@ class TableCommand extends Command
     {
         $table = $this->getArgument(1);
         if (!is_string($table) || $table === '') {
-            return $this->showError('Table name is required');
+            return $this->fail('Table name is required');
         }
         $force = (bool)$this->getOption('force', false);
         if (!$force) {
@@ -184,7 +184,7 @@ class TableCommand extends Command
     {
         $table = $this->getArgument(1);
         if (!is_string($table) || $table === '') {
-            return $this->showError('Table name is required');
+            return $this->fail('Table name is required');
         }
         $format = $this->getOption('format', 'table');
         $db = $this->getDb();
@@ -197,7 +197,7 @@ class TableCommand extends Command
         $op = $this->getArgument(1);
         $table = $this->getArgument(2);
         if (!is_string($op) || !is_string($table) || $table === '') {
-            return $this->showError('Usage: pdodb table columns <list|add|alter|drop> <table> ...');
+            return $this->fail('Usage: pdodb table columns <list|add|alter|drop> <table> ...');
         }
         $db = $this->getDb();
         return match ($op) {
@@ -205,7 +205,7 @@ class TableCommand extends Command
             'add' => $this->columnsAdd($db, $table),
             'alter' => $this->columnsAlter($db, $table),
             'drop' => $this->columnsDrop($db, $table),
-            default => $this->showError("Unknown columns operation: {$op}"),
+            default => $this->fail("Unknown columns operation: {$op}"),
         };
     }
 
@@ -214,7 +214,7 @@ class TableCommand extends Command
         $op = $this->getArgument(1);
         $table = $this->getArgument(2);
         if (!is_string($op) || !is_string($table) || $table === '') {
-            return $this->showError('Usage: pdodb table indexes <list|add|drop|suggest> <table> ...');
+            return $this->fail('Usage: pdodb table indexes <list|add|drop|suggest> <table> ...');
         }
         $db = $this->getDb();
         return match ($op) {
@@ -222,7 +222,7 @@ class TableCommand extends Command
             'add' => $this->indexesAdd($db, $table),
             'drop' => $this->indexesDrop($db, $table),
             'suggest' => $this->indexesSuggest($db, $table),
-            default => $this->showError("Unknown indexes operation: {$op}"),
+            default => $this->fail("Unknown indexes operation: {$op}"),
         };
     }
 
@@ -237,7 +237,7 @@ class TableCommand extends Command
         $name = (string)$this->getArgument(3, '');
         $cols = (string)$this->getOption('columns', '');
         if ($name === '' || $cols === '') {
-            return $this->showError('Index name and --columns are required');
+            return $this->fail('Index name and --columns are required');
         }
         $columns = array_map('trim', explode(',', $cols));
         $unique = (bool)$this->getOption('unique', false);
@@ -250,7 +250,7 @@ class TableCommand extends Command
     {
         $name = (string)$this->getArgument(3, '');
         if ($name === '') {
-            return $this->showError('Index name is required');
+            return $this->fail('Index name is required');
         }
         $force = (bool)$this->getOption('force', false);
         if (!$force) {
@@ -268,7 +268,7 @@ class TableCommand extends Command
     protected function indexesSuggest(PdoDb $db, string $table): int
     {
         if (!TableManager::tableExists($db, $table)) {
-            return $this->showError("Table '{$table}' does not exist");
+            return $this->fail("Table '{$table}' does not exist");
         }
 
         $format = (string)$this->getOption('format', 'table');
@@ -279,7 +279,7 @@ class TableCommand extends Command
         $suggestions = $analyzer->analyze($table, $options);
 
         if ($format === 'json') {
-            echo json_encode(['suggestions' => $suggestions], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+            $this->writeln(json_encode(['suggestions' => $suggestions], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             return 0;
         }
 
@@ -301,7 +301,7 @@ class TableCommand extends Command
      */
     protected function printIndexSuggestions(string $table, array $suggestions): void
     {
-        echo "\nAnalyzing table '{$table}'...\n\n";
+        $this->writeln("\nAnalyzing table '{$table}'...\n");
 
         if (empty($suggestions)) {
             static::info('No index suggestions found. Table appears to be well-indexed.');
@@ -335,7 +335,7 @@ class TableCommand extends Command
 
             $icon = $priorityIcons[$priority];
             $label = $priorityLabels[$priority];
-            echo "{$icon} {$label}:\n";
+            $this->writeln("{$icon} {$label}:");
 
             foreach ($byPriority[$priority] as $i => $suggestion) {
                 $count++;
@@ -344,16 +344,16 @@ class TableCommand extends Command
                 $reason = $suggestion['reason'] ?? 'No reason provided';
                 $sql = $suggestion['sql'] ?? '';
 
-                echo "  {$num}. Index on ({$columns})\n";
-                echo "     Reason: {$reason}\n";
+                $this->writeln("  {$num}. Index on ({$columns})");
+                $this->writeln("     Reason: {$reason}");
                 if ($sql !== '') {
-                    echo "     SQL: {$sql}\n";
+                    $this->writeln("     SQL: {$sql}");
                 }
-                echo "\n";
+                $this->writeln('');
             }
         }
 
-        echo "Total: {$count} suggestion(s)\n\n";
+        $this->writeln("Total: {$count} suggestion(s)\n");
     }
 
     protected function keys(): int
@@ -367,14 +367,14 @@ class TableCommand extends Command
 
         $table = $this->getArgument(2);
         if (!is_string($op) || !is_string($table) || $table === '') {
-            return $this->showError('Usage: pdodb table keys <list|add|drop> <table> ...');
+            return $this->fail('Usage: pdodb table keys <list|add|drop> <table> ...');
         }
 
         return match ($op) {
             'list' => $this->keysList($db, $table),
             'add' => $this->keysAdd($db, $table),
             'drop' => $this->keysDrop($db, $table),
-            default => $this->showError("Unknown keys operation: {$op}"),
+            default => $this->fail("Unknown keys operation: {$op}"),
         };
     }
 
@@ -407,14 +407,14 @@ class TableCommand extends Command
         }
 
         if ($name === '' || $columns === '' || $refTable === '' || $refColumns === '') {
-            return $this->showError('Foreign key name, columns, referenced table, and referenced columns are required');
+            return $this->fail('Foreign key name, columns, referenced table, and referenced columns are required');
         }
 
         $columnArray = array_map('trim', explode(',', $columns));
         $refColumnArray = array_map('trim', explode(',', $refColumns));
 
         if (count($columnArray) !== count($refColumnArray)) {
-            return $this->showError('Number of columns must match number of referenced columns');
+            return $this->fail('Number of columns must match number of referenced columns');
         }
 
         $onDelete = $this->getOption('on-delete');
@@ -440,7 +440,7 @@ class TableCommand extends Command
     {
         $name = (string)$this->getArgument(3, '');
         if ($name === '') {
-            return $this->showError('Foreign key name is required');
+            return $this->fail('Foreign key name is required');
         }
 
         $force = (bool)$this->getOption('force', false);
@@ -528,9 +528,9 @@ class TableCommand extends Command
 
         static::warning('Found ' . count($violations) . ' foreign key constraint violation(s):');
         foreach ($violations as $violation) {
-            echo "  - Table '{$violation['table']}', FK '{$violation['foreign_key']}': ";
-            echo "{$violation['violations']} orphaned record(s) in '{$violation['column']}' ";
-            echo "referencing '{$violation['referenced_table']}.{$violation['referenced_column']}'\n";
+            $this->write("  - Table '{$violation['table']}', FK '{$violation['foreign_key']}': ");
+            $this->write("{$violation['violations']} orphaned record(s) in '{$violation['column']}' ");
+            $this->writeln("referencing '{$violation['referenced_table']}.{$violation['referenced_column']}'");
         }
 
         return 1;
@@ -541,7 +541,7 @@ class TableCommand extends Command
         $name = (string)$this->getArgument(3, '');
         $type = $this->getOption('type');
         if ($name === '' || !is_string($type) || $type === '') {
-            return $this->showError('Column name and --type are required');
+            return $this->fail('Column name and --type are required');
         }
         $schema = $this->typeToSchema($type);
         if ($this->getOption('nullable', false)) {
@@ -560,7 +560,7 @@ class TableCommand extends Command
     {
         $name = (string)$this->getArgument(3, '');
         if ($name === '') {
-            return $this->showError('Column name is required');
+            return $this->fail('Column name is required');
         }
         $schema = [];
         $type = $this->getOption('type');
@@ -598,7 +598,7 @@ class TableCommand extends Command
     {
         $name = (string)$this->getArgument(3, '');
         if ($name === '') {
-            return $this->showError('Column name is required');
+            return $this->fail('Column name is required');
         }
         $force = (bool)$this->getOption('force', false);
         if (!$force) {
@@ -693,7 +693,7 @@ class TableCommand extends Command
     {
         $fmt = strtolower($format);
         if ($fmt === 'json') {
-            echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+            $this->writeln(json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             return 0;
         }
         if ($fmt === 'yaml') {
@@ -714,10 +714,10 @@ class TableCommand extends Command
         foreach ($data as $key => $val) {
             $pad = str_repeat('  ', $indent);
             if (is_array($val)) {
-                echo "{$pad}{$key}:\n";
+                $this->writeln("{$pad}{$key}:");
                 $this->printYaml($val, $indent + 1);
             } else {
-                echo "{$pad}{$key}: {$val}\n";
+                $this->writeln("{$pad}{$key}: {$val}");
             }
         }
     }
@@ -726,16 +726,16 @@ class TableCommand extends Command
     {
         $table = $this->getArgument(1);
         if (!is_string($table) || $table === '') {
-            return $this->showError('Table name is required');
+            return $this->fail('Table name is required');
         }
         $db = $this->getDb();
         if (!TableManager::tableExists($db, $table)) {
-            return $this->showError("Table '{$table}' does not exist");
+            return $this->fail("Table '{$table}' does not exist");
         }
 
         $quotedTable = $db->schema()->getDialect()->quoteTable($table);
         $count = $db->rawQueryValue("SELECT COUNT(*) FROM {$quotedTable}");
-        echo "{$count}\n";
+        $this->writeln("{$count}");
         return 0;
     }
 
@@ -743,14 +743,14 @@ class TableCommand extends Command
     {
         $table = $this->getArgument(1);
         if (!is_string($table) || $table === '') {
-            return $this->showError('Table name is required');
+            return $this->fail('Table name is required');
         }
         $limit = (int)$this->getOption('limit', 10);
         $format = $this->getOption('format', 'table');
         $db = $this->getDb();
 
         if (!TableManager::tableExists($db, $table)) {
-            return $this->showError("Table '{$table}' does not exist");
+            return $this->fail("Table '{$table}' does not exist");
         }
 
         $dialect = $db->schema()->getDialect();
@@ -766,17 +766,17 @@ class TableCommand extends Command
         $searchTerm = $this->getArgument(2);
 
         if (!is_string($table) || $table === '') {
-            return $this->showError('Table name is required');
+            return $this->fail('Table name is required');
         }
 
         if (!is_string($searchTerm) || $searchTerm === '') {
-            return $this->showError('Search term is required');
+            return $this->fail('Search term is required');
         }
 
         $db = $this->getDb();
 
         if (!TableManager::tableExists($db, $table)) {
-            return $this->showError("Table '{$table}' does not exist");
+            return $this->fail("Table '{$table}' does not exist");
         }
 
         $column = $this->getOption('column');
@@ -797,10 +797,10 @@ class TableCommand extends Command
                 return 0;
             }
 
-            echo 'Found ' . count($rows) . " row(s) matching '{$searchTerm}':\n\n";
+            $this->write('Found ' . count($rows) . " row(s) matching '{$searchTerm}':\n\n");
             return $this->printFormatted(['data' => $rows], (string)$format);
         } catch (QueryException $e) {
-            return $this->showError('Search failed: ' . $e->getMessage());
+            return $this->fail('Search failed: ' . $e->getMessage());
         }
     }
 
@@ -819,16 +819,16 @@ class TableCommand extends Command
                 $this->printDataTable((string)$key, $val, $maxWidth);
             } elseif (is_array($val)) {
                 // Simple array
-                echo ucfirst((string)$key) . ":\n";
+                $this->write(ucfirst((string)$key) . ":\n");
                 foreach ($val as $rowKey => $rowVal) {
                     if (is_array($rowVal)) {
-                        echo '  - ' . json_encode($rowVal, JSON_UNESCAPED_SLASHES) . "\n";
+                        $this->writeln('  - ' . json_encode($rowVal, JSON_UNESCAPED_SLASHES));
                     } else {
-                        echo "  - {$rowVal}\n";
+                        $this->writeln("  - {$rowVal}");
                     }
                 }
             } else {
-                echo ucfirst((string)$key) . ": {$val}\n";
+                $this->write(ucfirst((string)$key) . ": {$val}\n");
             }
         }
     }
@@ -843,7 +843,7 @@ class TableCommand extends Command
     protected function printDataTable(string $title, array $rows, int $maxWidth): void
     {
         if (empty($rows)) {
-            echo ucfirst($title) . ": (empty)\n";
+            $this->write(ucfirst($title) . ": (empty)\n");
             return;
         }
 
@@ -879,16 +879,16 @@ class TableCommand extends Command
         }
 
         // Print header
-        echo "\n" . ucfirst($title) . ":\n";
-        echo str_repeat('=', min($maxWidth, $totalWidth)) . "\n";
+        $this->write("\n" . ucfirst($title) . ":\n");
+        $this->writeln(str_repeat('=', min($maxWidth, $totalWidth)));
 
         // Print column headers
         $headerParts = [];
         foreach ($columns as $col) {
             $headerParts[] = str_pad($col, $colWidths[$col], ' ', STR_PAD_RIGHT);
         }
-        echo '| ' . implode(' | ', $headerParts) . " |\n";
-        echo str_repeat('-', min($maxWidth, $totalWidth)) . "\n";
+        $this->write('| ' . implode(' | ', $headerParts) . " |\n");
+        $this->writeln(str_repeat('-', min($maxWidth, $totalWidth)));
 
         // Print rows
         foreach ($rows as $row) {
@@ -898,11 +898,11 @@ class TableCommand extends Command
                 $value = mb_substr($value, 0, $colWidths[$col]) ?: '';
                 $rowParts[] = str_pad($value, $colWidths[$col], ' ', STR_PAD_RIGHT);
             }
-            echo '| ' . implode(' | ', $rowParts) . " |\n";
+            $this->write('| ' . implode(' | ', $rowParts) . " |\n");
         }
 
-        echo str_repeat('=', min($maxWidth, $totalWidth)) . "\n";
-        echo 'Total rows: ' . count($rows) . "\n\n";
+        $this->writeln(str_repeat('=', min($maxWidth, $totalWidth)));
+        $this->write('Total rows: ' . count($rows) . "\n\n");
     }
 
     /**
@@ -929,50 +929,50 @@ class TableCommand extends Command
 
     protected function showHelp(): int
     {
-        echo "Table Management\n\n";
-        echo "Usage: pdodb table <subcommand> [arguments] [options]\n\n";
-        echo "Subcommands:\n";
-        echo "  info <table>                         Show table summary (columns, indexes)\n";
-        echo "  list                                 List tables\n";
-        echo "  exists <table>                       Check if table exists\n";
-        echo "  create <table> [--columns=...]       Create table\n";
-        echo "  drop <table>                         Drop table\n";
-        echo "  rename <old> <new>                   Rename table\n";
-        echo "  truncate <table>                     Truncate table\n";
-        echo "  describe <table>                     Show detailed columns\n";
-        echo "  count <table>                        Show row count\n";
-        echo "  sample <table> [--limit=N]           Show sample data (default: 10 rows)\n";
-        echo "  select <table> [--limit=N]           Alias for sample\n";
-        echo "  search <table> <term> [--column=COL] Search for value across all columns (or specific column)\n";
-        echo "  columns <op> <table> [...]           Manage columns (list/add/alter/drop)\n";
-        echo "  indexes <op> <table> [...]           Manage indexes (list/add/drop/suggest)\n";
-        echo "  keys <op> <table> [...]              Manage foreign keys (list/add/drop)\n";
-        echo "  keys check                           Check foreign key integrity\n\n";
-        echo "Options:\n";
-        echo "  --format=table|json|yaml             Output format (for info/list/describe/sample/search)\n";
-        echo "  --limit=N                            Limit rows for sample/select/search (default: 10 for sample, 100 for search)\n";
-        echo "  --force                              Execute without confirmation\n";
-        echo "  --columns=\"col:type:nullable,...\"    Columns for create\n";
-        echo "  --engine=, --charset=, --collation=, --comment=   Table options (dialect-specific)\n";
-        echo "  --if-not-exists, --if-exists         Safe create/drop variants\n";
-        echo "  columns add/alter:\n";
-        echo "    --type=TYPE [--nullable] [--default=VAL] [--comment=TXT]\n";
-        echo "    alter: [--not-null] [--drop-default] [--rename=NEW]\n";
-        echo "  indexes add:\n";
-        echo "    <name> --columns=\"c1,c2\" [--unique]\n";
-        echo "  indexes suggest:\n";
-        echo "    <table> [--format=table|json|yaml] [--priority=high|medium|low|all]\n";
-        echo "    Analyze table structure and suggest missing indexes\n";
-        echo "  keys add:\n";
-        echo "    <name> --columns=\"c1,c2\" --ref-table=table --ref-columns=\"c1,c2\" [--on-delete=ACTION] [--on-update=ACTION]\n";
-        echo "  keys check:\n";
-        echo "    Check all foreign key constraints for integrity violations\n";
-        echo "  search:\n";
-        echo "    <table> <term> [--column=COL] [--limit=N] [--json=0|1]\n";
-        echo "    Search for value across all columns (or specific column)\n";
-        echo "    --column=COL                       Search only in specific column\n";
-        echo "    --limit=N                         Maximum number of results (default: 100)\n";
-        echo "    --json=0|1                        Search in JSON/array columns (default: 1)\n";
+        $this->writeln("Table Management\n");
+        $this->writeln("Usage: pdodb table <subcommand> [arguments] [options]\n");
+        $this->writeln('Subcommands:');
+        $this->writeln('  info <table>                         Show table summary (columns, indexes)');
+        $this->writeln('  list                                 List tables');
+        $this->writeln('  exists <table>                       Check if table exists');
+        $this->writeln('  create <table> [--columns=...]       Create table');
+        $this->writeln('  drop <table>                         Drop table');
+        $this->writeln('  rename <old> <new>                   Rename table');
+        $this->writeln('  truncate <table>                     Truncate table');
+        $this->writeln('  describe <table>                     Show detailed columns');
+        $this->writeln('  count <table>                        Show row count');
+        $this->writeln('  sample <table> [--limit=N]           Show sample data (default: 10 rows)');
+        $this->writeln('  select <table> [--limit=N]           Alias for sample');
+        $this->writeln('  search <table> <term> [--column=COL] Search for value across all columns (or specific column)');
+        $this->writeln('  columns <op> <table> [...]           Manage columns (list/add/alter/drop)');
+        $this->writeln('  indexes <op> <table> [...]           Manage indexes (list/add/drop/suggest)');
+        $this->writeln('  keys <op> <table> [...]              Manage foreign keys (list/add/drop)');
+        $this->writeln("  keys check                           Check foreign key integrity\n");
+        $this->writeln('Options:');
+        $this->writeln('  --format=table|json|yaml             Output format (for info/list/describe/sample/search)');
+        $this->writeln('  --limit=N                            Limit rows for sample/select/search (default: 10 for sample, 100 for search)');
+        $this->writeln('  --force                              Execute without confirmation');
+        $this->writeln('  --columns="col:type:nullable,..."    Columns for create');
+        $this->writeln('  --engine=, --charset=, --collation=, --comment=   Table options (dialect-specific)');
+        $this->writeln('  --if-not-exists, --if-exists         Safe create/drop variants');
+        $this->writeln('  columns add/alter:');
+        $this->writeln('    --type=TYPE [--nullable] [--default=VAL] [--comment=TXT]');
+        $this->writeln('    alter: [--not-null] [--drop-default] [--rename=NEW]');
+        $this->writeln('  indexes add:');
+        $this->writeln('    <name> --columns="c1,c2" [--unique]');
+        $this->writeln('  indexes suggest:');
+        $this->writeln('    <table> [--format=table|json|yaml] [--priority=high|medium|low|all]');
+        $this->writeln('    Analyze table structure and suggest missing indexes');
+        $this->writeln('  keys add:');
+        $this->writeln('    <name> --columns="c1,c2" --ref-table=table --ref-columns="c1,c2" [--on-delete=ACTION] [--on-update=ACTION]');
+        $this->writeln('  keys check:');
+        $this->writeln('    Check all foreign key constraints for integrity violations');
+        $this->writeln('  search:');
+        $this->writeln('    <table> <term> [--column=COL] [--limit=N] [--json=0|1]');
+        $this->writeln('    Search for value across all columns (or specific column)');
+        $this->writeln('    --column=COL                       Search only in specific column');
+        $this->writeln('    --limit=N                         Maximum number of results (default: 100)');
+        $this->writeln('    --json=0|1                        Search in JSON/array columns (default: 1)');
         return 0;
     }
 }

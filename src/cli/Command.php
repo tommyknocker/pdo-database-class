@@ -61,6 +61,48 @@ abstract class Command extends BaseCliCommand
     }
 
     /**
+     * Write to stdout (no trailing newline).
+     */
+    protected function write(string $message): void
+    {
+        BaseCliCommand::io()->write($message);
+    }
+
+    /**
+     * Write a line to stdout.
+     */
+    protected function writeln(string $message = ''): void
+    {
+        BaseCliCommand::io()->writeln($message);
+    }
+
+    /**
+     * Write a line to stderr.
+     */
+    protected function writeErrorLine(string $message = ''): void
+    {
+        BaseCliCommand::io()->writeErrorLine($message);
+    }
+
+    /**
+     * Write a line to stderr (alias for {@see writeErrorLine()}).
+     */
+    protected function stderr(string $message = ''): void
+    {
+        $this->writeErrorLine($message);
+    }
+
+    /**
+     * Report a command failure on stderr and return exit code 1 (does not call exit()).
+     */
+    protected function fail(string $message): int
+    {
+        BaseCliCommand::io()->writeErrorLine('Error: ' . $message);
+
+        return 1;
+    }
+
+    /**
      * Get command name.
      *
      * @return string
@@ -202,9 +244,7 @@ abstract class Command extends BaseCliCommand
     }
 
     /**
-     * Show error message.
-     *
-     * @param string $message Error message
+     * Write an error to stderr and terminate (or throw under PHPUnit).
      *
      * @return never
      */

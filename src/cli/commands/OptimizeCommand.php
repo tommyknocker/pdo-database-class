@@ -36,7 +36,7 @@ class OptimizeCommand extends Command
             'logs' => $this->logs(),
             'query' => $this->query(),
             'db' => $this->db(),
-            default => $this->showError("Unknown subcommand: {$sub}"),
+            default => $this->fail("Unknown subcommand: {$sub}"),
         };
     }
 
@@ -53,7 +53,7 @@ class OptimizeCommand extends Command
         $result = $analyzer->analyze(is_string($schema) ? $schema : null);
 
         if ($format === 'json') {
-            echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+            $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             return 0;
         }
 
@@ -82,7 +82,7 @@ class OptimizeCommand extends Command
             $result = $analyzer->analyzeTable($table);
 
             if ($format === 'json') {
-                echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+                $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
                 return 0;
             }
 
@@ -110,28 +110,28 @@ class OptimizeCommand extends Command
         // Parse memory parameter (e.g., "5G", "512M", "1024")
         $memoryStr = (string)$this->getOption('memory', '');
         if ($memoryStr === '') {
-            return $this->showError('--memory parameter is required (e.g., --memory=5G)');
+            return $this->fail('--memory parameter is required (e.g., --memory=5G)');
         }
         $memoryBytes = $this->parseMemory($memoryStr);
         if ($memoryBytes <= 0) {
-            return $this->showError("Invalid memory format: {$memoryStr}. Use format like 5G, 512M, or 1024");
+            return $this->fail("Invalid memory format: {$memoryStr}. Use format like 5G, 512M, or 1024");
         }
 
         // Parse CPU cores
         $cpuCores = (int)$this->getOption('cpu-cores', 0);
         if ($cpuCores <= 0) {
-            return $this->showError('--cpu-cores parameter is required and must be > 0');
+            return $this->fail('--cpu-cores parameter is required and must be > 0');
         }
 
         // Optional parameters
         $workload = (string)$this->getOption('workload', 'oltp');
         if (!in_array($workload, ['oltp', 'olap', 'mixed'], true)) {
-            return $this->showError('--workload must be one of: oltp, olap, mixed');
+            return $this->fail('--workload must be one of: oltp, olap, mixed');
         }
 
         $diskType = (string)$this->getOption('disk-type', 'ssd');
         if (!in_array($diskType, ['ssd', 'hdd', 'nvme'], true)) {
-            return $this->showError('--disk-type must be one of: ssd, hdd, nvme');
+            return $this->fail('--disk-type must be one of: ssd, hdd, nvme');
         }
 
         $expectedConnections = $this->getOption('connections');
@@ -147,7 +147,7 @@ class OptimizeCommand extends Command
         );
 
         if ($format === 'json') {
-            echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+            $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             return 0;
         }
 
@@ -198,27 +198,27 @@ class OptimizeCommand extends Command
         $summary = $result['summary'] ?? [];
         $sqlCommands = $result['sql_commands'] ?? [];
 
-        echo "\n";
-        echo "Database Configuration Optimization Report\n";
-        echo str_repeat('=', 60) . "\n";
-        echo "\n";
+        $this->writeln('');
+        $this->writeln('Database Configuration Optimization Report');
+        $this->writeln(str_repeat('=', 60));
+        $this->writeln('');
 
         // Resources section
-        echo "Server Resources:\n";
-        echo '  Memory: ' . ($resources['memory_human'] ?? '') . "\n";
-        echo '  CPU Cores: ' . ($resources['cpu_cores'] ?? '') . "\n";
-        echo '  Workload: ' . strtoupper($resources['workload'] ?? '') . "\n";
-        echo '  Disk Type: ' . strtoupper($resources['disk_type'] ?? '') . "\n";
+        $this->writeln('Server Resources:');
+        $this->writeln('  Memory: ' . ($resources['memory_human'] ?? ''));
+        $this->writeln('  CPU Cores: ' . ($resources['cpu_cores'] ?? ''));
+        $this->writeln('  Workload: ' . strtoupper($resources['workload'] ?? ''));
+        $this->writeln('  Disk Type: ' . strtoupper($resources['disk_type'] ?? ''));
         $expectedConnections = $resources['expected_connections'] ?? null;
         if ($expectedConnections !== null) {
-            echo '  Expected Connections: ' . $expectedConnections . "\n";
+            $this->writeln('  Expected Connections: ' . $expectedConnections);
         }
-        echo "\n";
+        $this->writeln('');
 
         // Comparison table
         if (!empty($comparison)) {
-            echo "Current vs Recommended Settings:\n";
-            echo str_repeat('─', 80) . "\n";
+            $this->writeln('Current vs Recommended Settings:');
+            $this->writeln(str_repeat('─', 80));
             printf(
                 "%-30s %-15s %-15s %-10s\n",
                 'Setting',
@@ -226,7 +226,7 @@ class OptimizeCommand extends Command
                 'Recommended',
                 'Priority'
             );
-            echo str_repeat('─', 80) . "\n";
+            $this->writeln(str_repeat('─', 80));
 
             foreach ($comparison as $item) {
                 $name = $item['name'] ?? '';
@@ -254,45 +254,45 @@ class OptimizeCommand extends Command
                 );
             }
 
-            echo str_repeat('─', 80) . "\n";
-            echo "* = needs change\n";
-            echo "\n";
+            $this->writeln(str_repeat('─', 80));
+            $this->writeln('* = needs change');
+            $this->writeln('');
 
             // Summary
             if (!empty($summary)) {
-                echo "Summary:\n";
+                $this->writeln('Summary:');
                 $high = $summary['high_priority'] ?? 0;
                 $medium = $summary['medium_priority'] ?? 0;
                 $low = $summary['low_priority'] ?? 0;
                 $needsChange = $summary['needs_change'] ?? 0;
 
                 if ($high > 0) {
-                    echo "  🔴 High priority: {$high} setting" . ($high > 1 ? 's' : '') . "\n";
+                    $this->writeln("  🔴 High priority: {$high} setting" . ($high > 1 ? 's' : ''));
                 }
                 if ($medium > 0) {
-                    echo "  🟡 Medium priority: {$medium} setting" . ($medium > 1 ? 's' : '') . "\n";
+                    $this->writeln("  🟡 Medium priority: {$medium} setting" . ($medium > 1 ? 's' : ''));
                 }
                 if ($low > 0) {
-                    echo "  🟢 Low priority: {$low} setting" . ($low > 1 ? 's' : '') . "\n";
+                    $this->writeln("  🟢 Low priority: {$low} setting" . ($low > 1 ? 's' : ''));
                 }
-                echo "\n";
-                echo "Total settings requiring changes: {$needsChange}\n";
-                echo "\n";
+                $this->writeln('');
+                $this->writeln("Total settings requiring changes: {$needsChange}");
+                $this->writeln('');
             }
         }
 
         // SQL commands
         if (!empty($sqlCommands)) {
-            echo "SQL to Apply:\n";
-            echo str_repeat('─', 80) . "\n";
+            $this->writeln('SQL to Apply:');
+            $this->writeln(str_repeat('─', 80));
             foreach ($sqlCommands as $cmd) {
-                echo $cmd . "\n";
+                $this->writeln($cmd);
             }
-            echo str_repeat('─', 80) . "\n";
-            echo "\n";
-            echo "Note: Review and test these commands before applying in production.\n";
-            echo "Some settings may require server restart.\n";
-            echo "\n";
+            $this->writeln(str_repeat('─', 80));
+            $this->writeln('');
+            $this->writeln('Note: Review and test these commands before applying in production.');
+            $this->writeln('Some settings may require server restart.');
+            $this->writeln('');
         }
     }
 
@@ -303,11 +303,11 @@ class OptimizeCommand extends Command
     {
         $file = $this->getOption('file');
         if (!is_string($file) || $file === '') {
-            return $this->showError('--file option is required for logs subcommand');
+            return $this->fail('--file option is required for logs subcommand');
         }
 
         if (!file_exists($file) || !is_readable($file)) {
-            return $this->showError("Cannot read slow query log file: {$file}");
+            return $this->fail("Cannot read slow query log file: {$file}");
         }
 
         $format = (string)$this->getOption('format', 'table');
@@ -319,7 +319,7 @@ class OptimizeCommand extends Command
         $result = $analyzer->analyze($queries);
 
         if ($format === 'json') {
-            echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+            $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             return 0;
         }
 
@@ -339,7 +339,7 @@ class OptimizeCommand extends Command
     {
         $sql = $this->getArgument(1);
         if (!is_string($sql) || $sql === '') {
-            return $this->showError('Query string is required for query subcommand');
+            return $this->fail('Query string is required for query subcommand');
         }
 
         $format = (string)$this->getOption('format', 'table');
@@ -372,7 +372,7 @@ class OptimizeCommand extends Command
             $analysis = $analyzer->analyze($explainResults, $tableName);
 
             if ($format === 'json') {
-                echo json_encode($this->formatAnalysisResult($analysis), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+                $this->writeln(json_encode($this->formatAnalysisResult($analysis), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
                 return 0;
             }
 
@@ -384,9 +384,9 @@ class OptimizeCommand extends Command
             $this->printQueryReport($sql, $analysis);
             return 0;
         } catch (QueryException $e) {
-            return $this->showError('Failed to analyze query: ' . $e->getMessage());
+            return $this->fail('Failed to analyze query: ' . $e->getMessage());
         } catch (\Throwable $e) {
-            return $this->showError('Failed to analyze query: ' . $e->getMessage());
+            return $this->fail('Failed to analyze query: ' . $e->getMessage());
         }
     }
 
@@ -453,8 +453,8 @@ class OptimizeCommand extends Command
      */
     protected function printAnalyzeReport(array $result): void
     {
-        echo "\nSchema Analysis Report\n";
-        echo str_repeat('=', 50) . "\n\n";
+        $this->writeln("\nSchema Analysis Report");
+        $this->write(str_repeat('=', 50) . "\n\n");
 
         $critical = $result['critical_issues'] ?? [];
         $warnings = $result['warnings'] ?? [];
@@ -463,49 +463,49 @@ class OptimizeCommand extends Command
         $suggestionsSummary = $result['suggestions_summary'] ?? [];
 
         if (!empty($critical)) {
-            echo 'Critical Issues (' . count($critical) . "):\n";
+            $this->write('Critical Issues (' . count($critical) . "):\n");
             foreach ($critical as $issue) {
-                echo "  ❌ {$issue['message']}\n";
+                $this->writeln("  ❌ {$issue['message']}");
             }
-            echo "\n";
+            $this->writeln('');
         }
 
         if (!empty($warnings)) {
-            echo 'Warnings (' . count($warnings) . "):\n";
+            $this->write('Warnings (' . count($warnings) . "):\n");
             foreach ($warnings as $warning) {
-                echo "  ⚠️  {$warning['message']}\n";
+                $this->writeln("  ⚠️  {$warning['message']}");
             }
-            echo "\n";
+            $this->writeln('');
         }
 
         if (!empty($info)) {
-            echo 'Info (' . count($info) . "):\n";
+            $this->write('Info (' . count($info) . "):\n");
             foreach ($info as $item) {
-                echo "  ℹ️  {$item['message']}\n";
+                $this->writeln("  ℹ️  {$item['message']}");
             }
-            echo "\n";
+            $this->writeln('');
         }
 
         if (!empty($statistics)) {
-            echo "Statistics:\n";
+            $this->writeln('Statistics:');
             foreach ($statistics as $key => $value) {
-                echo '  - ' . ucfirst(str_replace('_', ' ', $key)) . ": {$value}\n";
+                $this->write('  - ' . ucfirst(str_replace('_', ' ', $key)) . ": {$value}\n");
             }
-            echo "\n";
+            $this->writeln('');
         }
 
         // Show suggestions summary if there are any
         if (!empty($suggestionsSummary) && $suggestionsSummary['tables_needing_indexes'] > 0) {
-            echo "Index Suggestions Summary:\n";
-            echo "  - Tables needing indexes: {$suggestionsSummary['tables_needing_indexes']}\n";
+            $this->writeln('Index Suggestions Summary:');
+            $this->writeln("  - Tables needing indexes: {$suggestionsSummary['tables_needing_indexes']}");
             if ($suggestionsSummary['high_priority_suggestions'] > 0) {
-                echo "  - High priority suggestions: {$suggestionsSummary['high_priority_suggestions']}\n";
+                $this->writeln("  - High priority suggestions: {$suggestionsSummary['high_priority_suggestions']}");
             }
             if ($suggestionsSummary['medium_priority_suggestions'] > 0) {
-                echo "  - Medium priority suggestions: {$suggestionsSummary['medium_priority_suggestions']}\n";
+                $this->writeln("  - Medium priority suggestions: {$suggestionsSummary['medium_priority_suggestions']}");
             }
             if ($suggestionsSummary['low_priority_suggestions'] > 0) {
-                echo "  - Low priority suggestions: {$suggestionsSummary['low_priority_suggestions']}\n";
+                $this->writeln("  - Low priority suggestions: {$suggestionsSummary['low_priority_suggestions']}");
             }
 
             // Show breakdown by type
@@ -524,12 +524,12 @@ class OptimizeCommand extends Command
             }
 
             if (!empty($typeBreakdown)) {
-                echo '  - Breakdown: ' . implode(', ', $typeBreakdown) . "\n";
+                $this->writeln('  - Breakdown: ' . implode(', ', $typeBreakdown));
             }
 
-            echo "\n";
-            echo "💡 Tip: Run 'pdodb optimize structure --table=<table_name>' for detailed index suggestions.\n";
-            echo "\n";
+            $this->writeln('');
+            $this->writeln("💡 Tip: Run 'pdodb optimize structure --table=<table_name>' for detailed index suggestions.");
+            $this->writeln('');
         }
 
         if (empty($critical) && empty($warnings) && empty($info) && empty($suggestionsSummary)) {
@@ -545,17 +545,17 @@ class OptimizeCommand extends Command
     protected function printStructureReport(array $result): void
     {
         $table = $result['table'] ?? 'unknown';
-        echo "\nTable Structure Analysis: '{$table}'\n";
-        echo str_repeat('=', 50) . "\n\n";
+        $this->writeln("\nTable Structure Analysis: '{$table}'");
+        $this->write(str_repeat('=', 50) . "\n\n");
 
         // Primary Key
         $hasPk = $result['has_primary_key'] ?? false;
         $pkColumns = $result['primary_key_columns'] ?? [];
         if ($hasPk) {
             $pkCols = implode(', ', $pkColumns);
-            echo "Primary Key: ✓ Present ({$pkCols})\n\n";
+            $this->writeln("Primary Key: ✓ Present ({$pkCols})\n");
         } else {
-            echo "Primary Key: ❌ MISSING\n\n";
+            $this->writeln("Primary Key: ❌ MISSING\n");
         }
 
         // Indexes
@@ -564,7 +564,7 @@ class OptimizeCommand extends Command
         $missingFk = $result['missing_fk_indexes'] ?? [];
 
         if (!empty($indexes)) {
-            echo 'Indexes (' . count($indexes) . "):\n";
+            $this->write('Indexes (' . count($indexes) . "):\n");
             foreach ($indexes as $idx) {
                 $name = $idx['name'] ?? 'unknown';
                 $cols = implode(', ', $idx['columns'] ?? []);
@@ -589,15 +589,15 @@ class OptimizeCommand extends Command
                     }
                 }
 
-                echo "  {$status} {$name} ({$cols}){$note}\n";
+                $this->writeln("  {$status} {$name} ({$cols}){$note}");
             }
-            echo "\n";
+            $this->writeln('');
         }
 
         // Foreign Keys
         $foreignKeys = $result['foreign_keys'] ?? [];
         if (!empty($foreignKeys)) {
-            echo 'Foreign Keys (' . count($foreignKeys) . "):\n";
+            $this->write('Foreign Keys (' . count($foreignKeys) . "):\n");
             foreach ($foreignKeys as $fk) {
                 $name = $fk['name'] ?? 'unknown';
                 $column = $fk['column'] ?? 'unknown';
@@ -607,9 +607,9 @@ class OptimizeCommand extends Command
 
                 $status = $hasIndex ? '✓' : '⚠️';
                 $note = $hasIndex ? ' - has index' : ' - missing index';
-                echo "  {$status} {$name} ({$column} -> {$refTable}.{$refColumn}){$note}\n";
+                $this->writeln("  {$status} {$name} ({$column} -> {$refTable}.{$refColumn}){$note}");
             }
-            echo "\n";
+            $this->writeln('');
         }
 
         // Suggestions
@@ -624,7 +624,7 @@ class OptimizeCommand extends Command
             $icons = ['high' => '🔴', 'medium' => '🟡', 'low' => '🟢'];
             $labels = ['high' => 'HIGH', 'medium' => 'MEDIUM', 'low' => 'LOW'];
 
-            echo "Suggestions:\n";
+            $this->writeln('Suggestions:');
             foreach (['high', 'medium', 'low'] as $priority) {
                 if (empty($byPriority[$priority])) {
                     continue;
@@ -633,10 +633,10 @@ class OptimizeCommand extends Command
                     $icon = $icons[$priority];
                     $label = $labels[$priority];
                     $message = $suggestion['reason'] ?? $suggestion['message'] ?? 'No message';
-                    echo "  {$icon} {$label}: {$message}\n";
+                    $this->writeln("  {$icon} {$label}: {$message}");
                     // Show SQL if available
                     if (!empty($suggestion['sql'])) {
-                        echo "     SQL: {$suggestion['sql']}\n";
+                        $this->writeln("     SQL: {$suggestion['sql']}");
                     }
                 }
             }
@@ -650,32 +650,32 @@ class OptimizeCommand extends Command
      */
     protected function printLogsReport(array $result): void
     {
-        echo "\nSlow Query Log Analysis\n";
-        echo str_repeat('=', 50) . "\n\n";
+        $this->writeln("\nSlow Query Log Analysis");
+        $this->write(str_repeat('=', 50) . "\n\n");
 
         $topQueries = $result['top_queries'] ?? [];
         if (!empty($topQueries)) {
-            echo "Top 10 Slowest Queries (by total time):\n\n";
+            $this->writeln("Top 10 Slowest Queries (by total time):\n");
             $count = 1;
             foreach (array_slice($topQueries, 0, 10) as $query) {
-                echo "{$count}. " . ($query['normalized_sql'] ?? 'Unknown query') . "\n";
-                echo '   - Count: ' . ($query['count'] ?? 0) . "\n";
-                echo '   - Avg time: ' . ($query['avg_time'] ?? 0) . "s\n";
-                echo '   - Max time: ' . ($query['max_time'] ?? 0) . "s\n";
-                echo '   - Total time: ' . ($query['total_time'] ?? 0) . "s\n";
+                $this->writeln("{$count}. " . ($query['normalized_sql'] ?? 'Unknown query'));
+                $this->writeln('   - Count: ' . ($query['count'] ?? 0));
+                $this->write('   - Avg time: ' . ($query['avg_time'] ?? 0) . "s\n");
+                $this->write('   - Max time: ' . ($query['max_time'] ?? 0) . "s\n");
+                $this->write('   - Total time: ' . ($query['total_time'] ?? 0) . "s\n");
                 if (!empty($query['recommendation'])) {
-                    echo "   - Recommendation: {$query['recommendation']}\n";
+                    $this->writeln("   - Recommendation: {$query['recommendation']}");
                 }
-                echo "\n";
+                $this->writeln('');
                 $count++;
             }
         }
 
         $summary = $result['summary'] ?? [];
         if (!empty($summary)) {
-            echo "Summary:\n";
+            $this->writeln('Summary:');
             foreach ($summary as $key => $value) {
-                echo '  - ' . ucfirst(str_replace('_', ' ', $key)) . ": {$value}\n";
+                $this->write('  - ' . ucfirst(str_replace('_', ' ', $key)) . ": {$value}\n");
             }
         }
     }
@@ -685,33 +685,33 @@ class OptimizeCommand extends Command
      */
     protected function printQueryReport(string $sql, ExplainAnalysis $analysis): void
     {
-        echo "\nQuery Analysis\n";
-        echo str_repeat('=', 50) . "\n\n";
-        echo "SQL: {$sql}\n\n";
+        $this->writeln("\nQuery Analysis");
+        $this->write(str_repeat('=', 50) . "\n\n");
+        $this->writeln("SQL: {$sql}\n");
 
         // EXPLAIN Plan
         if (!empty($analysis->rawExplain)) {
-            echo "EXPLAIN Plan:\n";
-            echo json_encode($analysis->rawExplain, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n\n";
+            $this->writeln('EXPLAIN Plan:');
+            $this->write(json_encode($analysis->rawExplain, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n\n");
         }
 
         // Issues
         if (!empty($analysis->issues)) {
-            echo "Issues:\n";
+            $this->writeln('Issues:');
             foreach ($analysis->issues as $issue) {
                 $icon = match ($issue->severity) {
                     'critical' => '🔴',
                     'warning' => '⚠️',
                     default => 'ℹ️',
                 };
-                echo "  {$icon} {$issue->description}\n";
+                $this->writeln("  {$icon} {$issue->description}");
             }
-            echo "\n";
+            $this->writeln('');
         }
 
         // Recommendations
         if (!empty($analysis->recommendations)) {
-            echo "Recommendations:\n";
+            $this->writeln('Recommendations:');
             foreach ($analysis->recommendations as $rec) {
                 $icon = match ($rec->severity) {
                     'critical' => '🔴',
@@ -719,9 +719,9 @@ class OptimizeCommand extends Command
                     default => '🟢',
                 };
                 $label = strtoupper($rec->severity);
-                echo "  {$icon} {$label}: {$rec->message}\n";
+                $this->writeln("  {$icon} {$label}: {$rec->message}");
                 if ($rec->suggestion !== null) {
-                    echo "     Suggestion: {$rec->suggestion}\n";
+                    $this->writeln("     Suggestion: {$rec->suggestion}");
                 }
             }
         }
@@ -741,47 +741,47 @@ class OptimizeCommand extends Command
         foreach ($data as $key => $val) {
             $pad = str_repeat('  ', $indent);
             if (is_array($val)) {
-                echo "{$pad}{$key}:\n";
+                $this->writeln("{$pad}{$key}:");
                 $this->printYaml($val, $indent + 1);
             } else {
-                echo "{$pad}{$key}: {$val}\n";
+                $this->writeln("{$pad}{$key}: {$val}");
             }
         }
     }
 
     protected function showHelp(): int
     {
-        echo "Database Optimization\n\n";
-        echo "Usage: pdodb optimize <subcommand> [arguments] [options]\n\n";
-        echo "Subcommands:\n";
-        echo "  analyze [--schema=SCHEMA] [--format=FORMAT]\n";
-        echo "    Holistic schema analysis (all tables, PKs, indexes, FKs)\n\n";
-        echo "  structure [--table=TABLE] [--format=FORMAT]\n";
-        echo "    Structure analysis (PK, redundant indexes, FK indexes)\n\n";
-        echo "  logs --file=FILE [--format=FORMAT]\n";
-        echo "    Analyze slow query logs\n\n";
-        echo "  query \"SELECT ...\" [--format=FORMAT]\n";
-        echo "    EXPLAIN + recommendations for single query\n\n";
-        echo "  db --memory=SIZE --cpu-cores=N [OPTIONS] [--format=FORMAT]\n";
-        echo "    Database configuration optimization recommendations\n\n";
-        echo "Options:\n";
-        echo "  --format=table|json|yaml    Output format (default: table)\n";
-        echo "  --schema=SCHEMA              Schema name (for analyze)\n";
-        echo "  --table=TABLE                Table name (for structure)\n";
-        echo "  --file=FILE                  Slow query log file path (for logs)\n";
-        echo "  --memory=SIZE                Available memory (e.g., 5G, 512M) (for db)\n";
-        echo "  --cpu-cores=N                Number of CPU cores (for db)\n";
-        echo "  --workload=TYPE              Workload type: oltp|olap|mixed (default: oltp) (for db)\n";
-        echo "  --disk-type=TYPE             Disk type: ssd|hdd|nvme (default: ssd) (for db)\n";
-        echo "  --connections=N              Expected number of connections (for db)\n\n";
-        echo "Examples:\n";
-        echo "  pdodb optimize analyze\n";
-        echo "  pdodb optimize analyze --schema=public --format=json\n";
-        echo "  pdodb optimize structure --table=users\n";
-        echo "  pdodb optimize logs --file=/var/log/mysql/slow.log\n";
-        echo "  pdodb optimize query \"SELECT * FROM users WHERE id = 1\"\n";
-        echo "  pdodb optimize db --memory=5G --cpu-cores=32\n";
-        echo "  pdodb optimize db --memory=8G --cpu-cores=16 --workload=olap --disk-type=nvme\n";
+        $this->writeln("Database Optimization\n");
+        $this->writeln("Usage: pdodb optimize <subcommand> [arguments] [options]\n");
+        $this->writeln('Subcommands:');
+        $this->writeln('  analyze [--schema=SCHEMA] [--format=FORMAT]');
+        $this->writeln("    Holistic schema analysis (all tables, PKs, indexes, FKs)\n");
+        $this->writeln('  structure [--table=TABLE] [--format=FORMAT]');
+        $this->writeln("    Structure analysis (PK, redundant indexes, FK indexes)\n");
+        $this->writeln('  logs --file=FILE [--format=FORMAT]');
+        $this->writeln("    Analyze slow query logs\n");
+        $this->writeln('  query "SELECT ..." [--format=FORMAT]');
+        $this->writeln("    EXPLAIN + recommendations for single query\n");
+        $this->writeln('  db --memory=SIZE --cpu-cores=N [OPTIONS] [--format=FORMAT]');
+        $this->writeln("    Database configuration optimization recommendations\n");
+        $this->writeln('Options:');
+        $this->writeln('  --format=table|json|yaml    Output format (default: table)');
+        $this->writeln('  --schema=SCHEMA              Schema name (for analyze)');
+        $this->writeln('  --table=TABLE                Table name (for structure)');
+        $this->writeln('  --file=FILE                  Slow query log file path (for logs)');
+        $this->writeln('  --memory=SIZE                Available memory (e.g., 5G, 512M) (for db)');
+        $this->writeln('  --cpu-cores=N                Number of CPU cores (for db)');
+        $this->writeln('  --workload=TYPE              Workload type: oltp|olap|mixed (default: oltp) (for db)');
+        $this->writeln('  --disk-type=TYPE             Disk type: ssd|hdd|nvme (default: ssd) (for db)');
+        $this->writeln("  --connections=N              Expected number of connections (for db)\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb optimize analyze');
+        $this->writeln('  pdodb optimize analyze --schema=public --format=json');
+        $this->writeln('  pdodb optimize structure --table=users');
+        $this->writeln('  pdodb optimize logs --file=/var/log/mysql/slow.log');
+        $this->writeln('  pdodb optimize query "SELECT * FROM users WHERE id = 1"');
+        $this->writeln('  pdodb optimize db --memory=5G --cpu-cores=32');
+        $this->writeln('  pdodb optimize db --memory=8G --cpu-cores=16 --workload=olap --disk-type=nvme');
         return 0;
     }
 }

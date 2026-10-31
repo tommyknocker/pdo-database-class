@@ -142,7 +142,7 @@ _pdodb() {
             # Suggest model name
             COMPREPLY=($(compgen -f -- "${cur}"))
         else
-            local model_opts="--connection= --table= --namespace= --force"
+            local model_opts="--connection= --table= --namespace= --relation-models= --force"
             COMPREPLY=($(compgen -W "${model_opts}" -- "${cur}"))
         fi
         return 0
@@ -187,7 +187,7 @@ _pdodb() {
         if [[ ${COMP_CWORD} -eq 2 ]]; then
             COMPREPLY=($(compgen -W "${generate_subcommands} --help" -- "${cur}"))
         elif [[ "${subcmd}" == "model" ]]; then
-            local generate_opts="--model= --table= --namespace= --output= --force --connection="
+            local generate_opts="--model= --table= --namespace= --relation-models= --output= --force --connection="
             COMPREPLY=($(compgen -W "${generate_opts}" -- "${cur}"))
         elif [[ "${subcmd}" == "repository" ]]; then
             local generate_opts="--repository= --model= --table= --namespace= --model-namespace= --output= --force --connection="
@@ -385,13 +385,11 @@ _pdodb() {
     fi
 
     if [[ "${cmd}" == "profile" ]]; then
-        local profile_subcommands="summary export import diagnose"
+        local profile_subcommands="summary import diagnose"
         if [[ ${COMP_CWORD} -eq 2 ]]; then
             COMPREPLY=($(compgen -W "${profile_subcommands} --help" -- "${cur}"))
-        elif [[ "${subcmd}" == "export" ]]; then
-            COMPREPLY=($(compgen -W "--out= --help" -- "${cur}"))
         elif [[ "${subcmd}" == "diagnose" ]]; then
-            COMPREPLY=($(compgen -W "--rank= --param= --help" -- "${cur}"))
+            COMPREPLY=($(compgen -W "--param= --help" -- "${cur}"))
         fi
         return 0
     fi

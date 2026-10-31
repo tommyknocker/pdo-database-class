@@ -270,7 +270,8 @@ class GenerateCommand extends Command
                 is_string($output) ? $output : null,
                 $this->getDb(),
                 is_string($namespace) ? $namespace : null,
-                $force
+                $force,
+                ModelGenerator::parseRelatedModels($this->getOption('relation-models'))
             );
             return 0;
         } catch (Exception $e) {
@@ -360,8 +361,8 @@ class GenerateCommand extends Command
      */
     protected function showSubcommandHelp(string $subcommand): int
     {
-        echo "Generate {$subcommand}\n\n";
-        echo "Usage: pdodb generate {$subcommand} [options]\n\n";
+        $this->writeln("Generate {$subcommand}\n");
+        $this->writeln("Usage: pdodb generate {$subcommand} [options]\n");
 
         match ($subcommand) {
             'api' => $this->showApiHelp(),
@@ -383,19 +384,19 @@ class GenerateCommand extends Command
      */
     protected function showApiHelp(): void
     {
-        echo "Generate REST API endpoints/controllers with CRUD operations.\n\n";
-        echo "Required Options:\n";
-        echo "  --table=<name> or --model=<name>  One of these is required\n\n";
-        echo "Optional Options:\n";
-        echo "  --format=rest      Output format (default: rest)\n";
-        echo "  --namespace=<ns>   Controller namespace (default: app\\controllers)\n";
-        echo "  --output=<path>    Output directory path\n";
-        echo "  --force            Overwrite existing files without confirmation\n";
-        echo "  --connection=<name>  Use specific database connection\n\n";
-        echo "Examples:\n";
-        echo "  pdodb generate api --table=users --format=rest\n";
-        echo "  pdodb generate api --model=User --format=rest\n";
-        echo "  pdodb generate api --table=users --output=app/Controllers --namespace=app\\controllers\n";
+        $this->writeln("Generate REST API endpoints/controllers with CRUD operations.\n");
+        $this->writeln('Required Options:');
+        $this->writeln("  --table=<name> or --model=<name>  One of these is required\n");
+        $this->writeln('Optional Options:');
+        $this->writeln('  --format=rest      Output format (default: rest)');
+        $this->writeln('  --namespace=<ns>   Controller namespace (default: app\\controllers)');
+        $this->writeln('  --output=<path>    Output directory path');
+        $this->writeln('  --force            Overwrite existing files without confirmation');
+        $this->writeln("  --connection=<name>  Use specific database connection\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb generate api --table=users --format=rest');
+        $this->writeln('  pdodb generate api --model=User --format=rest');
+        $this->writeln('  pdodb generate api --table=users --output=app/Controllers --namespace=app\\controllers');
     }
 
     /**
@@ -403,19 +404,19 @@ class GenerateCommand extends Command
      */
     protected function showTestsHelp(): void
     {
-        echo "Generate unit/integration tests for models, tables, or repositories.\n\n";
-        echo "Required Options:\n";
-        echo "  --model=<name> or --table=<name> or --repository=<name>  One of these is required\n\n";
-        echo "Optional Options:\n";
-        echo "  --type=unit|integration  Test type (default: unit)\n";
-        echo "  --namespace=<ns>         Test namespace (default: tests\\unit or tests\\integration)\n";
-        echo "  --output=<path>          Output directory path\n";
-        echo "  --force                 Overwrite existing files without confirmation\n";
-        echo "  --connection=<name>      Use specific database connection\n\n";
-        echo "Examples:\n";
-        echo "  pdodb generate tests --model=User --type=unit\n";
-        echo "  pdodb generate tests --table=users --type=integration\n";
-        echo "  pdodb generate tests --repository=UserRepository --type=unit\n";
+        $this->writeln("Generate unit/integration tests for models, tables, or repositories.\n");
+        $this->writeln('Required Options:');
+        $this->writeln("  --model=<name> or --table=<name> or --repository=<name>  One of these is required\n");
+        $this->writeln('Optional Options:');
+        $this->writeln('  --type=unit|integration  Test type (default: unit)');
+        $this->writeln('  --namespace=<ns>         Test namespace (default: tests\\unit or tests\\integration)');
+        $this->writeln('  --output=<path>          Output directory path');
+        $this->writeln('  --force                 Overwrite existing files without confirmation');
+        $this->writeln("  --connection=<name>      Use specific database connection\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb generate tests --model=User --type=unit');
+        $this->writeln('  pdodb generate tests --table=users --type=integration');
+        $this->writeln('  pdodb generate tests --repository=UserRepository --type=unit');
     }
 
     /**
@@ -423,17 +424,17 @@ class GenerateCommand extends Command
      */
     protected function showDtoHelp(): void
     {
-        echo "Generate Data Transfer Object (DTO) classes.\n\n";
-        echo "Required Options:\n";
-        echo "  --table=<name> or --model=<name>  One of these is required\n\n";
-        echo "Optional Options:\n";
-        echo "  --namespace=<ns>   DTO namespace (default: app\\dtos)\n";
-        echo "  --output=<path>    Output directory path\n";
-        echo "  --force           Overwrite existing files without confirmation\n";
-        echo "  --connection=<name>  Use specific database connection\n\n";
-        echo "Examples:\n";
-        echo "  pdodb generate dto --table=users\n";
-        echo "  pdodb generate dto --model=User\n";
+        $this->writeln("Generate Data Transfer Object (DTO) classes.\n");
+        $this->writeln('Required Options:');
+        $this->writeln("  --table=<name> or --model=<name>  One of these is required\n");
+        $this->writeln('Optional Options:');
+        $this->writeln('  --namespace=<ns>   DTO namespace (default: app\\dtos)');
+        $this->writeln('  --output=<path>    Output directory path');
+        $this->writeln('  --force           Overwrite existing files without confirmation');
+        $this->writeln("  --connection=<name>  Use specific database connection\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb generate dto --table=users');
+        $this->writeln('  pdodb generate dto --model=User');
     }
 
     /**
@@ -441,17 +442,17 @@ class GenerateCommand extends Command
      */
     protected function showEnumHelp(): void
     {
-        echo "Generate PHP Enum classes from database ENUM columns.\n\n";
-        echo "Required Options:\n";
-        echo "  --table=<name>     Table name\n";
-        echo "  --column=<name>    Column name with ENUM type\n\n";
-        echo "Optional Options:\n";
-        echo "  --namespace=<ns>   Enum namespace (default: app\\enums)\n";
-        echo "  --output=<path>    Output directory path\n";
-        echo "  --force           Overwrite existing files without confirmation\n";
-        echo "  --connection=<name>  Use specific database connection\n\n";
-        echo "Examples:\n";
-        echo "  pdodb generate enum --table=users --column=status\n";
+        $this->writeln("Generate PHP Enum classes from database ENUM columns.\n");
+        $this->writeln('Required Options:');
+        $this->writeln('  --table=<name>     Table name');
+        $this->writeln("  --column=<name>    Column name with ENUM type\n");
+        $this->writeln('Optional Options:');
+        $this->writeln('  --namespace=<ns>   Enum namespace (default: app\\enums)');
+        $this->writeln('  --output=<path>    Output directory path');
+        $this->writeln('  --force           Overwrite existing files without confirmation');
+        $this->writeln("  --connection=<name>  Use specific database connection\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb generate enum --table=users --column=status');
     }
 
     /**
@@ -459,17 +460,17 @@ class GenerateCommand extends Command
      */
     protected function showDocsHelp(): void
     {
-        echo "Generate API documentation (OpenAPI/Swagger).\n\n";
-        echo "Required Options:\n";
-        echo "  --table=<name> or --model=<name>  One of these is required\n\n";
-        echo "Optional Options:\n";
-        echo "  --format=openapi|json  Output format (default: openapi)\n";
-        echo "  --output=<path>       Output directory path\n";
-        echo "  --force              Overwrite existing files without confirmation\n";
-        echo "  --connection=<name>  Use specific database connection\n\n";
-        echo "Examples:\n";
-        echo "  pdodb generate docs --table=users --format=openapi\n";
-        echo "  pdodb generate docs --model=User --format=json\n";
+        $this->writeln("Generate API documentation (OpenAPI/Swagger).\n");
+        $this->writeln('Required Options:');
+        $this->writeln("  --table=<name> or --model=<name>  One of these is required\n");
+        $this->writeln('Optional Options:');
+        $this->writeln('  --format=openapi|json  Output format (default: openapi)');
+        $this->writeln('  --output=<path>       Output directory path');
+        $this->writeln('  --force              Overwrite existing files without confirmation');
+        $this->writeln("  --connection=<name>  Use specific database connection\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb generate docs --table=users --format=openapi');
+        $this->writeln('  pdodb generate docs --model=User --format=json');
     }
 
     /**
@@ -477,18 +478,19 @@ class GenerateCommand extends Command
      */
     protected function showModelHelp(): void
     {
-        echo "Generate ActiveRecord model classes from existing database tables.\n\n";
-        echo "Required Options:\n";
-        echo "  --model=<name>     Model class name\n\n";
-        echo "Optional Options:\n";
-        echo "  --table=<name>     Table name (optional, auto-detected from model name)\n";
-        echo "  --namespace=<ns>   Model namespace (default: app\\models)\n";
-        echo "  --output=<path>    Output directory path\n";
-        echo "  --force           Overwrite existing files without confirmation\n";
-        echo "  --connection=<name>  Use specific database connection\n\n";
-        echo "Examples:\n";
-        echo "  pdodb generate model --model=User --table=users\n";
-        echo "  pdodb generate model --model=User\n";
+        $this->writeln("Generate ActiveRecord model classes from existing database tables.\n");
+        $this->writeln('Required Options:');
+        $this->writeln("  --model=<name>     Model class name\n");
+        $this->writeln('Optional Options:');
+        $this->writeln('  --table=<name>     Table name (optional, auto-detected from model name)');
+        $this->writeln('  --namespace=<ns>   Model namespace (default: app\\models)');
+        $this->writeln('  --relation-models=JSON  Map referenced tables to model class names');
+        $this->writeln('  --output=<path>    Output directory path');
+        $this->writeln('  --force           Overwrite existing files without confirmation');
+        $this->writeln("  --connection=<name>  Use specific database connection\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb generate model --model=User --table=users');
+        $this->writeln('  pdodb generate model --model=User');
     }
 
     /**
@@ -496,20 +498,20 @@ class GenerateCommand extends Command
      */
     protected function showRepositoryHelp(): void
     {
-        echo "Generate repository classes with CRUD operations for models.\n\n";
-        echo "Required Options:\n";
-        echo "  --repository=<name>  Repository class name\n\n";
-        echo "Optional Options:\n";
-        echo "  --model=<name>       Model class name (optional, auto-detected from repository name)\n";
-        echo "  --table=<name>       Table name (optional, auto-detected from model name)\n";
-        echo "  --namespace=<ns>     Repository namespace (default: app\\repositories)\n";
-        echo "  --model-namespace=<ns>  Model namespace (default: app\\models)\n";
-        echo "  --output=<path>      Output directory path\n";
-        echo "  --force             Overwrite existing files without confirmation\n";
-        echo "  --connection=<name>  Use specific database connection\n\n";
-        echo "Examples:\n";
-        echo "  pdodb generate repository --repository=UserRepository --model=User\n";
-        echo "  pdodb generate repository --repository=UserRepository --model=User --table=users\n";
+        $this->writeln("Generate repository classes with CRUD operations for models.\n");
+        $this->writeln('Required Options:');
+        $this->writeln("  --repository=<name>  Repository class name\n");
+        $this->writeln('Optional Options:');
+        $this->writeln('  --model=<name>       Model class name (optional, auto-detected from repository name)');
+        $this->writeln('  --table=<name>       Table name (optional, auto-detected from model name)');
+        $this->writeln('  --namespace=<ns>     Repository namespace (default: app\\repositories)');
+        $this->writeln('  --model-namespace=<ns>  Model namespace (default: app\\models)');
+        $this->writeln('  --output=<path>      Output directory path');
+        $this->writeln('  --force             Overwrite existing files without confirmation');
+        $this->writeln("  --connection=<name>  Use specific database connection\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb generate repository --repository=UserRepository --model=User');
+        $this->writeln('  pdodb generate repository --repository=UserRepository --model=User --table=users');
     }
 
     /**
@@ -517,18 +519,18 @@ class GenerateCommand extends Command
      */
     protected function showServiceHelp(): void
     {
-        echo "Generate service classes with business logic methods.\n\n";
-        echo "Required Options:\n";
-        echo "  --service=<name>      Service class name\n\n";
-        echo "Optional Options:\n";
-        echo "  --repository=<name>   Repository class name (optional, auto-detected from service name)\n";
-        echo "  --namespace=<ns>      Service namespace (default: app\\services)\n";
-        echo "  --repository-namespace=<ns>  Repository namespace (default: app\\repositories)\n";
-        echo "  --output=<path>       Output directory path\n";
-        echo "  --force              Overwrite existing files without confirmation\n";
-        echo "  --connection=<name>   Use specific database connection\n\n";
-        echo "Examples:\n";
-        echo "  pdodb generate service --service=UserService --repository=UserRepository\n";
+        $this->writeln("Generate service classes with business logic methods.\n");
+        $this->writeln('Required Options:');
+        $this->writeln("  --service=<name>      Service class name\n");
+        $this->writeln('Optional Options:');
+        $this->writeln('  --repository=<name>   Repository class name (optional, auto-detected from service name)');
+        $this->writeln('  --namespace=<ns>      Service namespace (default: app\\services)');
+        $this->writeln('  --repository-namespace=<ns>  Repository namespace (default: app\\repositories)');
+        $this->writeln('  --output=<path>       Output directory path');
+        $this->writeln('  --force              Overwrite existing files without confirmation');
+        $this->writeln("  --connection=<name>   Use specific database connection\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb generate service --service=UserService --repository=UserRepository');
     }
 
     /**
@@ -538,65 +540,65 @@ class GenerateCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "Extended Code Generation\n\n";
-        echo "Usage: pdodb generate <subcommand> [options]\n\n";
-        echo "Subcommands:\n";
-        echo "  model            Generate ActiveRecord models\n";
-        echo "  repository       Generate repository classes\n";
-        echo "  service          Generate service classes\n";
-        echo "  api              Generate REST API endpoints/controllers\n";
-        echo "  tests            Generate unit/integration tests\n";
-        echo "  dto              Generate Data Transfer Objects\n";
-        echo "  enum             Generate Enum classes from database ENUM columns\n";
-        echo "  docs             Generate API documentation (OpenAPI)\n\n";
-        echo "Common Options:\n";
-        echo "  --table=<name>       Table name\n";
-        echo "  --model=<name>       Model class name\n";
-        echo "  --namespace=<ns>     PHP namespace (default varies by generator)\n";
-        echo "  --output=<path>      Output directory path\n";
-        echo "  --force              Overwrite existing files without confirmation\n";
-        echo "  --connection=<name>  Use specific database connection\n\n";
-        echo "Subcommand-specific Options:\n";
-        echo "  generate model:\n";
-        echo "    --model=<name>     Model class name (required)\n";
-        echo "    --table=<name>     Table name (optional, auto-detected from model name)\n\n";
-        echo "  generate repository:\n";
-        echo "    --repository=<name>  Repository class name (required)\n";
-        echo "    --model=<name>       Model class name (optional, auto-detected from repository name)\n";
-        echo "    --table=<name>       Table name (optional, auto-detected from model name)\n";
-        echo "    --model-namespace=<ns>  Model namespace (default: app\\\\models)\n\n";
-        echo "  generate service:\n";
-        echo "    --service=<name>      Service class name (required)\n";
-        echo "    --repository=<name>   Repository class name (optional, auto-detected from service name)\n";
-        echo "    --repository-namespace=<ns>  Repository namespace (default: app\\\\repositories)\n\n";
-        echo "  generate api:\n";
-        echo "    --format=rest      Output format (default: rest)\n";
-        echo "    --table=<name> or --model=<name>  Required\n\n";
-        echo "  generate tests:\n";
-        echo "    --type=unit|integration  Test type (default: unit)\n";
-        echo "    --model=<name> or --table=<name> or --repository=<name>  Required\n\n";
-        echo "  generate dto:\n";
-        echo "    --table=<name> or --model=<name>  Required\n\n";
-        echo "  generate enum:\n";
-        echo "    --table=<name>     Required\n";
-        echo "    --column=<name>    Required\n\n";
-        echo "  generate docs:\n";
-        echo "    --format=openapi   Output format (default: openapi)\n";
-        echo "    --table=<name> or --model=<name>  Required\n\n";
-        echo "Examples:\n";
-        echo "  pdodb generate model --model=User --table=users\n";
-        echo "  pdodb generate repository --repository=UserRepository --model=User\n";
-        echo "  pdodb generate service --service=UserService --repository=UserRepository\n";
-        echo "  pdodb generate api --table=users --format=rest\n";
-        echo "  pdodb generate api --model=User --format=rest\n";
-        echo "  pdodb generate tests --model=User --type=unit\n";
-        echo "  pdodb generate tests --table=users --type=integration\n";
-        echo "  pdodb generate tests --repository=UserRepository --type=unit\n";
-        echo "  pdodb generate dto --table=users\n";
-        echo "  pdodb generate dto --model=User\n";
-        echo "  pdodb generate enum --table=users --column=status\n";
-        echo "  pdodb generate docs --table=users --format=openapi\n";
-        echo "  pdodb generate docs --model=User --format=openapi\n";
+        $this->writeln("Extended Code Generation\n");
+        $this->writeln("Usage: pdodb generate <subcommand> [options]\n");
+        $this->writeln('Subcommands:');
+        $this->writeln('  model            Generate ActiveRecord models');
+        $this->writeln('  repository       Generate repository classes');
+        $this->writeln('  service          Generate service classes');
+        $this->writeln('  api              Generate REST API endpoints/controllers');
+        $this->writeln('  tests            Generate unit/integration tests');
+        $this->writeln('  dto              Generate Data Transfer Objects');
+        $this->writeln('  enum             Generate Enum classes from database ENUM columns');
+        $this->writeln("  docs             Generate API documentation (OpenAPI)\n");
+        $this->writeln('Common Options:');
+        $this->writeln('  --table=<name>       Table name');
+        $this->writeln('  --model=<name>       Model class name');
+        $this->writeln('  --namespace=<ns>     PHP namespace (default varies by generator)');
+        $this->writeln('  --output=<path>      Output directory path');
+        $this->writeln('  --force              Overwrite existing files without confirmation');
+        $this->writeln("  --connection=<name>  Use specific database connection\n");
+        $this->writeln('Subcommand-specific Options:');
+        $this->writeln('  generate model:');
+        $this->writeln('    --model=<name>     Model class name (required)');
+        $this->writeln("    --table=<name>     Table name (optional, auto-detected from model name)\n");
+        $this->writeln('  generate repository:');
+        $this->writeln('    --repository=<name>  Repository class name (required)');
+        $this->writeln('    --model=<name>       Model class name (optional, auto-detected from repository name)');
+        $this->writeln('    --table=<name>       Table name (optional, auto-detected from model name)');
+        $this->writeln("    --model-namespace=<ns>  Model namespace (default: app\\\\models)\n");
+        $this->writeln('  generate service:');
+        $this->writeln('    --service=<name>      Service class name (required)');
+        $this->writeln('    --repository=<name>   Repository class name (optional, auto-detected from service name)');
+        $this->writeln("    --repository-namespace=<ns>  Repository namespace (default: app\\\\repositories)\n");
+        $this->writeln('  generate api:');
+        $this->writeln('    --format=rest      Output format (default: rest)');
+        $this->writeln("    --table=<name> or --model=<name>  Required\n");
+        $this->writeln('  generate tests:');
+        $this->writeln('    --type=unit|integration  Test type (default: unit)');
+        $this->writeln("    --model=<name> or --table=<name> or --repository=<name>  Required\n");
+        $this->writeln('  generate dto:');
+        $this->writeln("    --table=<name> or --model=<name>  Required\n");
+        $this->writeln('  generate enum:');
+        $this->writeln('    --table=<name>     Required');
+        $this->writeln("    --column=<name>    Required\n");
+        $this->writeln('  generate docs:');
+        $this->writeln('    --format=openapi   Output format (default: openapi)');
+        $this->writeln("    --table=<name> or --model=<name>  Required\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb generate model --model=User --table=users');
+        $this->writeln('  pdodb generate repository --repository=UserRepository --model=User');
+        $this->writeln('  pdodb generate service --service=UserService --repository=UserRepository');
+        $this->writeln('  pdodb generate api --table=users --format=rest');
+        $this->writeln('  pdodb generate api --model=User --format=rest');
+        $this->writeln('  pdodb generate tests --model=User --type=unit');
+        $this->writeln('  pdodb generate tests --table=users --type=integration');
+        $this->writeln('  pdodb generate tests --repository=UserRepository --type=unit');
+        $this->writeln('  pdodb generate dto --table=users');
+        $this->writeln('  pdodb generate dto --model=User');
+        $this->writeln('  pdodb generate enum --table=users --column=status');
+        $this->writeln('  pdodb generate docs --table=users --format=openapi');
+        $this->writeln('  pdodb generate docs --model=User --format=openapi');
         return 0;
     }
 }

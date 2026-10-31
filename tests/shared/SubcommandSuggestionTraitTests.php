@@ -30,12 +30,10 @@ final class SubcommandSuggestionTraitTests extends BaseSharedTestCase
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showSubcommandError');
 
-        ob_start();
-        $exitCode = $method->invoke($command, 'create');
-        $output = ob_get_clean();
+        $captured = CliTestCapture::capture(static fn (): int => (int) $method->invoke($command, 'create'));
 
-        $this->assertEquals(1, $exitCode);
-        $this->assertStringContainsString('Error: Unknown subcommand: create', $output);
+        $this->assertSame(1, $captured['result']);
+        $this->assertStringContainsString('Error: Unknown subcommand: create', $captured['output']);
     }
 
     public function testShowSubcommandErrorWithSuggestion(): void
@@ -44,14 +42,12 @@ final class SubcommandSuggestionTraitTests extends BaseSharedTestCase
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showSubcommandError');
 
-        ob_start();
-        $exitCode = $method->invoke($command, 'creat');
-        $output = ob_get_clean();
+        $captured = CliTestCapture::capture(static fn (): int => (int) $method->invoke($command, 'creat'));
 
-        $this->assertEquals(1, $exitCode);
-        $this->assertStringContainsString('Error: Unknown subcommand: creat', $output);
-        $this->assertStringContainsString('Did you mean', $output);
-        $this->assertStringContainsString('create', $output);
+        $this->assertSame(1, $captured['result']);
+        $this->assertStringContainsString('Error: Unknown subcommand: creat', $captured['output']);
+        $this->assertStringContainsString('Did you mean', $captured['output']);
+        $this->assertStringContainsString('create', $captured['output']);
     }
 
     public function testShowSubcommandErrorWithMultipleSuggestions(): void
@@ -60,13 +56,11 @@ final class SubcommandSuggestionTraitTests extends BaseSharedTestCase
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showSubcommandError');
 
-        ob_start();
-        $exitCode = $method->invoke($command, 'migrat');
-        $output = ob_get_clean();
+        $captured = CliTestCapture::capture(static fn (): int => (int) $method->invoke($command, 'migrat'));
 
-        $this->assertEquals(1, $exitCode);
-        $this->assertStringContainsString('Error: Unknown subcommand: migrat', $output);
-        $this->assertStringContainsString('Did you mean', $output);
+        $this->assertSame(1, $captured['result']);
+        $this->assertStringContainsString('Error: Unknown subcommand: migrat', $captured['output']);
+        $this->assertStringContainsString('Did you mean', $captured['output']);
     }
 
     public function testShowSubcommandErrorWithNoSuggestions(): void
@@ -75,13 +69,11 @@ final class SubcommandSuggestionTraitTests extends BaseSharedTestCase
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showSubcommandError');
 
-        ob_start();
-        $exitCode = $method->invoke($command, 'xyzabc');
-        $output = ob_get_clean();
+        $captured = CliTestCapture::capture(static fn (): int => (int) $method->invoke($command, 'xyzabc'));
 
-        $this->assertEquals(1, $exitCode);
-        $this->assertStringContainsString('Error: Unknown subcommand: xyzabc', $output);
-        $this->assertStringNotContainsString('Did you mean', $output);
+        $this->assertSame(1, $captured['result']);
+        $this->assertStringContainsString('Error: Unknown subcommand: xyzabc', $captured['output']);
+        $this->assertStringNotContainsString('Did you mean', $captured['output']);
     }
 
     public function testShowSubcommandErrorWithTypo(): void
@@ -90,12 +82,10 @@ final class SubcommandSuggestionTraitTests extends BaseSharedTestCase
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showSubcommandError');
 
-        ob_start();
-        $exitCode = $method->invoke($command, 'rolback');
-        $output = ob_get_clean();
+        $captured = CliTestCapture::capture(static fn (): int => (int) $method->invoke($command, 'rolback'));
 
-        $this->assertEquals(1, $exitCode);
-        $this->assertStringContainsString('Error: Unknown subcommand: rolback', $output);
-        $this->assertStringContainsString('rollback', $output);
+        $this->assertSame(1, $captured['result']);
+        $this->assertStringContainsString('Error: Unknown subcommand: rolback', $captured['output']);
+        $this->assertStringContainsString('rollback', $captured['output']);
     }
 }

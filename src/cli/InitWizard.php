@@ -71,8 +71,8 @@ class InitWizard extends BaseCliCommand
             $this->loadConfigFromEnv();
             $this->loadStructureFromEnv();
         } else {
-            echo "Welcome to PDOdb Configuration Wizard\n";
-            echo "=====================================\n\n";
+            static::cliWriteln('Welcome to PDOdb Configuration Wizard');
+            static::cliWriteln("=====================================\n");
 
             try {
                 $this->askBasicConnection();
@@ -220,8 +220,8 @@ class InitWizard extends BaseCliCommand
      */
     protected function askBasicConnection(): void
     {
-        echo "Step 1: Database Connection\n";
-        echo "----------------------------\n";
+        static::cliWriteln('Step 1: Database Connection');
+        static::cliWriteln('----------------------------');
 
         // Driver selection
         $drivers = DialectRegistry::getSupportedDrivers();
@@ -365,8 +365,8 @@ class InitWizard extends BaseCliCommand
      */
     protected function testConnection(): void
     {
-        echo "\n";
-        echo "Testing database connection...\n";
+        static::cliWriteln('');
+        static::cliWriteln('Testing database connection...');
         flush();
 
         try {
@@ -388,7 +388,7 @@ class InitWizard extends BaseCliCommand
             static::warning('Connection failed: ' . $e->getMessage());
             $retry = static::readConfirmation('Retry with different settings?', true);
             if ($retry) {
-                echo "\n";
+                static::cliWriteln('');
                 $this->askBasicConnection();
                 $this->testConnection();
             } else {
@@ -406,12 +406,12 @@ class InitWizard extends BaseCliCommand
             return;
         }
 
-        echo "\n";
-        echo "Step 2: Configuration Format\n";
-        echo "-----------------------------\n";
-        echo "Choose configuration format:\n";
-        echo "  1. .env file (simple, environment-based)\n";
-        echo "  2. config/db.php (PHP array, more flexible)\n";
+        static::cliWriteln('');
+        static::cliWriteln('Step 2: Configuration Format');
+        static::cliWriteln('-----------------------------');
+        static::cliWriteln('Choose configuration format:');
+        static::cliWriteln('  1. .env file (simple, environment-based)');
+        static::cliWriteln('  2. config/db.php (PHP array, more flexible)');
 
         $choice = static::readInput('Select format', '1');
         switch ($choice) {
@@ -430,9 +430,9 @@ class InitWizard extends BaseCliCommand
      */
     protected function askProjectStructure(): void
     {
-        echo "\n";
-        echo "Step 3: Project Structure\n";
-        echo "--------------------------\n";
+        static::cliWriteln('');
+        static::cliWriteln('Step 3: Project Structure');
+        static::cliWriteln('--------------------------');
 
         $createStructure = static::readConfirmation('Create directory structure?', true);
         if (!$createStructure) {
@@ -475,9 +475,9 @@ class InitWizard extends BaseCliCommand
             return; // Skip in non-interactive mode
         }
 
-        echo "\n";
-        echo "Step 4: Advanced Options (Optional)\n";
-        echo "------------------------------------\n";
+        static::cliWriteln('');
+        static::cliWriteln('Step 4: Advanced Options (Optional)');
+        static::cliWriteln('------------------------------------');
 
         $configureAdvanced = static::readConfirmation('Configure advanced options?', false);
         if (!$configureAdvanced) {
@@ -506,8 +506,8 @@ class InitWizard extends BaseCliCommand
             return; // Skip in non-interactive mode
         }
 
-        echo "\n  Table Prefix\n";
-        echo "  ------------\n";
+        static::cliWriteln("\n  Table Prefix");
+        static::cliWriteln('  ------------');
         $usePrefix = static::readConfirmation('  Use table prefix?', false);
         if ($usePrefix) {
             $prefix = static::readInput('  Table prefix', 'app_');
@@ -532,8 +532,8 @@ class InitWizard extends BaseCliCommand
             return; // Skip in non-interactive mode
         }
 
-        echo "\n  Caching\n";
-        echo "  -------\n";
+        static::cliWriteln("\n  Caching");
+        static::cliWriteln('  -------');
         $enableCache = static::readConfirmation('  Enable query result caching?', false);
         if (!$enableCache) {
             return;
@@ -598,7 +598,7 @@ class InitWizard extends BaseCliCommand
             $testCache = CacheFactory::create($testCacheConfig);
 
             if ($testCache === null) {
-                echo "\n";
+                static::cliWriteln('');
                 static::warning("Warning: Cannot create {$cacheType} cache. Required dependencies may be missing:");
                 switch ($cacheType) {
                     case 'filesystem':
@@ -617,7 +617,7 @@ class InitWizard extends BaseCliCommand
                         static::warning('  - symfony/cache package');
                         break;
                 }
-                echo "\n";
+                static::cliWriteln('');
 
                 $continue = static::readConfirmation('  Continue anyway? (cache will be disabled)', false);
                 if (!$continue) {
@@ -657,8 +657,8 @@ class InitWizard extends BaseCliCommand
             return; // Skip in non-interactive mode
         }
 
-        echo "\n  Performance\n";
-        echo "  -----------\n";
+        static::cliWriteln("\n  Performance");
+        static::cliWriteln('  -----------');
 
         // Compilation cache
         $enableCompilationCache = static::readConfirmation('  Enable query compilation cache?', true);
@@ -704,8 +704,8 @@ class InitWizard extends BaseCliCommand
             return; // Skip in non-interactive mode
         }
 
-        echo "\n  AI Configuration\n";
-        echo "  ----------------\n";
+        static::cliWriteln("\n  AI Configuration");
+        static::cliWriteln('  ----------------');
         $enableAi = static::readConfirmation('  Enable AI-powered database analysis?', false);
         if (!$enableAi) {
             return;
@@ -716,7 +716,7 @@ class InitWizard extends BaseCliCommand
         }
 
         $providers = AiConfig::PROVIDERS;
-        echo '  Available providers: ' . implode(', ', $providers) . "\n";
+        static::cliWriteln('  Available providers: ' . implode(', ', $providers));
         $provider = mb_strtolower(trim(static::readInput('  Provider', 'openai')), 'UTF-8');
         if (!in_array($provider, $providers, true)) {
             $provider = 'openai';
@@ -762,12 +762,12 @@ class InitWizard extends BaseCliCommand
         }
 
         if ($this->format !== 'config') {
-            echo "\n  Multiple connections require the PHP config format.\n";
+            static::cliWriteln("\n  Multiple connections require the PHP config format.");
             return;
         }
 
-        echo "\n  Multiple Connections\n";
-        echo "  --------------------\n";
+        static::cliWriteln("\n  Multiple Connections");
+        static::cliWriteln('  --------------------');
         $useMultiple = static::readConfirmation('  Configure multiple database connections?', false);
         if (!$useMultiple) {
             return;
@@ -859,8 +859,8 @@ class InitWizard extends BaseCliCommand
             $nonInteractive = !stream_isatty(STDIN);
         }
 
-        echo "\n";
-        echo "Creating configuration files...\n";
+        static::cliWriteln('');
+        static::cliWriteln('Creating configuration files...');
 
         $cwd = getcwd();
         if ($cwd === false) {
@@ -872,19 +872,19 @@ class InitWizard extends BaseCliCommand
             if (file_exists($envPath) && !$this->force) {
                 if ($nonInteractive) {
                     // In non-interactive mode, skip overwrite prompt and skip file creation (default behavior)
-                    echo "Skipping .env file creation\n";
+                    static::cliWriteln('Skipping .env file creation');
                 } else {
                     $overwrite = static::readConfirmation('.env file already exists. Overwrite?', false);
                     if (!$overwrite) {
-                        echo "Skipping .env file creation\n";
+                        static::cliWriteln('Skipping .env file creation');
                     } else {
                         InitConfigGenerator::generateEnv($this->config, $this->structure, $envPath);
-                        echo "✓ .env file created\n";
+                        static::cliWriteln('✓ .env file created');
                     }
                 }
             } else {
                 InitConfigGenerator::generateEnv($this->config, $this->structure, $envPath);
-                echo "✓ .env file created\n";
+                static::cliWriteln('✓ .env file created');
             }
         }
 
@@ -897,19 +897,19 @@ class InitWizard extends BaseCliCommand
             if (file_exists($configPath) && !$this->force) {
                 if ($nonInteractive) {
                     // In non-interactive mode, skip overwrite prompt and skip file creation (default behavior)
-                    echo "Skipping config/db.php creation\n";
+                    static::cliWriteln('Skipping config/db.php creation');
                 } else {
                     $overwrite = static::readConfirmation('config/db.php already exists. Overwrite?', false);
                     if (!$overwrite) {
-                        echo "Skipping config/db.php creation\n";
+                        static::cliWriteln('Skipping config/db.php creation');
                     } else {
                         InitConfigGenerator::generateConfigPhp($this->config, $configPath);
-                        echo "✓ config/db.php created\n";
+                        static::cliWriteln('✓ config/db.php created');
                     }
                 }
             } else {
                 InitConfigGenerator::generateConfigPhp($this->config, $configPath);
-                echo "✓ config/db.php created\n";
+                static::cliWriteln('✓ config/db.php created');
             }
         }
 
@@ -917,12 +917,12 @@ class InitWizard extends BaseCliCommand
             InitDirectoryStructure::create($this->structure);
         }
 
-        echo "\n";
-        echo "✓ Project initialized successfully!\n";
-        echo "\n";
-        echo "Next steps:\n";
-        echo "  - Run migrations: pdodb migrate up\n";
-        echo "  - Create a model: pdodb model make User\n";
-        echo "  - Create a migration: pdodb migrate create create_users_table\n";
+        static::cliWriteln('');
+        static::cliWriteln('✓ Project initialized successfully!');
+        static::cliWriteln('');
+        static::cliWriteln('Next steps:');
+        static::cliWriteln('  - Run migrations: pdodb migrate up');
+        static::cliWriteln('  - Create a model: pdodb model make User');
+        static::cliWriteln('  - Create a migration: pdodb migrate create create_users_table');
     }
 }

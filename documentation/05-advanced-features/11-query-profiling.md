@@ -222,7 +222,7 @@ The default slow-query context contains SQL with recognized single-quoted string
 $db->getProfiler()?->setLogParameters(true);
 ```
 
-`getSlowestQueries()` ranks shapes by total time and includes `count`. `possible_n_plus_one` means one normalized SQL shape ran at least 10 times. It is a hypothesis, not a diagnosis. Distinct SQL shapes are capped so a long process cannot grow the in-memory map without bound. Reaching that cap stops new shapes from being stored. It does not stop slow-query logging. `profileReport()` reads this connection only. `pdodb monitor stats` cannot see another process's profiler. Pass SQL to `diagnose()`, or use `diagnoseRankedQuery($rank)` in the application process to use raw SQL from that connection’s profiler (bind parameters manually). Export the report in the application with `$db->profileReport()->export()`; a separate `pdodb` process cannot access the in-memory profile, even with the same database config. Exported JSON contains redacted SQL only; `pdodb profile import` pretty-prints it:
+`getSlowestQueries()` ranks shapes by total time and includes `count`. `possible_n_plus_one` means one normalized SQL shape ran at least 10 times. It is a hypothesis, not a diagnosis. Distinct SQL shapes are capped so a long process cannot grow the in-memory map without bound. Reaching that cap stops new shapes from being stored. It does not stop slow-query logging. `profileReport()` reads this connection only. `pdodb monitor stats` cannot see another process's profiler. Pass SQL to `diagnose()`, or use `diagnoseRankedQuery($rank)` in the application process to use raw SQL from that connection’s profiler (bind parameters manually). Export the report in the application with `$db->profileReport()->export()`; a separate `pdodb` process cannot access the in-memory profile, even with the same database config. Exported JSON contains redacted SQL only; `pdodb profile summary` displays it (`import` is an alias):
 
 ```php
 $report = $db->profileReport();
@@ -231,6 +231,15 @@ $diagnosis = $report->diagnose('SELECT * FROM orders WHERE status = ?', ['pendin
 $ranked = $report->diagnoseRankedQuery(1, ['pending']);
 file_put_contents('/tmp/pdodb-profile.json', $report->export());
 ```
+
+```bash
+vendor/bin/pdodb profile summary /tmp/pdodb-profile.json
+vendor/bin/pdodb profile diagnose 'SELECT * FROM orders WHERE status = ?' --param='["pending"]'
+```
+
+The summary works without a database connection. Diagnosis needs the configured
+database and the original SQL: the exported report intentionally omits bound
+values and redacts literals, so it cannot reconstruct a query for execution.
 
 `diagnose()` uses the available plan and local advice. It does not call a model.
 

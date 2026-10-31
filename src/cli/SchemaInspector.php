@@ -32,8 +32,8 @@ class SchemaInspector extends BaseCliCommand
         // Skip header for JSON/YAML formats
         if ($format !== 'json' && $format !== 'yaml') {
             if (getenv('PHPUNIT') === false) {
-                echo "PDOdb Schema Inspector\n";
-                echo "Database: {$driver}\n\n";
+                static::cliWriteln('PDOdb Schema Inspector');
+                static::cliWriteln("Database: {$driver}\n");
             }
         }
 
@@ -59,21 +59,21 @@ class SchemaInspector extends BaseCliCommand
             return;
         }
 
-        echo 'Tables (' . count($tables) . "):\n\n";
+        static::cliWrite('Tables (' . count($tables) . "):\n\n");
 
         if ($format === 'json') {
-            echo json_encode($tables, JSON_PRETTY_PRINT) . "\n";
+            static::cliWriteln(json_encode($tables, JSON_PRETTY_PRINT));
             return;
         }
 
         if ($format === 'yaml') {
-            echo static::arrayToYaml($tables) . "\n";
+            static::cliWriteln(static::arrayToYaml($tables));
             return;
         }
 
         // Table format
         printf("%-30s %-15s %-10s\n", 'Table Name', 'Columns', 'Rows');
-        echo str_repeat('-', 60) . "\n";
+        static::cliWriteln(str_repeat('-', 60));
 
         foreach ($tables as $table) {
             $rowCount = static::getTableRowCount($db, $table['name']);
@@ -103,7 +103,7 @@ class SchemaInspector extends BaseCliCommand
         ];
 
         if ($format === 'json') {
-            echo json_encode($schema, JSON_PRETTY_PRINT) . "\n";
+            static::cliWriteln(json_encode($schema, JSON_PRETTY_PRINT));
             return;
         }
 
@@ -116,19 +116,19 @@ class SchemaInspector extends BaseCliCommand
                 'foreign_keys' => $schema['foreign_keys'],
                 'constraints' => $schema['constraints'],
             ];
-            echo static::arrayToYaml($schemaArray) . "\n";
+            static::cliWriteln(static::arrayToYaml($schemaArray));
             return;
         }
 
         // Table format
-        echo "Table: {$tableName}\n";
-        echo str_repeat('=', 60) . "\n\n";
+        static::cliWriteln("Table: {$tableName}");
+        static::cliWrite(str_repeat('=', 60) . "\n\n");
 
         // Columns
-        echo "Columns:\n";
-        echo str_repeat('-', 60) . "\n";
+        static::cliWriteln('Columns:');
+        static::cliWriteln(str_repeat('-', 60));
         printf("%-20s %-15s %-10s %-10s\n", 'Name', 'Type', 'Nullable', 'Default');
-        echo str_repeat('-', 60) . "\n";
+        static::cliWriteln(str_repeat('-', 60));
         foreach ($schema['columns'] as $column) {
             $nullable = ($column['nullable'] ?? false) ? 'YES' : 'NO';
             $defaultValue = $column['default'] ?? null;
@@ -146,25 +146,25 @@ class SchemaInspector extends BaseCliCommand
 
         // Indexes
         if (!empty($schema['indexes'])) {
-            echo "\nIndexes:\n";
-            echo str_repeat('-', 60) . "\n";
+            static::cliWriteln("\nIndexes:");
+            static::cliWriteln(str_repeat('-', 60));
             foreach ($schema['indexes'] as $index) {
                 $unique = ($index['unique'] ?? false) ? 'UNIQUE' : '';
                 $columns = implode(', ', $index['columns'] ?? []);
-                echo "  {$index['name']} {$unique} ({$columns})\n";
+                static::cliWriteln("  {$index['name']} {$unique} ({$columns})");
             }
         }
 
         // Foreign Keys
         if (!empty($schema['foreign_keys'])) {
-            echo "\nForeign Keys:\n";
-            echo str_repeat('-', 60) . "\n";
+            static::cliWriteln("\nForeign Keys:");
+            static::cliWriteln(str_repeat('-', 60));
             foreach ($schema['foreign_keys'] as $fk) {
                 $columns = implode(', ', $fk['columns'] ?? []);
                 $refTable = $fk['referenced_table'] ?? '';
                 $refColumns = implode(', ', $fk['referenced_columns'] ?? []);
                 $fkName = $fk['name'] ?? 'FK';
-                echo "  {$fkName}: ({$columns}) -> {$refTable}({$refColumns})\n";
+                static::cliWriteln("  {$fkName}: ({$columns}) -> {$refTable}({$refColumns})");
             }
         }
     }

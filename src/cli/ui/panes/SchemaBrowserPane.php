@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\cli\ui\panes;
 
 use tommyknocker\pdodb\cli\TableManager;
 use tommyknocker\pdodb\cli\ui\Layout;
+use tommyknocker\pdodb\cli\ui\Stdout;
 use tommyknocker\pdodb\cli\ui\Terminal;
 use tommyknocker\pdodb\PdoDb;
 
@@ -55,7 +56,7 @@ class SchemaBrowserPane
             $tables = TableManager::listTables($db);
         } catch (\Throwable $e) {
             Terminal::moveTo($content['row'], $content['col']);
-            echo 'Error: ' . $e->getMessage();
+            Stdout::write('Error: ' . $e->getMessage());
             return;
         }
 
@@ -70,9 +71,9 @@ class SchemaBrowserPane
         if (empty($tables)) {
             Terminal::moveTo($content['row'], $content['col']);
             if ($searchFilter !== null && $searchFilter !== '') {
-                echo 'No tables found matching: ' . $searchFilter;
+                Stdout::write('No tables found matching: ' . $searchFilter);
             } else {
-                echo 'No tables found';
+                Stdout::write('No tables found');
             }
             return;
         }
@@ -94,7 +95,7 @@ class SchemaBrowserPane
     {
         Terminal::moveTo($content['row'], $content['col']);
         $count = count($tables);
-        echo "Tables: {$count}";
+        Stdout::write("Tables: {$count}");
     }
 
     /**
@@ -120,7 +121,7 @@ class SchemaBrowserPane
         if ($searchFilter !== null && $searchFilter !== '') {
             $headerText .= ' [Search: ' . $searchFilter . ']';
         }
-        echo $headerText;
+        Stdout::write($headerText);
         Terminal::reset();
 
         // Clamp selected index
@@ -160,7 +161,7 @@ class SchemaBrowserPane
             if (mb_strlen($tableText, 'UTF-8') > $content['width']) {
                 $tableText = mb_substr($tableText, 0, $content['width'] - 3, 'UTF-8') . '...';
             }
-            echo $tableText;
+            Stdout::write($tableText);
             Terminal::reset();
         }
 
@@ -180,7 +181,7 @@ class SchemaBrowserPane
             if (count($tables) > $visibleHeight) {
                 $info .= '(' . ($scrollOffset + 1) . '-' . $endIdx . '/' . count($tables) . ')';
             }
-            echo $info;
+            Stdout::write($info);
             Terminal::reset();
         }
     }

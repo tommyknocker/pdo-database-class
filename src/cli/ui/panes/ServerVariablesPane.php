@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli\ui\panes;
 
 use tommyknocker\pdodb\cli\ui\Layout;
+use tommyknocker\pdodb\cli\ui\Stdout;
 use tommyknocker\pdodb\cli\ui\Terminal;
 use tommyknocker\pdodb\PdoDb;
 
@@ -72,13 +73,13 @@ class ServerVariablesPane
             $variables = $dialect->getServerVariables($db);
         } catch (\Throwable $e) {
             Terminal::moveTo($content['row'], $content['col']);
-            echo 'Error: ' . $e->getMessage();
+            Stdout::write('Error: ' . $e->getMessage());
             return;
         }
 
         if (empty($variables)) {
             Terminal::moveTo($content['row'], $content['col']);
-            echo 'No variables found';
+            Stdout::write('No variables found');
             return;
         }
 
@@ -115,7 +116,7 @@ class ServerVariablesPane
             }
         }
         $totalCount = count($variables);
-        echo "Variables: {$totalCount} (Important: {$importantCount})";
+        Stdout::write("Variables: {$totalCount} (Important: {$importantCount})");
     }
 
     /**
@@ -140,7 +141,7 @@ class ServerVariablesPane
         if ($searchFilter !== null && $searchFilter !== '') {
             $headerText .= ' [Search: ' . $searchFilter . ']';
         }
-        echo $headerText;
+        Stdout::write($headerText);
         Terminal::reset();
 
         // Clamp selected index
@@ -184,7 +185,7 @@ class ServerVariablesPane
             if (mb_strlen($varText, 'UTF-8') > $content['width']) {
                 $varText = mb_substr($varText, 0, $content['width'] - 3, 'UTF-8') . '...';
             }
-            echo $varText;
+            Stdout::write($varText);
             Terminal::reset();
         }
 
@@ -204,7 +205,7 @@ class ServerVariablesPane
             if (count($variables) > $visibleHeight) {
                 $info .= '(' . ($scrollOffset + 1) . '-' . $endIdx . '/' . count($variables) . ')';
             }
-            echo $info;
+            Stdout::write($info);
             Terminal::reset();
         }
     }

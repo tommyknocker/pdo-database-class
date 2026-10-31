@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\cli\ui\panes;
 
 use tommyknocker\pdodb\cli\MonitorManager;
 use tommyknocker\pdodb\cli\ui\Layout;
+use tommyknocker\pdodb\cli\ui\Stdout;
 use tommyknocker\pdodb\cli\ui\Terminal;
 use tommyknocker\pdodb\PdoDb;
 
@@ -57,7 +58,7 @@ class ActiveQueriesPane
             // Clear only first line and show message
             Terminal::moveTo($content['row'], $content['col']);
             Terminal::clearLine();
-            echo 'No active queries';
+            Stdout::write('No active queries');
             // Clear remaining lines
             for ($i = 1; $i < $content['height']; $i++) {
                 Terminal::moveTo($content['row'] + $i, $content['col']);
@@ -85,7 +86,7 @@ class ActiveQueriesPane
         }
         Terminal::moveTo($content['row'], $content['col']);
         // Clear only the content area, not the entire line (to preserve right border)
-        echo str_repeat(' ', $availableWidth);
+        Stdout::write(str_repeat(' ', $availableWidth));
         Terminal::moveTo($content['row'], $content['col']);
 
         // Build header with UTF-8 aware padding
@@ -116,7 +117,7 @@ class ActiveQueriesPane
             $headerText = mb_substr($headerText, 0, $availableWidth, 'UTF-8');
         }
 
-        echo $headerText;
+        Stdout::write($headerText);
         Terminal::reset();
 
         // Display queries (with scrolling)
@@ -144,7 +145,7 @@ class ActiveQueriesPane
 
             Terminal::moveTo($displayRow, $content['col']);
             // Clear only the content area, not the entire line (to preserve right border)
-            echo str_repeat(' ', $availableWidth);
+            Stdout::write(str_repeat(' ', $availableWidth));
             Terminal::moveTo($displayRow, $content['col']);
 
             $isSelected = $active && $selectedIndex === $i;
@@ -223,11 +224,11 @@ class ActiveQueriesPane
             }
 
             // Output text and pad to exact width to ensure we don't overwrite anything
-            echo $rowText;
+            Stdout::write($rowText);
             $actualWidth = mb_strlen($rowText, 'UTF-8');
             if ($actualWidth < $availableWidth) {
                 // Pad with spaces to fill exactly availableWidth (prevents any overflow)
-                echo str_repeat(' ', $availableWidth - $actualWidth);
+                Stdout::write(str_repeat(' ', $availableWidth - $actualWidth));
             }
             Terminal::reset();
 
@@ -247,7 +248,7 @@ class ActiveQueriesPane
         for ($row = $lastDisplayRow + 1; $row < $maxRow; $row++) {
             Terminal::moveTo($row, $content['col']);
             // Clear only the content area, not the entire line (to preserve right border)
-            echo str_repeat(' ', $availableWidth);
+            Stdout::write(str_repeat(' ', $availableWidth));
         }
 
         // Show scroll indicator
@@ -263,7 +264,7 @@ class ActiveQueriesPane
         if ($scrollOffset > 0 || $endIdx < count($queries)) {
             Terminal::moveTo($scrollIndicatorRow, $content['col']);
             // Clear only the content area, not the entire line (to preserve right border)
-            echo str_repeat(' ', $availableWidth);
+            Stdout::write(str_repeat(' ', $availableWidth));
             Terminal::moveTo($scrollIndicatorRow, $content['col']);
             if (Terminal::supportsColors()) {
                 Terminal::color(Terminal::COLOR_YELLOW);
@@ -278,13 +279,13 @@ class ActiveQueriesPane
             if (count($queries) > $visibleHeight) {
                 $info .= '(' . ($scrollOffset + 1) . '-' . $endIdx . '/' . count($queries) . ')';
             }
-            echo $info;
+            Stdout::write($info);
             Terminal::reset();
         } else {
             // Clear scroll indicator row if no scrolling needed
             Terminal::moveTo($scrollIndicatorRow, $content['col']);
             // Clear only the content area, not the entire line (to preserve right border)
-            echo str_repeat(' ', $availableWidth);
+            Stdout::write(str_repeat(' ', $availableWidth));
         }
     }
 

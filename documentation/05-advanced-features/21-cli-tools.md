@@ -1148,6 +1148,19 @@ vendor/bin/pdodb generate model --model=User --table=users --output=app/Models -
 vendor/bin/pdodb generate model --model=User --table=users --force
 ```
 
+Generated `belongsTo` relations use a best-effort model name derived from the
+referenced table. Review them, especially for irregular or custom names. To use
+an existing model with a different name, provide a JSON mapping (class names are
+in the generated model's namespace):
+
+```bash
+vendor/bin/pdodb generate model --model=Post --table=posts \
+  --relation-models='{"people":"Account"}'
+```
+
+The same option works with `pdodb model make`. For example, `people` then maps
+to `Account::class` instead of the inferred `Person::class`.
+
 ### Example
 
 ```bash
@@ -1970,7 +1983,7 @@ The display updates every 2 seconds. Press `Ctrl+C` to exit.
   $db->enableProfiling(1.0); // Enable with 1 second threshold
   ```
 
-- **Query profiling**: Export a report from the application process with `$db->profileReport()->export()`, then use `pdodb profile import report.json` to inspect it. A separate CLI process cannot access an application’s in-memory profile, even when both use the same database configuration. Use `pdodb profile diagnose "SQL"` to inspect a query supplied directly.
+- **Query profiling**: Export a report from the application process with `$db->profileReport()->export()`, then use `pdodb profile summary report.json` to inspect it (`import` is an alias). A separate CLI process cannot access an application’s in-memory profile, even when both use the same database configuration. Use `pdodb profile diagnose "SQL"` to inspect a query supplied directly.
 
 - **PostgreSQL Extensions**: For better slow query statistics on PostgreSQL, install the `pg_stat_statements` extension:
   ```sql

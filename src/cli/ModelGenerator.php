@@ -20,6 +20,7 @@ class ModelGenerator extends BaseCliCommand
      * @param string $modelName Model class name
      * @param string|null $tableName Table name (optional, will be auto-detected from model name)
      * @param string|null $outputPath Output path for model file (optional)
+     * @param array<string, string> $relatedModels Referenced table names mapped to model class names
      * @param PdoDb|null $db Database instance (optional, creates new instance if not provided)
      *
      * @return string Path to created model file
@@ -30,15 +31,16 @@ class ModelGenerator extends BaseCliCommand
         ?string $outputPath = null,
         ?PdoDb $db = null,
         ?string $namespace = null,
-        bool $force = false
+        bool $force = false,
+        array $relatedModels = []
     ): string {
         if ($db === null) {
             $db = static::createDatabase();
         }
         $driver = static::getDriverName($db);
 
-        echo "PDOdb Model Generator\n";
-        echo "Database: {$driver}\n\n";
+        static::cliWriteln('PDOdb Model Generator');
+        static::cliWriteln("Database: {$driver}\n");
 
         // Validate model name
         if (!preg_match('/^[A-Z][a-zA-Z0-9]*$/', $modelName)) {
@@ -72,9 +74,15 @@ class ModelGenerator extends BaseCliCommand
         $primaryKey = static::detectPrimaryKey($db, $tableName);
         $foreignKeys = static::getForeignKeys($db, $tableName);
 
+        foreach ($relatedModels as $table => $class) {
+            if (!is_string($table) || $table === '' || !is_string($class) || preg_match('/^[A-Z][a-zA-Z0-9]*$/', $class) !== 1) {
+                throw new QueryException('Related model mappings must map table names to valid model class names.');
+            }
+        }
+
         // Generate model code
-        $modelNamespace = $namespace !== null && $namespace !== '' ? strtolower($namespace) : 'app\\models';
-        $relatedUses = static::relatedModelUses($foreignKeys, $modelNamespace, $modelName);
+        $modelNamespace = $namespace !== null && $namespace !== '' ? $namespace : 'app\\models';
+        $relatedUses = static::relatedModelUses($foreignKeys, $modelNamespace, $modelName, $relatedModels);
         $modelCode = static::generateModelCode(
             $modelName,
             $tableName,
@@ -82,7 +90,8 @@ class ModelGenerator extends BaseCliCommand
             $primaryKey,
             $foreignKeys,
             $modelNamespace,
-            $relatedUses
+            $relatedUses,
+            $relatedModels
         );
 
         // Write model file
@@ -98,11 +107,37 @@ class ModelGenerator extends BaseCliCommand
         file_put_contents($filename, $modelCode);
 
         static::success('Model file created: ' . basename($filename));
-        echo "  Path: {$filename}\n";
-        echo "  Table: {$tableName}\n";
-        echo '  Primary key: ' . implode(', ', $primaryKey) . "\n";
+        static::cliWriteln("  Path: {$filename}");
+        static::cliWriteln("  Table: {$tableName}");
+        static::cliWriteln('  Primary key: ' . implode(', ', $primaryKey));
 
         return $filename;
+    }
+
+    /** @return array<string, string> */
+    public static function parseRelatedModels(mixed $value): array
+    {
+        if ($value === null || $value === false) {
+            return [];
+        }
+        if (!is_string($value) || !str_starts_with(ltrim($value), '{')) {
+            throw new QueryException('--relation-models must be a JSON object mapping table names to model classes.');
+        }
+
+        try {
+            $mapping = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            throw new QueryException('Invalid --relation-models JSON.');
+        }
+        if (!is_array($mapping) || (array_is_list($mapping) && $mapping !== [])) {
+            throw new QueryException('--relation-models must be a JSON object mapping table names to model classes.');
+        }
+        foreach ($mapping as $table => $class) {
+            if (!is_string($table) || $table === '' || !is_string($class) || preg_match('/^[A-Z][a-zA-Z0-9]*$/', $class) !== 1) {
+                throw new QueryException('Related model mappings must map table names to valid model class names.');
+            }
+        }
+        return $mapping;
     }
 
     /**
@@ -182,6 +217,7 @@ class ModelGenerator extends BaseCliCommand
      * @param array<int, string> $primaryKey Primary key columns
      * @param array<int, array<string, mixed>> $foreignKeys Foreign keys
      * @param array<int, string> $relatedUses Fully-qualified class names to import (excluding this model)
+     * @param array<string, string> $relatedModels Referenced table to model class mappings
      *
      * @return string
      */
@@ -192,14 +228,15 @@ class ModelGenerator extends BaseCliCommand
         array $primaryKey,
         array $foreignKeys,
         string $namespace,
-        array $relatedUses = []
+        array $relatedUses = [],
+        array $relatedModels = []
     ): string {
         $primaryKeyCode = count($primaryKey) === 1 && $primaryKey[0] === 'id'
             ? "        return ['id'];\n"
             : '        return ' . var_export($primaryKey, true) . ";\n";
 
         $attributes = static::generateAttributes($columns);
-        $relationships = static::generateRelationships($foreignKeys, $namespace);
+        $relationships = static::generateRelationships($foreignKeys, $namespace, $relatedModels);
 
         $useLines = "use tommyknocker\\pdodb\\orm\\Model;\n";
         foreach ($relatedUses as $relatedClass) {
@@ -277,10 +314,11 @@ PHP;
      * Generate relationships from foreign keys.
      *
      * @param array<int, array<string, mixed>> $foreignKeys Foreign keys
+     * @param array<string, string> $relatedModels Referenced table to model class mappings
      *
      * @return string
      */
-    protected static function generateRelationships(array $foreignKeys, string $namespace): string
+    protected static function generateRelationships(array $foreignKeys, string $namespace, array $relatedModels = []): string
     {
         if ($foreignKeys === []) {
             return '';
@@ -302,8 +340,7 @@ PHP;
 
             $ownerKey = static::foreignKeyReferencedColumn($foreignKey) ?? 'id';
             $relationName = static::foreignKeyToRelationName($column);
-            $relatedModel = static::tableToModelName($refTable);
-            $modelFqn = $namespace . '\\' . $relatedModel;
+            $relatedModel = $relatedModels[$refTable] ?? static::tableToModelName($refTable);
 
             $code .= "            '{$relationName}' => [\n";
             $code .= "                'belongsTo',\n";
@@ -384,11 +421,24 @@ PHP;
             return 'Related';
         }
 
-        if (str_ends_with($name, 'ies') && strlen($name) > 3) {
+        $irregular = ['People' => 'Person', 'Men' => 'Man', 'Women' => 'Woman',
+            'Children' => 'Child', 'Teeth' => 'Tooth', 'Feet' => 'Foot', 'Mice' => 'Mouse',
+            'Geese' => 'Goose', 'Indices' => 'Index'];
+        foreach ($irregular as $plural => $singular) {
+            if (str_ends_with($name, $plural)) {
+                return substr($name, 0, -strlen($plural)) . $singular;
+            }
+        }
+        if (in_array($name, ['News', 'Series', 'Species'], true)) {
+            return $name;
+        }
+        if (preg_match('/[^aeiou]ies$/i', $name) === 1) {
             return substr($name, 0, -3) . 'y';
         }
-
-        if (str_ends_with($name, 's') && !str_ends_with($name, 'ss') && strlen($name) > 1) {
+        if (preg_match('/(sses|shes|ches|xes|zes|statuses|buses)$/i', $name) === 1) {
+            return substr($name, 0, -2);
+        }
+        if (str_ends_with($name, 's') && !preg_match('/(ss|us|is)$/i', $name) && strlen($name) > 1) {
             $name = substr($name, 0, -1);
         }
 
@@ -397,10 +447,11 @@ PHP;
 
     /**
      * @param array<int, array<string, mixed>> $foreignKeys
+     * @param array<string, string> $relatedModels Referenced table to model class mappings
      *
      * @return array<int, string>
      */
-    protected static function relatedModelUses(array $foreignKeys, string $namespace, string $modelName): array
+    protected static function relatedModelUses(array $foreignKeys, string $namespace, string $modelName, array $relatedModels = []): array
     {
         $uses = [];
         foreach ($foreignKeys as $foreignKey) {
@@ -408,7 +459,7 @@ PHP;
             if ($refTable === null) {
                 continue;
             }
-            $related = static::tableToModelName($refTable);
+            $related = $relatedModels[$refTable] ?? static::tableToModelName($refTable);
             if ($related === $modelName) {
                 continue;
             }

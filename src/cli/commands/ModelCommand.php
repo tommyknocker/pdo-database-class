@@ -36,7 +36,7 @@ class ModelCommand extends Command
 
         return match ($subcommand) {
             'make' => $this->make(),
-            default => $this->showError("Unknown subcommand: {$subcommand}"),
+            default => $this->fail("Unknown subcommand: {$subcommand}"),
         };
     }
 
@@ -60,7 +60,7 @@ class ModelCommand extends Command
         }
 
         try {
-            ModelGenerator::generate($modelName, $tableName, $outputPath, $this->getDb(), is_string($namespace) ? $namespace : null, $force);
+            ModelGenerator::generate($modelName, $tableName, $outputPath, $this->getDb(), is_string($namespace) ? $namespace : null, $force, ModelGenerator::parseRelatedModels($this->getOption('relation-models')));
             return 0;
         } catch (\Exception $e) {
             $this->showError($e->getMessage());
@@ -76,22 +76,23 @@ class ModelCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "Model Generation\n\n";
-        echo "Usage: pdodb model make <ModelName> [table_name] [output_path]\n\n";
-        echo "Arguments:\n";
-        echo "  ModelName         Model class name (required)\n";
-        echo "  table_name       Table name (optional, auto-detected from model name if not provided)\n";
-        echo "  output_path      Output directory path (optional)\n\n";
-        echo "Options:\n";
-        echo "  --force          Overwrite existing file without confirmation\n";
-        echo "  --namespace=NS   Set the PHP namespace for the generated model (default: app\\\\models)\n";
-        echo "  --connection=NAME  Use a named connection from config/db.php\n\n";
-        echo "Examples:\n";
-        echo "  pdodb model make User\n";
-        echo "  pdodb model make User users\n";
-        echo "  pdodb model make User users app/Models\n";
-        echo "  pdodb model make User users app/Models --namespace=app\\\\entities\n";
-        echo "  pdodb model make User users app/Models --force\n";
+        $this->writeln("Model Generation\n");
+        $this->writeln("Usage: pdodb model make <ModelName> [table_name] [output_path]\n");
+        $this->writeln('Arguments:');
+        $this->writeln('  ModelName         Model class name (required)');
+        $this->writeln('  table_name       Table name (optional, auto-detected from model name if not provided)');
+        $this->writeln("  output_path      Output directory path (optional)\n");
+        $this->writeln('Options:');
+        $this->writeln('  --force          Overwrite existing file without confirmation');
+        $this->writeln('  --namespace=NS   Set the PHP namespace for the generated model (default: app\\\\models)');
+        $this->writeln('  --connection=NAME  Use a named connection from config/db.php');
+        $this->writeln("  --relation-models=JSON  Map referenced tables to model class names\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb model make User');
+        $this->writeln('  pdodb model make User users');
+        $this->writeln('  pdodb model make User users app/Models');
+        $this->writeln('  pdodb model make User users app/Models --namespace=app\\\\entities');
+        $this->writeln('  pdodb model make User users app/Models --force');
         return 0;
     }
 }

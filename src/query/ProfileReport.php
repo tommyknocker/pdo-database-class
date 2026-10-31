@@ -98,8 +98,8 @@ class ProfileReport
     public static function parseExport(string $json): array
     {
         $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-        if (!is_array($data)) {
-            throw new ProfileReportException('Profile export must be a JSON object.');
+        if (!is_array($data) || array_is_list($data) || !array_key_exists('enabled', $data) || !is_bool($data['enabled'])) {
+            throw new ProfileReportException('Profile export must be a JSON object with an enabled flag.');
         }
 
         return $data;

@@ -154,7 +154,7 @@ class Application
         $command = $this->getCommand($commandName);
 
         if ($command === null) {
-            echo "Error: Unknown command: {$commandName}\n";
+            BaseCliCommand::io()->writeErrorLine("Error: Unknown command: {$commandName}");
 
             // Suggest similar commands
             $availableCommands = array_keys($this->commands);
@@ -162,7 +162,7 @@ class Application
 
             if (!empty($suggestions)) {
                 $message = CommandSuggestion::formatMessage($commandName, $suggestions);
-                echo "\n" . $message . "\n";
+                $this->cliWriteln("\n" . $message);
             }
 
             return 1;
@@ -282,14 +282,24 @@ class Application
         return $this->version ?? '2.12.0';
     }
 
+    protected function cliWriteln(string $message = ''): void
+    {
+        BaseCliCommand::io()->writeln($message);
+    }
+
+    protected function cliWrite(string $message): void
+    {
+        BaseCliCommand::io()->write($message);
+    }
+
     /**
      * Show help message.
      */
     protected function showHelp(): void
     {
-        echo "{$this->name} v{$this->getVersion()}\n\n";
-        echo "Usage: pdodb <command> [arguments] [options]\n\n";
-        echo "Available commands:\n\n";
+        $this->cliWriteln("{$this->name} v{$this->getVersion()}\n");
+        $this->cliWriteln("Usage: pdodb <command> [arguments] [options]\n");
+        $this->cliWriteln("Available commands:\n");
 
         $maxLength = 0;
         foreach ($this->commands as $command) {
@@ -301,16 +311,16 @@ class Application
 
         foreach ($this->commands as $command) {
             $name = str_pad($command->getName(), $maxLength + 2);
-            echo "  {$name}{$command->getDescription()}\n";
+            $this->cliWriteln("  {$name}{$command->getDescription()}");
         }
 
-        echo "\nGlobal options:\n";
-        echo "  --help               Show help message\n";
-        echo "  --version, -v         Show version information\n";
-        echo "  --connection=<name>  Use a named connection from config/db.php\n";
-        echo "  --config=<path>      Path to db.php configuration file\n";
-        echo "  --env=<path>         Path to .env file\n";
-        echo "\nUse 'pdodb <command> --help' for more information about a command.\n";
+        $this->cliWriteln("\nGlobal options:");
+        $this->cliWriteln('  --help               Show help message');
+        $this->cliWriteln('  --version, -v         Show version information');
+        $this->cliWriteln('  --connection=<name>  Use a named connection from config/db.php');
+        $this->cliWriteln('  --config=<path>      Path to db.php configuration file');
+        $this->cliWriteln('  --env=<path>         Path to .env file');
+        $this->cliWriteln("\nUse 'pdodb <command> --help' for more information about a command.");
     }
 
     /**
@@ -318,6 +328,6 @@ class Application
      */
     protected function showVersion(): void
     {
-        echo "{$this->name} v{$this->getVersion()}\n";
+        $this->cliWriteln("{$this->name} v{$this->getVersion()}");
     }
 }

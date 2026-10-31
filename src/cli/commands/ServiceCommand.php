@@ -36,7 +36,7 @@ class ServiceCommand extends Command
 
         return match ($subcommand) {
             'make' => $this->make(),
-            default => $this->showError("Unknown subcommand: {$subcommand}"),
+            default => $this->fail("Unknown subcommand: {$subcommand}"),
         };
     }
 
@@ -85,23 +85,23 @@ class ServiceCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "Service Generation\n\n";
-        echo "Usage: pdodb service make <ServiceName> [RepositoryName] [output_path]\n\n";
-        echo "Arguments:\n";
-        echo "  ServiceName         Service class name (required, e.g. UserService)\n";
-        echo "  RepositoryName      Repository class name (optional, auto-detected from service name if not provided)\n";
-        echo "  output_path         Output directory path (optional)\n\n";
-        echo "Options:\n";
-        echo "  --force                  Overwrite existing file without confirmation\n";
-        echo "  --namespace=NS           Set the PHP namespace for the generated service (default: app\\\\services)\n";
-        echo "  --repository-namespace=NS Set the PHP namespace for the repository class (default: app\\\\repositories)\n";
-        echo "  --connection=NAME        Use a named connection from config/db.php\n\n";
-        echo "Examples:\n";
-        echo "  pdodb service make UserService\n";
-        echo "  pdodb service make UserService UserRepository\n";
-        echo "  pdodb service make UserService UserRepository app/Services\n";
-        echo "  pdodb service make UserService UserRepository app/Services --namespace=app\\\\services\n";
-        echo "  pdodb service make UserService UserRepository app/Services --repository-namespace=app\\\\repositories --force\n";
+        $this->writeln("Service Generation\n");
+        $this->writeln("Usage: pdodb service make <ServiceName> [RepositoryName] [output_path]\n");
+        $this->writeln('Arguments:');
+        $this->writeln('  ServiceName         Service class name (required, e.g. UserService)');
+        $this->writeln('  RepositoryName      Repository class name (optional, auto-detected from service name if not provided)');
+        $this->writeln("  output_path         Output directory path (optional)\n");
+        $this->writeln('Options:');
+        $this->writeln('  --force                  Overwrite existing file without confirmation');
+        $this->writeln('  --namespace=NS           Set the PHP namespace for the generated service (default: app\\\\services)');
+        $this->writeln('  --repository-namespace=NS Set the PHP namespace for the repository class (default: app\\\\repositories)');
+        $this->writeln("  --connection=NAME        Use a named connection from config/db.php\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb service make UserService');
+        $this->writeln('  pdodb service make UserService UserRepository');
+        $this->writeln('  pdodb service make UserService UserRepository app/Services');
+        $this->writeln('  pdodb service make UserService UserRepository app/Services --namespace=app\\\\services');
+        $this->writeln('  pdodb service make UserService UserRepository app/Services --repository-namespace=app\\\\repositories --force');
         return 0;
     }
 }

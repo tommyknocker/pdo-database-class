@@ -58,21 +58,21 @@ class InitCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "PDOdb Project Initialization\n\n";
-        echo "Usage: pdodb init [options]\n\n";
-        echo "This command guides you through setting up PDOdb configuration\n";
-        echo "for your project with an interactive wizard.\n\n";
-        echo "Options:\n";
-        echo "  --skip-connection-test    Skip database connection test\n";
-        echo "  --force                   Overwrite existing files without confirmation\n";
-        echo "  --env-only                Create .env file only\n";
-        echo "  --config-only             Create config/db.php only\n";
-        echo "  --no-structure            Don't create directory structure\n\n";
-        echo "Examples:\n";
-        echo "  pdodb init                                    Interactive wizard\n";
-        echo "  pdodb init --env-only                         Create .env only\n";
-        echo "  pdodb init --config-only --skip-connection-test  Create config/db.php without testing connection\n";
-        echo "  pdodb init --force                            Overwrite existing files\n";
+        $this->writeln("PDOdb Project Initialization\n");
+        $this->writeln("Usage: pdodb init [options]\n");
+        $this->writeln('This command guides you through setting up PDOdb configuration');
+        $this->writeln("for your project with an interactive wizard.\n");
+        $this->writeln('Options:');
+        $this->writeln('  --skip-connection-test    Skip database connection test');
+        $this->writeln('  --force                   Overwrite existing files without confirmation');
+        $this->writeln('  --env-only                Create .env file only');
+        $this->writeln('  --config-only             Create config/db.php only');
+        $this->writeln("  --no-structure            Don't create directory structure\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb init                                    Interactive wizard');
+        $this->writeln('  pdodb init --env-only                         Create .env only');
+        $this->writeln('  pdodb init --config-only --skip-connection-test  Create config/db.php without testing connection');
+        $this->writeln('  pdodb init --force                            Overwrite existing files');
         return 0;
     }
 }

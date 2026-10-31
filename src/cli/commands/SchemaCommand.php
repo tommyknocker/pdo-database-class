@@ -80,16 +80,16 @@ class SchemaCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "Schema Inspection\n\n";
-        echo "Usage: pdodb schema inspect [table_name] [--format=table|json|yaml]\n\n";
-        echo "Arguments:\n";
-        echo "  table_name        Table name to inspect (optional, shows all tables if not provided)\n\n";
-        echo "Options:\n";
-        echo "  --format=FORMAT   Output format: table, json, or yaml (default: table)\n\n";
-        echo "Examples:\n";
-        echo "  pdodb schema inspect\n";
-        echo "  pdodb schema inspect users\n";
-        echo "  pdodb schema inspect users --format=json\n";
+        $this->writeln("Schema Inspection\n");
+        $this->writeln("Usage: pdodb schema inspect [table_name] [--format=table|json|yaml]\n");
+        $this->writeln('Arguments:');
+        $this->writeln("  table_name        Table name to inspect (optional, shows all tables if not provided)\n");
+        $this->writeln('Options:');
+        $this->writeln("  --format=FORMAT   Output format: table, json, or yaml (default: table)\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb schema inspect');
+        $this->writeln('  pdodb schema inspect users');
+        $this->writeln('  pdodb schema inspect users --format=json');
         return 0;
     }
 }

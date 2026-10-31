@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli\ui\panes;
 
 use tommyknocker\pdodb\cli\ui\Layout;
+use tommyknocker\pdodb\cli\ui\Stdout;
 use tommyknocker\pdodb\cli\ui\Terminal;
 use tommyknocker\pdodb\migrations\MigrationRunner;
 use tommyknocker\pdodb\PdoDb;
@@ -62,7 +63,7 @@ class MigrationManagerPane
             $history = $runner->getMigrationHistory();
         } catch (\Throwable $e) {
             Terminal::moveTo($content['row'], $content['col']);
-            echo 'Error: ' . $e->getMessage();
+            Stdout::write('Error: ' . $e->getMessage());
             return;
         }
 
@@ -85,7 +86,7 @@ class MigrationManagerPane
         Terminal::moveTo($content['row'], $content['col']);
         $pendingCount = count($newMigrations);
         $appliedCount = count($history);
-        echo "Pending: {$pendingCount} | Applied: {$appliedCount}";
+        Stdout::write("Pending: {$pendingCount} | Applied: {$appliedCount}");
     }
 
     /**
@@ -106,7 +107,7 @@ class MigrationManagerPane
             Terminal::bold();
             Terminal::color(Terminal::COLOR_CYAN);
         }
-        echo 'Migration Manager (Fullscreen)';
+        Stdout::write('Migration Manager (Fullscreen)');
         Terminal::reset();
 
         // Combine all migrations with status
@@ -126,7 +127,7 @@ class MigrationManagerPane
 
         if (empty($allMigrations)) {
             Terminal::moveTo($content['row'], $content['col']);
-            echo 'No migrations found';
+            Stdout::write('No migrations found');
             return;
         }
 
@@ -173,7 +174,7 @@ class MigrationManagerPane
             if (mb_strlen($versionText, 'UTF-8') > $content['width']) {
                 $versionText = mb_substr($versionText, 0, $content['width'] - 3, 'UTF-8') . '...';
             }
-            echo $versionText;
+            Stdout::write($versionText);
             Terminal::reset();
         }
 
@@ -193,7 +194,7 @@ class MigrationManagerPane
             if (count($allMigrations) > $visibleHeight) {
                 $info .= '(' . ($scrollOffset + 1) . '-' . $endIdx . '/' . count($allMigrations) . ')';
             }
-            echo $info;
+            Stdout::write($info);
             Terminal::reset();
         }
     }

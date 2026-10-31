@@ -56,26 +56,26 @@ class UiCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "TUI Dashboard\n\n";
-        echo "Usage: pdodb ui [options]\n\n";
-        echo "Options:\n";
-        echo "  --refresh=<seconds>  Refresh interval in seconds (default: 2)\n";
-        echo "  --help              Show this help message\n\n";
-        echo "Description:\n";
-        echo "  Launches an interactive full-screen terminal dashboard for monitoring\n";
-        echo "  database queries, connections, cache statistics, and server metrics.\n\n";
-        echo "Navigation:\n";
-        echo "  1-4        Switch between panes\n";
-        echo "  Tab/Arrows Navigate between panes\n";
-        echo "  q/Esc      Quit dashboard\n\n";
-        echo "Panes:\n";
-        echo "  1. Active Queries    - Currently executing queries\n";
-        echo "  2. Connection Pool   - Active connections and pool statistics\n";
-        echo "  3. Cache Stats       - Query cache statistics\n";
-        echo "  4. Server Metrics    - Database server performance metrics\n\n";
-        echo "Examples:\n";
-        echo "  pdodb ui\n";
-        echo "  pdodb ui --refresh=5\n";
+        $this->writeln("TUI Dashboard\n");
+        $this->writeln("Usage: pdodb ui [options]\n");
+        $this->writeln('Options:');
+        $this->writeln('  --refresh=<seconds>  Refresh interval in seconds (default: 2)');
+        $this->writeln("  --help              Show this help message\n");
+        $this->writeln('Description:');
+        $this->writeln('  Launches an interactive full-screen terminal dashboard for monitoring');
+        $this->writeln("  database queries, connections, cache statistics, and server metrics.\n");
+        $this->writeln('Navigation:');
+        $this->writeln('  1-4        Switch between panes');
+        $this->writeln('  Tab/Arrows Navigate between panes');
+        $this->writeln("  q/Esc      Quit dashboard\n");
+        $this->writeln('Panes:');
+        $this->writeln('  1. Active Queries    - Currently executing queries');
+        $this->writeln('  2. Connection Pool   - Active connections and pool statistics');
+        $this->writeln('  3. Cache Stats       - Query cache statistics');
+        $this->writeln("  4. Server Metrics    - Database server performance metrics\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb ui');
+        $this->writeln('  pdodb ui --refresh=5');
         return 0;
     }
 }

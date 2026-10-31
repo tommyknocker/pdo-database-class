@@ -41,8 +41,8 @@ class ServiceGenerator extends BaseCliCommand
         $driver = static::getDriverName($db);
 
         if (getenv('PHPUNIT') === false) {
-            echo "PDOdb Service Generator\n";
-            echo "Database: {$driver}\n\n";
+            static::cliWriteln('PDOdb Service Generator');
+            static::cliWriteln("Database: {$driver}\n");
         }
 
         // Validate service name
@@ -86,8 +86,8 @@ class ServiceGenerator extends BaseCliCommand
 
         static::success('Service file created: ' . basename($filename));
         if (getenv('PHPUNIT') === false) {
-            echo "  Path: {$filename}\n";
-            echo "  Repository: {$repositoryNamespaceFinal}\\{$repositoryName}\n";
+            static::cliWriteln("  Path: {$filename}");
+            static::cliWriteln("  Repository: {$repositoryNamespaceFinal}\\{$repositoryName}");
         }
 
         return $filename;

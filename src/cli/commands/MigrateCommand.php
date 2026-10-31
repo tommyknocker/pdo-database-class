@@ -111,11 +111,11 @@ class MigrateCommand extends Command
             $limitText = $limit > 0 ? " {$limit}" : '';
 
             // Show migrations that will be applied
-            echo "\nMigrations to be applied:\n";
+            $this->writeln("\nMigrations to be applied:");
             foreach ($migrationsToApply as $version) {
-                echo "  - {$version}\n";
+                $this->writeln("  - {$version}");
             }
-            echo "\n";
+            $this->writeln('');
 
             $confirmed = static::readConfirmation(
                 "Are you sure you want to apply{$limitText} migration(s)? This will modify your database",
@@ -136,23 +136,23 @@ class MigrateCommand extends Command
                 $mode = $dryRun ? 'DRY-RUN' : 'PRETEND';
                 static::info("{$mode} mode: Would apply {$count} migration(s)");
                 foreach ($applied as $version) {
-                    echo "  - {$version}\n";
+                    $this->writeln("  - {$version}");
                 }
 
                 // Show collected queries for dry-run
                 if ($dryRun) {
                     $queries = $runner->getCollectedQueries();
                     if (!empty($queries)) {
-                        echo "\nSQL that would be executed:\n";
+                        $this->writeln("\nSQL that would be executed:");
                         foreach ($queries as $query) {
-                            echo "  {$query}\n";
+                            $this->writeln("  {$query}");
                         }
                     }
                 }
             } else {
                 static::success("Applied {$count} migration(s)");
                 foreach ($applied as $version) {
-                    echo "  - {$version}\n";
+                    $this->writeln("  - {$version}");
                 }
             }
         } else {
@@ -193,11 +193,11 @@ class MigrateCommand extends Command
 
             // Show migrations that will be rolled back
             if (!empty($migrationsToRollback)) {
-                echo "\nMigrations to be rolled back:\n";
+                $this->writeln("\nMigrations to be rolled back:");
                 foreach ($migrationsToRollback as $version) {
-                    echo "  - {$version}\n";
+                    $this->writeln("  - {$version}");
                 }
-                echo "\n";
+                $this->writeln('');
             }
 
             $confirmed = static::readConfirmation(
@@ -219,23 +219,23 @@ class MigrateCommand extends Command
                 $mode = $dryRun ? 'DRY-RUN' : 'PRETEND';
                 static::info("{$mode} mode: Would rollback {$count} migration(s)");
                 foreach ($rolledBack as $version) {
-                    echo "  - {$version}\n";
+                    $this->writeln("  - {$version}");
                 }
 
                 // Show collected queries for dry-run
                 if ($dryRun) {
                     $queries = $runner->getCollectedQueries();
                     if (!empty($queries)) {
-                        echo "\nSQL that would be executed:\n";
+                        $this->writeln("\nSQL that would be executed:");
                         foreach ($queries as $query) {
-                            echo "  {$query}\n";
+                            $this->writeln("  {$query}");
                         }
                     }
                 }
             } else {
                 static::success("Rolled back {$count} migration(s)");
                 foreach ($rolledBack as $version) {
-                    echo "  - {$version}\n";
+                    $this->writeln("  - {$version}");
                 }
             }
         } else {
@@ -262,9 +262,9 @@ class MigrateCommand extends Command
             return 0;
         }
 
-        echo "Migration History:\n\n";
+        $this->writeln("Migration History:\n");
         foreach ($history as $migration) {
-            echo "  {$migration['version']} - {$migration['apply_time']}\n";
+            $this->writeln("  {$migration['version']} - {$migration['apply_time']}");
         }
 
         return 0;
@@ -286,9 +286,9 @@ class MigrateCommand extends Command
             return 0;
         }
 
-        echo "New Migrations:\n\n";
+        $this->writeln("New Migrations:\n");
         foreach ($new as $migration) {
-            echo "  {$migration}\n";
+            $this->writeln("  {$migration}");
         }
 
         return 0;
@@ -301,24 +301,24 @@ class MigrateCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "Migration Management\n\n";
-        echo "Usage: pdodb migrate <subcommand> [arguments] [options]\n\n";
-        echo "Subcommands:\n";
-        echo "  create [name]     Create a new migration file\n";
-        echo "  up, migrate       Apply pending migrations\n";
-        echo "  down, rollback    Rollback the last migration\n";
-        echo "  history           Show migration history\n";
-        echo "  new               Show new migrations\n";
-        echo "  help              Show this help message\n\n";
-        echo "Options:\n";
-        echo "  --dry-run         List operations without executing migration PHP\n";
-        echo "  --force           Execute without confirmation\n";
-        echo "  --pretend         Simulate execution\n\n";
-        echo "Examples:\n";
-        echo "  pdodb migrate up --dry-run\n";
-        echo "  pdodb migrate up --force\n";
-        echo "  pdodb migrate down 2 --force\n";
-        echo "  pdodb migrate up --pretend\n";
+        $this->writeln("Migration Management\n");
+        $this->writeln("Usage: pdodb migrate <subcommand> [arguments] [options]\n");
+        $this->writeln('Subcommands:');
+        $this->writeln('  create [name]     Create a new migration file');
+        $this->writeln('  up, migrate       Apply pending migrations');
+        $this->writeln('  down, rollback    Rollback the last migration');
+        $this->writeln('  history           Show migration history');
+        $this->writeln('  new               Show new migrations');
+        $this->writeln("  help              Show this help message\n");
+        $this->writeln('Options:');
+        $this->writeln('  --dry-run         List operations without executing migration PHP');
+        $this->writeln('  --force           Execute without confirmation');
+        $this->writeln("  --pretend         Simulate execution\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb migrate up --dry-run');
+        $this->writeln('  pdodb migrate up --force');
+        $this->writeln('  pdodb migrate down 2 --force');
+        $this->writeln('  pdodb migrate up --pretend');
         return 0;
     }
 }

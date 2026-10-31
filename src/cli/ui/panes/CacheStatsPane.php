@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli\ui\panes;
 
 use tommyknocker\pdodb\cli\ui\Layout;
+use tommyknocker\pdodb\cli\ui\Stdout;
 use tommyknocker\pdodb\cli\ui\Terminal;
 use tommyknocker\pdodb\PdoDb;
 
@@ -37,7 +38,7 @@ class CacheStatsPane
 
         if ($cacheManager === null) {
             Terminal::moveTo($content['row'], $content['col']);
-            echo 'Cache not enabled';
+            Stdout::write('Cache not enabled');
             return;
         }
 
@@ -51,16 +52,16 @@ class CacheStatsPane
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Status: ';
+        Stdout::write('Status: ');
         Terminal::reset();
-        echo $statusText;
-        echo ' / ';
+        Stdout::write($statusText);
+        Stdout::write(' / ');
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Type: ';
+        Stdout::write('Type: ');
         Terminal::reset();
-        echo $typeText;
+        Stdout::write($typeText);
 
         // Hits
         $row++;
@@ -68,11 +69,11 @@ class CacheStatsPane
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Hits: ';
+        Stdout::write('Hits: ');
         Terminal::reset();
         $hits = (int)($stats['hits'] ?? 0);
         $hitsText = number_format($hits);
-        echo $hitsText;
+        Stdout::write($hitsText);
 
         // Misses
         $row++;
@@ -80,10 +81,10 @@ class CacheStatsPane
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Misses: ';
+        Stdout::write('Misses: ');
         Terminal::reset();
         $misses = (int)($stats['misses'] ?? 0);
-        echo number_format($misses);
+        Stdout::write(number_format($misses));
 
         // Hit Rate
         $row++;
@@ -91,7 +92,7 @@ class CacheStatsPane
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Hit Rate: ';
+        Stdout::write('Hit Rate: ');
         Terminal::reset();
         $hitRate = (float)($stats['hit_rate'] ?? 0);
 
@@ -106,7 +107,7 @@ class CacheStatsPane
             }
         }
 
-        echo number_format($hitRate, 2) . '%';
+        Stdout::write(number_format($hitRate, 2) . '%');
         Terminal::reset();
 
         // Total Requests
@@ -115,10 +116,10 @@ class CacheStatsPane
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Total Requests: ';
+        Stdout::write('Total Requests: ');
         Terminal::reset();
         $total = (int)($stats['total_requests'] ?? 0);
-        echo number_format($total);
+        Stdout::write(number_format($total));
 
         // Sets
         $row++;
@@ -126,10 +127,10 @@ class CacheStatsPane
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Sets: ';
+        Stdout::write('Sets: ');
         Terminal::reset();
         $sets = (int)($stats['sets'] ?? 0);
-        echo number_format($sets);
+        Stdout::write(number_format($sets));
 
         // Deletes
         $row++;
@@ -137,10 +138,10 @@ class CacheStatsPane
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Deletes: ';
+        Stdout::write('Deletes: ');
         Terminal::reset();
         $deletes = (int)($stats['deletes'] ?? 0);
-        echo number_format($deletes);
+        Stdout::write(number_format($deletes));
 
         // TTL
         $row++;
@@ -148,9 +149,9 @@ class CacheStatsPane
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Default TTL: ';
+        Stdout::write('Default TTL: ');
         Terminal::reset();
         $ttl = (int)($stats['default_ttl'] ?? 0);
-        echo $ttl . 's';
+        Stdout::write($ttl . 's');
     }
 }

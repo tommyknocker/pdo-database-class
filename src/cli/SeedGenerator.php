@@ -27,8 +27,8 @@ class SeedGenerator extends BaseCliCommand
         $driver = static::getDriverName($db);
 
         if (getenv('PHPUNIT') === false) {
-            echo "PDOdb Seed Generator\n";
-            echo "Database: {$driver}\n\n";
+            static::cliWriteln('PDOdb Seed Generator');
+            static::cliWriteln("Database: {$driver}\n");
         }
 
         // Get seed path
@@ -37,7 +37,7 @@ class SeedGenerator extends BaseCliCommand
         }
 
         if (getenv('PHPUNIT') === false) {
-            echo "Seeds path: {$seedPath}\n\n";
+            static::cliWriteln("Seeds path: {$seedPath}\n");
         }
 
         // Get seed name
@@ -56,11 +56,11 @@ class SeedGenerator extends BaseCliCommand
         if (!$nonInteractive) {
             $suggestions = static::suggestSeedType($name);
             if (!empty($suggestions)) {
-                echo "\nSuggested seed types:\n";
+                static::cliWriteln("\nSuggested seed types:");
                 foreach ($suggestions as $i => $suggestion) {
-                    echo '  ' . ($i + 1) . ". {$suggestion}\n";
+                    static::cliWrite('  ' . ($i + 1) . ". {$suggestion}\n");
                 }
-                echo "  0. Custom (manual)\n";
+                static::cliWriteln('  0. Custom (manual)');
                 $choice = static::readInput("\nSelect seed type", '0');
                 $selectedIndex = (int)$choice - 1;
                 if ($selectedIndex >= 0 && $selectedIndex < count($suggestions)) {
@@ -75,7 +75,7 @@ class SeedGenerator extends BaseCliCommand
 
         static::success('Seed file created: ' . basename($filename));
         if (getenv('PHPUNIT') === false) {
-            echo "  Path: {$filename}\n";
+            static::cliWriteln("  Path: {$filename}");
         }
 
         return $filename;

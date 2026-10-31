@@ -338,8 +338,8 @@ class Dashboard
         }
 
         if ($nonInteractive) {
-            echo "TUI Dashboard requires an interactive terminal.\n";
-            echo "Please run this command in a terminal with TTY support.\n";
+            Stdout::writeln('TUI Dashboard requires an interactive terminal.');
+            Stdout::writeln('Please run this command in a terminal with TTY support.');
             return;
         }
 
@@ -918,16 +918,16 @@ class Dashboard
             Terminal::color(Terminal::COLOR_CYAN);
         }
         Terminal::moveTo(1, $leftPos);
-        echo $leftText;
+        Stdout::write($leftText);
         Terminal::reset();
 
         // Center: Updated timestamp
         Terminal::moveTo(1, $centerPos);
-        echo $centerText;
+        Stdout::write($centerText);
 
         // Right: Driver
         Terminal::moveTo(1, $rightPos);
-        echo $rightText;
+        Stdout::write($rightText);
     }
 
     /**
@@ -964,7 +964,7 @@ class Dashboard
             $help = mb_substr($help, 0, $cols, 'UTF-8');
         }
 
-        echo $help;
+        Stdout::write($help);
 
         Terminal::reset();
     }
@@ -980,7 +980,7 @@ class Dashboard
         $this->layout->renderBorder($paneIndex, $title, $this->activePane === $paneIndex);
         $content = $this->layout->getContentArea($paneIndex);
         Terminal::moveTo($content['row'], $content['col']);
-        echo 'Coming soon...';
+        Stdout::write('Coming soon...');
     }
 
     /**
@@ -1049,7 +1049,7 @@ class Dashboard
             $help = mb_substr($help, 0, $cols, 'UTF-8');
         }
 
-        echo $help;
+        Stdout::write($help);
         Terminal::reset();
     }
 
@@ -1362,7 +1362,7 @@ class Dashboard
             Terminal::bold();
             Terminal::color($color);
         }
-        echo $message;
+        Stdout::write($message);
         Terminal::reset();
         flush();
 
@@ -1436,14 +1436,14 @@ class Dashboard
             Terminal::color(Terminal::BG_YELLOW);
             Terminal::color(Terminal::COLOR_BLACK);
         }
-        echo str_repeat(' ', 50);
+        Stdout::write(str_repeat(' ', 50));
         Terminal::moveTo($dialogRow + 1, $dialogCol);
         $messageLine = ' ' . substr($message, 0, 48) . ' ';
-        echo str_pad($messageLine, 50);
+        Stdout::write(str_pad($messageLine, 50));
         Terminal::moveTo($dialogRow + 2, $dialogCol);
-        echo ' ' . str_pad('Press Y to confirm, N to cancel', 48) . ' ';
+        Stdout::write(' ' . str_pad('Press Y to confirm, N to cancel', 48) . ' ');
         Terminal::moveTo($dialogRow + 3, $dialogCol);
-        echo str_repeat(' ', 50);
+        Stdout::write(str_repeat(' ', 50));
         Terminal::reset();
         flush();
 
@@ -1531,7 +1531,7 @@ class Dashboard
                 Terminal::bold();
                 Terminal::color(Terminal::COLOR_CYAN);
             }
-            echo 'Active Queries (Fullscreen)';
+            Stdout::write('Active Queries (Fullscreen)');
             Terminal::reset();
 
             // Render pane in fullscreen
@@ -1593,7 +1593,7 @@ class Dashboard
                 Terminal::bold();
                 Terminal::color(Terminal::COLOR_CYAN);
             }
-            echo 'Connection Pool (Fullscreen)';
+            Stdout::write('Connection Pool (Fullscreen)');
             Terminal::reset();
 
             // Render pane in fullscreen
@@ -1618,7 +1618,7 @@ class Dashboard
                 Terminal::bold();
                 Terminal::color(Terminal::COLOR_CYAN);
             }
-            echo 'Cache Stats (Fullscreen)';
+            Stdout::write('Cache Stats (Fullscreen)');
             Terminal::reset();
 
             // Render cache stats in fullscreen
@@ -1633,7 +1633,7 @@ class Dashboard
                 Terminal::bold();
                 Terminal::color(Terminal::COLOR_CYAN);
             }
-            echo 'Server Metrics (Fullscreen)';
+            Stdout::write('Server Metrics (Fullscreen)');
             Terminal::reset();
 
             // Render server metrics in fullscreen
@@ -1671,13 +1671,13 @@ class Dashboard
                     Terminal::color(Terminal::BG_BLUE);
                     Terminal::color(Terminal::COLOR_WHITE);
                 }
-                echo str_repeat(' ', 60);
+                Stdout::write(str_repeat(' ', 60));
             } else {
                 if (Terminal::supportsColors()) {
                     Terminal::color(Terminal::BG_BLUE);
                     Terminal::color(Terminal::COLOR_WHITE);
                 }
-                echo ' ' . str_pad('', 58) . ' ';
+                Stdout::write(' ' . str_pad('', 58) . ' ');
             }
             Terminal::reset();
         }
@@ -1689,7 +1689,7 @@ class Dashboard
             Terminal::color(Terminal::COLOR_WHITE);
             Terminal::bold();
         }
-        echo ' ' . str_pad('PDOdb TUI Dashboard - Help', 58) . ' ';
+        Stdout::write(' ' . str_pad('PDOdb TUI Dashboard - Help', 58) . ' ');
         Terminal::reset();
 
         // Help content
@@ -1721,7 +1721,7 @@ class Dashboard
                 Terminal::color(Terminal::BG_BLUE);
                 Terminal::color(Terminal::COLOR_WHITE);
             }
-            echo ' ' . str_pad($line, 58) . ' ';
+            Stdout::write(' ' . str_pad($line, 58) . ' ');
             Terminal::reset();
             $lineNum++;
         }
@@ -1798,7 +1798,7 @@ class Dashboard
                     Terminal::bold();
                     Terminal::color(Terminal::COLOR_CYAN);
                 }
-                echo 'Query Details (Press any key to close)';
+                Stdout::write('Query Details (Press any key to close)');
                 Terminal::reset();
 
                 // Render query details
@@ -1811,9 +1811,9 @@ class Dashboard
                 if (Terminal::supportsColors()) {
                     Terminal::bold();
                 }
-                echo 'ID: ';
+                Stdout::write('ID: ');
                 Terminal::reset();
-                echo $query['id'] ?? $query['pid'] ?? $query['session_id'] ?? 'N/A';
+                Stdout::write($query['id'] ?? $query['pid'] ?? $query['session_id'] ?? 'N/A');
                 $row++;
 
                 // User
@@ -1822,9 +1822,9 @@ class Dashboard
                     if (Terminal::supportsColors()) {
                         Terminal::bold();
                     }
-                    echo 'User: ';
+                    Stdout::write('User: ');
                     Terminal::reset();
-                    echo $query['user'] ?? $query['usename'] ?? $query['login'] ?? 'N/A';
+                    Stdout::write($query['user'] ?? $query['usename'] ?? $query['login'] ?? 'N/A');
                     $row++;
                 }
 
@@ -1834,9 +1834,9 @@ class Dashboard
                     if (Terminal::supportsColors()) {
                         Terminal::bold();
                     }
-                    echo 'Database: ';
+                    Stdout::write('Database: ');
                     Terminal::reset();
-                    echo $query['db'] ?? $query['database'] ?? $query['datname'] ?? 'N/A';
+                    Stdout::write($query['db'] ?? $query['database'] ?? $query['datname'] ?? 'N/A');
                     $row++;
                 }
 
@@ -1846,9 +1846,9 @@ class Dashboard
                     if (Terminal::supportsColors()) {
                         Terminal::bold();
                     }
-                    echo 'Time: ';
+                    Stdout::write('Time: ');
                     Terminal::reset();
-                    echo $query['time'] ?? $query['duration'] ?? 'N/A';
+                    Stdout::write($query['time'] ?? $query['duration'] ?? 'N/A');
                     $row++;
                 }
 
@@ -1858,9 +1858,9 @@ class Dashboard
                     if (Terminal::supportsColors()) {
                         Terminal::bold();
                     }
-                    echo 'State: ';
+                    Stdout::write('State: ');
                     Terminal::reset();
-                    echo $query['state'] ?? $query['status'] ?? 'N/A';
+                    Stdout::write($query['state'] ?? $query['status'] ?? 'N/A');
                     $row++;
                 }
 
@@ -1871,7 +1871,7 @@ class Dashboard
                 if (Terminal::supportsColors()) {
                     Terminal::bold();
                 }
-                echo 'Query:';
+                Stdout::write('Query:');
                 Terminal::reset();
                 $row++;
 
@@ -1884,12 +1884,12 @@ class Dashboard
                             break; // Don't overwrite footer
                         }
                         Terminal::moveTo($row, $col);
-                        echo $line;
+                        Stdout::write($line);
                         $row++;
                     }
                 } else {
                     Terminal::moveTo($row, $col);
-                    echo '(No query text available)';
+                    Stdout::write('(No query text available)');
                 }
             }
         } elseif ($this->detailViewPane === Layout::PANE_CONNECTIONS) {
@@ -1906,7 +1906,7 @@ class Dashboard
                     Terminal::bold();
                     Terminal::color(Terminal::COLOR_CYAN);
                 }
-                echo 'Connection Details (Press any key to close)';
+                Stdout::write('Connection Details (Press any key to close)');
                 Terminal::reset();
 
                 // Render connection details
@@ -1919,9 +1919,9 @@ class Dashboard
                 if (Terminal::supportsColors()) {
                     Terminal::bold();
                 }
-                echo 'ID: ';
+                Stdout::write('ID: ');
                 Terminal::reset();
-                echo $conn['id'] ?? $conn['pid'] ?? $conn['session_id'] ?? 'N/A';
+                Stdout::write($conn['id'] ?? $conn['pid'] ?? $conn['session_id'] ?? 'N/A');
                 $row++;
 
                 // User
@@ -1930,9 +1930,9 @@ class Dashboard
                     if (Terminal::supportsColors()) {
                         Terminal::bold();
                     }
-                    echo 'User: ';
+                    Stdout::write('User: ');
                     Terminal::reset();
-                    echo $conn['user'] ?? $conn['usename'] ?? $conn['login'] ?? 'N/A';
+                    Stdout::write($conn['user'] ?? $conn['usename'] ?? $conn['login'] ?? 'N/A');
                     $row++;
                 }
 
@@ -1942,9 +1942,9 @@ class Dashboard
                     if (Terminal::supportsColors()) {
                         Terminal::bold();
                     }
-                    echo 'Database: ';
+                    Stdout::write('Database: ');
                     Terminal::reset();
-                    echo $conn['db'] ?? $conn['database'] ?? $conn['datname'] ?? 'N/A';
+                    Stdout::write($conn['db'] ?? $conn['database'] ?? $conn['datname'] ?? 'N/A');
                     $row++;
                 }
 
@@ -1954,9 +1954,9 @@ class Dashboard
                     if (Terminal::supportsColors()) {
                         Terminal::bold();
                     }
-                    echo 'Host: ';
+                    Stdout::write('Host: ');
                     Terminal::reset();
-                    echo $conn['host'] ?? $conn['client_addr'] ?? 'N/A';
+                    Stdout::write($conn['host'] ?? $conn['client_addr'] ?? 'N/A');
                     $row++;
                 }
 
@@ -1966,9 +1966,9 @@ class Dashboard
                     if (Terminal::supportsColors()) {
                         Terminal::bold();
                     }
-                    echo 'State: ';
+                    Stdout::write('State: ');
                     Terminal::reset();
-                    echo $conn['state'] ?? $conn['status'] ?? 'N/A';
+                    Stdout::write($conn['state'] ?? $conn['status'] ?? 'N/A');
                     $row++;
                 }
 
@@ -1978,9 +1978,9 @@ class Dashboard
                     if (Terminal::supportsColors()) {
                         Terminal::bold();
                     }
-                    echo 'Application: ';
+                    Stdout::write('Application: ');
                     Terminal::reset();
-                    echo $conn['application_name'];
+                    Stdout::write($conn['application_name']);
                     $row++;
                 }
 
@@ -1990,9 +1990,9 @@ class Dashboard
                     if (Terminal::supportsColors()) {
                         Terminal::bold();
                     }
-                    echo 'Backend Start: ';
+                    Stdout::write('Backend Start: ');
                     Terminal::reset();
-                    echo $conn['backend_start'];
+                    Stdout::write($conn['backend_start']);
                     $row++;
                 }
 
@@ -2007,9 +2007,9 @@ class Dashboard
                         if (Terminal::supportsColors()) {
                             Terminal::bold();
                         }
-                        echo ucfirst(str_replace('_', ' ', $key)) . ': ';
+                        Stdout::write(ucfirst(str_replace('_', ' ', $key)) . ': ');
                         Terminal::reset();
-                        echo is_array($value) ? json_encode($value) : (string)$value;
+                        Stdout::write(is_array($value) ? json_encode($value) : (string)$value);
                         $row++;
                     }
                 }
@@ -2047,15 +2047,15 @@ class Dashboard
                 $migration = $allMigrations[$selectedIdx];
                 $status = $migration['status'];
                 if ($status === 'pending') {
-                    echo 'a:Apply | Any key:Close';
+                    Stdout::write('a:Apply | Any key:Close');
                 } else {
-                    echo 'r:Rollback | Any key:Close';
+                    Stdout::write('r:Rollback | Any key:Close');
                 }
             } else {
-                echo 'Press any key to close';
+                Stdout::write('Press any key to close');
             }
         } else {
-            echo 'Press any key to close';
+            Stdout::write('Press any key to close');
         }
         Terminal::reset();
 
@@ -2079,7 +2079,7 @@ class Dashboard
 
         if ($cacheManager === null) {
             Terminal::moveTo(3, 1);
-            echo 'Cache not enabled';
+            Stdout::write('Cache not enabled');
             return;
         }
 
@@ -2093,9 +2093,9 @@ class Dashboard
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Status: ';
+        Stdout::write('Status: ');
         Terminal::reset();
-        echo ($stats['enabled'] ?? false) ? 'Enabled' : 'Disabled';
+        Stdout::write(($stats['enabled'] ?? false) ? 'Enabled' : 'Disabled');
         $row++;
 
         // Type
@@ -2103,9 +2103,9 @@ class Dashboard
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Type: ';
+        Stdout::write('Type: ');
         Terminal::reset();
-        echo $stats['type'] ?? 'unknown';
+        Stdout::write($stats['type'] ?? 'unknown');
         $row++;
 
         // Hits
@@ -2113,10 +2113,10 @@ class Dashboard
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Hits: ';
+        Stdout::write('Hits: ');
         Terminal::reset();
         $hits = (int)($stats['hits'] ?? 0);
-        echo number_format($hits);
+        Stdout::write(number_format($hits));
         $row++;
 
         // Misses
@@ -2124,10 +2124,10 @@ class Dashboard
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Misses: ';
+        Stdout::write('Misses: ');
         Terminal::reset();
         $misses = (int)($stats['misses'] ?? 0);
-        echo number_format($misses);
+        Stdout::write(number_format($misses));
         $row++;
 
         // Hit Rate
@@ -2135,7 +2135,7 @@ class Dashboard
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Hit Rate: ';
+        Stdout::write('Hit Rate: ');
         Terminal::reset();
         $hitRate = (float)($stats['hit_rate'] ?? 0);
 
@@ -2150,7 +2150,7 @@ class Dashboard
             }
         }
 
-        echo number_format($hitRate, 2) . '%';
+        Stdout::write(number_format($hitRate, 2) . '%');
         Terminal::reset();
         $row++;
 
@@ -2159,10 +2159,10 @@ class Dashboard
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Total Requests: ';
+        Stdout::write('Total Requests: ');
         Terminal::reset();
         $total = (int)($stats['total_requests'] ?? 0);
-        echo number_format($total);
+        Stdout::write(number_format($total));
         $row++;
 
         // Sets
@@ -2170,10 +2170,10 @@ class Dashboard
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Sets: ';
+        Stdout::write('Sets: ');
         Terminal::reset();
         $sets = (int)($stats['sets'] ?? 0);
-        echo number_format($sets);
+        Stdout::write(number_format($sets));
         $row++;
 
         // Deletes
@@ -2181,10 +2181,10 @@ class Dashboard
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Deletes: ';
+        Stdout::write('Deletes: ');
         Terminal::reset();
         $deletes = (int)($stats['deletes'] ?? 0);
-        echo number_format($deletes);
+        Stdout::write(number_format($deletes));
         $row++;
 
         // TTL
@@ -2192,10 +2192,10 @@ class Dashboard
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Default TTL: ';
+        Stdout::write('Default TTL: ');
         Terminal::reset();
         $ttl = (int)($stats['default_ttl'] ?? 0);
-        echo $ttl . 's';
+        Stdout::write($ttl . 's');
         $row++;
 
         // Additional details if available
@@ -2206,7 +2206,7 @@ class Dashboard
                 Terminal::bold();
                 Terminal::color(Terminal::COLOR_CYAN);
             }
-            echo 'Additional Information:';
+            Stdout::write('Additional Information:');
             Terminal::reset();
             $row++;
 
@@ -2216,13 +2216,13 @@ class Dashboard
                 if (Terminal::supportsColors()) {
                     Terminal::bold();
                 }
-                echo 'Size/Memory: ';
+                Stdout::write('Size/Memory: ');
                 Terminal::reset();
                 $size = $stats['size'] ?? $stats['memory_usage'] ?? 0;
                 if (is_numeric($size)) {
-                    echo ServerMetricsPane::formatBytes((int)$size);
+                    Stdout::write(ServerMetricsPane::formatBytes((int)$size));
                 } else {
-                    echo (string)$size;
+                    Stdout::write((string)$size);
                 }
                 $row++;
             }
@@ -2233,9 +2233,9 @@ class Dashboard
                 if (Terminal::supportsColors()) {
                     Terminal::bold();
                 }
-                echo 'Keys Count: ';
+                Stdout::write('Keys Count: ');
                 Terminal::reset();
-                echo number_format((int)$stats['keys_count']);
+                Stdout::write(number_format((int)$stats['keys_count']));
                 $row++;
             }
         }
@@ -2251,9 +2251,9 @@ class Dashboard
                 if (Terminal::supportsColors()) {
                     Terminal::bold();
                 }
-                echo ucfirst(str_replace('_', ' ', $key)) . ': ';
+                Stdout::write(ucfirst(str_replace('_', ' ', $key)) . ': ');
                 Terminal::reset();
-                echo is_array($value) ? json_encode($value) : (string)$value;
+                Stdout::write(is_array($value) ? json_encode($value) : (string)$value);
                 $row++;
             }
         }
@@ -2276,7 +2276,7 @@ class Dashboard
 
         if (empty($metrics)) {
             Terminal::moveTo(3, 1);
-            echo 'No metrics available';
+            Stdout::write('No metrics available');
             return;
         }
 
@@ -2290,10 +2290,10 @@ class Dashboard
             if (Terminal::supportsColors()) {
                 Terminal::bold();
             }
-            echo 'Version: ';
+            Stdout::write('Version: ');
             Terminal::reset();
             $version = (string)$metrics['version'];
-            echo $version;
+            Stdout::write($version);
             $row++;
         }
 
@@ -2303,10 +2303,10 @@ class Dashboard
             if (Terminal::supportsColors()) {
                 Terminal::bold();
             }
-            echo 'Uptime: ';
+            Stdout::write('Uptime: ');
             Terminal::reset();
             $uptime = (int)$metrics['uptime_seconds'];
-            echo ServerMetricsPane::formatUptime($uptime);
+            Stdout::write(ServerMetricsPane::formatUptime($uptime));
             $row++;
         }
 
@@ -2318,7 +2318,7 @@ class Dashboard
             Terminal::bold();
             Terminal::color(Terminal::COLOR_CYAN);
         }
-        echo 'Key Metrics:';
+        Stdout::write('Key Metrics:');
         Terminal::reset();
         $row++;
 
@@ -2341,10 +2341,10 @@ class Dashboard
                 if (Terminal::supportsColors()) {
                     Terminal::bold();
                 }
-                echo $label . ': ';
+                Stdout::write($label . ': ');
                 Terminal::reset();
                 $value = (int)$metrics[$key];
-                echo number_format($value);
+                Stdout::write(number_format($value));
                 $row++;
 
                 if ($row >= $rows - 2) {
@@ -2360,10 +2360,10 @@ class Dashboard
             if (Terminal::supportsColors()) {
                 Terminal::bold();
             }
-            echo 'File Size: ';
+            Stdout::write('File Size: ');
             Terminal::reset();
             $size = (int)$metrics['file_size'];
-            echo ServerMetricsPane::formatBytes($size);
+            Stdout::write(ServerMetricsPane::formatBytes($size));
             $row++;
         }
 
@@ -2382,7 +2382,7 @@ class Dashboard
                         Terminal::bold();
                         Terminal::color(Terminal::COLOR_CYAN);
                     }
-                    echo 'Additional Metrics:';
+                    Stdout::write('Additional Metrics:');
                     Terminal::reset();
                     $row++;
                     $hasAdditional = true;
@@ -2396,9 +2396,9 @@ class Dashboard
                 if (Terminal::supportsColors()) {
                     Terminal::bold();
                 }
-                echo ucfirst(str_replace('_', ' ', $key)) . ': ';
+                Stdout::write(ucfirst(str_replace('_', ' ', $key)) . ': ');
                 Terminal::reset();
-                echo is_array($value) ? json_encode($value) : (is_numeric($value) ? number_format((float)$value) : (string)$value);
+                Stdout::write(is_array($value) ? json_encode($value) : (is_numeric($value) ? number_format((float)$value) : (string)$value));
                 $row++;
             }
         }
@@ -2410,7 +2410,7 @@ class Dashboard
             if (Terminal::supportsColors()) {
                 Terminal::color(Terminal::COLOR_RED);
             }
-            echo 'Error: ' . (string)$metrics['error'];
+            Stdout::write('Error: ' . (string)$metrics['error']);
             Terminal::reset();
         }
 
@@ -2475,12 +2475,12 @@ class Dashboard
                 Terminal::color(Terminal::COLOR_YELLOW);
                 Terminal::bold();
             }
-            echo '/';
+            Stdout::write('/');
             if (Terminal::supportsColors()) {
                 Terminal::reset();
             }
-            echo $this->searchFilter[Layout::PANE_SCHEMA];
-            echo '_'; // Cursor
+            Stdout::write($this->searchFilter[Layout::PANE_SCHEMA]);
+            Stdout::write('_');
             Terminal::reset();
         } else {
             $this->renderFullscreenFooter();
@@ -2537,7 +2537,7 @@ class Dashboard
             Terminal::bold();
             Terminal::color(Terminal::COLOR_CYAN);
         }
-        echo 'Migration Manager (Fullscreen)';
+        Stdout::write('Migration Manager (Fullscreen)');
         Terminal::reset();
 
         // Render pane in fullscreen
@@ -2619,12 +2619,12 @@ class Dashboard
                 Terminal::color(Terminal::COLOR_YELLOW);
                 Terminal::bold();
             }
-            echo '/';
+            Stdout::write('/');
             if (Terminal::supportsColors()) {
                 Terminal::reset();
             }
-            echo $this->searchFilter[Layout::PANE_VARIABLES];
-            echo '_'; // Cursor
+            Stdout::write($this->searchFilter[Layout::PANE_VARIABLES]);
+            Stdout::write('_');
             Terminal::reset();
         } else {
             $this->renderFullscreenFooter();
@@ -2656,7 +2656,7 @@ class Dashboard
             $status[] = 'EXPORT';
         }
         $statusText = !empty($status) ? ' [' . implode(', ', $status) . ']' : '';
-        echo 'SQL Scratchpad (Fullscreen)' . $statusText;
+        Stdout::write('SQL Scratchpad (Fullscreen)' . $statusText);
         Terminal::reset();
 
         // Calculate editor and results areas (40% editor, 60% results)
@@ -2670,7 +2670,7 @@ class Dashboard
 
         // Render separator
         Terminal::moveTo($resultsStartRow - 1, 1);
-        echo str_repeat('─', $cols);
+        Stdout::write(str_repeat('─', $cols));
 
         // Render results
         $this->renderScratchpadResults($resultsStartRow, $resultsHeight, $cols);
@@ -2717,7 +2717,7 @@ class Dashboard
             Terminal::bold();
             Terminal::color(Terminal::COLOR_YELLOW);
         }
-        echo 'SQL Editor:';
+        Stdout::write('SQL Editor:');
         Terminal::reset();
 
         $lines = explode("\n", $this->scratchpadQuery);
@@ -2755,7 +2755,7 @@ class Dashboard
                         Terminal::color(Terminal::COLOR_WHITE);
                     }
                 }
-                echo $displayLine;
+                Stdout::write($displayLine);
                 Terminal::reset();
             } elseif ($lineIndex >= $numLines && $i === 0 && $numLines > 0) {
                 // Show continuation indicator if there are more lines above
@@ -2763,7 +2763,7 @@ class Dashboard
                     if (Terminal::supportsColors()) {
                         Terminal::color(Terminal::COLOR_YELLOW);
                     }
-                    echo '... (more lines above)';
+                    Stdout::write('... (more lines above)');
                     Terminal::reset();
                 }
             }
@@ -2786,7 +2786,7 @@ class Dashboard
             Terminal::bold();
             Terminal::color(Terminal::COLOR_YELLOW);
         }
-        echo 'Results:';
+        Stdout::write('Results:');
         Terminal::reset();
 
         if ($this->scratchpadLastError !== null) {
@@ -2795,20 +2795,20 @@ class Dashboard
                 Terminal::color(Terminal::COLOR_RED);
                 Terminal::bold();
             }
-            echo 'Error: ' . mb_substr($this->scratchpadLastError, 0, $width - 8, 'UTF-8');
+            Stdout::write('Error: ' . mb_substr($this->scratchpadLastError, 0, $width - 8, 'UTF-8'));
             Terminal::reset();
             return;
         }
 
         if ($this->scratchpadLastResult === null) {
             Terminal::moveTo($startRow + 1, 1);
-            echo 'No query executed yet. Press F5 or Enter to execute.';
+            Stdout::write('No query executed yet. Press F5 or Enter to execute.');
             return;
         }
 
         if (empty($this->scratchpadLastResult)) {
             Terminal::moveTo($startRow + 1, 1);
-            echo 'Query returned no results.';
+            Stdout::write('Query returned no results.');
             return;
         }
 
@@ -2882,12 +2882,12 @@ class Dashboard
             $colName = is_string($col) ? $col : (string)$col;
             $headerParts[] = str_pad(mb_substr($colName, 0, $colWidths[$col], 'UTF-8'), $colWidths[$col], ' ', STR_PAD_RIGHT);
         }
-        echo implode(' │ ', $headerParts);
+        Stdout::write(implode(' │ ', $headerParts));
         Terminal::reset();
 
         // Render separator
         Terminal::moveTo($headerRow + 1, 1);
-        echo str_repeat('─', min($width - 2, $totalWidth));
+        Stdout::write(str_repeat('─', min($width - 2, $totalWidth)));
 
         // Render data rows
         $dataStartRow = $headerRow + 2;
@@ -2923,7 +2923,7 @@ class Dashboard
                 }
                 $rowParts[] = str_pad($displayValue, $colWidths[$col], ' ', STR_PAD_RIGHT);
             }
-            echo implode(' │ ', $rowParts);
+            Stdout::write(implode(' │ ', $rowParts));
         }
 
         // Show stats
@@ -2941,7 +2941,7 @@ class Dashboard
         if ($scrollOffset > 0 || count($this->scratchpadLastResult) > $visibleRows) {
             $stats .= sprintf(' | Scroll: %d-%d/%d', $scrollOffset + 1, min($scrollOffset + $visibleRows, count($this->scratchpadLastResult)), count($this->scratchpadLastResult));
         }
-        echo mb_substr($stats, 0, $width - 1, 'UTF-8');
+        Stdout::write(mb_substr($stats, 0, $width - 1, 'UTF-8'));
         Terminal::reset();
     }
 
@@ -2972,7 +2972,7 @@ class Dashboard
             $help = mb_substr($help, 0, $cols, 'UTF-8');
         }
 
-        echo $help;
+        Stdout::write($help);
         Terminal::reset();
     }
 
@@ -3026,7 +3026,7 @@ class Dashboard
 
         if ($migrationFile === null || !file_exists($migrationFile)) {
             Terminal::moveTo(1, 1);
-            echo 'Migration file not found';
+            Stdout::write('Migration file not found');
             return;
         }
 
@@ -3034,7 +3034,7 @@ class Dashboard
         $content = file_get_contents($migrationFile);
         if ($content === false) {
             Terminal::moveTo(1, 1);
-            echo 'Failed to read migration file';
+            Stdout::write('Failed to read migration file');
             return;
         }
         $lines = explode("\n", $content);
@@ -3064,7 +3064,7 @@ class Dashboard
             Terminal::bold();
             Terminal::color(Terminal::COLOR_CYAN);
         }
-        echo 'Migration: ' . $migrationName . ' (Press any key to close)';
+        Stdout::write('Migration: ' . $migrationName . ' (Press any key to close)');
         Terminal::reset();
 
         $row = 3;
@@ -3078,7 +3078,7 @@ class Dashboard
             Terminal::bold();
             Terminal::color(Terminal::COLOR_MAGENTA);
         }
-        echo 'Name: ' . $migrationName;
+        Stdout::write('Name: ' . $migrationName);
         Terminal::reset();
         $row += 2;
 
@@ -3091,7 +3091,7 @@ class Dashboard
             Terminal::bold();
             Terminal::color(Terminal::COLOR_GREEN);
         }
-        echo 'up() method:';
+        Stdout::write('up() method:');
         Terminal::reset();
         $row++;
 
@@ -3111,7 +3111,7 @@ class Dashboard
             if (Terminal::supportsColors()) {
                 Terminal::color(Terminal::COLOR_YELLOW);
             }
-            echo '(empty)';
+            Stdout::write('(empty)');
             Terminal::reset();
             $row++;
         }
@@ -3127,7 +3127,7 @@ class Dashboard
             Terminal::bold();
             Terminal::color(Terminal::COLOR_RED);
         }
-        echo 'down() method:';
+        Stdout::write('down() method:');
         Terminal::reset();
         $row++;
 
@@ -3147,7 +3147,7 @@ class Dashboard
             if (Terminal::supportsColors()) {
                 Terminal::color(Terminal::COLOR_YELLOW);
             }
-            echo '(empty)';
+            Stdout::write('(empty)');
             Terminal::reset();
             $row++;
         }
@@ -3174,7 +3174,7 @@ class Dashboard
             Terminal::bold();
             Terminal::color(Terminal::COLOR_CYAN);
         }
-        echo 'Table: ' . $tableName . ' (Press any key to close)';
+        Stdout::write('Table: ' . $tableName . ' (Press any key to close)');
         Terminal::reset();
 
         $row = 3;
@@ -3195,7 +3195,7 @@ class Dashboard
                 Terminal::bold();
                 Terminal::color(Terminal::COLOR_YELLOW);
             }
-            echo 'Columns:';
+            Stdout::write('Columns:');
             Terminal::reset();
             $row++;
 
@@ -3207,7 +3207,7 @@ class Dashboard
                 $colType = $column['Type'] ?? $column['data_type'] ?? $column['type'] ?? 'N/A';
                 $colNull = ($column['Null'] ?? $column['is_nullable'] ?? '') === 'YES' ? 'NULL' : 'NOT NULL';
                 Terminal::moveTo($row, $col + 2);
-                echo $colName . ' (' . $colType . ', ' . $colNull . ')';
+                Stdout::write($colName . ' (' . $colType . ', ' . $colNull . ')');
                 $row++;
             }
 
@@ -3219,7 +3219,7 @@ class Dashboard
                 Terminal::bold();
                 Terminal::color(Terminal::COLOR_YELLOW);
             }
-            echo 'Indexes:';
+            Stdout::write('Indexes:');
             Terminal::reset();
             $row++;
 
@@ -3230,7 +3230,7 @@ class Dashboard
                 $idxName = $index['Key_name'] ?? $index['indexname'] ?? $index['name'] ?? 'N/A';
                 $idxColumns = $index['Column_name'] ?? $index['column_name'] ?? 'N/A';
                 Terminal::moveTo($row, $col + 2);
-                echo $idxName . ' (' . $idxColumns . ')';
+                Stdout::write($idxName . ' (' . $idxColumns . ')');
                 $row++;
             }
 
@@ -3242,7 +3242,7 @@ class Dashboard
                 Terminal::bold();
                 Terminal::color(Terminal::COLOR_YELLOW);
             }
-            echo 'Foreign Keys:';
+            Stdout::write('Foreign Keys:');
             Terminal::reset();
             $row++;
 
@@ -3255,7 +3255,7 @@ class Dashboard
                 $fkRefTable = $fk['referenced_table_name'] ?? $fk['referenced_table'] ?? 'N/A';
                 $fkRefColumn = $fk['referenced_column_name'] ?? $fk['referenced_column'] ?? 'N/A';
                 Terminal::moveTo($row, $col + 2);
-                echo $fkName . ': ' . $fkColumn . ' -> ' . $fkRefTable . '.' . $fkRefColumn;
+                Stdout::write($fkName . ': ' . $fkColumn . ' -> ' . $fkRefTable . '.' . $fkRefColumn);
                 $row++;
             }
         } catch (\Throwable $e) {
@@ -3263,7 +3263,7 @@ class Dashboard
             if (Terminal::supportsColors()) {
                 Terminal::color(Terminal::COLOR_RED);
             }
-            echo 'Error: ' . $e->getMessage();
+            Stdout::write('Error: ' . $e->getMessage());
             Terminal::reset();
         }
     }
@@ -3431,9 +3431,9 @@ class Dashboard
                     $pos++;
                 }
             }
-            echo $result;
+            Stdout::write($result);
         } else {
-            echo $line;
+            Stdout::write($line);
         }
     }
 
@@ -4464,7 +4464,7 @@ class Dashboard
                 Terminal::bold();
                 Terminal::color(Terminal::COLOR_CYAN);
             }
-            echo 'Autocomplete:';
+            Stdout::write('Autocomplete:');
             Terminal::reset();
         }
 
@@ -4488,13 +4488,13 @@ class Dashboard
                     Terminal::color(Terminal::BG_BLUE);
                     Terminal::color(Terminal::COLOR_WHITE);
                 }
-                echo '> ';
+                Stdout::write('> ');
             } else {
-                echo '  ';
+                Stdout::write('  ');
             }
 
             $displayOption = mb_substr($option, 0, $width - 3, 'UTF-8');
-            echo $displayOption;
+            Stdout::write($displayOption);
             Terminal::reset();
         }
 
@@ -4504,7 +4504,7 @@ class Dashboard
             if (Terminal::supportsColors()) {
                 Terminal::color(Terminal::COLOR_YELLOW);
             }
-            echo sprintf('(%d more, ↑↓:Navigate, Tab/Enter:Select, Esc:Cancel)', $numOptions - $maxHeight);
+            Stdout::write(sprintf('(%d more, ↑↓:Navigate, Tab/Enter:Select, Esc:Cancel)', $numOptions - $maxHeight));
             Terminal::reset();
         }
     }

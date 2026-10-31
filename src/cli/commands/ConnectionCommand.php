@@ -40,7 +40,7 @@ class ConnectionCommand extends Command
             'info' => $this->showInfo(),
             'list' => $this->list(),
             'ping' => $this->ping(),
-            default => $this->showError("Unknown subcommand: {$subcommand}"),
+            default => $this->fail("Unknown subcommand: {$subcommand}"),
         };
     }
 
@@ -195,7 +195,7 @@ class ConnectionCommand extends Command
             $db->rawQueryValue('SELECT 1');
             $duration = round((microtime(true) - $start) * 1000, 2);
 
-            echo "Ping successful (response time: {$duration}ms)\n";
+            $this->writeln("Ping successful (response time: {$duration}ms)");
             return 0;
         } catch (QueryException | ResourceException $e) {
             static::error('Ping failed: ' . $e->getMessage());
@@ -366,7 +366,7 @@ class ConnectionCommand extends Command
     {
         $fmt = strtolower($format);
         if ($fmt === 'json') {
-            echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+            $this->writeln(json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             return 0;
         }
         if ($fmt === 'yaml') {
@@ -392,18 +392,18 @@ class ConnectionCommand extends Command
             if (is_array($val)) {
                 if (isset($val[0]) && is_array($val[0])) {
                     // List of items
-                    echo "{$pad}{$key}:\n";
+                    $this->writeln("{$pad}{$key}:");
                     foreach ($val as $item) {
-                        echo "{$pad}  -\n";
+                        $this->writeln("{$pad}  -");
                         $this->printYaml($item, $indent + 2);
                     }
                 } else {
-                    echo "{$pad}{$key}:\n";
+                    $this->writeln("{$pad}{$key}:");
                     $this->printYaml($val, $indent + 1);
                 }
             } else {
                 $displayValue = $val === null ? 'null' : (is_bool($val) ? ($val ? 'true' : 'false') : $val);
-                echo "{$pad}{$key}: {$displayValue}\n";
+                $this->writeln("{$pad}{$key}: {$displayValue}");
             }
         }
     }
@@ -416,7 +416,7 @@ class ConnectionCommand extends Command
     protected function printTable(array $data): void
     {
         if (isset($data['connections']) && is_array($data['connections']) && !empty($data['connections'])) {
-            echo "Available Connections:\n\n";
+            $this->writeln("Available Connections:\n");
             foreach ($data['connections'] as $conn) {
                 if (is_array($conn)) {
                     $name = $conn['name'] ?? 'unknown';
@@ -424,31 +424,31 @@ class ConnectionCommand extends Command
                     $status = $conn['status'] ?? 'unknown';
                     $isDefault = $conn['is_default'] ?? false;
 
-                    echo "Connection: {$name}";
+                    $this->write("Connection: {$name}");
                     if ($isDefault) {
-                        echo ' (default)';
+                        $this->write(' (default)');
                     }
-                    echo "\n";
-                    echo "  Driver: {$driver}\n";
+                    $this->writeln('');
+                    $this->writeln("  Driver: {$driver}");
                     if (isset($conn['host'])) {
                         $host = $conn['host'];
                         $port = $conn['port'] ?? '';
-                        echo "  Host: {$host}" . ($port !== '' ? ":{$port}" : '') . "\n";
+                        $this->writeln("  Host: {$host}" . ($port !== '' ? ":{$port}" : ''));
                     }
                     if (isset($conn['database'])) {
-                        echo "  Database: {$conn['database']}\n";
+                        $this->writeln("  Database: {$conn['database']}");
                     }
                     if (isset($conn['username'])) {
-                        echo "  Username: {$conn['username']}\n";
+                        $this->writeln("  Username: {$conn['username']}");
                     }
                     if (isset($conn['path'])) {
-                        echo "  Path: {$conn['path']}\n";
+                        $this->writeln("  Path: {$conn['path']}");
                     }
-                    echo "  Status: {$status}\n";
+                    $this->writeln("  Status: {$status}");
                     if (isset($conn['server_version'])) {
-                        echo "  Server Version: {$conn['server_version']}\n";
+                        $this->writeln("  Server Version: {$conn['server_version']}");
                     }
-                    echo "\n";
+                    $this->writeln('');
                 }
             }
         } elseif (isset($data['name'])) {
@@ -458,29 +458,29 @@ class ConnectionCommand extends Command
             $driver = $conn['driver'] ?? 'unknown';
             $status = $conn['status'] ?? 'unknown';
 
-            echo "Connection Information:\n\n";
-            echo "Name: {$name}\n";
-            echo "Driver: {$driver}\n";
+            $this->writeln("Connection Information:\n");
+            $this->writeln("Name: {$name}");
+            $this->writeln("Driver: {$driver}");
             if (isset($conn['host'])) {
                 $host = $conn['host'];
                 $port = $conn['port'] ?? '';
-                echo "Host: {$host}" . ($port !== '' ? ":{$port}" : '') . "\n";
+                $this->writeln("Host: {$host}" . ($port !== '' ? ":{$port}" : ''));
             }
             if (isset($conn['database'])) {
-                echo "Database: {$conn['database']}\n";
+                $this->writeln("Database: {$conn['database']}");
             }
             if (isset($conn['username'])) {
-                echo "Username: {$conn['username']}\n";
+                $this->writeln("Username: {$conn['username']}");
             }
             if (isset($conn['path'])) {
-                echo "Path: {$conn['path']}\n";
+                $this->writeln("Path: {$conn['path']}");
             }
-            echo "Status: {$status}\n";
+            $this->writeln("Status: {$status}");
             if (isset($conn['server_version'])) {
-                echo "Server Version: {$conn['server_version']}\n";
+                $this->writeln("Server Version: {$conn['server_version']}");
             }
             if (isset($conn['error'])) {
-                echo "Error: {$conn['error']}\n";
+                $this->writeErrorLine("Error: {$conn['error']}");
             }
         }
     }
@@ -492,23 +492,23 @@ class ConnectionCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "Connection Management\n\n";
-        echo "Usage: pdodb connection <subcommand> [arguments] [options]\n\n";
-        echo "Subcommands:\n";
-        echo "  test [--connection=<name>]        Test database connection\n";
-        echo "  info [<name>] [--format=table|json|yaml]  Show connection information\n";
-        echo "  list [--format=table|json|yaml]   List all available connections\n";
-        echo "  ping [--connection=<name>]        Ping database connection (check availability)\n\n";
-        echo "Options:\n";
-        echo "  --connection=<name>               Use specific connection name\n";
-        echo "  --format=table|json|yaml          Output format (default: table)\n\n";
-        echo "Examples:\n";
-        echo "  pdodb connection test\n";
-        echo "  pdodb connection test --connection=reporting\n";
-        echo "  pdodb connection info\n";
-        echo "  pdodb connection info main --format=json\n";
-        echo "  pdodb connection list\n";
-        echo "  pdodb connection ping --connection=reporting\n";
+        $this->writeln("Connection Management\n");
+        $this->writeln("Usage: pdodb connection <subcommand> [arguments] [options]\n");
+        $this->writeln('Subcommands:');
+        $this->writeln('  test [--connection=<name>]        Test database connection');
+        $this->writeln('  info [<name>] [--format=table|json|yaml]  Show connection information');
+        $this->writeln('  list [--format=table|json|yaml]   List all available connections');
+        $this->writeln("  ping [--connection=<name>]        Ping database connection (check availability)\n");
+        $this->writeln('Options:');
+        $this->writeln('  --connection=<name>               Use specific connection name');
+        $this->writeln("  --format=table|json|yaml          Output format (default: table)\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb connection test');
+        $this->writeln('  pdodb connection test --connection=reporting');
+        $this->writeln('  pdodb connection info');
+        $this->writeln('  pdodb connection info main --format=json');
+        $this->writeln('  pdodb connection list');
+        $this->writeln('  pdodb connection ping --connection=reporting');
         return 0;
     }
 }

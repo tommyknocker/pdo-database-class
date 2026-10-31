@@ -45,7 +45,7 @@ class UserCommand extends Command
             'grant' => $this->grant(),
             'revoke' => $this->revoke(),
             'password' => $this->password(),
-            default => $this->showError("Unknown subcommand: {$subcommand}"),
+            default => $this->fail("Unknown subcommand: {$subcommand}"),
         };
     }
 
@@ -63,7 +63,7 @@ class UserCommand extends Command
         if ($username === null) {
             $username = static::readInput('Enter username');
             if ($username === '') {
-                return $this->showError('Username is required');
+                return $this->fail('Username is required');
             }
         }
 
@@ -71,7 +71,7 @@ class UserCommand extends Command
         if ($password === null) {
             $password = static::readPassword('Enter password');
             if ($password === '') {
-                return $this->showError('Password is required');
+                return $this->fail('Password is required');
             }
         }
 
@@ -100,7 +100,7 @@ class UserCommand extends Command
             static::success("User '{$username}{$hostText}' created successfully");
             return 0;
         } catch (ResourceException $e) {
-            return $this->showError($e->getMessage());
+            return $this->fail($e->getMessage());
         }
     }
 
@@ -118,7 +118,7 @@ class UserCommand extends Command
         if ($username === null) {
             $username = static::readInput('Enter username');
             if ($username === '') {
-                return $this->showError('Username is required');
+                return $this->fail('Username is required');
             }
         }
 
@@ -147,7 +147,7 @@ class UserCommand extends Command
             static::success("User '{$username}{$hostText}' dropped successfully");
             return 0;
         } catch (ResourceException $e) {
-            return $this->showError($e->getMessage());
+            return $this->fail($e->getMessage());
         }
     }
 
@@ -165,7 +165,7 @@ class UserCommand extends Command
         if ($username === null) {
             $username = static::readInput('Enter username');
             if ($username === '') {
-                return $this->showError('Username is required');
+                return $this->fail('Username is required');
             }
         }
 
@@ -185,7 +185,7 @@ class UserCommand extends Command
             static::info("User '{$username}{$hostText}' does not exist");
             return 1;
         } catch (ResourceException $e) {
-            return $this->showError($e->getMessage());
+            return $this->fail($e->getMessage());
         }
     }
 
@@ -208,15 +208,15 @@ class UserCommand extends Command
                 return 0;
             }
 
-            echo 'Users (' . count($users) . "):\n\n";
+            $this->write('Users (' . count($users) . "):\n\n");
             foreach ($users as $user) {
                 $userHost = $user['user_host'] ?? ($user['username'] . ($user['host'] !== null ? '@' . $user['host'] : ''));
-                echo "  {$userHost}\n";
+                $this->writeln("  {$userHost}");
             }
 
             return 0;
         } catch (ResourceException $e) {
-            return $this->showError($e->getMessage());
+            return $this->fail($e->getMessage());
         }
     }
 
@@ -234,7 +234,7 @@ class UserCommand extends Command
         if ($username === null) {
             $username = static::readInput('Enter username');
             if ($username === '') {
-                return $this->showError('Username is required');
+                return $this->fail('Username is required');
             }
         }
 
@@ -251,30 +251,30 @@ class UserCommand extends Command
                 return 1;
             }
 
-            echo "User Information:\n\n";
+            $this->writeln("User Information:\n");
             foreach ($info as $key => $value) {
                 if ($value === null) {
                     continue;
                 }
                 if ($key === 'privileges' && is_array($value)) {
-                    echo '  Privileges (' . count($value) . "):\n";
+                    $this->write('  Privileges (' . count($value) . "):\n");
                     foreach ($value as $privilege) {
                         if (is_array($privilege)) {
                             $privText = implode(', ', array_filter($privilege, fn ($v) => $v !== null && $v !== ''));
-                            echo "    - {$privText}\n";
+                            $this->writeln("    - {$privText}");
                         } else {
-                            echo "    - {$privilege}\n";
+                            $this->writeln("    - {$privilege}");
                         }
                     }
                     continue;
                 }
                 $displayValue = is_bool($value) ? ($value ? 'true' : 'false') : $value;
-                echo '  ' . ucfirst(str_replace('_', ' ', $key)) . ": {$displayValue}\n";
+                $this->write('  ' . ucfirst(str_replace('_', ' ', $key)) . ": {$displayValue}\n");
             }
 
             return 0;
         } catch (ResourceException $e) {
-            return $this->showError($e->getMessage());
+            return $this->fail($e->getMessage());
         }
     }
 
@@ -293,14 +293,14 @@ class UserCommand extends Command
         if ($username === null) {
             $username = static::readInput('Enter username');
             if ($username === '') {
-                return $this->showError('Username is required');
+                return $this->fail('Username is required');
             }
         }
 
         if ($privileges === null) {
             $privileges = static::readInput('Enter privileges (e.g., SELECT,INSERT,UPDATE or ALL)');
             if ($privileges === '') {
-                return $this->showError('Privileges are required');
+                return $this->fail('Privileges are required');
             }
         }
 
@@ -329,7 +329,7 @@ class UserCommand extends Command
             static::success("Granted {$privileges} on {$target} to '{$username}{$hostText}'");
             return 0;
         } catch (ResourceException $e) {
-            return $this->showError($e->getMessage());
+            return $this->fail($e->getMessage());
         }
     }
 
@@ -348,14 +348,14 @@ class UserCommand extends Command
         if ($username === null) {
             $username = static::readInput('Enter username');
             if ($username === '') {
-                return $this->showError('Username is required');
+                return $this->fail('Username is required');
             }
         }
 
         if ($privileges === null) {
             $privileges = static::readInput('Enter privileges (e.g., SELECT,INSERT,UPDATE or ALL)');
             if ($privileges === '') {
-                return $this->showError('Privileges are required');
+                return $this->fail('Privileges are required');
             }
         }
 
@@ -384,7 +384,7 @@ class UserCommand extends Command
             static::success("Revoked {$privileges} on {$target} from '{$username}{$hostText}'");
             return 0;
         } catch (ResourceException $e) {
-            return $this->showError($e->getMessage());
+            return $this->fail($e->getMessage());
         }
     }
 
@@ -402,7 +402,7 @@ class UserCommand extends Command
         if ($username === null) {
             $username = static::readInput('Enter username');
             if ($username === '') {
-                return $this->showError('Username is required');
+                return $this->fail('Username is required');
             }
         }
 
@@ -410,7 +410,7 @@ class UserCommand extends Command
         if ($newPassword === null) {
             $newPassword = static::readPassword('Enter new password');
             if ($newPassword === '') {
-                return $this->showError('Password is required');
+                return $this->fail('Password is required');
             }
         }
 
@@ -425,7 +425,7 @@ class UserCommand extends Command
             static::success("Password changed for user '{$username}{$hostText}'");
             return 0;
         } catch (ResourceException $e) {
-            return $this->showError($e->getMessage());
+            return $this->fail($e->getMessage());
         }
     }
 
@@ -440,12 +440,12 @@ class UserCommand extends Command
             $info = DatabaseManager::getInfo($db);
 
             if (getenv('PHPUNIT') === false) {
-                echo "PDOdb User Management\n";
-                echo "Database: {$driver}";
+                $this->writeln('PDOdb User Management');
+                $this->write("Database: {$driver}");
                 if (isset($info['current_database']) && is_string($info['current_database']) && $info['current_database'] !== '') {
-                    echo " ({$info['current_database']})";
+                    $this->write(" ({$info['current_database']})");
                 }
-                echo "\n\n";
+                $this->writeln("\n");
             }
         } catch (\Exception $e) {
             // If we can't get database info, just show driver
@@ -453,13 +453,13 @@ class UserCommand extends Command
                 $db = $this->getDb();
                 $driver = static::getDriverName($db);
                 if (getenv('PHPUNIT') === false) {
-                    echo "PDOdb User Management\n";
-                    echo "Database: {$driver}\n\n";
+                    $this->writeln('PDOdb User Management');
+                    $this->writeln("Database: {$driver}\n");
                 }
             } catch (\Exception $e2) {
                 // If even that fails, just show header
                 if (getenv('PHPUNIT') === false) {
-                    echo "PDOdb User Management\n\n";
+                    $this->writeln("PDOdb User Management\n");
                 }
             }
         }
@@ -472,40 +472,40 @@ class UserCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "User Management\n\n";
-        echo "Usage: pdodb user <subcommand> [arguments] [options]\n\n";
-        echo "Subcommands:\n";
-        echo "  create [username]           Create a new database user (username will be prompted if not provided)\n";
-        echo "  drop [username]              Drop a database user (username will be prompted if not provided)\n";
-        echo "  exists [username]            Check if a user exists (username will be prompted if not provided)\n";
-        echo "  list                         List all database users\n";
-        echo "  info [username]              Show user information and privileges (username will be prompted if not provided)\n";
-        echo "  grant <user> <privs>         Grant privileges to user\n";
-        echo "  revoke <user> <privs>        Revoke privileges from user\n";
-        echo "  password [username]          Change user password (username will be prompted if not provided)\n";
-        echo "  help                         Show this help message\n\n";
-        echo "Options:\n";
-        echo "  --force                      Execute without confirmation\n";
-        echo "  --password <pass>            Set password (for create/password)\n";
-        echo "  --host <host>               Host for MySQL/MariaDB (default: '%')\n";
-        echo "  --database <db>             Database name (for grant/revoke)\n";
-        echo "  --table <table>               Table name (for grant/revoke)\n\n";
-        echo "Examples:\n";
-        echo "  pdodb user create john\n";
-        echo "  pdodb user create john --password secret123\n";
-        echo "  pdodb user create john --password secret123 --host localhost\n";
-        echo "  pdodb user create    (will prompt for username and password)\n";
-        echo "  pdodb user drop john\n";
-        echo "  pdodb user drop john --force\n";
-        echo "  pdodb user exists john\n";
-        echo "  pdodb user list\n";
-        echo "  pdodb user info john\n";
-        echo "  pdodb user grant john SELECT,INSERT,UPDATE ON myapp.*\n";
-        echo "  pdodb user grant john ALL --database myapp\n";
-        echo "  pdodb user grant john SELECT,INSERT --database myapp --table users\n";
-        echo "  pdodb user revoke john DELETE --database myapp\n";
-        echo "  pdodb user password john\n";
-        echo "  pdodb user password john --password newpass123\n";
+        $this->writeln("User Management\n");
+        $this->writeln("Usage: pdodb user <subcommand> [arguments] [options]\n");
+        $this->writeln('Subcommands:');
+        $this->writeln('  create [username]           Create a new database user (username will be prompted if not provided)');
+        $this->writeln('  drop [username]              Drop a database user (username will be prompted if not provided)');
+        $this->writeln('  exists [username]            Check if a user exists (username will be prompted if not provided)');
+        $this->writeln('  list                         List all database users');
+        $this->writeln('  info [username]              Show user information and privileges (username will be prompted if not provided)');
+        $this->writeln('  grant <user> <privs>         Grant privileges to user');
+        $this->writeln('  revoke <user> <privs>        Revoke privileges from user');
+        $this->writeln('  password [username]          Change user password (username will be prompted if not provided)');
+        $this->writeln("  help                         Show this help message\n");
+        $this->writeln('Options:');
+        $this->writeln('  --force                      Execute without confirmation');
+        $this->writeln('  --password <pass>            Set password (for create/password)');
+        $this->writeln("  --host <host>               Host for MySQL/MariaDB (default: '%')");
+        $this->writeln('  --database <db>             Database name (for grant/revoke)');
+        $this->writeln("  --table <table>               Table name (for grant/revoke)\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb user create john');
+        $this->writeln('  pdodb user create john --password secret123');
+        $this->writeln('  pdodb user create john --password secret123 --host localhost');
+        $this->writeln('  pdodb user create    (will prompt for username and password)');
+        $this->writeln('  pdodb user drop john');
+        $this->writeln('  pdodb user drop john --force');
+        $this->writeln('  pdodb user exists john');
+        $this->writeln('  pdodb user list');
+        $this->writeln('  pdodb user info john');
+        $this->writeln('  pdodb user grant john SELECT,INSERT,UPDATE ON myapp.*');
+        $this->writeln('  pdodb user grant john ALL --database myapp');
+        $this->writeln('  pdodb user grant john SELECT,INSERT --database myapp --table users');
+        $this->writeln('  pdodb user revoke john DELETE --database myapp');
+        $this->writeln('  pdodb user password john');
+        $this->writeln('  pdodb user password john --password newpass123');
         return 0;
     }
 }

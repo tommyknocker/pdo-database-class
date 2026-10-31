@@ -20,8 +20,8 @@ class InitDirectoryStructure
             return;
         }
 
-        echo "\n";
-        echo "Creating directory structure...\n";
+        BaseCliCommand::io()->writeln('');
+        BaseCliCommand::io()->writeln('Creating directory structure...');
 
         $cwd = getcwd();
         if ($cwd === false) {
@@ -56,12 +56,12 @@ class InitDirectoryStructure
             if (!is_dir($fullPath)) {
                 if (mkdir($fullPath, 0755, true)) {
                     $created[] = $type;
-                    echo "  ✓ Created directory: {$path}\n";
+                    BaseCliCommand::io()->writeln("  ✓ Created directory: {$path}");
                 } else {
-                    echo "  ✗ Failed to create directory: {$path}\n";
+                    BaseCliCommand::io()->writeln("  ✗ Failed to create directory: {$path}");
                 }
             } else {
-                echo "  - Directory already exists: {$path}\n";
+                BaseCliCommand::io()->writeln("  - Directory already exists: {$path}");
             }
         }
 
@@ -88,7 +88,7 @@ class InitDirectoryStructure
         }
 
         if (!empty($created)) {
-            echo "✓ Directory structure created\n";
+            BaseCliCommand::io()->writeln('✓ Directory structure created');
         }
     }
 }

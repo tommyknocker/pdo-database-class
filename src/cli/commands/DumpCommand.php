@@ -48,7 +48,7 @@ class DumpCommand extends Command
 
         // Check for common typos in 'restore' command
         if ($firstArg !== null && (str_starts_with($firstArg, 'restor') || str_starts_with($firstArg, 'retor'))) {
-            return $this->showError("Unknown command: '{$firstArg}'. Did you mean 'restore'?");
+            return $this->fail("Unknown command: '{$firstArg}'. Did you mean 'restore'?");
         }
 
         // If no arguments, check if dump-specific options are provided
@@ -86,7 +86,7 @@ class DumpCommand extends Command
         $rotate = $this->getOption('rotate');
 
         if ($schemaOnly && $dataOnly) {
-            return $this->showError('Cannot use --schema-only and --data-only together');
+            return $this->fail('Cannot use --schema-only and --data-only together');
         }
 
         try {
@@ -96,7 +96,7 @@ class DumpCommand extends Command
             if (is_string($table) && $table !== '') {
                 $schema = $db->schema();
                 if (!$schema->tableExists($table)) {
-                    return $this->showError("Table '{$table}' does not exist");
+                    return $this->fail("Table '{$table}' does not exist");
                 }
             }
 
@@ -114,7 +114,7 @@ class DumpCommand extends Command
                 if ($compress !== null && $compress !== false) {
                     $compressed = $this->compressContent($content, $compress);
                     if ($compressed === null) {
-                        return $this->showError("Invalid compression format: {$compress}. Supported: gzip, bzip2");
+                        return $this->fail("Invalid compression format: {$compress}. Supported: gzip, bzip2");
                     }
                     $content = $compressed;
                     $finalPath = $this->addCompressionExtension($outputPath, $compress);
@@ -122,7 +122,7 @@ class DumpCommand extends Command
 
                 $written = file_put_contents($finalPath, $content);
                 if ($written === false) {
-                    return $this->showError("Failed to write dump to: {$finalPath}");
+                    return $this->fail("Failed to write dump to: {$finalPath}");
                 }
 
                 // Apply rotation if requested
@@ -135,19 +135,19 @@ class DumpCommand extends Command
             }
 
             // Output to stdout (no compression for stdout)
-            echo $sql;
+            $this->write($sql);
             return 0;
         } catch (ResourceException $e) {
-            return $this->showError($e->getMessage());
+            return $this->fail($e->getMessage());
         } catch (QueryException $e) {
             // Check if error is about table not found
             $message = $e->getMessage();
             if (is_string($table) && $table !== '' && (str_contains($message, "doesn't exist") || str_contains($message, 'not found'))) {
-                return $this->showError("Table '{$table}' does not exist");
+                return $this->fail("Table '{$table}' does not exist");
             }
-            return $this->showError($message);
+            return $this->fail($message);
         } catch (\Exception $e) {
-            return $this->showError($e->getMessage());
+            return $this->fail($e->getMessage());
         }
     }
 
@@ -160,7 +160,7 @@ class DumpCommand extends Command
     {
         $file = $this->getArgument(1);
         if (!is_string($file) || $file === '') {
-            return $this->showError('Dump file path is required');
+            return $this->fail('Dump file path is required');
         }
 
         $force = (bool)$this->getOption('force', false);
@@ -183,7 +183,7 @@ class DumpCommand extends Command
             static::success("Database restored from: {$file}");
             return 0;
         } catch (ResourceException $e) {
-            return $this->showError($e->getMessage());
+            return $this->fail($e->getMessage());
         }
     }
 
@@ -367,32 +367,32 @@ class DumpCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "Database Dump and Restore\n\n";
-        echo "Usage:\n";
-        echo "  pdodb dump [table] [--schema-only] [--data-only] [--output=file.sql]\n";
-        echo "  pdodb dump restore <file> [--force]\n\n";
-        echo "Commands:\n";
-        echo "  dump [table]        Dump database or specific table to SQL (default)\n";
-        echo "  restore <file>      Restore database from SQL dump file\n\n";
-        echo "Options:\n";
-        echo "  --schema-only       Dump only schema (CREATE TABLE, indexes, etc.)\n";
-        echo "  --data-only         Dump only data (INSERT statements)\n";
-        echo "  --output=<file>     Write dump to file instead of stdout\n";
-        echo "  --no-drop-tables   Do not add DROP TABLE IF EXISTS before CREATE TABLE\n";
-        echo "  --compress=<format> Compress output (gzip, bzip2)\n";
-        echo "  --auto-name         Automatically name backup file with timestamp\n";
-        echo "  --date-format=<fmt> Custom date format for auto-naming (default: Y-m-d_H-i-s)\n";
-        echo "  --rotate=<N>        Keep only N most recent backups (delete older ones)\n";
-        echo "  --force             Skip confirmation (for restore)\n\n";
-        echo "Examples:\n";
-        echo "  pdodb dump --output=backup.sql\n";
-        echo "  pdodb dump users --data-only --output=users_data.sql\n";
-        echo "  pdodb dump --schema-only --output=schema.sql\n";
-        echo "  pdodb dump --auto-name --compress=gzip\n";
-        echo "  pdodb dump --output=backup.sql --compress=bzip2 --rotate=7\n";
-        echo "  pdodb dump --auto-name --date-format=Y-m-d --rotate=30\n";
-        echo "  pdodb dump restore backup.sql\n";
-        echo "  pdodb dump restore backup.sql --force\n";
+        $this->writeln("Database Dump and Restore\n");
+        $this->writeln('Usage:');
+        $this->writeln('  pdodb dump [table] [--schema-only] [--data-only] [--output=file.sql]');
+        $this->writeln("  pdodb dump restore <file> [--force]\n");
+        $this->writeln('Commands:');
+        $this->writeln('  dump [table]        Dump database or specific table to SQL (default)');
+        $this->writeln("  restore <file>      Restore database from SQL dump file\n");
+        $this->writeln('Options:');
+        $this->writeln('  --schema-only       Dump only schema (CREATE TABLE, indexes, etc.)');
+        $this->writeln('  --data-only         Dump only data (INSERT statements)');
+        $this->writeln('  --output=<file>     Write dump to file instead of stdout');
+        $this->writeln('  --no-drop-tables   Do not add DROP TABLE IF EXISTS before CREATE TABLE');
+        $this->writeln('  --compress=<format> Compress output (gzip, bzip2)');
+        $this->writeln('  --auto-name         Automatically name backup file with timestamp');
+        $this->writeln('  --date-format=<fmt> Custom date format for auto-naming (default: Y-m-d_H-i-s)');
+        $this->writeln('  --rotate=<N>        Keep only N most recent backups (delete older ones)');
+        $this->writeln("  --force             Skip confirmation (for restore)\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb dump --output=backup.sql');
+        $this->writeln('  pdodb dump users --data-only --output=users_data.sql');
+        $this->writeln('  pdodb dump --schema-only --output=schema.sql');
+        $this->writeln('  pdodb dump --auto-name --compress=gzip');
+        $this->writeln('  pdodb dump --output=backup.sql --compress=bzip2 --rotate=7');
+        $this->writeln('  pdodb dump --auto-name --date-format=Y-m-d --rotate=30');
+        $this->writeln('  pdodb dump restore backup.sql');
+        $this->writeln('  pdodb dump restore backup.sql --force');
         return 0;
     }
 }

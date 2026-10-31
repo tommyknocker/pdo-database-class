@@ -101,11 +101,14 @@ final class QueryTesterTests extends TestCase
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
 
-        ob_start();
-        $method->invoke(null, $this->db, 'SELECT * FROM non_existent_table');
-        $out = ob_get_clean();
+        $db = $this->db;
+        $captured = CliTestCapture::capture(
+            static function () use ($method, $db) {
+                $method->invoke(null, $db, 'SELECT * FROM non_existent_table');
+            }
+        );
 
-        $this->assertStringContainsString('Error', $out);
+        $this->assertStringContainsString('Error', $captured['output']);
     }
 
     /**
@@ -276,12 +279,14 @@ final class QueryTesterTests extends TestCase
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
 
-        ob_start();
-        // Invalid query that will throw exception
-        $method->invoke(null, $this->db, 'INVALID SQL SYNTAX');
-        $out = ob_get_clean();
+        $db = $this->db;
+        $captured = CliTestCapture::capture(
+            static function () use ($method, $db) {
+                $method->invoke(null, $db, 'INVALID SQL SYNTAX');
+            }
+        );
 
-        $this->assertStringContainsString('Error', $out);
+        $this->assertStringContainsString('Error', $captured['output']);
     }
 
     /**

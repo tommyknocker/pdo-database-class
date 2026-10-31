@@ -24,9 +24,9 @@ class QueryTester extends BaseCliCommand
         $db = static::createDatabase();
         $driver = static::getDriverName($db);
 
-        echo "PDOdb Query Tester (REPL)\n";
-        echo "Database: {$driver}\n";
-        echo "Type 'exit' or 'quit' to exit, 'help' for help\n\n";
+        static::cliWriteln('PDOdb Query Tester (REPL)');
+        static::cliWriteln("Database: {$driver}");
+        static::cliWriteln("Type 'exit' or 'quit' to exit, 'help' for help\n");
 
         if ($query !== null) {
             static::executeQuery($db, $query);
@@ -46,7 +46,7 @@ class QueryTester extends BaseCliCommand
             $command = strtolower($input);
 
             if (in_array($command, ['exit', 'quit', 'q'], true)) {
-                echo "Goodbye!\n";
+                static::cliWriteln('Goodbye!');
                 break;
             }
 
@@ -57,13 +57,13 @@ class QueryTester extends BaseCliCommand
 
             if ($command === 'clear' || $command === 'cls') {
                 // Clear screen (works on most terminals)
-                echo "\033[2J\033[H";
+                static::cliWrite("\033[2J\033[H");
                 continue;
             }
 
             if ($command === 'history') {
                 foreach ($history as $i => $histQuery) {
-                    echo ($i + 1) . ". {$histQuery}\n";
+                    static::cliWrite(($i + 1) . ". {$histQuery}\n");
                 }
                 continue;
             }
@@ -96,9 +96,9 @@ class QueryTester extends BaseCliCommand
                 static::success('Query executed successfully.');
             }
         } catch (QueryException $e) {
-            echo 'Query Error: ' . $e->getMessage() . "\n";
+            static::cliWriteErrorLine('Error: ' . $e->getMessage());
             if ($e->getQuery() !== null) {
-                echo 'Query: ' . $e->getQuery() . "\n";
+                static::cliWriteErrorLine('Query: ' . $e->getQuery());
             }
         }
     }
@@ -142,13 +142,13 @@ class QueryTester extends BaseCliCommand
         }
 
         // Print header
-        echo "\n";
+        static::cliWriteln('');
         foreach ($columns as $col) {
             $colStr = (string)$col;
             printf('%-' . ($widths[$col] + 2) . 's', $colStr);
         }
-        echo "\n";
-        echo str_repeat('-', array_sum($widths) + (count($columns) * 2)) . "\n";
+        static::cliWriteln('');
+        static::cliWriteln(str_repeat('-', array_sum($widths) + (count($columns) * 2)));
 
         // Print rows
         $displayCount = min(count($results), 100); // Limit to 100 rows
@@ -169,14 +169,14 @@ class QueryTester extends BaseCliCommand
                 }
                 printf('%-' . ($widths[$col] + 2) . 's', $valueStr);
             }
-            echo "\n";
+            static::cliWriteln('');
         }
 
         if (count($results) > $displayCount) {
-            echo "\n... (" . (count($results) - $displayCount) . " more rows)\n";
+            static::cliWrite("\n... (" . (count($results) - $displayCount) . " more rows)\n");
         }
 
-        echo "\nTotal rows: " . count($results) . "\n\n";
+        static::cliWrite("\nTotal rows: " . count($results) . "\n\n");
     }
 
     /**
@@ -184,17 +184,17 @@ class QueryTester extends BaseCliCommand
      */
     protected static function showHelp(): void
     {
-        echo "\nAvailable commands:\n";
-        echo "  exit, quit, q    Exit the query tester\n";
-        echo "  help             Show this help message\n";
-        echo "  clear, cls       Clear the screen\n";
-        echo "  history          Show query history\n";
-        echo "\n";
-        echo "You can execute any SQL query directly.\n";
-        echo "Examples:\n";
-        echo "  SELECT * FROM users LIMIT 10\n";
-        echo "  SELECT COUNT(*) FROM users\n";
-        echo "  DESCRIBE users\n";
-        echo "\n";
+        static::cliWriteln("\nAvailable commands:");
+        static::cliWriteln('  exit, quit, q    Exit the query tester');
+        static::cliWriteln('  help             Show this help message');
+        static::cliWriteln('  clear, cls       Clear the screen');
+        static::cliWriteln('  history          Show query history');
+        static::cliWriteln('');
+        static::cliWriteln('You can execute any SQL query directly.');
+        static::cliWriteln('Examples:');
+        static::cliWriteln('  SELECT * FROM users LIMIT 10');
+        static::cliWriteln('  SELECT COUNT(*) FROM users');
+        static::cliWriteln('  DESCRIBE users');
+        static::cliWriteln('');
     }
 }

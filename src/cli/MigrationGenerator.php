@@ -26,15 +26,15 @@ class MigrationGenerator extends BaseCliCommand
         $db = static::createDatabase();
         $driver = static::getDriverName($db);
 
-        echo "PDOdb Migration Generator\n";
-        echo "Database: {$driver}\n\n";
+        static::cliWriteln('PDOdb Migration Generator');
+        static::cliWriteln("Database: {$driver}\n");
 
         // Get migration path
         if ($migrationPath === null) {
             $migrationPath = static::getMigrationPath();
         }
 
-        echo "Migrations path: {$migrationPath}\n\n";
+        static::cliWriteln("Migrations path: {$migrationPath}\n");
 
         // Get migration name
         if ($name === null) {
@@ -47,11 +47,11 @@ class MigrationGenerator extends BaseCliCommand
         // Suggest migration type based on name
         $suggestions = static::suggestMigrationType($name);
         if (!empty($suggestions)) {
-            echo "\nSuggested migration types:\n";
+            static::cliWriteln("\nSuggested migration types:");
             foreach ($suggestions as $i => $suggestion) {
-                echo '  ' . ($i + 1) . ". {$suggestion}\n";
+                static::cliWrite('  ' . ($i + 1) . ". {$suggestion}\n");
             }
-            echo "  0. Custom (manual)\n";
+            static::cliWriteln('  0. Custom (manual)');
             $choice = static::readInput("\nSelect migration type", '0');
             $selectedIndex = (int)$choice - 1;
             if ($selectedIndex >= 0 && $selectedIndex < count($suggestions)) {
@@ -64,7 +64,7 @@ class MigrationGenerator extends BaseCliCommand
         $filename = $runner->create($name);
 
         static::success('Migration file created: ' . basename($filename));
-        echo "  Path: {$filename}\n";
+        static::cliWriteln("  Path: {$filename}");
 
         return $filename;
     }

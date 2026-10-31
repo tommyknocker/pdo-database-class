@@ -42,7 +42,7 @@ class DbCommand extends Command
             'exists' => $this->exists(),
             'list' => $this->list(),
             'info' => $this->showInfo(),
-            default => $this->showError("Unknown subcommand: {$subcommand}"),
+            default => $this->fail("Unknown subcommand: {$subcommand}"),
         };
     }
 
@@ -186,9 +186,9 @@ class DbCommand extends Command
                 return 0;
             }
 
-            echo 'Databases (' . count($databases) . "):\n\n";
+            $this->write('Databases (' . count($databases) . "):\n\n");
             foreach ($databases as $database) {
-                echo "  {$database}\n";
+                $this->writeln("  {$database}");
             }
 
             return 0;
@@ -222,7 +222,7 @@ class DbCommand extends Command
             $db = $this->getDb();
             $info = DatabaseManager::getInfo($db);
 
-            echo "Database Information:\n\n";
+            $this->writeln("Database Information:\n");
             foreach ($info as $key => $value) {
                 if ($value === null) {
                     continue;
@@ -231,7 +231,7 @@ class DbCommand extends Command
                 if (is_int($value) && $key === 'file_size') {
                     $displayValue = number_format($value) . ' bytes';
                 }
-                echo '  ' . ucfirst(str_replace('_', ' ', $key)) . ": {$displayValue}\n";
+                $this->write('  ' . ucfirst(str_replace('_', ' ', $key)) . ": {$displayValue}\n");
             }
 
             return 0;
@@ -250,22 +250,22 @@ class DbCommand extends Command
             $driver = static::getDriverName($db);
             $info = DatabaseManager::getInfo($db);
 
-            echo "PDOdb Database Management\n";
-            echo "Database: {$driver}";
+            $this->writeln('PDOdb Database Management');
+            $this->write("Database: {$driver}");
             if (isset($info['current_database']) && is_string($info['current_database']) && $info['current_database'] !== '') {
-                echo " ({$info['current_database']})";
+                $this->write(" ({$info['current_database']})");
             }
-            echo "\n\n";
+            $this->writeln("\n");
         } catch (\Exception $e) {
             // If we can't get database info, just show driver
             try {
                 $db = $this->getDb();
                 $driver = static::getDriverName($db);
-                echo "PDOdb Database Management\n";
-                echo "Database: {$driver}\n\n";
+                $this->writeln('PDOdb Database Management');
+                $this->writeln("Database: {$driver}\n");
             } catch (\Exception $e2) {
                 // If even that fails, just show header
-                echo "PDOdb Database Management\n\n";
+                $this->writeln("PDOdb Database Management\n");
             }
         }
     }
@@ -277,26 +277,26 @@ class DbCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "Database Management\n\n";
-        echo "Usage: pdodb db <subcommand> [arguments] [options]\n\n";
-        echo "Subcommands:\n";
-        echo "  create [name]      Create a new database (name will be prompted if not provided)\n";
-        echo "  drop [name]        Drop a database (name will be prompted if not provided)\n";
-        echo "  exists [name]      Check if a database exists (name will be prompted if not provided)\n";
-        echo "  list               List all databases\n";
-        echo "  info               Show information about current database\n";
-        echo "  help               Show this help message\n\n";
-        echo "Options:\n";
-        echo "  --force            Execute without confirmation\n\n";
-        echo "Examples:\n";
-        echo "  pdodb db create myapp\n";
-        echo "  pdodb db create myapp --force\n";
-        echo "  pdodb db create    (will prompt for name)\n";
-        echo "  pdodb db drop myapp\n";
-        echo "  pdodb db drop myapp --force\n";
-        echo "  pdodb db exists myapp\n";
-        echo "  pdodb db list\n";
-        echo "  pdodb db info\n";
+        $this->writeln("Database Management\n");
+        $this->writeln("Usage: pdodb db <subcommand> [arguments] [options]\n");
+        $this->writeln('Subcommands:');
+        $this->writeln('  create [name]      Create a new database (name will be prompted if not provided)');
+        $this->writeln('  drop [name]        Drop a database (name will be prompted if not provided)');
+        $this->writeln('  exists [name]      Check if a database exists (name will be prompted if not provided)');
+        $this->writeln('  list               List all databases');
+        $this->writeln('  info               Show information about current database');
+        $this->writeln("  help               Show this help message\n");
+        $this->writeln('Options:');
+        $this->writeln("  --force            Execute without confirmation\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb db create myapp');
+        $this->writeln('  pdodb db create myapp --force');
+        $this->writeln('  pdodb db create    (will prompt for name)');
+        $this->writeln('  pdodb db drop myapp');
+        $this->writeln('  pdodb db drop myapp --force');
+        $this->writeln('  pdodb db exists myapp');
+        $this->writeln('  pdodb db list');
+        $this->writeln('  pdodb db info');
         return 0;
     }
 }

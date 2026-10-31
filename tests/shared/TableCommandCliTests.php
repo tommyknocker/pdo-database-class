@@ -351,18 +351,9 @@ final class TableCommandCliTests extends TestCase
         putenv('PHPUNIT=1');
 
         $app = new Application();
-        ob_start();
+        $run = CliTestCapture::runApplication($app, ['pdodb', 'table', 'keys', 'add', 'test_table']);
 
-        try {
-            $code = $app->run(['pdodb', 'table', 'keys', 'add', 'test_table']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            $out = $e->getMessage();
-        }
-
-        // Should show error about missing parameters
-        $this->assertStringContainsString('required', $out);
+        $this->assertStringContainsString('required', $run['output']);
     }
 
     public function testKeysDropWithoutNameYieldsError(): void
@@ -374,17 +365,9 @@ final class TableCommandCliTests extends TestCase
         putenv('PHPUNIT=1');
 
         $app = new Application();
-        ob_start();
+        $run = CliTestCapture::runApplication($app, ['pdodb', 'table', 'keys', 'drop', 'test_table']);
 
-        try {
-            $code = $app->run(['pdodb', 'table', 'keys', 'drop', 'test_table']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            $out = $e->getMessage();
-        }
-
-        $this->assertStringContainsString('Foreign key name is required', $out);
+        $this->assertStringContainsString('Foreign key name is required', $run['output']);
     }
 
     public function testCreateTableWithoutColumnsYieldsError(): void
@@ -396,18 +379,10 @@ final class TableCommandCliTests extends TestCase
         putenv('PHPUNIT=1');
 
         $app = new Application();
-        ob_start();
-
-        try {
-            $code = $app->run(['pdodb', 'table', 'create', 'no_columns_tbl']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            $out = $e->getMessage();
-        }
+        $run = CliTestCapture::runApplication($app, ['pdodb', 'table', 'create', 'no_columns_tbl']);
 
         // In non-interactive mode, readInput() returns empty string, so we get this error message
-        $this->assertStringContainsString('Columns are required', $out);
+        $this->assertStringContainsString('Columns are required', $run['output']);
     }
 
     public function testTableCountCommand(): void

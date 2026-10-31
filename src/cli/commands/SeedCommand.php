@@ -153,7 +153,7 @@ class SeedCommand extends Command
             if ($dryRun || $pretend) {
                 $queries = $runner->getCollectedQueries();
                 if (!empty($queries)) {
-                    echo "\n" . implode("\n", $queries) . "\n";
+                    $this->writeln("\n" . implode("\n", $queries));
                 }
                 $mode = $dryRun ? 'dry-run' : 'pretend';
                 static::info("Seed execution completed ({$mode} mode).");
@@ -164,7 +164,7 @@ class SeedCommand extends Command
                     if (getenv('PHPUNIT') === false) {
                         foreach ($executed as $executedSeedName) {
                             $executedSeedNameStr = is_string($executedSeedName) ? $executedSeedName : (string)$executedSeedName;
-                            echo "  - {$executedSeedNameStr}\n";
+                            $this->writeln("  - {$executedSeedNameStr}");
                         }
                     }
                 } else {
@@ -193,26 +193,26 @@ class SeedCommand extends Command
             $executedSeeds = $runner->getExecutedSeeds();
             $newSeeds = $runner->getNewSeeds();
 
-            echo "Seeds Status:\n";
-            echo "=============\n\n";
+            $this->writeln('Seeds Status:');
+            $this->writeln("=============\n");
 
             if (empty($allSeeds)) {
-                echo "No seed files found in: {$seedPath}\n";
+                $this->writeln("No seed files found in: {$seedPath}");
                 return 0;
             }
 
-            echo "Path: {$seedPath}\n\n";
+            $this->writeln("Path: {$seedPath}\n");
 
             foreach ($allSeeds as $seed) {
                 $status = in_array($seed, $executedSeeds, true) ? '[EXECUTED]' : '[PENDING]';
                 $color = in_array($seed, $executedSeeds, true) ? 'green' : 'yellow';
-                echo "{$status} {$seed}\n";
+                $this->writeln("{$status} {$seed}");
             }
 
-            echo "\nSummary:\n";
-            echo '  Total seeds: ' . count($allSeeds) . "\n";
-            echo '  Executed: ' . count($executedSeeds) . "\n";
-            echo '  Pending: ' . count($newSeeds) . "\n";
+            $this->writeln("\nSummary:");
+            $this->writeln('  Total seeds: ' . count($allSeeds));
+            $this->writeln('  Executed: ' . count($executedSeeds));
+            $this->writeln('  Pending: ' . count($newSeeds));
 
             return 0;
         } catch (\Exception $e) {
@@ -289,7 +289,7 @@ class SeedCommand extends Command
             if ($dryRun || $pretend) {
                 $queries = $runner->getCollectedQueries();
                 if (!empty($queries)) {
-                    echo "\n" . implode("\n", $queries) . "\n";
+                    $this->writeln("\n" . implode("\n", $queries));
                 }
                 $mode = $dryRun ? 'dry-run' : 'pretend';
                 static::info("Seed rollback completed ({$mode} mode).");
@@ -300,7 +300,7 @@ class SeedCommand extends Command
                     if (getenv('PHPUNIT') === false) {
                         foreach ($rolledBack as $rolledBackSeedName) {
                             $rolledBackSeedNameStr = is_string($rolledBackSeedName) ? $rolledBackSeedName : (string)$rolledBackSeedName;
-                            echo "  - {$rolledBackSeedNameStr}\n";
+                            $this->writeln("  - {$rolledBackSeedNameStr}");
                         }
                     }
                 } else {
@@ -324,17 +324,17 @@ class SeedCommand extends Command
         $tableName = $this->getArgument(1);
 
         if ($tableName === null || $tableName === '' || !is_string($tableName)) {
-            echo "Usage: pdodb seed generate <table_name> [options]\n";
-            echo "Options:\n";
-            echo "  --limit=N              Limit number of rows to export\n";
-            echo "  --where=condition       WHERE condition (e.g., \"status='active'\")\n";
-            echo "  --order-by=column      ORDER BY column(s)\n";
-            echo "  --exclude=columns       Comma-separated columns to exclude\n";
-            echo "  --include=columns       Comma-separated columns to include\n";
-            echo "  --chunk-size=N          Chunk size for insertMulti (default: 1000)\n";
-            echo "  --preserve-ids          Preserve IDs in generated seed (default: true)\n";
-            echo "  --skip-timestamps       Skip timestamp columns (created_at, updated_at)\n";
-            echo "  --format=pretty|compact Code format (default: pretty)\n";
+            $this->writeln('Usage: pdodb seed generate <table_name> [options]');
+            $this->writeln('Options:');
+            $this->writeln('  --limit=N              Limit number of rows to export');
+            $this->writeln("  --where=condition       WHERE condition (e.g., \"status='active'\")");
+            $this->writeln('  --order-by=column      ORDER BY column(s)');
+            $this->writeln('  --exclude=columns       Comma-separated columns to exclude');
+            $this->writeln('  --include=columns       Comma-separated columns to include');
+            $this->writeln('  --chunk-size=N          Chunk size for insertMulti (default: 1000)');
+            $this->writeln('  --preserve-ids          Preserve IDs in generated seed (default: true)');
+            $this->writeln('  --skip-timestamps       Skip timestamp columns (created_at, updated_at)');
+            $this->writeln('  --format=pretty|compact Code format (default: pretty)');
             $this->showError('Table name is required');
         }
 
@@ -445,8 +445,8 @@ class SeedCommand extends Command
             file_put_contents($filepath, $result['content']);
 
             static::success("Seed file generated: {$filename}");
-            echo "  Path: {$filepath}\n";
-            echo "  Rows: {$result['rowCount']}\n";
+            $this->writeln("  Path: {$filepath}");
+            $this->writeln("  Rows: {$result['rowCount']}");
 
             return 0;
         } catch (\Exception $e) {
@@ -461,40 +461,40 @@ class SeedCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "Usage: pdodb seed <subcommand> [options] [arguments]\n\n";
-        echo "Subcommands:\n";
-        echo "  create <name>          Create a new seed file\n";
-        echo "  run [<name>]           Run all new seeds or specific seed\n";
-        echo "  list                   List all seeds with their status\n";
-        echo "  rollback [<name>]      Rollback last batch or specific seed\n";
-        echo "  generate <table>       Generate seed file from existing database data\n";
-        echo "  help                   Show this help message\n\n";
-        echo "Options:\n";
-        echo "  --dry-run              List operations without executing seed PHP\n";
-        echo "  --pretend              Simulate execution without running queries\n";
-        echo "  --force                Skip confirmation prompts\n";
-        echo "  --connection=<name>    Use specific database connection\n\n";
-        echo "Generate options:\n";
-        echo "  --limit=N              Limit number of rows to export\n";
-        echo "  --where=condition      WHERE condition (e.g., \"status='active'\")\n";
-        echo "  --order-by=column      ORDER BY column(s)\n";
-        echo "  --exclude=columns      Comma-separated columns to exclude\n";
-        echo "  --include=columns      Comma-separated columns to include\n";
-        echo "  --chunk-size=N         Chunk size for insertMulti (default: 1000)\n";
-        echo "  --preserve-ids         Preserve IDs in generated seed (default: true)\n";
-        echo "  --skip-timestamps      Skip timestamp columns\n";
-        echo "  --format=pretty|compact Code format (default: pretty)\n\n";
-        echo "Examples:\n";
-        echo "  pdodb seed create users_table\n";
-        echo "  pdodb seed run\n";
-        echo "  pdodb seed run users_table\n";
-        echo "  pdodb seed run --dry-run\n";
-        echo "  pdodb seed list\n";
-        echo "  pdodb seed rollback\n";
-        echo "  pdodb seed rollback users_table\n";
-        echo "  pdodb seed generate users --limit=100\n";
-        echo "  pdodb seed generate users --where=\"status='active'\" --limit=50\n";
-        echo "  pdodb seed generate products --exclude=image_data,binary_data\n";
+        $this->writeln("Usage: pdodb seed <subcommand> [options] [arguments]\n");
+        $this->writeln('Subcommands:');
+        $this->writeln('  create <name>          Create a new seed file');
+        $this->writeln('  run [<name>]           Run all new seeds or specific seed');
+        $this->writeln('  list                   List all seeds with their status');
+        $this->writeln('  rollback [<name>]      Rollback last batch or specific seed');
+        $this->writeln('  generate <table>       Generate seed file from existing database data');
+        $this->writeln("  help                   Show this help message\n");
+        $this->writeln('Options:');
+        $this->writeln('  --dry-run              List operations without executing seed PHP');
+        $this->writeln('  --pretend              Simulate execution without running queries');
+        $this->writeln('  --force                Skip confirmation prompts');
+        $this->writeln("  --connection=<name>    Use specific database connection\n");
+        $this->writeln('Generate options:');
+        $this->writeln('  --limit=N              Limit number of rows to export');
+        $this->writeln("  --where=condition      WHERE condition (e.g., \"status='active'\")");
+        $this->writeln('  --order-by=column      ORDER BY column(s)');
+        $this->writeln('  --exclude=columns      Comma-separated columns to exclude');
+        $this->writeln('  --include=columns      Comma-separated columns to include');
+        $this->writeln('  --chunk-size=N         Chunk size for insertMulti (default: 1000)');
+        $this->writeln('  --preserve-ids         Preserve IDs in generated seed (default: true)');
+        $this->writeln('  --skip-timestamps      Skip timestamp columns');
+        $this->writeln("  --format=pretty|compact Code format (default: pretty)\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb seed create users_table');
+        $this->writeln('  pdodb seed run');
+        $this->writeln('  pdodb seed run users_table');
+        $this->writeln('  pdodb seed run --dry-run');
+        $this->writeln('  pdodb seed list');
+        $this->writeln('  pdodb seed rollback');
+        $this->writeln('  pdodb seed rollback users_table');
+        $this->writeln('  pdodb seed generate users --limit=100');
+        $this->writeln("  pdodb seed generate users --where=\"status='active'\" --limit=50");
+        $this->writeln('  pdodb seed generate products --exclude=image_data,binary_data');
 
         return 0;
     }

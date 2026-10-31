@@ -97,18 +97,24 @@ final class QueryCommandCliTests extends TestCase
         $this->assertStringContainsString('SQL is valid', $out2);
 
         // validate fail
+        $stderr = fopen('php://memory', 'wb');
+        $this->assertIsResource($stderr);
+        \tommyknocker\pdodb\cli\BaseCliCommand::setIo(new \tommyknocker\pdodb\cli\CliOutput(null, $stderr));
         ob_start();
 
         try {
             $code3 = $app->run(['pdodb', 'query', 'validate', 'SELEC 1']);
-            $out3 = ob_get_clean();
+            ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
 
             throw $e;
+        } finally {
+            \tommyknocker\pdodb\cli\BaseCliCommand::resetIo();
         }
         $this->assertSame(1, $code3);
-        $this->assertStringContainsString('Invalid SQL', $out3);
+        rewind($stderr);
+        $this->assertStringContainsString('Invalid SQL', (string)stream_get_contents($stderr));
 
         // format
         ob_start();

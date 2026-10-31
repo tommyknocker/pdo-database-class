@@ -828,7 +828,7 @@ class CliToolsTests extends BaseSharedTestCase
 
             $this->assertFileExists($filename);
             $content = file_get_contents($filename);
-            $this->assertStringContainsString('namespace custom\namespace', $content);
+            $this->assertStringContainsString('namespace Custom\Namespace', $content);
         } catch (\Throwable $e) {
             ob_end_clean();
 
@@ -1101,21 +1101,29 @@ class CliToolsTests extends BaseSharedTestCase
      */
     public function testBaseCliCommandSuccess(): void
     {
-        $reflection = new \ReflectionClass(BaseCliCommand::class);
-        $method = $reflection->getMethod('success');
+        $stdout = fopen('php://memory', 'wb');
+        $this->assertIsResource($stdout);
+        BaseCliCommand::setIo(new \tommyknocker\pdodb\cli\CliOutput($stdout));
 
-        $output = '';
-        ob_start(function ($buffer) use (&$output) {
-            $output .= $buffer;
-            return '';
-        });
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
 
         try {
+            $reflection = new \ReflectionClass(BaseCliCommand::class);
+            $method = $reflection->getMethod('success');
             $method->invoke(null, 'Test success message');
         } finally {
-            ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            } else {
+                putenv('PHPUNIT');
+            }
+            BaseCliCommand::resetIo();
         }
 
+        rewind($stdout);
+        $output = stream_get_contents($stdout);
+        $this->assertIsString($output);
         $this->assertStringContainsString('Test success message', $output);
     }
 
@@ -1124,21 +1132,29 @@ class CliToolsTests extends BaseSharedTestCase
      */
     public function testBaseCliCommandInfo(): void
     {
-        $reflection = new \ReflectionClass(BaseCliCommand::class);
-        $method = $reflection->getMethod('info');
+        $stdout = fopen('php://memory', 'wb');
+        $this->assertIsResource($stdout);
+        BaseCliCommand::setIo(new \tommyknocker\pdodb\cli\CliOutput($stdout));
 
-        $output = '';
-        ob_start(function ($buffer) use (&$output) {
-            $output .= $buffer;
-            return '';
-        });
+        $phpunit = getenv('PHPUNIT');
+        putenv('PHPUNIT');
 
         try {
+            $reflection = new \ReflectionClass(BaseCliCommand::class);
+            $method = $reflection->getMethod('info');
             $method->invoke(null, 'Test info message');
         } finally {
-            ob_end_clean();
+            if ($phpunit !== false) {
+                putenv('PHPUNIT=' . $phpunit);
+            } else {
+                putenv('PHPUNIT');
+            }
+            BaseCliCommand::resetIo();
         }
 
+        rewind($stdout);
+        $output = stream_get_contents($stdout);
+        $this->assertIsString($output);
         $this->assertStringContainsString('Test info message', $output);
     }
 
@@ -1147,21 +1163,21 @@ class CliToolsTests extends BaseSharedTestCase
      */
     public function testBaseCliCommandWarning(): void
     {
-        $reflection = new \ReflectionClass(BaseCliCommand::class);
-        $method = $reflection->getMethod('warning');
-
-        $output = '';
-        ob_start(function ($buffer) use (&$output) {
-            $output .= $buffer;
-            return '';
-        });
+        $stdout = fopen('php://memory', 'wb');
+        $this->assertIsResource($stdout);
+        BaseCliCommand::setIo(new \tommyknocker\pdodb\cli\CliOutput($stdout));
 
         try {
+            $reflection = new \ReflectionClass(BaseCliCommand::class);
+            $method = $reflection->getMethod('warning');
             $method->invoke(null, 'Test warning message');
         } finally {
-            ob_end_clean();
+            BaseCliCommand::resetIo();
         }
 
+        rewind($stdout);
+        $output = stream_get_contents($stdout);
+        $this->assertIsString($output);
         $this->assertStringContainsString('Test warning message', $output);
     }
 

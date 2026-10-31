@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - In-process `profileReport()` for the current connection's profiler, local plan diagnosis, and a JSON export. Another process does not see that memory.
-- `pdodb profile` CLI (`summary`, `export`, `import`, `diagnose` with optional `--rank`) for the active connection profiler.
+- `pdodb profile summary` reads a profile exported by the application, and `pdodb profile diagnose` inspects caller-supplied SQL.
 - `Model::preventLazyLoading()` to opt out of lazy-loading relations.
 - `PlanComparison` for two plans the caller collected. It does not execute DDL or model SQL. PostgreSQL `EXPLAIN ANALYZE` timings mean the statement ran.
 - `pdodb ai doctor` JSON summary of provider, model, key presence, endpoint, and database connection without calling a model. `--probe` makes one short provider request and may incur a charge. The key and response body are not printed.
 - Init wizard can write multiple named connections into `config/db.php`.
-- Model generator emits `belongsTo` relations from foreign keys.
+- Model generator emits `belongsTo` relations from foreign keys and accepts explicit table-to-model mappings for custom names.
 
 ### Fixed
 - Migration and seed `--dry-run` / `--pretend` no longer execute migration or seed PHP (avoids side effects; SQL from arbitrary PHP is not shown).

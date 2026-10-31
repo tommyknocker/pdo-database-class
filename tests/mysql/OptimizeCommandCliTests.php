@@ -10,6 +10,7 @@ use tommyknocker\pdodb\cli\RedundantIndexDetector;
 use tommyknocker\pdodb\cli\SchemaAnalyzer;
 use tommyknocker\pdodb\cli\SlowQueryAnalyzer;
 use tommyknocker\pdodb\cli\SlowQueryLogParser;
+use tommyknocker\pdodb\tests\shared\CliTestCapture;
 
 final class OptimizeCommandCliTests extends BaseMySQLTestCase
 {
@@ -949,64 +950,40 @@ SELECT * FROM users WHERE id = 1;
     public function testOptimizeDbCommandMissingMemory(): void
     {
         $app = new Application();
-        $db = self::$db;
 
         $phpunit = getenv('PHPUNIT');
         putenv('PHPUNIT=1');
-        ob_start();
-
         try {
-            $this->expectException(\RuntimeException::class);
-            $this->expectExceptionMessage('--memory parameter is required');
-            $app->run(['pdodb', 'optimize', 'db', '--cpu-cores=32']);
-            ob_end_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
+            $run = CliTestCapture::runApplication($app, ['pdodb', 'optimize', 'db', '--cpu-cores=32']);
+        } finally {
             if ($phpunit !== false) {
                 putenv('PHPUNIT=' . $phpunit);
             } else {
                 putenv('PHPUNIT');
             }
-
-            throw $e;
         }
 
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
+        $this->assertSame(1, $run['code']);
+        $this->assertStringContainsString('--memory parameter is required', $run['stderr']);
     }
 
     public function testOptimizeDbCommandMissingCpuCores(): void
     {
         $app = new Application();
-        $db = self::$db;
 
         $phpunit = getenv('PHPUNIT');
         putenv('PHPUNIT=1');
-        ob_start();
-
         try {
-            $this->expectException(\RuntimeException::class);
-            $this->expectExceptionMessage('--cpu-cores parameter is required');
-            $app->run(['pdodb', 'optimize', 'db', '--memory=5G']);
-            ob_end_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
+            $run = CliTestCapture::runApplication($app, ['pdodb', 'optimize', 'db', '--memory=5G']);
+        } finally {
             if ($phpunit !== false) {
                 putenv('PHPUNIT=' . $phpunit);
             } else {
                 putenv('PHPUNIT');
             }
-
-            throw $e;
         }
 
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
+        $this->assertSame(1, $run['code']);
+        $this->assertStringContainsString('--cpu-cores parameter is required', $run['stderr']);
     }
 }

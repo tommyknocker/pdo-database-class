@@ -39,7 +39,7 @@ class BenchmarkCommand extends Command
             'compare' => $this->benchmarkCompare(),
             'profile' => $this->benchmarkProfile(),
             'report' => $this->benchmarkReport(),
-            default => $this->showError("Unknown subcommand: {$sub}"),
+            default => $this->fail("Unknown subcommand: {$sub}"),
         };
     }
 
@@ -52,7 +52,7 @@ class BenchmarkCommand extends Command
     {
         $sql = $this->getArgument(1);
         if (!is_string($sql) || $sql === '') {
-            return $this->showError('SQL query is required. Usage: pdodb benchmark query "SELECT * FROM users WHERE id = :id"');
+            return $this->fail('SQL query is required. Usage: pdodb benchmark query "SELECT * FROM users WHERE id = :id"');
         }
 
         $iterations = (int)$this->getOption('iterations', 100);
@@ -85,7 +85,7 @@ class BenchmarkCommand extends Command
             try {
                 $db->rawQuery($sql, $params);
             } catch (\Exception $e) {
-                return $this->showError('Query execution failed: ' . $e->getMessage());
+                return $this->fail('Query execution failed: ' . $e->getMessage());
             }
         }
 
@@ -129,7 +129,7 @@ class BenchmarkCommand extends Command
     {
         $table = $this->getArgument(1);
         if (!is_string($table) || $table === '') {
-            return $this->showError('Table name is required. Usage: pdodb benchmark crud <table>');
+            return $this->fail('Table name is required. Usage: pdodb benchmark crud <table>');
         }
 
         $iterations = (int)$this->getOption('iterations', 1000);
@@ -137,7 +137,7 @@ class BenchmarkCommand extends Command
 
         // Check if table exists
         if (!$db->schema()->tableExists($table)) {
-            return $this->showError("Table '{$table}' does not exist");
+            return $this->fail("Table '{$table}' does not exist");
         }
 
         $db->enableProfiling(0.0);
@@ -378,11 +378,11 @@ class BenchmarkCommand extends Command
         $db = $this->getDb();
         $db->enableProfiling(0.0);
 
-        echo "Load Testing\n";
-        echo "============\n";
-        echo "Connections: {$connections}\n";
-        echo "Duration: {$duration}s\n";
-        echo "Query: {$query}\n\n";
+        $this->writeln('Load Testing');
+        $this->writeln('============');
+        $this->writeln("Connections: {$connections}");
+        $this->writeln("Duration: {$duration}s");
+        $this->writeln("Query: {$query}\n");
 
         $startTime = microtime(true);
         $endTime = $startTime + $duration;
@@ -419,15 +419,15 @@ class BenchmarkCommand extends Command
         $minTime = !empty($queryTimes) ? min($queryTimes) : 0.0;
         $maxTime = !empty($queryTimes) ? max($queryTimes) : 0.0;
 
-        echo "Results:\n";
-        echo "--------\n";
-        echo "Total queries: {$totalQueries}\n";
-        echo "Errors: {$errors}\n";
-        echo 'Duration: ' . round($actualDuration, 2) . "s\n";
-        echo 'Queries per second: ' . round($qps, 2) . "\n";
-        echo 'Avg query time: ' . round($avgTime * 1000, 2) . "ms\n";
-        echo 'Min query time: ' . round($minTime * 1000, 2) . "ms\n";
-        echo 'Max query time: ' . round($maxTime * 1000, 2) . "ms\n";
+        $this->writeln('Results:');
+        $this->writeln('--------');
+        $this->writeln("Total queries: {$totalQueries}");
+        $this->writeln("Errors: {$errors}");
+        $this->write('Duration: ' . round($actualDuration, 2) . "s\n");
+        $this->writeln('Queries per second: ' . round($qps, 2));
+        $this->write('Avg query time: ' . round($avgTime * 1000, 2) . "ms\n");
+        $this->write('Min query time: ' . round($minTime * 1000, 2) . "ms\n");
+        $this->write('Max query time: ' . round($maxTime * 1000, 2) . "ms\n");
 
         return 0;
     }
@@ -566,7 +566,7 @@ class BenchmarkCommand extends Command
         $db->enableProfiling($threshold);
 
         if ($query === null || $query === '') {
-            return $this->showError('Please specify a query with --query option');
+            return $this->fail('Please specify a query with --query option');
         }
 
         // Profile specific query
@@ -575,13 +575,13 @@ class BenchmarkCommand extends Command
             try {
                 $db->rawQuery($query, $params);
             } catch (\Exception $e) {
-                return $this->showError('Query execution failed: ' . $e->getMessage());
+                return $this->fail('Query execution failed: ' . $e->getMessage());
             }
         }
 
         $profiler = $db->getProfiler();
         if ($profiler === null) {
-            return $this->showError('Profiler not available');
+            return $this->fail('Profiler not available');
         }
 
         $stats = $profiler->getStats();
@@ -774,22 +774,22 @@ class BenchmarkCommand extends Command
      */
     protected function printQueryResults(array $results): void
     {
-        echo "Query Benchmark Results\n";
-        echo "=======================\n\n";
-        echo "Iterations: {$results['iterations']}\n";
-        echo 'Total time: ' . round($results['total_time'], 4) . "s\n";
-        echo 'Average time: ' . round($results['avg_time'] * 1000, 2) . "ms\n";
+        $this->writeln('Query Benchmark Results');
+        $this->writeln("=======================\n");
+        $this->writeln("Iterations: {$results['iterations']}");
+        $this->write('Total time: ' . round($results['total_time'], 4) . "s\n");
+        $this->write('Average time: ' . round($results['avg_time'] * 1000, 2) . "ms\n");
         if ($results['min_time'] > 0) {
-            echo 'Min time: ' . round($results['min_time'] * 1000, 2) . "ms\n";
+            $this->write('Min time: ' . round($results['min_time'] * 1000, 2) . "ms\n");
         }
         if ($results['max_time'] > 0) {
-            echo 'Max time: ' . round($results['max_time'] * 1000, 2) . "ms\n";
+            $this->write('Max time: ' . round($results['max_time'] * 1000, 2) . "ms\n");
         }
-        echo 'Queries per second: ' . round($results['qps'], 2) . "\n";
+        $this->writeln('Queries per second: ' . round($results['qps'], 2));
         if ($results['avg_memory'] > 0) {
-            echo 'Average memory: ' . $this->formatMemory($results['avg_memory']) . "\n";
+            $this->writeln('Average memory: ' . $this->formatMemory($results['avg_memory']));
         }
-        echo "\n";
+        $this->writeln('');
     }
 
     /**
@@ -800,21 +800,21 @@ class BenchmarkCommand extends Command
      */
     protected function printCrudResults(array $results, int $iterations): void
     {
-        echo "CRUD Benchmark Results\n";
-        echo "=====================\n\n";
+        $this->writeln('CRUD Benchmark Results');
+        $this->writeln("=====================\n");
 
         foreach ($results as $operation => $result) {
             if (isset($result['error'])) {
-                echo ucfirst($operation) . ": {$result['error']}\n";
+                $this->write(ucfirst($operation) . ": {$result['error']}\n");
                 continue;
             }
 
-            echo ucfirst($operation) . ":\n";
-            echo "  Iterations: {$result['iterations']}\n";
-            echo '  Total time: ' . round($result['total_time'], 4) . "s\n";
-            echo '  Average time: ' . round($result['avg_time'] * 1000, 2) . "ms\n";
-            echo '  Operations per second: ' . round($result['ops_per_sec'], 2) . "\n";
-            echo "\n";
+            $this->write(ucfirst($operation) . ":\n");
+            $this->writeln("  Iterations: {$result['iterations']}");
+            $this->write('  Total time: ' . round($result['total_time'], 4) . "s\n");
+            $this->write('  Average time: ' . round($result['avg_time'] * 1000, 2) . "ms\n");
+            $this->writeln('  Operations per second: ' . round($result['ops_per_sec'], 2));
+            $this->writeln('');
         }
     }
 
@@ -825,16 +825,16 @@ class BenchmarkCommand extends Command
      */
     protected function printCompareResults(array $results): void
     {
-        echo "Benchmark Comparison\n";
-        echo "====================\n\n";
+        $this->writeln('Benchmark Comparison');
+        $this->writeln("====================\n");
 
         foreach ($results as $config => $result) {
-            echo ucfirst($config) . ":\n";
-            echo "  Iterations: {$result['iterations']}\n";
-            echo '  Total time: ' . round($result['total_time'], 4) . "s\n";
-            echo '  Average time: ' . round($result['avg_time'] * 1000, 2) . "ms\n";
-            echo '  Queries per second: ' . round($result['qps'], 2) . "\n";
-            echo "\n";
+            $this->write(ucfirst($config) . ":\n");
+            $this->writeln("  Iterations: {$result['iterations']}");
+            $this->write('  Total time: ' . round($result['total_time'], 4) . "s\n");
+            $this->write('  Average time: ' . round($result['avg_time'] * 1000, 2) . "ms\n");
+            $this->writeln('  Queries per second: ' . round($result['qps'], 2));
+            $this->writeln('');
         }
 
         if (count($results) === 2) {
@@ -843,7 +843,7 @@ class BenchmarkCommand extends Command
 
             if ($noCache !== null && $cache !== null) {
                 $speedup = $noCache['total_time'] > 0 ? ($noCache['total_time'] / $cache['total_time']) : 1.0;
-                echo 'Speedup with cache: ' . round($speedup, 2) . "x\n";
+                $this->write('Speedup with cache: ' . round($speedup, 2) . "x\n");
             }
         }
     }
@@ -858,25 +858,25 @@ class BenchmarkCommand extends Command
      */
     protected function printProfileResults(array $stats, array $aggregated, array $slowest, float $threshold): void
     {
-        echo "Query Profile Results\n";
-        echo "=====================\n\n";
+        $this->writeln('Query Profile Results');
+        $this->writeln("=====================\n");
 
-        echo "Aggregated Statistics:\n";
-        echo "  Total queries: {$aggregated['total_queries']}\n";
-        echo '  Total time: ' . round($aggregated['total_time'], 4) . "s\n";
-        echo '  Average time: ' . round($aggregated['avg_time'] * 1000, 2) . "ms\n";
-        echo '  Min time: ' . round($aggregated['min_time'] * 1000, 2) . "ms\n";
-        echo '  Max time: ' . round($aggregated['max_time'] * 1000, 2) . "ms\n";
-        echo "  Slow queries (>{$threshold}s): {$aggregated['slow_queries']}\n";
-        echo "\n";
+        $this->writeln('Aggregated Statistics:');
+        $this->writeln("  Total queries: {$aggregated['total_queries']}");
+        $this->write('  Total time: ' . round($aggregated['total_time'], 4) . "s\n");
+        $this->write('  Average time: ' . round($aggregated['avg_time'] * 1000, 2) . "ms\n");
+        $this->write('  Min time: ' . round($aggregated['min_time'] * 1000, 2) . "ms\n");
+        $this->write('  Max time: ' . round($aggregated['max_time'] * 1000, 2) . "ms\n");
+        $this->writeln("  Slow queries (>{$threshold}s): {$aggregated['slow_queries']}");
+        $this->writeln('');
 
         if (!empty($slowest)) {
-            echo "Slowest Queries:\n";
+            $this->writeln('Slowest Queries:');
             foreach ($slowest as $i => $query) {
-                echo '  ' . ($i + 1) . '. Avg: ' . round($query['avg_time'] * 1000, 2) . 'ms, ';
-                echo 'Max: ' . round($query['max_time'] * 1000, 2) . 'ms, ';
-                echo "Count: {$query['count']}\n";
-                echo '     SQL: ' . substr($query['sql'], 0, 80) . "...\n";
+                $this->write('  ' . ($i + 1) . '. Avg: ' . round($query['avg_time'] * 1000, 2) . 'ms, ');
+                $this->write('Max: ' . round($query['max_time'] * 1000, 2) . 'ms, ');
+                $this->writeln("Count: {$query['count']}");
+                $this->write('     SQL: ' . substr($query['sql'], 0, 80) . "...\n");
             }
         }
     }
@@ -979,33 +979,33 @@ HTML;
      */
     protected function showHelp(): int
     {
-        echo "Benchmark and Performance Testing\n\n";
-        echo "Usage: pdodb benchmark <subcommand> [arguments] [options]\n\n";
-        echo "Subcommands:\n";
-        echo "  query <sql>                    Benchmark a specific SQL query\n";
-        echo "  crud <table>                   Benchmark CRUD operations on a table\n";
-        echo "  load                           Load testing with concurrent connections\n";
-        echo "  compare                        Compare performance with/without cache\n";
-        echo "  profile                        Profile queries with detailed statistics\n";
-        echo "  report                         Generate HTML benchmark report\n\n";
-        echo "Options:\n";
-        echo "  --iterations=N                 Number of iterations (default: 100 for query, 1000 for crud)\n";
-        echo "  --warmup=N                     Warmup iterations before benchmark (default: 10)\n";
-        echo "  --connections=N                Number of concurrent connections for load test (default: 10)\n";
-        echo "  --duration=N                   Duration in seconds for load test (default: 60)\n";
-        echo "  --query=SQL                    SQL query for load/profile/report\n";
-        echo "  --cache                        Enable cache for compare\n";
-        echo "  --no-cache                     Disable cache for compare\n";
-        echo "  --slow-threshold=TIME          Slow query threshold (e.g., 100ms, 1s) for profile\n";
-        echo "  --output=FILE                  Output file for report (default: benchmark-report.html)\n\n";
-        echo "Examples:\n";
-        echo "  pdodb benchmark query \"SELECT * FROM users WHERE id = :id\"\n";
-        echo "  pdodb benchmark query \"SELECT * FROM users\" --iterations=1000\n";
-        echo "  pdodb benchmark crud users --iterations=500\n";
-        echo "  pdodb benchmark load --connections=50 --duration=60\n";
-        echo "  pdodb benchmark compare --query=\"SELECT * FROM users\"\n";
-        echo "  pdodb benchmark profile --query=\"SELECT * FROM users\" --slow-threshold=100ms\n";
-        echo "  pdodb benchmark report --query=\"SELECT * FROM users\" --output=report.html\n";
+        $this->writeln("Benchmark and Performance Testing\n");
+        $this->writeln("Usage: pdodb benchmark <subcommand> [arguments] [options]\n");
+        $this->writeln('Subcommands:');
+        $this->writeln('  query <sql>                    Benchmark a specific SQL query');
+        $this->writeln('  crud <table>                   Benchmark CRUD operations on a table');
+        $this->writeln('  load                           Load testing with concurrent connections');
+        $this->writeln('  compare                        Compare performance with/without cache');
+        $this->writeln('  profile                        Profile queries with detailed statistics');
+        $this->writeln("  report                         Generate HTML benchmark report\n");
+        $this->writeln('Options:');
+        $this->writeln('  --iterations=N                 Number of iterations (default: 100 for query, 1000 for crud)');
+        $this->writeln('  --warmup=N                     Warmup iterations before benchmark (default: 10)');
+        $this->writeln('  --connections=N                Number of concurrent connections for load test (default: 10)');
+        $this->writeln('  --duration=N                   Duration in seconds for load test (default: 60)');
+        $this->writeln('  --query=SQL                    SQL query for load/profile/report');
+        $this->writeln('  --cache                        Enable cache for compare');
+        $this->writeln('  --no-cache                     Disable cache for compare');
+        $this->writeln('  --slow-threshold=TIME          Slow query threshold (e.g., 100ms, 1s) for profile');
+        $this->writeln("  --output=FILE                  Output file for report (default: benchmark-report.html)\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb benchmark query "SELECT * FROM users WHERE id = :id"');
+        $this->writeln('  pdodb benchmark query "SELECT * FROM users" --iterations=1000');
+        $this->writeln('  pdodb benchmark crud users --iterations=500');
+        $this->writeln('  pdodb benchmark load --connections=50 --duration=60');
+        $this->writeln('  pdodb benchmark compare --query="SELECT * FROM users"');
+        $this->writeln('  pdodb benchmark profile --query="SELECT * FROM users" --slow-threshold=100ms');
+        $this->writeln('  pdodb benchmark report --query="SELECT * FROM users" --output=report.html');
         return 0;
     }
 }

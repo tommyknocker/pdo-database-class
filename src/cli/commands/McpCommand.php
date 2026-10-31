@@ -22,10 +22,10 @@ class McpCommand extends Command
         $action = $this->getArgument(0);
         if ($action === 'config') {
             $script = dirname(__DIR__, 3) . '/bin/pdodb-mcp';
-            echo json_encode(
+            $this->writeln(json_encode(
                 ['mcpServers' => ['pdodb' => ['command' => PHP_BINARY, 'args' => [$script, '--project=' . getcwd()]]]],
                 JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
-            ) . "\n";
+            ));
             return 0;
         }
         if ($action === 'serve' || $action === 'doctor') {
@@ -59,15 +59,15 @@ class McpCommand extends Command
                     $ready = !isset($metadata['error']);
                 }
                 $context['metadata_accessible'] = $ready;
-                echo json_encode(['ready' => $ready, 'context' => $context], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n";
+                $this->writeln(json_encode(['ready' => $ready, 'context' => $context], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
                 return $ready ? 0 : 1;
             }
             $server->run();
             return 0;
         }
-        echo "Usage: pdodb mcp config | doctor | serve\n";
-        echo "config prints a launch preview without writing files or embedding credentials.\n";
-        echo "Run the server in the project directory containing your .env or config/db.php.\n";
+        $this->writeln('Usage: pdodb mcp config | doctor | serve');
+        $this->writeln('config prints a launch preview without writing files or embedding credentials.');
+        $this->writeln('Run the server in the project directory containing your .env or config/db.php.');
         return 0;
     }
 

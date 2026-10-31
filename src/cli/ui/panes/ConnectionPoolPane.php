@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\cli\ui\panes;
 
 use tommyknocker\pdodb\cli\MonitorManager;
 use tommyknocker\pdodb\cli\ui\Layout;
+use tommyknocker\pdodb\cli\ui\Stdout;
 use tommyknocker\pdodb\cli\ui\Terminal;
 use tommyknocker\pdodb\PdoDb;
 
@@ -73,7 +74,7 @@ class ConnectionPoolPane
         if (Terminal::supportsColors()) {
             Terminal::bold();
         }
-        echo 'Summary:';
+        Stdout::write('Summary:');
         Terminal::reset();
 
         $row++;
@@ -91,7 +92,7 @@ class ConnectionPoolPane
         if (mb_strlen($text, 'UTF-8') > $maxLen) {
             $text = mb_substr($text, 0, $maxLen, 'UTF-8');
         }
-        echo $text;
+        Stdout::write($text);
 
         $row++;
         Terminal::moveTo($row, $content['col']);
@@ -100,7 +101,7 @@ class ConnectionPoolPane
         if (mb_strlen($usageText, 'UTF-8') > $maxLen) {
             $usageText = mb_substr($usageText, 0, $maxLen, 'UTF-8');
         }
-        echo $usageText;
+        Stdout::write($usageText);
 
         // Color code usage
         if (Terminal::supportsColors()) {
@@ -112,7 +113,7 @@ class ConnectionPoolPane
                 Terminal::color(Terminal::COLOR_GREEN);
             }
             Terminal::moveTo($row, $content['col'] + 7);
-            echo number_format($usage, 1) . '%';
+            Stdout::write(number_format($usage, 1) . '%');
             Terminal::reset();
         }
 
@@ -125,7 +126,7 @@ class ConnectionPoolPane
             if (Terminal::supportsColors()) {
                 Terminal::bold();
             }
-            echo 'Connections:';
+            Stdout::write('Connections:');
             Terminal::reset();
 
             // Clamp selected index
@@ -169,7 +170,7 @@ class ConnectionPoolPane
             if (mb_strlen($headerText, 'UTF-8') > $content['width']) {
                 $headerText = mb_substr($headerText, 0, $content['width'], 'UTF-8');
             }
-            echo $headerText;
+            Stdout::write($headerText);
             Terminal::reset();
 
             // Display connections (with scrolling)
@@ -212,7 +213,7 @@ class ConnectionPoolPane
                 if (mb_strlen($rowText, 'UTF-8') > $content['width']) {
                     $rowText = mb_substr($rowText, 0, $content['width'], 'UTF-8');
                 }
-                echo $rowText;
+                Stdout::write($rowText);
                 Terminal::reset();
             }
 
@@ -232,13 +233,13 @@ class ConnectionPoolPane
                 if (count($connections) > $visibleHeight) {
                     $info .= '(' . ($scrollOffset + 1) . '-' . $endIdx . '/' . count($connections) . ')';
                 }
-                echo $info;
+                Stdout::write($info);
                 Terminal::reset();
             }
         } else {
             $row += 2;
             Terminal::moveTo($row, $content['col']);
-            echo 'No connections';
+            Stdout::write('No connections');
         }
     }
 

@@ -36,7 +36,7 @@ class AiCommand extends Command
             'schema' => $this->schema(),
             'optimize' => $this->optimize(),
             'help', '--help', '-h', null => $this->showHelp(),
-            default => $this->showError("Unknown subcommand: {$subcommand}. Use 'ai --help' for usage."),
+            default => $this->fail("Unknown subcommand: {$subcommand}. Use 'ai --help' for usage."),
         };
     }
 
@@ -47,7 +47,7 @@ class AiCommand extends Command
     {
         $sql = $this->getArgument(1);
         if ($sql === null || $sql === '') {
-            return $this->showError('SQL query is required. Usage: pdodb ai query "SELECT * FROM users"');
+            return $this->fail('SQL query is required. Usage: pdodb ai query "SELECT * FROM users"');
         }
 
         $options = $this->generationOptions();
@@ -81,53 +81,53 @@ class AiCommand extends Command
             $aiAnalysis = $aiService->analyzeQuery($sql, $tableName, $provider, $options, $baseAnalysis);
 
             if ($format !== 'json' && getenv('PHPUNIT') === false) {
-                echo "\r" . str_repeat(' ', 80) . "\r"; // Clear loading line
+                $this->write("\r" . str_repeat(' ', 80) . "\r");
             }
 
             $providerName = $actualProvider->getProviderName();
 
             if ($format === 'json') {
-                echo json_encode([
+                $this->writeln(json_encode([
                     'base_analysis' => QueryInspectionService::format($baseAnalysis),
                     'plan_source' => $inspection['source'],
                     'warnings' => $inspection['warnings'],
                     'ai_analysis' => $aiAnalysis,
                     'provider' => $providerName,
                     'model' => $model,
-                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
                 return 0;
             }
 
             foreach ($inspection['warnings'] as $warning) {
-                echo "Warning: {$warning}\n";
+                $this->writeln("Warning: {$warning}");
             }
-            echo "Base Analysis\n";
-            echo str_repeat('=', 80) . "\n";
+            $this->writeln('Base Analysis');
+            $this->writeln(str_repeat('=', 80));
             if ($baseAnalysis !== null && $baseAnalysis->issues !== []) {
                 foreach ($baseAnalysis->issues as $issue) {
                     $severity = strtoupper($issue->severity);
-                    echo "[{$severity}] {$issue->description}\n";
+                    $this->writeln("[{$severity}] {$issue->description}");
                 }
             }
             if ($baseAnalysis !== null && $baseAnalysis->recommendations !== []) {
-                echo "\nRecommendations:\n";
+                $this->writeln("\nRecommendations:");
                 foreach ($baseAnalysis->recommendations as $rec) {
                     $severity = strtoupper($rec->severity);
-                    echo "[{$severity}] {$rec->message}\n";
+                    $this->writeln("[{$severity}] {$rec->message}");
                     if (isset($rec->suggestion)) {
-                        echo "  SQL: {$rec->suggestion}\n";
+                        $this->writeln("  SQL: {$rec->suggestion}");
                     }
                 }
             }
 
-            echo "\n\nAI Analysis (Provider: {$providerName}" . ($model ? ", Model: {$model}" : '') . ")\n";
-            echo str_repeat('=', 80) . "\n\n";
+            $this->write("\n\nAI Analysis (Provider: {$providerName}" . ($model ? ", Model: {$model}" : '') . ")\n");
+            $this->write(str_repeat('=', 80) . "\n\n");
             $formatter = new MarkdownFormatter();
-            echo $formatter->format($aiAnalysis) . "\n";
+            $this->writeln($formatter->format($aiAnalysis));
 
             return 0;
         } catch (\Throwable $e) {
-            return $this->showError('AI query analysis failed: ' . $e->getMessage());
+            return $this->fail('AI query analysis failed: ' . $e->getMessage());
         }
     }
 
@@ -161,29 +161,29 @@ class AiCommand extends Command
             $analysis = $aiService->analyzeSchema($tableName, $provider, $options);
 
             if ($format !== 'json' && getenv('PHPUNIT') === false) {
-                echo "\r" . str_repeat(' ', 80) . "\r"; // Clear loading line
+                $this->write("\r" . str_repeat(' ', 80) . "\r");
             }
 
             if ($format === 'json') {
-                echo json_encode([
+                $this->writeln(json_encode([
                     'table' => $tableName,
                     'provider' => $actualProvider->getProviderName(),
                     'analysis' => $analysis,
-                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
                 return 0;
             }
 
-            echo 'AI Schema Analysis (Provider: ' . $actualProvider->getProviderName() . ")\n";
+            $this->write('AI Schema Analysis (Provider: ' . $actualProvider->getProviderName() . ")\n");
             if ($tableName !== null) {
-                echo "Table: {$tableName}\n";
+                $this->writeln("Table: {$tableName}");
             }
-            echo str_repeat('=', 80) . "\n\n";
+            $this->write(str_repeat('=', 80) . "\n\n");
             $formatter = new MarkdownFormatter();
-            echo $formatter->format($analysis) . "\n";
+            $this->writeln($formatter->format($analysis));
 
             return 0;
         } catch (\Throwable $e) {
-            return $this->showError('AI schema analysis failed: ' . $e->getMessage());
+            return $this->fail('AI schema analysis failed: ' . $e->getMessage());
         }
     }
 
@@ -227,41 +227,41 @@ class AiCommand extends Command
             $aiSuggestions = $aiService->suggestOptimizations($baseAnalysis, $context, $provider, $options);
 
             if ($format !== 'json' && getenv('PHPUNIT') === false) {
-                echo "\r" . str_repeat(' ', 80) . "\r"; // Clear loading line
+                $this->write("\r" . str_repeat(' ', 80) . "\r");
             }
 
             if ($format === 'json') {
-                echo json_encode([
+                $this->writeln(json_encode([
                     'base_analysis' => $baseAnalysis,
                     'ai_suggestions' => $aiSuggestions,
                     'provider' => $actualProvider->getProviderName(),
-                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
                 return 0;
             }
 
-            echo "Base Analysis\n";
-            echo str_repeat('=', 80) . "\n";
+            $this->writeln('Base Analysis');
+            $this->writeln(str_repeat('=', 80));
             if (isset($baseAnalysis['critical']) && !empty($baseAnalysis['critical'])) {
-                echo "Critical Issues:\n";
+                $this->writeln('Critical Issues:');
                 foreach ($baseAnalysis['critical'] as $issue) {
-                    echo "  - {$issue['message']}\n";
+                    $this->writeln("  - {$issue['message']}");
                 }
             }
             if (isset($baseAnalysis['warnings']) && !empty($baseAnalysis['warnings'])) {
-                echo "\nWarnings:\n";
+                $this->writeln("\nWarnings:");
                 foreach ($baseAnalysis['warnings'] as $warning) {
-                    echo "  - {$warning['message']}\n";
+                    $this->writeln("  - {$warning['message']}");
                 }
             }
 
-            echo "\n\nAI Optimization Suggestions (Provider: " . $actualProvider->getProviderName() . ")\n";
-            echo str_repeat('=', 80) . "\n\n";
+            $this->write("\n\nAI Optimization Suggestions (Provider: " . $actualProvider->getProviderName() . ")\n");
+            $this->write(str_repeat('=', 80) . "\n\n");
             $formatter = new MarkdownFormatter();
-            echo $formatter->format($aiSuggestions) . "\n";
+            $this->writeln($formatter->format($aiSuggestions));
 
             return 0;
         } catch (\Throwable $e) {
-            return $this->showError('AI optimization analysis failed: ' . $e->getMessage());
+            return $this->fail('AI optimization analysis failed: ' . $e->getMessage());
         }
     }
 
@@ -346,10 +346,10 @@ class AiCommand extends Command
                     $result['ai']['probe_error'] = $probeError;
                 }
             }
-            echo json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n";
+            $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
             return $exit;
         } catch (\Throwable) {
-            echo json_encode(['error' => 'Unable to inspect database; check PDO driver, connection configuration and permissions']) . "\n";
+            $this->writeErrorLine(json_encode(['error' => 'Unable to inspect database; check PDO driver, connection configuration and permissions']));
             return 1;
         }
     }
@@ -360,24 +360,24 @@ class AiCommand extends Command
 
         try {
             $result = (new AgentDocumentation())->search($query, (int)$this->getOption('limit', 5));
-            echo json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n";
+            $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
             return 0;
         } catch (\InvalidArgumentException $e) {
-            echo json_encode(['error' => $e->getMessage()]) . "\n";
+            $this->writeErrorLine(json_encode(['error' => $e->getMessage()]));
             return 1;
         }
     }
 
     protected function setup(): int
     {
-        echo "PDOdb AI setup\n\n";
-        echo "Query advice with your AI provider:\n";
-        echo '  Choose PDODB_AI_PROVIDER (' . implode(', ', AiConfig::PROVIDERS) . ").\n";
-        echo "  Set PDODB_AI_API_KEY and optionally PDODB_AI_MODEL. Custom endpoints use PDODB_AI_BASE_URL.\n";
-        echo "  Run pdodb ai query \"SELECT * FROM users\" --table=users.\n\n";
-        echo "Optional editor integration (no additional LLM API key):\n";
-        echo "  Run pdodb mcp config to preview the local launch configuration.\n";
-        echo "  Run pdodb mcp doctor to check the database connection.\n";
+        $this->writeln("PDOdb AI setup\n");
+        $this->writeln('Query advice with your AI provider:');
+        $this->write('  Choose PDODB_AI_PROVIDER (' . implode(', ', AiConfig::PROVIDERS) . ").\n");
+        $this->writeln('  Set PDODB_AI_API_KEY and optionally PDODB_AI_MODEL. Custom endpoints use PDODB_AI_BASE_URL.');
+        $this->writeln("  Run pdodb ai query \"SELECT * FROM users\" --table=users.\n");
+        $this->writeln('Optional editor integration (no additional LLM API key):');
+        $this->writeln('  Run pdodb mcp config to preview the local launch configuration.');
+        $this->writeln('  Run pdodb mcp doctor to check the database connection.');
         return 0;
     }
 
@@ -451,36 +451,36 @@ class AiCommand extends Command
 
     protected function showHelp(): int
     {
-        echo "AI-Powered Database Analysis\n";
-        echo "============================\n\n";
-        echo "Usage: pdodb ai <subcommand> [arguments] [options]\n\n";
-        echo "Subcommands:\n";
-        echo "  context / doctor  Inspect environment without calling an LLM\n";
-        echo "  docs <query>      Search bundled documentation (no database needed)\n";
-        echo "  setup             Show agent/report setup instructions\n";
-        echo "  query <sql>       Analyze query using explainAiAdvice (includes base analysis)\n";
-        echo "  schema            Analyze database schema with AI\n";
-        echo "  optimize          Get AI-powered optimization suggestions\n";
-        echo "  help              Show this help message\n\n";
-        echo "Options:\n";
-        echo "  --provider=NAME   AI provider (openai, openai-compatible, openrouter, anthropic, google, microsoft, ollama, deepseek, yandex)\n";
-        echo "  --model=NAME      Model name (provider-specific)\n";
-        echo "  --temperature=N   Temperature (0.0-2.0, default: 0.7)\n";
-        echo "  --max-tokens=N    Maximum tokens (default: 2000)\n";
-        echo "  --params=JSON     Positional/named parameters for query EXPLAIN\n";
-        echo "  --timeout=N       AI provider timeout in seconds\n";
-        echo "  --table=NAME      Table name for context\n";
-        echo "  --format=FORMAT   Output format (text, json)\n";
-        echo "  --probe           With doctor, send one short provider request when the provider is configured. It may incur a charge. A missing configuration does not call the network and exits non-zero.\n\n";
-        echo "Examples:\n";
-        echo "  pdodb ai query \"SELECT * FROM users\" --provider=anthropic\n";
-        echo "  pdodb ai schema --table=users --format=json\n";
-        echo "  pdodb ai optimize --provider=openai --temperature=0.5\n\n";
-        echo "Environment Variables:\n";
-        echo "  PDODB_AI_PROVIDER        Default AI provider\n";
-        echo "  PDODB_AI_API_KEY         API key for the selected provider\n";
-        echo "  PDODB_AI_MODEL           Model ID (optional for providers with defaults)\n";
-        echo "  PDODB_AI_BASE_URL        Custom endpoint or local Ollama address\n";
+        $this->writeln('AI-Powered Database Analysis');
+        $this->writeln("============================\n");
+        $this->writeln("Usage: pdodb ai <subcommand> [arguments] [options]\n");
+        $this->writeln('Subcommands:');
+        $this->writeln('  context / doctor  Inspect environment without calling an LLM');
+        $this->writeln('  docs <query>      Search bundled documentation (no database needed)');
+        $this->writeln('  setup             Show agent/report setup instructions');
+        $this->writeln('  query <sql>       Analyze query using explainAiAdvice (includes base analysis)');
+        $this->writeln('  schema            Analyze database schema with AI');
+        $this->writeln('  optimize          Get AI-powered optimization suggestions');
+        $this->writeln("  help              Show this help message\n");
+        $this->writeln('Options:');
+        $this->writeln('  --provider=NAME   AI provider (openai, openai-compatible, openrouter, anthropic, google, microsoft, ollama, deepseek, yandex)');
+        $this->writeln('  --model=NAME      Model name (provider-specific)');
+        $this->writeln('  --temperature=N   Temperature (0.0-2.0, default: 0.7)');
+        $this->writeln('  --max-tokens=N    Maximum tokens (default: 2000)');
+        $this->writeln('  --params=JSON     Positional/named parameters for query EXPLAIN');
+        $this->writeln('  --timeout=N       AI provider timeout in seconds');
+        $this->writeln('  --table=NAME      Table name for context');
+        $this->writeln('  --format=FORMAT   Output format (text, json)');
+        $this->writeln("  --probe           With doctor, send one short provider request when the provider is configured. It may incur a charge. A missing configuration does not call the network and exits non-zero.\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb ai query "SELECT * FROM users" --provider=anthropic');
+        $this->writeln('  pdodb ai schema --table=users --format=json');
+        $this->writeln("  pdodb ai optimize --provider=openai --temperature=0.5\n");
+        $this->writeln('Environment Variables:');
+        $this->writeln('  PDODB_AI_PROVIDER        Default AI provider');
+        $this->writeln('  PDODB_AI_API_KEY         API key for the selected provider');
+        $this->writeln('  PDODB_AI_MODEL           Model ID (optional for providers with defaults)');
+        $this->writeln('  PDODB_AI_BASE_URL        Custom endpoint or local Ollama address');
 
         return 0;
     }

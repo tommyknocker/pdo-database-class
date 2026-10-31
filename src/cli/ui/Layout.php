@@ -215,7 +215,7 @@ class Layout
 
         // Top border with title
         Terminal::moveTo($row, $col);
-        echo '┌' . str_repeat('─', $width - 2) . '┐';
+        Stdout::write('┌' . str_repeat('─', $width - 2) . '┐');
         Terminal::moveTo($row + 1, $col);
         // Center the title
         $availableWidth = $width - 2; // Exclude left and right borders
@@ -224,17 +224,17 @@ class Layout
         $truncatedLength = mb_strlen($truncatedTitle, 'UTF-8');
         $leftPadding = (int)floor(($availableWidth - $truncatedLength) / 2);
         $rightPadding = $availableWidth - $truncatedLength - $leftPadding;
-        echo '│' . str_repeat(' ', $leftPadding) . $truncatedTitle . str_repeat(' ', $rightPadding) . '│';
+        Stdout::write('│' . str_repeat(' ', $leftPadding) . $truncatedTitle . str_repeat(' ', $rightPadding) . '│');
 
         // Side borders
         for ($i = 2; $i < $height; $i++) {
             Terminal::moveTo($row + $i, $col);
-            echo '│' . str_repeat(' ', $width - 2) . '│';
+            Stdout::write('│' . str_repeat(' ', $width - 2) . '│');
         }
 
         // Bottom border
         Terminal::moveTo($row + $height - 1, $col);
-        echo '└' . str_repeat('─', $width - 2) . '┘';
+        Stdout::write('└' . str_repeat('─', $width - 2) . '┘');
 
         // Reset formatting
         Terminal::reset();

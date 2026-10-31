@@ -54,7 +54,7 @@ class CacheCommand extends Command
             'clear' => $this->clearCache($cacheManager),
             'invalidate' => $this->invalidateCache($cacheManager),
             'stats' => $this->showStats($cacheManager),
-            default => $this->showError("Unknown subcommand: {$subStr}"),
+            default => $this->fail("Unknown subcommand: {$subStr}"),
         };
     }
 
@@ -142,23 +142,23 @@ class CacheCommand extends Command
             $stats = $cacheManager->getStats();
 
             if ($format === 'json') {
-                echo json_encode($stats, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+                $this->writeln(json_encode($stats, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
                 return 0;
             }
 
             // Table format
-            echo "Cache Statistics\n";
-            echo "================\n\n";
-            echo 'Enabled:        ' . ($stats['enabled'] ? 'Yes' : 'No') . "\n";
-            echo "Type:           {$stats['type']}\n";
-            echo "Prefix:         {$stats['prefix']}\n";
-            echo "Default TTL:    {$stats['default_ttl']} seconds\n";
-            echo "Hits:           {$stats['hits']}\n";
-            echo "Misses:         {$stats['misses']}\n";
-            echo "Hit Rate:       {$stats['hit_rate']}%\n";
-            echo "Sets:           {$stats['sets']}\n";
-            echo "Deletes:        {$stats['deletes']}\n";
-            echo "Total Requests: {$stats['total_requests']}\n";
+            $this->writeln('Cache Statistics');
+            $this->writeln("================\n");
+            $this->writeln('Enabled:        ' . ($stats['enabled'] ? 'Yes' : 'No'));
+            $this->writeln("Type:           {$stats['type']}");
+            $this->writeln("Prefix:         {$stats['prefix']}");
+            $this->writeln("Default TTL:    {$stats['default_ttl']} seconds");
+            $this->writeln("Hits:           {$stats['hits']}");
+            $this->writeln("Misses:         {$stats['misses']}");
+            $this->writeln("Hit Rate:       {$stats['hit_rate']}%");
+            $this->writeln("Sets:           {$stats['sets']}");
+            $this->writeln("Deletes:        {$stats['deletes']}");
+            $this->writeln("Total Requests: {$stats['total_requests']}");
 
             return 0;
         } catch (\Exception $e) {
@@ -173,24 +173,24 @@ class CacheCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "Cache Management\n\n";
-        echo "Usage: pdodb cache <subcommand> [options]\n\n";
-        echo "Subcommands:\n";
-        echo "  clear                    Clear all cached query results\n";
-        echo "  invalidate <pattern>     Invalidate cache entries matching pattern\n";
-        echo "  stats                    Show cache usage statistics\n\n";
-        echo "Options:\n";
-        echo "  --force                  Skip confirmation prompts (for clear/invalidate)\n";
-        echo "  --format=table|json      Output format (default: table, for stats)\n\n";
-        echo "Examples:\n";
-        echo "  pdodb cache clear\n";
-        echo "  pdodb cache clear --force\n";
-        echo "  pdodb cache invalidate users\n";
-        echo "  pdodb cache invalidate \"table:users\"\n";
-        echo "  pdodb cache invalidate \"table:users_*\" --force\n";
-        echo "  pdodb cache invalidate \"pdodb_table_users_*\"\n";
-        echo "  pdodb cache stats\n";
-        echo "  pdodb cache stats --format=json\n";
+        $this->writeln("Cache Management\n");
+        $this->writeln("Usage: pdodb cache <subcommand> [options]\n");
+        $this->writeln('Subcommands:');
+        $this->writeln('  clear                    Clear all cached query results');
+        $this->writeln('  invalidate <pattern>     Invalidate cache entries matching pattern');
+        $this->writeln("  stats                    Show cache usage statistics\n");
+        $this->writeln('Options:');
+        $this->writeln('  --force                  Skip confirmation prompts (for clear/invalidate)');
+        $this->writeln("  --format=table|json      Output format (default: table, for stats)\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb cache clear');
+        $this->writeln('  pdodb cache clear --force');
+        $this->writeln('  pdodb cache invalidate users');
+        $this->writeln('  pdodb cache invalidate "table:users"');
+        $this->writeln('  pdodb cache invalidate "table:users_*" --force');
+        $this->writeln('  pdodb cache invalidate "pdodb_table_users_*"');
+        $this->writeln('  pdodb cache stats');
+        $this->writeln('  pdodb cache stats --format=json');
         return 0;
     }
 }

@@ -14,7 +14,7 @@ class Terminal
      */
     public static function clear(): void
     {
-        echo "\033[2J\033[H";
+        Stdout::write("\033[2J\033[H");
     }
 
     /**
@@ -25,7 +25,7 @@ class Terminal
      */
     public static function moveTo(int $row, int $col): void
     {
-        echo "\033[{$row};{$col}H";
+        Stdout::write("\033[{$row};{$col}H");
     }
 
     /**
@@ -33,7 +33,7 @@ class Terminal
      */
     public static function hideCursor(): void
     {
-        echo "\033[?25l";
+        Stdout::write("\033[?25l");
     }
 
     /**
@@ -41,7 +41,7 @@ class Terminal
      */
     public static function showCursor(): void
     {
-        echo "\033[?25h";
+        Stdout::write("\033[?25h");
     }
 
     /**
@@ -49,7 +49,7 @@ class Terminal
      */
     public static function clearLine(): void
     {
-        echo "\033[K";
+        Stdout::write("\033[K");
     }
 
     /**
@@ -57,7 +57,7 @@ class Terminal
      */
     public static function clearLineFull(): void
     {
-        echo "\033[2K";
+        Stdout::write("\033[2K");
     }
 
     /**
@@ -65,7 +65,7 @@ class Terminal
      */
     public static function reset(): void
     {
-        echo "\033[0m";
+        Stdout::write("\033[0m");
     }
 
     /**
@@ -73,7 +73,7 @@ class Terminal
      */
     public static function bold(): void
     {
-        echo "\033[1m";
+        Stdout::write("\033[1m");
     }
 
     /**
@@ -83,7 +83,7 @@ class Terminal
      */
     public static function color(int $color): void
     {
-        echo "\033[{$color}m";
+        Stdout::write("\033[{$color}m");
     }
 
     /**

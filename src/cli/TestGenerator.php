@@ -44,9 +44,9 @@ class TestGenerator extends BaseCliCommand
         $driver = static::getDriverName($db);
 
         if (getenv('PHPUNIT') === false) {
-            echo "PDOdb Test Generator\n";
-            echo "Database: {$driver}\n";
-            echo "Type: {$type}\n\n";
+            static::cliWriteln('PDOdb Test Generator');
+            static::cliWriteln("Database: {$driver}");
+            static::cliWriteln("Type: {$type}\n");
         }
 
         // Resolve table name and target class
@@ -132,11 +132,11 @@ class TestGenerator extends BaseCliCommand
 
         static::success('Test file created: ' . basename($filename));
         if (getenv('PHPUNIT') === false) {
-            echo "  Path: {$filename}\n";
+            static::cliWriteln("  Path: {$filename}");
             if ($resolvedTableName !== null) {
-                echo "  Table: {$resolvedTableName}\n";
+                static::cliWriteln("  Table: {$resolvedTableName}");
             }
-            echo "  Target: {$targetClass} ({$targetType})\n";
+            static::cliWriteln("  Target: {$targetClass} ({$targetType})");
         }
 
         return $filename;

@@ -519,17 +519,9 @@ final class GenerateCommandCliTests extends TestCase
         putenv('PHPUNIT=1');
 
         $app = new Application();
-        ob_start();
+        $run = CliTestCapture::runApplication($app, ['pdodb', 'generate', 'unknown']);
 
-        try {
-            $code = $app->run(['pdodb', 'generate', 'unknown']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            $out = $e->getMessage();
-        }
-
-        $this->assertStringContainsString('Unknown subcommand: unknown', $out);
+        $this->assertStringContainsString('Unknown subcommand: unknown', $run['output']);
     }
 
     public function testGenerateApiShowsHelpWhenNoParameters(): void

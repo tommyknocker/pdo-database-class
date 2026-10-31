@@ -40,8 +40,8 @@ class EnumGenerator extends BaseCliCommand
         $driver = static::getDriverName($db);
 
         if (getenv('PHPUNIT') === false) {
-            echo "PDOdb Enum Generator\n";
-            echo "Database: {$driver}\n\n";
+            static::cliWriteln('PDOdb Enum Generator');
+            static::cliWriteln("Database: {$driver}\n");
         }
 
         // Verify table exists
@@ -108,10 +108,10 @@ class EnumGenerator extends BaseCliCommand
 
         static::success('Enum file created: ' . basename($filename));
         if (getenv('PHPUNIT') === false) {
-            echo "  Path: {$filename}\n";
-            echo "  Table: {$tableName}\n";
-            echo "  Column: {$columnName}\n";
-            echo '  Values: ' . implode(', ', $enumValues) . "\n";
+            static::cliWriteln("  Path: {$filename}");
+            static::cliWriteln("  Table: {$tableName}");
+            static::cliWriteln("  Column: {$columnName}");
+            static::cliWriteln('  Values: ' . implode(', ', $enumValues));
         }
 
         return $filename;

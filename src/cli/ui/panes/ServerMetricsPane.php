@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli\ui\panes;
 
 use tommyknocker\pdodb\cli\ui\Layout;
+use tommyknocker\pdodb\cli\ui\Stdout;
 use tommyknocker\pdodb\cli\ui\Terminal;
 use tommyknocker\pdodb\PdoDb;
 
@@ -43,7 +44,7 @@ class ServerMetricsPane
 
         if (empty($metrics)) {
             Terminal::moveTo($content['row'], $content['col']);
-            echo 'No metrics available';
+            Stdout::write('No metrics available');
             return;
         }
 
@@ -55,10 +56,10 @@ class ServerMetricsPane
             if (Terminal::supportsColors()) {
                 Terminal::bold();
             }
-            echo 'Version: ';
+            Stdout::write('Version: ');
             Terminal::reset();
             $version = (string)$metrics['version'];
-            echo self::truncate($version, $content['width'] - 9);
+            Stdout::write(self::truncate($version, $content['width'] - 9));
             $row++;
         }
 
@@ -68,10 +69,10 @@ class ServerMetricsPane
             if (Terminal::supportsColors()) {
                 Terminal::bold();
             }
-            echo 'Uptime: ';
+            Stdout::write('Uptime: ');
             Terminal::reset();
             $uptime = (int)$metrics['uptime_seconds'];
-            echo self::formatUptime($uptime);
+            Stdout::write(self::formatUptime($uptime));
             $row++;
         }
 
@@ -98,10 +99,10 @@ class ServerMetricsPane
                 if (Terminal::supportsColors()) {
                     Terminal::bold();
                 }
-                echo $label . ': ';
+                Stdout::write($label . ': ');
                 Terminal::reset();
                 $value = (int)$metrics[$key];
-                echo number_format($value);
+                Stdout::write(number_format($value));
                 $row++;
 
                 if ($row >= $content['row'] + $content['height']) {
@@ -116,10 +117,10 @@ class ServerMetricsPane
             if (Terminal::supportsColors()) {
                 Terminal::bold();
             }
-            echo 'File Size: ';
+            Stdout::write('File Size: ');
             Terminal::reset();
             $size = (int)$metrics['file_size'];
-            echo self::formatBytes($size);
+            Stdout::write(self::formatBytes($size));
             $row++;
         }
 
@@ -129,7 +130,7 @@ class ServerMetricsPane
             if (Terminal::supportsColors()) {
                 Terminal::color(Terminal::COLOR_RED);
             }
-            echo 'Error: ' . self::truncate((string)$metrics['error'], $content['width'] - 7);
+            Stdout::write('Error: ' . self::truncate((string)$metrics['error'], $content['width'] - 7));
             Terminal::reset();
         }
     }

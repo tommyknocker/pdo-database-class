@@ -369,44 +369,19 @@ final class OptimizeCommandCliTests extends TestCase
         $app = new Application();
 
         $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT=1'); // Enable PHPUNIT mode to use exception instead of exit
-        ob_start();
-
+        putenv('PHPUNIT=1');
         try {
-            $code = $app->run(['pdodb', 'optimize', 'logs', '--file=/nonexistent/file.log']);
-            $out = ob_get_clean();
-        } catch (\RuntimeException $e) {
-            ob_end_clean();
+            $run = CliTestCapture::runApplication($app, ['pdodb', 'optimize', 'logs', '--file=/nonexistent/file.log']);
+        } finally {
             if ($phpunit !== false) {
                 putenv('PHPUNIT=' . $phpunit);
             } else {
                 putenv('PHPUNIT');
             }
-
-            // Verify exception message and code
-            $this->assertStringContainsString('Cannot read', $e->getMessage());
-            $this->assertSame(1, $e->getCode());
-            return;
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            } else {
-                putenv('PHPUNIT');
-            }
-
-            throw $e;
         }
 
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
-
-        // If no exception was thrown, verify exit code and output
-        $this->assertSame(1, $code);
-        $this->assertStringContainsString('Cannot read', $out);
+        $this->assertSame(1, $run['code']);
+        $this->assertStringContainsString('Cannot read', $run['output']);
     }
 
     public function testOptimizeHelpCommand(): void

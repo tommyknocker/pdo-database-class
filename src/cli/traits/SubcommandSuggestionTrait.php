@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli\traits;
 
+use tommyknocker\pdodb\cli\BaseCliCommand;
 use tommyknocker\pdodb\cli\CommandSuggestion;
 
 /**
@@ -27,14 +28,14 @@ trait SubcommandSuggestionTrait
      */
     protected function showSubcommandError(string $subcommand): int
     {
-        echo "Error: Unknown subcommand: {$subcommand}\n";
+        BaseCliCommand::io()->writeErrorLine("Error: Unknown subcommand: {$subcommand}");
 
         $availableSubcommands = $this->getAvailableSubcommands();
         $suggestions = CommandSuggestion::findSimilar($subcommand, $availableSubcommands);
 
         if (!empty($suggestions)) {
             $message = CommandSuggestion::formatMessage($subcommand, $suggestions);
-            echo "\n" . $message . "\n";
+            BaseCliCommand::io()->writeln("\n" . $message);
         }
 
         return 1;

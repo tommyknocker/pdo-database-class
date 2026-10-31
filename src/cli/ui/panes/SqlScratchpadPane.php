@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli\ui\panes;
 
 use tommyknocker\pdodb\cli\ui\Layout;
+use tommyknocker\pdodb\cli\ui\Stdout;
 use tommyknocker\pdodb\cli\ui\Terminal;
 use tommyknocker\pdodb\PdoDb;
 
@@ -71,12 +72,12 @@ class SqlScratchpadPane
             if (mb_strlen($lastQuery, 'UTF-8') > 50) {
                 $preview .= '...';
             }
-            echo 'Last: ' . $preview;
+            Stdout::write('Last: ' . $preview);
         } elseif ($queryHistory !== null) {
             $count = count($queryHistory);
-            echo "History: {$count} queries";
+            Stdout::write("History: {$count} queries");
         } else {
-            echo 'No queries executed';
+            Stdout::write('No queries executed');
         }
     }
 
@@ -95,20 +96,20 @@ class SqlScratchpadPane
             Terminal::bold();
             Terminal::color(Terminal::COLOR_CYAN);
         }
-        echo 'SQL Scratchpad (Fullscreen)';
+        Stdout::write('SQL Scratchpad (Fullscreen)');
         Terminal::reset();
 
         Terminal::moveTo($content['row'], $content['col']);
-        echo 'SQL Editor - Enter query and press Ctrl+Enter or F5 to execute';
+        Stdout::write('SQL Editor - Enter query and press Ctrl+Enter or F5 to execute');
         Terminal::moveTo($content['row'] + 1, $content['col']);
         if ($lastQuery !== null) {
             $queryPreview = mb_substr($lastQuery, 0, min($content['width'] - 2, mb_strlen($lastQuery, 'UTF-8')), 'UTF-8');
             if (mb_strlen($lastQuery, 'UTF-8') > $content['width'] - 2) {
                 $queryPreview .= '...';
             }
-            echo 'Last query: ' . $queryPreview;
+            Stdout::write('Last query: ' . $queryPreview);
         } else {
-            echo 'No query executed yet';
+            Stdout::write('No query executed yet');
         }
     }
 }

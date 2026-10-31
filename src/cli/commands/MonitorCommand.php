@@ -45,7 +45,7 @@ class MonitorCommand extends Command
             'connections' => $this->monitorConnections(),
             'slow' => $this->monitorSlow(),
             'stats' => $this->monitorStats(),
-            default => $this->showError('Unknown subcommand: ' . $subStr),
+            default => $this->fail('Unknown subcommand: ' . $subStr),
         };
     }
 
@@ -143,15 +143,15 @@ class MonitorCommand extends Command
         // Use ANSI escape sequence to clear screen (cross-platform)
         $clear = "\033[2J\033[H";
 
-        echo $clear;
-        echo "Monitoring active queries (Press Ctrl+C to exit)\n\n";
+        $this->write($clear);
+        $this->writeln("Monitoring active queries (Press Ctrl+C to exit)\n");
 
         /* @phpstan-ignore-next-line */
         while (true) {
             $queries = MonitorManager::getActiveQueries($db);
-            echo $clear;
-            echo "Monitoring active queries (Press Ctrl+C to exit)\n";
-            echo 'Updated: ' . date('Y-m-d H:i:s') . "\n\n";
+            $this->write($clear);
+            $this->writeln('Monitoring active queries (Press Ctrl+C to exit)');
+            $this->write('Updated: ' . date('Y-m-d H:i:s') . "\n\n");
             $this->printFormatted(['queries' => $queries], $format);
             sleep(2);
         }
@@ -170,15 +170,15 @@ class MonitorCommand extends Command
         // Use ANSI escape sequence to clear screen (cross-platform)
         $clear = "\033[2J\033[H";
 
-        echo $clear;
-        echo "Monitoring active connections (Press Ctrl+C to exit)\n\n";
+        $this->write($clear);
+        $this->writeln("Monitoring active connections (Press Ctrl+C to exit)\n");
 
         /* @phpstan-ignore-next-line */
         while (true) {
             $connections = MonitorManager::getActiveConnections($db);
-            echo $clear;
-            echo "Monitoring active connections (Press Ctrl+C to exit)\n";
-            echo 'Updated: ' . date('Y-m-d H:i:s') . "\n\n";
+            $this->write($clear);
+            $this->writeln('Monitoring active connections (Press Ctrl+C to exit)');
+            $this->write('Updated: ' . date('Y-m-d H:i:s') . "\n\n");
             $this->printFormatted(['connections' => $connections], $format);
             sleep(2);
         }
@@ -218,7 +218,7 @@ class MonitorCommand extends Command
     {
         $fmt = strtolower($format);
         if ($fmt === 'json') {
-            echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+            $this->writeln(json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             return 0;
         }
         // table format (default)
@@ -237,20 +237,20 @@ class MonitorCommand extends Command
             if (is_array($val)) {
                 // Handle connections structure: {connections: [...], summary: {...}}
                 if ($key === 'connections' && isset($val['connections']) && isset($val['summary'])) {
-                    echo ucfirst('connections') . ":\n";
+                    $this->write(ucfirst('connections') . ":\n");
                     if (!empty($val['connections']) && is_array($val['connections'])) {
                         /** @var array<int, array<string, mixed>> $connections */
                         $connections = $val['connections'];
                         $this->printTableRows($connections);
                     } else {
-                        echo "  (none)\n";
+                        $this->writeln('  (none)');
                     }
-                    echo "\nSummary:\n";
+                    $this->writeln("\nSummary:");
                     if (is_array($val['summary'])) {
                         foreach ($val['summary'] as $summaryKey => $summaryVal) {
                             $summaryKeyStr = is_string($summaryKey) ? $summaryKey : '';
                             $summaryValStr = is_string($summaryVal) || is_int($summaryVal) || is_float($summaryVal) ? (string)$summaryVal : '';
-                            echo "  {$summaryKeyStr}: {$summaryValStr}\n";
+                            $this->writeln("  {$summaryKeyStr}: {$summaryValStr}");
                         }
                     }
                     continue;
@@ -258,16 +258,16 @@ class MonitorCommand extends Command
 
                 if (!empty($val)) {
                     $keyStr = is_string($key) ? $key : '';
-                    echo ucfirst($keyStr) . ":\n";
+                    $this->write(ucfirst($keyStr) . ":\n");
                     $this->printTableRows($val);
                 } else {
                     $keyStr = is_string($key) ? $key : '';
-                    echo ucfirst($keyStr) . ": (none)\n";
+                    $this->write(ucfirst($keyStr) . ": (none)\n");
                 }
             } else {
                 $keyStr = is_string($key) ? $key : '';
                 $valStr = is_string($val) || is_int($val) || is_float($val) ? (string)$val : '';
-                echo ucfirst($keyStr) . ": {$valStr}\n";
+                $this->write(ucfirst($keyStr) . ": {$valStr}\n");
             }
         }
     }
@@ -311,8 +311,8 @@ class MonitorCommand extends Command
             $header .= str_pad($col, $widths[$col]) . '  ';
             $separator .= str_repeat('-', $widths[$col]) . '  ';
         }
-        echo $header . "\n";
-        echo $separator . "\n";
+        $this->writeln($header);
+        $this->writeln($separator);
 
         // Print rows
         foreach ($rows as $row) {
@@ -322,7 +322,7 @@ class MonitorCommand extends Command
                 $valStr = is_string($val) || is_int($val) || is_float($val) ? (string)$val : '';
                 $line .= str_pad($valStr, $widths[$col]) . '  ';
             }
-            echo $line . "\n";
+            $this->writeln($line);
         }
     }
 
@@ -333,24 +333,24 @@ class MonitorCommand extends Command
      */
     protected function showHelp(): int
     {
-        echo "Database Monitoring\n\n";
-        echo "Usage: pdodb monitor <subcommand> [options]\n\n";
-        echo "Subcommands:\n";
-        echo "  queries [--watch] [--format=table|json]     Monitor active queries\n";
-        echo "  connections [--watch] [--format=table|json] Monitor active connections\n";
-        echo "  slow [--threshold=1s] [--limit=10] [--format=table|json]  Monitor slow queries\n";
-        echo "  stats [--format=table|json]                Show query statistics\n\n";
-        echo "Options:\n";
-        echo "  --watch              Update in real-time (for queries/connections)\n";
-        echo "  --format=table|json Output format (default: table)\n";
-        echo "  --threshold=TIME    Slow query threshold (e.g., 1s, 500ms, 2.5s)\n";
-        echo "  --limit=N           Maximum number of slow queries to show (default: 10)\n\n";
-        echo "Examples:\n";
-        echo "  pdodb monitor queries\n";
-        echo "  pdodb monitor queries --watch\n";
-        echo "  pdodb monitor connections --format=json\n";
-        echo "  pdodb monitor slow --threshold=2s --limit=20\n";
-        echo "  pdodb monitor stats\n";
+        $this->writeln("Database Monitoring\n");
+        $this->writeln("Usage: pdodb monitor <subcommand> [options]\n");
+        $this->writeln('Subcommands:');
+        $this->writeln('  queries [--watch] [--format=table|json]     Monitor active queries');
+        $this->writeln('  connections [--watch] [--format=table|json] Monitor active connections');
+        $this->writeln('  slow [--threshold=1s] [--limit=10] [--format=table|json]  Monitor slow queries');
+        $this->writeln("  stats [--format=table|json]                Show query statistics\n");
+        $this->writeln('Options:');
+        $this->writeln('  --watch              Update in real-time (for queries/connections)');
+        $this->writeln('  --format=table|json Output format (default: table)');
+        $this->writeln('  --threshold=TIME    Slow query threshold (e.g., 1s, 500ms, 2.5s)');
+        $this->writeln("  --limit=N           Maximum number of slow queries to show (default: 10)\n");
+        $this->writeln('Examples:');
+        $this->writeln('  pdodb monitor queries');
+        $this->writeln('  pdodb monitor queries --watch');
+        $this->writeln('  pdodb monitor connections --format=json');
+        $this->writeln('  pdodb monitor slow --threshold=2s --limit=20');
+        $this->writeln('  pdodb monitor stats');
         return 0;
     }
 }
