@@ -188,6 +188,9 @@ Object-based database operations with relationships and scopes.
 - **[01-basics.php](09-active-record/01-basics.php)** - ActiveRecord basics and CRUD
 - **[02-relationships.php](09-active-record/02-relationships.php)** - Relationships (hasOne, hasMany, belongsTo, hasManyThrough)
 - **[03-scopes.php](09-active-record/03-scopes.php)** - Global and local query scopes
+- **[04-api-contract.php](09-active-record/04-api-contract.php)** - Request and response DTOs around a transactional model update
+- **[05-diagnose-relations.php](09-active-record/05-diagnose-relations.php)** - Lazy and eager loading diagnostics
+- **[06-model-services.php](09-active-record/06-model-services.php)** - Behaviors, transactional saves, upsert helpers, and an inbox
 
 ### 10. Extensibility
 Extending PdoDb: macros, plugins, and events.
@@ -214,6 +217,9 @@ Reliability features: exception handling and connection retry.
 
 - **[01-exception-handling.php](12-reliability/01-exception-handling.php)** - Typed exceptions and error diagnostics
 - **[02-connection-retry.php](12-reliability/02-connection-retry.php)** - Automatic retry with exponential backoff
+- **[03-transactional-outbox.php](12-reliability/03-transactional-outbox.php)** - Transactional outbox with a custom publisher
+- **[04-outbox-cli.php](12-reliability/04-outbox-cli.php)** - Outbox worker through the CLI
+- **[05-outbox-retry.php](12-reliability/05-outbox-retry.php)** - Retry a failed outbox row
 
 ### 13. Real-World Examples
 Complete applications and patterns.

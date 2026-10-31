@@ -625,6 +625,10 @@ class ConnectionFactory {
 $db = ConnectionFactory::create();
 ```
 
+## Long-lived workers
+
+RoadRunner, Swoole, and FrankenPHP reuse a process for many requests. `Model::setDb()` keeps the connection on that model class until you replace it. Set it from the request's `PdoDb` at the start of each request, or call `Model::on($db)` for a query that must not use the class default. A model loaded from one connection stays bound to it. Query and transaction events on that connection are the place to attach PSR-3 logging or OpenTelemetry; register a PSR-14 dispatcher with `setEventDispatcher()`.
+
 ## Next Steps
 
 - [Query Builder Basics](03-query-builder-basics.md) - Learn about the fluent API

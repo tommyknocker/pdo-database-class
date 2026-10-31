@@ -854,6 +854,61 @@ With `on()`, relationships use the explicitly supplied connection and retain
 related-model global scopes. Do not combine models from different explicit
 contexts in one manual eager-load call.
 
+## Behaviors, transactions, and API shape
+
+These features are opt-in. A model that does not override them keeps the previous `save()` and `delete()` behavior.
+
+### Behaviors
+
+Return behavior classes from `behaviors()`. A class name uses the defaults. `ClassName::class => ['column' => 'removed_at']` passes configuration. An instance is also accepted.
+
+- `TimestampBehavior` sets `created_at` on insert when it is empty and `updated_at` on insert and update. Both names can be changed or set to null.
+- `SoftDeleteBehavior` adds a `softDelete` global scope (`deleted_at IS NULL`) and turns `delete()` into an update. `restore()` clears the timestamp. `forceDelete()` and `forceDeleteAll()` remove rows. `deleteAll()` soft-deletes when the behavior is enabled. Disable the scope with `withoutGlobalScope(SoftDeleteBehavior::SCOPE)`.
+- `PrimaryKeyBehavior` assigns a UUID or ULID before insert when the key is empty. Use `incrementing(): false` when the primary key itself is generated in PHP; otherwise a null key is still treated as auto-increment. The behavior can also fill another column, such as `public_id`.
+
+Generated models document columns with `@property` tags so static analysis can see them. For a real typed property, declare a PHP 8.4 hook that reads and writes through `getAttribute()` and `setAttribute()`:
+
+```php
+public string $headline {
+    get => (string) $this->getAttribute('title');
+    set {
+        $this->setAttribute('title', $value);
+    }
+}
+```
+
+Use a set block. A short `set =>` expression is stored in the property, and `setAttribute()` returns void.
+
+### Transactions and afterCommit
+
+`transactional()` lists `insert`, `update`, `delete`, or `['*']`. The default is empty. Validation still runs before a transaction starts, and a failed validation does not roll anything back.
+
+Inside a transactional operation, `beforeSave` and `afterSave` run in the same transaction as the write. If the driver can nest transactions, an operation joins the outer one with a savepoint. If it cannot, the operation runs on the open transaction and does not commit or roll it back. A stopped `beforeSave`, a failed write, or an exception rolls back the database work started by that operation and restores the model to the snapshot taken when `save()` or `delete()` started. Assignments made before that call stay in memory, so a rolled-back update is dirty and can be saved again. Generated keys, behavior values, and old-attribute bookkeeping applied during the write are reverted. The same snapshot is restored when a save succeeded inside an outer transaction that later rolls back. The database row returns to the values committed before that outer transaction; reload the model if another query changed the row after this instance was loaded.
+
+`afterCommit()` registers work that runs only after the outermost commit. Call it from an after-save listener while the transaction is still open. It is the right place for mail or HTTP. It is the wrong place for `Outbox::add()`: the outbox row must be inserted in the same transaction as the business write, from `afterSave` or from the surrounding `transaction()` callback. See [Transactional outbox](27-transactional-outbox.md) and [Inbox](28-inbox.md).
+
+### Bulk writes and race-free create
+
+`updateAll()` and `deleteAll()` apply global scopes and do not fire model events. `firstOrCreate()` and `updateOrCreate()` use one dialect-specific upsert. The search columns need a unique constraint; the first conflict is the whole search key, not only the primary key. `increment()` and `decrement()` use a single SQL addition so two requests cannot lose an update. They participate in optimistic locking when `optimisticLock()` is set.
+
+`ActiveQuery::each()`, `chunk()`, and `cursor()` yield models. `each()` and `chunk()` load `with()` relations once per batch. `getQueryBuilder()->each()` still yields raw rows. `stream()` on an active query remains a raw stream; use `cursor()` for models.
+
+### Validation and serialization
+
+Built-in rules now include `number`, `in`, `date`, `regex`, `unique`, `exist` / `exists`, and `callback`. A closure may be the validator. A `when` callable skips that attribute when it does not return true. `validationErrorPayload()` returns `message` and `errors` for an HTTP response.
+
+`toArray()` omits `hiddenAttributes()`. When `visibleAttributes()` is non-empty, only those stored attributes are returned. `appendedAttributes()` adds computed keys and honors the same visibility lists. `present()` is unchanged: it is an explicit field list and does not read hidden attributes.
+
+### Two ways to write
+
+`$model->save()` and `$model->delete()` run behaviors, validation, events, and the transactional wrapper. `Model::find()->update()` and `updateAll()` / `deleteAll()` are set-based writes: they honor global scopes and skip model events. Use the model instance when a row must notify listeners or fill timestamps. Use the query when many rows change and events would be the wrong tool.
+
+### Long-lived workers
+
+`Model::setDb()` stores the connection on that class, not on one shared static property for every model. In RoadRunner, Swoole, or FrankenPHP, call `setDb($db)` at the start of each request with that request's connection. Prefer `Model::on($db)` when a query must not read process-wide state. Do not keep a request's connection on the class after the request finishes if the next request uses a different database. Loaded models stay bound to the connection that read them.
+
+Query and transaction events (`QueryExecutedEvent`, `TransactionCommittedEvent`) are the integration point for PSR-3 logs and OpenTelemetry. Register a PSR-14 dispatcher on the connection; PDOdb does not ship a framework container binding.
+
 ## Diagnosing relationship queries
 
 An order list can accidentally load a customer separately for every order. Enable profiling on the connection to see how many queries each relation performs:

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\orm;
 
+use Generator;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\orm\relations\EagerLoader;
@@ -75,7 +76,7 @@ class ActiveQuery
             return;
         }
 
-        $globalScopes = $this->modelClass::globalScopes();
+        $globalScopes = $this->modelClass::resolvedGlobalScopes();
 
         foreach ($globalScopes as $scopeName => $scope) {
             // Skip if this scope is disabled
@@ -125,13 +126,13 @@ class ActiveQuery
         }
 
         if (in_array($name, ['truncate', 'replace', 'replaceMulti', 'merge'], true)) {
-            foreach ($this->modelClass::globalScopes() as $scopeName => $_scope) {
+            foreach ($this->modelClass::resolvedGlobalScopes() as $scopeName => $_scope) {
                 if (!$this->queryBuilder->isGlobalScopeDisabled($scopeName)) {
                     throw new RuntimeException("Cannot use {$name} while a global scope is enabled; disable it explicitly if intended.");
                 }
             }
         }
-        if (in_array($name, ['exists', 'notExists', 'first', 'last', 'batch', 'each', 'stream', 'update', 'delete', 'toSQL', 'explain', 'explainAnalyze',
+        if (in_array($name, ['exists', 'notExists', 'first', 'last', 'batch', 'stream', 'update', 'delete', 'toSQL', 'explain', 'explainAnalyze',
             'explainAdvice', 'explainAiAdvice', 'explainAiContext'], true)) {
             $this->ensureGlobalScopes();
         }
@@ -231,6 +232,98 @@ class ActiveQuery
 
         // Eager load relationships if requested
         if (!empty($this->eagerLoad) && !empty($models)) {
+            $this->loadRelations($models, $this->eagerLoad);
+        }
+
+        return $models;
+    }
+
+    /**
+     * Yield model instances in database batches.
+     *
+     * Eager relations configured with with() are loaded once per batch.
+     * QueryBuilder::each() still returns raw rows; call getQueryBuilder()->each()
+     * when the rows should stay arrays.
+     *
+     * @return Generator<int, TModel>
+     */
+    public function each(int $batchSize = 100): Generator
+    {
+        $this->ensureGlobalScopes();
+        $this->modelClass::validateCastConnection($this->database);
+        foreach ($this->queryBuilder->batch($batchSize) as $rows) {
+            $models = $this->modelsFromRows($rows);
+            foreach ($models as $model) {
+                yield $model;
+            }
+        }
+    }
+
+    /**
+     * Pass each batch of models to a callback. Returning false stops iteration.
+     *
+     * @param callable(array<int, TModel>): (bool|null) $callback
+     */
+    public function chunk(int $count, callable $callback): void
+    {
+        if ($count < 1) {
+            throw new RuntimeException('Chunk size must be at least 1.');
+        }
+
+        $this->ensureGlobalScopes();
+        $this->modelClass::validateCastConnection($this->database);
+        foreach ($this->queryBuilder->batch($count) as $rows) {
+            $models = $this->modelsFromRows($rows);
+            if ($models === []) {
+                continue;
+            }
+            if ($callback($models) === false) {
+                return;
+            }
+        }
+    }
+
+    /**
+     * Stream one model at a time.
+     *
+     * Relations requested with with() are loaded for each model separately.
+     * Prefer each() or chunk() when those relations should be loaded in batches.
+     *
+     * @return Generator<int, TModel>
+     */
+    public function cursor(): Generator
+    {
+        $this->ensureGlobalScopes();
+        $this->modelClass::validateCastConnection($this->database);
+        foreach ($this->queryBuilder->stream() as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $model = $this->populateModel($row);
+            if ($this->eagerLoad !== []) {
+                $this->loadRelations([$model], $this->eagerLoad);
+            }
+            yield $model;
+        }
+    }
+
+    /**
+     * @param mixed $rows
+     *
+     * @return array<int, TModel>
+     */
+    protected function modelsFromRows(mixed $rows): array
+    {
+        $models = [];
+        if (!is_array($rows)) {
+            return $models;
+        }
+        foreach ($rows as $row) {
+            if (is_array($row)) {
+                $models[] = $this->populateModel($row);
+            }
+        }
+        if ($models !== [] && $this->eagerLoad !== []) {
             $this->loadRelations($models, $this->eagerLoad);
         }
 

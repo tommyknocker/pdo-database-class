@@ -42,6 +42,20 @@ transactional update, eager-loaded model pagination, and an explicit response
 DTO. Install the optional package with `composer require tommyknocker/struct` to
 run it. The example uses only an in-memory database.
 
+### 05-diagnose-relations.php
+Compare lazy and eager relationship loading, then print local EXPLAIN output and an AI context preview. The script uses SQLite and does not call an AI provider.
+
+### 06-model-services.php
+Behaviors, transactional save, upsert helpers, soft delete, batch model reads, many-to-many writes, outbox, and inbox.
+
+**Topics covered:**
+- Timestamps, soft deletes, and ULID keys
+- `firstOrCreate` / `updateOrCreate` and atomic `increment`
+- `afterCommit` and rollback of the pre-save model snapshot
+- `each()` yielding models, hidden attributes, and a typed property hook
+- `HasManyThrough::sync()` / `detach()`
+- `Inbox::once()` together with `Outbox::add()`
+
 ## Usage
 
 ```bash
@@ -49,6 +63,9 @@ run it. The example uses only an in-memory database.
 php 01-basics.php
 php 02-relationships.php
 php 03-scopes.php
+php 04-api-contract.php
+php 05-diagnose-relations.php
+php 06-model-services.php
 ```
 
 ## ActiveRecord Features

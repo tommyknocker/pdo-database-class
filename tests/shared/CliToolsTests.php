@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use tommyknocker\pdodb\cli\BaseCliCommand;
+use tommyknocker\pdodb\cli\CliOutput;
 use tommyknocker\pdodb\cli\DatabaseManager;
 use tommyknocker\pdodb\cli\MigrationGenerator;
 use tommyknocker\pdodb\cli\ModelGenerator;
@@ -1103,7 +1104,7 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $stdout = fopen('php://memory', 'wb');
         $this->assertIsResource($stdout);
-        BaseCliCommand::setIo(new \tommyknocker\pdodb\cli\CliOutput($stdout));
+        BaseCliCommand::setIo(new CliOutput($stdout));
 
         $phpunit = getenv('PHPUNIT');
         putenv('PHPUNIT');
@@ -1134,7 +1135,7 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $stdout = fopen('php://memory', 'wb');
         $this->assertIsResource($stdout);
-        BaseCliCommand::setIo(new \tommyknocker\pdodb\cli\CliOutput($stdout));
+        BaseCliCommand::setIo(new CliOutput($stdout));
 
         $phpunit = getenv('PHPUNIT');
         putenv('PHPUNIT');
@@ -1165,7 +1166,7 @@ class CliToolsTests extends BaseSharedTestCase
     {
         $stdout = fopen('php://memory', 'wb');
         $this->assertIsResource($stdout);
-        BaseCliCommand::setIo(new \tommyknocker\pdodb\cli\CliOutput($stdout));
+        BaseCliCommand::setIo(new CliOutput($stdout));
 
         try {
             $reflection = new \ReflectionClass(BaseCliCommand::class);

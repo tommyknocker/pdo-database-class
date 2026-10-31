@@ -56,6 +56,7 @@ php 05-outbox-retry.php
 - **Error Diagnostics** - Query context and debug information in exceptions
 - **Connection Retry** - Automatic retry with exponential backoff
 - **Error Recovery** - Graceful handling of transient errors
+- **Inbox** - Idempotent consumers are shown in `examples/09-active-record/06-model-services.php`
 
 ## Related Examples
 

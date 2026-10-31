@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects;
 
+use InvalidArgumentException;
 use PDO;
 use PDOStatement;
 use RuntimeException;
@@ -1315,6 +1316,132 @@ abstract class DialectAbstract implements DialectInterface
         return [
             "INSERT INTO {$tableQuoted} (version, batch) VALUES (?, ?)",
             [$version, $batch],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildIdempotentUpsertSql(
+        string $table,
+        array $row,
+        array $conflictColumns,
+        array $updateColumns
+    ): array {
+        [$columns, $params] = $this->prepareUpsert($row, $conflictColumns, $updateColumns);
+        $quotedColumns = array_map(fn (string $column): string => $this->quoteIdentifier($column), $columns);
+        $placeholders = array_map(static fn (string $column): string => ':upsert_' . $column, $columns);
+        $conflict = implode(', ', array_map(fn (string $column): string => $this->quoteIdentifier($column), $conflictColumns));
+        $sql = 'INSERT INTO ' . $this->quoteTable($table)
+            . ' (' . implode(', ', $quotedColumns) . ') VALUES (' . implode(', ', $placeholders) . ') '
+            . 'ON CONFLICT (' . $conflict . ') ';
+        if ($updateColumns === []) {
+            return [$sql . 'DO NOTHING', $params];
+        }
+
+        $assignments = [];
+        foreach ($updateColumns as $column) {
+            $quoted = $this->quoteIdentifier($column);
+            $assignments[] = $quoted . ' = EXCLUDED.' . $quoted;
+        }
+
+        return [$sql . 'DO UPDATE SET ' . implode(', ', $assignments), $params];
+    }
+
+    /**
+     * MySQL and MariaDB insert-or-ignore / insert-or-assign statement.
+     *
+     * @param array<string, string|int|float|null> $row
+     * @param list<string> $conflictColumns
+     * @param list<string> $updateColumns
+     *
+     * @return array{0: string, 1: array<string, string|int|float|null>}
+     */
+    protected function buildDuplicateKeyUpsertSql(
+        string $table,
+        array $row,
+        array $conflictColumns,
+        array $updateColumns
+    ): array {
+        [$columns, $params] = $this->prepareUpsert($row, $conflictColumns, $updateColumns);
+        $quotedColumns = array_map(fn (string $column): string => $this->quoteIdentifier($column), $columns);
+        $placeholders = array_map(static fn (string $column): string => ':upsert_' . $column, $columns);
+        $assignments = [];
+        $assigned = $updateColumns === [] ? [$conflictColumns[0]] : $updateColumns;
+        foreach ($assigned as $column) {
+            $quoted = $this->quoteIdentifier($column);
+            $assignments[] = $quoted . ' = VALUES(' . $quoted . ')';
+        }
+        $sql = 'INSERT INTO ' . $this->quoteTable($table)
+            . ' (' . implode(', ', $quotedColumns) . ') VALUES (' . implode(', ', $placeholders) . ') '
+            . 'ON DUPLICATE KEY UPDATE ' . implode(', ', $assignments);
+
+        return [$sql, $params];
+    }
+
+    /**
+     * @param array<string, string|int|float|null> $row
+     * @param list<string> $conflictColumns
+     * @param list<string> $updateColumns
+     *
+     * @return array{0: list<string>, 1: array<string, string|int|float|null>}
+     */
+    protected function prepareUpsert(array $row, array $conflictColumns, array $updateColumns): array
+    {
+        if ($row === [] || $conflictColumns === []) {
+            throw new InvalidArgumentException('Upsert requires values and at least one conflict column.');
+        }
+
+        $columns = [];
+        $params = [];
+        foreach ($row as $column => $value) {
+            $this->assertUpsertIdentifier($column);
+            if (!is_string($value) && !is_int($value) && !is_float($value) && $value !== null) {
+                throw new InvalidArgumentException('Upsert values must be scalar.');
+            }
+            $columns[] = $column;
+            $params['upsert_' . $column] = $value;
+        }
+        foreach ($conflictColumns as $column) {
+            $this->assertUpsertIdentifier($column);
+            if (!array_key_exists($column, $row)) {
+                throw new InvalidArgumentException("Conflict column '{$column}' is missing from the row.");
+            }
+        }
+        foreach ($updateColumns as $column) {
+            $this->assertUpsertIdentifier($column);
+            if (!array_key_exists($column, $row)) {
+                throw new InvalidArgumentException("Update column '{$column}' is missing from the row.");
+            }
+            if (in_array($column, $conflictColumns, true)) {
+                throw new InvalidArgumentException("Update column '{$column}' is also a conflict column.");
+            }
+        }
+
+        return [$columns, $params];
+    }
+
+    protected function assertUpsertIdentifier(string $column): void
+    {
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $column) !== 1) {
+            throw new InvalidArgumentException("Invalid upsert column '{$column}'.");
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildInboxSchemaSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "CREATE TABLE IF NOT EXISTS {$tableQuoted} (
+                message_id VARCHAR(36) NOT NULL,
+                consumer VARCHAR(190) NOT NULL,
+                processed_at VARCHAR(32) NOT NULL,
+                PRIMARY KEY (message_id, consumer)
+            )",
         ];
     }
 

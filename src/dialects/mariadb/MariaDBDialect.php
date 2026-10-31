@@ -199,6 +199,15 @@ class MariaDBDialect extends DialectAbstract implements CatalogQueriesInterface
         return $this->dmlBuilder->buildUpsertClause($updateColumns, $defaultConflictTarget, $tableName);
     }
 
+    public function buildIdempotentUpsertSql(
+        string $table,
+        array $row,
+        array $conflictColumns,
+        array $updateColumns
+    ): array {
+        return $this->buildDuplicateKeyUpsertSql($table, $row, $conflictColumns, $updateColumns);
+    }
+
     /**
      * {@inheritDoc}
      */

@@ -231,6 +231,25 @@ interface DialectInterface
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string;
 
     /**
+     * Insert a row or leave the existing row unchanged when the conflict columns match.
+     *
+     * Update columns are assigned from the inserted row. An empty update list keeps
+     * the existing row (insert-if-absent). Conflict columns must not also be updated.
+     *
+     * @param array<string, string|int|float|null> $row
+     * @param list<string> $conflictColumns
+     * @param list<string> $updateColumns
+     *
+     * @return array{0: string, 1: array<string, string|int|float|null>}
+     */
+    public function buildIdempotentUpsertSql(
+        string $table,
+        array $row,
+        array $conflictColumns,
+        array $updateColumns
+    ): array;
+
+    /**
      * Build replace sql.
      *
      * @param string $table
@@ -2249,6 +2268,13 @@ interface DialectInterface
      * @return list<string>
      */
     public function buildOutboxSchemaSql(string $tableName): array;
+
+    /**
+     * SQL statements to create the consumer inbox table.
+     *
+     * @return list<string>
+     */
+    public function buildInboxSchemaSql(string $tableName): array;
 
     /**
      * Whether multiple worker processes can claim outbox rows safely (e.g. SKIP LOCKED / READPAST).

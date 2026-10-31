@@ -6,6 +6,8 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
+use tommyknocker\pdodb\cli\BaseCliCommand;
+use tommyknocker\pdodb\cli\CliOutput;
 
 final class QueryCommandCliTests extends TestCase
 {
@@ -99,7 +101,7 @@ final class QueryCommandCliTests extends TestCase
         // validate fail
         $stderr = fopen('php://memory', 'wb');
         $this->assertIsResource($stderr);
-        \tommyknocker\pdodb\cli\BaseCliCommand::setIo(new \tommyknocker\pdodb\cli\CliOutput(null, $stderr));
+        BaseCliCommand::setIo(new CliOutput(null, $stderr));
         ob_start();
 
         try {
@@ -110,7 +112,7 @@ final class QueryCommandCliTests extends TestCase
 
             throw $e;
         } finally {
-            \tommyknocker\pdodb\cli\BaseCliCommand::resetIo();
+            BaseCliCommand::resetIo();
         }
         $this->assertSame(1, $code3);
         rewind($stderr);

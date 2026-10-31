@@ -121,6 +121,13 @@ class PdoDb
     /** @var array<string> Stack of active savepoint names */
     protected array $savepointStack = [];
 
+    /**
+     * Commit and rollback callbacks stacked with the transaction and its savepoints.
+     *
+     * @var list<array{commit: list<callable(): void>, rollback: list<callable(): void>}>
+     */
+    protected array $transactionCallbackFrames = [];
+
     private int $transactionSavepointCounter = 0;
 
     /**
@@ -663,6 +670,7 @@ class PdoDb
         if (!$conn->inTransaction()) {
             // Clear savepoint stack when starting a new transaction
             $this->savepointStack = [];
+            $this->resetTransactionCallbackFrames();
             $conn->transaction();
             if ($this->connectionRouter !== null) {
                 $this->connectionRouter->setTransactionState(true);
@@ -680,6 +688,7 @@ class PdoDb
             $conn->commit();
             // Clear savepoint stack when committing the main transaction
             $this->savepointStack = [];
+            $this->flushTransactionCallbacks(true);
             if ($this->connectionRouter !== null) {
                 $this->connectionRouter->setTransactionState(false);
             }
@@ -696,6 +705,7 @@ class PdoDb
             $conn->rollBack();
             // Clear savepoint stack when rolling back the main transaction
             $this->savepointStack = [];
+            $this->flushTransactionCallbacks(false);
             if ($this->connectionRouter !== null) {
                 $this->connectionRouter->setTransactionState(false);
             }
@@ -710,6 +720,178 @@ class PdoDb
     public function inTransaction(): bool
     {
         return $this->connection->inTransaction();
+    }
+
+    /**
+     * Run a callback after the current transaction commits.
+     *
+     * Outside a transaction the callback runs immediately. Nested savepoints keep
+     * the callback until the outermost commit. A rollback of that savepoint drops it.
+     *
+     * @param callable(): mixed $callback
+     */
+    public function afterCommit(callable $callback): void
+    {
+        if (!$this->inTransaction()) {
+            $callback();
+            return;
+        }
+
+        $this->appendTransactionCallback('commit', $callback);
+    }
+
+    /**
+     * Run a callback if the current transaction or savepoint rolls back.
+     *
+     * Used to restore in-memory model state when an outer transaction undoes a
+     * nested save. The callback is dropped when the transaction commits.
+     *
+     * @param callable(): mixed $callback
+     */
+    public function afterRollback(callable $callback): void
+    {
+        if (!$this->inTransaction()) {
+            return;
+        }
+
+        $this->appendTransactionCallback('rollback', $callback);
+    }
+
+    /** Open a nested callback scope that can be kept or dropped without a savepoint. */
+    public function beginAfterCommitScope(): void
+    {
+        $this->ensureTransactionCallbackFrame();
+        $this->transactionCallbackFrames[] = ['commit' => [], 'rollback' => []];
+    }
+
+    /** Keep callbacks registered since beginAfterCommitScope() on the parent scope. */
+    public function acceptAfterCommitScope(): void
+    {
+        $this->mergeTransactionCallbackFrame();
+    }
+
+    /** Drop callbacks registered since beginAfterCommitScope() without running them. */
+    public function rejectAfterCommitScope(): void
+    {
+        $this->discardTransactionCallbackFrame(false);
+    }
+
+    protected function resetTransactionCallbackFrames(): void
+    {
+        $this->transactionCallbackFrames = [['commit' => [], 'rollback' => []]];
+    }
+
+    protected function ensureTransactionCallbackFrame(): void
+    {
+        if ($this->transactionCallbackFrames === []) {
+            $this->resetTransactionCallbackFrames();
+        }
+    }
+
+    protected function pushTransactionCallbackFrame(): void
+    {
+        $this->ensureTransactionCallbackFrame();
+        $this->transactionCallbackFrames[] = ['commit' => [], 'rollback' => []];
+    }
+
+    /**
+     * @param 'commit'|'rollback' $event
+     * @param callable(): mixed $callback
+     */
+    protected function appendTransactionCallback(string $event, callable $callback): void
+    {
+        $this->ensureTransactionCallbackFrame();
+        $frames = $this->transactionCallbackFrames;
+        $index = count($frames) - 1;
+        $wrapped = static function () use ($callback): void {
+            $callback();
+        };
+        $frame = $frames[$index];
+        $commit = $frame['commit'];
+        $rollback = $frame['rollback'];
+        if ($event === 'commit') {
+            $commit[] = $wrapped;
+        } else {
+            $rollback[] = $wrapped;
+        }
+        $frames[$index] = ['commit' => $commit, 'rollback' => $rollback];
+        $this->transactionCallbackFrames = $frames;
+    }
+
+    protected function mergeTransactionCallbackFrame(): void
+    {
+        $frames = $this->transactionCallbackFrames;
+        if (count($frames) < 2) {
+            return;
+        }
+
+        $top = array_pop($frames);
+        if (!is_array($top)) {
+            return;
+        }
+        $index = count($frames) - 1;
+        $frames[$index]['commit'] = [...$frames[$index]['commit'], ...$top['commit']];
+        $frames[$index]['rollback'] = [...$frames[$index]['rollback'], ...$top['rollback']];
+        $this->transactionCallbackFrames = $frames;
+    }
+
+    protected function discardTransactionCallbackFrame(bool $runRollbacks): void
+    {
+        if (count($this->transactionCallbackFrames) < 2) {
+            return;
+        }
+
+        $top = array_pop($this->transactionCallbackFrames);
+        if ($runRollbacks && is_array($top)) {
+            foreach ($top['rollback'] as $callback) {
+                $callback();
+            }
+        }
+    }
+
+    protected function releaseTransactionCallbackFrameAt(int $savepointIndex): void
+    {
+        $frameIndex = $savepointIndex + 1;
+        if (!isset($this->transactionCallbackFrames[$frameIndex])) {
+            return;
+        }
+
+        $frame = $this->transactionCallbackFrames[$frameIndex];
+        array_splice($this->transactionCallbackFrames, $frameIndex, 1);
+        $parent = $frameIndex - 1;
+        if (!isset($this->transactionCallbackFrames[$parent])) {
+            return;
+        }
+        foreach ($frame['commit'] as $callback) {
+            $this->transactionCallbackFrames[$parent]['commit'][] = $callback;
+        }
+        foreach ($frame['rollback'] as $callback) {
+            $this->transactionCallbackFrames[$parent]['rollback'][] = $callback;
+        }
+    }
+
+    protected function rollbackTransactionCallbackFramesTo(int $savepointIndex): void
+    {
+        $this->ensureTransactionCallbackFrame();
+        $discarded = array_splice($this->transactionCallbackFrames, $savepointIndex + 1);
+        foreach ($discarded as $frame) {
+            foreach ($frame['rollback'] as $callback) {
+                $callback();
+            }
+        }
+        $this->transactionCallbackFrames[] = ['commit' => [], 'rollback' => []];
+    }
+
+    protected function flushTransactionCallbacks(bool $commit): void
+    {
+        $frames = $this->transactionCallbackFrames;
+        $this->transactionCallbackFrames = [];
+        $key = $commit ? 'commit' : 'rollback';
+        foreach ($frames as $frame) {
+            foreach ($frame[$key] as $callback) {
+                $callback();
+            }
+        }
     }
 
     /**
@@ -738,6 +920,7 @@ class PdoDb
             } while (in_array($savepoint, $this->savepointStack, true));
             $connection->query($dialect->buildCreateSavepointSql($savepoint));
             $this->savepointStack[] = $savepoint;
+            $this->pushTransactionCallbackFrame();
         } else {
             $this->startTransaction();
         }
@@ -752,6 +935,7 @@ class PdoDb
                     $connection->query($dialect->buildReleaseSavepointSql($savepoint));
                 }
                 $this->savepointStack = array_values(array_diff($this->savepointStack, [$savepoint]));
+                $this->mergeTransactionCallbackFrame();
             } else {
                 $this->commit();
             }
@@ -765,6 +949,7 @@ class PdoDb
                             $connection->query($dialect->buildReleaseSavepointSql($savepoint));
                         }
                         $this->savepointStack = array_values(array_diff($this->savepointStack, [$savepoint]));
+                        $this->discardTransactionCallbackFrame(true);
                     } elseif ($this->connection === $connection) {
                         $this->rollback();
                     } else {
@@ -803,6 +988,7 @@ class PdoDb
         $sql = $dialect->buildCreateSavepointSql($name);
         $this->connection->query($sql);
         $this->savepointStack[] = $name;
+        $this->pushTransactionCallbackFrame();
 
         // Dispatch savepoint created event
         $dispatcher = $this->connection->getEventDispatcher();
@@ -847,6 +1033,7 @@ class PdoDb
         // Remove all savepoints created after this one from the stack
         // Keep the savepoint we rolled back to (it still exists in database)
         $this->savepointStack = array_slice($this->savepointStack, 0, $index + 1);
+        $this->rollbackTransactionCallbackFramesTo($index);
 
         // Dispatch savepoint rolled back event
         $dispatcher = $this->connection->getEventDispatcher();
@@ -890,6 +1077,7 @@ class PdoDb
 
         // Remove this savepoint from the stack (but keep earlier savepoints)
         array_splice($this->savepointStack, $index, 1);
+        $this->releaseTransactionCallbackFrameAt($index);
 
         // Dispatch savepoint released event
         $dispatcher = $this->connection->getEventDispatcher();

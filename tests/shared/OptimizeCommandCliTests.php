@@ -370,6 +370,7 @@ final class OptimizeCommandCliTests extends TestCase
 
         $phpunit = getenv('PHPUNIT');
         putenv('PHPUNIT=1');
+
         try {
             $run = CliTestCapture::runApplication($app, ['pdodb', 'optimize', 'logs', '--file=/nonexistent/file.log']);
         } finally {

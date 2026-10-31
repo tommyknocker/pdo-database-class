@@ -98,6 +98,7 @@ class EagerLoader
         }
 
         $traces = RelationTrace::begin($firstModel, $relationName, 'eager', $relation);
+
         try {
             if ($relation instanceof BelongsTo) {
                 $this->loadBelongsTo($models, $relation, $relationName, $subRelations);

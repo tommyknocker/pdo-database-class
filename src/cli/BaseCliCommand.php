@@ -195,6 +195,7 @@ abstract class BaseCliCommand
                     if (!isset($config[$legacyDriver]) || !is_array($config[$legacyDriver])) {
                         continue;
                     }
+
                     try {
                         ExtensionChecker::validate($legacyDriver);
                     } catch (\InvalidArgumentException $e) {

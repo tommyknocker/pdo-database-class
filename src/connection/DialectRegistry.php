@@ -99,7 +99,7 @@ class DialectRegistry
     /**
      * Get all supported drivers.
      *
-     * @return array<string> List of supported driver names
+     * @return list<string> List of supported driver names
      */
     public static function getSupportedDrivers(): array
     {

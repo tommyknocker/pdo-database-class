@@ -25,11 +25,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pdodb outbox work` and `pdodb outbox purge` CLI commands with `--publisher`, retention `--older-than`, and `--dry-run` purge.
 - `pdodb outbox status`, `list`, and `retry` for queue inspection and requeueing failed messages; programmatic `Outbox::countByStatus()`, `listMessages()`, and `requeueFailed()` / `requeueAllFailed()`.
 - Outbox integration tests with multiple independent database connections per dialect (MySQL, MariaDB, PostgreSQL, SQL Server, Oracle) to assert each pending message is published exactly once.
+- ActiveRecord behaviors for timestamps, soft deletes, and UUID/ULID keys; `transactional()` saves that roll back in-memory state; `afterCommit()`; `firstOrCreate()` / `updateOrCreate()`; atomic `increment()` / `decrement()`; `updateAll()` / `deleteAll()`; model `each()` / `chunk()` / `cursor()`; richer validators; `hiddenAttributes()` / `visibleAttributes()`; and many-to-many `attach()` / `detach()` / `sync()`.
+- Consumer `Inbox` for idempotent handling of at-least-once messages, plus `PdoDb::afterCommit()` / `afterRollback()`.
+- Idempotent upsert SQL on each dialect (`buildIdempotentUpsertSql`) and inbox DDL (`buildInboxSchemaSql`).
 
 ### Changed
+- **Breaking:** model connection overrides are isolated by class; use `Model::setDb($db)` for a shared default. Scoped record writes now honor global scopes, and terminal ActiveQuery methods return their delegated results.
+- **Breaking:** `ActiveQuery::each()` yields models. Use `getQueryBuilder()->each()` for raw rows. `DialectInterface` now requires `buildIdempotentUpsertSql()` and `buildInboxSchemaSql()`.
+- **Breaking:** the model generator emits `@property` tags instead of a public `$attributes` array.
+- **Breaking:** nested `transaction()` calls no longer commit an existing transaction; they use savepoints when supported.
+- **Breaking:** `setAttributes(..., safeOnly: true)` throws `MassAssignmentException` when the model does not declare `safeAttributes()`.
+- **Breaking:** `DialectInterface` requires `executePlanExplain()`. A third-party dialect must implement it. `getSlowestQueries()` sorts by total time and includes `count` and `possible_n_plus_one`.
+- **Breaking:** Removed `--pretend` and `MigrationRunner::setPretend()` / `SeedRunner::setPretend()`. Use `--dry-run` and `setDryRun()` only.
+- **Breaking:** AI configuration now uses one selected provider with `PDODB_AI_API_KEY`, `PDODB_AI_MODEL` and, when needed, `PDODB_AI_BASE_URL`; PHP uses a flat `ai` array. Provider-specific keys and nested provider settings must be migrated as described in the AI configuration reference.
 - Move database server tuning recommendations into `dialects/config/DatabaseConfigOptimizerEngine`; CLI `DatabaseConfigOptimizer` is a thin facade.
 - `DialectRegistry::normalizeDriverName()` accepts common aliases (`postgresql`, `mssql`, `oracle`, …).
 - `ErrorUtilityTrait` and exception detection strategies resolve retryable codes and descriptions through dialects only.
+- CLI command suggestions (`Did you mean`) are written to stderr. `pdodb migrate` / `pdodb seed` honor `--help` on any subcommand (e.g. `pdodb migrate up --help`).
+- Share AI prompt and analysis flow across providers, and use the OpenAI-compatible transport for DeepSeek.
+- Update default OpenAI, Anthropic, Google and DeepSeek models, and simplify the AI setup wizard to configure only the chosen provider.
 
 ### Fixed
 - Move MSSQL CASE/WHEN reserved-word quoting, nested transactions/savepoints, INSERT…SELECT expansion, MCP statement timeouts, ORM Oracle hooks, and AI metadata collection into dialect implementations so shared layers delegate instead of branching on driver names.
@@ -54,17 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Avoid exposing provider response bodies and API keys in AI transport errors; send Gemini credentials in the request header.
 - Reject invalid numeric AI settings and explicitly configured temperature where the model profile omits sampling parameters.
 - Correct database feature version requirements and broken documentation links; check local Markdown links in CI.
-
-### Changed
-- **Breaking:** model connection overrides are isolated by class; use `Model::setDb($db)` for a shared default. Scoped record writes now honor global scopes, and terminal ActiveQuery methods return their delegated results.
-- **Breaking:** nested `transaction()` calls no longer commit an existing transaction; they use savepoints when supported.
-- **Breaking:** `setAttributes(..., safeOnly: true)` throws `MassAssignmentException` when the model does not declare `safeAttributes()`.
-- **Breaking:** `DialectInterface` requires `executePlanExplain()`. A third-party dialect must implement it. `getSlowestQueries()` sorts by total time and includes `count` and `possible_n_plus_one`.
-- **Breaking:** Removed `--pretend` and `MigrationRunner::setPretend()` / `SeedRunner::setPretend()`. Use `--dry-run` and `setDryRun()` only.
-- CLI command suggestions (`Did you mean`) are written to stderr. `pdodb migrate` / `pdodb seed` honor `--help` on any subcommand (e.g. `pdodb migrate up --help`).
-- Share AI prompt and analysis flow across providers, and use the OpenAI-compatible transport for DeepSeek.
-- **Breaking:** AI configuration now uses one selected provider with `PDODB_AI_API_KEY`, `PDODB_AI_MODEL` and, when needed, `PDODB_AI_BASE_URL`; PHP uses a flat `ai` array. Provider-specific keys and nested provider settings must be migrated as described in the AI configuration reference.
-- Update default OpenAI, Anthropic, Google and DeepSeek models, and simplify the AI setup wizard to configure only the chosen provider.
 
 ## [2.14.0] - 2026-10-29
 

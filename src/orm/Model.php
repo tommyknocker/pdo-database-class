@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm;
 
 use RuntimeException;
+use tommyknocker\pdodb\orm\behaviors\ModelBehavior;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\QueryBuilder;
 
@@ -16,9 +17,20 @@ use tommyknocker\pdodb\query\QueryBuilder;
  * - Table name and primary key configuration
  * - Static find methods (find, findOne, findAll)
  */
+/**
+ * @phpstan-consistent-constructor
+ */
 abstract class Model
 {
     use ActiveRecord;
+
+    public const string OP_INSERT = 'insert';
+
+    public const string OP_UPDATE = 'update';
+
+    public const string OP_DELETE = 'delete';
+
+    public const string OP_ALL = '*';
 
     /** @var PdoDb|null Static PdoDb instance */
     protected static ?PdoDb $db = null;
@@ -107,6 +119,88 @@ abstract class Model
         return null;
     }
 
+    /**
+     * Operations wrapped in a transaction: insert, update, delete, or ['*'].
+     *
+     * The default is empty, so save() and delete() do not start a transaction.
+     *
+     * @return list<string>
+     */
+    public static function transactional(): array
+    {
+        return [];
+    }
+
+    /**
+     * Whether a null primary key is omitted so the database can generate it.
+     *
+     * Return false when the key is assigned in PHP (UUID, ULID, or a natural key).
+     */
+    public static function incrementing(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Opt-in behaviors such as timestamps, soft deletes, and generated primary keys.
+     *
+     * Values may be a behavior class name, a configured class (`ClassName::class => []`),
+     * or a behavior instance.
+     *
+     * @return array<int|class-string<ModelBehavior>, class-string<ModelBehavior>|ModelBehavior|array<string, mixed>>
+     */
+    public static function behaviors(): array
+    {
+        return [];
+    }
+
+    /**
+     * @return list<ModelBehavior>
+     */
+    public static function resolveBehaviors(): array
+    {
+        $resolved = [];
+        foreach (static::behaviors() as $key => $value) {
+            if (is_int($key) && is_string($value) && is_a($value, ModelBehavior::class, true)) {
+                $resolved[] = new $value();
+                continue;
+            }
+            if (is_int($key) && $value instanceof ModelBehavior) {
+                $resolved[] = $value;
+                continue;
+            }
+            if (is_string($key) && is_array($value) && is_a($key, ModelBehavior::class, true)) {
+                $resolved[] = new $key($value);
+                continue;
+            }
+
+            throw new RuntimeException('Invalid behavior definition on ' . static::class . '.');
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * Global scopes from the model and from behaviors.
+     *
+     * A scope declared on the model replaces a behavior scope with the same name.
+     *
+     * @return array<string, callable(QueryBuilder, mixed...): QueryBuilder>
+     */
+    public static function resolvedGlobalScopes(): array
+    {
+        $scopes = static::globalScopes();
+        foreach (static::resolveBehaviors() as $behavior) {
+            foreach ($behavior->globalScopes() as $name => $scope) {
+                if (!array_key_exists($name, $scopes)) {
+                    $scopes[$name] = $scope;
+                }
+            }
+        }
+
+        return $scopes;
+    }
+
     /** @return array<string, string> Attribute name to cast (json, DateTimeImmutable, or backed enum). */
     public static function casts(): array
     {
@@ -139,6 +233,14 @@ abstract class Model
      * - 'email': Attribute must be a valid email address
      * - 'integer': Attribute must be an integer (supports 'min', 'max' params)
      * - 'string': Attribute must be a string (supports 'min', 'max', 'length' params)
+     * - 'number': Attribute must be numeric (supports 'min', 'max')
+     * - 'in': Value must be in 'range'
+     * - 'date': Date string or DateTimeInterface (optional 'format')
+     * - 'regex': Value must match 'pattern'
+     * - 'unique': No other row has this value
+     * - 'exist' / 'exists': A related row exists ('targetClass' or 'table')
+     * - 'callback': Callable in 'callback', or use a closure as the validator
+     * Optional 'when' callable skips the rule when it returns false.
      *
      * Override this method to define validation rules for the model.
      *

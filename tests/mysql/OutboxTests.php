@@ -44,7 +44,7 @@ final class OutboxTests extends BaseMySQLTestCase
         $this->assertSame(
             0,
             (int) self::$db->rawQueryValue(
-                "SELECT COUNT(*) FROM " . self::TABLE . " WHERE status IN ('pending', 'processing')"
+                'SELECT COUNT(*) FROM ' . self::TABLE . " WHERE status IN ('pending', 'processing')"
             )
         );
     }

@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\orm\relations;
 use RuntimeException;
 use tommyknocker\pdodb\orm\ActiveQuery;
 use tommyknocker\pdodb\orm\Model;
+use tommyknocker\pdodb\PdoDb;
 
 /**
  * HasManyThrough relationship.
@@ -529,5 +530,126 @@ class HasManyThrough implements RelationInterface
     public function getViaLink(): array
     {
         return $this->viaLink;
+    }
+
+    /**
+     * Insert a pivot row. Requires viaTable configuration.
+     *
+     * @param array<string, mixed> $columns Extra pivot columns
+     */
+    public function attach(int|string $relatedId, array $columns = []): void
+    {
+        $db = $this->ownerDb();
+        $db->find()->from($this->viaTable)->insert($this->pivotRow($relatedId, $columns));
+    }
+
+    /**
+     * Delete pivot rows for this owner. Null removes every related id.
+     *
+     * @param int|string|array<int, int|string>|null $relatedIds
+     */
+    public function detach(int|string|array|null $relatedIds = null): int
+    {
+        $query = $this->ownerDb()->find()->from($this->viaTable);
+        foreach ($this->link as $ownerAttribute => $pivotColumn) {
+            $query->where($pivotColumn, $this->ownerValue((string) $ownerAttribute));
+        }
+        if ($relatedIds !== null) {
+            $ids = is_array($relatedIds) ? array_values($relatedIds) : [$relatedIds];
+            $pivotColumn = array_key_first($this->viaLink);
+            if (!is_string($pivotColumn)) {
+                throw new RuntimeException('HasManyThrough has no related pivot column.');
+            }
+            $query->whereIn($pivotColumn, $ids);
+        }
+
+        return $query->delete();
+    }
+
+    /**
+     * Replace pivot rows with the given related ids.
+     *
+     * A list of ids inserts those rows. A map of id => columns stores extra pivot values.
+     *
+     * @param array<int|string, int|string|array<string, mixed>> $relatedIds
+     */
+    public function sync(array $relatedIds): void
+    {
+        $this->ownerDb()->transaction(function () use ($relatedIds): void {
+            $this->detach();
+            foreach ($relatedIds as $key => $value) {
+                if (is_array($value)) {
+                    $this->attach($key, $value);
+                    continue;
+                }
+                if (is_int($value) || is_string($value)) {
+                    $this->attach($value);
+                    continue;
+                }
+
+                throw new RuntimeException('sync() expects a list of ids or a map of id => pivot columns.');
+            }
+        });
+    }
+
+    /**
+     * @param array<string, mixed> $columns
+     *
+     * @return array<string, mixed>
+     */
+    protected function pivotRow(int|string $relatedId, array $columns): array
+    {
+        $this->requireViaTable();
+        $row = $columns;
+        foreach ($this->link as $ownerAttribute => $pivotColumn) {
+            $row[$pivotColumn] = $this->ownerValue((string) $ownerAttribute);
+        }
+        $pivotColumn = array_key_first($this->viaLink);
+        if (!is_string($pivotColumn)) {
+            throw new RuntimeException('HasManyThrough has no related pivot column.');
+        }
+        $row[$pivotColumn] = $relatedId;
+
+        return $row;
+    }
+
+    protected function ownerDb(): PdoDb
+    {
+        $this->requireViaTable();
+        if ($this->model === null) {
+            throw new RuntimeException('HasManyThrough has no owner model.');
+        }
+        if ($this->model->getIsNewRecord()) {
+            throw new RuntimeException('Save the owner model before changing a many-to-many relation.');
+        }
+        $db = $this->model->getModelDb();
+        if ($db === null) {
+            throw new RuntimeException('Database connection not set. Use Model::setDb() to set connection.');
+        }
+
+        return $db;
+    }
+
+    protected function requireViaTable(): void
+    {
+        if ($this->model !== null) {
+            $this->resolveDefaults();
+        }
+        if ($this->viaTable === '') {
+            throw new RuntimeException('attach(), detach(), and sync() require a viaTable relation.');
+        }
+    }
+
+    protected function ownerValue(string $attribute): mixed
+    {
+        if ($this->model === null) {
+            throw new RuntimeException('HasManyThrough has no owner model.');
+        }
+        $attributes = $this->model->getAttributes();
+        if (!array_key_exists($attribute, $attributes)) {
+            throw new RuntimeException("Owner attribute '{$attribute}' is empty.");
+        }
+
+        return $attributes[$attribute];
     }
 }

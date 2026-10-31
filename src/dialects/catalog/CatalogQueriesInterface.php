@@ -21,6 +21,9 @@ interface CatalogQueriesInterface
      */
     public function buildPgResolveSchemaQuery(string $quotedTable): ?array;
 
+    /**
+     * @param callable(string, array<int|string, mixed>, int): list<array<string, mixed>> $fetchRows
+     */
     public function resolveOracleObjectName(
         callable $fetchRows,
         string $schema,
@@ -56,6 +59,11 @@ interface CatalogQueriesInterface
 
     public function aiStatisticsSourceLabel(): string;
 
+    /**
+     * @param array<string, mixed> $row
+     *
+     * @return array<string, mixed>
+     */
     public function normalizeAiIndexColumnRow(array $row): array;
 
     public function usesSqlitePragmaIndexes(): bool;
@@ -102,6 +110,9 @@ interface CatalogQueriesInterface
      */
     public function buildMcpListSchemasQuery(): array;
 
+    /**
+     * @param array<string, mixed> $row
+     */
     public function mcpSchemaNameFromRow(array $row): string;
 
     /**

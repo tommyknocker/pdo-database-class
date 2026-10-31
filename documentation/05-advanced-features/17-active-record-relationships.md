@@ -543,3 +543,19 @@ $users = User::find()->with('comments')->all();
 ### Examples
 
 See [ActiveRecord Relationships examples](../../examples/09-active-record/02-relationships.php) for comprehensive examples.
+
+## Changing a many-to-many relation
+
+`HasManyThrough` relations configured with `viaTable` can write the junction table. Save the owner first, then take the relation object from `getRelationInstance()`:
+
+```php
+$relation = $user->getRelationInstance('roles');
+$relation->attach($roleId);
+$relation->detach($roleId);
+$relation->sync([$roleId, $otherRoleId]);
+$relation->sync([$roleId => ['created_at' => '2026-01-01 00:00:00']]);
+```
+
+`sync()` replaces the owner's pivot rows inside one transaction. A list of ids inserts those links. A map of id to column values stores extra pivot columns. `via` (through another relation) stays read-only; `attach()`, `detach()`, and `sync()` require `viaTable`.
+
+The junction table needs its own unique key on the two foreign keys. These methods do not instantiate the related models and do not fire their events.

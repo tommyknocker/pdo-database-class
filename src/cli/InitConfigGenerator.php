@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli;
 
 use tommyknocker\pdodb\connection\DialectRegistry;
+
 /**
  * Configuration file generator for init command.
  */

@@ -953,6 +953,7 @@ SELECT * FROM users WHERE id = 1;
 
         $phpunit = getenv('PHPUNIT');
         putenv('PHPUNIT=1');
+
         try {
             $run = CliTestCapture::runApplication($app, ['pdodb', 'optimize', 'db', '--cpu-cores=32']);
         } finally {
@@ -973,6 +974,7 @@ SELECT * FROM users WHERE id = 1;
 
         $phpunit = getenv('PHPUNIT');
         putenv('PHPUNIT=1');
+
         try {
             $run = CliTestCapture::runApplication($app, ['pdodb', 'optimize', 'db', '--memory=5G']);
         } finally {

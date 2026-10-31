@@ -59,6 +59,7 @@ final class CliOutputTests extends TestCase
         BaseCliCommand::setIo(new CliOutput(null, $stderr));
 
         putenv('PHPUNIT=1');
+
         try {
             $this->expectException(\RuntimeException::class);
             $this->expectExceptionMessage('Error: boom');

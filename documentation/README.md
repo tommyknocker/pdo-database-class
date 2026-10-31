@@ -74,6 +74,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [25. Query Advice in Practice](05-advanced-features/25-ai-query-advice-in-practice.md) - Three runnable cases with captured answers and measured plans
 - [26. AI Configuration Reference](05-advanced-features/26-ai-reference.md) - Other providers, custom endpoints, CLI and MCP settings
 - [27. Transactional outbox](05-advanced-features/27-transactional-outbox.md) - Reliable event publishing with user-defined transport
+- [28. Inbox](05-advanced-features/28-inbox.md) - Idempotent consumers for at-least-once messages
 - [20. Dialect-Specific Schema](05-advanced-features/20-dialect-specific-schema.md) - Database-specific types (MySQL ENUM/SET, PostgreSQL UUID/JSONB/arrays, MSSQL UNIQUEIDENTIFIER, SQLite type affinity)
 
 ### Error Handling

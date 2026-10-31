@@ -362,6 +362,10 @@ foreach ($db->find()
 }
 ```
 
+## ActiveRecord models
+
+`Model::find()->each()`, `chunk()`, and `cursor()` yield model instances and apply global scopes. `each()` and `chunk()` eager-load relations from `with()` once per batch. `getQueryBuilder()->each()` and `stream()` still yield raw rows.
+
 ## Examples
 
 - [Batch Processing](../../examples/06-data-management/02-batch-processing.php) - batch(), each(), stream() methods

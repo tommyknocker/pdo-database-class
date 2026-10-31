@@ -12,7 +12,10 @@ use tommyknocker\pdodb\query\QueryProfiler;
 
 class DiagnosticUser extends Model
 {
-    public static function tableName(): string { return 'diag_users'; }
+    public static function tableName(): string
+    {
+        return 'diag_users';
+    }
     public static function globalScopes(): array
     {
         return ['kind' => static fn ($query) => $query->where('kind', 'sensitive-secret')];
@@ -20,7 +23,10 @@ class DiagnosticUser extends Model
 }
 class DiagnosticOrder extends Model
 {
-    public static function tableName(): string { return 'diag_orders'; }
+    public static function tableName(): string
+    {
+        return 'diag_orders';
+    }
     public static function relations(): array
     {
         return ['user' => ['belongsTo', 'modelClass' => DiagnosticUser::class, 'foreignKey' => 'user_id', 'ownerKey' => 'id']];

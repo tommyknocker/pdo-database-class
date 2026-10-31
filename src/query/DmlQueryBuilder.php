@@ -574,12 +574,6 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
         // modify SELECT to exclude IDENTITY columns from source table
         $sourceSql = $this->dialect->resolveInsertSelectSourceSql($sourceSql, $columns, $this->executionEngine);
 
-        // Build INSERT ... SELECT SQL using dialect
-        // $sourceSql is guaranteed to be string at this point (buildInsertFromSourceSql returns string)
-        // preg_replace can return null, but we check for it above, so at this point $sourceSql is always string
-        if (!is_string($sourceSql)) {
-            throw new RuntimeException('Source SQL must be a string');
-        }
         $sql = $this->dialect->buildInsertSelectSql(
             $this->normalizeTable(),
             $columns,

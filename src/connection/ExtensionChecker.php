@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\connection;
 
 use InvalidArgumentException;
-use tommyknocker\pdodb\dialects\DialectInterface;
 
 /**
  * Extension checker for PDO database drivers.

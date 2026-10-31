@@ -18,6 +18,7 @@ final class OutboxTests extends BaseOracleTestCase
     public function setUp(): void
     {
         parent::setUp();
+
         try {
             self::$db->rawQuery('DROP TABLE ' . self::TABLE . ' CASCADE CONSTRAINTS');
         } catch (Throwable) {

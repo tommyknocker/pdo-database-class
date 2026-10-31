@@ -19,6 +19,14 @@ class ValidatorFactory
         'email' => EmailValidator::class,
         'integer' => IntegerValidator::class,
         'string' => StringValidator::class,
+        'in' => InValidator::class,
+        'number' => NumberValidator::class,
+        'date' => DateValidator::class,
+        'regex' => RegexValidator::class,
+        'callback' => CallbackValidator::class,
+        'unique' => UniqueValidator::class,
+        'exist' => ExistsValidator::class,
+        'exists' => ExistsValidator::class,
     ];
 
     /**

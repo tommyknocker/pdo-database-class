@@ -145,10 +145,16 @@ class ProfileReport
                 }
                 $model = is_string($relation['model'] ?? null) ? $relation['model'] : '(unknown model)';
                 $name = is_string($relation['relation'] ?? null) ? $relation['relation'] : '(unknown relation)';
-                $lines[] = sprintf('%s::%s — %d lazy loads / %d SQL, %d eager loads / %d SQL%s',
-                    $model, $name, (int)($relation['lazy_loads'] ?? 0), (int)($relation['lazy_queries'] ?? 0),
-                    (int)($relation['eager_loads'] ?? 0), (int)($relation['eager_queries'] ?? 0),
-                    ($relation['possible_n_plus_one'] ?? false) === true ? ' — possible N+1' : '');
+                $lines[] = sprintf(
+                    '%s::%s — %d lazy loads / %d SQL, %d eager loads / %d SQL%s',
+                    $model,
+                    $name,
+                    (int)($relation['lazy_loads'] ?? 0),
+                    (int)($relation['lazy_queries'] ?? 0),
+                    (int)($relation['eager_loads'] ?? 0),
+                    (int)($relation['eager_queries'] ?? 0),
+                    ($relation['possible_n_plus_one'] ?? false) === true ? ' — possible N+1' : ''
+                );
                 $samples = is_array($relation['sql'] ?? null) ? $relation['sql'] : [];
                 foreach ($samples as $sql) {
                     if (is_string($sql)) {

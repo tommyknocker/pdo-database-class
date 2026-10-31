@@ -14,6 +14,7 @@ final class RelationTrace
     public static function begin(Model $owner, string $name, string $mode, RelationInterface $relation): array
     {
         $databases = [];
+
         try {
             $ownerDb = $owner->getModelDb();
         } catch (\RuntimeException) {

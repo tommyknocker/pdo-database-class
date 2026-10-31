@@ -66,6 +66,11 @@ trait MssqlCatalogQueriesTrait
         return $this->catalogDialect()->getDriverName() . '_catalog';
     }
 
+    /**
+     * @param array<string, mixed> $row
+     *
+     * @return array<string, mixed>
+     */
     public function normalizeAiIndexColumnRow(array $row): array
     {
         return $row;
@@ -130,6 +135,9 @@ trait MssqlCatalogQueriesTrait
         ];
     }
 
+    /**
+     * @param array<string, mixed> $row
+     */
     public function mcpSchemaNameFromRow(array $row): string
     {
         return (string) reset($row);

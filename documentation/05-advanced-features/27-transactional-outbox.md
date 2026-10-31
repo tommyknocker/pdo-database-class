@@ -170,6 +170,12 @@ Stale `processing` rows (expired `locked_until`) return to `pending` once per cl
 
 Deadlocks and other retryable transaction errors are retried a few times inside the worker and by `pdodb outbox work`. The command keeps running after a transient error instead of exiting. On Oracle, claim locks the chosen pending row with `FOR UPDATE SKIP LOCKED` before updating it, so a second worker takes a different row.
 
+## Model saves and the inbox
+
+When `Model::transactional()` includes the operation, `save()` and `delete()` already hold a transaction through `afterSave`. Call `Outbox::add()` there, or in the same outer `transaction()` callback. Call `Model::afterCommit()` only for work that must wait until the commit succeeds.
+
+Consumers that need at-least-once delivery to become once-only should record the message id with [Inbox](28-inbox.md).
+
 ## Related
 
 - [CLI tools](21-cli-tools.md#outbox) — full command reference

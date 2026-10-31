@@ -63,6 +63,11 @@ trait SqliteCatalogQueriesTrait
         return 'unavailable';
     }
 
+    /**
+     * @param array<string, mixed> $row
+     *
+     * @return array<string, mixed>
+     */
     public function normalizeAiIndexColumnRow(array $row): array
     {
         return $row;
@@ -130,6 +135,9 @@ trait SqliteCatalogQueriesTrait
         return ['PRAGMA database_list', []];
     }
 
+    /**
+     * @param array<string, mixed> $row
+     */
     public function mcpSchemaNameFromRow(array $row): string
     {
         return (string)($row['name'] ?? reset($row));

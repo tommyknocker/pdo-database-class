@@ -258,6 +258,44 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
+    public function buildIdempotentUpsertSql(
+        string $table,
+        array $row,
+        array $conflictColumns,
+        array $updateColumns
+    ): array {
+        [$columns, $params] = $this->prepareUpsert($row, $conflictColumns, $updateColumns);
+        $selects = [];
+        $insertColumns = [];
+        $insertValues = [];
+        foreach ($columns as $column) {
+            $quoted = $this->quoteIdentifier($column);
+            $selects[] = ':upsert_' . $column . ' AS ' . $quoted;
+            $insertColumns[] = $quoted;
+            $insertValues[] = 's.' . $quoted;
+        }
+        $match = [];
+        foreach ($conflictColumns as $column) {
+            $quoted = $this->quoteIdentifier($column);
+            $match[] = 't.' . $quoted . ' = s.' . $quoted;
+        }
+        $sql = 'MERGE ' . $this->quoteTable($table)
+            . ' AS t USING (SELECT ' . implode(', ', $selects) . ') AS s ON '
+            . implode(' AND ', $match);
+        if ($updateColumns !== []) {
+            $assignments = [];
+            foreach ($updateColumns as $column) {
+                $quoted = $this->quoteIdentifier($column);
+                $assignments[] = 't.' . $quoted . ' = s.' . $quoted;
+            }
+            $sql .= ' WHEN MATCHED THEN UPDATE SET ' . implode(', ', $assignments);
+        }
+        $sql .= ' WHEN NOT MATCHED THEN INSERT (' . implode(', ', $insertColumns)
+            . ') VALUES (' . implode(', ', $insertValues) . ');';
+
+        return [$sql, $params];
+    }
+
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
     {
         return $this->dmlBuilder->buildUpsertClause($updateColumns, $defaultConflictTarget, $tableName);
@@ -2354,6 +2392,22 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
+    public function buildInboxSchemaSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+        $tableLiteral = str_replace("'", "''", $tableQuoted);
+
+        return [
+            "IF OBJECT_ID(N'{$tableLiteral}', N'U') IS NULL
+            CREATE TABLE {$tableQuoted} (
+                message_id VARCHAR(36) NOT NULL,
+                consumer NVARCHAR(190) NOT NULL,
+                processed_at VARCHAR(32) NOT NULL,
+                PRIMARY KEY (message_id, consumer)
+            )",
+        ];
+    }
+
     public function buildOutboxSchemaSql(string $tableName): array
     {
         $tableQuoted = $this->quoteTable($tableName);

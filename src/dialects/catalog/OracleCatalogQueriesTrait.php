@@ -22,6 +22,9 @@ trait OracleCatalogQueriesTrait
         return null;
     }
 
+    /**
+     * @param callable(string, array<int|string, mixed>, int): list<array<string, mixed>> $fetchRows
+     */
     public function resolveOracleObjectName(
         callable $fetchRows,
         string $schema,
@@ -98,6 +101,11 @@ trait OracleCatalogQueriesTrait
         return $this->catalogDialect()->getDriverName() . '_catalog';
     }
 
+    /**
+     * @param array<string, mixed> $row
+     *
+     * @return array<string, mixed>
+     */
     public function normalizeAiIndexColumnRow(array $row): array
     {
         if (isset($row['column_expression'])) {
@@ -171,6 +179,9 @@ trait OracleCatalogQueriesTrait
         ];
     }
 
+    /**
+     * @param array<string, mixed> $row
+     */
     public function mcpSchemaNameFromRow(array $row): string
     {
         return (string) reset($row);

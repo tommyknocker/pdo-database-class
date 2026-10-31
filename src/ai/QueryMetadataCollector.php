@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\ai;
 
 use PDO;
 use RuntimeException;
+use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\PdoDb;
 
@@ -22,7 +23,7 @@ final class QueryMetadataCollector
         $this->started = microtime(true);
     }
 
-    private function catalog(): \tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface
+    private function catalog(): CatalogQueriesInterface
     {
         return $this->db->connection->getDialect()->catalogQueries();
     }
@@ -32,7 +33,9 @@ final class QueryMetadataCollector
         return $this->queries;
     }
 
-    /** @param list<mixed> $params
+    /**
+     * @param array<int|string, mixed> $params
+     *
      * @return list<array<string, mixed>>
      */
     private function rows(string $sql, array $params = [], int $limit = 1000): array
