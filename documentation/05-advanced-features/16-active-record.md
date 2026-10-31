@@ -788,3 +788,38 @@ relation: request it with `with()` first. It exports only the named attributes,
 turning backed enums and dates into JSON-ready values. Do not select private
 columns for public responses. For separate request/response DTOs with optional
 `tommyknocker/struct`, see the [API contract example](../../examples/09-active-record/04-api-contract.php).
+
+## Optimistic locking
+
+For records that can be edited concurrently, opt in with an integer version
+column. Existing models are unaffected. The column must be present in the
+schema and included in every model query that will later update or delete it.
+
+```php
+final class Order extends Model
+{
+    public static function optimisticLock(): ?string
+    {
+        return 'version';
+    }
+}
+
+$first = Order::findOne(1);
+$second = Order::findOne(1);
+$first->status = 'paid';
+$first->save(); // UPDATE includes WHERE version = the loaded version
+$second->status = 'cancelled';
+$second->save(); // throws OptimisticLockException
+```
+
+New models default to version `1` when the version is unset or null. Each
+successful update atomically increments it. A stale update or delete throws
+`OptimisticLockException`; the record may also have been deleted or become
+inaccessible. Manually changing the version attribute is rejected. A model with
+no dirty attributes does not issue an update or check for a conflict.
+
+For changes submitted in a later HTTP request, send the version originally read
+with the response and compare it to the loaded model before saving. Loading a
+fresh model and ignoring the client's version cannot detect changes that occurred
+before that load. Still handle the exception: another writer can update the row
+between your comparison and the save.

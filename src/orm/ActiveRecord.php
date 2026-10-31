@@ -15,6 +15,7 @@ use tommyknocker\pdodb\events\ModelBeforeSaveEvent;
 use tommyknocker\pdodb\events\ModelBeforeUpdateEvent;
 use tommyknocker\pdodb\exceptions\LazyRelationException;
 use tommyknocker\pdodb\exceptions\MassAssignmentException;
+use tommyknocker\pdodb\exceptions\OptimisticLockException;
 use tommyknocker\pdodb\exceptions\PrimaryKeyMutationException;
 use tommyknocker\pdodb\orm\relations\BelongsTo;
 use tommyknocker\pdodb\orm\relations\HasMany;
@@ -358,6 +359,17 @@ trait ActiveRecord
         static::validateCastConnection($db);
 
         $tableName = static::tableName();
+        $lockColumn = static::optimisticLock();
+        if ($lockColumn !== null) {
+            if ($lockColumn === '') {
+                throw new OptimisticLockException('Optimistic lock column must not be empty.');
+            }
+            $version = $this->attributes[$lockColumn] ?? 1;
+            if ((!is_int($version) && !is_string($version)) || filter_var($version, FILTER_VALIDATE_INT) === false || (int)$version < 0) {
+                throw new OptimisticLockException('Initial optimistic lock version must be a non-negative integer.');
+            }
+            $this->attributes[$lockColumn] = (int)$version;
+        }
         $attributes = $this->getAttributes();
 
         // Remove primary key if auto-increment
@@ -440,9 +452,26 @@ trait ActiveRecord
             return true; // Only primary key changed, nothing to update
         }
 
+        $lockColumn = static::optimisticLock();
+        $lockVersion = $this->originalLockVersion();
+        $lockKey = null;
+        if ($lockColumn !== null && $lockVersion !== null) {
+            if ($lockVersion === PHP_INT_MAX) {
+                throw new OptimisticLockException('Optimistic lock version cannot be incremented.');
+            }
+            $lockKey = $this->attributeKey($lockColumn, $this->attributes);
+            $query->where($lockColumn, $lockVersion);
+            $dirty[$lockKey] = $lockVersion + 1;
+        }
         $result = $query->update($dirty);
+        if ($lockColumn !== null && $result <= 0) {
+            throw new OptimisticLockException('The record was changed, deleted, or is no longer accessible.');
+        }
 
         if ($this->updateSucceeded($result, $tableName, $pkValues, $dirty)) {
+            if ($lockKey !== null && $lockVersion !== null) {
+                $this->attributes[$lockKey] = $lockVersion + 1;
+            }
             $this->oldAttributes = $this->attributes;
 
             // Dispatch afterUpdate event
@@ -489,7 +518,15 @@ trait ActiveRecord
             $query->where($key, $pkValues[$key]);
         }
 
+        $lockColumn = static::optimisticLock();
+        $lockVersion = $this->originalLockVersion();
+        if ($lockColumn !== null && $lockVersion !== null) {
+            $query->where($lockColumn, $lockVersion);
+        }
         $result = $query->delete();
+        if ($lockColumn !== null && $result <= 0) {
+            throw new OptimisticLockException('The record was changed, deleted, or is no longer accessible.');
+        }
 
         if ($result > 0) {
             $this->setIsNewRecord(true);
@@ -922,6 +959,31 @@ trait ActiveRecord
                 );
             }
         }
+    }
+
+    /** Return the loaded version and reject manually modified or invalid versions. */
+    protected function originalLockVersion(): ?int
+    {
+        $column = static::optimisticLock();
+        if ($column === null) {
+            return null;
+        }
+        if ($column === '') {
+            throw new OptimisticLockException('Optimistic lock column must not be empty.');
+        }
+        $oldKey = $this->attributeKey($column, $this->oldAttributes);
+        $currentKey = $this->attributeKey($column, $this->attributes);
+        if (!array_key_exists($oldKey, $this->oldAttributes) || !array_key_exists($currentKey, $this->attributes)) {
+            throw new OptimisticLockException("Optimistic lock column '{$column}' must be selected.");
+        }
+        $oldValue = $this->oldAttributes[$oldKey];
+        $currentValue = $this->attributes[$currentKey];
+        $old = is_int($oldValue) || is_string($oldValue) ? filter_var($oldValue, FILTER_VALIDATE_INT) : false;
+        $current = is_int($currentValue) || is_string($currentValue) ? filter_var($currentValue, FILTER_VALIDATE_INT) : false;
+        if ($old === false || $old < 0 || $current === false || $current !== $old) {
+            throw new OptimisticLockException("Optimistic lock column '{$column}' must contain the original non-negative integer version.");
+        }
+        return $old;
     }
 
     /** Apply the model's current global scopes to record operations. */

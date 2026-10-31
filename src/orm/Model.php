@@ -101,6 +101,12 @@ abstract class Model
         return ['id'];
     }
 
+    /** Return the integer version column to enable optimistic locking, or null to disable it. */
+    public static function optimisticLock(): ?string
+    {
+        return null;
+    }
+
     /** @return array<string, string> Attribute name to cast (json, DateTimeImmutable, or backed enum). */
     public static function casts(): array
     {

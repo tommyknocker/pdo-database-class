@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Opt-in ActiveRecord optimistic locking using an integer version column; stale updates and deletes throw `OptimisticLockException`.
 - Opt-in ActiveRecord casts for JSON arrays, backed enums and immutable UTC datetimes; explicit API presentations and model pagination with eager-loaded relations.
 - In-process `profileReport()` for the current connection's profiler, local plan diagnosis, and a JSON export. Another process does not see that memory.
 - `pdodb profile summary` reads a profile exported by the application, and `pdodb profile diagnose` inspects caller-supplied SQL. Use `--text` on summary/import for a readable report.
