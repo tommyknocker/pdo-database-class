@@ -162,4 +162,64 @@ final class OutboxTests extends BaseSharedTestCase
         $this->assertSame(1, $result->deleted);
         $this->assertSame(1, (int) self::$db->rawQueryValue('SELECT COUNT(*) FROM ' . self::TABLE));
     }
+
+    public function testWorkerRefusesActiveTransaction(): void
+    {
+        $outbox = new Outbox(self::$db, self::TABLE);
+        $published = false;
+
+        try {
+            self::$db->transaction(function () use ($outbox, &$published): void {
+                $outbox->add('order.created', ['id' => 1]);
+                $outbox->worker('test')->runOnce(static function () use (&$published): void {
+                    $published = true;
+                });
+            });
+            $this->fail('Worker must not run inside an open transaction.');
+        } catch (OutboxException $e) {
+            $this->assertStringContainsString('transaction', $e->getMessage());
+        }
+
+        $this->assertFalse($published);
+        $this->assertSame(0, (int) self::$db->rawQueryValue('SELECT COUNT(*) FROM ' . self::TABLE));
+    }
+
+    public function testExpiredSqliteLockIsReleased(): void
+    {
+        $expired = gmdate('Y-m-d\TH:i:s\Z', time() - 120);
+        self::$db->find()->table(self::TABLE)->insert([
+            'id' => OutboxUuid::v4(),
+            'event_type' => 'stale',
+            'payload' => '{}',
+            'status' => OutboxStatuses::PROCESSING,
+            'attempts' => 1,
+            'available_at' => $expired,
+            'created_at' => $expired,
+            'locked_by' => 'dead-worker',
+            'locked_until' => $expired,
+        ]);
+
+        $result = (new Outbox(self::$db, self::TABLE))->worker('test')->runOnce(static function (): void {
+        });
+
+        $this->assertSame(1, $result->published);
+    }
+
+    public function testBatchPublishesEachMessageOnce(): void
+    {
+        $outbox = new Outbox(self::$db, self::TABLE);
+        self::$db->transaction(function () use ($outbox): void {
+            $outbox->add('a', ['n' => 1]);
+            $outbox->add('b', ['n' => 2]);
+        });
+
+        $seen = [];
+        $result = $outbox->worker('test', batchSize: 10)->runOnce(function (OutboxMessage $message) use (&$seen): void {
+            $seen[] = $message->id;
+        });
+
+        $this->assertSame(2, $result->claimed);
+        $this->assertSame(2, $result->published);
+        $this->assertCount(2, array_unique($seen));
+    }
 }

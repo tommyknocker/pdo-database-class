@@ -12,7 +12,9 @@ For local bootstrap only, `pdodb outbox work --ensure-schema` can create the tab
 
 ## Writing events
 
-`Outbox::add()` must run inside an active transaction on the same `PdoDb` instance as your business writes:
+`Outbox::add()` must run inside an active transaction on the same `PdoDb` instance as your business writes. The insert does not call `lastInsertId()`, so a UUID primary key cannot abort the surrounding PostgreSQL transaction.
+
+`OutboxWorker::runOnce()` refuses to start when that connection already has an open transaction. The publish callback must not observe a row that a later rollback can undo.
 
 ```php
 use tommyknocker\pdodb\outbox\Outbox;
@@ -118,15 +120,19 @@ $result = $outbox->worker(workerId: 'api-1', batchSize: 20)->runOnce(
 
 ## Dialect notes
 
-| Dialect   | Concurrent workers (`SKIP LOCKED` / `READPAST`) |
-|-----------|--------------------------------------------------|
-| PostgreSQL | Yes                                             |
-| MySQL / MariaDB | Yes (8.0+ / 10.6+)                        |
-| SQL Server | Yes                                             |
-| SQLite     | Single-worker claim in one transaction          |
-| Oracle     | Single-worker claim in one transaction          |
+Schema creation, enqueue inside a transaction, and a single worker publish are covered for SQLite, MySQL, MariaDB, PostgreSQL, SQL Server, and Oracle.
 
-Stale `processing` rows (expired `locked_until`) return to `pending` before the next claim.
+| Dialect | Claim |
+|---------|--------|
+| PostgreSQL | `SKIP LOCKED` and `RETURNING` |
+| MySQL / MariaDB | `SKIP LOCKED`; each claimed row gets its own lock token |
+| SQL Server | `READPAST` and `OUTPUT`; lock duration is bound as an integer |
+| SQLite | One transaction for the batch. Lock expiry compares ISO timestamps with `datetime('now')` |
+| Oracle | One row at a time. `CLOB` payloads are read before the row is decoded |
+
+Two database connections racing for the same row are not covered by the current tests.
+
+Stale `processing` rows (expired `locked_until`) return to `pending` before the next claim. `runOnce()` throws if its connection is already inside a transaction.
 
 ## Related
 

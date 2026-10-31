@@ -3359,4 +3359,98 @@ class OracleDialect extends DialectAbstract
         $params[$upperParamKey] = '%' . strtoupper($searchTerm) . '%';
         return "({$upperColumn} LIKE {$upperParamKey})";
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxSchemaSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+        $indexName = $this->quoteIdentifier($tableName . '_pending_idx');
+
+        return [
+            "BEGIN
+                EXECUTE IMMEDIATE 'CREATE TABLE {$tableQuoted} (
+                    id VARCHAR2(36) PRIMARY KEY,
+                    event_type VARCHAR2(255) NOT NULL,
+                    payload CLOB NOT NULL,
+                    status VARCHAR2(32) DEFAULT ''pending'' NOT NULL,
+                    attempts NUMBER(10) DEFAULT 0 NOT NULL,
+                    available_at VARCHAR2(32) NOT NULL,
+                    created_at VARCHAR2(32) NOT NULL,
+                    locked_by VARCHAR2(128) NULL,
+                    locked_until VARCHAR2(32) NULL,
+                    last_error VARCHAR2(4000) NULL,
+                    published_at VARCHAR2(32) NULL
+                )';
+            EXCEPTION
+                WHEN OTHERS THEN
+                    IF SQLCODE != -955 THEN
+                        RAISE;
+                    END IF;
+            END;",
+            "BEGIN
+                EXECUTE IMMEDIATE 'CREATE INDEX {$indexName} ON {$tableQuoted} (status, available_at)';
+            EXCEPTION
+                WHEN OTHERS THEN
+                    IF SQLCODE != -955 THEN
+                        RAISE;
+                    END IF;
+            END;",
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxReleaseStaleClaimsSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "UPDATE {$tableQuoted}
+                SET status = 'pending', locked_by = NULL, locked_until = NULL
+                WHERE status = 'processing'
+                  AND locked_until IS NOT NULL
+                  AND locked_until < :now",
+            ['now' => ''],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildOutboxClaimOneSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "UPDATE {$tableQuoted}
+                SET status = 'processing',
+                    locked_by = :token,
+                    locked_until = :locked_until,
+                    attempts = attempts + 1
+                WHERE id = (
+                    SELECT id FROM (
+                        SELECT id FROM {$tableQuoted}
+                        WHERE status = 'pending' AND available_at <= :now
+                        ORDER BY available_at ASC, id ASC
+                        FETCH FIRST 1 ROW ONLY
+                    )
+                )",
+            [
+                'token' => '',
+                'locked_until' => '',
+                'now' => '',
+            ],
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function outboxClaimSqlReturnsClaimedRow(): bool
+    {
+        return false;
+    }
 }

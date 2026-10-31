@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolve unambiguous Oracle column names for ActiveRecord attributes while preserving exact-case matches.
 - Apply ActiveRecord global scopes to query and model writes, preserve terminal method return values, and isolate model connections with an explicit shared default.
 - Nested `transaction()` callbacks use database-specific savepoints instead of committing the outer transaction.
+- Outbox inserts no longer call `lastInsertId()` (PostgreSQL aborted the surrounding transaction). The worker rejects an already open transaction, SQLite releases ISO lock timestamps, and MySQL, MariaDB, SQL Server, and Oracle use dialect-specific outbox schema and claim SQL.
 - Migration and seed `--dry-run` no longer execute migration or seed PHP (avoids side effects; SQL from arbitrary PHP is not shown).
 - ActiveRecord `update()` / `delete()` target the original primary key from when the row was loaded; changing a primary key in memory throws `PrimaryKeyMutationException`.
 - ActiveRecord `save()` / `update()` treat zero affected rows as success when the row still matches the intended values (e.g. MySQL no-op updates).

@@ -2275,7 +2275,7 @@ class MSSQLDialect extends DialectAbstract
                 attempts INT NOT NULL DEFAULT 0,
                 available_at DATETIME2 NOT NULL,
                 created_at DATETIME2 NOT NULL,
-                locked_by NVARCHAR(64) NULL,
+                    locked_by NVARCHAR(128) NULL,
                 locked_until DATETIME2 NULL,
                 last_error NVARCHAR(MAX) NULL,
                 published_at DATETIME2 NULL
@@ -2320,7 +2320,7 @@ class MSSQLDialect extends DialectAbstract
             "UPDATE t
                 SET t.status = 'processing',
                     t.locked_by = :token,
-                    t.locked_until = DATEADD(second, :lock_seconds, SYSUTCDATETIME()),
+                    t.locked_until = DATEADD(second, CAST(:lock_seconds AS int), SYSUTCDATETIME()),
                     t.attempts = t.attempts + 1
                 OUTPUT INSERTED.id, INSERTED.event_type, INSERTED.payload, INSERTED.status, INSERTED.attempts,
                     INSERTED.available_at, INSERTED.created_at, INSERTED.locked_by, INSERTED.locked_until,

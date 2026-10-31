@@ -1882,6 +1882,32 @@ class MySQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function buildOutboxSchemaSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+        $indexName = $this->quoteIdentifier($tableName . '_pending_idx');
+
+        return [
+            "CREATE TABLE IF NOT EXISTS {$tableQuoted} (
+                id CHAR(36) NOT NULL PRIMARY KEY,
+                event_type VARCHAR(255) NOT NULL,
+                payload LONGTEXT NOT NULL,
+                status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                attempts INT NOT NULL DEFAULT 0,
+                available_at VARCHAR(32) NOT NULL,
+                created_at VARCHAR(32) NOT NULL,
+                locked_by VARCHAR(128) NULL,
+                locked_until VARCHAR(32) NULL,
+                last_error TEXT NULL,
+                published_at VARCHAR(32) NULL,
+                KEY {$indexName} (status, available_at)
+            )",
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function supportsOutboxConcurrentWorkerClaim(): bool
     {
         return true;
@@ -1907,8 +1933,8 @@ class MySQLDialect extends DialectAbstract
                 SET status = 'pending', locked_by = NULL, locked_until = NULL
                 WHERE status = 'processing'
                   AND locked_until IS NOT NULL
-                  AND locked_until < NOW()",
-            [],
+                  AND locked_until < :now",
+            ['now' => ''],
         ];
     }
 
@@ -1922,19 +1948,22 @@ class MySQLDialect extends DialectAbstract
         return [
             "UPDATE {$tableQuoted} AS t
                 INNER JOIN (
-                    SELECT id FROM {$tableQuoted}
-                    WHERE status = 'pending' AND available_at <= NOW()
-                    ORDER BY available_at ASC, id ASC
-                    LIMIT 1
-                    FOR UPDATE SKIP LOCKED
+                    SELECT id FROM (
+                        SELECT id FROM {$tableQuoted}
+                        WHERE status = 'pending' AND available_at <= :now
+                        ORDER BY available_at ASC, id ASC
+                        LIMIT 1
+                        FOR UPDATE SKIP LOCKED
+                    ) AS candidate
                 ) AS picked ON t.id = picked.id
                 SET t.status = 'processing',
                     t.locked_by = :token,
-                    t.locked_until = DATE_ADD(NOW(), INTERVAL :lock_seconds SECOND),
+                    t.locked_until = :locked_until,
                     t.attempts = t.attempts + 1",
             [
                 'token' => '',
-                'lock_seconds' => 0,
+                'locked_until' => '',
+                'now' => '',
             ],
         ];
     }

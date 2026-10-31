@@ -1699,7 +1699,7 @@ class SqliteDialect extends DialectAbstract
                 SET status = 'pending', locked_by = NULL, locked_until = NULL
                 WHERE status = 'processing'
                   AND locked_until IS NOT NULL
-                  AND locked_until < datetime('now')",
+                  AND replace(replace(locked_until, 'T', ' '), 'Z', '') < datetime('now')",
             [],
         ];
     }

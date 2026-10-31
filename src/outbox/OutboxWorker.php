@@ -36,19 +36,19 @@ final class OutboxWorker
         foreach ($claimed as $message) {
             try {
                 $publish($message);
-                if ($this->storage->markPublished($message->id, $token, gmdate('Y-m-d\TH:i:s\Z'))) {
+                if ($this->storage->markPublished($message->id, $message->lockToken, gmdate('Y-m-d\TH:i:s\Z'))) {
                     $published++;
                 }
             } catch (OutboxPermanentFailureException $e) {
-                if ($this->storage->markFailed($message->id, $token, $e->getMessage())) {
+                if ($this->storage->markFailed($message->id, $message->lockToken, $e->getMessage())) {
                     $markedFailed++;
                 }
             } catch (OutboxRetryableException $e) {
-                if ($this->handleRetryOrFail($message, $token, $e->getMessage(), $scheduledRetry, $markedFailed)) {
+                if ($this->handleRetryOrFail($message, $message->lockToken, $e->getMessage(), $scheduledRetry, $markedFailed)) {
                     continue;
                 }
             } catch (\Throwable $e) {
-                if ($this->handleRetryOrFail($message, $token, $e->getMessage(), $scheduledRetry, $markedFailed)) {
+                if ($this->handleRetryOrFail($message, $message->lockToken, $e->getMessage(), $scheduledRetry, $markedFailed)) {
                     continue;
                 }
             }

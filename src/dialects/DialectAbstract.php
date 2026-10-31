@@ -1025,7 +1025,7 @@ abstract class DialectAbstract implements DialectInterface
                 attempts INTEGER NOT NULL DEFAULT 0,
                 available_at TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                locked_by VARCHAR(64) NULL,
+                locked_by VARCHAR(128) NULL,
                 locked_until TEXT NULL,
                 last_error TEXT NULL,
                 published_at TEXT NULL

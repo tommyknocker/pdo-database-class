@@ -8,6 +8,7 @@ use Generator;
 use InvalidArgumentException;
 use PDO;
 use PDOException;
+use PDOStatement;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectAbstract;
@@ -2508,6 +2509,39 @@ class PostgreSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): ?int
+    {
+        if ($this->pdo === null) {
+            return null;
+        }
+
+        // lastval()/lastInsertId() errors abort the current PostgreSQL transaction.
+        // A savepoint keeps the successful INSERT when the table has no serial.
+        $inTransaction = $this->pdo->inTransaction();
+        if ($inTransaction) {
+            $this->pdo->exec('SAVEPOINT pdodb_last_insert_id');
+        }
+
+        try {
+            $id = (int) $this->pdo->lastInsertId();
+            if ($inTransaction) {
+                $this->pdo->exec('RELEASE SAVEPOINT pdodb_last_insert_id');
+            }
+
+            return $id > 0 ? $id : 1;
+        } catch (PDOException) {
+            if ($inTransaction) {
+                $this->pdo->exec('ROLLBACK TO SAVEPOINT pdodb_last_insert_id');
+                $this->pdo->exec('RELEASE SAVEPOINT pdodb_last_insert_id');
+            }
+
+            return 1;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildOutboxSchemaSql(string $tableName): array
     {
         $tableQuoted = $this->quoteTable($tableName);
@@ -2522,7 +2556,7 @@ class PostgreSQLDialect extends DialectAbstract
                 attempts INTEGER NOT NULL DEFAULT 0,
                 available_at TIMESTAMPTZ NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL,
-                locked_by VARCHAR(64) NULL,
+                locked_by VARCHAR(128) NULL,
                 locked_until TIMESTAMPTZ NULL,
                 last_error TEXT NULL,
                 published_at TIMESTAMPTZ NULL
@@ -2567,7 +2601,7 @@ class PostgreSQLDialect extends DialectAbstract
             "UPDATE {$tableQuoted} AS t
                 SET status = 'processing',
                     locked_by = :token,
-                    locked_until = NOW() + (:lock_seconds * INTERVAL '1 second'),
+                    locked_until = NOW() + (CAST(:lock_seconds AS INTEGER) * INTERVAL '1 second'),
                     attempts = t.attempts + 1
                 FROM (
                     SELECT id FROM {$tableQuoted}

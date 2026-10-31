@@ -39,15 +39,30 @@ final class OutboxStorage
      */
     public function insertPending(string $id, string $eventType, array $payload, string $createdAt): void
     {
-        $this->db->find()->table($this->tableName)->insert([
-            'id' => $id,
-            'event_type' => $eventType,
-            'payload' => json_encode($payload, JSON_THROW_ON_ERROR),
-            'status' => OutboxStatuses::PENDING,
-            'attempts' => 0,
-            'available_at' => $createdAt,
-            'created_at' => $createdAt,
-        ]);
+        $tableQuoted = $this->dialect()->quoteTable($this->tableName);
+        $this->db->rawQuery(
+            "INSERT INTO {$tableQuoted}
+                (id, event_type, payload, status, attempts, available_at, created_at)
+             VALUES (:id, :event_type, :payload, :status, :attempts, :available_at, :created_at)",
+            [
+                'id' => $id,
+                'event_type' => $eventType,
+                'payload' => json_encode($payload, JSON_THROW_ON_ERROR),
+                'status' => OutboxStatuses::PENDING,
+                'attempts' => 0,
+                'available_at' => $createdAt,
+                'created_at' => $createdAt,
+            ]
+        );
+    }
+
+    public function assertConnectionIdle(): void
+    {
+        if ($this->db->inTransaction()) {
+            throw new OutboxException(
+                'Outbox worker cannot run while a transaction is active on this connection.'
+            );
+        }
     }
 
     public function releaseStaleClaims(): void
@@ -67,6 +82,8 @@ final class OutboxStorage
         if ($limit < 1) {
             return [];
         }
+
+        $this->assertConnectionIdle();
 
         $dialect = $this->dialect();
         if ($dialect->supportsOutboxConcurrentWorkerClaim()) {
@@ -169,7 +186,8 @@ final class OutboxStorage
     {
         $dialect = $this->dialect();
         [$sql, $params] = $dialect->buildOutboxClaimOneSql($this->tableName);
-        $params['token'] = $workerToken;
+        $claimToken = $workerToken . ':' . bin2hex(random_bytes(8));
+        $params['token'] = $claimToken;
         if (array_key_exists('lock_seconds', $params)) {
             $params['lock_seconds'] = $lockSeconds;
         }
@@ -192,9 +210,8 @@ final class OutboxStorage
         $this->db->rawQuery($sql, $params);
         $row = $this->db->find()
             ->table($this->tableName)
-            ->where('locked_by', $workerToken)
+            ->where('locked_by', $claimToken)
             ->where('status', OutboxStatuses::PROCESSING)
-            ->orderBy('attempts', 'DESC')
             ->getOne();
 
         if (!is_array($row)) {

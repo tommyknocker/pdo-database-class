@@ -20,6 +20,7 @@ final class OutboxMessage
         public readonly array $payload,
         public readonly int $attempts,
         public readonly string $status,
+        public readonly string $lockToken = '',
     ) {
     }
 
@@ -28,7 +29,18 @@ final class OutboxMessage
      */
     public static function fromRow(array $row): self
     {
+        $row = array_change_key_case($row, CASE_LOWER);
         $payloadRaw = $row['payload'] ?? '';
+        if (is_resource($payloadRaw)) {
+            $payloadRaw = stream_get_contents($payloadRaw);
+            if ($payloadRaw === false) {
+                throw new OutboxException('Failed to read outbox payload.');
+            }
+        } elseif (is_object($payloadRaw) && method_exists($payloadRaw, 'load')) {
+            $loaded = $payloadRaw->load();
+            $payloadRaw = is_string($loaded) ? $loaded : '';
+        }
+
         if (is_string($payloadRaw)) {
             $payload = json_decode($payloadRaw, true, 512, JSON_THROW_ON_ERROR);
             if (!is_array($payload)) {
@@ -46,6 +58,7 @@ final class OutboxMessage
             $payload,
             (int) ($row['attempts'] ?? 0),
             (string) ($row['status'] ?? ''),
+            (string) ($row['locked_by'] ?? ''),
         );
     }
 }
