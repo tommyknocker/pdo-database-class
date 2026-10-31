@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - In-process `profileReport()` for the current connection's profiler, local plan diagnosis, and a JSON export. Another process does not see that memory.
-- `pdodb profile summary` reads a profile exported by the application, and `pdodb profile diagnose` inspects caller-supplied SQL.
+- `pdodb profile summary` reads a profile exported by the application, and `pdodb profile diagnose` inspects caller-supplied SQL. Use `--text` on summary/import for a readable report.
 - `Model::preventLazyLoading()` to opt out of lazy-loading relations.
 - `PlanComparison` for two plans the caller collected. It does not execute DDL or model SQL. PostgreSQL `EXPLAIN ANALYZE` timings mean the statement ran.
 - `pdodb ai doctor` JSON summary of provider, model, key presence, endpoint, and database connection without calling a model. `--probe` makes one short provider request and may incur a charge. The key and response body are not printed.
@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Model generator emits `belongsTo` relations from foreign keys and accepts explicit table-to-model mappings for custom names.
 
 ### Fixed
-- Migration and seed `--dry-run` / `--pretend` no longer execute migration or seed PHP (avoids side effects; SQL from arbitrary PHP is not shown).
+- Migration and seed `--dry-run` no longer execute migration or seed PHP (avoids side effects; SQL from arbitrary PHP is not shown).
 - ActiveRecord `update()` / `delete()` target the original primary key from when the row was loaded; changing a primary key in memory throws `PrimaryKeyMutationException`.
 - ActiveRecord `save()` / `update()` treat zero affected rows as success when the row still matches the intended values (e.g. MySQL no-op updates).
 - ActiveRecord insert preserves non-numeric primary key values returned from the driver.
@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Breaking:** `setAttributes(..., safeOnly: true)` throws `MassAssignmentException` when the model does not declare `safeAttributes()`.
 - **Breaking:** `DialectInterface` requires `executePlanExplain()`. A third-party dialect must implement it. `getSlowestQueries()` sorts by total time and includes `count` and `possible_n_plus_one`.
+- **Breaking:** Removed `--pretend` and `MigrationRunner::setPretend()` / `SeedRunner::setPretend()`. Use `--dry-run` and `setDryRun()` only.
+- CLI command suggestions (`Did you mean`) are written to stderr. `pdodb migrate` / `pdodb seed` honor `--help` on any subcommand (e.g. `pdodb migrate up --help`).
 - Share AI prompt and analysis flow across providers, and use the OpenAI-compatible transport for DeepSeek.
 - **Breaking:** AI configuration now uses one selected provider with `PDODB_AI_API_KEY`, `PDODB_AI_MODEL` and, when needed, `PDODB_AI_BASE_URL`; PHP uses a flat `ai` array. Provider-specific keys and nested provider settings must be migrated as described in the AI configuration reference.
 - Update default OpenAI, Anthropic, Google and DeepSeek models, and simplify the AI setup wizard to configure only the chosen provider.

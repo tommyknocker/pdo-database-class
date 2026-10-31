@@ -44,6 +44,10 @@ class SeedCommand extends Command
      */
     public function execute(): int
     {
+        if ($this->wantsHelp()) {
+            return $this->showHelp();
+        }
+
         $subcommand = $this->getArgument(0);
 
         if ($subcommand === null) {
@@ -94,15 +98,11 @@ class SeedCommand extends Command
         $runner = new SeedRunner($this->getDb(), $seedPath);
 
         // Handle options
-        $dryRun = $this->getOption('dry-run', false);
-        $pretend = $this->getOption('pretend', false);
+        $dryRun = $this->isDryRunMode();
         $force = $this->getOption('force', false);
 
         if ($dryRun) {
             $runner->setDryRun(true);
-        }
-        if ($pretend) {
-            $runner->setPretend(true);
         }
 
         $seedName = $this->getArgument(1);
@@ -114,7 +114,7 @@ class SeedCommand extends Command
                 $newSeeds = [$seedNameStr];
                 $executedSeeds = $runner->getExecutedSeeds();
                 if (in_array($seedNameStr, $executedSeeds, true)) {
-                    if (!$force && !$dryRun && !$pretend) {
+                    if (!$force && !$dryRun) {
                         $confirmed = static::readConfirmation(
                             "Seed '{$seedNameStr}' has already been executed. Re-run it?",
                             false
@@ -133,8 +133,8 @@ class SeedCommand extends Command
                     return 0;
                 }
 
-                // Ask for confirmation unless --force is used or in dry-run/pretend mode
-                if (!$force && !$dryRun && !$pretend) {
+                // Ask for confirmation unless --force is used or in dry-run mode
+                if (!$force && !$dryRun) {
                     $count = count($newSeeds);
                     $confirmed = static::readConfirmation(
                         "Are you sure you want to run {$count} seed(s)? This will modify your database",
@@ -150,13 +150,12 @@ class SeedCommand extends Command
             $seedNameForRun = $seedName !== null ? (string)$seedName : null;
             $executed = $runner->run($seedNameForRun);
 
-            if ($dryRun || $pretend) {
+            if ($dryRun) {
                 $queries = $runner->getCollectedQueries();
                 if (!empty($queries)) {
                     $this->writeln("\n" . implode("\n", $queries));
                 }
-                $mode = $dryRun ? 'dry-run' : 'pretend';
-                static::info("Seed execution completed ({$mode} mode).");
+                static::info('Seed execution completed (dry-run mode).');
             } else {
                 $count = count($executed);
                 if ($count > 0) {
@@ -231,15 +230,11 @@ class SeedCommand extends Command
         $runner = new SeedRunner($this->getDb(), $seedPath);
 
         // Handle options
-        $dryRun = $this->getOption('dry-run', false);
-        $pretend = $this->getOption('pretend', false);
+        $dryRun = $this->isDryRunMode();
         $force = $this->getOption('force', false);
 
         if ($dryRun) {
             $runner->setDryRun(true);
-        }
-        if ($pretend) {
-            $runner->setPretend(true);
         }
 
         $seedName = $this->getArgument(1);
@@ -253,7 +248,7 @@ class SeedCommand extends Command
                     $this->showError("Seed '{$seedNameStr}' has not been executed.");
                 }
 
-                if (!$force && !$dryRun && !$pretend) {
+                if (!$force && !$dryRun) {
                     $confirmed = static::readConfirmation(
                         "Are you sure you want to rollback seed '{$seedNameStr}'? This will modify your database",
                         false
@@ -271,7 +266,7 @@ class SeedCommand extends Command
                     return 0;
                 }
 
-                if (!$force && !$dryRun && !$pretend) {
+                if (!$force && !$dryRun) {
                     $confirmed = static::readConfirmation(
                         'Are you sure you want to rollback the last batch of seeds? This will modify your database',
                         false
@@ -286,13 +281,12 @@ class SeedCommand extends Command
             $seedNameForRollback = $seedName !== null ? (string)$seedName : null;
             $rolledBack = $runner->rollback($seedNameForRollback);
 
-            if ($dryRun || $pretend) {
+            if ($dryRun) {
                 $queries = $runner->getCollectedQueries();
                 if (!empty($queries)) {
                     $this->writeln("\n" . implode("\n", $queries));
                 }
-                $mode = $dryRun ? 'dry-run' : 'pretend';
-                static::info("Seed rollback completed ({$mode} mode).");
+                static::info('Seed rollback completed (dry-run mode).');
             } else {
                 $count = count($rolledBack);
                 if ($count > 0) {
@@ -470,8 +464,7 @@ class SeedCommand extends Command
         $this->writeln('  generate <table>       Generate seed file from existing database data');
         $this->writeln("  help                   Show this help message\n");
         $this->writeln('Options:');
-        $this->writeln('  --dry-run              List operations without executing seed PHP');
-        $this->writeln('  --pretend              Simulate execution without running queries');
+        $this->writeln('  --dry-run              List seeds without executing seed PHP');
         $this->writeln('  --force                Skip confirmation prompts');
         $this->writeln("  --connection=<name>    Use specific database connection\n");
         $this->writeln('Generate options:');

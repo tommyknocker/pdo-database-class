@@ -1425,42 +1425,6 @@ class CliToolsTests extends BaseSharedTestCase
     }
 
     /**
-     * Test MigrationRunner pretend mode for migrate up.
-     */
-    public function testMigrationRunnerPretendModeForMigrateUp(): void
-    {
-        // Create a test migration
-        ob_start();
-
-        try {
-            $migrationName = 'test_pretend_migration';
-            $filename = MigrationGenerator::generate($migrationName, $this->testMigrationPath);
-        } finally {
-            ob_end_clean();
-        }
-
-        $runner = new MigrationRunner(self::$db, $this->testMigrationPath);
-        $runner->setPretend(true);
-
-        // In pretend mode, migrate should return list without executing
-        $applied = $runner->migrate(0);
-        $this->assertIsArray($applied);
-        $this->assertNotEmpty($applied);
-
-        // Check that collected queries exist
-        $queries = $runner->getCollectedQueries();
-        $this->assertNotEmpty($queries);
-        $this->assertStringContainsString('Migration:', $queries[0]);
-
-        // Verify migration was NOT actually applied
-        $history = $runner->getMigrationHistory();
-        $appliedVersions = array_column($history, 'version');
-        $version = basename($filename, '.php');
-        $version = substr($version, 1); // Remove 'm' prefix
-        $this->assertNotContains($version, $appliedVersions);
-    }
-
-    /**
      * Test MigrationRunner dry-run mode for migrate down.
      */
     public function testMigrationRunnerDryRunModeForMigrateDown(): void
@@ -1493,45 +1457,6 @@ class CliToolsTests extends BaseSharedTestCase
         $this->assertNotEmpty($queries);
         $this->assertStringContainsString('Rollback Migration:', $queries[0]);
         $this->assertStringContainsString('Dry-run: migration PHP is not executed.', implode("\n", $queries));
-
-        // Verify migration was NOT actually rolled back
-        $history = $runner->getMigrationHistory();
-        $appliedVersions = array_column($history, 'version');
-        $this->assertContains($version, $appliedVersions);
-    }
-
-    /**
-     * Test MigrationRunner pretend mode for migrate down.
-     */
-    public function testMigrationRunnerPretendModeForMigrateDown(): void
-    {
-        // Create and apply a test migration first
-        ob_start();
-
-        try {
-            $migrationName = 'test_pretend_down_migration';
-            MigrationGenerator::generate($migrationName, $this->testMigrationPath);
-        } finally {
-            ob_end_clean();
-        }
-
-        // Apply migration normally
-        $runner = new MigrationRunner(self::$db, $this->testMigrationPath);
-        $applied = $runner->migrate(0);
-        $this->assertNotEmpty($applied);
-        $version = $applied[0];
-
-        // Now test pretend for rollback
-        $runner->setPretend(true);
-        $rolledBack = $runner->migrateDown(1);
-        $this->assertIsArray($rolledBack);
-        $this->assertNotEmpty($rolledBack);
-        $this->assertEquals($version, $rolledBack[0]);
-
-        // Check that collected queries exist
-        $queries = $runner->getCollectedQueries();
-        $this->assertNotEmpty($queries);
-        $this->assertStringContainsString('Rollback Migration:', $queries[0]);
 
         // Verify migration was NOT actually rolled back
         $history = $runner->getMigrationHistory();
@@ -1573,26 +1498,18 @@ class CliToolsTests extends BaseSharedTestCase
     }
 
     /**
-     * Test MigrationRunner setDryRun and setPretend methods.
+     * Test MigrationRunner setDryRun method.
      */
-    public function testMigrationRunnerSetDryRunAndSetPretend(): void
+    public function testMigrationRunnerSetDryRun(): void
     {
         $runner = new MigrationRunner(self::$db, $this->testMigrationPath);
 
-        // Test setDryRun
         $result = $runner->setDryRun(true);
         $this->assertSame($runner, $result);
 
-        // Test setPretend
-        $result = $runner->setPretend(true);
-        $this->assertSame($runner, $result);
-
-        // Test that both can be set
         $runner->setDryRun(false);
-        $runner->setPretend(false);
         $runner->setDryRun(true);
-        $runner->setPretend(true);
-        $this->assertTrue(true); // If we get here, no exception was thrown
+        $this->assertTrue(true);
     }
 
     /**

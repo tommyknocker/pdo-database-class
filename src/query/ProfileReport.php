@@ -105,6 +105,65 @@ class ProfileReport
         return $data;
     }
 
+    /**
+     * Human-readable summary of a parsed export (for CLI --text).
+     *
+     * @param array<string, mixed> $data
+     */
+    public static function formatExportAsText(array $data): string
+    {
+        if (($data['enabled'] ?? false) !== true) {
+            $note = is_string($data['note'] ?? null) ? $data['note'] : 'Profiling was disabled in the export.';
+
+            return "Query profile summary\n=====================\nStatus: disabled\n{$note}\n";
+        }
+
+        $agg = is_array($data['aggregated'] ?? null) ? $data['aggregated'] : [];
+        $lines = [
+            'Query profile summary',
+            '=====================',
+            'Status: enabled',
+            sprintf('Total queries: %d', (int) ($agg['total_queries'] ?? 0)),
+            sprintf('Total time: %.2f ms', (float) ($agg['total_time'] ?? 0)),
+            sprintf('Average time: %.2f ms', (float) ($agg['avg_time'] ?? 0)),
+            sprintf('Slow queries: %d', (int) ($agg['slow_queries'] ?? 0)),
+        ];
+
+        if (($data['truncated'] ?? false) === true) {
+            $lines[] = 'Note: profiler storage was truncated; counts may be incomplete.';
+        }
+
+        $queries = is_array($data['queries'] ?? null) ? $data['queries'] : [];
+        if ($queries !== []) {
+            $lines[] = '';
+            $lines[] = 'Slowest query shapes:';
+            $rank = 1;
+            foreach ($queries as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $sql = is_string($row['sql'] ?? null) ? $row['sql'] : '(unknown sql)';
+                $count = (int) ($row['count'] ?? 0);
+                $totalTime = (float) ($row['total_time'] ?? 0);
+                $nPlusOne = ($row['possible_n_plus_one'] ?? false) === true ? ' possible N+1' : '';
+                $lines[] = sprintf(
+                    '%d. x%d, %.2f ms total%s',
+                    $rank,
+                    $count,
+                    $totalTime,
+                    $nPlusOne
+                );
+                $lines[] = '   ' . $sql;
+                ++$rank;
+            }
+        }
+
+        $lines[] = '';
+        $lines[] = 'Use pdodb profile diagnose "SQL" for plan advice on a specific statement.';
+
+        return implode("\n", $lines) . "\n";
+    }
+
     public function export(): string
     {
         return json_encode($this->summary(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT);

@@ -32,8 +32,7 @@ echo "4. Run a specific seed:\n";
 echo "   vendor/bin/pdodb seed run users_table\n\n";
 
 echo "5. Run seeds with options:\n";
-echo "   vendor/bin/pdodb seed run --dry-run    # Show SQL without executing\n";
-echo "   vendor/bin/pdodb seed run --pretend    # Simulate execution\n";
+echo "   vendor/bin/pdodb seed run --dry-run    # List seeds without executing PHP\n";
 echo "   vendor/bin/pdodb seed run --force      # Skip confirmation prompts\n\n";
 
 echo "6. Rollback seeds:\n";

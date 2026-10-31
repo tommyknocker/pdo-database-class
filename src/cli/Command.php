@@ -214,6 +214,22 @@ abstract class Command extends BaseCliCommand
     }
 
     /**
+     * Whether the user requested command help via --help.
+     */
+    protected function wantsHelp(): bool
+    {
+        return (bool) $this->getOption('help', false);
+    }
+
+    /**
+     * Dry-run mode (--dry-run).
+     */
+    protected function isDryRunMode(): bool
+    {
+        return (bool) $this->getOption('dry-run', false);
+    }
+
+    /**
      * Get database instance.
      *
      * @return PdoDb

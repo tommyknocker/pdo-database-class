@@ -265,32 +265,6 @@ class SeedTests extends BaseSharedTestCase
     }
 
     /**
-     * Test seed pretend mode.
-     */
-    public function testSeedPretend(): void
-    {
-        $db = self::getDb();
-        $runner = new SeedRunner($db, $this->testSeedPath);
-        $runner->setPretend(true);
-
-        // Create seed
-        $seedFile = $this->createTestSeedFileWithData('users_data');
-        $seedName = basename($seedFile, '.php');
-
-        $executed = $runner->run($seedName);
-        $this->assertContains($seedName, $executed); // Seed was processed in pretend mode
-
-        // Check collected queries
-        $queries = $runner->getCollectedQueries();
-        $this->assertNotEmpty($queries);
-        $this->assertStringContainsString('Would execute seed.run()', implode("\n", $queries));
-
-        // Verify seed was not recorded
-        $executedSeeds = $runner->getExecutedSeeds();
-        $this->assertNotContains($seedName, $executedSeeds);
-    }
-
-    /**
      * Test batch rollback.
      */
     public function testBatchRollback(): void

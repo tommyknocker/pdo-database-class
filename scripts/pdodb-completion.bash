@@ -73,7 +73,7 @@ _pdodb() {
             # Suggest migration name
             COMPREPLY=($(compgen -f -- "${cur}"))
         else
-            local migrate_opts="--dry-run --pretend --force"
+            local migrate_opts="--dry-run --force"
             COMPREPLY=($(compgen -W "${migrate_opts}" -- "${cur}"))
         fi
         return 0
@@ -95,7 +95,7 @@ _pdodb() {
             # Complete with executed seed names
             _pdodb_complete_executed_seeds
         else
-            local seed_opts="--dry-run --pretend --force"
+            local seed_opts="--dry-run --force"
             COMPREPLY=($(compgen -W "${seed_opts}" -- "${cur}"))
         fi
         return 0

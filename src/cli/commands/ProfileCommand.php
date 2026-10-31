@@ -57,6 +57,11 @@ class ProfileCommand extends Command
                 return $this->fail('Failed to read export file.');
             }
             $data = ProfileReport::parseExport($json);
+            if ($this->getOption('text', false)) {
+                $this->writeln(ProfileReport::formatExportAsText($data));
+
+                return 0;
+            }
             $this->writeln(json_encode($data, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
 
             return 0;
@@ -121,6 +126,7 @@ class ProfileCommand extends Command
         $this->writeln();
         $this->writeln('Usage:');
         $this->writeln('  pdodb profile summary <report.json>       Show an exported profile');
+        $this->writeln('  pdodb profile summary <report.json> --text  Human-readable summary');
         $this->writeln('  pdodb profile import <report.json>        Alias for summary');
         $this->writeln('  pdodb profile diagnose "SQL" [--param=json]');
         $this->writeln();

@@ -40,7 +40,7 @@ Database seeds for populating initial or test data.
 - Running seeds with `SeedRunner`
 - Batch tracking and rollback support
 - Seed execution with transactions
-- Dry-run and pretend modes
+- Dry-run mode
 
 ### 05-seeds-cli.php
 CLI commands for seed management.
@@ -50,7 +50,7 @@ CLI commands for seed management.
 - Running seeds: `pdodb seed run`
 - Listing seeds: `pdodb seed list`
 - Rolling back seeds: `pdodb seed rollback`
-- Dry-run and pretend modes
+- Dry-run mode
 - Force execution
 
 ## Usage

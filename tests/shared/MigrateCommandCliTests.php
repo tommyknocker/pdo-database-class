@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\tests\shared;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
 use tommyknocker\pdodb\cli\commands\MigrateCommand;
+use tommyknocker\pdodb\cli\MigrationGenerator;
 
 final class MigrateCommandCliTests extends TestCase
 {
@@ -308,29 +309,38 @@ final class MigrateCommandCliTests extends TestCase
         );
     }
 
-    public function testMigrateUpCommandWithPretend(): void
+    public function testMigrateUpHelpShowsUsageWithoutRunningMigrations(): void
     {
-        // Test that up command works with --pretend option
         $app = new Application();
+        putenv('PDODB_DRIVER=sqlite');
+        putenv('PDODB_PATH=:memory:');
+        putenv('PDODB_NON_INTERACTIVE=1');
 
+        $run = CliTestCapture::runApplication($app, ['pdodb', 'migrate', 'up', '--help']);
+
+        $this->assertSame(0, $run['code']);
+        $this->assertStringContainsString('Usage: pdodb migrate', $run['stdout']);
+        $this->assertStringContainsString('--dry-run', $run['stdout']);
+    }
+
+    public function testMigrateDownDryRunSkipsConfirmation(): void
+    {
         ob_start();
 
         try {
-            $code = $app->run(['pdodb', 'migrate', 'up', '--pretend']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
+            MigrationGenerator::generate('dry_run_down_test', $this->migrationPath);
+        } finally {
             ob_end_clean();
-
-            throw $e;
         }
 
-        $this->assertSame(0, $code);
-        // Should show pretend mode message
-        $this->assertTrue(
-            str_contains($out, 'PRETEND') ||
-            str_contains($out, 'No new migrations') ||
-            $code === 0
-        );
+        $app = new Application();
+        CliTestCapture::runApplication($app, ['pdodb', 'migrate', 'up', '--force']);
+
+        $run = CliTestCapture::runApplication($app, ['pdodb', 'migrate', 'down', '--dry-run']);
+
+        $this->assertSame(0, $run['code']);
+        $this->assertStringContainsString('DRY-RUN', $run['output']);
+        $this->assertStringContainsString('Would rollback', $run['output']);
     }
 
     public function testMigrateShowHelpMethod(): void

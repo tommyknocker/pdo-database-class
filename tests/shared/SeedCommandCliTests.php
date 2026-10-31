@@ -556,25 +556,7 @@ PHP;
         $this->assertEquals($expectedCount, $count);
     }
 
-    public function testSeedRunWithDryRun(): void
-    {
-        // This test verifies that the command structure exists
-        // The actual execution may call error() which exits, so we test structure only
-        $this->createTestTableInCliDb();
-        $this->createTestSeedFileWithData('cli_users_data_1');
-
-        $app = new Application();
-
-        // Verify command exists and can be instantiated
-        $this->assertInstanceOf(Application::class, $app);
-
-        // Note: The actual command execution may call error() which exits,
-        // so we only verify the command structure exists
-        // The dry-run functionality is tested in SeedRunner tests
-        $this->assertTrue(true);
-    }
-
-    public function testSeedRunWithPretend(): void
+    public function testSeedRunWithDryRunCli(): void
     {
         $this->createTestTableInCliDb();
         $this->createTestSeedFileWithData('cli_users_data_2');
@@ -587,7 +569,7 @@ PHP;
         ob_start();
 
         try {
-            $code = $app->run(['pdodb', 'seed', 'run', '--pretend']);
+            $code = $app->run(['pdodb', 'seed', 'run', '--dry-run']);
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
@@ -606,7 +588,7 @@ PHP;
         }
 
         $this->assertSame(0, $code);
-        $this->assertStringContainsString('pretend', $out);
+        $this->assertStringContainsString('dry-run', strtolower($out));
         // Verify no data was actually inserted
         $this->assertCliDbHasUsers(0);
     }
@@ -878,59 +860,7 @@ PHP;
         }
 
         $this->assertSame(0, $code);
-        $this->assertStringContainsString('dry-run', $out);
-        // Verify data was not actually rolled back
-        $this->assertCliDbHasUsers(2);
-    }
-
-    public function testSeedRollbackWithPretend(): void
-    {
-        $this->createTestTableInCliDb();
-        $seedFile = $this->createTestSeedFileWithData('cli_users_data_11');
-        $seedName = basename($seedFile, '.php');
-
-        $app = new Application();
-
-        // Run seed first
-        ob_start();
-
-        try {
-            $app->run(['pdodb', 'seed', 'run', $seedName, '--force']);
-            ob_end_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-
-            throw $e;
-        }
-        $this->assertCliDbHasUsers(2);
-
-        // Rollback with pretend
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
-        ob_start();
-
-        try {
-            $code = $app->run(['pdodb', 'seed', 'rollback', '--pretend']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
-
-            throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
-
-        $this->assertSame(0, $code);
-        $this->assertStringContainsString('pretend', $out);
+        $this->assertStringContainsString('dry-run', strtolower($out));
         // Verify data was not actually rolled back
         $this->assertCliDbHasUsers(2);
     }

@@ -57,6 +57,17 @@ final class ApplicationAndCliCommandsTests extends TestCase
         $this->assertStringContainsString('migrate', $output);
     }
 
+    public function testUnknownCommandSuggestionsGoToStderr(): void
+    {
+        $app = new Application();
+        $run = CliTestCapture::runApplication($app, ['pdodb', 'migrat']);
+
+        $this->assertSame(1, $run['code']);
+        $this->assertStringContainsString('Error: Unknown command: migrat', $run['stderr']);
+        $this->assertStringContainsString('Did you mean', $run['stderr']);
+        $this->assertStringNotContainsString('Did you mean', $run['stdout']);
+    }
+
     public function testDbInfoCommandViaApplication(): void
     {
         $app = new Application();
@@ -223,7 +234,7 @@ PHP;
         $this->assertStringContainsString('Database: sqlite', $out);
     }
 
-    public function testMigrateCommandDryRunAndPretendViaApplication(): void
+    public function testMigrateCommandDryRunViaApplication(): void
     {
         // Minimal migration directory
         $migrationDir = sys_get_temp_dir() . '/pdodb_cli_migrations_' . uniqid();
@@ -261,28 +272,30 @@ PHP;
         $this->assertSame(0, $codeDry);
         // In dry-run mode, should show SQL queries or migration info
         $this->assertTrue(
-            str_contains($outDry, 'CREATE TABLE') ||
-            str_contains($outDry, 'Would execute') ||
             str_contains($outDry, 'Migration:') ||
-            str_contains($outDry, 'DRY-RUN'),
-            'Dry-run output should contain SQL queries or migration info'
+            str_contains($outDry, 'DRY-RUN') ||
+            str_contains($outDry, 'Dry-run') ||
+            str_contains($outDry, 'No new migrations'),
+            'Dry-run output should list migrations or show dry-run mode'
         );
 
-        // migrate down --pretend (skip confirmation with --force)
+        // migrate down --dry-run (skip confirmation)
         ob_start();
 
         try {
-            $codePretend = $app->run(['pdodb', 'migrate', 'down', '--pretend', '--force']);
-            $outPretend = ob_get_clean();
+            $codeDownDry = $app->run(['pdodb', 'migrate', 'down', '--dry-run']);
+            $outDownDry = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
 
             throw $e;
         }
-        $this->assertSame(0, $codePretend);
+        $this->assertSame(0, $codeDownDry);
         $this->assertTrue(
-            str_contains($outPretend, 'Rollback') || str_contains($outPretend, 'No migrations to rollback'),
-            'Expected rollback output or a no-migrations message'
+            str_contains($outDownDry, 'DRY-RUN') ||
+            str_contains($outDownDry, 'Rollback') ||
+            str_contains($outDownDry, 'No migrations to rollback'),
+            'Expected dry-run rollback output or a no-migrations message'
         );
 
         // Cleanup

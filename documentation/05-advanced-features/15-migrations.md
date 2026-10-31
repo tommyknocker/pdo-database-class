@@ -164,9 +164,9 @@ foreach ($applied as $version) {
 $runner->migrateUp('2025_11_01_120000_create_users_table');
 ```
 
-### Dry-run and pretend
+### Dry-run
 
-`MigrationRunner::setDryRun(true)` and `setPretend(true)` (and the CLI `--dry-run` / `--pretend` flags) list which migrations would run **without** executing migration PHP. That avoids side effects from arbitrary `up()` / `down()` code. Collected output is informational comments only; it does **not** include SQL extracted by running the migration. Use normal `migrate()` when you need schema changes applied.
+`MigrationRunner::setDryRun(true)` (and the CLI `--dry-run` flag) lists which migrations would run **without** executing migration PHP. That avoids side effects from arbitrary `up()` / `down()` code. Collected output is informational comments only; it does **not** include SQL extracted by running the migration. Use normal `migrate()` when you need schema changes applied.
 
 ```php
 $runner->setDryRun(true);

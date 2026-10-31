@@ -41,6 +41,10 @@ class MigrateCommand extends Command
      */
     public function execute(): int
     {
+        if ($this->wantsHelp()) {
+            return $this->showHelp();
+        }
+
         $subcommand = $this->getArgument(0);
 
         if ($subcommand === null) {
@@ -90,22 +94,18 @@ class MigrateCommand extends Command
         $runner = new MigrationRunner($this->getDb(), $migrationPath);
 
         // Handle options
-        $dryRun = $this->getOption('dry-run', false);
-        $pretend = $this->getOption('pretend', false);
+        $dryRun = $this->isDryRunMode();
         $force = $this->getOption('force', false);
 
         if ($dryRun) {
             $runner->setDryRun(true);
-        }
-        if ($pretend) {
-            $runner->setPretend(true);
         }
 
         $limit = (int)($this->getArgument(1) ?? 0);
         $newMigrations = $runner->getNewMigrations();
 
         // Ask for confirmation unless --force is used or no migrations to apply
-        if (!empty($newMigrations) && !$force && !$dryRun && !$pretend) {
+        if (!empty($newMigrations) && !$force && !$dryRun) {
             $count = count($newMigrations);
             $migrationsToApply = $limit > 0 ? array_slice($newMigrations, 0, $limit) : $newMigrations;
             $limitText = $limit > 0 ? " {$limit}" : '';
@@ -132,21 +132,17 @@ class MigrateCommand extends Command
         $count = count($applied);
 
         if ($count > 0) {
-            if ($dryRun || $pretend) {
-                $mode = $dryRun ? 'DRY-RUN' : 'PRETEND';
-                static::info("{$mode} mode: Would apply {$count} migration(s)");
+            if ($dryRun) {
+                $this->writeln("DRY-RUN mode: Would apply {$count} migration(s)");
                 foreach ($applied as $version) {
                     $this->writeln("  - {$version}");
                 }
 
-                // Show collected queries for dry-run
-                if ($dryRun) {
-                    $queries = $runner->getCollectedQueries();
-                    if (!empty($queries)) {
-                        $this->writeln("\nSQL that would be executed:");
-                        foreach ($queries as $query) {
-                            $this->writeln("  {$query}");
-                        }
+                $queries = $runner->getCollectedQueries();
+                if (!empty($queries)) {
+                    $this->writeln("\nPlanned operations (migration PHP is not executed):");
+                    foreach ($queries as $query) {
+                        $this->writeln("  {$query}");
                     }
                 }
             } else {
@@ -172,21 +168,17 @@ class MigrateCommand extends Command
         $runner = new MigrationRunner($this->getDb(), $migrationPath);
 
         // Handle options
-        $dryRun = $this->getOption('dry-run', false);
-        $pretend = $this->getOption('pretend', false);
+        $dryRun = $this->isDryRunMode();
         $force = $this->getOption('force', false);
 
         if ($dryRun) {
             $runner->setDryRun(true);
         }
-        if ($pretend) {
-            $runner->setPretend(true);
-        }
 
         $step = (int)($this->getArgument(1) ?? 1);
 
         // Ask for confirmation unless --force is used
-        if (!$force) {
+        if (!$force && !$dryRun) {
             // Get migrations that will be rolled back
             $history = $runner->getMigrationHistory($step);
             $migrationsToRollback = array_column($history, 'version');
@@ -215,21 +207,17 @@ class MigrateCommand extends Command
         $count = count($rolledBack);
 
         if ($count > 0) {
-            if ($dryRun || $pretend) {
-                $mode = $dryRun ? 'DRY-RUN' : 'PRETEND';
-                static::info("{$mode} mode: Would rollback {$count} migration(s)");
+            if ($dryRun) {
+                $this->writeln("DRY-RUN mode: Would rollback {$count} migration(s)");
                 foreach ($rolledBack as $version) {
                     $this->writeln("  - {$version}");
                 }
 
-                // Show collected queries for dry-run
-                if ($dryRun) {
-                    $queries = $runner->getCollectedQueries();
-                    if (!empty($queries)) {
-                        $this->writeln("\nSQL that would be executed:");
-                        foreach ($queries as $query) {
-                            $this->writeln("  {$query}");
-                        }
+                $queries = $runner->getCollectedQueries();
+                if (!empty($queries)) {
+                    $this->writeln("\nPlanned operations (migration PHP is not executed):");
+                    foreach ($queries as $query) {
+                        $this->writeln("  {$query}");
                     }
                 }
             } else {
@@ -311,14 +299,14 @@ class MigrateCommand extends Command
         $this->writeln('  new               Show new migrations');
         $this->writeln("  help              Show this help message\n");
         $this->writeln('Options:');
-        $this->writeln('  --dry-run         List operations without executing migration PHP');
+        $this->writeln('  --dry-run         List pending migrations without executing migration PHP');
         $this->writeln('  --force           Execute without confirmation');
-        $this->writeln("  --pretend         Simulate execution\n");
+        $this->writeln('');
         $this->writeln('Examples:');
         $this->writeln('  pdodb migrate up --dry-run');
         $this->writeln('  pdodb migrate up --force');
-        $this->writeln('  pdodb migrate down 2 --force');
-        $this->writeln('  pdodb migrate up --pretend');
+        $this->writeln('  pdodb migrate down 2 --dry-run');
+        $this->writeln('  pdodb migrate down --force');
         return 0;
     }
 }

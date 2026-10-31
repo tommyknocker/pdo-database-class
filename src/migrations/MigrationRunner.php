@@ -28,13 +28,10 @@ class MigrationRunner
     /** @var string Migration table name */
     protected string $migrationTable = '__migrations';
 
-    /** @var bool Dry-run mode (show SQL without executing) */
+    /** @var bool Dry-run mode (list migrations without executing PHP) */
     protected bool $dryRun = false;
 
-    /** @var bool Pretend mode (simulate execution) */
-    protected bool $pretend = false;
-
-    /** @var array<int, string> Collected SQL queries in dry-run/pretend mode */
+    /** @var array<int, string> Collected SQL queries in dry-run mode */
     protected array $collectedQueries = [];
 
     /**
@@ -67,20 +64,7 @@ class MigrationRunner
     }
 
     /**
-     * Enable pretend mode (simulate execution).
-     *
-     * @param bool $enabled Whether to enable pretend mode
-     *
-     * @return static
-     */
-    public function setPretend(bool $enabled): static
-    {
-        $this->pretend = $enabled;
-        return $this;
-    }
-
-    /**
-     * Get collected SQL queries (for dry-run/pretend mode).
+     * Get collected SQL queries (for dry-run mode).
      *
      * @return array<int, string>
      */
@@ -119,7 +103,7 @@ class MigrationRunner
         if ($this->db->schema()->tableExists($this->migrationTable)) {
             return true;
         }
-        if ($this->dryRun || $this->pretend) {
+        if ($this->dryRun) {
             return false;
         }
         $this->ensureMigrationTable();
@@ -230,24 +214,10 @@ class MigrationRunner
             $newMigrations = array_slice($newMigrations, 0, $limit);
         }
 
-        // In dry-run mode, execute migrations in transaction to collect SQL
         if ($this->dryRun) {
             $this->clearCollectedQueries();
             foreach ($newMigrations as $version) {
                 $this->migrateUp($version);
-            }
-            return $newMigrations;
-        }
-
-        // In pretend mode, just return the list without executing
-        if ($this->pretend) {
-            $this->clearCollectedQueries();
-            $batch = $this->getNextBatchNumber();
-
-            foreach ($newMigrations as $version) {
-                $this->collectedQueries[] = "-- Migration: {$version}";
-                $this->collectedQueries[] = '-- Would execute migration.up()';
-                $this->collectedQueries[] = "-- Would record migration in batch {$batch}";
             }
 
             return $newMigrations;
@@ -334,19 +304,15 @@ class MigrationRunner
             return [];
         }
 
-        // In dry-run or pretend mode, just return the list without executing
-        if ($this->dryRun || $this->pretend) {
+        // In dry-run mode, just return the list without executing
+        if ($this->dryRun) {
             $this->clearCollectedQueries();
             $rolledBack = [];
 
             foreach ($history as $record) {
                 $version = $record['version'];
                 $this->collectedQueries[] = "-- Rollback Migration: {$version}";
-                if ($this->dryRun) {
-                    $this->collectedQueries[] = '-- Dry-run: migration PHP is not executed.';
-                } else {
-                    $this->collectedQueries[] = '-- Would execute migration.down()';
-                }
+                $this->collectedQueries[] = '-- Dry-run: migration PHP is not executed.';
                 $this->collectedQueries[] = '-- Would remove migration record';
                 $rolledBack[] = $version;
             }
@@ -388,14 +354,10 @@ class MigrationRunner
      */
     protected function migrateDownByVersion(string $version): void
     {
-        // In dry-run or pretend mode, just collect info without executing
-        if ($this->dryRun || $this->pretend) {
+        // In dry-run mode, just collect info without executing
+        if ($this->dryRun) {
             $this->collectedQueries[] = "-- Rollback Migration: {$version}";
-            if ($this->dryRun) {
-                $this->collectedQueries[] = '-- Dry-run: migration PHP is not executed.';
-            } else {
-                $this->collectedQueries[] = '-- Would execute migration.down()';
-            }
+            $this->collectedQueries[] = '-- Dry-run: migration PHP is not executed.';
             $this->collectedQueries[] = '-- Would remove migration record';
             return;
         }
@@ -497,15 +459,11 @@ class MigrationRunner
             return; // Already applied
         }
 
-        if ($this->dryRun || $this->pretend) {
+        if ($this->dryRun) {
             $batch = $this->getNextBatchNumber();
             $this->collectedQueries[] = "-- Migration: {$version}";
-            if ($this->dryRun) {
-                $this->collectedQueries[] = '-- Dry-run: migration PHP is not executed.';
-                $this->collectedQueries[] = '-- SQL from arbitrary PHP cannot be shown without side effects on some drivers.';
-            } else {
-                $this->collectedQueries[] = '-- Would execute migration.up()';
-            }
+            $this->collectedQueries[] = '-- Dry-run: migration PHP is not executed.';
+            $this->collectedQueries[] = '-- SQL from arbitrary PHP cannot be shown without side effects on some drivers.';
             $this->collectedQueries[] = "-- Would record migration in batch {$batch}";
             return;
         }

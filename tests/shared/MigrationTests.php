@@ -175,7 +175,7 @@ PHP;
     }
 
     /**
-     * Test MigrationRunner setDryRun, setPretend, getCollectedQueries, clearCollectedQueries.
+     * Test MigrationRunner setDryRun, getCollectedQueries, clearCollectedQueries.
      */
     public function testMigrationRunnerDryRunAndCollectedQueries(): void
     {
@@ -191,7 +191,6 @@ PHP;
         $this->assertEmpty($runner->getCollectedQueries());
 
         $runner->setDryRun(true);
-        $runner->setPretend(true);
         $runner->clearCollectedQueries();
         $this->assertEmpty($runner->getCollectedQueries());
 

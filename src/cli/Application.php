@@ -162,7 +162,8 @@ class Application
 
             if (!empty($suggestions)) {
                 $message = CommandSuggestion::formatMessage($commandName, $suggestions);
-                $this->cliWriteln("\n" . $message);
+                BaseCliCommand::io()->writeErrorLine('');
+                BaseCliCommand::io()->writeErrorLine($message);
             }
 
             return 1;

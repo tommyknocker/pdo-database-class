@@ -49,6 +49,12 @@ final class ProfileCliTests extends TestCase
             self::assertTrue($report['enabled']);
             self::assertNotEmpty($report['queries']);
             self::assertStringNotContainsString('private-value-421', $out);
+
+            [$textExit, $textOut, $textErr] = $this->cli(['summary', $file, '--text']);
+            self::assertSame(0, $textExit, $textErr);
+            self::assertStringContainsString('Query profile summary', $textOut);
+            self::assertStringContainsString('Total queries:', $textOut);
+
             [$aliasExit, $aliasOut] = $this->cli(['import', $file]);
             self::assertSame(0, $aliasExit);
             self::assertSame($report, json_decode($aliasOut, true, 512, JSON_THROW_ON_ERROR));

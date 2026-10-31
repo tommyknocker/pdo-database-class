@@ -1983,7 +1983,7 @@ The display updates every 2 seconds. Press `Ctrl+C` to exit.
   $db->enableProfiling(1.0); // Enable with 1 second threshold
   ```
 
-- **Query profiling**: Export a report from the application process with `$db->profileReport()->export()`, then use `pdodb profile summary report.json` to inspect it (`import` is an alias). A separate CLI process cannot access an application’s in-memory profile, even when both use the same database configuration. Use `pdodb profile diagnose "SQL"` to inspect a query supplied directly.
+- **Query profiling**: Export a report from the application process with `$db->profileReport()->export()`, then use `pdodb profile summary report.json` to inspect it (`import` is an alias). Add `--text` for a human-readable summary. A separate CLI process cannot access an application’s in-memory profile, even when both use the same database configuration. Use `pdodb profile diagnose "SQL"` to inspect a query supplied directly.
 
 - **PostgreSQL Extensions**: For better slow query statistics on PostgreSQL, install the `pg_stat_statements` extension:
   ```sql
@@ -2691,9 +2691,6 @@ vendor/bin/pdodb seed run s20240115123456_users_data
 
 # Dry-run (list seeds without executing seed PHP)
 vendor/bin/pdodb seed run --dry-run
-
-# Pretend mode (show what would be executed)
-vendor/bin/pdodb seed run --pretend
 
 # Force run (skip confirmations)
 vendor/bin/pdodb seed run --force

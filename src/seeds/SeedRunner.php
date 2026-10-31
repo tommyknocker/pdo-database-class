@@ -29,13 +29,10 @@ class SeedRunner
     /** @var string Seed table name */
     protected string $seedTable = '__seeds';
 
-    /** @var bool Dry-run mode (show SQL without executing) */
+    /** @var bool Dry-run mode (list seeds without executing PHP) */
     protected bool $dryRun = false;
 
-    /** @var bool Pretend mode (simulate execution) */
-    protected bool $pretend = false;
-
-    /** @var array<int, string> Collected SQL queries in dry-run/pretend mode */
+    /** @var array<int, string> Collected SQL queries in dry-run mode */
     protected array $collectedQueries = [];
 
     /**
@@ -68,20 +65,7 @@ class SeedRunner
     }
 
     /**
-     * Enable pretend mode (simulate execution).
-     *
-     * @param bool $enabled Whether to enable pretend mode
-     *
-     * @return static
-     */
-    public function setPretend(bool $enabled): static
-    {
-        $this->pretend = $enabled;
-        return $this;
-    }
-
-    /**
-     * Get collected SQL queries (for dry-run/pretend mode).
+     * Get collected SQL queries (for dry-run mode).
      *
      * @return array<int, string>
      */
@@ -166,7 +150,7 @@ class SeedRunner
         if ($this->db->schema()->tableExists($this->seedTable)) {
             return true;
         }
-        if ($this->dryRun || $this->pretend) {
+        if ($this->dryRun) {
             return false;
         }
         $this->ensureSeedTable();
@@ -299,16 +283,12 @@ class SeedRunner
      */
     protected function runSeed(string $name): void
     {
-        // Dry-run and pretend never execute seed PHP.
-        if ($this->dryRun || $this->pretend) {
+        // Dry-run never executes seed PHP.
+        if ($this->dryRun) {
             $batch = $this->getNextBatchNumber();
             $this->collectedQueries[] = "-- Seed: {$name}";
-            if ($this->dryRun) {
-                $this->collectedQueries[] = '-- Dry-run: seed PHP is not executed.';
-                $this->collectedQueries[] = '-- SQL from arbitrary PHP cannot be shown without side effects on some drivers.';
-            } else {
-                $this->collectedQueries[] = '-- Would execute seed.run()';
-            }
+            $this->collectedQueries[] = '-- Dry-run: seed PHP is not executed.';
+            $this->collectedQueries[] = '-- SQL from arbitrary PHP cannot be shown without side effects on some drivers.';
             $this->collectedQueries[] = "-- Would record seed in batch {$batch}";
             return;
         }
@@ -405,13 +385,9 @@ class SeedRunner
      */
     protected function rollbackSeed(string $name): void
     {
-        if ($this->dryRun || $this->pretend) {
+        if ($this->dryRun) {
             $this->collectedQueries[] = "-- Rollback Seed: {$name}";
-            if ($this->dryRun) {
-                $this->collectedQueries[] = '-- Dry-run: seed PHP is not executed.';
-            } else {
-                $this->collectedQueries[] = '-- Would execute seed.rollback()';
-            }
+            $this->collectedQueries[] = '-- Dry-run: seed PHP is not executed.';
             $this->collectedQueries[] = '-- Would remove seed record';
             return;
         }

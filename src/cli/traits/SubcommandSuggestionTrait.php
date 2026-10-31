@@ -35,7 +35,8 @@ trait SubcommandSuggestionTrait
 
         if (!empty($suggestions)) {
             $message = CommandSuggestion::formatMessage($subcommand, $suggestions);
-            BaseCliCommand::io()->writeln("\n" . $message);
+            BaseCliCommand::io()->writeErrorLine('');
+            BaseCliCommand::io()->writeErrorLine($message);
         }
 
         return 1;
