@@ -39,6 +39,14 @@ final class ConnectionTests extends BaseSharedTestCase
         $db->connection('nonexistent');
     }
 
+    public function testEnableProfilingBeforeConnection(): void
+    {
+        $db = new PdoDb();
+        $db->enableProfiling(0.5);
+
+        $this->assertTrue($db->isProfilingEnabled());
+    }
+
     public function testConnectionPooling(): void
     {
         $db = new PdoDb();

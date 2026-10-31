@@ -121,11 +121,11 @@ abstract class DialectAbstract implements DialectInterface
     }
 
     /**
-     * Whether "..." is a string literal on this connection.
+     * Whether "..." is a string literal on this connection for privacy redaction.
      *
-     * False means the text may be an identifier and stays visible. SQLite can
-     * still execute an unknown double-quoted name as a string; this method does
-     * not claim that value is hidden.
+     * When true, profiler and AI context replace double-quoted tokens with ?.
+     * When false, they stay visible because they may be identifiers. SQLite
+     * overrides this: unknown double-quoted names can still be string values.
      */
     public function doubleQuotedTextIsLiteral(): bool
     {

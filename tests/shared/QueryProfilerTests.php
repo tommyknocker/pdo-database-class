@@ -7,6 +7,8 @@ namespace tommyknocker\pdodb\tests\shared;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PDOException;
+use tommyknocker\pdodb\ai\QueryContextBuilder;
+use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\QueryProfiler;
 
 /**
@@ -486,7 +488,7 @@ class QueryProfilerTests extends BaseSharedTestCase
         $this->assertCount(1, $profiler->getStats());
     }
 
-    public function testDoubleQuotedTextStaysWhenItMayBeAnIdentifier(): void
+    public function testDoubleQuotedTextIsRedactedOnSqlitePrivacyPaths(): void
     {
         self::$db->enableProfiling(0.0);
 
@@ -499,12 +501,33 @@ class QueryProfilerTests extends BaseSharedTestCase
             $summary = self::$db->profileReport()->summary();
             $encoded = json_encode($summary);
             $this->assertIsString($encoded);
-            $this->assertStringContainsString('PRIVATE_VALUE_428', $encoded);
-            $this->assertStringContainsString('Double-quoted text is removed only when', $summary['note']);
+            $this->assertStringNotContainsString('PRIVATE_VALUE_428', $encoded);
             $this->assertStringContainsString('not a complete privacy boundary', $summary['note']);
+
+            $context = (new QueryContextBuilder(self::$db))->build(
+                'SELECT "PRIVATE_VALUE_428"',
+                null,
+                null,
+                ['context' => ['tables' => []]]
+            );
+            $this->assertStringNotContainsString('PRIVATE_VALUE_428', (string)$context['sql']);
         } finally {
             self::$db->disableProfiling();
         }
+    }
+
+    public function testEnableProfilingBeforeConnectionDoesNotRequireDatabase(): void
+    {
+        $db = new PdoDb();
+        $db->enableProfiling(0.5);
+        $this->assertTrue($db->isProfilingEnabled());
+
+        $db->addConnection('main', ['driver' => 'sqlite', 'path' => ':memory:']);
+        $db->connection('main');
+        $db->rawQuery('SELECT "PRIVATE_VALUE_428"');
+        $encoded = json_encode($db->profileReport()->summary());
+        $this->assertIsString($encoded);
+        $this->assertStringNotContainsString('PRIVATE_VALUE_428', $encoded);
     }
 
     public function testProfileReportDiagnosesWithoutAModelRequest(): void

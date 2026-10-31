@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\mysql;
 
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
+use tommyknocker\pdodb\PdoDb;
 
 /**
  * MySQL double quotes are strings unless ANSI_QUOTES is enabled.
@@ -48,6 +49,33 @@ final class ProfileRedactionTests extends BaseMySQLTestCase
                 $quotedMode = "'" . str_replace("'", "''", $mode) . "'";
             }
             $db->rawQuery('SET SESSION sql_mode = ' . $quotedMode);
+            $db->disableProfiling();
+        }
+    }
+
+    public function testQuoteRedactionUsesTheActiveConnectionAfterSwitch(): void
+    {
+        $db = new PdoDb();
+        $db->addConnection('sqlite', ['driver' => 'sqlite', 'path' => ':memory:']);
+        $db->addConnection('mysql', [
+            'driver' => 'mysql',
+            'host' => self::DB_HOST,
+            'port' => self::DB_PORT,
+            'username' => self::DB_USER,
+            'password' => self::DB_PASSWORD,
+            'dbname' => self::DB_NAME,
+            'charset' => self::DB_CHARSET,
+        ]);
+
+        $db->connection('sqlite');
+        $db->enableProfiling(0.0);
+
+        try {
+            $db->connection('mysql');
+            $db->rawQuery('SELECT "MYSQL_SWITCH_SECRET" AS sample');
+            $summary = json_encode($db->profileReport()->summary(), JSON_THROW_ON_ERROR);
+            $this->assertStringNotContainsString('MYSQL_SWITCH_SECRET', $summary);
+        } finally {
             $db->disableProfiling();
         }
     }

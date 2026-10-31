@@ -37,7 +37,7 @@ final class QueryContextBuilder
             'database' => ['version' => $version, 'plan_kind' => 'estimated', 'actual_execution_measured' => false,
                 'capabilities' => ['real_plan' => $driver !== 'sqlsrv', 'bound_explain' => !in_array($driver, ['sqlsrv', 'oci'], true)]],
             'privacy' => ['mode' => $settings['privacy'], 'parameter_values_included' => false, 'raw_plan_included' => $settings['include_raw_plan'],
-                'note' => 'Identifiers remain visible. Double-quoted text is removed only when this connection treats double quotes as strings. Redaction is lexical, not guaranteed anonymization. Raw plans/defaults may contain values.'],
+                'note' => 'Identifiers may stay visible when double quotes delimit names. On SQLite and on MySQL/MariaDB without ANSI_QUOTES, double-quoted text is removed in redacted mode. Redaction is lexical, not guaranteed anonymization. Raw plans/defaults may contain values.'],
             'output_format' => !empty($options['structured']) ? 'structured' : 'text',
             'parameter_types' => array_map(static fn ($value) => get_debug_type($value), $params),
             'task' => ['goal' => $settings['goal'], 'constraints' => $settings['constraints'], 'language' => $settings['language']],
@@ -170,8 +170,7 @@ final class QueryContextBuilder
         if (!str_contains($sql, '"')) {
             return false;
         }
-        $dialect = $this->db->connection->getDialect();
 
-        return $dialect instanceof DialectAbstract && $dialect->doubleQuotedTextIsLiteral();
+        return $this->db->resolveDoubleQuotedTextIsLiteral();
     }
 }

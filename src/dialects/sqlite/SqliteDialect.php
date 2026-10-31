@@ -49,6 +49,15 @@ class SqliteDialect extends DialectAbstract
     }
 
     /**
+     * Privacy redaction treats "..." as removable on SQLite because an unknown
+     * name can execute as a string. Quoted identifiers are redacted too.
+     */
+    public function doubleQuotedTextIsLiteral(): bool
+    {
+        return true;
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function supportsLateralJoin(): bool

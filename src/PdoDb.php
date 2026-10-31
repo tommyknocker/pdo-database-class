@@ -358,17 +358,28 @@ class PdoDb
     }
 
     /**
-     * Double quotes follow the live connection. A profiler with no decision keeps them visible.
+     * Double quotes follow the active connection on each redaction. No connection
+     * is required to enable profiling.
      */
     protected function attachProfilerQuoteMode(): void
     {
         if ($this->profiler === null) {
             return;
         }
-        $dialect = $this->connection->getDialect();
-        if ($dialect instanceof DialectAbstract) {
-            $this->profiler->setDoubleQuotedTextIsLiteral($dialect->doubleQuotedTextIsLiteral(...));
+        $this->profiler->setDoubleQuotedTextIsLiteral($this->resolveDoubleQuotedTextIsLiteral(...));
+    }
+
+    /**
+     * Used by the profiler and AI context. False when no connection is selected yet.
+     */
+    public function resolveDoubleQuotedTextIsLiteral(): bool
+    {
+        if ($this->connectionStorage === null) {
+            return false;
         }
+        $dialect = $this->connectionStorage->getDialect();
+
+        return $dialect instanceof DialectAbstract && $dialect->doubleQuotedTextIsLiteral();
     }
 
     /**
