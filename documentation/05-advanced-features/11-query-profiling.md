@@ -216,13 +216,13 @@ $db = new PdoDb('mysql', $config, [], $logger);
 $db->enableProfiling(0.1);
 ```
 
-The default slow-query context contains redacted SQL and no parameter values. String literals in the SQL are replaced with `?`. Call `setLogParameters(true)` on the profiler only when a local debugging session should include the bound values:
+The default slow-query context contains SQL with recognized string literals, numeric literals, and comments removed, and no parameter values. This is not a complete privacy boundary. Call `setLogParameters(true)` on the profiler only when a local debugging session should include the bound values and the original SQL:
 
 ```php
 $db->getProfiler()?->setLogParameters(true);
 ```
 
-`getSlowestQueries()` ranks shapes by total time and includes `count`. `possible_n_plus_one` means one normalized SQL shape ran at least 10 times. It is a hypothesis, not a diagnosis. Distinct SQL shapes are capped so a long process cannot grow the in-memory map without bound. `profileReport()` reads this connection only. `pdodb monitor stats` cannot see another process's profiler. Export the report from the application when another process needs it:
+`getSlowestQueries()` ranks shapes by total time and includes `count`. `possible_n_plus_one` means one normalized SQL shape ran at least 10 times. It is a hypothesis, not a diagnosis. Distinct SQL shapes are capped so a long process cannot grow the in-memory map without bound. Reaching that cap stops new shapes from being stored. It does not stop slow-query logging. `profileReport()` reads this connection only. `pdodb monitor stats` cannot see another process's profiler. `diagnose()` takes SQL you pass in. It does not pick a query from the summary, and the CLI does not import an exported report:
 
 ```php
 $report = $db->profileReport();

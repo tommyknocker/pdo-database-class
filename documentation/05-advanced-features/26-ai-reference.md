@@ -172,8 +172,8 @@ vendor/bin/pdodb ai optimize --table=orders
 
 `ai query`, `ai schema` and `ai optimize` call the configured AI provider.
 `ai doctor`, `ai context` and `ai docs "asObject"` do not call a model.
-`pdodb ai doctor` prints a JSON summary: provider, model, whether an API key is configured, whether an endpoint is configured, whether the database is connected, and that no AI request was made. The key and any response body are omitted.
-`pdodb ai doctor --probe` sends one short provider request and may incur a charge. The response body is still omitted.
+`pdodb ai doctor` prints a JSON summary: provider, model, whether an API key is configured, whether an endpoint is configured, whether the database is connected, and that no AI request was made. The key and any response body are omitted. It exits 0.
+`pdodb ai doctor --probe` sends one short provider request only when that provider is configured, and it may incur a charge. The response body is still omitted. `probe_status` is `ok` when the request completes, `failed` when the configured provider was called and the request failed, or `not_sent` when the provider is not configured and no network request was made. `provider_network_checked` is true only after a request was attempted. A `failed` or `not_sent` probe exits non-zero.
 `--temperature` must be a number from 0 to 2. `--max-tokens` and `--timeout` must be positive integers. A non-numeric value is rejected.
 The bundled executable is `php bin/pdodb` in the PDOdb repository itself.
 

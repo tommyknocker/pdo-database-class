@@ -100,6 +100,16 @@ final class QueryMetadataCollector
             }
         }
         $result = ['schema' => $schema, 'table' => $table, 'columns' => [], 'indexes' => [], 'foreign_keys' => [], 'warnings' => [], 'complete' => true];
+        if ($this->driver === 'oci') {
+            try {
+                $resolved = $this->resolveOracleTable($schema, $table);
+                $table = $resolved;
+                $result['table'] = $resolved;
+            } catch (\Throwable) {
+                $result['warnings'][] = 'Unable to resolve the Oracle object name; catalog lookup uses the requested name only';
+                $result['complete'] = false;
+            }
+        }
         foreach (['columns', 'indexes', 'foreignKeys'] as $part) {
             $key = $part === 'foreignKeys' ? 'foreign_keys' : $part;
 
@@ -153,7 +163,7 @@ final class QueryMetadataCollector
         $sql = match ($this->driver) {
             'mysql', 'mariadb' => 'SELECT COLUMN_NAME AS name, COLUMN_TYPE AS type, IS_NULLABLE AS nullable, COLUMN_KEY AS column_key, COLUMN_DEFAULT AS default_value FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION',
             'pgsql', 'sqlsrv' => 'SELECT column_name AS name, data_type AS type, is_nullable AS nullable, column_default AS default_value FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position',
-            'oci' => 'SELECT COLUMN_NAME AS name, DATA_TYPE AS type, NULLABLE AS nullable, DATA_DEFAULT AS default_value FROM ALL_TAB_COLUMNS WHERE OWNER = ? AND TABLE_NAME IN (?, ?, ?) ORDER BY COLUMN_ID',
+            'oci' => 'SELECT COLUMN_NAME AS name, DATA_TYPE AS type, NULLABLE AS nullable, DATA_DEFAULT AS default_value FROM ALL_TAB_COLUMNS WHERE OWNER = ? AND TABLE_NAME = ? ORDER BY COLUMN_ID',
             default => 'PRAGMA ' . $this->quote($schema) . '.table_xinfo(' . $this->quote($table) . ')',
         };
         $rows = $this->rows($sql, $this->driver === 'sqlite' ? [] : $this->catalogParams($schema, $table), $this->settings['max_columns'] + 1);
@@ -187,7 +197,7 @@ final class QueryMetadataCollector
             'mysql', 'mariadb' => 'SHOW INDEXES FROM ' . $this->quote($schema) . '.' . $this->quote($table),
             'pgsql' => 'SELECT ci.relname AS name, i.indisunique AS is_unique, i.indisprimary AS is_primary, k.pos AS position, a.attname AS column_name, pg_index_column_has_property(i.indexrelid, k.pos, \'desc\') AS descending_key, pg_get_indexdef(i.indexrelid, k.pos, true) AS column_expression, k.pos > i.indnkeyatts AS is_included, pg_get_indexdef(i.indexrelid) AS definition, pg_get_expr(i.indpred, i.indrelid) AS predicate FROM pg_index i JOIN pg_class t ON t.oid = i.indrelid JOIN pg_namespace ns ON ns.oid = t.relnamespace JOIN pg_class ci ON ci.oid = i.indexrelid CROSS JOIN LATERAL generate_series(1, i.indnatts) AS k(pos) LEFT JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = i.indkey[k.pos - 1] WHERE ns.nspname = ? AND t.relname = ? ORDER BY ci.relname, k.pos',
             'sqlsrv' => 'SELECT i.name, i.is_unique, i.is_primary_key AS is_primary, ic.key_ordinal AS position, c.name AS column_name, ic.is_descending_key AS descending_key, ic.is_included_column AS is_included, i.filter_definition AS predicate FROM sys.indexes i JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id WHERE OBJECT_SCHEMA_NAME(i.object_id) = ? AND OBJECT_NAME(i.object_id) = ? ORDER BY i.name, ic.key_ordinal, ic.index_column_id',
-            'oci' => 'SELECT i.INDEX_NAME AS name, i.UNIQUENESS AS uniqueness, c.COLUMN_NAME AS column_name, c.COLUMN_POSITION AS position, c.DESCEND AS direction, e.COLUMN_EXPRESSION AS column_expression FROM ALL_INDEXES i JOIN ALL_IND_COLUMNS c ON c.INDEX_OWNER = i.OWNER AND c.INDEX_NAME = i.INDEX_NAME LEFT JOIN ALL_IND_EXPRESSIONS e ON e.INDEX_OWNER = c.INDEX_OWNER AND e.INDEX_NAME = c.INDEX_NAME AND e.COLUMN_POSITION = c.COLUMN_POSITION WHERE i.TABLE_OWNER = ? AND i.TABLE_NAME IN (?, ?, ?) ORDER BY i.INDEX_NAME, c.COLUMN_POSITION',
+            'oci' => 'SELECT i.INDEX_NAME AS name, i.UNIQUENESS AS uniqueness, c.COLUMN_NAME AS column_name, c.COLUMN_POSITION AS position, c.DESCEND AS direction, e.COLUMN_EXPRESSION AS column_expression FROM ALL_INDEXES i JOIN ALL_IND_COLUMNS c ON c.INDEX_OWNER = i.OWNER AND c.INDEX_NAME = i.INDEX_NAME LEFT JOIN ALL_IND_EXPRESSIONS e ON e.INDEX_OWNER = c.INDEX_OWNER AND e.INDEX_NAME = c.INDEX_NAME AND e.COLUMN_POSITION = c.COLUMN_POSITION WHERE i.TABLE_OWNER = ? AND i.TABLE_NAME = ? ORDER BY i.INDEX_NAME, c.COLUMN_POSITION',
             default => throw new RuntimeException('Unsupported index catalog'),
         };
         $rows = $this->rows($sql, in_array($this->driver, ['mysql', 'mariadb'], true) ? [] : $this->catalogParams($schema, $table), ($this->settings['max_indexes'] + 1) * ($this->settings['max_columns'] + 1));
@@ -228,7 +238,7 @@ final class QueryMetadataCollector
             'mysql', 'mariadb' => 'SELECT CONSTRAINT_NAME AS name, COLUMN_NAME AS column_name, REFERENCED_TABLE_SCHEMA AS referenced_schema, REFERENCED_TABLE_NAME AS referenced_table, REFERENCED_COLUMN_NAME AS referenced_column FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND REFERENCED_TABLE_NAME IS NOT NULL ORDER BY CONSTRAINT_NAME, ORDINAL_POSITION',
             'pgsql' => 'SELECT con.conname AS name, a.attname AS column_name, refns.nspname AS referenced_schema, ref.relname AS referenced_table, ra.attname AS referenced_column FROM pg_constraint con JOIN pg_class tab ON tab.oid = con.conrelid JOIN pg_namespace ns ON ns.oid = tab.relnamespace JOIN pg_class ref ON ref.oid = con.confrelid JOIN pg_namespace refns ON refns.oid = ref.relnamespace JOIN LATERAL generate_subscripts(con.conkey, 1) AS pos(n) ON true JOIN pg_attribute a ON a.attrelid = tab.oid AND a.attnum = con.conkey[pos.n] JOIN pg_attribute ra ON ra.attrelid = ref.oid AND ra.attnum = con.confkey[pos.n] WHERE con.contype = \'f\' AND ns.nspname = ? AND tab.relname = ? ORDER BY con.conname, pos.n',
             'sqlsrv' => 'SELECT fk.name, c.name AS column_name, OBJECT_SCHEMA_NAME(fk.referenced_object_id) AS referenced_schema, OBJECT_NAME(fk.referenced_object_id) AS referenced_table, rc.name AS referenced_column FROM sys.foreign_keys fk JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id JOIN sys.columns c ON fkc.parent_object_id = c.object_id AND fkc.parent_column_id = c.column_id JOIN sys.columns rc ON fkc.referenced_object_id = rc.object_id AND fkc.referenced_column_id = rc.column_id WHERE OBJECT_SCHEMA_NAME(fk.parent_object_id) = ? AND OBJECT_NAME(fk.parent_object_id) = ? ORDER BY fk.name, fkc.constraint_column_id',
-            'oci' => 'SELECT c.CONSTRAINT_NAME AS name, col.COLUMN_NAME AS column_name, ref.OWNER AS referenced_schema, ref.TABLE_NAME AS referenced_table, refcol.COLUMN_NAME AS referenced_column FROM ALL_CONSTRAINTS c JOIN ALL_CONS_COLUMNS col ON col.OWNER = c.OWNER AND col.CONSTRAINT_NAME = c.CONSTRAINT_NAME JOIN ALL_CONSTRAINTS ref ON ref.OWNER = c.R_OWNER AND ref.CONSTRAINT_NAME = c.R_CONSTRAINT_NAME JOIN ALL_CONS_COLUMNS refcol ON refcol.OWNER = ref.OWNER AND refcol.CONSTRAINT_NAME = ref.CONSTRAINT_NAME AND refcol.POSITION = col.POSITION WHERE c.OWNER = ? AND c.TABLE_NAME IN (?, ?, ?) AND c.CONSTRAINT_TYPE = \'R\' ORDER BY c.CONSTRAINT_NAME, col.POSITION',
+            'oci' => 'SELECT c.CONSTRAINT_NAME AS name, col.COLUMN_NAME AS column_name, ref.OWNER AS referenced_schema, ref.TABLE_NAME AS referenced_table, refcol.COLUMN_NAME AS referenced_column FROM ALL_CONSTRAINTS c JOIN ALL_CONS_COLUMNS col ON col.OWNER = c.OWNER AND col.CONSTRAINT_NAME = c.CONSTRAINT_NAME JOIN ALL_CONSTRAINTS ref ON ref.OWNER = c.R_OWNER AND ref.CONSTRAINT_NAME = c.R_CONSTRAINT_NAME JOIN ALL_CONS_COLUMNS refcol ON refcol.OWNER = ref.OWNER AND refcol.CONSTRAINT_NAME = ref.CONSTRAINT_NAME AND refcol.POSITION = col.POSITION WHERE c.OWNER = ? AND c.TABLE_NAME = ? AND c.CONSTRAINT_TYPE = \'R\' ORDER BY c.CONSTRAINT_NAME, col.POSITION',
             default => 'PRAGMA ' . $this->quote($schema) . '.foreign_key_list(' . $this->quote($table) . ')',
         };
         $rows = $this->rows($sql, $this->driver === 'sqlite' ? [] : $this->catalogParams($schema, $table), $this->settings['max_columns'] + 1);
@@ -243,7 +253,7 @@ final class QueryMetadataCollector
         $sql = match ($this->driver) {
             'mysql', 'mariadb' => 'SELECT TABLE_ROWS AS row_count, DATA_LENGTH + INDEX_LENGTH AS size_bytes FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?',
             'pgsql' => 'SELECT c.reltuples AS row_count, s.last_analyze, s.last_autoanalyze FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace LEFT JOIN pg_stat_all_tables s ON s.relid = c.oid WHERE n.nspname = ? AND c.relname = ?',
-            'oci' => 'SELECT NUM_ROWS AS row_count, LAST_ANALYZED AS last_analyzed FROM ALL_TABLES WHERE OWNER = ? AND TABLE_NAME IN (?, ?, ?)',
+            'oci' => 'SELECT NUM_ROWS AS row_count, LAST_ANALYZED AS last_analyzed FROM ALL_TABLES WHERE OWNER = ? AND TABLE_NAME = ?',
             'sqlsrv' => 'SELECT SUM(p.rows) AS row_count FROM sys.partitions p JOIN sys.tables t ON p.object_id = t.object_id JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE s.name = ? AND t.name = ? AND p.index_id IN (0, 1)',
             default => null,
         };
@@ -255,16 +265,41 @@ final class QueryMetadataCollector
     }
 
     /**
-     * Oracle stores quoted identifiers in the case they were created with.
-     * Unquoted lookup uses the uppercase form, so a lowercase quoted table needs both.
-     *
+     * Pick one Oracle object. The exact name wins. A folded name is used only when the exact name is absent.
+     */
+    protected function resolveOracleTable(string $schema, string $table): string
+    {
+        $candidates = [];
+        foreach ([$table, strtoupper($table), strtolower($table)] as $candidate) {
+            if (!in_array($candidate, $candidates, true)) {
+                $candidates[] = $candidate;
+            }
+        }
+        $placeholders = implode(', ', array_fill(0, count($candidates), '?'));
+        $rows = $this->rows(
+            'SELECT OBJECT_NAME AS table_name FROM ALL_OBJECTS WHERE OWNER = ? AND OBJECT_TYPE IN (\'TABLE\', \'VIEW\') AND OBJECT_NAME IN (' . $placeholders . ')',
+            [$schema, ...$candidates],
+            count($candidates)
+        );
+        $found = [];
+        foreach ($rows as $row) {
+            if (isset($row['table_name']) && is_string($row['table_name'])) {
+                $found[] = $row['table_name'];
+            }
+        }
+        foreach ($candidates as $candidate) {
+            if (in_array($candidate, $found, true)) {
+                return $candidate;
+            }
+        }
+        return $table;
+    }
+
+    /**
      * @return list<string>
      */
     protected function catalogParams(string $schema, string $table): array
     {
-        if ($this->driver !== 'oci') {
-            return [$schema, $table];
-        }
-        return [$schema, $table, strtoupper($table), strtolower($table)];
+        return [$schema, $table];
     }
 }

@@ -32,6 +32,7 @@ class ExplainAnalyzer
      * @param string|null $tableName Optional table name for index suggestions
      * @param array<string> $filterColumns
      * @param array<string> $orderColumns
+     * @param bool $hasJoin Whether the query joins another relation
      *
      * @return ExplainAnalysis Result with recommendations
      */
@@ -39,7 +40,8 @@ class ExplainAnalyzer
         array $explainResults,
         ?string $tableName = null,
         array $filterColumns = [],
-        array $orderColumns = []
+        array $orderColumns = [],
+        bool $hasJoin = false
     ): ExplainAnalysis {
         $parser = $this->getParser();
         $parsedPlan = $parser->parse($explainResults);
@@ -49,7 +51,8 @@ class ExplainAnalyzer
             $parsedPlan,
             $tableName,
             $filterColumns,
-            $orderColumns
+            $orderColumns,
+            $hasJoin
         );
 
         // Sort recommendations by severity

@@ -394,6 +394,14 @@ final class AiAgentTests extends TestCase
         self::assertFalse($doctor['ai']['api_key_configured']);
         self::assertContains('AI request: not made', $doctor['ai']['summary']);
         self::assertTrue($doctor['database_connected']);
+
+        $command->setArguments(['doctor'])->setOptions(['probe' => true]);
+        ob_start();
+        self::assertSame(1, $command->execute());
+        $probe = json_decode(ob_get_clean(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('not_sent', $probe['ai']['probe_status']);
+        self::assertFalse($probe['ai']['provider_network_checked']);
+        self::assertArrayNotHasKey('probe_notice', $probe['ai']);
     }
 
     public function testInvalidTemperatureIsRejectedBeforeCast(): void

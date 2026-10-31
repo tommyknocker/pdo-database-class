@@ -983,7 +983,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
             $explainResults,
             $targetTable,
             $this->filterColumns(),
-            $this->orderColumns()
+            $this->orderColumns(),
+            $this->joinBuilder->getJoins() !== []
         );
     }
 
@@ -1025,12 +1026,70 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
 
     protected function leadingColumn(string $expression): ?string
     {
-        if (preg_match('/^(?:[\w]+\.)?(?:"([^"]+)"|`([^`]+)`|\[([^\]]+)\]|([A-Za-z_][A-Za-z0-9_]*))/', trim($expression), $match) !== 1) {
+        $offset = 0;
+        $first = $this->readIdentifier($expression, $offset);
+        if ($first === null) {
             return null;
         }
-        $column = $match[1] !== '' ? $match[1] : ($match[2] !== '' ? $match[2] : ($match[3] !== '' ? $match[3] : ($match[4] ?? '')));
-        $reserved = ['and', 'or', 'not', 'where', 'order', 'group', 'limit'];
-        return in_array(strtolower($column), $reserved, true) ? null : $column;
+        if (($expression[$offset] ?? '') === '.') {
+            $offset++;
+            $second = $this->readIdentifier($expression, $offset);
+            if ($second === null || $second === '') {
+                return null;
+            }
+            if (in_array(strtolower($second), $this->reservedColumnWords(), true)) {
+                return null;
+            }
+            return $first . '.' . $second;
+        }
+        if (in_array(strtolower($first), $this->reservedColumnWords(), true)) {
+            return null;
+        }
+        return $first;
+    }
+
+    protected function readIdentifier(string $expression, int &$offset): ?string
+    {
+        $length = strlen($expression);
+        while ($offset < $length && ctype_space($expression[$offset])) {
+            $offset++;
+        }
+        if ($offset >= $length) {
+            return null;
+        }
+        $char = $expression[$offset];
+        if (in_array($char, ['"', '`', '['], true)) {
+            $end = $char === '[' ? ']' : $char;
+            $offset++;
+            $value = '';
+            while ($offset < $length) {
+                if ($expression[$offset] === $end) {
+                    if (($expression[$offset + 1] ?? '') === $end) {
+                        $value .= $end;
+                        $offset += 2;
+                        continue;
+                    }
+                    $offset++;
+                    return $value;
+                }
+                $value .= $expression[$offset];
+                $offset++;
+            }
+            return null;
+        }
+        if (preg_match('/\G[A-Za-z_][A-Za-z0-9_]*/', $expression, $match, 0, $offset) !== 1) {
+            return null;
+        }
+        $offset += strlen($match[0]);
+        return $match[0];
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function reservedColumnWords(): array
+    {
+        return ['and', 'or', 'not', 'where', 'order', 'group', 'limit'];
     }
 
     /**

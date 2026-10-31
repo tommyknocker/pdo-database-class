@@ -465,6 +465,57 @@ final class RecommendationGeneratorTests extends BaseSharedTestCase
         }
     }
 
+    public function testJoinAdviceDoesNotInventAnIndexOnTheWrongTable(): void
+    {
+        $schema = self::$db->schema();
+        $schema->dropTableIfExists('advice_orders');
+        $schema->dropTableIfExists('advice_users');
+        $schema->createTable('advice_users', [
+            'id' => $schema->primaryKey(),
+            'country' => $schema->string(20),
+        ]);
+        $schema->createTable('advice_orders', [
+            'id' => $schema->primaryKey(),
+            'user_id' => $schema->integer(),
+            'created_at' => $schema->string(30),
+        ]);
+
+        try {
+            $analysis = self::$db->find()
+                ->from('advice_orders o')
+                ->join('advice_users u', 'o.user_id = u.id')
+                ->where('u.country', 'US')
+                ->orderBy('o.created_at', 'DESC')
+                ->explainAdvice();
+            $types = array_map(static fn ($recommendation) => $recommendation->type, $analysis->recommendations);
+            $this->assertContains('unresolved_index', $types);
+            foreach ($analysis->recommendations as $recommendation) {
+                $this->assertStringNotContainsString('CREATE INDEX', (string)$recommendation->suggestion);
+            }
+        } finally {
+            $schema->dropTableIfExists('advice_orders');
+            $schema->dropTableIfExists('advice_users');
+        }
+    }
+
+    public function testAliasOnTheTargetTableStillSuggestsItsIndex(): void
+    {
+        $generator = $this->createRecommendationGenerator();
+        $plan = new ParsedExplainPlan(tableScans: ['advice_orders'], temporarySort: true);
+        $recommendations = $generator->generate($plan, 'advice_orders o', ['o.status'], ['o.created_at']);
+        $index = null;
+        foreach ($recommendations as $recommendation) {
+            if ($recommendation->type === 'index_column_order') {
+                $index = $recommendation;
+            }
+        }
+        $this->assertNotNull($index);
+        $this->assertStringContainsString('advice_orders', (string)$index->suggestion);
+        $this->assertStringContainsString('status', (string)$index->suggestion);
+        $this->assertStringContainsString('created_at', (string)$index->suggestion);
+        $this->assertStringNotContainsString('"o"', (string)$index->suggestion);
+    }
+
     public function testPlanComparisonReportsARemovedScanWithoutExecutingSql(): void
     {
         $beforePlan = new ParsedExplainPlan(tableScans: ['orders'], temporarySort: true, usedIndex: null);

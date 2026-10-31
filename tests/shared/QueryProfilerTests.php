@@ -431,6 +431,45 @@ class QueryProfilerTests extends BaseSharedTestCase
         $this->assertSame(['name' => 'Ada'], $detailed['params']);
     }
 
+    public function testRedactionRemovesNumbersAndComments(): void
+    {
+        $profiler = new QueryProfiler();
+        $profiler->enable();
+        $profiler->setSlowQueryThreshold(0.0);
+        $handler = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handler);
+        $profiler->setLogger($logger);
+
+        $profiler->endQuery($profiler->startQuery('SELECT id FROM users WHERE id = 42 -- secret note'));
+
+        $sql = $profiler->getSlowestQueries(1)[0]['sql'];
+        $this->assertStringNotContainsString('42', $sql);
+        $this->assertStringNotContainsString('secret', $sql);
+        $logged = $handler->getRecords()[0]['context']['sql'];
+        $this->assertStringNotContainsString('42', $logged);
+        $this->assertStringNotContainsString('secret', $logged);
+    }
+
+    public function testSlowQueryLogContinuesAfterTheShapeLimit(): void
+    {
+        $profiler = new QueryProfiler();
+        $profiler->enable();
+        $profiler->setSlowQueryThreshold(0.0);
+        $profiler->setMaxTrackedQueries(1);
+        $handler = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handler);
+        $profiler->setLogger($logger);
+
+        $profiler->endQuery($profiler->startQuery('SELECT 1'));
+        $profiler->endQuery($profiler->startQuery('SELECT 2'));
+
+        $this->assertTrue($profiler->isTruncated());
+        $this->assertCount(1, $profiler->getStats());
+        $this->assertCount(2, $handler->getRecords());
+    }
+
     public function testDistinctSqlShapesAreCapped(): void
     {
         $profiler = new QueryProfiler();

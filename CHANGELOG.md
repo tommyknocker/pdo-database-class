@@ -16,12 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keep distinct profiler ids when queries overlap, rank slow queries by total time, and omit parameter values from the slow-query log unless `setLogParameters(true)` is enabled.
 - Recommend a filter-then-sort index from `explainAdvice()`, and recognize when that index already exists, including SQLite temporary sorts and PostgreSQL sorts.
 - Reject a non-numeric `--temperature` and a non-positive `--max-tokens` or `--timeout` before they are cast.
-- Look up quoted Oracle table names in their original letter case as well as the folded form, so catalog columns and `NUM_ROWS` are found.
+- Look up one Oracle object by its exact name, and use the folded case only when that object is absent, so catalog columns and `NUM_ROWS` are not mixed across similarly named tables.
+- Keep logging a slow query after the profiler stops storing new SQL shapes. Remove recognized string literals, numeric literals, and comments from profiler SQL.
 - Avoid exposing provider response bodies and API keys in AI transport errors; send Gemini credentials in the request header.
 - Reject invalid numeric AI settings and explicitly configured temperature where the model profile omits sampling parameters.
 - Correct database feature version requirements and broken documentation links; check local Markdown links in CI.
 
 ### Changed
+- **Breaking:** `DialectInterface` requires `executePlanExplain()`. A third-party dialect must implement it. `getSlowestQueries()` sorts by total time and includes `count` and `possible_n_plus_one`.
 - Share AI prompt and analysis flow across providers, and use the OpenAI-compatible transport for DeepSeek.
 - **Breaking:** AI configuration now uses one selected provider with `PDODB_AI_API_KEY`, `PDODB_AI_MODEL` and, when needed, `PDODB_AI_BASE_URL`; PHP uses a flat `ai` array. Provider-specific keys and nested provider settings must be migrated as described in the AI configuration reference.
 - Update default OpenAI, Anthropic, Google and DeepSeek models, and simplify the AI setup wizard to configure only the chosen provider.

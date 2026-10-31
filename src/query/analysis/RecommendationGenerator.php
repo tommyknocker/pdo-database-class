@@ -25,6 +25,7 @@ class RecommendationGenerator
      * @param string|null $tableName Optional table name for index suggestions
      * @param array<string> $filterColumns Equality or range filter columns, in predicate order
      * @param array<string> $orderColumns Sort columns, in ORDER BY order
+     * @param bool $hasJoin Whether the query joins another relation
      *
      * @return array<Recommendation> List of recommendations
      */
@@ -32,13 +33,15 @@ class RecommendationGenerator
         ParsedExplainPlan $plan,
         ?string $tableName = null,
         array $filterColumns = [],
-        array $orderColumns = []
+        array $orderColumns = [],
+        bool $hasJoin = false
     ): array {
         $recommendations = [];
-        $orderedAdvice = $this->adviseColumnOrder($plan, $tableName, $filterColumns, $orderColumns);
+        $orderedAdvice = $this->adviseColumnOrder($plan, $tableName, $filterColumns, $orderColumns, $hasJoin);
         if ($orderedAdvice !== null) {
             $recommendations[] = $orderedAdvice;
         }
+        $suppressIndexSql = $orderedAdvice !== null && $orderedAdvice->type === 'unresolved_index';
 
         // Full table scan recommendations
         if ($orderedAdvice === null && !empty($plan->tableScans)) {
@@ -69,7 +72,7 @@ class RecommendationGenerator
                         severity: 'info',
                         type: 'missing_index',
                         message: $warning,
-                        suggestion: $targetTable ? $this->suggestIndexForTable($targetTable, $plan) : null
+                        suggestion: ($targetTable !== null && !$suppressIndexSql) ? $this->suggestIndexForTable($targetTable, $plan) : null
                     );
                 }
             }
@@ -296,33 +299,56 @@ class RecommendationGenerator
      * Prefer an existing index whose leading columns are the filters followed by the sort.
      * Otherwise suggest that order when the plan shows a scan or a temporary sort.
      *
-     * @param array<string> $filterColumns
-     * @param array<string> $orderColumns
+     * @param array<string> $filterColumns Column names, optionally qualified as alias.column
+     * @param array<string> $orderColumns Column names, optionally qualified as alias.column
+     * @param bool $hasJoin Whether the query joins another relation
      */
     protected function adviseColumnOrder(
         ParsedExplainPlan $plan,
         ?string $tableName,
         array $filterColumns,
-        array $orderColumns
+        array $orderColumns,
+        bool $hasJoin = false
     ): ?Recommendation {
         if ($tableName === null || $tableName === '') {
             return null;
         }
+        $identity = $this->tableIdentity($tableName);
         $wanted = [];
-        foreach ([...$filterColumns, ...$orderColumns] as $column) {
-            $bare = strtolower($this->bareColumn($column));
+        $unresolved = false;
+        foreach ([...$filterColumns, ...$orderColumns] as $reference) {
+            $column = $this->columnOnTarget($reference, $identity, $hasJoin);
+            if ($column === null) {
+                if (trim($reference) !== '') {
+                    $unresolved = true;
+                }
+                continue;
+            }
+            $bare = strtolower($column);
             if ($bare !== '' && !in_array($bare, $wanted, true)) {
                 $wanted[] = $bare;
             }
         }
+        $needsAdvice = $plan->tableScans !== [] || $plan->temporarySort || $plan->usedIndex !== null;
+        if ($unresolved) {
+            if (!$needsAdvice) {
+                return null;
+            }
+            return new Recommendation(
+                severity: 'info',
+                type: 'unresolved_index',
+                message: 'Filter or sort columns are not all on the target table, so a CREATE INDEX statement is not suggested.',
+                suggestion: null,
+                affectedTables: [$identity['name']]
+            );
+        }
         if ($wanted === []) {
             return null;
         }
-        $needsAdvice = $plan->tableScans !== [] || $plan->temporarySort || $plan->usedIndex !== null;
         if (!$needsAdvice) {
             return null;
         }
-        $match = $this->matchingIndex($tableName, $wanted);
+        $match = $this->matchingIndex($identity['name'], $wanted);
         if ($match !== null) {
             $used = $plan->usedIndex !== null && strcasecmp($plan->usedIndex, $match) === 0;
             return new Recommendation(
@@ -332,20 +358,14 @@ class RecommendationGenerator
                     ? sprintf('Index "%s" already serves the filter and sort columns. A new index is not indicated by this plan.', $match)
                     : sprintf('Index "%s" matches the filter and sort columns, but this plan does not use it.', $match),
                 suggestion: null,
-                affectedTables: [$tableName]
+                affectedTables: [$identity['name']]
             );
         }
         if ($plan->tableScans === [] && !$plan->temporarySort) {
             return null;
         }
         $quoted = array_map(fn (string $column): string => $this->dialect->quoteIdentifier($column), $wanted);
-        $sortRequested = false;
-        foreach ($orderColumns as $column) {
-            if ($this->bareColumn($column) !== '') {
-                $sortRequested = true;
-                break;
-            }
-        }
+        $sortRequested = $this->orderRequestsSort($orderColumns, $identity, $hasJoin);
         $message = $sortRequested
             ? 'A scan or temporary sort is visible. An index on the filter columns, followed by the sort columns, may remove it. Compare a new plan after you apply the change yourself.'
             : 'A scan is visible. An index on the filter columns may remove it. Compare a new plan after you apply the change yourself.';
@@ -355,12 +375,77 @@ class RecommendationGenerator
             message: $message,
             suggestion: sprintf(
                 'CREATE INDEX %s ON %s (%s);',
-                $this->dialect->quoteIdentifier($this->generateIndexName($tableName, $wanted)),
-                $this->dialect->quoteTable($tableName),
+                $this->dialect->quoteIdentifier($this->generateIndexName($identity['name'], $wanted)),
+                $this->dialect->quoteTable($identity['name']),
                 implode(', ', $quoted)
             ),
-            affectedTables: [$tableName]
+            affectedTables: [$identity['name']]
         );
+    }
+
+    /**
+     * @param array{name: string, alias: string|null} $identity
+     * @param array<string> $orderColumns
+     */
+    protected function orderRequestsSort(array $orderColumns, array $identity, bool $hasJoin): bool
+    {
+        foreach ($orderColumns as $column) {
+            if ($this->columnOnTarget($column, $identity, $hasJoin) !== null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param array{name: string, alias: string|null} $identity
+     */
+    protected function columnOnTarget(string $reference, array $identity, bool $hasJoin): ?string
+    {
+        $qualifier = null;
+        $column = $reference;
+        $dot = strrpos($reference, '.');
+        if ($dot !== false) {
+            $qualifier = substr($reference, 0, $dot);
+            $column = substr($reference, $dot + 1);
+        }
+        $column = strtolower($this->bareColumn($column));
+        if ($column === '') {
+            return null;
+        }
+        if ($qualifier === null) {
+            return $hasJoin ? null : $column;
+        }
+        $accepted = [strtolower($identity['name'])];
+        if ($identity['alias'] !== null) {
+            $accepted[] = strtolower($identity['alias']);
+        }
+        $qualifier = strtolower($this->bareColumn($qualifier));
+        return in_array($qualifier, $accepted, true) ? $column : null;
+    }
+
+    /**
+     * @return array{name: string, alias: string|null}
+     */
+    protected function tableIdentity(string $tableName): array
+    {
+        $table = trim($tableName);
+        $alias = null;
+        if (preg_match('/\s+AS\s+/i', $table) === 1) {
+            $parts = preg_split('/\s+AS\s+/i', $table, 2);
+            $table = trim((string)($parts[0] ?? $table));
+            $alias = trim((string)($parts[1] ?? ''));
+        } else {
+            $parts = preg_split('/\s+/', $table, 2);
+            if (is_array($parts) && count($parts) === 2) {
+                $table = $parts[0];
+                $alias = $parts[1];
+            }
+        }
+        if ($alias === '') {
+            $alias = null;
+        }
+        return ['name' => $table, 'alias' => $alias];
     }
 
     /**

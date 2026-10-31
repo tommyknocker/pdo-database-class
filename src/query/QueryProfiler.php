@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\query;
 
 use Psr\Log\LoggerInterface;
+use tommyknocker\pdodb\ai\SqlContextTokenizer;
 
 /**
  * Query Performance Profiler.
@@ -195,6 +196,9 @@ class QueryProfiler
             if (count($this->stats) >= $this->maxTrackedQueries) {
                 $this->truncated = true;
                 unset($this->activeQueries[$queryId]);
+                if ($executionTime >= $this->slowQueryThreshold) {
+                    $this->logSlowQuery($query['sql'], $query['params'], $executionTime, $memoryUsed);
+                }
                 return [
                     'time' => $executionTime,
                     'memory' => $memoryUsed,
@@ -405,7 +409,7 @@ class QueryProfiler
 
     protected function redactLiterals(string $sql): string
     {
-        return preg_replace("/'(?:''|[^'])*'/", '?', $sql) ?? $sql;
+        return SqlContextTokenizer::redact($sql);
     }
 
     /**

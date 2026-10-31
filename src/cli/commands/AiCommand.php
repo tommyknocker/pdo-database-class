@@ -12,6 +12,7 @@ use tommyknocker\pdodb\ai\QueryInspectionService;
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\MarkdownFormatter;
 use tommyknocker\pdodb\cli\SchemaAnalyzer;
+use tommyknocker\pdodb\exceptions\QueryException;
 
 /**
  * AI-powered database analysis command.
@@ -276,6 +277,7 @@ class AiCommand extends Command
         try {
             $db = $this->getDb();
             $result = (new AgentContextService($db))->context();
+            $exit = 0;
             if ($doctor) {
                 $config = $db->getAiConfig();
                 $provider = $config->getDefaultProvider();
@@ -283,18 +285,50 @@ class AiCommand extends Command
                 $baseUrl = $config->getProviderSetting($provider, 'base_url');
                 $hasKey = $config->hasApiKey($provider);
                 $probe = $this->getOption('probe') !== null;
+                $requestSummary = 'AI request: not made';
+                $probeStatus = null;
+                $probeError = null;
+                $networkChecked = false;
+                $exit = 0;
+                $aiProvider = null;
+                if ($probe) {
+                    try {
+                        $aiProvider = (new AiAnalysisService($db))->getProvider();
+                    } catch (QueryException) {
+                        $aiProvider = null;
+                    }
+                    if ($aiProvider === null || !$aiProvider->isAvailable()) {
+                        $requestSummary = 'AI request: not sent';
+                        $probeStatus = 'not_sent';
+                        $probeError = 'The probe was not sent because the provider is not configured. No network request was made.';
+                        $exit = 1;
+                    } else {
+                        try {
+                            $aiProvider->analyzeQuery('SELECT 1');
+                            $requestSummary = 'AI request: one short probe completed';
+                            $probeStatus = 'ok';
+                            $networkChecked = true;
+                        } catch (\Throwable) {
+                            $requestSummary = 'AI request: probe failed';
+                            $probeStatus = 'failed';
+                            $probeError = 'The provider request failed. Check the key, model, and endpoint. The response body is omitted.';
+                            $networkChecked = true;
+                            $exit = 1;
+                        }
+                    }
+                }
                 $summary = [
                     'Provider: ' . $provider,
                     'Model: ' . (is_string($model) && $model !== '' ? $model : 'provider default'),
                     'API key: ' . ($hasKey ? 'configured' : 'missing'),
                     'Endpoint: ' . (is_string($baseUrl) && $baseUrl !== '' ? 'configured' : 'provider default'),
                     'Database: connected',
-                    'AI request: ' . ($probe ? 'one short probe was requested' : 'not made'),
+                    $requestSummary,
                 ];
                 $result['ai'] = [
                     'provider' => $provider,
                     'api_key_configured' => $hasKey,
-                    'provider_network_checked' => false,
+                    'provider_network_checked' => $networkChecked,
                     'metadata_tools_require_key' => false,
                     'provider_source' => getenv('PDODB_AI_PROVIDER') ? 'environment' : 'configuration/default',
                     'configured_model' => $model,
@@ -302,23 +336,18 @@ class AiCommand extends Command
                     'summary' => $summary,
                 ];
                 $result['database_connected'] = true;
-                if ($probe) {
+                if ($probeStatus !== null) {
+                    $result['ai']['probe_status'] = $probeStatus;
+                }
+                if ($aiProvider !== null && $aiProvider->isAvailable()) {
                     $result['ai']['probe_notice'] = 'This check sends one short provider request and may incur a charge. The API key and response body are not shown.';
-
-                    try {
-                        $aiProvider = (new AiAnalysisService($db))->getProvider();
-                        $aiProvider->analyzeQuery('SELECT 1');
-                        $result['ai']['provider_network_checked'] = true;
-                        $result['ai']['probe_status'] = 'ok';
-                    } catch (\Throwable) {
-                        $result['ai']['provider_network_checked'] = true;
-                        $result['ai']['probe_status'] = 'failed';
-                        $result['ai']['probe_error'] = 'The provider request failed. Check the key, model, and endpoint. The response body is omitted.';
-                    }
+                }
+                if ($probeError !== null) {
+                    $result['ai']['probe_error'] = $probeError;
                 }
             }
             echo json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n";
-            return 0;
+            return $exit;
         } catch (\Throwable) {
             echo json_encode(['error' => 'Unable to inspect database; check PDO driver, connection configuration and permissions']) . "\n";
             return 1;
@@ -442,7 +471,7 @@ class AiCommand extends Command
         echo "  --timeout=N       AI provider timeout in seconds\n";
         echo "  --table=NAME      Table name for context\n";
         echo "  --format=FORMAT   Output format (text, json)\n";
-        echo "  --probe           With doctor, send one short provider request. It may incur a charge.\n\n";
+        echo "  --probe           With doctor, send one short provider request when the provider is configured. It may incur a charge. A missing configuration does not call the network and exits non-zero.\n\n";
         echo "Examples:\n";
         echo "  pdodb ai query \"SELECT * FROM users\" --provider=anthropic\n";
         echo "  pdodb ai schema --table=users --format=json\n";

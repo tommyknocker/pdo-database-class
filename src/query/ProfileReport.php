@@ -11,8 +11,8 @@ use tommyknocker\pdodb\PdoDb;
  * In-process profile summary and local plan diagnosis.
  *
  * The report reads the profiler of this connection. Another process, including
- * `pdodb monitor stats`, does not see it. Pass an exported file to the CLI
- * when a separate process needs the summary.
+ * `pdodb monitor stats`, does not see it. diagnose() uses SQL supplied by the
+ * caller and does not select a row from this summary.
  */
 class ProfileReport
 {
@@ -39,7 +39,7 @@ class ProfileReport
             'queries' => $profiler->getSlowestQueries(20),
             'truncated' => $profiler->isTruncated(),
             'parameters_included' => false,
-            'note' => 'SQL literals are redacted. possible_n_plus_one means one SQL shape ran many times; it is not proof of an N+1 bug.',
+            'note' => 'Recognized string literals, numeric literals, and comments are removed from SQL. Bound parameter values are omitted. This is not a complete privacy boundary. possible_n_plus_one means one SQL shape ran many times; it is not proof of an N+1 bug.',
         ];
     }
 
