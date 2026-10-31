@@ -278,7 +278,7 @@ Find methods in the [API reference](documentation/09-reference/01-api-reference.
 <a id="migration-guide"></a>
 <a id="troubleshooting"></a>
 
-Coming from raw PDO or Eloquent: [migration guide](documentation/10-cookbook/03-migration-guide.md). Common failures: [troubleshooting](documentation/10-cookbook/04-troubleshooting.md).
+Coming from raw PDO or Eloquent: [migration guide](documentation/10-cookbook/03-migration-guide.md). Upgrading from 2.14: [upgrade notes](documentation/10-cookbook/05-upgrading.md). Common failures: [troubleshooting](documentation/10-cookbook/04-troubleshooting.md).
 
 The examples are included under `vendor/tommyknocker/pdo-database-class/examples/` in the Composer package and are also available in a repository checkout. [Example catalog](examples/README.md).
 

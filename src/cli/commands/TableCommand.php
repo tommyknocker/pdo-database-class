@@ -279,7 +279,7 @@ class TableCommand extends Command
         $suggestions = $analyzer->analyze($table, $options);
 
         if ($format === 'json') {
-            $this->writeln(json_encode(['suggestions' => $suggestions], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $this->writeln(json_encode(['suggestions' => $suggestions], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
             return 0;
         }
 
@@ -693,7 +693,7 @@ class TableCommand extends Command
     {
         $fmt = strtolower($format);
         if ($fmt === 'json') {
-            $this->writeln(json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $this->writeln(json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
             return 0;
         }
         if ($fmt === 'yaml') {

@@ -36,6 +36,9 @@ class ActiveQuery
     /** @var bool Whether global scopes have been applied */
     protected bool $globalScopesApplied = false;
 
+    /** @var array<string, string|int|float|bool|null> */
+    protected array $queryParameters = [];
+
     /**
      * ActiveQuery constructor.
      *
@@ -73,7 +76,7 @@ class ActiveQuery
             }
 
             // Apply the scope
-            $this->queryBuilder->scope($scope);
+            $this->queryBuilder->isolatedScope($scope);
         }
 
         $this->globalScopesApplied = true;
@@ -84,7 +87,15 @@ class ActiveQuery
      */
     protected function ensureGlobalScopes(): void
     {
+        $parameters = $this->queryBuilder->getParameterManager();
+        $current = $parameters->getParams();
+        foreach ($this->queryParameters as $name => $value) {
+            if (!array_key_exists($name, $current)) {
+                $parameters->setParam($name, $value);
+            }
+        }
         $this->applyGlobalScopes();
+        $this->queryParameters = $parameters->getParams();
     }
 
     /**
@@ -93,15 +104,26 @@ class ActiveQuery
      * @param string $name Method name
      * @param array<mixed> $arguments Method arguments
      *
-     * @return static ActiveQuery instance for chaining
+     * @return mixed ActiveQuery for fluent methods, otherwise the delegated result
      */
-    public function __call(string $name, array $arguments): static
+    public function __call(string $name, array $arguments): mixed
     {
         // Handle scope() method specially - support named scopes from model
         if ($name === 'scope') {
             return $this->applyScope($arguments);
         }
 
+        if (in_array($name, ['truncate', 'replace', 'replaceMulti', 'merge'], true)) {
+            foreach ($this->modelClass::globalScopes() as $scopeName => $_scope) {
+                if (!$this->queryBuilder->isGlobalScopeDisabled($scopeName)) {
+                    throw new RuntimeException("Cannot use {$name} while a global scope is enabled; disable it explicitly if intended.");
+                }
+            }
+        }
+        if (in_array($name, ['exists', 'notExists', 'first', 'last', 'batch', 'each', 'stream', 'update', 'delete', 'toSQL', 'explain', 'explainAnalyze',
+            'explainAdvice', 'explainAiAdvice', 'explainAiContext'], true)) {
+            $this->ensureGlobalScopes();
+        }
         $result = $this->queryBuilder->$name(...$arguments);
 
         // If QueryBuilder method returns self, we return self
@@ -109,9 +131,7 @@ class ActiveQuery
             return $this;
         }
 
-        // For methods that return other types, return as-is
-        // This allows accessing QueryBuilder methods directly if needed
-        return $this;
+        return $result;
     }
 
     /**

@@ -62,7 +62,7 @@ class SchemaInspector extends BaseCliCommand
         static::cliWrite('Tables (' . count($tables) . "):\n\n");
 
         if ($format === 'json') {
-            static::cliWriteln(json_encode($tables, JSON_PRETTY_PRINT));
+            static::cliWriteln(json_encode($tables, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
             return;
         }
 
@@ -103,7 +103,7 @@ class SchemaInspector extends BaseCliCommand
         ];
 
         if ($format === 'json') {
-            static::cliWriteln(json_encode($schema, JSON_PRETTY_PRINT));
+            static::cliWriteln(json_encode($schema, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
             return;
         }
 

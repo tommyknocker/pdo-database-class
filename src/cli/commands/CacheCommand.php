@@ -142,7 +142,7 @@ class CacheCommand extends Command
             $stats = $cacheManager->getStats();
 
             if ($format === 'json') {
-                $this->writeln(json_encode($stats, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                $this->writeln(json_encode($stats, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
                 return 0;
             }
 

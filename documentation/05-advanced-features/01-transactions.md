@@ -196,18 +196,24 @@ function updateWithLock($db, $userId, $newData) {
 
 ## Nested Transactions
 
-PDOdb doesn't support nested transactions directly. Each connection maintains a single transaction state:
+`transaction()` joins an existing transaction with a savepoint. A successful
+inner callback does not commit the outer transaction. An inner exception rolls
+back to its savepoint; if the exception is caught and the database still permits
+it, the outer transaction can continue. An exception escaping the outer callback
+rolls back the whole transaction.
 
 ```php
-$db->startTransaction();
-
-// This doesn't create a nested transaction
-$db->transaction(function($db) {
-    // This will use the outer transaction
+$db->transaction(function ($db) {
+    $db->transaction(function ($db) {
+        // This work is still part of the outer transaction.
+    });
 });
-
-$db->commit();
 ```
+
+Support and failure recovery depend on the database and error. Some errors make
+the entire transaction unusable, and DDL may commit implicitly. Do not assume
+that every error or schema change can be isolated by a savepoint. Avoid manually
+committing, rolling back, or switching connections inside a transaction callback.
 
 ## Savepoints
 

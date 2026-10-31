@@ -107,6 +107,8 @@ final class ReleaseSafetyTests extends TestCase
             require $path . '/Account.php';
             require $path . '/Entry.php';
             Entry::setDb($db);
+            Status::setDb($db);
+            Account::setDb($db);
             $entry = Entry::findOne(1);
             self::assertNotNull($entry);
             self::assertInstanceOf(Status::class, $entry->status);

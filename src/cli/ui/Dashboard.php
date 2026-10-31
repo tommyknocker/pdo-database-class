@@ -2009,7 +2009,7 @@ class Dashboard
                         }
                         Stdout::write(ucfirst(str_replace('_', ' ', $key)) . ': ');
                         Terminal::reset();
-                        Stdout::write(is_array($value) ? json_encode($value) : (string)$value);
+                        Stdout::write(is_array($value) ? json_encode($value, JSON_THROW_ON_ERROR) : (string)$value);
                         $row++;
                     }
                 }
@@ -2253,7 +2253,7 @@ class Dashboard
                 }
                 Stdout::write(ucfirst(str_replace('_', ' ', $key)) . ': ');
                 Terminal::reset();
-                Stdout::write(is_array($value) ? json_encode($value) : (string)$value);
+                Stdout::write(is_array($value) ? json_encode($value, JSON_THROW_ON_ERROR) : (string)$value);
                 $row++;
             }
         }
@@ -2398,7 +2398,7 @@ class Dashboard
                 }
                 Stdout::write(ucfirst(str_replace('_', ' ', $key)) . ': ');
                 Terminal::reset();
-                Stdout::write(is_array($value) ? json_encode($value) : (is_numeric($value) ? number_format((float)$value) : (string)$value));
+                Stdout::write(is_array($value) ? json_encode($value, JSON_THROW_ON_ERROR) : (is_numeric($value) ? number_format((float)$value) : (string)$value));
                 $row++;
             }
         }

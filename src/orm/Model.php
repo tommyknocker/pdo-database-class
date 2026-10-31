@@ -22,6 +22,9 @@ abstract class Model
     /** @var PdoDb|null Static PdoDb instance */
     protected static ?PdoDb $db = null;
 
+    /** @var array<class-string<Model>, PdoDb|null> Explicit connections, including a null override. */
+    protected static array $modelConnections = [];
+
     /** @var array<class-string, bool> Lazy-loading policy per model class */
     protected static array $preventLazyLoading = [];
 
@@ -45,6 +48,17 @@ abstract class Model
      */
     public static function getDb(): ?PdoDb
     {
+        $class = static::class;
+        while (is_a($class, self::class, true)) {
+            if (array_key_exists($class, self::$modelConnections)) {
+                return self::$modelConnections[$class];
+            }
+            $parent = get_parent_class($class);
+            if ($parent === false) {
+                break;
+            }
+            $class = $parent;
+        }
         return static::$db;
     }
 
@@ -55,7 +69,7 @@ abstract class Model
      */
     public static function setDb(?PdoDb $db): void
     {
-        static::$db = $db;
+        self::$modelConnections[static::class] = $db;
     }
 
     /**

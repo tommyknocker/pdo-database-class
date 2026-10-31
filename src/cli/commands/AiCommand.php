@@ -94,7 +94,7 @@ class AiCommand extends Command
                     'ai_analysis' => $aiAnalysis,
                     'provider' => $providerName,
                     'model' => $model,
-                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
                 return 0;
             }
 
@@ -169,7 +169,7 @@ class AiCommand extends Command
                     'table' => $tableName,
                     'provider' => $actualProvider->getProviderName(),
                     'analysis' => $analysis,
-                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
                 return 0;
             }
 
@@ -235,7 +235,7 @@ class AiCommand extends Command
                     'base_analysis' => $baseAnalysis,
                     'ai_suggestions' => $aiSuggestions,
                     'provider' => $actualProvider->getProviderName(),
-                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
                 return 0;
             }
 
@@ -349,7 +349,7 @@ class AiCommand extends Command
             $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
             return $exit;
         } catch (\Throwable) {
-            $this->writeErrorLine(json_encode(['error' => 'Unable to inspect database; check PDO driver, connection configuration and permissions']));
+            $this->writeErrorLine(json_encode(['error' => 'Unable to inspect database; check PDO driver, connection configuration and permissions'], JSON_THROW_ON_ERROR));
             return 1;
         }
     }
@@ -363,7 +363,7 @@ class AiCommand extends Command
             $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
             return 0;
         } catch (\InvalidArgumentException $e) {
-            $this->writeErrorLine(json_encode(['error' => $e->getMessage()]));
+            $this->writeErrorLine(json_encode(['error' => $e->getMessage()], JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR));
             return 1;
         }
     }

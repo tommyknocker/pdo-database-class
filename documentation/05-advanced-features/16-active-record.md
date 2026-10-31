@@ -705,3 +705,17 @@ These limitations are intentional to keep the library lightweight and optional. 
 ## Examples
 
 See the [ActiveRecord examples](../../examples/09-active-record/01-basics.php) for complete working examples.
+
+## Connections and global scopes
+
+`Model::setDb($db)` sets the default connection for models without their own
+connection. `User::setDb($db)` sets an override for `User` and its subclasses;
+it does not change unrelated models. Passing `null` explicitly disables the
+connection for that model class. This differs from older versions where setting
+one model's inherited static connection could affect unrelated models.
+
+Global scopes apply to ActiveQuery reads, updates and deletes, and to updates
+and deletes on model instances. Operations such as `truncate()` and `replace()`
+that cannot honor a WHERE scope require explicitly disabling it. Raw SQL and
+`getQueryBuilder()` remain direct access: global scopes are not a substitute
+for authorization or database-level tenant isolation.

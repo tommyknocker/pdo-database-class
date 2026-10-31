@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Model generator emits `belongsTo` relations from foreign keys and accepts explicit table-to-model mappings for custom names.
 
 ### Fixed
+- Apply ActiveRecord global scopes to query and model writes, preserve terminal method return values, and isolate model connections with an explicit shared default.
+- Nested `transaction()` callbacks use database-specific savepoints instead of committing the outer transaction.
 - Migration and seed `--dry-run` no longer execute migration or seed PHP (avoids side effects; SQL from arbitrary PHP is not shown).
 - ActiveRecord `update()` / `delete()` target the original primary key from when the row was loaded; changing a primary key in memory throws `PrimaryKeyMutationException`.
 - ActiveRecord `save()` / `update()` treat zero affected rows as success when the row still matches the intended values (e.g. MySQL no-op updates).
@@ -32,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Correct database feature version requirements and broken documentation links; check local Markdown links in CI.
 
 ### Changed
+- **Breaking:** model connection overrides are isolated by class; use `Model::setDb($db)` for a shared default. Scoped record writes now honor global scopes, and terminal ActiveQuery methods return their delegated results.
+- **Breaking:** nested `transaction()` calls no longer commit an existing transaction; they use savepoints when supported.
 - **Breaking:** `setAttributes(..., safeOnly: true)` throws `MassAssignmentException` when the model does not declare `safeAttributes()`.
 - **Breaking:** `DialectInterface` requires `executePlanExplain()`. A third-party dialect must implement it. `getSlowestQueries()` sorts by total time and includes `count` and `possible_n_plus_one`.
 - **Breaking:** Removed `--pretend` and `MigrationRunner::setPretend()` / `SeedRunner::setPretend()`. Use `--dry-run` and `setDryRun()` only.

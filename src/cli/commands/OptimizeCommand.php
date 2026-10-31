@@ -53,7 +53,7 @@ class OptimizeCommand extends Command
         $result = $analyzer->analyze(is_string($schema) ? $schema : null);
 
         if ($format === 'json') {
-            $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
             return 0;
         }
 
@@ -82,7 +82,7 @@ class OptimizeCommand extends Command
             $result = $analyzer->analyzeTable($table);
 
             if ($format === 'json') {
-                $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
                 return 0;
             }
 
@@ -147,7 +147,7 @@ class OptimizeCommand extends Command
         );
 
         if ($format === 'json') {
-            $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
             return 0;
         }
 
@@ -319,7 +319,7 @@ class OptimizeCommand extends Command
         $result = $analyzer->analyze($queries);
 
         if ($format === 'json') {
-            $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $this->writeln(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
             return 0;
         }
 
@@ -372,7 +372,7 @@ class OptimizeCommand extends Command
             $analysis = $analyzer->analyze($explainResults, $tableName);
 
             if ($format === 'json') {
-                $this->writeln(json_encode($this->formatAnalysisResult($analysis), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                $this->writeln(json_encode($this->formatAnalysisResult($analysis), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
                 return 0;
             }
 
@@ -692,7 +692,7 @@ class OptimizeCommand extends Command
         // EXPLAIN Plan
         if (!empty($analysis->rawExplain)) {
             $this->writeln('EXPLAIN Plan:');
-            $this->write(json_encode($analysis->rawExplain, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n\n");
+            $this->write(json_encode($analysis->rawExplain, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n\n");
         }
 
         // Issues

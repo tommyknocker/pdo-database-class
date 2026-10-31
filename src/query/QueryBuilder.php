@@ -721,6 +721,22 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
+     * Apply predicates from a model global scope as an independent AND group.
+     *
+     * @param callable(QueryBuilder): QueryBuilder $scope
+     */
+    public function isolatedScope(callable $scope): static
+    {
+        if (!$this->conditionBuilder instanceof ConditionBuilder) {
+            throw new RuntimeException('Global scopes require a condition builder that supports predicate isolation.');
+        }
+        $offset = $this->conditionBuilder->unscopedWhereCount();
+        $this->scope($scope);
+        $this->conditionBuilder->isolateScopeWhere($offset);
+        return $this;
+    }
+
+    /**
      * Temporarily disable a global scope.
      *
      * @param string $scopeName Name of the global scope to disable

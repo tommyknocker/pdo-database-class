@@ -22,6 +22,8 @@ use tommyknocker\pdodb\orm\relations\HasManyThrough;
 use tommyknocker\pdodb\orm\relations\HasOne;
 use tommyknocker\pdodb\orm\relations\RelationInterface;
 use tommyknocker\pdodb\orm\validators\ValidatorFactory;
+use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\query\QueryBuilder;
 
 /**
  * ActiveRecord trait provides ORM functionality for model classes.
@@ -385,7 +387,7 @@ trait ActiveRecord
 
         $pk = static::primaryKey();
         $tableName = static::tableName();
-        $query = $db->find()->table($tableName);
+        $query = $this->scopedRecordQuery($db, $tableName);
 
         $pkValues = $this->primaryKeyValuesForWhere();
         foreach ($pk as $key) {
@@ -443,7 +445,7 @@ trait ActiveRecord
 
         $pk = static::primaryKey();
         $tableName = static::tableName();
-        $query = $db->find()->table($tableName);
+        $query = $this->scopedRecordQuery($db, $tableName);
 
         $pkValues = $this->primaryKeyValuesForWhere();
         foreach ($pk as $key) {
@@ -843,6 +845,16 @@ trait ActiveRecord
         }
     }
 
+    /** Apply the model's current global scopes to record operations. */
+    protected function scopedRecordQuery(PdoDb $db, string $tableName): QueryBuilder
+    {
+        $query = $db->find()->table($tableName);
+        foreach (static::globalScopes() as $scope) {
+            $query->isolatedScope($scope);
+        }
+        return $query;
+    }
+
     /**
      * @param array<string, mixed> $pkValues
      * @param array<string, mixed> $dirty
@@ -858,7 +870,7 @@ trait ActiveRecord
             return false;
         }
 
-        $query = $db->find()->table($tableName);
+        $query = $this->scopedRecordQuery($db, $tableName);
         foreach ($pkValues as $column => $value) {
             $query->where($column, $value);
         }

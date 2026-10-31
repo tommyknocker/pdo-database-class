@@ -121,6 +121,8 @@ class PdoDb
     /** @var array<string> Stack of active savepoint names */
     protected array $savepointStack = [];
 
+    private int $transactionSavepointCounter = 0;
+
     /**
      * @var array<string, callable> Scopes for all QueryBuilder instances
      *
@@ -720,14 +722,57 @@ class PdoDb
      */
     public function transaction(callable $callback): mixed
     {
-        $this->startTransaction();
+        $connection = $this->connection;
+        $nested = $connection->inTransaction();
+        $savepoint = null;
+
+        if ($nested) {
+            $driver = $connection->getDriverName();
+            if (!in_array($driver, ['mysql', 'pgsql', 'sqlite', 'sqlsrv', 'oci'], true)) {
+                throw new TransactionException("Nested transactions are not supported for driver {$driver}.");
+            }
+            do {
+                $savepoint = 'pdodb_tx_' . ++$this->transactionSavepointCounter;
+            } while (in_array($savepoint, $this->savepointStack, true));
+            $connection->query($driver === 'sqlsrv' ? "SAVE TRANSACTION {$savepoint}" : "SAVEPOINT {$savepoint}");
+            $this->savepointStack[] = $savepoint;
+        } else {
+            $this->startTransaction();
+        }
 
         try {
             $result = $callback($this);
-            $this->commit();
+            if ($this->connection !== $connection || !$connection->inTransaction()) {
+                throw new TransactionException('The transaction connection or state changed inside the callback.');
+            }
+            if ($nested) {
+                if (!in_array($driver, ['sqlsrv', 'oci'], true)) {
+                    $connection->query("RELEASE SAVEPOINT {$savepoint}");
+                }
+                $this->savepointStack = array_values(array_diff($this->savepointStack, [$savepoint]));
+            } else {
+                $this->commit();
+            }
             return $result;
         } catch (Throwable $e) {
-            $this->rollback();
+            try {
+                if ($connection->inTransaction()) {
+                    if ($nested) {
+                        $sql = $driver === 'sqlsrv' ? "ROLLBACK TRANSACTION {$savepoint}" : "ROLLBACK TO SAVEPOINT {$savepoint}";
+                        $connection->query($sql);
+                        if (!in_array($driver, ['sqlsrv', 'oci'], true)) {
+                            $connection->query("RELEASE SAVEPOINT {$savepoint}");
+                        }
+                        $this->savepointStack = array_values(array_diff($this->savepointStack, [$savepoint]));
+                    } elseif ($this->connection === $connection) {
+                        $this->rollback();
+                    } else {
+                        $connection->rollBack();
+                    }
+                }
+            } catch (Throwable $rollbackError) {
+                throw new RuntimeException('Transaction rollback failed: ' . $rollbackError->getMessage(), 0, $e);
+            }
 
             throw $e;
         }

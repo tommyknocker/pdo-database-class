@@ -103,7 +103,7 @@ class QueryCommand extends Command
             $plan = $db->explain($sql, []);
             $this->writeln('EXPLAIN plan:');
             // pretty print (most dialects return arrays)
-            $this->writeln(json_encode($plan, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $this->writeln(json_encode($plan, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
             return 0;
         } catch (\Throwable $e) {
             return $this->fail('Failed to explain query: ' . $e->getMessage());

@@ -31,6 +31,9 @@ class ConditionBuilder implements ConditionBuilderInterface
     /** @var array<int, string|array<string, mixed>> */
     protected array $where = [];
 
+    /** @var array<int, array{sql: string, cond: string}> */
+    protected array $isolatedScopeWhere = [];
+
     /** @var array<int, string|array<string, mixed>> */
     protected array $having = [];
 
@@ -636,7 +639,28 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function getWhere(): array
     {
-        return $this->where;
+        if ($this->isolatedScopeWhere === []) {
+            return $this->where;
+        }
+        $conditions = [];
+        if ($this->where !== []) {
+            $conditions[] = ['sql' => '(' . trim($this->buildConditionsClause($this->where, '')) . ')', 'cond' => 'AND'];
+        }
+        return array_merge($conditions, $this->isolatedScopeWhere);
+    }
+
+    public function unscopedWhereCount(): int
+    {
+        return count($this->where);
+    }
+
+    /** Move newly added scope predicates into an independent AND group. */
+    public function isolateScopeWhere(int $offset): void
+    {
+        $items = array_splice($this->where, $offset);
+        if ($items !== []) {
+            $this->isolatedScopeWhere[] = ['sql' => '(' . trim($this->buildConditionsClause($items, '')) . ')', 'cond' => 'AND'];
+        }
     }
 
     /**
@@ -1079,7 +1103,7 @@ class ConditionBuilder implements ConditionBuilderInterface
         $select = '*';
         $from = $this->normalizeTable();
         $sql = "SELECT {$select} FROM {$from}";
-        $sql .= $this->buildConditionsClause($this->where, 'WHERE');
+        $sql .= $this->buildConditionsClause($this->getWhere(), 'WHERE');
         if ($this->limit !== null) {
             // Use dialect-specific LIMIT formatting
             $sql = $this->dialect->formatLimitOffset($sql, $this->limit, null);
