@@ -299,31 +299,17 @@ class FileLoader
      */
     protected function quoteIdentifier(string $ident): string
     {
-        if ($this->dialect !== null) {
-            // Use dialect's quoteIdentifier method
-            $parts = explode('.', $ident);
-            $quotedParts = [];
-            foreach ($parts as $part) {
-                $quotedParts[] = $this->dialect->quoteIdentifier(trim($part));
-            }
-            return implode('.', $quotedParts);
+        if ($this->dialect === null) {
+            throw new InvalidArgumentException('Dialect is required to quote identifiers for file loading.');
         }
 
-        // Fallback: use PDO driver name (for backward compatibility)
-        $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
-        $quoteChar = match ($driver) {
-            'mysql' => '`',
-            'pgsql' => '"',
-            'sqlite' => '"',
-            default => '"',
-        };
-
         $parts = explode('.', $ident);
-        $parts = array_map(static function ($p) use ($quoteChar) {
-            $p = trim($p);
-            return preg_match('/^[A-Za-z0-9_]+$/', $p) ? $quoteChar . $p . $quoteChar : $p;
-        }, $parts);
-        return implode('.', $parts);
+        $quotedParts = [];
+        foreach ($parts as $part) {
+            $quotedParts[] = $this->dialect->quoteIdentifier(trim($part));
+        }
+
+        return implode('.', $quotedParts);
     }
 
     /**
@@ -331,21 +317,11 @@ class FileLoader
      */
     protected function quoteColumnName(string $col): string
     {
-        if ($this->dialect !== null) {
-            // Use dialect's quoteIdentifier method
-            return $this->dialect->quoteIdentifier($col);
+        if ($this->dialect === null) {
+            throw new InvalidArgumentException('Dialect is required to quote identifiers for file loading.');
         }
 
-        // Fallback: use PDO driver name (for backward compatibility)
-        $driver = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
-        $quoteChar = match ($driver) {
-            'mysql' => '`',
-            'pgsql' => '"',
-            'sqlite' => '"',
-            default => '"',
-        };
-
-        return preg_match('/^[A-Za-z0-9_]+$/', $col) ? $quoteChar . $col . $quoteChar : $col;
+        return $this->dialect->quoteIdentifier($col);
     }
 
     /**

@@ -180,17 +180,10 @@ trait ActiveRecord
         }
 
         try {
-            if ($db->connection->getDriverName() !== 'oci') {
-                return $name;
-            }
+            return $db->connection->getDialect()->resolveAttributeKeyForRead($name, $attributes);
         } catch (RuntimeException) {
             return $name;
         }
-        $matches = array_values(array_filter(array_keys($attributes), static fn (string $key): bool => strcasecmp($key, $name) === 0));
-        if (count($matches) > 1) {
-            throw new RuntimeException("Ambiguous Oracle attribute '{$name}'; use its exact case.");
-        }
-        return $matches[0] ?? $name;
     }
 
     /**

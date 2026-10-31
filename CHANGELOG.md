@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `DriverBranchingGuardTest` to forbid driver-name branching in shared code under `src/` (outside dialects).
+- Dialect catalog query traits for AI/MCP metadata, `PlanExplainAvailability`, `ConnectionInitHandler`, and CLI/bootstrap hooks on `DialectInterface` (env completeness, init wizard, PDO extension, agent capabilities).
 - Opt-in relation query diagnostics in profiler reports, with a possible N+1 warning and a runnable lazy-versus-eager loading example.
 - Bind ActiveRecord queries and models to an explicit `PdoDb` with `Model::on()` and propagate the context through relations.
 - Opt-in ActiveRecord optimistic locking using an integer version column; stale updates and deletes throw `OptimisticLockException`.
@@ -24,8 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pdodb outbox status`, `list`, and `retry` for queue inspection and requeueing failed messages; programmatic `Outbox::countByStatus()`, `listMessages()`, and `requeueFailed()` / `requeueAllFailed()`.
 - Outbox integration tests with multiple independent database connections per dialect (MySQL, MariaDB, PostgreSQL, SQL Server, Oracle) to assert each pending message is published exactly once.
 
+### Changed
+- Move database server tuning recommendations into `dialects/config/DatabaseConfigOptimizerEngine`; CLI `DatabaseConfigOptimizer` is a thin facade.
+- `DialectRegistry::normalizeDriverName()` accepts common aliases (`postgresql`, `mssql`, `oracle`, …).
+- `ErrorUtilityTrait` and exception detection strategies resolve retryable codes and descriptions through dialects only.
+
 ### Fixed
-- Apply related-model global scopes during lazy and eager relation loading and keep loaded models bound to their original connection.
+- Move MSSQL CASE/WHEN reserved-word quoting, nested transactions/savepoints, INSERT…SELECT expansion, MCP statement timeouts, ORM Oracle hooks, and AI metadata collection into dialect implementations so shared layers delegate instead of branching on driver names.
+- `QueryInspectionService` treats synthetic MSSQL plans as unavailable while `explainAdvice()` still receives estimated plan rows.
+- Align dialect retryable error codes and descriptions with `DbError` after centralizing error helpers on dialects.
+- Move MSSQL and Oracle plan-inspection limits into `DialectInterface::resolvePlanExplainAvailability()` so shared AI services no longer branch on driver names.
 - Resolve unambiguous Oracle column names for ActiveRecord attributes while preserving exact-case matches.
 - Apply ActiveRecord global scopes to query and model writes, preserve terminal method return values, and isolate model connections with an explicit shared default.
 - Nested `transaction()` callbacks use database-specific savepoints instead of committing the outer transaction.

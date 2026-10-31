@@ -8,7 +8,11 @@ use InvalidArgumentException;
 use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
+use tommyknocker\pdodb\dialects\catalog\MySqlCatalogQueriesTrait;
+use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
@@ -17,8 +21,9 @@ use tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class MySQLDialect extends DialectAbstract
+class MySQLDialect extends DialectAbstract implements CatalogQueriesInterface
 {
+    use MySqlCatalogQueriesTrait;
     /** @var MySQLFeatureSupport Feature support instance */
     private MySQLFeatureSupport $featureSupport;
 
@@ -1735,10 +1740,13 @@ class MySQLDialect extends DialectAbstract
     public function getRetryableErrorCodes(): array
     {
         return [
-            1205, // Lock wait timeout exceeded
-            1213, // Deadlock found when trying to get lock
-            2006, // MySQL server has gone away
-            2013, // Lost connection to MySQL server during query
+            2006,
+            2002,
+            2013,
+            1205,
+            1213,
+            1040,
+            1317,
         ];
     }
 
@@ -1966,5 +1974,30 @@ class MySQLDialect extends DialectAbstract
                 'now' => '',
             ],
         ];
+    }
+
+    public function catalogQueries(): CatalogQueriesInterface
+    {
+        return $this;
+    }
+
+    public function connectionInitHandler(): ConnectionInitHandler
+    {
+        return ConnectionInitHandler::MysqlTcp;
+    }
+
+    public function initWizardDefaultCharset(): ?string
+    {
+        return 'utf8mb4';
+    }
+
+    public function requiredPdoExtension(): string
+    {
+        return 'pdo_mysql';
+    }
+
+    protected function catalogDialect(): DialectInterface
+    {
+        return $this;
     }
 }

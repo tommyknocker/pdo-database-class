@@ -178,58 +178,15 @@ class SchemaInspector extends BaseCliCommand
      */
     protected static function getAllTables(PdoDb $db): array
     {
-        $driver = $db->connection->getDialect()->getDriverName();
+        $dialect = $db->connection->getDialect();
         $tables = [];
 
-        if ($driver === 'sqlite') {
-            $result = $db->rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
-            foreach ($result as $row) {
-                $tableName = $row['name'] ?? '';
-                if ($tableName !== '') {
-                    $columns = $db->describe($tableName);
-                    $tables[] = [
-                        'name' => $tableName,
-                        'columns' => count($columns),
-                    ];
-                }
-            }
-        } elseif (in_array($driver, ['mysql', 'mariadb'])) {
-            $dbName = $db->rawQueryValue('SELECT DATABASE()');
-            $result = $db->rawQuery("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME", [$dbName]);
-            foreach ($result as $row) {
-                $tableName = $row['TABLE_NAME'] ?? '';
-                if ($tableName !== '') {
-                    $columns = $db->describe($tableName);
-                    $tables[] = [
-                        'name' => $tableName,
-                        'columns' => count($columns),
-                    ];
-                }
-            }
-        } elseif ($driver === 'pgsql') {
-            $result = $db->rawQuery("SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename");
-            foreach ($result as $row) {
-                $tableName = $row['tablename'] ?? '';
-                if ($tableName !== '') {
-                    $columns = $db->describe($tableName);
-                    $tables[] = [
-                        'name' => $tableName,
-                        'columns' => count($columns),
-                    ];
-                }
-            }
-        } elseif ($driver === 'sqlsrv') {
-            $result = $db->rawQuery("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME");
-            foreach ($result as $row) {
-                $tableName = $row['TABLE_NAME'] ?? '';
-                if ($tableName !== '') {
-                    $columns = $db->describe($tableName);
-                    $tables[] = [
-                        'name' => $tableName,
-                        'columns' => count($columns),
-                    ];
-                }
-            }
+        foreach ($dialect->listTables($db) as $tableName) {
+            $columns = $db->describe($tableName);
+            $tables[] = [
+                'name' => $tableName,
+                'columns' => count($columns),
+            ];
         }
 
         return $tables;

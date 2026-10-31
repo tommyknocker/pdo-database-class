@@ -972,9 +972,11 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     public function explainAdvice(?string $tableName = null): ExplainAnalysis
     {
         $sqlData = $this->toSQL();
-        // Use dialect-specific executeExplain method
         $pdo = $this->connection->getPdo();
-        $explainResults = $this->dialect->executePlanExplain($pdo, $sqlData['sql'], $sqlData['params']);
+        $availability = $this->dialect->resolvePlanExplainAvailability($sqlData['params']);
+        $explainResults = $availability->collectPlan
+            ? $this->dialect->executePlanExplain($pdo, $sqlData['sql'], $sqlData['params'])
+            : [];
 
         $analyzer = new ExplainAnalyzer($this->dialect, $this->executionEngine);
         $targetTable = $tableName ?? $this->table;
@@ -1173,7 +1175,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         $sqlData = $this->toSQL();
 
         try {
-            // QueryInspectionService refuses synthetic MSSQL plans and Oracle interpolation.
+            // Plan availability is resolved by the dialect (no synthetic MSSQL / unsafe Oracle binds).
             // Do not override each JOIN node with the primary table when generating advice.
             $inspection = (new QueryInspectionService($db))->inspect($sqlData['sql'], $sqlData['params']);
         } catch (\Throwable) {
@@ -1200,7 +1202,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
     protected function getDatabaseInstance(): PdoDb
     {
         // Create a minimal PdoDb instance that uses the existing connection
-        $driver = $this->connection->getDriverName();
+        $driver = $this->connection->getDialect()->getDriverName();
         $pdo = $this->connection->getPdo();
         $dialect = $this->connection->getDialect();
 
@@ -1291,7 +1293,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface
         if (empty($this->unions) && ($this->cteManager === null || $this->cteManager->isEmpty())
             && $this->compilationCache !== null && $this->compilationCache->isEnabled()) {
             $structure = $this->getQueryStructure();
-            $driver = $this->connection->getDriverName();
+            $driver = $this->connection->getDialect()->getDriverName();
 
             return $this->compilationCache->getOrCompile(
                 fn (): string => $this->compileSelectSql(),

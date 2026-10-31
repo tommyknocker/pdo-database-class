@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\dialects;
 use PDO;
 use PDOStatement;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
@@ -14,6 +15,7 @@ use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
+use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
@@ -932,6 +934,157 @@ interface DialectInterface
      * @throws \PDOException
      */
     public function executePlanExplain(PDO $pdo, string $sql, array $params = []): array;
+
+    /**
+     * Whether estimated plan collection is supported for the given bound parameters.
+     *
+     * Used by query inspection and AI advice without driver checks in shared services.
+     *
+     * @param array<int|string, string|int|float|bool|null> $params
+     */
+    public function resolvePlanExplainAvailability(array $params = []): PlanExplainAvailability;
+
+    /**
+     * Build the explain_plan section for AI query context.
+     *
+     * @param array<string, mixed> $settings AI context collection settings
+     *
+     * @return array<string, mixed>
+     */
+    public function buildAiExplainPlanSection(?ExplainAnalysis $analysis, array $settings): array;
+
+    /**
+     * Whether nested transactions (savepoints) are supported.
+     */
+    public function supportsNestedTransactions(): bool;
+
+    public function buildCreateSavepointSql(string $name): string;
+
+    public function buildRollbackToSavepointSql(string $name): string;
+
+    public function buildReleaseSavepointSql(string $name): string;
+
+    public function releasesSavepointOnNestedCommit(): bool;
+
+    public function releasesSavepointOnNestedRollback(): bool;
+
+    /**
+     * Resolve INSERT ... SELECT source SQL for dialect-specific column expansion (e.g. MSSQL SELECT *).
+     *
+     * @param array<int, string> $columns Target insert columns
+     */
+    public function resolveInsertSelectSourceSql(
+        string $sourceSql,
+        array $columns,
+        ExecutionEngineInterface $executionEngine,
+    ): string;
+
+    /**
+     * Resolve attribute key for ORM reads (e.g. case-insensitive Oracle column names).
+     *
+     * @param array<string, mixed> $attributes
+     */
+    public function resolveAttributeKeyForRead(string $name, array $attributes): string;
+
+    /**
+     * Whether DateTimeImmutable cast validation must run for this connection.
+     */
+    public function requiresDateTimeImmutableCastValidation(): bool;
+
+    /**
+     * Validate connection settings required for DateTimeImmutable casts.
+     */
+    public function validateDateTimeImmutableCastConnection(PdoDb $db): void;
+
+    /**
+     * Dialect-specific catalog introspection queries for AI/MCP metadata.
+     */
+    public function catalogQueries(): CatalogQueriesInterface;
+
+    public function supportsMcpStatementTimeout(): bool;
+
+    /**
+     * Read the session statement timeout; return value is driver-specific (ms for PostgreSQL, seconds for MariaDB).
+     */
+    public function readMcpStatementTimeout(PdoDb $db): string;
+
+    /**
+     * Apply a statement timeout for the current session (milliseconds configured at MCP layer).
+     */
+    public function setMcpStatementTimeout(PdoDb $db, int $milliseconds): void;
+
+    /**
+     * Restore a previously read session statement timeout value.
+     */
+    public function restoreMcpStatementTimeout(PdoDb $db, string $previousValue): void;
+
+    /**
+     * Whether {@see readMcpStatementTimeout()} values are stored in milliseconds (PostgreSQL) or seconds (MariaDB).
+     */
+    public function mcpStatementTimeoutStoredInMilliseconds(): bool;
+
+    /**
+     * Required PDODB_* env var keys besides PDODB_DRIVER (empty for SQLite file-only configs).
+     *
+     * @return list<string>
+     */
+    public function requiredEnvVarKeys(): array;
+
+    /**
+     * Init wizard / env bootstrap profile.
+     */
+    public function connectionInitHandler(): ConnectionInitHandler;
+
+    /**
+     * Basename for examples/config.{name}.php (oci → oracle).
+     */
+    public function examplesConfigBasename(): string;
+
+    /**
+     * Whether PDODB_* env vars are sufficient to build a connection config.
+     *
+     * @param array<string, string> $envVars
+     */
+    public function canBuildConfigFromEnv(array $envVars): bool;
+
+    /**
+     * File-based connection (SQLite) vs network credentials.
+     */
+    public function isFileBasedConnection(): bool;
+
+    /**
+     * Default TCP port for init wizard prompts.
+     */
+    public function defaultTcpPort(): int;
+
+    /**
+     * Copy wizard "database" into "dbname" for DSN building.
+     */
+    public function mapsDatabaseToDbnameInInit(): bool;
+
+    /**
+     * Extra connection keys for init wizard (e.g. sqlsrv encrypt flags).
+     *
+     * @return array<string, mixed>
+     */
+    public function initWizardConnectionExtras(): array;
+
+    /**
+     * Default charset prompt value, or null when charset is not collected.
+     */
+    public function initWizardDefaultCharset(): ?string;
+
+    /**
+     * Required PHP extension name (pdo_mysql, pdo_pgsql, …).
+     */
+    public function requiredPdoExtension(): string;
+
+    /**
+     * Capabilities for {@see \tommyknocker\pdodb\ai\AgentContextService} (excluding plan explain flags).
+     *
+     * @return array<string, bool>
+     */
+    public function agentDevelopmentContextCapabilities(): array;
 
     /**
      * Execute EXPLAIN ANALYZE query with dialect-specific logic.

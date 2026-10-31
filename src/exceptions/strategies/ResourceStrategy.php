@@ -16,11 +16,7 @@ class ResourceStrategy extends AbstractErrorDetectionStrategy
 {
     public function __construct()
     {
-        $this->errorCodes = array_merge(
-            ErrorCodeRegistry::getErrorCodes('mysql', 'resource'),
-            ErrorCodeRegistry::getErrorCodes('pgsql', 'resource'),
-            ErrorCodeRegistry::getErrorCodes('sqlite', 'resource')
-        );
+        $this->errorCodes = ErrorCodeRegistry::getMergedErrorCodes('resource');
 
         $this->messagePatterns = [
             'too many connections',

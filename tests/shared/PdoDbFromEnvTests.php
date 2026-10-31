@@ -278,7 +278,7 @@ class PdoDbFromEnvTests extends TestCase
 
         try {
             $this->expectException(InvalidArgumentException::class);
-            $this->expectExceptionMessage('PDODB_DATABASE and PDODB_USERNAME must be set');
+            $this->expectExceptionMessage('PDODB_DATABASE must be set in .env file for driver: mysql');
 
             PdoDb::fromEnv($envFile);
         } finally {

@@ -80,23 +80,10 @@ abstract class BaseCliCommand
         // Try examples config first (for testing/examples) - this takes precedence
         // because examples need to use the same config file that createExampleDb() uses
         // But skip if PDODB_* environment variables are explicitly set (CI or user override)
-        $hasEnvConfig = false;
-        if ($driver === 'sqlite') {
-            $hasEnvConfig = getenv('PDODB_PATH') !== false;
-        } elseif ($driver === 'mysql' || $driver === 'mariadb') {
-            $hasEnvConfig = getenv('PDODB_DATABASE') !== false && getenv('PDODB_USERNAME') !== false;
-        } elseif ($driver === 'pgsql') {
-            $hasEnvConfig = getenv('PDODB_DATABASE') !== false && getenv('PDODB_USERNAME') !== false;
-        } elseif ($driver === 'sqlsrv') {
-            $hasEnvConfig = getenv('PDODB_DATABASE') !== false && getenv('PDODB_USERNAME') !== false;
-        } elseif ($driver === 'oci') {
-            $hasEnvConfig = getenv('PDODB_SERVICE_NAME') !== false && getenv('PDODB_USERNAME') !== false;
-        }
+        $hasEnvConfig = static::envConfigurationComplete($driver);
 
         if ($driver !== '' && !$hasEnvConfig) {
-            // Map driver names to config file names (oci -> oracle)
-            $configFileMap = ['oci' => 'oracle'];
-            $configFileName = $configFileMap[$driver] ?? $driver;
+            $configFileName = DialectRegistry::resolve($driver)->examplesConfigBasename();
             $configFile = __DIR__ . "/../../examples/config.{$configFileName}.php";
             if (file_exists($configFile)) {
                 return require $configFile;
@@ -202,17 +189,25 @@ abstract class BaseCliCommand
                 return $chosen;
             }
 
-            // 5) Backward-compatibility: if 'sqlite' key exists and no driver provided
-            if (is_array($config) && isset($config['sqlite'])) {
-                try {
-                    ExtensionChecker::validate('sqlite');
-                } catch (\InvalidArgumentException $e) {
-                    static::error($e->getMessage());
+            // 5) Backward-compatibility: legacy per-driver keys when PDODB_DRIVER is unset
+            if ($driver === '' && is_array($config)) {
+                foreach (DialectRegistry::getSupportedDrivers() as $legacyDriver) {
+                    if (!isset($config[$legacyDriver]) || !is_array($config[$legacyDriver])) {
+                        continue;
+                    }
+                    try {
+                        ExtensionChecker::validate($legacyDriver);
+                    } catch (\InvalidArgumentException $e) {
+                        static::error($e->getMessage());
+                    }
+                    static::warning(
+                        'Using ' . $legacyDriver . ' configuration from config/db.php. '
+                        . 'Consider setting PDODB_DRIVER environment variable or using direct driver configuration.'
+                    );
+                    /** @var array<string, mixed> $legacyCfg */
+                    $legacyCfg = $config[$legacyDriver];
+                    return $legacyCfg;
                 }
-                static::warning('Using SQLite configuration from config/db.php. Consider setting PDODB_DRIVER environment variable or using direct driver configuration.');
-                /** @var array<string, mixed> $sqliteCfg */
-                $sqliteCfg = $config['sqlite'];
-                return $sqliteCfg;
             }
         }
 
@@ -247,6 +242,36 @@ abstract class BaseCliCommand
     }
 
     /**
+     * @return array<string, string>
+     */
+    protected static function collectPdodbEnvVars(): array
+    {
+        $envVars = [];
+        $envVarNames = ['PDODB_HOST', 'PDODB_PORT', 'PDODB_DATABASE', 'PDODB_USERNAME', 'PDODB_PASSWORD', 'PDODB_CHARSET', 'PDODB_PATH', 'PDODB_PREFIX', 'PDODB_DRIVER', 'PDODB_SERVICE_NAME', 'PDODB_SID'];
+        foreach ($envVarNames as $envVar) {
+            $envValue = getenv($envVar);
+            if ($envValue !== false) {
+                $envVars[$envVar] = $envValue;
+            }
+        }
+
+        return $envVars;
+    }
+
+    protected static function envConfigurationComplete(string $driver): bool
+    {
+        if ($driver === '') {
+            return false;
+        }
+
+        try {
+            return DialectRegistry::resolve($driver)->canBuildConfigFromEnv(static::collectPdodbEnvVars());
+        } catch (\InvalidArgumentException) {
+            return false;
+        }
+    }
+
+    /**
      * Build configuration from environment variables.
      *
      * @param string $driver Database driver
@@ -262,28 +287,10 @@ abstract class BaseCliCommand
 
         try {
             $dialect = DialectRegistry::resolve($driver);
-            $envVars = [];
-            // Always use getenv() to ensure we get variables set via putenv()
-            // $_ENV may not be updated when putenv() is called
-            $envVarNames = ['PDODB_HOST', 'PDODB_PORT', 'PDODB_DATABASE', 'PDODB_USERNAME', 'PDODB_PASSWORD', 'PDODB_CHARSET', 'PDODB_PATH', 'PDODB_PREFIX', 'PDODB_DRIVER', 'PDODB_SERVICE_NAME', 'PDODB_SID'];
-            foreach ($envVarNames as $envVar) {
-                $envValue = getenv($envVar);
-                if ($envValue !== false) {
-                    $envVars[$envVar] = $envValue;
-                }
-            }
+            $envVars = static::collectPdodbEnvVars();
 
-            // Check required variables
-            if ($driver === 'oci') {
-                // Oracle requires username and either SERVICE_NAME or SID
-                if (!isset($envVars['PDODB_USERNAME']) || (!isset($envVars['PDODB_SERVICE_NAME']) && !isset($envVars['PDODB_SID']))) {
-                    return null;
-                }
-            } elseif (!isset($envVars['PDODB_DATABASE']) || !isset($envVars['PDODB_USERNAME'])) {
-                // SQLite doesn't require username/database
-                if ($driver !== 'sqlite') {
-                    return null;
-                }
+            if (!$dialect->canBuildConfigFromEnv($envVars)) {
+                return null;
             }
 
             $config = $dialect->buildConfigFromEnv($envVars);

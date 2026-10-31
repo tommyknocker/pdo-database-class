@@ -42,21 +42,19 @@ final class TransactionTests extends BaseMSSQLTestCase
 
     public function testNestedTransactions(): void
     {
-        // MSSQL doesn't support SAVEPOINT, so attempting to create a savepoint should throw an exception
         $db = self::$db;
 
         $db->startTransaction();
+        $db->find()->table('users')->insert(['name' => 'NestedOuter', 'age' => 50]);
+        $db->savepoint('sp1');
+        $db->find()->table('users')->insert(['name' => 'NestedInner', 'age' => 51]);
+        $db->rollbackToSavepoint('sp1');
+        $db->commit();
 
-        try {
-            // Attempt to create a savepoint - should fail in MSSQL
-            $this->expectException(\PDOException::class);
-            $db->savepoint('sp1');
-        } finally {
-            // Cleanup - rollback the transaction
-            if ($db->inTransaction()) {
-                $db->rollback();
-            }
-        }
+        $outer = $db->find()->from('users')->where('name', 'NestedOuter')->select([Db::count()])->getValue();
+        $inner = $db->find()->from('users')->where('name', 'NestedInner')->select([Db::count()])->getValue();
+        $this->assertEquals(1, $outer);
+        $this->assertEquals(0, $inner);
     }
 
     public function testTransactionRollbackOnError(): void

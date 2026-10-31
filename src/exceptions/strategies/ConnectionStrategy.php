@@ -16,11 +16,7 @@ class ConnectionStrategy extends AbstractErrorDetectionStrategy
 {
     public function __construct()
     {
-        $this->errorCodes = array_merge(
-            ErrorCodeRegistry::getErrorCodes('mysql', 'connection'),
-            ErrorCodeRegistry::getErrorCodes('pgsql', 'connection'),
-            ErrorCodeRegistry::getErrorCodes('sqlite', 'connection')
-        );
+        $this->errorCodes = ErrorCodeRegistry::getMergedErrorCodes('connection');
 
         $this->messagePatterns = [
             'connection',

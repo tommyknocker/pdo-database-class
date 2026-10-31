@@ -7,7 +7,12 @@ namespace tommyknocker\pdodb\dialects\sqlite;
 use InvalidArgumentException;
 use PDO;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\ai\SqlContextTokenizer;
+use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
+use tommyknocker\pdodb\dialects\catalog\SqliteCatalogQueriesTrait;
+use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
@@ -19,8 +24,9 @@ use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\QueryConstants;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class SqliteDialect extends DialectAbstract
+class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
 {
+    use SqliteCatalogQueriesTrait;
     /** @var SqliteFeatureSupport Feature support instance */
     private SqliteFeatureSupport $featureSupport;
 
@@ -1473,8 +1479,24 @@ class SqliteDialect extends DialectAbstract
     public function getRetryableErrorCodes(): array
     {
         return [
-            'SQLITE_BUSY', // Database is locked
-            'SQLITE_LOCKED', // A table in the database is locked
+            5,
+            6,
+            9,
+            10,
+            11,
+            13,
+            14,
+            15,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
         ];
     }
 
@@ -1483,36 +1505,41 @@ class SqliteDialect extends DialectAbstract
      */
     public function getErrorDescription(int|string $errorCode): string
     {
+        $code = is_int($errorCode) ? $errorCode : (int) $errorCode;
         $descriptions = [
-            'SQLITE_ERROR' => 'SQL error or missing database',
-            'SQLITE_INTERNAL' => 'Internal SQLite error',
-            'SQLITE_PERM' => 'Access permission denied',
-            'SQLITE_ABORT' => 'Callback requested abort',
-            'SQLITE_BUSY' => 'Database is locked',
-            'SQLITE_LOCKED' => 'A table in the database is locked',
-            'SQLITE_NOMEM' => 'Out of memory',
-            'SQLITE_READONLY' => 'Attempt to write a readonly database',
-            'SQLITE_INTERRUPT' => 'Operation terminated',
-            'SQLITE_IOERR' => 'Disk I/O error',
-            'SQLITE_CORRUPT' => 'Database disk image is malformed',
-            'SQLITE_NOTFOUND' => 'Table or record not found',
-            'SQLITE_FULL' => 'Insertion failed because database is full',
-            'SQLITE_CANTOPEN' => 'Unable to open the database file',
-            'SQLITE_PROTOCOL' => 'Database lock protocol error',
-            'SQLITE_EMPTY' => 'Database is empty',
-            'SQLITE_SCHEMA' => 'Database schema changed',
-            'SQLITE_TOOBIG' => 'String or BLOB exceeds size limit',
-            'SQLITE_CONSTRAINT' => 'Abort due to constraint violation',
-            'SQLITE_MISMATCH' => 'Data type mismatch',
-            'SQLITE_MISUSE' => 'Library used incorrectly',
-            'SQLITE_NOLFS' => 'Uses OS features not supported on host',
-            'SQLITE_AUTH' => 'Authorization denied',
-            'SQLITE_FORMAT' => 'Auxiliary database format error',
-            'SQLITE_RANGE' => 'Parameter index out of range',
-            'SQLITE_NOTADB' => 'File opened is not a database',
+            1 => 'SQL error or missing database',
+            2 => 'Internal logic error in SQLite',
+            3 => 'Access permission denied',
+            4 => 'Callback routine requested an abort',
+            5 => 'Database file is locked',
+            6 => 'Database table is locked',
+            7 => 'Out of memory',
+            8 => 'Attempt to write a readonly database',
+            9 => 'Operation terminated by sqlite3_interrupt()',
+            10 => 'I/O error',
+            11 => 'Database disk image is malformed',
+            12 => 'Not found',
+            13 => 'Database or disk is full',
+            14 => 'Unable to open the database file',
+            15 => 'Database lock protocol error',
+            16 => 'Database is empty',
+            17 => 'Database schema has changed',
+            18 => 'String or BLOB exceeds size limit',
+            19 => 'Abort due to constraint violation',
+            20 => 'Data type mismatch',
+            21 => 'Library used incorrectly',
+            22 => 'Uses OS features not supported on host',
+            23 => 'Authorization denied',
+            24 => 'Auxiliary database format error',
+            25 => '2nd parameter to sqlite3_bind out of range',
+            26 => 'File opened that is not a database file',
+            27 => 'Notifications from sqlite3_log()',
+            28 => 'Warnings from sqlite3_log()',
+            100 => 'sqlite3_step() has another row ready',
+            101 => 'sqlite3_step() has finished executing',
         ];
 
-        return $descriptions[$errorCode] ?? 'Unknown error';
+        return $descriptions[$code] ?? 'Unknown error';
     }
 
     /* ---------------- Configuration ---------------- */
@@ -1701,6 +1728,63 @@ class SqliteDialect extends DialectAbstract
                   AND locked_until IS NOT NULL
                   AND replace(replace(locked_until, 'T', ' '), 'Z', '') < datetime('now')",
             [],
+        ];
+    }
+
+    public function catalogQueries(): CatalogQueriesInterface
+    {
+        return $this;
+    }
+
+    protected function catalogDialect(): DialectInterface
+    {
+        return $this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function requiredEnvVarKeys(): array
+    {
+        return ['PDODB_PATH'];
+    }
+
+    public function connectionInitHandler(): ConnectionInitHandler
+    {
+        return ConnectionInitHandler::SqliteFile;
+    }
+
+    public function isFileBasedConnection(): bool
+    {
+        return true;
+    }
+
+    public function requiredPdoExtension(): string
+    {
+        return 'pdo_sqlite';
+    }
+
+    protected function includesEstimatedRowCountInAiPlanFacts(): bool
+    {
+        return false;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @param array<string, mixed> $settings
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function formatAiExplainPlanNode(array $row, array $settings): ?array
+    {
+        if (!isset($row['detail'])) {
+            return null;
+        }
+
+        return [
+            'detail' => $settings['privacy'] === 'raw'
+                ? $row['detail']
+                : SqlContextTokenizer::redact((string)$row['detail']),
         ];
     }
 }

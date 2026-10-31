@@ -16,11 +16,7 @@ class TransactionStrategy extends AbstractErrorDetectionStrategy
 {
     public function __construct()
     {
-        $this->errorCodes = array_merge(
-            ErrorCodeRegistry::getErrorCodes('mysql', 'transaction'),
-            ErrorCodeRegistry::getErrorCodes('pgsql', 'transaction'),
-            ErrorCodeRegistry::getErrorCodes('sqlite', 'transaction')
-        );
+        $this->errorCodes = ErrorCodeRegistry::getMergedErrorCodes('transaction');
 
         $this->messagePatterns = [
             'deadlock',

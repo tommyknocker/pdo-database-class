@@ -11,7 +11,11 @@ use PDOException;
 use PDOStatement;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
+use tommyknocker\pdodb\dialects\catalog\PgsqlCatalogQueriesTrait;
+use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
@@ -20,8 +24,9 @@ use tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class PostgreSQLDialect extends DialectAbstract
+class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterface
 {
+    use PgsqlCatalogQueriesTrait;
     /** @var PostgreSQLFeatureSupport Feature support instance */
     private PostgreSQLFeatureSupport $featureSupport;
 
@@ -2349,9 +2354,13 @@ class PostgreSQLDialect extends DialectAbstract
     public function getRetryableErrorCodes(): array
     {
         return [
-            '40001', // Serialization failure
-            '40P01', // Deadlock detected
-            '55P03', // Lock not available
+            '08006',
+            '08003',
+            '08001',
+            '40P01',
+            '55P03',
+            '53300',
+            '57014',
         ];
     }
 
@@ -2361,19 +2370,36 @@ class PostgreSQLDialect extends DialectAbstract
     public function getErrorDescription(int|string $errorCode): string
     {
         $descriptions = [
+            '08000' => 'Connection exception',
+            '08001' => 'SQL server connection failure',
+            '08003' => 'Connection does not exist',
+            '08006' => 'Connection failure',
+            '08007' => 'Transaction resolution unknown',
+            '28P01' => 'Authentication failed',
+            '28P02' => 'Invalid password',
+            '28P03' => 'Invalid authorization specification',
             '28000' => 'Invalid authorization specification',
-            '28P01' => 'Invalid password',
-            '3D000' => 'Invalid catalog name',
+            '3D000' => 'Database does not exist',
             '42P01' => 'Undefined table',
             '42703' => 'Undefined column',
-            '23505' => 'Unique violation',
+            '42601' => 'Syntax error',
+            '42501' => 'Insufficient privilege',
+            '23505' => 'Unique constraint violation',
             '23503' => 'Foreign key violation',
+            '23502' => 'Not null violation',
+            '23514' => 'Check constraint violation',
+            '23506' => 'Exclusion violation',
+            '25P02' => 'Transaction is aborted',
+            '25P03' => 'Transaction is not in progress',
             '40001' => 'Serialization failure',
             '40P01' => 'Deadlock detected',
             '55P03' => 'Lock not available',
+            '53300' => 'Too many connections',
+            '53400' => 'Configuration file error',
+            '57014' => 'Query canceled',
         ];
 
-        return $descriptions[$errorCode] ?? 'Unknown error';
+        return $descriptions[(string) $errorCode] ?? 'Unknown error';
     }
 
     /* ---------------- Configuration ---------------- */
@@ -2618,5 +2644,94 @@ class PostgreSQLDialect extends DialectAbstract
                 'lock_seconds' => 0,
             ],
         ];
+    }
+
+    public function catalogQueries(): CatalogQueriesInterface
+    {
+        return $this;
+    }
+
+    public function connectionInitHandler(): ConnectionInitHandler
+    {
+        return ConnectionInitHandler::PgsqlTcp;
+    }
+
+    public function defaultTcpPort(): int
+    {
+        return 5432;
+    }
+
+    public function requiredPdoExtension(): string
+    {
+        return 'pdo_pgsql';
+    }
+
+    protected function catalogDialect(): DialectInterface
+    {
+        return $this;
+    }
+
+    public function supportsMcpStatementTimeout(): bool
+    {
+        return true;
+    }
+
+    public function readMcpStatementTimeout(PdoDb $db): string
+    {
+        $read = $db->connection->getPdo()->query("SELECT setting FROM pg_settings WHERE name = 'statement_timeout'");
+        if ($read === false) {
+            throw new RuntimeException('Unable to read the current statement timeout');
+        }
+        $previous = $read->fetchColumn();
+        $read->closeCursor();
+        if (!is_scalar($previous) || is_bool($previous)) {
+            throw new RuntimeException('Unable to read the current statement timeout');
+        }
+
+        return (string)$previous;
+    }
+
+    public function setMcpStatementTimeout(PdoDb $db, int $milliseconds): void
+    {
+        $statement = $db->connection->getPdo()->prepare("SELECT set_config('statement_timeout', ?, false)");
+        $statement->execute([(string)$milliseconds]);
+        $statement->closeCursor();
+    }
+
+    public function restoreMcpStatementTimeout(PdoDb $db, string $previousValue): void
+    {
+        $statement = $db->connection->getPdo()->prepare("SELECT set_config('statement_timeout', ?, false)");
+        $statement->execute([$previousValue]);
+        $statement->closeCursor();
+    }
+
+    public function mcpStatementTimeoutStoredInMilliseconds(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @param array<string, mixed> $settings
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function formatAiExplainPlanNode(array $row, array $settings): ?array
+    {
+        $text = (string)($row['QUERY PLAN'] ?? '');
+        if (!str_contains($text, 'cost=')) {
+            return null;
+        }
+        $node = ['operation' => trim(preg_replace('/\s+\(cost=.*$/', '', $text) ?? '')];
+        if (preg_match('/cost=([\d.]+)\.\.([\d.]+) rows=(\d+) width=(\d+)/', $text, $numbers)) {
+            $node += [
+                'startup_cost' => (float)$numbers[1],
+                'total_cost' => (float)$numbers[2],
+                'estimated_rows' => (int)$numbers[3],
+                'width' => (int)$numbers[4],
+            ];
+        }
+
+        return $node;
     }
 }

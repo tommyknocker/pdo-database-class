@@ -23,7 +23,8 @@ final class QueryContextBuilder
     public function build(string $sql, ?string $table, ?ExplainAnalysis $analysis, array $options = [], array $params = []): array
     {
         $settings = (new AiQueryOptions($options))->context;
-        $driver = $this->db->connection->getDialect()->getDriverName();
+        $dialect = $this->db->connection->getDialect();
+        $planAvailability = $dialect->resolvePlanExplainAvailability($params);
         $warnings = [];
 
         try {
@@ -32,17 +33,25 @@ final class QueryContextBuilder
             $version = null;
             $warnings[] = 'Database version unavailable';
         }
-        $context = ['sql' => $settings['privacy'] === 'raw' ? $sql : SqlContextTokenizer::redact($sql, $this->doubleQuotesAreLiterals($sql)), 'dialect' => $driver,
-            'database' => ['version' => $version, 'plan_kind' => 'estimated', 'actual_execution_measured' => false,
-                'capabilities' => ['real_plan' => $driver !== 'sqlsrv', 'bound_explain' => !in_array($driver, ['sqlsrv', 'oci'], true)]],
+        $context = [
+            'sql' => $settings['privacy'] === 'raw' ? $sql : SqlContextTokenizer::redact($sql, $this->doubleQuotesAreLiterals($sql)),
+            'dialect' => $dialect->getDriverName(),
+            'database' => [
+                'version' => $version,
+                'plan_kind' => 'estimated',
+                'actual_execution_measured' => false,
+                'capabilities' => $planAvailability->contextCapabilities(),
+            ],
             'privacy' => ['mode' => $settings['privacy'], 'parameter_values_included' => false, 'raw_plan_included' => $settings['include_raw_plan'],
                 'note' => 'Identifiers may stay visible when double quotes delimit names. On SQLite and on MySQL/MariaDB without ANSI_QUOTES, double-quoted text is removed in redacted mode. Redaction is lexical, not guaranteed anonymization. Raw plans/defaults may contain values.'],
             'output_format' => !empty($options['structured']) ? 'structured' : 'text',
             'parameter_types' => array_map(static fn ($value) => get_debug_type($value), $params),
             'task' => ['goal' => $settings['goal'], 'constraints' => $settings['constraints'], 'language' => $settings['language']],
-            'schema' => ['tables' => []], 'explain_plan' => $this->plan($analysis, $driver, $settings),
+            'schema' => ['tables' => []],
+            'explain_plan' => $dialect->buildAiExplainPlanSection($analysis, $settings),
             'collection' => ['discovery' => $settings['tables'] === null ? 'best_effort_from_join' : 'explicit_physical_tables', 'complete' => true,
-                'warnings' => [], 'catalog_queries' => 0, 'limits' => array_intersect_key($settings, array_flip(['max_tables', 'max_columns', 'max_indexes', 'max_plan_rows', 'max_bytes', 'max_collection_ms', 'max_catalog_queries']))]];
+                'warnings' => [], 'catalog_queries' => 0, 'limits' => array_intersect_key($settings, array_flip(['max_tables', 'max_columns', 'max_indexes', 'max_plan_rows', 'max_bytes', 'max_collection_ms', 'max_catalog_queries']))],
+        ];
         $references = $settings['tables'] ?? SqlContextTokenizer::tables($sql);
         if ($settings['tables'] === null && $table !== null && $references === []) {
             $name = SqlContextTokenizer::table($table);
@@ -76,57 +85,6 @@ final class QueryContextBuilder
         $context['collection']['warnings'] = $warnings;
         $context['collection']['complete'] = $warnings === [];
         return $this->limit($context, $settings['max_bytes']);
-    }
-
-    /** @param array<string, mixed> $settings
-     * @return array<string, mixed>
-     */
-    private function plan(?ExplainAnalysis $analysis, string $driver, array $settings): array
-    {
-        $available = $analysis !== null && $analysis->rawExplain !== [] && $driver !== 'sqlsrv';
-        if (!$available) {
-            return ['source' => 'unavailable', 'kind' => 'estimated', 'facts' => [], 'warnings' => ['No real execution plan is available. Do not infer scan types, cost or latency.']];
-        }
-        $plan = $analysis->plan;
-        $hasRows = false;
-        $hasFiltered = false;
-        foreach ($analysis->rawExplain as $row) {
-            $hasRows = $hasRows || (isset($row['rows']) && is_numeric($row['rows'])) || (isset($row['QUERY PLAN']) && preg_match('/rows=\d+/', (string)$row['QUERY PLAN']) === 1);
-            $hasFiltered = $hasFiltered || (isset($row['filtered']) && is_numeric($row['filtered']));
-        }
-        $facts = ['table_scans' => $plan->tableScans, 'used_index' => $plan->usedIndex, 'used_columns' => $plan->usedColumns,
-            'access_type' => $plan->accessType, 'estimated_rows' => $driver !== 'sqlite' && ($hasRows || $plan->estimatedRows > 0) ? $plan->estimatedRows : null,
-            'possible_keys' => $plan->possibleKeys, 'filtered_percent' => $hasFiltered ? $plan->filtered : null,
-            'join_types' => $plan->joinTypes, 'estimated_cost' => $plan->totalCost, 'execution_time_ms' => null,
-            'index_cardinality' => $plan->indexCardinality];
-        $nodes = [];
-        foreach (array_slice($analysis->rawExplain, 0, $settings['max_plan_rows']) as $row) {
-            if ($driver === 'sqlite' && isset($row['detail'])) {
-                // EQP detail includes identifiers and index terms, not bound parameter values.
-                $nodes[] = ['detail' => $settings['privacy'] === 'raw' ? $row['detail'] : SqlContextTokenizer::redact((string)$row['detail'])];
-            } elseif (in_array($driver, ['mysql', 'mariadb'], true)) {
-                $nodes[] = array_intersect_key($row, array_flip(['id', 'select_type', 'table', 'type', 'possible_keys', 'key', 'key_len', 'ref', 'rows', 'filtered', 'Extra']));
-            } elseif ($driver === 'pgsql') {
-                $text = (string)($row['QUERY PLAN'] ?? '');
-                // Only structural plan lines; predicates can embed bound values.
-                if (str_contains($text, 'cost=')) {
-                    $node = ['operation' => trim(preg_replace('/\s+\(cost=.*$/', '', $text) ?? '')];
-                    if (preg_match('/cost=([\d.]+)\.\.([\d.]+) rows=(\d+) width=(\d+)/', $text, $numbers)) {
-                        $node += ['startup_cost' => (float)$numbers[1], 'total_cost' => (float)$numbers[2], 'estimated_rows' => (int)$numbers[3], 'width' => (int)$numbers[4]];
-                    }
-                    $nodes[] = $node;
-                }
-            }
-        }
-        $formatted = ['source' => 'database', 'kind' => 'estimated', 'facts' => $facts, 'nodes' => $nodes,
-            'parser_warnings' => $plan->warnings, 'heuristics' => ['source' => 'library_rules_not_database_facts',
-                'issues' => array_map(static fn ($issue) => get_object_vars($issue), $analysis->issues),
-                'recommendations' => array_map(static fn ($rec) => get_object_vars($rec), $analysis->recommendations)],
-            'truncated' => count($analysis->rawExplain) > $settings['max_plan_rows']];
-        if ($settings['include_raw_plan']) {
-            $formatted['raw_explain'] = array_slice($analysis->rawExplain, 0, $settings['max_plan_rows']);
-        }
-        return $formatted;
     }
 
     /** @param array<string, mixed> $context

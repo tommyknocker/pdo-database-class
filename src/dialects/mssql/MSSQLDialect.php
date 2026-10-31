@@ -8,7 +8,12 @@ use InvalidArgumentException;
 use PDO;
 use PDOException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
+use tommyknocker\pdodb\dialects\catalog\MssqlCatalogQueriesTrait;
+use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\PlanExplainAvailability;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -19,8 +24,9 @@ use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class MSSQLDialect extends DialectAbstract
+class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
 {
+    use MssqlCatalogQueriesTrait;
     /** @var MSSQLFeatureSupport Feature support instance */
     private MSSQLFeatureSupport $featureSupport;
 
@@ -774,6 +780,13 @@ class MSSQLDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function resolvePlanExplainAvailability(array $params = []): PlanExplainAvailability
+    {
+        return PlanExplainAvailability::available([
+            'MSSQL returns a synthetic plan row from this adapter, not SHOWPLAN_ALL or STATISTICS XML output.',
+        ], false, false);
+    }
+
     public function executeExplain(PDO $pdo, string $sql, array $params = []): array
     {
         // MSSQL SET SHOWPLAN_ALL ON doesn't work well with PDO prepared statements
@@ -2136,6 +2149,86 @@ class MSSQLDialect extends DialectAbstract
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function resolveInsertSelectSourceSql(
+        string $sourceSql,
+        array $columns,
+        ExecutionEngineInterface $executionEngine,
+    ): string {
+        if ($columns === [] || !preg_match(
+            '/SELECT\s+(?:TOP\s*\([^)]+\)\s+)?\*\s+FROM\s+(\[[^\]]+\]|[^\s\[\]]+)/i',
+            $sourceSql,
+            $matches
+        )) {
+            return $sourceSql;
+        }
+
+        $sourceTableRaw = $matches[1];
+        $sourceTable = trim($sourceTableRaw, '[]`"\'');
+
+        try {
+            $sourceDescribeSql = $this->buildDescribeSql($sourceTable);
+            $sourceColumns = $executionEngine->fetchAll($sourceDescribeSql);
+            $sourceIdentityColumns = [];
+            foreach ($sourceColumns as $col) {
+                $isIdentity = $col['is_identity'] ?? $col['IDENTITY'] ?? false;
+                if ($isIdentity === true || $isIdentity === 1 || $isIdentity === '1') {
+                    $sourceIdentityColumns[] = $col['COLUMN_NAME'] ?? $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? '';
+                }
+            }
+            $sourceColumnNames = [];
+            foreach ($sourceColumns as $col) {
+                $colName = $col['COLUMN_NAME'] ?? $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? '';
+                if ($colName && !in_array($colName, $sourceIdentityColumns, true)) {
+                    $sourceColumnNames[] = $this->quoteIdentifier($colName);
+                }
+            }
+            $replacedSql = preg_replace(
+                '/SELECT\s+(TOP\s*\([^)]+\)\s+)?\*\s+FROM/i',
+                'SELECT $1' . implode(', ', $sourceColumnNames) . ' FROM',
+                $sourceSql
+            );
+
+            return $replacedSql ?? $sourceSql;
+        } catch (\Exception) {
+            return $sourceSql;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateSavepointSql(string $name): string
+    {
+        return "SAVE TRANSACTION {$name}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRollbackToSavepointSql(string $name): string
+    {
+        return "ROLLBACK TRANSACTION {$name}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function releasesSavepointOnNestedCommit(): bool
+    {
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function releasesSavepointOnNestedRollback(): bool
+    {
+        return false;
+    }
+
     /* ---------------- Configuration ---------------- */
 
     /**
@@ -2336,5 +2429,41 @@ class MSSQLDialect extends DialectAbstract
                 'lock_seconds' => 0,
             ],
         ];
+    }
+
+    public function catalogQueries(): CatalogQueriesInterface
+    {
+        return $this;
+    }
+
+    public function connectionInitHandler(): ConnectionInitHandler
+    {
+        return ConnectionInitHandler::SqlsrvTcp;
+    }
+
+    public function defaultTcpPort(): int
+    {
+        return 1433;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function initWizardConnectionExtras(): array
+    {
+        return [
+            'trust_server_certificate' => true,
+            'encrypt' => true,
+        ];
+    }
+
+    public function requiredPdoExtension(): string
+    {
+        return 'pdo_sqlsrv';
+    }
+
+    protected function catalogDialect(): DialectInterface
+    {
+        return $this;
     }
 }

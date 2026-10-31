@@ -16,11 +16,7 @@ class ConstraintViolationStrategy extends AbstractErrorDetectionStrategy
 {
     public function __construct()
     {
-        $this->errorCodes = array_merge(
-            ErrorCodeRegistry::getErrorCodes('mysql', 'constraint'),
-            ErrorCodeRegistry::getErrorCodes('pgsql', 'constraint'),
-            ErrorCodeRegistry::getErrorCodes('sqlite', 'constraint')
-        );
+        $this->errorCodes = ErrorCodeRegistry::getMergedErrorCodes('constraint');
 
         $this->messagePatterns = [
             'duplicate entry',

@@ -571,41 +571,8 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
         }
 
         // For MSSQL, if source SQL contains SELECT * and columns are determined,
-        // we need to modify SELECT to exclude IDENTITY columns from source table
-        if ($this->dialect->getDriverName() === 'sqlsrv' && !empty($columns) && preg_match('/SELECT\s+(?:TOP\s*\([^)]+\)\s+)?\*\s+FROM\s+(\[[^\]]+\]|[^\s\[\]]+)/i', $sourceSql, $matches)) {
-            // Extract source table name (handle quoted identifiers like [table] or table)
-            $sourceTableRaw = $matches[1];
-            $sourceTable = trim($sourceTableRaw, '[]`"\'');
-
-            // Get source table columns (excluding IDENTITY if any)
-            try {
-                $sourceDescribeSql = $this->dialect->buildDescribeSql($sourceTable);
-                $sourceColumns = $this->executionEngine->fetchAll($sourceDescribeSql);
-                $sourceIdentityColumns = [];
-                foreach ($sourceColumns as $col) {
-                    $isIdentity = $col['is_identity'] ?? $col['IDENTITY'] ?? false;
-                    if ($isIdentity === true || $isIdentity === 1 || $isIdentity === '1') {
-                        $sourceIdentityColumns[] = $col['COLUMN_NAME'] ?? $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? '';
-                    }
-                }
-                $sourceColumnNames = [];
-                foreach ($sourceColumns as $col) {
-                    $colName = $col['COLUMN_NAME'] ?? $col['Field'] ?? $col['column_name'] ?? $col['name'] ?? '';
-                    // Exclude IDENTITY columns from SELECT (they match target table IDENTITY columns)
-                    if ($colName && !in_array($colName, $sourceIdentityColumns, true)) {
-                        $sourceColumnNames[] = $this->dialect->quoteIdentifier($colName);
-                    }
-                }
-                // Replace SELECT * (with optional TOP) with explicit column list
-                /** @var string|null $replacedSql */
-                $replacedSql = preg_replace('/SELECT\s+(TOP\s*\([^)]+\)\s+)?\*\s+FROM/i', 'SELECT $1' . implode(', ', $sourceColumnNames) . ' FROM', $sourceSql);
-                if ($replacedSql !== null) {
-                    $sourceSql = $replacedSql;
-                }
-            } catch (\Exception $e) {
-                // If describe fails, keep original SELECT *
-            }
-        }
+        // modify SELECT to exclude IDENTITY columns from source table
+        $sourceSql = $this->dialect->resolveInsertSelectSourceSql($sourceSql, $columns, $this->executionEngine);
 
         // Build INSERT ... SELECT SQL using dialect
         // $sourceSql is guaranteed to be string at this point (buildInsertFromSourceSql returns string)

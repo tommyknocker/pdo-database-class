@@ -16,11 +16,7 @@ class TimeoutStrategy extends AbstractErrorDetectionStrategy
 {
     public function __construct()
     {
-        $this->errorCodes = array_merge(
-            ErrorCodeRegistry::getErrorCodes('mysql', 'timeout'),
-            ErrorCodeRegistry::getErrorCodes('pgsql', 'timeout'),
-            ErrorCodeRegistry::getErrorCodes('sqlite', 'timeout')
-        );
+        $this->errorCodes = ErrorCodeRegistry::getMergedErrorCodes('timeout');
 
         $this->messagePatterns = [
             'timeout',

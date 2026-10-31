@@ -65,17 +65,25 @@ class EnvConfigLoader
             }
         }
 
+        $dialect = DialectRegistry::resolve($driver);
+        if (!isset($envVars['PDODB_DATABASE']) && isset($envVars['PDODB_DB'])) {
+            $envVars['PDODB_DATABASE'] = $envVars['PDODB_DB'];
+        }
+        if (!isset($envVars['PDODB_USERNAME']) && isset($envVars['PDODB_USER'])) {
+            $envVars['PDODB_USERNAME'] = $envVars['PDODB_USER'];
+        }
+
         // Check required variables (SQLite doesn't require username/database)
-        if ($driver !== 'sqlite') {
-            if (!isset($envVars['PDODB_DATABASE']) || !isset($envVars['PDODB_USERNAME'])) {
+        $requiredKeys = $dialect->requiredEnvVarKeys();
+        foreach ($requiredKeys as $key) {
+            if (!isset($envVars[$key])) {
                 throw new InvalidArgumentException(
-                    'PDODB_DATABASE and PDODB_USERNAME must be set in .env file for driver: ' . $driver
+                    $key . ' must be set in .env file for driver: ' . $driver
                 );
             }
         }
 
         // Build configuration from environment variables
-        $dialect = DialectRegistry::resolve($driver);
         $config = $dialect->buildConfigFromEnv($envVars);
 
         return [

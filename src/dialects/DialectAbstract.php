@@ -15,6 +15,8 @@ use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
+use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 
@@ -752,6 +754,314 @@ abstract class DialectAbstract implements DialectInterface
     public function executePlanExplain(PDO $pdo, string $sql, array $params = []): array
     {
         return $this->executeExplain($pdo, $sql, $params);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function resolvePlanExplainAvailability(array $params = []): PlanExplainAvailability
+    {
+        return PlanExplainAvailability::available();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildAiExplainPlanSection(?ExplainAnalysis $analysis, array $settings): array
+    {
+        $availability = $this->resolvePlanExplainAvailability();
+        if ($analysis === null || $analysis->rawExplain === [] || !$availability->realPlan) {
+            return [
+                'source' => 'unavailable',
+                'kind' => 'estimated',
+                'facts' => [],
+                'warnings' => ['No real execution plan is available. Do not infer scan types, cost or latency.'],
+            ];
+        }
+
+        $plan = $analysis->plan;
+        $driverFacts = $this->buildAiExplainPlanFacts($analysis);
+        $facts = [
+            'table_scans' => $plan->tableScans,
+            'used_index' => $plan->usedIndex,
+            'used_columns' => $plan->usedColumns,
+            'access_type' => $plan->accessType,
+            'estimated_rows' => $driverFacts['estimated_rows'],
+            'possible_keys' => $plan->possibleKeys,
+            'filtered_percent' => $driverFacts['filtered_percent'],
+            'join_types' => $plan->joinTypes,
+            'estimated_cost' => $plan->totalCost,
+            'execution_time_ms' => null,
+            'index_cardinality' => $plan->indexCardinality,
+        ];
+        $nodes = [];
+        foreach (array_slice($analysis->rawExplain, 0, (int)$settings['max_plan_rows']) as $row) {
+            $node = $this->formatAiExplainPlanNode($row, $settings);
+            if ($node !== null) {
+                $nodes[] = $node;
+            }
+        }
+        $formatted = [
+            'source' => 'database',
+            'kind' => 'estimated',
+            'facts' => $facts,
+            'nodes' => $nodes,
+            'parser_warnings' => $plan->warnings,
+            'heuristics' => [
+                'source' => 'library_rules_not_database_facts',
+                'issues' => array_map(static fn ($issue) => get_object_vars($issue), $analysis->issues),
+                'recommendations' => array_map(static fn ($rec) => get_object_vars($rec), $analysis->recommendations),
+            ],
+            'truncated' => count($analysis->rawExplain) > (int)$settings['max_plan_rows'],
+        ];
+        if (!empty($settings['include_raw_plan'])) {
+            $formatted['raw_explain'] = array_slice($analysis->rawExplain, 0, (int)$settings['max_plan_rows']);
+        }
+
+        return $formatted;
+    }
+
+    /**
+     * @return array{estimated_rows: ?int, filtered_percent: ?float}
+     */
+    protected function buildAiExplainPlanFacts(ExplainAnalysis $analysis): array
+    {
+        $plan = $analysis->plan;
+        $hasRows = false;
+        $hasFiltered = false;
+        foreach ($analysis->rawExplain as $row) {
+            $hasRows = $hasRows || (isset($row['rows']) && is_numeric($row['rows']))
+                || (isset($row['QUERY PLAN']) && preg_match('/rows=\d+/', (string)$row['QUERY PLAN']) === 1);
+            $hasFiltered = $hasFiltered || (isset($row['filtered']) && is_numeric($row['filtered']));
+        }
+
+        return [
+            'estimated_rows' => $this->includesEstimatedRowCountInAiPlanFacts() && ($hasRows || $plan->estimatedRows > 0)
+                ? $plan->estimatedRows
+                : null,
+            'filtered_percent' => $hasFiltered ? $plan->filtered : null,
+        ];
+    }
+
+    protected function includesEstimatedRowCountInAiPlanFacts(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @param array<string, mixed> $settings
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function formatAiExplainPlanNode(array $row, array $settings): ?array
+    {
+        return array_intersect_key($row, array_flip([
+            'id', 'select_type', 'table', 'type', 'possible_keys', 'key', 'key_len', 'ref', 'rows', 'filtered', 'Extra',
+        ]));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsNestedTransactions(): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildCreateSavepointSql(string $name): string
+    {
+        return "SAVEPOINT {$name}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildRollbackToSavepointSql(string $name): string
+    {
+        return "ROLLBACK TO SAVEPOINT {$name}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildReleaseSavepointSql(string $name): string
+    {
+        return "RELEASE SAVEPOINT {$name}";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function releasesSavepointOnNestedCommit(): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function releasesSavepointOnNestedRollback(): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function resolveInsertSelectSourceSql(
+        string $sourceSql,
+        array $columns,
+        ExecutionEngineInterface $executionEngine,
+    ): string {
+        return $sourceSql;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function resolveAttributeKeyForRead(string $name, array $attributes): string
+    {
+        return array_key_exists($name, $attributes) ? $name : $name;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function requiresDateTimeImmutableCastValidation(): bool
+    {
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function validateDateTimeImmutableCastConnection(PdoDb $db): void
+    {
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function catalogQueries(): CatalogQueriesInterface
+    {
+        throw new UnsupportedOperationException('Catalog queries are not implemented for ' . $this->getDriverName());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsMcpStatementTimeout(): bool
+    {
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function readMcpStatementTimeout(PdoDb $db): string
+    {
+        throw new UnsupportedOperationException('MCP statement timeout is not supported for ' . $this->getDriverName());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function setMcpStatementTimeout(PdoDb $db, int $milliseconds): void
+    {
+        throw new UnsupportedOperationException('MCP statement timeout is not supported for ' . $this->getDriverName());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function restoreMcpStatementTimeout(PdoDb $db, string $previousValue): void
+    {
+        throw new UnsupportedOperationException('MCP statement timeout is not supported for ' . $this->getDriverName());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function mcpStatementTimeoutStoredInMilliseconds(): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function requiredEnvVarKeys(): array
+    {
+        return ['PDODB_DATABASE', 'PDODB_USERNAME'];
+    }
+
+    public function connectionInitHandler(): ConnectionInitHandler
+    {
+        return ConnectionInitHandler::MysqlTcp;
+    }
+
+    public function examplesConfigBasename(): string
+    {
+        return $this->getDriverName();
+    }
+
+    public function canBuildConfigFromEnv(array $envVars): bool
+    {
+        foreach ($this->requiredEnvVarKeys() as $key) {
+            if (!isset($envVars[$key])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function isFileBasedConnection(): bool
+    {
+        return false;
+    }
+
+    public function defaultTcpPort(): int
+    {
+        return 3306;
+    }
+
+    public function mapsDatabaseToDbnameInInit(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function initWizardConnectionExtras(): array
+    {
+        return [];
+    }
+
+    public function initWizardDefaultCharset(): ?string
+    {
+        return null;
+    }
+
+    public function requiredPdoExtension(): string
+    {
+        return 'pdo_mysql';
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    public function agentDevelopmentContextCapabilities(): array
+    {
+        return [
+            'explain_analyze' => false,
+            'execute_sql_tool' => false,
+        ];
     }
 
     /**

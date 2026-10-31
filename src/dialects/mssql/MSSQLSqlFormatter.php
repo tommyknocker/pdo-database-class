@@ -606,6 +606,19 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
      */
     public function normalizeRawValue(string $sql): string
     {
+        if (preg_match('/\bCASE\b/i', $sql)) {
+            $replaced = preg_replace_callback(
+                '/\bWHEN\s+(.*?)\s+THEN\b/is',
+                static fn (array $matches): string => 'WHEN '
+                    . MssqlCaseWhenConditionQuoter::quoteCondition(trim($matches[1]))
+                    . ' THEN',
+                $sql
+            );
+            if (is_string($replaced)) {
+                $sql = $replaced;
+            }
+        }
+
         // Don't modify identifiers in square brackets (MSSQL quoted identifiers)
         // Split SQL into parts: identifiers in brackets and everything else
         $parts = preg_split('/(\[[^\]]+\])/', $sql, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);

@@ -9,7 +9,11 @@ use InvalidArgumentException;
 use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
+use tommyknocker\pdodb\dialects\catalog\MySqlCatalogQueriesTrait;
+use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\mysql\SessionQuoteMode;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -19,8 +23,9 @@ use tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class MariaDBDialect extends DialectAbstract
+class MariaDBDialect extends DialectAbstract implements CatalogQueriesInterface
 {
+    use MySqlCatalogQueriesTrait;
     /** @var MariaDBFeatureSupport Feature support instance */
     private MariaDBFeatureSupport $featureSupport;
 
@@ -1693,10 +1698,13 @@ class MariaDBDialect extends DialectAbstract
     public function getRetryableErrorCodes(): array
     {
         return [
-            1205, // Lock wait timeout exceeded
-            1213, // Deadlock found when trying to get lock
-            2006, // MySQL server has gone away
-            2013, // Lost connection to MySQL server during query
+            2006,
+            2002,
+            2013,
+            1205,
+            1213,
+            1040,
+            1317,
         ];
     }
 
@@ -1907,5 +1915,72 @@ class MariaDBDialect extends DialectAbstract
                 'now' => '',
             ],
         ];
+    }
+
+    public function catalogQueries(): CatalogQueriesInterface
+    {
+        return $this;
+    }
+
+    public function connectionInitHandler(): ConnectionInitHandler
+    {
+        return ConnectionInitHandler::MysqlTcp;
+    }
+
+    public function initWizardDefaultCharset(): ?string
+    {
+        return 'utf8mb4';
+    }
+
+    public function requiredPdoExtension(): string
+    {
+        return 'pdo_mysql';
+    }
+
+    protected function catalogDialect(): DialectInterface
+    {
+        return $this;
+    }
+
+    public function supportsMcpStatementTimeout(): bool
+    {
+        return true;
+    }
+
+    public function readMcpStatementTimeout(PdoDb $db): string
+    {
+        $read = $db->connection->getPdo()->query('SELECT @@SESSION.max_statement_time');
+        if ($read === false) {
+            throw new RuntimeException('Unable to read the current statement timeout');
+        }
+        $previous = $read->fetchColumn();
+        $read->closeCursor();
+        if (!is_scalar($previous) || is_bool($previous)) {
+            throw new RuntimeException('Unable to read the current statement timeout');
+        }
+
+        return (string)$previous;
+    }
+
+    public function setMcpStatementTimeout(PdoDb $db, int $milliseconds): void
+    {
+        $db->connection->getPdo()->exec(
+            'SET SESSION max_statement_time = ' . sprintf('%.6F', $milliseconds / 1000)
+        );
+    }
+
+    public function restoreMcpStatementTimeout(PdoDb $db, string $previousValue): void
+    {
+        if (!is_numeric($previousValue)) {
+            throw new RuntimeException('Invalid saved statement timeout');
+        }
+        $db->connection->getPdo()->exec(
+            'SET SESSION max_statement_time = ' . sprintf('%.6F', (float)$previousValue)
+        );
+    }
+
+    public function mcpStatementTimeoutStoredInMilliseconds(): bool
+    {
+        return false;
     }
 }

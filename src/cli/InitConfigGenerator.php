@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli;
 
+use tommyknocker\pdodb\connection\DialectRegistry;
 /**
  * Configuration file generator for init command.
  */
@@ -203,8 +204,11 @@ class InitConfigGenerator
         // Set from 'database' if not explicitly provided
         if (isset($config['dbname'])) {
             $result['dbname'] = $config['dbname'];
-        } elseif (isset($config['database']) && ($config['driver'] ?? '') !== 'sqlite') {
-            $result['dbname'] = $config['database'];
+        } elseif (isset($config['database'])) {
+            $driver = isset($config['driver']) && is_string($config['driver']) ? $config['driver'] : '';
+            if ($driver !== '' && DialectRegistry::resolve($driver)->mapsDatabaseToDbnameInInit()) {
+                $result['dbname'] = $config['database'];
+            }
         }
         if (isset($config['username'])) {
             $result['username'] = $config['username'];

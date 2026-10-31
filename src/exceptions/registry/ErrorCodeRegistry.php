@@ -225,4 +225,25 @@ class ErrorCodeRegistry
         $allErrors = self::$method();
         return $allErrors[strtolower($driver)] ?? [];
     }
+
+    /**
+     * @return list<int|string>
+     */
+    public static function getMergedErrorCodes(string $errorType): array
+    {
+        $method = 'get' . ucfirst($errorType) . 'Errors';
+
+        if (!method_exists(self::class, $method)) {
+            return [];
+        }
+
+        $merged = [];
+        foreach (self::$method() as $codes) {
+            foreach ($codes as $code) {
+                $merged[] = $code;
+            }
+        }
+
+        return $merged;
+    }
 }

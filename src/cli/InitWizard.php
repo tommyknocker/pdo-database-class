@@ -9,6 +9,7 @@ use tommyknocker\pdodb\cache\CacheFactory;
 use tommyknocker\pdodb\cli\commands\InitCommand;
 use tommyknocker\pdodb\connection\DialectRegistry;
 use tommyknocker\pdodb\connection\ExtensionChecker;
+use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -242,25 +243,14 @@ class InitWizard extends BaseCliCommand
 
         $this->config['driver'] = $driver;
 
-        // Driver-specific questions
-        switch ($driver) {
-            case 'mysql':
-            case 'mariadb':
-                $this->askMysqlConnection();
-                break;
-            case 'pgsql':
-                $this->askPgsqlConnection();
-                break;
-            case 'sqlsrv':
-                $this->askSqlsrvConnection();
-                break;
-            case 'sqlite':
-                $this->askSqliteConnection();
-                break;
-            case 'oci':
-                $this->askOciConnection();
-                break;
-        }
+        $handler = DialectRegistry::resolve($driver)->connectionInitHandler();
+        match ($handler) {
+            ConnectionInitHandler::MysqlTcp => $this->askMysqlConnection(),
+            ConnectionInitHandler::PgsqlTcp => $this->askPgsqlConnection(),
+            ConnectionInitHandler::SqlsrvTcp => $this->askSqlsrvConnection(),
+            ConnectionInitHandler::SqliteFile => $this->askSqliteConnection(),
+            ConnectionInitHandler::OciService => $this->askOciConnection(),
+        };
     }
 
     /**
@@ -374,8 +364,9 @@ class InitWizard extends BaseCliCommand
             // All dialects require 'dbname' parameter for buildDsn()
             $testConfig = $this->config;
             $driver = isset($testConfig['driver']) && is_string($testConfig['driver']) ? $testConfig['driver'] : null;
-            if ($driver !== 'sqlite') {
-                if (isset($testConfig['database']) && !isset($testConfig['dbname'])) {
+            if ($driver !== null && $driver !== '') {
+                $dialect = DialectRegistry::resolve($driver);
+                if (!$dialect->isFileBasedConnection() && isset($testConfig['database']) && !isset($testConfig['dbname'])) {
                     $testConfig['dbname'] = $testConfig['database'];
                 }
             }
@@ -812,8 +803,9 @@ class InitWizard extends BaseCliCommand
             'UTF-8'
         );
         $config = ['driver' => $driver];
+        $dialect = DialectRegistry::resolve($driver);
 
-        if ($driver === 'sqlite') {
+        if ($dialect->isFileBasedConnection()) {
             $path = static::readInput('  Database path', './database-reporting.sqlite');
             $config['path'] = $path !== '' ? $path : './database-reporting.sqlite';
 
@@ -823,25 +815,25 @@ class InitWizard extends BaseCliCommand
         $config['host'] = static::readInput('  Host', (string)($primaryConfig['host'] ?? 'localhost'));
         $config['port'] = (int)static::readInput(
             '  Port',
-            (string)($primaryConfig['port'] ?? ($driver === 'pgsql' ? '5432' : '3306'))
+            (string)($primaryConfig['port'] ?? $dialect->defaultTcpPort())
         );
         $config['database'] = static::readInput('  Database name', (string)($primaryConfig['database'] ?? ''));
         if ($config['database'] === '') {
             static::warning('  Database name is empty; edit config/db.php before use.');
         }
-        if ($driver !== 'oci') {
+        if ($dialect->mapsDatabaseToDbnameInInit()) {
             $config['dbname'] = $config['database'];
         }
         $config['username'] = static::readInput('  Username', (string)($primaryConfig['username'] ?? ''));
         $config['password'] = static::readPassword('  Password');
 
-        if (in_array($driver, ['mysql', 'mariadb'], true)) {
-            $config['charset'] = static::readInput('  Charset', (string)($primaryConfig['charset'] ?? 'utf8mb4'));
+        $charsetDefault = $dialect->initWizardDefaultCharset();
+        if ($charsetDefault !== null) {
+            $config['charset'] = static::readInput('  Charset', (string)($primaryConfig['charset'] ?? $charsetDefault));
         }
 
-        if ($driver === 'sqlsrv') {
-            $config['trust_server_certificate'] = true;
-            $config['encrypt'] = true;
+        foreach ($dialect->initWizardConnectionExtras() as $key => $value) {
+            $config[$key] = $value;
         }
 
         return $config;

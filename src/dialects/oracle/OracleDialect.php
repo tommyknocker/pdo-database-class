@@ -10,7 +10,13 @@ use PDO;
 use PDOException;
 use PDOStatement;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use RuntimeException;
+use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
+use tommyknocker\pdodb\dialects\catalog\OracleCatalogQueriesTrait;
+use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\PlanExplainAvailability;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
@@ -20,8 +26,9 @@ use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class OracleDialect extends DialectAbstract
+class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
 {
+    use OracleCatalogQueriesTrait;
     /** @var OracleFeatureSupport Feature support instance */
     private OracleFeatureSupport $featureSupport;
 
@@ -503,6 +510,20 @@ class OracleDialect extends DialectAbstract
     /**
      * {@inheritDoc}
      */
+    public function resolvePlanExplainAvailability(array $params = []): PlanExplainAvailability
+    {
+        if ($params !== []) {
+            return PlanExplainAvailability::unavailable([
+                'The Oracle adapter cannot safely bind EXPLAIN parameters. '
+                . 'Parameterized plan collection is unavailable; parameters were not interpolated.',
+            ]);
+        }
+
+        return PlanExplainAvailability::available([
+            'Oracle EXPLAIN PLAN uses the service PLAN_TABLE and requires suitable permissions.',
+        ], true, false);
+    }
+
     public function executeExplain(PDO $pdo, string $sql, array $params = []): array
     {
         // Oracle EXPLAIN PLAN FOR doesn't support bind parameters
@@ -3485,5 +3506,123 @@ class OracleDialect extends DialectAbstract
             ) WHERE ROWNUM <= 100",
             ['now' => ''],
         ];
+    }
+
+    public function catalogQueries(): CatalogQueriesInterface
+    {
+        return $this;
+    }
+
+    public function requiredEnvVarKeys(): array
+    {
+        return ['PDODB_USERNAME'];
+    }
+
+    public function canBuildConfigFromEnv(array $envVars): bool
+    {
+        if (!isset($envVars['PDODB_USERNAME'])) {
+            return false;
+        }
+
+        return isset($envVars['PDODB_SERVICE_NAME']) || isset($envVars['PDODB_SID']);
+    }
+
+    public function connectionInitHandler(): ConnectionInitHandler
+    {
+        return ConnectionInitHandler::OciService;
+    }
+
+    public function examplesConfigBasename(): string
+    {
+        return 'oracle';
+    }
+
+    public function defaultTcpPort(): int
+    {
+        return 1521;
+    }
+
+    public function mapsDatabaseToDbnameInInit(): bool
+    {
+        return false;
+    }
+
+    public function requiredPdoExtension(): string
+    {
+        return 'pdo_oci';
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    public function agentDevelopmentContextCapabilities(): array
+    {
+        return [
+            'explain_analyze' => false,
+            'oracle_plan_table' => true,
+            'execute_sql_tool' => false,
+        ];
+    }
+
+    protected function catalogDialect(): DialectInterface
+    {
+        return $this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function releasesSavepointOnNestedCommit(): bool
+    {
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function releasesSavepointOnNestedRollback(): bool
+    {
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function resolveAttributeKeyForRead(string $name, array $attributes): string
+    {
+        if (array_key_exists($name, $attributes)) {
+            return $name;
+        }
+        $matches = array_values(array_filter(
+            array_keys($attributes),
+            static fn (string $key): bool => strcasecmp($key, $name) === 0
+        ));
+        if (count($matches) > 1) {
+            throw new RuntimeException("Ambiguous Oracle attribute '{$name}'; use its exact case.");
+        }
+
+        return $matches[0] ?? $name;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function requiresDateTimeImmutableCastValidation(): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function validateDateTimeImmutableCastConnection(PdoDb $db): void
+    {
+        $row = $db->rawQueryOne("SELECT VALUE FROM NLS_SESSION_PARAMETERS WHERE PARAMETER = 'NLS_TIMESTAMP_FORMAT'");
+        $format = strtoupper((string)($row['VALUE'] ?? $row['value'] ?? ''));
+        if ($format !== 'YYYY-MM-DD HH24:MI:SS.FF6') {
+            throw new RuntimeException(
+                "Oracle datetime casts require NLS_TIMESTAMP_FORMAT='YYYY-MM-DD HH24:MI:SS.FF6' on the connection to preserve microseconds."
+            );
+        }
     }
 }

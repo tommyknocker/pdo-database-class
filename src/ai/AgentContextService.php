@@ -19,15 +19,20 @@ class AgentContextService
     /** @return array<string, mixed> */
     public function context(): array
     {
-        $dialect = $this->db->connection->getDialect()->getDriverName();
+        $dialect = $this->db->connection->getDialect();
+        $driver = $dialect->getDriverName();
+        $planAvailability = $dialect->resolvePlanExplainAvailability();
+
         return [
             'pdodb_version' => self::packageVersion(),
             'php_version' => PHP_VERSION,
             'database_version' => $this->db->connection->getPdo()->getAttribute(PDO::ATTR_SERVER_VERSION),
-            'dialect' => $dialect,
+            'dialect' => $driver,
             'connections' => array_keys($this->db->getConnections()),
-            'capabilities' => ['real_explain' => $dialect !== 'sqlsrv', 'explain_analyze' => false,
-                'oracle_plan_table' => $dialect === 'oci', 'execute_sql_tool' => false],
+            'capabilities' => array_merge(
+                ['real_explain' => $planAvailability->realPlan],
+                $dialect->agentDevelopmentContextCapabilities()
+            ),
             'contracts' => ['get' => 'Array of rows; empty array when no rows match.',
                 'getOne' => 'One row, or false when no row matches.',
                 'asObject' => 'Rows become stdClass; get() remains an array of rows.'],

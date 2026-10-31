@@ -723,18 +723,20 @@ class PdoDb
     public function transaction(callable $callback): mixed
     {
         $connection = $this->connection;
+        $dialect = $connection->getDialect();
         $nested = $connection->inTransaction();
         $savepoint = null;
 
         if ($nested) {
-            $driver = $connection->getDriverName();
-            if (!in_array($driver, ['mysql', 'mariadb', 'pgsql', 'sqlite', 'sqlsrv', 'oci'], true)) {
-                throw new TransactionException("Nested transactions are not supported for driver {$driver}.");
+            if (!$dialect->supportsNestedTransactions()) {
+                throw new TransactionException(
+                    'Nested transactions are not supported for driver ' . $connection->getDriverName() . '.'
+                );
             }
             do {
                 $savepoint = 'pdodb_tx_' . ++$this->transactionSavepointCounter;
             } while (in_array($savepoint, $this->savepointStack, true));
-            $connection->query($driver === 'sqlsrv' ? "SAVE TRANSACTION {$savepoint}" : "SAVEPOINT {$savepoint}");
+            $connection->query($dialect->buildCreateSavepointSql($savepoint));
             $this->savepointStack[] = $savepoint;
         } else {
             $this->startTransaction();
@@ -746,8 +748,8 @@ class PdoDb
                 throw new TransactionException('The transaction connection or state changed inside the callback.');
             }
             if ($nested) {
-                if (!in_array($driver, ['sqlsrv', 'oci'], true)) {
-                    $connection->query("RELEASE SAVEPOINT {$savepoint}");
+                if ($dialect->releasesSavepointOnNestedCommit()) {
+                    $connection->query($dialect->buildReleaseSavepointSql($savepoint));
                 }
                 $this->savepointStack = array_values(array_diff($this->savepointStack, [$savepoint]));
             } else {
@@ -758,10 +760,9 @@ class PdoDb
             try {
                 if ($connection->inTransaction()) {
                     if ($nested) {
-                        $sql = $driver === 'sqlsrv' ? "ROLLBACK TRANSACTION {$savepoint}" : "ROLLBACK TO SAVEPOINT {$savepoint}";
-                        $connection->query($sql);
-                        if (!in_array($driver, ['sqlsrv', 'oci'], true)) {
-                            $connection->query("RELEASE SAVEPOINT {$savepoint}");
+                        $connection->query($dialect->buildRollbackToSavepointSql($savepoint));
+                        if ($dialect->releasesSavepointOnNestedRollback()) {
+                            $connection->query($dialect->buildReleaseSavepointSql($savepoint));
                         }
                         $this->savepointStack = array_values(array_diff($this->savepointStack, [$savepoint]));
                     } elseif ($this->connection === $connection) {
@@ -798,7 +799,8 @@ class PdoDb
             );
         }
 
-        $sql = "SAVEPOINT {$name}";
+        $dialect = $this->connection->getDialect();
+        $sql = $dialect->buildCreateSavepointSql($name);
         $this->connection->query($sql);
         $this->savepointStack[] = $name;
 
@@ -838,7 +840,8 @@ class PdoDb
             throw new TransactionException("Savepoint '{$name}' not found");
         }
 
-        $sql = "ROLLBACK TO SAVEPOINT {$name}";
+        $dialect = $this->connection->getDialect();
+        $sql = $dialect->buildRollbackToSavepointSql($name);
         $this->connection->query($sql);
 
         // Remove all savepoints created after this one from the stack
@@ -881,7 +884,8 @@ class PdoDb
             throw new TransactionException("Savepoint '{$name}' not found");
         }
 
-        $sql = "RELEASE SAVEPOINT {$name}";
+        $dialect = $this->connection->getDialect();
+        $sql = $dialect->buildReleaseSavepointSql($name);
         $this->connection->query($sql);
 
         // Remove this savepoint from the stack (but keep earlier savepoints)

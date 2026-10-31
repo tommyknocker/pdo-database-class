@@ -16,11 +16,7 @@ class AuthenticationStrategy extends AbstractErrorDetectionStrategy
 {
     public function __construct()
     {
-        $this->errorCodes = array_merge(
-            ErrorCodeRegistry::getErrorCodes('mysql', 'authentication'),
-            ErrorCodeRegistry::getErrorCodes('pgsql', 'authentication'),
-            ErrorCodeRegistry::getErrorCodes('sqlite', 'authentication')
-        );
+        $this->errorCodes = ErrorCodeRegistry::getMergedErrorCodes('authentication');
 
         $this->messagePatterns = [
             'access denied',

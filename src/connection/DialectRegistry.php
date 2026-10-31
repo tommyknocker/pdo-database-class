@@ -60,12 +60,28 @@ class DialectRegistry
      */
     public static function resolve(string $driver): DialectInterface
     {
+        $driver = self::normalizeDriverName($driver);
         if (!isset(self::$dialects[$driver])) {
             throw new InvalidArgumentException('Unsupported driver: ' . $driver);
         }
 
         $dialectClass = self::$dialects[$driver];
         return new $dialectClass();
+    }
+
+    /**
+     * Map common driver aliases to registered driver names.
+     */
+    public static function normalizeDriverName(string $driver): string
+    {
+        $driver = mb_strtolower(trim($driver), 'UTF-8');
+
+        return match ($driver) {
+            'postgresql', 'postgres' => 'pgsql',
+            'mssql', 'sqlserver' => 'sqlsrv',
+            'oracle' => 'oci',
+            default => $driver,
+        };
     }
 
     /**
@@ -77,7 +93,7 @@ class DialectRegistry
      */
     public static function isSupported(string $driver): bool
     {
-        return isset(self::$dialects[$driver]);
+        return isset(self::$dialects[self::normalizeDriverName($driver)]);
     }
 
     /**

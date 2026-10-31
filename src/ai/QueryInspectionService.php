@@ -27,27 +27,42 @@ class QueryInspectionService
     {
         $connection = $this->db->connection;
         $dialect = $connection->getDialect();
-        if ($dialect->getDriverName() === 'sqlsrv') {
-            return ['source' => 'unavailable', 'analysis' => null,
-                'warnings' => ['This MSSQL adapter does not collect a real execution plan. No query was executed.']];
+        $availability = $dialect->resolvePlanExplainAvailability($params);
+        if (!$availability->collectPlan) {
+            return [
+                'source' => 'unavailable',
+                'analysis' => null,
+                'warnings' => $availability->unavailableReasons,
+            ];
         }
-        if ($dialect->getDriverName() === 'oci' && $params !== []) {
-            return ['source' => 'unavailable', 'analysis' => null,
-                'warnings' => ['The Oracle adapter cannot safely bind EXPLAIN parameters. Parameterized plan collection is unavailable; parameters were not interpolated.']];
+
+        if (!$availability->realPlan) {
+            return [
+                'source' => 'unavailable',
+                'analysis' => null,
+                'warnings' => $availability->unavailableReasons !== []
+                    ? $availability->unavailableReasons
+                    : $availability->caveats,
+            ];
         }
 
         $manager = new ParameterManager();
         $engine = new ExecutionEngine($connection, new RawValueResolver($connection, $manager), $manager);
         $raw = $dialect->executePlanExplain($connection->getPdo(), $sql, $params);
         if ($raw === []) {
-            return ['source' => 'unavailable', 'analysis' => null,
-                'warnings' => ['The database returned no execution plan. No execution measurements are available.']];
+            return [
+                'source' => 'unavailable',
+                'analysis' => null,
+                'warnings' => ['The database returned no execution plan. No execution measurements are available.'],
+            ];
         }
         $analysis = (new ExplainAnalyzer($dialect, $engine))->analyze($raw, $table);
 
-        return ['source' => 'database', 'analysis' => $analysis, 'warnings' =>
-            $dialect->getDriverName() === 'oci'
-                ? ['Oracle EXPLAIN PLAN uses the service PLAN_TABLE and requires suitable permissions.'] : []];
+        return [
+            'source' => 'database',
+            'analysis' => $analysis,
+            'warnings' => $availability->caveats,
+        ];
     }
 
     /** @return array<string, mixed> */
@@ -56,6 +71,7 @@ class QueryInspectionService
         if ($analysis === null) {
             return ['raw_explain' => [], 'plan' => null, 'issues' => [], 'recommendations' => []];
         }
+
         return [
             'raw_explain' => $analysis->rawExplain,
             'plan' => get_object_vars($analysis->plan),

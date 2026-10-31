@@ -116,7 +116,6 @@ class AiAnalysisContext
     {
         try {
             $dialect = $this->db->connection->getDialect();
-            $driverName = $this->db->connection->getDriverName();
 
             $stats = [];
 
@@ -124,22 +123,16 @@ class AiAnalysisContext
             $stats['row_count'] = null;
             $stats['row_count_exact'] = false;
 
-            // Get table size if supported
-            if ($driverName === 'mysql' || $driverName === 'mariadb') {
-                $sizeQuery = 'SELECT
-                    ROUND(((data_length + index_length) / 1024 / 1024), 2) AS size_mb
-                    FROM information_schema.TABLES
-                    WHERE table_schema = DATABASE()
-                    AND table_name = ?';
-                $result = $this->db->rawQueryOne($sizeQuery, [$tableName]);
-                if ($result !== null && is_array($result) && isset($result['size_mb'])) {
-                    $stats['size_mb'] = (float)$result['size_mb'];
-                }
-            } elseif ($driverName === 'pgsql') {
-                $sizeQuery = 'SELECT pg_size_pretty(pg_total_relation_size(?)) as size';
-                $result = $this->db->rawQueryOne($sizeQuery, [$tableName]);
-                if ($result !== null && is_array($result) && isset($result['size'])) {
-                    $stats['size'] = (string)$result['size'];
+            $sizeQuery = $dialect->catalogQueries()->buildAiTableSizeStatsQuery($tableName);
+            if ($sizeQuery !== null) {
+                $result = $this->db->rawQueryOne($sizeQuery[0], $sizeQuery[1]);
+                if ($result !== null && is_array($result)) {
+                    if (isset($result['size_mb'])) {
+                        $stats['size_mb'] = (float)$result['size_mb'];
+                    }
+                    if (isset($result['size'])) {
+                        $stats['size'] = (string)$result['size'];
+                    }
                 }
             }
 

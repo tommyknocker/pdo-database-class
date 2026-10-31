@@ -5,35 +5,15 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\connection;
 
 use InvalidArgumentException;
+use tommyknocker\pdodb\dialects\DialectInterface;
 
 /**
  * Extension checker for PDO database drivers.
- *
- * Provides methods to check if required PHP extensions are available
- * for specific database drivers.
  */
 class ExtensionChecker
 {
     /**
-     * Map of driver names to required PHP extensions.
-     *
-     * @var array<string, string>
-     */
-    protected static array $driverExtensions = [
-        'mysql' => 'pdo_mysql',
-        'mariadb' => 'pdo_mysql',
-        'pgsql' => 'pdo_pgsql',
-        'sqlite' => 'pdo_sqlite',
-        'sqlsrv' => 'pdo_sqlsrv',
-        'oci' => 'pdo_oci',
-    ];
-
-    /**
      * Check if extension is available for driver.
-     *
-     * @param string $driver Database driver name
-     *
-     * @return bool True if extension is available
      */
     public static function isAvailable(string $driver): bool
     {
@@ -47,22 +27,18 @@ class ExtensionChecker
 
     /**
      * Get required extension name for driver.
-     *
-     * @param string $driver Database driver name
-     *
-     * @return string|null Extension name or null if driver is not supported
      */
     public static function getRequiredExtension(string $driver): ?string
     {
         $driver = mb_strtolower($driver, 'UTF-8');
-        return static::$driverExtensions[$driver] ?? null;
+        if (!DialectRegistry::isSupported($driver)) {
+            return null;
+        }
+
+        return DialectRegistry::resolve($driver)->requiredPdoExtension();
     }
 
     /**
-     * Validate that required extension is available for driver.
-     *
-     * @param string $driver Database driver name
-     *
      * @throws InvalidArgumentException If extension is not available
      */
     public static function validate(string $driver): void
@@ -82,13 +58,6 @@ class ExtensionChecker
         }
     }
 
-    /**
-     * Get installation command suggestion for extension.
-     *
-     * @param string $extension Extension name
-     *
-     * @return string Installation command suggestion
-     */
     protected static function getInstallCommand(string $extension): string
     {
         $commands = [
@@ -103,28 +72,25 @@ class ExtensionChecker
     }
 
     /**
-     * Get all available drivers (with extensions loaded).
-     *
-     * @return array<string> List of available driver names
+     * @return list<string>
      */
     public static function getAvailableDrivers(): array
     {
         $available = [];
-        foreach (static::$driverExtensions as $driver => $extension) {
-            if (extension_loaded($extension)) {
+        foreach (DialectRegistry::getSupportedDrivers() as $driver) {
+            if (static::isAvailable($driver)) {
                 $available[] = $driver;
             }
         }
+
         return $available;
     }
 
     /**
-     * Get all supported drivers (regardless of extension availability).
-     *
-     * @return array<string> List of supported driver names
+     * @return list<string>
      */
     public static function getSupportedDrivers(): array
     {
-        return array_keys(static::$driverExtensions);
+        return DialectRegistry::getSupportedDrivers();
     }
 }
