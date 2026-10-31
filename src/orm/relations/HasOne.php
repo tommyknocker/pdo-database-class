@@ -104,8 +104,7 @@ class HasOne implements RelationInterface
             return null;
         }
 
-        $relatedModelClass = $this->modelClass;
-        return $relatedModelClass::findOne([$this->foreignKey => $localValue]);
+        return $this->prepareQuery()->one();
     }
 
     /**
@@ -130,6 +129,10 @@ class HasOne implements RelationInterface
         $relatedModelClass = $this->modelClass;
         /** @var Model $model */
         $model = new $relatedModelClass();
+        $db = $this->model?->propagatesConnection() ? $this->model->getModelDb() : $relatedModelClass::getDb();
+        if ($db !== null) {
+            $model->bindConnection($db, $this->model?->propagatesConnection() ?? false);
+        }
         $model->populate($data);
 
         // Set protected properties using public methods
@@ -181,7 +184,7 @@ class HasOne implements RelationInterface
         }
 
         $relatedModelClass = $this->modelClass;
-        $query = $relatedModelClass::find();
+        $query = $this->model->relationQuery($relatedModelClass);
 
         $localValue = $this->model->{$this->localKey} ?? null;
         if ($localValue !== null) {

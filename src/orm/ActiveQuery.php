@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm;
 
 use RuntimeException;
+use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\orm\relations\EagerLoader;
+use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\pagination\Cursor;
 use tommyknocker\pdodb\query\pagination\CursorPaginationResult;
 use tommyknocker\pdodb\query\pagination\PaginationResult;
@@ -26,6 +28,9 @@ class ActiveQuery
 {
     /** @var class-string<TModel> Model class name */
     protected string $modelClass;
+    protected PdoDb $database;
+    protected ConnectionInterface $boundConnection;
+    protected bool $explicitConnection;
 
     /** @var QueryBuilder QueryBuilder instance */
     protected QueryBuilder $queryBuilder;
@@ -44,14 +49,17 @@ class ActiveQuery
      *
      * @param class-string<TModel> $modelClass Model class name
      */
-    public function __construct(string $modelClass)
+    public function __construct(string $modelClass, ?PdoDb $db = null)
     {
         $this->modelClass = $modelClass;
-        $db = $modelClass::getDb();
+        $this->explicitConnection = $db !== null;
+        $db ??= $modelClass::getDb();
         if ($db === null) {
             throw new RuntimeException('Database connection not set. Use Model::setDb() to set connection.');
         }
 
+        $this->database = $db;
+        $this->boundConnection = $db->connection;
         $tableName = $modelClass::tableName();
         $this->queryBuilder = $db->find()->from($tableName);
     }
@@ -87,6 +95,9 @@ class ActiveQuery
      */
     protected function ensureGlobalScopes(): void
     {
+        if ($this->database->connection !== $this->boundConnection) {
+            throw new RuntimeException('The query connection changed after it was created.');
+        }
         $parameters = $this->queryBuilder->getParameterManager();
         $current = $parameters->getParams();
         foreach ($this->queryParameters as $name => $value) {
@@ -182,11 +193,8 @@ class ActiveQuery
      */
     public function one(): ?Model
     {
-        $db = $this->modelClass::getDb();
-        if ($db !== null) {
-            $this->modelClass::validateCastConnection($db);
-        }
         $this->ensureGlobalScopes();
+        $this->modelClass::validateCastConnection($this->database);
         $data = $this->queryBuilder->getOne();
         if (!is_array($data)) {
             return null;
@@ -210,11 +218,8 @@ class ActiveQuery
      */
     public function all(): array
     {
-        $db = $this->modelClass::getDb();
-        if ($db !== null) {
-            $this->modelClass::validateCastConnection($db);
-        }
         $this->ensureGlobalScopes();
+        $this->modelClass::validateCastConnection($this->database);
         $data = $this->queryBuilder->get();
         $models = [];
 
@@ -252,11 +257,8 @@ class ActiveQuery
      */
     public function paginateModels(int $perPage = 15, ?int $page = null, array $options = []): ModelPage
     {
-        $db = $this->modelClass::getDb();
-        if ($db !== null) {
-            $this->modelClass::validateCastConnection($db);
-        }
         $this->ensureGlobalScopes();
+        $this->modelClass::validateCastConnection($this->database);
         $pagination = $this->queryBuilder->paginate($perPage, $page, $options);
         $models = [];
         foreach ($pagination->items() as $row) {
@@ -291,6 +293,7 @@ class ActiveQuery
     public function get(): array
     {
         $this->ensureGlobalScopes();
+        $this->modelClass::validateCastConnection($this->database);
         return array_values($this->queryBuilder->get());
     }
 
@@ -343,6 +346,7 @@ class ActiveQuery
     {
         /** @var TModel $model */
         $model = new $this->modelClass();
+        $model->bindConnection($this->database, $this->explicitConnection);
         $model->populate($data);
 
         // Set protected properties using public methods

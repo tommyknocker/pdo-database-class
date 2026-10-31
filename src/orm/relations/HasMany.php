@@ -104,8 +104,7 @@ class HasMany implements RelationInterface
             return [];
         }
 
-        $relatedModelClass = $this->modelClass;
-        return $relatedModelClass::findAll([$this->foreignKey => $localValue]);
+        return $this->prepareQuery()->all();
     }
 
     /**
@@ -135,6 +134,10 @@ class HasMany implements RelationInterface
                 $relatedModelClass = $this->modelClass;
                 /** @var Model $model */
                 $model = new $relatedModelClass();
+                $db = $this->model?->propagatesConnection() ? $this->model->getModelDb() : $relatedModelClass::getDb();
+                if ($db !== null) {
+                    $model->bindConnection($db, $this->model?->propagatesConnection() ?? false);
+                }
                 $model->populate($item);
 
                 // Set protected properties using public methods
@@ -190,7 +193,7 @@ class HasMany implements RelationInterface
         }
 
         $relatedModelClass = $this->modelClass;
-        $query = $relatedModelClass::find();
+        $query = $this->model->relationQuery($relatedModelClass);
 
         $localValue = $this->model->{$this->localKey} ?? null;
         if ($localValue !== null) {

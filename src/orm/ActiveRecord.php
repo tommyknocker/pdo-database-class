@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm;
 
 use RuntimeException;
+use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\events\ModelAfterDeleteEvent;
 use tommyknocker\pdodb\events\ModelAfterInsertEvent;
 use tommyknocker\pdodb\events\ModelAfterSaveEvent;
@@ -54,6 +55,58 @@ trait ActiveRecord
 
     /** @var array<string, mixed> Eager-loaded relationship data */
     protected array $relationData = [];
+
+    protected ?PdoDb $instanceDb = null;
+    protected ?ConnectionInterface $instanceConnection = null;
+    protected bool $propagateConnection = false;
+
+    /** Bind a new or freshly loaded model to the connection that owns it. */
+    public function bindConnection(PdoDb $db, bool $propagateToRelations = true): static
+    {
+        if (!$this->isNewRecord && ($this->getModelDb() !== $db || ($this->instanceConnection !== null && $this->instanceConnection !== $db->connection))) {
+            throw new RuntimeException('A loaded model cannot be rebound to another connection.');
+        }
+        $this->instanceDb = $db;
+        $this->instanceConnection = $db->connection;
+        $this->propagateConnection = $propagateToRelations;
+        return $this;
+    }
+
+    public function getModelDb(): ?PdoDb
+    {
+        if ($this->instanceDb !== null) {
+            if ($this->instanceDb->connection !== $this->instanceConnection) {
+                throw new RuntimeException('The model connection changed after it was bound.');
+            }
+            return $this->instanceDb;
+        }
+        return static::getDb();
+    }
+
+    /**
+     * @param string $modelClass
+     *
+     * @return ActiveQuery<Model>
+     */
+    public function relationQuery(string $modelClass): ActiveQuery
+    {
+        if (!is_a($modelClass, Model::class, true)) {
+            throw new RuntimeException('Related model class must extend Model.');
+        }
+        if ($this->propagateConnection) {
+            $db = $this->getModelDb();
+            if ($db === null) {
+                throw new RuntimeException('Database connection not set for relation.');
+            }
+            return $modelClass::on($db);
+        }
+        return $modelClass::find();
+    }
+
+    public function propagatesConnection(): bool
+    {
+        return $this->propagateConnection;
+    }
 
     /**
      * Get attribute value.
@@ -120,7 +173,7 @@ trait ActiveRecord
         if (array_key_exists($name, $attributes)) {
             return $name;
         }
-        $db = static::getDb();
+        $db = $this->getModelDb();
         if ($db === null) {
             return $name;
         }
@@ -281,7 +334,7 @@ trait ActiveRecord
      */
     protected function dispatchEvent(object $event): void
     {
-        $db = static::getDb();
+        $db = $this->getModelDb();
         if ($db === null) {
             return;
         }
@@ -351,11 +404,14 @@ trait ActiveRecord
             return false;
         }
 
-        $db = static::getDb();
+        $db = $this->getModelDb();
         if ($db === null) {
             throw new RuntimeException('Database connection not set. Use Model::setDb() to set connection.');
         }
 
+        if ($this->instanceDb === null) {
+            $this->bindConnection($db, false);
+        }
         static::validateCastConnection($db);
 
         $tableName = static::tableName();
@@ -413,7 +469,7 @@ trait ActiveRecord
      */
     protected function update(): bool
     {
-        $db = static::getDb();
+        $db = $this->getModelDb();
         if ($db === null) {
             throw new RuntimeException('Database connection not set. Use Model::setDb() to set connection.');
         }
@@ -504,7 +560,7 @@ trait ActiveRecord
             return false;
         }
 
-        $db = static::getDb();
+        $db = $this->getModelDb();
         if ($db === null) {
             throw new RuntimeException('Database connection not set. Use Model::setDb() to set connection.');
         }
@@ -563,7 +619,13 @@ trait ActiveRecord
             $condition[$key] = $this->attributes[$attributeKey];
         }
 
-        $model = static::findOne($condition);
+        $db = $this->getModelDb();
+        if ($db === null) {
+            throw new RuntimeException('Database connection not set.');
+        }
+        $query = static::on($db);
+        $query->where($condition);
+        $model = $query->one();
         if ($model !== null) {
             $this->attributes = $model->getAttributes();
             $this->oldAttributes = $model->getOldAttributes();
@@ -1006,7 +1068,7 @@ trait ActiveRecord
             return true;
         }
 
-        $db = static::getDb();
+        $db = $this->getModelDb();
         if ($db === null) {
             return false;
         }

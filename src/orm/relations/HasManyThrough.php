@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm\relations;
 
 use RuntimeException;
-use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\orm\ActiveQuery;
 use tommyknocker\pdodb\orm\Model;
 
@@ -163,8 +162,12 @@ class HasManyThrough implements RelationInterface
 
         $this->resolveDefaults();
 
+        $owner = $this->model;
+        if ($owner === null) {
+            throw new RuntimeException('Model instance must be set before accessing relationship.');
+        }
         $relatedModelClass = $this->modelClass;
-        $query = $relatedModelClass::find();
+        $query = $owner->relationQuery($relatedModelClass);
 
         // If using viaTable, build JOIN query
         if (!empty($this->viaTable)) {
@@ -222,7 +225,7 @@ class HasManyThrough implements RelationInterface
 
         $queryBuilder->where($junctionTable . '.' . $junctionOwnerKey, $ownerPkValue);
 
-        $data = $queryBuilder->get();
+        $data = $query->get();
         $models = [];
         $seenIds = []; // Track IDs to avoid duplicates
 
@@ -239,6 +242,10 @@ class HasManyThrough implements RelationInterface
 
                 /** @var Model $model */
                 $model = new $this->modelClass();
+                $db = $this->model?->propagatesConnection() ? $this->model->getModelDb() : $this->modelClass::getDb();
+                if ($db !== null) {
+                    $model->bindConnection($db, $this->model?->propagatesConnection() ?? false);
+                }
                 $model->populate($row);
 
                 // Set protected properties using public methods
@@ -289,6 +296,9 @@ class HasManyThrough implements RelationInterface
         // viaLink maps: [foreign_key_in_related => primary_key_in_intermediate]
         // So we get intermediate primary key values, then find related by foreign key
         $relatedForeignKey = array_key_first($this->viaLink); // e.g., 'post_id'
+        if ($relatedForeignKey === null) {
+            throw new RuntimeException('viaLink must contain at least one key-value pair.');
+        }
         $intermediatePk = $this->viaLink[$relatedForeignKey]; // e.g., 'id'
         $relatedKeys = [];
 
@@ -307,16 +317,20 @@ class HasManyThrough implements RelationInterface
         // Load related models using WHERE IN
         // Find related models where their foreign key matches intermediate primary keys
         $relatedModelClass = $this->modelClass;
-        $query = $relatedModelClass::find();
+        $query = $this->model->relationQuery($relatedModelClass);
         $queryBuilder = $query->getQueryBuilder();
         $queryBuilder->where($relatedForeignKey, $relatedKeys, 'IN');
-        $data = $queryBuilder->get();
+        $data = $query->get();
 
         $relatedModels = [];
         foreach ($data as $row) {
             if (is_array($row)) {
                 /** @var Model $model */
                 $model = new $relatedModelClass();
+                $db = $this->model->propagatesConnection() ? $this->model->getModelDb() : $relatedModelClass::getDb();
+                if ($db !== null) {
+                    $model->bindConnection($db, $this->model->propagatesConnection());
+                }
                 $model->populate($row);
 
                 // Set protected properties using public methods
@@ -356,6 +370,10 @@ class HasManyThrough implements RelationInterface
             if (is_array($item)) {
                 /** @var Model $model */
                 $model = new $this->modelClass();
+                $db = $this->model?->propagatesConnection() ? $this->model->getModelDb() : $this->modelClass::getDb();
+                if ($db !== null) {
+                    $model->bindConnection($db, $this->model?->propagatesConnection() ?? false);
+                }
                 $model->populate($item);
 
                 // Set protected properties using public methods
@@ -382,8 +400,12 @@ class HasManyThrough implements RelationInterface
 
         $this->resolveDefaults();
 
+        $owner = $this->model;
+        if ($owner === null) {
+            throw new RuntimeException('Model instance must be set before preparing query.');
+        }
         $relatedModelClass = $this->modelClass;
-        $query = $relatedModelClass::find();
+        $query = $owner->relationQuery($relatedModelClass);
         $queryBuilder = $query->getQueryBuilder();
 
         // Get owner key value
@@ -440,20 +462,16 @@ class HasManyThrough implements RelationInterface
                 } else {
                     // Get SQL from intermediate query to preserve WHERE conditions
                     // Use it as a subquery in WHERE IN
-                    $intermediateSqlData = $intermediateQueryBuilder->toSQL();
+                    $intermediateSqlData = $intermediateQuery->toSQL();
                     $intermediateSql = $intermediateSqlData['sql'] ?? '';
                     $intermediateParams = $intermediateSqlData['params'] ?? [];
-
-                    // Build subquery: SELECT intermediatePk FROM (intermediate query)
-                    // Use callable to build subquery that selects from the intermediate query
-                    $queryBuilder->whereIn(
-                        $relatedForeignKey,
-                        function ($subQuery) use ($intermediatePk, $intermediateSql, $intermediateParams) {
-                            // Build subquery using from with RawValue to preserve all conditions from intermediate query
-                            $subQueryRawValue = new RawValue("({$intermediateSql}) AS subquery", $intermediateParams);
-                            $subQuery->from($subQueryRawValue)->select("subquery.{$intermediatePk}");
-                        }
-                    );
+                    $parameters = $queryBuilder->getParameterManager();
+                    $map = $parameters->mergeSubParams($intermediateParams, 'via');
+                    $intermediateSql = $parameters->replacePlaceholdersInSql($intermediateSql, $map);
+                    $dialect = $queryBuilder->getDialect();
+                    $relatedColumn = $dialect->quoteIdentifier($relatedForeignKey);
+                    $intermediateColumn = $dialect->quoteIdentifier($intermediatePk);
+                    $queryBuilder->whereRaw("{$relatedColumn} IN (SELECT subquery.{$intermediateColumn} FROM ({$intermediateSql}) subquery)");
                 }
             } else {
                 $queryBuilder->whereRaw('1 = 0'); // Always false condition

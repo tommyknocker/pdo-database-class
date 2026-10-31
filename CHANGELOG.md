@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Bind ActiveRecord queries and models to an explicit `PdoDb` with `Model::on()` and propagate the context through relations.
 - Opt-in ActiveRecord optimistic locking using an integer version column; stale updates and deletes throw `OptimisticLockException`.
 - Opt-in ActiveRecord casts for JSON arrays, backed enums and immutable UTC datetimes; explicit API presentations and model pagination with eager-loaded relations.
 - In-process `profileReport()` for the current connection's profiler, local plan diagnosis, and a JSON export. Another process does not see that memory.
@@ -19,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Model generator emits `belongsTo` relations from foreign keys and accepts explicit table-to-model mappings for custom names.
 
 ### Fixed
+- Apply related-model global scopes during lazy and eager relation loading and keep loaded models bound to their original connection.
 - Resolve unambiguous Oracle column names for ActiveRecord attributes while preserving exact-case matches.
 - Apply ActiveRecord global scopes to query and model writes, preserve terminal method return values, and isolate model connections with an explicit shared default.
 - Nested `transaction()` callbacks use database-specific savepoints instead of committing the outer transaction.

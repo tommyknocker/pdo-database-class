@@ -281,6 +281,16 @@ abstract class Model
     }
 
     /**
+     * Create a query bound to a specific database without changing static settings.
+     *
+     * @return ActiveQuery<static>
+     */
+    public static function on(PdoDb $db): ActiveQuery
+    {
+        return new ActiveQuery(static::class, $db);
+    }
+
+    /**
      * Find one record by primary key or condition.
      *
      * @param mixed $condition Primary key value, array of primary key values, or condition array

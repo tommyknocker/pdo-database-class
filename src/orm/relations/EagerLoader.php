@@ -28,6 +28,14 @@ class EagerLoader
             return;
         }
 
+        $first = $models[0];
+        foreach ($models as $model) {
+            if ($model->propagatesConnection() !== $first->propagatesConnection()
+                || ($first->propagatesConnection() && $model->getModelDb() !== $first->getModelDb())) {
+                throw new RuntimeException('Cannot eager-load models with different explicit connection contexts together.');
+            }
+        }
+
         // Normalize relations array (handle both ['relation1', 'relation2'] and ['relation1' => ['subrelation']])
         $normalizedRelations = $this->normalizeRelations($relations);
 
@@ -137,17 +145,16 @@ class EagerLoader
         $foreignValues = array_unique($foreignValues);
 
         // Load related models
-        $query = $relatedModelClass::find();
+        $query = $models[0]->relationQuery($relatedModelClass);
         $queryBuilder = $query->getQueryBuilder();
-        $relatedModels = $queryBuilder
-            ->where($ownerKey, $foreignValues, 'IN')
-            ->get();
+        $queryBuilder->where($ownerKey, $foreignValues, 'IN');
+        $relatedModels = $query->get();
 
         // Convert to models
         $populatedModels = [];
         foreach ($relatedModels as $row) {
             if (is_array($row)) {
-                $populatedModels[] = $this->populateModel($relatedModelClass, $row);
+                $populatedModels[] = $this->populateModel($relatedModelClass, $row, $models[0]);
             }
         }
         $relatedModels = $populatedModels;
@@ -210,17 +217,16 @@ class EagerLoader
         $localValues = array_unique($localValues);
 
         // Load related models
-        $query = $relatedModelClass::find();
+        $query = $models[0]->relationQuery($relatedModelClass);
         $queryBuilder = $query->getQueryBuilder();
-        $relatedData = $queryBuilder
-            ->where($foreignKey, $localValues, 'IN')
-            ->get();
+        $queryBuilder->where($foreignKey, $localValues, 'IN');
+        $relatedData = $query->get();
 
         // Convert to models
         $relatedModels = [];
         foreach ($relatedData as $row) {
             if (is_array($row)) {
-                $relatedModels[] = $this->populateModel($relatedModelClass, $row);
+                $relatedModels[] = $this->populateModel($relatedModelClass, $row, $models[0]);
             }
         }
 
@@ -285,17 +291,16 @@ class EagerLoader
         $localValues = array_unique($localValues);
 
         // Load related models
-        $query = $relatedModelClass::find();
+        $query = $models[0]->relationQuery($relatedModelClass);
         $queryBuilder = $query->getQueryBuilder();
-        $relatedData = $queryBuilder
-            ->where($foreignKey, $localValues, 'IN')
-            ->get();
+        $queryBuilder->where($foreignKey, $localValues, 'IN');
+        $relatedData = $query->get();
 
         // Convert to models
         $relatedModels = [];
         foreach ($relatedData as $row) {
             if (is_array($row)) {
-                $relatedModels[] = $this->populateModel($relatedModelClass, $row);
+                $relatedModels[] = $this->populateModel($relatedModelClass, $row, $models[0]);
             }
         }
 
@@ -346,10 +351,14 @@ class EagerLoader
      *
      * @return Model Model instance
      */
-    protected function populateModel(string $modelClass, array $data): Model
+    protected function populateModel(string $modelClass, array $data, ?Model $owner = null): Model
     {
         /** @var Model $model */
         $model = new $modelClass();
+        $db = $owner?->propagatesConnection() ? $owner->getModelDb() : $modelClass::getDb();
+        if ($db !== null) {
+            $model->bindConnection($db, $owner?->propagatesConnection() ?? false);
+        }
         $model->populate($data);
 
         // Set protected properties using public methods
@@ -459,7 +468,7 @@ class EagerLoader
         // Build query: SELECT related.* FROM related
         // INNER JOIN junction ON junction.related_key = related.id
         // WHERE junction.owner_key IN (...)
-        $query = $relatedModelClass::find();
+        $query = $models[0]->relationQuery($relatedModelClass);
         $queryBuilder = $query->getQueryBuilder();
 
         // Use DISTINCT to avoid duplicates from JOIN
@@ -472,7 +481,7 @@ class EagerLoader
         // Use where() with IN operator and array - ConditionBuilder supports this
         $queryBuilder->where($viaTable . '.' . $junctionOwnerKey, $ownerValues, 'IN');
 
-        $data = $queryBuilder->get();
+        $data = $query->get();
         $relatedModels = [];
         $seenIds = []; // Track IDs to avoid duplicates (though DISTINCT should handle this)
 
@@ -487,7 +496,7 @@ class EagerLoader
                     continue;
                 }
 
-                $relatedModels[] = $this->populateModel($relatedModelClass, $row);
+                $relatedModels[] = $this->populateModel($relatedModelClass, $row, $models[0]);
                 if ($modelId !== null) {
                     $seenIds[$modelId] = true;
                 }
@@ -557,16 +566,15 @@ class EagerLoader
 
         // Load related models using WHERE IN with array
         // Find related models where their foreign key matches intermediate primary keys
-        $query = $relatedModelClass::find();
+        $query = $models[0]->relationQuery($relatedModelClass);
         $queryBuilder = $query->getQueryBuilder();
-        $relatedData = $queryBuilder
-            ->where($relatedForeignKey, $relatedKeys, 'IN')
-            ->get();
+        $queryBuilder->where($relatedForeignKey, $relatedKeys, 'IN');
+        $relatedData = $query->get();
 
         $relatedModels = [];
         foreach ($relatedData as $row) {
             if (is_array($row)) {
-                $relatedModels[] = $this->populateModel($relatedModelClass, $row);
+                $relatedModels[] = $this->populateModel($relatedModelClass, $row, $models[0]);
             }
         }
 
@@ -618,7 +626,7 @@ class EagerLoader
                 }
 
                 // Query junction table for this owner
-                $db = $model::getDb();
+                $db = $model->getModelDb();
                 if ($db === null) {
                     throw new RuntimeException('Database connection not set for model ' . $model::class);
                 }

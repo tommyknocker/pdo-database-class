@@ -823,3 +823,33 @@ with the response and compare it to the loaded model before saving. Loading a
 fresh model and ignoring the client's version cannot detect changes that occurred
 before that load. Still handle the exception: another writer can update the row
 between your comparison and the save.
+
+## Explicit connection contexts
+
+For a worker that needs the same model on two independent databases, pass the
+connection to the query instead of changing global state:
+
+```php
+$first = Order::on($firstDb)->where('id', 1)->one();
+$second = Order::on($secondDb)->with('items')->where('id', 1)->one();
+
+$first->status = OrderStatus::Paid;
+$first->save(); // writes to $firstDb
+```
+
+The explicit connection propagates to lazy and eager relationships, including
+model pagination. Loaded models remain bound to the connection from which they
+were read, even if a model's static default is changed later. A new model can be
+bound before saving with `$order->bindConnection($db)`.
+
+Use separate `PdoDb` instances for simultaneous contexts. If the active
+connection inside a bound `PdoDb` is switched after creating a query or loading
+a model, PDOdb throws instead of silently writing to the new connection. An
+already loaded model cannot be rebound to a different connection. Direct access
+through `getQueryBuilder()` is an advanced escape hatch; it bypasses model
+scope and context protections.
+
+Without `on()`, a related model continues using its own configured connection.
+With `on()`, relationships use the explicitly supplied connection and retain
+related-model global scopes. Do not combine models from different explicit
+contexts in one manual eager-load call.
