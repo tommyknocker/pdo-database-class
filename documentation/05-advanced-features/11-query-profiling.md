@@ -216,7 +216,7 @@ $db = new PdoDb('mysql', $config, [], $logger);
 $db->enableProfiling(0.1);
 ```
 
-The default slow-query context contains SQL with recognized single-quoted string literals, numeric literals, and comments removed, and no parameter values. Double-quoted text is removed on SQLite because an unknown name can run as a string, and on MySQL and MariaDB when the session does not use `ANSI_QUOTES`. Otherwise it may stay visible because it can be an identifier. This is not a complete privacy boundary. Call `setLogParameters(true)` on the profiler only when a local debugging session should include the bound values and the original SQL:
+The default slow-query context contains SQL with recognized single-quoted string literals, numeric literals, and comments removed, and no parameter values. Double-quoted text is removed on SQLite because an unknown name can run as a string, and on MySQL and MariaDB when the session does not use `ANSI_QUOTES`. Otherwise it may stay visible because it can be an identifier. The redacted SQL is captured with the connection that ran the query, so switching connections does not change earlier entries. SQL with ambiguous backslash escaping is omitted from the redacted report and log. This is not a complete privacy boundary. Call `setLogParameters(true)` on the profiler only when a local debugging session should include the bound values and the original SQL:
 
 ```php
 $db->getProfiler()?->setLogParameters(true);

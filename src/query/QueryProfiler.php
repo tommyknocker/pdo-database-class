@@ -58,9 +58,13 @@ class QueryProfiler
      */
     protected array $stats = [];
 
+    /** @var array<string, string> SQL redacted using the originating connection */
+    protected array $redactedSql = [];
+
     /**
      * @var array<int, array{
      *     sql: string,
+     *     redacted_sql: string,
      *     params: array<int|string, mixed>,
      *     start_time: float,
      *     start_memory: int
@@ -88,6 +92,7 @@ class QueryProfiler
     {
         $this->enabled = false;
         $this->stats = [];
+        $this->redactedSql = [];
         $this->activeQueries = [];
         $this->nextQueryId = 1;
         $this->truncated = false;
@@ -168,6 +173,7 @@ class QueryProfiler
         $this->nextQueryId++;
         $this->activeQueries[$queryId] = [
             'sql' => $sql,
+            'redacted_sql' => $this->redactLiterals($sql),
             'params' => $params,
             'start_time' => microtime(true),
             'start_memory' => memory_get_usage(true),
@@ -205,13 +211,14 @@ class QueryProfiler
                 $this->truncated = true;
                 unset($this->activeQueries[$queryId]);
                 if ($executionTime >= $this->slowQueryThreshold) {
-                    $this->logSlowQuery($query['sql'], $query['params'], $executionTime, $memoryUsed);
+                    $this->logSlowQuery($this->logParameters ? $query['sql'] : $query['redacted_sql'], $query['params'], $executionTime, $memoryUsed);
                 }
                 return [
                     'time' => $executionTime,
                     'memory' => $memoryUsed,
                 ];
             }
+            $this->redactedSql[$sqlHash] = $query['redacted_sql'];
             $this->stats[$sqlHash] = [
                 'sql' => $query['sql'], // Store first occurrence SQL
                 'count' => 0,
@@ -236,7 +243,7 @@ class QueryProfiler
         // Check for slow query
         if ($executionTime >= $this->slowQueryThreshold) {
             $this->stats[$sqlHash]['slow_queries']++;
-            $this->logSlowQuery($query['sql'], $query['params'], $executionTime, $memoryUsed);
+            $this->logSlowQuery($this->logParameters ? $query['sql'] : $query['redacted_sql'], $query['params'], $executionTime, $memoryUsed);
         }
 
         // Remove from active queries
@@ -320,6 +327,7 @@ class QueryProfiler
     public function reset(): static
     {
         $this->stats = [];
+        $this->redactedSql = [];
         $this->activeQueries = [];
         $this->nextQueryId = 1;
         $this->truncated = false;
@@ -345,14 +353,14 @@ class QueryProfiler
     public function getSlowestQueries(int $limit = 10): array
     {
         $sorted = $this->stats;
-        usort($sorted, function ($a, $b) {
+        uasort($sorted, function ($a, $b) {
             return $b['total_time'] <=> $a['total_time'];
         });
 
         $result = [];
-        foreach (array_slice($sorted, 0, $limit) as $stat) {
+        foreach (array_slice($sorted, 0, $limit, true) as $hash => $stat) {
             $result[] = [
-                'sql' => $this->redactLiterals($stat['sql']),
+                'sql' => $this->redactedSql[$hash] ?? $this->redactLiterals($stat['sql']),
                 'count' => $stat['count'],
                 'total_time' => $stat['total_time'],
                 'avg_time' => $stat['avg_time'],

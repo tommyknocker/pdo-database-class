@@ -10,15 +10,15 @@ use PDOException;
 /**
  * MySQL and MariaDB treat " as a string delimiter unless ANSI_QUOTES is set.
  *
- * A missing connection or a failed read leaves the text visible. This is not a
- * claim that every double-quoted value is hidden.
+ * If the session mode cannot be read, treat double-quoted text as a literal
+ * so an unknown mode does not expose a possible string value.
  */
 final class SessionQuoteMode
 {
     public static function doubleQuotesAreLiterals(?PDO $pdo): bool
     {
         if (!$pdo instanceof PDO) {
-            return false;
+            return true;
         }
 
         $mode = null;
@@ -26,7 +26,7 @@ final class SessionQuoteMode
         try {
             $statement = $pdo->query('SELECT @@SESSION.sql_mode');
             if ($statement === false) {
-                return false;
+                return true;
             }
 
             try {
@@ -35,11 +35,11 @@ final class SessionQuoteMode
                 $statement->closeCursor();
             }
         } catch (PDOException) {
-            return false;
+            return true;
         }
 
         if (!is_string($mode)) {
-            return false;
+            return true;
         }
 
         foreach (explode(',', $mode) as $flag) {

@@ -79,4 +79,57 @@ final class ProfileRedactionTests extends BaseMySQLTestCase
             $db->disableProfiling();
         }
     }
+    public function testEscapedDoubleQuotesAreNotExposedInProfileOrLog(): void
+    {
+        $db = self::$db;
+        $pdo = $db->connection->getPdo();
+        $mode = $pdo->query('SELECT @@SESSION.sql_mode')->fetchColumn();
+        $this->assertIsString($mode);
+        $handler = new TestHandler();
+        $logger = new Logger('profile');
+        $logger->pushHandler($handler);
+        $db->enableProfiling(0.0);
+        $db->getProfiler()?->setLogger($logger);
+        try {
+            $pdo->exec("SET SESSION sql_mode = ''");
+            $db->rawQuery('SELECT "prefix\\"ESCAPED_PROFILE_SECRET" AS sample');
+            $this->assertStringNotContainsString('ESCAPED_PROFILE_SECRET', $db->profileReport()->export());
+            $this->assertStringNotContainsString('ESCAPED_PROFILE_SECRET', (string)$handler->getRecords()[0]['context']['sql']);
+
+            $pdo->exec("SET SESSION sql_mode = 'NO_BACKSLASH_ESCAPES'");
+            $db->rawQuery('SELECT "NO_BACKSLASH_SECRET\\" AS sample');
+            $this->assertStringNotContainsString('NO_BACKSLASH_SECRET', $db->profileReport()->export());
+
+            $db->getProfiler()?->setLogParameters(true);
+            $db->rawQuery('SELECT "EXPLICIT_RAW_SECRET" AS sample');
+            $records = $handler->getRecords();
+            $this->assertStringContainsString('EXPLICIT_RAW_SECRET', (string)end($records)['context']['sql']);
+        } finally {
+            $pdo->exec('SET SESSION sql_mode = ' . $pdo->quote($mode));
+            $db->disableProfiling();
+        }
+    }
+
+    public function testExportUsesTheQueryOriginalConnectionMode(): void
+    {
+        $db = new PdoDb('mysql', [
+            'host' => self::DB_HOST, 'port' => self::DB_PORT, 'username' => self::DB_USER,
+            'password' => self::DB_PASSWORD, 'dbname' => self::DB_NAME,
+        ]);
+        $db->addConnection('ansi', [
+            'driver' => 'mysql', 'host' => self::DB_HOST, 'port' => self::DB_PORT,
+            'username' => self::DB_USER, 'password' => self::DB_PASSWORD, 'dbname' => self::DB_NAME,
+        ]);
+        $db->connection->getPdo()->exec("SET SESSION sql_mode = ''");
+        $db->enableProfiling(0.0);
+        try {
+            $db->rawQuery('SELECT "HISTORY_MODE_SECRET" AS sample');
+            $db->connection('ansi');
+            $db->connection->getPdo()->exec("SET SESSION sql_mode = 'ANSI_QUOTES'");
+            $this->assertStringNotContainsString('HISTORY_MODE_SECRET', $db->profileReport()->export());
+        } finally {
+            $db->disableProfiling();
+        }
+    }
+
 }

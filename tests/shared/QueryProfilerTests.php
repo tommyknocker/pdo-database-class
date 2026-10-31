@@ -548,4 +548,31 @@ class QueryProfilerTests extends BaseSharedTestCase
             self::$db->disableProfiling();
         }
     }
+    public function testProfileKeepsTheOriginatingRedactionAfterModeChange(): void
+    {
+        $mode = true;
+        $profiler = new QueryProfiler();
+        $profiler->setDoubleQuotedTextIsLiteral(static function () use (&$mode): bool { return $mode; });
+        $profiler->enable();
+        $id = $profiler->startQuery('SELECT "PROFILE_HISTORY_SECRET"');
+        $mode = false;
+        $profiler->endQuery($id);
+        $this->assertStringNotContainsString('PROFILE_HISTORY_SECRET', $profiler->getSlowestQueries()[0]['sql']);
+    }
+
+    public function testAmbiguousEscapingIsNotPartiallyExposed(): void
+    {
+        $profiler = new QueryProfiler();
+        $profiler->setDoubleQuotedTextIsLiteral(static fn (): bool => true);
+        $profiler->enable();
+        $id = $profiler->startQuery('SELECT "before\\"PROFILE_ESCAPE_SECRET"');
+        $profiler->endQuery($id);
+        $this->assertStringNotContainsString('PROFILE_ESCAPE_SECRET', $profiler->getSlowestQueries()[0]['sql']);
+    }
+
+    public function testUnknownMysqlQuoteModeUsesSafeDefault(): void
+    {
+        $this->assertTrue(\tommyknocker\pdodb\dialects\mysql\SessionQuoteMode::doubleQuotesAreLiterals(null));
+    }
+
 }

@@ -8,7 +8,7 @@ namespace tommyknocker\pdodb\ai;
 final class SqlContextTokenizer
 {
     /** @return list<array{text: string, kind: string}> */
-    public static function tokens(string $sql): array
+    public static function tokens(string $sql, bool $backslashEscapes = true, bool $doubleQuotesAreLiterals = false): array
     {
         $tokens = [];
         $length = strlen($sql);
@@ -59,7 +59,7 @@ final class SqlContextTokenizer
                 $endChar = $char === '[' ? ']' : $char;
                 ++$i;
                 while ($i < $length) {
-                    if ($sql[$i] === '\\' && $char === "'") {
+                    if ($sql[$i] === '\\' && $backslashEscapes && ($char === "'" || ($char === '"' && $doubleQuotesAreLiterals))) {
                         $i += 2;
                     } elseif ($sql[$i] === $endChar) {
                         ++$i;
@@ -98,13 +98,18 @@ final class SqlContextTokenizer
      */
     public static function redact(string $sql, bool $doubleQuotesAreLiterals = false): string
     {
-        return implode(' ', array_map(
+        $render = static fn (bool $backslashEscapes): string => implode(' ', array_map(
             static fn (array $token): string => $token['kind'] === 'literal'
                 || ($doubleQuotesAreLiterals && $token['kind'] === 'identifier' && str_starts_with($token['text'], '"'))
                 ? '?'
                 : $token['text'],
-            self::tokens($sql)
+            self::tokens($sql, $backslashEscapes, $doubleQuotesAreLiterals)
         ));
+        $redacted = $render(true);
+        if (str_contains($sql, '\\') && $redacted !== $render(false)) {
+            return '[SQL omitted: ambiguous string escaping]';
+        }
+        return $redacted;
     }
 
     /** @return array{schema: ?string, table: string, schema_quoted: bool, table_quoted: bool}|null */
