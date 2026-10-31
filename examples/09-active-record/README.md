@@ -36,6 +36,12 @@ Query scopes: global and local scopes for reusable query logic.
 - **Disable Global Scopes** - Temporarily bypass global scopes when needed
 - **QueryBuilder Scopes** - Use scopes directly with QueryBuilder (without models)
 
+### 04-api-contract.php
+A SQLite-backed order API flow: an optional `tommyknocker/struct` request DTO,
+transactional update, eager-loaded model pagination, and an explicit response
+DTO. Install the optional package with `composer require tommyknocker/struct` to
+run it. The example uses only an in-memory database.
+
 ## Usage
 
 ```bash

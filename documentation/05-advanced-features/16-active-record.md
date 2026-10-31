@@ -719,3 +719,72 @@ and deletes on model instances. Operations such as `truncate()` and `replace()`
 that cannot honor a WHERE scope require explicitly disabling it. Raw SQL and
 `getQueryBuilder()` remain direct access: global scopes are not a substitute
 for authorization or database-level tenant isolation.
+
+## Typed attributes and API responses
+
+Models can opt into conversions for JSON arrays, backed enums and immutable
+datetimes. Existing models without `casts()` keep their previous behavior.
+
+```php
+use DateTimeImmutable;
+use tommyknocker\pdodb\orm\Model;
+
+enum OrderStatus: string { case Pending = 'pending'; case Paid = 'paid'; }
+
+final class Order extends Model
+{
+    public static function casts(): array
+    {
+        return [
+            'status' => OrderStatus::class,
+            'created_at' => DateTimeImmutable::class,
+            'metadata' => 'json',
+        ];
+    }
+
+    public static function safeAttributes(): array
+    {
+        return ['status', 'metadata'];
+    }
+}
+```
+
+`$order->status` is an enum case, `$order->created_at` is a `DateTimeImmutable`,
+and `$order->metadata` is an array. Assign enum cases, `DateTimeInterface`
+objects and arrays respectively; `null` remains `null`. JSON must decode to an
+array or object, and invalid input throws. Datetimes are written as UTC without a
+timezone, preserving microseconds; use a column that can represent that format.
+Dates read without a timezone are interpreted as UTC. `getAttributes()` and
+`toArray()` retain their existing raw database-value behavior.
+
+On Oracle, the default session timestamp format drops fractional seconds.
+Before using `DateTimeImmutable` casts, explicitly configure the connection:
+
+```php
+$db->rawQuery("ALTER SESSION SET NLS_TIMESTAMP_FORMAT='YYYY-MM-DD HH24:MI:SS.FF6'");
+```
+
+The model checks that setting before loading or saving cast datetimes and throws
+instead of silently losing precision. This check adds a database query to those
+Oracle operations. This does not change the format for applications that do not
+opt in to datetime casts. Oracle attributes use exact-case names first; when no
+exact name exists, an unambiguous case-insensitive match handles normal uppercase
+column names. Ambiguous quoted names require their exact case.
+
+For an API, explicitly select the fields and eager-loaded relationships to expose:
+
+```php
+$page = Order::find()->with('items')->paginateModels(20, 1);
+$data = array_map(
+    fn (Model $order) => $order->present(['id', 'status'], ['items' => ['sku']]),
+    $page->items()
+);
+$total = $page->total();
+```
+
+`paginateModels()` returns models and loads the relations requested by `with()`;
+`paginate()` continues to return raw rows. `present()` never lazy-loads a
+relation: request it with `with()` first. It exports only the named attributes,
+turning backed enums and dates into JSON-ready values. Do not select private
+columns for public responses. For separate request/response DTOs with optional
+`tommyknocker/struct`, see the [API contract example](../../examples/09-active-record/04-api-contract.php).

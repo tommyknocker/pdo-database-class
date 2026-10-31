@@ -69,7 +69,12 @@ trait ActiveRecord
             return $this->loadRelation($name);
         }
 
-        return $this->attributes[$name] ?? null;
+        $key = $this->attributeKey($name, $this->attributes);
+        $casts = static::casts();
+        $castKey = $this->attributeKey($name, $casts);
+        $value = $this->attributes[$key] ?? null;
+        $cast = $casts[$castKey] ?? null;
+        return $cast === null ? $value : AttributeCaster::fromDatabase($cast, $value);
     }
 
     /**
@@ -80,7 +85,10 @@ trait ActiveRecord
      */
     public function __set(string $name, mixed $value): void
     {
-        $this->attributes[$name] = $value;
+        $key = $this->attributeKey($name, $this->attributes);
+        $casts = static::casts();
+        $cast = $casts[$this->attributeKey($name, $casts)] ?? null;
+        $this->attributes[$key] = $cast === null ? $value : AttributeCaster::toDatabase($cast, $value);
     }
 
     /**
@@ -92,7 +100,7 @@ trait ActiveRecord
      */
     public function __isset(string $name): bool
     {
-        return isset($this->attributes[$name]);
+        return isset($this->attributes[$this->attributeKey($name, $this->attributes)]);
     }
 
     /**
@@ -102,7 +110,32 @@ trait ActiveRecord
      */
     public function __unset(string $name): void
     {
-        unset($this->attributes[$name]);
+        unset($this->attributes[$this->attributeKey($name, $this->attributes)]);
+    }
+
+    /** @param array<string, mixed> $attributes */
+    protected function attributeKey(string $name, array $attributes): string
+    {
+        if (array_key_exists($name, $attributes)) {
+            return $name;
+        }
+        $db = static::getDb();
+        if ($db === null) {
+            return $name;
+        }
+
+        try {
+            if ($db->connection->getDriverName() !== 'oci') {
+                return $name;
+            }
+        } catch (RuntimeException) {
+            return $name;
+        }
+        $matches = array_values(array_filter(array_keys($attributes), static fn (string $key): bool => strcasecmp($key, $name) === 0));
+        if (count($matches) > 1) {
+            throw new RuntimeException("Ambiguous Oracle attribute '{$name}'; use its exact case.");
+        }
+        return $matches[0] ?? $name;
     }
 
     /**
@@ -165,7 +198,7 @@ trait ActiveRecord
         }
 
         foreach ($values as $name => $value) {
-            $this->attributes[$name] = $value;
+            $this->__set($name, $value);
         }
     }
 
@@ -322,6 +355,8 @@ trait ActiveRecord
             throw new RuntimeException('Database connection not set. Use Model::setDb() to set connection.');
         }
 
+        static::validateCastConnection($db);
+
         $tableName = static::tableName();
         $attributes = $this->getAttributes();
 
@@ -370,6 +405,8 @@ trait ActiveRecord
         if ($db === null) {
             throw new RuntimeException('Database connection not set. Use Model::setDb() to set connection.');
         }
+
+        static::validateCastConnection($db);
 
         $dirty = $this->getDirtyAttributes();
         if (empty($dirty)) {
@@ -482,10 +519,11 @@ trait ActiveRecord
         $pk = static::primaryKey();
         $condition = [];
         foreach ($pk as $key) {
-            if (!isset($this->attributes[$key])) {
+            $attributeKey = $this->attributeKey($key, $this->attributes);
+            if (!isset($this->attributes[$attributeKey])) {
                 return false;
             }
-            $condition[$key] = $this->attributes[$key];
+            $condition[$key] = $this->attributes[$attributeKey];
         }
 
         $model = static::findOne($condition);
@@ -627,6 +665,46 @@ trait ActiveRecord
     public function toArray(): array
     {
         return $this->attributes;
+    }
+
+    /**
+     * Build an explicit API representation without loading missing relations.
+     *
+     * @param list<string> $fields
+     * @param array<string, list<string>> $relations Relation names and their allowed fields
+     *
+     * @return array<string, mixed>
+     */
+    public function present(array $fields, array $relations = []): array
+    {
+        $result = [];
+        foreach ($fields as $name) {
+            if (!array_key_exists($this->attributeKey($name, $this->attributes), $this->attributes)) {
+                throw new RuntimeException("Cannot present missing attribute '{$name}'.");
+            }
+            $value = $this->__get($name);
+            $result[$name] = match (true) {
+                $value instanceof \BackedEnum => $value->value,
+                $value instanceof \DateTimeInterface => $value->format('Y-m-d\\TH:i:s.uP'),
+                default => $value,
+            };
+        }
+        foreach ($relations as $name => $relationFields) {
+            if (!array_key_exists($name, $this->relationData)) {
+                throw new RuntimeException("Relation '{$name}' must be eager-loaded before presentation.");
+            }
+            $related = $this->loadRelation($name);
+            if ($related instanceof Model) {
+                $result[$name] = $related->present($relationFields);
+            } elseif (is_array($related)) {
+                $result[$name] = array_map(static fn (Model $model): array => $model->present($relationFields), $related);
+            } elseif ($related === null) {
+                $result[$name] = null;
+            } else {
+                throw new RuntimeException("Invalid eager-loaded relation '{$name}'.");
+            }
+        }
+        return $result;
     }
 
     /**
@@ -823,10 +901,11 @@ trait ActiveRecord
         $this->assertPrimaryKeyUnchanged();
         $values = [];
         foreach (static::primaryKey() as $key) {
-            if (!array_key_exists($key, $this->oldAttributes)) {
+            $oldKey = $this->attributeKey($key, $this->oldAttributes);
+            if (!array_key_exists($oldKey, $this->oldAttributes)) {
                 throw new RuntimeException("Primary key value '{$key}' is missing for this loaded record.");
             }
-            $values[$key] = $this->oldAttributes[$key];
+            $values[$key] = $this->oldAttributes[$oldKey];
         }
 
         return $values;
@@ -835,8 +914,8 @@ trait ActiveRecord
     protected function assertPrimaryKeyUnchanged(): void
     {
         foreach (static::primaryKey() as $key) {
-            $old = $this->oldAttributes[$key] ?? null;
-            $current = $this->attributes[$key] ?? null;
+            $old = $this->oldAttributes[$this->attributeKey($key, $this->oldAttributes)] ?? null;
+            $current = $this->attributes[$this->attributeKey($key, $this->attributes)] ?? null;
             if ($old !== $current) {
                 throw new PrimaryKeyMutationException(
                     "Primary key column '{$key}' was changed in memory. Update or delete the original row explicitly."

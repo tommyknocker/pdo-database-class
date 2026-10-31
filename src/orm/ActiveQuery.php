@@ -182,6 +182,10 @@ class ActiveQuery
      */
     public function one(): ?Model
     {
+        $db = $this->modelClass::getDb();
+        if ($db !== null) {
+            $this->modelClass::validateCastConnection($db);
+        }
         $this->ensureGlobalScopes();
         $data = $this->queryBuilder->getOne();
         if (!is_array($data)) {
@@ -206,6 +210,10 @@ class ActiveQuery
      */
     public function all(): array
     {
+        $db = $this->modelClass::getDb();
+        if ($db !== null) {
+            $this->modelClass::validateCastConnection($db);
+        }
         $this->ensureGlobalScopes();
         $data = $this->queryBuilder->get();
         $models = [];
@@ -233,6 +241,31 @@ class ActiveQuery
     {
         $this->ensureGlobalScopes();
         return $this->queryBuilder->paginate($perPage, $page, $options);
+    }
+
+    /**
+     * Paginate models and eager-load requested relations without changing paginate().
+     *
+     * @param array<string, mixed> $options
+     *
+     * @return ModelPage<TModel>
+     */
+    public function paginateModels(int $perPage = 15, ?int $page = null, array $options = []): ModelPage
+    {
+        $db = $this->modelClass::getDb();
+        if ($db !== null) {
+            $this->modelClass::validateCastConnection($db);
+        }
+        $this->ensureGlobalScopes();
+        $pagination = $this->queryBuilder->paginate($perPage, $page, $options);
+        $models = [];
+        foreach ($pagination->items() as $row) {
+            $models[] = $this->populateModel($row);
+        }
+        if ($models !== [] && $this->eagerLoad !== []) {
+            $this->loadRelations($models, $this->eagerLoad);
+        }
+        return new ModelPage($models, $pagination);
     }
 
     /** @param array<string, mixed> $options */

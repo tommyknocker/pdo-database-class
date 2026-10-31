@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\orm;
 
+use RuntimeException;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\QueryBuilder;
 
@@ -98,6 +99,25 @@ abstract class Model
     public static function primaryKey(): array
     {
         return ['id'];
+    }
+
+    /** @return array<string, string> Attribute name to cast (json, DateTimeImmutable, or backed enum). */
+    public static function casts(): array
+    {
+        return [];
+    }
+
+    /** Ensure Oracle does not silently discard fractional seconds in model casts. */
+    public static function validateCastConnection(PdoDb $db): void
+    {
+        if (!in_array(\DateTimeImmutable::class, static::casts(), true) || $db->connection->getDriverName() !== 'oci') {
+            return;
+        }
+        $row = $db->rawQueryOne("SELECT VALUE FROM NLS_SESSION_PARAMETERS WHERE PARAMETER = 'NLS_TIMESTAMP_FORMAT'");
+        $format = strtoupper((string)($row['VALUE'] ?? $row['value'] ?? ''));
+        if ($format !== 'YYYY-MM-DD HH24:MI:SS.FF6') {
+            throw new RuntimeException("Oracle datetime casts require NLS_TIMESTAMP_FORMAT='YYYY-MM-DD HH24:MI:SS.FF6' on the connection to preserve microseconds.");
+        }
     }
 
     /**
