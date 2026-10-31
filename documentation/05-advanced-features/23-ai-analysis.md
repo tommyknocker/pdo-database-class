@@ -79,8 +79,8 @@ The demo covers three different decisions:
 **Choose one provider.** You need its key and a model; you do not need keys for
 other services or a list of generation parameters.
 
-Here is the OpenRouter setup for the demo. Create a local `.env.ai.local` file
-in the repository root with these three values:
+Here is the OpenRouter setup for the demo. Add these three values to the local
+`.env` file in the repository root:
 
 ```dotenv
 PDODB_AI_PROVIDER=openrouter
@@ -121,9 +121,8 @@ connection:
 - `new PdoDb(...)` does not load `.env`. Load it in your application before
   creating or using the connection, or set the variables in the PHP process
   environment. The AI configuration reads them with PHP `getenv()`.
-- PDOdb CLI commands load `.env` themselves. The demo's `.env.ai.local` is a
-  separate file loaded by the demo's `--ai` mode and the live-test scripts;
-  normal PHP calls and `PdoDb::fromEnv()` do not select it automatically.
+- PDOdb CLI commands load `.env` themselves. The demo loads the same `.env`
+  when run with `--ai`; an optional `--env=/path/to/file` selects another file.
 
 Existing process environment variables take precedence over values loaded from
 `.env`. Keep your existing database connection and QueryBuilder code.

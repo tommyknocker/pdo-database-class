@@ -38,3 +38,6 @@ infection-summary.txt
 /storage/
 
 *.sqlite
+
+# Local CodeGraph index
+/.codegraph/

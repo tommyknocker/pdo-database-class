@@ -15,7 +15,7 @@ $options = getopt('', ['ai', 'env:', 'rows:', 'json', 'output:', 'help']) ?: [];
 if (isset($options['help'])) {
     echo "Usage: php examples/07-performance/05-ai-query-advice.php [--ai] [--env=/private/file] [--rows=100000] [--json] [--output=/path/report.json]\n";
     echo "Default: synthetic SQLite in memory, real plans and measurements, no AI request.\n";
-    echo "--ai makes three requests, each capped at 512 output tokens; private settings default to .env.ai.local.\n";
+    echo "--ai makes three requests, each capped at 512 output tokens; settings default to .env in the current directory.\n";
     exit(0);
 }
 
@@ -32,7 +32,7 @@ try {
         if (getenv('CI') !== false || getenv('GITHUB_ACTIONS') !== false) {
             throw new RuntimeException('Live showcase requests are disabled in CI; run the offline example instead');
         }
-        $env = $options['env'] ?? dirname(__DIR__, 2) . '/.env.ai.local';
+        $env = $options['env'] ?? EnvLoader::getDefaultEnvPath();
         if (!is_string($env) || (isset($options['env']) && !is_file($env))) {
             throw new RuntimeException('The selected private environment file does not exist');
         }

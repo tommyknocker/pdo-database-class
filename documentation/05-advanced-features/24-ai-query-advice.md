@@ -26,8 +26,8 @@ PDODB_AI_MODEL=your-provider/model-id
 Use an actual model ID available to your account. Keep the real key in your
 local, untracked environment or secret store. PDOdb also supports other
 [providers and compatible endpoints](26-ai-reference.md#configuration).
-The dedicated `.env.ai.local` file is loaded by the repository's live-test
-runner and the showcase with `--ai`, not automatically by this PHP method.
+The repository showcase and live-test runner load `.env` when explicitly run.
+See [how `.env` is loaded](23-ai-analysis.md#use-the-same-call-in-your-application) for PHP application code.
 
 This guide assumes `$db` is your application's configured `PdoDb` instance and
 `orders` contains `id`, `user_id`, `status`, and `created_at`.

@@ -10,7 +10,7 @@ composer pdodb:test:ai
 
 It checks configuration, HTTP request shape, MCP stdio, Composer installation
 paths and the smoke-test runner using fake keys and a loopback HTTP server.
-It does not load `.env.ai.local` or make paid requests. No database servers
+It does not load your local `.env` or make paid requests. No database servers
 are needed; fixtures use SQLite in memory.
 
 The suite also checks actual query-advice payloads, FROM/JOIN/alias/prefix metadata,
@@ -22,15 +22,15 @@ plans on the six configured local databases (creates/drops random test tables):
 composer pdodb:test:ai:db
 ```
 
-For real OpenRouter testing, create `.env.ai.local` from
-[the template](../.env.ai.local.example), set its permissions to `600`, then
+For real OpenRouter testing, add AI settings to your existing `.env` or create it from
+[the template](../.env.example), set its permissions to `600`, then
 edit the key and an actual model ID in your local editor. The local file is
 ignored by Git; the template contains no credentials. Existing shell environment
 variables take precedence over the file. Do not put the actual key in test
 sources, Composer scripts, shell command arguments or committed configuration.
 
 ```bash
-chmod 600 .env.ai.local
+chmod 600 .env
 composer pdodb:test:ai:check  # Validate local setup; no API request
 composer pdodb:test:ai:live   # Explicitly make up to three AI requests
 ```

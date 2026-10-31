@@ -58,7 +58,7 @@ php examples/07-performance/05-ai-query-advice.php
 php examples/07-performance/05-ai-query-advice.php --ai
 ```
 
-Run these commands from the repository root. `--ai` reads `.env.ai.local` (or
+Run these commands from the repository root. `--ai` reads `.env` (or
 `--env=/private/file`) and caps each of three responses at 512 output tokens.
 Use `--json` or `--output=/tmp/query-advice.json` for a machine-readable report.
 See the [illustrated walkthrough](../../documentation/05-advanced-features/25-ai-query-advice-in-practice.md)

@@ -51,7 +51,7 @@ php examples/07-performance/05-ai-query-advice.php --ai
 This explicitly makes three requests, each capped at 512 output tokens, and
 shows progress as the answers arrive. The only settings needed to start are
 the provider, its key and a model. Keep the real key in the local, untracked
-`.env.ai.local` file. A different private file can be selected with
+`.env` file. A different private file can be selected with
 `--env=/path/to/private.env`.
 
 The script always uses a fresh SQLite database **in memory**, even when your

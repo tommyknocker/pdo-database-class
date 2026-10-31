@@ -36,18 +36,18 @@ final class AiLiveRunnerTests extends TestCase
     }
 
     /** @return array{int, string, string} */
-    private function runScript(array $arguments, bool $ci = false): array
+    private function runScript(array $arguments, bool $ci = false, ?string $cwd = null, bool $useDefaultEnv = false): array
     {
         $environment = array_filter(getenv(), static fn ($key) => !str_starts_with($key, 'PDODB_AI_')
-            && !in_array($key, ['CI', 'GITHUB_ACTIONS'], true), ARRAY_FILTER_USE_KEY);
+            && !in_array($key, ['CI', 'GITHUB_ACTIONS', 'PDODB_ENV_PATH'], true), ARRAY_FILTER_USE_KEY);
         if ($ci) {
             $environment['CI'] = '1';
         }
         $process = proc_open(
-            [PHP_BINARY, dirname(__DIR__, 2) . '/scripts/test-ai-live.php', '--env=' . $this->envPath, ...$arguments],
+            [PHP_BINARY, dirname(__DIR__, 2) . '/scripts/test-ai-live.php', ...($useDefaultEnv ? [] : ['--env=' . $this->envPath]), ...$arguments],
             [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
             $pipes,
-            null,
+            $cwd,
             $environment
         );
         self::assertIsResource($process);
@@ -69,6 +69,72 @@ final class AiLiveRunnerTests extends TestCase
         self::assertStringContainsString('no API requests were made', $output);
         self::assertStringContainsString('up to 512 output tokens each, 90s timeout', $output);
         self::assertStringNotContainsString('fake-secret-do-not-print', $output . $errors);
+    }
+
+    public function testDefaultLoadsDotEnvFromCurrentDirectory(): void
+    {
+        $this->configure('http://127.0.0.1:1/v1');
+        $directory = $this->envPath . '-dir';
+        mkdir($directory, 0700);
+        try {
+            copy($this->envPath, $directory . '/.env');
+            [$status, $output, $errors] = $this->runScript([], cwd: $directory, useDefaultEnv: true);
+            self::assertSame(0, $status, $errors);
+            self::assertStringContainsString('no API requests were made', $output);
+            self::assertStringNotContainsString('fake-secret-do-not-print', $output . $errors);
+        } finally {
+            unlink($directory . '/.env');
+            rmdir($directory);
+        }
+    }
+
+    public function testShowcaseLoadsDotEnvFromCurrentDirectory(): void
+    {
+        $server = proc_open(
+            [PHP_BINARY, __DIR__ . '/../fixtures/ai-http-server.php', '3'],
+            [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+            $serverPipes
+        );
+        self::assertIsResource($server);
+        $directory = $this->envPath . '-showcase';
+        mkdir($directory, 0700);
+        try {
+            stream_set_timeout($serverPipes[1], 5);
+            $address = trim((string)fgets($serverPipes[1]));
+            self::assertStringStartsWith('127.0.0.1:', $address);
+            $this->configure('http://' . $address . '/v1');
+            copy($this->envPath, $directory . '/.env');
+            $environment = array_filter(getenv(), static fn ($key) => !str_starts_with($key, 'PDODB_AI_')
+                && !in_array($key, ['CI', 'GITHUB_ACTIONS', 'PDODB_ENV_PATH'], true), ARRAY_FILTER_USE_KEY);
+            $process = proc_open(
+                [PHP_BINARY, dirname(__DIR__, 2) . '/examples/07-performance/05-ai-query-advice.php', '--ai', '--rows=10000', '--json'],
+                [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+                $pipes,
+                $directory,
+                $environment
+            );
+            self::assertIsResource($process);
+            fclose($pipes[0]);
+            stream_set_timeout($pipes[1], 20);
+            $output = stream_get_contents($pipes[1]);
+            $errors = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            self::assertSame(0, proc_close($process), $errors);
+            $report = json_decode($output, true, 512, JSON_THROW_ON_ERROR);
+            self::assertTrue($report['ai_enabled']);
+            self::assertCount(3, $report['cases']);
+        } finally {
+            if (is_file($directory . '/.env')) {
+                unlink($directory . '/.env');
+            }
+            rmdir($directory);
+            foreach ($serverPipes as $pipe) {
+                fclose($pipe);
+            }
+            proc_terminate($server);
+            proc_close($server);
+        }
     }
 
     public function testExplicitLiveRequestsAreBlockedInCi(): void

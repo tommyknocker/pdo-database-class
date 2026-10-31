@@ -39,8 +39,8 @@ A `.env` file is loaded at connection setup, not by an AI method:
   the process environment first. AI settings must be visible to PHP `getenv()`;
   a loader that populates only `$_ENV` is insufficient.
 - PDOdb CLI commands load `.env` themselves, including when using a PHP database
-  config file. `.env.ai.local` is only loaded explicitly by the demo's `--ai`
-  mode and live-test scripts, not by `fromEnv()` unless passed as its path.
+  config file. The demo's `--ai` mode and live-test scripts also load `.env`;
+  pass `--env=/path/to/file` to those scripts to select another file.
 
 Values already present in the process environment are not overwritten by
 `.env`. Keep files containing API keys out of version control.
@@ -382,8 +382,8 @@ send SQL/schema to the configured PDOdb AI provider.
 | Unexpected settings | Environment variables take precedence over configuration arrays |
 
 For private repository smoke tests, use the [testing guide](../../tests/README.md#local-ai-tests-and-private-credentials).
-`.env.ai.local` is loaded only by those explicit live scripts and the showcase's
-`--ai` mode. It is not automatically loaded by `explainAiAdvice()` in an application.
+`.env` is loaded by the explicit live scripts and the showcase's `--ai` mode.
+A PHP application loads it via `PdoDb::fromEnv()` or its own environment loader.
 
 ## See Also
 

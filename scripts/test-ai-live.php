@@ -22,7 +22,7 @@ if ($run && (getenv('CI') !== false || getenv('GITHUB_ACTIONS') !== false)) {
     fwrite(STDERR, "Live AI requests are disabled in CI. Use the offline AI tests instead.\n");
     exit(2);
 }
-$envPath = $options['env'] ?? dirname(__DIR__) . '/.env.ai.local';
+$envPath = $options['env'] ?? EnvLoader::getDefaultEnvPath();
 if (!is_string($envPath)) {
     fwrite(STDERR, "--env must be a file path.\n");
     exit(2);
@@ -44,7 +44,7 @@ try {
     }
     $model = $config->getProviderSetting($providerName, 'model');
     if (!$config->hasApiKey($providerName) || !is_string($model) || trim($model) === '') {
-        throw new RuntimeException('Configure the provider key and an explicit model ID in .env.ai.local or the environment.');
+        throw new RuntimeException('Configure the provider key and an explicit model ID in .env or the environment.');
     }
     if (!in_array('sqlite', PDO::getAvailableDrivers(), true)) {
         throw new RuntimeException('The local smoke database requires pdo_sqlite.');
