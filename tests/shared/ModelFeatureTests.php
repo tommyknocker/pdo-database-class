@@ -331,7 +331,7 @@ final class ModelFeatureTests extends BaseSharedTestCase
     public function testManyToManySyncAndInbox(): void
     {
         $article = new FeatureArticleLink();
-        $article->setAttributes([
+        $article->forceFill([
             'public_id' => '01ARZ3NDEKTSV4RRFFQ69G5FAV',
             'slug' => 'linked',
             'title' => 'Linked',
@@ -454,7 +454,7 @@ final class ModelFeatureTests extends BaseSharedTestCase
         }
         for ($i = 1; $i <= 6; $i++) {
             $article = new FeatureArticleLink();
-            $article->setAttributes(['public_id' => 'p' . $i, 'slug' => 's' . $i, 'title' => 'A' . $i, 'views' => 0]);
+            $article->forceFill(['public_id' => 'p' . $i, 'slug' => 's' . $i, 'title' => 'A' . $i, 'views' => 0]);
             $this->assertTrue($article->save(false));
             self::$db->find()->table('feature_article_tag')->insert(['article_id' => (int) $article->id, 'tag_id' => $tagIds[$i % 2]]);
         }

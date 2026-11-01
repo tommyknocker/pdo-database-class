@@ -238,8 +238,8 @@ unset($user->email);
 // Get all attributes as array
 $attributes = $user->getAttributes();
 
-// Set multiple attributes
-$user->setAttributes([
+// Set multiple attributes from your own code (for request data use setAttributes(), see Mass Assignment)
+$user->forceFill([
     'name' => 'Bob',
     'email' => 'bob@example.com'
 ]);
@@ -616,23 +616,76 @@ $user = new User();
 $user->save(false);
 ```
 
-### 4. Safe Attributes
+### 4. Mass Assignment and Safe Attributes
+
+`setAttributes()` is meant for data that comes from outside, such as a request body. If it set every key it was given,
+a client could add `is_admin=1` to a form and have it stored. So it sets **only safe attributes** unless you say otherwise.
+
+The safe attributes are, in order:
+
+1. the list returned by `safeAttributes()`, if the model defines that method;
+2. otherwise every attribute mentioned in `rules()`;
+
+minus the attributes returned by `unsafeAttributes()`.
 
 ```php
 class User extends Model
 {
-    public static function safeAttributes(): array
+    public static function rules(): array
     {
-        return ['name', 'email', 'age'];
+        return [
+            [['name', 'email'], 'required'],
+            ['age', 'integer'],
+            ['is_admin', 'boolean'],
+        ];
+    }
+
+    // Validated, but never set by mass assignment
+    public static function unsafeAttributes(): array
+    {
+        return ['is_admin'];
     }
 }
 
-// Only safe attributes will be set
 $user = new User();
-$user->setAttributes($data, true); // safeOnly = true
+$user->setAttributes($_POST);   // sets name, email and age; is_admin and unknown keys are ignored
 ```
 
-If `safeOnly` is `true`, the model **must** implement `safeAttributes()`. Otherwise `MassAssignmentException` is thrown.
+To list the safe attributes explicitly, independent of the rules, define `safeAttributes()`; it takes precedence over
+`rules()`:
+
+```php
+public static function safeAttributes(): array
+{
+    return ['name', 'email', 'age'];
+}
+```
+
+A model that defines neither `rules()` nor `safeAttributes()` has no safe attributes, and `setAttributes()` throws a
+`MassAssignmentException` instead of quietly doing nothing.
+
+#### Setting attributes from trusted code
+
+Values you wrote yourself do not need the filter. Use `forceFill()`, `setAttribute()` or `setAttributes($values, false)`:
+
+```php
+$user->forceFill(['name' => 'Ann', 'is_admin' => 1]);
+$user->setAttribute('is_admin', 1);
+```
+
+`create()`-style helpers such as `firstOrCreate()` and `updateOrCreate()` take their arrays as trusted, because the
+caller writes them. If you pass request data to them, filter it first (for example with `setAttributes()` on a new model).
+
+#### Noticing discarded attributes
+
+Keys that are not safe are ignored silently. During development you can make that an error, which catches a
+misspelled or forgotten attribute:
+
+```php
+User::preventSilentlyDiscardingAttributes();            // per model class, off by default
+$user->setAttributes(['name' => 'Ann', 'is_admin' => 1]);
+// MassAssignmentException: User does not allow mass assignment of: is_admin.
+```
 
 See [Active Record relationships](17-active-record-relationships.md) for `hasManyThrough` and other relation types across supported dialects.
 

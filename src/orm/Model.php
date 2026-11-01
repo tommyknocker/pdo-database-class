@@ -55,6 +55,23 @@ abstract class Model
         return self::$preventLazyLoading[static::class] ?? false;
     }
 
+    /** @var array<class-string, bool> Whether mass assignment throws for attributes it would discard, per model class */
+    protected static array $preventDiscardingAttributes = [];
+
+    /**
+     * Throw a MassAssignmentException when setAttributes() would silently discard attributes that are not safe
+     * (off by default; handy in development to notice a misspelled or forgotten attribute).
+     */
+    public static function preventSilentlyDiscardingAttributes(bool $prevent = true): void
+    {
+        self::$preventDiscardingAttributes[static::class] = $prevent;
+    }
+
+    public static function discardingAttributesIsPrevented(): bool
+    {
+        return self::$preventDiscardingAttributes[static::class] ?? false;
+    }
+
     /**
      * Get database connection.
      *
@@ -244,6 +261,17 @@ abstract class Model
      * @return array<int, array<int|string, mixed>> Validation rules
      */
     public static function rules(): array
+    {
+        return [];
+    }
+
+    /**
+     * Attributes that are validated by rules() but must never be set by mass assignment (`setAttributes()`), for
+     * example `is_admin` or an owner id. Use `forceFill()` or `setAttribute()` to set them deliberately.
+     *
+     * @return array<int, string>
+     */
+    public static function unsafeAttributes(): array
     {
         return [];
     }

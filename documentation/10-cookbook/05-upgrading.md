@@ -26,10 +26,21 @@ and deletes. Terminal methods such as `exists()` and `delete()` return their
 actual results. Queries deliberately using raw SQL or `getQueryBuilder()` remain
 outside these protections. A scope is not an authorization boundary.
 
-`setAttributes($values, safeOnly: true)` requires the model to define
-`safeAttributes()`; otherwise it throws `MassAssignmentException`. Changing a
-loaded model's primary key and then saving or deleting it throws
+Changing a loaded model's primary key and then saving or deleting it throws
 `PrimaryKeyMutationException`.
+
+## Mass assignment
+
+`setAttributes($values)` now sets only safe attributes by default (`$safeOnly`
+is `true`). The safe attributes are those returned by `safeAttributes()` if the
+model defines it, otherwise those mentioned in `rules()`, minus
+`unsafeAttributes()`. Other keys are ignored, and a model with neither
+`rules()` nor `safeAttributes()` throws `MassAssignmentException`.
+
+If your code passed trusted data to `setAttributes()`, switch to `forceFill()`
+(or `setAttribute()`), or pass `false` as the second argument. Models whose
+rules do not mention a field you assign from request data need that field in
+`rules()` or `safeAttributes()`.
 
 ## Nested transaction callbacks
 

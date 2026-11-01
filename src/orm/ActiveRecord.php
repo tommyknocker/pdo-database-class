@@ -270,26 +270,79 @@ trait ActiveRecord
     }
 
     /**
-     * Set attributes from array.
+     * Set attributes from an array, for example request data.
+     *
+     * Only safe attributes are set by default: those listed by `safeAttributes()` if the model defines it,
+     * otherwise those mentioned in `rules()`, in both cases without `unsafeAttributes()`. Other keys are ignored
+     * (or raise a MassAssignmentException, see {@see Model::preventSilentlyDiscardingAttributes()}). A model that
+     * defines neither `safeAttributes()` nor `rules()` has no safe attributes, which is an error rather than a
+     * silent no-op. To set attributes from trusted code use `forceFill()`, `setAttribute()` or pass `$safeOnly = false`.
      *
      * @param array<string, mixed> $values Attributes to set
-     * @param bool $safeOnly If true, only set safe attributes (if safeAttributes() method exists)
+     * @param bool $safeOnly Set only safe attributes (default); false sets every key
+     *
+     * @throws MassAssignmentException If the model declares no safe attributes, or a discarded attribute is not allowed
      */
-    public function setAttributes(array $values, bool $safeOnly = false): void
+    public function setAttributes(array $values, bool $safeOnly = true): void
     {
         if ($safeOnly) {
-            if (!method_exists(static::class, 'safeAttributes')) {
+            $safe = static::safeAttributeNames();
+            $discarded = array_values(array_diff(array_map('strval', array_keys($values)), $safe));
+            if ($discarded !== [] && static::discardingAttributesIsPrevented()) {
                 throw new MassAssignmentException(
-                    'safeOnly is enabled but ' . static::class . ' does not declare safeAttributes().'
+                    static::class . ' does not allow mass assignment of: ' . implode(', ', $discarded) . '.'
                 );
             }
-            $safe = static::safeAttributes();
             $values = array_intersect_key($values, array_flip($safe));
         }
 
         foreach ($values as $name => $value) {
             $this->__set($name, $value);
         }
+    }
+
+    /**
+     * Set attributes from trusted code, bypassing the safe-attribute check of `setAttributes()`.
+     *
+     * @param array<string, mixed> $values Attributes to set
+     *
+     * @return static
+     */
+    public function forceFill(array $values): static
+    {
+        $this->setAttributes($values, false);
+
+        return $this;
+    }
+
+    /**
+     * Names that mass assignment may set.
+     *
+     * @return array<int, string>
+     * @throws MassAssignmentException If the model defines neither safeAttributes() nor rules()
+     */
+    public static function safeAttributeNames(): array
+    {
+        if (method_exists(static::class, 'safeAttributes')) {
+            $safe = array_map('strval', (array) static::safeAttributes());
+        } else {
+            $safe = [];
+            foreach (static::rules() as $rule) {
+                if (is_array($rule) && isset($rule[0])) {
+                    foreach ((array) $rule[0] as $attribute) {
+                        $safe[] = (string) $attribute;
+                    }
+                }
+            }
+            if ($safe === []) {
+                throw new MassAssignmentException(
+                    static::class . ' has no safe attributes for mass assignment: define rules() or safeAttributes(), '
+                    . 'or use forceFill() / setAttribute() for trusted data.'
+                );
+            }
+        }
+
+        return array_values(array_diff(array_unique($safe), static::unsafeAttributes()));
     }
 
     /**

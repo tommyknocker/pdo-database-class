@@ -80,7 +80,7 @@ $db->transaction(function () use ($request): void {
     if ($order === null) {
         throw new RuntimeException('Order not found');
     }
-    $order->setAttributes(['status' => $request->status], true);
+    $order->setAttributes(['status' => $request->status]);
     if (!$order->save()) {
         throw new RuntimeException('Order validation or save failed');
     }
