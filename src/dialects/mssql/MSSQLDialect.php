@@ -140,6 +140,7 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
                 throw new InvalidArgumentException("Missing '$requiredParam' parameter");
             }
         }
+        $this->assertDsnSafe($params, ['host', 'dbname', 'port']);
         $port = $params['port'] ?? 1433;
         $dsn = "sqlsrv:Server={$params['host']},{$port};Database={$params['dbname']}";
 

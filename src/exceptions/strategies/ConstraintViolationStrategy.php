@@ -27,6 +27,16 @@ class ConstraintViolationStrategy extends AbstractErrorDetectionStrategy
             'constraint violation',
             'duplicate key',
             'integrity constraint',
+            // SQL Server and Oracle report these without the generic wording above.
+            'violation of unique key constraint',
+            'violation of primary key constraint',
+            'cannot insert duplicate key',
+            'cannot insert the value null',
+            'ora-00001',
+            'ora-01400',
+            'ora-02290',
+            'ora-02291',
+            'ora-02292',
         ];
     }
 

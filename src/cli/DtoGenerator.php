@@ -80,7 +80,8 @@ class DtoGenerator extends BaseCliCommand
             $overwrite = $force ? true : static::readConfirmation('DTO file already exists. Overwrite?', false);
             if (!$overwrite) {
                 static::info('DTO generation cancelled.');
-                exit(0);
+
+                throw new GenerationCancelledException('DTO generation cancelled: the file exists and was not overwritten.');
             }
         }
 

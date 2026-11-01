@@ -574,10 +574,11 @@ interface QueryBuilderInterface
     // ON DUPLICATE / upsert helpers
     /**
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate
+     * @param array<int, string>|string|null $conflictTarget Column(s) of the unique key that decides a conflict (PostgreSQL, SQLite)
      *
      * @return static
      */
-    public function onDuplicate(array $onDuplicate): static;
+    public function onDuplicate(array $onDuplicate, array|string|null $conflictTarget = null): static;
 
     // JSON helpers
 

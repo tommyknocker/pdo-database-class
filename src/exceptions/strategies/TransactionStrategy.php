@@ -26,6 +26,9 @@ class TransactionStrategy extends AbstractErrorDetectionStrategy
             'transaction',
             'lock',
             'concurrent update',
+            'ora-00054',
+            'ora-00060',
+            'ora-08177',
         ];
     }
 

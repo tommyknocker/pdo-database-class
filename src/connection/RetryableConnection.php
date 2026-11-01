@@ -47,6 +47,7 @@ class RetryableConnection extends Connection
 
         $this->retryConfig = array_merge([
             'enabled' => false,
+            'retry_writes' => false,
             'max_attempts' => 3,
             'delay_ms' => 1000,
             'backoff_multiplier' => 2,
@@ -129,6 +130,7 @@ class RetryableConnection extends Connection
     protected function retryOperation(string $method, array $args): mixed
     {
         $this->currentAttempt = 0;
+        $retrySafe = $this->isRetrySafe($method, $args);
 
         // Log initial attempt
         $this->logRetry('info', 'connection.retry.start', [
@@ -180,7 +182,7 @@ class RetryableConnection extends Connection
                     'retryable' => $dbException->isRetryable(),
                 ]);
 
-                if (!$this->retryStrategy->shouldRetry($e, $this->currentAttempt, $this->retryConfig)) {
+                if (!$retrySafe || !$this->retryStrategy->shouldRetry($e, $this->currentAttempt, $this->retryConfig)) {
                     $this->logRetry('error', 'connection.retry.not_retryable', [
                         'method' => $method,
                         'attempt' => $this->currentAttempt,
@@ -188,7 +190,7 @@ class RetryableConnection extends Connection
                         'error_message' => $e->getMessage(),
                         'exception_type' => $dbException::class,
                         'category' => $dbException->getCategory(),
-                        'reason' => 'Error not in retryable list',
+                        'reason' => $retrySafe ? 'Error not in retryable list' : 'Write statement: it may already have been applied',
                     ]);
 
                     throw $dbException;
@@ -224,6 +226,37 @@ class RetryableConnection extends Connection
 
         // This should never be reached, but PHP requires a return
         throw new PDOException('Retry logic failed unexpectedly');
+    }
+
+    /**
+     * A failed write may already have been applied (the connection can drop after the commit, a deadlock can
+     * follow partial work), so repeating it can duplicate rows or double-apply an update. Only reads are
+     * repeated unless the caller states that its writes are idempotent with `retry_writes`.
+     *
+     * @param array<mixed> $args
+     */
+    protected function isRetrySafe(string $method, array $args): bool
+    {
+        if ($this->retryConfig['retry_writes'] === true) {
+            return true;
+        }
+
+        return match ($method) {
+            'query' => $this->isReadStatement((string)($args[0] ?? '')),
+            'execute' => $this->isReadStatement((string)($this->stmt->queryString ?? '')),
+            default => true,
+        };
+    }
+
+    /**
+     * Whether the statement only reads: SELECT, SHOW, DESCRIBE or EXPLAIN, ignoring leading comments and parentheses.
+     * WITH is treated as a write because a CTE can wrap INSERT, UPDATE or DELETE.
+     */
+    protected function isReadStatement(string $sql): bool
+    {
+        $sql = preg_replace('~^(?:\s+|--[^\n]*\n?|/\*.*?\*/|\()+~s', '', $sql) ?? $sql;
+
+        return preg_match('~^(?:SELECT|SHOW|DESCRIBE|DESC|EXPLAIN)\b~i', $sql) === 1;
     }
 
     /**

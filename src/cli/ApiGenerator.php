@@ -94,7 +94,8 @@ class ApiGenerator extends BaseCliCommand
             $overwrite = $force ? true : static::readConfirmation('Controller file already exists. Overwrite?', false);
             if (!$overwrite) {
                 static::info('API generation cancelled.');
-                exit(0);
+
+                throw new GenerationCancelledException('API generation cancelled: the file exists and was not overwritten.');
             }
         }
 

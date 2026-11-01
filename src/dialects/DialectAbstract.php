@@ -528,8 +528,29 @@ abstract class DialectAbstract implements DialectInterface
     }
 
     /**
-     * Format GROUP_CONCAT expression (default implementation).
-     * Should be overridden in specific dialects.
+     * A DSN has no escaping: a ';' ends the value and starts another parameter, so a database name such as
+     * "app;host=elsewhere" would redirect the connection. Reject such values before they are interpolated.
+     *
+     * @param array<string, mixed> $params DSN parameters
+     * @param list<string> $keys Parameters that are written into the DSN
+     *
+     * @throws InvalidArgumentException If a value contains ';', a NUL or a line break
+     */
+    protected function assertDsnSafe(array $params, array $keys): void
+    {
+        foreach ($keys as $key) {
+            $value = $params[$key] ?? null;
+            if (is_string($value) && preg_match('/[;\x00\r\n]/', $value) === 1) {
+                throw new InvalidArgumentException("The '{$key}' connection parameter must not contain ';' or control characters.");
+            }
+        }
+    }
+
+    /**
+     * Format GROUP_CONCAT expression.
+     *
+     * Every dialect spells this differently, so there is no safe default: a MySQL-style fallback would produce
+     * invalid SQL on any other database and only fail when it runs.
      *
      * @param string|RawValue $column
      * @param string $separator
@@ -539,10 +560,12 @@ abstract class DialectAbstract implements DialectInterface
      */
     public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string
     {
-        $col = $this->resolveValue($column);
-        $sep = $this->quoteStringLiteral($separator);
-        $dist = $distinct ? 'DISTINCT ' : '';
-        return "GROUP_CONCAT($dist$col SEPARATOR $sep)";
+        throw new UnsupportedOperationException(
+            static::class . ' does not define formatGroupConcat().',
+            0,
+            null,
+            $this->getDriverName()
+        );
     }
 
     /**

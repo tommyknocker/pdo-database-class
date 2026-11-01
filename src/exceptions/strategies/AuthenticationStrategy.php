@@ -25,6 +25,11 @@ class AuthenticationStrategy extends AbstractErrorDetectionStrategy
             'unknown user',
             'permission denied',
             'insufficient privilege',
+            'login failed for user',
+            'ora-01017',
+            'ora-01045',
+            'ora-28000',
+            'ora-28001',
         ];
     }
 

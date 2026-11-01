@@ -33,6 +33,11 @@ class QueryTester extends BaseCliCommand
             return;
         }
 
+        // Without a terminal readInput() returns '' at once and the loop below would spin forever.
+        if (getenv('PDODB_NON_INTERACTIVE') !== false || getenv('PHPUNIT') !== false || !stream_isatty(STDIN)) {
+            throw new \RuntimeException('The interactive REPL needs a terminal. Pass the query as an argument: pdodb query test "SELECT 1"');
+        }
+
         // Interactive mode
         $history = [];
         while (true) {

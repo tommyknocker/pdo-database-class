@@ -115,11 +115,8 @@ class TestGenerator extends BaseCliCommand
             $overwrite = $force ? true : static::readConfirmation('Test file already exists. Overwrite?', false);
             if (!$overwrite) {
                 static::info('Test generation cancelled.');
-                // In non-interactive mode, throw exception instead of exit to allow proper handling
-                if (getenv('PDODB_NON_INTERACTIVE') !== false || getenv('PHPUNIT') !== false) {
-                    throw new \RuntimeException('Test generation cancelled (file exists and overwrite not confirmed)');
-                }
-                exit(0);
+
+                throw new GenerationCancelledException('Test generation cancelled: the file exists and was not overwritten.');
             }
         }
 

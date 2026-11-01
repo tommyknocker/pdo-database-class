@@ -46,6 +46,9 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
     /** @var array<string, string|int|float|bool|null|RawValue> */
     protected array $onDuplicate = [];
 
+    /** @var string|null Columns that identify a conflicting row, comma-separated; null = guess from the inserted columns */
+    protected ?string $conflictTarget = null;
+
     /** @var array<int|string, mixed> Query options (e.g., FOR UPDATE, IGNORE) */
     protected array $options = [];
 
@@ -460,12 +463,15 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
      * Add ON DUPLICATE clause.
      *
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
+     * @param array<int, string>|string|null $conflictTarget Column(s) of the unique key that decides a conflict (PostgreSQL, SQLite);
+     *                                                       null uses `id` when inserted, else the first inserted column
      *
      * @return static The current instance.
      */
-    public function onDuplicate(array $onDuplicate): static
+    public function onDuplicate(array $onDuplicate, array|string|null $conflictTarget = null): static
     {
         $this->onDuplicate = $onDuplicate;
+        $this->conflictTarget = is_array($conflictTarget) ? implode(',', $conflictTarget) : $conflictTarget;
         return $this;
     }
 
@@ -539,7 +545,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
         $sql = $this->dialect->buildInsertSql($this->normalizeTable(), $columns, $placeholders, $options);
         if (!empty($this->onDuplicate)) {
             // if no id column in columns, use first column for $defaultConflictTarget
-            $defaultConflictTarget = in_array('id', $columns, true) ? 'id' : (string)($columns[0] ?? 'id');
+            $defaultConflictTarget = $this->conflictTarget ?? (in_array('id', $columns, true) ? 'id' : (string)($columns[0] ?? 'id'));
             $tableName = $this->table ?? '';
             $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget, $tableName);
         }
@@ -584,9 +590,9 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
 
         // Add ON DUPLICATE clause if needed
         if (!empty($this->onDuplicate)) {
-            $defaultConflictTarget = !empty($columns) && in_array('id', $columns, true)
+            $defaultConflictTarget = $this->conflictTarget ?? (!empty($columns) && in_array('id', $columns, true)
                 ? 'id'
-                : (!empty($columns) ? (string)($columns[0]) : 'id');
+                : (!empty($columns) ? (string)($columns[0]) : 'id'));
             $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget, $tableName);
         }
 
@@ -704,7 +710,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
 
         if (!empty($this->onDuplicate)) {
             // if no id column in columns, use first column for $defaultConflictTarget
-            $defaultConflictTarget = in_array('id', $columns, true) ? 'id' : (string)($columns[0] ?? 'id');
+            $defaultConflictTarget = $this->conflictTarget ?? (in_array('id', $columns, true) ? 'id' : (string)($columns[0] ?? 'id'));
             $tableName = $this->table ?? '';
             $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget, $tableName);
         }

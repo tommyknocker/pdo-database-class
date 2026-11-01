@@ -11,6 +11,9 @@ use Composer\InstalledVersions;
  */
 class Application
 {
+    /** Flags that make a command only preview what it would do. */
+    protected const SAFETY_FLAGS = ['dry-run'];
+
     /**
      * Application name.
      *
@@ -201,10 +204,39 @@ class Application
             }
         }
 
+        $misspelled = $this->findMisspelledSafetyFlag(array_keys($options));
+        if ($misspelled !== null) {
+            BaseCliCommand::io()->writeErrorLine("Error: unknown option --{$misspelled[0]}. Did you mean --{$misspelled[1]}?");
+
+            return 2;
+        }
+
         $command->setArguments($args);
         $command->setOptions($options);
 
         return $command->execute();
+    }
+
+    /**
+     * Options are read by name and an unrecognized one is ignored, so a mistyped safety flag such as --dryrun would
+     * silently turn a preview into the real run. Those flags are checked here, before anything executes.
+     *
+     * @param array<int|string> $names Option names as typed
+     *
+     * @return array{0: string, 1: string}|null The typed name and the flag it resembles, or null
+     */
+    protected function findMisspelledSafetyFlag(array $names): ?array
+    {
+        foreach ($names as $name) {
+            $name = (string)$name;
+            foreach (self::SAFETY_FLAGS as $flag) {
+                if ($name !== $flag && levenshtein($name, $flag) <= 2) {
+                    return [$name, $flag];
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -270,8 +302,8 @@ class Application
             }
         }
 
-        // Ultimate fallback
-        return '2.12.0';
+        // Not a release checkout and no metadata: say so rather than name a version that may be wrong
+        return 'dev';
     }
 
     /**
@@ -281,7 +313,7 @@ class Application
      */
     public function getVersion(): string
     {
-        return $this->version ?? '2.12.0';
+        return $this->version ?? 'dev';
     }
 
     protected function cliWriteln(string $message = ''): void

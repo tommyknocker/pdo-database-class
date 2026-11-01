@@ -28,7 +28,7 @@ Full pagination provides complete metadata including total count and page number
 $result = $db->find()
     ->from('posts')
     ->orderBy('created_at', 'DESC')
-    ->paginate(20); // 20 items per page, auto-detect page from $_GET['page']
+    ->paginate(20, (int)($_GET['page'] ?? 1)); // 20 items per page, page from the request
 
 // Or specify page manually
 $result = $db->find()
@@ -187,7 +187,7 @@ $result2 = $db->find()
 $result = $db->find()
     ->from('posts')
     ->orderBy('id', 'DESC')
-    ->cursorPaginate(20); // Auto-detects cursor from $_GET['cursor']
+    ->cursorPaginate(20, is_string($_GET['cursor'] ?? null) ? $_GET['cursor'] : null); // cursor from the request
 ```
 
 ### Available Methods

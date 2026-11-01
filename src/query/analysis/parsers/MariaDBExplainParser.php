@@ -7,7 +7,7 @@ namespace tommyknocker\pdodb\query\analysis\parsers;
 use tommyknocker\pdodb\query\analysis\ParsedExplainPlan;
 
 /**
- * Parser for MySQL EXPLAIN output.
+ * Parser for MariaDB EXPLAIN output.
  */
 class MariaDBExplainParser implements ExplainParserInterface
 {

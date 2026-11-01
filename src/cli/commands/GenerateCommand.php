@@ -10,6 +10,7 @@ use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\DocsGenerator;
 use tommyknocker\pdodb\cli\DtoGenerator;
 use tommyknocker\pdodb\cli\EnumGenerator;
+use tommyknocker\pdodb\cli\GenerationCancelledException;
 use tommyknocker\pdodb\cli\ModelGenerator;
 use tommyknocker\pdodb\cli\RepositoryGenerator;
 use tommyknocker\pdodb\cli\ServiceGenerator;
@@ -99,6 +100,8 @@ class GenerateCommand extends Command
                 $force
             );
             return 0;
+        } catch (GenerationCancelledException) {
+            return 0;
         } catch (Exception $e) {
             $this->showError($e->getMessage());
         }
@@ -137,6 +140,8 @@ class GenerateCommand extends Command
                 $force
             );
             return 0;
+        } catch (GenerationCancelledException) {
+            return 0;
         } catch (Exception $e) {
             $this->showError($e->getMessage());
         }
@@ -170,6 +175,8 @@ class GenerateCommand extends Command
                 $this->getDb(),
                 $force
             );
+            return 0;
+        } catch (GenerationCancelledException) {
             return 0;
         } catch (Exception $e) {
             $this->showError($e->getMessage());
@@ -205,6 +212,8 @@ class GenerateCommand extends Command
                 $force
             );
             return 0;
+        } catch (GenerationCancelledException) {
+            return 0;
         } catch (Exception $e) {
             $this->showError($e->getMessage());
         }
@@ -238,6 +247,8 @@ class GenerateCommand extends Command
                 $this->getDb(),
                 $force
             );
+            return 0;
+        } catch (GenerationCancelledException) {
             return 0;
         } catch (Exception $e) {
             $this->showError($e->getMessage());
@@ -273,6 +284,8 @@ class GenerateCommand extends Command
                 $force,
                 ModelGenerator::parseRelatedModels($this->getOption('relation-models'))
             );
+            return 0;
+        } catch (GenerationCancelledException) {
             return 0;
         } catch (Exception $e) {
             $this->showError($e->getMessage());
@@ -311,6 +324,8 @@ class GenerateCommand extends Command
                 $force
             );
             return 0;
+        } catch (GenerationCancelledException) {
+            return 0;
         } catch (Exception $e) {
             $this->showError($e->getMessage());
         }
@@ -346,6 +361,8 @@ class GenerateCommand extends Command
                 is_string($repositoryNamespace) ? $repositoryNamespace : null,
                 $force
             );
+            return 0;
+        } catch (GenerationCancelledException) {
             return 0;
         } catch (Exception $e) {
             $this->showError($e->getMessage());

@@ -19,6 +19,10 @@ class ResourceStrategy extends AbstractErrorDetectionStrategy
         $this->errorCodes = ErrorCodeRegistry::getMergedErrorCodes('resource');
 
         $this->messagePatterns = [
+            'ora-01555',
+            'ora-01653',
+            'ora-01654',
+            'ora-04031',
             'too many connections',
             'out of memory',
             'disk full',

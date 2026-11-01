@@ -16,7 +16,9 @@ final class QueryExecutedEvent implements StoppableEventInterface
 {
     /**
      * @param string $sql The executed SQL query
-     * @param array<int|string, string|int|float|bool|null> $params Query parameters
+     * @param array<int|string, string|int|float|bool|null> $params Bound values exactly as sent to the database. They can
+     *                                                              hold passwords, tokens and personal data, so a listener
+     *                                                              that logs them must filter them first.
      * @param float $executionTime Execution time in milliseconds
      * @param int $rowsAffected Number of rows affected/returned
      * @param string $driver Database driver name (mysql, pgsql, sqlite)

@@ -101,7 +101,8 @@ class ModelGenerator extends BaseCliCommand
             $overwrite = $force ? true : static::readConfirmation('Model file already exists. Overwrite?', false);
             if (!$overwrite) {
                 static::info('Model generation cancelled.');
-                exit(0);
+
+                throw new GenerationCancelledException('Model generation cancelled: the file exists and was not overwritten.');
             }
         }
 

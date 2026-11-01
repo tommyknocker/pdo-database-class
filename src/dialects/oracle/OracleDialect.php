@@ -135,6 +135,8 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
             }
         }
 
+        $this->assertDsnSafe(['host' => $params['host'], 'port' => $params['port'] ?? null, 'service' => $serviceName, 'charset' => $params['charset'] ?? null], ['host', 'port', 'service', 'charset']);
+
         $host = $params['host'];
         $port = $params['port'] ?? 1521;
         $charset = $params['charset'] ?? null;

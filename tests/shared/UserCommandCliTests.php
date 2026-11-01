@@ -88,6 +88,21 @@ final class UserCommandCliTests extends TestCase
         $this->assertEquals('user', $nameProperty->getValue($command));
     }
 
+    public function testPasswordCanComeFromAnEnvironmentVariable(): void
+    {
+        putenv('PDODB_TEST_USER_PASSWORD=from-env');
+        $command = new UserCommand();
+        $command->setOptions(['password-env' => 'PDODB_TEST_USER_PASSWORD']);
+
+        try {
+            $password = (new \ReflectionMethod($command, 'resolvePassword'))->invoke($command, 'Enter password');
+        } finally {
+            putenv('PDODB_TEST_USER_PASSWORD');
+        }
+
+        $this->assertSame('from-env', $password);
+    }
+
     public function testUserCreateCommand(): void
     {
         // Test that create method exists and has correct signature

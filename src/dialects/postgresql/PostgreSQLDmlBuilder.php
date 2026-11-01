@@ -286,6 +286,17 @@ class PostgreSQLDmlBuilder implements DmlBuilderInterface
     }
 
     /**
+     * Quote the conflict target, which may name several columns separated by commas.
+     */
+    protected function quoteConflictTarget(string $target): string
+    {
+        return implode(', ', array_map(
+            fn (string $column): string => $this->quoteIdentifier(trim($column)),
+            explode(',', $target)
+        ));
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
@@ -305,7 +316,7 @@ class PostgreSQLDmlBuilder implements DmlBuilderInterface
             }
         }
 
-        return "ON CONFLICT ({$this->quoteIdentifier($defaultConflictTarget)}) DO UPDATE SET " . implode(', ', $parts);
+        return "ON CONFLICT ({$this->quoteConflictTarget($defaultConflictTarget)}) DO UPDATE SET " . implode(', ', $parts);
     }
 
     /**

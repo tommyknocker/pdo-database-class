@@ -86,6 +86,8 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
                 throw new InvalidArgumentException("Missing '$requiredParam' parameter");
             }
         }
+        $this->assertDsnSafe($params, ['host', 'dbname', 'port', 'charset', 'unix_socket', 'sslca', 'sslcert', 'sslkey', 'compress']);
+
         return "mysql:host={$params['host']};dbname={$params['dbname']}"
             . (!empty($params['port']) ? ";port={$params['port']}" : '')
             . (!empty($params['charset']) ? ";charset={$params['charset']}" : '')

@@ -67,6 +67,9 @@ class PdoDb
     /** @var array<string, ConnectionInterface> Named connections pool */
     protected array $connections = [];
 
+    /** @var array<string, string> Read/write role of each named connection ('read' or 'write') */
+    protected array $connectionTypes = [];
+
     /** @var string Table prefix for queries */
     public string $prefix;
 
@@ -1188,15 +1191,23 @@ class PdoDb
 
         $connection = $connectionFactory->create($params, $logger);
         $this->connections[$name] = $connection;
+        $this->connectionTypes[$name] = ($params['type'] ?? 'write') === 'read' ? 'read' : 'write';
 
         // Register with router if read/write splitting is enabled
         if ($this->readWriteSplittingEnabled && $this->connectionRouter !== null) {
-            $type = $params['type'] ?? 'write';
-            if ($type === 'read') {
-                $this->connectionRouter->addReadConnection($name, $connection);
-            } else {
-                $this->connectionRouter->addWriteConnection($name, $connection);
-            }
+            $this->registerWithRouter($name, $connection);
+        }
+    }
+
+    /**
+     * Give the router a connection under its configured read or write role.
+     */
+    protected function registerWithRouter(string $name, ConnectionInterface $connection): void
+    {
+        if (($this->connectionTypes[$name] ?? 'write') === 'read') {
+            $this->connectionRouter?->addReadConnection($name, $connection);
+        } else {
+            $this->connectionRouter?->addWriteConnection($name, $connection);
         }
     }
 
@@ -1429,6 +1440,12 @@ class PdoDb
     {
         $this->connectionRouter = new ConnectionRouter($loadBalancer);
         $this->readWriteSplittingEnabled = true;
+
+        // Connections added before splitting was enabled (the default one included) take part too.
+        foreach ($this->connections as $name => $connection) {
+            $this->registerWithRouter($name, $connection);
+        }
+
         return $this;
     }
 

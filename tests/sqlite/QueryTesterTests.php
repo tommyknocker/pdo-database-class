@@ -57,4 +57,18 @@ final class QueryTesterTests extends TestCase
         }
         $this->assertStringContainsString('Query executed successfully.', $out);
     }
+
+    public function testReplWithoutATerminalFailsInsteadOfSpinning(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('needs a terminal');
+
+        ob_start();
+
+        try {
+            QueryTester::test();
+        } finally {
+            ob_end_clean();
+        }
+    }
 }

@@ -939,8 +939,8 @@ Manage database users and their privileges with simple commands. Note that SQLit
 ```bash
 # Create a user (username and password will be prompted if not provided)
 vendor/bin/pdodb user create john
-vendor/bin/pdodb user create john --password secret123
-vendor/bin/pdodb user create john --password secret123 --host localhost
+vendor/bin/pdodb user create john --password-env=NEW_USER_PASSWORD
+vendor/bin/pdodb user create john --password-env=NEW_USER_PASSWORD --host localhost
 vendor/bin/pdodb user create
 
 # Drop a user (username will be prompted if not provided, with confirmation)
@@ -970,13 +970,15 @@ vendor/bin/pdodb user revoke john ALL --database myapp --table users
 
 # Change user password (password will be prompted if not provided)
 vendor/bin/pdodb user password john
-vendor/bin/pdodb user password john --password newpass123
+echo "$NEW_PASSWORD" | vendor/bin/pdodb user password john --password-stdin
 ```
 
 ### Options
 
 - `--force` - Execute without confirmation (for create/drop)
-- `--password <pass>` - Set password (for create/password commands)
+- `--password-env <NAME>` - Read the password from an environment variable (for create/password commands)
+- `--password-stdin` - Read the password from standard input
+- `--password <pass>` - Set the password on the command line. It is visible in the process list and shell history, so prefer the two options above or the prompt
 - `--host <host>` - Host for MySQL/MariaDB (default: '%')
 - `--database <db>` - Database name (for grant/revoke)
 - `--table <table>` - Table name (for grant/revoke)
@@ -995,7 +997,7 @@ Enter password: ********
 Or with options:
 
 ```bash
-$ vendor/bin/pdodb user create john --password secret123 --host localhost
+$ vendor/bin/pdodb user create john --password-env=NEW_USER_PASSWORD --host localhost
 
 ✓ User 'john@localhost' created successfully
 ```

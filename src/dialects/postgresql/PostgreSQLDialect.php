@@ -221,6 +221,8 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
                 throw new InvalidArgumentException("Missing '$requiredParam' parameter");
             }
         }
+        $this->assertDsnSafe($params, ['host', 'dbname', 'hostaddr', 'service', 'port', 'options', 'sslmode', 'sslkey', 'sslcert', 'sslrootcert', 'application_name', 'connect_timeout', 'target_session_attrs']);
+
         return "pgsql:host={$params['host']};dbname={$params['dbname']}"
             . (!empty($params['hostaddr']) ? ";hostaddr={$params['hostaddr']}" : '')
             . (!empty($params['service']) ? ";service={$params['service']}" : '')

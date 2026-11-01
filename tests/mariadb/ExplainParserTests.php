@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\mariadb;
 
 use PHPUnit\Framework\TestCase;
+use tommyknocker\pdodb\dialects\mariadb\MariaDBDialect;
 use tommyknocker\pdodb\query\analysis\parsers\MariaDBExplainParser;
 
 final class ExplainParserTests extends TestCase
@@ -28,5 +29,10 @@ final class ExplainParserTests extends TestCase
         $this->assertObjectHasProperty('nodes', $plan);
         $this->assertIsArray($plan->nodes);
         $this->assertSame('users', $plan->nodes[0]['table']);
+    }
+
+    public function testMariaDbDialectUsesTheMariaDbParser(): void
+    {
+        $this->assertInstanceOf(MariaDBExplainParser::class, (new MariaDBDialect())->getExplainParser());
     }
 }

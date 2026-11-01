@@ -78,7 +78,8 @@ class ServiceGenerator extends BaseCliCommand
             $overwrite = $force ? true : static::readConfirmation('Service file already exists. Overwrite?', false);
             if (!$overwrite) {
                 static::info('Service generation cancelled.');
-                exit(0);
+
+                throw new GenerationCancelledException('Service generation cancelled: the file exists and was not overwritten.');
             }
         }
 

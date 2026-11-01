@@ -27,6 +27,17 @@ class ConnectionStrategy extends AbstractErrorDetectionStrategy
             'connection timeout',
             'connection reset',
             'broken pipe',
+            'communication link failure',
+            'named pipes provider',
+            'tns:',
+            'ora-03113',
+            'ora-03114',
+            'ora-03135',
+            'ora-12154',
+            'ora-12170',
+            'ora-12514',
+            'ora-12541',
+            'ora-12545',
         ];
     }
 

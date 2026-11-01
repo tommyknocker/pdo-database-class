@@ -94,7 +94,8 @@ class EnumGenerator extends BaseCliCommand
             $overwrite = $force ? true : static::readConfirmation('Enum file already exists. Overwrite?', false);
             if (!$overwrite) {
                 static::info('Enum generation cancelled.');
-                exit(0);
+
+                throw new GenerationCancelledException('Enum generation cancelled: the file exists and was not overwritten.');
             }
         }
 

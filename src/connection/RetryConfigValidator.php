@@ -24,6 +24,7 @@ class RetryConfigValidator
     public function validate(array $config): void
     {
         $this->validateEnabled($config['enabled']);
+        $this->validateRetryWrites($config['retry_writes'] ?? false);
         $this->validateMaxAttempts($config['max_attempts']);
         $this->validateDelays($config);
         $this->validateRetryableErrors($config['retryable_errors']);
@@ -41,6 +42,20 @@ class RetryConfigValidator
     {
         if (!is_bool($enabled)) {
             throw new InvalidArgumentException('retry.enabled must be a boolean');
+        }
+    }
+
+    /**
+     * Validate the retry_writes flag.
+     *
+     * @param mixed $retryWrites The retry_writes flag value
+     *
+     * @throws InvalidArgumentException If retry_writes is not a boolean
+     */
+    protected function validateRetryWrites(mixed $retryWrites): void
+    {
+        if (!is_bool($retryWrites)) {
+            throw new InvalidArgumentException('retry.retry_writes must be a boolean');
         }
     }
 

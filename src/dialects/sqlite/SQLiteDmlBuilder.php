@@ -143,6 +143,17 @@ class SQLiteDmlBuilder implements DmlBuilderInterface
     }
 
     /**
+     * Quote the conflict target, which may name several columns separated by commas.
+     */
+    protected function quoteConflictTarget(string $target): string
+    {
+        return implode(', ', array_map(
+            fn (string $column): string => $this->quoteIdentifier(trim($column)),
+            explode(',', $target)
+        ));
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
@@ -162,7 +173,7 @@ class SQLiteDmlBuilder implements DmlBuilderInterface
             }
         }
 
-        $target = $this->quoteIdentifier($defaultConflictTarget);
+        $target = $this->quoteConflictTarget($defaultConflictTarget);
         return "ON CONFLICT ({$target}) DO UPDATE SET " . implode(', ', $parts);
     }
 

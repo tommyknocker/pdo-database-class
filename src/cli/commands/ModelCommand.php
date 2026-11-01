@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
+use tommyknocker\pdodb\cli\GenerationCancelledException;
 use tommyknocker\pdodb\cli\ModelGenerator;
 
 /**
@@ -61,6 +62,8 @@ class ModelCommand extends Command
 
         try {
             ModelGenerator::generate($modelName, $tableName, $outputPath, $this->getDb(), is_string($namespace) ? $namespace : null, $force, ModelGenerator::parseRelatedModels($this->getOption('relation-models')));
+            return 0;
+        } catch (GenerationCancelledException) {
             return 0;
         } catch (\Exception $e) {
             $this->showError($e->getMessage());

@@ -1749,7 +1749,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
      * Best for traditional page-number pagination.
      *
      * @param int $perPage Items per page
-     * @param int|null $page Current page (null = auto-detect from $_GET['page'])
+     * @param int|null $page Current page (null = first page); read it from the request in your own code
      * @param array<string, mixed> $options Additional options (path, query)
      *
      * @return PaginationResult
@@ -1779,21 +1779,14 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
      *
      * @note This method performs two queries: one COUNT(*) and one SELECT.
      *       For better performance with large datasets, consider using cursorPaginate().
-     *
-     * @warning Auto-detection of page from $_GET['page'] requires $_GET to be available.
-     *          Always validate and sanitize page numbers in production.
+     * @note The page is never read from the request. Pass it explicitly, e.g. `paginate(15, (int)($_GET['page'] ?? 1))`.
      *
      * @see SelectQueryBuilder::cursorPaginate() For cursor-based pagination
      * @see documentation/03-query-builder/06-ordering-pagination.md#pagination
      */
     public function paginate(int $perPage = 15, ?int $page = null, array $options = []): PaginationResult
     {
-        // Auto-detect page from query string if not provided
-        if ($page === null) {
-            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-        }
-
-        $page = max(1, $page);
+        $page = max(1, $page ?? 1);
 
         // A plain column projection does not change the row count. Count it
         // directly to avoid duplicate column names in derived tables after JOIN.
@@ -1898,7 +1891,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
      * Best for infinite scroll or when total count is not needed.
      *
      * @param int $perPage Items per page
-     * @param int|null $page Current page (null = auto-detect)
+     * @param int|null $page Current page (null = first page)
      * @param array<string, mixed> $options Additional options
      *
      * @return SimplePaginationResult
@@ -1906,11 +1899,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
      */
     public function simplePaginate(int $perPage = 15, ?int $page = null, array $options = []): SimplePaginationResult
     {
-        if ($page === null) {
-            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-        }
-
-        $page = max(1, $page);
+        $page = max(1, $page ?? 1);
 
         // Fetch one extra item to check if there are more pages
         $offset = ($page - 1) * $perPage;
@@ -1949,11 +1938,6 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
         // Decode cursor if string
         if (is_string($cursor)) {
             $cursor = Cursor::decode($cursor);
-        }
-
-        // Auto-detect cursor from query string
-        if ($cursor === null && isset($_GET['cursor'])) {
-            $cursor = Cursor::decode($_GET['cursor']);
         }
 
         // Determine cursor columns from ORDER BY

@@ -12,6 +12,8 @@ use tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect;
 use tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDmlBuilder;
 use tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter;
 use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
+use tommyknocker\pdodb\query\analysis\parsers\MariaDBExplainParser;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
 
 class MariaDBDialect extends MySQLFamilyDialect
@@ -77,6 +79,14 @@ class MariaDBDialect extends MySQLFamilyDialect
     public function mcpStatementTimeoutStoredInMilliseconds(): bool
     {
         return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getExplainParser(): ExplainParserInterface
+    {
+        return new MariaDBExplainParser();
     }
 
     protected function createFeatureSupport(): FeatureSupportInterface

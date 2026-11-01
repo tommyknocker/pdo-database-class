@@ -217,4 +217,65 @@ final class ConnectionRoutingTests extends TestCase
         $this->expectExceptionMessage('same SQL dialect');
         $route->invoke($query, $other);
     }
+
+    public function testShardedTableWithoutAShardKeyIsRejected(): void
+    {
+        $default = $this->file('default');
+        $shard1 = $this->file('shard1');
+        $db = new PdoDb('sqlite', ['path' => $default]);
+        $db->addConnection('shard1', ['driver' => 'sqlite', 'path' => $shard1]);
+        $this->seed($db, 'shard1', 'CREATE TABLE users (user_id INTEGER PRIMARY KEY, name TEXT)', 'SELECT 1', []);
+        $db->shard('users')
+            ->shardKey('user_id')
+            ->strategy('range')
+            ->ranges(['shard1' => [0, 1000]])
+            ->useConnections(['shard1'])
+            ->register();
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage("which shard of 'users'");
+        $db->find()->from('users')->get();
+    }
+
+    public function testValueOutsideEveryShardRangeIsNotWrittenToTheDefaultConnection(): void
+    {
+        $default = $this->file('default');
+        $shard1 = $this->file('shard1');
+        $db = new PdoDb('sqlite', ['path' => $default]);
+        $db->addConnection('shard1', ['driver' => 'sqlite', 'path' => $shard1]);
+        $this->seed($db, 'shard1', 'CREATE TABLE users (user_id INTEGER PRIMARY KEY, name TEXT)', 'SELECT 1', []);
+        $this->seed($db, 'default', 'CREATE TABLE users (user_id INTEGER PRIMARY KEY, name TEXT)', 'SELECT 1', []);
+        $db->shard('users')
+            ->shardKey('user_id')
+            ->strategy('range')
+            ->ranges(['shard1' => [0, 1000]])
+            ->useConnections(['shard1'])
+            ->register();
+
+        try {
+            $db->find()->table('users')->insert(['user_id' => 5000, 'name' => 'lost']);
+            $this->fail('A row that belongs to no shard must not be accepted.');
+        } catch (\RuntimeException) {
+            $this->assertSame([], $this->peek($default, 'SELECT * FROM users'));
+        }
+    }
+
+    public function testConnectionsAddedBeforeSplittingIsEnabledTakePart(): void
+    {
+        $master = $this->file('master');
+        $replica = $this->file('replica');
+        $db = new PdoDb('sqlite', ['path' => $master]);
+        $db->addConnection('read', ['driver' => 'sqlite', 'path' => $replica, 'type' => 'read']);
+        $ddl = 'CREATE TABLE t (id INTEGER PRIMARY KEY, src TEXT)';
+        $this->seed($db, 'default', $ddl, 'INSERT INTO t (id, src) VALUES (1, :src)', [['src' => 'master']]);
+        $this->seed($db, 'read', $ddl, 'INSERT INTO t (id, src) VALUES (1, :src)', [['src' => 'replica']]);
+        $db->connection('default');
+
+        $db->enableReadWriteSplitting();
+
+        $this->assertSame('replica', $db->find()->from('t')->where('id', 1)->getOne()['src']);
+        $db->find()->table('t')->insert(['id' => 2, 'src' => 'written']);
+        $this->assertCount(2, $this->peek($master, 'SELECT * FROM t'));
+        $this->assertCount(1, $this->peek($replica, 'SELECT * FROM t'));
+    }
 }

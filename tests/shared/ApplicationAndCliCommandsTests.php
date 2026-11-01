@@ -68,6 +68,16 @@ final class ApplicationAndCliCommandsTests extends TestCase
         $this->assertStringNotContainsString('Did you mean', $run['stdout']);
     }
 
+    public function testMisspelledDryRunFlagIsRejectedBeforeAnythingRuns(): void
+    {
+        foreach (['--dryrun', '--dry_run', '--dry-runn'] as $flag) {
+            $run = CliTestCapture::runApplication(new Application(), ['pdodb', 'migrate', 'up', $flag]);
+
+            $this->assertSame(2, $run['code'], $flag);
+            $this->assertStringContainsString('Did you mean --dry-run?', $run['stderr'], $flag);
+        }
+    }
+
     public function testDbInfoCommandViaApplication(): void
     {
         $app = new Application();

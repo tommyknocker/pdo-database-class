@@ -90,7 +90,8 @@ class DocsGenerator extends BaseCliCommand
             $overwrite = $force ? true : static::readConfirmation('Documentation file already exists. Overwrite?', false);
             if (!$overwrite) {
                 static::info('Documentation generation cancelled.');
-                exit(0);
+
+                throw new GenerationCancelledException('Documentation generation cancelled: the file exists and was not overwritten.');
             }
         }
 

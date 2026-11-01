@@ -24,6 +24,8 @@ class TimeoutStrategy extends AbstractErrorDetectionStrategy
             'query timeout',
             'connection timeout',
             'lock timeout',
+            'ora-01013',
+            'ora-30006',
         ];
     }
 

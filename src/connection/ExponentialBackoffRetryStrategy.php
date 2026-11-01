@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\connection;
 
 use PDOException;
+use tommyknocker\pdodb\exceptions\DatabaseException;
 use tommyknocker\pdodb\helpers\DbError;
 
 /**
@@ -32,6 +33,20 @@ class ExponentialBackoffRetryStrategy implements RetryStrategyInterface
 
         if ($attempt >= $config['max_attempts']) {
             return false;
+        }
+
+        // A converted DatabaseException always reports code 0 (its SQLSTATE or driver code is a string), so the
+        // original code and the exception's own retry verdict are what identify the error.
+        if ($exception instanceof DatabaseException) {
+            if (empty($config['retryable_errors'])) {
+                return $exception->isRetryable();
+            }
+
+            return in_array(
+                (string)$exception->getOriginalCode(),
+                array_map('strval', $config['retryable_errors']),
+                true
+            );
         }
 
         $errorCode = $exception->getCode();

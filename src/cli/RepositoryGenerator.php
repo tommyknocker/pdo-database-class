@@ -104,7 +104,8 @@ class RepositoryGenerator extends BaseCliCommand
             $overwrite = $force ? true : static::readConfirmation('Repository file already exists. Overwrite?', false);
             if (!$overwrite) {
                 static::info('Repository generation cancelled.');
-                exit(0);
+
+                throw new GenerationCancelledException('Repository generation cancelled: the file exists and was not overwritten.');
             }
         }
 

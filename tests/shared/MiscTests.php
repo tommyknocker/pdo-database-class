@@ -2237,6 +2237,28 @@ final class MiscTests extends BaseSharedTestCase
         $this->assertCount(2, $decoded[0]['tags']);
     }
 
+    public function testPaginationIgnoresTheRequestSuperglobals(): void
+    {
+        self::$db->find()->table('test_coverage')->insertMulti([
+            ['name' => 'a', 'value' => 1],
+            ['name' => 'b', 'value' => 2],
+            ['name' => 'c', 'value' => 3],
+        ]);
+        $_GET = ['page' => '2', 'cursor' => ['not', 'a', 'string']];
+
+        try {
+            $paged = self::$db->find()->from('test_coverage')->orderBy('id')->paginate(2);
+            $simple = self::$db->find()->from('test_coverage')->orderBy('id')->simplePaginate(2);
+            $cursor = self::$db->find()->from('test_coverage')->orderBy('id')->cursorPaginate(2);
+        } finally {
+            $_GET = [];
+        }
+
+        $this->assertSame(1, $paged->currentPage());
+        $this->assertSame(1, $simple->currentPage());
+        $this->assertCount(2, $cursor->items());
+    }
+
     public function testPaginate(): void
     {
         // Insert test data

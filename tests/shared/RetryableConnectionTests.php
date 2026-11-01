@@ -668,4 +668,104 @@ final class RetryableConnectionTests extends BaseSharedTestCase
         $delay3 = $strategy->calculateDelay(3, $config);
         $this->assertEquals(225, $delay3); // 100 * 1.5^2 = 225
     }
+
+    private function flakyConnection(array $retryConfig): RetryableConnection
+    {
+        $pdo = new class ('sqlite::memory:') extends PDO {
+            public int $failures = 1;
+
+            public int $calls = 0;
+
+            public function query(string $query, ?int $fetchMode = null, mixed ...$fetchModeArgs): \PDOStatement|false
+            {
+                $this->calls++;
+                if ($this->failures > 0) {
+                    $this->failures--;
+
+                    throw new \PDOException('SQLSTATE[HY000]: General error: 5 database is locked', 5);
+                }
+
+                return parent::query($query);
+            }
+        };
+        $pdo->exec('CREATE TABLE t (id INTEGER)');
+
+        return new RetryableConnection($pdo, new SqliteDialect(), null, $retryConfig + [
+            'enabled' => true,
+            'max_attempts' => 3,
+            'delay_ms' => 0,
+            'retryable_errors' => [5],
+        ]);
+    }
+
+    public function testReadsAreRetriedAfterATransientError(): void
+    {
+        $connection = $this->flakyConnection([]);
+
+        $connection->query('SELECT 1');
+
+        $this->assertSame(2, $connection->getPdo()->calls);
+    }
+
+    public function testWritesAreNotRetriedByDefault(): void
+    {
+        $connection = $this->flakyConnection([]);
+
+        try {
+            $connection->query('INSERT INTO t (id) VALUES (1)');
+            $this->fail('The first failure should surface: the write may already have been applied.');
+        } catch (\Throwable) {
+            $this->assertSame(1, $connection->getPdo()->calls);
+        }
+    }
+
+    public function testWritesAreRetriedWhenTheCallerOptsIn(): void
+    {
+        $connection = $this->flakyConnection(['retry_writes' => true]);
+
+        $connection->query('INSERT INTO t (id) VALUES (1)');
+
+        $this->assertSame(2, $connection->getPdo()->calls);
+    }
+
+    public function testRetryWritesMustBeABoolean(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->createRetryableConnection(['retry_writes' => 'yes']);
+    }
+
+    public function testStatementKindDecidesWhetherARetryIsSafe(): void
+    {
+        $connection = $this->createRetryableConnection(['enabled' => true]);
+        $connection->getPdo()->exec('CREATE TABLE t (id INTEGER)');
+
+        $this->assertTrue($this->callProtected($connection, 'isReadStatement', ['/* c */ (SELECT 1)']));
+        $this->assertTrue($this->callProtected($connection, 'isReadStatement', ["  -- note\n select 1"]));
+        $this->assertFalse($this->callProtected($connection, 'isReadStatement', ['INSERT INTO t VALUES (1)']));
+        $this->assertFalse($this->callProtected($connection, 'isReadStatement', ['WITH x AS (SELECT 1) DELETE FROM t']));
+
+        $connection->prepare('INSERT INTO t (id) VALUES (?)');
+        $this->assertFalse($this->callProtected($connection, 'isRetrySafe', ['execute', []]));
+        $connection->prepare('SELECT * FROM t');
+        $this->assertTrue($this->callProtected($connection, 'isRetrySafe', ['execute', []]));
+    }
+
+    public function testPrepareDoesNotTurnBoundValuesIntoDriverOptions(): void
+    {
+        $connection = $this->createRetryableConnection();
+        $connection->getPdo()->exec('CREATE TABLE t (id INTEGER, name TEXT)');
+
+        $connection->prepare('INSERT INTO t (id, name) VALUES (?, ?)', [7, 'seven'])->execute();
+
+        $row = $connection->getPdo()->query('SELECT id, name FROM t')->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame(['id' => 7, 'name' => 'seven'], $row);
+    }
+
+    /**
+     * @param array<mixed> $args
+     */
+    private function callProtected(object $object, string $method, array $args): mixed
+    {
+        return (new \ReflectionMethod($object, $method))->invoke($object, ...$args);
+    }
 }

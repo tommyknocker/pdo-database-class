@@ -110,10 +110,11 @@ interface DmlQueryBuilderInterface
      * Add ON DUPLICATE clause.
      *
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
+     * @param array<int, string>|string|null $conflictTarget Column(s) of the unique key that decides a conflict (PostgreSQL, SQLite)
      *
      * @return static The current instance.
      */
-    public function onDuplicate(array $onDuplicate): static;
+    public function onDuplicate(array $onDuplicate, array|string|null $conflictTarget = null): static;
 
     /**
      * Set the table name for the DML query builder.

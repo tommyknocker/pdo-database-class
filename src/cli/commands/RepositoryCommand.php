@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
+use tommyknocker\pdodb\cli\GenerationCancelledException;
 use tommyknocker\pdodb\cli\RepositoryGenerator;
 
 /**
@@ -70,6 +71,8 @@ class RepositoryCommand extends Command
                 is_string($modelNamespace) ? $modelNamespace : null,
                 $force
             );
+            return 0;
+        } catch (GenerationCancelledException) {
             return 0;
         } catch (\Exception $e) {
             $this->showError($e->getMessage());

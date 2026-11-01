@@ -38,6 +38,9 @@ class Connection implements ConnectionInterface
     /** @var PDOStatement|null Last prepared statement */
     protected ?PDOStatement $stmt = null;
 
+    /** @var array<int|string, string|int|float|bool|null> Values given to prepare(), used when execute() gets none */
+    protected array $preparedParams = [];
+
     /** @var ConnectionState Connection state manager */
     protected ConnectionState $state;
 
@@ -286,7 +289,7 @@ class Connection implements ConnectionInterface
      * Prepare SQL query.
      *
      * @param string $sql
-     * @param array<int|string, string|int|float|bool|null> $params
+     * @param array<int|string, string|int|float|bool|null> $params Values to bind; execute() uses them when it is called without its own
      *
      * @return $this
      */
@@ -294,6 +297,7 @@ class Connection implements ConnectionInterface
     {
         // Normalize SQL for dialect-specific requirements
         $sql = $this->dialect->normalizeSqlForExecution($sql);
+        $this->preparedParams = $params;
 
         $this->logOperationStart('prepare', $sql);
 
@@ -308,13 +312,13 @@ class Connection implements ConnectionInterface
                     return $this;
                 }
                 // Prepare new statement and cache it
-                $this->stmt = $this->pdo->prepare($sql, $params);
+                $this->stmt = $this->pdo->prepare($sql);
                 $pool->put($key, $this->stmt);
                 $this->logOperationEnd('prepare', $this->stmt->queryString);
                 return $this;
             }
 
-            $this->stmt = $this->pdo->prepare($sql, $params);
+            $this->stmt = $this->pdo->prepare($sql);
             $this->logOperationEnd('prepare', $this->stmt->queryString);
             return $this;
         } catch (PDOException $e) {
@@ -350,6 +354,10 @@ class Connection implements ConnectionInterface
 
         if ($stmt === null) {
             throw new \RuntimeException('No statement prepared. Call prepare() first.');
+        }
+
+        if ($params === []) {
+            $params = $this->preparedParams;
         }
 
         $this->logOperationStart('execute', $stmt->queryString);

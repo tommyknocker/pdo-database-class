@@ -35,6 +35,17 @@ $db = new PdoDb('mysql', [
 ]
 ```
 
+### Retrying writes
+
+```php
+'retry' => [
+    'enabled' => true,
+    'retry_writes' => false  // default
+]
+```
+
+By default only reads (`SELECT`, `SHOW`, `DESCRIBE`, `EXPLAIN`) are retried. A write that fails with a connection error or a deadlock may already have been applied (the connection can drop after the commit), so repeating it could insert a row twice or apply an update twice. Set `retry_writes` to `true` only when your writes are idempotent, for example upserts keyed on a unique column.
+
 ### Max Attempts
 
 ```php

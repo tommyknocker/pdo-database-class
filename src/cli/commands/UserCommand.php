@@ -67,12 +67,9 @@ class UserCommand extends Command
             }
         }
 
-        $password = $this->getOption('password');
-        if ($password === null) {
-            $password = static::readPassword('Enter password');
-            if ($password === '') {
-                return $this->fail('Password is required');
-            }
+        $password = $this->resolvePassword('Enter password');
+        if ($password === '') {
+            return $this->fail('Password is required');
         }
 
         $host = $this->getOption('host');
@@ -389,6 +386,33 @@ class UserCommand extends Command
     }
 
     /**
+     * Read the password from an environment variable, stdin or the prompt, so it stays out of the process list
+     * and the shell history. `--password <pass>` still works but is discouraged.
+     */
+    protected function resolvePassword(string $prompt): string
+    {
+        $envName = $this->getOption('password-env');
+        if (is_string($envName) && $envName !== '') {
+            $value = getenv($envName);
+
+            return $value === false ? '' : $value;
+        }
+
+        if ($this->getOption('password-stdin', false)) {
+            return rtrim((string)fgets(STDIN), "\r\n");
+        }
+
+        $password = $this->getOption('password');
+        if (is_string($password)) {
+            static::warning('--password puts the password in the process list and shell history; prefer --password-env=NAME, --password-stdin or the prompt.');
+
+            return $password;
+        }
+
+        return static::readPassword($prompt);
+    }
+
+    /**
      * Change user password.
      *
      * @return int Exit code
@@ -406,12 +430,9 @@ class UserCommand extends Command
             }
         }
 
-        $newPassword = $this->getOption('password');
-        if ($newPassword === null) {
-            $newPassword = static::readPassword('Enter new password');
-            if ($newPassword === '') {
-                return $this->fail('Password is required');
-            }
+        $newPassword = $this->resolvePassword('Enter new password');
+        if ($newPassword === '') {
+            return $this->fail('Password is required');
         }
 
         $host = $this->getOption('host');
@@ -486,14 +507,16 @@ class UserCommand extends Command
         $this->writeln("  help                         Show this help message\n");
         $this->writeln('Options:');
         $this->writeln('  --force                      Execute without confirmation');
-        $this->writeln('  --password <pass>            Set password (for create/password)');
+        $this->writeln('  --password-env <NAME>        Read the password from an environment variable (for create/password)');
+        $this->writeln('  --password-stdin             Read the password from standard input (for create/password)');
+        $this->writeln('  --password <pass>            Set password on the command line (visible to other users; discouraged)');
         $this->writeln("  --host <host>               Host for MySQL/MariaDB (default: '%')");
         $this->writeln('  --database <db>             Database name (for grant/revoke)');
         $this->writeln("  --table <table>               Table name (for grant/revoke)\n");
         $this->writeln('Examples:');
         $this->writeln('  pdodb user create john');
-        $this->writeln('  pdodb user create john --password secret123');
-        $this->writeln('  pdodb user create john --password secret123 --host localhost');
+        $this->writeln('  pdodb user create john --password-env=NEW_USER_PASSWORD');
+        $this->writeln('  pdodb user create john --password-env=NEW_USER_PASSWORD --host localhost');
         $this->writeln('  pdodb user create    (will prompt for username and password)');
         $this->writeln('  pdodb user drop john');
         $this->writeln('  pdodb user drop john --force');
@@ -505,7 +528,7 @@ class UserCommand extends Command
         $this->writeln('  pdodb user grant john SELECT,INSERT --database myapp --table users');
         $this->writeln('  pdodb user revoke john DELETE --database myapp');
         $this->writeln('  pdodb user password john');
-        $this->writeln('  pdodb user password john --password newpass123');
+        $this->writeln('  echo "$NEW_PASSWORD" | pdodb user password john --password-stdin');
         return 0;
     }
 }

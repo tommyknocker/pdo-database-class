@@ -283,31 +283,28 @@ class QueryBuilder implements QueryBuilderInterface
             return null;
         }
 
-        try {
-            $shardName = $this->shardRouter->resolveShard($this);
-            if ($shardName === null && $rows !== null) {
-                $table = $this->getTableName();
-                $shardName = $table === null ? null : $this->shardRouter->resolveShardForRows($table, $rows);
-            }
-            if ($shardName === null) {
-                // Shard key not found in WHERE conditions - cannot determine shard
-                // This is acceptable for queries that need to scan all shards
-                return null;
-            }
-
-            $table = $this->getTableName();
-            if ($table === null) {
-                return null;
-            }
-
-            $originalConnection = $this->connection;
-            $this->routeTo($this->shardRouter->getShardConnection($table, $shardName));
-
-            return $originalConnection;
-        } catch (RuntimeException) {
-            // If shard cannot be resolved, return null to fall back to normal routing
+        $table = $this->getTableName();
+        if ($table === null || $this->shardRouter->getShardConfig($table) === null) {
             return null;
         }
+
+        $shardName = $this->shardRouter->resolveShard($this);
+        if ($shardName === null && $rows !== null) {
+            $shardName = $this->shardRouter->resolveShardForRows($table, $rows);
+        }
+        if ($shardName === null) {
+            // There is no scatter-gather: running the query on the default connection would silently read or
+            // write only part of the table, so the caller has to pick a shard.
+            throw new \LogicException(
+                "Cannot tell which shard of '{$table}' to use: the query has no value for its shard key. "
+                . 'Filter on the shard key, or choose a shard with connection($name) for a cross-shard task.'
+            );
+        }
+
+        $originalConnection = $this->connection;
+        $this->routeTo($this->shardRouter->getShardConnection($table, $shardName));
+
+        return $originalConnection;
     }
 
     /**
@@ -2097,12 +2094,14 @@ class QueryBuilder implements QueryBuilderInterface
      * Add ON DUPLICATE clause.
      *
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
+     * @param array<int, string>|string|null $conflictTarget Column(s) of the unique key that decides a conflict (PostgreSQL, SQLite);
+     *                                                       null uses `id` when inserted, else the first inserted column
      *
      * @return static The current instance.
      */
-    public function onDuplicate(array $onDuplicate): static
+    public function onDuplicate(array $onDuplicate, array|string|null $conflictTarget = null): static
     {
-        $this->dmlQueryBuilder->onDuplicate($onDuplicate);
+        $this->dmlQueryBuilder->onDuplicate($onDuplicate, $conflictTarget);
         return $this;
     }
 
