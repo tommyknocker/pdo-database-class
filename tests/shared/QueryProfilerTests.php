@@ -8,7 +8,7 @@ use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PDOException;
 use tommyknocker\pdodb\ai\QueryContextBuilder;
-use tommyknocker\pdodb\dialects\mysql\SessionQuoteMode;
+use tommyknocker\pdodb\dialects\mysqlfamily\SessionQuoteMode;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\QueryProfiler;
 

@@ -346,4 +346,23 @@ final class DialectTests extends BaseMariaDBTestCase
         $this->assertStringContainsString('TABLE_CONSTRAINTS', $sql);
         $this->assertStringContainsString('users', $sql);
     }
+
+    public function testBuildConfigFromEnvReadsSocketAndSslOptions(): void
+    {
+        $config = self::$db->connection->getDialect()->buildConfigFromEnv([
+            'PDODB_DRIVER' => 'mariadb',
+            'PDODB_UNIX_SOCKET' => '/tmp/mariadb.sock',
+            'PDODB_SSLCA' => '/path/ca.pem',
+            'PDODB_SSLCERT' => '/path/cert.pem',
+            'PDODB_SSLKEY' => '/path/key.pem',
+            'PDODB_COMPRESS' => 'true',
+        ]);
+
+        $this->assertSame('/tmp/mariadb.sock', $config['unix_socket']);
+        $this->assertSame('/path/ca.pem', $config['sslca']);
+        $this->assertSame('/path/cert.pem', $config['sslcert']);
+        $this->assertSame('/path/key.pem', $config['sslkey']);
+        $this->assertTrue($config['compress']);
+        $this->assertSame('utf8mb4', $config['charset']);
+    }
 }
