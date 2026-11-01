@@ -906,24 +906,7 @@ class QueryBuilder implements QueryBuilderInterface
         $originalConnection = $this->switchToReadConnection();
 
         try {
-            // Integrate JSON selections before executing query
-            $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
-            if (!empty($jsonSelects)) {
-                $this->selectQueryBuilder->select($jsonSelects);
-                // Clear JSON selections after integration to avoid duplication
-                $this->jsonQueryBuilder->clearJsonSelects();
-            }
-
-            // Integrate JSON order expressions before executing query
-            $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
-            if (!empty($jsonOrders)) {
-                foreach ($jsonOrders as $orderExpr) {
-                    // JSON order expressions already contain direction, so add them directly
-                    $this->selectQueryBuilder->addOrderExpression($orderExpr);
-                }
-                // Clear JSON orders after integration to avoid duplication
-                $this->jsonQueryBuilder->clearJsonOrders();
-            }
+            $this->integrateJsonSelectionsAndOrders();
 
             // Set CTE manager before building query
             if ($this->cteManager !== null) {
@@ -966,24 +949,7 @@ class QueryBuilder implements QueryBuilderInterface
         $originalConnection = $this->switchToReadConnection();
 
         try {
-            // Integrate JSON selections before executing query
-            $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
-            if (!empty($jsonSelects)) {
-                $this->selectQueryBuilder->select($jsonSelects);
-                // Clear JSON selections after integration to avoid duplication
-                $this->jsonQueryBuilder->clearJsonSelects();
-            }
-
-            // Integrate JSON order expressions before executing query
-            $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
-            if (!empty($jsonOrders)) {
-                foreach ($jsonOrders as $orderExpr) {
-                    // JSON order expressions already contain direction, so add them directly
-                    $this->selectQueryBuilder->addOrderExpression($orderExpr);
-                }
-                // Clear JSON orders after integration to avoid duplication
-                $this->jsonQueryBuilder->clearJsonOrders();
-            }
+            $this->integrateJsonSelectionsAndOrders();
 
             // Set CTE manager before building query
             if ($this->cteManager !== null) {
@@ -1012,24 +978,7 @@ class QueryBuilder implements QueryBuilderInterface
         $originalConnection = $this->switchToReadConnection();
 
         try {
-            // Integrate JSON selections before executing query
-            $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
-            if (!empty($jsonSelects)) {
-                $this->selectQueryBuilder->select($jsonSelects);
-                // Clear JSON selections after integration to avoid duplication
-                $this->jsonQueryBuilder->clearJsonSelects();
-            }
-
-            // Integrate JSON order expressions before executing query
-            $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
-            if (!empty($jsonOrders)) {
-                foreach ($jsonOrders as $orderExpr) {
-                    // JSON order expressions already contain direction, so add them directly
-                    $this->selectQueryBuilder->addOrderExpression($orderExpr);
-                }
-                // Clear JSON orders after integration to avoid duplication
-                $this->jsonQueryBuilder->clearJsonOrders();
-            }
+            $this->integrateJsonSelectionsAndOrders();
 
             // Set CTE manager before building query
             if ($this->cteManager !== null) {
@@ -1056,24 +1005,7 @@ class QueryBuilder implements QueryBuilderInterface
         $originalConnection = $this->switchToReadConnection();
 
         try {
-            // Integrate JSON selections before executing query
-            $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
-            if (!empty($jsonSelects)) {
-                $this->selectQueryBuilder->select($jsonSelects);
-                // Clear JSON selections after integration to avoid duplication
-                $this->jsonQueryBuilder->clearJsonSelects();
-            }
-
-            // Integrate JSON order expressions before executing query
-            $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
-            if (!empty($jsonOrders)) {
-                foreach ($jsonOrders as $orderExpr) {
-                    // JSON order expressions already contain direction, so add them directly
-                    $this->selectQueryBuilder->addOrderExpression($orderExpr);
-                }
-                // Clear JSON orders after integration to avoid duplication
-                $this->jsonQueryBuilder->clearJsonOrders();
-            }
+            $this->integrateJsonSelectionsAndOrders();
 
             // Set CTE manager before building query
             if ($this->cteManager !== null) {
@@ -1459,24 +1391,7 @@ class QueryBuilder implements QueryBuilderInterface
         $originalConnection = $this->switchToReadConnection();
 
         try {
-            // Integrate JSON selections before executing query
-            $jsonSelects = $this->jsonQueryBuilder->getJsonSelects();
-            if (!empty($jsonSelects)) {
-                $this->selectQueryBuilder->select($jsonSelects);
-                // Clear JSON selections after integration to avoid duplication
-                $this->jsonQueryBuilder->clearJsonSelects();
-            }
-
-            // Integrate JSON order expressions before executing query
-            $jsonOrders = $this->jsonQueryBuilder->getJsonOrders();
-            if (!empty($jsonOrders)) {
-                foreach ($jsonOrders as $orderExpr) {
-                    // JSON order expressions already contain direction, so add them directly
-                    $this->selectQueryBuilder->addOrderExpression($orderExpr);
-                }
-                // Clear JSON orders after integration to avoid duplication
-                $this->jsonQueryBuilder->clearJsonOrders();
-            }
+            $this->integrateJsonSelectionsAndOrders();
 
             // Set CTE manager before building query
             if ($this->cteManager !== null) {
