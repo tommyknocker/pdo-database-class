@@ -122,15 +122,54 @@ final class OutboxTestSupport
 
         $storage = $outbox->storage();
         $ids = static fn (array $messages): array => array_map(static fn (OutboxMessage $m): string => $m->id, $messages);
-        $first = $storage->claimBatch('batch-worker-1', 3, 60);
-        $second = $storage->claimBatch('batch-worker-2', 3, 60);
-        $third = $storage->claimBatch('batch-worker-3', 3, 60);
+        $first = $storage->claimBatch('batch-worker-1', 3, 60)->messages;
+        $second = $storage->claimBatch('batch-worker-2', 3, 60)->messages;
+        $third = $storage->claimBatch('batch-worker-3', 3, 60)->messages;
 
         return [
             'first' => $ids($first),
             'second' => $ids($second),
             'third' => $ids($third),
             'locked' => array_values(array_unique(array_map(static fn (OutboxMessage $m): string => $m->lockToken, $first))),
+        ];
+    }
+
+    /**
+     * Seeds a row whose payload decodes to a scalar between two good rows and runs one worker batch.
+     *
+     * @return array{claimed: int, published: int, markedFailed: int, seen: list<string>, status: mixed, error: mixed}
+     */
+    public static function exercisePoisonPayload(PdoDb $db, string $table): array
+    {
+        $at = gmdate('Y-m-d H:i:s', time() - 86400);
+        foreach (['poison-a' => '{}', 'poison-b' => '"scalar"', 'poison-c' => '{}'] as $id => $payload) {
+            $db->find()->table($table)->insert([
+                'id' => $id,
+                'event_type' => 'poison',
+                'payload' => $payload,
+                'status' => OutboxStatuses::PENDING,
+                'attempts' => 0,
+                'available_at' => $at,
+                'created_at' => $at,
+            ]);
+        }
+
+        $seen = [];
+        $result = (new Outbox($db, $table))->worker('poison-worker', batchSize: 10)->runOnce(
+            static function (OutboxMessage $message) use (&$seen): void {
+                $seen[] = $message->id;
+            }
+        );
+        $row = $db->find()->table($table)->where('id', 'poison-b')->getOne();
+        $row = is_array($row) ? array_change_key_case($row, CASE_LOWER) : [];
+
+        return [
+            'claimed' => $result->claimed,
+            'published' => $result->published,
+            'markedFailed' => $result->markedFailed,
+            'seen' => $seen,
+            'status' => $row['status'] ?? null,
+            'error' => $row['last_error'] ?? null,
         ];
     }
 

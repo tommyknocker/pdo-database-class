@@ -144,4 +144,18 @@ final class OutboxTests extends BaseOracleTestCase
         $this->assertSame([], $result['third']);
         $this->assertSame(['batch-worker-1'], $result['locked']);
     }
+
+    public function testUnreadablePayloadIsFailedWithoutBlockingTheBatch(): void
+    {
+        (new Outbox(self::$db, self::TABLE))->ensureSchema();
+
+        $result = OutboxTestSupport::exercisePoisonPayload(self::$db, self::TABLE);
+
+        $this->assertSame(3, $result['claimed']);
+        $this->assertSame(2, $result['published']);
+        $this->assertSame(1, $result['markedFailed']);
+        $this->assertSame(['poison-a', 'poison-c'], $result['seen']);
+        $this->assertSame(OutboxStatuses::FAILED, $result['status']);
+        $this->assertStringContainsString('Unreadable payload', (string) $result['error']);
+    }
 }

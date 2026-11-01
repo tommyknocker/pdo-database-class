@@ -366,4 +366,56 @@ final class OutboxTests extends BaseSharedTestCase
         $this->assertSame([], $result['third']);
         $this->assertSame(['batch-worker-1'], $result['locked']);
     }
+
+    public function testUnreadablePayloadIsFailedWithoutBlockingTheBatch(): void
+    {
+        (new Outbox(self::$db, self::TABLE))->ensureSchema();
+
+        $result = OutboxTestSupport::exercisePoisonPayload(self::$db, self::TABLE);
+
+        $this->assertSame(3, $result['claimed']);
+        $this->assertSame(2, $result['published']);
+        $this->assertSame(1, $result['markedFailed']);
+        $this->assertSame(['poison-a', 'poison-c'], $result['seen']);
+        $this->assertSame(OutboxStatuses::FAILED, $result['status']);
+        $this->assertStringContainsString('Unreadable payload', (string) $result['error']);
+    }
+
+    public function testPublisherTransientErrorSchedulesRetryInsteadOfWaitingForTheLease(): void
+    {
+        $outbox = new Outbox(self::$db, self::TABLE);
+        self::$db->transaction(function () use ($outbox): void {
+            $outbox->add('order.created', ['id' => 1]);
+        });
+
+        $result = $outbox->worker('retry-worker')->runOnce(static function (): void {
+            throw new TransactionException('SQLSTATE[40001]: Deadlock found when trying to get lock', 1213);
+        });
+
+        $this->assertSame(1, $result->scheduledRetry);
+        $this->assertSame(0, $result->unconfirmed);
+        $row = self::$db->find()->table(self::TABLE)->getOne();
+        $this->assertIsArray($row);
+        $this->assertSame(OutboxStatuses::PENDING, $row['status']);
+    }
+
+    public function testPublisherLeavingATransactionOpenFailsLoudly(): void
+    {
+        $outbox = new Outbox(self::$db, self::TABLE);
+        self::$db->transaction(function () use ($outbox): void {
+            $outbox->add('order.created', ['id' => 1]);
+        });
+
+        $this->expectException(OutboxException::class);
+
+        try {
+            $outbox->worker('open-tx')->runOnce(static function (): void {
+                self::$db->startTransaction();
+            });
+        } finally {
+            if (self::$db->inTransaction()) {
+                self::$db->rollback();
+            }
+        }
+    }
 }

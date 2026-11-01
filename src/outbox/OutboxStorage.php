@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\outbox;
 
+use JsonException;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\exceptions\OutboxException;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -75,27 +76,39 @@ final class OutboxStorage
     /**
      * Claim up to `$limit` due messages for one worker in a single transaction.
      *
-     * @return list<OutboxMessage>
+     * A claimed row whose payload cannot be decoded is marked failed in the same transaction, so one
+     * poison row cannot roll the batch back and block the queue.
      */
-    public function claimBatch(string $workerToken, int $limit, int $lockSeconds): array
+    public function claimBatch(string $workerToken, int $limit, int $lockSeconds): OutboxClaim
     {
         if ($limit < 1) {
-            return [];
+            return new OutboxClaim([]);
         }
 
         $this->assertConnectionIdle();
 
         $strategy = $this->dialect()->outboxClaimStrategy();
-        /** @var list<OutboxMessage> $messages */
-        $messages = $this->db->transaction(function () use ($strategy, $workerToken, $limit, $lockSeconds): array {
+        /** @var OutboxClaim $claim */
+        $claim = $this->db->transaction(function () use ($strategy, $workerToken, $limit, $lockSeconds): OutboxClaim {
             $this->releaseStaleClaims();
             $rows = $strategy->claim($this->db, $this->tableName, $workerToken, $limit, $lockSeconds);
 
             // Payload LOBs must be read before the transaction ends (Oracle ORA-22297).
-            return array_map(static fn (array $row): OutboxMessage => OutboxMessage::fromRow($row), $rows);
+            $messages = [];
+            $unreadable = 0;
+            foreach ($rows as $row) {
+                try {
+                    $messages[] = OutboxMessage::fromRow($row);
+                } catch (JsonException|OutboxException $e) {
+                    $unreadable++;
+                    $this->markFailed((string)($row['id'] ?? ''), $workerToken, 'Unreadable payload: ' . $e->getMessage());
+                }
+            }
+
+            return new OutboxClaim($messages, $unreadable);
         });
 
-        return $messages;
+        return $claim;
     }
 
     public function markPublished(string $messageId, string $workerToken): bool

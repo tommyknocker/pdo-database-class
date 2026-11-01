@@ -85,7 +85,9 @@ Processing rules:
 - **Publisher** runs **after** the claim transaction commits.
 - **Published / retry / failed** updates use separate short transactions guarded by the lock token.
 
-Throw `OutboxRetryableException` for transient errors (exponential backoff). Throw `OutboxPermanentFailureException` for poison messages.
+Throw `OutboxRetryableException` for transient errors (exponential backoff). Throw `OutboxPermanentFailureException` for poison messages. Any other exception from the publisher, including a deadlock or other transient database error, schedules a retry with the same backoff instead of leaving the row locked until the lease expires.
+
+A claimed row whose stored payload cannot be decoded into an array is marked `failed` (`last_error` starts with `Unreadable payload`) in the claim transaction and counted in `markedFailed`; it does not block the rest of the batch. The publisher must not leave a transaction open on the outbox connection: the worker throws `OutboxException` before it records the result.
 
 ## Purge (retention)
 

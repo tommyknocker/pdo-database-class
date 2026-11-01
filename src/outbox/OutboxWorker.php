@@ -28,11 +28,12 @@ final class OutboxWorker
     public function runOnce(callable $publish): OutboxProcessResult
     {
         $token = $this->newWorkerToken();
-        $claimed = $this->claimWithRetry($token);
+        $claim = $this->claimWithRetry($token);
+        $claimed = $claim->messages;
 
         $published = 0;
         $scheduledRetry = 0;
-        $markedFailed = 0;
+        $markedFailed = $claim->unreadable;
         $unconfirmed = 0;
 
         foreach ($claimed as $message) {
@@ -66,10 +67,6 @@ final class OutboxWorker
                 }
                 $unconfirmed++;
             } catch (Throwable $e) {
-                if (OutboxTransientError::isRetryable($e)) {
-                    $unconfirmed++;
-                    continue;
-                }
                 if ($this->confirmRetry($message, $e->getMessage(), $scheduledRetry, $markedFailed)) {
                     continue;
                 }
@@ -78,7 +75,7 @@ final class OutboxWorker
         }
 
         return new OutboxProcessResult(
-            count($claimed),
+            count($claimed) + $claim->unreadable,
             $published,
             $scheduledRetry,
             $markedFailed,
@@ -86,10 +83,7 @@ final class OutboxWorker
         );
     }
 
-    /**
-     * @return list<OutboxMessage>
-     */
-    protected function claimWithRetry(string $token): array
+    protected function claimWithRetry(string $token): OutboxClaim
     {
         $attempt = 0;
         while (true) {
@@ -135,6 +129,9 @@ final class OutboxWorker
      */
     protected function confirm(callable $operation): bool
     {
+        // A publisher that left a transaction open would make the status update commit or roll back with it.
+        $this->storage->assertConnectionIdle();
+
         $attempt = 0;
         while (true) {
             try {
