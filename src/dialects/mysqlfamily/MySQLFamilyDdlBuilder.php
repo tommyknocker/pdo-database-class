@@ -96,8 +96,8 @@ abstract class MySQLFamilyDdlBuilder implements DdlBuilderInterface
             $sql .= ' COLLATE=' . $options['collate'];
         }
         if (isset($options['comment'])) {
-            $comment = addslashes((string)$options['comment']);
-            $sql .= " COMMENT='{$comment}'";
+            $comment = $this->dialect->quoteStringLiteral((string)$options['comment']);
+            $sql .= " COMMENT={$comment}";
         }
 
         // Add partitioning (MySQL/MariaDB)
@@ -442,8 +442,8 @@ abstract class MySQLFamilyDdlBuilder implements DdlBuilderInterface
         }
 
         if ($schema->getComment() !== null) {
-            $comment = addslashes($schema->getComment());
-            $parts[] = "COMMENT '{$comment}'";
+            $comment = $this->dialect->quoteStringLiteral($schema->getComment());
+            $parts[] = "COMMENT {$comment}";
         }
 
         return implode(' ', $parts);
@@ -512,9 +512,9 @@ abstract class MySQLFamilyDdlBuilder implements DdlBuilderInterface
             return (string)$value;
         }
         if (is_string($value)) {
-            return "'" . addslashes($value) . "'";
+            return $this->dialect->quoteStringLiteral($value);
         }
-        return "'" . addslashes((string)$value) . "'";
+        return $this->dialect->quoteStringLiteral((string)$value);
     }
 
     /**

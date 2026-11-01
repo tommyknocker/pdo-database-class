@@ -382,9 +382,9 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
     public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string
     {
         $col = $this->resolveValue($column);
-        $sep = addslashes($separator);
+        $sep = $this->dialect->quoteStringLiteral($separator);
         $dist = $distinct ? 'DISTINCT ' : '';
-        return "GROUP_CONCAT($dist$col, '$sep')";
+        return "GROUP_CONCAT($dist$col, $sep)";
     }
 
     /**
@@ -406,7 +406,7 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
      */
     public function formatPosition(string|RawValue $substring, string|RawValue $value): string
     {
-        $sub = $substring instanceof RawValue ? $substring->getValue() : "'" . addslashes((string)$substring) . "'";
+        $sub = $substring instanceof RawValue ? $substring->getValue() : $this->dialect->quoteStringLiteral((string)$substring);
         $val = $this->resolveValue($value);
         // SQLite uses INSTR(string, substring) instead of POSITION(substring IN string).
         return "INSTR($val, $sub)";
@@ -488,17 +488,17 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
     {
         // Use resolveValue to handle both RawValue and column names
         $val = $this->resolveValue($value);
-        $escapedPad = addslashes($padString);
+        $escapedPad = $this->dialect->quoteStringLiteral($padString);
 
         // Calculate how much padding is needed
         // Use REPEAT emulation to generate padding, then concatenate and truncate
         $paddingCount = "MAX(0, {$length} - LENGTH({$val}))";
         $paddingSubquery = "(SELECT result FROM (
             WITH RECURSIVE pad_cte(n, result) AS (
-                SELECT 1, '{$escapedPad}'
+                SELECT 1, {$escapedPad}
                 UNION ALL
-                SELECT n+1, result || '{$escapedPad}' FROM pad_cte
-                WHERE LENGTH(result || '{$escapedPad}') <= {$paddingCount}
+                SELECT n+1, result || {$escapedPad} FROM pad_cte
+                WHERE LENGTH(result || {$escapedPad}) <= {$paddingCount}
             )
             SELECT result FROM pad_cte ORDER BY n DESC LIMIT 1
         ))";

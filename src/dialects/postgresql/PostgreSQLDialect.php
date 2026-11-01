@@ -249,6 +249,22 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
 
     /**
      * {@inheritDoc}
+     *
+     * A backslash is an escape character unless standard_conforming_strings is on, so values containing one use the
+     * E'' form, which reads the same under both settings.
+     */
+    public function quoteStringLiteral(string $value): string
+    {
+        $value = str_replace("\0", '', $value);
+        if (str_contains($value, '\\')) {
+            return "E'" . str_replace(['\\', "'"], ['\\\\', "''"], $value) . "'";
+        }
+
+        return "'" . str_replace("'", "''", $value) . "'";
+    }
+
+    /**
+     * {@inheritDoc}
      */
     public function quoteIdentifier(string $name): string
     {
@@ -436,7 +452,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
             return $asTimestamp ? 'EXTRACT(EPOCH FROM NOW())' : 'NOW()';
         }
 
-        $trimmedDif = trim($diff);
+        $trimmedDif = $this->assertSafeNowDiff(trim($diff));
         if (preg_match('/^([+-]?)(\d+)\s+([A-Za-z]+)$/', $trimmedDif, $matches)) {
             $sign = $matches[1] === '-' ? '-' : '+';
             $value = $matches[2];
@@ -485,7 +501,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
      */
     public function buildTableExistsSql(string $table): string
     {
-        return "SELECT to_regclass('{$table}') IS NOT NULL AS exists";
+        return 'SELECT to_regclass(' . $this->quoteStringLiteral($table) . ') IS NOT NULL AS exists';
     }
 
     /**
@@ -493,9 +509,9 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
      */
     public function buildDescribeSql(string $table): string
     {
-        return "SELECT column_name, data_type, is_nullable, column_default
+        return 'SELECT column_name, data_type, is_nullable, column_default
                 FROM information_schema.columns
-                WHERE table_name = '{$table}'";
+                WHERE table_name = ' . $this->quoteStringLiteral($table);
     }
 
     /**
@@ -899,12 +915,12 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
      */
     public function buildShowIndexesSql(string $table): string
     {
-        return "SELECT
+        return 'SELECT
             indexname as index_name,
             tablename as table_name,
             indexdef as definition
             FROM pg_indexes
-            WHERE tablename = '{$table}'";
+            WHERE tablename = ' . $this->quoteStringLiteral($table);
     }
 
     /**
@@ -923,7 +939,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
             JOIN information_schema.constraint_column_usage AS ccu
                 ON ccu.constraint_name = tc.constraint_name
             WHERE tc.constraint_type = 'FOREIGN KEY'
-            AND tc.table_name = '{$table}'";
+            AND tc.table_name = " . $this->quoteStringLiteral($table);
     }
 
     /**
@@ -931,7 +947,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
      */
     public function buildShowConstraintsSql(string $table): string
     {
-        return "SELECT
+        return 'SELECT
             tc.constraint_name,
             tc.constraint_type,
             tc.table_name,
@@ -939,7 +955,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
             FROM information_schema.table_constraints tc
             LEFT JOIN information_schema.key_column_usage kcu
                 ON tc.constraint_name = kcu.constraint_name
-            WHERE tc.table_name = '{$table}'";
+            WHERE tc.table_name = ' . $this->quoteStringLiteral($table);
     }
 
     /* ---------------- DDL Operations ---------------- */
@@ -1551,7 +1567,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
         $quotedUsername = $this->quoteIdentifier($username);
         $quotedPassword = $db->rawQueryValue('SELECT quote_literal(?)', [$password]);
         if ($quotedPassword === null) {
-            $quotedPassword = "'" . addslashes($password) . "'";
+            $quotedPassword = $this->quoteStringLiteral($password);
         }
 
         $sql = "CREATE USER {$quotedUsername} WITH PASSWORD {$quotedPassword}";
@@ -1765,7 +1781,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
         $quotedUsername = $this->quoteIdentifier($username);
         $quotedPassword = $db->rawQueryValue('SELECT quote_literal(?)', [$newPassword]);
         if ($quotedPassword === null) {
-            $quotedPassword = "'" . addslashes($newPassword) . "'";
+            $quotedPassword = $this->quoteStringLiteral($newPassword);
         }
 
         $sql = "ALTER USER {$quotedUsername} WITH PASSWORD {$quotedPassword}";

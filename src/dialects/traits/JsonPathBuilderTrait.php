@@ -17,13 +17,26 @@ trait JsonPathBuilderTrait
     {
         $jsonPath = '$';
         foreach ($parts as $p) {
-            if (preg_match('/^\d+$/', (string)$p)) {
+            $p = (string)$p;
+            if (preg_match('/^\d+$/', $p)) {
                 $jsonPath .= '[' . $p . ']';
-            } else {
+            } elseif (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $p)) {
                 $jsonPath .= '.' . $p;
+            } else {
+                // Keys with other characters are quoted in JSON path syntax.
+                $jsonPath .= '."' . str_replace(['\\', '"'], ['\\\\', '\\"'], $p) . '"';
             }
         }
-        return $jsonPath;
+
+        return $this->escapeJsonPathForSql($jsonPath);
+    }
+
+    /**
+     * Escape a JSON path for use between single quotes in SQL, using the dialect's string literal rules.
+     */
+    protected function escapeJsonPathForSql(string $jsonPath): string
+    {
+        return substr($this->dialect->quoteStringLiteral($jsonPath), 1, -1);
     }
 
     /**
@@ -43,7 +56,18 @@ trait JsonPathBuilderTrait
      */
     protected function buildPostgreSqlJsonbPath(array $parts): string
     {
-        return '{' . implode(',', array_map(fn ($p) => str_replace('}', '\\}', (string)$p), $parts)) . '}';
+        // Array-literal elements are double-quoted unless they are plain words; the whole value is then
+        // written between single quotes in SQL.
+        $elements = array_map(static function ($p): string {
+            $p = (string)$p;
+            if (preg_match('/^[A-Za-z0-9_]+$/', $p)) {
+                return $p;
+            }
+
+            return '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $p) . '"';
+        }, $parts);
+
+        return str_replace("'", "''", '{' . implode(',', $elements) . '}');
     }
 
     /**

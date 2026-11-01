@@ -116,10 +116,10 @@ class OracleSqlFormatter extends SqlFormatterAbstract
     public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string
     {
         $col = $this->resolveValue($column);
-        $sep = addslashes($separator);
+        $sep = $this->dialect->quoteStringLiteral($separator);
         $dist = $distinct ? 'DISTINCT ' : '';
         // Oracle uses LISTAGG for string aggregation
-        return "LISTAGG($dist$col, '$sep') WITHIN GROUP (ORDER BY $col)";
+        return "LISTAGG($dist$col, $sep) WITHIN GROUP (ORDER BY $col)";
     }
 
     /* ---------------- JSON methods ---------------- */
@@ -569,7 +569,7 @@ class OracleSqlFormatter extends SqlFormatterAbstract
      */
     public function formatPosition(string|RawValue $substring, string|RawValue $value): string
     {
-        $sub = $substring instanceof RawValue ? $substring->getValue() : "'" . addslashes((string)$substring) . "'";
+        $sub = $substring instanceof RawValue ? $substring->getValue() : $this->dialect->quoteStringLiteral((string)$substring);
         $val = $this->resolveValue($value);
         // Oracle uses INSTR
         return "INSTR($val, $sub)";
@@ -610,7 +610,7 @@ class OracleSqlFormatter extends SqlFormatterAbstract
             $valFormatted = $val;
         } else {
             // It's an unquoted string literal - add quotes
-            $valFormatted = "'{$val}'";
+            $valFormatted = $this->dialect->quoteStringLiteral($val);
         }
         // Oracle uses RPAD with empty string trick
         return "RPAD('', $count * LENGTH($valFormatted), $valFormatted)";
@@ -640,9 +640,9 @@ class OracleSqlFormatter extends SqlFormatterAbstract
     public function formatPad(string|RawValue $value, int $length, string $padString, bool $isLeft): string
     {
         $val = $this->resolveValue($value);
-        $pad = addslashes($padString);
+        $pad = $this->dialect->quoteStringLiteral($padString);
         $func = $isLeft ? 'LPAD' : 'RPAD';
-        return "{$func}($val, $length, '$pad')";
+        return "{$func}($val, $length, $pad)";
     }
 
     /**

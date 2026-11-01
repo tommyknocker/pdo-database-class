@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use tommyknocker\pdodb\cli\TableManager;
 use tommyknocker\pdodb\orm\behaviors\SoftDeleteBehavior;
 use tommyknocker\pdodb\orm\behaviors\TimestampBehavior;
 use tommyknocker\pdodb\orm\Model;
@@ -142,6 +143,49 @@ final class ActiveRecordApiDatabaseTests extends TestCase
             self::assertTrue($custom->save());
             self::assertStringStartsWith('2020-01-02 03:04:05', (string) $custom->created_at);
             self::assertEmpty(ApiClockCustom::findOne(3)?->updated_at);
+        } finally {
+            $db->rawQuery("DROP TABLE {$quoted}");
+        }
+    }
+
+    #[DataProvider('databases')]
+    public function testStringLiteralsRoundTripHostileValues(string $name): void
+    {
+        $db = $this->database($name);
+        $dialect = $db->connection->getDialect();
+        $from = $name === 'oracle' ? ' FROM DUAL' : '';
+        $values = ["it's", '\\', "\\' OR 1=1 --", "a\\\\'b", "'; DROP TABLE users; --", '100%_done', 'plain'];
+
+        foreach ($values as $value) {
+            $result = $db->rawQueryValue('SELECT ' . $dialect->quoteStringLiteral($value) . $from);
+            self::assertSame($value, $result, "Literal for {$value} did not round-trip on {$name}");
+        }
+    }
+
+    #[DataProvider('databases')]
+    public function testHostileJsonKeysAndTableNamesStayInsideTheirLiterals(string $name): void
+    {
+        $db = $this->database($name);
+        $dialect = $db->connection->getDialect();
+        $table = 'aj_' . bin2hex(random_bytes(5));
+        $quoted = $dialect->quoteIdentifier($table);
+        $type = match ($name) {
+            'mysql', 'mariadb' => 'JSON',
+            'postgresql' => 'JSONB',
+            'mssql' => 'NVARCHAR(MAX)',
+            'oracle' => 'VARCHAR2(500)',
+            default => 'TEXT',
+        };
+        $db->rawQuery("CREATE TABLE {$quoted} (id INTEGER PRIMARY KEY, doc {$type})");
+
+        try {
+            $db->rawQuery("INSERT INTO {$quoted} (id, doc) VALUES (1, :doc)", ['doc' => json_encode(["a'b" => ['c.d' => 'ok']])]);
+            $expr = $dialect->formatJsonGet('doc', ["a'b", 'c.d']);
+            self::assertSame('ok', $db->rawQueryValue("SELECT {$expr} FROM {$quoted}"));
+
+            self::assertTrue(TableManager::tableExists($db, $table));
+            self::assertFalse(TableManager::tableExists($db, "{$table}' OR '1'='1"));
+            self::assertFalse(TableManager::tableExists($db, str_replace('_', '%', $table)));
         } finally {
             $db->rawQuery("DROP TABLE {$quoted}");
         }

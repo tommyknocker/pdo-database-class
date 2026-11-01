@@ -261,7 +261,7 @@ class MSSQLDmlBuilder implements DmlBuilderInterface
             return $this->buildRawValueExpression($colSql, $expr, '', $col);
         }
         if (is_string($expr)) {
-            return "{$colSql} = '{$expr}'";
+            return "{$colSql} = " . $this->dialect->quoteStringLiteral($expr);
         }
         return "{$colSql} = {$expr}";
     }

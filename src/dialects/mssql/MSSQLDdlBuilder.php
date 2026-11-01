@@ -67,9 +67,9 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
             return (string)$value;
         }
         if (is_string($value)) {
-            return "'" . addslashes($value) . "'";
+            return $this->dialect->quoteStringLiteral($value);
         }
-        return "'" . addslashes((string)$value) . "'";
+        return $this->dialect->quoteStringLiteral((string)$value);
     }
     public function buildTableExistsSql(string $table): string
     {
@@ -78,9 +78,9 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
         if (count($parts) === 2) {
             $schema = $parts[0];
             $tableName = $parts[1];
-            return "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '{$schema}' AND TABLE_NAME = '{$tableName}'";
+            return 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ' . $this->dialect->quoteStringLiteral($schema) . ' AND TABLE_NAME = ' . $this->dialect->quoteStringLiteral($tableName);
         }
-        return "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{$table}'";
+        return 'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ' . $this->dialect->quoteStringLiteral($table);
     }
 
     /**
@@ -93,9 +93,9 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
         if (count($parts) === 2) {
             $schema = $parts[0];
             $tableName = $parts[1];
-            return "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMNPROPERTY(OBJECT_ID('{$schema}.{$tableName}'), COLUMN_NAME, 'IsIdentity') AS is_identity FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{$schema}' AND TABLE_NAME = '{$tableName}' ORDER BY ORDINAL_POSITION";
+            return 'SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMNPROPERTY(OBJECT_ID(' . $this->dialect->quoteStringLiteral($schema . '.' . $tableName) . "), COLUMN_NAME, 'IsIdentity') AS is_identity FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = " . $this->dialect->quoteStringLiteral($schema) . ' AND TABLE_NAME = ' . $this->dialect->quoteStringLiteral($tableName) . ' ORDER BY ORDINAL_POSITION';
         }
-        return "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMNPROPERTY(OBJECT_ID('{$table}'), COLUMN_NAME, 'IsIdentity') AS is_identity FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{$table}' ORDER BY ORDINAL_POSITION";
+        return 'SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMNPROPERTY(OBJECT_ID(' . $this->dialect->quoteStringLiteral($table) . "), COLUMN_NAME, 'IsIdentity') AS is_identity FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = " . $this->dialect->quoteStringLiteral($table) . ' ORDER BY ORDINAL_POSITION';
     }
 
     /**
@@ -107,9 +107,9 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
         if (count($parts) === 2) {
             $schema = $parts[0];
             $tableName = $parts[1];
-            return "SELECT i.name AS IndexName, i.type_desc AS IndexType, ic.key_ordinal AS KeyOrdinal, c.name AS ColumnName FROM sys.indexes i INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id WHERE OBJECT_SCHEMA_NAME(i.object_id) = '{$schema}' AND OBJECT_NAME(i.object_id) = '{$tableName}' ORDER BY i.name, ic.key_ordinal";
+            return 'SELECT i.name AS IndexName, i.type_desc AS IndexType, ic.key_ordinal AS KeyOrdinal, c.name AS ColumnName FROM sys.indexes i INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id WHERE OBJECT_SCHEMA_NAME(i.object_id) = ' . $this->dialect->quoteStringLiteral($schema) . ' AND OBJECT_NAME(i.object_id) = ' . $this->dialect->quoteStringLiteral($tableName) . ' ORDER BY i.name, ic.key_ordinal';
         }
-        return "SELECT i.name AS IndexName, i.type_desc AS IndexType, ic.key_ordinal AS KeyOrdinal, c.name AS ColumnName FROM sys.indexes i INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id WHERE OBJECT_NAME(i.object_id) = '{$table}' ORDER BY i.name, ic.key_ordinal";
+        return 'SELECT i.name AS IndexName, i.type_desc AS IndexType, ic.key_ordinal AS KeyOrdinal, c.name AS ColumnName FROM sys.indexes i INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id WHERE OBJECT_NAME(i.object_id) = ' . $this->dialect->quoteStringLiteral($table) . ' ORDER BY i.name, ic.key_ordinal';
     }
 
     /**
@@ -121,9 +121,9 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
         if (count($parts) === 2) {
             $schema = $parts[0];
             $tableName = $parts[1];
-            return "SELECT fk.name AS CONSTRAINT_NAME, c.name AS COLUMN_NAME, OBJECT_SCHEMA_NAME(fk.referenced_object_id) AS REFERENCED_TABLE_SCHEMA, OBJECT_NAME(fk.referenced_object_id) AS REFERENCED_TABLE_NAME, rc.name AS REFERENCED_COLUMN_NAME FROM sys.foreign_keys fk INNER JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id INNER JOIN sys.columns c ON fkc.parent_object_id = c.object_id AND fkc.parent_column_id = c.column_id INNER JOIN sys.columns rc ON fkc.referenced_object_id = rc.object_id AND fkc.referenced_column_id = rc.column_id WHERE OBJECT_SCHEMA_NAME(fk.parent_object_id) = '{$schema}' AND OBJECT_NAME(fk.parent_object_id) = '{$tableName}'";
+            return 'SELECT fk.name AS CONSTRAINT_NAME, c.name AS COLUMN_NAME, OBJECT_SCHEMA_NAME(fk.referenced_object_id) AS REFERENCED_TABLE_SCHEMA, OBJECT_NAME(fk.referenced_object_id) AS REFERENCED_TABLE_NAME, rc.name AS REFERENCED_COLUMN_NAME FROM sys.foreign_keys fk INNER JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id INNER JOIN sys.columns c ON fkc.parent_object_id = c.object_id AND fkc.parent_column_id = c.column_id INNER JOIN sys.columns rc ON fkc.referenced_object_id = rc.object_id AND fkc.referenced_column_id = rc.column_id WHERE OBJECT_SCHEMA_NAME(fk.parent_object_id) = ' . $this->dialect->quoteStringLiteral($schema) . ' AND OBJECT_NAME(fk.parent_object_id) = ' . $this->dialect->quoteStringLiteral($tableName);
         }
-        return "SELECT fk.name AS CONSTRAINT_NAME, c.name AS COLUMN_NAME, OBJECT_SCHEMA_NAME(fk.referenced_object_id) AS REFERENCED_TABLE_SCHEMA, OBJECT_NAME(fk.referenced_object_id) AS REFERENCED_TABLE_NAME, rc.name AS REFERENCED_COLUMN_NAME FROM sys.foreign_keys fk INNER JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id INNER JOIN sys.columns c ON fkc.parent_object_id = c.object_id AND fkc.parent_column_id = c.column_id INNER JOIN sys.columns rc ON fkc.referenced_object_id = rc.object_id AND fkc.referenced_column_id = rc.column_id WHERE OBJECT_NAME(fk.parent_object_id) = '{$table}'";
+        return 'SELECT fk.name AS CONSTRAINT_NAME, c.name AS COLUMN_NAME, OBJECT_SCHEMA_NAME(fk.referenced_object_id) AS REFERENCED_TABLE_SCHEMA, OBJECT_NAME(fk.referenced_object_id) AS REFERENCED_TABLE_NAME, rc.name AS REFERENCED_COLUMN_NAME FROM sys.foreign_keys fk INNER JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id INNER JOIN sys.columns c ON fkc.parent_object_id = c.object_id AND fkc.parent_column_id = c.column_id INNER JOIN sys.columns rc ON fkc.referenced_object_id = rc.object_id AND fkc.referenced_column_id = rc.column_id WHERE OBJECT_NAME(fk.parent_object_id) = ' . $this->dialect->quoteStringLiteral($table);
     }
 
     /**
@@ -135,9 +135,9 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
         if (count($parts) === 2) {
             $schema = $parts[0];
             $tableName = $parts[1];
-            return "SELECT tc.CONSTRAINT_NAME, tc.CONSTRAINT_TYPE, tc.TABLE_NAME, kcu.COLUMN_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA AND tc.TABLE_NAME = kcu.TABLE_NAME WHERE tc.TABLE_SCHEMA = '{$schema}' AND tc.TABLE_NAME = '{$tableName}'";
+            return 'SELECT tc.CONSTRAINT_NAME, tc.CONSTRAINT_TYPE, tc.TABLE_NAME, kcu.COLUMN_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA AND tc.TABLE_NAME = kcu.TABLE_NAME WHERE tc.TABLE_SCHEMA = ' . $this->dialect->quoteStringLiteral($schema) . ' AND tc.TABLE_NAME = ' . $this->dialect->quoteStringLiteral($tableName);
         }
-        return "SELECT tc.CONSTRAINT_NAME, tc.CONSTRAINT_TYPE, tc.TABLE_NAME, kcu.COLUMN_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA AND tc.TABLE_NAME = kcu.TABLE_NAME WHERE tc.TABLE_NAME = '{$table}'";
+        return 'SELECT tc.CONSTRAINT_NAME, tc.CONSTRAINT_TYPE, tc.TABLE_NAME, kcu.COLUMN_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA AND tc.TABLE_NAME = kcu.TABLE_NAME WHERE tc.TABLE_NAME = ' . $this->dialect->quoteStringLiteral($table);
     }
 
     /**
@@ -289,12 +289,12 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
 
         // Build SQL batch that drops default constraints first, then the column
         // MSSQL allows multiple statements separated by semicolons
-        $dropConstraintsSql = "
+        $dropConstraintsSql = '
             DECLARE @constraintName NVARCHAR(255);
             DECLARE constraint_cursor CURSOR FOR
                 SELECT name FROM sys.default_constraints
-                WHERE parent_object_id = OBJECT_ID('{$tableNameOnly}')
-                AND parent_column_id = COLUMNPROPERTY(OBJECT_ID('{$tableNameOnly}'), '{$columnNameOnly}', 'ColumnId');
+                WHERE parent_object_id = OBJECT_ID(' . $this->dialect->quoteStringLiteral($tableNameOnly) . ')
+                AND parent_column_id = COLUMNPROPERTY(OBJECT_ID(' . $this->dialect->quoteStringLiteral($tableNameOnly) . '), ' . $this->dialect->quoteStringLiteral($columnNameOnly) . ", 'ColumnId');
             OPEN constraint_cursor;
             FETCH NEXT FROM constraint_cursor INTO @constraintName;
             WHILE @@FETCH_STATUS = 0
@@ -337,7 +337,7 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
         $oldUnquoted = str_replace(['[', ']'], '', $this->quoteIdentifier($oldName));
         $newNameClean = trim($newName, '[]');
         // MSSQL uses sp_rename stored procedure
-        return "EXEC sp_rename '{$tableUnquoted}.{$oldUnquoted}', '{$newNameClean}', 'COLUMN'";
+        return 'EXEC sp_rename ' . $this->dialect->quoteStringLiteral($tableUnquoted . '.' . $oldUnquoted) . ', ' . $this->dialect->quoteStringLiteral($newNameClean) . ", 'COLUMN'";
     }
 
     /**
@@ -441,7 +441,7 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
         $tableUnquoted = str_replace(['[', ']'], '', $this->quoteTable($table));
         $oldUnquoted = str_replace(['[', ']'], '', $this->quoteIdentifier($oldName));
         $newNameClean = trim($newName, '[]');
-        return "EXEC sp_rename '{$tableUnquoted}.{$oldUnquoted}', '{$newNameClean}', 'INDEX'";
+        return 'EXEC sp_rename ' . $this->dialect->quoteStringLiteral($tableUnquoted . '.' . $oldUnquoted) . ', ' . $this->dialect->quoteStringLiteral($newNameClean) . ", 'INDEX'";
     }
 
     /**
@@ -453,7 +453,7 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
         $tableUnquoted = str_replace(['[', ']'], '', $this->quoteTable($table));
         $oldUnquoted = str_replace(['[', ']'], '', $this->quoteIdentifier($oldName));
         $newNameClean = trim($newName, '[]');
-        return "EXEC sp_rename '{$tableUnquoted}.{$oldUnquoted}', '{$newNameClean}', 'OBJECT'";
+        return 'EXEC sp_rename ' . $this->dialect->quoteStringLiteral($tableUnquoted . '.' . $oldUnquoted) . ', ' . $this->dialect->quoteStringLiteral($newNameClean) . ", 'OBJECT'";
     }
 
     /**
@@ -574,7 +574,7 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
         $newNameClean = trim($newName, '[]');
         // Don't quote the new name - sp_rename expects unquoted name
         // MSSQL uses sp_rename stored procedure
-        return "EXEC sp_rename '{$tableQuoted}', '{$newNameClean}'";
+        return 'EXEC sp_rename ' . $this->dialect->quoteStringLiteral($tableQuoted) . ', ' . $this->dialect->quoteStringLiteral($newNameClean);
     }
 
     /**
@@ -636,7 +636,7 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
                     $bitValue = ($default === true || $default === 1 || $default === '1' || $default === 'true') ? 1 : 0;
                     $sql .= " DEFAULT {$bitValue}";
                 } elseif (is_string($default)) {
-                    $sql .= " DEFAULT '{$default}'";
+                    $sql .= ' DEFAULT ' . $this->dialect->quoteStringLiteral($default);
                 } else {
                     $sql .= " DEFAULT {$default}";
                 }

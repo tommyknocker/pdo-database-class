@@ -524,7 +524,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
             return $asTimestamp ? 'EXTRACT(EPOCH FROM SYSTIMESTAMP)' : 'SYSTIMESTAMP';
         }
 
-        $trimmedDif = trim($diff);
+        $trimmedDif = $this->assertSafeNowDiff(trim($diff));
         if (preg_match('/^([+-] ?)?(\d+)\s+([A-Za-z]+)$/', $trimmedDif, $matches)) {
             $signRaw = trim((string)$matches[1]);
             if ($signRaw === '') {
@@ -2077,16 +2077,26 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     /* ---------------- User Management ---------------- */
 
     /**
+     * Oracle takes a password as an identifier-style token: wrap it in double quotes. A double quote or a NUL
+     * byte cannot be represented, so such a password is rejected instead of being written into the statement.
+     */
+    private function quotePassword(string $password): string
+    {
+        if (str_contains($password, '"') || str_contains($password, "\0")) {
+            throw new InvalidArgumentException('An Oracle password cannot contain a double quote or a NUL byte.');
+        }
+
+        return '"' . $password . '"';
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function createUser(string $username, string $password, ?string $host, PdoDb $db): bool
     {
         // Oracle doesn't use host in user creation
         $quotedUsername = $this->quoteIdentifier($username);
-        $quotedPassword = $db->rawQueryValue('SELECT ? FROM DUAL', [$password]);
-        if ($quotedPassword === null) {
-            $quotedPassword = "'" . addslashes($password) . "'";
-        }
+        $quotedPassword = $this->quotePassword($password);
 
         $sql = "CREATE USER {$quotedUsername} IDENTIFIED BY {$quotedPassword}";
         $db->rawQuery($sql);
@@ -2250,10 +2260,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     {
         // Oracle doesn't use host in password changes
         $quotedUsername = $this->quoteIdentifier($username);
-        $quotedPassword = $db->rawQueryValue('SELECT ? FROM DUAL', [$newPassword]);
-        if ($quotedPassword === null) {
-            $quotedPassword = "'" . addslashes($newPassword) . "'";
-        }
+        $quotedPassword = $this->quotePassword($newPassword);
 
         $sql = "ALTER USER {$quotedUsername} IDENTIFIED BY {$quotedPassword}";
         $db->rawQuery($sql);

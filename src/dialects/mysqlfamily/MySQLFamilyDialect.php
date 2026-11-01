@@ -105,8 +105,26 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
-            PDO\Mysql::ATTR_LOCAL_INFILE => true,
         ];
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * Backslash is an escape character in the default sql_mode, so it is escaped as well. With a connection
+     * the driver quotes the value for the active session mode.
+     */
+    public function quoteStringLiteral(string $value): string
+    {
+        $value = str_replace("\0", '', $value);
+        if ($this->pdo !== null) {
+            $quoted = $this->pdo->quote($value);
+            if ($quoted !== false) {
+                return $quoted;
+            }
+        }
+
+        return "'" . str_replace(['\\', "'"], ['\\\\', "''"], $value) . "'";
     }
 
     /**
@@ -225,7 +243,7 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
             return $asTimestamp ? 'UNIX_TIMESTAMP()' : 'NOW()';
         }
 
-        $trimmedDif = trim($diff);
+        $trimmedDif = $this->assertSafeNowDiff(trim($diff));
         if (preg_match('/^([+-] ?)?(\d+)\s+([A-Za-z]+)$/', $trimmedDif, $matches)) {
             $signRaw = trim((string)$matches[1]);
             if ($signRaw === '') {
@@ -280,7 +298,8 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
      */
     public function buildTableExistsSql(string $table): string
     {
-        return "SHOW TABLES LIKE '{$table}'";
+        // LIKE treats % and _ as wildcards: escape them so the name matches literally.
+        return 'SHOW TABLES LIKE ' . $this->quoteStringLiteral(str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $table));
     }
 
     /**
@@ -288,7 +307,7 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
      */
     public function buildDescribeSql(string $table): string
     {
-        return "DESCRIBE {$table}";
+        return 'DESCRIBE ' . $this->quoteTable($table);
     }
 
     /**
@@ -742,8 +761,8 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
             REFERENCED_COLUMN_NAME
             FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
             WHERE TABLE_SCHEMA = '$dbName'
-            AND TABLE_NAME = '{$table}'
-            AND REFERENCED_TABLE_NAME IS NOT NULL";
+            AND TABLE_NAME = " . $this->quoteStringLiteral($table) . '
+            AND REFERENCED_TABLE_NAME IS NOT NULL';
     }
 
     /**
@@ -763,7 +782,7 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
             AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
             AND tc.TABLE_NAME = kcu.TABLE_NAME
             WHERE tc.TABLE_SCHEMA = '$dbName'
-            AND tc.TABLE_NAME = '{$table}'";
+            AND tc.TABLE_NAME = " . $this->quoteStringLiteral($table);
     }
 
     /**
@@ -1132,7 +1151,7 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
         $quotedHost = $this->quoteIdentifier($host);
         $quotedPassword = $db->rawQueryValue('SELECT QUOTE(?)', [$password]);
         if ($quotedPassword === null) {
-            $quotedPassword = "'" . addslashes($password) . "'";
+            $quotedPassword = $this->quoteStringLiteral($password);
         }
 
         $sql = "CREATE USER {$quotedUsername}@{$quotedHost} IDENTIFIED BY {$quotedPassword}";
@@ -1306,7 +1325,7 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
         $quotedHost = $this->quoteIdentifier($host);
         $quotedPassword = $db->rawQueryValue('SELECT QUOTE(?)', [$newPassword]);
         if ($quotedPassword === null) {
-            $quotedPassword = "'" . addslashes($newPassword) . "'";
+            $quotedPassword = $this->quoteStringLiteral($newPassword);
         }
 
         $sql = "ALTER USER {$quotedUsername}@{$quotedHost} IDENTIFIED BY {$quotedPassword}";

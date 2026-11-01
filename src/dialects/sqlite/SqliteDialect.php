@@ -338,6 +338,9 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function now(?string $diff = '', bool $asTimestamp = false): string
     {
+        if ($diff) {
+            $diff = $this->assertSafeNowDiff($diff);
+        }
         if ($asTimestamp) {
             return $diff ? "STRFTIME('%s','now','{$diff}')" : "STRFTIME('%s','now')";
         }
@@ -389,7 +392,7 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function buildTableExistsSql(string $table): string
     {
-        return "SELECT name FROM sqlite_master WHERE type='table' AND name='{$table}'";
+        return "SELECT name FROM sqlite_master WHERE type='table' AND name=" . $this->quoteStringLiteral($table);
     }
 
     /**
@@ -397,7 +400,7 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function buildDescribeSql(string $table): string
     {
-        return "PRAGMA table_info({$table})";
+        return 'PRAGMA table_info(' . $this->quoteIdentifier($table) . ')';
     }
 
     /**
@@ -793,7 +796,7 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function buildShowIndexesSql(string $table): string
     {
-        return "SELECT name, tbl_name as table_name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = '{$table}'";
+        return "SELECT name, tbl_name as table_name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = " . $this->quoteStringLiteral($table);
     }
 
     /**
@@ -801,7 +804,7 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function buildShowForeignKeysSql(string $table): string
     {
-        return "PRAGMA foreign_key_list('{$table}')";
+        return 'PRAGMA foreign_key_list(' . $this->quoteStringLiteral($table) . ')';
     }
 
     /**
@@ -809,7 +812,7 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function buildShowConstraintsSql(string $table): string
     {
-        return "SELECT sql, type FROM sqlite_master WHERE type IN ('table', 'index') AND tbl_name = '{$table}'";
+        return "SELECT sql, type FROM sqlite_master WHERE type IN ('table', 'index') AND tbl_name = " . $this->quoteStringLiteral($table);
     }
 
     /* ---------------- DDL Operations ---------------- */

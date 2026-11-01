@@ -84,6 +84,14 @@ interface DialectInterface
     public function quoteTable(string $table): string;
 
     /**
+     * Quote a value as an SQL string literal, including the surrounding quotes.
+     *
+     * Use it only where a value must be written into SQL text (DDL, defaults, aggregate separators);
+     * everything else belongs in bound parameters.
+     */
+    public function quoteStringLiteral(string $value): string;
+
+    /**
      * Get table alias keyword (e.g., "AS" or empty string).
      * Some dialects (like Oracle) do not support AS keyword for table aliases.
      *

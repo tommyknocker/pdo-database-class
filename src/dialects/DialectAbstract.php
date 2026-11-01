@@ -11,6 +11,7 @@ use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
+use tommyknocker\pdodb\dialects\traits\JsonPathParser;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
@@ -154,6 +155,28 @@ abstract class DialectAbstract implements DialectInterface
     public function getTableAliasKeyword(): string
     {
         return ' AS ';
+    }
+
+    /**
+     * Reject a date-interval expression that could carry anything but an interval (it is written into SQL text).
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function assertSafeNowDiff(string $diff): string
+    {
+        if (preg_match('/^[A-Za-z0-9 +\-:.,_]+$/', $diff) !== 1) {
+            throw new InvalidArgumentException('Unsupported date interval expression.');
+        }
+
+        return $diff;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function quoteStringLiteral(string $value): string
+    {
+        return "'" . str_replace(["\0", "'"], ['', "''"], $value) . "'";
     }
 
     /**
@@ -381,12 +404,8 @@ abstract class DialectAbstract implements DialectInterface
     protected function normalizeJsonPath(array|string $path): array
     {
         if (is_string($path)) {
-            $path = trim($path);
-            if ($path === '' || $path === '$') {
-                return [];
-            }
-            // allow dot notation like "a.b[0].c" or simple keys separated by dots
-            return explode('.', $path);
+            // allow dot notation like "a.b[0].c" or "$.a.b"
+            return JsonPathParser::parse($path);
         }
         return array_values($path);
     }
@@ -430,7 +449,7 @@ abstract class DialectAbstract implements DialectInterface
             return $default->getValue();
         }
         if (is_string($default)) {
-            return "'{$default}'";
+            return $this->quoteStringLiteral($default);
         }
         return (string)$default;
     }
@@ -513,9 +532,9 @@ abstract class DialectAbstract implements DialectInterface
     public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string
     {
         $col = $this->resolveValue($column);
-        $sep = addslashes($separator);
+        $sep = $this->quoteStringLiteral($separator);
         $dist = $distinct ? 'DISTINCT ' : '';
-        return "GROUP_CONCAT($dist$col SEPARATOR '$sep')";
+        return "GROUP_CONCAT($dist$col SEPARATOR $sep)";
     }
 
     /**
@@ -544,7 +563,7 @@ abstract class DialectAbstract implements DialectInterface
      */
     public function formatPosition(string|RawValue $substring, string|RawValue $value): string
     {
-        $sub = $substring instanceof RawValue ? $substring->getValue() : "'" . addslashes((string)$substring) . "'";
+        $sub = $substring instanceof RawValue ? $substring->getValue() : $this->quoteStringLiteral((string)$substring);
         $val = $this->resolveValue($value);
         return "POSITION($sub IN $val)";
     }
@@ -587,7 +606,7 @@ abstract class DialectAbstract implements DialectInterface
      */
     public function formatRepeat(string|RawValue $value, int $count): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : "'" . addslashes((string)$value) . "'";
+        $val = $value instanceof RawValue ? $value->getValue() : $this->quoteStringLiteral((string)$value);
         return "REPEAT($val, $count)";
     }
 
@@ -617,9 +636,9 @@ abstract class DialectAbstract implements DialectInterface
     public function formatPad(string|RawValue $value, int $length, string $padString, bool $isLeft): string
     {
         $val = $this->resolveValue($value);
-        $pad = addslashes($padString);
+        $pad = $this->quoteStringLiteral($padString);
         $func = $isLeft ? 'LPAD' : 'RPAD';
-        return "{$func}($val, $length, '$pad')";
+        return "{$func}($val, $length, $pad)";
     }
 
     /**

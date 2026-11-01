@@ -81,7 +81,7 @@ class MariaDBSqlFormatter extends MySQLFamilySqlFormatter
 
         // Wrap in COALESCE if default value was provided for LAG/LEAD
         if ($defaultValue !== null) {
-            $defaultFormatted = is_numeric($defaultValue) ? (string)$defaultValue : "'" . addslashes((string)$defaultValue) . "'";
+            $defaultFormatted = is_numeric($defaultValue) ? (string)$defaultValue : $this->dialect->quoteStringLiteral((string)$defaultValue);
             $sql = "COALESCE({$sql}, {$defaultFormatted})";
         }
 
@@ -116,11 +116,12 @@ class MariaDBSqlFormatter extends MySQLFamilySqlFormatter
                 $parentParts = $this->getParentPathParts($parts);
                 $parentPath = $this->buildJsonPathString($parentParts);
                 $lastKey = (string)$lastSegment;
+                $lastKeyPath = $this->buildJsonPathString([$lastKey]);
 
                 // Build expression: set the parent to JSON_SET(COALESCE(JSON_EXTRACT(col,parent), '{}') , '$.<last>', :param)
                 // then write that parent back into the document
                 // Note: Without CAST, MariaDB may store the value as a string, but JSON_SET should handle it
-                $parentNew = "JSON_SET(COALESCE(JSON_EXTRACT({$colQuoted}, '{$parentPath}'), '{}'), '$.{$lastKey}', {$param})";
+                $parentNew = "JSON_SET(COALESCE(JSON_EXTRACT({$colQuoted}, '{$parentPath}'), '{}'), '{$lastKeyPath}', {$param})";
                 $sql = "JSON_SET({$colQuoted}, '{$parentPath}', {$parentNew})";
             }
         } else {

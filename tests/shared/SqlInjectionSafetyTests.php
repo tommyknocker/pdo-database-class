@@ -13,6 +13,7 @@ use tommyknocker\pdodb\dialects\mysql\MySQLDialect;
 use tommyknocker\pdodb\dialects\oracle\OracleDialect;
 use tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect;
 use tommyknocker\pdodb\dialects\sqlite\SqliteDialect;
+use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\query\QueryConstants;
 
 /**
@@ -107,5 +108,87 @@ final class SqlInjectionSafetyTests extends BaseSharedTestCase
 
         $this->assertStringContainsString('NOT IN', $sql);
         $this->assertStringContainsString('LIKE', $sql);
+    }
+
+    public function testAggregateSeparatorAndPaddingAreWrittenAsLiterals(): void
+    {
+        self::$db->rawQuery('DELETE FROM test_coverage');
+        self::$db->find()->table('test_coverage')->insert(['name' => 'a', 'value' => 1]);
+        self::$db->find()->table('test_coverage')->insert(['name' => 'b', 'value' => 2]);
+        $dialect = self::$db->connection->getDialect();
+        $hostile = "'; DROP TABLE test_coverage; --";
+
+        $joined = self::$db->rawQueryValue(
+            'SELECT ' . $dialect->formatGroupConcat('name', $hostile, false) . ' FROM test_coverage'
+        );
+        $this->assertIsString($joined);
+        $this->assertStringContainsString($hostile, $joined);
+
+        $padded = self::$db->rawQueryValue(
+            'SELECT ' . $dialect->formatPad("'x'", 40, "'; DROP TABLE test_coverage; --", true) . ' FROM test_coverage LIMIT 1'
+        );
+        $this->assertIsString($padded);
+        $this->assertSame(2, (int) self::$db->rawQueryValue('SELECT COUNT(*) FROM test_coverage'));
+    }
+
+    public function testReplaceHelperBindsItsStringArguments(): void
+    {
+        $raw = Db::replace('name', "a'; DROP TABLE test_coverage; --", 'z');
+
+        $this->assertStringNotContainsString('DROP TABLE', $raw->getValue());
+        $this->assertCount(2, $raw->getParams());
+    }
+
+    /**
+     * @return array<string, array{0: DialectInterface}>
+     */
+    public static function dialects(): array
+    {
+        return array_map(static fn (array $row): array => [$row[0]], self::identifierQuoting());
+    }
+
+    #[DataProvider('dialects')]
+    public function testJsonPathsKeepHostileKeysInsideTheirLiteral(DialectInterface $dialect): void
+    {
+        $hostile = ["a'b", "x') OR 1=1 --", 'k"q', 'dot.ted'];
+        $statements = [
+            $dialect->formatJsonGet('data', $hostile),
+            $dialect->formatJsonExists('data', $hostile, 1),
+            $dialect->formatJsonSet('data', $hostile, 'v')[0],
+            $dialect->formatJsonRemove('data', $hostile),
+            $dialect->formatJsonReplace('data', $hostile, 'v')[0],
+        ];
+
+        foreach ($statements as $sql) {
+            // Every quote must belong to a closed literal: doubled quotes cancel out, the rest must pair up.
+            $this->assertSame(0, substr_count(str_replace(["\\'", "''"], '', $sql), "'") % 2, $sql);
+            $this->assertStringNotContainsString("x') OR 1=1", $sql);
+        }
+    }
+
+    #[DataProvider('dialects')]
+    public function testIntrospectionSqlKeepsHostileTableNamesInsideTheirLiteral(DialectInterface $dialect): void
+    {
+        $hostile = "users' OR '1'='1";
+        foreach ([$dialect->buildTableExistsSql($hostile), $dialect->buildDescribeSql($hostile)] as $sql) {
+            $this->assertSame(0, substr_count(str_replace(["\\'", "''"], '', $sql), "'") % 2, $sql);
+        }
+    }
+
+    public function testNowRejectsIntervalsThatAreNotIntervals(): void
+    {
+        foreach ([new SqliteDialect(), new PostgreSQLDialect(), new MySQLDialect(), new OracleDialect()] as $dialect) {
+            $this->expectExceptionObject(new InvalidArgumentException('Unsupported date interval expression.'));
+            $dialect->now("1 day') ; DROP TABLE users; --");
+        }
+    }
+
+    public function testStringLiteralsEscapeBackslashesWhereTheyAreEscapeCharacters(): void
+    {
+        $this->assertSame("'a''b'", (new SqliteDialect())->quoteStringLiteral("a'b"));
+        $this->assertSame("'a''b'", (new MSSQLDialect())->quoteStringLiteral("a'b"));
+        $this->assertSame("'a\\\\''b'", (new MySQLDialect())->quoteStringLiteral("a\\'b"));
+        $this->assertSame("E'a\\\\''b'", (new PostgreSQLDialect())->quoteStringLiteral("a\\'b"));
+        $this->assertSame("'plain'", (new PostgreSQLDialect())->quoteStringLiteral('plain'));
     }
 }

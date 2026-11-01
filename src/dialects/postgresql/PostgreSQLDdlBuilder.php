@@ -99,7 +99,7 @@ class PostgreSQLDdlBuilder implements DdlBuilderInterface
         if (isset($options['with']) && is_array($options['with'])) {
             $withOptions = [];
             foreach ($options['with'] as $key => $value) {
-                $withOptions[] = $this->quoteIdentifier($key) . ' = ' . (is_numeric($value) ? $value : "'" . addslashes((string)$value) . "'");
+                $withOptions[] = $this->quoteIdentifier($key) . ' = ' . (is_numeric($value) ? $value : $this->dialect->quoteStringLiteral((string)$value));
             }
             if (!empty($withOptions)) {
                 $sql .= ' WITH (' . implode(', ', $withOptions) . ')';
@@ -572,8 +572,8 @@ class PostgreSQLDdlBuilder implements DdlBuilderInterface
             return (string)$value;
         }
         if (is_string($value)) {
-            return "'" . addslashes($value) . "'";
+            return $this->dialect->quoteStringLiteral($value);
         }
-        return "'" . addslashes((string)$value) . "'";
+        return $this->dialect->quoteStringLiteral((string)$value);
     }
 }

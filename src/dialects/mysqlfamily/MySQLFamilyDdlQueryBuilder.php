@@ -27,7 +27,7 @@ abstract class MySQLFamilyDdlQueryBuilder extends DdlQueryBuilder
      */
     public function enum(array $values): ColumnSchema
     {
-        $escapedValues = array_map(static fn ($value) => "'" . addslashes($value) . "'", $values);
+        $escapedValues = array_map(fn ($value) => $this->dialect->quoteStringLiteral((string)$value), $values);
         $valuesList = implode(',', $escapedValues);
         return new ColumnSchema("ENUM($valuesList)");
     }
@@ -44,7 +44,7 @@ abstract class MySQLFamilyDdlQueryBuilder extends DdlQueryBuilder
      */
     public function set(array $values): ColumnSchema
     {
-        $escapedValues = array_map(static fn ($value) => "'" . addslashes($value) . "'", $values);
+        $escapedValues = array_map(fn ($value) => $this->dialect->quoteStringLiteral((string)$value), $values);
         $valuesList = implode(',', $escapedValues);
         return new ColumnSchema("SET($valuesList)");
     }

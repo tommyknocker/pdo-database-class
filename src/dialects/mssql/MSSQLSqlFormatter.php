@@ -449,7 +449,7 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
     public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string
     {
         $col = $this->resolveValue($column);
-        $sep = str_replace("'", "''", $separator);
+        $sep = $this->dialect->quoteStringLiteral($separator);
         // MSSQL STRING_AGG supports DISTINCT starting from SQL Server 2022
         // For older versions, we'll use DISTINCT in a subquery if needed
         // For now, we'll use DISTINCT directly (will fail on older versions)
@@ -457,7 +457,7 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
         // MSSQL uses STRING_AGG with WITHIN GROUP (ORDER BY ...)
         // For ordering, use the column itself
         // Note: MSSQL requires the ORDER BY column to be in the SELECT list or be a simple column reference
-        return "STRING_AGG({$dist}{$col}, '{$sep}') WITHIN GROUP (ORDER BY {$col})";
+        return "STRING_AGG({$dist}{$col}, {$sep}) WITHIN GROUP (ORDER BY {$col})";
     }
 
     public function formatTruncate(string|RawValue $value, int $precision): string
@@ -503,12 +503,12 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
     public function formatPad(string|RawValue $value, int $length, string $padString, bool $isLeft): string
     {
         $val = $this->resolveValue($value);
-        $pad = str_replace("'", "''", $padString);
+        $pad = $this->dialect->quoteStringLiteral($padString);
         // MSSQL doesn't have LPAD/RPAD, use REPLICATE + concatenation
         if ($isLeft) {
-            return "RIGHT(REPLICATE('{$pad}', $length) + $val, $length)";
+            return "RIGHT(REPLICATE({$pad}, $length) + $val, $length)";
         }
-        return "LEFT($val + REPLICATE('{$pad}', $length), $length)";
+        return "LEFT($val + REPLICATE({$pad}, $length), $length)";
     }
 
     public function formatRegexpMatch(string|RawValue $value, string $pattern): string
@@ -518,9 +518,9 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
         // PATINDEX pattern: convert basic regex patterns to SQL Server patterns
         // Note: This is a simplified conversion - full regex requires CLR
         $sqlPattern = $this->convertRegexToSqlPattern($pattern);
-        $sqlPatternEscaped = str_replace("'", "''", $sqlPattern);
+        $sqlPatternEscaped = $this->dialect->quoteStringLiteral('%' . $sqlPattern . '%');
         // PATINDEX searches anywhere, so add % around pattern
-        return "(dbo.regexp_match($val, '%{$sqlPatternEscaped}%') = 1)";
+        return "(dbo.regexp_match($val, {$sqlPatternEscaped}) = 1)";
     }
 
     /**
@@ -531,20 +531,20 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
         $val = $this->resolveValue($value);
         // Use registered user-defined function
         $sqlPattern = $this->convertRegexToSqlPattern($pattern);
-        $sqlPatternEscaped = str_replace("'", "''", $sqlPattern);
-        return "(dbo.regexp_match($val, '%{$sqlPatternEscaped}%') = 1)";
+        $sqlPatternEscaped = $this->dialect->quoteStringLiteral('%' . $sqlPattern . '%');
+        return "(dbo.regexp_match($val, {$sqlPatternEscaped}) = 1)";
     }
 
     public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
     {
         $val = $this->resolveValue($value);
-        $rep = str_replace("'", "''", $replacement);
+        $rep = $this->dialect->quoteStringLiteral($replacement);
         // Use registered user-defined function
         // Convert regex pattern to SQL Server pattern
         $sqlPattern = $this->convertRegexToSqlPattern($pattern);
-        $sqlPatternEscaped = str_replace("'", "''", $sqlPattern);
+        $sqlPatternEscaped = $this->dialect->quoteStringLiteral($sqlPattern);
         // For REPLACE, use exact pattern match (no % wildcards)
-        return "dbo.regexp_replace($val, '{$sqlPatternEscaped}', '{$rep}')";
+        return "dbo.regexp_replace($val, {$sqlPatternEscaped}, {$rep})";
     }
 
     public function formatRegexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): string
@@ -554,9 +554,9 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
         // Use registered user-defined function
         // Convert regex pattern to SQL Server pattern
         $sqlPattern = $this->convertRegexToSqlPattern($pattern);
-        $sqlPatternEscaped = str_replace("'", "''", $sqlPattern);
+        $sqlPatternEscaped = $this->dialect->quoteStringLiteral('%' . $sqlPattern . '%');
         // PATINDEX searches anywhere, so add % around pattern
-        return "dbo.regexp_extract($val, '%{$sqlPatternEscaped}%', $groupIdx)";
+        return "dbo.regexp_extract($val, {$sqlPatternEscaped}, $groupIdx)";
     }
 
     public function formatUnionSelect(string $selectSql, bool $isBaseQuery = false): string

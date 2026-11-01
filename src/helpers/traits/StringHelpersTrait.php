@@ -140,9 +140,11 @@ trait StringHelpersTrait
     public static function replace(string|RawValue $value, string $search, string $replace): RawValue
     {
         $val = $value instanceof RawValue ? $value->getValue() : $value;
-        $searchEscaped = addslashes($search);
-        $replaceEscaped = addslashes($replace);
-        return new RawValue("REPLACE($val, '$searchEscaped', '$replaceEscaped')");
+        $suffix = bin2hex(random_bytes(4));
+        $searchKey = ':replace_search_' . $suffix;
+        $replaceKey = ':replace_value_' . $suffix;
+
+        return new RawValue("REPLACE($val, $searchKey, $replaceKey)", [$searchKey => $search, $replaceKey => $replace]);
     }
 
     /**

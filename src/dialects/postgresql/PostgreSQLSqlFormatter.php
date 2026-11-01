@@ -201,6 +201,15 @@ class PostgreSQLSqlFormatter extends SqlFormatterAbstract
     }
 
     /**
+     * PostgreSQL paths sit between plain single quotes (standard_conforming_strings is on by default), so only the
+     * quote needs doubling; the E'' form of quoteStringLiteral() cannot be unwrapped into such a position.
+     */
+    protected function escapeJsonPathForSql(string $jsonPath): string
+    {
+        return str_replace("'", "''", $jsonPath);
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function formatJsonExists(string $col, array|string $path): string
@@ -436,9 +445,9 @@ class PostgreSQLSqlFormatter extends SqlFormatterAbstract
     public function formatGroupConcat(string|RawValue $column, string $separator, bool $distinct): string
     {
         $col = $this->resolveValue($column);
-        $sep = addslashes($separator);
+        $sep = $this->dialect->quoteStringLiteral($separator);
         $dist = $distinct ? 'DISTINCT ' : '';
-        return "STRING_AGG($dist$col, '$sep')";
+        return "STRING_AGG($dist$col, $sep)";
     }
 
     /**
@@ -455,7 +464,7 @@ class PostgreSQLSqlFormatter extends SqlFormatterAbstract
      */
     public function formatPosition(string|RawValue $substring, string|RawValue $value): string
     {
-        $sub = $substring instanceof RawValue ? $substring->getValue() : "'" . addslashes((string)$substring) . "'";
+        $sub = $substring instanceof RawValue ? $substring->getValue() : $this->dialect->quoteStringLiteral((string)$substring);
         $val = $this->resolveValue($value);
         return "POSITION($sub IN $val)";
     }
@@ -483,7 +492,7 @@ class PostgreSQLSqlFormatter extends SqlFormatterAbstract
      */
     public function formatRepeat(string|RawValue $value, int $count): string
     {
-        $val = $value instanceof RawValue ? $value->getValue() : "'" . addslashes((string)$value) . "'";
+        $val = $value instanceof RawValue ? $value->getValue() : $this->dialect->quoteStringLiteral((string)$value);
         return "REPEAT($val, $count)";
     }
 
@@ -502,9 +511,9 @@ class PostgreSQLSqlFormatter extends SqlFormatterAbstract
     public function formatPad(string|RawValue $value, int $length, string $padString, bool $isLeft): string
     {
         $val = $this->resolveValue($value);
-        $pad = addslashes($padString);
+        $pad = $this->dialect->quoteStringLiteral($padString);
         $func = $isLeft ? 'LPAD' : 'RPAD';
-        return "{$func}($val, $length, '$pad')";
+        return "{$func}($val, $length, $pad)";
     }
 
     /**

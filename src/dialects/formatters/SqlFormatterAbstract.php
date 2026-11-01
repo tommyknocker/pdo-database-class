@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\dialects\formatters;
 
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\traits\JsonPathBuilderTrait;
+use tommyknocker\pdodb\dialects\traits\JsonPathParser;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
@@ -60,7 +61,7 @@ abstract class SqlFormatterAbstract implements SqlFormatterInterface
             return $default->getValue();
         }
         if (is_string($default)) {
-            return "'{$default}'";
+            return $this->dialect->quoteStringLiteral($default);
         }
         return (string)$default;
     }
@@ -75,11 +76,7 @@ abstract class SqlFormatterAbstract implements SqlFormatterInterface
     protected function normalizeJsonPath(array|string $path): array
     {
         if (is_string($path)) {
-            $path = trim($path);
-            if ($path === '' || $path === '$') {
-                return [];
-            }
-            return explode('.', $path);
+            return JsonPathParser::parse($path);
         }
         return array_values($path);
     }

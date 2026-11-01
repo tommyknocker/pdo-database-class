@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mysql;
 
+use PDO\Mysql;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\PdoDb;
 
@@ -35,7 +36,9 @@ abstract class BaseMySQLTestCase extends TestCase
                 'password' => self::DB_PASSWORD,
                 'dbname' => self::DB_NAME,
                 'charset' => self::DB_CHARSET,
-            ]
+            ],
+            // LOAD DATA LOCAL INFILE is opt-in; the file-load tests need it.
+            [Mysql::ATTR_LOCAL_INFILE => true]
         );
 
         // Drop tables in correct order (child tables first, then parent tables)

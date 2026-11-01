@@ -615,9 +615,9 @@ END;";
             return (string)$value;
         }
         if (is_string($value)) {
-            return "'" . addslashes($value) . "'";
+            return $this->dialect->quoteStringLiteral($value);
         }
-        return "'" . addslashes((string)$value) . "'";
+        return $this->dialect->quoteStringLiteral((string)$value);
     }
 
     /**

@@ -421,7 +421,7 @@ $db->find()->table('users')->loadCsv('/path/to/file.csv');
 ```
 
 **Implementation:**
-- MySQL/MariaDB: `LOAD DATA LOCAL INFILE`
+- MySQL/MariaDB: `LOAD DATA LOCAL INFILE` (opt in with `new PdoDb('mysql', $config, [\PDO\Mysql::ATTR_LOCAL_INFILE => true])`; the server also needs `local_infile=1`)
 - PostgreSQL: `COPY FROM`
 - SQLite: Row-by-row inserts in transaction
 - MSSQL: `BULK INSERT` or row-by-row inserts
