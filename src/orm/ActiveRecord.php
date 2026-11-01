@@ -21,7 +21,7 @@ use tommyknocker\pdodb\exceptions\ModelWriteAbortedException;
 use tommyknocker\pdodb\exceptions\OptimisticLockException;
 use tommyknocker\pdodb\exceptions\PrimaryKeyMutationException;
 use tommyknocker\pdodb\helpers\Db;
-use tommyknocker\pdodb\orm\behaviors\ModelClock;
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\orm\behaviors\SoftDeleteBehavior;
 use tommyknocker\pdodb\orm\behaviors\TimestampBehavior;
 use tommyknocker\pdodb\orm\relations\BelongsTo;
@@ -148,7 +148,7 @@ trait ActiveRecord
         $castKey = $this->attributeKey($name, $casts);
         $value = $this->attributes[$key] ?? null;
         $cast = $casts[$castKey] ?? null;
-        return $cast === null ? $value : AttributeCaster::fromDatabase($cast, $value);
+        return $cast === null || $value instanceof RawValue ? $value : AttributeCaster::fromDatabase($cast, $value);
     }
 
     /**
@@ -162,7 +162,7 @@ trait ActiveRecord
         $key = $this->attributeKey($name, $this->attributes);
         $casts = static::casts();
         $cast = $casts[$this->attributeKey($name, $casts)] ?? null;
-        $this->attributes[$key] = $cast === null ? $value : AttributeCaster::toDatabase($cast, $value);
+        $this->attributes[$key] = $cast === null || $value instanceof RawValue ? $value : AttributeCaster::toDatabase($cast, $value);
     }
 
     /**
@@ -463,6 +463,7 @@ trait ActiveRecord
 
             $this->oldAttributes = $this->attributes;
             $this->setIsNewRecord(false);
+            $this->reloadExpressionAttributes();
 
             // Dispatch afterInsert event
             $afterInsertEvent = new ModelAfterInsertEvent($this, $insertId);
@@ -543,6 +544,7 @@ trait ActiveRecord
                 $this->attributes[$lockKey] = $lockVersion + 1;
             }
             $this->oldAttributes = $this->attributes;
+            $this->reloadExpressionAttributes();
 
             // Dispatch afterUpdate event
             $afterUpdateEvent = new ModelAfterUpdateEvent($this, $dirty, max(0, $result));
@@ -1263,6 +1265,9 @@ trait ActiveRecord
         }
 
         foreach ($dirty as $column => $expected) {
+            if ($expected instanceof RawValue) {
+                continue;
+            }
             if (!array_key_exists($column, $row)) {
                 return false;
             }
@@ -1403,7 +1408,7 @@ trait ActiveRecord
             return true;
         }
 
-        ModelClock::assign($this, $softDelete->column());
+        $this->setAttribute($softDelete->column(), $softDelete->deletionValue($this));
         if (!$this->update()) {
             return false;
         }
@@ -1466,6 +1471,38 @@ trait ActiveRecord
 
             return true;
         });
+    }
+
+    /**
+     * Replace attributes holding a database expression (such as the default timestamp) with the stored value.
+     */
+    protected function reloadExpressionAttributes(): void
+    {
+        $columns = [];
+        foreach ($this->attributes as $key => $value) {
+            if ($value instanceof RawValue) {
+                $columns[] = (string) $key;
+            }
+        }
+        if ($columns === []) {
+            return;
+        }
+
+        $db = $this->getModelDb();
+        $row = null;
+        if ($db !== null) {
+            $query = $db->find()->table(static::tableName());
+            foreach ($this->primaryKeyValuesForWhere() as $key => $value) {
+                $query->where($key, $value);
+            }
+            $row = $query->select($columns)->getOne();
+        }
+        $row = is_array($row) ? array_change_key_case($row, CASE_LOWER) : [];
+        foreach ($columns as $key) {
+            $fresh = $row[strtolower($key)] ?? null;
+            $this->attributes[$key] = $fresh;
+            $this->oldAttributes[$key] = $fresh;
+        }
     }
 
     protected function refreshColumn(string $column): void
@@ -1542,7 +1579,7 @@ trait ActiveRecord
             $probe = new static();
 
             return $query->update([
-                $softDelete->column() => ModelClock::databaseValue($probe, $softDelete->column()),
+                $softDelete->column() => $softDelete->deletionValue($probe),
             ]);
         }
 
@@ -1626,8 +1663,11 @@ trait ActiveRecord
         $db->rawQuery($sql, $params);
     }
 
-    protected static function normalizeUpsertValue(mixed $value): string|int|float|null
+    protected static function normalizeUpsertValue(mixed $value): string|int|float|RawValue|null
     {
+        if ($value instanceof RawValue) {
+            return $value;
+        }
         if ($value instanceof \BackedEnum) {
             $value = $value->value;
         }

@@ -862,8 +862,8 @@ These features are opt-in. A model that does not override them keeps the previou
 
 Return behavior classes from `behaviors()`. A class name uses the defaults. `ClassName::class => ['column' => 'removed_at']` passes configuration. An instance is also accepted.
 
-- `TimestampBehavior` sets `created_at` on insert when it is empty and `updated_at` on insert and update. Both names can be changed or set to null.
-- `SoftDeleteBehavior` adds a `softDelete` global scope (`deleted_at IS NULL`) and turns `delete()` into an update. `restore()` clears the timestamp. `forceDelete()` and `forceDeleteAll()` remove rows. `deleteAll()` soft-deletes when the behavior is enabled. Disable the scope with `withoutGlobalScope(SoftDeleteBehavior::SCOPE)`.
+- `TimestampBehavior` sets `created_at` on insert when it is empty and `updated_at` on insert and update. Both names can be changed or set to null. The value is the database clock (`NOW()` on the dialect), so all writers share one time source; the model reloads those columns after the write, so `$model->created_at` holds the stored value. The database clock follows the connection time zone, so set the session or server zone to UTC if you store UTC. Pass `'value' => fn (Model $model, string $column) => ...`, a `RawValue` expression or a literal to override it, for example `TimestampBehavior::class => ['value' => fn () => gmdate('Y-m-d H:i:s')]`.
+- `SoftDeleteBehavior` takes the same `value` option for the deletion time and adds a `softDelete` global scope (`deleted_at IS NULL`) and turns `delete()` into an update. `restore()` clears the timestamp. `forceDelete()` and `forceDeleteAll()` remove rows. `deleteAll()` soft-deletes when the behavior is enabled. Disable the scope with `withoutGlobalScope(SoftDeleteBehavior::SCOPE)`.
 - `PrimaryKeyBehavior` assigns a UUID or ULID before insert when the key is empty. Use `incrementing(): false` when the primary key itself is generated in PHP; otherwise a null key is still treated as auto-increment. The behavior can also fill another column, such as `public_id`.
 
 Generated models document columns with `@property` tags so static analysis can see them. For a real typed property, declare a PHP 8.4 hook that reads and writes through `getAttribute()` and `setAttribute()`:
@@ -887,6 +887,8 @@ Inside a transactional operation, `beforeSave` and `afterSave` run in the same t
 
 `afterCommit()` registers work that runs only after the outermost commit. Call it from an after-save listener while the transaction is still open. It is the right place for mail or HTTP. It is the wrong place for `Outbox::add()`: the outbox row must be inserted in the same transaction as the business write, from `afterSave` or from the surrounding `transaction()` callback. See [Transactional outbox](27-transactional-outbox.md) and [Inbox](28-inbox.md).
 
+Callbacks run after the commit has succeeded. If a callback throws, the exception propagates to the caller of `transaction()` or `save()`, but the data stays committed and the remaining callbacks of that commit are not run. Catch inside the callback for best-effort work, and use the outbox for anything that must not be lost.
+
 ### Bulk writes and race-free create
 
 `updateAll()` and `deleteAll()` apply global scopes and do not fire model events. `firstOrCreate()` and `updateOrCreate()` use one dialect-specific upsert. The search columns need a unique constraint; the first conflict is the whole search key, not only the primary key. `increment()` and `decrement()` use a single SQL addition so two requests cannot lose an update. They participate in optimistic locking when `optimisticLock()` is set.
@@ -896,6 +898,8 @@ Inside a transactional operation, `beforeSave` and `afterSave` run in the same t
 ### Validation and serialization
 
 Built-in rules now include `number`, `in`, `date`, `regex`, `unique`, `exist` / `exists`, and `callback`. A closure may be the validator. A `when` callable skips that attribute when it does not return true. `validationErrorPayload()` returns `message` and `errors` for an HTTP response.
+
+`unique` and `exists` run a query before the write, so they are a friendly early error, not a guarantee: two concurrent requests can both pass `unique` and the second insert then fails. Keep a unique index in the database as the real constraint and handle `ConstraintViolationException` for the race. `unique` counts soft-deleted rows as taken because the database index does; pass `'withoutTrashed' => true` to ignore them. Both rules query through the connection bound with `Model::on()`.
 
 `toArray()` omits `hiddenAttributes()`. When `visibleAttributes()` is non-empty, only those stored attributes are returned. `appendedAttributes()` adds computed keys and honors the same visibility lists. `present()` is unchanged: it is an explicit field list and does not read hidden attributes.
 

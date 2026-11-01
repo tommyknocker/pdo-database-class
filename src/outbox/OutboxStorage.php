@@ -317,28 +317,28 @@ final class OutboxStorage
         return $this->db->schema()->getDialect();
     }
 
-    public function countRowsOlderThan(string $status, string $timestampColumn, string $cutoffIso): int
+    public function countRowsOlderThan(string $status, string $timestampColumn, int $olderThanSeconds): int
     {
         self::assertPurgeTimestampColumn($timestampColumn);
 
         $value = $this->db->find()
             ->table($this->tableName)
             ->where('status', $status)
-            ->where($timestampColumn, $cutoffIso, '<')
+            ->where($timestampColumn, new RawValue($this->dialect()->outboxNowPlusSecondsSql(-$olderThanSeconds)), '<')
             ->select(['COUNT(*)'])
             ->getValue();
 
         return (int) $value;
     }
 
-    public function deleteRowsOlderThan(string $status, string $timestampColumn, string $cutoffIso): int
+    public function deleteRowsOlderThan(string $status, string $timestampColumn, int $olderThanSeconds): int
     {
         self::assertPurgeTimestampColumn($timestampColumn);
 
         return $this->db->find()
             ->table($this->tableName)
             ->where('status', $status)
-            ->where($timestampColumn, $cutoffIso, '<')
+            ->where($timestampColumn, new RawValue($this->dialect()->outboxNowPlusSecondsSql(-$olderThanSeconds)), '<')
             ->delete();
     }
 
@@ -476,15 +476,16 @@ final class OutboxStorage
         bool $dryRun = false,
     ): OutboxPurgeResult {
         $timestampColumn = $status === OutboxStatuses::PUBLISHED ? 'published_at' : 'created_at';
+        $seconds = OutboxDuration::toSeconds($olderThanSpec);
         $cutoffIso = OutboxDuration::cutoffIso8601($olderThanSpec);
-        $matched = $this->countRowsOlderThan($status, $timestampColumn, $cutoffIso);
+        $matched = $this->countRowsOlderThan($status, $timestampColumn, $seconds);
 
         if ($dryRun) {
             return new OutboxPurgeResult($status, $cutoffIso, $matched, 0, true);
         }
 
         $deleted = $matched > 0
-            ? $this->deleteRowsOlderThan($status, $timestampColumn, $cutoffIso)
+            ? $this->deleteRowsOlderThan($status, $timestampColumn, $seconds)
             : 0;
 
         return new OutboxPurgeResult($status, $cutoffIso, $matched, $deleted, false);

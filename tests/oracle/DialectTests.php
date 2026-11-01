@@ -279,4 +279,31 @@ final class DialectTests extends BaseOracleTestCase
         $parser = $dialect->getExplainParser();
         $this->assertInstanceOf(ExplainParserInterface::class, $parser);
     }
+
+    public function testUuidStringsStayTextInVarcharColumnsAndBecomeHexInRawColumns(): void
+    {
+        $uuid = 'c30eb811-265e-4e3a-a6d7-d994e0843cfe';
+        foreach (['pdodb_uuid_probe'] as $table) {
+            try {
+                self::$db->rawQuery('DROP TABLE ' . $table);
+            } catch (\Throwable) {
+                // Table is absent on the first run.
+            }
+        }
+        self::$db->rawQuery('CREATE TABLE pdodb_uuid_probe (id VARCHAR2(36) PRIMARY KEY, bin RAW(16))');
+
+        try {
+            self::$db->find()->table('pdodb_uuid_probe')->insert(['id' => $uuid, 'bin' => $uuid]);
+
+            $row = self::$db->find()->table('pdodb_uuid_probe')->getOne();
+            $this->assertIsArray($row);
+            $row = array_change_key_case($row, CASE_LOWER);
+            $this->assertSame($uuid, $row['id']);
+            $bin = (string) (is_resource($row['bin']) ? stream_get_contents($row['bin']) : $row['bin']);
+            $this->assertSame('C30EB811265E4E3AA6D7D994E0843CFE', strlen($bin) === 16 ? strtoupper(bin2hex($bin)) : strtoupper($bin));
+            $this->assertSame(1, self::$db->find()->table('pdodb_uuid_probe')->where('id', $uuid)->update(['id' => $uuid]));
+        } finally {
+            self::$db->rawQuery('DROP TABLE pdodb_uuid_probe');
+        }
+    }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm\validators;
 
 use RuntimeException;
+use tommyknocker\pdodb\orm\behaviors\SoftDeleteBehavior;
 use tommyknocker\pdodb\orm\Model;
 use tommyknocker\pdodb\query\QueryConstants;
 
@@ -22,7 +23,13 @@ class UniqueValidator extends AbstractValidator
             throw new RuntimeException("Validator 'unique' received an invalid target attribute.");
         }
 
-        $query = $model::find()->where($column, $value);
+        // Query through the connection the model is bound to, and count soft-deleted rows
+        // unless asked otherwise: the database unique index still sees them.
+        $db = $model->getModelDb();
+        $query = ($db !== null ? $model::on($db) : $model::find())->where($column, $value);
+        if (($params['withoutTrashed'] ?? false) !== true) {
+            $query->withoutGlobalScope(SoftDeleteBehavior::SCOPE);
+        }
         if (!$model->getIsNewRecord()) {
             foreach ($model::primaryKey() as $primaryKey) {
                 $current = $model->getAttributes()[$primaryKey] ?? null;

@@ -1840,6 +1840,23 @@ class MariaDBDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
+    public function buildInboxSchemaSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "CREATE TABLE IF NOT EXISTS {$tableQuoted} (
+                message_id VARCHAR(190) NOT NULL,
+                consumer VARCHAR(190) NOT NULL,
+                processed_at DATETIME(6) NOT NULL DEFAULT (UTC_TIMESTAMP(6)),
+                PRIMARY KEY (message_id, consumer)
+            )",
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildOutboxSchemaSql(string $tableName): array
     {
         $tableQuoted = $this->quoteTable($tableName);
@@ -1852,12 +1869,12 @@ class MariaDBDialect extends DialectAbstract implements CatalogQueriesInterface
                 payload LONGTEXT NOT NULL,
                 status VARCHAR(32) NOT NULL DEFAULT 'pending',
                 attempts INT NOT NULL DEFAULT 0,
-                available_at VARCHAR(32) NOT NULL,
-                created_at VARCHAR(32) NOT NULL,
+                available_at DATETIME(6) NOT NULL,
+                created_at DATETIME(6) NOT NULL,
                 locked_by VARCHAR(128) NULL,
-                locked_until VARCHAR(32) NULL,
+                locked_until DATETIME(6) NULL,
                 last_error TEXT NULL,
-                published_at VARCHAR(32) NULL,
+                published_at DATETIME(6) NULL,
                 KEY {$indexName} (status, available_at)
             )",
         ];
@@ -1884,7 +1901,7 @@ class MariaDBDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function outboxNowSql(): string
     {
-        return "DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-%dT%TZ')";
+        return 'UTC_TIMESTAMP(6)';
     }
 
     /**
@@ -1892,7 +1909,7 @@ class MariaDBDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function outboxNowPlusSecondsSql(int $seconds): string
     {
-        return 'DATE_FORMAT(UTC_TIMESTAMP() + INTERVAL ' . $seconds . " SECOND, '%Y-%m-%dT%TZ')";
+        return 'UTC_TIMESTAMP(6) + INTERVAL ' . $seconds . ' SECOND';
     }
 
     /**

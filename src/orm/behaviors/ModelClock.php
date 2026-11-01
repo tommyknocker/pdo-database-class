@@ -4,31 +4,30 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\orm\behaviors;
 
-use DateTimeImmutable;
-use DateTimeZone;
+use Closure;
+use tommyknocker\pdodb\helpers\values\NowValue;
 use tommyknocker\pdodb\orm\Model;
 
-/** Assigns a UTC timestamp, honoring a DateTimeImmutable cast when one is declared. */
+/**
+ * Resolves the value a behavior writes into a timestamp column.
+ *
+ * Without a custom value the database clock is used, so every writer shares one time source.
+ * A custom value may be a closure `fn (Model $model, string $column): mixed`, a `RawValue`
+ * expression, or a literal. The model reloads database-evaluated columns after saving.
+ */
 final class ModelClock
 {
-    public static function assign(Model $model, string $column): void
+    public static function value(Model $model, string $column, mixed $custom = null): mixed
     {
-        $cast = $model::casts()[$column] ?? null;
-        if ($cast === DateTimeImmutable::class) {
-            $model->setAttribute($column, new DateTimeImmutable('now', new DateTimeZone('UTC')));
-            return;
+        if ($custom instanceof Closure) {
+            return $custom($model, $column);
         }
 
-        $model->setAttribute($column, gmdate('Y-m-d H:i:s'));
+        return $custom ?? new NowValue();
     }
 
-    public static function databaseValue(Model $model, string $column): string
+    public static function assign(Model $model, string $column, mixed $custom = null): void
     {
-        $cast = $model::casts()[$column] ?? null;
-        if ($cast === DateTimeImmutable::class) {
-            return (new DateTimeImmutable('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s.u');
-        }
-
-        return gmdate('Y-m-d H:i:s');
+        $model->setAttribute($column, self::value($model, $column, $custom));
     }
 }

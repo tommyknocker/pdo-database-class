@@ -173,6 +173,25 @@ final class ModelFeatureTests extends BaseSharedTestCase
         $this->assertSame(1, $cursorCount);
     }
 
+    public function testUniqueValidatorCountsSoftDeletedRows(): void
+    {
+        $first = new FeatureArticle();
+        $first->slug = 'taken';
+        $first->title = 'First';
+        $first->status = 'draft';
+        $first->views = 0;
+        $this->assertTrue($first->save());
+        $this->assertTrue($first->delete());
+
+        $second = new FeatureArticle();
+        $second->slug = 'taken';
+        $second->title = 'Second';
+        $second->status = 'draft';
+        $second->views = 0;
+        $this->assertFalse($second->save());
+        $this->assertTrue($second->hasValidationErrors());
+    }
+
     public function testSoftDeleteBulkWritesAndValidation(): void
     {
         $article = new FeatureArticle();

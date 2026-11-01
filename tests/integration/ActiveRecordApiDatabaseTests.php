@@ -8,6 +8,8 @@ use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use tommyknocker\pdodb\orm\behaviors\SoftDeleteBehavior;
+use tommyknocker\pdodb\orm\behaviors\TimestampBehavior;
 use tommyknocker\pdodb\orm\Model;
 use tommyknocker\pdodb\PdoDb;
 
@@ -26,6 +28,31 @@ final class ApiDatabaseOrder extends Model
     public static function casts(): array
     {
         return ['status' => ApiDatabaseState::class, 'created_at' => DateTimeImmutable::class, 'metadata' => 'json'];
+    }
+}
+
+final class ApiClockStamped extends Model
+{
+    public static string $table;
+    public static function tableName(): string
+    {
+        return self::$table;
+    }
+    public static function behaviors(): array
+    {
+        return [TimestampBehavior::class, SoftDeleteBehavior::class];
+    }
+}
+final class ApiClockCustom extends Model
+{
+    public static string $table;
+    public static function tableName(): string
+    {
+        return self::$table;
+    }
+    public static function behaviors(): array
+    {
+        return [TimestampBehavior::class => ['updatedAt' => null, 'value' => static fn (Model $model, string $column): string => '2020-01-02 03:04:05']];
     }
 }
 
@@ -60,6 +87,64 @@ final class ActiveRecordApiDatabaseTests extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('preserve microseconds');
         ApiDatabaseOrder::validateCastConnection($db);
+    }
+
+    #[DataProvider('databases')]
+    public function testTimestampBehaviorsUseDatabaseClockByDefault(string $name): void
+    {
+        $db = $this->database($name);
+        if ($name === 'oracle') {
+            $db->rawQuery("ALTER SESSION SET NLS_TIMESTAMP_FORMAT='YYYY-MM-DD HH24:MI:SS'");
+        }
+        $table = 'AC_' . strtoupper(bin2hex(random_bytes(5)));
+        $quoted = $db->connection->getDialect()->quoteIdentifier($table);
+        $type = match ($name) {
+            'mysql', 'mariadb' => 'DATETIME(6)',
+            'mssql' => 'DATETIME2(6)',
+            'oracle', 'postgresql' => 'TIMESTAMP(6)',
+            default => 'TEXT',
+        };
+        $db->rawQuery("CREATE TABLE {$quoted} (id INTEGER PRIMARY KEY, label VARCHAR(50), created_at {$type}, updated_at {$type}, deleted_at {$type})");
+
+        try {
+            ApiClockStamped::$table = $table;
+            ApiClockStamped::setDb($db);
+            $model = new ApiClockStamped();
+            $model->id = 1;
+            $model->label = 'first';
+            self::assertTrue($model->save());
+            self::assertIsString($model->created_at);
+            self::assertNotSame('', $model->created_at);
+            self::assertIsString($model->updated_at);
+
+            $model->label = 'second';
+            self::assertTrue($model->save());
+            self::assertIsString($model->updated_at);
+
+            self::assertTrue($model->delete());
+            self::assertIsString($model->deleted_at);
+            self::assertNull(ApiClockStamped::findOne(1));
+            $row = ApiClockStamped::find()->withoutGlobalScope(SoftDeleteBehavior::SCOPE)->where('id', 1)->one();
+            self::assertNotNull($row);
+            self::assertNotEmpty($row->deleted_at);
+
+            $created = ApiClockStamped::firstOrCreate(['id' => 2], ['label' => 'upserted']);
+            self::assertNotEmpty($created->created_at);
+            self::assertNotEmpty($created->updated_at);
+
+            self::assertSame(1, ApiClockStamped::deleteAll(['id' => 2]));
+
+            ApiClockCustom::$table = $table;
+            ApiClockCustom::setDb($db);
+            $custom = new ApiClockCustom();
+            $custom->id = 3;
+            $custom->label = 'custom';
+            self::assertTrue($custom->save());
+            self::assertStringStartsWith('2020-01-02 03:04:05', (string) $custom->created_at);
+            self::assertEmpty(ApiClockCustom::findOne(3)?->updated_at);
+        } finally {
+            $db->rawQuery("DROP TABLE {$quoted}");
+        }
     }
 
     #[DataProvider('databases')]

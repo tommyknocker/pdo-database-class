@@ -183,17 +183,54 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
-    public function transformValueForBinding(mixed $value, string $columnName): mixed
+    public function transformValueForBinding(mixed $value, string $columnName, ?string $table = null): mixed
     {
         // Convert UUID strings to hex format for RAW columns
         // UUID format: 8-4-4-4-12 hexadecimal digits with hyphens
         // Oracle RAW type accepts hex strings (uppercase, no hyphens) via PDO binding
-        if (is_string($value) && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value)) {
-            // Remove hyphens and convert to uppercase hex
-            return strtoupper(str_replace('-', '', $value));
+        if (!is_string($value) || !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value)) {
+            return $value;
+        }
+        if ($table !== null && $this->columnTypeIsKnownAndNotRaw($table, $columnName)) {
+            return $value;
         }
 
-        return $value;
+        // Remove hyphens and convert to uppercase hex
+        return strtoupper(str_replace('-', '', $value));
+    }
+
+    /**
+     * True when the catalog reports the column and its type is not RAW, so a UUID string must stay text.
+     * An unknown column (view, synonym, missing table) keeps the RAW conversion.
+     */
+    private function columnTypeIsKnownAndNotRaw(string $table, string $columnName): bool
+    {
+        if ($this->pdo === null) {
+            return false;
+        }
+
+        $parts = explode('.', trim(explode(' ', trim($table))[0]));
+        $tableName = strtoupper(trim((string) array_pop($parts), '"'));
+        $owner = $parts === [] ? null : strtoupper(trim((string) array_pop($parts), '"'));
+        $column = explode('.', $columnName);
+        $columnUpper = strtoupper(trim((string) array_pop($column), '"'));
+
+        $sql = $owner === null
+            ? 'SELECT DATA_TYPE FROM USER_TAB_COLUMNS WHERE TABLE_NAME = :t AND COLUMN_NAME = :c'
+            : 'SELECT DATA_TYPE FROM ALL_TAB_COLUMNS WHERE OWNER = :o AND TABLE_NAME = :t AND COLUMN_NAME = :c';
+        $params = $owner === null ? [':t' => $tableName, ':c' => $columnUpper] : [':o' => $owner, ':t' => $tableName, ':c' => $columnUpper];
+
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            if ($stmt === false || !$stmt->execute($params)) {
+                return false;
+            }
+            $type = $stmt->fetchColumn();
+        } catch (PDOException) {
+            return false;
+        }
+
+        return is_string($type) && strtoupper($type) !== 'RAW';
     }
 
     /**
@@ -320,7 +357,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
         $insertValues = [];
         foreach ($columns as $column) {
             $quoted = $this->quoteIdentifier($column);
-            $selects[] = ':upsert_' . $column . ' AS ' . $quoted;
+            $selects[] = $this->upsertValueSql($column, $row) . ' AS ' . $quoted;
             $insertColumns[] = $quoted;
             $insertValues[] = 's.' . $quoted;
         }
@@ -3429,9 +3466,9 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
         return [
             "BEGIN
                 EXECUTE IMMEDIATE 'CREATE TABLE {$tableQuoted} (
-                    message_id VARCHAR2(36) NOT NULL,
+                    message_id VARCHAR2(190) NOT NULL,
                     consumer VARCHAR2(190) NOT NULL,
-                    processed_at VARCHAR2(32) NOT NULL,
+                    processed_at TIMESTAMP(6) DEFAULT CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS TIMESTAMP(6)) NOT NULL,
                     PRIMARY KEY (message_id, consumer)
                 )';
             EXCEPTION
@@ -3456,12 +3493,12 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
                     payload CLOB NOT NULL,
                     status VARCHAR2(32) DEFAULT ''pending'' NOT NULL,
                     attempts NUMBER(10) DEFAULT 0 NOT NULL,
-                    available_at VARCHAR2(32) NOT NULL,
-                    created_at VARCHAR2(32) NOT NULL,
+                    available_at TIMESTAMP(6) NOT NULL,
+                    created_at TIMESTAMP(6) NOT NULL,
                     locked_by VARCHAR2(128) NULL,
-                    locked_until VARCHAR2(32) NULL,
+                    locked_until TIMESTAMP(6) NULL,
                     last_error VARCHAR2(4000) NULL,
-                    published_at VARCHAR2(32) NULL
+                    published_at TIMESTAMP(6) NULL
                 )';
             EXCEPTION
                 WHEN OTHERS THEN
@@ -3485,7 +3522,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function outboxNowSql(): string
     {
-        return "TO_CHAR(SYS_EXTRACT_UTC(SYSTIMESTAMP), 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')";
+        return 'CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS TIMESTAMP(6))';
     }
 
     /**
@@ -3493,7 +3530,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function outboxNowPlusSecondsSql(int $seconds): string
     {
-        return 'TO_CHAR(SYS_EXTRACT_UTC(SYSTIMESTAMP) + NUMTODSINTERVAL(' . $seconds . ", 'SECOND'), 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')";
+        return 'CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS TIMESTAMP(6)) + NUMTODSINTERVAL(' . $seconds . ", 'SECOND')";
     }
 
     /**

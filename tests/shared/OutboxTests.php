@@ -137,8 +137,8 @@ final class OutboxTests extends BaseSharedTestCase
     public function testPurgeRemovesOnlyOldPublishedRows(): void
     {
         $outbox = new Outbox(self::$db, self::TABLE);
-        $old = gmdate('Y-m-d\TH:i:s\Z', time() - 86400 * 10);
-        $recent = gmdate('Y-m-d\TH:i:s\Z');
+        $old = gmdate('Y-m-d H:i:s', time() - 86400 * 10);
+        $recent = gmdate('Y-m-d H:i:s');
 
         self::$db->find()->table(self::TABLE)->insert([
             'id' => OutboxUuid::v4(),
@@ -188,7 +188,7 @@ final class OutboxTests extends BaseSharedTestCase
 
     public function testExpiredSqliteLockIsReleased(): void
     {
-        $expired = gmdate('Y-m-d\TH:i:s\Z', time() - 120);
+        $expired = gmdate('Y-m-d H:i:s', time() - 120);
         self::$db->find()->table(self::TABLE)->insert([
             'id' => OutboxUuid::v4(),
             'event_type' => 'stale',
@@ -209,7 +209,7 @@ final class OutboxTests extends BaseSharedTestCase
 
     public function testExpiredLockPastMaxAttemptsIsFailedWithoutPublishing(): void
     {
-        $expired = gmdate('Y-m-d\TH:i:s\Z', time() - 120);
+        $expired = gmdate('Y-m-d H:i:s', time() - 120);
         $id = OutboxUuid::v4();
         self::$db->find()->table(self::TABLE)->insert([
             'id' => $id,
@@ -299,8 +299,8 @@ final class OutboxTests extends BaseSharedTestCase
             'payload' => '{}',
             'status' => OutboxStatuses::FAILED,
             'attempts' => 3,
-            'available_at' => gmdate('Y-m-d\TH:i:s\Z'),
-            'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'available_at' => gmdate('Y-m-d H:i:s'),
+            'created_at' => gmdate('Y-m-d H:i:s'),
             'last_error' => 'boom',
         ]);
 
@@ -320,8 +320,8 @@ final class OutboxTests extends BaseSharedTestCase
             'payload' => '{}',
             'status' => OutboxStatuses::FAILED,
             'attempts' => 5,
-            'available_at' => gmdate('Y-m-d\TH:i:s\Z'),
-            'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'available_at' => gmdate('Y-m-d H:i:s'),
+            'created_at' => gmdate('Y-m-d H:i:s'),
             'last_error' => 'permanent',
         ]);
 
@@ -344,8 +344,8 @@ final class OutboxTests extends BaseSharedTestCase
             'payload' => '{}',
             'status' => OutboxStatuses::FAILED,
             'attempts' => 1,
-            'available_at' => gmdate('Y-m-d\TH:i:s\Z'),
-            'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'available_at' => gmdate('Y-m-d H:i:s'),
+            'created_at' => gmdate('Y-m-d H:i:s'),
         ]);
 
         $result = $outbox->requeueAllFailed(10, true, true);

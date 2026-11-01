@@ -2568,6 +2568,23 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
     /**
      * {@inheritDoc}
      */
+    public function buildInboxSchemaSql(string $tableName): array
+    {
+        $tableQuoted = $this->quoteTable($tableName);
+
+        return [
+            "CREATE TABLE IF NOT EXISTS {$tableQuoted} (
+                message_id VARCHAR(190) NOT NULL,
+                consumer VARCHAR(190) NOT NULL,
+                processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (message_id, consumer)
+            )",
+        ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildOutboxSchemaSql(string $tableName): array
     {
         $tableQuoted = $this->quoteTable($tableName);

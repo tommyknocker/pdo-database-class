@@ -42,8 +42,8 @@ $db->find()->table($table)->insert([
     'payload' => '{}',
     'status' => OutboxStatuses::FAILED,
     'attempts' => 2,
-    'available_at' => gmdate('Y-m-d\TH:i:s\Z'),
-    'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
+    'available_at' => gmdate('Y-m-d H:i:s'),
+    'created_at' => gmdate('Y-m-d H:i:s'),
     'last_error' => 'simulated failure',
 ]);
 

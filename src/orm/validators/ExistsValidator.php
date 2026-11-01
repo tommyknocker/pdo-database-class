@@ -23,7 +23,11 @@ class ExistsValidator extends AbstractValidator
 
         $targetClass = $params['targetClass'] ?? null;
         if (is_string($targetClass) && is_a($targetClass, Model::class, true)) {
-            return $targetClass::find()->where($targetAttribute, $value)->exists();
+            $targetDb = $model->getModelDb();
+
+            return ($targetDb !== null ? $targetClass::on($targetDb) : $targetClass::find())
+                ->where($targetAttribute, $value)
+                ->exists();
         }
 
         $table = $params['table'] ?? null;

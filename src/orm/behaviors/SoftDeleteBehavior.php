@@ -10,7 +10,10 @@ use tommyknocker\pdodb\query\QueryBuilder;
 /**
  * Hides rows with a non-null deletion timestamp and turns delete() into an update.
  *
- * @phpstan-type SoftDeleteConfig array{column?: string}
+ * `value` overrides the database clock used for the deletion time: a closure
+ * `fn (Model $model, string $column): mixed`, a `RawValue` expression or a literal.
+ *
+ * @phpstan-type SoftDeleteConfig array{column?: string, value?: mixed}
  */
 class SoftDeleteBehavior extends ModelBehavior
 {
@@ -18,15 +21,23 @@ class SoftDeleteBehavior extends ModelBehavior
 
     protected string $column;
 
+    protected mixed $value;
+
     /** @param SoftDeleteConfig $config */
     public function __construct(array $config = [])
     {
         $this->column = $config['column'] ?? 'deleted_at';
+        $this->value = $config['value'] ?? null;
     }
 
     public function column(): string
     {
         return $this->column;
+    }
+
+    public function deletionValue(Model $model): mixed
+    {
+        return ModelClock::value($model, $this->column, $this->value);
     }
 
     public function isDeleted(Model $model): bool

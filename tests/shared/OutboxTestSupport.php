@@ -36,6 +36,60 @@ final class OutboxTestSupport
     }
 
     /**
+     * Seeds old and expired rows with native datetime values and checks purge, stale lease release and listing.
+     *
+     * @return array{purged: int, listed: int, published: int, requeued: bool}
+     */
+    public static function exerciseTimestampColumns(PdoDb $db, string $table): array
+    {
+        $outbox = new Outbox($db, $table);
+        $old = gmdate('Y-m-d H:i:s', time() - 86400 * 10);
+        $expired = gmdate('Y-m-d H:i:s', time() - 120);
+        $oldId = 'probe-old';
+        $staleId = 'probe-stale';
+        $failedId = 'probe-failed';
+
+        $db->find()->table($table)->insert([
+            'id' => $oldId,
+            'event_type' => 'old',
+            'payload' => '{}',
+            'status' => OutboxStatuses::PUBLISHED,
+            'attempts' => 1,
+            'available_at' => $old,
+            'created_at' => $old,
+            'published_at' => $old,
+        ]);
+        $db->find()->table($table)->insert([
+            'id' => $failedId,
+            'event_type' => 'failed',
+            'payload' => '{}',
+            'status' => OutboxStatuses::FAILED,
+            'attempts' => 3,
+            'available_at' => $old,
+            'created_at' => $old,
+        ]);
+        $db->find()->table($table)->insert([
+            'id' => $staleId,
+            'event_type' => 'stale',
+            'payload' => '{}',
+            'status' => OutboxStatuses::PROCESSING,
+            'attempts' => 1,
+            'available_at' => $expired,
+            'created_at' => $expired,
+            'locked_by' => 'dead-worker',
+            'locked_until' => $expired,
+        ]);
+
+        $purged = $outbox->purge('7d')->deleted;
+        $listed = count($outbox->listMessages(OutboxStatuses::FAILED));
+        $requeued = $outbox->requeueFailed($failedId);
+        $published = $outbox->worker('probe', batchSize: 10)->runOnce(static function (): void {
+        })->published;
+
+        return ['purged' => $purged, 'listed' => $listed, 'published' => $published, 'requeued' => $requeued];
+    }
+
+    /**
      * @param callable(): PdoDb $connectionFactory
      *
      * @return list<string> Published message ids (throws on duplicate publish).

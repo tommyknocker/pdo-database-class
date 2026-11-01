@@ -236,7 +236,7 @@ interface DialectInterface
      * Update columns are assigned from the inserted row. An empty update list keeps
      * the existing row (insert-if-absent). Conflict columns must not also be updated.
      *
-     * @param array<string, string|int|float|null> $row
+     * @param array<string, string|int|float|RawValue|null> $row
      * @param list<string> $conflictColumns
      * @param list<string> $updateColumns
      *
@@ -2200,10 +2200,11 @@ interface DialectInterface
      *
      * @param mixed $value The value to transform
      * @param string $columnName The column name this value is for
+     * @param string|null $table The table being written, when known
      *
      * @return mixed The transformed value, or original value if no transformation needed
      */
-    public function transformValueForBinding(mixed $value, string $columnName): mixed;
+    public function transformValueForBinding(mixed $value, string $columnName, ?string $table = null): mixed;
 
     /* ---------------- Table Search ---------------- */
 

@@ -15,6 +15,7 @@ use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
+use tommyknocker\pdodb\helpers\values\NowValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
@@ -1330,7 +1331,7 @@ abstract class DialectAbstract implements DialectInterface
     ): array {
         [$columns, $params] = $this->prepareUpsert($row, $conflictColumns, $updateColumns);
         $quotedColumns = array_map(fn (string $column): string => $this->quoteIdentifier($column), $columns);
-        $placeholders = array_map(static fn (string $column): string => ':upsert_' . $column, $columns);
+        $placeholders = array_map(fn (string $column): string => $this->upsertValueSql($column, $row), $columns);
         $conflict = implode(', ', array_map(fn (string $column): string => $this->quoteIdentifier($column), $conflictColumns));
         $sql = 'INSERT INTO ' . $this->quoteTable($table)
             . ' (' . implode(', ', $quotedColumns) . ') VALUES (' . implode(', ', $placeholders) . ') '
@@ -1351,7 +1352,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * MySQL and MariaDB insert-or-ignore / insert-or-assign statement.
      *
-     * @param array<string, string|int|float|null> $row
+     * @param array<string, string|int|float|RawValue|null> $row
      * @param list<string> $conflictColumns
      * @param list<string> $updateColumns
      *
@@ -1365,7 +1366,7 @@ abstract class DialectAbstract implements DialectInterface
     ): array {
         [$columns, $params] = $this->prepareUpsert($row, $conflictColumns, $updateColumns);
         $quotedColumns = array_map(fn (string $column): string => $this->quoteIdentifier($column), $columns);
-        $placeholders = array_map(static fn (string $column): string => ':upsert_' . $column, $columns);
+        $placeholders = array_map(fn (string $column): string => $this->upsertValueSql($column, $row), $columns);
         $assignments = [];
         $assigned = $updateColumns === [] ? [$conflictColumns[0]] : $updateColumns;
         foreach ($assigned as $column) {
@@ -1380,7 +1381,35 @@ abstract class DialectAbstract implements DialectInterface
     }
 
     /**
-     * @param array<string, string|int|float|null> $row
+     * @param array<string, string|int|float|RawValue|null> $row
+     * @param list<string> $conflictColumns
+     * @param list<string> $updateColumns
+     *
+     * @return array{0: list<string>, 1: array<string, string|int|float|null>}
+     */
+    /**
+     * SQL for one upsert value: a bound placeholder, or the inline expression for a `RawValue`.
+     *
+     * @param array<string, mixed> $row
+     */
+    protected function upsertValueSql(string $column, array $row): string
+    {
+        $value = $row[$column] ?? null;
+        if (!$value instanceof RawValue) {
+            return ':upsert_' . $column;
+        }
+        if ($value->getParams() !== []) {
+            throw new InvalidArgumentException('Upsert expressions cannot carry bound parameters.');
+        }
+        if ($value instanceof NowValue) {
+            return $this->now($value->getValue(), $value->getAsTimestamp());
+        }
+
+        return $value->getValue();
+    }
+
+    /**
+     * @param array<string, string|int|float|RawValue|null> $row
      * @param list<string> $conflictColumns
      * @param list<string> $updateColumns
      *
@@ -1396,6 +1425,10 @@ abstract class DialectAbstract implements DialectInterface
         $params = [];
         foreach ($row as $column => $value) {
             $this->assertUpsertIdentifier($column);
+            if ($value instanceof RawValue) {
+                $columns[] = $column;
+                continue;
+            }
             if (!is_string($value) && !is_int($value) && !is_float($value) && $value !== null) {
                 throw new InvalidArgumentException('Upsert values must be scalar.');
             }
@@ -1437,9 +1470,9 @@ abstract class DialectAbstract implements DialectInterface
 
         return [
             "CREATE TABLE IF NOT EXISTS {$tableQuoted} (
-                message_id VARCHAR(36) NOT NULL,
+                message_id VARCHAR(190) NOT NULL,
                 consumer VARCHAR(190) NOT NULL,
-                processed_at VARCHAR(32) NOT NULL,
+                processed_at TEXT NOT NULL DEFAULT (datetime('now')),
                 PRIMARY KEY (message_id, consumer)
             )",
         ];
@@ -1484,7 +1517,7 @@ abstract class DialectAbstract implements DialectInterface
      */
     public function outboxNowSql(): string
     {
-        return "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')";
+        return "datetime('now')";
     }
 
     /**
@@ -1492,7 +1525,7 @@ abstract class DialectAbstract implements DialectInterface
      */
     public function outboxNowPlusSecondsSql(int $seconds): string
     {
-        return "strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '" . sprintf('%+d', $seconds) . " seconds')";
+        return "datetime('now', '" . sprintf('%+d', $seconds) . " seconds')";
     }
 
     /**
@@ -2065,7 +2098,7 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function transformValueForBinding(mixed $value, string $columnName): mixed
+    public function transformValueForBinding(mixed $value, string $columnName, ?string $table = null): mixed
     {
         // Default: no transformation
         return $value;

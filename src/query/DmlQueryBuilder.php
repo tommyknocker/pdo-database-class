@@ -761,7 +761,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
                             $setParts[] = "{$qid} = " . $rawSql;
                         } else {
                             // Allow dialect to transform value before binding
-                            $transformedValue = $this->dialect->transformValueForBinding($valueForParam, $col);
+                            $transformedValue = $this->dialect->transformValueForBinding($valueForParam, $col, $this->table);
                             $ph = $this->parameterManager->addParam("upd_{$col}", $transformedValue);
                             $setParts[] = "{$qid} = {$ph}";
                         }
@@ -773,7 +773,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
                 $setParts[] = "{$qid} = {$sql}";
             } else {
                 // Allow dialect to transform value before binding
-                $transformedValue = $this->dialect->transformValueForBinding($val, $col);
+                $transformedValue = $this->dialect->transformValueForBinding($val, $col, $this->table);
                 $ph = $this->parameterManager->addParam("upd_{$col}", $transformedValue);
                 $setParts[] = "{$qid} = {$ph}";
             }
@@ -829,7 +829,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface
         }
 
         // Allow dialect to transform value before binding (e.g., UUID conversion for Oracle)
-        $transformedValue = $this->dialect->transformValueForBinding($value, $columnName);
+        $transformedValue = $this->dialect->transformValueForBinding($value, $columnName, $this->table);
 
         // Create placeholder with original column name and add to ParameterManager
         $paramName = $prefix === '' ? ':' . $columnName : ':' . $prefix . $columnName;

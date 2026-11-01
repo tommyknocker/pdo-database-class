@@ -28,10 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ActiveRecord behaviors for timestamps, soft deletes, and UUID/ULID keys; `transactional()` saves that roll back in-memory state; `afterCommit()`; `firstOrCreate()` / `updateOrCreate()`; atomic `increment()` / `decrement()`; `updateAll()` / `deleteAll()`; model `each()` / `chunk()` / `cursor()`; richer validators; `hiddenAttributes()` / `visibleAttributes()`; and many-to-many `attach()` / `detach()` / `sync()`.
 - Consumer `Inbox` for idempotent handling of at-least-once messages, plus `PdoDb::afterCommit()` / `afterRollback()`.
 - Idempotent upsert SQL on each dialect (`buildIdempotentUpsertSql`) and inbox DDL (`buildInboxSchemaSql`).
+- `unique` validator option `withoutTrashed` to ignore soft-deleted rows (they count as taken by default).
 
 ### Changed
 - **Breaking:** model connection overrides are isolated by class; use `Model::setDb($db)` for a shared default. Scoped record writes now honor global scopes, and terminal ActiveQuery methods return their delegated results.
-- **Breaking:** `ActiveQuery::each()` yields models. Use `getQueryBuilder()->each()` for raw rows. `DialectInterface` now requires `buildIdempotentUpsertSql()` and `buildInboxSchemaSql()`.
+- **Breaking:** `ActiveQuery::each()` yields models. Use `getQueryBuilder()->each()` for raw rows. `DialectInterface` now requires `buildIdempotentUpsertSql()`, `buildInboxSchemaSql()`, `outboxNowSql()` and `outboxNowPlusSecondsSql()`, and `buildOutboxClaimOneSql()` takes the lock duration in seconds instead of bound time parameters. A third-party dialect must implement them.
+- Outbox timestamps (`created_at`, `available_at`, `locked_until`, `published_at`) and lease, backoff and `purge` comparisons use the database clock in UTC, stored in native types: `DATETIME(6)` on MySQL/MariaDB and `TIMESTAMP(6)` on Oracle (previously `VARCHAR`); SQLite keeps UTC text. Outbox tables created earlier must be recreated.
+- **Breaking:** `TimestampBehavior` and `SoftDeleteBehavior` write the database clock (`NOW()` on the dialect) instead of the PHP clock and reload the stored value after saving; they follow the connection time zone. A `value` option (closure, `RawValue` or literal) overrides it. Idempotent upsert rows (`firstOrCreate()` / `updateOrCreate()`) accept `RawValue` expressions. `DialectInterface::transformValueForBinding()` gets an optional `$table` argument.
+- Inbox ids may be up to 190 characters, and `processed_at` is a native datetime column filled by the database clock.
 - **Breaking:** the model generator emits `@property` tags instead of a public `$attributes` array.
 - **Breaking:** nested `transaction()` calls no longer commit an existing transaction; they use savepoints when supported.
 - **Breaking:** `setAttributes(..., safeOnly: true)` throws `MassAssignmentException` when the model does not declare `safeAttributes()`.
@@ -53,8 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Resolve unambiguous Oracle column names for ActiveRecord attributes while preserving exact-case matches.
 - Apply ActiveRecord global scopes to query and model writes, preserve terminal method return values, and isolate model connections with an explicit shared default.
 - Nested `transaction()` callbacks use database-specific savepoints instead of committing the outer transaction.
-- Outbox inserts no longer call `lastInsertId()` (PostgreSQL aborted the surrounding transaction). The worker rejects an already open transaction, SQLite releases ISO lock timestamps, and MySQL, MariaDB, SQL Server, and Oracle use dialect-specific outbox schema and claim SQL.
+- Outbox inserts no longer call `lastInsertId()` (PostgreSQL aborted the surrounding transaction). The worker rejects an already open transaction, SQLite compares lock timestamps in a single format, and MySQL, MariaDB, SQL Server, and Oracle use dialect-specific outbox schema and claim SQL.
 - Oracle outbox claim locks the pending row with `FOR UPDATE SKIP LOCKED` before updating it. Retryable deadlocks are retried by the worker and by `pdodb outbox work`. A publish whose lock update does not match is reported as unconfirmed and left for a later at-least-once delivery.
+- A message claimed again after its last allowed attempt ended without confirmation is marked `failed` instead of being redelivered forever; stale claims are released once per batch.
+- The SQL Server outbox schema can be applied repeatedly.
+- The MCP statement-timeout note reflects whether the dialect supports a limit.
+- Oracle no longer converts UUID strings to hex in `VARCHAR2` columns; only `RAW` columns (looked up in the catalog) are converted.
+- The `unique` and `exists` validators query through the model's bound connection (`Model::on()`), and `unique` no longer passes for a slug held by a soft-deleted row.
 - Migration and seed `--dry-run` no longer execute migration or seed PHP (avoids side effects; SQL from arbitrary PHP is not shown).
 - ActiveRecord `update()` / `delete()` target the original primary key from when the row was loaded; changing a primary key in memory throws `PrimaryKeyMutationException`.
 - ActiveRecord `save()` / `update()` treat zero affected rows as success when the row still matches the intended values (e.g. MySQL no-op updates).

@@ -87,4 +87,16 @@ final class OutboxTests extends BaseMySQLTestCase
             ]
         );
     }
+
+    public function testNativeTimestampColumnsSupportPurgeLeaseAndRequeue(): void
+    {
+        (new Outbox(self::$db, self::TABLE))->ensureSchema();
+
+        $result = OutboxTestSupport::exerciseTimestampColumns(self::$db, self::TABLE);
+
+        $this->assertSame(1, $result['purged']);
+        $this->assertSame(1, $result['listed']);
+        $this->assertTrue($result['requeued']);
+        $this->assertSame(2, $result['published']);
+    }
 }

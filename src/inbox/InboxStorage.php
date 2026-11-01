@@ -35,11 +35,10 @@ final class InboxStorage
     {
         $table = $this->dialect()->quoteTable($this->tableName);
         $this->db->rawQuery(
-            "INSERT INTO {$table} (message_id, consumer, processed_at) VALUES (:message_id, :consumer, :processed_at)",
+            "INSERT INTO {$table} (message_id, consumer) VALUES (:message_id, :consumer)",
             [
                 'message_id' => $messageId,
                 'consumer' => $consumer,
-                'processed_at' => gmdate('Y-m-d\TH:i:s\Z'),
             ]
         );
     }

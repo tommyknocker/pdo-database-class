@@ -270,7 +270,7 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
         $insertValues = [];
         foreach ($columns as $column) {
             $quoted = $this->quoteIdentifier($column);
-            $selects[] = ':upsert_' . $column . ' AS ' . $quoted;
+            $selects[] = $this->upsertValueSql($column, $row) . ' AS ' . $quoted;
             $insertColumns[] = $quoted;
             $insertValues[] = 's.' . $quoted;
         }
@@ -2400,9 +2400,9 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
         return [
             "IF OBJECT_ID(N'{$tableLiteral}', N'U') IS NULL
             CREATE TABLE {$tableQuoted} (
-                message_id VARCHAR(36) NOT NULL,
+                message_id VARCHAR(190) NOT NULL,
                 consumer NVARCHAR(190) NOT NULL,
-                processed_at VARCHAR(32) NOT NULL,
+                processed_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
                 PRIMARY KEY (message_id, consumer)
             )",
         ];

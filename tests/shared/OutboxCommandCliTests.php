@@ -127,7 +127,7 @@ PHP);
         $outbox = new Outbox($db, $this->table);
         $outbox->ensureSchema();
 
-        $old = gmdate('Y-m-d\TH:i:s\Z', time() - 86400 * 10);
+        $old = gmdate('Y-m-d H:i:s', time() - 86400 * 10);
         $db->find()->table($this->table)->insert([
             'id' => '11111111-1111-4111-8111-111111111111',
             'event_type' => 'old.event',
@@ -164,8 +164,8 @@ PHP);
         $outbox = new Outbox($db, $this->table);
         $outbox->ensureSchema();
 
-        $old = gmdate('Y-m-d\TH:i:s\Z', time() - 86400 * 10);
-        $recent = gmdate('Y-m-d\TH:i:s\Z');
+        $old = gmdate('Y-m-d H:i:s', time() - 86400 * 10);
+        $recent = gmdate('Y-m-d H:i:s');
         $db->find()->table($this->table)->insert([
             'id' => '22222222-2222-4222-8222-222222222222',
             'event_type' => 'old.event',
@@ -240,8 +240,8 @@ PHP);
             'payload' => '{}',
             'status' => OutboxStatuses::FAILED,
             'attempts' => 2,
-            'available_at' => gmdate('Y-m-d\TH:i:s\Z'),
-            'created_at' => gmdate('Y-m-d\TH:i:s\Z'),
+            'available_at' => gmdate('Y-m-d H:i:s'),
+            'created_at' => gmdate('Y-m-d H:i:s'),
             'last_error' => 'bad',
         ]);
 
