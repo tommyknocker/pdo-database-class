@@ -36,6 +36,16 @@ interface BatchProcessorInterface
     public function each(string $sql, array $params, int $batchSize = 100): \Generator;
 
     /**
+     * Batches that continue after the last key seen instead of using an OFFSET.
+     *
+     * @param string $sql Query without ORDER BY that selects `$column`
+     * @param array<string, mixed> $params
+     *
+     * @return \Generator<int, array<int, array<string, mixed>>, mixed, void>
+     */
+    public function batchById(string $sql, array $params, int $batchSize, string $column): \Generator;
+
+    /**
      * Stream query results without loading into memory.
      *
      * Most memory efficient method for very large datasets. Uses database cursor

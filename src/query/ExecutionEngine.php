@@ -111,10 +111,10 @@ class ExecutionEngine implements ExecutionEngineInterface
             if (!empty($params)) {
                 $params = $this->normalizeParams($params);
             } else {
-                $params = $this->parameterManager->getParams();
+                $params = $this->parameterManager->getParamsFor($sqlString);
             }
+            // The builder's parameters stay: the same builder can run the same query again.
             $result = $this->connection->prepare($sqlString)->execute($params);
-            $this->parameterManager->clearParams();
 
             // End profiling
             $this->profiler?->endQuery($queryId);

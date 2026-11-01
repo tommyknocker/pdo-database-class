@@ -4,11 +4,16 @@ Process large datasets efficiently using batch processing methods.
 
 ## Overview
 
-PDOdb provides three methods for processing large datasets:
+PDOdb provides these methods for processing large datasets:
 
 1. **`batch()`** - Process data in configurable chunks
 2. **`each()`** - Process one record at a time with internal buffering
-3. **`stream()`** - Stream results with minimal memory usage
+3. **`batchById()` / `eachById()`** - The same, following a unique key instead of an OFFSET (safe while rows change)
+4. **`stream()`** - Stream results with minimal memory usage
+
+`batch()` and `each()` page with `LIMIT ... OFFSET`. If the loop changes the rows that the query selects
+(updates the column you filter on, or deletes rows), the next page starts too far and rows are skipped. Use
+`batchById()` / `eachById()` for that.
 
 ## batch() - Process in Batches
 
@@ -83,20 +88,47 @@ foreach ($db->find()
 ```php
 foreach ($db->find()
     ->from('orders')
-    ->where('status', 'pending')
+    ->where('amount', 1000, '>')
     ->orderBy('created_at')
     ->each(100) as $order) {
     
     // Generate PDF for each order
     generateInvoice($order);
-    
-    // Update status
+}
+```
+
+If the loop changes the rows the query selects, for example by moving them out of `status = 'pending'`,
+use `eachById()` below instead.
+
+## batchById() / eachById() - Follow a Key
+
+`batchById()` continues after the last key it saw (`WHERE id > :last ORDER BY id LIMIT n`) instead of using an OFFSET.
+Rows can be updated or deleted while you iterate without any being skipped, and each batch costs the same on a
+large table.
+
+```php
+foreach ($db->find()
+    ->from('orders')
+    ->where('status', 'pending')
+    ->eachById(100) as $order) {
+
+    generateInvoice($order);
+
+    // Leaves the 'pending' set; the next batch still starts right after this order
     $db->find()
         ->table('orders')
         ->where('id', $order['id'])
         ->update(['status' => 'processed']);
 }
+
+// Another key column, in batches
+foreach ($db->find()->from('events')->batchById(500, 'event_id') as $batch) {
+    processEvents($batch);
+}
 ```
+
+Requirements: the column is unique and grows with each row (a primary key is the usual choice), it is part
+of the selected columns, and the query has no `ORDER BY` of its own (the result is ordered by the key).
 
 ## stream() - Stream with Minimal Memory
 
@@ -149,6 +181,7 @@ exportUsersToCsv($db, 'users_export.csv');
 | `get()` | High (loads all) | Fast | Small datasets, complex processing |
 | `batch()` | Medium (configurable) | Medium | Bulk operations, parallel processing |
 | `each()` | Medium (internal buffering) | Medium | Individual record processing |
+| `batchById()` / `eachById()` | Medium (configurable) | Medium | Loops that change the rows they read |
 | `stream()` | Low (streaming) | Slow | Large datasets, simple processing |
 
 ## Common Use Cases

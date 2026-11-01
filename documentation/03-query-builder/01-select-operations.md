@@ -437,6 +437,25 @@ foreach ($users as $user) {
 }
 ```
 
+## Running a Query More Than Once
+
+A query builder describes a query; running it does not use it up. The same builder returns the same result each
+time, so you can check a result and then read it, or run it again after the data changed:
+
+```php
+$active = $db->find()->from('users')->where('status', 'active')->orderBy('id');
+
+if ($active->exists()) {
+    $rows = $active->get();   // same WHERE status = 'active'
+}
+
+// ... later, after other code changed the table
+$fresh = $active->get();
+```
+
+Methods that add to the query (`where()`, `orderBy()`, `limit()`, ...) change it for every later run, so build a new
+query with `find()` when you need a different one.
+
 ## Checking Results
 
 ### EXISTS

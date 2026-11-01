@@ -472,6 +472,20 @@ interface QueryBuilderInterface
     public function each(int $batchSize = 100): Generator;
 
     /**
+     * Batches that follow a unique, increasing column instead of an OFFSET; safe while rows change.
+     *
+     * @return Generator<int, array<int, array<string, mixed>>, mixed, void>
+     */
+    public function batchById(int $batchSize = 100, string $column = 'id'): Generator;
+
+    /**
+     * Records one at a time, loaded with batchById().
+     *
+     * @return Generator<int, array<string, mixed>, mixed, void>
+     */
+    public function eachById(int $batchSize = 100, string $column = 'id'): Generator;
+
+    /**
      * Stream query results without loading into memory.
      *
      * @return Generator<int, array<string, mixed>, mixed, void>

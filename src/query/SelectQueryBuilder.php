@@ -81,6 +81,10 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
     /** @var array<string, mixed> */
     protected array $aiSettings = [];
 
+    protected ?PdoDb $aiDatabase = null;
+
+    protected ?ConnectionInterface $aiDatabaseConnection = null;
+
     /** @var array<int|string, mixed> Query options (e.g., FOR UPDATE, IGNORE) */
     protected array $options = [];
 
@@ -917,7 +921,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
     {
         $sql = $this->buildSelectSql();
         // Get params after building SQL (includes params added during UNION)
-        $params = $this->parameterManager->getParams();
+        $params = $this->parameterManager->getParamsFor($sql);
 
         // Merge CTE parameters if CTE manager exists
         if ($this->cteManager && !$this->cteManager->isEmpty()) {
@@ -1203,19 +1207,21 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
      */
     protected function getDatabaseInstance(): PdoDb
     {
-        // Create a minimal PdoDb instance that uses the existing connection
-        $driver = $this->connection->getDialect()->getDriverName();
-        $pdo = $this->connection->getPdo();
-        $dialect = $this->connection->getDialect();
+        // Wraps the existing connection in a minimal PdoDb; built once per connection, not per AI call.
+        if ($this->aiDatabase !== null && $this->aiDatabaseConnection === $this->connection) {
+            return $this->aiDatabase;
+        }
 
-        // Create PdoDb with existing PDO and dialect
+        $dialect = $this->connection->getDialect();
         $db = new PdoDb(null, ['ai' => $this->aiSettings, 'prefix' => $this->prefix ?? '']);
         $db->addConnection('default', [
-            'driver' => $driver,
-            'pdo' => $pdo,
+            'driver' => $dialect->getDriverName(),
+            'pdo' => $this->connection->getPdo(),
             'dialect' => $dialect,
         ]);
         $db->connection('default');
+        $this->aiDatabase = $db;
+        $this->aiDatabaseConnection = $this->connection;
 
         return $db;
     }
@@ -1999,6 +2005,14 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
         }
 
         return new CursorPaginationResult($numericItems, $perPage, $previousCursor, $nextCursor, $options);
+    }
+
+    /**
+     * Whether an ORDER BY has been added.
+     */
+    public function hasOrderBy(): bool
+    {
+        return $this->order !== [];
     }
 
     /**

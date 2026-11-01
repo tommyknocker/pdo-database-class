@@ -85,6 +85,73 @@ class BatchProcessor implements BatchProcessorInterface, ConnectionAwareInterfac
     }
 
     /**
+     * Execute query in batches that continue after the last key seen, so rows may change while iterating.
+     *
+     * The query is used as a derived table; `$column` must be unique and increasing, and the query must not have
+     * an ORDER BY of its own.
+     *
+     * @param string $sql The SQL query to execute
+     * @param array<string, mixed> $params The parameters for the query
+     * @param int $batchSize Number of records per batch
+     * @param string $column Unique, increasing column to continue after
+     *
+     * @return Generator<int, array<int, array<string, mixed>>, mixed, void>
+     * @throws InvalidArgumentException If batch size is invalid or the result has no such column
+     * @throws PDOException
+     */
+    public function batchById(string $sql, array $params, int $batchSize, string $column): Generator
+    {
+        if ($batchSize <= 0) {
+            throw new InvalidArgumentException('Batch size must be greater than 0');
+        }
+
+        $dialect = $this->connection->getDialect();
+        $quoted = $dialect->quoteIdentifier($column);
+        $last = null;
+
+        while (true) {
+            $batchParams = $params;
+            $where = '';
+            if ($last !== null) {
+                $where = " WHERE {$quoted} > :pdodb_batch_last";
+                $batchParams[':pdodb_batch_last'] = $last;
+            }
+            $batchSql = $dialect->appendLimitOffset(
+                "SELECT * FROM ({$sql}) pdodb_batch{$where} ORDER BY {$quoted}",
+                $batchSize,
+                0
+            );
+
+            $rows = array_values($this->executionEngine->fetchAll($batchSql, $batchParams));
+            if ($rows === []) {
+                return;
+            }
+
+            yield $rows;
+
+            if (count($rows) < $batchSize) {
+                return;
+            }
+
+            $last = $this->keyOf($rows[count($rows) - 1], $column);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    protected function keyOf(array $row, string $column): mixed
+    {
+        foreach ($row as $name => $value) {
+            if (strcasecmp((string)$name, $column) === 0 && $value !== null) {
+                return $value;
+            }
+        }
+
+        throw new InvalidArgumentException("The result has no non-null '{$column}' column to continue after.");
+    }
+
+    /**
      * Execute query and return iterator for individual record processing.
      *
      * Processes data one record at a time, but loads them from database in batches

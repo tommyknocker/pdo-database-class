@@ -1407,6 +1407,44 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
+     * Process the result in batches that follow the values of a unique, increasing column instead of an OFFSET.
+     *
+     * Unlike {@see batch()}, rows can be updated or deleted while iterating without the next batch skipping rows,
+     * and every batch costs the same on a large table. The batches are ordered by `$column`, so the query must not
+     * have an ORDER BY of its own and must select that column.
+     *
+     * @param int $batchSize Number of records per batch
+     * @param string $column Unique column that grows with each row (usually the primary key)
+     *
+     * @return Generator<int, array<int, array<string, mixed>>, mixed, void>
+     * @throws InvalidArgumentException If the batch size is invalid or the query has its own ORDER BY
+     */
+    public function batchById(int $batchSize = 100, string $column = 'id'): Generator
+    {
+        if ($this->selectQueryBuilder->hasOrderBy()) {
+            throw new InvalidArgumentException('batchById() orders the result by the key column; remove the other ORDER BY');
+        }
+
+        $query = $this->selectQueryBuilder->getQuery();
+        return $this->batchProcessor->batchById($query['sql'], $query['params'], $batchSize, $column);
+    }
+
+    /**
+     * Process records one at a time, loading them with {@see batchById()}.
+     *
+     * @return Generator<int, array<string, mixed>, mixed, void>
+     * @throws InvalidArgumentException
+     */
+    public function eachById(int $batchSize = 100, string $column = 'id'): Generator
+    {
+        foreach ($this->batchById($batchSize, $column) as $batch) {
+            foreach ($batch as $row) {
+                yield $row;
+            }
+        }
+    }
+
+    /**
      * Stream query results without loading into memory.
      *
      * Most memory efficient method for very large datasets. Uses database cursor

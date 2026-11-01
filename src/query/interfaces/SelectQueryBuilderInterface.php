@@ -67,6 +67,11 @@ interface SelectQueryBuilderInterface
     public function orderBy(string|array|RawValue $expr, string $direction = 'ASC'): static;
 
     /**
+     * Whether an ORDER BY has been added.
+     */
+    public function hasOrderBy(): bool;
+
+    /**
      * Add ORDER BY expression directly (for JSON expressions that already contain direction).
      *
      * @param string $expr The complete ORDER BY expression.

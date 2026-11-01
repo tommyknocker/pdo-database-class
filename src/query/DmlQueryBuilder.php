@@ -315,7 +315,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
         $sql = $this->dialect->buildReplaceSql($tableName, array_values(array_map('strval', $columns)), $placeholders);
 
         try {
-            return $this->executionEngine->executeInsert($sql, $this->parameterManager->getParams());
+            return $this->executionEngine->executeInsert($sql, $this->parameterManager->getParamsFor($sql));
         } catch (PDOException $e) {
             $this->enhanceExceptionWithContext($e, $sql);
 
@@ -370,7 +370,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
         );
 
         try {
-            return $this->executionEngine->executeInsert($sql, $this->parameterManager->getParams());
+            return $this->executionEngine->executeInsert($sql, $this->parameterManager->getParamsFor($sql));
         } catch (PDOException $e) {
             $this->enhanceExceptionWithContext($e, $sql);
 
@@ -436,7 +436,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
         }
 
         try {
-            return $this->executionEngine->executeStatement($sql, $this->parameterManager->getParams())->rowCount();
+            return $this->executionEngine->executeStatement($sql, $this->parameterManager->getParamsFor($sql))->rowCount();
         } catch (PDOException $e) {
             $this->enhanceExceptionWithContext($e, $sql);
 
@@ -550,7 +550,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
             $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget, $tableName);
         }
 
-        return [$sql, $this->parameterManager->getParams()];
+        return [$sql, $this->parameterManager->getParamsFor($sql)];
     }
 
     /**
@@ -596,7 +596,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
             $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget, $tableName);
         }
 
-        return [$sql, $this->parameterManager->getParams()];
+        return [$sql, $this->parameterManager->getParamsFor($sql)];
     }
 
     /**
@@ -715,7 +715,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
             $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget, $tableName);
         }
 
-        return [$sql, $this->parameterManager->getParams()];
+        return [$sql, $this->parameterManager->getParamsFor($sql)];
     }
 
     /**
@@ -814,7 +814,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
             }
         }
 
-        return [$sql, $this->parameterManager->getParams()];
+        return [$sql, $this->parameterManager->getParamsFor($sql)];
     }
 
     /**
@@ -947,7 +947,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
             $whenClauses
         );
 
-        return [$sql, $this->parameterManager->getParams()];
+        return [$sql, $this->parameterManager->getParamsFor($sql)];
     }
 
     /**

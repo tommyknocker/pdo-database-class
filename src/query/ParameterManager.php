@@ -139,6 +139,35 @@ class ParameterManager implements ParameterManagerInterface
     }
 
     /**
+     * The parameters a statement actually uses.
+     *
+     * A builder keeps its parameters after it ran, so it can run again. Building the SQL again can add more
+     * parameters (sub-queries, UNIONs and raw values are renamed each time), and PDO rejects named parameters that
+     * the SQL does not contain, so only those whose placeholder appears in the SQL are returned.
+     *
+     * @return array<string, string|int|float|bool|null>
+     */
+    public function getParamsFor(string $sql): array
+    {
+        if ($this->params === []) {
+            return [];
+        }
+
+        // "::" (a PostgreSQL cast) is not a placeholder, hence the look-behind
+        preg_match_all('/(?<![:\w]):([A-Za-z_][A-Za-z0-9_]*)/', $sql, $matches);
+        $used = array_flip($matches[1]);
+
+        $out = [];
+        foreach ($this->params as $key => $value) {
+            if (isset($used[ltrim($key, ':')])) {
+                $out[$key] = $value;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * Set parameters.
      *
      * @param array<string, string|int|float|bool|null> $params

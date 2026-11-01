@@ -72,6 +72,13 @@ interface ParameterManagerInterface
     public function getParams(): array;
 
     /**
+     * The parameters whose placeholder appears in the given SQL.
+     *
+     * @return array<string, string|int|float|bool|null>
+     */
+    public function getParamsFor(string $sql): array;
+
+    /**
      * Set parameters.
      *
      * @param array<string, string|int|float|bool|null> $params
