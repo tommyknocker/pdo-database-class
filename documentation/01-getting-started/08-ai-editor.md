@@ -105,8 +105,8 @@ provides database evidence without calling an additional model. It does not
 measure production latency or create indexes automatically.
 
 This requires a different profile: no table/schema visibility restrictions,
-`query_analysis_enabled => true`, and preferably a database account with
-read-only permissions. The metadata-only profile above deliberately disables
+`query_analysis_enabled => true`, and a database account with read-only
+permissions (see [how to create one](../05-advanced-features/26-ai-reference.md#read-only-database-account)). The metadata-only profile above deliberately disables
 SQL tools. Adapter limitations and statement limits are described in the
 [MCP reference](../05-advanced-features/26-ai-reference.md#mcp-server).
 

@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Consumer `Inbox` for idempotent handling of at-least-once messages, plus `PdoDb::afterCommit()` / `afterRollback()`.
 - Shared `Inflector` helper for English table and class names (`tableize`, `classify`, default foreign-key stems).
 - Inbox claims insert `processed_at` using the dialect clock format so strict SQL modes and existing tables stay consistent.
+- Documentation for a read-only database account for the MCP `diagnostics` connection (PostgreSQL, MySQL/MariaDB, SQL Server, Oracle, SQLite), including why `inspect_query`'s SELECT/WITH check is not a security boundary.
 - `unique` validator option `withoutTrashed` to ignore soft-deleted rows (they count as taken by default).
 
 ### Changed

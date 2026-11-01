@@ -291,7 +291,8 @@ return [
 
 Define the `diagnostics` alias in `config/db.php` with a database account whose
 permissions suit the intended use. The name itself does not grant read-only
-permissions. Selecting an explicit MCP alias never falls back to ambient
+permissions; see [Read-only database account](#read-only-database-account) for
+examples. Selecting an explicit MCP alias never falls back to ambient
 `PDODB_DRIVER` credentials or the application's default connection. Existing
 launches without this option keep the original CLI connection selection.
 In PHP, the optional third `McpServer` constructor argument accepts `McpConfig`;
@@ -360,6 +361,69 @@ not substitutes for this feature. MariaDB cancellation is checked periodically,
 so it is not a hard wall-clock deadline. These limits do not bound a whole MCP
 request containing several statements or a call to an external AI provider.
 `mcp doctor` reports support and tests catalog access without invoking an LLM.
+
+### Read-only database account
+
+The SQL that reaches `inspect_query` is written by an editor model, not by you.
+The tool only checks that the text starts with `SELECT` or `WITH` and contains
+no internal semicolon, and it runs `EXPLAIN` without `ANALYZE`. That check is a
+convenience, not a security boundary: a `WITH` statement can contain a data
+modifying clause, and planning may evaluate functions. The boundary that holds
+is the database account. Point the MCP `connection` alias at an account that can
+read but cannot write, and keep it separate from the application's account.
+
+Replace the names and `<password>` placeholders. Grant only the schemas or tables
+the assistant should see; the MCP allowlists limit what this server returns, not
+what the account can read.
+
+PostgreSQL:
+
+```sql
+CREATE ROLE pdodb_mcp LOGIN PASSWORD '<password>';
+GRANT CONNECT ON DATABASE app TO pdodb_mcp;
+GRANT USAGE ON SCHEMA public TO pdodb_mcp;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO pdodb_mcp;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO pdodb_mcp;
+-- Defense in depth: new sessions start read-only (a session may still override it).
+ALTER ROLE pdodb_mcp SET default_transaction_read_only = on;
+```
+
+MySQL and MariaDB:
+
+```sql
+CREATE USER 'pdodb_mcp'@'localhost' IDENTIFIED BY '<password>';
+GRANT SELECT ON app.* TO 'pdodb_mcp'@'localhost';
+```
+
+SQL Server (`inspect_query` reports `unavailable` on this adapter, but schema
+discovery works with the same account):
+
+```sql
+CREATE LOGIN pdodb_mcp WITH PASSWORD = '<password>';
+USE app;
+CREATE USER pdodb_mcp FOR LOGIN pdodb_mcp;
+ALTER ROLE db_datareader ADD MEMBER pdodb_mcp;
+```
+
+Oracle:
+
+```sql
+CREATE USER pdodb_mcp IDENTIFIED BY "<password>";
+GRANT CREATE SESSION TO pdodb_mcp;
+GRANT SELECT ON app_owner.users TO pdodb_mcp;  -- one grant per table, or through a role
+```
+
+`EXPLAIN PLAN` writes its rows to `PLAN_TABLE`, so this account needs a usable
+`PLAN_TABLE`. Current Oracle releases provide a session-private one; on older
+releases run `utlxplan.sql` as `pdodb_mcp`. That is the only write the account
+needs, and it never touches application tables.
+
+SQLite has no accounts. Open a database file that the PHP process cannot write
+to (file permissions), or give the assistant a copy of the database.
+
+Check the result before enabling query inspection: connect with the new account
+and confirm that `INSERT`, `UPDATE`, `DELETE` and DDL statements fail, then run
+`pdodb mcp doctor` to confirm catalog access for the `diagnostics` alias.
 
 ### Resources and prompts
 
