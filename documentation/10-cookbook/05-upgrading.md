@@ -62,3 +62,14 @@ Custom `DialectInterface` implementations must implement `executePlanExplain()`
 and `resolvePlanExplainAvailability()` (or extend `DialectAbstract` defaults).
 Migration and seed dry runs no longer execute arbitrary PHP or display SQL
 produced by executing it. See [dry-run behavior](../05-advanced-features/15-migrations.md#dry-run).
+
+`DialectInterface` is now assembled from role interfaces in
+`tommyknocker\pdodb\dialects\roles` (quoting, DML, JSON, SQL functions, DDL,
+catalog, planning, transactions, loaders, administration, dump, monitoring,
+messaging and others). Its methods and signatures are unchanged, so existing
+dialects keep working; a class that extends `DialectAbstract` also gets the
+default implementations of each role from the traits in
+`tommyknocker\pdodb\dialects\traits`. `DialectAbstract` no longer provides an
+`INSERT ... ON CONFLICT` implementation of `buildIdempotentUpsertSql()` by
+default (it throws `UnsupportedOperationException`); a dialect that supports that
+syntax adds `use OnConflictUpsertTrait;`, as PostgreSQL and SQLite do.
