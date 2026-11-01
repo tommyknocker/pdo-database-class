@@ -54,21 +54,17 @@ final class OutboxTests extends BaseOracleTestCase
             $outbox->add('second', ['n' => 2]);
         });
 
-        $dialect = self::$db->schema()->getDialect();
-        $pending = $dialect->buildOutboxPendingIdsSql(self::TABLE);
-        $lock = $dialect->buildOutboxLockCandidateSql(self::TABLE);
-        $this->assertNotNull($pending);
-        $this->assertNotNull($lock);
-
-        [$listSql, $listParams] = $pending;
-        $ids = self::$db->rawQuery($listSql, $listParams);
+        $ids = self::$db->rawQuery(
+            'SELECT id FROM ' . self::TABLE . " WHERE status = 'pending' ORDER BY available_at, id"
+        );
         $this->assertCount(2, $ids);
         $heldId = (string) (array_change_key_case($ids[0], CASE_LOWER)['id'] ?? '');
 
         self::$db->startTransaction();
-        [$sql, $params] = $lock;
-        $params['id'] = $heldId;
-        $held = self::$db->rawQueryOne($sql, $params);
+        $held = self::$db->rawQueryOne(
+            'SELECT id FROM ' . self::TABLE . " WHERE id = :id AND status = 'pending' FOR UPDATE",
+            ['id' => $heldId]
+        );
         $this->assertIsArray($held);
 
         $other = $this->createIndependentConnection();
@@ -135,5 +131,17 @@ final class OutboxTests extends BaseOracleTestCase
         $this->assertSame(1, $result['listed']);
         $this->assertTrue($result['requeued']);
         $this->assertSame(2, $result['published']);
+    }
+
+    public function testClaimBatchTakesOldestDueRowsUpToTheLimit(): void
+    {
+        (new Outbox(self::$db, self::TABLE))->ensureSchema();
+
+        $result = OutboxTestSupport::exerciseBatchClaim(self::$db, self::TABLE);
+
+        $this->assertSame(['batch-e', 'batch-d', 'batch-c'], $result['first']);
+        $this->assertSame(['batch-b', 'batch-a'], $result['second']);
+        $this->assertSame([], $result['third']);
+        $this->assertSame(['batch-worker-1'], $result['locked']);
     }
 }

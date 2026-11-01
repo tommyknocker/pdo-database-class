@@ -73,6 +73,8 @@ final class OutboxStorage
     }
 
     /**
+     * Claim up to `$limit` due messages for one worker in a single transaction.
+     *
      * @return list<OutboxMessage>
      */
     public function claimBatch(string $workerToken, int $limit, int $lockSeconds): array
@@ -83,31 +85,14 @@ final class OutboxStorage
 
         $this->assertConnectionIdle();
 
-        $dialect = $this->dialect();
-        if ($dialect->supportsOutboxConcurrentWorkerClaim()) {
+        $strategy = $this->dialect()->outboxClaimStrategy();
+        /** @var list<OutboxMessage> $messages */
+        $messages = $this->db->transaction(function () use ($strategy, $workerToken, $limit, $lockSeconds): array {
             $this->releaseStaleClaims();
-            $messages = [];
-            for ($i = 0; $i < $limit; $i++) {
-                $message = $this->claimOneInTransaction($workerToken, $lockSeconds);
-                if ($message === null) {
-                    break;
-                }
-                $messages[] = $message;
-            }
+            $rows = $strategy->claim($this->db, $this->tableName, $workerToken, $limit, $lockSeconds);
 
-            return $messages;
-        }
-
-        $messages = [];
-        $this->db->transaction(function () use ($workerToken, $limit, $lockSeconds, &$messages): void {
-            $this->releaseStaleClaims();
-            for ($i = 0; $i < $limit; $i++) {
-                $message = $this->claimOne($workerToken, $lockSeconds);
-                if ($message === null) {
-                    break;
-                }
-                $messages[] = $message;
-            }
+            // Payload LOBs must be read before the transaction ends (Oracle ORA-22297).
+            return array_map(static fn (array $row): OutboxMessage => OutboxMessage::fromRow($row), $rows);
         });
 
         return $messages;
@@ -168,148 +153,6 @@ final class OutboxStorage
             ]);
 
         return $updated > 0;
-    }
-
-    protected function claimOneInTransaction(string $workerToken, int $lockSeconds): ?OutboxMessage
-    {
-        $message = null;
-        $this->db->transaction(function () use ($workerToken, $lockSeconds, &$message): void {
-            $message = $this->claimOne($workerToken, $lockSeconds);
-        });
-
-        return $message;
-    }
-
-    protected function claimOne(string $workerToken, int $lockSeconds): ?OutboxMessage
-    {
-        $dialect = $this->dialect();
-        $claimToken = $workerToken . ':' . bin2hex(random_bytes(8));
-
-        $lockCandidate = $dialect->buildOutboxLockCandidateSql($this->tableName);
-        $pendingIds = $dialect->buildOutboxPendingIdsSql($this->tableName);
-        if ($lockCandidate !== null && $pendingIds !== null) {
-            return $this->claimFirstUnlocked($pendingIds, $lockCandidate, $claimToken, $lockSeconds);
-        }
-        if ($lockCandidate !== null) {
-            return $this->claimLockedCandidate($lockCandidate, $claimToken, $lockSeconds);
-        }
-
-        [$sql, $params] = $dialect->buildOutboxClaimOneSql($this->tableName, $lockSeconds);
-        $params['token'] = $claimToken;
-
-        if ($dialect->outboxClaimSqlReturnsClaimedRow()) {
-            $row = $this->db->rawQueryOne($sql, $params);
-            if (!is_array($row) || $row === []) {
-                return null;
-            }
-
-            return OutboxMessage::fromRow($row);
-        }
-
-        $this->db->rawQuery($sql, $params);
-        $row = $this->db->find()
-            ->table($this->tableName)
-            ->where('locked_by', $claimToken)
-            ->where('status', OutboxStatuses::PROCESSING)
-            ->getOne();
-
-        if (!is_array($row)) {
-            return null;
-        }
-
-        return OutboxMessage::fromRow($row);
-    }
-
-    /**
-     * @param array{0: string, 1: array<string, mixed>} $pendingIds
-     * @param array{0: string, 1: array<string, mixed>} $lockById
-     */
-    protected function claimFirstUnlocked(
-        array $pendingIds,
-        array $lockById,
-        string $claimToken,
-        int $lockSeconds,
-    ): ?OutboxMessage {
-        [$listSql, $listParams] = $pendingIds;
-
-        $candidates = $this->db->rawQuery($listSql, $listParams);
-        foreach ($candidates as $candidate) {
-            if (!is_array($candidate)) {
-                continue;
-            }
-            $candidate = array_change_key_case($candidate, CASE_LOWER);
-            $id = (string) ($candidate['id'] ?? '');
-            if ($id === '') {
-                continue;
-            }
-
-            [$lockSql, $lockParams] = $lockById;
-            $lockParams['id'] = $id;
-            $locked = $this->db->rawQueryOne($lockSql, $lockParams);
-            if (!is_array($locked) || $locked === []) {
-                continue;
-            }
-
-            $message = $this->markCandidateProcessing($id, $claimToken, $lockSeconds);
-            if ($message !== null) {
-                return $message;
-            }
-        }
-
-        return null;
-    }
-
-    protected function markCandidateProcessing(string $id, string $claimToken, int $lockSeconds): ?OutboxMessage
-    {
-        $updated = $this->db->find()
-            ->table($this->tableName)
-            ->where('id', $id)
-            ->where('status', OutboxStatuses::PENDING)
-            ->update([
-                'status' => OutboxStatuses::PROCESSING,
-                'locked_by' => $claimToken,
-                'locked_until' => new RawValue($this->dialect()->outboxNowPlusSecondsSql($lockSeconds)),
-                'attempts' => new RawValue('attempts + 1'),
-            ]);
-        if ($updated < 1) {
-            return null;
-        }
-
-        $row = $this->db->find()
-            ->table($this->tableName)
-            ->where('id', $id)
-            ->where('locked_by', $claimToken)
-            ->where('status', OutboxStatuses::PROCESSING)
-            ->getOne();
-        if (!is_array($row)) {
-            return null;
-        }
-
-        return OutboxMessage::fromRow($row);
-    }
-
-    /**
-     * @param array{0: string, 1: array<string, mixed>} $lockCandidate
-     */
-    protected function claimLockedCandidate(
-        array $lockCandidate,
-        string $claimToken,
-        int $lockSeconds,
-    ): ?OutboxMessage {
-        [$sql, $params] = $lockCandidate;
-
-        $candidate = $this->db->rawQueryOne($sql, $params);
-        if (!is_array($candidate) || $candidate === []) {
-            return null;
-        }
-
-        $candidate = array_change_key_case($candidate, CASE_LOWER);
-        $id = (string) ($candidate['id'] ?? '');
-        if ($id === '') {
-            return null;
-        }
-
-        return $this->markCandidateProcessing($id, $claimToken, $lockSeconds);
     }
 
     protected function dialect(): DialectInterface

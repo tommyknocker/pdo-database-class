@@ -18,6 +18,7 @@ use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser;
@@ -2611,14 +2612,6 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
     /**
      * {@inheritDoc}
      */
-    public function supportsOutboxConcurrentWorkerClaim(): bool
-    {
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     public function outboxNowSql(): string
     {
         return 'NOW()';
@@ -2652,28 +2645,9 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
     /**
      * {@inheritDoc}
      */
-    public function buildOutboxClaimOneSql(string $tableName, int $lockSeconds): array
+    public function outboxClaimStrategy(): OutboxClaimStrategy
     {
-        $tableQuoted = $this->quoteTable($tableName);
-
-        return [
-            "UPDATE {$tableQuoted} AS t
-                SET status = 'processing',
-                    locked_by = :token,
-                    locked_until = {$this->outboxNowPlusSecondsSql($lockSeconds)},
-                    attempts = t.attempts + 1
-                FROM (
-                    SELECT id FROM {$tableQuoted}
-                    WHERE status = 'pending' AND available_at <= {$this->outboxNowSql()}
-                    ORDER BY available_at ASC, id ASC
-                    LIMIT 1
-                    FOR UPDATE SKIP LOCKED
-                ) AS picked
-                WHERE t.id = picked.id
-                RETURNING t.id, t.event_type, t.payload, t.status, t.attempts,
-                    t.available_at, t.created_at, t.locked_by, t.locked_until, t.last_error, t.published_at",
-            ['token' => ''],
-        ];
+        return new PostgreSQLOutboxClaim($this);
     }
 
     public function catalogQueries(): CatalogQueriesInterface

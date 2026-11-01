@@ -16,6 +16,7 @@ use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\FeatureSupportInterface;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\analysis\parsers\MySQLExplainParser;
@@ -1885,22 +1886,6 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
     /**
      * {@inheritDoc}
      */
-    public function supportsOutboxConcurrentWorkerClaim(): bool
-    {
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function outboxClaimSqlReturnsClaimedRow(): bool
-    {
-        return false;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     public function outboxNowSql(): string
     {
         return 'UTC_TIMESTAMP(6)';
@@ -1934,27 +1919,9 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
     /**
      * {@inheritDoc}
      */
-    public function buildOutboxClaimOneSql(string $tableName, int $lockSeconds): array
+    public function outboxClaimStrategy(): OutboxClaimStrategy
     {
-        $tableQuoted = $this->quoteTable($tableName);
-
-        return [
-            "UPDATE {$tableQuoted} AS t
-                INNER JOIN (
-                    SELECT id FROM (
-                        SELECT id FROM {$tableQuoted}
-                        WHERE status = 'pending' AND available_at <= {$this->outboxNowSql()}
-                        ORDER BY available_at ASC, id ASC
-                        LIMIT 1
-                        FOR UPDATE SKIP LOCKED
-                    ) AS candidate
-                ) AS picked ON t.id = picked.id
-                SET t.status = 'processing',
-                    t.locked_by = :token,
-                    t.locked_until = {$this->outboxNowPlusSecondsSql($lockSeconds)},
-                    t.attempts = t.attempts + 1",
-            ['token' => ''],
-        ];
+        return new MySQLFamilyOutboxClaim($this);
     }
 
     public function catalogQueries(): CatalogQueriesInterface

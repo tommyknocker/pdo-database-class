@@ -19,6 +19,7 @@ use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\PlanExplainAvailability;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\analysis\parsers\OracleExplainParser;
@@ -3553,67 +3554,9 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
-    public function buildOutboxClaimOneSql(string $tableName, int $lockSeconds): array
+    public function outboxClaimStrategy(): OutboxClaimStrategy
     {
-        $tableQuoted = $this->quoteTable($tableName);
-
-        return [
-            "UPDATE {$tableQuoted}
-                SET status = 'processing',
-                    locked_by = :token,
-                    locked_until = {$this->outboxNowPlusSecondsSql($lockSeconds)},
-                    attempts = attempts + 1
-                WHERE id = (
-                    SELECT id FROM (
-                        SELECT id FROM {$tableQuoted}
-                        WHERE status = 'pending' AND available_at <= {$this->outboxNowSql()}
-                        ORDER BY available_at ASC, id ASC
-                        FETCH FIRST 1 ROW ONLY
-                    )
-                )
-                AND status = 'pending'",
-            ['token' => ''],
-        ];
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function outboxClaimSqlReturnsClaimedRow(): bool
-    {
-        return false;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function buildOutboxLockCandidateSql(string $tableName): ?array
-    {
-        $tableQuoted = $this->quoteTable($tableName);
-
-        return [
-            "SELECT id FROM {$tableQuoted}
-                WHERE id = :id AND status = 'pending'
-                FOR UPDATE SKIP LOCKED",
-            ['id' => ''],
-        ];
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function buildOutboxPendingIdsSql(string $tableName): ?array
-    {
-        $tableQuoted = $this->quoteTable($tableName);
-
-        return [
-            "SELECT id FROM (
-                SELECT id FROM {$tableQuoted}
-                WHERE status = 'pending' AND available_at <= {$this->outboxNowSql()}
-                ORDER BY available_at ASC, id ASC
-            ) WHERE ROWNUM <= 100",
-            [],
-        ];
+        return new OracleOutboxClaim($this);
     }
 
     public function catalogQueries(): CatalogQueriesInterface

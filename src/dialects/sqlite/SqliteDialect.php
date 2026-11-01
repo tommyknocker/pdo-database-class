@@ -17,6 +17,7 @@ use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\analysis\parsers\SqliteExplainParser;
@@ -1712,6 +1713,14 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
 
         // Text columns
         return "({$columnName} LIKE {$paramKey})";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function outboxClaimStrategy(): OutboxClaimStrategy
+    {
+        return new SqliteOutboxClaim($this);
     }
 
     public function catalogQueries(): CatalogQueriesInterface

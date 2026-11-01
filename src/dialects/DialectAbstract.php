@@ -1481,14 +1481,6 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
-    public function formatInboxProcessedAt(): string
-    {
-        return gmdate('Y-m-d H:i:s');
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     public function buildOutboxSchemaSql(string $tableName): array
     {
         $tableQuoted = $this->quoteTable($tableName);
@@ -1510,14 +1502,6 @@ abstract class DialectAbstract implements DialectInterface
             )",
             "CREATE INDEX IF NOT EXISTS {$indexName} ON {$tableQuoted} (status, available_at)",
         ];
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function supportsOutboxConcurrentWorkerClaim(): bool
-    {
-        return false;
     }
 
     /**
@@ -1549,54 +1533,6 @@ abstract class DialectAbstract implements DialectInterface
                 WHERE status = 'processing' AND locked_until IS NOT NULL AND locked_until < {$this->outboxNowSql()}",
             [],
         ];
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function buildOutboxClaimOneSql(string $tableName, int $lockSeconds): array
-    {
-        $tableQuoted = $this->quoteTable($tableName);
-
-        return [
-            "UPDATE {$tableQuoted}
-                SET status = 'processing',
-                    locked_by = :token,
-                    locked_until = {$this->outboxNowPlusSecondsSql($lockSeconds)},
-                    attempts = attempts + 1
-                WHERE id = (
-                    SELECT id FROM {$tableQuoted}
-                    WHERE status = 'pending' AND available_at <= {$this->outboxNowSql()}
-                    ORDER BY available_at ASC, id ASC
-                    LIMIT 1
-                )
-                RETURNING id, event_type, payload, status, attempts, available_at, created_at, locked_by, locked_until, last_error, published_at",
-            ['token' => ''],
-        ];
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function outboxClaimSqlReturnsClaimedRow(): bool
-    {
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function buildOutboxLockCandidateSql(string $tableName): ?array
-    {
-        return null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function buildOutboxPendingIdsSql(string $tableName): ?array
-    {
-        return null;
     }
 
     /**

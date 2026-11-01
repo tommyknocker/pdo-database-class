@@ -93,4 +93,16 @@ final class OutboxTests extends BaseMariaDBTestCase
         $this->assertTrue($result['requeued']);
         $this->assertSame(2, $result['published']);
     }
+
+    public function testClaimBatchTakesOldestDueRowsUpToTheLimit(): void
+    {
+        (new Outbox(self::$db, self::TABLE))->ensureSchema();
+
+        $result = OutboxTestSupport::exerciseBatchClaim(self::$db, self::TABLE);
+
+        $this->assertSame(['batch-e', 'batch-d', 'batch-c'], $result['first']);
+        $this->assertSame(['batch-b', 'batch-a'], $result['second']);
+        $this->assertSame([], $result['third']);
+        $this->assertSame(['batch-worker-1'], $result['locked']);
+    }
 }

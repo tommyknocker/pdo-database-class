@@ -81,7 +81,7 @@ Options:
 
 Processing rules:
 
-- **Claim** runs in a short transaction (stale lock release, row → `processing`).
+- **Claim** takes the whole batch in one short transaction (stale lock release, up to `--batch` rows → `processing`, oldest first). All rows of a batch share one lock token.
 - **Publisher** runs **after** the claim transaction commits.
 - **Published / retry / failed** updates use separate short transactions guarded by the lock token.
 
@@ -156,11 +156,13 @@ Schema creation, enqueue inside a transaction, and a single worker publish are c
 
 | Dialect | Claim |
 |---------|--------|
-| PostgreSQL | `SKIP LOCKED` and `RETURNING` |
-| MySQL / MariaDB | `SKIP LOCKED`; each claimed row gets its own lock token |
-| SQL Server | `READPAST` and `OUTPUT` |
-| SQLite | One transaction for the batch |
-| Oracle | Locks one pending id with `FOR UPDATE SKIP LOCKED`, then tries the next id |
+| PostgreSQL | One `UPDATE ... RETURNING` over a `SKIP LOCKED` subquery |
+| MySQL / MariaDB | One `UPDATE` over a `SKIP LOCKED` subquery, then a read by the batch token |
+| SQL Server | One `UPDATE ... OUTPUT` over a `TOP (n)` `READPAST` CTE |
+| SQLite | One `UPDATE ... RETURNING` (single writer) |
+| Oracle | `FOR UPDATE SKIP LOCKED` cannot be combined with a row limit, so candidate ids are locked one by one inside the batch transaction |
+
+Each dialect supplies its claim as an `OutboxClaimStrategy` returned by `DialectInterface::outboxClaimStrategy()`. Ordering is oldest `available_at` first within a batch; it is not guaranteed across concurrent workers.
 
 Integration tests use several independent `PdoDb` connections per dialect (MySQL, MariaDB, PostgreSQL, SQL Server, Oracle) to assert that many pending rows are published exactly once under concurrent workers. SQLite is validated with a single connection (one worker per process).
 

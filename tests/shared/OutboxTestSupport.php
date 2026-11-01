@@ -90,6 +90,51 @@ final class OutboxTestSupport
     }
 
     /**
+     * Seeds due rows with distinct ages plus one future row and claims them in limited batches.
+     *
+     * @return array{first: list<string>, second: list<string>, third: list<string>, locked: list<string>}
+     */
+    public static function exerciseBatchClaim(PdoDb $db, string $table): array
+    {
+        $outbox = new Outbox($db, $table);
+        foreach ([5 => 'batch-e', 4 => 'batch-d', 3 => 'batch-c', 2 => 'batch-b', 1 => 'batch-a'] as $days => $id) {
+            $at = gmdate('Y-m-d H:i:s', time() - $days * 86400);
+            $db->find()->table($table)->insert([
+                'id' => $id,
+                'event_type' => 'batch',
+                'payload' => '{}',
+                'status' => OutboxStatuses::PENDING,
+                'attempts' => 0,
+                'available_at' => $at,
+                'created_at' => $at,
+            ]);
+        }
+        $future = gmdate('Y-m-d H:i:s', time() + 3 * 86400);
+        $db->find()->table($table)->insert([
+            'id' => 'batch-future',
+            'event_type' => 'batch',
+            'payload' => '{}',
+            'status' => OutboxStatuses::PENDING,
+            'attempts' => 0,
+            'available_at' => $future,
+            'created_at' => $future,
+        ]);
+
+        $storage = $outbox->storage();
+        $ids = static fn (array $messages): array => array_map(static fn (OutboxMessage $m): string => $m->id, $messages);
+        $first = $storage->claimBatch('batch-worker-1', 3, 60);
+        $second = $storage->claimBatch('batch-worker-2', 3, 60);
+        $third = $storage->claimBatch('batch-worker-3', 3, 60);
+
+        return [
+            'first' => $ids($first),
+            'second' => $ids($second),
+            'third' => $ids($third),
+            'locked' => array_values(array_unique(array_map(static fn (OutboxMessage $m): string => $m->lockToken, $first))),
+        ];
+    }
+
+    /**
      * @param callable(): PdoDb $connectionFactory
      *
      * @return list<string> Published message ids (throws on duplicate publish).

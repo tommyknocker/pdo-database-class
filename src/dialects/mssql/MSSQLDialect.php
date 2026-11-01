@@ -17,6 +17,7 @@ use tommyknocker\pdodb\dialects\PlanExplainAvailability;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\analysis\parsers\MSSQLExplainParser;
@@ -2439,14 +2440,6 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
-    public function supportsOutboxConcurrentWorkerClaim(): bool
-    {
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     public function outboxNowSql(): string
     {
         return 'SYSUTCDATETIME()';
@@ -2480,27 +2473,9 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
-    public function buildOutboxClaimOneSql(string $tableName, int $lockSeconds): array
+    public function outboxClaimStrategy(): OutboxClaimStrategy
     {
-        $tableQuoted = $this->quoteTable($tableName);
-
-        return [
-            "UPDATE t
-                SET t.status = 'processing',
-                    t.locked_by = :token,
-                    t.locked_until = {$this->outboxNowPlusSecondsSql($lockSeconds)},
-                    t.attempts = t.attempts + 1
-                OUTPUT INSERTED.id, INSERTED.event_type, INSERTED.payload, INSERTED.status, INSERTED.attempts,
-                    INSERTED.available_at, INSERTED.created_at, INSERTED.locked_by, INSERTED.locked_until,
-                    INSERTED.last_error, INSERTED.published_at
-                FROM {$tableQuoted} AS t WITH (ROWLOCK, READPAST)
-                INNER JOIN (
-                    SELECT TOP (1) id FROM {$tableQuoted} WITH (READPAST, ROWLOCK)
-                    WHERE status = 'pending' AND available_at <= {$this->outboxNowSql()}
-                    ORDER BY available_at ASC, id ASC
-                ) AS picked ON t.id = picked.id",
-            ['token' => ''],
-        ];
+        return new MSSQLOutboxClaim($this);
     }
 
     public function catalogQueries(): CatalogQueriesInterface

@@ -354,4 +354,16 @@ final class OutboxTests extends BaseSharedTestCase
         $this->assertTrue($result->dryRun);
         $this->assertSame(1, $outbox->countByStatus()->failed);
     }
+
+    public function testClaimBatchTakesOldestDueRowsUpToTheLimit(): void
+    {
+        (new Outbox(self::$db, self::TABLE))->ensureSchema();
+
+        $result = OutboxTestSupport::exerciseBatchClaim(self::$db, self::TABLE);
+
+        $this->assertSame(['batch-e', 'batch-d', 'batch-c'], $result['first']);
+        $this->assertSame(['batch-b', 'batch-a'], $result['second']);
+        $this->assertSame([], $result['third']);
+        $this->assertSame(['batch-worker-1'], $result['locked']);
+    }
 }

@@ -14,6 +14,7 @@ use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
@@ -2278,16 +2279,6 @@ interface DialectInterface
     public function buildInboxSchemaSql(string $tableName): array;
 
     /**
-     * UTC timestamp string for inserting an inbox claim row (matches {@see buildInboxSchemaSql()} column type).
-     */
-    public function formatInboxProcessedAt(): string;
-
-    /**
-     * Whether multiple worker processes can claim outbox rows safely (e.g. SKIP LOCKED / READPAST).
-     */
-    public function supportsOutboxConcurrentWorkerClaim(): bool;
-
-    /**
      * SQL expression for the current UTC time in the outbox timestamp column representation (database clock).
      */
     public function outboxNowSql(): string;
@@ -2305,30 +2296,7 @@ interface DialectInterface
     public function buildOutboxReleaseStaleClaimsSql(string $tableName): array;
 
     /**
-     * Claim one pending outbox row for processing.
-     *
-     * @return array{0: string, 1: array<string, mixed>}
+     * How this database moves due pending outbox rows to `processing` for one worker.
      */
-    public function buildOutboxClaimOneSql(string $tableName, int $lockSeconds): array;
-
-    /**
-     * Whether {@see buildOutboxClaimOneSql} returns the claimed row (e.g. RETURNING / OUTPUT).
-     */
-    public function outboxClaimSqlReturnsClaimedRow(): bool;
-
-    /**
-     * Optional SELECT that locks one pending row before the claim update.
-     *
-     * When present, the worker runs this statement inside the claim transaction, then updates that id only while it is still pending.
-     *
-     * @return array{0: string, 1: array<string, mixed>}|null
-     */
-    public function buildOutboxLockCandidateSql(string $tableName): ?array;
-
-    /**
-     * Ordered pending ids tried one by one when a single ordered FOR UPDATE is not valid.
-     *
-     * @return array{0: string, 1: array<string, mixed>}|null
-     */
-    public function buildOutboxPendingIdsSql(string $tableName): ?array;
+    public function outboxClaimStrategy(): OutboxClaimStrategy;
 }
