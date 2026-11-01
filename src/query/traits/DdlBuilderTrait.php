@@ -877,20 +877,12 @@ trait DdlBuilderTrait
      */
     public function indexExists(string $name, string $table): bool
     {
-        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
-        $sql = $this->dialect->buildShowIndexesSql($tableName);
-        $stmt = $this->connection->query($sql);
-        if ($stmt === false) {
-            return false;
-        }
-        $indexes = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-        foreach ($indexes as $index) {
-            // Index name might be in different columns depending on dialect
-            $indexName = $index['Key_name'] ?? $index['indexname'] ?? $index['name'] ?? $index['INDEX_NAME'] ?? null;
-            if ($indexName === $name) {
+        foreach ($this->getIndexes($table) as $index) {
+            if (self::sameName(self::firstColumn($index, ['key_name', 'indexname', 'index_name', 'name']), $name)) {
                 return true;
             }
         }
+
         return false;
     }
 
@@ -910,14 +902,12 @@ trait DdlBuilderTrait
         if ($stmt === false) {
             return false;
         }
-        $foreignKeys = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-        foreach ($foreignKeys as $fk) {
-            // Foreign key name might be in different columns depending on dialect
-            $fkName = $fk['CONSTRAINT_NAME'] ?? $fk['constraint_name'] ?? $fk['name'] ?? $fk['fk_name'] ?? null;
-            if ($fkName === $name) {
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $fk) {
+            if (self::sameName(self::firstColumn($fk, ['constraint_name', 'name', 'fk_name']), $name)) {
                 return true;
             }
         }
+
         return false;
     }
 
@@ -931,25 +921,8 @@ trait DdlBuilderTrait
      */
     public function checkExists(string $name, string $table): bool
     {
-        $tableName = $this->prefix ? ($this->prefix . $table) : $table;
-        $sql = $this->dialect->buildShowConstraintsSql($tableName);
-        $stmt = $this->connection->query($sql);
-        if ($stmt === false) {
-            return false;
-        }
-        $constraints = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-        foreach ($constraints as $constraint) {
-            // Constraint name might be in different columns depending on dialect
-            $constraintName = $constraint['CONSTRAINT_NAME'] ?? $constraint['constraint_name'] ?? $constraint['name'] ?? null;
-            $constraintType = $constraint['CONSTRAINT_TYPE'] ?? $constraint['constraint_type'] ?? $constraint['type'] ?? null;
-            if ($constraintName === $name && (
-                strtoupper((string)$constraintType) === 'CHECK' ||
-                strpos(strtoupper((string)$constraintType), 'CHECK') !== false
-            )) {
-                return true;
-            }
-        }
-        return false;
+        // 'C' is how Oracle reports a check constraint
+        return $this->constraintExists($name, $table, static fn (string $type): bool => str_contains($type, 'CHECK') || $type === 'C');
     }
 
     /**
@@ -962,25 +935,73 @@ trait DdlBuilderTrait
      */
     public function uniqueExists(string $name, string $table): bool
     {
+        // 'U' is how Oracle reports a unique constraint
+        if ($this->constraintExists($name, $table, static fn (string $type): bool => str_contains($type, 'UNIQUE') || $type === 'U')) {
+            return true;
+        }
+
+        // Some dialects (SQLite) implement a unique constraint as a unique index and list no constraint names
+        foreach ($this->getIndexes($table) as $index) {
+            if (!self::sameName(self::firstColumn($index, ['key_name', 'indexname', 'index_name', 'name']), $name)) {
+                continue;
+            }
+            $lower = array_change_key_case($index, CASE_LOWER);
+            $definition = (string)($lower['definition'] ?? $lower['sql'] ?? '');
+            if ((isset($lower['non_unique']) && (int)$lower['non_unique'] === 0)
+                || preg_match('/\bUNIQUE\b/i', $definition) === 1
+                || strtoupper((string)($lower['uniqueness'] ?? '')) === 'UNIQUE') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param callable(string): bool $typeMatches Receives the upper-cased constraint type
+     */
+    private function constraintExists(string $name, string $table, callable $typeMatches): bool
+    {
         $tableName = $this->prefix ? ($this->prefix . $table) : $table;
         $sql = $this->dialect->buildShowConstraintsSql($tableName);
         $stmt = $this->connection->query($sql);
         if ($stmt === false) {
             return false;
         }
-        $constraints = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-        foreach ($constraints as $constraint) {
-            // Constraint name might be in different columns depending on dialect
-            $constraintName = $constraint['CONSTRAINT_NAME'] ?? $constraint['constraint_name'] ?? $constraint['name'] ?? null;
-            $constraintType = $constraint['CONSTRAINT_TYPE'] ?? $constraint['constraint_type'] ?? $constraint['type'] ?? null;
-            if ($constraintName === $name && (
-                strtoupper((string)$constraintType) === 'UNIQUE' ||
-                strpos(strtoupper((string)$constraintType), 'UNIQUE') !== false
-            )) {
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $constraint) {
+            $type = strtoupper((string)self::firstColumn($constraint, ['constraint_type', 'type']));
+            if (self::sameName(self::firstColumn($constraint, ['constraint_name', 'name']), $name) && $typeMatches($type)) {
                 return true;
             }
         }
+
         return false;
+    }
+
+    /**
+     * The value of the first of $keys present in a catalog row; dialects differ in the name and case of the column.
+     *
+     * @param array<string, mixed> $row
+     * @param list<string> $keys Lower-case column names, in order of preference
+     */
+    private static function firstColumn(array $row, array $keys): ?string
+    {
+        $lower = array_change_key_case($row, CASE_LOWER);
+        foreach ($keys as $key) {
+            if (isset($lower[$key]) && is_scalar($lower[$key])) {
+                return (string)$lower[$key];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Catalog names compare case-insensitively: Oracle stores unquoted names upper-case.
+     */
+    private static function sameName(?string $found, string $wanted): bool
+    {
+        return $found !== null && strcasecmp($found, $wanted) === 0;
     }
 
     /**

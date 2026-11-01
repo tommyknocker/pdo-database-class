@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\dialects\sqlite;
 
 use Pdo\Sqlite;
 use tommyknocker\pdodb\dialects\formatters\SqlFormatterAbstract;
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
@@ -206,17 +207,13 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
     public function formatJsonKeys(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-
-        if ($path === null) {
-            // SQLite doesn't have a direct JSON_KEYS function, return a placeholder
-            return "'[keys]'";
+        $args = $colQuoted;
+        if ($path !== null) {
+            $args .= ", '" . $this->buildJsonPathString($this->normalizeJsonPath($path)) . "'";
         }
 
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        // SQLite doesn't have a direct JSON_KEYS function, return a placeholder
-        return "'[keys]'";
+        // A JSON array of the object's keys, NULL when the value is not an object (as MySQL's JSON_KEYS).
+        return "CASE WHEN json_type({$args}) = 'object' THEN (SELECT json_group_array(key) FROM json_each({$args})) END";
     }
 
     /**
@@ -383,8 +380,20 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
     {
         $col = $this->resolveValue($column);
         $sep = $this->dialect->quoteStringLiteral($separator);
-        $dist = $distinct ? 'DISTINCT ' : '';
-        return "GROUP_CONCAT($dist$col, $sep)";
+        if (!$distinct) {
+            return "GROUP_CONCAT($col, $sep)";
+        }
+        // SQLite rejects DISTINCT together with a separator argument, and its own separator is a comma.
+        if ($separator !== ',') {
+            throw new UnsupportedOperationException(
+                'SQLite cannot combine DISTINCT with a custom group_concat separator; use the default "," or drop DISTINCT.',
+                0,
+                null,
+                'sqlite'
+            );
+        }
+
+        return "GROUP_CONCAT(DISTINCT $col)";
     }
 
     /**
@@ -396,9 +405,9 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
         if ($precision === 0) {
             return "CAST($val AS INTEGER)";
         }
-        // For non-zero precision, use multiplication/division trick: ROUND(value * power, 0) / power
+        // ROUND() rounds half away from zero, so shift by half a unit toward zero first; the sign decides which way.
         $power = pow(10, $precision);
-        return "ROUND($val * $power - 0.5, 0) / $power";
+        return "CASE WHEN $val >= 0 THEN ROUND($val * $power - 0.5, 0) / $power ELSE ROUND($val * $power + 0.5, 0) / $power END";
     }
 
     /**

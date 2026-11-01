@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\dialects\oracle;
 
 use tommyknocker\pdodb\dialects\formatters\SqlFormatterAbstract;
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
@@ -311,18 +312,13 @@ class OracleSqlFormatter extends SqlFormatterAbstract
      */
     public function formatJsonKeys(string $col, array|string|null $path = null): string
     {
-        $colQuoted = $this->quoteIdentifier($col);
-
-        if ($path === null) {
-            // Oracle doesn't have a simple JSON_KEYS function
-            return "'[keys]'";
-        }
-
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        // Oracle doesn't have a simple JSON_KEYS function
-        return "'[keys]'";
+        throw new UnsupportedOperationException(
+            'Db::jsonKeys() is not supported on Oracle: SQL has no way to list the keys of a JSON object. '
+            . 'Read the value and call array_keys() on it, or use JSON_TABLE with known paths.',
+            0,
+            null,
+            'oci'
+        );
     }
 
     /**

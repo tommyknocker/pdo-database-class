@@ -1455,14 +1455,7 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
         // Add unique constraint
         $schema->addUnique('uq_test_email_add_drop', 'test_ddl_unique_constraint', 'email');
 
-        // Verify unique constraint exists (may not work on all databases)
-        try {
-            $exists = $schema->uniqueExists('uq_test_email_add_drop', 'test_ddl_unique_constraint');
-            $this->assertTrue($exists, 'Unique constraint should exist');
-        } catch (\Exception $e) {
-            // Some databases may not support checking unique constraint existence
-            // Just verify the constraint was created without error
-        }
+        $this->assertTrue($schema->uniqueExists('uq_test_email_add_drop', 'test_ddl_unique_constraint'), 'Unique constraint should exist');
 
         // Drop unique constraint
         $schema->dropUnique('uq_test_email_add_drop', 'test_ddl_unique_constraint');
@@ -1544,15 +1537,7 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
         // Create unique constraint
         $schema->addUnique('uq_test_email_exists', 'test_ddl_constraint_exists', 'email');
 
-        // Note: uniqueExists may not work correctly on all databases
-        // Some databases implement UNIQUE constraints as indexes
-        // Just verify the constraint was created without error
-        try {
-            $this->assertTrue($schema->uniqueExists('uq_test_email_exists', 'test_ddl_constraint_exists'));
-        } catch (\Exception $e) {
-            // Some databases may not support checking unique constraint existence
-            $this->assertTrue(true, 'Unique constraint created');
-        }
+        $this->assertTrue($schema->uniqueExists('uq_test_email_exists', 'test_ddl_constraint_exists'));
 
         // Create foreign key
         try {

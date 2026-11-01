@@ -111,9 +111,7 @@ final class DdlQueryBuilderTests extends BaseMSSQLTestCase
         // Create filtered index with WHERE clause
         $schema->createIndex('idx_test_active', 'test_filtered_index', 'name', false, 'status = 1');
 
-        // Verify index was created (indexExists may not work correctly for filtered indexes)
-        // Just verify no exception was thrown
-        $this->assertTrue(true, 'Filtered index created successfully');
+        $this->assertTrue($schema->indexExists('idx_test_active', 'test_filtered_index'));
 
         // Cleanup
         $schema->dropTable('test_filtered_index');
@@ -140,9 +138,7 @@ final class DdlQueryBuilderTests extends BaseMSSQLTestCase
         // Create index with INCLUDE columns
         $schema->createIndex('idx_test_include', 'test_include_index', 'name', false, null, ['price', 'stock']);
 
-        // Verify index was created (indexExists may not work correctly for indexes with INCLUDE)
-        // Just verify no exception was thrown
-        $this->assertTrue(true, 'Index with INCLUDE created successfully');
+        $this->assertTrue($schema->indexExists('idx_test_include', 'test_include_index'));
 
         // Cleanup
         $schema->dropTable('test_include_index');

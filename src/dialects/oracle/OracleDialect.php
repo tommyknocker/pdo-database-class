@@ -16,6 +16,8 @@ use tommyknocker\pdodb\dialects\catalog\OracleCatalogQueriesTrait;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\loaders\FileLoader;
+use tommyknocker\pdodb\dialects\loaders\OracleFileLoader;
 use tommyknocker\pdodb\dialects\PlanExplainAvailability;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -627,7 +629,12 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
                 } else {
                     $quotedValue = $pdo->quote((string)$value);
                 }
-                $explainSql = str_replace($paramName, $quotedValue, $explainSql);
+                // Match the whole name, so :id is not changed while replacing :i
+                $explainSql = (string)preg_replace_callback(
+                    '/' . preg_quote($paramName, '/') . '(?![A-Za-z0-9_])/',
+                    static fn (): string => $quotedValue,
+                    $explainSql
+                );
             }
         }
         $stmt = $pdo->query($explainSql);
@@ -651,8 +658,8 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function executeExplainAnalyze(PDO $pdo, string $sql, array $params = []): array
     {
-        // Oracle doesn't have EXPLAIN ANALYZE, use EXPLAIN PLAN
-        return $this->executeExplain($pdo, $sql, $params);
+        // Oracle has no EXPLAIN ANALYZE; $sql already starts with EXPLAIN PLAN FOR, which executeExplain adds itself
+        return $this->executeExplain($pdo, (string)preg_replace('/^\s*EXPLAIN\s+PLAN\s+FOR\s+/i', '', $sql), $params);
     }
 
     /**
@@ -686,15 +693,19 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function buildLockSql(array $tables, string $prefix, string $lockMethod): string
     {
-        // Oracle uses LOCK TABLE syntax
-        $parts = [];
-        foreach ($tables as $t) {
-            $tableName = $this->quoteIdentifier($prefix . $t);
-            $lockMode = strtoupper($lockMethod);
-            // Oracle lock modes: ROW SHARE, ROW EXCLUSIVE, SHARE UPDATE, SHARE, SHARE ROW EXCLUSIVE, EXCLUSIVE
-            $parts[] = "{$tableName} IN {$lockMode} MODE";
-        }
-        return 'LOCK TABLE ' . implode(', ', $parts);
+        // PdoDb::setLockMethod() only offers READ and WRITE; Oracle's own lock modes are accepted as well
+        $mode = match (strtoupper(trim($lockMethod))) {
+            'WRITE', 'EXCLUSIVE' => 'EXCLUSIVE',
+            'READ', 'SHARE' => 'SHARE',
+            'ROW SHARE' => 'ROW SHARE',
+            'ROW EXCLUSIVE' => 'ROW EXCLUSIVE',
+            'SHARE UPDATE' => 'SHARE UPDATE',
+            'SHARE ROW EXCLUSIVE' => 'SHARE ROW EXCLUSIVE',
+            default => throw new InvalidArgumentException("Invalid lock mode for Oracle: {$lockMethod}"),
+        };
+        $tableList = implode(', ', array_map(fn (string $t): string => $this->quoteIdentifier($prefix . $t), $tables));
+
+        return "LOCK TABLE {$tableList} IN {$mode} MODE";
     }
 
     /**
@@ -712,6 +723,14 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     public function buildTruncateSql(string $table): string
     {
         return 'TRUNCATE TABLE ' . $this->quoteTable($table);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function createFileLoader(PDO $pdo): FileLoader
+    {
+        return new OracleFileLoader($pdo, $this);
     }
 
     /**
@@ -2021,10 +2040,10 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     protected function buildCreateDatabaseSql(string $databaseName): string
     {
-        // Oracle doesn't have CREATE DATABASE, uses CREATE USER or CREATE SCHEMA
-        // For compatibility, we'll use CREATE USER
+        // Oracle has no CREATE DATABASE; a schema is a user. NO AUTHENTICATION (18c+) makes a schema-only account
+        // nobody can log in to, instead of an account with a guessable password.
         $quotedName = $this->quoteIdentifier($databaseName);
-        return "CREATE USER {$quotedName} IDENTIFIED BY password";
+        return "CREATE USER {$quotedName} NO AUTHENTICATION";
     }
 
     /**

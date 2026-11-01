@@ -296,17 +296,13 @@ class PostgreSQLSqlFormatter extends SqlFormatterAbstract
     public function formatJsonKeys(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-
-        if ($path === null) {
-            // PostgreSQL doesn't have a simple JSON_KEYS function, return a placeholder
-            return "'[keys]'";
+        $target = "{$colQuoted}::jsonb";
+        if ($path !== null) {
+            $target .= ' #> ' . $this->buildPostgreSqlJsonPath($this->normalizeJsonPath($path));
         }
 
-        $parts = $this->normalizeJsonPath($path);
-        $arr = $this->buildPostgreSqlJsonPath($parts);
-
-        // PostgreSQL doesn't have a simple JSON_KEYS function, return a placeholder
-        return "'[keys]'";
+        // A JSON array of the object's keys, NULL when the value is not an object (as MySQL's JSON_KEYS).
+        return "CASE WHEN jsonb_typeof({$target}) = 'object' THEN (SELECT jsonb_agg(k) FROM jsonb_object_keys({$target}) AS k) END";
     }
 
     /**
@@ -555,19 +551,19 @@ class PostgreSQLSqlFormatter extends SqlFormatterAbstract
     public function formatRegexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): string
     {
         $val = $this->resolveValue($value);
-        // Escape single quotes for PostgreSQL string literal (backslashes are handled by PostgreSQL regex)
-        $pat = str_replace("'", "''", $pattern);
-        // PostgreSQL regexp_match returns array, use (regexp_match(...))[1] for first group
-        // For full match (groupIndex = 0 or null), use [1] (full match)
-        // For specific group, use [groupIndex + 1] since PostgreSQL arrays are 1-indexed
-        // [1] = full match, [2] = first capture group, [3] = second capture group, etc.
-        // Note: regexp_match returns NULL if no match, so array indexing will also return NULL
-        if ($groupIndex !== null && $groupIndex > 0) {
-            $arrayIndex = $groupIndex + 1;
-            return "(regexp_match($val, '$pat'))[$arrayIndex]";
+        // regexp_match() returns only the capture groups when the pattern has any, so the whole match is not at [1].
+        // Wrap the pattern in a group of its own: [1] is then the whole match and group N is [N + 1].
+        // Embedded options such as (?i) have to stay at the very start of the pattern, outside the wrapper.
+        $options = '';
+        if (preg_match('/^(?:\(\?[a-z]+\)|\*\*\*[:=])/', $pattern, $matches) === 1) {
+            $options = $matches[0];
+            $pattern = substr($pattern, strlen($options));
         }
-        // For full match, use [1] which is the full match
-        return "(regexp_match($val, '$pat'))[1]";
+        $wrapped = str_replace("'", "''", $options . '(' . $pattern . ')');
+        $arrayIndex = ($groupIndex !== null && $groupIndex > 0) ? $groupIndex + 1 : 1;
+
+        // regexp_match returns NULL when nothing matches or the group does not exist, so indexing yields NULL too
+        return "(regexp_match($val, '$wrapped'))[$arrayIndex]";
     }
 
     /**

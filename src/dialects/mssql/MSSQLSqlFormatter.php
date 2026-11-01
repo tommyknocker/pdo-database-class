@@ -135,22 +135,23 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
         $colQuoted = $this->quoteIdentifier($col);
         $param = $this->generateParameterName('jsoncontains', $col . '|' . json_encode($path ?? '') . '|' . json_encode($value));
 
-        $jsonText = $this->encodeToJson($value);
-
-        if ($path === null) {
-            // MSSQL doesn't have JSON_CONTAINS, use OPENJSON to check if value exists
-            // OPENJSON returns [key], [value], [type] for objects and arrays
-            // Check if any [value] matches the parameter
-            $sql = "EXISTS (SELECT 1 FROM OPENJSON({$colQuoted}) WHERE [value] = {$param})";
-            return [$sql, [$param => $jsonText]];
+        // OPENJSON reports a string element as its bare text (no quotes), a boolean as true/false, a number as its
+        // text, and a JSON null as SQL NULL; only arrays and objects are returned as JSON text.
+        $source = $colQuoted;
+        if ($path !== null) {
+            $source = "JSON_QUERY({$colQuoted}, '" . $this->buildJsonPathString($parts) . "')";
+        }
+        if ($value === null) {
+            return "EXISTS (SELECT 1 FROM OPENJSON({$source}) WHERE [value] IS NULL)";
         }
 
-        $jsonPath = $this->buildJsonPathString($parts);
-        // Extract JSON at path and check if it contains the value
-        $extracted = "JSON_QUERY({$colQuoted}, '{$jsonPath}')";
-        // For extracted JSON, check if value exists using OPENJSON
-        $sql = "EXISTS (SELECT 1 FROM OPENJSON({$extracted}) WHERE [value] = {$param})";
-        return [$sql, [$param => $jsonText]];
+        $bound = match (true) {
+            is_string($value) => $value,
+            is_bool($value) => $value ? 'true' : 'false',
+            default => $this->encodeToJson($value),
+        };
+
+        return ["EXISTS (SELECT 1 FROM OPENJSON({$source}) WHERE [value] = {$param})", [$param => $bound]];
     }
 
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
@@ -235,17 +236,13 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
     public function formatJsonKeys(string $col, array|string|null $path = null): string
     {
         $colQuoted = $this->quoteIdentifier($col);
-
-        if ($path === null) {
-            // Return keys from root object
-            return "(SELECT [key] FROM OPENJSON({$colQuoted}) FOR JSON PATH)";
+        $target = $colQuoted;
+        if ($path !== null) {
+            $target = "JSON_QUERY({$colQuoted}, '" . $this->buildJsonPathString($this->normalizeJsonPath($path)) . "')";
         }
 
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        // Get JSON at path and return keys
-        return "(SELECT [key] FROM OPENJSON(JSON_QUERY({$colQuoted}, '{$jsonPath}')) FOR JSON PATH)";
+        // A JSON array of the object's keys, NULL when the value is not an object (as MySQL's JSON_KEYS).
+        return "CASE WHEN LEFT(LTRIM({$target}), 1) = '{' THEN (SELECT '[' + STRING_AGG('\"' + STRING_ESCAPE([key], 'json') + '\"', ',') + ']' FROM OPENJSON({$target})) END";
     }
 
     public function formatJsonType(string $col, array|string|null $path = null): string

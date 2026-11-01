@@ -37,6 +37,7 @@ use tommyknocker\pdodb\helpers\values\LikeValue;
 use tommyknocker\pdodb\helpers\values\MinuteValue;
 use tommyknocker\pdodb\helpers\values\ModValue;
 use tommyknocker\pdodb\helpers\values\MonthValue;
+use tommyknocker\pdodb\helpers\values\NotValue;
 use tommyknocker\pdodb\helpers\values\NowValue;
 use tommyknocker\pdodb\helpers\values\PadValue;
 use tommyknocker\pdodb\helpers\values\PositionValue;
@@ -81,6 +82,19 @@ class RawValueResolver
     {
         $this->connection = $connection;
         $this->dialect = $connection->getDialect();
+    }
+
+    /**
+     * Negate a rendered condition. A condition written as CASE WHEN ... THEN 1 ELSE 0 END (Oracle's regexp match)
+     * is not a boolean there, so it is compared with 0 instead.
+     */
+    protected function negate(string $condition): string
+    {
+        if (stripos($condition, 'CASE WHEN') !== false) {
+            return "({$condition}) = 0";
+        }
+
+        return 'NOT ' . (str_starts_with($condition, '(') && str_ends_with($condition, ')') ? $condition : "({$condition})");
     }
 
     /**
@@ -167,6 +181,7 @@ class RawValueResolver
                 $value->getPadString(),
                 $value->isLeft()
             ),
+            $value instanceof NotValue => $this->negate($this->resolveRawValue($value->getInner())),
             $value instanceof RegexpMatchValue => $this->dialect->formatRegexpMatch(
                 $value->getSourceValue(),
                 $value->getPattern()

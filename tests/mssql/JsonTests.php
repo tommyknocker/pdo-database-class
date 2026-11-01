@@ -168,14 +168,42 @@ final class JsonTests extends BaseMSSQLTestCase
         $id2 = $db->find()->table('t_json_array')->insert(['tags' => json_encode($tags2, JSON_UNESCAPED_UNICODE)]);
 
         // Find rows containing 'php' in tags array
-        // MSSQL OPENJSON may need string comparison with quotes
         $rows = $db->find()
             ->table('t_json_array')
             ->whereJsonContains('tags', 'php')
             ->get();
 
-        // MSSQL OPENJSON comparison may differ - verify manually if needed
-        // For now, check that query executes without error
-        $this->assertIsArray($rows);
+        $this->assertCount(1, $rows);
+        $this->assertSame($id1, (int) $rows[0]['id']);
+    }
+
+    public function testJsonKeysListsTheKeysOfAnObjectOnly(): void
+    {
+        $db = self::$db;
+        $connection = $db->connection;
+        $this->assertNotNull($connection);
+        $connection->query('IF OBJECT_ID(\'t_json_keys\', \'U\') IS NOT NULL DROP TABLE t_json_keys');
+        $connection->query('CREATE TABLE t_json_keys (id INT IDENTITY(1,1) PRIMARY KEY, data NVARCHAR(MAX))');
+
+        try {
+            $objectId = $db->find()->table('t_json_keys')->insert(['data' => json_encode(['name' => 'A', 'age' => 3, 'nested' => ['x' => 1, 'y\\"z' => 2]])]);
+            $arrayId = $db->find()->table('t_json_keys')->insert(['data' => json_encode([1, 2])]);
+
+            $keys = $db->find()->table('t_json_keys')->select(['k' => Db::jsonKeys('data')])->where('id', $objectId)->getValue();
+            $decoded = json_decode((string) $keys, true);
+            $this->assertIsArray($decoded);
+            sort($decoded);
+            $this->assertSame(['age', 'name', 'nested'], $decoded);
+
+            $nested = $db->find()->table('t_json_keys')->select(['k' => Db::jsonKeys('data', ['nested'])])->where('id', $objectId)->getValue();
+            $decodedNested = json_decode((string) $nested, true);
+            $this->assertIsArray($decodedNested);
+            sort($decodedNested);
+            $this->assertSame(['x', 'y\\"z'], $decodedNested);
+
+            $this->assertNull($db->find()->table('t_json_keys')->select(['k' => Db::jsonKeys('data')])->where('id', $arrayId)->getValue());
+        } finally {
+            $connection->query('IF OBJECT_ID(\'t_json_keys\', \'U\') IS NOT NULL DROP TABLE t_json_keys');
+        }
     }
 }

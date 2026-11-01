@@ -833,34 +833,15 @@ final class HelpersTests extends BasePostgreSQLTestCase
         $this->assertStringContainsString(' ', $row['phone_formatted']);
         $this->assertStringNotContainsString('-', $row['phone_formatted']);
 
-        // Test regexpExtract - extract domain from email
-        // PostgreSQL regexp_match returns array, so we need to handle NULL case
-        // regexp_match returns NULL if no match found
-        // Note: groupIndex 1 means first capture group, which is [2] in PostgreSQL array (since [1] is full match)
-        // Use simpler pattern to avoid escaping issues
+        // Test regexpExtract - extract the first capture group (the domain) from an email
         $row = $db->find()
             ->from('t_regexp')
             ->select(['domain' => Db::regexpExtract('email', '@([^@]+)', 1)])
             ->where('id', $id1)
             ->getOne();
-        // regexp_match should return the domain for valid email
-        // If NULL, verify that regexp_match works at all by checking the full match
-        if ($row['domain'] === null) {
-            // Try full match instead
-            $row2 = $db->find()
-                ->from('t_regexp')
-                ->select(['full_match' => Db::regexpExtract('email', '@[^@]+', null)])
-                ->where('id', $id1)
-                ->getOne();
-            $this->assertNotNull($row2['full_match'], 'regexp_match should work for full match');
-            $this->assertStringContainsString('@example.com', $row2['full_match']);
-            // If full match works but group doesn't, it's likely an indexing issue
-            // For now, accept that group extraction may not work in all PostgreSQL versions
-            return;
-        }
         $this->assertEquals('example.com', $row['domain']);
 
-        // Test regexpExtract with full match (groupIndex = 1)
+        // Test regexpExtract with a capture group (groupIndex = 1)
         $row = $db->find()
             ->from('t_regexp')
             ->select(['full_match' => Db::regexpExtract('email', '^([a-zA-Z0-9._%+-]+)@', 1)])
@@ -915,5 +896,26 @@ final class HelpersTests extends BasePostgreSQLTestCase
             ->from('users')
             ->select(['char' => Db::toChar('name')])
             ->getOne();
+    }
+
+    public function testRegexpExtractReturnsTheWholeMatchOrTheRequestedGroup(): void
+    {
+        $db = self::$db;
+        $db->rawQuery('DROP TABLE IF EXISTS t_regexp_extract');
+        $db->rawQuery('CREATE TABLE t_regexp_extract (email TEXT)');
+        $db->rawQuery("INSERT INTO t_regexp_extract (email) VALUES ('user@example.com')");
+        $extract = static fn (string $pattern, ?int $group = null): mixed => $db->find()
+            ->from('t_regexp_extract')
+            ->select(['v' => Db::regexpExtract('email', $pattern, $group)])
+            ->getValue();
+
+        $this->assertSame('@example.com', $extract('@[a-z.]+'));
+        $this->assertSame('@example.com', $extract('@([a-z.]+)'));
+        $this->assertSame('example.com', $extract('@([a-z.]+)', 1));
+        $this->assertSame('user', $extract('(\\w+)@(\\w+)', 1));
+        $this->assertSame('example', $extract('(\\w+)@(\\w+)', 2));
+        $this->assertNull($extract('(\\w+)@(\\w+)', 3));
+        $this->assertSame('user', $extract('(?i)USER'));
+        $db->rawQuery('DROP TABLE t_regexp_extract');
     }
 }

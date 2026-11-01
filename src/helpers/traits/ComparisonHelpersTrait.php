@@ -7,7 +7,10 @@ namespace tommyknocker\pdodb\helpers\traits;
 use tommyknocker\pdodb\helpers\values\ILikeValue;
 use tommyknocker\pdodb\helpers\values\LikeValue;
 use tommyknocker\pdodb\helpers\values\NotLikeValue;
+use tommyknocker\pdodb\helpers\values\NotValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\helpers\values\RegexpLikeValue;
+use tommyknocker\pdodb\helpers\values\RegexpMatchValue;
 
 /**
  * Trait for comparison operations.
@@ -55,6 +58,11 @@ trait ComparisonHelpersTrait
             // Return a RawValue that ConditionBuilder can recognize and handle
             // The actual SQL will be generated in ConditionBuilder using formatLike()
             return new NotLikeValue($value->getColumn(), $value->getPattern());
+        }
+        // A regular expression match is spelled differently per dialect (REGEXP, ~, REGEXP_LIKE), so negate it
+        // after the dialect has rendered it
+        if ($value instanceof RegexpMatchValue || $value instanceof RegexpLikeValue) {
+            return new NotValue($value);
         }
         // For other RawValue, wrap in NOT (...)
         $valueStr = $value->getValue();

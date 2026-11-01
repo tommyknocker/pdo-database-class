@@ -97,6 +97,12 @@ $users = $db->find()
     ->get();
 ```
 
+The value is a JSON array of the object's top-level keys, for example `["name","age"]` (decode it with
+`json_decode()`), or NULL when the value is not an object. Pass a path to list the keys of a nested object:
+`Db::jsonKeys('meta', ['address'])`. Key order follows the database (PostgreSQL's `jsonb` sorts keys).
+
+Oracle cannot list the keys of a JSON object in SQL, so `jsonKeys()` throws `UnsupportedOperationException` there.
+
 ### jsonType() - Value Type
 
 ```php

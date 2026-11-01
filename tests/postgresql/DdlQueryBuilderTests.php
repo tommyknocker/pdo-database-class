@@ -83,9 +83,7 @@ final class DdlQueryBuilderTests extends BasePostgreSQLTestCase
         // Create fulltext index (GIN with tsvector)
         $schema->createFulltextIndex('ft_idx_test', 'test_fulltext_index', ['title', 'content']);
 
-        // Verify index was created (indexExists may not work correctly for fulltext indexes)
-        // Just verify no exception was thrown
-        $this->assertTrue(true, 'Fulltext index created successfully');
+        $this->assertTrue($schema->indexExists('ft_idx_test', 'test_fulltext_index'));
 
         // Cleanup
         $schema->dropTable('test_fulltext_index');

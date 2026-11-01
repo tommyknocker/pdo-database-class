@@ -41,6 +41,14 @@ abstract class DialectAbstract implements DialectInterface
     }
 
     /**
+     * Build the loader that renders INSERT statements for this dialect's file imports.
+     */
+    protected function createFileLoader(PDO $pdo): FileLoader
+    {
+        return new FileLoader($pdo, $this);
+    }
+
+    /**
      * Get file loader instance.
      */
     protected function getFileLoader(): FileLoader
@@ -49,7 +57,7 @@ abstract class DialectAbstract implements DialectInterface
             if ($this->pdo === null) {
                 throw new RuntimeException('PDO instance not set. Call setPdo() first.');
             }
-            $this->fileLoader = new FileLoader($this->pdo, $this);
+            $this->fileLoader = $this->createFileLoader($this->pdo);
         }
         return $this->fileLoader;
     }

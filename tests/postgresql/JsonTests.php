@@ -340,7 +340,10 @@ final class JsonTests extends BasePostgreSQLTestCase
         ->select(['id', 'data_keys' => Db::jsonKeys('data')])
         ->where('id', $id1)
         ->getOne();
-        $this->assertEquals('[keys]', $row['data_keys']);
+        $keys = json_decode((string) $row['data_keys'], true);
+        $this->assertIsArray($keys);
+        sort($keys);
+        $this->assertSame(['age', 'name', 'tags'], $keys);
 
         // Test Db::jsonKeys with path
         $row = $db->find()
@@ -348,7 +351,8 @@ final class JsonTests extends BasePostgreSQLTestCase
         ->select(['id', 'items_keys' => Db::jsonKeys('data', ['items'])])
         ->where('id', $id1)
         ->getOne();
-        $this->assertEquals('[keys]', $row['items_keys']);
+        // 'items' is not an object (and is missing on this row), so there are no keys to list
+        $this->assertNull($row['items_keys']);
 
         // Test Db::jsonGet in ORDER BY
         $sorted = $db->find()

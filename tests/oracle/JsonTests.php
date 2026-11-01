@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\oracle;
 
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
+use tommyknocker\pdodb\helpers\Db;
+
 /**
  * JsonTests tests for Oracle.
  */
@@ -133,5 +136,13 @@ final class JsonTests extends BaseOracleTestCase
         } catch (\Throwable) {
             // Ignore
         }
+    }
+
+    public function testJsonKeysIsReportedAsUnsupported(): void
+    {
+        $this->expectException(UnsupportedOperationException::class);
+        $this->expectExceptionMessage('jsonKeys');
+
+        self::$db->find()->from('t_json')->select(['k' => Db::jsonKeys('meta')])->get();
     }
 }

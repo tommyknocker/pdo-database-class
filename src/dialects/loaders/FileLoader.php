@@ -151,15 +151,13 @@ class FileLoader
             $batch[] = '(' . implode(', ', $vals) . ')';
 
             if (count($batch) >= $batchSize) {
-                yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
-                    . ' VALUES ' . implode(', ', $batch) . ';';
+                yield $this->insertStatement($tableQ, $colsQ, $batch);
                 $batch = [];
             }
         }
 
         if (!empty($batch)) {
-            yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
-                . ' VALUES ' . implode(', ', $batch) . ';';
+            yield $this->insertStatement($tableQ, $colsQ, $batch);
         }
     }
 
@@ -210,31 +208,30 @@ class FileLoader
         $skipped = 0;
 
         try {
-            while ($reader->read()) {
-                if ($reader->nodeType !== XMLReader::ELEMENT) {
-                    continue;
-                }
-
-                if ($reader->localName !== $rowTag) {
+            // next() already moves to the following sibling, so read() must not be called again after a row.
+            $more = $reader->read();
+            while ($more) {
+                if ($reader->nodeType !== XMLReader::ELEMENT || $reader->localName !== $rowTag) {
+                    $more = $reader->read();
                     continue;
                 }
 
                 // Skip first N logical row elements if requested
                 if ($skipped < $skipRows) {
                     $skipped++;
-                    $reader->next();
+                    $more = $reader->next();
                     continue;
                 }
 
                 $xml = $reader->readOuterXml();
                 if ($xml === '') {
-                    $reader->next();
+                    $more = $reader->next();
                     continue;
                 }
 
                 $elem = simplexml_load_string($xml);
                 if ($elem === false) {
-                    $reader->next();
+                    $more = $reader->next();
                     continue;
                 }
 
@@ -275,23 +272,33 @@ class FileLoader
                 if (count($batch) >= $batchSize) {
                     $colsEscaped = array_map(fn ($c) => $this->quoteColumnName($c), $columns);
 
-                    yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ')'
-                        . ' VALUES ' . implode(', ', $batch) . ';';
+                    yield $this->insertStatement($tableQ, $colsEscaped, $batch);
                     $batch = [];
                 }
 
-                $reader->next();
+                $more = $reader->next();
             }
 
             if ($batch !== []) {
                 $colsEscaped = array_map(fn ($c) => $this->quoteColumnName($c), $columns);
 
-                yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsEscaped) . ')'
-                    . ' VALUES ' . implode(', ', $batch) . ';';
+                yield $this->insertStatement($tableQ, $colsEscaped, $batch);
             }
         } finally {
             $reader->close();
         }
+    }
+
+    /**
+     * One INSERT statement for a batch of rows; every row is already rendered as "(v1, v2, ...)".
+     *
+     * @param array<int, string> $columnsQuoted
+     * @param array<int, string> $rows
+     */
+    protected function insertStatement(string $tableQuoted, array $columnsQuoted, array $rows): string
+    {
+        return 'INSERT INTO ' . $tableQuoted . ' (' . implode(', ', $columnsQuoted) . ')'
+            . ' VALUES ' . implode(', ', $rows) . ';';
     }
 
     /**
@@ -404,8 +411,7 @@ class FileLoader
                 $batch[] = '(' . implode(', ', $values) . ')';
 
                 if (count($batch) >= $batchSize) {
-                    yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
-                        . ' VALUES ' . implode(', ', $batch) . ';';
+                    yield $this->insertStatement($tableQ, $colsQ, $batch);
                     $batch = [];
                 }
             }
@@ -443,8 +449,7 @@ class FileLoader
                 $batch[] = '(' . implode(', ', $values) . ')';
 
                 if (count($batch) >= $batchSize) {
-                    yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
-                        . ' VALUES ' . implode(', ', $batch) . ';';
+                    yield $this->insertStatement($tableQ, $colsQ, $batch);
                     $batch = [];
                 }
             }
@@ -452,8 +457,7 @@ class FileLoader
 
         if (!empty($batch)) {
             $colsQ = array_map(fn ($c) => $this->quoteColumnName($c), $columns);
-            yield 'INSERT INTO ' . $tableQ . ' (' . implode(', ', $colsQ) . ')'
-                . ' VALUES ' . implode(', ', $batch) . ';';
+            yield $this->insertStatement($tableQ, $colsQ, $batch);
         }
     }
 
