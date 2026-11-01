@@ -75,6 +75,15 @@ class RawValueResolver
     }
 
     /**
+     * Resolve values for another connection (read replica, shard).
+     */
+    public function rebind(ConnectionInterface $connection): void
+    {
+        $this->connection = $connection;
+        $this->dialect = $connection->getDialect();
+    }
+
+    /**
      * Resolve RawValue instances — return dialect-specific NOW() when NowValue provided.
      * Binds any parameters from RawValue into $this->params.
      *

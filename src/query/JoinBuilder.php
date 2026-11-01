@@ -8,12 +8,13 @@ use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
+use tommyknocker\pdodb\query\interfaces\ConnectionAwareInterface;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
 use tommyknocker\pdodb\query\traits\RawValueResolutionTrait;
 use tommyknocker\pdodb\query\traits\TableManagementTrait;
 
-class JoinBuilder implements JoinBuilderInterface
+class JoinBuilder implements JoinBuilderInterface, ConnectionAwareInterface
 {
     use RawValueResolutionTrait;
     use TableManagementTrait;
@@ -38,6 +39,15 @@ class JoinBuilder implements JoinBuilderInterface
         $this->dialect = $connection->getDialect();
         $this->rawValueResolver = $rawValueResolver;
         $this->parameterManager = $parameterManager;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function rebindConnection(ConnectionInterface $connection): void
+    {
+        $this->connection = $connection;
+        $this->dialect = $connection->getDialect();
     }
 
     /**

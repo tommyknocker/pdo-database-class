@@ -10,6 +10,7 @@ use tommyknocker\pdodb\connection\sharding\strategies\HashShardStrategy;
 use tommyknocker\pdodb\connection\sharding\strategies\ModuloShardStrategy;
 use tommyknocker\pdodb\connection\sharding\strategies\RangeShardStrategy;
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\QueryBuilder;
 
 /**
@@ -129,6 +130,43 @@ class ShardRouter
 
         $strategy = $this->createStrategy($config);
         return $strategy->resolveShard($shardKeyValue);
+    }
+
+    /**
+     * Resolve the shard for rows about to be written.
+     *
+     * Rows without a shard key value cannot be placed, so null is returned and the caller keeps its connection.
+     * Rows that belong to different shards are rejected: writing them to one connection would misplace data.
+     *
+     * @param string $table Table name
+     * @param array<int, array<string, mixed>> $rows Rows to write
+     *
+     * @return string|null Shard name, or null when the table is not sharded or no row carries the shard key
+     * @throws \LogicException If the rows belong to different shards
+     */
+    public function resolveShardForRows(string $table, array $rows): ?string
+    {
+        $config = $this->getShardConfig($table);
+        if ($config === null) {
+            return null;
+        }
+
+        $strategy = $this->createStrategy($config);
+        $key = $config->getShardKey();
+        $shard = null;
+        foreach ($rows as $row) {
+            $value = $row[$key] ?? null;
+            if ($value === null || $value instanceof RawValue) {
+                continue;
+            }
+            $candidate = $strategy->resolveShard($value);
+            if ($shard !== null && $candidate !== $shard) {
+                throw new \LogicException("Rows for table '{$table}' belong to different shards; write them per shard.");
+            }
+            $shard = $candidate;
+        }
+
+        return $shard;
     }
 
     /**

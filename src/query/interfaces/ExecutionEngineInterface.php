@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\query\interfaces;
 
 use PDOStatement;
+use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 interface ExecutionEngineInterface
@@ -68,6 +69,11 @@ interface ExecutionEngineInterface
      * @return static The current instance.
      */
     public function setFetchMode(int $fetchMode): static;
+
+    /**
+     * Run subsequent statements on another connection, keeping the profiler, fetch mode and context.
+     */
+    public function rebind(ConnectionInterface $connection): void;
 
     /**
      * Set query context for error reporting.

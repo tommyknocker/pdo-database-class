@@ -26,6 +26,7 @@ use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\query\formatter\SqlFormatter;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\ConnectionAwareInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
@@ -40,7 +41,7 @@ use tommyknocker\pdodb\query\traits\IdentifierQuotingTrait;
 use tommyknocker\pdodb\query\traits\RawValueResolutionTrait;
 use tommyknocker\pdodb\query\traits\TableManagementTrait;
 
-class SelectQueryBuilder implements SelectQueryBuilderInterface
+class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAwareInterface
 {
     use CommonDependenciesTrait;
     use RawValueResolutionTrait;

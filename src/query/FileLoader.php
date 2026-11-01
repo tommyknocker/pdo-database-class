@@ -8,10 +8,11 @@ use PDOException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\exceptions\ExceptionFactory;
+use tommyknocker\pdodb\query\interfaces\ConnectionAwareInterface;
 use tommyknocker\pdodb\query\interfaces\FileLoaderInterface;
 use tommyknocker\pdodb\query\traits\TableManagementTrait;
 
-class FileLoader implements FileLoaderInterface
+class FileLoader implements FileLoaderInterface, ConnectionAwareInterface
 {
     use TableManagementTrait;
 
@@ -22,6 +23,15 @@ class FileLoader implements FileLoaderInterface
     protected ?string $table = null;
 
     public function __construct(ConnectionInterface $connection)
+    {
+        $this->connection = $connection;
+        $this->dialect = $connection->getDialect();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function rebindConnection(ConnectionInterface $connection): void
     {
         $this->connection = $connection;
         $this->dialect = $connection->getDialect();

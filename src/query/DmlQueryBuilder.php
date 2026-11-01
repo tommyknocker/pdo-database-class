@@ -11,6 +11,7 @@ use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\ConnectionAwareInterface;
 use tommyknocker\pdodb\query\interfaces\DmlQueryBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\JoinBuilderInterface;
@@ -20,7 +21,7 @@ use tommyknocker\pdodb\query\traits\CommonDependenciesTrait;
 use tommyknocker\pdodb\query\traits\RawValueResolutionTrait;
 use tommyknocker\pdodb\query\traits\TableManagementTrait;
 
-class DmlQueryBuilder implements DmlQueryBuilderInterface
+class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterface
 {
     use CommonDependenciesTrait;
     use RawValueResolutionTrait;

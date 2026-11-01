@@ -19,6 +19,15 @@ trait CommonDependenciesTrait
     protected RawValueResolver $rawValueResolver;
 
     /**
+     * {@inheritDoc}
+     */
+    public function rebindConnection(ConnectionInterface $connection): void
+    {
+        $this->connection = $connection;
+        $this->dialect = $connection->getDialect();
+    }
+
+    /**
      * Initialize common dependencies.
      *
      * @param ConnectionInterface $connection

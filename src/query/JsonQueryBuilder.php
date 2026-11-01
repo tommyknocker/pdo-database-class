@@ -8,11 +8,12 @@ use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\ConnectionAwareInterface;
 use tommyknocker\pdodb\query\interfaces\JsonQueryBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
 use tommyknocker\pdodb\query\traits\RawValueResolutionTrait;
 
-class JsonQueryBuilder implements JsonQueryBuilderInterface
+class JsonQueryBuilder implements JsonQueryBuilderInterface, ConnectionAwareInterface
 {
     use RawValueResolutionTrait;
 
@@ -39,6 +40,15 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
         $this->parameterManager = $parameterManager;
         $this->conditionBuilder = $conditionBuilder;
         $this->rawValueResolver = $rawValueResolver;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function rebindConnection(ConnectionInterface $connection): void
+    {
+        $this->connection = $connection;
+        $this->dialect = $connection->getDialect();
     }
 
     /**

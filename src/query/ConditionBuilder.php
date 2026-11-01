@@ -12,6 +12,7 @@ use tommyknocker\pdodb\helpers\values\NotLikeValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\helpers\values\RegexpMatchValue;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\ConnectionAwareInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
 use tommyknocker\pdodb\query\traits\CommonDependenciesTrait;
@@ -20,7 +21,7 @@ use tommyknocker\pdodb\query\traits\IdentifierQuotingTrait;
 use tommyknocker\pdodb\query\traits\RawValueResolutionTrait;
 use tommyknocker\pdodb\query\traits\TableManagementTrait;
 
-class ConditionBuilder implements ConditionBuilderInterface
+class ConditionBuilder implements ConditionBuilderInterface, ConnectionAwareInterface
 {
     use CommonDependenciesTrait;
     use RawValueResolutionTrait;

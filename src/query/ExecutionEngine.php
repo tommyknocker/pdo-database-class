@@ -37,6 +37,14 @@ class ExecutionEngine implements ExecutionEngineInterface
     }
 
     /**
+     * Run subsequent statements on another connection, keeping the profiler, fetch mode and context.
+     */
+    public function rebind(ConnectionInterface $connection): void
+    {
+        $this->connection = $connection;
+    }
+
+    /**
      * Set query context for error reporting.
      *
      * @param array<string, mixed>|null $queryContext Query builder debug information

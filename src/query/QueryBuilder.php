@@ -23,6 +23,7 @@ use tommyknocker\pdodb\query\cte\CteDefinition;
 use tommyknocker\pdodb\query\cte\CteManager;
 use tommyknocker\pdodb\query\interfaces\BatchProcessorInterface;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
+use tommyknocker\pdodb\query\interfaces\ConnectionAwareInterface;
 use tommyknocker\pdodb\query\interfaces\DmlQueryBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\FileLoaderInterface;
@@ -98,6 +99,7 @@ class QueryBuilder implements QueryBuilderInterface
     // Component instances
     protected ParameterManagerInterface $parameterManager;
     protected ExecutionEngineInterface $executionEngine;
+    protected RawValueResolver $rawValueResolver;
     protected ConditionBuilderInterface $conditionBuilder;
     protected JoinBuilderInterface $joinBuilder;
     protected SelectQueryBuilderInterface $selectQueryBuilder;
@@ -133,6 +135,7 @@ class QueryBuilder implements QueryBuilderInterface
         // Initialize components with shared parameter manager and raw value resolver
         $this->parameterManager = new ParameterManager();
         $rawValueResolver = new RawValueResolver($connection, $this->parameterManager);
+        $this->rawValueResolver = $rawValueResolver;
         $this->executionEngine = new ExecutionEngine($connection, $rawValueResolver, $this->parameterManager, $profiler);
         $this->conditionBuilder = new ConditionBuilder(
             $connection,
@@ -270,9 +273,11 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Switch to shard connection if sharding is configured.
      *
+     * @param array<int, array<string, mixed>>|null $rows Rows about to be written; their shard key picks the shard when WHERE has none
+     *
      * @return ConnectionInterface|null Original connection before switch, or null if no sharding
      */
-    protected function switchToShardConnection(): ?ConnectionInterface
+    protected function switchToShardConnection(?array $rows = null): ?ConnectionInterface
     {
         if ($this->shardRouter === null) {
             return null;
@@ -280,6 +285,10 @@ class QueryBuilder implements QueryBuilderInterface
 
         try {
             $shardName = $this->shardRouter->resolveShard($this);
+            if ($shardName === null && $rows !== null) {
+                $table = $this->getTableName();
+                $shardName = $table === null ? null : $this->shardRouter->resolveShardForRows($table, $rows);
+            }
             if ($shardName === null) {
                 // Shard key not found in WHERE conditions - cannot determine shard
                 // This is acceptable for queries that need to scan all shards
@@ -292,10 +301,7 @@ class QueryBuilder implements QueryBuilderInterface
             }
 
             $originalConnection = $this->connection;
-            $this->connection = $this->shardRouter->getShardConnection($table, $shardName);
-
-            // Update components with new connection
-            $this->updateComponents();
+            $this->routeTo($this->shardRouter->getShardConnection($table, $shardName));
 
             return $originalConnection;
         } catch (RuntimeException) {
@@ -326,14 +332,12 @@ class QueryBuilder implements QueryBuilderInterface
 
         // Get appropriate connection based on forceWrite flag
         if ($this->forceWriteConnection) {
-            $this->connection = $this->connectionRouter->getWriteConnection();
+            $target = $this->connectionRouter->getWriteConnection();
             $this->forceWriteConnection = false; // Reset flag after use
         } else {
-            $this->connection = $this->connectionRouter->getReadConnection();
+            $target = $this->connectionRouter->getReadConnection();
         }
-
-        // Update components with new connection
-        $this->updateComponents();
+        $this->routeTo($target);
 
         return $originalConnection;
     }
@@ -341,12 +345,14 @@ class QueryBuilder implements QueryBuilderInterface
     /**
      * Switch to write connection if router is available.
      *
+     * @param array<int, array<string, mixed>>|null $rows Rows about to be written, used to pick a shard
+     *
      * @return ConnectionInterface|null Original connection before switch
      */
-    protected function switchToWriteConnection(): ?ConnectionInterface
+    protected function switchToWriteConnection(?array $rows = null): ?ConnectionInterface
     {
         // First try sharding
-        $originalConnection = $this->switchToShardConnection();
+        $originalConnection = $this->switchToShardConnection($rows);
         if ($originalConnection !== null) {
             return $originalConnection;
         }
@@ -357,10 +363,7 @@ class QueryBuilder implements QueryBuilderInterface
         }
 
         $originalConnection = $this->connection;
-        $this->connection = $this->connectionRouter->getWriteConnection();
-
-        // Update components with new connection
-        $this->updateComponents();
+        $this->routeTo($this->connectionRouter->getWriteConnection());
 
         return $originalConnection;
     }
@@ -372,29 +375,59 @@ class QueryBuilder implements QueryBuilderInterface
      */
     protected function restoreConnection(?ConnectionInterface $originalConnection): void
     {
-        if ($originalConnection !== null && $this->connectionRouter !== null) {
+        if ($originalConnection !== null) {
             $this->connection = $originalConnection;
             $this->updateComponents();
         }
     }
 
     /**
-     * Update all components with current connection.
+     * Send the rest of the query to another connection.
      *
-     * Note: This method minimally updates components to preserve state.
-     * We only update the execution engine which directly uses the connection.
+     * The SQL built so far was generated with this builder's dialect, so a connection with a different dialect
+     * cannot run it; that is a configuration error and must not fall back silently.
+     *
+     * @throws \LogicException When the target connection uses another SQL dialect
+     */
+    protected function routeTo(ConnectionInterface $target): void
+    {
+        $from = $this->connection->getDialect()->getDriverName();
+        $to = $target->getDialect()->getDriverName();
+        if ($from !== $to) {
+            throw new \LogicException(
+                "Connection routing needs every connection to use the same SQL dialect: the query is built for {$from} but was routed to {$to}."
+            );
+        }
+
+        $this->connection = $target;
+        $this->updateComponents();
+    }
+
+    /**
+     * Point every component at the current connection.
+     *
+     * The execution engine and value resolver are shared by the components, so they are rebound in place; that
+     * keeps the profiler, fetch mode and query context. Conditions and joins already added are kept.
      */
     protected function updateComponents(): void
     {
         $this->dialect = $this->connection->getDialect();
-        $rawValueResolver = new RawValueResolver($this->connection, $this->parameterManager);
+        $this->rawValueResolver->rebind($this->connection);
+        $this->executionEngine->rebind($this->connection);
 
-        // Only update execution engine to use new connection
-        // Keep other components (conditionBuilder, etc.) to preserve their state
-        $this->executionEngine = new ExecutionEngine($this->connection, $rawValueResolver, $this->parameterManager);
-
-        // Update execution engine reference in condition builder
-        // This is done via property access if the builder supports it
+        foreach ([
+            $this->conditionBuilder,
+            $this->joinBuilder,
+            $this->selectQueryBuilder,
+            $this->dmlQueryBuilder,
+            $this->batchProcessor,
+            $this->jsonQueryBuilder,
+            $this->fileLoader,
+        ] as $component) {
+            if ($component instanceof ConnectionAwareInterface) {
+                $component->rebindConnection($this->connection);
+            }
+        }
     }
 
     /* ---------------- Table / source ---------------- */
@@ -1120,7 +1153,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function insert(array $data, array $onDuplicate = []): int
     {
-        $originalConnection = $this->switchToWriteConnection();
+        $originalConnection = $this->switchToWriteConnection([$data]);
 
         try {
             $this->prepareQueryContext();
@@ -1140,7 +1173,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function insertMulti(array $rows, array $onDuplicate = []): int
     {
-        $originalConnection = $this->switchToWriteConnection();
+        $originalConnection = $this->switchToWriteConnection($rows);
 
         try {
             $this->prepareQueryContext();
@@ -1184,7 +1217,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function replace(array $data, array $onDuplicate = []): int
     {
-        $originalConnection = $this->switchToWriteConnection();
+        $originalConnection = $this->switchToWriteConnection([$data]);
 
         try {
             $this->prepareQueryContext();

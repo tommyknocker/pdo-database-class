@@ -10,10 +10,11 @@ use PDO;
 use PDOException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\query\interfaces\BatchProcessorInterface;
+use tommyknocker\pdodb\query\interfaces\ConnectionAwareInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
 
-class BatchProcessor implements BatchProcessorInterface
+class BatchProcessor implements BatchProcessorInterface, ConnectionAwareInterface
 {
     protected ConnectionInterface $connection;
     protected ExecutionEngineInterface $executionEngine;
@@ -30,6 +31,14 @@ class BatchProcessor implements BatchProcessorInterface
         $this->executionEngine = $executionEngine;
         $this->parameterManager = $parameterManager;
         $this->rawValueResolver = $rawValueResolver;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function rebindConnection(ConnectionInterface $connection): void
+    {
+        $this->connection = $connection;
     }
 
     /**
