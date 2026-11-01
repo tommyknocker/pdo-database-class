@@ -3566,6 +3566,14 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
         return new OracleOutboxClaim($this);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsTransactionalDdl(): bool
+    {
+        return false;
+    }
+
     public function catalogQueries(): CatalogQueriesInterface
     {
         return $this;

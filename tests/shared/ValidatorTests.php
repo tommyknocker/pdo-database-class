@@ -467,11 +467,11 @@ final class ValidatorTests extends BaseSharedTestCase
     public function testModelValidationWithUnknownValidator(): void
     {
         $model = new ValidatorTestModelUnknownValidator();
-        // Should not throw exception, just skip unknown validator
-        $this->assertFalse($model->validate());
-        // Should still have required error
-        $errors = $model->getValidationErrorsForAttribute('name');
-        $this->assertNotEmpty($errors);
+
+        // An unknown validator is a declaration error: skipping it would let invalid data through.
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("Validator 'unknown-validator' not found");
+        $model->validate();
     }
 
     public function testModelValidationWithCustomMessage(): void

@@ -239,36 +239,35 @@ if (in_array('2025_11_01_120000_create_users_table', $appliedVersions)) {
 
 ### Transactions
 
-Migrations run in transactions automatically. If a migration fails, it's automatically rolled back:
+Whether a migration runs in a transaction depends on the database, because only some databases can roll back DDL:
+
+| Database | DDL in a transaction | Default |
+|----------|----------------------|---------|
+| PostgreSQL, SQLite, SQL Server | Rolled back with the transaction | The migration and its history row run in one transaction; a failure undoes both |
+| MySQL, MariaDB, Oracle | Committed implicitly by each statement | No transaction; a failure leaves the statements that already ran applied |
+
+If a migration fails without a transaction, the history row is not written and the error says so. The schema may be half changed, so check it, finish or revert it by hand, and run the migration again. Keep one DDL statement per migration on these databases so a failure cannot leave a partial change.
+
+### Overriding the transaction
+
+A migration can choose for itself by overriding `transactional()`. Return `null` (the default) to follow the database, `true` to force a transaction (for example a migration that only changes data on MySQL), or `false` to opt out (for example PostgreSQL's `CREATE INDEX CONCURRENTLY`, which cannot run inside a transaction):
 
 ```php
-public function up(): void
+class m20251101120000AddIndexConcurrently extends Migration
 {
-    // All operations run in a transaction
-    $this->schema()->createTable('users', [...]);
-    $this->insert('users', [...]);
-    
-    // If any operation fails, all changes are rolled back
-}
-```
-
-### Non-Transactional Migrations
-
-Some operations (like `DROP COLUMN` in older MySQL versions) can't be rolled back. For these cases, you can override `safeUp()` and `safeDown()`:
-
-```php
-class m20251101120000DropColumn extends Migration
-{
-    public function safeUp(): void
+    public function transactional(): ?bool
     {
-        // This won't be wrapped in a transaction
-        $this->schema()->dropColumn('users', 'old_column');
+        return false;
     }
 
-    public function safeDown(): void
+    public function up(): void
     {
-        // Rollback logic
-        $this->schema()->addColumn('users', 'old_column', $this->schema()->string(100));
+        $this->execute('CREATE INDEX CONCURRENTLY idx_users_email ON users (email)');
+    }
+
+    public function down(): void
+    {
+        $this->execute('DROP INDEX CONCURRENTLY idx_users_email');
     }
 }
 ```

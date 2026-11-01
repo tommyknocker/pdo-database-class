@@ -84,6 +84,14 @@ interface DialectInterface
     public function quoteTable(string $table): string;
 
     /**
+     * Whether DDL statements can be rolled back with the surrounding transaction.
+     *
+     * MySQL, MariaDB and Oracle commit implicitly before and after every DDL statement, so a migration that
+     * fails halfway cannot be undone by a rollback there.
+     */
+    public function supportsTransactionalDdl(): bool;
+
+    /**
      * Quote a value as an SQL string literal, including the surrounding quotes.
      *
      * Use it only where a value must be written into SQL text (DDL, defaults, aggregate separators);

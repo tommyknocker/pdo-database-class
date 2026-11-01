@@ -158,6 +158,14 @@ abstract class DialectAbstract implements DialectInterface
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function supportsTransactionalDdl(): bool
+    {
+        return true;
+    }
+
+    /**
      * Reject a date-interval expression that could carry anything but an interval (it is written into SQL text).
      *
      * @throws InvalidArgumentException

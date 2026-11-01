@@ -691,11 +691,11 @@ final class ActiveRecordEdgeCasesTests extends BaseSharedTestCase
         };
 
         $model = new $modelClass();
-        // Should not throw error, just skip invalid rules
-        $result = $model->validate();
-        // Should have error for name (required)
-        $this->assertFalse($result);
-        $this->assertTrue($model->hasValidationErrors());
+
+        // A malformed rule is a declaration error: it must not be skipped quietly.
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('rules() entry #0');
+        $model->validate();
     }
 
     public function testValidationWithNonExistentAttribute(): void

@@ -41,6 +41,19 @@ abstract class Migration implements MigrationInterface
     abstract public function down(): void;
 
     /**
+     * Whether the migration runs inside a transaction.
+     *
+     * Return null (default) to follow the database: a transaction where DDL can be rolled back (PostgreSQL,
+     * SQLite, SQL Server), none where DDL commits implicitly (MySQL, MariaDB, Oracle). Return true to force a
+     * transaction, for example for a migration that only changes data on MySQL; return false to opt out, for
+     * example for PostgreSQL's CREATE INDEX CONCURRENTLY.
+     */
+    public function transactional(): ?bool
+    {
+        return null;
+    }
+
+    /**
      * Get DDL Query Builder for schema operations.
      *
      * Provides IDE autocompletion for schema operations.
@@ -121,25 +134,5 @@ abstract class Migration implements MigrationInterface
     protected function batchInsert(string $table, array $columns, array $rows): void
     {
         $this->db->find()->table($table)->insertMulti($rows);
-    }
-
-    /**
-     * Safe version of up() that can be overridden.
-     *
-     * Override this method instead of up() for migrations that cannot be wrapped in transactions.
-     */
-    protected function safeUp(): void
-    {
-        $this->up();
-    }
-
-    /**
-     * Safe version of down() that can be overridden.
-     *
-     * Override this method instead of down() for migrations that cannot be wrapped in transactions.
-     */
-    protected function safeDown(): void
-    {
-        $this->down();
     }
 }

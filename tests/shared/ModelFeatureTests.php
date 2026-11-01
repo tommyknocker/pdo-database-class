@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use InvalidArgumentException;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use RuntimeException;
 use tommyknocker\pdodb\events\ModelAfterSaveEvent;
@@ -56,6 +57,32 @@ final class FeatureArticle extends Model
     protected function appendedAttributes(): array
     {
         return ['label' => (string) $this->title];
+    }
+}
+
+final class FeatureTypoRules extends Model
+{
+    public static function tableName(): string
+    {
+        return 'feature_tags';
+    }
+
+    public static function rules(): array
+    {
+        return [['name', 'requried']];
+    }
+}
+
+final class FeatureMalformedRules extends Model
+{
+    public static function tableName(): string
+    {
+        return 'feature_tags';
+    }
+
+    public static function rules(): array
+    {
+        return [['name']];
     }
 }
 
@@ -315,5 +342,27 @@ final class ModelFeatureTests extends BaseSharedTestCase
         }));
         $this->assertSame(1, $handled);
         $this->assertTrue($inbox->processed('message-1'));
+    }
+
+    public function testUnknownValidatorNameFailsInsteadOfSkippingTheRule(): void
+    {
+        FeatureTypoRules::setDb(self::$db);
+        $model = new FeatureTypoRules();
+        $model->name = '';
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Validator 'requried' not found");
+        $model->save();
+    }
+
+    public function testMalformedRuleFailsInsteadOfBeingIgnored(): void
+    {
+        FeatureMalformedRules::setDb(self::$db);
+        $model = new FeatureMalformedRules();
+        $model->name = 'x';
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('rules() entry #0');
+        $model->save();
     }
 }

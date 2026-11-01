@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\orm;
 
+use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
 use tommyknocker\pdodb\connection\ConnectionInterface;
@@ -721,9 +722,11 @@ trait ActiveRecord
             return true; // No rules = always valid
         }
 
-        foreach ($rules as $rule) {
+        foreach ($rules as $index => $rule) {
             if (!is_array($rule) || count($rule) < 2) {
-                continue;
+                throw new InvalidArgumentException(
+                    static::class . "::rules() entry #{$index} must be an array of attribute(s) and a validator."
+                );
             }
 
             $attributes = (array) $rule[0];
@@ -755,8 +758,12 @@ trait ActiveRecord
             try {
                 $validator = ValidatorFactory::create($validatorName);
             } catch (RuntimeException $e) {
-                // Validator not found - skip this rule
-                continue;
+                // A rule that is silently dropped lets invalid data through, so a typo must fail loudly.
+                throw new InvalidArgumentException(
+                    static::class . '::rules() uses an unknown validator for ' . implode(', ', array_map('strval', $attributes)) . ': ' . $e->getMessage(),
+                    0,
+                    $e
+                );
             }
 
             foreach ($attributes as $attribute) {

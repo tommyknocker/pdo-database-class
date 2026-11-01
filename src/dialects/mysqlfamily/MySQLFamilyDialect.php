@@ -1943,6 +1943,14 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
         return new MySQLFamilyOutboxClaim($this);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsTransactionalDdl(): bool
+    {
+        return false;
+    }
+
     public function catalogQueries(): CatalogQueriesInterface
     {
         return $this;

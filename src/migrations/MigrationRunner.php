@@ -227,6 +227,8 @@ class MigrationRunner
         $batch = $this->getNextBatchNumber();
 
         foreach ($newMigrations as $version) {
+            $migration = null;
+
             try {
                 // Dispatch migration started event
                 $dispatcher = $this->getEventDispatcher();
@@ -238,11 +240,11 @@ class MigrationRunner
                 }
 
                 $startTime = microtime(true);
-                $this->db->startTransaction();
                 $migration = $this->loadMigration($version);
-                $migration->up();
-                $this->recordMigration($version, $batch);
-                $this->db->commit();
+                $this->runMigrationStep($migration, function () use ($migration, $version, $batch): void {
+                    $migration->up();
+                    $this->recordMigration($version, $batch);
+                });
                 $duration = (microtime(true) - $startTime) * 1000; // milliseconds
 
                 // Dispatch migration completed event
@@ -256,11 +258,10 @@ class MigrationRunner
 
                 $applied[] = $version;
             } catch (\Throwable $e) {
-                $this->db->rollback();
                 $previous = $e instanceof PDOException ? $e : null;
 
                 throw new QueryException(
-                    "Migration {$version} failed: " . $e->getMessage(),
+                    $this->failureMessage("Migration {$version} failed: ", $e, $migration),
                     0,
                     $previous
                 );
@@ -325,19 +326,20 @@ class MigrationRunner
         foreach ($history as $record) {
             $version = $record['version'];
 
+            $migration = null;
+
             try {
-                $this->db->startTransaction();
                 $migration = $this->loadMigration($version);
-                $migration->down();
-                $this->removeMigrationRecord($version);
-                $this->db->commit();
+                $this->runMigrationStep($migration, function () use ($migration, $version): void {
+                    $migration->down();
+                    $this->removeMigrationRecord($version);
+                });
                 $rolledBack[] = $version;
             } catch (\Throwable $e) {
-                $this->db->rollback();
                 $previous = $e instanceof PDOException ? $e : null;
 
                 throw new QueryException(
-                    "Rollback of migration {$version} failed: " . $e->getMessage(),
+                    $this->failureMessage("Rollback of migration {$version} failed: ", $e, $migration),
                     0,
                     $previous
                 );
@@ -362,12 +364,14 @@ class MigrationRunner
             return;
         }
 
+        $migration = null;
+
         try {
-            $this->db->startTransaction();
             $migration = $this->loadMigration($version);
-            $migration->down();
-            $this->removeMigrationRecord($version);
-            $this->db->commit();
+            $this->runMigrationStep($migration, function () use ($migration, $version): void {
+                $migration->down();
+                $this->removeMigrationRecord($version);
+            });
 
             // Dispatch migration rolled back event
             $dispatcher = $this->getEventDispatcher();
@@ -378,15 +382,65 @@ class MigrationRunner
                 ));
             }
         } catch (\Throwable $e) {
-            $this->db->rollback();
             $previous = $e instanceof PDOException ? $e : null;
 
             throw new QueryException(
-                "Rollback of migration {$version} failed: " . $e->getMessage(),
+                $this->failureMessage("Rollback of migration {$version} failed: ", $e, $migration),
                 0,
                 $previous
             );
         }
+    }
+
+    /**
+     * Run one migration step, inside a transaction when the migration and the database allow it.
+     *
+     * @param callable(): void $step Migration body plus the history bookkeeping
+     */
+    protected function runMigrationStep(Migration $migration, callable $step): void
+    {
+        if (!$this->usesTransaction($migration)) {
+            $step();
+
+            return;
+        }
+
+        $this->db->startTransaction();
+
+        try {
+            $step();
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollback();
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * A transaction protects a migration only where DDL can be rolled back; elsewhere it would roll back the
+     * history row while the schema changes stay, so the migration decides (null follows the database).
+     */
+    protected function usesTransaction(Migration $migration): bool
+    {
+        return $migration->transactional() ?? $this->db->schema()->getDialect()->supportsTransactionalDdl();
+    }
+
+    /**
+     * Error text for a failed step; says so when the failure could not be rolled back.
+     */
+    protected function failureMessage(string $prefix, \Throwable $e, ?Migration $migration): string
+    {
+        $message = $prefix . $e->getMessage();
+        if ($migration !== null && !$this->usesTransaction($migration)) {
+            $message .= ' This migration ran without a transaction, so statements executed before the failure stay'
+                . ' applied and the migration was not recorded. Check the schema and finish or revert it by hand'
+                . ' before running the migration again.';
+        }
+
+        return $message;
     }
 
     /**
@@ -468,19 +522,19 @@ class MigrationRunner
             return;
         }
 
+        $migration = null;
+
         try {
-            $this->db->startTransaction();
             $migration = $this->loadMigration($version);
-            $migration->up();
-            $batch = $this->getNextBatchNumber();
-            $this->recordMigration($version, $batch);
-            $this->db->commit();
+            $this->runMigrationStep($migration, function () use ($migration, $version): void {
+                $migration->up();
+                $this->recordMigration($version, $this->getNextBatchNumber());
+            });
         } catch (\Throwable $e) {
-            $this->db->rollback();
             $previous = $e instanceof PDOException ? $e : null;
 
             throw new QueryException(
-                "Migration {$version} failed: " . $e->getMessage(),
+                $this->failureMessage("Migration {$version} failed: ", $e, $migration),
                 0,
                 $previous
             );
