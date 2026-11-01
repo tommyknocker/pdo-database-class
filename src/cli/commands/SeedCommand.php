@@ -160,11 +160,9 @@ class SeedCommand extends Command
                 $count = count($executed);
                 if ($count > 0) {
                     static::success("Successfully executed {$count} seed(s):");
-                    if (getenv('PHPUNIT') === false) {
-                        foreach ($executed as $executedSeedName) {
-                            $executedSeedNameStr = is_string($executedSeedName) ? $executedSeedName : (string)$executedSeedName;
-                            $this->writeln("  - {$executedSeedNameStr}");
-                        }
+                    foreach ($executed as $executedSeedName) {
+                        $executedSeedNameStr = is_string($executedSeedName) ? $executedSeedName : (string)$executedSeedName;
+                        $this->writeln("  - {$executedSeedNameStr}");
                     }
                 } else {
                     static::info('No seeds were executed.');
@@ -291,11 +289,9 @@ class SeedCommand extends Command
                 $count = count($rolledBack);
                 if ($count > 0) {
                     static::success("Successfully rolled back {$count} seed(s):");
-                    if (getenv('PHPUNIT') === false) {
-                        foreach ($rolledBack as $rolledBackSeedName) {
-                            $rolledBackSeedNameStr = is_string($rolledBackSeedName) ? $rolledBackSeedName : (string)$rolledBackSeedName;
-                            $this->writeln("  - {$rolledBackSeedNameStr}");
-                        }
+                    foreach ($rolledBack as $rolledBackSeedName) {
+                        $rolledBackSeedNameStr = is_string($rolledBackSeedName) ? $rolledBackSeedName : (string)$rolledBackSeedName;
+                        $this->writeln("  - {$rolledBackSeedNameStr}");
                     }
                 } else {
                     static::info('No seeds were rolled back.');

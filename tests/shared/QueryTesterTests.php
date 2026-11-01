@@ -30,7 +30,6 @@ final class QueryTesterTests extends TestCase
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=' . $this->dbPath);
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
     }
 
     protected function tearDown(): void
@@ -40,8 +39,6 @@ final class QueryTesterTests extends TestCase
         }
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PHPUNIT');
         parent::tearDown();
     }
 
@@ -72,19 +69,9 @@ final class QueryTesterTests extends TestCase
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
         $method->invoke(null, $this->db, "UPDATE test_users SET name = 'John Updated' WHERE id = 1");
         $out = ob_get_clean();
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
 
         $this->assertStringContainsString('successfully', $out);
 
@@ -119,19 +106,9 @@ final class QueryTesterTests extends TestCase
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('displayResults');
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
         $method->invoke(null, []);
         $out = ob_get_clean();
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
 
         $this->assertStringContainsString('No results', $out);
     }
@@ -459,19 +436,9 @@ final class QueryTesterTests extends TestCase
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
         $method->invoke(null, $this->db, "INSERT INTO test_users (name, email) VALUES ('Test', 'test@example.com')");
         $out = ob_get_clean();
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
 
         $this->assertStringContainsString('successfully', $out);
     }
@@ -484,19 +451,9 @@ final class QueryTesterTests extends TestCase
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
         $method->invoke(null, $this->db, 'DELETE FROM test_users WHERE id = 999');
         $out = ob_get_clean();
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
 
         $this->assertStringContainsString('successfully', $out);
     }
@@ -509,19 +466,9 @@ final class QueryTesterTests extends TestCase
         $reflection = new \ReflectionClass(QueryTester::class);
         $method = $reflection->getMethod('executeQuery');
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
         $method->invoke(null, $this->db, 'CREATE TABLE test_temp (id INTEGER PRIMARY KEY, name TEXT)');
         $out = ob_get_clean();
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
 
         $this->assertStringContainsString('successfully', $out);
 

@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `unique` validator option `withoutTrashed` to ignore soft-deleted rows (they count as taken by default).
 
 ### Changed
+- The CLI no longer changes its behaviour when the `PHPUNIT` environment variable is set. Interactivity comes from `PDODB_NON_INTERACTIVE` or a missing terminal (`CliEnvironment`), and a failing command now throws `CliExitException`, which `Application::run()` turns into the exit code. Test runs set `PDODB_NON_INTERACTIVE=1` in `phpunit.xml`.
+- Duplicate numbering removed: `examples/02-intermediate/08-pagination-advanced.php`, `examples/11-schema/09-advanced-ddl.php`, `examples/12-reliability/06-error-diagnostics.php` and `documentation/05-advanced-features/29-dialect-specific-schema.md` were renumbered (links updated).
 - **Breaking:** model connection overrides are isolated by class; use `Model::setDb($db)` for a shared default. Scoped record writes now honor global scopes, and terminal ActiveQuery methods return their delegated results.
 - **Breaking:** `ActiveQuery::each()` yields models. Use `getQueryBuilder()->each()` for raw rows. `DialectInterface` now requires `buildIdempotentUpsertSql()`, `buildInboxSchemaSql()`, `outboxNowSql()` and `outboxNowPlusSecondsSql()`, and `buildOutboxClaimOneSql()` takes the lock duration in seconds instead of bound time parameters. A third-party dialect must implement them.
 - Outbox timestamps (`created_at`, `available_at`, `locked_until`, `published_at`) and lease, backoff and `purge` comparisons use the database clock in UTC, stored in native types: `DATETIME(6)` on MySQL/MariaDB and `TIMESTAMP(6)` on Oracle (previously `VARCHAR`); SQLite keeps UTC text. Outbox tables created earlier must be recreated.

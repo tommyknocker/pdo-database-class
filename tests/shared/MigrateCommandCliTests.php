@@ -26,7 +26,6 @@ final class MigrateCommandCliTests extends TestCase
         putenv('PDODB_PATH=' . $this->dbPath);
         putenv('PDODB_MIGRATION_PATH=' . $this->migrationPath);
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
     }
 
     protected function tearDown(): void
@@ -40,8 +39,6 @@ final class MigrateCommandCliTests extends TestCase
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
         putenv('PDODB_MIGRATION_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PHPUNIT');
         parent::tearDown();
     }
 
@@ -189,9 +186,6 @@ final class MigrateCommandCliTests extends TestCase
         // Test that up command works when there are no migrations
         $app = new Application();
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -199,18 +193,8 @@ final class MigrateCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         $this->assertSame(0, $code);

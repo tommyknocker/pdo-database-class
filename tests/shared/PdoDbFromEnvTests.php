@@ -20,15 +20,12 @@ class PdoDbFromEnvTests extends TestCase
         parent::setUp();
         // Ensure non-interactive mode for all tests
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
     }
 
     protected function tearDown(): void
     {
         // Clean up all environment variables that might be set by tests
         $envVars = [
-            'PDODB_NON_INTERACTIVE',
-            'PHPUNIT',
             'PDODB_DRIVER',
             'PDODB_PATH',
             'PDODB_HOST',

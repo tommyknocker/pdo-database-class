@@ -40,11 +40,9 @@ class DocsGenerator extends BaseCliCommand
         }
         $driver = static::getDriverName($db);
 
-        if (getenv('PHPUNIT') === false) {
-            static::cliWriteln('PDOdb Documentation Generator');
-            static::cliWriteln("Database: {$driver}");
-            static::cliWriteln("Format: {$format}\n");
-        }
+        static::cliWriteln('PDOdb Documentation Generator');
+        static::cliWriteln("Database: {$driver}");
+        static::cliWriteln("Format: {$format}\n");
 
         // Resolve table name
         $resolvedTableName = static::resolveTableName($tableName, $modelName, $db);
@@ -104,12 +102,10 @@ class DocsGenerator extends BaseCliCommand
         file_put_contents($filename, $docsContent);
 
         static::success('Documentation file created: ' . basename($filename));
-        if (getenv('PHPUNIT') === false) {
-            static::cliWriteln("  Path: {$filename}");
-            static::cliWriteln("  Table: {$resolvedTableName}");
-            if ($modelName !== null) {
-                static::cliWriteln("  Model: {$modelName}");
-            }
+        static::cliWriteln("  Path: {$filename}");
+        static::cliWriteln("  Table: {$resolvedTableName}");
+        if ($modelName !== null) {
+            static::cliWriteln("  Model: {$modelName}");
         }
 
         return $filename;

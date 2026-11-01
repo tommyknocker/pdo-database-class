@@ -25,7 +25,6 @@ final class InitWizardTests extends TestCase
 
         // Set non-interactive mode - ensure both are set
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
     }
 
     protected function tearDown(): void
@@ -35,8 +34,6 @@ final class InitWizardTests extends TestCase
             $this->removeDirectory($this->tempDir);
         }
 
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PHPUNIT');
         parent::tearDown();
     }
 
@@ -94,19 +91,9 @@ final class InitWizardTests extends TestCase
         chdir($this->tempDir);
 
         try {
-            // Temporarily unset PHPUNIT to allow output
-            $phpunit = getenv('PHPUNIT');
-            putenv('PHPUNIT');
             ob_start();
             $result = $wizard->run();
             $output = ob_get_clean();
-
-            // Restore PHPUNIT
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            } else {
-                putenv('PHPUNIT');
-            }
 
             $this->assertSame(0, $result);
             $this->assertStringContainsString('initialized successfully', $output);
@@ -499,9 +486,6 @@ final class InitWizardTests extends TestCase
         $configProperty = $reflection->getProperty('config');
         $configProperty->setValue($wizard, ['driver' => 'sqlite', 'path' => ':memory:']);
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -509,21 +493,11 @@ final class InitWizardTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
             // Connection test may fail in some environments
             $this->assertInstanceOf(\Throwable::class, $e);
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
             return;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         // Verify output contains connection test result
@@ -857,19 +831,9 @@ final class InitWizardTests extends TestCase
         try {
             $wizard = new InitWizard($this->command, skipConnectionTest: true, force: true, format: 'env');
 
-            // Temporarily unset PHPUNIT to allow output
-            $phpunit = getenv('PHPUNIT');
-            putenv('PHPUNIT');
             ob_start();
             $result = $wizard->run();
             $output = ob_get_clean();
-
-            // Restore PHPUNIT
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            } else {
-                putenv('PHPUNIT');
-            }
 
             $this->assertSame(0, $result);
             $this->assertStringContainsString('initialized successfully', $output);
@@ -1844,7 +1808,6 @@ final class InitWizardTests extends TestCase
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=:memory:');
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
 
         $wizard = new InitWizard($this->command, skipConnectionTest: true, force: true, format: 'env');
 

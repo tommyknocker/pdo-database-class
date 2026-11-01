@@ -26,19 +26,15 @@ class SeedGenerator extends BaseCliCommand
         $db = static::createDatabase();
         $driver = static::getDriverName($db);
 
-        if (getenv('PHPUNIT') === false) {
-            static::cliWriteln('PDOdb Seed Generator');
-            static::cliWriteln("Database: {$driver}\n");
-        }
+        static::cliWriteln('PDOdb Seed Generator');
+        static::cliWriteln("Database: {$driver}\n");
 
         // Get seed path
         if ($seedPath === null) {
             $seedPath = static::getSeedPath();
         }
 
-        if (getenv('PHPUNIT') === false) {
-            static::cliWriteln("Seeds path: {$seedPath}\n");
-        }
+        static::cliWriteln("Seeds path: {$seedPath}\n");
 
         // Get seed name
         if ($name === null) {
@@ -49,9 +45,7 @@ class SeedGenerator extends BaseCliCommand
         }
 
         // Suggest seed type based on name (skip in non-interactive mode)
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false
-            || !stream_isatty(STDIN);
+        $nonInteractive = CliEnvironment::isNonInteractive();
 
         if (!$nonInteractive) {
             $suggestions = static::suggestSeedType($name);
@@ -74,9 +68,7 @@ class SeedGenerator extends BaseCliCommand
         $filename = $runner->create($name);
 
         static::success('Seed file created: ' . basename($filename));
-        if (getenv('PHPUNIT') === false) {
-            static::cliWriteln("  Path: {$filename}");
-        }
+        static::cliWriteln("  Path: {$filename}");
 
         return $filename;
     }

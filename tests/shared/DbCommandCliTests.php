@@ -21,7 +21,6 @@ final class DbCommandCliTests extends TestCase
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=' . $this->dbPath);
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
     }
 
     protected function tearDown(): void
@@ -31,8 +30,6 @@ final class DbCommandCliTests extends TestCase
         }
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PHPUNIT');
         parent::tearDown();
     }
 

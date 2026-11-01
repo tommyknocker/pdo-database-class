@@ -412,24 +412,8 @@ final class AiAgentTests extends TestCase
             ->setOptions(['temperature' => 'abc']);
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('temperature');
-        $previous = getenv('PHPUNIT');
-        putenv('PHPUNIT=1');
 
-        try {
-            ob_start();
-
-            try {
-                $command->execute();
-            } finally {
-                ob_end_clean();
-            }
-        } finally {
-            if ($previous === false) {
-                putenv('PHPUNIT');
-            } else {
-                putenv('PHPUNIT=' . $previous);
-            }
-        }
+        CliTestCapture::capture(static fn () => $command->execute());
     }
 
     public function testUnsupportedPlansAreExplicitAndDoNotReturnSyntheticEvidence(): void

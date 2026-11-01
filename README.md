@@ -154,7 +154,7 @@ Each item below is implemented in the library and documented on its own page.
 - [INSERT ... SELECT](documentation/03-query-builder/02-data-manipulation.md), upserts, and [MERGE](documentation/03-query-builder/02-data-manipulation.md)
 - [Bulk inserts and file loaders](documentation/05-advanced-features/04-bulk-operations.md) for CSV, XML, and JSON
 - [DDL builder](documentation/03-query-builder/12-ddl-operations.md) for tables, columns, indexes, and foreign keys
-- [Dialect-specific types](documentation/05-advanced-features/20-dialect-specific-schema.md): MySQL `ENUM`/`SET`, PostgreSQL `UUID`/`JSONB`, SQL Server `UNIQUEIDENTIFIER`, SQLite type affinity
+- [Dialect-specific types](documentation/05-advanced-features/29-dialect-specific-schema.md): MySQL `ENUM`/`SET`, PostgreSQL `UUID`/`JSONB`, SQL Server `UNIQUEIDENTIFIER`, SQLite type affinity
 - [Migrations](documentation/05-advanced-features/15-migrations.md) and [seeds](documentation/05-advanced-features/21-cli-tools.md#seed-management) with rollback
 - [Transactional outbox](documentation/05-advanced-features/27-transactional-outbox.md) for reliable events with your own broker or HTTP publisher
 - [Schema introspection](documentation/03-query-builder/11-schema-introspection.md) for indexes, foreign keys, and constraints

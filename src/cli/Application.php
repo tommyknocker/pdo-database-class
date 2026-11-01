@@ -215,7 +215,11 @@ class Application
         $command->setArguments($args);
         $command->setOptions($options);
 
-        return $command->execute();
+        try {
+            return $command->execute();
+        } catch (CliExitException $e) {
+            return $e->getCode() > 0 ? $e->getCode() : 1;
+        }
     }
 
     /**

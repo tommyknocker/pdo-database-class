@@ -35,7 +35,6 @@ final class GenerateCommandCliTests extends BasePostgreSQLTestCase
         putenv('PDODB_DATABASE');
         putenv('PDODB_USERNAME');
         putenv('PDODB_PASSWORD');
-        putenv('PDODB_NON_INTERACTIVE');
         parent::tearDown();
     }
 

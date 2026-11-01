@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli\ui;
 
+use tommyknocker\pdodb\cli\CliEnvironment;
 use tommyknocker\pdodb\cli\MonitorManager;
 use tommyknocker\pdodb\cli\TableManager;
 use tommyknocker\pdodb\cli\ui\actions\KillConnectionAction;
@@ -328,14 +329,7 @@ class Dashboard
     public function run(): void
     {
         // Check if interactive
-        // Check for PDODB_NON_INTERACTIVE and PHPUNIT first (fastest check)
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-
-        // Only check stream_isatty if not already in non-interactive mode (expensive check)
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDOUT);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive(STDOUT);
 
         if ($nonInteractive) {
             Stdout::writeln('TUI Dashboard requires an interactive terminal.');
@@ -1463,11 +1457,7 @@ class Dashboard
         flush();
 
         // Check for non-interactive mode
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
 
         if ($nonInteractive) {
             // In non-interactive mode, return default (false)
@@ -1744,11 +1734,7 @@ class Dashboard
         flush();
 
         // Check for non-interactive mode
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
 
         if ($nonInteractive) {
             // In non-interactive mode, return immediately

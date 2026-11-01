@@ -40,10 +40,8 @@ class DtoGenerator extends BaseCliCommand
         }
         $driver = static::getDriverName($db);
 
-        if (getenv('PHPUNIT') === false) {
-            static::cliWriteln('PDOdb DTO Generator');
-            static::cliWriteln("Database: {$driver}\n");
-        }
+        static::cliWriteln('PDOdb DTO Generator');
+        static::cliWriteln("Database: {$driver}\n");
 
         // Resolve table name
         $resolvedTableName = static::resolveTableName($tableName, $modelName, $db);
@@ -94,12 +92,10 @@ class DtoGenerator extends BaseCliCommand
         file_put_contents($filename, $dtoCode);
 
         static::success('DTO file created: ' . basename($filename));
-        if (getenv('PHPUNIT') === false) {
-            static::cliWriteln("  Path: {$filename}");
-            static::cliWriteln("  Table: {$resolvedTableName}");
-            if ($modelName !== null) {
-                static::cliWriteln("  Model: {$modelName}");
-            }
+        static::cliWriteln("  Path: {$filename}");
+        static::cliWriteln("  Table: {$resolvedTableName}");
+        if ($modelName !== null) {
+            static::cliWriteln("  Model: {$modelName}");
         }
 
         return $filename;

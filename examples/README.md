@@ -114,7 +114,7 @@ Common patterns and operations.
 - **[01-joins.php](02-intermediate/01-joins.php)** - JOIN operations (INNER, LEFT, RIGHT)
 - **[02-aggregations.php](02-intermediate/02-aggregations.php)** - GROUP BY, HAVING, COUNT, SUM, AVG
 - **[03-pagination.php](02-intermediate/03-pagination.php)** - LIMIT and OFFSET for pagination
-- **[03-pagination-advanced.php](02-intermediate/03-pagination-advanced.php)** - Advanced pagination (full, simple, cursor)
+- **[08-pagination-advanced.php](02-intermediate/08-pagination-advanced.php)** - Advanced pagination (full, simple, cursor)
 - **[04-transactions.php](02-intermediate/04-transactions.php)** - Transaction management
 - **[05-savepoints.php](02-intermediate/05-savepoints.php)** - Savepoints and nested transactions
 - **[06-insert-select.php](02-intermediate/06-insert-select.php)** - INSERT ... SELECT operations
@@ -203,7 +203,7 @@ Extending PdoDb: macros, plugins, and events.
 Database schema management: DDL and migrations.
 
 - **[01-ddl.php](11-schema/01-ddl.php)** - DDL Query Builder basics
-- **[02-advanced-ddl.php](11-schema/02-advanced-ddl.php)** - Advanced DDL features (Yii2-style constraints, partial indexes, fulltext/spatial indexes)
+- **[09-advanced-ddl.php](11-schema/09-advanced-ddl.php)** - Advanced DDL features (Yii2-style constraints, partial indexes, fulltext/spatial indexes)
 - **[02-migrations.php](11-schema/02-migrations.php)** - Database migrations
 - **[03-table-cli.php](11-schema/03-table-cli.php)** - CLI table management
 - **[04-dump-restore.php](11-schema/04-dump-restore.php)** - Database dump and restore

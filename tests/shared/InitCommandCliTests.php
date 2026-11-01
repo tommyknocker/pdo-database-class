@@ -15,9 +15,13 @@ final class InitCommandCliTests extends TestCase
     protected string $tempDir;
     protected string $originalCwd;
 
+    /** @var array<string, string> PDODB_* variables present before the test; init loads a .env into the process. */
+    protected array $envBefore = [];
+
     protected function setUp(): void
     {
         parent::setUp();
+        $this->envBefore = array_filter(getenv(), static fn ($name): bool => str_starts_with((string)$name, 'PDODB_'), ARRAY_FILTER_USE_KEY);
         putenv('PDODB_NON_INTERACTIVE=1');
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=:memory:');
@@ -31,11 +35,15 @@ final class InitCommandCliTests extends TestCase
     protected function tearDown(): void
     {
         chdir($this->originalCwd);
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PDODB_DRIVER');
-        putenv('PDODB_PATH');
-        putenv('PDODB_CHARSET');
-        unset($_ENV['PDODB_CHARSET']);
+        foreach (array_keys(getenv()) as $name) {
+            if (str_starts_with((string)$name, 'PDODB_') && !array_key_exists($name, $this->envBefore)) {
+                putenv((string)$name);
+                unset($_ENV[$name]);
+            }
+        }
+        foreach ($this->envBefore as $name => $value) {
+            putenv("{$name}={$value}");
+        }
         if (is_dir($this->tempDir)) {
             $this->removeDirectory($this->tempDir);
         }

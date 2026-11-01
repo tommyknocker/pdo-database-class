@@ -411,13 +411,7 @@ abstract class BaseCliCommand
     {
         // Check if non-interactive mode is enabled (for tests, CI, etc.)
         // Check for PDODB_NON_INTERACTIVE env var first (fastest check)
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-
-        // Only check stream_isatty if not already in non-interactive mode (expensive check)
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
 
         if ($nonInteractive) {
             if ($default !== null) {
@@ -445,13 +439,7 @@ abstract class BaseCliCommand
     {
         // Check if non-interactive mode is enabled (for tests, CI, etc.)
         // Check for PDODB_NON_INTERACTIVE env var first (fastest check)
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-
-        // Only check stream_isatty if not already in non-interactive mode (expensive check)
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
 
         if ($nonInteractive) {
             // In non-interactive mode, return empty string to avoid blocking on fgets(STDIN)
@@ -490,13 +478,7 @@ abstract class BaseCliCommand
     {
         // Check if non-interactive mode is enabled (for tests, CI, etc.)
         // Check for PDODB_NON_INTERACTIVE env var first (fastest check)
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-
-        // Only check stream_isatty if not already in non-interactive mode (expensive check)
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
 
         if ($nonInteractive) {
             return $default;
@@ -515,7 +497,7 @@ abstract class BaseCliCommand
     }
 
     /**
-     * Display error message and exit.
+     * Report an error and stop the command; {@see Application::run()} turns it into the exit code.
      *
      * @param string $message Error message
      * @param int $code Exit code
@@ -525,11 +507,8 @@ abstract class BaseCliCommand
     public static function error(string $message, int $code = 1): never
     {
         static::io()->writeErrorLine("Error: {$message}");
-        // In test environment, throw exception instead of exit to allow proper test handling
-        if (getenv('PHPUNIT') !== false) {
-            throw new \RuntimeException("Error: {$message}", $code);
-        }
-        exit($code);
+
+        throw new CliExitException("Error: {$message}", $code);
     }
 
     /**
@@ -539,9 +518,7 @@ abstract class BaseCliCommand
      */
     protected static function success(string $message): void
     {
-        if (getenv('PHPUNIT') === false) {
-            static::io()->writeln("✓ {$message}");
-        }
+        static::io()->writeln("✓ {$message}");
     }
 
     /**
@@ -551,9 +528,7 @@ abstract class BaseCliCommand
      */
     protected static function info(string $message): void
     {
-        if (getenv('PHPUNIT') === false) {
-            static::io()->writeln("ℹ {$message}");
-        }
+        static::io()->writeln("ℹ {$message}");
     }
 
     /**
@@ -573,8 +548,6 @@ abstract class BaseCliCommand
      */
     protected static function loading(string $message): void
     {
-        if (getenv('PHPUNIT') === false) {
-            static::io()->writeln("⏳ {$message}...");
-        }
+        static::io()->writeln("⏳ {$message}...");
     }
 }

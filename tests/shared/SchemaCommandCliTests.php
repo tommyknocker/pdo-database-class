@@ -28,7 +28,6 @@ final class SchemaCommandCliTests extends TestCase
     {
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
         if (isset($this->dbPath) && file_exists($this->dbPath)) {
             @unlink($this->dbPath);
         }

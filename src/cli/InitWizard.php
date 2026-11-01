@@ -59,13 +59,7 @@ class InitWizard extends BaseCliCommand
     {
         // Check if non-interactive mode
         // Always check environment variables first (fastest and most reliable)
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-
-        // Only check stream_isatty if not already in non-interactive mode (expensive check)
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
 
         if ($nonInteractive) {
             // Load configuration from environment variables
@@ -457,11 +451,7 @@ class InitWizard extends BaseCliCommand
     protected function askAdvancedOptions(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
         if ($nonInteractive) {
             return; // Skip in non-interactive mode
         }
@@ -488,11 +478,7 @@ class InitWizard extends BaseCliCommand
     protected function askTablePrefix(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
         if ($nonInteractive) {
             return; // Skip in non-interactive mode
         }
@@ -514,11 +500,7 @@ class InitWizard extends BaseCliCommand
     protected function askCaching(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
         if ($nonInteractive) {
             return; // Skip in non-interactive mode
         }
@@ -639,11 +621,7 @@ class InitWizard extends BaseCliCommand
     protected function askPerformance(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
         if ($nonInteractive) {
             return; // Skip in non-interactive mode
         }
@@ -686,11 +664,7 @@ class InitWizard extends BaseCliCommand
     protected function askAiConfiguration(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
         if ($nonInteractive) {
             return; // Skip in non-interactive mode
         }
@@ -743,11 +717,7 @@ class InitWizard extends BaseCliCommand
     protected function askMultipleConnections(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
         if ($nonInteractive) {
             return; // Skip in non-interactive mode
         }
@@ -845,11 +815,7 @@ class InitWizard extends BaseCliCommand
     protected function generateFiles(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
 
         static::cliWriteln('');
         static::cliWriteln('Creating configuration files...');

@@ -56,6 +56,5 @@ final class UserCommandCliTests extends BaseMariaDBTestCase
         putenv('PDODB_DATABASE');
         putenv('PDODB_USERNAME');
         putenv('PDODB_PASSWORD');
-        putenv('PDODB_NON_INTERACTIVE');
     }
 }

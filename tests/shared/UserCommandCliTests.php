@@ -20,7 +20,6 @@ final class UserCommandCliTests extends TestCase
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=' . $this->dbPath);
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
     }
 
     protected function tearDown(): void
@@ -30,8 +29,6 @@ final class UserCommandCliTests extends TestCase
         }
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PHPUNIT');
         parent::tearDown();
     }
 
@@ -342,9 +339,6 @@ final class UserCommandCliTests extends TestCase
     public function testUserShowDatabaseHeader(): void
     {
         // Test showDatabaseHeader method via reflection
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
@@ -356,18 +350,8 @@ final class UserCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         $this->assertStringContainsString('PDOdb User Management', $out);
@@ -599,9 +583,6 @@ final class UserCommandCliTests extends TestCase
     public function testUserShowDatabaseHeaderWithErrorHandling(): void
     {
         // Test showDatabaseHeader error handling
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
@@ -618,12 +599,6 @@ final class UserCommandCliTests extends TestCase
             // Method should handle errors gracefully
             $this->assertTrue(true);
         } finally {
-            // Restore PHPUNIT
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            } else {
-                putenv('PHPUNIT');
-            }
         }
     }
 
@@ -908,9 +883,6 @@ final class UserCommandCliTests extends TestCase
     public function testUserShowDatabaseHeaderWithCurrentDatabase(): void
     {
         // Test showDatabaseHeader with current database
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
@@ -928,21 +900,12 @@ final class UserCommandCliTests extends TestCase
             // Method should handle errors gracefully
             $this->assertTrue(true);
         } finally {
-            // Restore PHPUNIT
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            } else {
-                putenv('PHPUNIT');
-            }
         }
     }
 
     public function testUserShowDatabaseHeaderWithoutCurrentDatabase(): void
     {
         // Test showDatabaseHeader without current database
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
@@ -960,21 +923,12 @@ final class UserCommandCliTests extends TestCase
             // Method should handle errors gracefully
             $this->assertTrue(true);
         } finally {
-            // Restore PHPUNIT
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            } else {
-                putenv('PHPUNIT');
-            }
         }
     }
 
     public function testUserShowDatabaseHeaderWithException(): void
     {
         // Test showDatabaseHeader error handling
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         $command = new UserCommand();
         $reflection = new \ReflectionClass($command);
         $method = $reflection->getMethod('showDatabaseHeader');
@@ -991,12 +945,6 @@ final class UserCommandCliTests extends TestCase
             // Method should handle errors gracefully
             $this->assertTrue(true);
         } finally {
-            // Restore PHPUNIT
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            } else {
-                putenv('PHPUNIT');
-            }
         }
     }
 

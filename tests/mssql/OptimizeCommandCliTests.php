@@ -47,7 +47,6 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
         // Keep PDODB_USERNAME and PDODB_PASSWORD for other tests
         // putenv('PDODB_USERNAME');
         // putenv('PDODB_PASSWORD');
-        putenv('PDODB_NON_INTERACTIVE');
         parent::tearDown();
     }
 
@@ -73,8 +72,6 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
         $db->rawQuery('CREATE TABLE optimize_users (id INT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(100))');
         $db->rawQuery('CREATE TABLE optimize_orders (id INT, user_id INT)'); // No PK
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -82,15 +79,8 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -133,8 +123,6 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
             parent_id INT
         )');
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -142,15 +130,8 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -193,8 +174,6 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
             created_at DATETIME2
         )');
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -202,15 +181,8 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -250,8 +222,6 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
         $db->rawQuery('CREATE INDEX idx_name ON test_table(name)');
         $db->rawQuery('CREATE INDEX idx_name_email ON test_table(name, email)'); // Redundant
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -260,15 +230,8 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -307,8 +270,6 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
             name NVARCHAR(100)
         )');
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -317,15 +278,8 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -360,8 +314,6 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
         $db->rawQuery('CREATE TABLE optimize_query_users (id INT IDENTITY(1,1) PRIMARY KEY, name NVARCHAR(100))');
         $db->rawQuery('INSERT INTO optimize_query_users (name) VALUES (\'Test\')');
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -369,15 +321,8 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -407,9 +352,6 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
         }
         $db->rawQuery('CREATE TABLE test_format (id INT IDENTITY(1,1) PRIMARY KEY)');
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
-
         // Test JSON format
         ob_start();
 
@@ -418,9 +360,6 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
         }
@@ -437,18 +376,11 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
         }
         $this->assertSame(0, $code);
         $this->assertStringContainsString('critical_issues', $out);
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        }
 
         // Cleanup
         $connection = $db->connection;
@@ -464,8 +396,6 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
     {
         $app = new Application();
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -473,15 +403,8 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -1080,8 +1003,6 @@ SELECT * FROM users WHERE id = 1;
         $app = new Application();
         $db = self::$db;
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT=1');
         ob_start();
 
         try {
@@ -1090,19 +1011,8 @@ SELECT * FROM users WHERE id = 1;
             $this->assertEquals(0, $exitCode, 'Command should succeed');
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            } else {
-                putenv('PHPUNIT');
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
     }
 

@@ -41,8 +41,6 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
         putenv('PDODB_SERVICE_NAME');
         putenv('PDODB_USERNAME');
         putenv('PDODB_PASSWORD');
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PHPUNIT');
         parent::tearDown();
     }
 
@@ -63,8 +61,6 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
             $db->rawQuery('CREATE TABLE "optimize_orders" ("ID" NUMBER, "USER_ID" NUMBER)');
             $db->rawQuery('CREATE INDEX PDODB_OPT_NAME ON "optimize_users" ("NAME")');
             $db->rawQuery('CREATE INDEX PDODB_OPT_NAME_STATUS ON "optimize_users" ("NAME", "STATUS")');
-            $phpunit = getenv('PHPUNIT');
-            putenv('PHPUNIT');
             ob_start();
 
             try {
@@ -73,9 +69,6 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
             } finally {
                 if (ob_get_level() > 0 && !isset($out)) {
                     ob_end_clean();
-                }
-                if ($phpunit !== false) {
-                    putenv('PHPUNIT=' . $phpunit);
                 }
             }
 
@@ -293,8 +286,6 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
         $db->rawQuery('CREATE INDEX "idx_name" ON "test_table"("NAME")');
         $db->rawQuery('CREATE INDEX "idx_name_email" ON "test_table"("NAME", "EMAIL")'); // Redundant
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -303,15 +294,8 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -350,8 +334,6 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
             "NAME" VARCHAR2(100)
         )');
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -360,15 +342,8 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -410,8 +385,6 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
         $db->rawQuery('CREATE TABLE "optimize_query_users" ("ID" NUMBER PRIMARY KEY, "NAME" VARCHAR2(100))');
         $db->rawQuery('INSERT INTO "optimize_query_users" ("ID", "NAME") VALUES (1, \'Test\')');
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -420,15 +393,8 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -448,8 +414,6 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
     {
         $app = new Application();
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -457,15 +421,8 @@ final class OptimizeCommandCliTests extends BaseOracleTestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -877,8 +834,6 @@ SELECT * FROM users WHERE id = 1;
         $app = new Application();
         $db = self::$db;
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT=1');
         ob_start();
 
         try {
@@ -887,19 +842,8 @@ SELECT * FROM users WHERE id = 1;
             $this->assertEquals(0, $exitCode, 'Command should succeed');
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            } else {
-                putenv('PHPUNIT');
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
     }
 

@@ -22,7 +22,6 @@ final class TableCommandCliTests extends TestCase
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=' . $this->dbPath);
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
     }
 
     protected function tearDown(): void
@@ -32,35 +31,7 @@ final class TableCommandCliTests extends TestCase
         }
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PHPUNIT');
         parent::tearDown();
-    }
-
-    /**
-     * Temporarily unset PHPUNIT to allow output, then restore it.
-     *
-     * @return string|false Original PHPUNIT value or false if not set
-     */
-    protected function unsetPhpunitForOutput(): string|false
-    {
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
-        return $phpunit;
-    }
-
-    /**
-     * Restore PHPUNIT environment variable.
-     *
-     * @param string|false $phpunit Original PHPUNIT value
-     */
-    protected function restorePhpunit(string|false $phpunit): void
-    {
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
     }
 
     public function testTableCreateInfoExistsDescribeListAndDrop(): void
@@ -68,9 +39,6 @@ final class TableCommandCliTests extends TestCase
         $app = new Application();
 
         // create table
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -78,18 +46,8 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         $this->assertSame(0, $code);
@@ -152,9 +110,6 @@ final class TableCommandCliTests extends TestCase
         $this->assertStringContainsString('"users"', $out);
 
         // drop
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -162,18 +117,8 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         $this->assertSame(0, $code);
@@ -197,7 +142,6 @@ final class TableCommandCliTests extends TestCase
         $this->assertSame(0, $code);
 
         // add column
-        $phpunit = $this->unsetPhpunitForOutput();
         ob_start();
 
         try {
@@ -205,12 +149,10 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
 
-        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString("added to 'items'", $out);
 
@@ -229,7 +171,6 @@ final class TableCommandCliTests extends TestCase
         $this->assertStringContainsString('columns', $out);
 
         // create index
-        $phpunit = $this->unsetPhpunitForOutput();
         ob_start();
 
         try {
@@ -237,12 +178,10 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
 
-        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString("Index 'idx_items_name' created", $out);
 
@@ -261,7 +200,6 @@ final class TableCommandCliTests extends TestCase
         $this->assertStringContainsString('indexes', $out);
 
         // drop index
-        $phpunit = $this->unsetPhpunitForOutput();
         ob_start();
 
         try {
@@ -269,12 +207,10 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
 
-        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString("Index 'idx_items_name' dropped", $out);
     }
@@ -348,7 +284,6 @@ final class TableCommandCliTests extends TestCase
         $dbPath = sys_get_temp_dir() . '/pdodb_keys_' . uniqid() . '.sqlite';
         putenv('PDODB_PATH=' . $dbPath);
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
 
         $app = new Application();
         $run = CliTestCapture::runApplication($app, ['pdodb', 'table', 'keys', 'add', 'test_table']);
@@ -362,7 +297,6 @@ final class TableCommandCliTests extends TestCase
         $dbPath = sys_get_temp_dir() . '/pdodb_keys_' . uniqid() . '.sqlite';
         putenv('PDODB_PATH=' . $dbPath);
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
 
         $app = new Application();
         $run = CliTestCapture::runApplication($app, ['pdodb', 'table', 'keys', 'drop', 'test_table']);
@@ -376,7 +310,6 @@ final class TableCommandCliTests extends TestCase
         $dbPath = sys_get_temp_dir() . '/pdodb_nc_' . uniqid() . '.sqlite';
         putenv('PDODB_PATH=' . $dbPath);
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
 
         $app = new Application();
         $run = CliTestCapture::runApplication($app, ['pdodb', 'table', 'create', 'no_columns_tbl']);
@@ -557,7 +490,6 @@ final class TableCommandCliTests extends TestCase
         $this->assertSame(0, $code);
 
         // Rename table
-        $phpunit = $this->unsetPhpunitForOutput();
         ob_start();
 
         try {
@@ -565,12 +497,10 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
 
-        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('renamed to', $out);
 
@@ -615,7 +545,6 @@ final class TableCommandCliTests extends TestCase
         $this->assertEquals(2, (int)$count);
 
         // Truncate table
-        $phpunit = $this->unsetPhpunitForOutput();
         ob_start();
 
         try {
@@ -623,12 +552,10 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            $this->restorePhpunit($phpunit);
 
             throw $e;
         }
 
-        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('truncated', $out);
 
@@ -688,7 +615,6 @@ final class TableCommandCliTests extends TestCase
         $this->assertSame(0, $code);
 
         // Drop column (SQLite has limited DROP COLUMN support)
-        $phpunit = $this->unsetPhpunitForOutput();
         ob_start();
 
         try {
@@ -696,13 +622,11 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            $this->restorePhpunit($phpunit);
             // SQLite may not support DROP COLUMN directly, which is expected
             $this->assertInstanceOf(\Throwable::class, $e);
             return;
         }
 
-        $this->restorePhpunit($phpunit);
         $this->assertSame(0, $code);
         $this->assertStringContainsString('dropped', $out);
     }
@@ -1018,8 +942,6 @@ final class TableCommandCliTests extends TestCase
         $app = new Application();
 
         // Create table with test data
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -1027,17 +949,8 @@ final class TableCommandCliTests extends TestCase
             ob_end_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         // Insert test data using the same database connection
@@ -1117,8 +1030,6 @@ final class TableCommandCliTests extends TestCase
     public function testTableSearchCommandWithMissingArguments(): void
     {
         $app = new Application();
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
 
         // Missing search term - use shell_exec to handle exit()
         $bin = realpath(__DIR__ . '/../../bin/pdodb');
@@ -1132,11 +1043,5 @@ final class TableCommandCliTests extends TestCase
         $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' table search 2>&1';
         $out = (string)shell_exec($cmd);
         $this->assertStringContainsString('Table name is required', $out);
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
     }
 }

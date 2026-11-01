@@ -40,7 +40,7 @@ LIMIT and OFFSET for pagination.
 - Total count queries
 - Efficient pagination patterns
 
-**Note:** This example covers manual pagination. For advanced pagination features (full pagination, simple pagination, cursor pagination), see [03-pagination-advanced.php](03-pagination-advanced.php).
+**Note:** This example covers manual pagination. For advanced pagination features (full pagination, simple pagination, cursor pagination), see [08-pagination-advanced.php](08-pagination-advanced.php).
 
 ### 04-transactions.php
 Transaction management for data consistency.

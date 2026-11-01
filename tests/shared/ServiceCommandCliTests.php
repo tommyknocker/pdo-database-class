@@ -31,7 +31,6 @@ final class ServiceCommandCliTests extends TestCase
     protected function tearDown(): void
     {
         putenv('PDODB_DRIVER');
-        putenv('PDODB_NON_INTERACTIVE');
         putenv('PDODB_SERVICE_PATH');
         if (is_dir($this->servicesDir)) {
             foreach (glob($this->servicesDir . '/*.php') as $f) {

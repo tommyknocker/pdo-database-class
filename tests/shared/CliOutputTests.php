@@ -58,14 +58,11 @@ final class CliOutputTests extends TestCase
         $this->assertIsResource($stderr);
         BaseCliCommand::setIo(new CliOutput(null, $stderr));
 
-        putenv('PHPUNIT=1');
-
         try {
             $this->expectException(\RuntimeException::class);
             $this->expectExceptionMessage('Error: boom');
             BaseCliCommand::error('boom');
         } finally {
-            putenv('PHPUNIT');
         }
 
         rewind($stderr);

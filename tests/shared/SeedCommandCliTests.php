@@ -39,14 +39,12 @@ class SeedCommandCliTests extends BaseSharedTestCase
 
         // Ensure non-interactive mode to prevent blocking on user input
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
 
         // Also set $_ENV for consistency
         $_ENV['PDODB_SEED_PATH'] = $this->testSeedPath;
         $_ENV['PDODB_DRIVER'] = 'sqlite';
         $_ENV['PDODB_PATH'] = $this->testDbPath;
         $_ENV['PDODB_NON_INTERACTIVE'] = '1';
-        $_ENV['PHPUNIT'] = '1';
     }
 
     /**
@@ -81,14 +79,10 @@ class SeedCommandCliTests extends BaseSharedTestCase
         putenv('PDODB_SEED_PATH');
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PHPUNIT');
 
         unset($_ENV['PDODB_SEED_PATH']);
         unset($_ENV['PDODB_DRIVER']);
         unset($_ENV['PDODB_PATH']);
-        unset($_ENV['PDODB_NON_INTERACTIVE']);
-        unset($_ENV['PHPUNIT']);
 
         parent::tearDown();
     }
@@ -246,7 +240,7 @@ class SeedCommandCliTests extends BaseSharedTestCase
     {
         // Run in separate process to handle exit()
         $bin = realpath(__DIR__ . '/../../bin/pdodb');
-        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($this->testDbPath) . ' PDODB_SEED_PATH=' . escapeshellarg($this->testSeedPath) . ' PDODB_NON_INTERACTIVE=1 PHPUNIT=1';
+        $env = 'PDODB_DRIVER=sqlite PDODB_PATH=' . escapeshellarg($this->testDbPath) . ' PDODB_SEED_PATH=' . escapeshellarg($this->testSeedPath) . ' PDODB_NON_INTERACTIVE=1';
         $cmd = $env . ' ' . escapeshellcmd(PHP_BINARY) . ' ' . escapeshellarg((string)$bin) . ' seed generate non_existent_table --force 2>&1';
         $output = (string)shell_exec($cmd);
         $exitCode = $output !== '' ? 1 : 0; // If output contains error, exit code is 1
@@ -262,19 +256,9 @@ class SeedCommandCliTests extends BaseSharedTestCase
         $app = new Application();
 
         // Capture output
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
         $exitCode = $app->run(['pdodb', 'seed', 'create', 'test_users']);
         $output = ob_get_clean();
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
 
         $this->assertEquals(0, $exitCode);
         $this->assertStringContainsString('Seed file created:', $output);
@@ -320,20 +304,10 @@ class SeedCommandCliTests extends BaseSharedTestCase
 
         $app = new Application();
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         // Capture output
         ob_start();
         $exitCode = $app->run(['pdodb', 'seed', 'run', $seedName, '--force']);
         $output = ob_get_clean();
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
 
         $this->assertEquals(0, $exitCode);
         $this->assertStringContainsString('Successfully executed', $output);
@@ -356,20 +330,10 @@ class SeedCommandCliTests extends BaseSharedTestCase
 
         $app = new Application();
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         // Capture output
         ob_start();
         $exitCode = $app->run(['pdodb', 'seed', 'run', '--force']);
         $output = ob_get_clean();
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
 
         $this->assertEquals(0, $exitCode);
         $this->assertStringContainsString('Successfully executed 2 seed(s):', $output);
@@ -415,18 +379,8 @@ class SeedCommandCliTests extends BaseSharedTestCase
     {
         // Capture output
         ob_start();
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         $filename = SeedGenerator::generate('test_categories');
         $output = ob_get_clean();
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
 
         $this->assertFileExists($filename);
         $this->assertStringContainsString('test_categories', $filename);
@@ -563,9 +517,6 @@ PHP;
 
         $app = new Application();
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -573,18 +524,8 @@ PHP;
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         $this->assertSame(0, $code);
@@ -637,9 +578,6 @@ PHP;
 
         $app = new Application();
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -647,18 +585,8 @@ PHP;
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         $this->assertSame(0, $code);
@@ -728,27 +656,13 @@ PHP;
         // Rollback all
         ob_start();
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
-
         try {
             $code = $app->run(['pdodb', 'seed', 'rollback', '--force']);
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         $this->assertSame(0, $code);
@@ -781,9 +695,6 @@ PHP;
         $this->assertCliDbHasUsers(4);
 
         // Rollback specific seed
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -791,18 +702,8 @@ PHP;
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         $this->assertSame(0, $code);
@@ -835,9 +736,6 @@ PHP;
         $this->assertCliDbHasUsers(2);
 
         // Rollback with dry-run
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -845,18 +743,8 @@ PHP;
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         $this->assertSame(0, $code);

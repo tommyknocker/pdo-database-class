@@ -44,10 +44,8 @@ class ApiGenerator extends BaseCliCommand
         }
         $driver = static::getDriverName($db);
 
-        if (getenv('PHPUNIT') === false) {
-            static::cliWriteln('PDOdb API Generator');
-            static::cliWriteln("Database: {$driver}");
-        }
+        static::cliWriteln('PDOdb API Generator');
+        static::cliWriteln("Database: {$driver}");
         static::cliWriteln("Format: {$format}\n");
 
         // Resolve table name
@@ -108,12 +106,10 @@ class ApiGenerator extends BaseCliCommand
         file_put_contents($filename, $controllerCode);
 
         static::success('API controller file created: ' . basename($filename));
-        if (getenv('PHPUNIT') === false) {
-            static::cliWriteln("  Path: {$filename}");
-            static::cliWriteln("  Table: {$resolvedTableName}");
-            if ($modelName !== null) {
-                static::cliWriteln("  Model: {$modelName}");
-            }
+        static::cliWriteln("  Path: {$filename}");
+        static::cliWriteln("  Table: {$resolvedTableName}");
+        if ($modelName !== null) {
+            static::cliWriteln("  Model: {$modelName}");
         }
 
         return $filename;

@@ -32,7 +32,6 @@ final class OptimizeCommandCliTests extends TestCase
         }
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
         parent::tearDown();
     }
 
@@ -45,8 +44,6 @@ final class OptimizeCommandCliTests extends TestCase
         $db->rawQuery('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)');
         $db->rawQuery('CREATE TABLE IF NOT EXISTS orders (id INTEGER, user_id INTEGER)'); // No PK
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -54,15 +51,8 @@ final class OptimizeCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -85,8 +75,6 @@ final class OptimizeCommandCliTests extends TestCase
             parent_id INTEGER
         )');
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -94,15 +82,8 @@ final class OptimizeCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -133,8 +114,6 @@ final class OptimizeCommandCliTests extends TestCase
             created_at TEXT
         )');
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -142,15 +121,8 @@ final class OptimizeCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -177,8 +149,6 @@ final class OptimizeCommandCliTests extends TestCase
         $db->rawQuery('CREATE INDEX idx_name ON test_table(name)');
         $db->rawQuery('CREATE INDEX idx_name_email ON test_table(name, email)'); // Redundant
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -187,15 +157,8 @@ final class OptimizeCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -218,8 +181,6 @@ final class OptimizeCommandCliTests extends TestCase
             name TEXT
         )');
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -228,15 +189,8 @@ final class OptimizeCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -255,8 +209,6 @@ final class OptimizeCommandCliTests extends TestCase
         $db->rawQuery('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)');
         $db->rawQuery('INSERT INTO users (id, name) VALUES (1, "Test")');
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -264,15 +216,8 @@ final class OptimizeCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -283,8 +228,6 @@ final class OptimizeCommandCliTests extends TestCase
     {
         $app = new Application();
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -293,9 +236,6 @@ final class OptimizeCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
             // Schema option may not be supported on all dialects, that's OK
             if (str_contains($e->getMessage(), 'schema') || str_contains($e->getMessage(), 'Schema')) {
                 $this->markTestSkipped('Schema option not supported on this dialect');
@@ -303,10 +243,6 @@ final class OptimizeCommandCliTests extends TestCase
             }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);
@@ -320,9 +256,6 @@ final class OptimizeCommandCliTests extends TestCase
 
         $db->rawQuery('CREATE TABLE IF NOT EXISTS test_format (id INTEGER PRIMARY KEY)');
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
-
         // Test JSON format
         ob_start();
 
@@ -331,9 +264,6 @@ final class OptimizeCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
         }
@@ -350,35 +280,20 @@ final class OptimizeCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
         }
         $this->assertSame(0, $code);
         $this->assertStringContainsString('critical_issues', $out);
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        }
     }
 
     public function testOptimizeLogsCommandWithInvalidFile(): void
     {
         $app = new Application();
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT=1');
-
         try {
             $run = CliTestCapture::runApplication($app, ['pdodb', 'optimize', 'logs', '--file=/nonexistent/file.log']);
         } finally {
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            } else {
-                putenv('PHPUNIT');
-            }
         }
 
         $this->assertSame(1, $run['code']);
@@ -389,8 +304,6 @@ final class OptimizeCommandCliTests extends TestCase
     {
         $app = new Application();
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -398,15 +311,8 @@ final class OptimizeCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
         }
 
         $this->assertSame(0, $code);

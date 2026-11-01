@@ -32,7 +32,6 @@ final class ApplicationAndCliCommandsTests extends TestCase
         }
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
         parent::tearDown();
     }
 
@@ -89,6 +88,19 @@ final class ApplicationAndCliCommandsTests extends TestCase
         $this->assertStringNotContainsString('Uncaught', implode("\n", $output));
     }
 
+    public function testFailingCommandReportsOnceAndExitsWithItsCode(): void
+    {
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $this->assertNotFalse($bin);
+        $output = [];
+        exec('PDODB_NON_INTERACTIVE=1 PDODB_DRIVER=sqlite PDODB_PATH=:memory: ' . escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($bin) . ' seed run no_such_seed 2>&1', $output, $code);
+        $text = implode("\n", $output);
+
+        $this->assertSame(1, $code);
+        $this->assertSame(1, substr_count($text, 'Error:'), $text);
+        $this->assertStringNotContainsString('Uncaught', $text);
+    }
+
     public function testDbInfoCommandViaApplication(): void
     {
         $app = new Application();
@@ -113,9 +125,6 @@ final class ApplicationAndCliCommandsTests extends TestCase
         $app = new Application();
 
         // create
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -123,18 +132,8 @@ final class ApplicationAndCliCommandsTests extends TestCase
             $outCreate = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         $this->assertSame(0, $codeCreate);
@@ -142,9 +141,6 @@ final class ApplicationAndCliCommandsTests extends TestCase
         $this->assertFileExists($this->tmpDbFile);
 
         // exists (should print success and return 0)
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -152,27 +148,14 @@ final class ApplicationAndCliCommandsTests extends TestCase
             $outExists = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         $this->assertSame(0, $codeExists);
         $this->assertStringContainsString('exists', $outExists);
 
         // drop
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -180,18 +163,8 @@ final class ApplicationAndCliCommandsTests extends TestCase
             $outDrop = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         $this->assertSame(0, $codeDrop);

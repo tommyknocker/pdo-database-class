@@ -80,7 +80,7 @@ class AiCommand extends Command
             $options['params'] = $params;
             $aiAnalysis = $aiService->analyzeQuery($sql, $tableName, $provider, $options, $baseAnalysis);
 
-            if ($format !== 'json' && getenv('PHPUNIT') === false) {
+            if ($format !== 'json') {
                 $this->write("\r" . str_repeat(' ', 80) . "\r");
             }
 
@@ -160,7 +160,7 @@ class AiCommand extends Command
 
             $analysis = $aiService->analyzeSchema($tableName, $provider, $options);
 
-            if ($format !== 'json' && getenv('PHPUNIT') === false) {
+            if ($format !== 'json') {
                 $this->write("\r" . str_repeat(' ', 80) . "\r");
             }
 
@@ -226,7 +226,7 @@ class AiCommand extends Command
             ];
             $aiSuggestions = $aiService->suggestOptimizations($baseAnalysis, $context, $provider, $options);
 
-            if ($format !== 'json' && getenv('PHPUNIT') === false) {
+            if ($format !== 'json') {
                 $this->write("\r" . str_repeat(' ', 80) . "\r");
             }
 

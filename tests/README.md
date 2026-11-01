@@ -289,7 +289,7 @@ CLI tests use temporary directories and SQLite databases to avoid side effects:
 - Temporary database files are created in `sys_get_temp_dir()`
 - Temporary output directories are created for generated files
 - All temporary files are cleaned up in `tearDown()` methods
-- Tests set `PDODB_NON_INTERACTIVE=1` to suppress interactive prompts
+- `phpunit.xml` sets `PDODB_NON_INTERACTIVE=1` so commands never wait for input
 
 ### Running CLI Tests
 

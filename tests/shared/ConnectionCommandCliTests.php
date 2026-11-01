@@ -28,7 +28,6 @@ final class ConnectionCommandCliTests extends TestCase
         }
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
         putenv('PDODB_CONNECTION');
         parent::tearDown();
     }

@@ -22,7 +22,7 @@ final class InboxCommandCliTests extends BaseSharedTestCase
     {
         parent::setUp();
         $this->testDbPath = sys_get_temp_dir() . '/pdodb_inbox_cli_' . uniqid() . '.sqlite';
-        foreach (['PDODB_DRIVER' => 'sqlite', 'PDODB_PATH' => $this->testDbPath, 'PDODB_NON_INTERACTIVE' => '1', 'PHPUNIT' => '1'] as $name => $value) {
+        foreach (['PDODB_DRIVER' => 'sqlite', 'PDODB_PATH' => $this->testDbPath, 'PDODB_NON_INTERACTIVE' => '1'] as $name => $value) {
             putenv($name . '=' . $value);
             $_ENV[$name] = $value;
         }
@@ -33,7 +33,7 @@ final class InboxCommandCliTests extends BaseSharedTestCase
         if (file_exists($this->testDbPath)) {
             unlink($this->testDbPath);
         }
-        foreach (['PDODB_DRIVER', 'PDODB_PATH', 'PDODB_NON_INTERACTIVE', 'PHPUNIT'] as $name) {
+        foreach (['PDODB_DRIVER', 'PDODB_PATH'] as $name) {
             putenv($name);
             unset($_ENV[$name]);
         }

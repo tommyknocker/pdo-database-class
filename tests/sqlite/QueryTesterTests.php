@@ -21,7 +21,6 @@ final class QueryTesterTests extends TestCase
     {
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
         parent::tearDown();
     }
 

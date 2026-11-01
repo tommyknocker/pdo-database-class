@@ -93,7 +93,6 @@ class AiCommandCliTests extends TestCase
         putenv('PDODB_AI_PROVIDER=ollama');
         putenv('PDODB_AI_BASE_URL=' . self::OLLAMA_DEFAULT_URL);
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
 
         $this->app = new Application();
     }
@@ -104,8 +103,6 @@ class AiCommandCliTests extends TestCase
         putenv('PDODB_PATH');
         putenv('PDODB_AI_PROVIDER');
         putenv('PDODB_AI_BASE_URL');
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PHPUNIT');
     }
 
     public function testAiCommandHelp(): void

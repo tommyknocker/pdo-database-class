@@ -38,13 +38,11 @@ PHP);
         putenv('PDODB_PATH=' . $this->testDbPath);
         putenv('PDODB_OUTBOX_TABLE=' . $this->table);
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
 
         $_ENV['PDODB_DRIVER'] = 'sqlite';
         $_ENV['PDODB_PATH'] = $this->testDbPath;
         $_ENV['PDODB_OUTBOX_TABLE'] = $this->table;
         $_ENV['PDODB_NON_INTERACTIVE'] = '1';
-        $_ENV['PHPUNIT'] = '1';
     }
 
     protected function tearDown(): void
@@ -59,11 +57,8 @@ PHP);
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
         putenv('PDODB_OUTBOX_TABLE');
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PHPUNIT');
 
         unset($_ENV['PDODB_DRIVER'], $_ENV['PDODB_PATH'], $_ENV['PDODB_OUTBOX_TABLE']);
-        unset($_ENV['PDODB_NON_INTERACTIVE'], $_ENV['PHPUNIT']);
 
         parent::tearDown();
     }

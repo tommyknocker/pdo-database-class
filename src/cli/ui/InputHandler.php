@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli\ui;
 
+use tommyknocker\pdodb\cli\CliEnvironment;
+
 /**
  * Input handler for non-blocking keyboard input.
  */
@@ -19,13 +21,7 @@ class InputHandler
     public static function readKey(int $timeoutMicroseconds = 100000): ?string
     {
         // Check for non-interactive mode first (fastest check)
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-
-        // Only check stream_isatty if not already in non-interactive mode (expensive check)
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
 
         if ($nonInteractive) {
             return null;
@@ -251,13 +247,7 @@ class InputHandler
     public static function waitForKey(array $allowedKeys = []): string
     {
         // Check for non-interactive mode first (fastest check)
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-
-        // Only check stream_isatty if not already in non-interactive mode (expensive check)
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
 
         if ($nonInteractive) {
             // In non-interactive mode, return empty string or first allowed key
@@ -288,13 +278,7 @@ class InputHandler
     public static function hasKey(): bool
     {
         // Check for non-interactive mode first (fastest check)
-        $nonInteractive = getenv('PDODB_NON_INTERACTIVE') !== false
-            || getenv('PHPUNIT') !== false;
-
-        // Only check stream_isatty if not already in non-interactive mode (expensive check)
-        if (!$nonInteractive) {
-            $nonInteractive = !stream_isatty(STDIN);
-        }
+        $nonInteractive = CliEnvironment::isNonInteractive();
 
         if ($nonInteractive) {
             return false;

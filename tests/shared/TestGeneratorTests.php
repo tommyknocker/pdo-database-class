@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use ReflectionClass;
+use tommyknocker\pdodb\cli\BaseCliCommand;
+use tommyknocker\pdodb\cli\CliOutput;
 use tommyknocker\pdodb\cli\TestGenerator;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\helpers\Inflector;
@@ -17,6 +19,7 @@ final class TestGeneratorTests extends BaseSharedTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        BaseCliCommand::setIo(new CliOutput(fopen('php://memory', 'wb'), fopen('php://memory', 'wb')));
         // Create a test table for TestGenerator
         self::$db->rawQuery('
             CREATE TABLE IF NOT EXISTS test_users (
@@ -25,6 +28,12 @@ final class TestGeneratorTests extends BaseSharedTestCase
                 email TEXT NOT NULL UNIQUE
             )
         ');
+    }
+
+    protected function tearDown(): void
+    {
+        BaseCliCommand::resetIo();
+        parent::tearDown();
     }
 
     public function testTestGeneratorModelNameToTableName(): void
@@ -60,7 +69,6 @@ final class TestGeneratorTests extends BaseSharedTestCase
         mkdir($tempDir, 0755, true);
 
         try {
-            putenv('PHPUNIT=1'); // Suppress output
             $result = TestGenerator::generate(
                 modelName: null,
                 tableName: 'test_users',
@@ -76,7 +84,6 @@ final class TestGeneratorTests extends BaseSharedTestCase
             // TestGenerator converts table name 'test_users' to class name 'TestUser' (removes 's' suffix)
             $this->assertStringEndsWith('TestUserTest.php', $result);
         } finally {
-            putenv('PHPUNIT');
             if (file_exists($tempDir)) {
                 array_map('unlink', glob($tempDir . '/*'));
                 rmdir($tempDir);
@@ -88,8 +95,6 @@ final class TestGeneratorTests extends BaseSharedTestCase
     {
         $this->expectException(QueryException::class);
         $this->expectExceptionMessage("Table 'non_existent_table' does not exist");
-
-        putenv('PHPUNIT=1'); // Suppress output
 
         try {
             TestGenerator::generate(
@@ -103,7 +108,6 @@ final class TestGeneratorTests extends BaseSharedTestCase
                 force: true
             );
         } finally {
-            putenv('PHPUNIT');
         }
     }
 }

@@ -58,6 +58,9 @@
             <exclude>./tests/shared/Base*.php</exclude>
         </testsuite>
     </testsuites>
+    <php>
+        <env name="PDODB_NON_INTERACTIVE" value="1" force="true"/>
+    </php>
     <source>
         <include>
             <directory suffix=".php">./src</directory>

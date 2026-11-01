@@ -45,7 +45,6 @@ final class SchemaInspectorTests extends TestCase
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=' . $this->dbPath);
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
     }
 
     protected function tearDown(): void
@@ -55,8 +54,6 @@ final class SchemaInspectorTests extends TestCase
         }
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PHPUNIT');
         parent::tearDown();
     }
 
@@ -65,19 +62,9 @@ final class SchemaInspectorTests extends TestCase
      */
     public function testInspectListAllTables(): void
     {
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
         SchemaInspector::inspect(null, null, $this->db);
         $out = ob_get_clean();
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
 
         $this->assertStringContainsString('PDOdb Schema Inspector', $out);
         $this->assertStringContainsString('Database:', $out);
@@ -475,19 +462,9 @@ final class SchemaInspectorTests extends TestCase
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('listTables');
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
         $method->invoke(null, $emptyDb, null);
         $out = ob_get_clean();
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
 
         $this->assertStringContainsString('No tables found', $out);
 
@@ -722,19 +699,9 @@ final class SchemaInspectorTests extends TestCase
         $reflection = new \ReflectionClass(SchemaInspector::class);
         $method = $reflection->getMethod('listTables');
 
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
         $method->invoke(null, $emptyDb, 'json');
         $out = ob_get_clean();
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
 
         // When empty, listTables shows info message instead of JSON
         // So output may not be valid JSON

@@ -31,7 +31,6 @@ final class RepositoryCommandCliTests extends TestCase
     protected function tearDown(): void
     {
         putenv('PDODB_DRIVER');
-        putenv('PDODB_NON_INTERACTIVE');
         putenv('PDODB_REPOSITORY_PATH');
         if (is_dir($this->repositoriesDir)) {
             foreach (glob($this->repositoriesDir . '/*.php') as $f) {

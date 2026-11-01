@@ -28,7 +28,6 @@ final class ServiceGeneratorTests extends TestCase
         putenv('PDODB_DRIVER=sqlite');
         putenv('PDODB_PATH=' . $this->dbPath);
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
     }
 
     protected function tearDown(): void
@@ -41,8 +40,6 @@ final class ServiceGeneratorTests extends TestCase
         }
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PHPUNIT');
         parent::tearDown();
     }
 
@@ -133,9 +130,6 @@ final class ServiceGeneratorTests extends TestCase
      */
     public function testGenerateWithAllParameters(): void
     {
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
         $filename = ServiceGenerator::generate(
             'TestService',
@@ -147,13 +141,6 @@ final class ServiceGeneratorTests extends TestCase
             true
         );
         $out = ob_get_clean();
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
-        }
 
         $this->assertFileExists($filename);
         $this->assertStringContainsString('TestService.php', $filename);

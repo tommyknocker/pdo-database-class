@@ -32,7 +32,6 @@ final class GeneratorCancellationTests extends BaseSharedTestCase
             $this->assertSame('<?php // keep', file_get_contents($dir . '/GenCancel.php'));
         } finally {
             ob_end_clean();
-            putenv('PDODB_NON_INTERACTIVE');
             unlink($dir . '/GenCancel.php');
             rmdir($dir);
             $schema->dropTableIfExists('gen_cancel');

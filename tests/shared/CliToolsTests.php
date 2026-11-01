@@ -83,7 +83,6 @@ class CliToolsTests extends BaseSharedTestCase
         // Clean up environment variables
         putenv('PDODB_MIGRATION_PATH');
         putenv('PDODB_MODEL_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
 
         parent::tearDown();
     }
@@ -1104,19 +1103,11 @@ class CliToolsTests extends BaseSharedTestCase
         $this->assertIsResource($stdout);
         BaseCliCommand::setIo(new CliOutput($stdout));
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
-
         try {
             $reflection = new \ReflectionClass(BaseCliCommand::class);
             $method = $reflection->getMethod('success');
             $method->invoke(null, 'Test success message');
         } finally {
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            } else {
-                putenv('PHPUNIT');
-            }
             BaseCliCommand::resetIo();
         }
 
@@ -1135,19 +1126,11 @@ class CliToolsTests extends BaseSharedTestCase
         $this->assertIsResource($stdout);
         BaseCliCommand::setIo(new CliOutput($stdout));
 
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
-
         try {
             $reflection = new \ReflectionClass(BaseCliCommand::class);
             $method = $reflection->getMethod('info');
             $method->invoke(null, 'Test info message');
         } finally {
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            } else {
-                putenv('PHPUNIT');
-            }
             BaseCliCommand::resetIo();
         }
 

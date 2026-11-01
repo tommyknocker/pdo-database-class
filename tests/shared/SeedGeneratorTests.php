@@ -26,7 +26,6 @@ final class SeedGeneratorTests extends TestCase
         putenv("PDODB_PATH={$this->testDbPath}");
         putenv("PDODB_SEED_PATH={$this->testSeedPath}");
         putenv('PDODB_NON_INTERACTIVE=1');
-        putenv('PHPUNIT=1');
     }
 
     protected function tearDown(): void
@@ -51,16 +50,11 @@ final class SeedGeneratorTests extends TestCase
         putenv('PDODB_DRIVER');
         putenv('PDODB_PATH');
         putenv('PDODB_SEED_PATH');
-        putenv('PDODB_NON_INTERACTIVE');
-        putenv('PHPUNIT');
         parent::tearDown();
     }
 
     public function testGenerateWithName(): void
     {
-        // Temporarily unset PHPUNIT to allow output
-        $phpunit = getenv('PHPUNIT');
-        putenv('PHPUNIT');
         ob_start();
 
         try {
@@ -68,18 +62,8 @@ final class SeedGeneratorTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            if ($phpunit !== false) {
-                putenv('PHPUNIT=' . $phpunit);
-            }
 
             throw $e;
-        }
-
-        // Restore PHPUNIT
-        if ($phpunit !== false) {
-            putenv('PHPUNIT=' . $phpunit);
-        } else {
-            putenv('PHPUNIT');
         }
 
         $this->assertIsString($filename);
