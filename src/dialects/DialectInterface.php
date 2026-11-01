@@ -2278,6 +2278,11 @@ interface DialectInterface
     public function buildInboxSchemaSql(string $tableName): array;
 
     /**
+     * UTC timestamp string for inserting an inbox claim row (matches {@see buildInboxSchemaSql()} column type).
+     */
+    public function formatInboxProcessedAt(): string;
+
+    /**
      * Whether multiple worker processes can claim outbox rows safely (e.g. SKIP LOCKED / READPAST).
      */
     public function supportsOutboxConcurrentWorkerClaim(): bool;

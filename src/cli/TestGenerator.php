@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli;
 
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\helpers\Inflector;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -166,7 +167,7 @@ class TestGenerator extends BaseCliCommand
             }
         }
 
-        return static::modelNameToTableName($modelName);
+        return Inflector::tableize($modelName);
     }
 
     /**
@@ -210,23 +211,10 @@ class TestGenerator extends BaseCliCommand
         // Try to extract model name from repository name
         if (str_ends_with($repositoryName, 'Repository')) {
             $modelName = substr($repositoryName, 0, -10);
-            return static::modelNameToTableName($modelName);
+            return Inflector::tableize($modelName);
         }
 
         return null;
-    }
-
-    /**
-     * Convert model name to table name.
-     *
-     * @param string $modelName Model name
-     *
-     * @return string
-     */
-    protected static function modelNameToTableName(string $modelName): string
-    {
-        $snakeCase = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $modelName) ?: $modelName);
-        return $snakeCase . 's';
     }
 
     /**
@@ -238,15 +226,7 @@ class TestGenerator extends BaseCliCommand
      */
     protected static function tableNameToClassName(string $tableName): string
     {
-        $parts = explode('_', $tableName);
-        $camelCase = '';
-        foreach ($parts as $part) {
-            $camelCase .= ucfirst($part);
-        }
-        if (str_ends_with($camelCase, 's')) {
-            $camelCase = substr($camelCase, 0, -1);
-        }
-        return $camelCase;
+        return Inflector::classify($tableName);
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm\relations;
 
 use RuntimeException;
+use tommyknocker\pdodb\helpers\Inflector;
 use tommyknocker\pdodb\orm\ActiveQuery;
 use tommyknocker\pdodb\orm\Model;
 
@@ -66,9 +67,7 @@ class HasMany implements RelationInterface
 
         // Resolve foreign key if not specified
         if ($this->foreignKey === '') {
-            $ownerTable = $model::tableName();
-            $ownerTable = preg_replace('/s$/', '', $ownerTable); // Remove plural 's'
-            $this->foreignKey = $ownerTable . '_id';
+            $this->foreignKey = Inflector::foreignKeyStem($model::class) . '_id';
         }
 
         // Resolve local key from primary key if using default

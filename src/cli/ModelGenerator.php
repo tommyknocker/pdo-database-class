@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli;
 
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\helpers\Inflector;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -50,7 +51,7 @@ class ModelGenerator extends BaseCliCommand
         // Get table name
         if ($tableName === null) {
             // Auto-detect from model name
-            $tableName = static::modelNameToTableName($modelName);
+            $tableName = Inflector::tableize($modelName);
             $tableName = static::readInput('Enter table name', $tableName);
         }
 
@@ -138,20 +139,6 @@ class ModelGenerator extends BaseCliCommand
             }
         }
         return $mapping;
-    }
-
-    /**
-     * Convert model name to table name.
-     *
-     * @param string $modelName Model name
-     *
-     * @return string
-     */
-    protected static function modelNameToTableName(string $modelName): string
-    {
-        // Convert CamelCase to snake_case and pluralize
-        $snakeCase = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $modelName) ?: $modelName);
-        return $snakeCase . 's';
     }
 
     /**
@@ -355,7 +342,7 @@ PHP;
 
             $ownerKey = static::foreignKeyReferencedColumn($foreignKey) ?? 'id';
             $relationName = static::foreignKeyToRelationName($column);
-            $relatedModel = $relatedModels[$refTable] ?? static::tableToModelName($refTable);
+            $relatedModel = $relatedModels[$refTable] ?? Inflector::classify($refTable);
 
             $code .= "            '{$relationName}' => [\n";
             $code .= "                'belongsTo',\n";
@@ -421,45 +408,6 @@ PHP;
         return $column;
     }
 
-    protected static function tableToModelName(string $table): string
-    {
-        $parts = explode('_', $table);
-        $name = '';
-        foreach ($parts as $part) {
-            if ($part === '') {
-                continue;
-            }
-            $name .= ucfirst(mb_strtolower($part, 'UTF-8'));
-        }
-
-        if ($name === '') {
-            return 'Related';
-        }
-
-        $irregular = ['People' => 'Person', 'Men' => 'Man', 'Women' => 'Woman',
-            'Children' => 'Child', 'Teeth' => 'Tooth', 'Feet' => 'Foot', 'Mice' => 'Mouse',
-            'Geese' => 'Goose', 'Indices' => 'Index'];
-        foreach ($irregular as $plural => $singular) {
-            if (str_ends_with($name, $plural)) {
-                return substr($name, 0, -strlen($plural)) . $singular;
-            }
-        }
-        if (in_array($name, ['News', 'Series', 'Species'], true)) {
-            return $name;
-        }
-        if (preg_match('/[^aeiou]ies$/i', $name) === 1) {
-            return substr($name, 0, -3) . 'y';
-        }
-        if (preg_match('/(sses|shes|ches|xes|zes|statuses|buses)$/i', $name) === 1) {
-            return substr($name, 0, -2);
-        }
-        if (str_ends_with($name, 's') && !preg_match('/(ss|us|is)$/i', $name) && strlen($name) > 1) {
-            $name = substr($name, 0, -1);
-        }
-
-        return $name;
-    }
-
     /**
      * @param array<int, array<string, mixed>> $foreignKeys
      * @param array<string, string> $relatedModels Referenced table to model class mappings
@@ -474,7 +422,7 @@ PHP;
             if ($refTable === null) {
                 continue;
             }
-            $related = $relatedModels[$refTable] ?? static::tableToModelName($refTable);
+            $related = $relatedModels[$refTable] ?? Inflector::classify($refTable);
             if ($related === $modelName) {
                 continue;
             }

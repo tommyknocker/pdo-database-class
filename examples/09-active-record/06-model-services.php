@@ -109,9 +109,9 @@ recreateTable($db, 'service_articles', [
     'title' => $schema->string(100)->notNull(),
     'views' => $schema->integer()->notNull()->defaultValue(0),
     'internal_note' => $schema->string(100)->null(),
-    'created_at' => $schema->string(32)->null(),
-    'updated_at' => $schema->string(32)->null(),
-    'deleted_at' => $schema->string(32)->null(),
+    'created_at' => $schema->string(64)->null(),
+    'updated_at' => $schema->string(64)->null(),
+    'deleted_at' => $schema->string(64)->null(),
 ]);
 recreateTable($db, 'service_tags', [
     'id' => $schema->primaryKey(),

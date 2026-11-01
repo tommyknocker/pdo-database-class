@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli;
 
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\helpers\Inflector;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -145,23 +146,10 @@ class DocsGenerator extends BaseCliCommand
             }
 
             // Fallback: convert model name to table name
-            return static::modelNameToTableName($modelName);
+            return Inflector::tableize($modelName);
         }
 
         return null;
-    }
-
-    /**
-     * Convert model name to table name.
-     *
-     * @param string $modelName Model name
-     *
-     * @return string
-     */
-    protected static function modelNameToTableName(string $modelName): string
-    {
-        $snakeCase = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $modelName) ?: $modelName);
-        return $snakeCase . 's';
     }
 
     /**

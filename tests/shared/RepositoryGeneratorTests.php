@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\RepositoryGenerator;
+use tommyknocker\pdodb\helpers\Inflector;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -266,12 +267,9 @@ final class RepositoryGeneratorTests extends TestCase
      */
     public function testModelNameToTableName(): void
     {
-        $reflection = new \ReflectionClass(RepositoryGenerator::class);
-        $method = $reflection->getMethod('modelNameToTableName');
-
-        $this->assertEquals('users', $method->invoke(null, 'User'));
-        $this->assertEquals('products', $method->invoke(null, 'Product'));
-        $this->assertEquals('user_profiles', $method->invoke(null, 'UserProfile'));
+        $this->assertEquals('users', Inflector::tableize('User'));
+        $this->assertEquals('products', Inflector::tableize('Product'));
+        $this->assertEquals('user_profiles', Inflector::tableize('UserProfile'));
     }
 
     /**

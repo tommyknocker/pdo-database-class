@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm;
 
 use RuntimeException;
+use tommyknocker\pdodb\helpers\Inflector;
 use tommyknocker\pdodb\orm\behaviors\ModelBehavior;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\QueryBuilder;
@@ -94,11 +95,7 @@ abstract class Model
      */
     public static function tableName(): string
     {
-        $className = static::class;
-        $className = substr($className, strrpos($className, '\\') + 1);
-        // Convert CamelCase to snake_case and pluralize
-        $snakeCase = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $className) ?: $className);
-        return $snakeCase . 's';
+        return Inflector::tableize(Inflector::classBasename(static::class));
     }
 
     /**

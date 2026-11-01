@@ -36,6 +36,10 @@ class User extends Model
 }
 ```
 
+### Table and class names
+
+If you omit `tableName()`, PDOdb derives the table from the short class name with `Inflector::tableize()` (CamelCase to snake_case, then English plural on the last segment). `User` maps to `users`, `OrderItem` to `order_items`, `Person` to `people`. The CLI model generator and default `belongsTo` / `hasMany` foreign keys use the same helper. Override `tableName()` or set an explicit `foreignKey` when your database uses another convention.
+
 ### Setting Database Connection
 
 ```php

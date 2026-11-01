@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\tests\shared;
 use ReflectionClass;
 use tommyknocker\pdodb\cli\TestGenerator;
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\helpers\Inflector;
 
 /**
  * Tests for TestGenerator class.
@@ -28,12 +29,9 @@ final class TestGeneratorTests extends BaseSharedTestCase
 
     public function testTestGeneratorModelNameToTableName(): void
     {
-        $reflection = new ReflectionClass(TestGenerator::class);
-        $method = $reflection->getMethod('modelNameToTableName');
-
-        $this->assertEquals('users', $method->invoke(null, 'User'));
-        $this->assertEquals('test_models', $method->invoke(null, 'TestModel'));
-        $this->assertEquals('user_profiles', $method->invoke(null, 'UserProfile'));
+        $this->assertEquals('users', Inflector::tableize('User'));
+        $this->assertEquals('test_models', Inflector::tableize('TestModel'));
+        $this->assertEquals('user_profiles', Inflector::tableize('UserProfile'));
     }
 
     public function testTestGeneratorTableNameToClassName(): void

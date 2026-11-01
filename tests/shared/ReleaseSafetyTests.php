@@ -11,6 +11,7 @@ use ReviewGenerated\Status;
 use tommyknocker\pdodb\cli\InitConfigGenerator;
 use tommyknocker\pdodb\cli\ModelGenerator;
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\helpers\Inflector;
 use tommyknocker\pdodb\migrations\MigrationRunner;
 use tommyknocker\pdodb\orm\Model;
 use tommyknocker\pdodb\PdoDb;
@@ -165,10 +166,9 @@ final class ReleaseSafetyTests extends TestCase
 
     public function testCommonReferencedTableNamesAreSingularized(): void
     {
-        $method = (new \ReflectionClass(ModelGenerator::class))->getMethod('tableToModelName');
         foreach (['categories' => 'Category', 'statuses' => 'Status', 'people' => 'Person',
             'addresses' => 'Address', 'news' => 'News', 'businesses' => 'Business'] as $table => $expected) {
-            self::assertSame($expected, $method->invoke(null, $table));
+            self::assertSame($expected, Inflector::classify($table));
         }
     }
 

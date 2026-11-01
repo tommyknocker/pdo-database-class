@@ -1481,6 +1481,14 @@ abstract class DialectAbstract implements DialectInterface
     /**
      * {@inheritDoc}
      */
+    public function formatInboxProcessedAt(): string
+    {
+        return gmdate('Y-m-d H:i:s');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildOutboxSchemaSql(string $tableName): array
     {
         $tableQuoted = $this->quoteTable($tableName);

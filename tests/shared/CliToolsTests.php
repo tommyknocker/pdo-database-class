@@ -12,6 +12,7 @@ use tommyknocker\pdodb\cli\ModelGenerator;
 use tommyknocker\pdodb\cli\SchemaInspector;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\ResourceException;
+use tommyknocker\pdodb\helpers\Inflector;
 use tommyknocker\pdodb\migrations\MigrationRunner;
 use tommyknocker\pdodb\PdoDb;
 
@@ -442,16 +443,13 @@ class CliToolsTests extends BaseSharedTestCase
     }
 
     /**
-     * Test ModelGenerator modelNameToTableName method.
+     * Test Inflector tableize matches generator defaults.
      */
-    public function testModelGeneratorModelNameToTableName(): void
+    public function testInflectorTableizeForModelNames(): void
     {
-        $reflection = new \ReflectionClass(ModelGenerator::class);
-        $method = $reflection->getMethod('modelNameToTableName');
-
-        $this->assertEquals('users', $method->invoke(null, 'User'));
-        $this->assertEquals('user_profiles', $method->invoke(null, 'UserProfile'));
-        $this->assertEquals('order_items', $method->invoke(null, 'OrderItem'));
+        $this->assertEquals('users', Inflector::tableize('User'));
+        $this->assertEquals('user_profiles', Inflector::tableize('UserProfile'));
+        $this->assertEquals('order_items', Inflector::tableize('OrderItem'));
     }
 
     /**

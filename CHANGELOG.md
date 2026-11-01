@@ -27,7 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Outbox integration tests with multiple independent database connections per dialect (MySQL, MariaDB, PostgreSQL, SQL Server, Oracle) to assert each pending message is published exactly once.
 - ActiveRecord behaviors for timestamps, soft deletes, and UUID/ULID keys; `transactional()` saves that roll back in-memory state; `afterCommit()`; `firstOrCreate()` / `updateOrCreate()`; atomic `increment()` / `decrement()`; `updateAll()` / `deleteAll()`; model `each()` / `chunk()` / `cursor()`; richer validators; `hiddenAttributes()` / `visibleAttributes()`; and many-to-many `attach()` / `detach()` / `sync()`.
 - Consumer `Inbox` for idempotent handling of at-least-once messages, plus `PdoDb::afterCommit()` / `afterRollback()`.
-- Idempotent upsert SQL on each dialect (`buildIdempotentUpsertSql`) and inbox DDL (`buildInboxSchemaSql`).
+- Shared `Inflector` helper for English table and class names (`tableize`, `classify`, default foreign-key stems).
+- Inbox claims insert `processed_at` using the dialect clock format so strict SQL modes and existing tables stay consistent.
 - `unique` validator option `withoutTrashed` to ignore soft-deleted rows (they count as taken by default).
 
 ### Changed
@@ -37,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `TimestampBehavior` and `SoftDeleteBehavior` write the database clock (`NOW()` on the dialect) instead of the PHP clock and reload the stored value after saving; they follow the connection time zone. A `value` option (closure, `RawValue` or literal) overrides it. Idempotent upsert rows (`firstOrCreate()` / `updateOrCreate()`) accept `RawValue` expressions. `DialectInterface::transformValueForBinding()` gets an optional `$table` argument.
 - Inbox ids may be up to 190 characters, and `processed_at` is a native datetime column filled by the database clock.
 - **Breaking:** the model generator emits `@property` tags instead of a public `$attributes` array.
+- **Breaking:** default `Model::tableName()` uses `Inflector::tableize()` (English pluralization) instead of appending `s` only. Override `tableName()` when your schema uses a different convention.
+- **Breaking:** `DialectInterface` requires `formatInboxProcessedAt()` for inbox claim timestamps.
 - **Breaking:** nested `transaction()` calls no longer commit an existing transaction; they use savepoints when supported.
 - **Breaking:** `setAttributes(..., safeOnly: true)` throws `MassAssignmentException` when the model does not declare `safeAttributes()`.
 - **Breaking:** `DialectInterface` requires `executePlanExplain()`. A third-party dialect must implement it. `getSlowestQueries()` sorts by total time and includes `count` and `possible_n_plus_one`.

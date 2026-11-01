@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm\relations;
 
 use RuntimeException;
+use tommyknocker\pdodb\helpers\Inflector;
 use tommyknocker\pdodb\orm\ActiveQuery;
 use tommyknocker\pdodb\orm\Model;
 
@@ -42,9 +43,7 @@ class BelongsTo implements RelationInterface
 
         // Auto-detect foreign key if not specified
         if (!isset($config['foreignKey'])) {
-            $relatedTable = $modelClass::tableName();
-            $relatedTable = preg_replace('/s$/', '', $relatedTable); // Remove plural 's'
-            $this->foreignKey = $relatedTable . '_id';
+            $this->foreignKey = Inflector::foreignKeyStem($modelClass) . '_id';
         } else {
             $this->foreignKey = (string)$config['foreignKey'];
         }

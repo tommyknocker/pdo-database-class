@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli;
 
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\helpers\Inflector;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -64,7 +65,7 @@ class RepositoryGenerator extends BaseCliCommand
         }
 
         // Get table name from model
-        $tableName = static::modelNameToTableName($modelName);
+        $tableName = Inflector::tableize($modelName);
 
         // Verify table exists, if not try singular version (RcUser -> rc_user)
         if (!$db->schema()->tableExists($tableName)) {
@@ -133,20 +134,6 @@ class RepositoryGenerator extends BaseCliCommand
             return substr($repositoryName, 0, -10);
         }
         return $repositoryName;
-    }
-
-    /**
-     * Convert model name to table name.
-     *
-     * @param string $modelName Model name
-     *
-     * @return string
-     */
-    protected static function modelNameToTableName(string $modelName): string
-    {
-        // Convert CamelCase to snake_case and pluralize
-        $snakeCase = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $modelName) ?: $modelName);
-        return $snakeCase . 's';
     }
 
     /**
