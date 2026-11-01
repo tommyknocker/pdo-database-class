@@ -16,6 +16,7 @@ use tommyknocker\pdodb\events\ModelBeforeDeleteEvent;
 use tommyknocker\pdodb\events\ModelBeforeInsertEvent;
 use tommyknocker\pdodb\events\ModelBeforeSaveEvent;
 use tommyknocker\pdodb\events\ModelBeforeUpdateEvent;
+use tommyknocker\pdodb\exceptions\ConstraintViolationException;
 use tommyknocker\pdodb\exceptions\LazyRelationException;
 use tommyknocker\pdodb\exceptions\MassAssignmentException;
 use tommyknocker\pdodb\exceptions\ModelWriteAbortedException;
@@ -24,7 +25,6 @@ use tommyknocker\pdodb\exceptions\PrimaryKeyMutationException;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\orm\behaviors\SoftDeleteBehavior;
-use tommyknocker\pdodb\orm\behaviors\TimestampBehavior;
 use tommyknocker\pdodb\orm\relations\BelongsTo;
 use tommyknocker\pdodb\orm\relations\HasMany;
 use tommyknocker\pdodb\orm\relations\HasManyThrough;
@@ -1529,33 +1529,39 @@ trait ActiveRecord
     }
 
     /**
+     * Return the row matching $search, or create it from $search and $values.
+     *
+     * The new row goes through save(): validation, behaviors and model events all run. If validation fails the
+     * unsaved model is returned (check getIsNewRecord() and getValidationErrors()). The search columns need a unique
+     * constraint; when a concurrent request creates the row first, the violation is caught and that row is returned.
+     *
      * @param array<string, mixed> $search
      * @param array<string, mixed> $values
      */
     public static function firstOrCreate(array $search, array $values = []): static
     {
-        static::upsertBySearch($search, $values, false);
-        $model = static::findOne($search);
-        if (!$model instanceof static) {
-            throw new RuntimeException('firstOrCreate could not load the row after upsert.');
-        }
+        static::assertSearchAttributes($search);
 
-        return $model;
+        return static::findOne($search) ?? static::createOrFindExisting($search, $values, null);
     }
 
     /**
+     * Update the row matching $search with $values, or create it. Both paths go through save(), so validation,
+     * behaviors and model events run; see firstOrCreate() for the failure and race behavior.
+     *
      * @param array<string, mixed> $search
      * @param array<string, mixed> $values
      */
     public static function updateOrCreate(array $search, array $values = []): static
     {
-        static::upsertBySearch($search, $values, true);
+        static::assertSearchAttributes($search);
+
         $model = static::findOne($search);
-        if (!$model instanceof static) {
-            throw new RuntimeException('updateOrCreate could not load the row after upsert.');
+        if ($model instanceof static) {
+            return static::fillAndSave($model, $values);
         }
 
-        return $model;
+        return static::createOrFindExisting($search, $values, $values);
     }
 
     /**
@@ -1608,9 +1614,8 @@ trait ActiveRecord
 
     /**
      * @param array<string, mixed> $search
-     * @param array<string, mixed> $values
      */
-    protected static function upsertBySearch(array $search, array $values, bool $replaceValues): void
+    protected static function assertSearchAttributes(array $search): void
     {
         if ($search === []) {
             throw new RuntimeException('Search attributes are required.');
@@ -1620,10 +1625,19 @@ trait ActiveRecord
                 throw new RuntimeException('Search keys must be column names.');
             }
         }
+    }
 
+    /**
+     * Insert through save(); if a concurrent insert wins the unique key, load that row (and apply $updateWith).
+     *
+     * @param array<string, mixed> $search
+     * @param array<string, mixed> $values
+     * @param array<string, mixed>|null $updateWith Values to apply when the row turns out to exist already
+     */
+    protected static function createOrFindExisting(array $search, array $values, ?array $updateWith): static
+    {
         $model = new static();
-        $db = $model->getModelDb();
-        if ($db === null) {
+        if ($model->getModelDb() === null) {
             throw new RuntimeException('Database connection not set. Use Model::setDb() to set connection.');
         }
         foreach (array_merge($search, $values) as $column => $value) {
@@ -1632,66 +1646,36 @@ trait ActiveRecord
             }
             $model->setAttribute($column, $value);
         }
-        foreach (static::resolveBehaviors() as $behavior) {
-            $behavior->beforeInsert($model);
-            if ($replaceValues) {
-                $behavior->beforeUpdate($model);
+
+        try {
+            $model->save();
+        } catch (ConstraintViolationException $e) {
+            $existing = static::findOne($search);
+            if (!$existing instanceof static) {
+                throw $e;
             }
+
+            return $updateWith === null ? $existing : static::fillAndSave($existing, $updateWith);
         }
 
-        $row = [];
-        foreach ($model->getAttributes() as $column => $value) {
-            $row[$column] = static::normalizeUpsertValue($value);
-        }
-        $updateColumns = [];
-        if ($replaceValues) {
-            foreach (array_keys($values) as $column) {
-                if (!array_key_exists($column, $search)) {
-                    $updateColumns[] = $column;
-                }
-            }
-            foreach (static::resolveBehaviors() as $behavior) {
-                if (!$behavior instanceof TimestampBehavior) {
-                    continue;
-                }
-                $updatedAt = $behavior->updatedAtColumn();
-                if ($updatedAt !== null && !array_key_exists($updatedAt, $search) && !in_array($updatedAt, $updateColumns, true)) {
-                    $updateColumns[] = $updatedAt;
-                }
-            }
-        }
-
-        [$sql, $params] = $db->connection->getDialect()->buildIdempotentUpsertSql(
-            static::tableName(),
-            $row,
-            array_keys($search),
-            $updateColumns
-        );
-        $db->rawQuery($sql, $params);
+        return $model;
     }
 
-    protected static function normalizeUpsertValue(mixed $value): string|int|float|RawValue|null
+    /**
+     * @param static $model
+     * @param array<string, mixed> $values
+     */
+    protected static function fillAndSave(self $model, array $values): static
     {
-        if ($value instanceof RawValue) {
-            return $value;
+        foreach ($values as $column => $value) {
+            if (!is_string($column)) {
+                throw new RuntimeException('Value keys must be column names.');
+            }
+            $model->setAttribute($column, $value);
         }
-        if ($value instanceof \BackedEnum) {
-            $value = $value->value;
-        }
-        if ($value instanceof \DateTimeInterface) {
-            return $value->format('Y-m-d H:i:s');
-        }
-        if (is_bool($value)) {
-            return (int) $value;
-        }
-        if (is_array($value)) {
-            return json_encode($value, JSON_THROW_ON_ERROR);
-        }
-        if ($value === null || is_string($value) || is_int($value) || is_float($value)) {
-            return $value;
-        }
+        $model->save();
 
-        throw new RuntimeException('Upsert values must be scalars.');
+        return $model;
     }
 
     /**

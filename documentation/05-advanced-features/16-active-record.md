@@ -895,7 +895,7 @@ Callbacks run after the commit has succeeded. If a callback throws, the exceptio
 
 ### Bulk writes and race-free create
 
-`updateAll()` and `deleteAll()` apply global scopes and do not fire model events. `firstOrCreate()` and `updateOrCreate()` use one dialect-specific upsert. The search columns need a unique constraint; the first conflict is the whole search key, not only the primary key. `increment()` and `decrement()` use a single SQL addition so two requests cannot lose an update. They participate in optimistic locking when `optimisticLock()` is set.
+`updateAll()` and `deleteAll()` apply global scopes and do not fire model events. `firstOrCreate()` and `updateOrCreate()` write through `save()`, so validation, behaviors and model events run. When validation fails they return the unsaved model: check `getIsNewRecord()` and `getValidationErrors()`. The search columns need a unique constraint: if a concurrent request inserts the row first, the constraint violation is caught and that row is returned (and updated, for `updateOrCreate()`). `increment()` and `decrement()` use a single SQL addition so two requests cannot lose an update. They participate in optimistic locking when `optimisticLock()` is set.
 
 `ActiveQuery::each()`, `chunk()`, and `cursor()` yield models. `each()` and `chunk()` load `with()` relations once per batch. `getQueryBuilder()->each()` still yields raw rows. `stream()` on an active query remains a raw stream; use `cursor()` for models.
 

@@ -94,6 +94,27 @@ final class FeatureTag extends Model
     }
 }
 
+final class FeatureRaceArticle extends Model
+{
+    public static int $lookups = 0;
+
+    public static function tableName(): string
+    {
+        return 'feature_articles';
+    }
+
+    public static function behaviors(): array
+    {
+        return [PrimaryKeyBehavior::class => ['strategy' => PrimaryKeyBehavior::ULID, 'column' => 'public_id']];
+    }
+
+    /** The first lookup misses, as if another request inserted the row a moment later. */
+    public static function findOne(mixed $condition): ?static
+    {
+        return self::$lookups++ === 0 ? null : parent::findOne($condition);
+    }
+}
+
 final class FeatureArticleLink extends Model
 {
     public static function tableName(): string
@@ -364,5 +385,61 @@ final class ModelFeatureTests extends BaseSharedTestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('rules() entry #0');
         $model->save();
+    }
+
+    public function testFirstOrCreateValidatesAndReturnsTheUnsavedModel(): void
+    {
+        $model = FeatureArticle::firstOrCreate(['slug' => 'bad'], ['title' => 'forbidden']);
+
+        $this->assertTrue($model->getIsNewRecord());
+        $this->assertTrue($model->hasValidationErrors());
+        $this->assertSame(0, (int) self::$db->find()->from('feature_articles')->select(['COUNT(*)'])->getValue());
+    }
+
+    public function testFirstOrCreateFiresModelEvents(): void
+    {
+        $events = [];
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')->willReturnCallback(static function (object $event) use (&$events): object {
+            $events[] = $event::class;
+
+            return $event;
+        });
+        $db = self::$db;
+        $db->setEventDispatcher($dispatcher);
+
+        try {
+            FeatureArticle::firstOrCreate(['slug' => 'evented'], ['title' => 'Evented']);
+        } finally {
+            $db->setEventDispatcher(null);
+        }
+
+        $this->assertContains(ModelAfterSaveEvent::class, $events);
+    }
+
+    public function testUpdateOrCreateUpdatesThroughSave(): void
+    {
+        $first = FeatureArticle::updateOrCreate(['slug' => 'upd'], ['title' => 'One']);
+        $second = FeatureArticle::updateOrCreate(['slug' => 'upd'], ['title' => 'Two']);
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame('Two', FeatureArticle::findOne($first->id)?->title);
+        $this->assertNotEmpty($second->updated_at);
+
+        $invalid = FeatureArticle::updateOrCreate(['slug' => 'upd'], ['title' => 'forbidden']);
+        $this->assertTrue($invalid->hasValidationErrors());
+        $this->assertSame('Two', FeatureArticle::findOne($first->id)?->title);
+    }
+
+    public function testFirstOrCreateReturnsTheRowACompetingRequestInserted(): void
+    {
+        self::$db->rawQuery("INSERT INTO feature_articles (public_id, slug, title) VALUES ('p1', 'raced', 'Winner')");
+        FeatureRaceArticle::setDb(self::$db);
+        FeatureRaceArticle::$lookups = 0;
+
+        $model = FeatureRaceArticle::firstOrCreate(['slug' => 'raced'], ['title' => 'Loser']);
+
+        $this->assertSame('Winner', $model->title);
+        $this->assertSame(1, (int) self::$db->find()->from('feature_articles')->select(['COUNT(*)'])->getValue());
     }
 }
