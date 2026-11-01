@@ -8,6 +8,8 @@ use ReflectionProperty;
 use tommyknocker\pdodb\cli\BaseCliCommand;
 use tommyknocker\pdodb\cli\CliOutput;
 use tommyknocker\pdodb\cli\ui\Dashboard;
+use tommyknocker\pdodb\cli\ui\DashboardState;
+use tommyknocker\pdodb\cli\ui\SqlScratchpad;
 
 /**
  * A Dashboard whose keys, frames and state can be driven from a test without a terminal.
@@ -26,12 +28,27 @@ final class DashboardHarness extends Dashboard
 
     public function prop(string $name): mixed
     {
-        return (new ReflectionProperty(Dashboard::class, $name))->getValue($this);
+        [$class, $object] = $this->owner($name);
+
+        return (new ReflectionProperty($class, $name))->getValue($object);
     }
 
     public function set(string $name, mixed $value): void
     {
-        (new ReflectionProperty(Dashboard::class, $name))->setValue($this, $value);
+        [$class, $object] = $this->owner($name);
+        (new ReflectionProperty($class, $name))->setValue($object, $value);
+    }
+
+    /**
+     * @return array{class-string, object} Where a piece of state lives: scratchpad state is in SqlScratchpad
+     */
+    private function owner(string $name): array
+    {
+        if (str_starts_with($name, 'scratchpad')) {
+            return [SqlScratchpad::class, $this->scratchpad];
+        }
+
+        return property_exists(DashboardState::class, $name) ? [DashboardState::class, $this->state] : [Dashboard::class, $this];
     }
 
     public function screen(): int
