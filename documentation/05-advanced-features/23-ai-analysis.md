@@ -90,7 +90,7 @@ Here is the OpenRouter setup for the demo. Add these three values to the local
 ```dotenv
 PDODB_AI_PROVIDER=openrouter
 PDODB_AI_API_KEY=your-openrouter-key
-PDODB_AI_MODEL=openai/gpt-5.4-mini
+PDODB_AI_MODEL=openai/gpt-5.6-luna
 ```
 
 The model shown is the library's default OpenRouter model. You can replace it

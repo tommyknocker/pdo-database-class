@@ -14,7 +14,7 @@ use tommyknocker\pdodb\exceptions\QueryException;
 class OpenAiProvider extends BaseAiProvider
 {
     private const string API_URL = 'https://api.openai.com/v1/chat/completions';
-    private const string DEFAULT_MODEL = 'gpt-5.4-mini';
+    private const string DEFAULT_MODEL = 'gpt-5.6-luna';
     private const float DEFAULT_TEMPERATURE = 0.7;
     private const int DEFAULT_MAX_TOKENS = 2000;
     private const string HEADER_AUTHORIZATION = 'Authorization';

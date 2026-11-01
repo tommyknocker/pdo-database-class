@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `unique` validator option `withoutTrashed` to ignore soft-deleted rows (they count as taken by default).
 
 ### Changed
+- The default OpenAI model is now `gpt-5.6-luna`. This model family does not accept an explicit temperature; set `ai.model` to a `gpt-5.2`/`gpt-5.4` model to keep using one.
 - The CLI no longer changes its behaviour when the `PHPUNIT` environment variable is set. Interactivity comes from `PDODB_NON_INTERACTIVE` or a missing terminal (`CliEnvironment`), and a failing command now throws `CliExitException`, which `Application::run()` turns into the exit code. Test runs set `PDODB_NON_INTERACTIVE=1` in `phpunit.xml`.
 - Duplicate numbering removed: `examples/02-intermediate/08-pagination-advanced.php`, `examples/11-schema/09-advanced-ddl.php`, `examples/12-reliability/06-error-diagnostics.php` and `documentation/05-advanced-features/29-dialect-specific-schema.md` were renumbered (links updated).
 - **Breaking:** model connection overrides are isolated by class; use `Model::setDb($db)` for a shared default. Scoped record writes now honor global scopes, and terminal ActiveQuery methods return their delegated results.

@@ -81,7 +81,7 @@ final class AiAgentTests extends TestCase
         $provider = new OpenAiProvider(new AiConfig(['ai' => ['api_key' => 'fake-key']]));
         $provider->analyzeQuery('SELECT 1');
         $body = json_decode(end($GLOBALS['ai_test_requests'])['options']['http']['content'], true, 512, JSON_THROW_ON_ERROR);
-        self::assertSame('gpt-5.4-mini', $body['model']);
+        self::assertSame('gpt-5.6-luna', $body['model']);
         self::assertArrayHasKey('max_completion_tokens', $body);
         self::assertArrayNotHasKey('max_tokens', $body);
         self::assertArrayNotHasKey('temperature', $body);
@@ -92,7 +92,7 @@ final class AiAgentTests extends TestCase
     public function testOpenAi54SupportsExplicitTemperatureWithoutReasoning(): void
     {
         require __DIR__ . '/../fixtures/ai-http-functions.php';
-        $provider = new OpenAiProvider(new AiConfig(['ai' => ['api_key' => 'fake-key', 'temperature' => 0.3]]));
+        $provider = new OpenAiProvider(new AiConfig(['ai' => ['api_key' => 'fake-key', 'model' => 'gpt-5.4-mini', 'temperature' => 0.3]]));
         self::assertSame('Test analysis', $provider->analyzeQuery('SELECT 1'));
         $body = json_decode(end($GLOBALS['ai_test_requests'])['options']['http']['content'], true, 512, JSON_THROW_ON_ERROR);
         self::assertSame(0.3, $body['temperature']);
@@ -218,7 +218,7 @@ final class AiAgentTests extends TestCase
 
     public function testOpenAiTemperatureConflictsWithReasoning(): void
     {
-        $provider = new OpenAiProvider(new AiConfig(['ai' => ['api_key' => 'fake-key', 'temperature' => 0.3,
+        $provider = new OpenAiProvider(new AiConfig(['ai' => ['api_key' => 'fake-key', 'model' => 'gpt-5.4-mini', 'temperature' => 0.3,
             'request_options' => ['reasoning_effort' => 'high']]]));
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('requires reasoning_effort=none');
