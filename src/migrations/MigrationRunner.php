@@ -5,34 +5,25 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\migrations;
 
 use PDOException;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use tommyknocker\pdodb\events\MigrationCompletedEvent;
 use tommyknocker\pdodb\events\MigrationRolledBackEvent;
 use tommyknocker\pdodb\events\MigrationStartedEvent;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\runner\AbstractFileRunner;
 
 /**
  * Migration runner for executing database migrations.
  *
  * This class manages migration execution, rollback, and history tracking.
  */
-class MigrationRunner
+class MigrationRunner extends AbstractFileRunner
 {
-    /** @var PdoDb Database instance */
-    protected PdoDb $db;
-
     /** @var string Path to migration files directory */
     protected string $migrationPath;
 
     /** @var string Migration table name */
     protected string $migrationTable = '__migrations';
-
-    /** @var bool Dry-run mode (list migrations without executing PHP) */
-    protected bool $dryRun = false;
-
-    /** @var array<int, string> Collected SQL queries in dry-run mode */
-    protected array $collectedQueries = [];
 
     /** Namespace tried first when looking for a migration class; a class without a namespace is always accepted. */
     protected string $migrationNamespace = 'tommyknocker\\pdodb\\migrations';
@@ -57,43 +48,8 @@ class MigrationRunner
      */
     public function __construct(PdoDb $db, string $migrationPath)
     {
-        $this->db = $db;
-        $this->migrationPath = rtrim($migrationPath, '/\\');
-
-        if (!is_dir($this->migrationPath)) {
-            throw new QueryException("Migration path does not exist: {$this->migrationPath}");
-        }
-    }
-
-    /**
-     * Enable dry-run mode (show SQL without executing).
-     *
-     * @param bool $enabled Whether to enable dry-run mode
-     *
-     * @return static
-     */
-    public function setDryRun(bool $enabled): static
-    {
-        $this->dryRun = $enabled;
-        return $this;
-    }
-
-    /**
-     * Get collected SQL queries (for dry-run mode).
-     *
-     * @return array<int, string>
-     */
-    public function getCollectedQueries(): array
-    {
-        return $this->collectedQueries;
-    }
-
-    /**
-     * Clear collected SQL queries.
-     */
-    public function clearCollectedQueries(): void
-    {
-        $this->collectedQueries = [];
+        parent::__construct($db);
+        $this->migrationPath = static::existingDirectory($migrationPath, 'Migration');
     }
 
     /**
@@ -111,18 +67,6 @@ class MigrationRunner
             $sql = $dialect->buildMigrationTableSql($this->migrationTable);
             $this->db->rawQuery($sql);
         }
-    }
-
-    private function historyTableAvailable(): bool
-    {
-        if ($this->db->schema()->tableExists($this->migrationTable)) {
-            return true;
-        }
-        if ($this->dryRun) {
-            return false;
-        }
-        $this->ensureMigrationTable();
-        return true;
     }
 
     /**
@@ -284,26 +228,6 @@ class MigrationRunner
         }
 
         return $applied;
-    }
-
-    /**
-     * Get event dispatcher from database connection.
-     *
-     * @return EventDispatcherInterface|null
-     */
-    protected function getEventDispatcher(): ?EventDispatcherInterface
-    {
-        return $this->db->connection->getEventDispatcher();
-    }
-
-    /**
-     * Get driver name from database connection.
-     *
-     * @return string
-     */
-    protected function getDriverName(): string
-    {
-        return $this->db->connection->getDriverName();
     }
 
     /**
@@ -732,5 +656,15 @@ PHP;
         // Remove leading/trailing underscores
         $result = trim($sanitized, '_');
         return $result !== '' ? $result : 'migration';
+    }
+
+    protected function historyTableName(): string
+    {
+        return $this->migrationTable;
+    }
+
+    protected function ensureHistoryTable(): void
+    {
+        $this->ensureMigrationTable();
     }
 }

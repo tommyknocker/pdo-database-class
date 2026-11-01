@@ -5,33 +5,24 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\seeds;
 
 use PDOException;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use tommyknocker\pdodb\events\SeedCompletedEvent;
 use tommyknocker\pdodb\events\SeedStartedEvent;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\PdoDb;
+use tommyknocker\pdodb\runner\AbstractFileRunner;
 
 /**
  * Seed runner for executing database seeds.
  *
  * This class manages seed execution, rollback, and history tracking.
  */
-class SeedRunner
+class SeedRunner extends AbstractFileRunner
 {
-    /** @var PdoDb Database instance */
-    protected PdoDb $db;
-
     /** @var string Path to seed files directory */
     protected string $seedPath;
 
     /** @var string Seed table name */
     protected string $seedTable = '__seeds';
-
-    /** @var bool Dry-run mode (list seeds without executing PHP) */
-    protected bool $dryRun = false;
-
-    /** @var array<int, string> Collected SQL queries in dry-run mode */
-    protected array $collectedQueries = [];
 
     /**
      * SeedRunner constructor.
@@ -41,43 +32,8 @@ class SeedRunner
      */
     public function __construct(PdoDb $db, string $seedPath)
     {
-        $this->db = $db;
-        $this->seedPath = rtrim($seedPath, '/\\');
-
-        if (!is_dir($this->seedPath)) {
-            throw new QueryException("Seed path does not exist: {$this->seedPath}");
-        }
-    }
-
-    /**
-     * Enable dry-run mode (show SQL without executing).
-     *
-     * @param bool $enabled Whether to enable dry-run mode
-     *
-     * @return static
-     */
-    public function setDryRun(bool $enabled): static
-    {
-        $this->dryRun = $enabled;
-        return $this;
-    }
-
-    /**
-     * Get collected SQL queries (for dry-run mode).
-     *
-     * @return array<int, string>
-     */
-    public function getCollectedQueries(): array
-    {
-        return $this->collectedQueries;
-    }
-
-    /**
-     * Clear collected SQL queries.
-     */
-    public function clearCollectedQueries(): void
-    {
-        $this->collectedQueries = [];
+        parent::__construct($db);
+        $this->seedPath = static::existingDirectory($seedPath, 'Seed');
     }
 
     /**
@@ -141,18 +97,6 @@ class SeedRunner
 
         sort($seeds);
         return $seeds;
-    }
-
-    private function historyTableAvailable(): bool
-    {
-        if ($this->db->schema()->tableExists($this->seedTable)) {
-            return true;
-        }
-        if ($this->dryRun) {
-            return false;
-        }
-        $this->ensureSeedTable();
-        return true;
     }
 
     /**
@@ -585,23 +529,13 @@ class {$className} extends Seed
 PHP;
     }
 
-    /**
-     * Get event dispatcher from database connection.
-     *
-     * @return EventDispatcherInterface|null
-     */
-    protected function getEventDispatcher(): ?EventDispatcherInterface
+    protected function historyTableName(): string
     {
-        return $this->db->connection->getEventDispatcher();
+        return $this->seedTable;
     }
 
-    /**
-     * Get driver name from database connection.
-     *
-     * @return string
-     */
-    protected function getDriverName(): string
+    protected function ensureHistoryTable(): void
     {
-        return $this->db->connection->getDriverName();
+        $this->ensureSeedTable();
     }
 }
