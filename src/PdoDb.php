@@ -21,9 +21,6 @@ use tommyknocker\pdodb\connection\sharding\ShardConfig;
 use tommyknocker\pdodb\connection\sharding\ShardConfigBuilder;
 use tommyknocker\pdodb\connection\sharding\ShardRouter;
 use tommyknocker\pdodb\dialects\DialectAbstract;
-use tommyknocker\pdodb\events\SavepointCreatedEvent;
-use tommyknocker\pdodb\events\SavepointReleasedEvent;
-use tommyknocker\pdodb\events\SavepointRolledBackEvent;
 use tommyknocker\pdodb\exceptions\TransactionException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\plugin\PluginInterface;
@@ -33,6 +30,7 @@ use tommyknocker\pdodb\query\ProfileReport;
 use tommyknocker\pdodb\query\QueryBuilder;
 use tommyknocker\pdodb\query\QueryConstants;
 use tommyknocker\pdodb\query\QueryProfiler;
+use tommyknocker\pdodb\transaction\TransactionManager;
 
 class PdoDb
 {
@@ -121,17 +119,7 @@ class PdoDb
     /** @var EventDispatcherInterface|null Event dispatcher */
     protected ?EventDispatcherInterface $eventDispatcher = null;
 
-    /** @var array<string> Stack of active savepoint names */
-    protected array $savepointStack = [];
-
-    /**
-     * Commit and rollback callbacks stacked with the transaction and its savepoints.
-     *
-     * @var list<array{commit: list<callable(): void>, rollback: list<callable(): void>}>
-     */
-    protected array $transactionCallbackFrames = [];
-
-    private int $transactionSavepointCounter = 0;
+    private ?TransactionManager $transactionManager = null;
 
     /**
      * @var array<string, callable> Scopes for all QueryBuilder instances
@@ -669,16 +657,7 @@ class PdoDb
      */
     public function startTransaction(): void
     {
-        $conn = $this->connection;
-        if (!$conn->inTransaction()) {
-            // Clear savepoint stack when starting a new transaction
-            $this->savepointStack = [];
-            $this->resetTransactionCallbackFrames();
-            $conn->transaction();
-            if ($this->connectionRouter !== null) {
-                $this->connectionRouter->setTransactionState(true);
-            }
-        }
+        $this->transactions()->startTransaction();
     }
 
     /**
@@ -686,16 +665,7 @@ class PdoDb
      */
     public function commit(): void
     {
-        $conn = $this->connection;
-        if ($conn->inTransaction()) {
-            $conn->commit();
-            // Clear savepoint stack when committing the main transaction
-            $this->savepointStack = [];
-            $this->flushTransactionCallbacks(true);
-            if ($this->connectionRouter !== null) {
-                $this->connectionRouter->setTransactionState(false);
-            }
-        }
+        $this->transactions()->commit();
     }
 
     /**
@@ -703,16 +673,7 @@ class PdoDb
      */
     public function rollback(): void
     {
-        $conn = $this->connection;
-        if ($conn->inTransaction()) {
-            $conn->rollBack();
-            // Clear savepoint stack when rolling back the main transaction
-            $this->savepointStack = [];
-            $this->flushTransactionCallbacks(false);
-            if ($this->connectionRouter !== null) {
-                $this->connectionRouter->setTransactionState(false);
-            }
-        }
+        $this->transactions()->rollback();
     }
 
     /**
@@ -722,7 +683,7 @@ class PdoDb
      */
     public function inTransaction(): bool
     {
-        return $this->connection->inTransaction();
+        return $this->transactions()->inTransaction();
     }
 
     /**
@@ -735,12 +696,7 @@ class PdoDb
      */
     public function afterCommit(callable $callback): void
     {
-        if (!$this->inTransaction()) {
-            $callback();
-            return;
-        }
-
-        $this->appendTransactionCallback('commit', $callback);
+        $this->transactions()->afterCommit($callback);
     }
 
     /**
@@ -753,148 +709,25 @@ class PdoDb
      */
     public function afterRollback(callable $callback): void
     {
-        if (!$this->inTransaction()) {
-            return;
-        }
-
-        $this->appendTransactionCallback('rollback', $callback);
+        $this->transactions()->afterRollback($callback);
     }
 
     /** Open a nested callback scope that can be kept or dropped without a savepoint. */
     public function beginAfterCommitScope(): void
     {
-        $this->ensureTransactionCallbackFrame();
-        $this->transactionCallbackFrames[] = ['commit' => [], 'rollback' => []];
+        $this->transactions()->beginAfterCommitScope();
     }
 
     /** Keep callbacks registered since beginAfterCommitScope() on the parent scope. */
     public function acceptAfterCommitScope(): void
     {
-        $this->mergeTransactionCallbackFrame();
+        $this->transactions()->acceptAfterCommitScope();
     }
 
     /** Drop callbacks registered since beginAfterCommitScope() without running them. */
     public function rejectAfterCommitScope(): void
     {
-        $this->discardTransactionCallbackFrame(false);
-    }
-
-    protected function resetTransactionCallbackFrames(): void
-    {
-        $this->transactionCallbackFrames = [['commit' => [], 'rollback' => []]];
-    }
-
-    protected function ensureTransactionCallbackFrame(): void
-    {
-        if ($this->transactionCallbackFrames === []) {
-            $this->resetTransactionCallbackFrames();
-        }
-    }
-
-    protected function pushTransactionCallbackFrame(): void
-    {
-        $this->ensureTransactionCallbackFrame();
-        $this->transactionCallbackFrames[] = ['commit' => [], 'rollback' => []];
-    }
-
-    /**
-     * @param 'commit'|'rollback' $event
-     * @param callable(): mixed $callback
-     */
-    protected function appendTransactionCallback(string $event, callable $callback): void
-    {
-        $this->ensureTransactionCallbackFrame();
-        $frames = $this->transactionCallbackFrames;
-        $index = count($frames) - 1;
-        $wrapped = static function () use ($callback): void {
-            $callback();
-        };
-        $frame = $frames[$index];
-        $commit = $frame['commit'];
-        $rollback = $frame['rollback'];
-        if ($event === 'commit') {
-            $commit[] = $wrapped;
-        } else {
-            $rollback[] = $wrapped;
-        }
-        $frames[$index] = ['commit' => $commit, 'rollback' => $rollback];
-        $this->transactionCallbackFrames = $frames;
-    }
-
-    protected function mergeTransactionCallbackFrame(): void
-    {
-        $frames = $this->transactionCallbackFrames;
-        if (count($frames) < 2) {
-            return;
-        }
-
-        $top = array_pop($frames);
-        if (!is_array($top)) {
-            return;
-        }
-        $index = count($frames) - 1;
-        $frames[$index]['commit'] = [...$frames[$index]['commit'], ...$top['commit']];
-        $frames[$index]['rollback'] = [...$frames[$index]['rollback'], ...$top['rollback']];
-        $this->transactionCallbackFrames = $frames;
-    }
-
-    protected function discardTransactionCallbackFrame(bool $runRollbacks): void
-    {
-        if (count($this->transactionCallbackFrames) < 2) {
-            return;
-        }
-
-        $top = array_pop($this->transactionCallbackFrames);
-        if ($runRollbacks && is_array($top)) {
-            foreach ($top['rollback'] as $callback) {
-                $callback();
-            }
-        }
-    }
-
-    protected function releaseTransactionCallbackFrameAt(int $savepointIndex): void
-    {
-        $frameIndex = $savepointIndex + 1;
-        if (!isset($this->transactionCallbackFrames[$frameIndex])) {
-            return;
-        }
-
-        $frame = $this->transactionCallbackFrames[$frameIndex];
-        array_splice($this->transactionCallbackFrames, $frameIndex, 1);
-        $parent = $frameIndex - 1;
-        if (!isset($this->transactionCallbackFrames[$parent])) {
-            return;
-        }
-        foreach ($frame['commit'] as $callback) {
-            $this->transactionCallbackFrames[$parent]['commit'][] = $callback;
-        }
-        foreach ($frame['rollback'] as $callback) {
-            $this->transactionCallbackFrames[$parent]['rollback'][] = $callback;
-        }
-    }
-
-    protected function rollbackTransactionCallbackFramesTo(int $savepointIndex): void
-    {
-        $this->ensureTransactionCallbackFrame();
-        $discarded = array_splice($this->transactionCallbackFrames, $savepointIndex + 1);
-        foreach ($discarded as $frame) {
-            foreach ($frame['rollback'] as $callback) {
-                $callback();
-            }
-        }
-        $this->transactionCallbackFrames[] = ['commit' => [], 'rollback' => []];
-    }
-
-    protected function flushTransactionCallbacks(bool $commit): void
-    {
-        $frames = $this->transactionCallbackFrames;
-        $this->transactionCallbackFrames = [];
-        $key = $commit ? 'commit' : 'rollback';
-        foreach ($frames as $frame) {
-            foreach ($frame[$key] as $callback) {
-                $callback();
-            }
-        }
+        $this->transactions()->rejectAfterCommitScope();
     }
 
     /**
@@ -907,64 +740,7 @@ class PdoDb
      */
     public function transaction(callable $callback): mixed
     {
-        $connection = $this->connection;
-        $dialect = $connection->getDialect();
-        $nested = $connection->inTransaction();
-        $savepoint = null;
-
-        if ($nested) {
-            if (!$dialect->supportsNestedTransactions()) {
-                throw new TransactionException(
-                    'Nested transactions are not supported for driver ' . $connection->getDriverName() . '.'
-                );
-            }
-            do {
-                $savepoint = 'pdodb_tx_' . ++$this->transactionSavepointCounter;
-            } while (in_array($savepoint, $this->savepointStack, true));
-            $connection->query($dialect->buildCreateSavepointSql($savepoint));
-            $this->savepointStack[] = $savepoint;
-            $this->pushTransactionCallbackFrame();
-        } else {
-            $this->startTransaction();
-        }
-
-        try {
-            $result = $callback($this);
-            if ($this->connection !== $connection || !$connection->inTransaction()) {
-                throw new TransactionException('The transaction connection or state changed inside the callback.');
-            }
-            if ($nested) {
-                if ($dialect->releasesSavepointOnNestedCommit()) {
-                    $connection->query($dialect->buildReleaseSavepointSql($savepoint));
-                }
-                $this->savepointStack = array_values(array_diff($this->savepointStack, [$savepoint]));
-                $this->mergeTransactionCallbackFrame();
-            } else {
-                $this->commit();
-            }
-            return $result;
-        } catch (Throwable $e) {
-            try {
-                if ($connection->inTransaction()) {
-                    if ($nested) {
-                        $connection->query($dialect->buildRollbackToSavepointSql($savepoint));
-                        if ($dialect->releasesSavepointOnNestedRollback()) {
-                            $connection->query($dialect->buildReleaseSavepointSql($savepoint));
-                        }
-                        $this->savepointStack = array_values(array_diff($this->savepointStack, [$savepoint]));
-                        $this->discardTransactionCallbackFrame(true);
-                    } elseif ($this->connection === $connection) {
-                        $this->rollback();
-                    } else {
-                        $connection->rollBack();
-                    }
-                }
-            } catch (Throwable $rollbackError) {
-                throw new RuntimeException('Transaction rollback failed: ' . $rollbackError->getMessage(), 0, $e);
-            }
-
-            throw $e;
-        }
+        return $this->transactions()->transaction($callback);
     }
 
     /**
@@ -976,31 +752,7 @@ class PdoDb
      */
     public function savepoint(string $name): void
     {
-        if (!$this->connection->inTransaction()) {
-            throw new TransactionException('Cannot create savepoint: not in a transaction');
-        }
-
-        // Validate savepoint name (prevent SQL injection)
-        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) {
-            throw new TransactionException(
-                'Invalid savepoint name. Must be a valid identifier (letters, numbers, underscore, starting with letter/underscore)'
-            );
-        }
-
-        $dialect = $this->connection->getDialect();
-        $sql = $dialect->buildCreateSavepointSql($name);
-        $this->connection->query($sql);
-        $this->savepointStack[] = $name;
-        $this->pushTransactionCallbackFrame();
-
-        // Dispatch savepoint created event
-        $dispatcher = $this->connection->getEventDispatcher();
-        if ($dispatcher !== null) {
-            $dispatcher->dispatch(new SavepointCreatedEvent(
-                $name,
-                $this->connection->getDriverName()
-            ));
-        }
+        $this->transactions()->savepoint($name);
     }
 
     /**
@@ -1012,40 +764,7 @@ class PdoDb
      */
     public function rollbackToSavepoint(string $name): void
     {
-        if (!$this->connection->inTransaction()) {
-            throw new TransactionException('Cannot rollback to savepoint: not in a transaction');
-        }
-
-        // Validate savepoint name
-        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) {
-            throw new TransactionException(
-                'Invalid savepoint name. Must be a valid identifier (letters, numbers, underscore, starting with letter/underscore)'
-            );
-        }
-
-        // Check if savepoint exists in stack
-        $index = array_search($name, $this->savepointStack, true);
-        if ($index === false || !is_int($index)) {
-            throw new TransactionException("Savepoint '{$name}' not found");
-        }
-
-        $dialect = $this->connection->getDialect();
-        $sql = $dialect->buildRollbackToSavepointSql($name);
-        $this->connection->query($sql);
-
-        // Remove all savepoints created after this one from the stack
-        // Keep the savepoint we rolled back to (it still exists in database)
-        $this->savepointStack = array_slice($this->savepointStack, 0, $index + 1);
-        $this->rollbackTransactionCallbackFramesTo($index);
-
-        // Dispatch savepoint rolled back event
-        $dispatcher = $this->connection->getEventDispatcher();
-        if ($dispatcher !== null) {
-            $dispatcher->dispatch(new SavepointRolledBackEvent(
-                $name,
-                $this->connection->getDriverName()
-            ));
-        }
+        $this->transactions()->rollbackToSavepoint($name);
     }
 
     /**
@@ -1057,39 +776,7 @@ class PdoDb
      */
     public function releaseSavepoint(string $name): void
     {
-        if (!$this->connection->inTransaction()) {
-            throw new TransactionException('Cannot release savepoint: not in a transaction');
-        }
-
-        // Validate savepoint name
-        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) {
-            throw new TransactionException(
-                'Invalid savepoint name. Must be a valid identifier (letters, numbers, underscore, starting with letter/underscore)'
-            );
-        }
-
-        // Check if savepoint exists in stack
-        $index = array_search($name, $this->savepointStack, true);
-        if ($index === false || !is_int($index)) {
-            throw new TransactionException("Savepoint '{$name}' not found");
-        }
-
-        $dialect = $this->connection->getDialect();
-        $sql = $dialect->buildReleaseSavepointSql($name);
-        $this->connection->query($sql);
-
-        // Remove this savepoint from the stack (but keep earlier savepoints)
-        array_splice($this->savepointStack, $index, 1);
-        $this->releaseTransactionCallbackFrameAt($index);
-
-        // Dispatch savepoint released event
-        $dispatcher = $this->connection->getEventDispatcher();
-        if ($dispatcher !== null) {
-            $dispatcher->dispatch(new SavepointReleasedEvent(
-                $name,
-                $this->connection->getDriverName()
-            ));
-        }
+        $this->transactions()->releaseSavepoint($name);
     }
 
     /**
@@ -1099,7 +786,7 @@ class PdoDb
      */
     public function getSavepoints(): array
     {
-        return $this->savepointStack;
+        return $this->transactions()->getSavepoints();
     }
 
     /**
@@ -1111,7 +798,7 @@ class PdoDb
      */
     public function hasSavepoint(string $name): bool
     {
-        return in_array($name, $this->savepointStack, true);
+        return $this->transactions()->hasSavepoint($name);
     }
 
     /* ---------------- LOCKING ---------------- */
@@ -1540,5 +1227,14 @@ class PdoDb
     public function getShardRouter(): ?ShardRouter
     {
         return $this->shardRouter;
+    }
+
+    private function transactions(): TransactionManager
+    {
+        return $this->transactionManager ??= new TransactionManager(
+            $this,
+            fn (): ConnectionInterface => $this->connection,
+            fn (): ?ConnectionRouter => $this->connectionRouter,
+        );
     }
 }
