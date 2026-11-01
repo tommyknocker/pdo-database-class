@@ -1701,7 +1701,7 @@ class Dashboard
         $helpLines = [
             '',
             ' Navigation:',
-            '  1-4          Switch between panes',
+            '  1-8          Switch between panes',
             '  Tab/←→       Navigate between panes',
             '  ↑/↓         Select items in active pane',
             '  Enter        Toggle fullscreen for current pane',
@@ -2809,7 +2809,7 @@ class Dashboard
 
         if (empty($this->scratchpadLastResult)) {
             Terminal::moveTo($startRow + 1, 1);
-            Stdout::write('Query returned no results.');
+            Stdout::write('Query returned no results. Affected: ' . $this->scratchpadAffectedRows);
             return;
         }
 
@@ -3771,6 +3771,31 @@ class Dashboard
     }
 
     /**
+     * Run one statement and report what it produced.
+     *
+     * @return array{0: array<int, array<string, mixed>>, 1: int, 2: bool} Rows (empty for a statement that returns none),
+     *                                                                     the number of rows read or changed, and
+     *                                                                     whether the statement returns rows at all
+     */
+    protected function runScratchpadStatement(string $sql): array
+    {
+        $statement = $this->db->find()->executeStatement($sql);
+
+        try {
+            if ($statement->columnCount() === 0) {
+                return [[], $statement->rowCount(), false];
+            }
+
+            $connection = $this->db->connection;
+            $rows = $connection->getDialect()->normalizeRowKeys($statement->fetchAll(\PDO::FETCH_ASSOC), $connection->getOptions());
+
+            return [$rows, count($rows), true];
+        } finally {
+            $statement->closeCursor();
+        }
+    }
+
+    /**
      * Execute SQL query from scratchpad.
      */
     protected function executeScratchpadQuery(): void
@@ -3800,13 +3825,9 @@ class Dashboard
                 }
 
                 try {
-                    $result = $this->db->rawQuery($stmt);
-                    if (!empty($result) && isset($result[0]) && is_array($result[0])) {
+                    [$result, $totalAffected, $returnsRows] = $this->runScratchpadStatement($stmt);
+                    if ($returnsRows) {
                         $lastResult = $result;
-                        $totalAffected = count($result);
-                    } else {
-                        // DML/DDL - try to get affected rows
-                        $totalAffected = 0; // Can't easily get this from rawQuery
                     }
                 } catch (\Throwable $e) {
                     $lastError = $e->getMessage();
@@ -3869,20 +3890,9 @@ class Dashboard
             }
 
             // Execute query
-            $result = $this->db->rawQuery($query);
-
-            // Check if it's a SELECT query (returns array of rows)
-            if (!empty($result) && isset($result[0]) && is_array($result[0])) {
-                $this->scratchpadLastResult = $result;
-                $this->scratchpadAffectedRows = count($result);
-            } else {
-                // DML/DDL query - rawQuery returns empty array for non-SELECT
-                // For affected rows, we need to check the statement
-                // Since rawQuery doesn't expose statement, we'll use 0 as default
-                // User can see actual affected rows in the query result message
-                $this->scratchpadAffectedRows = 0;
-                $this->scratchpadLastResult = [];
-            }
+            [$result, $affected] = $this->runScratchpadStatement($query);
+            $this->scratchpadLastResult = $result;
+            $this->scratchpadAffectedRows = $affected;
 
             // Commit if in transaction mode
             if ($this->scratchpadTransactionMode && $this->db->connection->inTransaction()) {
