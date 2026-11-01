@@ -23,7 +23,7 @@ _pdodb() {
     local global_opts="--help --version -v --connection= --config= --env="
 
     # Main commands
-    local commands="migrate seed outbox schema query model repository service generate db user table connection dump monitor profile ui cache benchmark optimize init version ai"
+    local commands="migrate seed outbox inbox schema query model repository service generate db user table connection dump monitor profile ui cache benchmark optimize init version ai"
 
     # If no command yet, complete with commands
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -97,6 +97,16 @@ _pdodb() {
         else
             local seed_opts="--dry-run --force"
             COMPREPLY=($(compgen -W "${seed_opts}" -- "${cur}"))
+        fi
+        return 0
+    fi
+
+    # Inbox command
+    if [[ "${cmd}" == "inbox" ]]; then
+        if [[ ${COMP_CWORD} -eq 2 ]]; then
+            COMPREPLY=($(compgen -W "purge help --help" -- "${cur}"))
+        elif [[ "${subcmd}" == "purge" ]]; then
+            COMPREPLY=($(compgen -W "--older-than= --dry-run --table=" -- "${cur}"))
         fi
         return 0
     fi

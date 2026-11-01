@@ -31,6 +31,8 @@ $removed = $inbox->purge('30d');       // delete ids processed more than 30 days
 $wouldRemove = $inbox->purge('30d', true); // dry run: only count
 ```
 
+From the command line: `vendor/bin/pdodb inbox purge --older-than=30d [--dry-run] [--table=NAME]` (see [CLI tools](21-cli-tools.md#inbox)), which is the form to put in cron.
+
 Deletion runs in batches of 200 rows so a large backlog is not one long statement. The age is a compromise: once an id is purged, a redelivery of that message is handled again. Choose a period longer than the longest time your broker can redeliver (retention of the queue, dead-letter replays, manual replays). The purge applies to every consumer that shares the table.
 
 See [Minimum server versions](27-transactional-outbox.md#minimum-server-versions) for the database versions the inbox needs.

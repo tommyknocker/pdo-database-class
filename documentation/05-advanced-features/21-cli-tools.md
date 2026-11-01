@@ -2601,6 +2601,26 @@ vendor/bin/pdodb outbox retry --all-failed --limit=100 --dry-run
 | `--dry-run` | Preview without updating |
 | `--table=NAME` | Outbox table |
 
+
+## Inbox
+
+Maintain the consumer-side inbox table. See [Inbox](28-inbox.md) for what it stores and how to choose the retention window.
+
+### Purge (retention)
+
+```bash
+vendor/bin/pdodb inbox purge --older-than=30d --dry-run
+vendor/bin/pdodb inbox purge --older-than=30d
+```
+
+| Option | Description |
+|--------|-------------|
+| `--older-than=SPEC` | Required: `30d`, `24h`, `90m`, … |
+| `--table=NAME` | Inbox table (default `pdodb_inbox`, or `PDODB_INBOX_TABLE`) |
+| `--dry-run` | Count matching rows without deleting |
+
+The window must be longer than the longest time your broker can redeliver a message; a message that returns after its id was purged is handled again.
+
 ## Seed Management
 
 Database seeds are classes that populate your database with test or initial data. Seeds are useful for development, testing, and setting up initial application data.
