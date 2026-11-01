@@ -13,6 +13,7 @@ use tommyknocker\pdodb\dialects\catalog\SqliteCatalogQueriesTrait;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\traits\OnConflictUpsertTrait;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\ConfigValue;
@@ -27,6 +28,8 @@ use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
 {
+    use OnConflictUpsertTrait;
+
     use SqliteCatalogQueriesTrait;
     /** @var SqliteFeatureSupport Feature support instance */
     private SqliteFeatureSupport $featureSupport;
@@ -1298,149 +1301,6 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
     }
 
     /**
-     * {@inheritDoc}
-     */
-    public function dumpData(PdoDb $db, ?string $table = null): string
-    {
-        $output = [];
-        $tables = [];
-
-        if ($table !== null) {
-            $tables = [$table];
-        } else {
-            $rows = $db->rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
-            foreach ($rows as $row) {
-                $tables[] = (string)$row['name'];
-            }
-        }
-
-        foreach ($tables as $tableName) {
-            $quotedTable = $this->quoteTable($tableName);
-            $rows = $db->rawQuery("SELECT * FROM {$quotedTable}");
-
-            if (empty($rows)) {
-                continue;
-            }
-
-            // Get column names
-            $columns = array_keys($rows[0]);
-            $quotedColumns = array_map([$this, 'quoteIdentifier'], $columns);
-            $columnsList = implode(', ', $quotedColumns);
-
-            // Generate INSERT statements in batches
-            $batchSize = 100;
-            $batch = [];
-            foreach ($rows as $row) {
-                $values = [];
-                foreach ($columns as $col) {
-                    $val = $row[$col];
-                    if ($val === null) {
-                        $values[] = 'NULL';
-                    } elseif (is_int($val) || is_float($val)) {
-                        $values[] = (string)$val;
-                    } else {
-                        $values[] = "'" . str_replace("'", "''", (string)$val) . "'";
-                    }
-                }
-                $batch[] = '(' . implode(', ', $values) . ')';
-
-                if (count($batch) >= $batchSize) {
-                    $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
-                    $batch = [];
-                }
-            }
-
-            if (!empty($batch)) {
-                $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
-            }
-        }
-
-        return implode("\n\n", $output);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function restoreFromSql(PdoDb $db, string $sql, bool $continueOnError = false): void
-    {
-        // Split SQL into statements (semicolon-separated, ignoring semicolons in strings and comments)
-        $statements = [];
-        $current = '';
-        $inString = false;
-        $stringChar = '';
-        $inComment = false;
-
-        $lines = explode("\n", $sql);
-        foreach ($lines as $line) {
-            $line = rtrim($line);
-            if ($line === '') {
-                continue;
-            }
-
-            // Skip comment lines
-            if (preg_match('/^--/', $line)) {
-                continue;
-            }
-
-            // Check for inline comments (-- at end of line)
-            $commentPos = strpos($line, '--');
-            if ($commentPos !== false) {
-                // Check if -- is inside a string
-                $beforeComment = substr($line, 0, $commentPos);
-                $quoteCount = substr_count($beforeComment, "'") + substr_count($beforeComment, '"') + substr_count($beforeComment, '`');
-                if ($quoteCount % 2 === 0) {
-                    // Not in string, remove comment
-                    $line = substr($line, 0, $commentPos);
-                    $line = rtrim($line);
-                }
-            }
-
-            $current .= $line . "\n";
-
-            // Check if line ends with semicolon (statement complete)
-            if (substr(rtrim($line), -1) === ';') {
-                $stmt = trim($current);
-                if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
-                    // Remove trailing semicolon
-                    $stmt = rtrim($stmt, ';');
-                    $stmt = trim($stmt);
-                    if ($stmt !== '') {
-                        $statements[] = $stmt;
-                    }
-                }
-                $current = '';
-            }
-        }
-
-        // Handle last statement
-        $stmt = trim($current);
-        if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
-            $stmt = rtrim($stmt, ';');
-            $stmt = trim($stmt);
-            if ($stmt !== '') {
-                $statements[] = $stmt;
-            }
-        }
-
-        // Execute statements
-        $errors = [];
-        foreach ($statements as $stmt) {
-            try {
-                $db->rawQuery($stmt);
-            } catch (\Throwable $e) {
-                if (!$continueOnError) {
-                    throw new ResourceException('Failed to execute SQL statement: ' . $e->getMessage() . "\nStatement: " . substr($stmt, 0, 200));
-                }
-                $errors[] = $e->getMessage();
-            }
-        }
-
-        if (!empty($errors) && $continueOnError) {
-            throw new ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
-        }
-    }
-
-    /**
      * Get dialect-specific DDL query builder.
      *
      * @param ConnectionInterface $connection
@@ -1781,5 +1641,15 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
                 ? $row['detail']
                 : SqlContextTokenizer::redact((string)$row['detail']),
         ];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function listDumpTables(PdoDb $db): array
+    {
+        $rows = $db->rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+
+        return array_values(array_map(static fn (array $row): string => (string)$row['name'], $rows));
     }
 }

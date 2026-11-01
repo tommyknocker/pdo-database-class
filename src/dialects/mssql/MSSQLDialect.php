@@ -14,7 +14,7 @@ use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\PlanExplainAvailability;
-use tommyknocker\pdodb\exceptions\ResourceException;
+use tommyknocker\pdodb\dialects\SqlScriptSplitter;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
@@ -1681,167 +1681,6 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
     }
 
     /**
-     * {@inheritDoc}
-     */
-    public function dumpData(PdoDb $db, ?string $table = null): string
-    {
-        $output = [];
-        $tables = [];
-
-        if ($table !== null) {
-            $tables = [$table];
-        } else {
-            $rows = $db->rawQuery("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME");
-            foreach ($rows as $row) {
-                $tables[] = (string)$row['TABLE_NAME'];
-            }
-        }
-
-        foreach ($tables as $tableName) {
-            $quotedTable = $this->quoteTable($tableName);
-            $rows = $db->rawQuery("SELECT * FROM {$quotedTable}");
-
-            if (empty($rows)) {
-                continue;
-            }
-
-            $columns = array_keys($rows[0]);
-            $quotedColumns = array_map([$this, 'quoteIdentifier'], $columns);
-            $columnsList = implode(', ', $quotedColumns);
-
-            $batchSize = 100;
-            $batch = [];
-            foreach ($rows as $row) {
-                $values = [];
-                foreach ($columns as $col) {
-                    $val = $row[$col];
-                    if ($val === null) {
-                        $values[] = 'NULL';
-                    } elseif (is_int($val) || is_float($val)) {
-                        $values[] = (string)$val;
-                    } else {
-                        $values[] = "'" . str_replace(["'", '\\'], ["''", '\\\\'], (string)$val) . "'";
-                    }
-                }
-                $batch[] = '(' . implode(', ', $values) . ')';
-
-                if (count($batch) >= $batchSize) {
-                    $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
-                    $batch = [];
-                }
-            }
-
-            if (!empty($batch)) {
-                $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
-            }
-        }
-
-        return implode("\n\n", $output);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function restoreFromSql(PdoDb $db, string $sql, bool $continueOnError = false): void
-    {
-        // Split SQL into statements, handling comments, quoted strings, and nested parentheses
-        $statements = [];
-        $current = '';
-        $inString = false;
-        $stringChar = '';
-        $parenDepth = 0;
-
-        $lines = explode("\n", $sql);
-        foreach ($lines as $line) {
-            // Skip comment-only lines
-            $trimmedLine = trim($line);
-            if ($trimmedLine === '' || preg_match('/^--/', $trimmedLine)) {
-                continue;
-            }
-
-            $length = strlen($line);
-            for ($i = 0; $i < $length; $i++) {
-                $char = $line[$i];
-                $nextChar = $i + 1 < $length ? $line[$i + 1] : '';
-
-                // Handle comments (-- style)
-                if (!$inString && $char === '-' && $nextChar === '-') {
-                    // Skip rest of line (comment)
-                    break;
-                }
-
-                if (!$inString && ($char === '"' || $char === "'" || $char === '[')) {
-                    if ($char === '[') {
-                        // MSSQL bracket identifier
-                        $bracketEnd = strpos($line, ']', $i);
-                        if ($bracketEnd !== false) {
-                            $current .= substr($line, $i, $bracketEnd - $i + 1);
-                            $i = $bracketEnd;
-                            continue;
-                        }
-                    } else {
-                        $inString = true;
-                        $stringChar = $char;
-                        $current .= $char;
-                    }
-                } elseif ($inString && $char === $stringChar) {
-                    if ($nextChar === $stringChar) {
-                        $current .= $char . $nextChar;
-                        $i++;
-                    } else {
-                        $inString = false;
-                        $stringChar = '';
-                        $current .= $char;
-                    }
-                } elseif (!$inString && $char === '(') {
-                    $parenDepth++;
-                    $current .= $char;
-                } elseif (!$inString && $char === ')') {
-                    $parenDepth--;
-                    $current .= $char;
-                } elseif (!$inString && $char === ';' && $parenDepth === 0) {
-                    $stmt = trim($current);
-                    if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
-                        $statements[] = $stmt;
-                    }
-                    $current = '';
-                } else {
-                    $current .= $char;
-                }
-            }
-        }
-
-        $stmt = trim($current);
-        if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
-            $statements[] = $stmt;
-        }
-
-        $errors = [];
-        foreach ($statements as $index => $stmt) {
-            try {
-                // Skip empty statements
-                if (trim($stmt) === '') {
-                    continue;
-                }
-                $db->rawQuery($stmt);
-            } catch (\Throwable $e) {
-                if (!$continueOnError) {
-                    throw new ResourceException(
-                        'Failed to execute SQL statement #' . ($index + 1) . ': ' . $e->getMessage() .
-                        "\nStatement (" . strlen($stmt) . ' chars): ' . substr($stmt, 0, 300) .
-                        "\nPrevious statement: " . (isset($statements[$index - 1]) ? substr($statements[$index - 1], 0, 200) : 'none')
-                    );
-                }
-                $errors[] = $e->getMessage();
-            }
-        }
-
-        if (!empty($errors) && $continueOnError) {
-            throw new ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
-        }
-    }
-
-    /**
      * Get dialect-specific DDL query builder.
      *
      * @param ConnectionInterface $connection
@@ -2475,5 +2314,46 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
     protected function catalogDialect(): DialectInterface
     {
         return $this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function listDumpTables(PdoDb $db): array
+    {
+        $rows = $db->rawQuery("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME");
+
+        return array_values(array_map(static fn (array $row): string => (string)$row['TABLE_NAME'], $rows));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function restoreSplitter(): SqlScriptSplitter
+    {
+        return new SqlScriptSplitter("'\"", bracketIdentifiers: true, parentheses: true);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function restoreFailureMessage(int $index, array $statements, \Throwable $error): string
+    {
+        return 'Failed to execute SQL statement #' . ($index + 1) . ': ' . $error->getMessage()
+            . "\nStatement (" . strlen($statements[$index]) . ' chars): ' . substr($statements[$index], 0, 300)
+            . "\nPrevious statement: " . (isset($statements[$index - 1]) ? substr($statements[$index - 1], 0, 200) : 'none');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function dumpValue(mixed $value): string
+    {
+        // A plain literal is converted through the database code page, which turns characters outside it into "?"
+        if (is_string($value) && preg_match('/[^\x00-\x7F]/', $value) === 1) {
+            return 'N' . $this->quoteStringLiteral($value);
+        }
+
+        return parent::dumpValue($value);
     }
 }

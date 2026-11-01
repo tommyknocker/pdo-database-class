@@ -19,6 +19,7 @@ use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
 use tommyknocker\pdodb\dialects\loaders\OracleFileLoader;
 use tommyknocker\pdodb\dialects\PlanExplainAvailability;
+use tommyknocker\pdodb\dialects\SqlScriptSplitter;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
@@ -896,18 +897,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
 
     public function normalizeJoinCondition(string $condition): string
     {
-        // Oracle: identifiers in ON conditions must be quoted
-        // Pattern: table.column or alias.column
-        // Replace unquoted identifiers with quoted ones
-        return preg_replace_callback(
-            '/(\w+)\.(\w+)/',
-            function ($matches) {
-                $table = $this->quoteIdentifier($matches[1]);
-                $column = $this->quoteIdentifier($matches[2]);
-                return "{$table}.{$column}";
-            },
-            $condition
-        ) ?? $condition;
+        return $this->sqlNormalizer()->joinCondition($condition);
     }
 
     /**
@@ -1629,292 +1619,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function normalizeRawValue(string $sql): string
     {
-        /** @var string $sql */
-        // Oracle-specific normalization: handle LENGTH(COALESCE(...)) with CLOB columns
-        // LENGTH(COALESCE(email, phone, 'N/A')) -> LENGTH(TO_CHAR(COALESCE(TO_CHAR("EMAIL"), TO_CHAR("PHONE"), 'N/A')))
-        if (preg_match('/^LENGTH\s*\(\s*COALESCE\s*\((.*)\)\s*\)$/i', trim($sql), $lengthMatches)) {
-            $coalesceArgs = $lengthMatches[1];
-            // Normalize COALESCE arguments
-            $normalizedCoalesce = $this->normalizeCoalesceArgs($coalesceArgs);
-            return "LENGTH(TO_CHAR(COALESCE($normalizedCoalesce)))";
-        }
-
-        // Oracle-specific normalization: handle COALESCE with CLOB columns
-        // COALESCE(phone, email, 'No contact') -> COALESCE(TO_CHAR("PHONE"), TO_CHAR("EMAIL"), 'No contact')
-        if (preg_match('/^COALESCE\s*\((.*)\)$/i', trim($sql), $matches)) {
-            $argsStr = $matches[1];
-            // Split by comma, but respect quoted strings
-            $args = [];
-            $current = '';
-            $inQuotes = false;
-            $quoteChar = '';
-            for ($i = 0; $i < strlen($argsStr); $i++) {
-                $char = $argsStr[$i];
-                if (($char === '"' || $char === "'" || $char === '`') && ($i === 0 || $argsStr[$i - 1] !== '\\')) {
-                    if (!$inQuotes) {
-                        $inQuotes = true;
-                        $quoteChar = $char;
-                    } elseif ($char === $quoteChar) {
-                        $inQuotes = false;
-                        $quoteChar = '';
-                    }
-                    $current .= $char;
-                } elseif ($char === ',' && !$inQuotes) {
-                    $args[] = trim($current);
-                    $current = '';
-                } else {
-                    $current .= $char;
-                }
-            }
-            if ($current !== '') {
-                $args[] = trim($current);
-            }
-
-            $formattedArgs = [];
-            foreach ($args as $arg) {
-                $arg = trim($arg);
-                // Check if it's a quoted string literal (single quotes for string literals in SQL)
-                // Must start and end with single quote
-                if (preg_match("/^'.*'$/", $arg)) {
-                    // It's a string literal (single quotes) - keep as-is
-                    $formattedArgs[] = $arg;
-                } elseif (preg_match('/^"([^"]+)"$/', $arg, $matches)) {
-                    // It's a quoted identifier - check if it contains single quotes (string literal in double quotes)
-                    $inner = $matches[1];
-                    if (preg_match("/^'.*'$/", $inner)) {
-                        // It's a string literal wrapped in double quotes (e.g., "'No contact'")
-                        // Extract the inner string literal and keep as-is
-                        $formattedArgs[] = $inner;
-                    } else {
-                        // It's a quoted identifier (column) - apply formatColumnForComparison for CLOB compatibility
-                        $formattedArgs[] = $this->formatColumnForComparison($arg);
-                    }
-                } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $arg)) {
-                    // Check if it's a SQL keyword that should not be quoted
-                    $upperArg = strtoupper($arg);
-                    if (in_array($upperArg, ['NULL', 'TRUE', 'FALSE', 'DEFAULT', 'CURRENT_DATE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'SYSDATE', 'SYSTIMESTAMP'])) {
-                        // It's a SQL keyword - keep as-is without quoting
-                        $formattedArgs[] = $upperArg;
-                    } else {
-                        // It's an unquoted column identifier - quote and apply formatColumnForComparison
-                        $quoted = $this->quoteIdentifier($arg);
-                        $formattedArgs[] = $this->formatColumnForComparison($quoted);
-                    }
-                } else {
-                    // It's an expression or something else - check if it contains CAST or CONCAT
-                    // Apply CAST normalization if needed
-                    if (preg_match('/CAST\s*\(([^,]+)\s+AS\s+([^)]+)\)/i', $arg, $castMatches)) {
-                        $castExpr = trim($castMatches[1]);
-                        $castType = trim($castMatches[2]);
-
-                        // Check if CAST expression is a column identifier
-                        $isCastQuotedIdentifier = preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $castExpr);
-                        $isCastUnquotedIdentifier = preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $castExpr);
-                        $upperCastExpr = strtoupper($castExpr);
-                        $isCastSqlKeyword = in_array($upperCastExpr, ['NULL', 'TRUE', 'FALSE', 'DEFAULT', 'CURRENT_DATE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'SYSDATE', 'SYSTIMESTAMP']);
-
-                        if (($isCastQuotedIdentifier || $isCastUnquotedIdentifier) && !$isCastSqlKeyword) {
-                            // It's a column - apply TO_CHAR() for CLOB compatibility before CAST
-                            $castQuoted = $isCastQuotedIdentifier ? $castExpr : $this->quoteIdentifier($castExpr);
-                            $castExprFormatted = $this->formatColumnForComparison($castQuoted);
-
-                            // For numeric types (INTEGER, NUMBER, etc.), use CASE WHEN for safe casting
-                            // Oracle CAST throws error on invalid values, so we need to catch it
-                            if (preg_match('/^(INTEGER|NUMBER|DECIMAL|NUMERIC|REAL|FLOAT|DOUBLE)/i', $castType)) {
-                                // Use CASE WHEN REGEXP_LIKE for safe numeric casting
-                                // CASE WHEN REGEXP_LIKE(TO_CHAR(column), '^-?[0-9]+(\.[0-9]+)?$') THEN CAST(TO_CHAR(column) AS type) ELSE NULL END
-                                $arg = "CASE WHEN REGEXP_LIKE($castExprFormatted, '^-?[0-9]+(\\.[0-9]+)?\$') THEN CAST($castExprFormatted AS $castType) ELSE NULL END";
-                            } elseif (preg_match('/^(DATE|TIMESTAMP)/i', $castType)) {
-                                // Use CASE WHEN with TO_DATE for safe date casting
-                                // Try common date formats: YYYY-MM-DD, DD-MON-YYYY, etc.
-                                // CASE WHEN REGEXP_LIKE(column, '^\d{4}-\d{2}-\d{2}') THEN TO_DATE(column, 'YYYY-MM-DD') ELSE NULL END
-                                $arg = "CASE WHEN REGEXP_LIKE($castExprFormatted, '^\\d{4}-\\d{2}-\\d{2}') THEN TO_DATE($castExprFormatted, 'YYYY-MM-DD') ELSE NULL END";
-                            } else {
-                                // For other types, use CAST directly
-                                $arg = preg_replace('/CAST\s*\(' . preg_quote($castExpr, '/') . '\s+AS\s+' . preg_quote($castType, '/') . '\)/i', "CAST($castExprFormatted AS $castType)", $arg);
-                            }
-                        }
-                    }
-                    // Check if it contains || operator (Oracle concatenation)
-                    // 'Name: ' || name -> 'Name: ' || TO_CHAR("NAME")
-                    if ($arg !== null && preg_match('/\|\|/', $arg)) {
-                        // Handle || operator (Oracle concatenation)
-                        // Split by || but respect quoted strings
-                        $parts = [];
-                        $current = '';
-                        $inQuotes = false;
-                        $quoteChar = '';
-                        $argLength = strlen($arg);
-                        for ($i = 0; $i < $argLength; $i++) {
-                            $char = $arg[$i];
-                            if (($char === '"' || $char === "'") && ($i === 0 || $arg[$i - 1] !== '\\')) {
-                                if (!$inQuotes) {
-                                    $inQuotes = true;
-                                    $quoteChar = $char;
-                                } elseif ($char === $quoteChar) {
-                                    $inQuotes = false;
-                                    $quoteChar = '';
-                                }
-                                $current .= $char;
-                            } elseif ($char === '|' && $i + 1 < $argLength && $arg[$i + 1] === '|' && !$inQuotes) {
-                                // Found || operator
-                                $parts[] = trim($current);
-                                $current = '';
-                                $i++; // Skip second |
-                            } else {
-                                $current .= $char;
-                            }
-                        }
-                        if ($current !== '') {
-                            $parts[] = trim($current);
-                        }
-
-                        // Process each part
-                        $formattedParts = [];
-                        foreach ($parts as $part) {
-                            $part = trim($part);
-                            // If it's a quoted string literal, keep as-is
-                            if (preg_match("/^'.*'$/", $part)) {
-                                $formattedParts[] = $part;
-                            } elseif (preg_match('/^"([^"]+)"$/', $part, $matches)) {
-                                // It's a quoted identifier (column) - apply formatColumnForComparison
-                                $formattedParts[] = $this->formatColumnForComparison($part);
-                            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $part)) {
-                                // Check if it's a SQL keyword that should not be quoted
-                                $upperPart = strtoupper($part);
-                                if (in_array($upperPart, ['NULL', 'TRUE', 'FALSE', 'DEFAULT', 'CURRENT_DATE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'SYSDATE', 'SYSTIMESTAMP'])) {
-                                    // It's a SQL keyword - keep as-is without quoting
-                                    $formattedParts[] = $upperPart;
-                                } else {
-                                    // It's an unquoted column identifier - quote and apply formatColumnForComparison
-                                    $quoted = $this->quoteIdentifier($part);
-                                    $formattedParts[] = $this->formatColumnForComparison($quoted);
-                                }
-                            } else {
-                                // It's already an expression or quoted identifier - keep as-is
-                                $formattedParts[] = $part;
-                            }
-                        }
-                        // Rebuild with || operator
-                        $arg = implode(' || ', $formattedParts);
-                    } elseif ($arg !== null && preg_match('/CONCAT\s*\(([^)]+)\)/i', $arg, $concatMatches)) {
-                        $concatArgs = $concatMatches[1];
-                        // Split CONCAT arguments by comma, but respect quoted strings
-                        $concatParts = [];
-                        $current = '';
-                        $inQuotes = false;
-                        $quoteChar = '';
-                        for ($i = 0; $i < strlen($concatArgs); $i++) {
-                            $char = $concatArgs[$i];
-                            if (($char === '"' || $char === "'") && ($i === 0 || $concatArgs[$i - 1] !== '\\')) {
-                                if (!$inQuotes) {
-                                    $inQuotes = true;
-                                    $quoteChar = $char;
-                                } elseif ($char === $quoteChar) {
-                                    $inQuotes = false;
-                                    $quoteChar = '';
-                                }
-                                $current .= $char;
-                            } elseif ($char === ',' && !$inQuotes) {
-                                $concatParts[] = trim($current);
-                                $current = '';
-                            } else {
-                                $current .= $char;
-                            }
-                        }
-                        if ($current !== '') {
-                            $concatParts[] = trim($current);
-                        }
-
-                        // Process each CONCAT argument
-                        $formattedConcatParts = [];
-                        foreach ($concatParts as $part) {
-                            $part = trim($part);
-                            // If it's a quoted string literal, keep as-is
-                            if (preg_match("/^'.*'$/", $part)) {
-                                $formattedConcatParts[] = $part;
-                            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $part)) {
-                                // It's an unquoted column identifier - quote and apply formatColumnForComparison
-                                $quoted = $this->quoteIdentifier($part);
-                                $formattedConcatParts[] = $this->formatColumnForComparison($quoted);
-                            } else {
-                                // It's already an expression or quoted identifier - keep as-is
-                                $formattedConcatParts[] = $part;
-                            }
-                        }
-                        // Rebuild CONCAT with formatted parts
-                        $arg = 'CONCAT(' . implode(', ', $formattedConcatParts) . ')';
-                    }
-                    $formattedArgs[] = $arg;
-                }
-            }
-            // Return COALESCE without wrapping in TO_CHAR()
-            // COALESCE may return non-string types (INTEGER, NUMBER, etc.) from CAST operations
-            // Wrapping in TO_CHAR() would cause type conversion issues
-            return 'COALESCE(' . implode(', ', $formattedArgs) . ')';
-        }
-
-        // Oracle-specific normalization: handle NULLIF with CLOB columns
-        // NULLIF(email, '') -> NULLIF(TO_CHAR("EMAIL"), '')
-        if (preg_match('/^NULLIF\s*\((.*),\s*(.*)\)$/i', trim($sql), $matches)) {
-            $expr1 = trim($matches[1]);
-            $expr2 = trim($matches[2]);
-
-            // Apply formatColumnForComparison to first expression if it's a column
-            if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $expr1) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $expr1)) {
-                // It's a column identifier
-                $quoted = preg_match('/^["`\[\]]/', $expr1) ? $expr1 : $this->quoteIdentifier($expr1);
-                $expr1Formatted = $this->formatColumnForComparison($quoted);
-            } else {
-                // It's an expression - keep as-is
-                $expr1Formatted = $expr1;
-            }
-
-            return "NULLIF($expr1Formatted, $expr2)";
-        }
-
-        // Oracle-specific normalization: handle CAST with CLOB columns
-        // CAST(text_value AS NUMBER) -> CAST(TO_CHAR("TEXT_VALUE") AS NUMBER)
-        if (preg_match('/CAST\s*\(([^,]+)\s+AS\s+([^)]+)\)/i', $sql, $matches)) {
-            $expr = trim($matches[1]);
-            $type = trim($matches[2]);
-
-            // Check if expression is a column identifier (quoted or unquoted)
-            if (preg_match('/^["`\[\]][^"`\[\]]+["`\[\]]$/', $expr) || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $expr)) {
-                // It's a column - apply TO_CHAR() for CLOB compatibility before CAST
-                $quoted = preg_match('/^["`\[\]]/', $expr) ? $expr : $this->quoteIdentifier($expr);
-                $exprFormatted = $this->formatColumnForComparison($quoted);
-                // Replace CAST(column AS type) with CAST(TO_CHAR(column) AS type)
-                $result = preg_replace('/CAST\s*\(' . preg_quote($expr, '/') . '\s+AS\s+' . preg_quote($type, '/') . '\)/i', "CAST($exprFormatted AS $type)", $sql);
-                if (is_string($result)) {
-                    $sql = $result;
-                }
-            }
-        }
-
-        // Oracle-specific normalization: handle LOG10() -> LOG(10, ...)
-        // Oracle doesn't support LOG10(), use LOG(10, ...) instead
-        if (preg_match('/LOG10\s*\(/i', $sql)) {
-            $result = preg_replace('/LOG10\s*\(/i', 'LOG(10, ', $sql);
-            if (is_string($result)) {
-                $sql = $result;
-            }
-        }
-
-        // Oracle-specific normalization: handle TRUE/FALSE -> 1/0
-        // Oracle doesn't support TRUE/FALSE constants, use 1/0 instead
-        if ($sql !== '') {
-            $result = preg_replace('/\bTRUE\b/i', '1', $sql);
-            if (is_string($result)) {
-                $sql = $result;
-            }
-            $result = preg_replace('/\bFALSE\b/i', '0', $sql);
-            if (is_string($result)) {
-                $sql = $result;
-            }
-        }
-
-        return $sql;
+        return $this->sqlNormalizer()->rawValue($sql);
     }
 
     /**
@@ -1926,62 +1631,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     protected function normalizeCoalesceArgs(string $argsStr): string
     {
-        // Split by comma, but respect quoted strings
-        $args = [];
-        $current = '';
-        $inQuotes = false;
-        $quoteChar = '';
-        for ($i = 0; $i < strlen($argsStr); $i++) {
-            $char = $argsStr[$i];
-            if (($char === '"' || $char === "'" || $char === '`') && ($i === 0 || $argsStr[$i - 1] !== '\\')) {
-                if (!$inQuotes) {
-                    $inQuotes = true;
-                    $quoteChar = $char;
-                } elseif ($char === $quoteChar) {
-                    $inQuotes = false;
-                    $quoteChar = '';
-                }
-                $current .= $char;
-            } elseif ($char === ',' && !$inQuotes) {
-                $args[] = trim($current);
-                $current = '';
-            } else {
-                $current .= $char;
-            }
-        }
-        if ($current !== '') {
-            $args[] = trim($current);
-        }
-
-        $formattedArgs = [];
-        foreach ($args as $arg) {
-            $arg = trim($arg);
-            // Check if it's a quoted string literal (single quotes for string literals in SQL)
-            if (preg_match("/^'.*'$/", $arg)) {
-                // It's a string literal (single quotes) - keep as-is
-                $formattedArgs[] = $arg;
-            } elseif (preg_match('/^"([^"]+)"$/', $arg, $matches)) {
-                // It's a quoted identifier - check if it contains single quotes (string literal in double quotes)
-                $inner = $matches[1];
-                if (preg_match("/^'.*'$/", $inner)) {
-                    // It's a string literal wrapped in double quotes (e.g., "'No contact'")
-                    // Extract the inner string literal and keep as-is
-                    $formattedArgs[] = $inner;
-                } else {
-                    // It's a quoted identifier (column) - apply formatColumnForComparison for CLOB compatibility
-                    $formattedArgs[] = $this->formatColumnForComparison($arg);
-                }
-            } elseif (preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $arg)) {
-                // It's an unquoted column identifier - quote and apply formatColumnForComparison
-                $quoted = $this->quoteIdentifier($arg);
-                $formattedArgs[] = $this->formatColumnForComparison($quoted);
-            } else {
-                // It's an expression or something else - keep as-is
-                $formattedArgs[] = $arg;
-            }
-        }
-
-        return implode(', ', $formattedArgs);
+        return $this->sqlNormalizer()->coalesceArgs($argsStr);
     }
 
     /**
@@ -2485,154 +2135,6 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     }
 
     /**
-     * {@inheritDoc}
-     */
-    public function dumpData(PdoDb $db, ?string $table = null): string
-    {
-        $output = [];
-        $tables = [];
-
-        if ($table !== null) {
-            $tables = [$table];
-        } else {
-            $rows = $db->rawQuery('SELECT TABLE_NAME FROM USER_TABLES ORDER BY TABLE_NAME');
-            foreach ($rows as $row) {
-                // Oracle may return keys in different cases depending on PDO settings
-                $tableName = $row['TABLE_NAME'] ?? $row['table_name'] ?? $row['Table_Name'] ?? null;
-                if ($tableName !== null) {
-                    $tables[] = (string)$tableName;
-                }
-            }
-        }
-
-        foreach ($tables as $tableName) {
-            $quotedTable = $this->quoteTable($tableName);
-            $rows = $db->rawQuery("SELECT * FROM {$quotedTable}");
-
-            if (empty($rows)) {
-                continue;
-            }
-
-            $columns = array_keys($rows[0]);
-            $quotedColumns = array_map([$this, 'quoteIdentifier'], $columns);
-            $columnsList = implode(', ', $quotedColumns);
-
-            // Oracle doesn't support multi-row INSERT VALUES syntax
-            // Use INSERT ALL ... SELECT FROM DUAL instead
-            $batchSize = 100;
-            $batch = [];
-            foreach ($rows as $row) {
-                $values = [];
-                foreach ($columns as $col) {
-                    $val = $row[$col];
-                    if ($val === null) {
-                        $values[] = 'NULL';
-                    } elseif (is_int($val) || is_float($val)) {
-                        $values[] = (string)$val;
-                    } else {
-                        $values[] = "'" . str_replace(["'", '\\'], ["''", '\\\\'], (string)$val) . "'";
-                    }
-                }
-                $batch[] = "  INTO {$quotedTable} ({$columnsList}) VALUES (" . implode(', ', $values) . ')';
-
-                if (count($batch) >= $batchSize) {
-                    $output[] = "INSERT ALL\n" . implode("\n", $batch) . "\nSELECT * FROM DUAL;";
-                    $batch = [];
-                }
-            }
-
-            if (!empty($batch)) {
-                $output[] = "INSERT ALL\n" . implode("\n", $batch) . "\nSELECT * FROM DUAL;";
-            }
-        }
-
-        return implode("\n\n", $output);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function restoreFromSql(PdoDb $db, string $sql, bool $continueOnError = false): void
-    {
-        // Split SQL into statements
-        $statements = [];
-        $current = '';
-        $inString = false;
-        $stringChar = '';
-
-        $lines = explode("\n", $sql);
-        foreach ($lines as $line) {
-            $trimmedLine = trim($line);
-            if ($trimmedLine === '' || preg_match('/^--/', $trimmedLine)) {
-                continue;
-            }
-
-            $length = strlen($line);
-            for ($i = 0; $i < $length; $i++) {
-                $char = $line[$i];
-                $nextChar = $i + 1 < $length ? $line[$i + 1] : '';
-
-                if (!$inString && $char === '-' && $nextChar === '-') {
-                    break;
-                }
-
-                if (!$inString && ($char === '"' || $char === "'")) {
-                    $inString = true;
-                    $stringChar = $char;
-                    $current .= $char;
-                } elseif ($inString && $char === $stringChar) {
-                    if ($nextChar === $stringChar) {
-                        $current .= $char . $nextChar;
-                        $i++;
-                    } else {
-                        $inString = false;
-                        $stringChar = '';
-                        $current .= $char;
-                    }
-                } elseif (!$inString && $char === ';') {
-                    $stmt = trim($current);
-                    if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
-                        $statements[] = $stmt;
-                    }
-                    $current = '';
-                } else {
-                    $current .= $char;
-                }
-            }
-        }
-
-        $stmt = trim($current);
-        if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
-            $statements[] = $stmt;
-        }
-
-        $errors = [];
-        foreach ($statements as $stmt) {
-            try {
-                $db->rawQuery($stmt);
-            } catch (\Throwable $e) {
-                $errorMsg = $e->getMessage();
-                $isDrop = stripos($stmt, 'DROP TABLE') === 0 || stripos($stmt, 'DROP ') === 0;
-                $isTableNotFound = str_contains($errorMsg, 'ORA-00942') || str_contains($errorMsg, 'table or view does not exist');
-
-                // Ignore "table does not exist" errors for DROP statements
-                if ($isDrop && $isTableNotFound) {
-                    continue;
-                }
-
-                if (!$continueOnError) {
-                    throw new ResourceException('Failed to execute SQL statement: ' . $e->getMessage() . "\nStatement: " . substr($stmt, 0, 200));
-                }
-                $errors[] = $errorMsg;
-            }
-        }
-
-        if (!empty($errors) && $continueOnError) {
-            throw new ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
-        }
-    }
-
-    /**
      * Get dialect-specific DDL query builder.
      *
      * @param ConnectionInterface $connection
@@ -3104,113 +2606,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function normalizeRecursiveCteSql(string $sql, string $cteName, bool $isRecursive): string
     {
-        if (!$isRecursive) {
-            return $sql;
-        }
-        /** @var string $sql */
-
-        // Oracle requires CTE name qualification instead of aliases in recursive part
-        // Extract unquoted CTE name for pattern matching
-        $unquotedCteName = trim($cteName, '"');
-        $unquotedCteNameUpper = strtoupper($unquotedCteName);
-
-        // Oracle requires column list for recursive CTEs (ORA-32039 without it)
-        // When column list is present, column aliases in SELECT must be removed
-        // Pattern: AS identifier or AS "identifier" (case-insensitive)
-        // This removes aliases like "0 as level" -> "0" or "name AS \"PATH\"" -> "name"
-        $result = preg_replace('/\s+AS\s+(?:"[^"]+"|[a-zA-Z_][a-zA-Z0-9_]*)/i', '', $sql);
-        if (is_string($result)) {
-            $sql = $result;
-        }
-
-        // Replace aliases in recursive part (after UNION ALL)
-        // Pattern: "CT"."COLUMN" or ct.column -> CTE_NAME.COLUMN
-        if (preg_match('/UNION\s+ALL\s+(.+)$/is', $sql, $matches)) {
-            $recursivePart = $matches[1];
-
-            // Extract CTE alias from JOIN clause to avoid false matches
-            // Pattern: JOIN "CTE_NAME" "ALIAS" or JOIN cte_name alias
-            $cteAlias = null;
-            if (preg_match('/JOIN\s+"?' . preg_quote($unquotedCteNameUpper, '/') . '"?\s+"?([a-zA-Z_][a-zA-Z0-9_]*)"?/i', $recursivePart, $joinMatch)) {
-                $cteAlias = strtoupper($joinMatch[1]);
-            }
-
-            // Replace quoted aliases like "CT" with CTE name
-            // Match pattern: "ALIAS"."COLUMN" where ALIAS matches CTE name
-            $result = preg_replace_callback(
-                '/"([^"]+)"\s*\.\s*"([^"]+)"/i',
-                function ($m) use ($cteName, $unquotedCteNameUpper, $cteAlias) {
-                    $alias = strtoupper($m[1]);
-                    $column = $m[2];
-                    // Check if alias matches CTE name or the detected CTE alias
-                    $isCtReference = (
-                        $alias === $unquotedCteNameUpper ||
-                        ($cteAlias !== null && $alias === $cteAlias)
-                    );
-
-                    if ($isCtReference) {
-                        return $cteName . '.' . $this->quoteIdentifier($column);
-                    }
-                    return $m[0];
-                },
-                $recursivePart
-            );
-            if (is_string($result)) {
-                $recursivePart = $result;
-            }
-            // Replace unquoted aliases like ct.column or ct.level
-            // Match pattern: alias.column (not in quotes)
-            $result = preg_replace_callback(
-                '/(\b)([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*|\*)(\b)/',
-                function ($m) use ($cteName, $unquotedCteNameUpper, $cteAlias) {
-                    $alias = strtoupper($m[2]);
-                    $column = $m[3];
-                    // Check if alias matches CTE name or the detected CTE alias
-                    $isCtReference = (
-                        $alias === $unquotedCteNameUpper ||
-                        ($cteAlias !== null && $alias === $cteAlias)
-                    );
-
-                    if ($isCtReference) {
-                        $quotedColumn = $column === '*' ? '*' : $this->quoteIdentifier($column);
-                        return $m[1] . $cteName . '.' . $quotedColumn . $m[4];
-                    }
-                    return $m[0];
-                },
-                $recursivePart
-            );
-            if (is_string($result)) {
-                $recursivePart = $result;
-            }
-            // Remove aliases from CTE references in JOIN
-            // Oracle doesn't allow aliases for CTE in recursive queries
-            // Change: INNER JOIN "TREE" "T" -> INNER JOIN "TREE"
-            if ($recursivePart !== '') {
-                $result = preg_replace_callback(
-                    '/INNER\s+JOIN\s+"([^"]+)"\s+"([^"]+)"/i',
-                    function ($m) use ($cteName, $unquotedCteNameUpper) {
-                        $tableName = strtoupper($m[1]);
-                        // If table name matches CTE name, remove the alias
-                        if ($tableName === $unquotedCteNameUpper) {
-                            return 'INNER JOIN ' . $cteName;
-                        }
-                        return $m[0];
-                    },
-                    $recursivePart
-                );
-                if (is_string($result)) {
-                    $recursivePart = $result;
-                }
-                if ($recursivePart !== '') {
-                    $result = preg_replace('/UNION\s+ALL\s+.+$/is', 'UNION ALL ' . $recursivePart, $sql);
-                    if (is_string($result)) {
-                        $sql = $result;
-                    }
-                }
-            }
-        }
-
-        return $sql;
+        return $this->sqlNormalizer()->recursiveCte($sql, $cteName, $isRecursive);
     }
 
     /**
@@ -3716,5 +3112,57 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
                 "Oracle datetime casts require NLS_TIMESTAMP_FORMAT='YYYY-MM-DD HH24:MI:SS.FF6' on the connection to preserve microseconds."
             );
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function listDumpTables(PdoDb $db): array
+    {
+        $tables = [];
+        foreach ($db->rawQuery('SELECT TABLE_NAME FROM USER_TABLES ORDER BY TABLE_NAME') as $row) {
+            $name = array_change_key_case($row, CASE_LOWER)['table_name'] ?? null;
+            if ($name !== null) {
+                $tables[] = (string)$name;
+            }
+        }
+
+        return $tables;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function dumpInsertStatement(string $quotedTable, string $columnsList, array $tuples): string
+    {
+        // Oracle (before 23ai) has no multi-row VALUES
+        $into = array_map(static fn (string $tuple): string => "  INTO {$quotedTable} ({$columnsList}) VALUES {$tuple}", $tuples);
+
+        return "INSERT ALL\n" . implode("\n", $into) . "\nSELECT * FROM DUAL;";
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function restoreSplitter(): SqlScriptSplitter
+    {
+        return new SqlScriptSplitter("'\"");
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function isIgnorableRestoreError(string $statement, \Throwable $error): bool
+    {
+        // The DROP in front of a CREATE finds nothing to drop in an empty schema
+        return stripos($statement, 'DROP ') === 0
+            && (str_contains($error->getMessage(), 'ORA-00942') || str_contains($error->getMessage(), 'table or view does not exist'));
+    }
+
+    private ?OracleSqlNormalizer $sqlNormalizer = null;
+
+    private function sqlNormalizer(): OracleSqlNormalizer
+    {
+        return $this->sqlNormalizer ??= new OracleSqlNormalizer($this);
     }
 }

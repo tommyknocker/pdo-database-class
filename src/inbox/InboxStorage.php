@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\inbox;
 
-use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\roles\DialectMessagingInterface;
+use tommyknocker\pdodb\dialects\roles\DialectQuotingInterface;
 use tommyknocker\pdodb\exceptions\InboxException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
@@ -108,7 +109,7 @@ final class InboxStorage
         return $deleted;
     }
 
-    protected function dialect(): DialectInterface
+    protected function dialect(): DialectMessagingInterface&DialectQuotingInterface
     {
         return $this->db->connection->getDialect();
     }

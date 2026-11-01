@@ -16,7 +16,8 @@ use tommyknocker\pdodb\dialects\catalog\PgsqlCatalogQueriesTrait;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
-use tommyknocker\pdodb\exceptions\ResourceException;
+use tommyknocker\pdodb\dialects\SqlScriptSplitter;
+use tommyknocker\pdodb\dialects\traits\OnConflictUpsertTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
 use tommyknocker\pdodb\PdoDb;
@@ -27,6 +28,8 @@ use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterface
 {
+    use OnConflictUpsertTrait;
+
     use PgsqlCatalogQueriesTrait;
     /** @var PostgreSQLFeatureSupport Feature support instance */
     private PostgreSQLFeatureSupport $featureSupport;
@@ -1905,171 +1908,6 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
     }
 
     /**
-     * {@inheritDoc}
-     */
-    public function dumpData(PdoDb $db, ?string $table = null): string
-    {
-        $output = [];
-        $tables = [];
-
-        if ($table !== null) {
-            $tables = [$table];
-        } else {
-            $rows = $db->rawQuery(
-                'SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = \'public\' ORDER BY tablename'
-            );
-            foreach ($rows as $row) {
-                $tables[] = (string)$row['tablename'];
-            }
-        }
-
-        foreach ($tables as $tableName) {
-            $quotedTable = $this->quoteTable($tableName);
-            $rows = $db->rawQuery("SELECT * FROM {$quotedTable}");
-
-            if (empty($rows)) {
-                continue;
-            }
-
-            $columns = array_keys($rows[0]);
-            $quotedColumns = array_map([$this, 'quoteIdentifier'], $columns);
-            $columnsList = implode(', ', $quotedColumns);
-
-            $batchSize = 100;
-            $batch = [];
-            foreach ($rows as $row) {
-                $values = [];
-                foreach ($columns as $col) {
-                    $val = $row[$col];
-                    if ($val === null) {
-                        $values[] = 'NULL';
-                    } elseif (is_int($val) || is_float($val)) {
-                        $values[] = (string)$val;
-                    } else {
-                        $values[] = "'" . str_replace(["'", '\\'], ["''", '\\\\'], (string)$val) . "'";
-                    }
-                }
-                $batch[] = '(' . implode(', ', $values) . ')';
-
-                if (count($batch) >= $batchSize) {
-                    $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
-                    $batch = [];
-                }
-            }
-
-            if (!empty($batch)) {
-                $output[] = "INSERT INTO {$quotedTable} ({$columnsList}) VALUES\n" . implode(",\n", $batch) . ';';
-            }
-        }
-
-        return implode("\n\n", $output);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function restoreFromSql(PdoDb $db, string $sql, bool $continueOnError = false): void
-    {
-        // PostgreSQL uses dollar-quoted strings, need more sophisticated parsing
-        $statements = [];
-        $current = '';
-        $inString = false;
-        $stringChar = '';
-        $inDollarQuote = false;
-        $dollarTag = '';
-
-        $lines = explode("\n", $sql);
-        foreach ($lines as $line) {
-            // Skip comment-only lines
-            $trimmedLine = trim($line);
-            if ($trimmedLine === '' || preg_match('/^--/', $trimmedLine)) {
-                continue;
-            }
-
-            $length = strlen($line);
-            for ($i = 0; $i < $length; $i++) {
-                $char = $line[$i];
-                $nextChar = $i + 1 < $length ? $line[$i + 1] : '';
-
-                // Handle comments (-- style)
-                if (!$inString && !$inDollarQuote && $char === '-' && $nextChar === '-') {
-                    // Skip rest of line (comment)
-                    break;
-                }
-
-                // Check for dollar-quoted strings ($tag$ ... $tag$)
-                if (!$inString && !$inDollarQuote && $char === '$') {
-                    $tagEnd = strpos($line, '$', $i + 1);
-                    if ($tagEnd !== false) {
-                        $dollarTag = substr($line, $i, $tagEnd - $i + 1);
-                        $inDollarQuote = true;
-                        $current .= $dollarTag;
-                        $i = $tagEnd;
-                        continue;
-                    }
-                }
-
-                if ($inDollarQuote) {
-                    $tagLen = strlen($dollarTag);
-                    if (substr($line, $i, $tagLen) === $dollarTag) {
-                        $inDollarQuote = false;
-                        $current .= $dollarTag;
-                        $i += $tagLen - 1;
-                        $dollarTag = '';
-                        continue;
-                    }
-                    $current .= $char;
-                    continue;
-                }
-
-                if (!$inString && ($char === '"' || $char === "'")) {
-                    $inString = true;
-                    $stringChar = $char;
-                    $current .= $char;
-                } elseif ($inString && $char === $stringChar) {
-                    if ($nextChar === $stringChar) {
-                        $current .= $char . $nextChar;
-                        $i++;
-                    } else {
-                        $inString = false;
-                        $stringChar = '';
-                        $current .= $char;
-                    }
-                } elseif (!$inString && $char === ';') {
-                    $stmt = trim($current);
-                    if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
-                        $statements[] = $stmt;
-                    }
-                    $current = '';
-                } else {
-                    $current .= $char;
-                }
-            }
-        }
-
-        $stmt = trim($current);
-        if ($stmt !== '' && !preg_match('/^--/', $stmt)) {
-            $statements[] = $stmt;
-        }
-
-        $errors = [];
-        foreach ($statements as $stmt) {
-            try {
-                $db->rawQuery($stmt);
-            } catch (\Throwable $e) {
-                if (!$continueOnError) {
-                    throw new ResourceException('Failed to execute SQL statement: ' . $e->getMessage() . "\nStatement: " . substr($stmt, 0, 200));
-                }
-                $errors[] = $e->getMessage();
-            }
-        }
-
-        if (!empty($errors) && $continueOnError) {
-            throw new ResourceException('Restore completed with ' . count($errors) . ' errors. First error: ' . $errors[0]);
-        }
-    }
-
-    /**
      * Get dialect-specific DDL query builder.
      *
      * @param ConnectionInterface $connection
@@ -2755,5 +2593,24 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
         }
 
         return $node;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function listDumpTables(PdoDb $db): array
+    {
+        $rows = $db->rawQuery("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public' ORDER BY tablename");
+
+        return array_values(array_map(static fn (array $row): string => (string)$row['tablename'], $rows));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function restoreSplitter(): SqlScriptSplitter
+    {
+        // $tag$ ... $tag$ bodies (functions) may contain semicolons
+        return new SqlScriptSplitter("'\"", dollarQuotes: true);
     }
 }

@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\outbox;
 
 use JsonException;
-use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\roles\DialectMessagingInterface;
+use tommyknocker\pdodb\dialects\roles\DialectQuotingInterface;
 use tommyknocker\pdodb\exceptions\OutboxException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\PdoDb;
@@ -169,7 +170,7 @@ final class OutboxStorage
         return $updated > 0;
     }
 
-    protected function dialect(): DialectInterface
+    protected function dialect(): DialectMessagingInterface&DialectQuotingInterface
     {
         return $this->db->schema()->getDialect();
     }
