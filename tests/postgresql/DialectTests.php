@@ -251,14 +251,12 @@ final class DialectTests extends BasePostgreSQLTestCase
         $this->assertEquals('"ColumnName"', $dialect->quoteIdentifier('ColumnName'));
     }
 
-    public function testQuoteIdentifierWithRawValueThrowsTypeError(): void
+    public function testQuoteIdentifierPassesARawValueThrough(): void
     {
         $dialect = self::$db->connection->getDialect();
 
-        // PostgreSQL quoteIdentifier only accepts string, not RawValue
-        $rawValue = new RawValue('COUNT(*)');
-        $this->expectException(\TypeError::class);
-        $dialect->quoteIdentifier($rawValue);
+        // Same as MySQL, MariaDB and SQL Server: an expression the caller wrote is not quoted
+        $this->assertSame('COUNT(*)', $dialect->quoteIdentifier(new RawValue('COUNT(*)')));
     }
 
     public function testQuoteTable(): void

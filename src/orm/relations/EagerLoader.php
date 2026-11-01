@@ -528,17 +528,11 @@ class EagerLoader
         /** @var class-string<Model> $relatedModelClass */
         $relatedModelClass = $relation->getModelClass();
 
-        // First, load all intermediate models for all owner models
+        // First, load all intermediate models for all owner models (one batched load, not one query per owner)
+        $this->ensureIntermediatesLoaded($models, $viaRelation);
         $allIntermediateModels = [];
         foreach ($models as $model) {
-            $intermediateRelation = $this->getRelationInstance($model, $viaRelation);
-            if ($intermediateRelation !== null) {
-                $intermediateModels = $intermediateRelation->getValue();
-                if (!is_array($intermediateModels)) {
-                    $intermediateModels = $intermediateModels !== null ? [$intermediateModels] : [];
-                }
-                $allIntermediateModels = array_merge($allIntermediateModels, $intermediateModels);
-            }
+            $allIntermediateModels = array_merge($allIntermediateModels, $this->loadedIntermediates($model, $viaRelation));
         }
 
         if (empty($allIntermediateModels)) {
@@ -615,35 +609,36 @@ class EagerLoader
         $grouped = [];
 
         if (!empty($viaTable)) {
-            // For viaTable, we need to query junction table to map owners to related
-            // Build a map: owner_value => [related_ids]
+            // One query maps every owner to its related ids: owner_value => [related_ids]
             $ownerValueToRelatedIds = [];
-
-            // Collect all owner values and related IDs
+            $ownerValues = [];
             foreach ($models as $model) {
                 $ownerValue = $model->{$ownerKey} ?? null;
                 if ($ownerValue === null) {
                     continue;
                 }
+                $ownerValueToRelatedIds[$ownerValue] = [];
+                $ownerValues[] = $ownerValue;
+            }
 
-                if (!isset($ownerValueToRelatedIds[$ownerValue])) {
-                    $ownerValueToRelatedIds[$ownerValue] = [];
-                }
-
-                // Query junction table for this owner
-                $db = $model->getModelDb();
+            if ($ownerValues !== []) {
+                $db = $models[0]->getModelDb();
                 if ($db === null) {
-                    throw new RuntimeException('Database connection not set for model ' . $model::class);
+                    throw new RuntimeException('Database connection not set for model ' . $models[0]::class);
                 }
                 $junctionData = $db->find()
                     ->from($viaTable)
-                    ->where($junctionOwnerKey, $ownerValue)
+                    ->where($junctionOwnerKey, array_values(array_unique($ownerValues)), 'IN')
                     ->get();
 
                 foreach ($junctionData as $junctionRow) {
+                    $junctionOwner = $junctionRow[$junctionOwnerKey] ?? null;
                     $relatedId = $junctionRow[$junctionRelatedKey] ?? null;
-                    if ($relatedId !== null && !in_array($relatedId, $ownerValueToRelatedIds[$ownerValue], true)) {
-                        $ownerValueToRelatedIds[$ownerValue][] = $relatedId;
+                    if ($junctionOwner === null || $relatedId === null || !isset($ownerValueToRelatedIds[$junctionOwner])) {
+                        continue;
+                    }
+                    if (!in_array($relatedId, $ownerValueToRelatedIds[$junctionOwner], true)) {
+                        $ownerValueToRelatedIds[$junctionOwner][] = $relatedId;
                     }
                 }
             }
@@ -680,16 +675,8 @@ class EagerLoader
                     continue;
                 }
 
-                // Get intermediate models for this owner
-                $intermediateRelation = $this->getRelationInstance($model, $viaRelation);
-                if ($intermediateRelation === null) {
-                    continue;
-                }
-
-                $intermediateModels = $intermediateRelation->getValue();
-                if (!is_array($intermediateModels)) {
-                    $intermediateModels = $intermediateModels !== null ? [$intermediateModels] : [];
-                }
+                // Intermediate models for this owner were loaded in one batch by loadViaRelation()
+                $intermediateModels = $this->loadedIntermediates($model, $viaRelation);
 
                 // Get related models through intermediate
                 $relatedForOwner = [];
@@ -714,5 +701,33 @@ class EagerLoader
         }
 
         return $grouped;
+    }
+
+    /**
+     * Eager-load the intermediate relation for every owner that does not have it yet.
+     *
+     * @param array<int, Model> $models Owner models
+     */
+    protected function ensureIntermediatesLoaded(array $models, string $viaRelation): void
+    {
+        $missing = array_values(array_filter($models, static fn (Model $model): bool => !array_key_exists($viaRelation, $model->getRelationData())));
+        if ($missing !== []) {
+            $this->loadRelation($missing, $viaRelation, []);
+        }
+    }
+
+    /**
+     * Intermediate models of one owner, as loaded by ensureIntermediatesLoaded().
+     *
+     * @return array<int, Model>
+     */
+    protected function loadedIntermediates(Model $model, string $viaRelation): array
+    {
+        $data = $model->getRelationData()[$viaRelation] ?? [];
+        if ($data instanceof Model) {
+            return [$data];
+        }
+
+        return is_array($data) ? array_values(array_filter($data, static fn (mixed $item): bool => $item instanceof Model)) : [];
     }
 }

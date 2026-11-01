@@ -136,6 +136,11 @@ class InputHandler
             return 'tab';
         }
 
+        // Ctrl+C arrives as a character when the terminal runs without ISIG (see Dashboard::setupTerminal())
+        if ($charCode === 3) {
+            return 'ctrl-c';
+        }
+
         if ($charCode === 127 || $charCode === 8) {
             return 'backspace';
         }

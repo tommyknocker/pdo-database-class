@@ -351,15 +351,30 @@ class Dashboard
             pcntl_signal(SIGTERM, [$this, 'handleSignal']);
         }
 
-        // Hide cursor and clear screen
-        Terminal::hideCursor();
-        Terminal::clear();
+        try {
+            // Hide cursor and clear screen
+            Terminal::hideCursor();
+            Terminal::clear();
 
-        // Initial data fetch
-        $this->refresh();
-        $this->lastRefresh = microtime(true);
+            // Initial data fetch
+            $this->refresh();
+            $this->lastRefresh = microtime(true);
 
-        // Main loop
+            $this->runLoop();
+        } finally {
+            // Restore the terminal even when the loop ends with an exception
+            $this->restoreTerminal();
+            Terminal::showCursor();
+            Terminal::clear();
+            Terminal::reset();
+        }
+    }
+
+    /**
+     * Main loop: refresh, render, read a key, until exit is requested.
+     */
+    protected function runLoop(): void
+    {
         while (true) {
             // Handle signals
             if (function_exists('pcntl_signal_dispatch')) {
@@ -410,12 +425,6 @@ class Dashboard
                 }
             }
         }
-
-        // Cleanup
-        $this->restoreTerminal();
-        Terminal::showCursor();
-        Terminal::clear();
-        Terminal::reset();
     }
 
     /**
@@ -430,8 +439,10 @@ class Dashboard
                 $this->originalStty = trim($stty);
             }
 
-            // Set terminal to raw mode (immediate character input, no echo)
-            @shell_exec('stty -icanon -echo');
+            // Set terminal to raw mode (immediate character input, no echo). Without ext-pcntl nothing can catch
+            // SIGINT, so the default would kill the process with the terminal still raw; -isig turns Ctrl+C into
+            // an ordinary key that the main loop handles.
+            @shell_exec(function_exists('pcntl_signal') ? 'stty -icanon -echo' : 'stty -icanon -echo -isig');
         }
     }
 
@@ -455,6 +466,10 @@ class Dashboard
      */
     protected function handleKey(string $key): bool
     {
+        if ($key === 'ctrl-c') {
+            return true;
+        }
+
         // Handle detail view mode
         if ($this->detailViewPane >= 0) {
             // In detail view, handle special keys

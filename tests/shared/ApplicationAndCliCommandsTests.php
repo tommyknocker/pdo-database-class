@@ -78,6 +78,17 @@ final class ApplicationAndCliCommandsTests extends TestCase
         }
     }
 
+    public function testNonInteractiveRunKeepsTheRealExitCode(): void
+    {
+        $bin = realpath(__DIR__ . '/../../bin/pdodb');
+        $this->assertNotFalse($bin);
+        $output = [];
+        exec('PDODB_NON_INTERACTIVE=1 ' . escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($bin) . ' no-such-command 2>&1', $output, $code);
+
+        $this->assertSame(1, $code, 'a CI run must see the command failure, not exit code 255');
+        $this->assertStringNotContainsString('Uncaught', implode("\n", $output));
+    }
+
     public function testDbInfoCommandViaApplication(): void
     {
         $app = new Application();

@@ -6,7 +6,6 @@ namespace tommyknocker\pdodb\ai;
 
 use Composer\InstalledVersions;
 use PDO;
-use tommyknocker\pdodb\cli\TableManager;
 use tommyknocker\pdodb\PdoDb;
 
 /** Small evidence-based context for development agents. Never includes credentials. */
@@ -49,7 +48,7 @@ class AgentContextService
     /** @return array<string, mixed> */
     public function searchSchema(string $query = '', int $limit = 20, int $offset = 0): array
     {
-        $tables = TableManager::listTables($this->db);
+        $tables = $this->db->schema()->getDialect()->listTables($this->db);
         sort($tables);
         $tables = array_values(array_filter($tables, static fn ($table) => $query === '' || mb_stripos($table, $query, 0, 'UTF-8') !== false));
         $limit = max(1, min(100, $limit));

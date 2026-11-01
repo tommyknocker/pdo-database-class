@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai;
 
-use tommyknocker\pdodb\cli\TableManager;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\ExplainAnalysis;
 
@@ -67,7 +66,7 @@ class AiAnalysisContext
                 $tableName => $this->getTableStats($tableName),
             ];
         } else {
-            $tables = TableManager::listTables($this->db);
+            $tables = $this->db->schema()->getDialect()->listTables($this->db);
             $context['schema'] = [
                 'tables' => [],
             ];

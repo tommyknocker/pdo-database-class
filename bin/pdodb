@@ -48,10 +48,10 @@ require_once $autoloadPath;
 
 use tommyknocker\pdodb\cli\Application;
 
-// Ensure non-interactive mode for tests and CI
+// Ensure non-interactive mode for tests and CI. PHPUNIT is not set here: it switches the exit below to an
+// exception, which would turn every failing command in a CI job into an uncaught-exception trace and exit code 255.
 if (getenv('PHPUNIT') !== false || getenv('PDODB_NON_INTERACTIVE') !== false) {
     putenv('PDODB_NON_INTERACTIVE=1');
-    putenv('PHPUNIT=1');
 }
 
 $application = new Application();

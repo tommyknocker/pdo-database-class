@@ -442,4 +442,34 @@ final class ModelFeatureTests extends BaseSharedTestCase
         $this->assertSame('Winner', $model->title);
         $this->assertSame(1, (int) self::$db->find()->from('feature_articles')->select(['COUNT(*)'])->getValue());
     }
+
+    public function testEagerLoadingManyToManyDoesNotQueryPerOwner(): void
+    {
+        $tagIds = [];
+        foreach (['t1', 't2'] as $name) {
+            $tag = new FeatureTag();
+            $tag->name = $name;
+            $this->assertTrue($tag->save(false));
+            $tagIds[] = (int) $tag->id;
+        }
+        for ($i = 1; $i <= 6; $i++) {
+            $article = new FeatureArticleLink();
+            $article->setAttributes(['public_id' => 'p' . $i, 'slug' => 's' . $i, 'title' => 'A' . $i, 'views' => 0]);
+            $this->assertTrue($article->save(false));
+            self::$db->find()->table('feature_article_tag')->insert(['article_id' => (int) $article->id, 'tag_id' => $tagIds[$i % 2]]);
+        }
+
+        self::$db->enableProfiling();
+        $articles = FeatureArticleLink::find()->with('tags')->orderBy('id')->all();
+        $stats = self::$db->getProfilerStats(true);
+        self::$db->disableProfiling();
+
+        $this->assertCount(6, $articles);
+        foreach ($articles as $i => $article) {
+            $related = $article->getRelationData()['tags'] ?? [];
+            $this->assertCount(1, $related);
+            $this->assertSame($tagIds[($i + 1) % 2], (int) $related[0]->id);
+        }
+        $this->assertLessThanOrEqual(3, (int) ($stats['total_queries'] ?? 0), 'owners + related + junction, regardless of the number of owners');
+    }
 }

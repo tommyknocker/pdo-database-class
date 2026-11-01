@@ -24,4 +24,13 @@ final class DashboardTests extends BaseSharedTestCase
         $dashboard = new Dashboard(self::$db);
         $this->assertInstanceOf(Dashboard::class, $dashboard);
     }
+
+    public function testCtrlCQuitsFromAnyView(): void
+    {
+        $dashboard = new Dashboard(self::$db);
+        $handle = new \ReflectionMethod($dashboard, 'handleKey');
+
+        $this->assertTrue($handle->invoke($dashboard, 'ctrl-c'));
+        $this->assertFalse($handle->invoke($dashboard, 'x'));
+    }
 }

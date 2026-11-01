@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai\providers;
 
+use tommyknocker\pdodb\ai\AiEndpoint;
 use tommyknocker\pdodb\ai\BaseAiProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
 
@@ -34,6 +35,9 @@ class MicrosoftProvider extends BaseAiProvider
         $deployment = $this->config->getProviderSetting('microsoft', 'model', '');
         $this->model = $deployment;
 
+        if ($endpoint !== '') {
+            AiEndpoint::assertValid((string)$endpoint);
+        }
         if ($endpoint !== '' && $deployment !== '') {
             $this->apiUrl = rtrim($endpoint, '/') . self::URL_PATH_DEPLOYMENTS . urlencode($deployment) . self::URL_PATH_CHAT_COMPLETIONS . '?' . self::URL_PARAM_API_VERSION . $this->apiVersion;
         }

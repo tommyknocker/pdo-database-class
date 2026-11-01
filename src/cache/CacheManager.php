@@ -127,16 +127,9 @@ class CacheManager
             $this->hits++;
             $this->incrementStatAtomic('hits');
 
-            // Try to get TTL from metadata
-            $ttl = null;
-            $metaKey = self::META_KEY_PREFIX . $key;
-            $metadata = $this->cache->get($metaKey);
-            if (is_array($metadata) && isset($metadata['ttl'])) {
-                $ttl = (int)$metadata['ttl'];
-            }
-
-            // Dispatch cache hit event
-            $this->dispatch(new CacheHitEvent($key, $result, $ttl));
+            // The remaining TTL is not tracked (nothing ever stored per-key metadata, so the lookup this replaces
+            // cost an extra cache round-trip on every hit and always came back empty).
+            $this->dispatch(new CacheHitEvent($key, $result, null));
         } else {
             $this->misses++;
             $this->incrementStatAtomic('misses');
@@ -1058,6 +1051,22 @@ class CacheManager
         $this->cache->delete($metaKey);
 
         return $deletedCount;
+    }
+
+    /**
+     * Drop every cached result that read the given table.
+     *
+     * @param string $table Table name (alias, schema and quotes are ignored)
+     *
+     * @return int Number of invalidated entries
+     */
+    public function invalidateTable(string $table): int
+    {
+        if (!$this->config->isEnabled()) {
+            return 0;
+        }
+
+        return $this->invalidateByTable($table);
     }
 
     /**

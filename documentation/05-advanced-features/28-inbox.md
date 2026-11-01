@@ -21,3 +21,16 @@ Message ids may be up to 190 characters, so broker ids other than UUIDs fit. `pr
 Use a distinct consumer name for each independent handler. The same message id can be applied once per consumer.
 
 The duplicate check is the inbox table, not the broker. Keep the handler's database work on the same `PdoDb` connection.
+
+## Retention
+
+The table grows by one row per delivered message, so clean it up:
+
+```php
+$removed = $inbox->purge('30d');       // delete ids processed more than 30 days ago
+$wouldRemove = $inbox->purge('30d', true); // dry run: only count
+```
+
+Deletion runs in batches of 200 rows so a large backlog is not one long statement. The age is a compromise: once an id is purged, a redelivery of that message is handled again. Choose a period longer than the longest time your broker can redeliver (retention of the queue, dead-letter replays, manual replays). The purge applies to every consumer that shares the table.
+
+See [Minimum server versions](27-transactional-outbox.md#minimum-server-versions) for the database versions the inbox needs.

@@ -28,6 +28,15 @@ $users = $db->find()
     ->get();
 ```
 
+How each string argument is read:
+
+- A bare word, optionally with a table prefix (`name`, `users.name`), is a column.
+- A string that is a complete SQL literal (`"' - '"`) is used as written.
+- Any other string (`' <'`, `'Order: '`, text from a user) is escaped and sent as a text literal.
+- A `Db::raw()` or another helper is inserted as SQL. Use it for expressions, for example `Db::raw('UPPER(name)')`.
+
+Text is never interpreted as SQL, so user input is safe as a `concat()` argument.
+
 ## Db::upper() - Uppercase
 
 Convert string to uppercase:

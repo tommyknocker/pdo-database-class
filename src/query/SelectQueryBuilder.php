@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query;
 
+use InvalidArgumentException;
 use PDO;
 use PDOException;
 use RuntimeException;
@@ -326,7 +327,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
                 $alias = is_string($index) ? $this->dialect->quoteIdentifier($index) : '';
                 $this->select[] = is_string($index) ? "({$subSql}) AS {$alias}" : "({$subSql})";
             } elseif (is_object($col) && !$col instanceof \Stringable) {
-                throw new \InvalidArgumentException('SELECT expressions must be strings, scalar values, Stringable objects, RawValue instances or callbacks.');
+                throw new InvalidArgumentException('SELECT expressions must be strings, scalar values, Stringable objects, RawValue instances or callbacks.');
             } elseif (is_string($index)) { // ['total' => 'SUM(amount)] Treat it as SUM(amount) AS total
                 $alias = $this->dialect->quoteIdentifier($index);
 
@@ -1170,7 +1171,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
     {
         new AiQueryOptions($options);
         if (isset($options['structured']) && !is_bool($options['structured'])) {
-            throw new \InvalidArgumentException('AI structured option must be boolean');
+            throw new InvalidArgumentException('AI structured option must be boolean');
         }
         $db = $this->getDatabaseInstance();
         $sqlData = $this->toSQL();
@@ -1903,7 +1904,11 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
 
         // Fetch one extra item to check if there are more pages
         $offset = ($page - 1) * $perPage;
+        $savedLimit = $this->limit;
+        $savedOffset = $this->offset;
         $rawItems = $this->limit($perPage + 1)->offset($offset)->get();
+        $this->limit = $savedLimit;
+        $this->offset = $savedOffset;
 
         $hasMore = count($rawItems) > $perPage;
         if ($hasMore) {
@@ -1952,7 +1957,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
         }
 
         // Fetch items
+        $savedLimit = $this->limit;
         $rawItems = $this->limit($perPage + 1)->get();
+        $this->limit = $savedLimit;
         $hasMore = count($rawItems) > $perPage;
 
         if ($hasMore) {
@@ -2025,21 +2032,57 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
     /**
      * Apply cursor conditions to query.
      *
+     * Rows after the cursor in ORDER BY order satisfy `(c1 > v1) OR (c1 = v1 AND c2 > v2) OR ...`, with `<` for a
+     * DESC column. Comparing each column on its own (`c1 > v1 AND c2 > v2`) skips rows that share the first
+     * column's value with the cursor row and ignores descending order.
+     *
      * @param Cursor $cursor
      * @param array<int, string> $columns
      */
     protected function applyCursorConditions(Cursor $cursor, array $columns): void
     {
         $params = $cursor->parameters();
+        $directions = $this->getCursorDirections();
 
-        // For simplicity, build individual column comparisons
-        // More advanced: composite key comparison for better performance
         foreach ($columns as $col) {
-            if (isset($params[$col])) {
-                $paramName = 'cursor_' . $col;
-                $this->conditionBuilder->where($col, $params[$col], '>');
+            if (!array_key_exists($col, $params) || $params[$col] === null) {
+                throw new InvalidArgumentException("Cursor has no value for ORDER BY column '{$col}'.");
             }
         }
+
+        $branches = [];
+        $bound = [];
+        foreach ($columns as $i => $col) {
+            $terms = [];
+            for ($j = 0; $j < $i; $j++) {
+                $name = 'cursor_' . $i . '_eq_' . $j;
+                $terms[] = $this->dialect->quoteIdentifier($columns[$j]) . ' = :' . $name;
+                $bound[$name] = $params[$columns[$j]];
+            }
+            $name = 'cursor_' . $i;
+            $terms[] = $this->dialect->quoteIdentifier($col) . ($directions[$i] ? ' < ' : ' > ') . ':' . $name;
+            $bound[$name] = $params[$col];
+            $branches[] = '(' . implode(' AND ', $terms) . ')';
+        }
+
+        if ($branches !== []) {
+            $this->conditionBuilder->whereRaw('(' . implode(' OR ', $branches) . ')', $bound);
+        }
+    }
+
+    /**
+     * Whether each ORDER BY column sorts descending, in the order of getCursorColumns().
+     *
+     * @return array<int, bool>
+     */
+    protected function getCursorDirections(): array
+    {
+        $directions = [];
+        foreach ($this->order as $orderExpr) {
+            $directions[] = preg_match('/\s+DESC\s*$/i', $orderExpr) === 1;
+        }
+
+        return $directions;
     }
 
     /* ---------------- Cache helpers ---------------- */

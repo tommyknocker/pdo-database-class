@@ -158,9 +158,9 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
-    public function quoteIdentifier(string $name): string
+    public function quoteIdentifier(mixed $name): string
     {
-        return '"' . str_replace('"', '""', $name) . '"';
+        return $name instanceof RawValue ? $name->getValue() : '"' . str_replace('"', '""', (string)$name) . '"';
     }
 
     /**

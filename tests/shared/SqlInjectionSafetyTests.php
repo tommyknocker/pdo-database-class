@@ -14,6 +14,7 @@ use tommyknocker\pdodb\dialects\oracle\OracleDialect;
 use tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect;
 use tommyknocker\pdodb\dialects\sqlite\SqliteDialect;
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\QueryConstants;
 
 /**
@@ -190,5 +191,31 @@ final class SqlInjectionSafetyTests extends BaseSharedTestCase
         $this->assertSame("'a\\\\''b'", (new MySQLDialect())->quoteStringLiteral("a\\'b"));
         $this->assertSame("E'a\\\\''b'", (new PostgreSQLDialect())->quoteStringLiteral("a\\'b"));
         $this->assertSame("'plain'", (new PostgreSQLDialect())->quoteStringLiteral('plain'));
+    }
+
+    #[DataProvider('identifierQuoting')]
+    public function testConcatTreatsTextAsALiteralNotAsSql(DialectInterface $dialect): void
+    {
+        $hostile = "x') OR (1=1) --";
+        $sql = $dialect->concat(Db::concat('name', $hostile))->getValue();
+
+        $this->assertStringContainsString("x'')", $sql, 'the quote must be doubled so the text cannot end its literal');
+        $this->assertStringNotContainsString("'x') OR", $sql);
+    }
+
+    #[DataProvider('identifierQuoting')]
+    public function testConcatKeepsWellFormedLiteralsAndBareColumns(DialectInterface $dialect): void
+    {
+        $sql = $dialect->concat(Db::concat('users.name', "' - '", 'it\'s fine'))->getValue();
+
+        $this->assertStringContainsString($dialect->quoteIdentifier('users') . '.' . $dialect->quoteIdentifier('name'), $sql);
+        $this->assertStringContainsString("' - '", $sql);
+        $this->assertStringContainsString("it''s fine", $sql);
+    }
+
+    #[DataProvider('identifierQuoting')]
+    public function testQuoteIdentifierPassesAnExpressionThroughOnEveryDialect(DialectInterface $dialect): void
+    {
+        $this->assertSame('COUNT(*)', $dialect->quoteIdentifier(new RawValue('COUNT(*)')));
     }
 }

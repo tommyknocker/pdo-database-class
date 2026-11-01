@@ -145,6 +145,10 @@ abstract class BaseAiProvider implements AiProviderInterface
      */
     protected function makeRequest(string $url, array $data, array $headers = []): array
     {
+        if (!filter_var(ini_get('allow_url_fopen'), FILTER_VALIDATE_BOOL)) {
+            throw new QueryException('AI requests need allow_url_fopen=On in php.ini; it is disabled.', 0);
+        }
+
         $context = stream_context_create([
             'http' => [
                 'method' => 'POST',

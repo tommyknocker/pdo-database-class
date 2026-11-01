@@ -1154,7 +1154,10 @@ class QueryBuilder implements QueryBuilderInterface
 
         try {
             $this->prepareQueryContext();
-            return $this->dmlQueryBuilder->insert($data, $onDuplicate);
+            $result = $this->dmlQueryBuilder->insert($data, $onDuplicate);
+            $this->invalidateCachedReads();
+
+            return $result;
         } finally {
             $this->restoreConnection($originalConnection);
         }
@@ -1174,7 +1177,10 @@ class QueryBuilder implements QueryBuilderInterface
 
         try {
             $this->prepareQueryContext();
-            return $this->dmlQueryBuilder->insertMulti($rows, $onDuplicate);
+            $result = $this->dmlQueryBuilder->insertMulti($rows, $onDuplicate);
+            $this->invalidateCachedReads();
+
+            return $result;
         } finally {
             $this->restoreConnection($originalConnection);
         }
@@ -1198,7 +1204,10 @@ class QueryBuilder implements QueryBuilderInterface
 
         try {
             $this->prepareQueryContext();
-            return $this->dmlQueryBuilder->insertFrom($source, $columns, $onDuplicate);
+            $result = $this->dmlQueryBuilder->insertFrom($source, $columns, $onDuplicate);
+            $this->invalidateCachedReads();
+
+            return $result;
         } finally {
             $this->restoreConnection($originalConnection);
         }
@@ -1218,7 +1227,10 @@ class QueryBuilder implements QueryBuilderInterface
 
         try {
             $this->prepareQueryContext();
-            return $this->dmlQueryBuilder->replace($data, $onDuplicate);
+            $result = $this->dmlQueryBuilder->replace($data, $onDuplicate);
+            $this->invalidateCachedReads();
+
+            return $result;
         } finally {
             $this->restoreConnection($originalConnection);
         }
@@ -1238,7 +1250,10 @@ class QueryBuilder implements QueryBuilderInterface
 
         try {
             $this->prepareQueryContext();
-            return $this->dmlQueryBuilder->replaceMulti($rows, $onDuplicate);
+            $result = $this->dmlQueryBuilder->replaceMulti($rows, $onDuplicate);
+            $this->invalidateCachedReads();
+
+            return $result;
         } finally {
             $this->restoreConnection($originalConnection);
         }
@@ -1258,7 +1273,10 @@ class QueryBuilder implements QueryBuilderInterface
 
         try {
             $this->prepareQueryContext();
-            return $this->dmlQueryBuilder->update($data);
+            $result = $this->dmlQueryBuilder->update($data);
+            $this->invalidateCachedReads();
+
+            return $result;
         } finally {
             $this->restoreConnection($originalConnection);
         }
@@ -1276,7 +1294,10 @@ class QueryBuilder implements QueryBuilderInterface
 
         try {
             $this->prepareQueryContext();
-            return $this->dmlQueryBuilder->delete();
+            $result = $this->dmlQueryBuilder->delete();
+            $this->invalidateCachedReads();
+
+            return $result;
         } finally {
             $this->restoreConnection($originalConnection);
         }
@@ -1290,7 +1311,25 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function truncate(): bool
     {
-        return $this->dmlQueryBuilder->truncate();
+        $result = $this->dmlQueryBuilder->truncate();
+        $this->invalidateCachedReads();
+
+        return $result;
+    }
+
+    /**
+     * Drop cached results that read the written table, when `cache.auto_invalidate` is on (the default).
+     *
+     * Inside a transaction a concurrent reader can still cache the old rows before COMMIT; call
+     * CacheManager::invalidateTable() after committing when that matters.
+     */
+    protected function invalidateCachedReads(): void
+    {
+        if ($this->cacheManager === null || !$this->cacheManager->getConfig()->isAutoInvalidate() || $this->table === null) {
+            return;
+        }
+
+        $this->cacheManager->invalidateTable($this->table);
     }
 
     /**
@@ -1319,7 +1358,10 @@ class QueryBuilder implements QueryBuilderInterface
             }
             $this->dmlQueryBuilder->setTable($this->table);
             $this->dmlQueryBuilder->setPrefix($this->prefix);
-            return $this->dmlQueryBuilder->merge($source, $onConditions, $whenMatched, $whenNotMatched, $whenNotMatchedBySourceDelete);
+            $result = $this->dmlQueryBuilder->merge($source, $onConditions, $whenMatched, $whenNotMatched, $whenNotMatchedBySourceDelete);
+            $this->invalidateCachedReads();
+
+            return $result;
         } finally {
             $this->restoreConnection($originalConnection);
         }

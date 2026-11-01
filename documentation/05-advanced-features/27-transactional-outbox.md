@@ -152,6 +152,21 @@ $result = $outbox->worker(workerId: 'api-1', batchSize: 20)->runOnce(
 );
 ```
 
+## Minimum server versions
+
+The outbox claims rows with `SKIP LOCKED` / `READPAST` and the outbox and inbox tables use expression defaults and `RETURNING`, so they need newer servers than the rest of the library:
+
+| Database | Minimum for outbox and inbox | Why |
+|----------|------------------------------|-----|
+| MySQL | 8.0.13 | `SKIP LOCKED` (8.0.1) and expression defaults such as `DEFAULT (UTC_TIMESTAMP(6))` (8.0.13) |
+| MariaDB | 10.6 | `SKIP LOCKED` (expression defaults need only 10.2.1) |
+| PostgreSQL | 9.5 | `SKIP LOCKED`; the payload column is `JSONB` (9.4) |
+| SQL Server | 2019 | `READPAST` with `OUTPUT` |
+| Oracle | 12c | `FOR UPDATE SKIP LOCKED` |
+| SQLite | 3.38 | `UPDATE ... RETURNING` needs 3.35; 3.38 is the library baseline |
+
+On MySQL 5.7 and MariaDB before 10.6 the claim statement fails with a syntax error. CI runs MySQL 8.0, MariaDB 11.2, PostgreSQL 16, SQL Server 2022 and Oracle XE 21; the other versions in the table are the documented minimums, not tested ones.
+
 ## Dialect notes
 
 Schema creation, enqueue inside a transaction, and a single worker publish are covered for SQLite, MySQL, MariaDB, PostgreSQL, SQL Server, and Oracle.

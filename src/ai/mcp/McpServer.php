@@ -14,6 +14,7 @@ use tommyknocker\pdodb\ai\mcp\tools\GetSchemaTool;
 use tommyknocker\pdodb\ai\mcp\tools\InspectQueryTool;
 use tommyknocker\pdodb\ai\mcp\tools\McpToolInterface;
 use tommyknocker\pdodb\ai\mcp\tools\SuggestIndexesTool;
+use tommyknocker\pdodb\PackageVersion;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -180,7 +181,7 @@ class McpServer
             ],
             'serverInfo' => [
                 'name' => 'pdodb-mcp',
-                'version' => '1.1.0',
+                'version' => PackageVersion::detect(),
             ],
         ];
     }

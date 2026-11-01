@@ -141,50 +141,28 @@ class YandexProvider extends BaseAiProvider
                     }
                     if (!empty($textParts)) {
                         $output = implode('', $textParts);
-                        // Filter out prompt-like content (contains instructions or user prompt)
-                        // If output looks like a prompt rather than a response, skip it
-                        $lowerOutput = strtolower($output);
-                        if (str_contains($lowerOutput, 'the user asks') ||
-                            str_contains($lowerOutput, 'need to give recommendations') ||
-                            str_contains($lowerOutput, 'provide suggestions') ||
-                            (str_contains($lowerOutput, 'analyze') && str_contains($lowerOutput, 'query') && strlen($output) < 500)) {
-                            // This looks like a prompt, not a response - continue to error
-                        } else {
-                            if ($truncated && $truncatedReason !== null) {
-                                $warning = "\n\n[Note: Response was truncated due to {$truncatedReason}. Consider increasing max_output_tokens.]";
-                                return $output . $warning;
-                            }
-                            return $output;
+                        if ($truncated && $truncatedReason !== null) {
+                            $warning = "\n\n[Note: Response was truncated due to {$truncatedReason}. Consider increasing max_output_tokens.]";
+                            return $output . $warning;
                         }
+                        return $output;
                     }
                 }
             }
         }
 
-        // If output is missing but response was truncated, provide helpful error
+        // The response body is not copied into the message: exceptions end up in logs and MCP results.
         if ($truncated) {
-            $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-            if (!is_string($responseJson)) {
-                $responseJson = 'Unable to encode response';
-            }
-            $responseStr = substr($responseJson, 0, 1000);
-
             throw new QueryException(
-                'Yandex API response was truncated due to max_output_tokens, but output is missing or invalid. ' .
-                'Please increase max_output_tokens. Response: ' . $responseStr,
+                'Yandex API response was truncated due to max_output_tokens, but output is missing or invalid. '
+                . 'Please increase max_output_tokens.',
                 0
             );
         }
 
-        // If output is missing and not truncated, return detailed error
-        $responseJson = json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-        if (!is_string($responseJson)) {
-            $responseJson = 'Unable to encode response';
-        }
-        $responseStr = substr($responseJson, 0, 1000);
-
         throw new QueryException(
-            'Invalid response format from Yandex API: missing or invalid "output" key. Expected structure: output[0].summary[0].text or output[0].content[0].text. Response: ' . $responseStr,
+            'Invalid response format from Yandex API: missing or invalid "output" key. '
+            . 'Expected structure: output[0].summary[0].text or output[0].content[0].text.',
             0
         );
     }

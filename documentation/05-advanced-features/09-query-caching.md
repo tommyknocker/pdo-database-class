@@ -154,6 +154,7 @@ $db = new PdoDb(
             'prefix' => 'myapp_',        // Cache key prefix
             'default_ttl' => 7200,       // Default TTL (seconds)
             'enabled' => true,           // Global enable/disable
+            'auto_invalidate' => true,   // Drop cached reads of a table after a write to it
         ],
     ],
     [],
@@ -296,6 +297,18 @@ $usernames = $db->find()
 | `prefix` | `string` | `'pdodb_'` | Cache key prefix for namespacing |
 | `default_ttl` | `int` | `3600` | Default TTL in seconds |
 | `enabled` | `bool` | `true` | Global cache enable/disable |
+| `auto_invalidate` | `bool` | `true` | Drop cached results that read a table after `insert`, `insertMulti`, `insertFrom`, `replace`, `replaceMulti`, `update`, `delete`, `truncate` or `merge` on it |
+
+### Invalidation after writes
+
+A write through the query builder (and therefore through ActiveRecord) removes every cached result whose SQL read the written table, including results of joins that include it. Entries cached with a custom key are removed too, because they are recorded by table as well.
+
+Limits to know about:
+
+- Raw SQL (`rawQuery()`) is not parsed, so it does not invalidate anything. Call `$db->getCacheManager()->invalidateTable('items')` after it.
+- Another process or a database trigger that changes the table does not invalidate this cache; the TTL is then the only bound.
+- Inside a transaction the entries are dropped when the statement runs, not at `COMMIT`. A concurrent reader can cache the old rows before the commit, so call `invalidateTable()` after committing when that matters.
+- Set `'auto_invalidate' => false` to keep entries until their TTL expires and invalidate by hand.
 
 ### Example Configuration
 

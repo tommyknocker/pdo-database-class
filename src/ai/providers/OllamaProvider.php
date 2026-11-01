@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai\providers;
 
+use tommyknocker\pdodb\ai\AiEndpoint;
 use tommyknocker\pdodb\ai\BaseAiProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
 
@@ -32,6 +33,7 @@ class OllamaProvider extends BaseAiProvider
         $this->maxTokens = (int)$this->config->getProviderSetting('ollama', 'max_tokens', self::DEFAULT_MAX_TOKENS);
 
         $baseUrl = $this->config->getOllamaUrl();
+        AiEndpoint::assertValid($baseUrl);
         $this->apiUrl = rtrim($baseUrl, '/') . self::API_PATH_GENERATE;
     }
 

@@ -239,12 +239,17 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
-    public function quoteIdentifier(string $name): string
+    public function quoteIdentifier(mixed $name): string
     {
+        // A RawValue is an expression the caller already wrote; it passes through as on MySQL and SQL Server
+        if ($name instanceof RawValue) {
+            return $name->getValue();
+        }
+
         // Oracle preserves case when quoted, but unquoted identifiers are uppercase
         // We quote in uppercase to match Oracle's default behavior
         // Escape double quotes by doubling them
-        $escaped = str_replace('"', '""', $name);
+        $escaped = str_replace('"', '""', (string)$name);
         return '"' . strtoupper($escaped) . '"';
     }
 

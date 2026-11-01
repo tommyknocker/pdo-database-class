@@ -277,45 +277,33 @@ abstract class DialectAbstract implements DialectInterface
                 continue;
             }
 
-            $s = (string)$part;
-
-            // already quoted literal?
-            if (preg_match("/^'.*'\$/s", $s) || preg_match('/^".*"\$/s', $s)) {
-                $mapped[] = $s;
-                continue;
-            }
-
-            // Check if it's a simple string literal:
-            // - Contains spaces OR special chars like : ; ! ? etc. (but not SQL operators)
-            // - Does NOT contain SQL operators or parentheses
-            // - Does NOT look like SQL keywords
-            if (
-                preg_match('/[\s:;!?@#\$&]/', $s) &&
-                !preg_match('/[()%<>=+*\/]|SELECT|FROM|WHERE|AND|OR|JOIN|NULL|TRUE|FALSE/i', $s)
-            ) {
-                // Quote as string literal
-                $mapped[] = "'" . str_replace("'", "''", $s) . "'";
-                continue;
-            }
-
-            // contains parentheses, math/comparison operators — treat as raw SQL
-            if (preg_match('/[()%<>=]/', $s)) {
-                $mapped[] = $s;
-                continue;
-            }
-
-            // simple identifier (maybe schema.table or table.column) — quote each part
-            $pieces = explode('.', $s);
-            foreach ($pieces as &$p) {
-                $p = $this->quoteIdentifier($p);
-            }
-            $mapped[] = implode('.', $pieces);
+            $mapped[] = $this->concatStringOperand((string)$part);
         }
 
         // Use dialect-specific concatenation formatting
         $sql = $this->formatConcatExpression($mapped);
 
         return new RawValue($sql);
+    }
+
+    /**
+     * SQL for one string operand of concat().
+     *
+     * A complete, well-formed SQL string literal ('it''s') is kept as written; it cannot end early. A bare word
+     * (optionally schema.table.column) names a column. Anything else is text and becomes an escaped literal: SQL
+     * fragments must be passed as Db::raw(), because guessing from the characters let user text through as SQL.
+     */
+    protected function concatStringOperand(string $s): string
+    {
+        if (preg_match("/^'(?:[^']|'')*'$/s", $s) === 1 && !str_contains($s, '\\')) {
+            return $s;
+        }
+
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_$]*(\.[A-Za-z_][A-Za-z0-9_$]*)*$/', $s) === 1) {
+            return implode('.', array_map(fn (string $piece): string => $this->quoteIdentifier($piece), explode('.', $s)));
+        }
+
+        return $this->quoteStringLiteral($s);
     }
 
     /**

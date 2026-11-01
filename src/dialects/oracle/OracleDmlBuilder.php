@@ -352,8 +352,8 @@ class OracleDmlBuilder implements DmlBuilderInterface
      */
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
     {
-        // Oracle does not support ON CONFLICT/ON DUPLICATE KEY syntax. Use buildMergeSql for UPSERT operations.
-        throw new RuntimeException('Oracle does not support ON CONFLICT/ON DUPLICATE KEY syntax. Use buildMergeSql for UPSERT operations.');
+        // Oracle does not support ON CONFLICT/ON DUPLICATE KEY syntax. Use QueryBuilder::merge() for UPSERT operations.
+        throw new RuntimeException('Oracle does not support ON CONFLICT/ON DUPLICATE KEY syntax. Use QueryBuilder::merge() for UPSERT operations.');
     }
 
     /**

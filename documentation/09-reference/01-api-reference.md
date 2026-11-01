@@ -118,13 +118,33 @@ new PdoDb(?string $driver = null, array $config = [], array $pdoOptions = [], ?L
 - `explain()` - Execution plan
 - `explainAnalyze()` - Detailed analysis
 - `describe()` - Table structure
+- `explainAiAdvice(?string $table, ?string $provider, array $options)` - AI review of the execution plan, see [AI query advice](../05-advanced-features/24-ai-query-advice.md)
 
 ### Other
 
 - `option(string|array)` - Add query options
 - `asObject()` - Fetch as objects
 - `prefix(string)` - Set table prefix
-- `onDuplicate(array)` - UPSERT clause
+- `onDuplicate(array, array|string|null $conflictTarget)` - UPSERT clause; the optional target names the unique key columns (PostgreSQL, SQLite)
+
+## Outbox and Inbox
+
+See [Transactional outbox](../05-advanced-features/27-transactional-outbox.md) and [Inbox](../05-advanced-features/28-inbox.md) for usage and the [minimum server versions](../05-advanced-features/27-transactional-outbox.md#minimum-server-versions).
+
+`tommyknocker\pdodb\outbox\Outbox` (constructed with a `PdoDb`, a table name optional):
+
+- `add(string $eventType, array $payload): string` - Enqueue inside the caller's transaction, returns the message id
+- `worker(?string $workerId, int $batchSize, int $lockSeconds, int $maxAttempts): OutboxWorker` - Claim, publish and retry
+- `countByStatus()`, `listMessages(string $status, int $limit)` - Inspect the queue
+- `requeueFailed(string $id, bool $resetAttempts)`, `requeueAllFailed(int $limit, bool $resetAttempts, bool $dryRun)` - Retry failed messages
+- `purge(string $olderThanSpec, ?string $status, bool $dryRun)` - Delete old `published` or `failed` rows in batches
+
+`tommyknocker\pdodb\inbox\Inbox` (constructed with a `PdoDb`, a consumer name and a table name):
+
+- `once(string $messageId, callable $handler): bool` - Run the handler once per message id and consumer
+- `processed(string $messageId): bool` - Check without claiming
+- `purge(string $olderThanSpec, bool $dryRun): int` - Forget processed ids older than the given age
+- `getSchemaSql()`, `ensureSchema()` - Create the table
 
 ## Helper Functions (Db class)
 

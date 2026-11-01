@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\inbox;
 
 use tommyknocker\pdodb\exceptions\ConstraintViolationException;
 use tommyknocker\pdodb\exceptions\InboxException;
+use tommyknocker\pdodb\outbox\OutboxDuration;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -69,6 +70,26 @@ final class Inbox
         }
 
         return true;
+    }
+
+    /**
+     * Forget processed message ids older than the given age, so the table does not grow forever.
+     *
+     * The age must be longer than the longest time the broker can redeliver a message: a message that comes
+     * back after its id was purged is handled a second time. Applies to every consumer sharing the table.
+     *
+     * @param string $olderThanSpec Age such as 30d, 12h or 90m (same format as the outbox purge)
+     * @param bool $dryRun Only count the rows
+     *
+     * @return int Rows deleted, or rows that would be deleted for a dry run
+     */
+    public function purge(string $olderThanSpec, bool $dryRun = false): int
+    {
+        $seconds = OutboxDuration::toSeconds($olderThanSpec);
+
+        return $dryRun
+            ? $this->storage()->countProcessedOlderThan($seconds)
+            : $this->storage()->deleteProcessedOlderThan($seconds);
     }
 
     public function storage(): InboxStorage

@@ -187,15 +187,40 @@ final class OutboxStorage
         return (int) $value;
     }
 
-    public function deleteRowsOlderThan(string $status, string $timestampColumn, int $olderThanSeconds): int
+    /**
+     * Delete old rows in batches, so a large backlog never becomes one statement that locks the table and floods
+     * the replication log.
+     *
+     * @param int $batchSize Rows per DELETE
+     */
+    public function deleteRowsOlderThan(string $status, string $timestampColumn, int $olderThanSeconds, int $batchSize = 1000): int
     {
         self::assertPurgeTimestampColumn($timestampColumn);
+        if ($batchSize < 1) {
+            throw new OutboxException('Purge batch size must be at least 1.');
+        }
 
-        return $this->db->find()
-            ->table($this->tableName)
-            ->where('status', $status)
-            ->where($timestampColumn, new RawValue($this->dialect()->outboxNowPlusSecondsSql(-$olderThanSeconds)), '<')
-            ->delete();
+        $deleted = 0;
+        do {
+            $ids = $this->db->find()
+                ->from($this->tableName)
+                ->select(['id'])
+                ->where('status', $status)
+                ->where($timestampColumn, new RawValue($this->dialect()->outboxNowPlusSecondsSql(-$olderThanSeconds)), '<')
+                ->orderBy($timestampColumn)
+                ->limit($batchSize)
+                ->getColumn();
+            if ($ids === []) {
+                break;
+            }
+
+            $deleted += $this->db->find()
+                ->table($this->tableName)
+                ->where('id', array_values($ids), 'IN')
+                ->delete();
+        } while (count($ids) === $batchSize);
+
+        return $deleted;
     }
 
     public function countByStatus(): OutboxStatusCounts

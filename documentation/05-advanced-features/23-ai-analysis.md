@@ -79,6 +79,11 @@ The demo covers three different decisions:
 **Choose one provider.** You need its key and a model; you do not need keys for
 other services or a list of generation parameters.
 
+Requests go out through PHP streams, so `allow_url_fopen` must be `On` and
+`ext-openssl` must be loaded for HTTPS providers. A custom `base_url` (and the
+Ollama URL) must be an absolute `http(s)` URL without credentials or a query
+string; anything else is rejected before a request is made.
+
 Here is the OpenRouter setup for the demo. Add these three values to the local
 `.env` file in the repository root:
 

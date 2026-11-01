@@ -704,45 +704,7 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
                 continue;
             }
 
-            $s = (string)$part;
-
-            // already quoted literal?
-            if (preg_match("/^'.*'\$/s", $s) || preg_match('/^".*"\$/s', $s)) {
-                $mapped[] = $s;
-                continue;
-            }
-
-            // Check if it's a simple string literal:
-            // - Contains spaces OR special chars like : ; ! ? etc. (but not SQL operators)
-            // - Does NOT contain SQL operators or parentheses
-            // - Does NOT look like SQL keywords
-            // Simple words without spaces/special chars are treated as identifiers, not literals
-            $isSimpleWord = preg_match('/^[a-zA-Z][a-zA-Z0-9]*$/', $s) && !str_contains($s, '.');
-            $isSqlKeyword = preg_match('/^(SELECT|FROM|WHERE|AND|OR|JOIN|NULL|TRUE|FALSE|AS|ON|IN|IS|LIKE|BETWEEN|EXISTS|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TABLE|INDEX|PRIMARY|KEY|FOREIGN|CONSTRAINT|UNIQUE|CHECK|DEFAULT|NOT|GROUP|BY|ORDER|HAVING|LIMIT|OFFSET|DISTINCT|COUNT|SUM|AVG|MAX|MIN)$/i', $s);
-
-            // Only quote as string literal if it contains spaces or special chars (not operators)
-            // Simple words are treated as identifiers
-            if (
-                preg_match('/[\s:;!?@#\$&]/', $s) &&
-                !preg_match('/[()%<>=+*\/]/', $s)
-            ) {
-                // Quote as string literal
-                $mapped[] = "'" . str_replace("'", "''", $s) . "'";
-                continue;
-            }
-
-            // contains parentheses, math/comparison operators — treat as raw SQL
-            if (preg_match('/[()%<>=]/', $s)) {
-                $mapped[] = $s;
-                continue;
-            }
-
-            // simple identifier — quote with square brackets
-            $pieces = explode('.', $s);
-            foreach ($pieces as &$p) {
-                $p = '[' . str_replace(']', ']]', $p) . ']';
-            }
-            $mapped[] = implode('.', $pieces);
+            $mapped[] = $this->concatStringOperand((string)$part);
         }
 
         // MSSQL uses + operator for concatenation

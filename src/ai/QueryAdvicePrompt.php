@@ -29,7 +29,7 @@ final class QueryAdvicePrompt
         $prompt = "Analyze this SQL query:\n```sql\n{$query}\n```\n\nAnalysis context:\n"
             . json_encode($context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         if ($format === 'structured') {
-            return $prompt . '\nReturn only JSON: {"summary":"...","findings":[{"severity":"info|warning|critical","type":"...","message":"...","evidence":["/explain_plan/facts/..."],"suggestion":null,"limitations":["..."]}]}. '
+            return $prompt . "\n" . 'Return only JSON: {"summary":"...","findings":[{"severity":"info|warning|critical","type":"...","message":"...","evidence":["/explain_plan/facts/..."],"suggestion":null,"limitations":["..."]}]}. '
                 . 'Evidence entries must be existing JSON Pointer paths under /explain_plan/facts, /explain_plan/nodes or /schema/tables. '
                 . 'Use an empty findings list when evidence is insufficient. Do not wrap JSON in Markdown.';
         }

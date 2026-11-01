@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai\providers;
 
+use tommyknocker\pdodb\ai\AiEndpoint;
 use tommyknocker\pdodb\ai\BaseAiProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
 
@@ -37,12 +38,7 @@ class OpenAiProvider extends BaseAiProvider
         };
         $baseUrl = (string)$this->config->getProviderSetting($provider, 'base_url', $defaultBaseUrl);
         if ($baseUrl !== '') {
-            $parts = parse_url($baseUrl);
-            if ($parts === false || !in_array($parts['scheme'] ?? '', ['http', 'https'], true)
-                || empty($parts['host']) || isset($parts['user']) || isset($parts['pass'])
-                || isset($parts['query']) || isset($parts['fragment'])) {
-                throw new QueryException('AI base_url must be an absolute HTTP(S) URL without credentials, query or fragment', 0);
-            }
+            AiEndpoint::assertValid($baseUrl);
         }
         // Preserve existing subclasses that override the protected endpoint property.
         $customSubclassEndpoint = in_array($provider, ['openai', 'deepseek'], true)

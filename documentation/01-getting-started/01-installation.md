@@ -18,6 +18,8 @@ Installation guide for the PDOdb library.
   - Microsoft SQL Server 2019+ (MSSQL)
   - Oracle Database 12c+
 
+The transactional outbox and the inbox need newer servers (for example MySQL 8.0.13+ and MariaDB 10.6+); see [Minimum server versions](../05-advanced-features/27-transactional-outbox.md#minimum-server-versions).
+
 These are compatibility targets, not a claim that every historical version is
 covered by CI or still maintained by its vendor. See the [CI database matrix](../../README.md#database-test-coverage) and check vendor support before deploying.
 
