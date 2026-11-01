@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `QueryBuilder::batchById()` and `eachById()` page by a unique key instead of an OFFSET, so loops that update or delete the rows they read do not skip rows.
+- `Outbox::add()` accepts a `$delaySeconds` argument and `pdodb outbox work` a `--max-runtime=N` option; `MigrationRunner::setMigrationNamespace()` sets the namespace of application migration classes.
+- `Command::knownOptions()`: `pdodb` now rejects an option a command does not declare (exit code 2, with a suggestion) instead of ignoring it; global `--connection`, `--config` and `--env` no longer stay in the process environment after the command.
 - `DriverBranchingGuardTest` to forbid driver-name branching in shared code under `src/` (outside dialects).
 - Dialect catalog query traits for AI/MCP metadata, `PlanExplainAvailability`, `ConnectionInitHandler`, and CLI/bootstrap hooks on `DialectInterface` (env completeness, init wizard, PDO extension, agent capabilities).
 - Opt-in relation query diagnostics in profiler reports, with a possible N+1 warning and a runnable lazy-versus-eager loading example.
@@ -64,6 +67,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update default OpenAI, Anthropic, Google and DeepSeek models, and simplify the AI setup wizard to configure only the chosen provider.
 
 ### Fixed
+- A query builder can be executed more than once. Its bound values were discarded after the first run, so a second `get()` on a builder with conditions silently returned nothing on SQLite (and failed elsewhere). Parameters now stay with the builder, and each run sends only those the SQL contains (`ParameterManager::getParamsFor()`).
+- `indexExists()` always returned false on PostgreSQL, SQL Server and Oracle, and `uniqueExists()` on SQLite and Oracle: catalog column names, letter case and constraint type codes differ between dialects. `indexExists()`, `uniqueExists()`, `foreignKeyExists()` and `checkExists()` now compare names case-insensitively and read each dialect's catalog correctly.
+- SQL Server `whereJsonContains()` never matched a string element because the value was compared as quoted JSON text.
+- `Db::not(Db::regexpMatch(...))` produced `REGEXP` on PostgreSQL, SQL Server and Oracle, where that syntax does not exist; the negation is now applied after the dialect has rendered the match.
+- `Db::jsonKeys()` returned the constant `'[keys]'` on PostgreSQL, SQLite and Oracle. It now returns a JSON array of the object's keys (NULL for a non-object) on PostgreSQL, SQLite, SQL Server and MySQL/MariaDB; Oracle throws `UnsupportedOperationException` because SQL cannot list JSON keys there.
+- PostgreSQL `Db::regexpExtract()` returned the wrong group (or NULL) for patterns with capture groups; the whole match is now `groupIndex` 0/null and group N is N.
+- SQLite `Db::truncate()` rounded negative numbers away from zero, and `Db::groupConcat()` with `DISTINCT` and a separator was rejected by SQLite; the latter now works with the default `,` and throws `UnsupportedOperationException` for any other separator.
+- File imports (`loadXml()` on SQLite, SQL Server and Oracle) dropped every other `<row>` element. Oracle imports (`loadCsv()`, `loadXml()`, `loadJson()`) failed because Oracle has no multi-row `VALUES`; they now use `INSERT ALL`.
+- Oracle `lock()` produced invalid SQL (`IN WRITE MODE`); `WRITE` now locks in `EXCLUSIVE` mode and `READ` in `SHARE` mode. Oracle `explainAnalyze()` failed with ORA-00905, and bound values are now replaced by whole parameter name.
+- Oracle `pdodb db create` created a user with the password `password`; it now creates a schema-only account (`NO AUTHENTICATION`, Oracle 18c+).
+- `ActiveRecord` skips the per-read attribute-name lookup for dialects that do not rename columns; `SelectQueryBuilder` builds its AI helper `PdoDb` once per connection.
 - Move MSSQL CASE/WHEN reserved-word quoting, nested transactions/savepoints, INSERT…SELECT expansion, MCP statement timeouts, ORM Oracle hooks, and AI metadata collection into dialect implementations so shared layers delegate instead of branching on driver names.
 - `QueryInspectionService` treats synthetic MSSQL plans as unavailable while `explainAdvice()` still receives estimated plan rows.
 - Align dialect retryable error codes and descriptions with `DbError` after centralizing error helpers on dialects.
