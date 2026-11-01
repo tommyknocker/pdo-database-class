@@ -395,4 +395,22 @@ class DumpCommand extends Command
         $this->writeln('  pdodb dump restore backup.sql --force');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'auto-name',
+            'compress',
+            'data-only',
+            'date-format',
+            'force',
+            'no-drop-tables',
+            'output',
+            'rotate',
+            'schema-only',
+        ];
+    }
 }

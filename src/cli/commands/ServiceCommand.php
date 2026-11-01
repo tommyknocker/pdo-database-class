@@ -107,4 +107,16 @@ class ServiceCommand extends Command
         $this->writeln('  pdodb service make UserService UserRepository app/Services --repository-namespace=app\\\\repositories --force');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'force',
+            'namespace',
+            'repository-namespace',
+        ];
+    }
 }

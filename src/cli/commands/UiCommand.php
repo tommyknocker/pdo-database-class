@@ -78,4 +78,14 @@ class UiCommand extends Command
         $this->writeln('  pdodb ui --refresh=5');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'refresh',
+        ];
+    }
 }

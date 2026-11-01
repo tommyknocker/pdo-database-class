@@ -158,4 +158,14 @@ final class OutboxTests extends BaseOracleTestCase
         $this->assertSame(OutboxStatuses::FAILED, $result['status']);
         $this->assertStringContainsString('Unreadable payload', (string) $result['error']);
     }
+
+    public function testDelayedMessageIsNotClaimedBeforeItsTime(): void
+    {
+        (new Outbox(self::$db, self::TABLE))->ensureSchema();
+
+        $result = OutboxTestSupport::exerciseDelayedMessage(self::$db, self::TABLE);
+
+        $this->assertSame(['delay.now'], $result['seen']);
+        $this->assertSame(1, $result['pending']);
+    }
 }

@@ -484,4 +484,23 @@ class AiCommand extends Command
 
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'format',
+            'limit',
+            'max-tokens',
+            'model',
+            'params',
+            'probe',
+            'provider',
+            'table',
+            'temperature',
+            'timeout',
+        ];
+    }
 }

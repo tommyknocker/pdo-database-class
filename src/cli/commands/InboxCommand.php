@@ -110,4 +110,16 @@ class InboxCommand extends Command
 
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'dry-run',
+            'older-than',
+            'table',
+        ];
+    }
 }

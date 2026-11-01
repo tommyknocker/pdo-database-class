@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm;
 
 use InvalidArgumentException;
+use ReflectionMethod;
 use RuntimeException;
 use Throwable;
 use tommyknocker\pdodb\connection\ConnectionInterface;
+use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\events\ModelAfterDeleteEvent;
 use tommyknocker\pdodb\events\ModelAfterInsertEvent;
 use tommyknocker\pdodb\events\ModelAfterSaveEvent;
@@ -199,11 +202,30 @@ trait ActiveRecord
             return $name;
         }
 
+        $dialect = $db->connection->getDialect();
+        if (static::dialectKeepsAttributeNames($dialect::class)) {
+            return $name;
+        }
+
         try {
-            return $db->connection->getDialect()->resolveAttributeKeyForRead($name, $attributes);
+            return $dialect->resolveAttributeKeyForRead($name, $attributes);
         } catch (RuntimeException) {
             return $name;
         }
+    }
+
+    /**
+     * Whether a dialect leaves column names as they are, so the per-read lookup can be skipped. Decided once per
+     * dialect class.
+     *
+     * @param class-string<DialectInterface> $dialectClass
+     */
+    protected static function dialectKeepsAttributeNames(string $dialectClass): bool
+    {
+        static $decided = [];
+
+        return $decided[$dialectClass] ??= (new ReflectionMethod($dialectClass, 'resolveAttributeKeyForRead'))
+            ->getDeclaringClass()->getName() === DialectAbstract::class;
     }
 
     /**

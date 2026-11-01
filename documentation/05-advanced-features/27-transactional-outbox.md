@@ -29,6 +29,8 @@ $db->transaction(function () use ($db, $outbox): void {
 
 Nested `transaction()` calls use savepoints, so an inner block can call `add()` without committing the outer unit of work early.
 
+To hold a message back, pass a delay in seconds: `$outbox->add('reminder.due', ['id' => 7], delaySeconds: 3600)`. A worker will not claim it before then.
+
 ## Publisher file
 
 Create a PHP file that **returns** a callable. The CLI and your own bootstrap can load it via `OutboxPublisherLoader::load()`:
@@ -75,6 +77,7 @@ Options:
 | `--lock=N` | Processing lock TTL seconds (default 120) |
 | `--max-attempts=N` | Fail permanently after N attempts (default 25) |
 | `--sleep=N` | Idle sleep when queue empty (default 2) |
+| `--max-runtime=N` | Stop after N seconds, so a supervisor can restart the worker (default: run until stopped) |
 | `--worker-id=ID` | Prefix for `locked_by` (default hostname) |
 | `--table=NAME` | Table name (default `pdodb_outbox`) |
 | `--ensure-schema` | Create table if missing (dev only) |

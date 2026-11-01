@@ -484,6 +484,19 @@ vendor/bin/pdodb db info --env=/path/to/.env.local
 vendor/bin/pdodb db info --config=/path/to/db.php
 ```
 
+These options apply to one command only; they are not left in the process environment afterwards.
+
+### Unknown options
+
+Every command declares the options it understands. An option it does not know is an error (exit code 2) rather than
+being ignored, so a typo such as `--older-then` cannot silently change what a command does:
+
+```text
+Error: unknown option --older-then for 'inbox'. Did you mean --older-than?
+```
+
+Run `pdodb <command> help` to list a command's options.
+
 ## Project Initialization
 
 The `pdodb init` command provides an interactive wizard to help you quickly set up PDOdb configuration for your project.
@@ -714,6 +727,7 @@ Manage databases with simple commands for creating, dropping, listing, and check
 # Create a database (name will be prompted if not provided)
 vendor/bin/pdodb db create myapp
 vendor/bin/pdodb db create
+# Oracle has no databases: this creates a schema-only account (NO AUTHENTICATION, Oracle 18c+)
 
 # Drop a database (name will be prompted if not provided, with confirmation)
 vendor/bin/pdodb db drop myapp
@@ -2548,6 +2562,7 @@ vendor/bin/pdodb outbox work --once --publisher=config/outbox-publisher.php
 | `--lock=N` | Lock TTL in seconds (default 120) |
 | `--max-attempts=N` | Max attempts before `failed` (default 25) |
 | `--sleep=N` | Sleep when idle in loop mode (default 2) |
+| `--max-runtime=N` | Stop after N seconds (default: run until stopped) |
 | `--worker-id=ID` | Worker id stored in `locked_by` |
 | `--table=NAME` | Outbox table (default `pdodb_outbox`) |
 | `--ensure-schema` | Create table if missing (local dev) |

@@ -100,4 +100,14 @@ class McpCommand extends Command
     {
         throw new \RuntimeException('Invalid MCP database configuration', $code);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'project',
+        ];
+    }
 }

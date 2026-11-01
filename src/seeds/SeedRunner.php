@@ -6,11 +6,9 @@ namespace tommyknocker\pdodb\seeds;
 
 use PDOException;
 use Psr\EventDispatcher\EventDispatcherInterface;
-use tommyknocker\pdodb\events\QueryExecutedEvent;
 use tommyknocker\pdodb\events\SeedCompletedEvent;
 use tommyknocker\pdodb\events\SeedStartedEvent;
 use tommyknocker\pdodb\exceptions\QueryException;
-use tommyknocker\pdodb\migrations\SqlQueryCollector;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -437,95 +435,6 @@ class SeedRunner
         }
 
         return $seed;
-    }
-
-    /**
-     * Collect SQL from seed execution.
-     *
-     * @param SeedInterface $seed Seed instance
-     * @param string $name Seed name
-     * @param string $method Method to call ('run' or 'rollback')
-     */
-    protected function collectSeedSql(SeedInterface $seed, string $name, string $method): void
-    {
-        // Create SQL collector
-        $sqlCollector = new SqlQueryCollector();
-
-        // Set up event dispatcher with SQL collector if available
-        $originalDispatcher = $this->db->getEventDispatcher();
-        $collectorDispatcher = null;
-        $connection = $this->db->getConnection('write');
-        $originalConnectionDispatcher = $connection->getEventDispatcher();
-
-        if (interface_exists(EventDispatcherInterface::class)) {
-            // Create a simple event dispatcher that collects SQL queries
-            $collectorDispatcher = new class ($sqlCollector) implements EventDispatcherInterface {
-                public function __construct(
-                    private SqlQueryCollector $collector
-                ) {
-                }
-
-                public function dispatch(object $event): object
-                {
-                    if ($event instanceof QueryExecutedEvent) {
-                        $this->collector->handleQueryExecuted($event);
-                    }
-                    return $event;
-                }
-            };
-
-            // Temporarily set the collector dispatcher
-            $this->db->setEventDispatcher($collectorDispatcher);
-            $connection->setEventDispatcher($collectorDispatcher);
-        }
-
-        try {
-            // Execute seed method - SQL will be collected via event dispatcher
-            if ($method === 'run') {
-                $seed->run();
-            } else {
-                $seed->rollback();
-            }
-
-            // Collect SQL from the collector
-            $collectedSql = $sqlCollector->getQueries();
-            if (!empty($collectedSql)) {
-                $this->collectedQueries = array_merge($this->collectedQueries, $collectedSql);
-            } else {
-                // Fallback: try to get SQL from connection's lastQuery
-                $lastQuery = $this->db->lastQuery;
-                if ($lastQuery !== null && $lastQuery !== '') {
-                    $this->collectedQueries[] = $lastQuery;
-                }
-            }
-        } catch (\Throwable $e) {
-            // Seed failed, but we still want to show what SQL was attempted
-            $this->collectedQueries[] = '-- Error during seed execution: ' . $e->getMessage();
-
-            // Still try to collect any SQL that was executed before the error
-            $collectedSql = $sqlCollector->getQueries();
-            if (!empty($collectedSql)) {
-                $this->collectedQueries = array_merge($this->collectedQueries, $collectedSql);
-            }
-        } finally {
-            // Restore original event dispatcher
-            if ($collectorDispatcher !== null) {
-                $this->db->setEventDispatcher($originalDispatcher);
-                $connection->setEventDispatcher($originalConnectionDispatcher);
-            }
-        }
-
-        // Add seed record SQL
-        if ($method === 'run') {
-            $batch = $this->getNextBatchNumber();
-            $this->collectedQueries[] = '';
-            $this->collectedQueries[] = "-- Would record seed in batch {$batch}";
-            $this->collectedQueries[] = "INSERT INTO {$this->seedTable} (seed, batch) VALUES ('{$name}', {$batch})";
-        } else {
-            $this->collectedQueries[] = '';
-            $this->collectedQueries[] = '-- Would remove seed record';
-            $this->collectedQueries[] = "DELETE FROM {$this->seedTable} WHERE seed = '{$name}'";
-        }
     }
 
     /**

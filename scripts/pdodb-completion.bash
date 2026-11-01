@@ -23,7 +23,7 @@ _pdodb() {
     local global_opts="--help --version -v --connection= --config= --env="
 
     # Main commands
-    local commands="migrate seed outbox inbox schema query model repository service generate db user table connection dump monitor profile ui cache benchmark optimize init version ai"
+    local commands="migrate seed outbox inbox schema query model repository service generate db user table connection dump monitor profile ui cache benchmark optimize init version ai mcp"
 
     # If no command yet, complete with commands
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -118,7 +118,7 @@ _pdodb() {
         if [[ ${COMP_CWORD} -eq 2 ]]; then
             COMPREPLY=($(compgen -W "${outbox_subcommands} --help" -- "${cur}"))
         elif [[ "${subcmd}" == "work" ]]; then
-            local outbox_work_opts="--publisher= --once --batch= --lock= --max-attempts= --sleep= --worker-id= --table= --ensure-schema --dry-run"
+            local outbox_work_opts="--publisher= --once --batch= --lock= --max-attempts= --max-runtime= --sleep= --worker-id= --table= --ensure-schema --dry-run"
             COMPREPLY=($(compgen -W "${outbox_work_opts}" -- "${cur}"))
         elif [[ "${subcmd}" == "purge" ]]; then
             local outbox_purge_opts="--older-than= --status=published --status=failed --dry-run --table="

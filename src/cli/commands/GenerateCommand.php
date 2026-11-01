@@ -618,4 +618,26 @@ class GenerateCommand extends Command
         $this->writeln('  pdodb generate docs --model=User --format=openapi');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'column',
+            'force',
+            'format',
+            'model',
+            'model-namespace',
+            'namespace',
+            'output',
+            'relation-models',
+            'repository',
+            'repository-namespace',
+            'service',
+            'table',
+            'type',
+        ];
+    }
 }

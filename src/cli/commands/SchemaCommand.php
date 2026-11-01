@@ -92,4 +92,14 @@ class SchemaCommand extends Command
         $this->writeln('  pdodb schema inspect users --format=json');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'format',
+        ];
+    }
 }

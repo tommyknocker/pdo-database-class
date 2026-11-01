@@ -71,6 +71,27 @@ PHP);
         $this->assertStringContainsString('retry', $run['stdout']);
     }
 
+    public function testWorkStopsAfterMaxRuntime(): void
+    {
+        $dbConfig = require __DIR__ . '/../../examples/config.sqlite.php';
+        $dbConfig['path'] = $this->testDbPath;
+        (new Outbox(new PdoDb('sqlite', $dbConfig), $this->table))->ensureSchema();
+
+        $started = microtime(true);
+        $run = CliTestCapture::runApplication(new Application(), [
+            'pdodb',
+            'outbox',
+            'work',
+            '--max-runtime=1',
+            '--sleep=1',
+            '--publisher=' . $this->publisherPath,
+            '--table=' . $this->table,
+        ]);
+
+        $this->assertSame(0, $run['code'], $run['stdout'] . $run['stderr']);
+        $this->assertLessThan(5.0, microtime(true) - $started);
+    }
+
     public function testWorkOnceRequiresPublisher(): void
     {
         $run = CliTestCapture::runApplication(

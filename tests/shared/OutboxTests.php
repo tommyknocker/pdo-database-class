@@ -62,6 +62,35 @@ final class OutboxTests extends BaseSharedTestCase
         $this->assertNotEmpty($row['published_at']);
     }
 
+    public function testDelayedMessageIsNotClaimedBeforeItsTime(): void
+    {
+        $outbox = new Outbox(self::$db, self::TABLE);
+
+        self::$db->transaction(function () use ($outbox): void {
+            $outbox->add('later', ['n' => 1], delaySeconds: 3600);
+            $outbox->add('now', ['n' => 2]);
+        });
+
+        $types = [];
+        $result = $outbox->worker('test')->runOnce(function (OutboxMessage $message) use (&$types): void {
+            $types[] = $message->type;
+        });
+
+        $this->assertSame(['now'], $types);
+        $this->assertSame(1, $result->claimed);
+        $this->assertSame(1, $outbox->countByStatus()->pending);
+    }
+
+    public function testNegativeDelayIsRejected(): void
+    {
+        $outbox = new Outbox(self::$db, self::TABLE);
+
+        $this->expectException(OutboxException::class);
+        self::$db->transaction(function () use ($outbox): void {
+            $outbox->add('x', [], delaySeconds: -1);
+        });
+    }
+
     public function testRetryableFailureSchedulesRetry(): void
     {
         $outbox = new Outbox(self::$db, self::TABLE);

@@ -487,4 +487,24 @@ class SeedCommand extends Command
 
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'chunk-size',
+            'dry-run',
+            'exclude',
+            'force',
+            'format',
+            'include',
+            'limit',
+            'order-by',
+            'preserve-ids',
+            'skip-timestamps',
+            'where',
+        ];
+    }
 }

@@ -36,10 +36,11 @@ final class Outbox
 
     /**
      * @param array<string, mixed> $payload
+     * @param int $delaySeconds Hold the message back for this many seconds before a worker may claim it
      *
      * @throws OutboxException When not inside an active transaction.
      */
-    public function add(string $eventType, array $payload): string
+    public function add(string $eventType, array $payload, int $delaySeconds = 0): string
     {
         if (!$this->db->inTransaction()) {
             throw new OutboxException(
@@ -51,8 +52,12 @@ final class Outbox
             throw new OutboxException('Outbox event type must not be empty.');
         }
 
+        if ($delaySeconds < 0) {
+            throw new OutboxException('Outbox delay must not be negative.');
+        }
+
         $id = OutboxUuid::v4();
-        $this->storage()->insertPending($id, $eventType, $payload);
+        $this->storage()->insertPending($id, $eventType, $payload, $delaySeconds);
 
         return $id;
     }

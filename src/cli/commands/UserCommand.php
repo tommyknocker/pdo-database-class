@@ -525,4 +525,20 @@ class UserCommand extends Command
         $this->writeln('  echo "$NEW_PASSWORD" | pdodb user password john --password-stdin');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'database',
+            'force',
+            'host',
+            'password',
+            'password-env',
+            'password-stdin',
+            'table',
+        ];
+    }
 }

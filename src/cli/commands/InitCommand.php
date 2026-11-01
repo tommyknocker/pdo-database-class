@@ -75,4 +75,18 @@ class InitCommand extends Command
         $this->writeln('  pdodb init --force                            Overwrite existing files');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'config-only',
+            'env-only',
+            'force',
+            'no-structure',
+            'skip-connection-test',
+        ];
+    }
 }

@@ -36,6 +36,14 @@ $runner = new MigrationRunner($db, __DIR__ . '/migrations');
 
 The migration path should be a directory where migration files will be stored.
 
+Migration classes are looked up in the `tommyknocker\pdodb\migrations` namespace and, failing that, in the global
+namespace. If your migrations are declared in your own namespace, tell the runner:
+
+```php
+$runner = (new MigrationRunner($db, __DIR__ . '/migrations'))
+    ->setMigrationNamespace('App\\Database\\Migrations');
+```
+
 ## Creating Migrations
 
 ### Creating a New Migration

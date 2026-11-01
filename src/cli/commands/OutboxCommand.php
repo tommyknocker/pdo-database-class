@@ -88,17 +88,19 @@ class OutboxCommand extends Command
         $maxAttempts = $this->parsePositiveIntOption(['max-attempts'], 25);
         $sleepSeconds = $this->parsePositiveIntOption(['sleep'], 2);
         $once = (bool) $this->getOption('once', false);
+        $maxRuntime = $this->getOption('max-runtime') === null ? 0 : $this->parsePositiveIntOption(['max-runtime'], 0);
 
-        if ($batchSize === null || $lockSeconds === null || $maxAttempts === null || $sleepSeconds === null) {
+        if ($maxRuntime === null || $batchSize === null || $lockSeconds === null || $maxAttempts === null || $sleepSeconds === null) {
             return 1;
         }
 
         $worker = $outbox->worker($workerId, $batchSize, $lockSeconds, $maxAttempts);
         $this->registerStopSignals();
         $transientFailures = 0;
+        $deadline = $maxRuntime > 0 ? time() + $maxRuntime : null;
 
         while (true) {
-            if ($this->stopRequested) {
+            if ($this->stopRequested || ($deadline !== null && time() >= $deadline)) {
                 break;
             }
 
@@ -545,6 +547,7 @@ class OutboxCommand extends Command
         $this->writeln('  --lock=N          Lock TTL in seconds (default 120)');
         $this->writeln('  --max-attempts=N  Max publish attempts before failed (default 25)');
         $this->writeln('  --sleep=N         Idle sleep seconds when queue is empty (default 2)');
+        $this->writeln('  --max-runtime=N   Stop after N seconds (lets a supervisor restart the worker; default: run until stopped)');
         $this->writeln('  --worker-id=ID    Value stored in locked_by prefix (default hostname)');
         $this->writeln('  --table=NAME      Outbox table (default pdodb_outbox or PDODB_OUTBOX_TABLE)');
         $this->writeln('  --ensure-schema   Create outbox table when missing (local bootstrap only)');
@@ -576,5 +579,34 @@ class OutboxCommand extends Command
         $this->writeln('  pdodb outbox purge --older-than=30d --status=failed --dry-run');
 
         return 0;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'all-failed',
+            'batch',
+            'batch-size',
+            'dry-run',
+            'ensure-schema',
+            'format',
+            'id',
+            'keep-attempts',
+            'limit',
+            'lock',
+            'lock-seconds',
+            'max-attempts',
+            'max-runtime',
+            'older-than',
+            'once',
+            'publisher',
+            'sleep',
+            'status',
+            'table',
+            'worker-id',
+        ];
     }
 }

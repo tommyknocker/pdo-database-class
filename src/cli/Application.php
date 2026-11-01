@@ -14,6 +14,9 @@ class Application
     /** Flags that make a command only preview what it would do. */
     protected const SAFETY_FLAGS = ['dry-run'];
 
+    /** Options every command accepts. */
+    protected const GLOBAL_OPTIONS = ['connection', 'config', 'env', 'help'];
+
     /**
      * Application name.
      *
@@ -212,6 +215,13 @@ class Application
             return 2;
         }
 
+        $unknown = $this->findUnknownOption($command, array_keys($options));
+        if ($unknown !== null) {
+            BaseCliCommand::io()->writeErrorLine("Error: unknown option --{$unknown[0]} for '{$commandName}'." . ($unknown[1] !== null ? " Did you mean --{$unknown[1]}?" : " Run 'pdodb {$commandName} help' for the options."));
+
+            return 2;
+        }
+
         $command->setArguments($args);
         $command->setOptions($options);
 
@@ -219,7 +229,44 @@ class Application
             return $command->execute();
         } catch (CliExitException $e) {
             return $e->getCode() > 0 ? $e->getCode() : 1;
+        } finally {
+            $command->restoreEnvironment();
         }
+    }
+
+    /**
+     * The first option the command does not declare, with the declared option it most resembles.
+     *
+     * @param array<int|string> $names Option names as typed
+     *
+     * @return array{0: string, 1: string|null}|null
+     */
+    protected function findUnknownOption(Command $command, array $names): ?array
+    {
+        $known = $command->knownOptions();
+        if ($known === null) {
+            return null;
+        }
+        $known = [...$known, ...self::GLOBAL_OPTIONS];
+        foreach ($names as $name) {
+            $name = (string)$name;
+            if (in_array($name, $known, true)) {
+                continue;
+            }
+            $closest = null;
+            $distance = 3;
+            foreach ($known as $candidate) {
+                $d = levenshtein($name, $candidate);
+                if ($d < $distance) {
+                    $distance = $d;
+                    $closest = $candidate;
+                }
+            }
+
+            return [$name, $closest];
+        }
+
+        return null;
     }
 
     /**

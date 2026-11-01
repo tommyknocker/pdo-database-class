@@ -48,6 +48,9 @@ abstract class Command extends BaseCliCommand
      */
     protected ?PdoDb $db = null;
 
+    /** @var array<string, string|false> Process environment values replaced by this command, to put back afterwards */
+    private array $replacedEnv = [];
+
     /**
      * Create command instance.
      *
@@ -107,6 +110,17 @@ abstract class Command extends BaseCliCommand
      *
      * @return string
      */
+    /**
+     * Options this command understands, without the global ones (--connection, --config, --env, --help).
+     * Application rejects any other option, so a mistyped flag cannot be ignored silently. Null disables the check.
+     *
+     * @return list<string>|null
+     */
+    public function knownOptions(): ?array
+    {
+        return null;
+    }
+
     public function getName(): string
     {
         return $this->name;
@@ -135,22 +149,48 @@ abstract class Command extends BaseCliCommand
         // Support global --connection option by exporting to environment
         if (isset($options['connection']) && is_string($options['connection']) && $options['connection'] !== '') {
             $conn = $options['connection'];
-            putenv('PDODB_CONNECTION=' . $conn);
-            $_ENV['PDODB_CONNECTION'] = $conn;
+            $this->exportEnv('PDODB_CONNECTION', $conn);
         }
         // Support global --config option by exporting to environment
         if (isset($options['config']) && is_string($options['config']) && $options['config'] !== '') {
             $path = $options['config'];
-            putenv('PDODB_CONFIG_PATH=' . $path);
-            $_ENV['PDODB_CONFIG_PATH'] = $path;
+            $this->exportEnv('PDODB_CONFIG_PATH', $path);
         }
         // Support global --env option by exporting to environment
         if (isset($options['env']) && is_string($options['env']) && $options['env'] !== '') {
             $path = $options['env'];
-            putenv('PDODB_ENV_PATH=' . $path);
-            $_ENV['PDODB_ENV_PATH'] = $path;
+            $this->exportEnv('PDODB_ENV_PATH', $path);
         }
         return $this;
+    }
+
+    /**
+     * Pass a value to the config loaders for the duration of the command; {@see restoreEnvironment()} undoes it.
+     */
+    protected function exportEnv(string $name, string $value): void
+    {
+        if (!array_key_exists($name, $this->replacedEnv)) {
+            $this->replacedEnv[$name] = getenv($name);
+        }
+        putenv("{$name}={$value}");
+        $_ENV[$name] = $value;
+    }
+
+    /**
+     * Put back the environment values that {@see exportEnv()} replaced.
+     */
+    public function restoreEnvironment(): void
+    {
+        foreach ($this->replacedEnv as $name => $previous) {
+            if ($previous === false) {
+                putenv($name);
+                unset($_ENV[$name]);
+            } else {
+                putenv("{$name}={$previous}");
+                $_ENV[$name] = $previous;
+            }
+        }
+        $this->replacedEnv = [];
     }
 
     /**

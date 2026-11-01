@@ -975,4 +975,38 @@ class TableCommand extends Command
         $this->writeln('    --json=0|1                        Search in JSON/array columns (default: 1)');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'charset',
+            'collation',
+            'column',
+            'columns',
+            'comment',
+            'default',
+            'drop-default',
+            'engine',
+            'force',
+            'format',
+            'if-exists',
+            'if-not-exists',
+            'json',
+            'limit',
+            'not-null',
+            'nullable',
+            'on-delete',
+            'on-update',
+            'priority',
+            'ref-columns',
+            'ref-table',
+            'rename',
+            'schema',
+            'type',
+            'unique',
+        ];
+    }
 }

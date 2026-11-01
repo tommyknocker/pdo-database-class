@@ -784,4 +784,22 @@ class OptimizeCommand extends Command
         $this->writeln('  pdodb optimize db --memory=8G --cpu-cores=16 --workload=olap --disk-type=nvme');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'connections',
+            'cpu-cores',
+            'disk-type',
+            'file',
+            'format',
+            'memory',
+            'schema',
+            'table',
+            'workload',
+        ];
+    }
 }

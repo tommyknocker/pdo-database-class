@@ -107,4 +107,16 @@ class RepositoryCommand extends Command
         $this->writeln('  pdodb repository make UserRepository User app/Repositories --model-namespace=app\\\\entities --force');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'force',
+            'model-namespace',
+            'namespace',
+        ];
+    }
 }

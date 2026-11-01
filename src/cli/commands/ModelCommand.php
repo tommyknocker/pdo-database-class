@@ -98,4 +98,16 @@ class ModelCommand extends Command
         $this->writeln('  pdodb model make User users app/Models --force');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'force',
+            'namespace',
+            'relation-models',
+        ];
+    }
 }

@@ -146,4 +146,12 @@ class QueryCommand extends Command
             return $this->fail('Invalid SQL - ' . $e->getMessage());
         }
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [];
+    }
 }

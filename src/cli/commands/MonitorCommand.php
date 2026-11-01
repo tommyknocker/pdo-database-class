@@ -353,4 +353,17 @@ class MonitorCommand extends Command
         $this->writeln('  pdodb monitor stats');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'format',
+            'limit',
+            'threshold',
+            'watch',
+        ];
+    }
 }

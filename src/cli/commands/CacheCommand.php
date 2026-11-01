@@ -193,4 +193,15 @@ class CacheCommand extends Command
         $this->writeln('  pdodb cache stats --format=json');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'force',
+            'format',
+        ];
+    }
 }

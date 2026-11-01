@@ -53,8 +53,7 @@ class ConnectionCommand extends Command
     {
         $connectionName = $this->getOption('connection');
         if (is_string($connectionName) && $connectionName !== '') {
-            putenv('PDODB_CONNECTION=' . $connectionName);
-            $_ENV['PDODB_CONNECTION'] = $connectionName;
+            $this->exportEnv('PDODB_CONNECTION', $connectionName);
         }
 
         try {
@@ -82,14 +81,12 @@ class ConnectionCommand extends Command
 
         // If connection name provided, set it before loading config
         if (is_string($connectionName) && $connectionName !== '') {
-            putenv('PDODB_CONNECTION=' . $connectionName);
-            $_ENV['PDODB_CONNECTION'] = $connectionName;
+            $this->exportEnv('PDODB_CONNECTION', $connectionName);
         } else {
             // Check if --connection option is provided
             $connOpt = $this->getOption('connection');
             if (is_string($connOpt) && $connOpt !== '') {
-                putenv('PDODB_CONNECTION=' . $connOpt);
-                $_ENV['PDODB_CONNECTION'] = $connOpt;
+                $this->exportEnv('PDODB_CONNECTION', $connOpt);
                 $connectionName = $connOpt;
             }
         }
@@ -137,8 +134,7 @@ class ConnectionCommand extends Command
 
             // Set connection name before connecting
             if ($connectionName !== null) {
-                putenv('PDODB_CONNECTION=' . $connectionName);
-                $_ENV['PDODB_CONNECTION'] = $connectionName;
+                $this->exportEnv('PDODB_CONNECTION', $connectionName);
             }
 
             try {
@@ -185,8 +181,7 @@ class ConnectionCommand extends Command
     {
         $connectionName = $this->getOption('connection');
         if (is_string($connectionName) && $connectionName !== '') {
-            putenv('PDODB_CONNECTION=' . $connectionName);
-            $_ENV['PDODB_CONNECTION'] = $connectionName;
+            $this->exportEnv('PDODB_CONNECTION', $connectionName);
         }
 
         try {
@@ -302,22 +297,9 @@ class ConnectionCommand extends Command
                 if (is_array($connConfig)) {
                     $isDefault = ($default === $name);
                     // Set connection name before getting info
-                    $oldConnection = getenv('PDODB_CONNECTION');
-                    putenv('PDODB_CONNECTION=' . $name);
-                    $_ENV['PDODB_CONNECTION'] = $name;
-
-                    try {
-                        $connInfo = $this->getConnectionInfo($connConfig, (string)$name);
-                    } finally {
-                        // Restore original connection
-                        if ($oldConnection !== false) {
-                            putenv('PDODB_CONNECTION=' . $oldConnection);
-                            $_ENV['PDODB_CONNECTION'] = $oldConnection;
-                        } else {
-                            putenv('PDODB_CONNECTION');
-                            unset($_ENV['PDODB_CONNECTION']);
-                        }
-                    }
+                    // The environment is put back when the command ends (see Command::restoreEnvironment()).
+                    $this->exportEnv('PDODB_CONNECTION', (string)$name);
+                    $connInfo = $this->getConnectionInfo($connConfig, (string)$name);
                     $connInfo['is_default'] = $isDefault;
                     $connections[] = $connInfo;
                 }
@@ -330,22 +312,9 @@ class ConnectionCommand extends Command
             foreach ($config as $name => $value) {
                 if (is_array($value) && isset($value['driver'])) {
                     // Set connection name before getting info
-                    $oldConnection = getenv('PDODB_CONNECTION');
-                    putenv('PDODB_CONNECTION=' . $name);
-                    $_ENV['PDODB_CONNECTION'] = $name;
-
-                    try {
-                        $connInfo = $this->getConnectionInfo($value, (string)$name);
-                    } finally {
-                        // Restore original connection
-                        if ($oldConnection !== false) {
-                            putenv('PDODB_CONNECTION=' . $oldConnection);
-                            $_ENV['PDODB_CONNECTION'] = $oldConnection;
-                        } else {
-                            putenv('PDODB_CONNECTION');
-                            unset($_ENV['PDODB_CONNECTION']);
-                        }
-                    }
+                    // The environment is put back when the command ends (see Command::restoreEnvironment()).
+                    $this->exportEnv('PDODB_CONNECTION', (string)$name);
+                    $connInfo = $this->getConnectionInfo($value, (string)$name);
                     $connections[] = $connInfo;
                 }
             }
@@ -510,5 +479,15 @@ class ConnectionCommand extends Command
         $this->writeln('  pdodb connection list');
         $this->writeln('  pdodb connection ping --connection=reporting');
         return 0;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'format',
+        ];
     }
 }

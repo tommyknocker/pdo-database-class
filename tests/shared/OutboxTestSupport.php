@@ -135,6 +135,27 @@ final class OutboxTestSupport
     }
 
     /**
+     * A delayed message must stay unclaimed until its time, while a due one is published.
+     *
+     * @return array{seen: list<string>, pending: int}
+     */
+    public static function exerciseDelayedMessage(PdoDb $db, string $table): array
+    {
+        $outbox = new Outbox($db, $table);
+        $db->transaction(static function () use ($outbox): void {
+            $outbox->add('delay.later', ['n' => 1], delaySeconds: 3600);
+            $outbox->add('delay.now', ['n' => 2]);
+        });
+
+        $seen = [];
+        $outbox->worker('delay-worker', batchSize: 10)->runOnce(static function (OutboxMessage $message) use (&$seen): void {
+            $seen[] = $message->type;
+        });
+
+        return ['seen' => $seen, 'pending' => $outbox->countByStatus()->pending];
+    }
+
+    /**
      * Seeds a row whose payload decodes to a scalar between two good rows and runs one worker batch.
      *
      * @return array{claimed: int, published: int, markedFailed: int, seen: list<string>, status: mixed, error: mixed}

@@ -309,4 +309,15 @@ class MigrateCommand extends Command
         $this->writeln('  pdodb migrate down --force');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'dry-run',
+            'force',
+        ];
+    }
 }

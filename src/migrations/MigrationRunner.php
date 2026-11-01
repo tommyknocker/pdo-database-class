@@ -34,6 +34,21 @@ class MigrationRunner
     /** @var array<int, string> Collected SQL queries in dry-run mode */
     protected array $collectedQueries = [];
 
+    /** Namespace tried first when looking for a migration class; a class without a namespace is always accepted. */
+    protected string $migrationNamespace = 'tommyknocker\\pdodb\\migrations';
+
+    /**
+     * Set the namespace your migration classes are declared in.
+     *
+     * @return $this
+     */
+    public function setMigrationNamespace(string $namespace): static
+    {
+        $this->migrationNamespace = trim($namespace, '\\');
+
+        return $this;
+    }
+
     /**
      * MigrationRunner constructor.
      *
@@ -542,51 +557,6 @@ class MigrationRunner
     }
 
     /**
-     * @deprecated Dry-run no longer executes migration code. The method remains for BC if extended.
-     */
-    protected function collectMigrationSql(Migration $migration, string $version): void
-    {
-        $batch = $this->getNextBatchNumber();
-        $this->collectedQueries[] = '-- Dry-run: migration PHP is not executed.';
-        $this->collectedQueries[] = "-- Would record migration in batch {$batch}";
-    }
-
-    /**
-     * Format SQL query with parameters.
-     *
-     * @param string $sql SQL query
-     * @param array<int|string, mixed> $params Query parameters
-     *
-     * @return string Formatted SQL
-     */
-    protected function formatSqlWithParams(string $sql, array $params): string
-    {
-        if (empty($params)) {
-            return $sql;
-        }
-
-        // Simple parameter replacement for display
-        $formatted = $sql;
-        foreach ($params as $key => $value) {
-            $placeholder = is_int($key) ? '?' : ':' . $key;
-            if (is_string($value)) {
-                $formattedValue = "'" . addslashes($value) . "'";
-            } elseif (is_int($value) || is_float($value)) {
-                $formattedValue = (string)$value;
-            } elseif (is_bool($value)) {
-                $formattedValue = $value ? '1' : '0';
-            } elseif ($value === null) {
-                $formattedValue = 'NULL';
-            } else {
-                $formattedValue = "'" . addslashes((string)$value) . "'";
-            }
-            $formatted = str_replace($placeholder, $formattedValue, $formatted);
-        }
-
-        return $formatted;
-    }
-
-    /**
      * Load migration class instance.
      *
      * @param string $version Migration version
@@ -615,7 +585,7 @@ class MigrationRunner
         }
 
         // Try namespaced class first
-        $fullClassName = 'tommyknocker\\pdodb\\migrations\\' . $className;
+        $fullClassName = ($this->migrationNamespace !== '' ? $this->migrationNamespace . '\\' : '') . $className;
         if (!class_exists($fullClassName)) {
             // Try without namespace
             if (!class_exists($className)) {

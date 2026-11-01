@@ -136,4 +136,16 @@ class ProfileCommand extends Command
 
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'param',
+            'rank',
+            'text',
+        ];
+    }
 }

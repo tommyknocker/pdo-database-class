@@ -1008,4 +1008,22 @@ HTML;
         $this->writeln('  pdodb benchmark report --query="SELECT * FROM users" --output=report.html');
         return 0;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function knownOptions(): array
+    {
+        return [
+            'cache',
+            'connections',
+            'duration',
+            'iterations',
+            'no-cache',
+            'output',
+            'query',
+            'slow-threshold',
+            'warmup',
+        ];
+    }
 }

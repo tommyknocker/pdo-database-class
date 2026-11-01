@@ -39,15 +39,16 @@ final class OutboxStorage
     /**
      * @param array<string, mixed> $payload
      */
-    public function insertPending(string $id, string $eventType, array $payload): void
+    public function insertPending(string $id, string $eventType, array $payload, int $delaySeconds = 0): void
     {
         $dialect = $this->dialect();
         $tableQuoted = $dialect->quoteTable($this->tableName);
         $now = $dialect->outboxNowSql();
+        $availableAt = $delaySeconds > 0 ? $dialect->outboxNowPlusSecondsSql($delaySeconds) : $now;
         $this->db->rawQuery(
             "INSERT INTO {$tableQuoted}
                 (id, event_type, payload, status, attempts, available_at, created_at)
-             VALUES (:id, :event_type, :payload, :status, :attempts, {$now}, {$now})",
+             VALUES (:id, :event_type, :payload, :status, :attempts, {$availableAt}, {$now})",
             [
                 'id' => $id,
                 'event_type' => $eventType,
@@ -292,6 +293,18 @@ final class OutboxStorage
             throw new OutboxException('Outbox message id must not be empty.');
         }
 
+        return $this->requeueFailedIds([$id], $resetAttempts) > 0;
+    }
+
+    /**
+     * Put failed messages back in the queue, one UPDATE per chunk of ids.
+     *
+     * @param list<string> $ids
+     *
+     * @return int Messages that were still failed and are pending again
+     */
+    protected function requeueFailedIds(array $ids, bool $resetAttempts): int
+    {
         $update = [
             'status' => OutboxStatuses::PENDING,
             'available_at' => new RawValue($this->dialect()->outboxNowSql()),
@@ -303,11 +316,17 @@ final class OutboxStorage
             $update['attempts'] = 0;
         }
 
-        return $this->db->find()
-            ->table($this->tableName)
-            ->where('id', $id)
-            ->where('status', OutboxStatuses::FAILED)
-            ->update($update) > 0;
+        $requeued = 0;
+        // 1000 is the largest IN list every supported dialect accepts (Oracle).
+        foreach (array_chunk($ids, 1000) as $chunk) {
+            $requeued += $this->db->find()
+                ->table($this->tableName)
+                ->where('id', $chunk, 'IN')
+                ->where('status', OutboxStatuses::FAILED)
+                ->update($update);
+        }
+
+        return $requeued;
     }
 
     public function requeueAllFailed(int $limit, bool $resetAttempts, bool $dryRun): OutboxRequeueResult
@@ -341,14 +360,7 @@ final class OutboxStorage
             return new OutboxRequeueResult($matched, 0, $dryRun);
         }
 
-        $requeued = 0;
-        foreach ($ids as $messageId) {
-            if ($this->requeueFailed($messageId, $resetAttempts)) {
-                $requeued++;
-            }
-        }
-
-        return new OutboxRequeueResult($matched, $requeued, false);
+        return new OutboxRequeueResult($matched, $this->requeueFailedIds($ids, $resetAttempts), false);
     }
 
     public function purge(
