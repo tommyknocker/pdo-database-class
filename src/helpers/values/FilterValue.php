@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers\values;
 
+use tommyknocker\pdodb\query\QueryConstants;
+
 /**
  * Represents an aggregate function with FILTER clause.
  */
@@ -36,6 +38,7 @@ class FilterValue extends RawValue
      */
     public function filter(string $column, mixed $value, string $operator = '='): static
     {
+        $operator = QueryConstants::normalizeConditionOperator($operator);
         $this->filterConditions[] = [
             'column' => $column,
             'value' => $value,

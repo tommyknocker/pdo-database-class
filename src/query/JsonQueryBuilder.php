@@ -80,6 +80,7 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface
         mixed $value,
         string $cond = 'AND'
     ): static {
+        $operator = QueryConstants::normalizeConditionOperator($operator);
         $expr = $this->dialect->formatJsonGet($col, $path);
 
         if ($value instanceof RawValue) {

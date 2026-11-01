@@ -252,7 +252,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
      */
     public function quoteIdentifier(string $name): string
     {
-        return "\"{$name}\"";
+        return '"' . str_replace('"', '""', $name) . '"';
     }
 
     /**

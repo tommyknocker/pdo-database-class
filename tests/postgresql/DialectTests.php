@@ -240,9 +240,9 @@ final class DialectTests extends BasePostgreSQLTestCase
         // Test simple identifier
         $this->assertEquals('"column_name"', $dialect->quoteIdentifier('column_name'));
 
-        // Test identifier with double quotes (note: quoteIdentifier doesn't escape)
+        // Test identifier with double quotes (the quote is doubled)
         $quoted = $dialect->quoteIdentifier('test"column');
-        $this->assertEquals('"test"column"', $quoted);
+        $this->assertEquals('"test""column"', $quoted);
 
         // Test identifier with numbers
         $this->assertEquals('"column123"', $dialect->quoteIdentifier('column123'));

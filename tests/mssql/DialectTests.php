@@ -130,9 +130,9 @@ final class DialectTests extends BaseMSSQLTestCase
         // Test simple identifier
         $this->assertEquals('[column_name]', $dialect->quoteIdentifier('column_name'));
 
-        // Test identifier with brackets (note: quoteIdentifier doesn't escape)
+        // Test identifier with brackets (the closing bracket is doubled)
         $quoted = $dialect->quoteIdentifier('test]column');
-        $this->assertEquals('[test]column]', $quoted);
+        $this->assertEquals('[test]]column]', $quoted);
 
         // Test RawValue (should return as-is)
         $rawValue = new RawValue('COUNT(*)');

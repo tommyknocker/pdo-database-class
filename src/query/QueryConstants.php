@@ -125,6 +125,44 @@ final class QueryConstants
     }
 
     /**
+     * Operators accepted in WHERE, HAVING and column-comparison conditions.
+     *
+     * @return array<int, string>
+     */
+    public static function getConditionOperators(): array
+    {
+        return array_merge(self::getComparisonOperators(), [
+            self::OP_IN,
+            self::OP_NOT_IN,
+            self::OP_BETWEEN,
+            self::OP_NOT_BETWEEN,
+            self::OP_EXISTS,
+            self::OP_NOT_EXISTS,
+            self::OP_IS,
+            self::OP_IS_NOT,
+            self::OP_LIKE,
+            self::OP_NOT_LIKE,
+        ]);
+    }
+
+    /**
+     * Normalize a condition operator (trim, collapse whitespace, uppercase) and reject anything outside the allowlist.
+     *
+     * Operators are written into SQL text, so an unchecked value would be an injection point.
+     *
+     * @throws \InvalidArgumentException
+     */
+    public static function normalizeConditionOperator(string $operator): string
+    {
+        $normalized = strtoupper(trim((string)preg_replace('/\s+/', ' ', $operator)));
+        if (!in_array($normalized, self::getConditionOperators(), true)) {
+            throw new \InvalidArgumentException('Unsupported condition operator: ' . substr($operator, 0, 40));
+        }
+
+        return $normalized;
+    }
+
+    /**
      * Validate if operator is a valid SQL operator.
      *
      * @param string $operator

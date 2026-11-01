@@ -269,9 +269,9 @@ final class DialectTests extends BaseMariaDBTestCase
         // Test simple identifier
         $this->assertEquals('`column_name`', $dialect->quoteIdentifier('column_name'));
 
-        // Test identifier with backticks (note: quoteIdentifier doesn't escape, quoteTable does)
+        // Test identifier with backticks (the backtick is doubled)
         $quoted = $dialect->quoteIdentifier('test`column');
-        $this->assertEquals('`test`column`', $quoted);
+        $this->assertEquals('`test``column`', $quoted);
 
         // Test RawValue (should return as-is)
         $rawValue = new RawValue('COUNT(*)');

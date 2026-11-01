@@ -169,7 +169,7 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function quoteIdentifier(mixed $name): string
     {
-        return $name instanceof RawValue ? $name->getValue() : "[{$name}]";
+        return $name instanceof RawValue ? $name->getValue() : '[' . str_replace(']', ']]', (string)$name) . ']';
     }
 
     /**

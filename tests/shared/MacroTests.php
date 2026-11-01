@@ -107,7 +107,7 @@ final class MacroTests extends BaseSharedTestCase
     public function testMacroCanModifyQueryAndReturnIt(): void
     {
         QueryBuilder::macro('recent', function (QueryBuilder $query, int $days = 7) {
-            return $query->where('created_at', '>=', date('Y-m-d', strtotime("-{$days} days")));
+            return $query->where('created_at', date('Y-m-d', strtotime("-{$days} days")), '>=');
         });
 
         $query = self::$db->find()->table('test_coverage');

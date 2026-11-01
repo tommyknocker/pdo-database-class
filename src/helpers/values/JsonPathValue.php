@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\helpers\values;
 
+use tommyknocker\pdodb\query\QueryConstants;
+
 /**
  * JSON path comparison value.
  */
@@ -31,7 +33,7 @@ class JsonPathValue extends RawValue
     {
         $this->column = $column;
         $this->path = $path;
-        $this->operator = $operator;
+        $this->operator = QueryConstants::normalizeConditionOperator($operator);
         $this->compareValue = $value;
         parent::__construct('');
     }

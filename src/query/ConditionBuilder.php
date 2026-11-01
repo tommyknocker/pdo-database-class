@@ -246,6 +246,7 @@ class ConditionBuilder implements ConditionBuilderInterface
      */
     public function whereColumn(string $first, string $operator, string $second, string $boolean = QueryConstants::BOOLEAN_AND): static
     {
+        $operator = QueryConstants::normalizeConditionOperator($operator);
         $firstQuoted = $this->quoteQualifiedIdentifier($first);
         $secondQuoted = $this->quoteQualifiedIdentifier($second);
         $this->where[] = [
@@ -691,6 +692,8 @@ class ConditionBuilder implements ConditionBuilderInterface
         string $operator,
         string $cond
     ): static {
+        $operator = QueryConstants::normalizeConditionOperator($operator);
+
         // Handle logical grouping via Closure
         if ($exprOrColumn instanceof \Closure) {
             $instance = new QueryBuilder($this->connection, $this->prefix ?? '');

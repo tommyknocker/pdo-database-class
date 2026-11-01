@@ -114,7 +114,7 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
      */
     public function quoteIdentifier(mixed $name): string
     {
-        return $name instanceof RawValue ? $name->getValue() : "`{$name}`";
+        return $name instanceof RawValue ? $name->getValue() : '`' . str_replace('`', '``', (string)$name) . '`';
     }
 
     /**

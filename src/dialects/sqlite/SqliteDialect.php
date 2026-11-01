@@ -160,7 +160,7 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
      */
     public function quoteIdentifier(string $name): string
     {
-        return "\"{$name}\"";
+        return '"' . str_replace('"', '""', $name) . '"';
     }
 
     /**
