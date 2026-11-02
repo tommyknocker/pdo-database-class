@@ -4,768 +4,206 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
-use Psr\SimpleCache\CacheInterface;
+use PHPUnit\Framework\TestCase;
+use tommyknocker\pdodb\cache\backend\CacheBackend;
 use tommyknocker\pdodb\cache\CacheConfig;
 use tommyknocker\pdodb\cache\CacheManager;
+use tommyknocker\pdodb\tests\fixtures\ArrayCache;
 
 /**
- * Tests for CacheManager protected methods.
+ * What a cache manager does with the cache and the server features behind it.
  */
-final class CacheManagerTests extends BaseSharedTestCase
+final class CacheManagerTests extends TestCase
 {
-    /**
-     * Test incrementStatAtomic with atomic support.
-     */
-    public function testIncrementStatAtomic(): void
+    private function manager(?CacheBackend $backend = null, bool $enabled = true): CacheManager
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig(prefix: 'test_', enabled: true);
-        $manager = new CacheManager($cache, $config);
+        return new CacheManager(new ArrayCache(), new CacheConfig(prefix: 'test_', enabled: $enabled), $backend);
+    }
 
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('incrementStatAtomic');
+    public function testStatisticsCountEveryKindOfEvent(): void
+    {
+        $manager = $this->manager();
+        $manager->set('a', 1);
+        $manager->get('a');
+        $manager->get('a');
+        $manager->get('missing');
+        $manager->delete('a');
 
-        // Test with atomic support disabled (fallback)
-        $method->invoke($manager, 'hits');
-        $method->invoke($manager, 'misses');
-
-        // Verify stats are tracked (will be persisted later)
         $stats = $manager->getStats();
-        $this->assertIsArray($stats);
+        $this->assertSame(1, $stats['sets']);
+        $this->assertSame(2, $stats['hits']);
+        $this->assertSame(1, $stats['misses']);
+        $this->assertSame(1, $stats['deletes']);
+        $this->assertSame(3, $stats['total_requests']);
+        $this->assertSame(66.67, $stats['hit_rate']);
+        $this->assertSame('Array', $stats['type'], 'a cache without server features is named by its class');
     }
 
-    /**
-     * Test supportsAtomicIncrement.
-     */
-    public function testSupportsAtomicIncrement(): void
+    public function testStatisticsSurviveTheManagerThatCountedThem(): void
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
+        $cache = new ArrayCache();
+        $first = new CacheManager($cache, new CacheConfig(prefix: 'p_'));
+        $first->set('k', 'v');
+        $first->get('k');
+        $first->flushStats();
 
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('supportsAtomicIncrement');
+        $second = new CacheManager($cache, new CacheConfig(prefix: 'p_'));
+        $second->get('k');
 
-        $result = $method->invoke($manager);
-        $this->assertIsBool($result);
+        $this->assertSame(['hits' => 2, 'misses' => 0, 'sets' => 1], array_intersect_key($second->getStats(), ['hits' => 1, 'misses' => 1, 'sets' => 1]));
     }
 
-    /**
-     * Test getRedisConnection with non-Redis cache.
-     */
-    public function testGetRedisConnectionWithNonRedisCache(): void
+    public function testCountsAreWrittenEveryFewOperationsWithoutAnExplicitFlush(): void
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
+        $cache = new ArrayCache();
+        $manager = new CacheManager($cache, new CacheConfig(prefix: 'p_'));
+        for ($i = 0; $i < 10; $i++) {
+            $manager->get('missing');
+        }
 
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('getRedisConnection');
-
-        $result = $method->invoke($manager);
-        $this->assertNull($result);
+        $this->assertSame(10, (new CacheManager($cache, new CacheConfig(prefix: 'p_')))->getStats()['misses']);
     }
 
-    /**
-     * Test getMemcachedConnection with non-Memcached cache.
-     */
-    public function testGetMemcachedConnectionWithNonMemcachedCache(): void
+    public function testResetForgetsStoredAndPendingCounts(): void
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
+        $manager = $this->manager();
+        $manager->set('a', 1);
+        $manager->flushStats();
+        $manager->get('a');
+        $manager->resetStats();
 
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('getMemcachedConnection');
-
-        $result = $method->invoke($manager);
-        $this->assertNull($result);
+        $this->assertSame(0, $manager->getStats()['hits']);
+        $this->assertSame(0, $manager->getStats()['sets']);
     }
 
-    /**
-     * Test getApcuConnection with non-APCu cache.
-     */
-    public function testGetApcuConnectionWithNonApcuCache(): void
+    public function testADisabledCacheCountsNothingAndStoresNothing(): void
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
+        $manager = $this->manager(enabled: false);
 
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('getApcuConnection');
-
-        $result = $method->invoke($manager);
-        $this->assertNull($result);
+        $this->assertFalse($manager->set('a', 1));
+        $this->assertNull($manager->get('a'));
+        $this->assertSame(0, $manager->getStats()['total_requests']);
+        $this->assertSame(0, $manager->invalidateByPattern('users'));
     }
 
-    /**
-     * Test incrementAtomic with non-atomic cache.
-     */
-    public function testIncrementAtomicWithNonAtomicCache(): void
+    public function testABackendCountsOnTheServerInsteadOfInMemory(): void
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->expects($this->never())->method('set');
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
+        $backend = new ArrayBackend();
+        $manager = $this->manager($backend);
+        $manager->set('a', 1);
+        $manager->get('a');
+        $manager->get('b');
 
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('incrementAtomic');
+        // visible to every process using the same server, without any flush
+        $this->assertSame(1, $backend->counters['test___pdodb_stats__:sets']);
+        $this->assertSame(1, $backend->counters['test___pdodb_stats__:hits']);
+        $this->assertSame(1, $backend->counters['test___pdodb_stats__:misses']);
+        $this->assertSame('Fake', $manager->getStats()['type']);
 
-        // Should not throw, but won't increment without atomic support
-        $method->invoke($manager, 'test_key', 1);
+        $manager->resetStats();
+        $this->assertSame([], $backend->counters);
     }
 
-    /**
-     * Test getAtomicValue with non-atomic cache.
-     */
-    public function testGetAtomicValueWithNonAtomicCache(): void
+    public function testInvalidateTableDropsEntriesStoredForIt(): void
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(null);
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
+        $manager = $this->manager();
+        $manager->set('q1', 'one', null, ['users']);
+        $manager->set('q2', 'two', null, ['users', 'orders']);
+        $manager->set('q3', 'three', null, ['orders']);
 
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('getAtomicValue');
-
-        $result = $method->invoke($manager, 'test_key');
-        $this->assertEquals(0, $result);
+        $this->assertSame(2, $manager->invalidateTable('users'));
+        $this->assertNull($manager->get('q1'));
+        $this->assertNull($manager->get('q2'));
+        $this->assertSame('three', $manager->get('q3'));
+        $this->assertSame(0, $manager->invalidateTable('users'), 'nothing left to drop');
     }
 
-    /**
-     * Test deleteAtomicValue with non-atomic cache.
-     */
-    public function testDeleteAtomicValueWithNonAtomicCache(): void
+    public function testTableNamesAreNormalizedWhenStoredAndInvalidated(): void
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->expects($this->once())->method('delete')->with('test_key')->willReturn(true);
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
+        $manager = $this->manager();
+        $manager->set('q', 'x', null, ['`App`.`Users` AS u']);
 
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('deleteAtomicValue');
-
-        $method->invoke($manager, 'test_key');
+        $this->assertSame(1, $manager->invalidateTable('"users"'));
     }
 
-    /**
-     * Test getPersistentStats.
-     */
-    public function testGetPersistentStats(): void
+    public function testInvalidateByPatternSupportsTablesAndPrefixesWhenTheServerCanListKeys(): void
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['hits' => 10, 'misses' => 5, 'sets' => 3, 'deletes' => 1]);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
+        $backend = new ArrayBackend();
+        $manager = $this->manager($backend);
+        $manager->set('a', 1, null, ['users']);
+        $manager->set('b', 2, null, ['users_archive']);
+        $manager->set('c', 3, null, ['orders']);
+        $backend->keyList = ['test___pdodb_meta:table:users', 'test___pdodb_meta:table:users_archive'];
 
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('getPersistentStats');
-
-        $result = $method->invoke($manager);
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('hits', $result);
-        $this->assertArrayHasKey('misses', $result);
-        $this->assertArrayHasKey('sets', $result);
-        $this->assertArrayHasKey('deletes', $result);
+        $this->assertSame(2, $manager->invalidateByPattern('table:users_*'));
+        $this->assertSame(3, $manager->get('c'));
     }
 
-    /**
-     * Test getPersistentStats with null cache value.
-     */
-    public function testGetPersistentStatsWithNullValue(): void
+    public function testKeyPatternsAreIgnoredWhenTheServerCannotListKeys(): void
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(null);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
+        $manager = $this->manager();
+        $manager->set('test_table_users_1', 1);
 
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('getPersistentStats');
-
-        $result = $method->invoke($manager);
-        $this->assertIsArray($result);
-        $this->assertEquals(0, $result['hits']);
-        $this->assertEquals(0, $result['misses']);
-        $this->assertEquals(0, $result['sets']);
-        $this->assertEquals(0, $result['deletes']);
+        $this->assertSame(0, $manager->invalidateByPattern('test_table_users_*'));
+        $this->assertSame(1, $manager->get('test_table_users_1'));
     }
 
-    /**
-     * Test persistStats.
-     */
-    public function testPersistStats(): void
+    public function testKeyPatternsUseTheBackend(): void
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['hits' => 5, 'misses' => 2, 'sets' => 1, 'deletes' => 0]);
-        $cache->expects($this->once())->method('set')->with($this->stringStartsWith('test_'), $this->callback(static fn (array $stats): bool => $stats['hits'] === 8 && $stats['misses'] === 2), $this->anything())->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
+        $backend = new ArrayBackend();
+        $backend->keyList = ['test_table_users_1', 'test_table_users_2'];
+        $manager = $this->manager($backend);
+        $manager->getCache()->set('test_table_users_1', 'x');
+        $manager->getCache()->set('test_table_users_2', 'y');
 
-        // Set some in-memory stats
-        $reflection = new \ReflectionClass($manager);
-        $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setValue($manager, 3);
+        $this->assertSame(2, $manager->invalidateByPattern('test_table_users_*'));
+        $this->assertSame(['test_table_users_*'], $backend->patterns);
+    }
+}
 
-        $method = $reflection->getMethod('persistStats');
+/**
+ * A server stand-in that keeps counters in an array.
+ */
+final class ArrayBackend implements CacheBackend
+{
+    /** @var array<string, int> */
+    public array $counters = [];
 
-        $method->invoke($manager);
+    /** @var list<string> */
+    public array $keyList = [];
+
+    /** @var list<string> */
+    public array $patterns = [];
+
+    public function type(): string
+    {
+        return 'Fake';
     }
 
-    /**
-     * Test persistStatsWithRetry.
-     */
-    public function testPersistStatsWithRetry(): void
+    public function increment(string $key, int $by, int $ttl): void
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0]);
-        $cache->expects($this->once())->method('set')->with($this->stringStartsWith('test_'), $this->callback(static fn (array $stats): bool => $stats['hits'] === 0 && $stats['sets'] === 0), $this->anything())->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('persistStatsWithRetry');
-
-        $method->invoke($manager, 3);
+        $this->counters[$key] = ($this->counters[$key] ?? 0) + $by;
     }
 
-    /**
-     * Test addKeyToMetadata.
-     */
-    public function testAddKeyToMetadata(): void
+    public function counter(string $key): int
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn([]);
-        $cache->expects($this->exactly(2))->method('set')->with($this->anything(), ['test_key'], $this->anything())->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('addKeyToMetadata');
-
-        $method->invoke($manager, 'test_key', ['users', 'orders']);
+        return $this->counters[$key] ?? 0;
     }
 
-    /**
-     * Test addKeyToMetadata with existing keys.
-     */
-    public function testAddKeyToMetadataWithExistingKeys(): void
+    public function delete(string $key): void
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['existing_key']);
-        $cache->expects($this->once())->method('set')->with($this->stringStartsWith('test_'), ['existing_key', 'new_key'], $this->anything())->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('addKeyToMetadata');
-
-        $method->invoke($manager, 'new_key', ['users']);
+        unset($this->counters[$key]);
     }
 
-    /**
-     * Test normalizeTableName.
-     */
-    public function testNormalizeTableName(): void
+    public function supportsKeyPatterns(): bool
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('normalizeTableName');
-
-        // Test with alias
-        $result = $method->invoke($manager, 'users AS u');
-        $this->assertEquals('users', $result);
-
-        // Test with backticks
-        $result = $method->invoke($manager, '`users`');
-        $this->assertEquals('users', $result);
-
-        // Test with double quotes
-        $result = $method->invoke($manager, '"users"');
-        $this->assertEquals('users', $result);
-
-        // Test with schema prefix
-        $result = $method->invoke($manager, 'public.users');
-        $this->assertEquals('users', $result);
-
-        // Test with schema, quotes, and alias
-        // The alias regex matches, extracting "public"."users"
-        // trim('`"[]') removes quotes from both ends, so "public"."users" -> public"."users
-        // Then schema regex /\.([^.]+)$/ matches ."users and extracts "users
-        $result = $method->invoke($manager, '"public"."users" AS u');
-        // The actual result is "users (with leading quote) due to how trim and regex work
-        // This is a limitation of the current implementation
-        $this->assertEquals('"users', $result);
-
-        // Test lowercase conversion
-        $result = $method->invoke($manager, 'USERS');
-        $this->assertEquals('users', $result);
+        return true;
     }
 
-    /**
-     * Test invalidateByTable.
-     */
-    public function testInvalidateByTable(): void
+    public function keys(string $pattern): array
     {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['key1', 'key2']);
-        $cache->method('delete')->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
+        $this->patterns[] = $pattern;
 
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('invalidateByTable');
-
-        $result = $method->invoke($manager, 'users');
-        $this->assertIsInt($result);
-        $this->assertEquals(2, $result);
-    }
-
-    /**
-     * Test invalidateByTable with empty metadata.
-     */
-    public function testInvalidateByTableWithEmptyMetadata(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn([]);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('invalidateByTable');
-
-        $result = $method->invoke($manager, 'users');
-        $this->assertEquals(0, $result);
-    }
-
-    /**
-     * Test invalidateByTablePrefix.
-     */
-    public function testInvalidateByTablePrefix(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['key1', 'key2']);
-        $cache->method('delete')->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('invalidateByTablePrefix');
-
-        // Without pattern matching support, falls back to invalidateByTable
-        $result = $method->invoke($manager, 'user');
-        $this->assertIsInt($result);
-    }
-
-    /**
-     * Test invalidateByKeyPattern.
-     */
-    public function testInvalidateByKeyPattern(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('invalidateByKeyPattern');
-
-        // Without pattern matching support, returns 0
-        $result = $method->invoke($manager, 'test_*');
-        $this->assertEquals(0, $result);
-    }
-
-    /**
-     * Test supportsKeyPatternMatching.
-     */
-    public function testSupportsKeyPatternMatching(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('supportsKeyPatternMatching');
-
-        $result = $method->invoke($manager);
-        $this->assertIsBool($result);
-        // Without Redis/Memcached, should return false
-        $this->assertFalse($result);
-    }
-
-    /**
-     * Test getKeysByPattern.
-     */
-    public function testGetKeysByPattern(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('getKeysByPattern');
-
-        $result = $method->invoke($manager, 'test_*');
-        $this->assertIsArray($result);
-        // Without Redis/Memcached, should return empty array
-        $this->assertEmpty($result);
-    }
-
-    /**
-     * Test detectCacheType.
-     */
-    public function testDetectCacheType(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('detectCacheType');
-
-        $result = $method->invoke($manager);
-        $this->assertIsString($result);
-        $this->assertNotEmpty($result);
-    }
-
-    /**
-     * Test findRedisInProperties with depth limit.
-     */
-    public function testFindRedisInPropertiesWithDepthLimit(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('findRedisInProperties');
-
-        $reflectionClass = new \ReflectionClass($cache);
-        $result = $method->invoke($manager, $reflectionClass, $cache, 4);
-        // At depth 4, should return null due to depth limit
-        $this->assertNull($result);
-    }
-
-    /**
-     * Test findMemcachedInProperties with depth limit.
-     */
-    public function testFindMemcachedInPropertiesWithDepthLimit(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('findMemcachedInProperties');
-
-        $reflectionClass = new \ReflectionClass($cache);
-        $result = $method->invoke($manager, $reflectionClass, $cache, 4);
-        // At depth 4, should return null due to depth limit
-        $this->assertNull($result);
-    }
-
-    /**
-     * Test invalidateByPattern with table: prefix.
-     */
-    public function testInvalidateByPatternWithTablePrefix(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['key1', 'key2']);
-        $cache->method('delete')->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $result = $manager->invalidateByPattern('table:users');
-        $this->assertIsInt($result);
-    }
-
-    /**
-     * Test invalidateByPattern with table prefix pattern.
-     */
-    public function testInvalidateByPatternWithTablePrefixPattern(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['key1', 'key2']);
-        $cache->method('delete')->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $result = $manager->invalidateByPattern('table:users_*');
-        $this->assertIsInt($result);
-    }
-
-    /**
-     * Test invalidateByPattern with key pattern.
-     */
-    public function testInvalidateByPatternWithKeyPattern(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $result = $manager->invalidateByPattern('test_table_users_*');
-        $this->assertIsInt($result);
-    }
-
-    /**
-     * Test invalidateByPattern with simple table name.
-     */
-    public function testInvalidateByPatternWithSimpleTableName(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['key1', 'key2']);
-        $cache->method('delete')->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $result = $manager->invalidateByPattern('users');
-        $this->assertIsInt($result);
-    }
-
-    /**
-     * Test invalidateByPattern with disabled cache.
-     */
-    public function testInvalidateByPatternWithDisabledCache(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig(prefix: 'test_', enabled: false);
-        $manager = new CacheManager($cache, $config);
-
-        $result = $manager->invalidateByPattern('users');
-        $this->assertEquals(0, $result);
-    }
-
-    /**
-     * Test persistStatsWithRetry with successful first attempt.
-     */
-    public function testPersistStatsWithRetrySuccessfulFirstAttempt(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0, '_version' => time()]);
-        $cache->expects($this->once())->method('set')->with($this->stringStartsWith('test_'), $this->callback(static fn (array $stats): bool => $stats['hits'] === 5), $this->anything())->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setValue($manager, 5);
-
-        $method = $reflection->getMethod('persistStatsWithRetry');
-
-        $method->invoke($manager, 3);
-    }
-
-    /**
-     * Test persistStatsWithRetry with retries.
-     */
-    public function testPersistStatsWithRetryWithRetries(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0, '_version' => time()]);
-        $cache->expects($this->exactly(3))->method('set')
-            ->willReturnOnConsecutiveCalls(false, false, true); // Fail twice, then succeed
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setValue($manager, 3);
-
-        $method = $reflection->getMethod('persistStatsWithRetry');
-
-        $method->invoke($manager, 3);
-    }
-
-    /**
-     * Test persistStatsWithRetry with all retries failing.
-     */
-    public function testPersistStatsWithRetryAllRetriesFailing(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0, '_version' => time()]);
-        $cache->expects($this->exactly(2))->method('set')->willReturn(false); // Always fail
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setValue($manager, 2);
-
-        $method = $reflection->getMethod('persistStatsWithRetry');
-
-        // Should not throw, but will fail silently
-        $method->invoke($manager, 2);
-    }
-
-    /**
-     * Test persistStatsWithRetry with default value.
-     */
-    public function testPersistStatsWithRetryWithDefaultValue(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(null); // No existing stats
-        $cache->expects($this->once())->method('set')->with($this->stringStartsWith('test_'), $this->callback(static fn (array $stats): bool => $stats['hits'] === 1), $this->anything())->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setValue($manager, 1);
-
-        $method = $reflection->getMethod('persistStatsWithRetry');
-
-        $method->invoke($manager);
-    }
-
-    /**
-     * Test persistStats with atomic support.
-     */
-    public function testPersistStatsWithAtomicSupport(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0]);
-        $cache->expects($this->atLeastOnce())->method('set');
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $atomicSupportProperty = $reflection->getProperty('atomicSupport');
-        $atomicSupportProperty->setValue($manager, false); // Disable atomic support
-
-        $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setValue($manager, 3);
-
-        $method = $reflection->getMethod('persistStats');
-
-        $method->invoke($manager);
-    }
-
-    /**
-     * Test persistStats resets counters.
-     */
-    public function testPersistStatsResetsCounters(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0]);
-        $cache->method('set')->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $atomicSupportProperty = $reflection->getProperty('atomicSupport');
-        $atomicSupportProperty->setValue($manager, false);
-
-        $hitsProperty = $reflection->getProperty('hits');
-        $hitsProperty->setValue($manager, 5);
-
-        $method = $reflection->getMethod('persistStats');
-
-        $method->invoke($manager);
-
-        // Verify counters are reset
-        $this->assertEquals(0, $hitsProperty->getValue($manager));
-    }
-
-    /**
-     * Test addKeyToMetadata with non-array existing keys.
-     */
-    public function testAddKeyToMetadataWithNonArrayExistingKeys(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn('not_an_array'); // Invalid format
-        $cache->expects($this->once())->method('set')->with($this->stringStartsWith('test_'), ['test_key'], $this->anything())->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('addKeyToMetadata');
-
-        $method->invoke($manager, 'test_key', ['users']);
-    }
-
-    /**
-     * Test addKeyToMetadata with existing key in array.
-     */
-    public function testAddKeyToMetadataWithExistingKeyInArray(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['existing_key', 'test_key']); // Key already exists
-        $cache->expects($this->never())->method('set');
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('addKeyToMetadata');
-
-        // Should not add duplicate key
-        $method->invoke($manager, 'test_key', ['users']);
-    }
-
-    /**
-     * Test invalidateByTablePrefix with pattern matching support.
-     */
-    public function testInvalidateByTablePrefixWithPatternMatching(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturn(['key1', 'key2']);
-        $cache->method('delete')->willReturn(true);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('invalidateByTablePrefix');
-
-        $result = $method->invoke($manager, 'user');
-        $this->assertIsInt($result);
-    }
-
-    /**
-     * Test invalidateByKeyPattern with pattern matching support.
-     */
-    public function testInvalidateByKeyPatternWithPatternMatching(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('invalidateByKeyPattern');
-
-        $result = $method->invoke($manager, 'test_*');
-        $this->assertIsInt($result);
-    }
-
-    /**
-     * Test getKeysByPattern with Redis connection.
-     */
-    public function testGetKeysByPatternWithRedisConnection(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig(prefix: 'test_');
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('getKeysByPattern');
-
-        $result = $method->invoke($manager, 'test_*');
-        $this->assertIsArray($result);
-    }
-
-    /**
-     * Test detectCacheType returns string.
-     */
-    public function testDetectCacheTypeReturnsString(): void
-    {
-        $cache = $this->createMock(CacheInterface::class);
-        $config = new CacheConfig();
-        $manager = new CacheManager($cache, $config);
-
-        $reflection = new \ReflectionClass($manager);
-        $method = $reflection->getMethod('detectCacheType');
-
-        $result = $method->invoke($manager);
-        $this->assertIsString($result);
-        $this->assertNotEmpty($result);
+        return $this->keyList;
     }
 }

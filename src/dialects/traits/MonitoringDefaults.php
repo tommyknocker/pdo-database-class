@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects\traits;
 
+use tommyknocker\pdodb\dialects\config\ConfigOptimizerStrategy;
 use tommyknocker\pdodb\dialects\roles\DialectMonitoringInterface;
 use tommyknocker\pdodb\PdoDb;
 
@@ -58,5 +59,13 @@ trait MonitoringDefaults
         // Default implementation returns false
         // Dialects should override this method
         return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function configOptimizerStrategy(): ?ConfigOptimizerStrategy
+    {
+        return null;
     }
 }

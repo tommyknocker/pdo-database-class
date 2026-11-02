@@ -13,6 +13,8 @@ use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\catalog\PgsqlCatalogQueriesTrait;
+use tommyknocker\pdodb\dialects\config\ConfigOptimizerStrategy;
+use tommyknocker\pdodb\dialects\config\PostgreSQLConfigStrategy;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
@@ -2032,6 +2034,14 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
         }
 
         return $metrics;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function configOptimizerStrategy(): ?ConfigOptimizerStrategy
+    {
+        return new PostgreSQLConfigStrategy();
     }
 
     /**

@@ -10,6 +10,8 @@ use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\catalog\MySqlCatalogQueriesTrait;
+use tommyknocker\pdodb\dialects\config\ConfigOptimizerStrategy;
+use tommyknocker\pdodb\dialects\config\MySQLConfigStrategy;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
@@ -1496,6 +1498,14 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
         }
 
         return $metrics;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function configOptimizerStrategy(): ?ConfigOptimizerStrategy
+    {
+        return new MySQLConfigStrategy();
     }
 
     /**

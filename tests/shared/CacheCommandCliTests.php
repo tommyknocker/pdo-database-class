@@ -263,10 +263,7 @@ final class CacheCommandCliTests extends TestCase
         $cacheManager = $this->db->getCacheManager();
         $this->assertNotNull($cacheManager);
 
-        // Force persist metadata by calling persistStats via reflection
-        $reflection = new \ReflectionClass($cacheManager);
-        $persistMethod = $reflection->getMethod('persistStats');
-        $persistMethod->invoke($cacheManager);
+        $cacheManager->flushStats();
 
         // Verify cache exists
         $statsBefore = $cacheManager->getStats();
@@ -296,9 +293,7 @@ final class CacheCommandCliTests extends TestCase
         // Force persist metadata
         $cacheManager = $this->db->getCacheManager();
         $this->assertNotNull($cacheManager);
-        $reflection = new \ReflectionClass($cacheManager);
-        $persistMethod = $reflection->getMethod('persistStats');
-        $persistMethod->invoke($cacheManager);
+        $cacheManager->flushStats();
 
         // Invalidate by table pattern
         $app = new Application();

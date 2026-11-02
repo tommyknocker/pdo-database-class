@@ -13,6 +13,8 @@ use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\catalog\OracleCatalogQueriesTrait;
+use tommyknocker\pdodb\dialects\config\ConfigOptimizerStrategy;
+use tommyknocker\pdodb\dialects\config\OracleConfigStrategy;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
@@ -2275,6 +2277,14 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
         try {
             $rows = $db->rawQuery('
                 SELECT name, value
+    /**
+     * {@inheritDoc}
+     */
+    public function configOptimizerStrategy(): ?ConfigOptimizerStrategy
+    {
+        return new OracleConfigStrategy();
+    }
+
                 FROM v$parameter
                 ORDER BY name
             ');

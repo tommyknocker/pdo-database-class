@@ -30,8 +30,9 @@ class AiAnalysisService
      * @param PdoDb $db Database instance
      * @param AiConfig|null $config AI config instance (optional)
      * @param array<string, mixed>|null $configArray Config array for AiConfig (optional)
+     * @param AiTransport|null $transport How requests reach the provider; null sends them with PHP streams
      */
-    public function __construct(PdoDb $db, ?AiConfig $config = null, ?array $configArray = null)
+    public function __construct(PdoDb $db, ?AiConfig $config = null, ?array $configArray = null, protected ?AiTransport $transport = null)
     {
         $this->db = $db;
         $this->config = $config ?? ($configArray !== null ? new AiConfig($configArray) : $db->getAiConfig());
@@ -81,14 +82,14 @@ class AiAnalysisService
         $providerName = mb_strtolower($providerName, 'UTF-8');
 
         return match ($providerName) {
-            'openai' => new OpenAiProvider($this->config),
-            'openai-compatible', 'openrouter' => new OpenAiCompatibleProvider($this->config, $providerName),
-            'anthropic' => new AnthropicProvider($this->config),
-            'google' => new GoogleProvider($this->config),
-            'microsoft' => new MicrosoftProvider($this->config),
-            'ollama' => new OllamaProvider($this->config),
-            'deepseek' => new DeepSeekProvider($this->config),
-            'yandex' => new YandexProvider($this->config),
+            'openai' => new OpenAiProvider($this->config, $this->transport),
+            'openai-compatible', 'openrouter' => new OpenAiCompatibleProvider($this->config, $providerName, $this->transport),
+            'anthropic' => new AnthropicProvider($this->config, $this->transport),
+            'google' => new GoogleProvider($this->config, $this->transport),
+            'microsoft' => new MicrosoftProvider($this->config, $this->transport),
+            'ollama' => new OllamaProvider($this->config, $this->transport),
+            'deepseek' => new DeepSeekProvider($this->config, $this->transport),
+            'yandex' => new YandexProvider($this->config, $this->transport),
             default => throw new QueryException(
                 "Unsupported AI provider: {$providerName}. Supported: openai, openai-compatible, openrouter, anthropic, google, microsoft, ollama, deepseek, yandex",
                 0

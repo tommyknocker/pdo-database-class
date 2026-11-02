@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query\analysis;
 
-use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\roles\DialectCatalogInterface;
+use tommyknocker\pdodb\dialects\roles\DialectDdlInterface;
+use tommyknocker\pdodb\dialects\roles\DialectQuotingInterface;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 
@@ -16,7 +18,7 @@ class ExplainAnalyzer
     protected RecommendationGenerator $recommendationGenerator;
 
     public function __construct(
-        protected DialectInterface $dialect,
+        protected DialectDdlInterface&DialectQuotingInterface&DialectCatalogInterface $dialect,
         protected ExecutionEngineInterface $executionEngine
     ) {
         $this->recommendationGenerator = new RecommendationGenerator(

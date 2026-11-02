@@ -10,6 +10,8 @@ use PDOException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\catalog\MssqlCatalogQueriesTrait;
+use tommyknocker\pdodb\dialects\config\ConfigOptimizerStrategy;
+use tommyknocker\pdodb\dialects\config\MSSQLConfigStrategy;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
@@ -1839,6 +1841,14 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
         try {
             $rows = $db->rawQuery('
                 SELECT name, value
+    /**
+     * {@inheritDoc}
+     */
+    public function configOptimizerStrategy(): ?ConfigOptimizerStrategy
+    {
+        return new MSSQLConfigStrategy();
+    }
+
                 FROM sys.configurations
                 ORDER BY name
             ');

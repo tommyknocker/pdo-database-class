@@ -328,10 +328,7 @@ final class CacheTests extends BaseSharedTestCase
             $cm1->set('key' . $i, 'value' . $i);
         }
 
-        // Force persist to ensure stats are saved
-        $reflection = new \ReflectionClass($cm1);
-        $persistMethod = $reflection->getMethod('persistStats');
-        $persistMethod->invoke($cm1);
+        $cm1->flushStats();
 
         // Get stats from first instance
         $stats1 = $cm1->getStats();

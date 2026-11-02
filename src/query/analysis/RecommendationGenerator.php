@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\query\analysis;
 
-use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\roles\DialectCatalogInterface;
+use tommyknocker\pdodb\dialects\roles\DialectQuotingInterface;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 
 /**
@@ -14,7 +15,7 @@ class RecommendationGenerator
 {
     public function __construct(
         protected ExecutionEngineInterface $executionEngine,
-        protected DialectInterface $dialect
+        protected DialectQuotingInterface&DialectCatalogInterface $dialect
     ) {
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects\roles;
 
+use tommyknocker\pdodb\dialects\config\ConfigOptimizerStrategy;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\PdoDb;
 
@@ -61,6 +62,11 @@ interface DialectMonitoringInterface
      * @return array<int, array<string, mixed>> Array of variable arrays with 'name' and 'value' keys
      */
     public function getServerVariables(PdoDb $db): array;
+
+    /**
+     * Recommendations for the server's configuration (`pdodb optimize`), or null when the database has none.
+     */
+    public function configOptimizerStrategy(): ?ConfigOptimizerStrategy;
 
     /**
      * Kill a query/process for this dialect.

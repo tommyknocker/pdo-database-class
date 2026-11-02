@@ -10,6 +10,8 @@ use tommyknocker\pdodb\ai\SqlContextTokenizer;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\catalog\SqliteCatalogQueriesTrait;
+use tommyknocker\pdodb\dialects\config\ConfigOptimizerStrategy;
+use tommyknocker\pdodb\dialects\config\SQLiteConfigStrategy;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
@@ -1496,6 +1498,14 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
         }
 
         return $metrics;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function configOptimizerStrategy(): ?ConfigOptimizerStrategy
+    {
+        return new SQLiteConfigStrategy();
     }
 
     /**

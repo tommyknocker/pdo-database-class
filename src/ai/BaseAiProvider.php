@@ -17,10 +17,12 @@ abstract class BaseAiProvider implements AiProviderInterface
     protected bool $temperatureExplicit = false;
     protected int $maxTokens = 2000;
     protected int $timeout = 30;
+    protected AiTransport $transport;
 
-    public function __construct(?AiConfig $config = null)
+    public function __construct(?AiConfig $config = null, ?AiTransport $transport = null)
     {
         $this->config = $config ?? new AiConfig();
+        $this->transport = $transport ?? new StreamAiTransport();
         $this->initializeDefaults();
         $this->initializeCommonDefaults();
     }
@@ -145,90 +147,7 @@ abstract class BaseAiProvider implements AiProviderInterface
      */
     protected function makeRequest(string $url, array $data, array $headers = []): array
     {
-        if (!filter_var(ini_get('allow_url_fopen'), FILTER_VALIDATE_BOOL)) {
-            throw new QueryException('AI requests need allow_url_fopen=On in php.ini; it is disabled.', 0);
-        }
-
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'POST',
-                'header' => $this->buildHeaders($headers),
-                'content' => json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-                'timeout' => $this->timeout,
-                'ignore_errors' => true,
-                'follow_location' => 0,
-            ],
-        ]);
-
-        http_clear_last_response_headers();
-        $response = @file_get_contents($url, false, $context);
-
-        if ($response === false) {
-            throw new QueryException('AI API request failed: unable to connect to provider', 0);
-        }
-
-        $headers = http_get_last_response_headers() ?? [];
-        $httpCode = $this->getHttpResponseCode($headers);
-
-        if ($httpCode >= 400) {
-            throw new QueryException(
-                "AI API request failed with HTTP {$httpCode}",
-                $httpCode
-            );
-        }
-
-        $decoded = json_decode($response, true);
-
-        if (!is_array($decoded)) {
-            throw new QueryException(
-                'Invalid JSON response from AI API',
-                0
-            );
-        }
-
-        return $decoded;
-    }
-
-    /**
-     * Build HTTP headers string.
-     *
-     * @param array<string, string> $additionalHeaders Additional headers
-     *
-     * @return string Headers string
-     */
-    protected function buildHeaders(array $additionalHeaders = []): string
-    {
-        $headers = array_merge([
-            'Content-Type' => 'application/json',
-        ], $additionalHeaders);
-
-        $headerStrings = [];
-        foreach ($headers as $key => $value) {
-            $headerStrings[] = "{$key}: {$value}";
-        }
-
-        return implode("\r\n", $headerStrings);
-    }
-
-    /**
-     * Get HTTP response code from response headers.
-     *
-     * @param array<int, string> $headers Response headers
-     *
-     * @return int HTTP status code
-     */
-    protected function getHttpResponseCode(array $headers): int
-    {
-        if (empty($headers)) {
-            return 0;
-        }
-
-        $statusLine = $headers[0];
-        if (preg_match('/HTTP\/\d\.\d\s+(\d+)/', $statusLine, $matches)) {
-            return (int)$matches[1];
-        }
-
-        return 0;
+        return $this->transport->post($url, $data, $headers, $this->timeout);
     }
 
     /**

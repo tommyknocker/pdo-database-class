@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\query;
 
 use tommyknocker\pdodb\connection\ConnectionInterface;
-use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\roles\DialectJsonInterface;
+use tommyknocker\pdodb\dialects\roles\DialectQuotingInterface;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\interfaces\ConditionBuilderInterface;
 use tommyknocker\pdodb\query\interfaces\ConnectionAwareInterface;
@@ -18,7 +19,7 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface, ConnectionAwareInte
     use RawValueResolutionTrait;
 
     protected ConnectionInterface $connection;
-    protected DialectInterface $dialect;
+    protected DialectJsonInterface&DialectQuotingInterface $dialect;
     protected ParameterManagerInterface $parameterManager;
     protected ConditionBuilderInterface $conditionBuilder;
     protected RawValueResolver $rawValueResolver;
