@@ -29,7 +29,7 @@ final class ErrorLogRedactionTests extends BasePostgreSQLTestCase
             'dbname' => self::DB_NAME,
         ], [], $logger);
         $db->rawQuery('DROP TABLE IF EXISTS log_redaction');
-        $db->rawQuery('CREATE TABLE log_redaction (email VARCHAR(100) PRIMARY KEY)');
+        $db->rawQuery('CREATE TABLE log_redaction (email VARCHAR(100) PRIMARY KEY, age INTEGER, born DATE)');
 
         try {
             $db->find()->table('log_redaction')->insert(['email' => 'artificial-secret@example.test']);
@@ -39,6 +39,14 @@ final class ErrorLogRedactionTests extends BasePostgreSQLTestCase
                 $this->fail('the second insert must violate the primary key');
             } catch (DatabaseException) {
                 // expected
+            }
+            foreach (['age', 'born'] as $column) {
+                try {
+                    $db->find()->table('log_redaction')->insert(['email' => 'other-' . $column, $column => 'artificial-secret-' . $column]);
+                    $this->fail("a bad {$column} value must be refused");
+                } catch (DatabaseException) {
+                    // expected
+                }
             }
         } finally {
             $db->rawQuery('DROP TABLE IF EXISTS log_redaction');

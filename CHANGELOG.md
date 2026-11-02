@@ -95,6 +95,7 @@ throw where 2.x worked, and the changes needed by custom dialects.
 - Update default OpenAI, Anthropic, Google and DeepSeek models, and simplify the AI setup wizard to configure only the chosen provider.
 
 ### Fixed
+- The error-log redaction also covers values in the first line of driver messages: PostgreSQL `invalid input syntax for type integer: "..."`, `value "..." is out of range`, enum and array literals, and `CONTEXT`/`STATEMENT` lines; MySQL `Truncated incorrect DOUBLE value: '...'`; SQL Server `Conversion failed when converting the nvarchar value '...'`, overflow and `Truncated value: '...'`. Names of tables, columns and constraints stay.
 - `->unique()` on a TEXT column no longer fails with a raw server error on MySQL (`1170 BLOB/TEXT column used in key specification without a key length`) and SQL Server (`NVARCHAR(MAX)` cannot be an index key): `createTable()`/`addColumn()` throw an `UnsupportedOperationException` that says to use `string(190)->unique()`. MariaDB, PostgreSQL, SQLite and Oracle enforce it as before. The examples use `string(190)->unique()`.
 - `Outbox::ensureSchema()` adds the `headers` and `partition_key` columns to an outbox table made by an earlier build instead of leaving it to fail on the first insert.
 - The string-helpers example skips its regular-expression part on SQL Server before 2025.
