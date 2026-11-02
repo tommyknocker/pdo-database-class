@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\tests\shared;
 
 use Psr\SimpleCache\CacheInterface;
 use Psr\SimpleCache\InvalidArgumentException;
+use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\cache\QueryCompilationCache;
 use tommyknocker\pdodb\tests\fixtures\ArrayCache;
 
@@ -481,5 +482,62 @@ final class QueryCompilationCacheTests extends BaseSharedTestCase
     {
         $cache = $this->createCache();
         $this->assertEquals('pdodb_compiled_', $cache->getPrefix());
+    }
+
+    /**
+     * @return PdoDb A cached connection with ten rows (ids 1..10)
+     */
+    private function cachedDbWithRows(): PdoDb
+    {
+        $db = new PdoDb('sqlite', ['path' => ':memory:'], [], null, new ArrayCache());
+        $db->rawQuery('CREATE TABLE paged (id INTEGER PRIMARY KEY, n INTEGER)');
+        for ($i = 1; $i <= 10; $i++) {
+            $db->find()->table('paged')->insert(['n' => $i]);
+        }
+
+        return $db;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     *
+     * @return list<int>
+     */
+    private static function ids(array $rows): array
+    {
+        return array_map(static fn (array $row): int => (int)$row['id'], array_values($rows));
+    }
+
+    public function testDifferentLimitsOfTheSameQueryAreNotServedFromOneCompiledSql(): void
+    {
+        $db = $this->cachedDbWithRows();
+
+        $two = self::ids($db->find()->from('paged')->orderBy('id')->limit(2)->get());
+        $five = self::ids($db->find()->from('paged')->orderBy('id')->limit(5)->get());
+
+        $this->assertSame([1, 2], $two);
+        $this->assertSame([1, 2, 3, 4, 5], $five);
+    }
+
+    public function testDifferentOffsetsOfTheSameQueryAreNotServedFromOneCompiledSql(): void
+    {
+        $db = $this->cachedDbWithRows();
+
+        $first = self::ids($db->find()->from('paged')->orderBy('id')->limit(2)->offset(0)->get());
+        $later = self::ids($db->find()->from('paged')->orderBy('id')->limit(2)->offset(6)->get());
+
+        $this->assertSame([1, 2], $first);
+        $this->assertSame([7, 8], $later);
+    }
+
+    public function testPaginationReturnsTheRequestedPageWithTheCompilationCacheOn(): void
+    {
+        $db = $this->cachedDbWithRows();
+
+        $pageOne = $db->find()->from('paged')->orderBy('id')->paginate(3, 1);
+        $pageThree = $db->find()->from('paged')->orderBy('id')->paginate(3, 3);
+
+        $this->assertSame([1, 2, 3], self::ids($pageOne->items()));
+        $this->assertSame([7, 8, 9], self::ids($pageThree->items()));
     }
 }

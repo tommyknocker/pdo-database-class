@@ -166,8 +166,9 @@ class QueryCompilationCache
             'group_by' => $structure['group_by'] ?? null,
             'having_structure' => $this->normalizeConditions($having),
             'order_by' => $this->normalizeArray($orderBy),
-            'has_limit' => isset($structure['limit']),
-            'has_offset' => isset($structure['offset']),
+            // The compiled SQL carries LIMIT and OFFSET inline, so their values are part of the key
+            'limit' => $structure['limit'] ?? null,
+            'offset' => $structure['offset'] ?? null,
             'options' => $structure['options'] ?? [],
             'unions' => $structure['unions'] ?? [],
             'has_cte' => !empty($structure['cte']),
