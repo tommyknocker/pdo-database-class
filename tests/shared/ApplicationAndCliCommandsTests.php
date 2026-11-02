@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\tests\shared;
 use PHPUnit\Framework\TestCase;
 use tommyknocker\pdodb\cli\Application;
 use tommyknocker\pdodb\cli\MigrationGenerator;
+use tommyknocker\pdodb\PackageVersion;
 
 final class ApplicationAndCliCommandsTests extends TestCase
 {
@@ -335,10 +336,7 @@ PHP;
         }
 
         $this->assertSame(0, $code);
-        $this->assertStringContainsString('PDOdb CLI', $output);
-        $this->assertStringContainsString('v', $output);
-        // Version should be in format like "2.11.0" or similar
-        $this->assertMatchesRegularExpression('/v\d+\.\d+\.\d+/', $output);
+        $this->assertShowsPackageVersion($output);
     }
 
     public function testVersionFlag(): void
@@ -356,10 +354,7 @@ PHP;
         }
 
         $this->assertSame(0, $code);
-        $this->assertStringContainsString('PDOdb CLI', $output);
-        $this->assertStringContainsString('v', $output);
-        // Version should be in format like "2.11.0" or similar
-        $this->assertMatchesRegularExpression('/v\d+\.\d+\.\d+/', $output);
+        $this->assertShowsPackageVersion($output);
     }
 
     public function testVersionShortFlag(): void
@@ -377,10 +372,7 @@ PHP;
         }
 
         $this->assertSame(0, $code);
-        $this->assertStringContainsString('PDOdb CLI', $output);
-        $this->assertStringContainsString('v', $output);
-        // Version should be in format like "2.11.0" or similar
-        $this->assertMatchesRegularExpression('/v\d+\.\d+\.\d+/', $output);
+        $this->assertShowsPackageVersion($output);
     }
 
     public function testBenchmarkCommandHelp(): void
@@ -600,5 +592,18 @@ PHP;
         $this->assertStringContainsString('SELECT 1', $content);
 
         @unlink($reportFile);
+    }
+
+    /**
+     * The banner names the version PackageVersion finds. That is a number where the package has Composer metadata or a
+     * git tag to read it from, and "dev" in a bare checkout without tags (a shallow CI clone), so the test cannot
+     * demand digits; it demands that the banner and the detector agree and that the detector gives one of the two.
+     */
+    private function assertShowsPackageVersion(string $output): void
+    {
+        $version = PackageVersion::detect();
+
+        $this->assertMatchesRegularExpression('/^(\d+\.\d+\.\d+.*|dev)$/', $version);
+        $this->assertStringContainsString('PDOdb CLI v' . $version, $output);
     }
 }
