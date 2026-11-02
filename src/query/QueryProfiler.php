@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\query;
 
 use Psr\Log\LoggerInterface;
-use tommyknocker\pdodb\ai\SqlContextTokenizer;
+use tommyknocker\pdodb\helpers\SqlContextTokenizer;
 
 /**
  * Query Performance Profiler.

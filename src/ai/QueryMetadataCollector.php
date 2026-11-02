@@ -8,6 +8,7 @@ use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\DialectAbstract;
+use tommyknocker\pdodb\helpers\SqlContextTokenizer;
 use tommyknocker\pdodb\PdoDb;
 
 /** Reads only the named object's catalogs, with normalized fields and partial failures. */

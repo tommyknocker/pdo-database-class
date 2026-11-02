@@ -9,6 +9,7 @@ use PDOException;
 use PDOStatement;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
+use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\events\ConnectionClosedEvent;
 use tommyknocker\pdodb\events\QueryBeforeExecuteEvent;
@@ -236,6 +237,16 @@ class Connection implements ConnectionInterface
     }
 
     /**
+     * Whether this connection's dialect reads "text" as a string value, which the safe query event must redact.
+     */
+    protected function doubleQuotedTextIsLiteral(): bool
+    {
+        $dialect = $this->getDialect();
+
+        return $dialect instanceof DialectAbstract && $dialect->doubleQuotedTextIsLiteral();
+    }
+
+    /**
      * Handle PDO exceptions with consistent error processing.
      *
      * @param PDOException $e The PDO exception
@@ -409,7 +420,8 @@ class Connection implements ConnectionInterface
                 $executionTime,
                 $rowsAffected,
                 $this->getDriverName(),
-                false
+                false,
+                fn (): bool => $this->doubleQuotedTextIsLiteral()
             ));
 
             // Clear statement reference to allow GC (statement is returned to caller)
@@ -474,7 +486,8 @@ class Connection implements ConnectionInterface
                     $executionTime,
                     $rowsAffected,
                     $this->getDriverName(),
-                    false
+                    false,
+                    fn (): bool => $this->doubleQuotedTextIsLiteral()
                 ));
             }
             return $stmt;

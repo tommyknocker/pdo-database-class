@@ -74,7 +74,7 @@ class DialectRegistry
      */
     public static function normalizeDriverName(string $driver): string
     {
-        $driver = mb_strtolower(trim($driver), 'UTF-8');
+        $driver = strtolower(trim($driver));
 
         return match ($driver) {
             'postgresql', 'postgres' => 'pgsql',

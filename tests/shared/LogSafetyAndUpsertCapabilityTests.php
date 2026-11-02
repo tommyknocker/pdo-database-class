@@ -44,9 +44,9 @@ final class LogSafetyAndUpsertCapabilityTests extends TestCase
     {
         $sql = 'SELECT * FROM users WHERE name = "Ada Lovelace"';
 
-        $this->assertStringNotContainsString('Ada Lovelace', (new QueryExecutedEvent($sql, [], 1.0, 0, 'mysql'))->toSafeArray()['sql']);
+        $this->assertStringNotContainsString('Ada Lovelace', (new QueryExecutedEvent($sql, [], 1.0, 0, 'mysql', false, true))->toSafeArray()['sql']);
         // in PostgreSQL the same quotes name an identifier, which is not secret and is kept
-        $this->assertStringContainsString('"Ada Lovelace"', (new QueryExecutedEvent($sql, [], 1.0, 0, 'pgsql'))->toSafeArray()['sql']);
+        $this->assertStringContainsString('"Ada Lovelace"', (new QueryExecutedEvent($sql, [], 1.0, 0, 'pgsql', false, false))->toSafeArray()['sql']);
     }
 
     public function testDialectsSayWhetherInsertOnDuplicateIsAvailable(): void

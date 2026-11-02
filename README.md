@@ -231,7 +231,7 @@ More JSON operations: [create and query JSON](documentation/04-json-operations/0
 ## Requirements
 
 - PHP 8.4 or newer
-- PDO, plus the extension for each database you connect to: `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `pdo_sqlsrv` (Microsoft ODBC Driver), or `pdo_oci`
+- `mbstring` and PDO, plus the extension for each database you connect to: `pdo_mysql`, `pdo_pgsql`, `pdo_sqlite`, `pdo_sqlsrv` (Microsoft ODBC Driver), or `pdo_oci`
 - Compatibility targets: MySQL 5.7+ / MariaDB 10.3+, PostgreSQL 9.4+, SQLite 3.38+, SQL Server 2019+ / Azure SQL, Oracle 12c+. Individual features may need a newer server. These targets are not a promise that every historical version is still covered or still supported by its vendor.
 
 ## Database test coverage

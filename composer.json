@@ -45,6 +45,7 @@
   "require": {
     "php": "^8.4",
     "ext-pdo": "*",
+    "ext-mbstring": "*",
     "psr/log": "^3.0",
     "psr/simple-cache": "^3.0",
 

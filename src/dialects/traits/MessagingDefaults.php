@@ -7,74 +7,12 @@ namespace tommyknocker\pdodb\dialects\traits;
 use tommyknocker\pdodb\dialects\roles\DialectMessagingInterface;
 
 /**
- * Default implementation of the outbox and inbox SQL part of the dialect ({@see DialectMessagingInterface}),
- * shared by every dialect through DialectAbstract.
+ * Default implementation of the outbox and inbox SQL that does not depend on the database
+ * ({@see DialectMessagingInterface}), shared by every dialect through DialectAbstract. Each dialect supplies its own
+ * schema and clock expressions.
  */
 trait MessagingDefaults
 {
-    /**
-     * {@inheritDoc}
-     */
-    public function buildInboxSchemaSql(string $tableName): array
-    {
-        $tableQuoted = $this->quoteTable($tableName);
-
-        return [
-            "CREATE TABLE IF NOT EXISTS {$tableQuoted} (
-                message_id VARCHAR(190) NOT NULL,
-                consumer VARCHAR(190) NOT NULL,
-                processed_at TEXT NOT NULL DEFAULT (datetime('now')),
-                PRIMARY KEY (message_id, consumer)
-            )",
-        ];
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function buildOutboxSchemaSql(string $tableName): array
-    {
-        $tableQuoted = $this->quoteTable($tableName);
-        $indexName = $this->quoteIdentifier($tableName . '_pending_idx');
-        $partitionIndex = $this->quoteIdentifier($tableName . '_partition_idx');
-
-        return [
-            "CREATE TABLE IF NOT EXISTS {$tableQuoted} (
-                id VARCHAR(36) PRIMARY KEY,
-                event_type VARCHAR(255) NOT NULL,
-                payload TEXT NOT NULL,
-                status VARCHAR(32) NOT NULL DEFAULT 'pending',
-                attempts INTEGER NOT NULL DEFAULT 0,
-                available_at TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                locked_by VARCHAR(128) NULL,
-                locked_until TEXT NULL,
-                last_error TEXT NULL,
-                published_at TEXT NULL,
-                headers TEXT NULL,
-                partition_key VARCHAR(190) NULL
-            )",
-            "CREATE INDEX IF NOT EXISTS {$indexName} ON {$tableQuoted} (status, available_at)",
-            "CREATE INDEX IF NOT EXISTS {$partitionIndex} ON {$tableQuoted} (partition_key, status, id)",
-        ];
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function outboxNowSql(): string
-    {
-        return "datetime('now')";
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function outboxNowPlusSecondsSql(int $seconds): string
-    {
-        return "datetime('now', '" . sprintf('%+d', $seconds) . " seconds')";
-    }
-
     /**
      * {@inheritDoc}
      */

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace tommyknocker\pdodb\ai;
+namespace tommyknocker\pdodb\helpers;
 
 /** Small lexical scanner, not a general SQL parser or an anonymization boundary. */
 final class SqlContextTokenizer

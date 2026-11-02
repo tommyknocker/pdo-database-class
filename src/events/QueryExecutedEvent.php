@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\events;
 
 use Psr\EventDispatcher\StoppableEventInterface;
-use tommyknocker\pdodb\ai\SqlContextTokenizer;
+use tommyknocker\pdodb\helpers\SqlContextTokenizer;
 
 /**
  * Event fired after a query is executed successfully.
@@ -24,6 +24,10 @@ final class QueryExecutedEvent implements StoppableEventInterface
      * @param int $rowsAffected Number of rows affected/returned
      * @param string $driver Database driver name (mysql, pgsql, sqlite)
      * @param bool $fromCache Whether the result came from cache
+     * @param bool|\Closure(): bool $doubleQuotedTextIsLiteral Whether the connection's dialect reads "text" as a string
+     *                                                         value, so {@see toSafeArray()} must redact it (MySQL, SQLite); true when
+     *                                                         unknown. A closure is asked only when the safe form is built, because
+     *                                                         for MySQL the answer comes from the server
      */
     public function __construct(
         private string $sql,
@@ -31,7 +35,8 @@ final class QueryExecutedEvent implements StoppableEventInterface
         private float $executionTime,
         private int $rowsAffected,
         private string $driver,
-        private bool $fromCache = false
+        private bool $fromCache = false,
+        private bool|\Closure $doubleQuotedTextIsLiteral = true
     ) {
     }
 
@@ -67,7 +72,7 @@ final class QueryExecutedEvent implements StoppableEventInterface
     public function toSafeArray(): array
     {
         return [
-            'sql' => SqlContextTokenizer::redact($this->sql, in_array($this->driver, ['mysql', 'mariadb', 'sqlite'], true)),
+            'sql' => SqlContextTokenizer::redact($this->sql, $this->doubleQuotedTextIsLiteral instanceof \Closure ? ($this->doubleQuotedTextIsLiteral)() : $this->doubleQuotedTextIsLiteral),
             'param_count' => count($this->params),
             'execution_time_ms' => round($this->executionTime, 2),
             'rows_affected' => $this->rowsAffected,
