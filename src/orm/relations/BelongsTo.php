@@ -126,11 +126,7 @@ class BelongsTo implements RelationInterface
         if ($db !== null) {
             $model->bindConnection($db, $this->model?->propagatesConnection() ?? false);
         }
-        $model->populate($data);
-
-        // Set protected properties using public methods
-        $model->setIsNewRecord(false);
-        $model->setOldAttributes($data);
+        $model->hydrate($data);
 
         return $model;
     }

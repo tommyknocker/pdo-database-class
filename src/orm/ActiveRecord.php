@@ -12,6 +12,7 @@ use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\events\ModelAfterDeleteEvent;
+use tommyknocker\pdodb\events\ModelAfterFindEvent;
 use tommyknocker\pdodb\events\ModelAfterInsertEvent;
 use tommyknocker\pdodb\events\ModelAfterSaveEvent;
 use tommyknocker\pdodb\events\ModelAfterUpdateEvent;
@@ -32,6 +33,9 @@ use tommyknocker\pdodb\orm\relations\BelongsTo;
 use tommyknocker\pdodb\orm\relations\HasMany;
 use tommyknocker\pdodb\orm\relations\HasManyThrough;
 use tommyknocker\pdodb\orm\relations\HasOne;
+use tommyknocker\pdodb\orm\relations\MorphMany;
+use tommyknocker\pdodb\orm\relations\MorphOne;
+use tommyknocker\pdodb\orm\relations\MorphTo;
 use tommyknocker\pdodb\orm\relations\RelationInterface;
 use tommyknocker\pdodb\orm\relations\RelationTrace;
 use tommyknocker\pdodb\orm\validators\ValidatorFactory;
@@ -404,6 +408,57 @@ trait ActiveRecord
     public function getOldAttributes(): array
     {
         return $this->oldAttributes;
+    }
+
+    /**
+     * Store a value that came with the loaded row but is not part of an update, such as the `posts_count` of
+     * `withCount()`: it is readable like an attribute and never counts as a change.
+     *
+     * @internal
+     */
+    public function setLoadedAttribute(string $name, mixed $value): void
+    {
+        $this->attributes[$name] = $value;
+        $this->oldAttributes[$name] = $value;
+    }
+
+    /**
+     * Called once when the model object is created, before any attribute is set. Override it to set defaults.
+     * Always call `parent::init()`.
+     */
+    protected function init(): void
+    {
+    }
+
+    /**
+     * Called after the model was filled from a database row (`find()`, `all()`, relations, eager loading), when it
+     * is known as an existing record. Override it to compute derived values or to normalize data; what it sets does not
+     * make the model dirty. Not called for a model you create with `new`. Always call `parent::afterFind()`.
+     */
+    protected function afterFind(): void
+    {
+    }
+
+    /**
+     * Fill the model from a database row and mark it as an existing record. Used by queries and relations; every row
+     * becomes a model through here, so `afterFind()` and the {@see ModelAfterFindEvent} see all of them.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @internal
+     */
+    public function hydrate(array $row): static
+    {
+        $this->populate($row);
+        $this->setIsNewRecord(false);
+        $this->setOldAttributes($row);
+        $this->afterFind();
+        // What the hook computed or normalized is part of the loaded state: loading must not make a model dirty, and
+        // a derived value that is not a column must never be written back by save()
+        $this->setOldAttributes($this->attributes);
+        $this->dispatchEvent(new ModelAfterFindEvent($this));
+
+        return $this;
     }
 
     /**
@@ -1110,6 +1165,38 @@ trait ActiveRecord
     }
 
     /**
+     * Define a polymorphic has-many relationship (see {@see MorphMany}).
+     *
+     * @param string $modelClass Related model class name
+     * @param array<string, mixed> $config Relationship configuration, with `morphName`
+     */
+    protected function morphMany(string $modelClass, array $config = []): MorphMany
+    {
+        return new MorphMany($modelClass, $config);
+    }
+
+    /**
+     * Define a polymorphic has-one relationship (see {@see MorphOne}).
+     *
+     * @param string $modelClass Related model class name
+     * @param array<string, mixed> $config Relationship configuration, with `morphName`
+     */
+    protected function morphOne(string $modelClass, array $config = []): MorphOne
+    {
+        return new MorphOne($modelClass, $config);
+    }
+
+    /**
+     * Define the owning side of a polymorphic relationship (see {@see MorphTo}).
+     *
+     * @param array<string, mixed> $config Relationship configuration, with `morphName`
+     */
+    protected function morphTo(array $config = []): MorphTo
+    {
+        return new MorphTo($config);
+    }
+
+    /**
      * Get relationship instance by name.
      *
      * @param string $name Relationship name
@@ -1149,12 +1236,16 @@ trait ActiveRecord
             }
         }
 
-        if (empty($relationModelClass)) {
+        // morphTo points to whichever class the type column names, so it has no modelClass
+        if (empty($relationModelClass) && $relationType !== 'morphTo') {
             return null;
         }
 
         // Create relationship instance based on type
         $relation = match ($relationType) {
+            'morphMany' => $this->morphMany($relationModelClass, $relationOptions),
+            'morphOne' => $this->morphOne($relationModelClass, $relationOptions),
+            'morphTo' => $this->morphTo($relationOptions),
             'hasOne' => $this->hasOne($relationModelClass, $relationOptions),
             'hasMany' => $this->hasMany($relationModelClass, $relationOptions),
             'belongsTo' => $this->belongsTo($relationModelClass, $relationOptions),

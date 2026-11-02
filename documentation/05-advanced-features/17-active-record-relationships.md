@@ -248,6 +248,80 @@ foreach ($users as $user) {
 }
 ```
 
+## Polymorphic Relationships
+
+When one table holds rows for several kinds of owner (comments on posts and on videos, images of users and of
+products), the row stores the owner's type next to its id: `commentable_type` and `commentable_id`.
+
+```php
+class Post extends Model
+{
+    public static function relations(): array
+    {
+        return [
+            'comments' => ['morphMany', 'modelClass' => Comment::class, 'morphName' => 'commentable'],
+            'cover'    => ['morphOne',  'modelClass' => Image::class,   'morphName' => 'imageable'],
+        ];
+    }
+}
+
+class Comment extends Model
+{
+    public static function relations(): array
+    {
+        return ['commentable' => ['morphTo', 'morphName' => 'commentable']];   // a Post or a Video
+    }
+}
+
+$post->comments;                       // only the comments whose type is Post, even if a video has the same id
+$comment->commentable;                 // a Post or a Video, found from commentable_type and commentable_id
+Comment::find()->with('commentable')->all();   // one query per type, not per comment
+Post::find()->withCount('comments')->all();
+```
+
+`morphName` gives the column names (`{name}_type`, `{name}_id`); `typeColumn`, `foreignKey` (the id column), `idColumn`
+(for `morphTo`) and `type` (the value stored for this owner) override them. A comment whose type and id are null has no
+owner: `$comment->commentable` is `null`.
+
+### Naming the types
+
+By default the type column holds the class name (`App\Models\Post`). That ties stored data to your namespaces. Register
+short, stable names instead:
+
+```php
+use tommyknocker\pdodb\orm\relations\MorphMap;
+
+MorphMap::register(['post' => Post::class, 'video' => Video::class]);
+MorphMap::enforce();   // optional: accept only registered names
+```
+
+The type value is read from the database and turned into a class. With the map enforced, that value can only select a
+class you registered; without it, any `Model` subclass named in the column is accepted. A type that matches nothing
+throws a `RuntimeException` ("Unknown morph type") rather than returning `null`, because it means the data and the code
+disagree. Register the map before the first query, for example when the application boots.
+
+## Counting Related Rows
+
+`withCount()` adds the number of related rows to each model without loading them. It runs one grouped `COUNT(*)` query
+for all models, however many there are:
+
+```php
+$users = User::find()->withCount('posts')->all();
+foreach ($users as $user) {
+    echo "{$user->name}: {$user->posts_count} posts\n";   // 0 when there are none
+}
+
+// Count only some rows, and several relations at once
+$users = User::find()
+    ->withCount(['posts' => fn ($query) => $query->where('published', 1), 'comments'])
+    ->all();   // posts_count, comments_count
+```
+
+Has-many and has-one relations are counted in the database; a constraint closure receives the related query and works
+for those. Other relation kinds (many-to-many, belongs-to) are counted from their loaded rows, which is correct but
+loads them. The count is readable like an attribute (`$user->posts_count`), is not a column, and is never saved or
+reported as a change. It combines with `with()` and with pagination (`paginateModels()`).
+
 ## Performance Comparison
 
 ### Lazy Loading (N+1 Problem)

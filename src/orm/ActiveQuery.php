@@ -39,6 +39,9 @@ class ActiveQuery
     /** @var array<int|string, string|array<string>> Relationships to eager load */
     protected array $eagerLoad = [];
 
+    /** @var array<int|string, string|callable(ActiveQuery<Model>): void> Relations whose rows are counted: name, or name => constraint */
+    protected array $countRelations = [];
+
     /** @var bool Whether global scopes have been applied */
     protected bool $globalScopesApplied = false;
 
@@ -204,9 +207,7 @@ class ActiveQuery
         $model = $this->populateModel($data);
 
         // Eager load relationships if requested
-        if (!empty($this->eagerLoad)) {
-            $this->loadRelations([$model], $this->eagerLoad);
-        }
+        $this->loadRelated([$model]);
 
         return $model;
     }
@@ -231,9 +232,7 @@ class ActiveQuery
         }
 
         // Eager load relationships if requested
-        if (!empty($this->eagerLoad) && !empty($models)) {
-            $this->loadRelations($models, $this->eagerLoad);
-        }
+        $this->loadRelated($models);
 
         return $models;
     }
@@ -300,9 +299,7 @@ class ActiveQuery
                 continue;
             }
             $model = $this->populateModel($row);
-            if ($this->eagerLoad !== []) {
-                $this->loadRelations([$model], $this->eagerLoad);
-            }
+            $this->loadRelated([$model]);
             yield $model;
         }
     }
@@ -323,9 +320,7 @@ class ActiveQuery
                 $models[] = $this->populateModel($row);
             }
         }
-        if ($models !== [] && $this->eagerLoad !== []) {
-            $this->loadRelations($models, $this->eagerLoad);
-        }
+        $this->loadRelated($models);
 
         return $models;
     }
@@ -357,9 +352,7 @@ class ActiveQuery
         foreach ($pagination->items() as $row) {
             $models[] = $this->populateModel($row);
         }
-        if ($models !== [] && $this->eagerLoad !== []) {
-            $this->loadRelations($models, $this->eagerLoad);
-        }
+        $this->loadRelated($models);
         return new ModelPage($models, $pagination);
     }
 
@@ -440,11 +433,7 @@ class ActiveQuery
         /** @var TModel $model */
         $model = new $this->modelClass();
         $model->bindConnection($this->database, $this->explicitConnection);
-        $model->populate($data);
-
-        // Set protected properties using public methods
-        $model->setIsNewRecord(false);
-        $model->setOldAttributes($data);
+        $model->hydrate($data);
 
         return $model;
     }
@@ -486,6 +475,41 @@ class ActiveQuery
     }
 
     /**
+     * Add the number of related rows as `{relation}_count` to each model, with one query per relation.
+     *
+     * ```php
+     * $users = User::find()->withCount('posts')->all();
+     * echo $users[0]->posts_count;
+     *
+     * // count only some of the related rows
+     * User::find()->withCount(['posts' => fn ($query) => $query->where('published', 1)])->all();
+     * ```
+     *
+     * A constraint closure works for has-many and has-one relations. The count is not an attribute of the table: it is
+     * readable on the model but never saved.
+     *
+     * @param array<int|string, string|callable(ActiveQuery<Model>): void>|string $relations Relation name, or
+     *                                                                                       name => constraint closure
+     *
+     * @return static Self instance for chaining
+     */
+    public function withCount(array|string $relations): static
+    {
+        foreach ((array)$relations as $key => $value) {
+            if (is_int($key)) {
+                if (!is_string($value)) {
+                    throw new \InvalidArgumentException('withCount() takes relation names, or relation name => constraint closure.');
+                }
+                $this->countRelations[] = $value;
+            } else {
+                $this->countRelations[$key] = $value;
+            }
+        }
+
+        return $this;
+    }
+
+    /**
      * Specify relationships to eager load.
      *
      * @param array<int|string, string|array<string>>|string $relations Relationship name(s) or array of relationships
@@ -505,18 +529,22 @@ class ActiveQuery
     }
 
     /**
-     * Load relationships for models.
+     * Load what the query asked for next to its rows: eager-loaded relations and relation counts.
      *
-     * @param array<int, TModel> $models Array of model instances
-     * @param array<int|string, string|array<string>> $relations Relationships to load
+     * @param array<int, TModel> $models
      */
-    protected function loadRelations(array $models, array $relations): void
+    protected function loadRelated(array $models): void
     {
-        if (empty($models) || empty($relations)) {
+        if ($models === []) {
             return;
         }
 
         $loader = new EagerLoader();
-        $loader->load($models, $relations);
+        if ($this->eagerLoad !== []) {
+            $loader->load($models, $this->eagerLoad);
+        }
+        if ($this->countRelations !== []) {
+            $loader->loadCounts($models, $this->countRelations);
+        }
     }
 }

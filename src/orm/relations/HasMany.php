@@ -137,11 +137,7 @@ class HasMany implements RelationInterface
                 if ($db !== null) {
                     $model->bindConnection($db, $this->model?->propagatesConnection() ?? false);
                 }
-                $model->populate($item);
-
-                // Set protected properties using public methods
-                $model->setIsNewRecord(false);
-                $model->setOldAttributes($item);
+                $model->hydrate($item);
 
                 $models[] = $model;
             }

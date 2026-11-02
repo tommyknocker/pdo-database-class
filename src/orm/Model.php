@@ -43,6 +43,15 @@ abstract class Model
     protected static array $preventLazyLoading = [];
 
     /**
+     * Creates the model and calls {@see init()}. A subclass that defines its own constructor calls
+     * `parent::__construct()` to keep that.
+     */
+    public function __construct()
+    {
+        $this->init();
+    }
+
+    /**
      * Enable or disable lazy-loading detection for this model class.
      */
     public static function preventLazyLoading(bool $prevent = true): void

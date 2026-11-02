@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\orm\relations;
 
 use RuntimeException;
+use tommyknocker\pdodb\orm\ActiveQuery;
 use tommyknocker\pdodb\orm\Model;
 
 /**
@@ -41,6 +42,101 @@ class EagerLoader
 
         foreach ($normalizedRelations as $relationName => $subRelations) {
             $this->loadRelation($models, $relationName, $subRelations);
+        }
+    }
+
+    /**
+     * Add `{relation}_count` to each model.
+     *
+     * Has-many and has-one relations are counted with one grouped query. Any other relation is loaded and its
+     * models are counted, which is correct but not cheap.
+     *
+     * @param array<int, Model> $models
+     * @param array<int|string, string|callable(ActiveQuery<Model>): void> $relations name or name => constraint
+     */
+    public function loadCounts(array $models, array $relations): void
+    {
+        if ($models === []) {
+            return;
+        }
+
+        foreach ($relations as $key => $value) {
+            if (is_int($key)) {
+                if (!is_string($value)) {
+                    throw new \InvalidArgumentException('withCount() takes relation names, or relation name => constraint closure.');
+                }
+                [$name, $constraint] = [$value, null];
+            } else {
+                [$name, $constraint] = [$key, $value];
+            }
+            $relation = $models[0]->getRelationInstance($name);
+            if ($relation === null) {
+                throw new RuntimeException("Relationship '{$name}' not found in model " . $models[0]::class);
+            }
+
+            if ($relation instanceof HasMany || $relation instanceof HasOne) {
+                $this->countRows($models, $relation, $name, is_callable($constraint) ? $constraint : null);
+                continue;
+            }
+            if ($constraint !== null) {
+                throw new \InvalidArgumentException("withCount() constraints work for has-many and has-one relations, not '{$name}'.");
+            }
+            $this->countLoaded($models, $name);
+        }
+    }
+
+    /**
+     * @param array<int, Model> $models
+     * @param callable(ActiveQuery<Model>): void|null $constraint
+     */
+    protected function countRows(array $models, HasMany|HasOne $relation, string $name, ?callable $constraint): void
+    {
+        $foreignKey = $relation->getForeignKey();
+        $localKey = $relation->getLocalKey();
+
+        $owners = [];
+        foreach ($models as $model) {
+            $value = $model->{$localKey} ?? null;
+            if ($value !== null) {
+                $owners[(string)$value] = $value;
+            }
+        }
+
+        $counts = [];
+        if ($owners !== []) {
+            $query = $models[0]->relationQuery($relation->getModelClass());
+            if ($constraint !== null) {
+                $constraint($query);
+            }
+            if ($relation instanceof MorphRelation) {
+                $relation->constrainByType($query);
+            }
+            $builder = $query->getQueryBuilder();
+            $builder->select([$foreignKey, 'COUNT(*) AS pdodb_count'])
+                ->where($foreignKey, array_values($owners), 'IN')
+                ->groupBy($foreignKey);
+            foreach ($builder->get() as $row) {
+                // Oracle upper-cases column names; match them without regard to case
+                $row = array_change_key_case($row, CASE_LOWER);
+                $counts[(string)($row[strtolower($foreignKey)] ?? '')] = (int)($row['pdodb_count'] ?? 0);
+            }
+        }
+
+        foreach ($models as $model) {
+            $value = $model->{$localKey} ?? null;
+            $model->setLoadedAttribute($name . '_count', $value === null ? 0 : ($counts[(string)$value] ?? 0));
+        }
+    }
+
+    /**
+     * @param array<int, Model> $models
+     */
+    protected function countLoaded(array $models, string $name): void
+    {
+        $this->load($models, [$name]);
+        foreach ($models as $model) {
+            $loaded = $model->getRelationData()[$name] ?? null;
+            $model->setLoadedAttribute($name . '_count', is_array($loaded) ? count($loaded) : ($loaded === null ? 0 : 1));
         }
     }
 
@@ -102,6 +198,8 @@ class EagerLoader
         try {
             if ($relation instanceof BelongsTo) {
                 $this->loadBelongsTo($models, $relation, $relationName, $subRelations);
+            } elseif ($relation instanceof MorphTo) {
+                $this->loadMorphTo($models, $relation, $relationName, $subRelations);
             } elseif ($relation instanceof HasOne) {
                 $this->loadHasOne($models, $relation, $relationName, $subRelations);
             } elseif ($relation instanceof HasMany) {
@@ -187,6 +285,56 @@ class EagerLoader
     }
 
     /**
+     * Load a polymorphic belongs-to relationship: one query for each type that occurs among the models.
+     *
+     * @param array<int, Model> $models Array of model instances
+     * @param MorphTo $relation Relationship instance
+     * @param string $relationName Relationship name
+     * @param array<string> $subRelations Nested relationships
+     */
+    protected function loadMorphTo(array $models, MorphTo $relation, string $relationName, array $subRelations): void
+    {
+        $idColumn = $relation->getIdColumn();
+
+        // type class => [owner => id]
+        $byClass = [];
+        foreach ($models as $index => $model) {
+            $class = $relation->resolveClass($model);
+            if ($class !== null) {
+                $byClass[$class][$index] = $model->{$idColumn};
+            }
+        }
+
+        $found = [];
+        foreach ($byClass as $class => $ids) {
+            $primaryKey = $class::primaryKey()[0] ?? 'id';
+            $query = $models[0]->relationQuery($class);
+            $query->getQueryBuilder()->where($primaryKey, array_values(array_unique($ids)), 'IN');
+
+            $related = [];
+            foreach ($query->get() as $row) {
+                if (is_array($row)) {
+                    $related[] = $this->populateModel($class, $row, $models[0]);
+                }
+            }
+            if ($subRelations !== [] && $related !== []) {
+                $this->load($related, $subRelations);
+            }
+            foreach ($related as $relatedModel) {
+                $key = $relatedModel->{$primaryKey} ?? null;
+                if ($key !== null) {
+                    $found[$class][(string)$key] = $relatedModel;
+                }
+            }
+        }
+
+        foreach ($models as $index => $model) {
+            $class = $relation->resolveClass($model);
+            $model->setRelationData($relationName, $class === null ? null : ($found[$class][(string)$model->{$idColumn}] ?? null));
+        }
+    }
+
+    /**
      * Load has-one relationship.
      *
      * @param array<int, Model> $models Array of model instances
@@ -225,6 +373,9 @@ class EagerLoader
         $query = $models[0]->relationQuery($relatedModelClass);
         $queryBuilder = $query->getQueryBuilder();
         $queryBuilder->where($foreignKey, $localValues, 'IN');
+        if ($relation instanceof MorphRelation) {
+            $relation->constrainByType($query);
+        }
         $relatedData = $query->get();
 
         // Convert to models
@@ -299,6 +450,9 @@ class EagerLoader
         $query = $models[0]->relationQuery($relatedModelClass);
         $queryBuilder = $query->getQueryBuilder();
         $queryBuilder->where($foreignKey, $localValues, 'IN');
+        if ($relation instanceof MorphRelation) {
+            $relation->constrainByType($query);
+        }
         $relatedData = $query->get();
 
         // Convert to models
@@ -364,11 +518,7 @@ class EagerLoader
         if ($db !== null) {
             $model->bindConnection($db, $owner?->propagatesConnection() ?? false);
         }
-        $model->populate($data);
-
-        // Set protected properties using public methods
-        $model->setIsNewRecord(false);
-        $model->setOldAttributes($data);
+        $model->hydrate($data);
 
         return $model;
     }
@@ -632,8 +782,10 @@ class EagerLoader
                     ->get();
 
                 foreach ($junctionData as $junctionRow) {
-                    $junctionOwner = $junctionRow[$junctionOwnerKey] ?? null;
-                    $relatedId = $junctionRow[$junctionRelatedKey] ?? null;
+                    // Oracle returns column names in upper case; the keys here are written as in the relation
+                    $junctionRow = array_change_key_case($junctionRow, CASE_LOWER);
+                    $junctionOwner = $junctionRow[strtolower($junctionOwnerKey)] ?? null;
+                    $relatedId = $junctionRow[strtolower($junctionRelatedKey)] ?? null;
                     if ($junctionOwner === null || $relatedId === null || !isset($ownerValueToRelatedIds[$junctionOwner])) {
                         continue;
                     }

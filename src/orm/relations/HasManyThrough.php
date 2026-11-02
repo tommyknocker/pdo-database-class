@@ -247,11 +247,7 @@ class HasManyThrough implements RelationInterface
                 if ($db !== null) {
                     $model->bindConnection($db, $this->model?->propagatesConnection() ?? false);
                 }
-                $model->populate($row);
-
-                // Set protected properties using public methods
-                $model->setIsNewRecord(false);
-                $model->setOldAttributes($row);
+                $model->hydrate($row);
 
                 $models[] = $model;
                 if ($modelId !== null) {
@@ -332,11 +328,7 @@ class HasManyThrough implements RelationInterface
                 if ($db !== null) {
                     $model->bindConnection($db, $this->model->propagatesConnection());
                 }
-                $model->populate($row);
-
-                // Set protected properties using public methods
-                $model->setIsNewRecord(false);
-                $model->setOldAttributes($row);
+                $model->hydrate($row);
 
                 $relatedModels[] = $model;
             }
@@ -375,11 +367,7 @@ class HasManyThrough implements RelationInterface
                 if ($db !== null) {
                     $model->bindConnection($db, $this->model?->propagatesConnection() ?? false);
                 }
-                $model->populate($item);
-
-                // Set protected properties using public methods
-                $model->setIsNewRecord(false);
-                $model->setOldAttributes($item);
+                $model->hydrate($item);
 
                 $models[] = $model;
             }

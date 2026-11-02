@@ -289,6 +289,37 @@ ActiveRecord supports PSR-14 event dispatcher integration for lifecycle events. 
 - **ModelAfterUpdateEvent** - Fired after successful update
 - **ModelBeforeDeleteEvent** - Fired before delete operation
 - **ModelAfterDeleteEvent** - Fired after successful delete
+- **ModelAfterFindEvent** - Fired after a model was filled from a database row (queries, relations, pagination)
+
+### Hooks: `init()` and `afterFind()`
+
+Two methods can be overridden on a model:
+
+```php
+class User extends Model
+{
+    public bool $isNewlyCreated = false;
+
+    protected function init(): void
+    {
+        parent::init();
+        // runs when the object is created: new User(), and for every row a query turns into a model
+        $this->isNewlyCreated = true;
+    }
+
+    protected function afterFind(): void
+    {
+        parent::afterFind();
+        // runs after a row was loaded: queries, lazy and eager relations, pagination
+        $this->setAttribute('display_name', trim($this->first_name . ' ' . $this->last_name));
+    }
+}
+```
+
+`init()` runs for every created object, `afterFind()` only for models read from the database, never after `new` or
+`save()`. What `afterFind()` sets counts as loaded state: the model is not dirty after loading, and a derived value that
+is not a column (like `display_name` above) is never written back. A subclass with its own constructor calls
+`parent::__construct()` to keep `init()`.
 
 ### Setting Up Event Dispatcher
 
