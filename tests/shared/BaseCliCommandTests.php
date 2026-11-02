@@ -89,10 +89,12 @@ class BaseCliCommandTests extends TestCase
         // Set custom env path to non-existent file
         putenv('PDODB_ENV_PATH=/nonexistent/path/.env');
 
+        $before = getenv('PDODB_DRIVER');
+
         try {
-            // Should not throw error, just return
+            // A missing .env file is not an error: nothing is loaded
             $method->invoke(null);
-            $this->assertTrue(true);
+            $this->assertSame($before, getenv('PDODB_DRIVER'));
         } finally {
             putenv('PDODB_ENV_PATH');
         }
@@ -728,8 +730,7 @@ PHP;
             $this->assertIsArray($config);
             $this->assertEquals('sqlite', $config['driver']);
         } catch (\Throwable $e) {
-            // May fail if error() is called
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             if ($originalContent !== null) {
                 file_put_contents($configFile, $originalContent);
@@ -947,8 +948,7 @@ PHP;
             $this->assertIsArray($config);
             $this->assertEquals('sqlite', $config['driver']);
         } catch (\Throwable $e) {
-            // May fail if error() is called
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             if (file_exists($configFile)) {
                 @unlink($configFile);
@@ -984,42 +984,6 @@ PHP;
     }
 
     /**
-     * Test createDatabase method structure.
-     */
-    public function testCreateDatabaseMethodStructure(): void
-    {
-        $reflection = new \ReflectionClass(BaseCliCommand::class);
-        $method = $reflection->getMethod('createDatabase');
-
-        // Verify method exists and has correct signature
-        $this->assertTrue($reflection->hasMethod('createDatabase'));
-        $returnType = $method->getReturnType();
-        $this->assertNotNull($returnType);
-        $this->assertStringEndsWith('PdoDb', $returnType->getName());
-        // Method should handle invalid/missing config (may call error() which exits)
-        $this->assertTrue(true);
-    }
-
-    /**
-     * Test getDriverName with null database.
-     */
-    public function testGetDriverNameWithNullDatabase(): void
-    {
-        $reflection = new \ReflectionClass(BaseCliCommand::class);
-        $method = $reflection->getMethod('getDriverName');
-
-        // Test with null database
-        try {
-            $driverName = $method->invoke(null, null);
-            // Should return 'unknown' or handle null gracefully
-            $this->assertIsString($driverName);
-        } catch (\Throwable $e) {
-            // May throw exception for null
-            $this->assertInstanceOf(\Throwable::class, $e);
-        }
-    }
-
-    /**
      * Test createDatabase with existing database.
      */
     public function testCreateDatabaseWithExistingDatabase(): void
@@ -1033,11 +997,8 @@ PHP;
 
         try {
             $result = $method->invoke(null, ['driver' => 'sqlite', 'path' => ':memory:']);
-            // Should handle existing database gracefully
-            $this->assertTrue(true);
-        } catch (\Throwable $e) {
-            // May throw exception
-            $this->assertInstanceOf(\Throwable::class, $e);
+            $this->assertInstanceOf(PdoDb::class, $result);
+            $this->assertSame(1, (int)$result->rawQueryValue('SELECT 1'));
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1057,12 +1018,7 @@ PHP;
         // Don't set PDODB_PATH
 
         try {
-            $config = $method->invoke(null);
-            // Should handle missing path gracefully
-            $this->assertTrue($config === null || is_array($config));
-        } catch (\Throwable $e) {
-            // May throw exception
-            $this->assertInstanceOf(\Throwable::class, $e);
+            $this->assertNull($method->invoke(null, 'sqlite'), 'an SQLite connection needs PDODB_PATH');
         } finally {
             putenv('PDODB_DRIVER');
         }
@@ -1085,14 +1041,7 @@ PHP;
         putenv('PDODB_USERNAME');
         putenv('PDODB_PASSWORD');
 
-        try {
-            $config = $method->invoke(null);
-            // Should return null when no driver is set
-            $this->assertTrue($config === null || is_array($config));
-        } catch (\Throwable $e) {
-            // May throw exception
-            $this->assertInstanceOf(\Throwable::class, $e);
-        }
+        $this->assertNull($method->invoke(null, ''), 'no driver, no configuration');
     }
 
     /**
@@ -1109,10 +1058,11 @@ PHP;
 
         putenv("PDODB_ENV_PATH={$envFile}");
 
+        $before = getenv('PDODB_DRIVER');
+
         try {
             $method->invoke(null);
-            // Should handle empty file gracefully
-            $this->assertTrue(true);
+            $this->assertSame($before, getenv('PDODB_DRIVER'), 'an empty .env file sets nothing');
         } finally {
             unlink($envFile);
             putenv('PDODB_ENV_PATH');
@@ -1164,12 +1114,8 @@ PHP;
             putenv('PDODB_DRIVER');
             putenv('PDODB_CONFIG_PATH=' . $configFile);
 
-            $config = $method->invoke(null);
-            // Should handle invalid config file gracefully
-            $this->assertTrue(true);
-        } catch (\Throwable $e) {
-            // Expected for invalid config file
-            $this->assertInstanceOf(\Throwable::class, $e);
+            $this->expectException(\ParseError::class);
+            $method->invoke(null);
         } finally {
             if (file_exists($configFile)) {
                 @unlink($configFile);
@@ -1241,12 +1187,7 @@ PHP;
         // Don't set PDODB_DATABASE and PDODB_USERNAME
 
         try {
-            $config = $method->invoke(null);
-            // Should return null when required variables are missing
-            $this->assertNull($config);
-        } catch (\Throwable $e) {
-            // May throw exception
-            $this->assertInstanceOf(\Throwable::class, $e);
+            $this->assertNull($method->invoke(null, 'mysql'), 'host alone is not enough to connect');
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_HOST');
@@ -1269,11 +1210,8 @@ PHP;
 
         try {
             $db = $method->invoke(null);
-            // Should handle cache config
-            $this->assertTrue(true);
-        } catch (\Throwable $e) {
-            // May throw exception
-            $this->assertInstanceOf(\Throwable::class, $e);
+            $this->assertInstanceOf(PdoDb::class, $db);
+            $this->assertNotNull($db->getCacheManager(), 'PDODB_CACHE_ENABLED turns the cache on');
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');

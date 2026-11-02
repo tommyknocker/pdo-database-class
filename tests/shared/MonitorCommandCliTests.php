@@ -412,19 +412,4 @@ final class MonitorCommandCliTests extends TestCase
         $this->assertStringContainsString('Test 1', $out);
         $this->assertStringContainsString('Test 2', $out);
     }
-
-    public function testMonitorUnknownSubcommand(): void
-    {
-        // This test verifies that the command structure exists
-        // The actual error handling (which calls exit()) cannot be tested directly
-        // as exit() terminates the PHP process
-        $app = new Application();
-
-        // Verify command exists and can be instantiated
-        $this->assertInstanceOf(Application::class, $app);
-
-        // Note: The actual error message for unknown subcommand
-        // is tested indirectly through command structure validation
-        $this->assertTrue(true);
-    }
 }

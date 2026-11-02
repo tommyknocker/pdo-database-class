@@ -34,7 +34,7 @@ class QueryTester extends BaseCliCommand
         }
 
         // Without a terminal readInput() returns '' at once and the loop below would spin forever.
-        if (CliEnvironment::isNonInteractive()) {
+        if (static::isNonInteractive()) {
             throw new \RuntimeException('The interactive REPL needs a terminal. Pass the query as an argument: pdodb query test "SELECT 1"');
         }
 

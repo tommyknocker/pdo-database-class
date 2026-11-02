@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli\commands;
 
+use tommyknocker\pdodb\cli\CliExitException;
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\MigrationGenerator;
 use tommyknocker\pdodb\cli\traits\SubcommandSuggestionTrait;
@@ -76,6 +77,8 @@ class MigrateCommand extends Command
             $filename = MigrationGenerator::generate($name);
             // Output is already displayed by MigrationGenerator::generate()
             return 0;
+        } catch (CliExitException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->showError($e->getMessage());
             // @phpstan-ignore-next-line

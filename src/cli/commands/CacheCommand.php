@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cache\CacheManager;
+use tommyknocker\pdodb\cli\CliExitException;
 use tommyknocker\pdodb\cli\Command;
 
 /**
@@ -161,6 +162,8 @@ class CacheCommand extends Command
             $this->writeln("Total Requests: {$stats['total_requests']}");
 
             return 0;
+        } catch (CliExitException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->showError('Failed to get cache statistics: ' . $e->getMessage());
         }

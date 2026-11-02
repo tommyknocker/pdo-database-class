@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli\commands;
 
+use tommyknocker\pdodb\cli\CliExitException;
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\DatabaseManager;
 use tommyknocker\pdodb\exceptions\QueryException;
@@ -64,6 +65,8 @@ class ConnectionCommand extends Command
             return 0;
         } catch (QueryException | ResourceException $e) {
             static::error('Connection test failed: ' . $e->getMessage());
+        } catch (CliExitException $e) {
+            throw $e;
         } catch (\Exception $e) {
             static::error('Connection test failed: ' . $e->getMessage());
         }
@@ -150,6 +153,8 @@ class ConnectionCommand extends Command
             }
 
             return $this->printFormatted($info, (string)$format);
+        } catch (CliExitException $e) {
+            throw $e;
         } catch (\Exception $e) {
             static::error('Failed to get connection info: ' . $e->getMessage());
         }
@@ -167,6 +172,8 @@ class ConnectionCommand extends Command
         try {
             $connections = $this->getAllConnections();
             return $this->printFormatted(['connections' => $connections], (string)$format);
+        } catch (CliExitException $e) {
+            throw $e;
         } catch (\Exception $e) {
             static::error('Failed to list connections: ' . $e->getMessage());
         }
@@ -194,6 +201,8 @@ class ConnectionCommand extends Command
             return 0;
         } catch (QueryException | ResourceException $e) {
             static::error('Ping failed: ' . $e->getMessage());
+        } catch (CliExitException $e) {
+            throw $e;
         } catch (\Exception $e) {
             static::error('Ping failed: ' . $e->getMessage());
         }

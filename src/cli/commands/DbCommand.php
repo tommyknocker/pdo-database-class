@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli\commands;
 
+use tommyknocker\pdodb\cli\CliExitException;
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\DatabaseManager;
 use tommyknocker\pdodb\connection\ExtensionChecker;
@@ -235,6 +236,8 @@ class DbCommand extends Command
             }
 
             return 0;
+        } catch (CliExitException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->showError($e->getMessage());
         }

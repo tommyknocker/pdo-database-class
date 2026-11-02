@@ -152,18 +152,6 @@ final class DbCommandCliTests extends TestCase
         $this->assertTrue($method->isPublic());
     }
 
-    public function testDbCreateCommandWithoutName(): void
-    {
-        // Test that create method handles missing name
-        // In non-interactive mode, readInput returns empty string, so should show error
-        $command = new DbCommand();
-        $reflection = new \ReflectionClass($command);
-
-        $this->assertTrue($reflection->hasMethod('create'));
-        // Method should check for empty name and call showError
-        $this->assertTrue(true);
-    }
-
     public function testDbListCommandForSQLite(): void
     {
         // For SQLite, database management is limited
@@ -265,12 +253,11 @@ final class DbCommandCliTests extends TestCase
                 $out = ob_get_clean();
             } catch (\Throwable $e) {
                 ob_end_clean();
-                // Exception is expected and handled internally
-                $this->assertTrue(true);
-                return;
+
+                throw $e;
             }
 
-            // Should still show header even if connection fails
+            // An unreachable database does not stop the header from being shown
             $this->assertStringContainsString('PDOdb Database Management', $out);
         } finally {
             if ($oldPath !== false) {

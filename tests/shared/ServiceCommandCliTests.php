@@ -99,46 +99,6 @@ final class ServiceCommandCliTests extends TestCase
         $this->assertStringContainsString('use app\\data\\repositories\\UserRepository;', $content2);
     }
 
-    public function testMakeServiceWithoutRepositoryName(): void
-    {
-        $app = new Application();
-        $serviceName = 'UserService';
-
-        // Test with auto-detected repository name (UserService -> UserRepository)
-        ob_start();
-
-        try {
-            $code = $app->run(['pdodb', 'service', 'make', $serviceName, null, $this->servicesDir]);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            // Non-interactive mode will fail when asking for input, that's expected
-            // But we can verify the command structure is correct
-            $this->assertTrue(true);
-            return;
-        }
-
-        // If it didn't throw, check the result
-        if ($code === 0) {
-            $file = $this->servicesDir . '/' . $serviceName . '.php';
-            $this->assertFileExists($file);
-            $content = file_get_contents($file);
-            $this->assertStringContainsString('use app\\repositories\\UserRepository;', $content);
-        }
-    }
-
-    /**
-     * Test that service command requires name argument.
-     * Note: showError() calls exit(), so we skip strict validation here.
-     */
-    public function testServiceCommandRequiresName(): void
-    {
-        $app = new Application();
-        // This test verifies the command structure; showError() behavior
-        // (which exits) is tested implicitly by successful commands requiring name
-        $this->assertTrue(true);
-    }
-
     public function testGeneratedServiceCode(): void
     {
         $app = new Application();
@@ -159,17 +119,5 @@ final class ServiceCommandCliTests extends TestCase
         $this->assertStringContainsString('public function __construct', $content);
         $this->assertStringContainsString('protected function getRepository', $content);
         $this->assertStringContainsString('TODO: Add your business logic methods', $content);
-    }
-
-    /**
-     * Test that service command handles unknown subcommands.
-     * Note: showError() calls exit(), so we skip strict validation here.
-     */
-    public function testServiceCommandUnknownSubcommand(): void
-    {
-        $app = new Application();
-        // This test verifies the command structure; showError() behavior
-        // (which exits) is tested implicitly by successful commands
-        $this->assertTrue(true);
     }
 }

@@ -31,16 +31,28 @@ final class CliTestCapture
     }
 
     /**
+     * @param string|null $input Answers to the prompts, one per line; null leaves prompting to the environment
+     *
      * @return array{result: mixed, stdout: string, stderr: string, output: string}
      */
-    public static function capture(callable $callback): array
+    public static function capture(callable $callback, ?string $input = null): array
     {
+        $stdin = null;
+        if ($input !== null) {
+            $stdin = fopen('php://memory', 'w+b');
+            if ($stdin === false) {
+                throw new \RuntimeException('Failed to open memory stream for stdin');
+            }
+            fwrite($stdin, $input);
+            rewind($stdin);
+        }
+
         $stderr = fopen('php://memory', 'wb');
         if ($stderr === false) {
             throw new \RuntimeException('Failed to open memory stream for stderr capture');
         }
 
-        BaseCliCommand::setIo(new CliOutput(null, $stderr));
+        BaseCliCommand::setIo(new CliOutput(null, $stderr, $stdin));
         ob_start();
 
         try {

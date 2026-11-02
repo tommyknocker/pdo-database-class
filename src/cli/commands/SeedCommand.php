@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli\commands;
 
+use tommyknocker\pdodb\cli\CliExitException;
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\SeedGenerator;
 use tommyknocker\pdodb\cli\TableManager;
@@ -82,6 +83,8 @@ class SeedCommand extends Command
             $filename = SeedGenerator::generate($nameStr);
             // Output is already displayed by SeedGenerator::generate()
             return 0;
+        } catch (CliExitException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->showError($e->getMessage());
         }
@@ -170,6 +173,8 @@ class SeedCommand extends Command
             }
 
             return 0;
+        } catch (CliExitException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->showError($e->getMessage());
         }
@@ -212,6 +217,8 @@ class SeedCommand extends Command
             $this->writeln('  Pending: ' . count($newSeeds));
 
             return 0;
+        } catch (CliExitException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->showError($e->getMessage());
         }
@@ -299,6 +306,8 @@ class SeedCommand extends Command
             }
 
             return 0;
+        } catch (CliExitException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->showError($e->getMessage());
         }
@@ -439,6 +448,8 @@ class SeedCommand extends Command
             $this->writeln("  Rows: {$result['rowCount']}");
 
             return 0;
+        } catch (CliExitException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->showError($e->getMessage());
         }

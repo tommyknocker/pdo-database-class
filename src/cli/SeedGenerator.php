@@ -45,7 +45,7 @@ class SeedGenerator extends BaseCliCommand
         }
 
         // Suggest seed type based on name (skip in non-interactive mode)
-        $nonInteractive = CliEnvironment::isNonInteractive();
+        $nonInteractive = static::isNonInteractive();
 
         if (!$nonInteractive) {
             $suggestions = static::suggestSeedType($name);

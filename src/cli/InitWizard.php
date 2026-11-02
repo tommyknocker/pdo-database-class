@@ -59,7 +59,7 @@ class InitWizard extends BaseCliCommand
     {
         // Check if non-interactive mode
         // Always check environment variables first (fastest and most reliable)
-        $nonInteractive = CliEnvironment::isNonInteractive();
+        $nonInteractive = static::isNonInteractive();
 
         if ($nonInteractive) {
             // Load configuration from environment variables
@@ -136,7 +136,7 @@ class InitWizard extends BaseCliCommand
         if ($cacheEnabled !== false && mb_strtolower($cacheEnabled, 'UTF-8') === 'true') {
             $this->config['cache'] = [
                 'enabled' => true,
-                'type' => getenv('PDODB_CACHE_TYPE') ?: 'filesystem',
+                'type' => mb_strtolower(getenv('PDODB_CACHE_TYPE') ?: 'filesystem', 'UTF-8'),
                 'default_lifetime' => (int)(getenv('PDODB_CACHE_TTL') ?: '3600'),
                 'prefix' => getenv('PDODB_CACHE_PREFIX') ?: 'pdodb_',
             ];
@@ -451,7 +451,7 @@ class InitWizard extends BaseCliCommand
     protected function askAdvancedOptions(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = CliEnvironment::isNonInteractive();
+        $nonInteractive = static::isNonInteractive();
         if ($nonInteractive) {
             return; // Skip in non-interactive mode
         }
@@ -478,7 +478,7 @@ class InitWizard extends BaseCliCommand
     protected function askTablePrefix(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = CliEnvironment::isNonInteractive();
+        $nonInteractive = static::isNonInteractive();
         if ($nonInteractive) {
             return; // Skip in non-interactive mode
         }
@@ -500,7 +500,7 @@ class InitWizard extends BaseCliCommand
     protected function askCaching(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = CliEnvironment::isNonInteractive();
+        $nonInteractive = static::isNonInteractive();
         if ($nonInteractive) {
             return; // Skip in non-interactive mode
         }
@@ -621,7 +621,7 @@ class InitWizard extends BaseCliCommand
     protected function askPerformance(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = CliEnvironment::isNonInteractive();
+        $nonInteractive = static::isNonInteractive();
         if ($nonInteractive) {
             return; // Skip in non-interactive mode
         }
@@ -664,7 +664,7 @@ class InitWizard extends BaseCliCommand
     protected function askAiConfiguration(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = CliEnvironment::isNonInteractive();
+        $nonInteractive = static::isNonInteractive();
         if ($nonInteractive) {
             return; // Skip in non-interactive mode
         }
@@ -717,7 +717,7 @@ class InitWizard extends BaseCliCommand
     protected function askMultipleConnections(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = CliEnvironment::isNonInteractive();
+        $nonInteractive = static::isNonInteractive();
         if ($nonInteractive) {
             return; // Skip in non-interactive mode
         }
@@ -815,7 +815,7 @@ class InitWizard extends BaseCliCommand
     protected function generateFiles(): void
     {
         // Double-check non-interactive mode to prevent hangs
-        $nonInteractive = CliEnvironment::isNonInteractive();
+        $nonInteractive = static::isNonInteractive();
 
         static::cliWriteln('');
         static::cliWriteln('Creating configuration files...');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\cli\commands;
 
+use tommyknocker\pdodb\cli\CliExitException;
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\QueryTester;
 use tommyknocker\pdodb\query\formatter\SqlFormatter;
@@ -56,6 +57,8 @@ class QueryCommand extends Command
         try {
             QueryTester::test($query);
             return 0;
+        } catch (CliExitException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->showError($e->getMessage());
             // @phpstan-ignore-next-line

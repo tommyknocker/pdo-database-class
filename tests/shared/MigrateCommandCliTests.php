@@ -168,19 +168,6 @@ final class MigrateCommandCliTests extends TestCase
         $this->assertTrue($method->isPublic());
     }
 
-    public function testMigrateCreateCommandWithoutName(): void
-    {
-        // Test that create method handles missing name
-        // In non-interactive mode, MigrationGenerator::generate() will throw exception
-        // which calls showError() that exits, so we test the method structure instead
-        $command = new MigrateCommand();
-        $reflection = new \ReflectionClass($command);
-
-        $this->assertTrue($reflection->hasMethod('create'));
-        // Method should check for empty name and call showError
-        $this->assertTrue(true);
-    }
-
     public function testMigrateUpCommandWithNoMigrations(): void
     {
         // Test that up command works when there are no migrations

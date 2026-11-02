@@ -15,12 +15,17 @@ class CliOutput
     /** @var resource */
     protected $stderr;
 
+    /** @var resource|null Input given by the caller instead of the terminal (tests, scripted runs) */
+    protected $stdin;
+
     /**
      * @param resource|null $stdout
      * @param resource|null $stderr
+     * @param resource|null $stdin Answers to prompts; when given, prompts are answered from it instead of the terminal
      */
-    public function __construct($stdout = null, $stderr = null)
+    public function __construct($stdout = null, $stderr = null, $stdin = null)
     {
+        $this->stdin = $stdin;
         if ($stdout === null) {
             $stdout = fopen('php://output', 'wb');
             if ($stdout === false) {
@@ -60,5 +65,23 @@ class CliOutput
     public function flushStdout(): void
     {
         fflush($this->stdout);
+    }
+
+    /**
+     * Whether the caller supplied the answers to prompts.
+     */
+    public function hasScriptedInput(): bool
+    {
+        return $this->stdin !== null;
+    }
+
+    /**
+     * Read one line of input (without the line break) from the supplied input, or the terminal.
+     */
+    public function readLine(): string
+    {
+        $line = fgets($this->stdin ?? STDIN);
+
+        return $line === false ? '' : rtrim($line, "\r\n");
     }
 }

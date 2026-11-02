@@ -87,18 +87,6 @@ final class ModelCommandCliTests extends TestCase
         $this->assertEquals('int', $method->getReturnType()->getName());
     }
 
-    public function testModelMakeCommandWithoutName(): void
-    {
-        // Test that make method handles missing name
-        // In non-interactive mode, should show error
-        $command = new ModelCommand();
-        $reflection = new \ReflectionClass($command);
-
-        $this->assertTrue($reflection->hasMethod('make'));
-        // Method should check for empty name and call showError
-        $this->assertTrue(true);
-    }
-
     public function testModelUnknownSubcommand(): void
     {
         // Test that unknown subcommand is handled in execute method

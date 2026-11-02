@@ -102,45 +102,6 @@ final class RepositoryCommandCliTests extends TestCase
         $this->assertStringContainsString('use app\\entities\\RcUser;', $content2);
     }
 
-    public function testMakeRepositoryWithoutModelName(): void
-    {
-        $app = new Application();
-        $repositoryName = 'UserRepository';
-        $table = 'rc_users';
-
-        // Test with auto-detected model name (UserRepository -> User)
-        ob_start();
-
-        try {
-            $code = $app->run(['pdodb', 'repository', 'make', $repositoryName, null, $this->repositoriesDir]);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            // Non-interactive mode will fail when asking for input, that's expected
-            // But we can verify the command structure is correct
-            $this->assertTrue(true);
-            return;
-        }
-
-        // If it didn't throw, check the result
-        if ($code === 0) {
-            $file = $this->repositoriesDir . '/' . $repositoryName . '.php';
-            $this->assertFileExists($file);
-        }
-    }
-
-    /**
-     * Test that repository command requires name argument.
-     * Note: showError() calls exit(), so we skip strict validation here.
-     */
-    public function testRepositoryCommandRequiresName(): void
-    {
-        $app = new Application();
-        // This test verifies the command structure; showError() behavior
-        // (which exits) is tested implicitly by successful commands requiring name
-        $this->assertTrue(true);
-    }
-
     public function testGeneratedRepositoryCode(): void
     {
         $app = new Application();

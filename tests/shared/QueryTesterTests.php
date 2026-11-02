@@ -491,8 +491,8 @@ final class QueryTesterTests extends TestCase
             $this->assertStringContainsString('Database:', $out);
         } catch (\Throwable $e) {
             ob_end_clean();
-            // May fail if database config is not available
-            $this->assertInstanceOf(\Throwable::class, $e);
+
+            throw $e;
         }
     }
 

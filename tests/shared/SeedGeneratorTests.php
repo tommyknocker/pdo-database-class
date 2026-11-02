@@ -108,22 +108,6 @@ final class SeedGeneratorTests extends TestCase
         }
     }
 
-    public function testGenerateWithoutName(): void
-    {
-        // This test verifies that the method structure exists
-        // The actual execution may call error() which exits when name is empty,
-        // so we test structure only
-        $reflection = new \ReflectionClass(SeedGenerator::class);
-        $this->assertTrue($reflection->hasMethod('generate'));
-        $method = $reflection->getMethod('generate');
-        $this->assertTrue($method->isStatic());
-
-        // Note: The actual execution with null name calls error() which exits,
-        // so we only verify the method structure exists
-        // The error handling is tested indirectly through other tests
-        $this->assertTrue(true);
-    }
-
     public function testSuggestSeedTypeWithUser(): void
     {
         $reflection = new \ReflectionClass(SeedGenerator::class);

@@ -229,6 +229,14 @@ class Application
             return $command->execute();
         } catch (CliExitException $e) {
             return $e->getCode() > 0 ? $e->getCode() : 1;
+        } catch (\Throwable $e) {
+            // PDODB_DEBUG=1 keeps the stack trace for bug reports; otherwise a user gets the message, not a PHP fatal
+            if (getenv('PDODB_DEBUG') !== false && getenv('PDODB_DEBUG') !== '' && getenv('PDODB_DEBUG') !== '0') {
+                throw $e;
+            }
+            BaseCliCommand::io()->writeErrorLine('Error: ' . $e->getMessage());
+
+            return 1;
         } finally {
             $command->restoreEnvironment();
         }

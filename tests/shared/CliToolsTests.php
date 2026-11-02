@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use tommyknocker\pdodb\cli\BaseCliCommand;
+use tommyknocker\pdodb\cli\CliExitException;
 use tommyknocker\pdodb\cli\CliOutput;
 use tommyknocker\pdodb\cli\DatabaseManager;
 use tommyknocker\pdodb\cli\MigrationGenerator;
@@ -481,36 +482,22 @@ class CliToolsTests extends BaseSharedTestCase
         $schema = self::$db->schema();
         $schema->dropTableIfExists('test_model_fk_child');
         $schema->dropTableIfExists('test_model_fk_parent');
-        $schema->createTable('test_model_fk_parent', [
-            'id' => $schema->primaryKey(),
-            'name' => $schema->string(100),
-        ]);
+        self::$db->rawQuery('CREATE TABLE test_model_fk_parent (id INTEGER PRIMARY KEY, name VARCHAR(100))');
+        // Declared inside CREATE TABLE, the only place SQLite accepts a foreign key
+        self::$db->rawQuery('CREATE TABLE test_model_fk_child (id INTEGER PRIMARY KEY, parent_id INTEGER, name VARCHAR(100), '
+            . 'CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES test_model_fk_parent (id))');
 
-        // SQLite requires foreign keys to be defined during CREATE TABLE
-        // For other databases, we can add them via ALTER TABLE
         try {
-            $schema->createTable('test_model_fk_child', [
-                'id' => $schema->primaryKey(),
-                'parent_id' => $schema->integer(),
-                'name' => $schema->string(100),
-            ]);
-            $schema->addForeignKey('fk_parent', 'test_model_fk_child', 'parent_id', 'test_model_fk_parent', 'id');
-        } catch (\Exception $e) {
-            // SQLite doesn't support ALTER TABLE ADD FOREIGN KEY
-            // Just verify the method exists and can be called
-            $this->assertTrue(true);
-            return;
+            $method = new \ReflectionMethod(ModelGenerator::class, 'getForeignKeys');
+            $foreignKeys = $method->invoke(null, self::$db, 'test_model_fk_child');
+
+            $this->assertNotEmpty($foreignKeys);
+            $this->assertStringContainsString('parent_id', json_encode($foreignKeys));
+            $this->assertStringContainsString('test_model_fk_parent', json_encode($foreignKeys));
+        } finally {
+            $schema->dropTableIfExists('test_model_fk_child');
+            $schema->dropTableIfExists('test_model_fk_parent');
         }
-
-        $reflection = new \ReflectionClass(ModelGenerator::class);
-        $method = $reflection->getMethod('getForeignKeys');
-
-        $foreignKeys = $method->invoke(null, self::$db, 'test_model_fk_child');
-        $this->assertIsArray($foreignKeys);
-
-        // Cleanup
-        $schema->dropTable('test_model_fk_child');
-        $schema->dropTable('test_model_fk_parent');
     }
 
     /**
@@ -713,15 +700,8 @@ class CliToolsTests extends BaseSharedTestCase
         $reflection = new \ReflectionClass(ModelGenerator::class);
         $method = $reflection->getMethod('detectPrimaryKey');
 
-        // Use non-existent table to trigger exception
-        try {
-            $primaryKey = $method->invoke(null, self::$db, 'nonexistent_table_xyz');
-            $this->assertIsArray($primaryKey);
-            $this->assertContains('id', $primaryKey);
-        } catch (\Exception $e) {
-            // Expected - method should handle exception
-            $this->assertTrue(true);
-        }
+        // A table that cannot be inspected falls back to the conventional "id"
+        $this->assertSame(['id'], $method->invoke(null, self::$db, 'nonexistent_table_xyz'));
     }
 
     /**
@@ -801,9 +781,14 @@ class CliToolsTests extends BaseSharedTestCase
      */
     public function testModelGeneratorGenerateWithInvalidModelName(): void
     {
-        // This test verifies that invalid model names are rejected
-        // The actual error handling is tested through the CLI interface
-        $this->assertTrue(true);
+        foreach (['lowercase', '1Starts', 'Has Space', 'Has-Dash'] as $name) {
+            try {
+                CliTestCapture::capture(static fn () => ModelGenerator::generate($name, 'users', sys_get_temp_dir(), self::$db));
+                $this->fail("{$name} should be rejected");
+            } catch (CliExitException $e) {
+                $this->assertStringContainsString("Invalid model name: {$name}", $e->getMessage());
+            }
+        }
     }
 
     /**
@@ -877,9 +862,10 @@ class CliToolsTests extends BaseSharedTestCase
      */
     public function testModelGeneratorGenerateWithQueryExceptionOnDescribe(): void
     {
-        // This test verifies that QueryException on describe is handled
-        // The actual error handling is tested through the CLI interface
-        $this->assertTrue(true);
+        $this->expectException(QueryException::class);
+        $this->expectExceptionMessage("Table 'no_such_table_for_model' does not exist");
+
+        ModelGenerator::generate('Missing', 'no_such_table_for_model', sys_get_temp_dir(), self::$db);
     }
 
     /**
@@ -1489,9 +1475,10 @@ class CliToolsTests extends BaseSharedTestCase
         $result = $runner->setDryRun(true);
         $this->assertSame($runner, $result);
 
+        $dryRun = new \ReflectionProperty($runner, 'dryRun');
+        $this->assertTrue($dryRun->getValue($runner));
         $runner->setDryRun(false);
-        $runner->setDryRun(true);
-        $this->assertTrue(true);
+        $this->assertFalse($dryRun->getValue($runner));
     }
 
     /**

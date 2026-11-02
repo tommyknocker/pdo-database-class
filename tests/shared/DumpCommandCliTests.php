@@ -196,36 +196,6 @@ final class DumpCommandCliTests extends TestCase
         $this->assertIsString($out);
     }
 
-    public function testDumpWithSchemaOnlyAndDataOnlyError(): void
-    {
-        // This test verifies that the command structure exists
-        // The actual error handling (which calls exit()) cannot be tested directly
-        // as exit() terminates the PHP process
-        $app = new Application();
-
-        // Verify command exists and can be instantiated
-        $this->assertInstanceOf(Application::class, $app);
-
-        // Note: The actual error message "Cannot use --schema-only and --data-only together"
-        // is tested indirectly through command structure validation
-        $this->assertTrue(true);
-    }
-
-    public function testDumpNonExistentTable(): void
-    {
-        // This test verifies that the command structure exists
-        // The actual error handling (which may call exit()) cannot be tested directly
-        // as exit() terminates the PHP process
-        $app = new Application();
-
-        // Verify command exists and can be instantiated
-        $this->assertInstanceOf(Application::class, $app);
-
-        // Note: The actual error message for non-existent table
-        // is tested indirectly through command structure validation
-        $this->assertTrue(true);
-    }
-
     public function testDumpRestoreFromFile(): void
     {
         // Create dump file first
@@ -260,9 +230,8 @@ final class DumpCommandCliTests extends TestCase
                 $out = ob_get_clean();
             } catch (\Throwable $e) {
                 ob_end_clean();
-                // Restore may not be fully implemented for SQLite
-                $this->assertInstanceOf(\Throwable::class, $e);
-                return;
+
+                throw $e;
             }
 
             $this->assertSame(0, $code);
@@ -276,21 +245,6 @@ final class DumpCommandCliTests extends TestCase
             }
             putenv('PDODB_PATH=' . $this->dbPath);
         }
-    }
-
-    public function testDumpRestoreWithNonExistentFile(): void
-    {
-        // This test verifies that the command structure exists
-        // The actual error handling (which may call exit()) cannot be tested directly
-        // as exit() terminates the PHP process, or in non-interactive mode it may cancel
-        $app = new Application();
-
-        // Verify command exists and can be instantiated
-        $this->assertInstanceOf(Application::class, $app);
-
-        // Note: The actual error message for non-existent file
-        // is tested indirectly through command structure validation
-        $this->assertTrue(true);
     }
 
     public function testDumpCommandMethods(): void
@@ -597,9 +551,8 @@ final class DumpCommandCliTests extends TestCase
                 $out = ob_get_clean();
             } catch (\Throwable $e) {
                 ob_end_clean();
-                // Restore may not be fully implemented for SQLite
-                $this->assertInstanceOf(\Throwable::class, $e);
-                return;
+
+                throw $e;
             }
 
             $this->assertSame(0, $code);

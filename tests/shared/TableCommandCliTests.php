@@ -581,20 +581,11 @@ final class TableCommandCliTests extends TestCase
         }
         $this->assertSame(0, $code);
 
-        // Alter column (SQLite has limited ALTER COLUMN support)
-        ob_start();
+        // SQLite cannot change a column's type: the user gets a clear message, not a PHP fatal
+        $result = CliTestCapture::runApplication($app, ['pdodb', 'table', 'columns', 'alter', 'alter_test', 'name', '--type=text:nullable']);
 
-        try {
-            $code = $app->run(['pdodb', 'table', 'columns', 'alter', 'alter_test', 'name', '--type=text:nullable']);
-            $out = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            // SQLite may not support ALTER COLUMN, which is expected
-            $this->assertInstanceOf(\Throwable::class, $e);
-            return;
-        }
-        $this->assertSame(0, $code);
-        $this->assertStringContainsString('altered', $out);
+        $this->assertSame(1, $result['code']);
+        $this->assertStringContainsString('SQLite does not support ALTER COLUMN', $result['output']);
     }
 
     public function testTableColumnsDrop(): void
@@ -622,9 +613,8 @@ final class TableCommandCliTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            // SQLite may not support DROP COLUMN directly, which is expected
-            $this->assertInstanceOf(\Throwable::class, $e);
-            return;
+
+            throw $e;
         }
 
         $this->assertSame(0, $code);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use PHPUnit\Framework\TestCase;
+use tommyknocker\pdodb\cli\CliExitException;
 use tommyknocker\pdodb\cli\commands\InitCommand;
 use tommyknocker\pdodb\cli\InitWizard;
 use tommyknocker\pdodb\connection\DialectRegistry;
@@ -493,11 +494,11 @@ final class InitWizardTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            // Connection test may fail in some environments
-            $this->assertInstanceOf(\Throwable::class, $e);
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
             return;
+
+            throw $e;
         }
 
         // Verify output contains connection test result
@@ -519,8 +520,8 @@ final class InitWizardTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            // In non-interactive mode, may not prompt
-            $this->assertInstanceOf(\Throwable::class, $e);
+
+            throw $e;
             return;
         }
 
@@ -543,8 +544,8 @@ final class InitWizardTests extends TestCase
             $out = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
-            // In non-interactive mode, may not prompt
-            $this->assertInstanceOf(\Throwable::class, $e);
+
+            throw $e;
             return;
         }
 
@@ -623,8 +624,7 @@ final class InitWizardTests extends TestCase
                 $this->assertArrayHasKey('servers', $config['cache']);
             }
         } catch (\Throwable $e) {
-            // May fail if error() is called
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -663,8 +663,7 @@ final class InitWizardTests extends TestCase
                 $this->assertEquals('redispass', $config['cache']['password']);
             }
         } catch (\Throwable $e) {
-            // May fail if error() is called
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -700,8 +699,7 @@ final class InitWizardTests extends TestCase
                 $this->assertEquals('/tmp/cache', $config['cache']['directory']);
             }
         } catch (\Throwable $e) {
-            // May fail if error() is called
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -735,8 +733,7 @@ final class InitWizardTests extends TestCase
             $this->assertArrayHasKey('services', $structure);
             $this->assertArrayHasKey('seeds', $structure);
         } catch (\Throwable $e) {
-            // May fail if error() is called
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_MIGRATION_PATH');
             putenv('PDODB_MODEL_PATH');
@@ -999,17 +996,35 @@ final class InitWizardTests extends TestCase
         $this->assertTrue($method->isProtected());
     }
 
-    public function testTestConnectionWithInvalidConfig(): void
+    public function testTestConnectionReportsASuccessfulConnection(): void
     {
-        // Test testConnection method structure - may call error() which exits
         $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $method = $reflection->getMethod('testConnection');
+        $config = new \ReflectionProperty($wizard, 'config');
+        $config->setValue($wizard, ['driver' => 'sqlite', 'path' => ':memory:']);
 
-        // Verify method exists and has correct signature
-        $this->assertTrue($method->isProtected());
-        // Method should handle invalid config (may call error())
-        $this->assertTrue(true);
+        $result = CliTestCapture::capture(static function () use ($wizard): void {
+            (new \ReflectionMethod($wizard, 'testConnection'))->invoke($wizard);
+        });
+
+        $this->assertStringContainsString('Connection successful', $result['output']);
+    }
+
+    public function testTestConnectionStopsWhenTheDatabaseCannotBeReached(): void
+    {
+        $wizard = new InitWizard($this->command);
+        $config = new \ReflectionProperty($wizard, 'config');
+        $config->setValue($wizard, ['driver' => 'sqlite', 'path' => '/nonexistent-directory/pdodb.sqlite']);
+
+        $output = '';
+
+        try {
+            CliTestCapture::capture(static function () use ($wizard): void {
+                (new \ReflectionMethod($wizard, 'testConnection'))->invoke($wizard);
+            });
+            $this->fail('An unreachable database must stop the wizard');
+        } catch (CliExitException $e) {
+            $this->assertNotSame(0, $e->getCode());
+        }
     }
 
     public function testAskConfigurationFormatWithEnvFormat(): void
@@ -1030,8 +1045,8 @@ final class InitWizardTests extends TestCase
             $this->assertEquals('env', $format);
         } catch (\Throwable $e) {
             ob_end_clean();
-            // In non-interactive mode, may not prompt
-            $this->assertInstanceOf(\Throwable::class, $e);
+
+            throw $e;
         }
     }
 
@@ -1053,8 +1068,8 @@ final class InitWizardTests extends TestCase
             $this->assertEquals('config', $format);
         } catch (\Throwable $e) {
             ob_end_clean();
-            // In non-interactive mode, may not prompt
-            $this->assertInstanceOf(\Throwable::class, $e);
+
+            throw $e;
         }
     }
 
@@ -1077,53 +1092,9 @@ final class InitWizardTests extends TestCase
             $this->assertArrayHasKey('namespace', $structure);
         } catch (\Throwable $e) {
             ob_end_clean();
-            // In non-interactive mode, may not prompt
-            $this->assertInstanceOf(\Throwable::class, $e);
+
+            throw $e;
         }
-    }
-
-    public function testAskAdvancedOptionsWithTablePrefix(): void
-    {
-        // Test askAdvancedOptions includes askTablePrefix
-        $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $this->assertTrue($reflection->hasMethod('askAdvancedOptions'));
-        $this->assertTrue($reflection->hasMethod('askTablePrefix'));
-        // askAdvancedOptions should call askTablePrefix
-        $this->assertTrue(true);
-    }
-
-    public function testAskAdvancedOptionsWithCaching(): void
-    {
-        // Test askAdvancedOptions includes askCaching
-        $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $this->assertTrue($reflection->hasMethod('askAdvancedOptions'));
-        $this->assertTrue($reflection->hasMethod('askCaching'));
-        // askAdvancedOptions should call askCaching
-        $this->assertTrue(true);
-    }
-
-    public function testAskAdvancedOptionsWithPerformance(): void
-    {
-        // Test askAdvancedOptions includes askPerformance
-        $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $this->assertTrue($reflection->hasMethod('askAdvancedOptions'));
-        $this->assertTrue($reflection->hasMethod('askPerformance'));
-        // askAdvancedOptions should call askPerformance
-        $this->assertTrue(true);
-    }
-
-    public function testAskAdvancedOptionsWithMultipleConnections(): void
-    {
-        // Test askAdvancedOptions includes askMultipleConnections
-        $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $this->assertTrue($reflection->hasMethod('askAdvancedOptions'));
-        $this->assertTrue($reflection->hasMethod('askMultipleConnections'));
-        // askAdvancedOptions should call askMultipleConnections
-        $this->assertTrue(true);
     }
 
     public function testLoadConfigFromEnvWithApcuCache(): void
@@ -1147,8 +1118,7 @@ final class InitWizardTests extends TestCase
                 $this->assertEquals('apcu', $config['cache']['type']);
             }
         } catch (\Throwable $e) {
-            // May fail if error() is called
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1176,8 +1146,7 @@ final class InitWizardTests extends TestCase
             // Cache should not be set when disabled
             $this->assertArrayNotHasKey('cache', $config);
         } catch (\Throwable $e) {
-            // May fail if error() is called
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1207,8 +1176,7 @@ final class InitWizardTests extends TestCase
                 $this->assertCount(3, $config['cache']['servers']);
             }
         } catch (\Throwable $e) {
-            // May fail if error() is called
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1241,8 +1209,7 @@ final class InitWizardTests extends TestCase
                 $this->assertEquals(11211, $config['cache']['servers'][0][1]);
             }
         } catch (\Throwable $e) {
-            // May fail if error() is called
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1323,8 +1290,7 @@ final class InitWizardTests extends TestCase
             $this->assertArrayHasKey('host', $config);
             $this->assertArrayHasKey('database', $config);
         } catch (\Throwable $e) {
-            // May fail if error() is called
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_HOST');
@@ -1359,7 +1325,7 @@ final class InitWizardTests extends TestCase
             $this->assertEquals('pgsql', $config['driver']);
             $this->assertArrayHasKey('host', $config);
         } catch (\Throwable $e) {
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_HOST');
@@ -1393,7 +1359,7 @@ final class InitWizardTests extends TestCase
             $this->assertEquals('sqlsrv', $config['driver']);
             $this->assertArrayHasKey('host', $config);
         } catch (\Throwable $e) {
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_HOST');
@@ -1427,7 +1393,7 @@ final class InitWizardTests extends TestCase
             $this->assertEquals('mariadb', $config['driver']);
             $this->assertArrayHasKey('host', $config);
         } catch (\Throwable $e) {
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_HOST');
@@ -1478,7 +1444,7 @@ final class InitWizardTests extends TestCase
                 $this->assertEquals('pdodb_', $config['cache']['prefix']);
             }
         } catch (\Throwable $e) {
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1510,7 +1476,7 @@ final class InitWizardTests extends TestCase
                 $this->assertEquals(0, $config['cache']['database']);
             }
         } catch (\Throwable $e) {
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1544,7 +1510,7 @@ final class InitWizardTests extends TestCase
                 $this->assertArrayNotHasKey('password', $config['cache']);
             }
         } catch (\Throwable $e) {
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1579,7 +1545,7 @@ final class InitWizardTests extends TestCase
                 $this->assertArrayHasKey('servers', $config['cache']);
             }
         } catch (\Throwable $e) {
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1609,7 +1575,7 @@ final class InitWizardTests extends TestCase
             $this->assertIsArray($config);
             // Should handle invalid server format gracefully
         } catch (\Throwable $e) {
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1641,7 +1607,7 @@ final class InitWizardTests extends TestCase
                 $this->assertEquals('./storage/cache', $config['cache']['directory']);
             }
         } catch (\Throwable $e) {
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1669,7 +1635,7 @@ final class InitWizardTests extends TestCase
             // Cache should not be set when disabled
             $this->assertArrayNotHasKey('cache', $config);
         } catch (\Throwable $e) {
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1696,7 +1662,7 @@ final class InitWizardTests extends TestCase
             // Cache should not be set when PDODB_CACHE_ENABLED is empty
             $this->assertArrayNotHasKey('cache', $config);
         } catch (\Throwable $e) {
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1726,7 +1692,7 @@ final class InitWizardTests extends TestCase
                 $this->assertTrue($config['cache']['enabled']);
             }
         } catch (\Throwable $e) {
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1752,12 +1718,10 @@ final class InitWizardTests extends TestCase
             $config = $configProperty->getValue($wizard);
 
             $this->assertIsArray($config);
-            if (isset($config['cache'])) {
-                // Should convert to lowercase
-                $this->assertEquals('filesystem', $config['cache']['type']);
-            }
+            $this->assertArrayHasKey('cache', $config);
+            $this->assertSame('filesystem', $config['cache']['type']);
         } catch (\Throwable $e) {
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
@@ -1792,8 +1756,8 @@ final class InitWizardTests extends TestCase
                 $this->assertIsInt($result);
             } catch (\Throwable $e) {
                 ob_end_clean();
-                // Exception may be thrown or handled
-                $this->assertInstanceOf(\Throwable::class, $e);
+
+                throw $e;
             }
         } finally {
             chdir($oldCwd);
@@ -1826,192 +1790,6 @@ final class InitWizardTests extends TestCase
             chdir($oldCwd);
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
-        }
-    }
-
-    /**
-     * Test askCaching with Redis cache type.
-     */
-    public function testAskCachingWithRedisType(): void
-    {
-        $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $method = $reflection->getMethod('askCaching');
-
-        $level = ob_get_level();
-        ob_start();
-
-        try {
-            $method->invoke($wizard);
-            $out = ob_get_clean();
-            // Method should output caching options
-            $this->assertStringContainsString('Caching', $out);
-        } catch (\Throwable $e) {
-            // Ensure we clean up all output buffers
-            while (ob_get_level() > $level) {
-                ob_end_clean();
-            }
-            // In non-interactive mode, readConfirmation returns default (false)
-            // so method may return early
-            $this->assertTrue(true);
-        }
-    }
-
-    /**
-     * Test askCaching with Memcached cache type.
-     */
-    public function testAskCachingWithMemcachedType(): void
-    {
-        $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $method = $reflection->getMethod('askCaching');
-
-        $level = ob_get_level();
-        ob_start();
-
-        try {
-            $method->invoke($wizard);
-            $out = ob_get_clean();
-            // Method should output caching options
-            $this->assertStringContainsString('Caching', $out);
-        } catch (\Throwable $e) {
-            // Ensure we clean up all output buffers
-            while (ob_get_level() > $level) {
-                ob_end_clean();
-            }
-            $this->assertTrue(true);
-        }
-    }
-
-    /**
-     * Test askCaching with APCu cache type.
-     */
-    public function testAskCachingWithApcuType(): void
-    {
-        $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $method = $reflection->getMethod('askCaching');
-
-        $level = ob_get_level();
-        ob_start();
-
-        try {
-            $method->invoke($wizard);
-            $out = ob_get_clean();
-            // Method should output caching options
-            $this->assertStringContainsString('Caching', $out);
-        } catch (\Throwable $e) {
-            // Ensure we clean up all output buffers
-            while (ob_get_level() > $level) {
-                ob_end_clean();
-            }
-            $this->assertTrue(true);
-        }
-    }
-
-    /**
-     * Test askCaching with invalid cache type (should fallback to filesystem).
-     */
-    public function testAskCachingWithInvalidType(): void
-    {
-        $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $method = $reflection->getMethod('askCaching');
-
-        $level = ob_get_level();
-        ob_start();
-
-        try {
-            $method->invoke($wizard);
-            $out = ob_get_clean();
-            // Method should handle invalid type and fallback to filesystem
-            $this->assertStringContainsString('Caching', $out);
-        } catch (\Throwable $e) {
-            // Ensure we clean up all output buffers
-            while (ob_get_level() > $level) {
-                ob_end_clean();
-            }
-            $this->assertTrue(true);
-        }
-    }
-
-    /**
-     * Test askCaching with array cache type.
-     */
-    public function testAskCachingWithArrayType(): void
-    {
-        $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $method = $reflection->getMethod('askCaching');
-
-        $level = ob_get_level();
-        ob_start();
-
-        try {
-            $method->invoke($wizard);
-            $out = ob_get_clean();
-            // Method should output caching options
-            $this->assertStringContainsString('Caching', $out);
-        } catch (\Throwable $e) {
-            // Ensure we clean up all output buffers
-            while (ob_get_level() > $level) {
-                ob_end_clean();
-            }
-            $this->assertTrue(true);
-        }
-    }
-
-    /**
-     * Test askPerformance with all options enabled.
-     */
-    public function testAskPerformanceWithAllOptions(): void
-    {
-        $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $method = $reflection->getMethod('askPerformance');
-
-        $level = ob_get_level();
-        ob_start();
-
-        try {
-            $method->invoke($wizard);
-            $out = ob_get_clean();
-            // Method should output performance options
-            $this->assertStringContainsString('Performance', $out);
-        } catch (\Throwable $e) {
-            // Ensure we clean up all output buffers
-            while (ob_get_level() > $level) {
-                ob_end_clean();
-            }
-            $this->assertTrue(true);
-        }
-    }
-
-    /**
-     * Test askMultipleConnections method structure.
-     */
-    public function testAskMultipleConnectionsStructure(): void
-    {
-        $wizard = new InitWizard($this->command);
-        $reflection = new \ReflectionClass($wizard);
-        $method = $reflection->getMethod('askMultipleConnections');
-
-        $level = ob_get_level();
-        ob_start();
-
-        try {
-            $method->invoke($wizard);
-            $out = ob_get_clean();
-            // Method should output multiple connections info
-            $this->assertStringContainsString('Multiple Connections', $out);
-        } catch (\Throwable $e) {
-            // Ensure we clean up all output buffers
-            while (ob_get_level() > $level) {
-                ob_end_clean();
-            }
-            // In non-interactive mode, readConfirmation returns default (false)
-            // so method may return early
-            $this->assertTrue(true);
         }
     }
 
@@ -2271,5 +2049,104 @@ final class InitWizardTests extends TestCase
             putenv('PDODB_DRIVER');
             putenv('PDODB_PATH');
         }
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     *
+     * @return array{config: array<string, mixed>, output: string}
+     */
+    private function runPrompt(string $method, string $answers, array $config = [], string $format = 'interactive'): array
+    {
+        $wizard = new InitWizard($this->command, format: $format);
+        $property = new \ReflectionProperty($wizard, 'config');
+        $property->setValue($wizard, $config);
+
+        $captured = CliTestCapture::capture(static function () use ($wizard, $method): void {
+            (new \ReflectionMethod($wizard, $method))->invoke($wizard);
+        }, $answers);
+
+        return ['config' => $property->getValue($wizard), 'output' => $captured['output']];
+    }
+
+    public function testAskCachingLeavesTheConfigAloneWhenCachingIsDeclined(): void
+    {
+        $result = $this->runPrompt('askCaching', "n\n");
+
+        $this->assertStringContainsString('Caching', $result['output']);
+        $this->assertArrayNotHasKey('cache', $result['config']);
+    }
+
+    public function testAskCachingStoresAnInMemoryCache(): void
+    {
+        $result = $this->runPrompt('askCaching', "y\narray\n600\napp_\n");
+
+        $this->assertSame(
+            ['enabled' => true, 'type' => 'array', 'default_lifetime' => 600, 'prefix' => 'app_'],
+            $result['config']['cache']
+        );
+    }
+
+    public function testAskCachingFallsBackToTheDefaultsForBlankAnswers(): void
+    {
+        $result = $this->runPrompt('askCaching', "y\narray\n\n\n");
+
+        $this->assertSame(3600, $result['config']['cache']['default_lifetime']);
+        $this->assertSame('pdodb_', $result['config']['cache']['prefix']);
+    }
+
+    public function testAskCachingTreatsAnUnknownTypeAsFilesystem(): void
+    {
+        // symfony/cache may be missing, which asks whether to continue with an in-memory cache
+        $result = $this->runPrompt('askCaching', "y\nmystery\n/tmp/pdodb-cache\ny\n\n\n");
+
+        $this->assertContains($result['config']['cache']['type'], ['filesystem', 'array']);
+        if ($result['config']['cache']['type'] === 'filesystem') {
+            $this->assertSame('/tmp/pdodb-cache', $result['config']['cache']['directory']);
+        }
+    }
+
+    public function testAskPerformanceStoresEveryEnabledOption(): void
+    {
+        $answers = "y\n3600\ny\n128\ny\n5\n250\n1.5\n8000\n";
+        $result = $this->runPrompt('askPerformance', $answers);
+
+        $this->assertSame(['enabled' => true, 'ttl' => 3600], $result['config']['compilation_cache']);
+        $this->assertSame(['enabled' => true, 'capacity' => 128], $result['config']['stmt_pool']);
+        $this->assertSame(
+            ['enabled' => true, 'max_attempts' => 5, 'delay_ms' => 250, 'backoff_multiplier' => 1.5, 'max_delay_ms' => 8000],
+            $result['config']['retry']
+        );
+    }
+
+    public function testAskPerformanceKeepsOnlyTheCompilationCacheByDefault(): void
+    {
+        $result = $this->runPrompt('askPerformance', "\n\n\n\n");
+
+        $this->assertSame(86400, $result['config']['compilation_cache']['ttl']);
+        $this->assertArrayNotHasKey('stmt_pool', $result['config']);
+        $this->assertArrayNotHasKey('retry', $result['config']);
+    }
+
+    public function testAskMultipleConnectionsWrapsTheConfigUnderTheChosenNames(): void
+    {
+        $base = ['driver' => 'sqlite', 'path' => ':memory:'];
+        $result = $this->runPrompt('askMultipleConnections', "y\nmain\nreporting\nsqlite\n:memory:\n", $base, 'config');
+
+        $this->assertSame('main', $result['config']['default']);
+        $this->assertSame($base, $result['config']['connections']['main']);
+        $this->assertArrayHasKey('reporting', $result['config']['connections']);
+    }
+
+    public function testAskMultipleConnectionsDoesNothingWhenDeclinedOrNotInConfigFormat(): void
+    {
+        $base = ['driver' => 'sqlite', 'path' => ':memory:'];
+
+        $declined = $this->runPrompt('askMultipleConnections', "n\n", $base, 'config');
+        $this->assertSame($base, $declined['config']);
+
+        $env = $this->runPrompt('askMultipleConnections', "y\n", $base, 'env');
+        $this->assertSame($base, $env['config']);
+        $this->assertStringContainsString('PHP config format', $env['output']);
     }
 }

@@ -400,6 +400,14 @@ abstract class BaseCliCommand
     }
 
     /**
+     * Whether prompts must not wait for anybody: nobody is at a terminal and no answers were supplied.
+     */
+    protected static function isNonInteractive(): bool
+    {
+        return !static::io()->hasScriptedInput() && CliEnvironment::isNonInteractive();
+    }
+
+    /**
      * Read input from stdin.
      *
      * @param string $prompt Prompt message
@@ -411,7 +419,7 @@ abstract class BaseCliCommand
     {
         // Check if non-interactive mode is enabled (for tests, CI, etc.)
         // Check for PDODB_NON_INTERACTIVE env var first (fastest check)
-        $nonInteractive = CliEnvironment::isNonInteractive();
+        $nonInteractive = static::isNonInteractive();
 
         if ($nonInteractive) {
             if ($default !== null) {
@@ -424,7 +432,7 @@ abstract class BaseCliCommand
         $defaultText = $default !== null ? " [{$default}]" : '';
         static::cliWrite($prompt . $defaultText . ': ');
         static::io()->flushStdout();
-        $input = trim((string)fgets(STDIN));
+        $input = trim(static::io()->readLine());
         return $input !== '' ? $input : ($default ?? '');
     }
 
@@ -439,7 +447,7 @@ abstract class BaseCliCommand
     {
         // Check if non-interactive mode is enabled (for tests, CI, etc.)
         // Check for PDODB_NON_INTERACTIVE env var first (fastest check)
-        $nonInteractive = CliEnvironment::isNonInteractive();
+        $nonInteractive = static::isNonInteractive();
 
         if ($nonInteractive) {
             // In non-interactive mode, return empty string to avoid blocking on fgets(STDIN)
@@ -455,7 +463,7 @@ abstract class BaseCliCommand
 
         static::cliWrite($prompt . ': ');
         static::io()->flushStdout();
-        $input = trim((string)fgets(STDIN));
+        $input = trim(static::io()->readLine());
         static::cliWriteln();
 
         // Restore stty mode
@@ -478,7 +486,7 @@ abstract class BaseCliCommand
     {
         // Check if non-interactive mode is enabled (for tests, CI, etc.)
         // Check for PDODB_NON_INTERACTIVE env var first (fastest check)
-        $nonInteractive = CliEnvironment::isNonInteractive();
+        $nonInteractive = static::isNonInteractive();
 
         if ($nonInteractive) {
             return $default;
@@ -487,7 +495,7 @@ abstract class BaseCliCommand
         $defaultText = $default ? 'Y/n' : 'y/N';
         static::io()->write($prompt . " [{$defaultText}]: ");
         static::io()->flushStdout();
-        $input = strtolower(trim((string)fgets(STDIN)));
+        $input = strtolower(trim(static::io()->readLine()));
 
         if ($input === '') {
             return $default;
