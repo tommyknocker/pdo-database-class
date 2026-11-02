@@ -965,7 +965,10 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
     {
         $sqlData = $this->toSQL();
         $explainSql = $this->dialect->buildExplainAnalyzeSql($sqlData['sql']);
-        return $this->executionEngine->fetchAll($explainSql, $sqlData['params']);
+
+        // The dialect runs it, as it does for explain(): Oracle cannot bind values into EXPLAIN PLAN and SQL Server
+        // reports through SET STATISTICS XML instead of a result set
+        return $this->dialect->executeExplainAnalyze($this->connection->getPdo(), $explainSql, $sqlData['params']);
     }
 
     /**
