@@ -117,6 +117,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [03. Migration Guide](10-cookbook/03-migration-guide.md) - Migrating from other libraries
 - [04. Troubleshooting](10-cookbook/04-troubleshooting.md) - Common issues and solutions
 - [05. Upgrading](10-cookbook/05-upgrading.md) - Moving from 2.x to 3.0
+- [06. Reliable events: outbox, worker, inbox](10-cookbook/06-reliable-events-outbox-inbox.md) - Delivering events between services without losing or repeating them
 
 ## 🚀 Quick Start
 

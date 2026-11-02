@@ -35,4 +35,6 @@ From the command line: `vendor/bin/pdodb inbox purge --older-than=30d [--dry-run
 
 Deletion runs in batches of 200 rows so a large backlog is not one long statement. The age is a compromise: once an id is purged, a redelivery of that message is handled again. Choose a period longer than the longest time your broker can redeliver (retention of the queue, dead-letter replays, manual replays). The purge applies to every consumer that shares the table.
 
+The [step-by-step guide](../10-cookbook/06-reliable-events-outbox-inbox.md) shows the inbox together with the outbox and a worker.
+
 See [Minimum server versions](27-transactional-outbox.md#minimum-server-versions) for the database versions the inbox needs.

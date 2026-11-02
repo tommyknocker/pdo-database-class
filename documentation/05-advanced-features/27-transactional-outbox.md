@@ -272,6 +272,7 @@ Consumers that need at-least-once delivery to become once-only should record the
 
 ## Related
 
+- [Reliable events: outbox, worker and inbox](../10-cookbook/06-reliable-events-outbox-inbox.md) — the whole chain step by step
 - [CLI tools](21-cli-tools.md#outbox) — full command reference
 - `examples/12-reliability/03-transactional-outbox.php` — in-process worker
 - `examples/12-reliability/04-outbox-cli.php` — `pdodb outbox work --once`
