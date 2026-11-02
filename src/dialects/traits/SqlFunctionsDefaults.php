@@ -149,8 +149,7 @@ trait SqlFunctionsDefaults
     }
 
     /**
-     * Format TRUNCATE expression (default implementation).
-     * Should be overridden in specific dialects.
+     * Format TRUNCATE expression. There is no portable form, so a dialect must define it.
      *
      * @param string|RawValue $value
      * @param int $precision
@@ -159,8 +158,12 @@ trait SqlFunctionsDefaults
      */
     public function formatTruncate(string|RawValue $value, int $precision): string
     {
-        $val = $this->resolveValue($value);
-        return "TRUNCATE($val, $precision)";
+        throw new UnsupportedOperationException(
+            static::class . ' does not define formatTruncate().',
+            0,
+            null,
+            $this->getDriverName()
+        );
     }
 
     /**
@@ -366,9 +369,11 @@ trait SqlFunctionsDefaults
      */
     public function formatRegexpLike(string|RawValue $value, string $pattern): string
     {
-        $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        // Default implementation: use REGEXP operator
-        return "($val REGEXP '$pat')";
+        throw new UnsupportedOperationException(
+            static::class . ' does not define formatRegexpLike().',
+            0,
+            null,
+            $this->getDriverName()
+        );
     }
 }

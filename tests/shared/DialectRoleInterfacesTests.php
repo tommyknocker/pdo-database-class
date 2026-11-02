@@ -12,6 +12,8 @@ use tommyknocker\pdodb\dialects\mysql\MySQLDialect;
 use tommyknocker\pdodb\dialects\oracle\OracleDialect;
 use tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect;
 use tommyknocker\pdodb\dialects\sqlite\SqliteDialect;
+use tommyknocker\pdodb\dialects\traits\SqlFunctionsDefaults;
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 
 /**
  * DialectInterface is assembled from role interfaces. Every method belongs to exactly one role, so a role stays the
@@ -71,6 +73,30 @@ final class DialectRoleInterfacesTests extends TestCase
             $count = count((new ReflectionClass($role))->getMethods());
             $this->assertGreaterThan(0, $count, $role);
             $this->assertLessThanOrEqual(60, $count, "{$role} has grown into a second DialectInterface; split it");
+        }
+    }
+
+    public function testSqlFunctionsWithoutAPortableFormFailInsteadOfEmittingAnotherDatabasesSyntax(): void
+    {
+        $defaults = new class () {
+            use SqlFunctionsDefaults;
+
+            public function getDriverName(): string
+            {
+                return 'custom';
+            }
+        };
+
+        foreach ([
+            fn () => $defaults->formatTruncate('price', 2),
+            fn () => $defaults->formatRegexpLike('name', 'a.c'),
+        ] as $call) {
+            try {
+                $call();
+                $this->fail('A dialect that does not define the function must not get MySQL syntax.');
+            } catch (UnsupportedOperationException $e) {
+                $this->assertStringContainsString('does not define', $e->getMessage());
+            }
         }
     }
 }
