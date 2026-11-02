@@ -210,6 +210,8 @@ if (
 }
 echo "Rolled back an outer transaction without publishing.\n";
 
+// start from empty tables, so a table left by an earlier run (or an older version) cannot change the outcome
+$db->schema()->dropTableIfExists('service_outbox');
 $outbox = new Outbox($db, 'service_outbox');
 $outbox->ensureSchema();
 $messageId = $db->transaction(function () use ($db, $outbox, $article): string {
@@ -246,6 +248,7 @@ if (!$article->restore() || ServiceArticle::findOne($article->id) === null) {
 }
 echo "Soft-deleted and restored.\n";
 
+$db->schema()->dropTableIfExists('service_inbox');
 $inbox = new Inbox($db, 'search', 'service_inbox');
 $inbox->ensureSchema();
 $handled = 0;
