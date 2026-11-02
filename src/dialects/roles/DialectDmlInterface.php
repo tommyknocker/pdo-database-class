@@ -187,6 +187,14 @@ interface DialectDmlInterface
     public function buildReplaceSql(string $table, array $columns, array $placeholders, bool $isMultiple = false): string;
 
     /**
+     * Whether `INSERT ... ON CONFLICT` / `ON DUPLICATE KEY UPDATE` is available (`onDuplicate()` on an insert).
+     *
+     * SQL Server and Oracle have no such clause; they upsert with MERGE, see {@see supportsMerge()}. Check this before
+     * calling `onDuplicate()` in code that runs on several databases.
+     */
+    public function supportsUpsertClause(): bool;
+
+    /**
      * Check if MERGE statement is supported.
      *
      * @return bool

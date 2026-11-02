@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use PHPUnit\Framework\AssertionFailedError;
+use tommyknocker\pdodb\query\pagination\Cursor;
+
 final class BuilderReuseTests extends BaseSharedTestCase
 {
     public function testABuilderCanRunMoreThanOnce(): void
@@ -55,6 +58,42 @@ final class BuilderReuseTests extends BaseSharedTestCase
             $this->assertCount(9, $query->get(), 'a plain get() is not narrowed by the last cursor');
         } finally {
             self::$db->rawQuery('DROP TABLE cursor_reuse');
+        }
+    }
+
+    public function testAFailingPaginationLeavesTheBuildersLimitAndOffsetAlone(): void
+    {
+        foreach (['simplePaginate', 'paginate', 'cursorPaginate'] as $method) {
+            $query = self::$db->find()->from('absent_pagination_table')->orderBy('id')->limit(7)->offset(1);
+            $before = $query->toSQL();
+
+            try {
+                $method === 'cursorPaginate' ? $query->cursorPaginate(1) : $query->$method(1, 1);
+                $this->fail("{$method}() on a missing table must throw");
+            } catch (\Throwable $e) {
+                $this->assertNotInstanceOf(AssertionFailedError::class, $e);
+            }
+
+            $this->assertEquals($before, $query->toSQL(), "{$method}() changed the builder's SQL after failing");
+        }
+    }
+
+    public function testCursorPaginationRestoresTheSqlAndLeavesAllRowsReachable(): void
+    {
+        self::$db->rawQuery('DROP TABLE IF EXISTS cursor_scenario');
+        self::$db->rawQuery('CREATE TABLE cursor_scenario (id INTEGER PRIMARY KEY)');
+        self::$db->rawQuery('INSERT INTO cursor_scenario (id) VALUES (1), (2), (3), (4)');
+
+        try {
+            $query = self::$db->find()->from('cursor_scenario')->orderBy('id');
+            $before = $query->toSQL();
+            $page = $query->cursorPaginate(1, Cursor::fromItem(['id' => 2], ['id']));
+
+            $this->assertSame([3], array_map('intval', array_column($page->items(), 'id')));
+            $this->assertEquals($before, $query->toSQL());
+            $this->assertSame([1, 2, 3, 4], array_map('intval', array_column($query->get(), 'id')));
+        } finally {
+            self::$db->rawQuery('DROP TABLE cursor_scenario');
         }
     }
 }

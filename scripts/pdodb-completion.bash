@@ -101,6 +101,16 @@ _pdodb() {
         return 0
     fi
 
+    # MCP command
+    if [[ "${cmd}" == "mcp" ]]; then
+        if [[ ${COMP_CWORD} -eq 2 ]]; then
+            COMPREPLY=($(compgen -W "serve doctor config --help" -- "${cur}"))
+        else
+            COMPREPLY=($(compgen -W "--project=" -- "${cur}"))
+        fi
+        return 0
+    fi
+
     # Inbox command
     if [[ "${cmd}" == "inbox" ]]; then
         if [[ ${COMP_CWORD} -eq 2 ]]; then

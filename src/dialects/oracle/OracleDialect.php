@@ -404,6 +404,14 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
+    public function supportsUpsertClause(): bool
+    {
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function supportsMerge(): bool
     {
         return $this->featureSupport->supportsMerge();
@@ -2272,19 +2280,19 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
-    public function getServerVariables(PdoDb $db): array
-    {
-        try {
-            $rows = $db->rawQuery('
-                SELECT name, value
-    /**
-     * {@inheritDoc}
-     */
     public function configOptimizerStrategy(): ?ConfigOptimizerStrategy
     {
         return new OracleConfigStrategy();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function getServerVariables(PdoDb $db): array
+    {
+        try {
+            $rows = $db->rawQuery('
+                SELECT name, value
                 FROM v$parameter
                 ORDER BY name
             ');

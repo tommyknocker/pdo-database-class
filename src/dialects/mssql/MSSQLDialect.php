@@ -308,6 +308,14 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
+    public function supportsUpsertClause(): bool
+    {
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function supportsMerge(): bool
     {
         return $this->featureSupport->supportsMerge();
@@ -1836,19 +1844,19 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
     /**
      * {@inheritDoc}
      */
-    public function getServerVariables(PdoDb $db): array
-    {
-        try {
-            $rows = $db->rawQuery('
-                SELECT name, value
-    /**
-     * {@inheritDoc}
-     */
     public function configOptimizerStrategy(): ?ConfigOptimizerStrategy
     {
         return new MSSQLConfigStrategy();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function getServerVariables(PdoDb $db): array
+    {
+        try {
+            $rows = $db->rawQuery('
+                SELECT name, value
                 FROM sys.configurations
                 ORDER BY name
             ');

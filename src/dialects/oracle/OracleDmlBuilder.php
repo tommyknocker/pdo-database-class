@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects\oracle;
 
-use RuntimeException;
 use tommyknocker\pdodb\dialects\builders\DmlBuilderInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
@@ -353,7 +353,12 @@ class OracleDmlBuilder implements DmlBuilderInterface
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
     {
         // Oracle does not support ON CONFLICT/ON DUPLICATE KEY syntax. Use QueryBuilder::merge() for UPSERT operations.
-        throw new RuntimeException('Oracle does not support ON CONFLICT/ON DUPLICATE KEY syntax. Use QueryBuilder::merge() for UPSERT operations.');
+        throw new UnsupportedOperationException(
+            'Oracle does not support ON CONFLICT/ON DUPLICATE KEY syntax. Use QueryBuilder::merge() for UPSERT operations.',
+            0,
+            null,
+            'oci'
+        );
     }
 
     /**

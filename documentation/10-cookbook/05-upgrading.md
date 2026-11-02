@@ -184,6 +184,11 @@ override its methods, check:
 - `DialectAbstract::formatGroupConcat()` throws unless overridden instead of emitting MySQL's `SEPARATOR` syntax.
 - Values written into SQL text use `quoteStringLiteral()` instead of `addslashes()` or raw interpolation, so a value with a
   quote can no longer break out of its literal on PostgreSQL, SQLite, SQL Server and Oracle.
+- New required method `supportsUpsertClause()` (false when the database has no `INSERT ... ON CONFLICT`/`ON DUPLICATE`
+  clause and upserts with `MERGE`).
+- New required method `configOptimizerStrategy()` (recommendations for `pdodb optimize`; return null for none).
+  `formatTruncate()` and `formatRegexpLike()` no longer have MySQL-style defaults and throw
+  `UnsupportedOperationException` until the dialect defines them.
 - `transformValueForBinding()` has an optional `$table` argument, and `onDuplicate()` an optional conflict target.
 - `dumpData()` / `restoreFromSql()` share one implementation; a dialect customizes `listDumpTables()`,
   `dumpInsertStatement()` and `restoreSplitter()` instead of reimplementing them.
@@ -195,3 +200,8 @@ override its methods, check:
 - MySQL and MariaDB share `MySQLFamilyDialect` and its builders (`dialects/mysqlfamily`); `MariaDBDdlQueryBuilder` no longer
   extends `MySQLDdlQueryBuilder`, and `SessionQuoteMode` moved to `dialects\mysqlfamily`. Public class names are unchanged.
 - `QueryExecutedEvent::getParams()` returns raw bound values; filter them before logging.
+- `CacheManager` takes an optional `CacheBackend` as its third argument; code that subclassed it and used its protected
+  Redis/Memcached/APCu helpers (`getRedisConnection()`, `incrementAtomic()`, ...) uses a `CacheBackend` instead.
+- AI providers take an optional `AiTransport` (second constructor argument) in place of overriding `makeRequest()` for
+  transport changes; overriding `makeRequest()` still works.
+- `SqlQueryCollector` and the unused per-driver methods of `MonitorManager` are removed.

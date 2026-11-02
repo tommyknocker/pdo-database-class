@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\IndexSuggestionAnalyzer;
+use tommyknocker\pdodb\cli\TableFormatter;
 use tommyknocker\pdodb\cli\TableManager;
 use tommyknocker\pdodb\cli\TableSearcher;
 use tommyknocker\pdodb\exceptions\QueryException;
@@ -847,61 +848,16 @@ class TableCommand extends Command
             return;
         }
 
-        // Get all column names from first row
-        $columns = array_keys($rows[0]);
-        $numColumns = count($columns);
-
-        if ($numColumns === 0) {
+        if ($rows[0] === []) {
             return;
         }
 
-        // Calculate column widths
-        $colWidths = [];
-        foreach ($columns as $col) {
-            $colWidths[$col] = strlen($col);
-        }
-
-        foreach ($rows as $row) {
-            foreach ($columns as $col) {
-                $value = $this->formatCellValue($row[$col] ?? null);
-                $colWidths[$col] = max($colWidths[$col], strlen($value));
-            }
-        }
-
-        // Adjust widths to fit maxWidth
-        $totalWidth = array_sum($colWidths) + ($numColumns - 1) * 3 + 4; // 3 for " | ", 4 for borders
-        if ($totalWidth > $maxWidth) {
-            $excess = $totalWidth - $maxWidth;
-            $avgReduction = (int)($excess / $numColumns);
-            foreach ($colWidths as $col => $width) {
-                $colWidths[$col] = max(3, $width - $avgReduction);
-            }
-        }
-
-        // Print header
+        $lines = TableFormatter::bordered($rows, $maxWidth);
         $this->write("\n" . ucfirst($title) . ":\n");
-        $this->writeln(str_repeat('=', min($maxWidth, $totalWidth)));
-
-        // Print column headers
-        $headerParts = [];
-        foreach ($columns as $col) {
-            $headerParts[] = str_pad($col, $colWidths[$col], ' ', STR_PAD_RIGHT);
+        $this->writeln($lines[0]);
+        foreach (array_slice($lines, 1) as $line) {
+            $this->writeln($line);
         }
-        $this->write('| ' . implode(' | ', $headerParts) . " |\n");
-        $this->writeln(str_repeat('-', min($maxWidth, $totalWidth)));
-
-        // Print rows
-        foreach ($rows as $row) {
-            $rowParts = [];
-            foreach ($columns as $col) {
-                $value = $this->formatCellValue($row[$col] ?? null);
-                $value = mb_substr($value, 0, $colWidths[$col]) ?: '';
-                $rowParts[] = str_pad($value, $colWidths[$col], ' ', STR_PAD_RIGHT);
-            }
-            $this->write('| ' . implode(' | ', $rowParts) . " |\n");
-        }
-
-        $this->writeln(str_repeat('=', min($maxWidth, $totalWidth)));
         $this->write('Total rows: ' . count($rows) . "\n\n");
     }
 
@@ -914,17 +870,7 @@ class TableCommand extends Command
      */
     protected function formatCellValue($value): string
     {
-        if ($value === null) {
-            return '(null)';
-        }
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-        if (is_array($value) || is_object($value)) {
-            $encoded = json_encode($value, JSON_UNESCAPED_SLASHES);
-            return $encoded !== false ? $encoded : '(invalid json)';
-        }
-        return (string)$value;
+        return TableFormatter::cell($value);
     }
 
     protected function showHelp(): int

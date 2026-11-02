@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\cli\commands;
 
 use tommyknocker\pdodb\cli\Command;
 use tommyknocker\pdodb\cli\MonitorManager;
+use tommyknocker\pdodb\cli\TableFormatter;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -283,45 +284,7 @@ class MonitorCommand extends Command
             return;
         }
 
-        // Get all column names
-        $columns = [];
-        foreach ($rows as $row) {
-            foreach (array_keys($row) as $col) {
-                if (!in_array($col, $columns, true)) {
-                    $columns[] = $col;
-                }
-            }
-        }
-
-        // Calculate column widths
-        $widths = [];
-        foreach ($columns as $col) {
-            $widths[$col] = strlen($col);
-            foreach ($rows as $row) {
-                $val = $row[$col] ?? '';
-                $valStr = is_string($val) || is_int($val) || is_float($val) ? (string)$val : '';
-                $widths[$col] = max($widths[$col], strlen($valStr));
-            }
-        }
-
-        // Print header
-        $header = '  ';
-        $separator = '  ';
-        foreach ($columns as $col) {
-            $header .= str_pad($col, $widths[$col]) . '  ';
-            $separator .= str_repeat('-', $widths[$col]) . '  ';
-        }
-        $this->writeln($header);
-        $this->writeln($separator);
-
-        // Print rows
-        foreach ($rows as $row) {
-            $line = '  ';
-            foreach ($columns as $col) {
-                $val = $row[$col] ?? '';
-                $valStr = is_string($val) || is_int($val) || is_float($val) ? (string)$val : '';
-                $line .= str_pad($valStr, $widths[$col]) . '  ';
-            }
+        foreach (TableFormatter::plain($rows) as $line) {
             $this->writeln($line);
         }
     }

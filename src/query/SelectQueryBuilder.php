@@ -1862,20 +1862,14 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
         $savedLimit = $this->limit;
         $savedOffset = $this->offset;
         $offset = ($page - 1) * $perPage;
-        $this->limit($perPage)->offset($offset);
-        $itemsSql = $this->buildSelectSql();
-        $itemsParams = array_merge($this->cteManager?->getParams() ?? [], $this->parameterManager->getParams());
 
-        // Restore original state
-        if ($savedLimit !== null) {
-            $this->limit($savedLimit);
-        } else {
-            $this->limit = null;
-        }
-        if ($savedOffset !== null) {
-            $this->offset($savedOffset);
-        } else {
-            $this->offset = null;
+        try {
+            $this->limit($perPage)->offset($offset);
+            $itemsSql = $this->buildSelectSql();
+            $itemsParams = array_merge($this->cteManager?->getParams() ?? [], $this->parameterManager->getParams());
+        } finally {
+            $this->limit = $savedLimit;
+            $this->offset = $savedOffset;
         }
 
         // Execute both queries
@@ -1912,9 +1906,14 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
         $offset = ($page - 1) * $perPage;
         $savedLimit = $this->limit;
         $savedOffset = $this->offset;
-        $rawItems = $this->limit($perPage + 1)->offset($offset)->get();
-        $this->limit = $savedLimit;
-        $this->offset = $savedOffset;
+
+        try {
+            $rawItems = $this->limit($perPage + 1)->offset($offset)->get();
+        } finally {
+            // also when the query fails, so the caller's LIMIT and OFFSET are still there
+            $this->limit = $savedLimit;
+            $this->offset = $savedOffset;
+        }
 
         $hasMore = count($rawItems) > $perPage;
         if ($hasMore) {

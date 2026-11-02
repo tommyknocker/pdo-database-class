@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects\mssql;
 
-use RuntimeException;
 use tommyknocker\pdodb\dialects\builders\DmlBuilderInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\traits\UpsertBuilderTrait;
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
@@ -131,9 +131,12 @@ class MSSQLDmlBuilder implements DmlBuilderInterface
         // Use MERGE statement instead, but for compatibility with INSERT ... ON DUPLICATE pattern,
         // we'll throw an exception suggesting to use MERGE directly
         // Alternatively, we could emulate using a subquery, but that's complex
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             'MSSQL does not support UPSERT via INSERT ... ON DUPLICATE KEY UPDATE. ' .
-            'Please use QueryBuilder::merge() method instead for UPSERT operations.'
+            'Please use QueryBuilder::merge() method instead for UPSERT operations.',
+            0,
+            null,
+            'sqlsrv'
         );
     }
 

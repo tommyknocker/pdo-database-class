@@ -126,15 +126,18 @@ Fired after a query is executed successfully.
 - `getRowsAffected(): int` - Number of rows affected/returned
 - `getDriver(): string` - Database driver name
 - `isFromCache(): bool` - Whether result came from cache
+- `toSafeArray(): array` - What is safe to log: the statement with literals removed, the number of bound values (not the values), timing, row count, driver and cache flag
+
+`getSql()` and `getParams()` return what was sent to the database, so they can hold passwords, tokens and personal
+data. Log `toSafeArray()`; read the raw values only where they are handled as securely as the database itself.
 
 **Example:**
 ```php
 use tommyknocker\pdodb\events\QueryExecutedEvent;
 
-$dispatcher->addListener(QueryExecutedEvent::class, function (QueryExecutedEvent $event) {
+$dispatcher->addListener(QueryExecutedEvent::class, function (QueryExecutedEvent $event) use ($logger) {
     if ($event->getExecutionTime() > 1000) {
-        // Log slow queries
-        error_log("Slow query: {$event->getSql()} ({$event->getExecutionTime()}ms)");
+        $logger->warning('slow query', $event->toSafeArray());
     }
 });
 ```

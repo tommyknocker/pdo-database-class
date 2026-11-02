@@ -172,4 +172,12 @@ trait DmlDefaults
             . 'can use the OnConflictUpsertTrait.'
         );
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function supportsUpsertClause(): bool
+    {
+        return true;
+    }
 }

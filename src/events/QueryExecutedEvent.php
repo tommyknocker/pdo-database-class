@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\events;
 
 use Psr\EventDispatcher\StoppableEventInterface;
+use tommyknocker\pdodb\ai\SqlContextTokenizer;
 
 /**
  * Event fired after a query is executed successfully.
@@ -52,6 +53,27 @@ final class QueryExecutedEvent implements StoppableEventInterface
     public function getParams(): array
     {
         return $this->params;
+    }
+
+    /**
+     * What is safe to write to a log: the statement with string and numeric literals removed, the number of bound
+     * values (never the values), and the timing.
+     *
+     * {@see getParams()} and {@see getSql()} return what was sent to the database, which can hold passwords, tokens
+     * and personal data; log this instead.
+     *
+     * @return array<string, mixed>
+     */
+    public function toSafeArray(): array
+    {
+        return [
+            'sql' => SqlContextTokenizer::redact($this->sql, in_array($this->driver, ['mysql', 'mariadb', 'sqlite'], true)),
+            'param_count' => count($this->params),
+            'execution_time_ms' => round($this->executionTime, 2),
+            'rows_affected' => $this->rowsAffected,
+            'driver' => $this->driver,
+            'from_cache' => $this->fromCache,
+        ];
     }
 
     /**
