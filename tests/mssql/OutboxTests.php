@@ -77,8 +77,8 @@ final class OutboxTests extends BaseMSSQLTestCase
         return new PdoDb(
             'sqlsrv',
             [
-                'host' => self::DB_HOST,
-                'port' => self::DB_PORT,
+                'host' => self::host(),
+                'port' => self::port(),
                 'username' => $username,
                 'password' => $password,
                 'dbname' => self::DB_NAME,

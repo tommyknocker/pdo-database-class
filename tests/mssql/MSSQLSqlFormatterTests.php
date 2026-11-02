@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mssql;
 
+use tommyknocker\pdodb\dialects\mssql\MSSQLDialect;
 use tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter;
 use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -305,40 +306,78 @@ final class MSSQLSqlFormatterTests extends BaseMSSQLTestCase
         $this->assertStringContainsString('LEFT', $result);
     }
 
+    private function hasNativeRegexp(): bool
+    {
+        $dialect = self::$db->connection->getDialect();
+
+        return $dialect instanceof MSSQLDialect && $dialect->supportsNativeRegexp();
+    }
+
     public function testFormatRegexpMatch(): void
     {
-        // SQL Server has no regular expressions before 2025: the pattern becomes a LIKE pattern
+        if ($this->hasNativeRegexp()) {
+            $this->assertSame("REGEXP_LIKE(column, 'pattern')", $this->formatter->formatRegexpMatch('column', 'pattern'));
+            $this->assertSame("REGEXP_LIKE(column, '^ab.c$')", $this->formatter->formatRegexpMatch('column', '^ab.c$'));
+
+            return;
+        }
+
+        // Before SQL Server 2025 the pattern becomes a LIKE pattern
         $this->assertSame("(column LIKE '%pattern%')", $this->formatter->formatRegexpMatch('column', 'pattern'));
         $this->assertSame("(column LIKE 'ab_c')", $this->formatter->formatRegexpMatch('column', '^ab.c$'));
     }
 
-    public function testFormatRegexpMatchRefusesWhatLikeCannotDo(): void
+    public function testFormatRegexpMatchOfWhatLikeCannotDo(): void
     {
+        if ($this->hasNativeRegexp()) {
+            $this->assertSame("REGEXP_LIKE(column, 'a+b')", $this->formatter->formatRegexpMatch('column', 'a+b'));
+
+            return;
+        }
+
         $this->expectException(UnsupportedOperationException::class);
         $this->formatter->formatRegexpMatch('column', 'a+b');
     }
 
     public function testFormatRegexpReplace(): void
     {
-        $this->assertSame("REPLACE(column, 'pattern', 'replacement')", $this->formatter->formatRegexpReplace('column', 'pattern', 'replacement'));
+        $expected = $this->hasNativeRegexp()
+            ? "REGEXP_REPLACE(column, 'pattern', 'replacement')"
+            : "REPLACE(column, 'pattern', 'replacement')";
+
+        $this->assertSame($expected, $this->formatter->formatRegexpReplace('column', 'pattern', 'replacement'));
     }
 
-    public function testFormatRegexpReplaceRefusesAPattern(): void
+    public function testFormatRegexpReplaceOfAPattern(): void
     {
+        if ($this->hasNativeRegexp()) {
+            $this->assertSame("REGEXP_REPLACE(column, '[0-9]', '#')", $this->formatter->formatRegexpReplace('column', '[0-9]', '#'));
+
+            return;
+        }
+
         $this->expectException(UnsupportedOperationException::class);
         $this->formatter->formatRegexpReplace('column', '[0-9]', '#');
     }
 
     public function testFormatRegexpExtract(): void
     {
-        $this->assertSame(
-            "CASE WHEN column LIKE '%pattern%' THEN 'pattern' ELSE NULL END",
-            $this->formatter->formatRegexpExtract('column', 'pattern')
-        );
+        $expected = $this->hasNativeRegexp()
+            ? "REGEXP_SUBSTR(column, 'pattern')"
+            : "CASE WHEN column LIKE '%pattern%' THEN 'pattern' ELSE NULL END";
+
+        $this->assertSame($expected, $this->formatter->formatRegexpExtract('column', 'pattern'));
     }
 
-    public function testFormatRegexpExtractRefusesGroupsAndPatterns(): void
+    public function testFormatRegexpExtractOfAPatternOrGroup(): void
     {
+        if ($this->hasNativeRegexp()) {
+            $this->assertSame("REGEXP_SUBSTR(column, '[0-9]+')", $this->formatter->formatRegexpExtract('column', '[0-9]+'));
+            $this->assertSame("REGEXP_SUBSTR(column, '(a)(b)', 1, 1, '', 2)", $this->formatter->formatRegexpExtract('column', '(a)(b)', 2));
+
+            return;
+        }
+
         $this->expectException(UnsupportedOperationException::class);
         $this->formatter->formatRegexpExtract('column', '[0-9]');
     }

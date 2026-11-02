@@ -30,8 +30,8 @@ final class ErrorTests extends BaseMSSQLTestCase
         $db = new PdoDb(
             'sqlsrv',
             [
-                'host' => self::DB_HOST,
-                'port' => self::DB_PORT,
+                'host' => self::host(),
+                'port' => self::port(),
                 'username' => $username,
                 'password' => $password,
                 'dbname' => self::DB_NAME,
@@ -73,8 +73,8 @@ final class ErrorTests extends BaseMSSQLTestCase
         $db = new PdoDb(
             'sqlsrv',
             [
-                'host' => self::DB_HOST,
-                'port' => self::DB_PORT,
+                'host' => self::host(),
+                'port' => self::port(),
                 'username' => $username,
                 'password' => $password,
                 'dbname' => self::DB_NAME,

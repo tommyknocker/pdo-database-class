@@ -27,8 +27,8 @@ final class OptimizeCommandCliTests extends BaseMSSQLTestCase
             $password = self::DB_PASSWORD;
         }
         putenv('PDODB_DRIVER=sqlsrv');
-        putenv('PDODB_HOST=' . self::DB_HOST);
-        putenv('PDODB_PORT=' . (string)self::DB_PORT);
+        putenv('PDODB_HOST=' . self::host());
+        putenv('PDODB_PORT=' . (string)self::port());
         putenv('PDODB_DATABASE=' . self::DB_NAME);
         putenv('PDODB_USERNAME=' . $username);
         putenv('PDODB_PASSWORD=' . $password);

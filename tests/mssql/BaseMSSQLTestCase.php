@@ -17,6 +17,25 @@ abstract class BaseMSSQLTestCase extends TestCase
     protected const string DB_PASSWORD = 'testpass';
     protected const int DB_PORT = 1433;
 
+    /**
+     * Server the suite runs against. PDODB_MSSQL_TEST_HOST / PDODB_MSSQL_TEST_PORT select another one, for example a
+     * SQL Server 2025 container on 1434; they have their own names because the tests set and clear PDODB_HOST and
+     * PDODB_PORT for the CLI commands they run.
+     */
+    protected static function host(): string
+    {
+        $host = getenv('PDODB_MSSQL_TEST_HOST');
+
+        return $host === false || $host === '' ? self::DB_HOST : $host;
+    }
+
+    protected static function port(): int
+    {
+        $port = getenv('PDODB_MSSQL_TEST_PORT');
+
+        return $port === false || $port === '' ? self::DB_PORT : (int)$port;
+    }
+
     public static function setUpBeforeClass(): void
     {
         /*
@@ -43,8 +62,8 @@ abstract class BaseMSSQLTestCase extends TestCase
         self::$db = new PdoDb(
             'sqlsrv',
             [
-                'host' => self::DB_HOST,
-                'port' => self::DB_PORT,
+                'host' => self::host(),
+                'port' => self::port(),
                 'username' => $username,
                 'password' => $password,
                 'dbname' => self::DB_NAME,
