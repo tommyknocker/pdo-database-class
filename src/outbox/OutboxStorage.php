@@ -62,6 +62,9 @@ final class OutboxStorage
         foreach ($statements as $sql) {
             $this->db->rawQuery($sql);
         }
+        foreach ($this->dialect()->outboxMissingIndexSql($this->db, $this->tableName) as $sql) {
+            $this->db->rawQuery($sql);
+        }
     }
 
     protected function addMissingColumns(): void

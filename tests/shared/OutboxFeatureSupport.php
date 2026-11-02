@@ -263,11 +263,9 @@ final class OutboxFeatureSupport
     }
 
     /**
-     * A table made before headers and partition keys existed is brought up to date by ensureSchema(), and keeps its rows.
-     *
-     * @return array{old_row_type: string, old_row_headers: array<string, mixed>, old_row_key: ?string, new_row_headers: array<string, mixed>|null, new_row_key: ?string}
+     * The outbox table as it was before headers, partition keys and their index existed.
      */
-    public static function upgradeOldTable(PdoDb $db, string $table): array
+    public static function createOldLayout(PdoDb $db, string $table): void
     {
         $schema = $db->schema();
         $schema->dropTableIfExists($table);
@@ -284,6 +282,17 @@ final class OutboxFeatureSupport
             'last_error' => $schema->string(4000),
             'published_at' => $schema->timestamp(6),
         ]);
+    }
+
+    /**
+     * A table made before headers and partition keys existed is brought up to date by ensureSchema(), and keeps its rows.
+     *
+     * @return array{old_row_type: string, old_row_headers: array<string, mixed>, old_row_key: ?string, new_row_headers: array<string, mixed>|null, new_row_key: ?string}
+     */
+    public static function upgradeOldTable(PdoDb $db, string $table): array
+    {
+        $schema = $db->schema();
+        self::createOldLayout($db, $table);
 
         try {
             $quoted = $db->schema()->getDialect()->quoteTable($table);
@@ -300,6 +309,9 @@ final class OutboxFeatureSupport
             $db->transaction(function () use ($outbox): void {
                 $outbox->add('new.event', ['n' => 2], 0, ['trace' => 't'], 'key-1');
             });
+            // The old layout's timestamps have no fractional seconds, so a new row's "now" can round up into the next
+            // second; make both rows due now instead of racing the clock.
+            $db->find()->table($table)->update(['available_at' => $past]);
             $seen = [];
             $outbox->worker('w')->runOnce(function (OutboxMessage $m) use (&$seen): void {
                 $seen[$m->type] = [$m->headers, $m->partitionKey];

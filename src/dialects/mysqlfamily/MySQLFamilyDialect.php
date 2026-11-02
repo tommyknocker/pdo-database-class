@@ -1821,6 +1821,23 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
     /**
      * {@inheritDoc}
      */
+    public function outboxMissingIndexSql(PdoDb $db, string $tableName): array
+    {
+        $indexName = $tableName . '_partition_idx';
+        $present = (int)$db->rawQueryValue(
+            'SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = :t AND index_name = :i',
+            ['t' => $tableName, 'i' => $indexName]
+        );
+        if ($present > 0) {
+            return [];
+        }
+
+        return ['CREATE INDEX ' . $this->quoteIdentifier($indexName) . ' ON ' . $this->quoteTable($tableName) . ' (partition_key, status, id)'];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function outboxClaimStrategy(): OutboxClaimStrategy
     {
         return new MySQLFamilyOutboxClaim($this);

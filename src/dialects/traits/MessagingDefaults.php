@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\dialects\traits;
 
 use tommyknocker\pdodb\dialects\roles\DialectMessagingInterface;
+use tommyknocker\pdodb\PdoDb;
 
 /**
  * Default implementation of the outbox and inbox SQL that does not depend on the database
@@ -13,6 +14,14 @@ use tommyknocker\pdodb\dialects\roles\DialectMessagingInterface;
  */
 trait MessagingDefaults
 {
+    /**
+     * {@inheritDoc}
+     */
+    public function outboxMissingIndexSql(PdoDb $db, string $tableName): array
+    {
+        return [];
+    }
+
     /**
      * {@inheritDoc}
      */
