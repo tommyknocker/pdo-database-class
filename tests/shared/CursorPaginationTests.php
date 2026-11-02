@@ -80,4 +80,38 @@ final class CursorPaginationTests extends TestCase
         $query->cursorPaginate(2);
         $this->assertCount(8, $query->get(), 'cursorPaginate() must not leave LIMIT on the builder');
     }
+
+    public function testColumnsQualifiedWithATableAliasPageThroughEveryRow(): void
+    {
+        $db = $this->db();
+
+        $ids = [];
+        $cursor = null;
+        for ($guard = 0; $guard < 20; $guard++) {
+            $page = $db->find()->from('scores s')->orderBy('s.score', 'DESC')->orderBy('s.id', 'ASC')->cursorPaginate(3, $cursor);
+            foreach ($page->items() as $row) {
+                $ids[] = (int)$row['id'];
+            }
+            $cursor = $page->nextCursor();
+            if ($cursor === null) {
+                break;
+            }
+        }
+
+        $this->assertSame([8, 5, 6, 2, 3, 4, 1, 7], $ids);
+    }
+
+    public function testQualifiedKeyBatchesVisitEveryRow(): void
+    {
+        $db = $this->db();
+
+        $ids = [];
+        foreach ($db->find()->from('scores s')->batch(3, 's.id') as $batch) {
+            foreach ($batch as $row) {
+                $ids[] = (int)$row['id'];
+            }
+        }
+
+        $this->assertSame([1, 2, 3, 4, 5, 6, 7, 8], $ids);
+    }
 }

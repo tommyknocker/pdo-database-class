@@ -96,4 +96,45 @@ final class BuilderReuseTests extends BaseSharedTestCase
             self::$db->rawQuery('DROP TABLE cursor_scenario');
         }
     }
+
+    public function testPaginationCountsRowsWhenResultsAreObjects(): void
+    {
+        self::$db->rawQuery('DROP TABLE IF EXISTS object_pages');
+        self::$db->rawQuery('CREATE TABLE object_pages (id INTEGER PRIMARY KEY, n INTEGER)');
+        for ($i = 1; $i <= 7; $i++) {
+            self::$db->find()->table('object_pages')->insert(['n' => $i]);
+        }
+
+        $page = self::$db->find()->from('object_pages')->orderBy('id')->asObject()->paginate(3, 2);
+
+        $this->assertSame(7, $page->total());
+        $this->assertCount(3, $page->items());
+        $this->assertSame(4, (int)$page->items()[0]->id);
+    }
+
+    public function testALimitSurvivesAUnionThatFailsToBuild(): void
+    {
+        self::$db->rawQuery('DROP TABLE IF EXISTS union_limit');
+        self::$db->rawQuery('CREATE TABLE union_limit (id INTEGER PRIMARY KEY)');
+        for ($i = 1; $i <= 6; $i++) {
+            self::$db->find()->table('union_limit')->insert(['id' => $i]);
+        }
+
+        $attempts = 0;
+        $query = self::$db->find()->from('union_limit')->select(['id'])->limit(3)->union(function ($q) use (&$attempts): void {
+            if (++$attempts === 1) {
+                throw new \RuntimeException('cannot build the union yet');
+            }
+            $q->from('union_limit')->select(['id'])->where('id', 100);
+        });
+
+        try {
+            $query->get();
+            $this->fail('The first run must throw.');
+        } catch (\RuntimeException) {
+            // expected
+        }
+
+        $this->assertCount(3, $query->get(), 'LIMIT 3 must still apply after the failed build');
+    }
 }

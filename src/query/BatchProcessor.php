@@ -108,6 +108,9 @@ class BatchProcessor implements BatchProcessorInterface, ConnectionAwareInterfac
     protected function batchByKey(string $sql, array $params, int $batchSize, string $column): Generator
     {
         $dialect = $this->connection->getDialect();
+        // The query is a derived table: its rows are keyed by the bare column name, whatever qualifier it was selected with
+        $dot = strrpos($column, '.');
+        $column = $dot === false ? $column : substr($column, $dot + 1);
         $quoted = $dialect->quoteIdentifier($column);
         $last = null;
 

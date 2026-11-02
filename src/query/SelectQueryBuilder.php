@@ -1467,14 +1467,16 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
             $this->limit = null;
             $this->offset = null;
 
-            $sql = $this->dialect->formatSelectOptions($sql, $this->options);
+            try {
+                $sql = $this->dialect->formatSelectOptions($sql, $this->options);
 
-            // Build UNION SQL
-            $sql = $this->buildUnionSql($sql);
-
-            // Restore limit/offset for UNION
-            $this->limit = $originalLimit;
-            $this->offset = $originalOffset;
+                // Build UNION SQL
+                $sql = $this->buildUnionSql($sql);
+            } finally {
+                // Restore limit/offset for UNION, also when building it throws
+                $this->limit = $originalLimit;
+                $this->offset = $originalOffset;
+            }
 
             // Add ORDER BY/LIMIT/OFFSET after UNION operations
             if (!empty($this->order)) {
@@ -1876,8 +1878,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
         }
 
         // Execute both queries
-        $totalResult = $this->executionEngine->fetch($countSql, $countParams);
-        $total = (int)($totalResult['total'] ?? $totalResult['TOTAL'] ?? 0);
+        // The count query selects one column; reading it by position works in every fetch mode
+        $total = (int)$this->executionEngine->fetchColumn($countSql, $countParams);
 
         $items = $this->executionEngine->fetchAll($itemsSql, $itemsParams);
 
@@ -1990,16 +1992,18 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
             // Normalize keys to match cursorColumns (which are normalized)
             $normalizedItem = [];
             foreach ($cursorColumns as $col) {
+                // A row is keyed by the bare column name even when ORDER BY says `o.created_at`
+                $resultKey = self::bareColumn($col);
                 // Try original column name first, then normalized (uppercase for Oracle)
-                $normalizedCol = $this->dialect->normalizeColumnKey($col);
-                if (isset($lastItem[$col])) {
-                    $normalizedItem[$col] = $lastItem[$col];
+                $normalizedCol = $this->dialect->normalizeColumnKey($resultKey);
+                if (isset($lastItem[$resultKey])) {
+                    $normalizedItem[$col] = $lastItem[$resultKey];
                 } elseif (isset($lastItem[$normalizedCol])) {
                     $normalizedItem[$col] = $lastItem[$normalizedCol];
                 } else {
                     // Try case-insensitive lookup
                     foreach ($lastItem as $key => $value) {
-                        if (strcasecmp($key, $col) === 0 || strcasecmp($key, $normalizedCol) === 0) {
+                        if (strcasecmp((string)$key, $resultKey) === 0 || strcasecmp((string)$key, $normalizedCol) === 0) {
                             $normalizedItem[$col] = $value;
                             break;
                         }
@@ -2051,6 +2055,24 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
     }
 
     /**
+     * The column name without its table qualifier (`o.created_at` -> `created_at`), as a result row is keyed.
+     */
+    protected static function bareColumn(string $column): string
+    {
+        $dot = strrpos($column, '.');
+
+        return $dot === false ? $column : substr($column, $dot + 1);
+    }
+
+    /**
+     * Quote each part of a possibly qualified column (`o.created_at` -> `"o"."created_at"`).
+     */
+    protected function quoteColumnPath(string $column): string
+    {
+        return implode('.', array_map(fn (string $part): string => $this->dialect->quoteIdentifier($part), explode('.', $column)));
+    }
+
+    /**
      * Apply cursor conditions to query.
      *
      * Rows after the cursor in ORDER BY order satisfy `(c1 > v1) OR (c1 = v1 AND c2 > v2) OR ...`, with `<` for a
@@ -2077,11 +2099,11 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
             $terms = [];
             for ($j = 0; $j < $i; $j++) {
                 $name = 'cursor_' . $i . '_eq_' . $j;
-                $terms[] = $this->dialect->quoteIdentifier($columns[$j]) . ' = :' . $name;
+                $terms[] = $this->quoteColumnPath($columns[$j]) . ' = :' . $name;
                 $bound[$name] = $params[$columns[$j]];
             }
             $name = 'cursor_' . $i;
-            $terms[] = $this->dialect->quoteIdentifier($col) . ($directions[$i] ? ' < ' : ' > ') . ':' . $name;
+            $terms[] = $this->quoteColumnPath($col) . ($directions[$i] ? ' < ' : ' > ') . ':' . $name;
             $bound[$name] = $params[$col];
             $branches[] = '(' . implode(' AND ', $terms) . ')';
         }
