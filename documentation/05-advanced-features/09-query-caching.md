@@ -288,6 +288,15 @@ $usernames = $db->find()
     ->getColumn();
 ```
 
+### Transactions
+
+The cache is shared by every connection, so it only holds committed data. While a connection has an open transaction,
+its queries skip the cache: they are neither answered from it nor stored in it. Otherwise a read could return another
+transaction's uncommitted rows, or leave rows from a transaction that was rolled back. Caching resumes once the
+transaction ends. A write in a transaction still invalidates the cached reads of its tables; a read by another
+connection between that invalidation and the commit can cache the old data until its TTL runs out, so keep TTLs short
+for tables that change often.
+
 ## Cache Configuration
 
 ### Configuration Options

@@ -2123,7 +2123,7 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
      */
     protected function getFromCache(): mixed
     {
-        if ($this->cacheManager === null) {
+        if ($this->cacheManager === null || !$this->cacheAllowed()) {
             return null;
         }
 
@@ -2153,13 +2153,23 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
     }
 
     /**
+     * The cache is shared by all connections, so it may only hold committed data. Inside a transaction a read can
+     * see the transaction's own uncommitted rows, and a rollback would leave them in the cache; the query bypasses
+     * the cache until the transaction ends.
+     */
+    protected function cacheAllowed(): bool
+    {
+        return $this->cacheManager !== null && !$this->connection->inTransaction();
+    }
+
+    /**
      * Save result to cache.
      *
      * @param mixed $result The result to cache
      */
     protected function saveToCache(mixed $result): void
     {
-        if ($this->cacheManager === null) {
+        if ($this->cacheManager === null || !$this->cacheAllowed()) {
             return;
         }
 
