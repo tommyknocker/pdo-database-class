@@ -2932,6 +2932,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     {
         $tableQuoted = $this->quoteTable($tableName);
         $indexName = $this->quoteIdentifier($tableName . '_pending_idx');
+        $partitionIndex = $this->quoteIdentifier($tableName . '_partition_idx');
 
         return [
             "BEGIN
@@ -2946,7 +2947,9 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
                     locked_by VARCHAR2(128) NULL,
                     locked_until TIMESTAMP(6) NULL,
                     last_error VARCHAR2(4000) NULL,
-                    published_at TIMESTAMP(6) NULL
+                    published_at TIMESTAMP(6) NULL,
+                    headers VARCHAR2(4000) NULL,
+                    partition_key VARCHAR2(190) NULL
                 )';
             EXCEPTION
                 WHEN OTHERS THEN
@@ -2956,6 +2959,14 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
             END;",
             "BEGIN
                 EXECUTE IMMEDIATE 'CREATE INDEX {$indexName} ON {$tableQuoted} (status, available_at)';
+            EXCEPTION
+                WHEN OTHERS THEN
+                    IF SQLCODE != -955 THEN
+                        RAISE;
+                    END IF;
+            END;",
+            "BEGIN
+                EXECUTE IMMEDIATE 'CREATE INDEX {$partitionIndex} ON {$tableQuoted} (partition_key, status, id)';
             EXCEPTION
                 WHEN OTHERS THEN
                     IF SQLCODE != -955 THEN

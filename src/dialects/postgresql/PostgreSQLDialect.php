@@ -2456,6 +2456,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
     {
         $tableQuoted = $this->quoteTable($tableName);
         $indexName = $this->quoteIdentifier($tableName . '_pending_idx');
+        $partitionIndex = $this->quoteIdentifier($tableName . '_partition_idx');
 
         return [
             "CREATE TABLE IF NOT EXISTS {$tableQuoted} (
@@ -2469,9 +2470,12 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
                 locked_by VARCHAR(128) NULL,
                 locked_until TIMESTAMPTZ NULL,
                 last_error TEXT NULL,
-                published_at TIMESTAMPTZ NULL
+                published_at TIMESTAMPTZ NULL,
+                headers TEXT NULL,
+                partition_key VARCHAR(190) NULL
             )",
             "CREATE INDEX IF NOT EXISTS {$indexName} ON {$tableQuoted} (status, available_at)",
+            "CREATE INDEX IF NOT EXISTS {$partitionIndex} ON {$tableQuoted} (partition_key, status, id)",
         ];
     }
 

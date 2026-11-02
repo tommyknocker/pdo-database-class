@@ -26,8 +26,9 @@ final class SqliteOutboxClaim implements OutboxClaimStrategy
                     locked_until = {$this->dialect->outboxNowPlusSecondsSql($lockSeconds)},
                     attempts = attempts + 1
                 WHERE id IN (
-                    SELECT id FROM {$table}
+                    SELECT id FROM {$table} cand
                     WHERE status = 'pending' AND available_at <= {$this->dialect->outboxNowSql()}
+                        " . OutboxClaimRows::partitionGuard($table, 'cand') . "
                     ORDER BY available_at ASC, id ASC
                     LIMIT {$limit}
                 )

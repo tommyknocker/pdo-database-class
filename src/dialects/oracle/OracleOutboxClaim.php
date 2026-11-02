@@ -29,8 +29,9 @@ final class OracleOutboxClaim implements OutboxClaimStrategy
         $candidateCap = max(self::CANDIDATE_FLOOR, $limit);
         $candidates = $db->rawQuery(
             "SELECT id FROM (
-                SELECT id FROM {$table}
+                SELECT id FROM {$table} cand
                 WHERE status = 'pending' AND available_at <= {$this->dialect->outboxNowSql()}
+                    " . OutboxClaimRows::partitionGuard($table, 'cand') . "
                 ORDER BY available_at ASC, id ASC
             ) WHERE ROWNUM <= {$candidateCap}"
         );

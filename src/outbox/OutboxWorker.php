@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\outbox;
 
 use Throwable;
+use tommyknocker\pdodb\events\OutboxMessageFailedEvent;
+use tommyknocker\pdodb\events\OutboxMessagePublishedEvent;
+use tommyknocker\pdodb\events\OutboxMessageRetryEvent;
 use tommyknocker\pdodb\exceptions\OutboxPermanentFailureException;
 use tommyknocker\pdodb\exceptions\OutboxRetryableException;
 
@@ -101,16 +104,26 @@ final class OutboxWorker
 
     protected function confirmPublished(OutboxMessage $message): bool
     {
-        return $this->confirm(function () use ($message): bool {
+        $confirmed = $this->confirm(function () use ($message): bool {
             return $this->storage->markPublished($message->id, $message->lockToken);
         });
+        if ($confirmed) {
+            $this->storage->dispatch(new OutboxMessagePublishedEvent($message));
+        }
+
+        return $confirmed;
     }
 
     protected function confirmFailed(OutboxMessage $message, string $errorMessage): bool
     {
-        return $this->confirm(function () use ($message, $errorMessage): bool {
+        $confirmed = $this->confirm(function () use ($message, $errorMessage): bool {
             return $this->storage->markFailed($message->id, $message->lockToken, $errorMessage);
         });
+        if ($confirmed) {
+            $this->storage->dispatch(new OutboxMessageFailedEvent($message, $errorMessage));
+        }
+
+        return $confirmed;
     }
 
     protected function confirmRetry(
@@ -157,19 +170,17 @@ final class OutboxWorker
             $updated = $this->storage->markFailed($message->id, $token, $errorMessage);
             if ($updated) {
                 $markedFailed++;
+                $this->storage->dispatch(new OutboxMessageFailedEvent($message, $errorMessage));
             }
 
             return $updated;
         }
 
-        $updated = $this->storage->markRetry(
-            $message->id,
-            $token,
-            $this->retryDelaySeconds($message->attempts),
-            $errorMessage,
-        );
+        $delay = $this->retryDelaySeconds($message->attempts);
+        $updated = $this->storage->markRetry($message->id, $token, $delay, $errorMessage);
         if ($updated) {
             $scheduledRetry++;
+            $this->storage->dispatch(new OutboxMessageRetryEvent($message, $errorMessage, $delay));
         }
 
         return $updated;

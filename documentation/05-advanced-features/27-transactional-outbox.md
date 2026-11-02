@@ -31,6 +31,70 @@ Nested `transaction()` calls use savepoints, so an inner block can call `add()` 
 
 To hold a message back, pass a delay in seconds: `$outbox->add('reminder.due', ['id' => 7], delaySeconds: 3600)`. A worker will not claim it before then.
 
+### Headers
+
+Information about a message that is not part of its payload (a trace id, a tenant, a schema version) goes in headers.
+The publisher reads it as `$message->headers`:
+
+```php
+$outbox->add('order.created', ['order_id' => 123], headers: ['trace_id' => $traceId, 'tenant' => 7]);
+
+// in the publisher
+$broker->send($message->type, $message->payload, $message->headers);
+```
+
+Header names must be non-empty strings, and the headers must fit in 4000 bytes as JSON.
+
+### Ordering by partition key
+
+Workers claim messages in batches and several workers run at once, so by default there is no order between messages.
+Give related messages the same partition key to get one:
+
+```php
+$db->transaction(function () use ($outbox, $orderId): void {
+    $outbox->add('order.created', [...], partitionKey: "order-{$orderId}");
+    $outbox->add('order.paid', [...], partitionKey: "order-{$orderId}");
+});
+```
+
+Messages with the same key are delivered one at a time, in the order they were added: `order.paid` is not claimed while
+`order.created` is waiting, being delivered, or waiting for a retry. Messages with different keys, or none, are not held
+back by each other. The key is at most 190 bytes.
+
+What this does not promise:
+- A message that failed for good (`failed`) does not hold its key back, so later messages for the key go on. Requeueing
+  it puts it first in line again.
+- The order is the order in which ids were generated. Two transactions that overlap can commit in the opposite order;
+  a message added by the transaction that commits later is delivered after, even if its id is smaller. Keep messages
+  of one key in one transaction, or accept that edge.
+- A retry waits out its backoff while later messages of the key wait too. Make the publisher fail permanently
+  (`OutboxPermanentFailureException`) for messages that can never be delivered.
+
+### Payload serializer
+
+The payload is stored as JSON. To wrap it, for example in an envelope that carries a schema version or an encrypted
+body, pass an `OutboxSerializer` (its output must be valid JSON, because the payload column is JSON on PostgreSQL):
+
+```php
+$outbox = new Outbox($db, 'pdodb_outbox', new MyEnvelopeSerializer());
+```
+
+Use the same serializer for the workers that read the table.
+
+## Events
+
+The outbox sends PSR-14 events to the connection's event dispatcher (see [Events](22-events.md)):
+
+| Event | When |
+|---|---|
+| `OutboxMessageAddedEvent` | after `add()` inserted the row, still inside the caller's transaction |
+| `OutboxMessagePublishedEvent` | after the worker recorded the delivery |
+| `OutboxMessageRetryEvent` | after a retry was scheduled (error and delay available) |
+| `OutboxMessageFailedEvent` | after the message was marked failed |
+
+`OutboxMessageAddedEvent` fires before the transaction commits: the message does not exist for workers until then and
+vanishes on rollback. Use it for metrics and tracing, not as proof that anything was sent.
+
 ## Publisher file
 
 Create a PHP file that **returns** a callable. The CLI and your own bootstrap can load it via `OutboxPublisherLoader::load()`:
@@ -49,6 +113,8 @@ return function (OutboxMessage $message): void {
     }
 };
 ```
+
+A publisher receives `$message->id`, `type`, `payload`, `attempts`, `headers` and `partitionKey`.
 
 See `examples/12-reliability/outbox/publisher.php` for a minimal example.
 

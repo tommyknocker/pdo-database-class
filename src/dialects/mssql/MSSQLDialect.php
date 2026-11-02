@@ -2236,6 +2236,9 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
         $indexRaw = $tableName . '_pending_idx';
         $indexName = $this->quoteIdentifier($indexRaw);
         $indexLiteral = str_replace("'", "''", $indexRaw);
+        $partitionRaw = $tableName . '_partition_idx';
+        $partitionIndex = $this->quoteIdentifier($partitionRaw);
+        $partitionLiteral = str_replace("'", "''", $partitionRaw);
 
         return [
             "IF OBJECT_ID(N'{$tableLiteral}', N'U') IS NULL
@@ -2250,10 +2253,14 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
                 locked_by NVARCHAR(128) NULL,
                 locked_until DATETIME2 NULL,
                 last_error NVARCHAR(MAX) NULL,
-                published_at DATETIME2 NULL
+                published_at DATETIME2 NULL,
+                headers NVARCHAR(4000) NULL,
+                partition_key NVARCHAR(190) NULL
             )",
             "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'{$indexLiteral}' AND object_id = OBJECT_ID(N'{$tableLiteral}'))
             CREATE INDEX {$indexName} ON {$tableQuoted} (status, available_at)",
+            "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'{$partitionLiteral}' AND object_id = OBJECT_ID(N'{$tableLiteral}'))
+            CREATE INDEX {$partitionIndex} ON {$tableQuoted} (partition_key, status, id)",
         ];
     }
 

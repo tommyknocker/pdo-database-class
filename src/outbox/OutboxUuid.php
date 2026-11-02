@@ -7,12 +7,20 @@ namespace tommyknocker\pdodb\outbox;
 use tommyknocker\pdodb\helpers\Uuid;
 
 /**
- * Generate UUID v4 for outbox message ids.
+ * Outbox message ids.
  */
 final class OutboxUuid
 {
     public static function v4(): string
     {
         return Uuid::v4();
+    }
+
+    /**
+     * An id that sorts after every id this process generated before it. Per-key ordering of messages relies on it.
+     */
+    public static function ordered(): string
+    {
+        return Uuid::v7();
     }
 }

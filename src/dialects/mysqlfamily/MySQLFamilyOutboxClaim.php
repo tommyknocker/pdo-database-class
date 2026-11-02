@@ -23,8 +23,9 @@ final class MySQLFamilyOutboxClaim implements OutboxClaimStrategy
             "UPDATE {$table} AS t
                 INNER JOIN (
                     SELECT id FROM (
-                        SELECT id FROM {$table}
+                        SELECT id FROM {$table} cand
                         WHERE status = 'pending' AND available_at <= {$this->dialect->outboxNowSql()}
+                            " . OutboxClaimRows::partitionGuard($table, 'cand') . "
                         ORDER BY available_at ASC, id ASC
                         LIMIT {$limit}
                         FOR UPDATE SKIP LOCKED

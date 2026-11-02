@@ -1,0 +1,229 @@
+<?php
+
+declare(strict_types=1);
+
+namespace tommyknocker\pdodb\tests\shared;
+
+use Psr\EventDispatcher\EventDispatcherInterface;
+use tommyknocker\pdodb\events\OutboxMessageAddedEvent;
+use tommyknocker\pdodb\events\OutboxMessageFailedEvent;
+use tommyknocker\pdodb\events\OutboxMessagePublishedEvent;
+use tommyknocker\pdodb\events\OutboxMessageRetryEvent;
+use tommyknocker\pdodb\exceptions\OutboxException;
+use tommyknocker\pdodb\exceptions\OutboxPermanentFailureException;
+use tommyknocker\pdodb\exceptions\OutboxRetryableException;
+use tommyknocker\pdodb\outbox\Outbox;
+use tommyknocker\pdodb\outbox\OutboxMessage;
+use tommyknocker\pdodb\outbox\OutboxSerializer;
+use tommyknocker\pdodb\PdoDb;
+
+/**
+ * Headers, partition keys, serializers and events of the outbox, run on every database.
+ */
+final class OutboxFeatureSupport
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public static function expected(): array
+    {
+        return [
+            'headers' => ['trace' => 't-1', 'tenant' => 7],
+            'partition' => 'order-1',
+            'rounds' => [['a1', 'b1', 'n1'], ['a2'], ['a3']],
+            'retry_blocks' => ['first' => ['r1'], 'while_waiting' => []],
+            'failure_unblocks' => ['first' => ['f1'], 'second' => ['f2']],
+            'events' => ['added' => 3, 'published' => 1, 'retry' => 1, 'failed' => 1],
+            'envelope_round_trip' => ['n' => 5],
+            'envelope_stored' => '{"v":1,"data":{"n":5}}',
+            'rejected' => ['header-name', 'header-size', 'key-empty', 'key-long', 'not-json'],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function run(PdoDb $db, string $table): array
+    {
+        $r = [];
+        $db->schema()->dropTableIfExists($table);
+        $outbox = new Outbox($db, $table);
+        $outbox->ensureSchema();
+
+        // --- headers and the partition key reach the publisher
+        $db->transaction(function () use ($outbox): void {
+            $outbox->add('x', ['n' => 1], 0, ['trace' => 't-1', 'tenant' => 7], 'order-1');
+        });
+        $seen = [];
+        $outbox->worker('w')->runOnce(function (OutboxMessage $m) use (&$seen): void {
+            $seen = [$m->headers, $m->partitionKey];
+        });
+        $r['headers'] = $seen[0] ?? null;
+        $r['partition'] = $seen[1] ?? null;
+
+        // --- one message per key at a time, in the order they were added
+        self::clear($db, $table);
+        $db->transaction(function () use ($outbox): void {
+            $outbox->add('a1', [], 0, [], 'A');
+            $outbox->add('a2', [], 0, [], 'A');
+            $outbox->add('a3', [], 0, [], 'A');
+            $outbox->add('b1', [], 0, [], 'B');
+            $outbox->add('n1', []);
+        });
+        $r['rounds'] = [];
+        for ($round = 0; $round < 3; $round++) {
+            $types = [];
+            $outbox->worker('w')->runOnce(function (OutboxMessage $m) use (&$types): void {
+                $types[] = $m->type;
+            });
+            sort($types);
+            $r['rounds'][] = $types;
+        }
+
+        // --- a message waiting for a retry holds its key back
+        self::clear($db, $table);
+        $db->transaction(function () use ($outbox): void {
+            $outbox->add('r1', [], 0, [], 'R');
+            $outbox->add('r2', [], 0, [], 'R');
+        });
+        $first = [];
+        $outbox->worker('w')->runOnce(function (OutboxMessage $m) use (&$first): void {
+            $first[] = $m->type;
+
+            throw new OutboxRetryableException('later');
+        });
+        $waiting = [];
+        $outbox->worker('w')->runOnce(function (OutboxMessage $m) use (&$waiting): void {
+            $waiting[] = $m->type;
+        });
+        $r['retry_blocks'] = ['first' => $first, 'while_waiting' => $waiting];
+
+        // --- a message that failed for good does not
+        self::clear($db, $table);
+        $db->transaction(function () use ($outbox): void {
+            $outbox->add('f1', [], 0, [], 'F');
+            $outbox->add('f2', [], 0, [], 'F');
+        });
+        $first = [];
+        $outbox->worker('w')->runOnce(function (OutboxMessage $m) use (&$first): void {
+            $first[] = $m->type;
+
+            throw new OutboxPermanentFailureException('never');
+        });
+        $second = [];
+        $outbox->worker('w')->runOnce(function (OutboxMessage $m) use (&$second): void {
+            $second[] = $m->type;
+        });
+        $r['failure_unblocks'] = ['first' => $first, 'second' => $second];
+
+        // --- events
+        self::clear($db, $table);
+        $counts = ['added' => 0, 'published' => 0, 'retry' => 0, 'failed' => 0];
+        $db->setEventDispatcher(new class ($counts) implements EventDispatcherInterface {
+            /** @param array<string, int> $counts */
+            public function __construct(private array &$counts)
+            {
+            }
+
+            public function dispatch(object $event): object
+            {
+                $name = match (true) {
+                    $event instanceof OutboxMessageAddedEvent => 'added',
+                    $event instanceof OutboxMessagePublishedEvent => 'published',
+                    $event instanceof OutboxMessageRetryEvent => 'retry',
+                    $event instanceof OutboxMessageFailedEvent => 'failed',
+                    default => null,
+                };
+                if ($name !== null) {
+                    $this->counts[$name]++;
+                }
+
+                return $event;
+            }
+        });
+
+        try {
+            $db->transaction(function () use ($outbox): void {
+                $outbox->add('ok', []);
+                $outbox->add('retry', []);
+                $outbox->add('fail', []);
+            });
+            $outbox->worker('w')->runOnce(function (OutboxMessage $m): void {
+                if ($m->type === 'retry') {
+                    throw new OutboxRetryableException('again');
+                }
+                if ($m->type === 'fail') {
+                    throw new OutboxPermanentFailureException('no');
+                }
+            });
+        } finally {
+            $db->setEventDispatcher(null);
+        }
+        $r['events'] = $counts;
+
+        // --- a serializer wraps the payload in an envelope; the stored text is what it produced
+        self::clear($db, $table);
+        $envelope = new class () implements OutboxSerializer {
+            public function serialize(array $payload): string
+            {
+                return json_encode(['v' => 1, 'data' => $payload], JSON_THROW_ON_ERROR);
+            }
+
+            public function deserialize(string $stored): array
+            {
+                return json_decode($stored, true, 512, JSON_THROW_ON_ERROR)['data'];
+            }
+        };
+        $custom = new Outbox($db, $table, $envelope);
+        $db->transaction(function () use ($custom): void {
+            $custom->add('env', ['n' => 5]);
+        });
+        $payload = null;
+        $custom->worker('w')->runOnce(function (OutboxMessage $m) use (&$payload): void {
+            $payload = $m->payload;
+        });
+        $stored = $db->rawQueryValue('SELECT payload FROM ' . $db->schema()->getDialect()->quoteTable($table));
+        if (is_resource($stored)) {
+            $stored = stream_get_contents($stored);
+        }
+        $r['envelope_round_trip'] = $payload;
+        // PostgreSQL's JSONB normalizes the text it stores, so compare as data there
+        $r['envelope_stored'] = json_encode(json_decode((string)$stored, true), JSON_THROW_ON_ERROR);
+
+        // --- what is rejected
+        $rejected = [];
+        $notJson = new Outbox($db, $table, new class () implements OutboxSerializer {
+            public function serialize(array $payload): string
+            {
+                return 'not json';
+            }
+
+            public function deserialize(string $stored): array
+            {
+                return [];
+            }
+        });
+        $db->transaction(function () use ($outbox, $notJson, &$rejected): void {
+            $try = static function (string $name, callable $call) use (&$rejected): void {
+                try {
+                    $call();
+                } catch (OutboxException) {
+                    $rejected[] = $name;
+                }
+            };
+            $try('header-name', fn () => $outbox->add('x', [], 0, [0 => 'v']));
+            $try('header-size', fn () => $outbox->add('x', [], 0, ['k' => str_repeat('v', 5000)]));
+            $try('key-empty', fn () => $outbox->add('x', [], 0, [], ''));
+            $try('key-long', fn () => $outbox->add('x', [], 0, [], str_repeat('k', 191)));
+            $try('not-json', fn () => $notJson->add('x', ['a' => 1]));
+        });
+        $r['rejected'] = $rejected;
+
+        return $r;
+    }
+
+    private static function clear(PdoDb $db, string $table): void
+    {
+        $db->rawQuery('DELETE FROM ' . $db->schema()->getDialect()->quoteTable($table));
+    }
+}

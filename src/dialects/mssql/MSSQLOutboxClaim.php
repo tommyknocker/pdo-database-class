@@ -21,8 +21,9 @@ final class MSSQLOutboxClaim implements OutboxClaimStrategy
         $table = $this->dialect->quoteTable($tableName);
         $rows = $db->rawQuery(
             "WITH picked AS (
-                SELECT TOP ({$limit}) * FROM {$table} WITH (READPAST, UPDLOCK, ROWLOCK)
+                SELECT TOP ({$limit}) * FROM {$table} cand WITH (READPAST, UPDLOCK, ROWLOCK)
                 WHERE status = 'pending' AND available_at <= {$this->dialect->outboxNowSql()}
+                    " . OutboxClaimRows::partitionGuard($table, 'cand') . "
                 ORDER BY available_at ASC, id ASC
             )
             UPDATE picked
@@ -32,7 +33,7 @@ final class MSSQLOutboxClaim implements OutboxClaimStrategy
                     attempts = attempts + 1
                 OUTPUT INSERTED.id, INSERTED.event_type, INSERTED.payload, INSERTED.status, INSERTED.attempts,
                     INSERTED.available_at, INSERTED.created_at, INSERTED.locked_by, INSERTED.locked_until,
-                    INSERTED.last_error, INSERTED.published_at",
+                    INSERTED.last_error, INSERTED.published_at, INSERTED.headers, INSERTED.partition_key",
             ['token' => $token]
         );
 

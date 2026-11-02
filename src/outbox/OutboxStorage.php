@@ -16,10 +16,27 @@ use tommyknocker\pdodb\PdoDb;
  */
 final class OutboxStorage
 {
+    protected OutboxSerializer $serializer;
+
     public function __construct(
         protected PdoDb $db,
         protected string $tableName,
+        ?OutboxSerializer $serializer = null,
     ) {
+        $this->serializer = $serializer ?? new JsonOutboxSerializer();
+    }
+
+    public function serializer(): OutboxSerializer
+    {
+        return $this->serializer;
+    }
+
+    /**
+     * Send an event to the connection's PSR-14 dispatcher, if there is one.
+     */
+    public function dispatch(object $event): void
+    {
+        $this->db->connection->getEventDispatcher()?->dispatch($event);
     }
 
     /**
@@ -40,22 +57,41 @@ final class OutboxStorage
     /**
      * @param array<string, mixed> $payload
      */
-    public function insertPending(string $id, string $eventType, array $payload, int $delaySeconds = 0): void
-    {
+    /**
+     * @param array<int|string, mixed> $payload
+     * @param array<string, mixed> $headers
+     */
+    public function insertPending(
+        string $id,
+        string $eventType,
+        array $payload,
+        int $delaySeconds = 0,
+        array $headers = [],
+        ?string $partitionKey = null,
+    ): void {
+        $serialized = $this->serializer->serialize($payload);
+        if (!json_validate($serialized)) {
+            throw new OutboxException(
+                'The outbox serializer must return valid JSON: the payload column is JSON on PostgreSQL.'
+            );
+        }
+
         $dialect = $this->dialect();
         $tableQuoted = $dialect->quoteTable($this->tableName);
         $now = $dialect->outboxNowSql();
         $availableAt = $delaySeconds > 0 ? $dialect->outboxNowPlusSecondsSql($delaySeconds) : $now;
         $this->db->rawQuery(
             "INSERT INTO {$tableQuoted}
-                (id, event_type, payload, status, attempts, available_at, created_at)
-             VALUES (:id, :event_type, :payload, :status, :attempts, {$availableAt}, {$now})",
+                (id, event_type, payload, status, attempts, available_at, created_at, headers, partition_key)
+             VALUES (:id, :event_type, :payload, :status, :attempts, {$availableAt}, {$now}, :headers, :partition_key)",
             [
                 'id' => $id,
                 'event_type' => $eventType,
-                'payload' => json_encode($payload, JSON_THROW_ON_ERROR),
+                'payload' => $serialized,
                 'status' => OutboxStatuses::PENDING,
                 'attempts' => 0,
+                'headers' => $headers === [] ? null : json_encode($headers, JSON_THROW_ON_ERROR),
+                'partition_key' => $partitionKey,
             ]
         );
     }
@@ -100,7 +136,7 @@ final class OutboxStorage
             $unreadable = 0;
             foreach ($rows as $row) {
                 try {
-                    $messages[] = OutboxMessage::fromRow($row);
+                    $messages[] = OutboxMessage::fromRow($row, $this->serializer);
                 } catch (JsonException|OutboxException $e) {
                     $unreadable++;
                     $this->markFailed((string)($row['id'] ?? ''), $workerToken, 'Unreadable payload: ' . $e->getMessage());

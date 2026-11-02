@@ -26,15 +26,16 @@ final class PostgreSQLOutboxClaim implements OutboxClaimStrategy
                     locked_until = {$this->dialect->outboxNowPlusSecondsSql($lockSeconds)},
                     attempts = t.attempts + 1
                 FROM (
-                    SELECT id FROM {$table}
+                    SELECT id FROM {$table} cand
                     WHERE status = 'pending' AND available_at <= {$this->dialect->outboxNowSql()}
+                        " . OutboxClaimRows::partitionGuard($table, 'cand') . "
                     ORDER BY available_at ASC, id ASC
                     LIMIT {$limit}
                     FOR UPDATE SKIP LOCKED
                 ) AS picked
                 WHERE t.id = picked.id
                 RETURNING t.id, t.event_type, t.payload, t.status, t.attempts,
-                    t.available_at, t.created_at, t.locked_by, t.locked_until, t.last_error, t.published_at",
+                    t.available_at, t.created_at, t.locked_by, t.locked_until, t.last_error, t.published_at, t.headers, t.partition_key",
             ['token' => $token]
         );
 

@@ -1762,6 +1762,7 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
     {
         $tableQuoted = $this->quoteTable($tableName);
         $indexName = $this->quoteIdentifier($tableName . '_pending_idx');
+        $partitionIndex = $this->quoteIdentifier($tableName . '_partition_idx');
 
         return [
             "CREATE TABLE IF NOT EXISTS {$tableQuoted} (
@@ -1776,7 +1777,10 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
                 locked_until DATETIME(6) NULL,
                 last_error TEXT NULL,
                 published_at DATETIME(6) NULL,
-                KEY {$indexName} (status, available_at)
+                headers VARCHAR(4000) NULL,
+                partition_key VARCHAR(190) NULL,
+                KEY {$indexName} (status, available_at),
+                KEY {$partitionIndex} (partition_key, status, id)
             )",
         ];
     }
