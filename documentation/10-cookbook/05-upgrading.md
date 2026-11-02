@@ -155,8 +155,8 @@ uses a flat `ai` array. See
 ## Database schema
 
 Outbox timestamps (`created_at`, `available_at`, `locked_until`, `published_at`) use the database clock in UTC and native
-types: `DATETIME(6)` on MySQL/MariaDB and `TIMESTAMP(6)` on Oracle (previously `VARCHAR`); SQLite keeps UTC text. **Outbox
-tables created by an earlier version must be recreated.** The inbox `processed_at` is a native datetime column, and inbox
+types: `DATETIME(6)` on MySQL/MariaDB and `TIMESTAMP(6)` on Oracle (previously `VARCHAR`); SQLite keeps UTC text. **The
+outbox and inbox are new in 3.0, so 2.x has no such tables; tables made by a pre-release 3.0 build must be recreated.** The inbox `processed_at` is a native datetime column, and inbox
 ids may be up to 190 characters.
 
 `OutboxStorage::claimBatch()` returns an `OutboxClaim` (`messages`, `unreadable`) instead of a list, and a worker batch is

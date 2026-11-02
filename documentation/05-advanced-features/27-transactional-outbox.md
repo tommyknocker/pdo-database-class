@@ -8,6 +8,10 @@ PDOdb handles storage, claiming, retries, multi-worker safety on supported diale
 
 Create the outbox table in a migration using dialect-specific DDL from `Outbox::getSchemaSql()` or `$db->schema()->getDialect()->buildOutboxSchemaSql('pdodb_outbox')`.
 
+`Outbox::ensureSchema()` creates what is missing and adds the `headers` and `partition_key` columns to a table made by an
+earlier build of the library, keeping its rows. It cannot convert column types, so a table from a pre-release build with
+text timestamps has to be recreated.
+
 For local bootstrap only, `pdodb outbox work --ensure-schema` can create the table (not recommended for production).
 
 ## Writing events

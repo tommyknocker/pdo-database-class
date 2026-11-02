@@ -262,6 +262,61 @@ final class OutboxFeatureSupport
         return $r;
     }
 
+    /**
+     * A table made before headers and partition keys existed is brought up to date by ensureSchema(), and keeps its rows.
+     *
+     * @return array{old_row_type: string, old_row_headers: array<string, mixed>, old_row_key: ?string, new_row_headers: array<string, mixed>|null, new_row_key: ?string}
+     */
+    public static function upgradeOldTable(PdoDb $db, string $table): array
+    {
+        $schema = $db->schema();
+        $schema->dropTableIfExists($table);
+        $schema->createTable($table, [
+            'id' => $schema->string(36),
+            'event_type' => $schema->string(255)->notNull(),
+            'payload' => $schema->text()->notNull(),
+            'status' => $schema->string(32)->notNull(),
+            'attempts' => $schema->integer()->notNull(),
+            'available_at' => $schema->timestamp(6)->notNull(),
+            'created_at' => $schema->timestamp(6)->notNull(),
+            'locked_by' => $schema->string(128),
+            'locked_until' => $schema->timestamp(6),
+            'last_error' => $schema->string(4000),
+            'published_at' => $schema->timestamp(6),
+        ]);
+
+        try {
+            $quoted = $db->schema()->getDialect()->quoteTable($table);
+            $past = gmdate('Y-m-d H:i:s', time() - 60);
+            $db->find()->table($table)->insert([
+                'id' => 'old-row', 'event_type' => 'old.event', 'payload' => '{"n":1}', 'status' => 'pending',
+                'attempts' => 0, 'available_at' => $past, 'created_at' => $past,
+            ]);
+
+            $outbox = new Outbox($db, $table);
+            $outbox->ensureSchema();
+            $outbox->ensureSchema(); // twice: nothing left to add
+
+            $db->transaction(function () use ($outbox): void {
+                $outbox->add('new.event', ['n' => 2], 0, ['trace' => 't'], 'key-1');
+            });
+            $seen = [];
+            $outbox->worker('w')->runOnce(function (OutboxMessage $m) use (&$seen): void {
+                $seen[$m->type] = [$m->headers, $m->partitionKey];
+            });
+
+            return [
+                'old_row_type' => isset($seen['old.event']) ? 'old.event' : 'missing',
+                'old_row_headers' => $seen['old.event'][0] ?? ['?'],
+                'old_row_key' => isset($seen['old.event']) ? $seen['old.event'][1] : 'missing',
+                'new_row_headers' => $seen['new.event'][0] ?? null,
+                'new_row_key' => isset($seen['new.event']) ? $seen['new.event'][1] : 'missing',
+            ];
+        } finally {
+            $schema->dropTableIfExists($table);
+        }
+    }
+
     private static function clear(PdoDb $db, string $table): void
     {
         $db->rawQuery('DELETE FROM ' . $db->schema()->getDialect()->quoteTable($table));

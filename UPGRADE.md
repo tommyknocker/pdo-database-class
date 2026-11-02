@@ -37,8 +37,9 @@ it, is [Upgrading from 2.x to 3.0](documentation/10-cookbook/05-upgrading.md). T
 
 ## Database
 
-- [ ] **Recreate outbox tables** created by 2.x (native datetime types, database clock). Inbox `processed_at` is a native
-      datetime column.
+- [ ] The outbox and inbox are new in 3.0; 2.x had no such tables, so a 2.x upgrade has nothing to migrate. Tables made by
+      a pre-release 3.0 build need recreating (native datetime types, database clock); `ensureSchema()` only adds the
+      missing `headers` and `partition_key` columns.
 - [ ] `OutboxStorage::claimBatch()` returns an `OutboxClaim`.
 
 ## If you implement `DialectInterface` or extend the dashboard

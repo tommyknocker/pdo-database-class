@@ -96,6 +96,8 @@ throw where 2.x worked, and the changes needed by custom dialects.
 
 ### Fixed
 - `->unique()` on a TEXT column no longer fails with a raw server error on MySQL (`1170 BLOB/TEXT column used in key specification without a key length`) and SQL Server (`NVARCHAR(MAX)` cannot be an index key): `createTable()`/`addColumn()` throw an `UnsupportedOperationException` that says to use `string(190)->unique()`. MariaDB, PostgreSQL, SQLite and Oracle enforce it as before. The examples use `string(190)->unique()`.
+- `Outbox::ensureSchema()` adds the `headers` and `partition_key` columns to an outbox table made by an earlier build instead of leaving it to fail on the first insert.
+- The string-helpers example skips its regular-expression part on SQL Server before 2025.
 - Global scopes registered with `PdoDb::addScope()` now hold for `batch()`, `each()`, `stream()`, `exists()`, `notExists()`, `toSQL()`, `update()` and `delete()`, not only for `get()` and friends. `ActiveQuery::getScopedQueryBuilder()` returns the builder with the model's scopes applied; `withCount()` uses it, so rows hidden by the related model's scope are no longer counted.
 - `stream()`, `batch()` and `each()` read on the connection a `get()` would use (replica or shard) for as long as they run; `stream()` used to switch back before the first row was read.
 - Queries inside a transaction bypass the shared query cache, so uncommitted rows are never served to or left behind for other connections.

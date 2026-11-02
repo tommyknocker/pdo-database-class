@@ -47,10 +47,35 @@ final class OutboxStorage
         return $this->dialect()->buildOutboxSchemaSql($this->tableName);
     }
 
+    /**
+     * Create the table and its indexes, and bring an older table up to date.
+     *
+     * Tables created before message headers and partition keys existed get the two columns added (existing messages
+     * keep working: they have no headers and no partition key) before the indexes that use them are created.
+     */
     public function ensureSchema(): void
     {
-        foreach ($this->getSchemaSql() as $sql) {
+        $statements = $this->getSchemaSql();
+        // the first statement creates the table; the rest are indexes, which may need the columns added below
+        $this->db->rawQuery((string)array_shift($statements));
+        $this->addMissingColumns();
+        foreach ($statements as $sql) {
             $this->db->rawQuery($sql);
+        }
+    }
+
+    protected function addMissingColumns(): void
+    {
+        $schema = $this->db->schema();
+        $dialect = $schema->getDialect();
+        $quotedTable = $this->dialect()->quoteTable($this->tableName);
+        foreach (['headers' => 4000, 'partition_key' => 190] as $column => $length) {
+            try {
+                // unquoted on purpose: SQLite reads an unknown "quoted" name as a string and would not fail
+                $this->db->rawQuery("SELECT {$column} FROM {$quotedTable} WHERE 1 = 0");
+            } catch (Throwable) {
+                $this->db->rawQuery($dialect->buildAddColumnSql($this->tableName, $column, $schema->string($length)));
+            }
         }
     }
 

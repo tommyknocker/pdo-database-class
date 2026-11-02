@@ -16,4 +16,15 @@ final class OutboxFeatureTests extends BasePostgreSQLTestCase
             self::$db->schema()->dropTableIfExists('outbox_features');
         }
     }
+
+    public function testAnOlderTableIsUpgradedInPlace(): void
+    {
+        $this->assertSame([
+            'old_row_type' => 'old.event',
+            'old_row_headers' => [],
+            'old_row_key' => null,
+            'new_row_headers' => ['trace' => 't'],
+            'new_row_key' => 'key-1',
+        ], OutboxFeatureSupport::upgradeOldTable(self::$db, 'outbox_old_layout'));
+    }
 }

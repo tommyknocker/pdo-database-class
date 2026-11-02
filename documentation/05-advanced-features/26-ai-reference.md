@@ -17,7 +17,7 @@ PDODB_AI_API_KEY=your-private-key
 PDODB_AI_MODEL=your-provider/model-id
 ```
 
-`PDODB_AI_MODEL` is optional when the provider's default suits you. For an
+`PDODB_AI_MODEL` is optional when the provider's default suits you. The defaults were checked against the providers' own model lists on 2026-11-02 (OpenAI, Anthropic, Google, DeepSeek); the Yandex and Ollama defaults were not, and Ollama needs the model pulled first. Models are renamed and retired over time, so pin `PDODB_AI_MODEL` in production. For an
 OpenAI-compatible gateway, also set `PDODB_AI_BASE_URL` to its API prefix.
 Ollama needs no API key; `PDODB_AI_BASE_URL` optionally selects its server.
 Azure requires `PDODB_AI_BASE_URL` (resource endpoint) and `PDODB_AI_MODEL`

@@ -283,6 +283,14 @@ if ($driver === 'sqlite') {
     }
 }
 
+// SQL Server has regular expressions from version 2025 (17) on
+$dialect = $db->schema()->getDialect();
+if ($driver === 'mssql' && method_exists($dialect, 'supportsNativeRegexp') && !$dialect->supportsNativeRegexp()) {
+    echo "  ⚠ This SQL Server has no regular expressions (they arrived in SQL Server 2025), skipping regexp examples\n";
+    echo "\nString helper functions example completed!\n";
+    exit(0);
+}
+
 // Insert test data with various email formats
 $schema = $db->schema();
 recreateTable($db, 'contacts', [
