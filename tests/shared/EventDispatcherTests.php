@@ -93,11 +93,11 @@ final class EventDispatcherTests extends BaseSharedTestCase
         $db = new PdoDb('sqlite', ['path' => ':memory:']);
         // No dispatcher set
 
-        // Should not throw or error
         $db->rawQuery('CREATE TABLE test (id INTEGER)');
         $db->find()->table('test')->insert(['id' => 1]);
 
-        $this->assertTrue(true); // Test passes if no exceptions
+        $this->assertNull($db->getEventDispatcher());
+        $this->assertSame(1, (int)$db->rawQueryValue('SELECT COUNT(*) FROM test'));
     }
 
     public function testQueryBeforeExecuteEvent(): void

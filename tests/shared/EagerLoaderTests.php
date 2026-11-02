@@ -218,9 +218,8 @@ final class EagerLoaderTests extends BaseSharedTestCase
         $models = [];
         $relations = ['profile'];
 
-        // Should not throw exception
         $loader->load($models, $relations);
-        $this->assertTrue(true); // If we get here, no exception was thrown
+        $this->assertSame([], $models);
     }
 
     public function testLoadWithEmptyRelations(): void
@@ -231,9 +230,9 @@ final class EagerLoaderTests extends BaseSharedTestCase
         $loader = new EagerLoader();
         $relations = [];
 
-        // Should not throw exception
+        $before = count($users);
         $loader->load($users, $relations);
-        $this->assertTrue(true); // If we get here, no exception was thrown
+        $this->assertCount($before, $users);
     }
 
     public function testNormalizeRelationsWithIndexedArray(): void
@@ -413,9 +412,8 @@ final class EagerLoaderTests extends BaseSharedTestCase
         $relationName = 'profile';
         $subRelations = [];
 
-        // Should not throw exception
         $method->invoke($loader, $models, $relationName, $subRelations);
-        $this->assertTrue(true);
+        $this->assertSame([], $models);
     }
 
     public function testLoadBelongsToWithNullForeignKey(): void

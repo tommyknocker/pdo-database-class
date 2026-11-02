@@ -1041,21 +1041,42 @@ final class LoadBalancerTests extends BaseSharedTestCase
     {
         $balancer = new RoundRobinLoadBalancer();
 
-        $balancer->markFailed('read-1');
-        $balancer->markHealthy('read-1');
+        $connections = $this->namedConnections(['read-1', 'read-2']);
 
-        // Should not throw exceptions
-        $this->assertTrue(true);
+        $balancer->markFailed('read-1');
+        $this->assertSame($connections['read-2'], $balancer->select($connections));
+        $this->assertSame($connections['read-2'], $balancer->select($connections), 'a failed node is skipped');
+
+        $balancer->markHealthy('read-1');
+        $picked = [$balancer->select($connections), $balancer->select($connections)];
+        $this->assertContains($connections['read-1'], $picked, 'a recovered node is used again');
     }
 
     public function testLoadBalancerReset(): void
     {
         $balancer = new RoundRobinLoadBalancer();
 
+        $connections = $this->namedConnections(['read-1', 'read-2']);
+
         $balancer->markFailed('read-1');
+        $balancer->markFailed('read-2');
         $balancer->reset();
 
-        // Should not throw exceptions
-        $this->assertTrue(true);
+        $this->assertSame($connections['read-1'], $balancer->select($connections), 'reset forgets failures and starts over');
+    }
+
+    /**
+     * @param list<string> $names
+     *
+     * @return array<string, ConnectionInterface>
+     */
+    private function namedConnections(array $names): array
+    {
+        $connections = [];
+        foreach ($names as $name) {
+            $connections[$name] = $this->createMock(ConnectionInterface::class);
+        }
+
+        return $connections;
     }
 }

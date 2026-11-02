@@ -22,6 +22,8 @@ final class RetryConfigValidatorTests extends BaseSharedTestCase
 
     public function testValidateValidConfig(): void
     {
+        $this->expectNotToPerformAssertions();
+
         $config = [
             'enabled' => true,
             'max_attempts' => 3,
@@ -33,7 +35,6 @@ final class RetryConfigValidatorTests extends BaseSharedTestCase
         ];
 
         $this->validator->validate($config);
-        $this->assertTrue(true); // No exception thrown
     }
 
     public function testValidateEnabledMustBeBoolean(): void
@@ -242,6 +243,8 @@ final class RetryConfigValidatorTests extends BaseSharedTestCase
 
     public function testValidateRetryableErrorsWithIntegers(): void
     {
+        $this->expectNotToPerformAssertions();
+
         $config = [
             'enabled' => true,
             'max_attempts' => 3,
@@ -253,11 +256,12 @@ final class RetryConfigValidatorTests extends BaseSharedTestCase
         ];
 
         $this->validator->validate($config);
-        $this->assertTrue(true); // No exception thrown
     }
 
     public function testValidateRetryableErrorsWithStrings(): void
     {
+        $this->expectNotToPerformAssertions();
+
         $config = [
             'enabled' => true,
             'max_attempts' => 3,
@@ -269,11 +273,12 @@ final class RetryConfigValidatorTests extends BaseSharedTestCase
         ];
 
         $this->validator->validate($config);
-        $this->assertTrue(true); // No exception thrown
     }
 
     public function testValidateRetryableErrorsWithMixedIntegersAndStrings(): void
     {
+        $this->expectNotToPerformAssertions();
+
         $config = [
             'enabled' => true,
             'max_attempts' => 3,
@@ -285,11 +290,12 @@ final class RetryConfigValidatorTests extends BaseSharedTestCase
         ];
 
         $this->validator->validate($config);
-        $this->assertTrue(true); // No exception thrown
     }
 
     public function testValidateEmptyRetryableErrors(): void
     {
+        $this->expectNotToPerformAssertions();
+
         $config = [
             'enabled' => true,
             'max_attempts' => 3,
@@ -301,6 +307,5 @@ final class RetryConfigValidatorTests extends BaseSharedTestCase
         ];
 
         $this->validator->validate($config);
-        $this->assertTrue(true); // No exception thrown
     }
 }

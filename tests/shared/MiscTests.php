@@ -1878,19 +1878,11 @@ final class MiscTests extends BaseSharedTestCase
         }
     }
 
-    public function testSetTimeoutWithInvalidValues(): void
+    public function testSetTimeoutOnADriverWithoutTimeoutSupportIsIgnored(): void
     {
-        $db = self::$db;
-
-        // Test negative timeout (should be handled gracefully)
-        try {
-            $db->setTimeout(-1);
-            // Some databases might accept negative values, so we just check it doesn't throw
-            $this->assertTrue(true);
-        } catch (Exception $e) {
-            // If it throws an exception, that's also acceptable behavior
-            $this->assertInstanceOf(Exception::class, $e);
-        }
+        // SQLite has no ATTR_TIMEOUT; the call must neither fail nor break the connection
+        $this->assertSame(self::$db, self::$db->setTimeout(-1));
+        $this->assertSame(1, (int)self::$db->rawQueryValue('SELECT 1'));
     }
 
     public function testBatchProcessing(): void

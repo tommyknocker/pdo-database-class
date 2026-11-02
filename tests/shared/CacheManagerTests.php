@@ -104,6 +104,7 @@ final class CacheManagerTests extends BaseSharedTestCase
     public function testIncrementAtomicWithNonAtomicCache(): void
     {
         $cache = $this->createMock(CacheInterface::class);
+        $cache->expects($this->never())->method('set');
         $config = new CacheConfig();
         $manager = new CacheManager($cache, $config);
 
@@ -112,7 +113,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         // Should not throw, but won't increment without atomic support
         $method->invoke($manager, 'test_key', 1);
-        $this->assertTrue(true);
     }
 
     /**
@@ -138,7 +138,7 @@ final class CacheManagerTests extends BaseSharedTestCase
     public function testDeleteAtomicValueWithNonAtomicCache(): void
     {
         $cache = $this->createMock(CacheInterface::class);
-        $cache->method('delete')->willReturn(true);
+        $cache->expects($this->once())->method('delete')->with('test_key')->willReturn(true);
         $config = new CacheConfig();
         $manager = new CacheManager($cache, $config);
 
@@ -146,7 +146,6 @@ final class CacheManagerTests extends BaseSharedTestCase
         $method = $reflection->getMethod('deleteAtomicValue');
 
         $method->invoke($manager, 'test_key');
-        $this->assertTrue(true);
     }
 
     /**
@@ -198,7 +197,7 @@ final class CacheManagerTests extends BaseSharedTestCase
     {
         $cache = $this->createMock(CacheInterface::class);
         $cache->method('get')->willReturn(['hits' => 5, 'misses' => 2, 'sets' => 1, 'deletes' => 0]);
-        $cache->method('set')->willReturn(true);
+        $cache->expects($this->once())->method('set')->with($this->stringStartsWith('test_'), $this->callback(static fn (array $stats): bool => $stats['hits'] === 8 && $stats['misses'] === 2), $this->anything())->willReturn(true);
         $config = new CacheConfig(prefix: 'test_');
         $manager = new CacheManager($cache, $config);
 
@@ -210,7 +209,6 @@ final class CacheManagerTests extends BaseSharedTestCase
         $method = $reflection->getMethod('persistStats');
 
         $method->invoke($manager);
-        $this->assertTrue(true);
     }
 
     /**
@@ -220,7 +218,7 @@ final class CacheManagerTests extends BaseSharedTestCase
     {
         $cache = $this->createMock(CacheInterface::class);
         $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0]);
-        $cache->method('set')->willReturn(true);
+        $cache->expects($this->once())->method('set')->with($this->stringStartsWith('test_'), $this->callback(static fn (array $stats): bool => $stats['hits'] === 0 && $stats['sets'] === 0), $this->anything())->willReturn(true);
         $config = new CacheConfig(prefix: 'test_');
         $manager = new CacheManager($cache, $config);
 
@@ -228,7 +226,6 @@ final class CacheManagerTests extends BaseSharedTestCase
         $method = $reflection->getMethod('persistStatsWithRetry');
 
         $method->invoke($manager, 3);
-        $this->assertTrue(true);
     }
 
     /**
@@ -238,7 +235,7 @@ final class CacheManagerTests extends BaseSharedTestCase
     {
         $cache = $this->createMock(CacheInterface::class);
         $cache->method('get')->willReturn([]);
-        $cache->method('set')->willReturn(true);
+        $cache->expects($this->exactly(2))->method('set')->with($this->anything(), ['test_key'], $this->anything())->willReturn(true);
         $config = new CacheConfig(prefix: 'test_');
         $manager = new CacheManager($cache, $config);
 
@@ -246,7 +243,6 @@ final class CacheManagerTests extends BaseSharedTestCase
         $method = $reflection->getMethod('addKeyToMetadata');
 
         $method->invoke($manager, 'test_key', ['users', 'orders']);
-        $this->assertTrue(true);
     }
 
     /**
@@ -256,7 +252,7 @@ final class CacheManagerTests extends BaseSharedTestCase
     {
         $cache = $this->createMock(CacheInterface::class);
         $cache->method('get')->willReturn(['existing_key']);
-        $cache->method('set')->willReturn(true);
+        $cache->expects($this->once())->method('set')->with($this->stringStartsWith('test_'), ['existing_key', 'new_key'], $this->anything())->willReturn(true);
         $config = new CacheConfig(prefix: 'test_');
         $manager = new CacheManager($cache, $config);
 
@@ -264,7 +260,6 @@ final class CacheManagerTests extends BaseSharedTestCase
         $method = $reflection->getMethod('addKeyToMetadata');
 
         $method->invoke($manager, 'new_key', ['users']);
-        $this->assertTrue(true);
     }
 
     /**
@@ -548,7 +543,7 @@ final class CacheManagerTests extends BaseSharedTestCase
     {
         $cache = $this->createMock(CacheInterface::class);
         $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0, '_version' => time()]);
-        $cache->method('set')->willReturn(true);
+        $cache->expects($this->once())->method('set')->with($this->stringStartsWith('test_'), $this->callback(static fn (array $stats): bool => $stats['hits'] === 5), $this->anything())->willReturn(true);
         $config = new CacheConfig(prefix: 'test_');
         $manager = new CacheManager($cache, $config);
 
@@ -559,7 +554,6 @@ final class CacheManagerTests extends BaseSharedTestCase
         $method = $reflection->getMethod('persistStatsWithRetry');
 
         $method->invoke($manager, 3);
-        $this->assertTrue(true);
     }
 
     /**
@@ -569,7 +563,7 @@ final class CacheManagerTests extends BaseSharedTestCase
     {
         $cache = $this->createMock(CacheInterface::class);
         $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0, '_version' => time()]);
-        $cache->method('set')
+        $cache->expects($this->exactly(3))->method('set')
             ->willReturnOnConsecutiveCalls(false, false, true); // Fail twice, then succeed
         $config = new CacheConfig(prefix: 'test_');
         $manager = new CacheManager($cache, $config);
@@ -581,7 +575,6 @@ final class CacheManagerTests extends BaseSharedTestCase
         $method = $reflection->getMethod('persistStatsWithRetry');
 
         $method->invoke($manager, 3);
-        $this->assertTrue(true);
     }
 
     /**
@@ -591,7 +584,7 @@ final class CacheManagerTests extends BaseSharedTestCase
     {
         $cache = $this->createMock(CacheInterface::class);
         $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0, '_version' => time()]);
-        $cache->method('set')->willReturn(false); // Always fail
+        $cache->expects($this->exactly(2))->method('set')->willReturn(false); // Always fail
         $config = new CacheConfig(prefix: 'test_');
         $manager = new CacheManager($cache, $config);
 
@@ -603,7 +596,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         // Should not throw, but will fail silently
         $method->invoke($manager, 2);
-        $this->assertTrue(true);
     }
 
     /**
@@ -613,7 +605,7 @@ final class CacheManagerTests extends BaseSharedTestCase
     {
         $cache = $this->createMock(CacheInterface::class);
         $cache->method('get')->willReturn(null); // No existing stats
-        $cache->method('set')->willReturn(true);
+        $cache->expects($this->once())->method('set')->with($this->stringStartsWith('test_'), $this->callback(static fn (array $stats): bool => $stats['hits'] === 1), $this->anything())->willReturn(true);
         $config = new CacheConfig(prefix: 'test_');
         $manager = new CacheManager($cache, $config);
 
@@ -624,7 +616,6 @@ final class CacheManagerTests extends BaseSharedTestCase
         $method = $reflection->getMethod('persistStatsWithRetry');
 
         $method->invoke($manager);
-        $this->assertTrue(true);
     }
 
     /**
@@ -634,6 +625,7 @@ final class CacheManagerTests extends BaseSharedTestCase
     {
         $cache = $this->createMock(CacheInterface::class);
         $cache->method('get')->willReturn(['hits' => 0, 'misses' => 0, 'sets' => 0, 'deletes' => 0]);
+        $cache->expects($this->atLeastOnce())->method('set');
         $config = new CacheConfig(prefix: 'test_');
         $manager = new CacheManager($cache, $config);
 
@@ -647,7 +639,6 @@ final class CacheManagerTests extends BaseSharedTestCase
         $method = $reflection->getMethod('persistStats');
 
         $method->invoke($manager);
-        $this->assertTrue(true);
     }
 
     /**
@@ -683,7 +674,7 @@ final class CacheManagerTests extends BaseSharedTestCase
     {
         $cache = $this->createMock(CacheInterface::class);
         $cache->method('get')->willReturn('not_an_array'); // Invalid format
-        $cache->method('set')->willReturn(true);
+        $cache->expects($this->once())->method('set')->with($this->stringStartsWith('test_'), ['test_key'], $this->anything())->willReturn(true);
         $config = new CacheConfig(prefix: 'test_');
         $manager = new CacheManager($cache, $config);
 
@@ -691,7 +682,6 @@ final class CacheManagerTests extends BaseSharedTestCase
         $method = $reflection->getMethod('addKeyToMetadata');
 
         $method->invoke($manager, 'test_key', ['users']);
-        $this->assertTrue(true);
     }
 
     /**
@@ -701,7 +691,7 @@ final class CacheManagerTests extends BaseSharedTestCase
     {
         $cache = $this->createMock(CacheInterface::class);
         $cache->method('get')->willReturn(['existing_key', 'test_key']); // Key already exists
-        $cache->method('set')->willReturn(true);
+        $cache->expects($this->never())->method('set');
         $config = new CacheConfig(prefix: 'test_');
         $manager = new CacheManager($cache, $config);
 
@@ -710,7 +700,6 @@ final class CacheManagerTests extends BaseSharedTestCase
 
         // Should not add duplicate key
         $method->invoke($manager, 'test_key', ['users']);
-        $this->assertTrue(true);
     }
 
     /**

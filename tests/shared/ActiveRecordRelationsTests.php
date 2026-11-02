@@ -53,6 +53,19 @@ class TestProfile extends Model
     }
 }
 
+class TestOwnedProfile extends Model
+{
+    public static function tableName(): string
+    {
+        return 'owned_profiles';
+    }
+
+    public static function primaryKey(): array
+    {
+        return ['id'];
+    }
+}
+
 class TestPost extends Model
 {
     public static function tableName(): string
@@ -580,37 +593,50 @@ final class ActiveRecordRelationsTests extends BaseSharedTestCase
      */
     public function testCustomForeignKey(): void
     {
-        // Create a model with custom foreign key definition
-        $customUser = new class () extends Model {
-            public static function tableName(): string
-            {
-                return 'users';
-            }
-
-            public static function primaryKey(): array
-            {
-                return ['id'];
-            }
-
-            public static function relations(): array
-            {
-                return [
-                    'customProfile' => [
-                        'hasOne',
-                        'modelClass' => TestProfile::class,
-                        'foreignKey' => 'owner_id',
-                        'localKey' => 'id',
-                    ],
-                ];
-            }
-        };
-
         $db = self::$db;
-        $customUser::setDb($db);
+        $db->rawQuery('CREATE TABLE owned_profiles (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id INTEGER NOT NULL, bio TEXT)');
 
-        // This test verifies that custom foreign key configuration works
-        // (actual table structure would need to be modified for full test)
-        $this->assertTrue(true); // Placeholder - full test would require schema modification
+        try {
+            $user = new class () extends Model {
+                public static function tableName(): string
+                {
+                    return 'users';
+                }
+
+                public static function primaryKey(): array
+                {
+                    return ['id'];
+                }
+
+                public static function relations(): array
+                {
+                    return [
+                        'customProfile' => [
+                            'hasOne',
+                            'modelClass' => TestOwnedProfile::class,
+                            'foreignKey' => 'owner_id',
+                            'localKey' => 'id',
+                        ],
+                    ];
+                }
+            };
+            $user::setDb($db);
+            TestOwnedProfile::setDb($db);
+
+            $userId = $db->find()->table('users')->insert(['name' => 'Owner', 'email' => 'owner@example.com']);
+            $otherId = $db->find()->table('users')->insert(['name' => 'Other', 'email' => 'other@example.com']);
+            $db->find()->table('owned_profiles')->insert(['owner_id' => $otherId, 'bio' => 'not mine']);
+            $db->find()->table('owned_profiles')->insert(['owner_id' => $userId, 'bio' => 'mine']);
+
+            $found = $user::findOne($userId);
+            $this->assertNotNull($found);
+            $profile = $found->getRelation('customProfile');
+
+            $this->assertInstanceOf(TestOwnedProfile::class, $profile);
+            $this->assertSame('mine', $profile->bio);
+        } finally {
+            $db->rawQuery('DROP TABLE owned_profiles');
+        }
     }
 
     /**

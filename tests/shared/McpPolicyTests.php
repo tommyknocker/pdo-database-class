@@ -147,9 +147,9 @@ final class McpPolicyTests extends TestCase
             ['allowed_tables' => 'users'], ['allowed_schemas' => ['main; SELECT 1']], ['statement_timeout_ms' => -1]] as $options) {
             try {
                 new McpConfig($options);
-                self::fail('Invalid configuration must not silently permit access');
-            } catch (InvalidArgumentException) {
-                self::assertTrue(true);
+                self::fail('Invalid configuration must not silently permit access: ' . json_encode($options));
+            } catch (InvalidArgumentException $e) {
+                self::assertNotSame('', $e->getMessage());
             }
         }
     }
@@ -180,8 +180,8 @@ final class McpPolicyTests extends TestCase
             try {
                 McpConfig::fromProject();
                 self::fail('An environment allowlist must be a JSON array');
-            } catch (InvalidArgumentException) {
-                self::assertTrue(true);
+            } catch (InvalidArgumentException $e) {
+                self::assertStringContainsString('JSON arrays', $e->getMessage());
             }
         } finally {
             foreach (getenv() as $key => $value) {

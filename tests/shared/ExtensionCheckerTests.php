@@ -48,9 +48,9 @@ class ExtensionCheckerTests extends TestCase
      */
     public function testValidateWithSqlite(): void
     {
-        // Should not throw exception
+        $this->expectNotToPerformAssertions();
+
         ExtensionChecker::validate('sqlite');
-        $this->assertTrue(true);
     }
 
     /**
@@ -69,21 +69,17 @@ class ExtensionCheckerTests extends TestCase
      */
     public function testValidateWithUnavailableExtension(): void
     {
-        // This test assumes pdo_oci is not installed (common case)
-        // If it is installed, the test will pass, which is also fine
-        if (!extension_loaded('pdo_oci')) {
-            try {
-                ExtensionChecker::validate('oci');
-                $this->fail('Expected InvalidArgumentException was not thrown');
-            } catch (InvalidArgumentException $e) {
-                $this->assertStringContainsString('pdo_oci', $e->getMessage());
-                $this->assertStringContainsString('required', $e->getMessage());
-                $this->assertStringContainsString('not installed', $e->getMessage());
-            }
-        } else {
-            // If extension is loaded, validation should pass
+        if (extension_loaded('pdo_oci')) {
+            $this->markTestSkipped('pdo_oci is installed, so there is no missing extension to report');
+        }
+
+        try {
             ExtensionChecker::validate('oci');
-            $this->assertTrue(true);
+            $this->fail('Expected InvalidArgumentException was not thrown');
+        } catch (InvalidArgumentException $e) {
+            $this->assertStringContainsString('pdo_oci', $e->getMessage());
+            $this->assertStringContainsString('required', $e->getMessage());
+            $this->assertStringContainsString('not installed', $e->getMessage());
         }
     }
 

@@ -440,14 +440,14 @@ final class SchemaInspectorTests extends TestCase
         try {
             $method->invoke(null, $this->db, 'test_posts', null);
             $out = ob_get_clean();
-
-            $this->assertStringContainsString('Table: test_posts', $out);
-            $this->assertStringContainsString('Columns:', $out);
         } catch (\Throwable $e) {
             ob_end_clean();
-            // May fail if foreign keys structure is different, which is acceptable
-            $this->assertTrue(true);
+
+            throw $e;
         }
+
+        $this->assertStringContainsString('Table: test_posts', $out);
+        $this->assertStringContainsString('Columns:', $out);
     }
 
     /**
@@ -613,8 +613,8 @@ final class SchemaInspectorTests extends TestCase
             $this->assertStringContainsString('Table: test_users', $out);
         } catch (\Throwable $e) {
             ob_end_clean();
-            // May fail if database config is not available, which is expected
-            $this->assertInstanceOf(\Throwable::class, $e);
+
+            throw $e;
         }
     }
 

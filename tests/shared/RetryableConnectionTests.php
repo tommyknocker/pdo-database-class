@@ -232,9 +232,10 @@ final class RetryableConnectionTests extends BaseSharedTestCase
             'driver' => 'sqlite',
         ]);
 
-        // Should not throw exception for valid config
+        $this->expectNotToPerformAssertions();
+
+        // A valid configuration is accepted
         $method->invoke($connection);
-        $this->assertTrue(true);
     }
 
     public function testRetryOperationWithDifferentMethods(): void

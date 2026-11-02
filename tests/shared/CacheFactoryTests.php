@@ -461,29 +461,18 @@ class CacheFactoryTests extends TestCase
     public function testCreateRedisCacheWithProvidedConnection(): void
     {
         if (!extension_loaded('redis')) {
-            // If redis extension is not installed, test should still pass
-            $this->assertTrue(true);
-            return;
+            $this->markTestSkipped('ext-redis is not installed');
         }
 
         try {
             $redis = new \Redis();
             $connected = $redis->connect('127.0.0.1', 6379);
             if (!$connected) {
-                // Redis server not available - test should still pass
-                $this->assertTrue(true);
-                return;
+                $this->markTestSkipped('No Redis server on 127.0.0.1:6379');
             }
             $redis->select(15); // Use database 15 for testing
         } catch (\RedisException $e) {
-            // Redis server not available - test should still pass
-            $this->assertTrue(true);
-            return;
-        }
-
-        if (!isset($redis)) {
-            $this->assertTrue(true);
-            return;
+            $this->markTestSkipped('No Redis server on 127.0.0.1:6379');
         }
 
         $config = [
@@ -556,17 +545,6 @@ class CacheFactoryTests extends TestCase
 
         // Cleanup
         $cache->clear();
-    }
-
-    /**
-     * Test creating filesystem cache returns null when symfony/cache is not installed.
-     */
-    public function testCreateFilesystemCacheReturnsNullWhenNotInstalled(): void
-    {
-        // This test verifies the behavior when symfony/cache is not available
-        // In practice, this is hard to test without actually removing the dependency
-        // So we just verify that the method handles missing classes gracefully
-        $this->assertTrue(true);
     }
 
     /**
