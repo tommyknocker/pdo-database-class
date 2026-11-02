@@ -381,6 +381,16 @@ interface ConditionBuilderInterface
     public function buildConditionsClause(array $items, string $keyword): string;
 
     /**
+     * Number of WHERE conditions added so far.
+     */
+    public function whereCount(): int;
+
+    /**
+     * Drop the WHERE conditions added after the first $count ones.
+     */
+    public function truncateWhere(int $count): static;
+
+    /**
      * Get WHERE conditions.
      *
      * @return array<int, mixed> The WHERE conditions.

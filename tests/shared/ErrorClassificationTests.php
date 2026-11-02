@@ -54,4 +54,53 @@ final class ErrorClassificationTests extends TestCase
         $this->assertSame($category, $result->getCategory());
         $this->assertSame($retryable, $result->isRetryable());
     }
+
+    /**
+     * @return array<string, array{0: string, 1: string, 2: int, 3: string}>
+     */
+    public static function nativeCodesWithNeutralText(): array
+    {
+        return [
+            'sqlsrv unique index' => ['sqlsrv', '23000', 2601, 'constraint'],
+            'sqlsrv primary key' => ['sqlsrv', '23000', 2627, 'constraint'],
+            'sqlsrv not null' => ['sqlsrv', '23000', 515, 'constraint'],
+            'sqlsrv foreign key' => ['sqlsrv', '23000', 547, 'constraint'],
+            'sqlsrv deadlock' => ['sqlsrv', '40001', 1205, 'transaction'],
+            'sqlsrv lock timeout' => ['sqlsrv', '37000', 1222, 'transaction'],
+            'sqlsrv login' => ['sqlsrv', '28000', 18456, 'authentication'],
+            'sqlsrv cannot open database' => ['sqlsrv', '42000', 4060, 'authentication'],
+            'sqlsrv no server' => ['sqlsrv', '08001', 53, 'connection'],
+            'sqlsrv out of memory' => ['sqlsrv', '42000', 701, 'resource'],
+            'oracle unique' => ['oci', 'HY000', 1, 'constraint'],
+            'oracle child record' => ['oci', 'HY000', 2292, 'constraint'],
+            'oracle deadlock' => ['oci', 'HY000', 60, 'transaction'],
+            'oracle resource busy' => ['oci', 'HY000', 54, 'transaction'],
+            'oracle login' => ['oci', 'HY000', 1017, 'authentication'],
+            'oracle no listener' => ['oci', 'HY000', 12541, 'connection'],
+            'oracle end of file' => ['oci', 'HY000', 3113, 'connection'],
+            'oracle tablespace' => ['oci', 'HY000', 1653, 'resource'],
+        ];
+    }
+
+    #[DataProvider('nativeCodesWithNeutralText')]
+    public function testNativeCodesClassifyWhateverTheMessageSays(string $driver, string $state, int $code, string $category): void
+    {
+        // A localized or reworded server message must not change the category
+        $exception = new PDOException('Fehler');
+        $exception->errorInfo = [$state, $code, 'Fehler'];
+
+        $this->assertSame($category, ExceptionFactory::createFromPdoException($exception, $driver, null, [])->getCategory());
+    }
+
+    public function testANumberIsOnlyComparedWithTheCodesOfTheDriverThatRaisedIt(): void
+    {
+        // 1 is a unique violation for Oracle but SQLITE_ERROR (a plain SQL error) for SQLite; 60 and 54 are Oracle
+        // lock errors but mean nothing special elsewhere
+        foreach ([['sqlite', 'HY000', 1], ['mysql', 'HY000', 60], ['pgsql', 'HY000', 54], ['sqlsrv', 'HY000', 1]] as [$driver, $state, $code]) {
+            $exception = new PDOException('syntax problem');
+            $exception->errorInfo = [$state, $code, 'syntax problem'];
+
+            $this->assertSame('query', ExceptionFactory::createFromPdoException($exception, $driver, null, [])->getCategory(), "{$driver} {$code}");
+        }
+    }
 }

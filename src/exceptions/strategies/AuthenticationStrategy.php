@@ -17,6 +17,7 @@ class AuthenticationStrategy extends AbstractErrorDetectionStrategy
     public function __construct()
     {
         $this->errorCodes = ErrorCodeRegistry::getMergedErrorCodes('authentication');
+        $this->errorType = 'authentication';
 
         $this->messagePatterns = [
             'access denied',

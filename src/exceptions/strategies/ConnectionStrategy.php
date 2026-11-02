@@ -17,6 +17,7 @@ class ConnectionStrategy extends AbstractErrorDetectionStrategy
     public function __construct()
     {
         $this->errorCodes = ErrorCodeRegistry::getMergedErrorCodes('connection');
+        $this->errorType = 'connection';
 
         $this->messagePatterns = [
             'connection',

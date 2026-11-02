@@ -1957,15 +1957,20 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
             throw new RuntimeException('Cursor pagination requires ORDER BY clause');
         }
 
-        // Apply cursor conditions if provided
-        if ($cursor !== null) {
-            $this->applyCursorConditions($cursor, $cursorColumns);
-        }
-
-        // Fetch items
+        // The cursor condition belongs to this page only: a builder that is paginated again must not keep it
+        $savedWhereCount = $this->conditionBuilder->whereCount();
         $savedLimit = $this->limit;
-        $rawItems = $this->limit($perPage + 1)->get();
-        $this->limit = $savedLimit;
+
+        try {
+            if ($cursor !== null) {
+                $this->applyCursorConditions($cursor, $cursorColumns);
+            }
+
+            $rawItems = $this->limit($perPage + 1)->get();
+        } finally {
+            $this->limit = $savedLimit;
+            $this->conditionBuilder->truncateWhere($savedWhereCount);
+        }
         $hasMore = count($rawItems) > $perPage;
 
         if ($hasMore) {

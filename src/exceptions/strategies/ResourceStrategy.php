@@ -17,6 +17,7 @@ class ResourceStrategy extends AbstractErrorDetectionStrategy
     public function __construct()
     {
         $this->errorCodes = ErrorCodeRegistry::getMergedErrorCodes('resource');
+        $this->errorType = 'resource';
 
         $this->messagePatterns = [
             'ora-01555',

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\exceptions\strategies;
 
+use tommyknocker\pdodb\exceptions\registry\ErrorCodeRegistry;
+
 /**
  * Abstract base class for error detection strategies.
  *
@@ -16,6 +18,9 @@ abstract class AbstractErrorDetectionStrategy implements ErrorDetectionStrategyI
 
     /** @var array<string> Message patterns to match */
     protected array $messagePatterns = [];
+
+    /** @var string Error type whose native driver codes this strategy recognizes (see ErrorCodeRegistry) */
+    protected string $errorType = '';
 
     /**
      * Check if the given error code and message match this strategy.
@@ -37,6 +42,14 @@ abstract class AbstractErrorDetectionStrategy implements ErrorDetectionStrategyI
      *
      * @return bool True if the code matches
      */
+    /**
+     * Whether the driver's own error number (PDOException::errorInfo[1]) belongs to this strategy's error type.
+     */
+    public function isNativeCodeMatch(string $driver, string $nativeCode): bool
+    {
+        return $this->errorType !== '' && ErrorCodeRegistry::isNativeCode($driver, $this->errorType, $nativeCode);
+    }
+
     protected function isCodeMatch(string $code): bool
     {
         // Convert string code to int for comparison with integer constants

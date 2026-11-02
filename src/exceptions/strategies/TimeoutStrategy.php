@@ -17,6 +17,7 @@ class TimeoutStrategy extends AbstractErrorDetectionStrategy
     public function __construct()
     {
         $this->errorCodes = ErrorCodeRegistry::getMergedErrorCodes('timeout');
+        $this->errorType = 'timeout';
 
         $this->messagePatterns = [
             'timeout',

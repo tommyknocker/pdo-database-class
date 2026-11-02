@@ -312,7 +312,7 @@ Fired when a migration completes successfully.
 
 ### MigrationRolledBackEvent
 
-Fired when a migration is rolled back.
+Fired when a migration is rolled back, whether by `migrateDown()`, by version or on the way to a target version with `migrateTo()`.
 
 **Properties:**
 - `getVersion(): string` - Migration version/name
@@ -372,6 +372,14 @@ Fired when a seed completes successfully.
 - `getName(): string` - Seed name
 - `getDriver(): string` - Database driver name
 - `getDuration(): float` - Seed execution duration in milliseconds
+
+### SeedRolledBackEvent
+
+Fired when a seed is rolled back.
+
+**Properties:**
+- `getName(): string` - Seed name
+- `getDriver(): string` - Database driver name
 
 **Example:**
 ```php

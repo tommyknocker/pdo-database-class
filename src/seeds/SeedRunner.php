@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\seeds;
 
 use PDOException;
 use tommyknocker\pdodb\events\SeedCompletedEvent;
+use tommyknocker\pdodb\events\SeedRolledBackEvent;
 use tommyknocker\pdodb\events\SeedStartedEvent;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\PdoDb;
@@ -112,6 +113,7 @@ class SeedRunner extends AbstractFileRunner
         $rows = $this->db->find()
             ->from($this->seedTable)
             ->orderBy('executed_at', 'ASC')
+            ->orderBy('seed', 'ASC')
             ->get();
 
         return array_column($rows, 'seed');
@@ -144,7 +146,8 @@ class SeedRunner extends AbstractFileRunner
         }
         $query = $this->db->find()
             ->from($this->seedTable)
-            ->orderBy('executed_at', 'DESC');
+            ->orderBy('executed_at', 'DESC')
+            ->orderBy('seed', 'DESC');
 
         if ($limit !== null) {
             $query->limit($limit);
@@ -308,6 +311,7 @@ class SeedRunner extends AbstractFileRunner
             ->from($this->seedTable)
             ->where('batch', $lastBatch)
             ->orderBy('executed_at', 'DESC')
+            ->orderBy('seed', 'DESC')
             ->get();
 
         $rolledBack = [];
@@ -340,6 +344,8 @@ class SeedRunner extends AbstractFileRunner
             $seed->rollback();
             $this->removeSeedRecord($name);
             $this->db->commit();
+
+            $this->getEventDispatcher()?->dispatch(new SeedRolledBackEvent($name, $this->getDriverName()));
         } catch (\Throwable $e) {
             $this->db->rollback();
             $previous = $e instanceof PDOException ? $e : null;

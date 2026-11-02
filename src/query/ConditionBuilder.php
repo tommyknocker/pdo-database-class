@@ -633,6 +633,24 @@ class ConditionBuilder implements ConditionBuilderInterface, ConnectionAwareInte
         }
         return ' ' . $keyword . ' ' . implode(' ', $clauses);
     }
+    /**
+     * Number of WHERE conditions added so far.
+     */
+    public function whereCount(): int
+    {
+        return count($this->where);
+    }
+
+    /**
+     * Drop the WHERE conditions added after the first $count ones, so a condition applied for one run does not stay
+     * on a builder that is run again.
+     */
+    public function truncateWhere(int $count): static
+    {
+        $this->where = array_slice($this->where, 0, max(0, $count));
+
+        return $this;
+    }
 
     /**
      * Get WHERE conditions.

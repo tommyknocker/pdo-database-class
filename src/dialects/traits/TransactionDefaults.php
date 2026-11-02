@@ -23,6 +23,14 @@ trait TransactionDefaults
     /**
      * {@inheritDoc}
      */
+    public function supportsTransactionalDdl(): bool
+    {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function buildCreateSavepointSql(string $name): string
     {
         return "SAVEPOINT {$name}";

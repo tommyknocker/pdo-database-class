@@ -17,6 +17,7 @@ class TransactionStrategy extends AbstractErrorDetectionStrategy
     public function __construct()
     {
         $this->errorCodes = ErrorCodeRegistry::getMergedErrorCodes('transaction');
+        $this->errorType = 'transaction';
 
         $this->messagePatterns = [
             'deadlock',

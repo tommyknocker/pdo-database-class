@@ -26,14 +26,6 @@ trait QuotingDefaults
     /**
      * {@inheritDoc}
      */
-    public function supportsTransactionalDdl(): bool
-    {
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     public function quoteStringLiteral(string $value): string
     {
         return "'" . str_replace(["\0", "'"], ['', "''"], $value) . "'";

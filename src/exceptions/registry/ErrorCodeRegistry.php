@@ -246,4 +246,46 @@ class ErrorCodeRegistry
 
         return $merged;
     }
+
+    /**
+     * Native error numbers of the drivers whose SQLSTATE is too coarse to classify (SQL Server reports every
+     * integrity violation as 23000, Oracle everything as HY000), keyed by driver and error type.
+     *
+     * They are kept apart from the merged lists above on purpose: the same number means different things in
+     * different databases (1 is a generic error in SQLite and a unique violation in Oracle), so a number is only
+     * compared with the codes of the driver that raised it.
+     *
+     * @return array<string, array<string, list<int>>>
+     */
+    public static function getNativeErrorCodes(): array
+    {
+        return [
+            'sqlsrv' => [
+                'constraint' => [2601, 2627, 515, 547],
+                'transaction' => [1205, 1222],
+                'authentication' => [18456, 18451, 18452, 18470, 18486, 4060],
+                'connection' => [53, 233, 64, 6005, 10053, 10054, 10060, 11001],
+                'resource' => [701, 1101, 1105, 8645, 9002],
+            ],
+            'oci' => [
+                'constraint' => [1, 1400, 1407, 2290, 2291, 2292],
+                'transaction' => [60, 54],
+                'authentication' => [1017, 1045, 28000, 28001],
+                'connection' => [3113, 3114, 3135, 12154, 12170, 12514, 12537, 12541, 12543],
+                'resource' => [1536, 1653, 1654, 1688, 4031],
+            ],
+        ];
+    }
+
+    /**
+     * Whether a driver's native error number belongs to an error type.
+     */
+    public static function isNativeCode(string $driver, string $errorType, string $code): bool
+    {
+        if ($code === '' || !is_numeric($code)) {
+            return false;
+        }
+
+        return in_array((int)$code, self::getNativeErrorCodes()[strtolower($driver)][$errorType] ?? [], true);
+    }
 }

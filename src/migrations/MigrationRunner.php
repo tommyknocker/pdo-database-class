@@ -130,7 +130,11 @@ class MigrationRunner extends AbstractFileRunner
         }
         $query = $this->db->find()
             ->from($this->migrationTable)
-            ->orderBy('apply_time', 'DESC');
+            // Migrations applied within the same second share apply_time; the batch and the version, which starts with
+            // its timestamp, keep "last applied" well defined so a rollback undoes the newest one first.
+            ->orderBy('apply_time', 'DESC')
+            ->orderBy('batch', 'DESC')
+            ->orderBy('version', 'DESC');
 
         if ($limit !== null) {
             $query->limit($limit);
@@ -186,45 +190,8 @@ class MigrationRunner extends AbstractFileRunner
         $batch = $this->getNextBatchNumber();
 
         foreach ($newMigrations as $version) {
-            $migration = null;
-
-            try {
-                // Dispatch migration started event
-                $dispatcher = $this->getEventDispatcher();
-                if ($dispatcher !== null) {
-                    $dispatcher->dispatch(new MigrationStartedEvent(
-                        $version,
-                        $this->getDriverName()
-                    ));
-                }
-
-                $startTime = microtime(true);
-                $migration = $this->loadMigration($version);
-                $this->runMigrationStep($migration, function () use ($migration, $version, $batch): void {
-                    $migration->up();
-                    $this->recordMigration($version, $batch);
-                });
-                $duration = (microtime(true) - $startTime) * 1000; // milliseconds
-
-                // Dispatch migration completed event
-                if ($dispatcher !== null) {
-                    $dispatcher->dispatch(new MigrationCompletedEvent(
-                        $version,
-                        $this->getDriverName(),
-                        $duration
-                    ));
-                }
-
-                $applied[] = $version;
-            } catch (\Throwable $e) {
-                $previous = $e instanceof PDOException ? $e : null;
-
-                throw new QueryException(
-                    $this->failureMessage("Migration {$version} failed: ", $e, $migration),
-                    0,
-                    $previous
-                );
-            }
+            $this->applyUp($version, $batch);
+            $applied[] = $version;
         }
 
         return $applied;
@@ -264,25 +231,8 @@ class MigrationRunner extends AbstractFileRunner
 
         foreach ($history as $record) {
             $version = $record['version'];
-
-            $migration = null;
-
-            try {
-                $migration = $this->loadMigration($version);
-                $this->runMigrationStep($migration, function () use ($migration, $version): void {
-                    $migration->down();
-                    $this->removeMigrationRecord($version);
-                });
-                $rolledBack[] = $version;
-            } catch (\Throwable $e) {
-                $previous = $e instanceof PDOException ? $e : null;
-
-                throw new QueryException(
-                    $this->failureMessage("Rollback of migration {$version} failed: ", $e, $migration),
-                    0,
-                    $previous
-                );
-            }
+            $this->applyDown($version);
+            $rolledBack[] = $version;
         }
 
         return $rolledBack;
@@ -303,6 +253,55 @@ class MigrationRunner extends AbstractFileRunner
             return;
         }
 
+        $this->applyDown($version);
+    }
+
+    /**
+     * Apply one migration and record it in a batch, announcing it on the event dispatcher.
+     *
+     * Every way of applying a migration (migrate(), migrateUp(), migrateTo()) goes through here, so each one sends the
+     * same events.
+     *
+     * @throws QueryException When the migration fails
+     */
+    protected function applyUp(string $version, int $batch): void
+    {
+        $migration = null;
+
+        try {
+            $dispatcher = $this->getEventDispatcher();
+            $dispatcher?->dispatch(new MigrationStartedEvent($version, $this->getDriverName()));
+
+            $startTime = microtime(true);
+            $migration = $this->loadMigration($version);
+            $this->runMigrationStep($migration, function () use ($migration, $version, $batch): void {
+                $migration->up();
+                $this->recordMigration($version, $batch);
+            });
+
+            $dispatcher?->dispatch(new MigrationCompletedEvent(
+                $version,
+                $this->getDriverName(),
+                (microtime(true) - $startTime) * 1000
+            ));
+        } catch (\Throwable $e) {
+            $previous = $e instanceof PDOException ? $e : null;
+
+            throw new QueryException(
+                $this->failureMessage("Migration {$version} failed: ", $e, $migration),
+                0,
+                $previous
+            );
+        }
+    }
+
+    /**
+     * Roll one migration back and announce it, whether it is rolled back by step, by version or on the way to a target.
+     *
+     * @throws QueryException When the rollback fails
+     */
+    protected function applyDown(string $version): void
+    {
         $migration = null;
 
         try {
@@ -312,14 +311,7 @@ class MigrationRunner extends AbstractFileRunner
                 $this->removeMigrationRecord($version);
             });
 
-            // Dispatch migration rolled back event
-            $dispatcher = $this->getEventDispatcher();
-            if ($dispatcher !== null) {
-                $dispatcher->dispatch(new MigrationRolledBackEvent(
-                    $version,
-                    $this->getDriverName()
-                ));
-            }
+            $this->getEventDispatcher()?->dispatch(new MigrationRolledBackEvent($version, $this->getDriverName()));
         } catch (\Throwable $e) {
             $previous = $e instanceof PDOException ? $e : null;
 
@@ -461,23 +453,7 @@ class MigrationRunner extends AbstractFileRunner
             return;
         }
 
-        $migration = null;
-
-        try {
-            $migration = $this->loadMigration($version);
-            $this->runMigrationStep($migration, function () use ($migration, $version): void {
-                $migration->up();
-                $this->recordMigration($version, $this->getNextBatchNumber());
-            });
-        } catch (\Throwable $e) {
-            $previous = $e instanceof PDOException ? $e : null;
-
-            throw new QueryException(
-                $this->failureMessage("Migration {$version} failed: ", $e, $migration),
-                0,
-                $previous
-            );
-        }
+        $this->applyUp($version, $this->getNextBatchNumber());
     }
 
     /**

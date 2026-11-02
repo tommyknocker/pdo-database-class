@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\exceptions;
 use PDOException;
 use tommyknocker\pdodb\connection\DialectRegistry;
 use tommyknocker\pdodb\exceptions\parsers\ConstraintParser;
+use tommyknocker\pdodb\exceptions\strategies\AbstractErrorDetectionStrategy;
 use tommyknocker\pdodb\exceptions\strategies\ErrorDetectionStrategyInterface;
 
 /**
@@ -40,7 +41,8 @@ class ExceptionFactory
         $code = $dialect->extractErrorCode($e);
         $message = $e->getMessage();
 
-        $strategy = self::findMatchingStrategy($code, $message);
+        $nativeCode = isset($e->errorInfo[1]) ? (string)$e->errorInfo[1] : '';
+        $strategy = self::findMatchingStrategy($code, $message, $dialect->getDriverName(), $nativeCode);
         $exceptionClass = $strategy->getExceptionClass();
 
         return self::createException(
@@ -82,12 +84,19 @@ class ExceptionFactory
     /**
      * Find the first strategy that matches the error code and message.
      */
-    protected static function findMatchingStrategy(string $code, string $message): ErrorDetectionStrategyInterface
-    {
+    protected static function findMatchingStrategy(
+        string $code,
+        string $message,
+        string $driver = '',
+        string $nativeCode = ''
+    ): ErrorDetectionStrategyInterface {
         $messageLower = strtolower($message);
 
         foreach (self::$strategies as $strategy) {
             if ($strategy->isMatch($code, $messageLower)) {
+                return $strategy;
+            }
+            if ($strategy instanceof AbstractErrorDetectionStrategy && $strategy->isNativeCodeMatch($driver, $nativeCode)) {
                 return $strategy;
             }
         }

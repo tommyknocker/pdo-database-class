@@ -17,6 +17,7 @@ class ConstraintViolationStrategy extends AbstractErrorDetectionStrategy
     public function __construct()
     {
         $this->errorCodes = ErrorCodeRegistry::getMergedErrorCodes('constraint');
+        $this->errorType = 'constraint';
 
         $this->messagePatterns = [
             'duplicate entry',
