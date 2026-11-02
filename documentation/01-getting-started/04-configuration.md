@@ -36,9 +36,19 @@ $db = new PdoDb('mysql', [
     'sslca'       => '/path/ca.pem',       // Optional: SSL CA certificate
     'sslcert'     => '/path/client-cert.pem', // Optional: SSL client certificate
     'sslkey'      => '/path/client-key.pem',  // Optional: SSL client key
-    'compress'    => true                  // Optional: Enable protocol compression
+    'compress'    => true,                 // Optional: Enable protocol compression
+
+    // Upserts (MySQL 8.0.19+ only)
+    'use_upsert_alias' => true             // Optional: write onDuplicate() with a row alias instead of VALUES(col)
 ]);
 ```
+
+`onDuplicate()` writes `ON DUPLICATE KEY UPDATE col = VALUES(col)`. MySQL has deprecated `VALUES(col)` since 8.0.20 and
+answers every such statement with a warning (it still works on MySQL 8 and 9). Set `use_upsert_alias` to `true` to have
+PDOdb write the new row through an alias instead (`... AS pdodb_new (pdodb_c0, ...) ON DUPLICATE KEY UPDATE col =
+pdodb_new.pdodb_c0`). It takes effect on MySQL 8.0.19 and newer; older servers, MariaDB (which has no row alias) and
+`INSERT ... SELECT` keep `VALUES(col)`. Expressions you write yourself, such as `Db::raw('age + 5')`, keep meaning the
+table's column.
 
 ### Using Existing PDO Connection
 

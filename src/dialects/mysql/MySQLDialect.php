@@ -26,10 +26,34 @@ class MySQLDialect extends MySQLFamilyDialect
 
     private ?bool $rowAlias = null;
 
+    private bool $useUpsertAlias = false;
+
+    /**
+     * {@inheritDoc}
+     *
+     * `use_upsert_alias` (default false) makes upserts read the inserted row through a row alias instead of the
+     * deprecated `VALUES(column)`; see {@see usesUpsertAlias()}.
+     */
+    public function applyConfig(array $config): void
+    {
+        $this->useUpsertAlias = filter_var($config['use_upsert_alias'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Whether upserts are written with the row alias: the connection asks for it (`use_upsert_alias`) and the server
+     * is new enough. Off by default, because the alias makes a bare column name in an update expression
+     * (`Db::raw('age + 5')`) ambiguous unless the alias has column names of its own, and `VALUES(column)` still works
+     * on every MySQL 8 and 9 release; it only raises a deprecation warning.
+     */
+    public function usesUpsertAlias(): bool
+    {
+        return $this->useUpsertAlias && $this->supportsRowAlias();
+    }
+
     /**
      * Whether the server is MySQL 8.0.19 or newer, which takes the inserted row as an alias in
-     * `INSERT ... VALUES (...) AS new ON DUPLICATE KEY UPDATE c = new.c`. `VALUES(c)` there is deprecated since
-     * 8.0.20. Older servers, MariaDB behind the `mysql` driver and an unknown version keep `VALUES(c)`.
+     * `INSERT ... VALUES (...) AS new ON DUPLICATE KEY UPDATE c = new.c`. Older servers, MariaDB behind the `mysql`
+     * driver and an unknown version cannot.
      */
     public function supportsRowAlias(): bool
     {
@@ -66,7 +90,7 @@ class MySQLDialect extends MySQLFamilyDialect
      */
     protected function duplicateKeyRowAlias(array $quotedColumns): ?MySQLRowAlias
     {
-        return $this->supportsRowAlias() ? new MySQLRowAlias($quotedColumns) : null;
+        return $this->usesUpsertAlias() ? new MySQLRowAlias($quotedColumns) : null;
     }
 
     /**

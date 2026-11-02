@@ -19,6 +19,13 @@ trait ConnectionDefaults
         $this->pdo = $pdo;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function applyConfig(array $config): void
+    {
+    }
+
     public function getPdo(): ?PDO
     {
         return $this->pdo;

@@ -32,6 +32,14 @@ interface DialectConnectionInterface
     public function setPdo(PDO $pdo): void;
 
     /**
+     * Take the dialect-specific settings from a connection's configuration array (for example MySQL's
+     * `use_upsert_alias`). Keys a dialect does not know are ignored.
+     *
+     * @param array<string, mixed> $config
+     */
+    public function applyConfig(array $config): void;
+
+    /**
      * Get PDO instance.
      *
      * @return PDO|null The PDO instance or null if not set

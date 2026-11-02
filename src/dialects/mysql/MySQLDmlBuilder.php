@@ -18,6 +18,6 @@ class MySQLDmlBuilder extends MySQLFamilyDmlBuilder
 
     protected function usesRowAlias(): bool
     {
-        return $this->dialect instanceof MySQLDialect && $this->dialect->supportsRowAlias();
+        return $this->dialect instanceof MySQLDialect && $this->dialect->usesUpsertAlias();
     }
 }

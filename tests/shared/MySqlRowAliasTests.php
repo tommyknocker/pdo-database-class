@@ -16,6 +16,15 @@ use tommyknocker\pdodb\helpers\Db;
  */
 final class MySqlRowAliasTests extends TestCase
 {
+    private function dialect(string $version, bool $aliasRequested = true): MySQLDialect
+    {
+        $dialect = new MySQLDialect();
+        $dialect->setPdo($this->pdoReporting($version));
+        $dialect->applyConfig(['use_upsert_alias' => $aliasRequested]);
+
+        return $dialect;
+    }
+
     private function pdoReporting(string $version): PDO
     {
         return new class ('sqlite::memory:', $version) extends PDO {
@@ -56,8 +65,7 @@ final class MySqlRowAliasTests extends TestCase
     {
         $this->assertSame($alias, MySQLDialect::versionHasRowAlias($version));
 
-        $dialect = new MySQLDialect();
-        $dialect->setPdo($this->pdoReporting($version));
+        $dialect = $this->dialect($version);
         $clause = $dialect->buildUpsertClauseForValues(['age'], ['name', 'age'], 'id', 'users');
 
         $this->assertSame(
@@ -66,6 +74,42 @@ final class MySqlRowAliasTests extends TestCase
                 : 'ON DUPLICATE KEY UPDATE `age` = VALUES(`age`)',
             $clause
         );
+    }
+
+    public function testTheAliasIsOffUnlessTheConnectionAsksForIt(): void
+    {
+        // the server could do it, but VALUES() works on every MySQL 8 and 9 and bare columns stay unambiguous
+        foreach ([$this->dialect('8.0.46', false), $this->pdoOnly('8.0.46')] as $dialect) {
+            $this->assertFalse($dialect->usesUpsertAlias());
+            $this->assertTrue($dialect->supportsRowAlias());
+            $this->assertSame('ON DUPLICATE KEY UPDATE `age` = VALUES(`age`)', $dialect->buildUpsertClauseForValues(['age'], ['name', 'age']));
+        }
+    }
+
+    public function testAskingForTheAliasOnAServerThatLacksItKeepsValues(): void
+    {
+        $dialect = $this->dialect('8.0.18');
+
+        $this->assertFalse($dialect->usesUpsertAlias());
+        $this->assertSame('ON DUPLICATE KEY UPDATE `age` = VALUES(`age`)', $dialect->buildUpsertClauseForValues(['age'], ['name', 'age']));
+    }
+
+    public function testTheSettingAcceptsTheUsualBooleanSpellings(): void
+    {
+        foreach (['1' => true, 'true' => true, 'on' => true, '0' => false, 'false' => false, 'off' => false] as $value => $expected) {
+            $dialect = new MySQLDialect();
+            $dialect->setPdo($this->pdoReporting('8.0.46'));
+            $dialect->applyConfig(['use_upsert_alias' => $value]);
+            $this->assertSame($expected, $dialect->usesUpsertAlias(), (string)$value);
+        }
+    }
+
+    private function pdoOnly(string $version): MySQLDialect
+    {
+        $dialect = new MySQLDialect();
+        $dialect->setPdo($this->pdoReporting($version));
+
+        return $dialect;
     }
 
     public function testWithoutAConnectionTheOldFormIsUsed(): void
@@ -80,6 +124,7 @@ final class MySqlRowAliasTests extends TestCase
     {
         $dialect = new MariaDBDialect();
         $dialect->setPdo($this->pdoReporting('8.0.46'));
+        $dialect->applyConfig(['use_upsert_alias' => true]);
 
         $this->assertSame(
             'ON DUPLICATE KEY UPDATE `age` = VALUES(`age`)',
@@ -89,16 +134,14 @@ final class MySqlRowAliasTests extends TestCase
 
     public function testInsertSelectKeepsValuesBecauseTheAliasExistsOnlyForValues(): void
     {
-        $dialect = new MySQLDialect();
-        $dialect->setPdo($this->pdoReporting('8.0.46'));
+        $dialect = $this->dialect('8.0.46');
 
         $this->assertSame('ON DUPLICATE KEY UPDATE `age` = VALUES(`age`)', $dialect->buildUpsertClause(['age'], 'id', 'users'));
     }
 
     public function testExpressionsKeepTheirUnqualifiedColumnsBecauseTheAliasHasColumnNamesOfItsOwn(): void
     {
-        $dialect = new MySQLDialect();
-        $dialect->setPdo($this->pdoReporting('8.0.46'));
+        $dialect = $this->dialect('8.0.46');
 
         $clause = $dialect->buildUpsertClauseForValues(
             ['age' => Db::raw('age + 5'), 'visits' => Db::inc(2), 'note' => true],
@@ -117,15 +160,13 @@ final class MySqlRowAliasTests extends TestCase
 
     public function testTheIdempotentUpsertUsesTheAliasToo(): void
     {
-        $dialect = new MySQLDialect();
-        $dialect->setPdo($this->pdoReporting('8.0.46'));
+        $dialect = $this->dialect('8.0.46');
         [$sql] = $dialect->buildIdempotentUpsertSql('users', ['email' => 'a@example.test', 'name' => 'A'], ['email'], ['name']);
 
         $this->assertStringContainsString('VALUES (:', $sql);
         $this->assertStringContainsString(' AS pdodb_new (pdodb_c0, pdodb_c1) ON DUPLICATE KEY UPDATE `name` = pdodb_new.pdodb_c1', $sql);
 
-        $old = new MySQLDialect();
-        $old->setPdo($this->pdoReporting('8.0.18'));
+        $old = $this->dialect('8.0.18');
         [$oldSql] = $old->buildIdempotentUpsertSql('users', ['email' => 'a@example.test', 'name' => 'A'], ['email'], ['name']);
         $this->assertStringContainsString('ON DUPLICATE KEY UPDATE `name` = VALUES(`name`)', $oldSql);
         $this->assertStringNotContainsString('pdodb_new', $oldSql);

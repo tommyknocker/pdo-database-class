@@ -5,19 +5,29 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\mysql;
 
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\PdoDb;
 
 /**
- * On MySQL 8.0.19+ upserts read the inserted row through an alias; they must run, keep their meaning and not raise
- * the deprecation warning that `VALUES(column)` raises from 8.0.20.
+ * With `use_upsert_alias` on MySQL 8.0.19+, upserts read the inserted row through an alias; they must run, keep their
+ * meaning and not raise the deprecation warning that `VALUES(column)` raises from 8.0.20.
  */
 final class RowAliasUpsertTests extends BaseMySQLTestCase
 {
     public function setUp(): void
     {
         parent::setUp();
-        if (!self::$db->schema()->getDialect()->supportsRowAlias()) {
+        $dialect = self::$db->schema()->getDialect();
+        if (!$dialect->supportsRowAlias()) {
             $this->markTestSkipped('The test server is older than MySQL 8.0.19');
         }
+        $dialect->applyConfig(['use_upsert_alias' => true]);
+    }
+
+    public function tearDown(): void
+    {
+        // the connection is shared with other tests, which expect the default
+        self::$db->schema()->getDialect()->applyConfig([]);
+        parent::tearDown();
     }
 
     /**
@@ -114,5 +124,23 @@ final class RowAliasUpsertTests extends BaseMySQLTestCase
         $this->assertStringContainsString('pdodb_new.pdodb_c1', $sql);
         $this->assertEquals(6, $db->find()->from('users')->where('name', 'Cy')->getOne()['age']);
         $this->assertSame([], $this->warnings());
+    }
+
+    public function testTheConnectionConfigurationTurnsTheAliasOn(): void
+    {
+        $config = [
+            'host' => self::DB_HOST,
+            'port' => self::DB_PORT,
+            'username' => self::DB_USER,
+            'password' => self::DB_PASSWORD,
+            'dbname' => self::DB_NAME,
+            'charset' => self::DB_CHARSET,
+        ];
+
+        $default = new PdoDb('mysql', $config);
+        $enabled = new PdoDb('mysql', $config + ['use_upsert_alias' => true]);
+
+        $this->assertFalse($default->schema()->getDialect()->usesUpsertAlias(), 'off by default');
+        $this->assertTrue($enabled->schema()->getDialect()->usesUpsertAlias());
     }
 }

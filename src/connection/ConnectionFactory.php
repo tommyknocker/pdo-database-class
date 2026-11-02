@@ -63,6 +63,7 @@ class ConnectionFactory
         }
 
         $dialect->setPdo($pdo);
+        $dialect->applyConfig($config);
 
         // Register REGEXP functions if enabled (default: true)
         // Dialects that don't support REGEXP will do nothing in registerRegexpFunctions()
