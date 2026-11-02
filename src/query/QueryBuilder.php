@@ -1208,9 +1208,6 @@ class QueryBuilder implements QueryBuilderInterface
         }
 
         $this->cacheManager->invalidateTable($this->table);
-    }
-
-    /**
 
         // UPDATE/DELETE ... JOIN can change the joined tables too
         foreach ($this->joinBuilder->getJoins() as $join) {
@@ -1218,6 +1215,9 @@ class QueryBuilder implements QueryBuilderInterface
                 $this->cacheManager->invalidateTable($joined);
             }
         }
+    }
+
+    /**
      * Execute MERGE statement (INSERT/UPDATE/DELETE based on match conditions).
      *
      * @param string|Closure(QueryBuilder): void|SelectQueryBuilderInterface $source Source table/subquery for MERGE
