@@ -62,14 +62,8 @@ class QueryBuilder implements QueryBuilderInterface
     /** @var QueryCompilationCache|null Query compilation cache */
     protected ?QueryCompilationCache $compilationCache = null;
 
-    /** @var ConnectionRouter|null Connection router for read/write splitting */
-    protected ?ConnectionRouter $connectionRouter = null;
-
-    /** @var ShardRouter|null Shard router for sharding */
-    protected ?ShardRouter $shardRouter = null;
-
-    /** @var bool Force next query to use write connection */
-    protected bool $forceWriteConnection = false;
+    /** @var QueryRouting Picks the shard or the read/write connection */
+    protected QueryRouting $routing;
 
     /** @var CteManager|null CTE manager for Common Table Expressions */
     protected ?CteManager $cteManager = null;
@@ -83,18 +77,8 @@ class QueryBuilder implements QueryBuilderInterface
     /** @var array<string> Columns for DISTINCT ON (PostgreSQL) */
     protected array $distinctOn = [];
 
-    /** @var array<string> Disabled global scopes */
-    protected array $disabledGlobalScopes = [];
-
-    /**
-     * @var array<string, callable> Global scopes to apply
-     *
-     * @phpstan-var array<string, callable(QueryBuilder, mixed...): QueryBuilder>
-     */
-    protected array $globalScopes = [];
-
-    /** @var bool Whether global scopes have been applied */
-    protected bool $globalScopesApplied = false;
+    /** @var GlobalScopes Registered, disabled and applied global scopes */
+    protected GlobalScopes $globalScopes;
 
     // Component instances
     protected ParameterManagerInterface $parameterManager;
@@ -127,6 +111,8 @@ class QueryBuilder implements QueryBuilderInterface
         array $aiSettings = []
     ) {
         $this->connection = $connection;
+        $this->routing = new QueryRouting();
+        $this->globalScopes = new GlobalScopes();
         $this->dialect = $connection->getDialect();
         $this->prefix = $prefix;
         $this->cacheManager = $cacheManager;
@@ -242,7 +228,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function setConnectionRouter(?ConnectionRouter $router): static
     {
-        $this->connectionRouter = $router;
+        $this->routing->setConnectionRouter($router);
         return $this;
     }
 
@@ -255,7 +241,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function setShardRouter(?ShardRouter $router): static
     {
-        $this->shardRouter = $router;
+        $this->routing->setShardRouter($router);
         return $this;
     }
 
@@ -266,12 +252,12 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function forceWrite(): static
     {
-        $this->forceWriteConnection = true;
+        $this->routing->forceWrite();
         return $this;
     }
 
     /**
-     * Switch to shard connection if sharding is configured.
+     * Move to the shard that holds the query's rows, if the table is sharded.
      *
      * @param array<int, array<string, mixed>>|null $rows Rows about to be written; their shard key picks the shard when WHERE has none
      *
@@ -279,68 +265,21 @@ class QueryBuilder implements QueryBuilderInterface
      */
     protected function switchToShardConnection(?array $rows = null): ?ConnectionInterface
     {
-        if ($this->shardRouter === null) {
-            return null;
-        }
-
-        $table = $this->getTableName();
-        if ($table === null || $this->shardRouter->getShardConfig($table) === null) {
-            return null;
-        }
-
-        $shardName = $this->shardRouter->resolveShard($this);
-        if ($shardName === null && $rows !== null) {
-            $shardName = $this->shardRouter->resolveShardForRows($table, $rows);
-        }
-        if ($shardName === null) {
-            // There is no scatter-gather: running the query on the default connection would silently read or
-            // write only part of the table, so the caller has to pick a shard.
-            throw new \LogicException(
-                "Cannot tell which shard of '{$table}' to use: the query has no value for its shard key. "
-                . 'Filter on the shard key, or choose a shard with connection($name) for a cross-shard task.'
-            );
-        }
-
-        $originalConnection = $this->connection;
-        $this->routeTo($this->shardRouter->getShardConnection($table, $shardName));
-
-        return $originalConnection;
+        return $this->moveTo($this->routing->forShard($this, $rows));
     }
 
     /**
-     * Switch to read connection if router is available.
+     * Move to the connection a read should use (a shard, else the read replica), if routing is configured.
      *
      * @return ConnectionInterface|null Original connection before switch
      */
     protected function switchToReadConnection(): ?ConnectionInterface
     {
-        // First try sharding
-        $originalConnection = $this->switchToShardConnection();
-        if ($originalConnection !== null) {
-            return $originalConnection;
-        }
-
-        // Fall back to read/write splitting
-        if ($this->connectionRouter === null) {
-            return null;
-        }
-
-        $originalConnection = $this->connection;
-
-        // Get appropriate connection based on forceWrite flag
-        if ($this->forceWriteConnection) {
-            $target = $this->connectionRouter->getWriteConnection();
-            $this->forceWriteConnection = false; // Reset flag after use
-        } else {
-            $target = $this->connectionRouter->getReadConnection();
-        }
-        $this->routeTo($target);
-
-        return $originalConnection;
+        return $this->moveTo($this->routing->forRead($this));
     }
 
     /**
-     * Switch to write connection if router is available.
+     * Move to the connection a write should use (a shard, else the write connection), if routing is configured.
      *
      * @param array<int, array<string, mixed>>|null $rows Rows about to be written, used to pick a shard
      *
@@ -348,21 +287,22 @@ class QueryBuilder implements QueryBuilderInterface
      */
     protected function switchToWriteConnection(?array $rows = null): ?ConnectionInterface
     {
-        // First try sharding
-        $originalConnection = $this->switchToShardConnection($rows);
-        if ($originalConnection !== null) {
-            return $originalConnection;
-        }
+        return $this->moveTo($this->routing->forWrite($this, $rows));
+    }
 
-        // Fall back to read/write splitting
-        if ($this->connectionRouter === null) {
+    /**
+     * @return ConnectionInterface|null The connection that was left, or null when there was nowhere to go
+     */
+    private function moveTo(?ConnectionInterface $target): ?ConnectionInterface
+    {
+        if ($target === null) {
             return null;
         }
 
-        $originalConnection = $this->connection;
-        $this->routeTo($this->connectionRouter->getWriteConnection());
+        $original = $this->connection;
+        $this->routeTo($target);
 
-        return $originalConnection;
+        return $original;
     }
 
     /**
@@ -379,22 +319,13 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
-     * Send the rest of the query to another connection.
-     *
-     * The SQL built so far was generated with this builder's dialect, so a connection with a different dialect
-     * cannot run it; that is a configuration error and must not fall back silently.
+     * Send the rest of the query to another connection of the same dialect.
      *
      * @throws \LogicException When the target connection uses another SQL dialect
      */
     protected function routeTo(ConnectionInterface $target): void
     {
-        $from = $this->connection->getDialect()->getDriverName();
-        $to = $target->getDialect()->getDriverName();
-        if ($from !== $to) {
-            throw new \LogicException(
-                "Connection routing needs every connection to use the same SQL dialect: the query is built for {$from} but was routed to {$to}."
-            );
-        }
+        QueryRouting::assertSameDialect($this->connection, $target);
 
         $this->connection = $target;
         $this->updateComponents();
@@ -775,7 +706,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function withoutGlobalScope(string $scopeName): static
     {
-        $this->disabledGlobalScopes[] = $scopeName;
+        $this->globalScopes->disable($scopeName);
         return $this;
     }
 
@@ -788,7 +719,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function withoutGlobalScopes(array $scopeNames): static
     {
-        $this->disabledGlobalScopes = array_merge($this->disabledGlobalScopes, $scopeNames);
+        $this->globalScopes->disableMany($scopeNames);
         return $this;
     }
 
@@ -801,7 +732,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function isGlobalScopeDisabled(string $scopeName): bool
     {
-        return in_array($scopeName, $this->disabledGlobalScopes, true);
+        return $this->globalScopes->isDisabled($scopeName);
     }
 
     /**
@@ -811,7 +742,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function getDisabledGlobalScopes(): array
     {
-        return $this->disabledGlobalScopes;
+        return $this->globalScopes->disabled();
     }
 
     /**
@@ -825,7 +756,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function setGlobalScopes(array $scopes): static
     {
-        $this->globalScopes = $scopes;
+        $this->globalScopes->set($scopes);
         return $this;
     }
 
@@ -834,21 +765,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     protected function applyGlobalScopes(): void
     {
-        if ($this->globalScopesApplied || empty($this->globalScopes)) {
-            return;
-        }
-
-        foreach ($this->globalScopes as $scopeName => $scope) {
-            // Skip if this scope is disabled
-            if ($this->isGlobalScopeDisabled($scopeName)) {
-                continue;
-            }
-
-            // Apply the scope
-            $this->scope($scope);
-        }
-
-        $this->globalScopesApplied = true;
+        $this->globalScopes->applyOnce(fn (callable $scope) => $this->scope($scope));
     }
 
     /**
