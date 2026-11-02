@@ -119,12 +119,37 @@ final class QueryCompilationCacheTests extends BaseSharedTestCase
         $this->assertEquals($compiled, $result);
     }
 
-    public function testClear(): void
+    public function testClearForgetsTheCompiledQueriesAndOnlyThose(): void
     {
-        $cache = $this->createCache();
-        // clear() is a placeholder method, so we just test it doesn't throw
+        $arrayCache = new ArrayCache();
+        $arrayCache->set('unrelated', 'kept');
+        $cache = new QueryCompilationCache($arrayCache);
+
+        $compilations = 0;
+        $compile = static function () use (&$compilations): string {
+            $compilations++;
+
+            return 'SELECT 1';
+        };
+        $structure = ['table' => 'users', 'select' => ['id']];
+
+        $cache->getOrCompile($compile, $structure, 'sqlite');
+        $cache->getOrCompile($compile, $structure, 'sqlite');
+        $this->assertSame(1, $compilations, 'the second call is served from the cache');
+
         $cache->clear();
-        $this->assertTrue(true);
+
+        $cache->getOrCompile($compile, $structure, 'sqlite');
+        $this->assertSame(2, $compilations, 'after clear() the query is compiled again');
+        $this->assertSame('kept', $arrayCache->get('unrelated'));
+    }
+
+    public function testClearWithoutACacheDoesNothing(): void
+    {
+        $cache = new QueryCompilationCache(null);
+        $cache->clear();
+
+        $this->assertFalse($cache->isEnabled());
     }
 
     public function testHashQueryStructure(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use PDOException;
+use tommyknocker\pdodb\exceptions\ConstraintViolationException;
 use tommyknocker\pdodb\exceptions\DatabaseException;
 use tommyknocker\pdodb\helpers\Db;
 
@@ -28,20 +29,14 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
 
         $loader = $db->find()->table('test_fileloader_error');
 
-        // Try to load non-existent file - may throw InvalidArgumentException or DatabaseException
-        $this->expectException(\Throwable::class);
-
         try {
             $loader->loadCsv('/nonexistent/file_' . uniqid() . '.csv');
-        } catch (\InvalidArgumentException | DatabaseException $e) {
-            // Verify it's an exception
-            $this->assertInstanceOf(\Throwable::class, $e);
-
-            throw $e;
+            $this->fail('A file that does not exist must be refused');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertStringContainsString('CSV file is not readable', $e->getMessage());
+        } finally {
+            $db->schema()->dropTableIfExists('test_fileloader_error');
         }
-
-        // Cleanup
-        $db->schema()->dropTableIfExists('test_fileloader_error');
     }
 
     /**
@@ -63,41 +58,26 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
 
         $loader = $db->find()->table('test_fileloader_rollback');
 
+        $failure = null;
+
         try {
-            // This should fail and rollback transaction
             $loader->loadCsv($tmpFile, [
                 'fields' => ['id', 'name'],
                 'local' => true,
             ]);
-            // If no exception thrown, verify no rows were inserted
-            if ($db->schema()->tableExists('test_fileloader_rollback')) {
-                $count = $db->find()
-                    ->from('test_fileloader_rollback')
-                    ->select(['count' => Db::count()])
-                    ->getValue('count');
-                $this->assertEquals(0, (int)$count, 'No rows should be inserted with invalid data');
-            }
-        } catch (PDOException | DatabaseException $e) {
-            // Verify transaction was rolled back - check table still exists
-            if ($db->schema()->tableExists('test_fileloader_rollback')) {
-                $count = $db->find()
-                    ->from('test_fileloader_rollback')
-                    ->select(['count' => Db::count()])
-                    ->getValue('count');
-
-                // No rows should be inserted due to rollback
-                $this->assertEquals(0, (int)$count, 'Transaction should be rolled back on error');
-            }
-            // Exception was thrown, which is expected
-            $this->assertInstanceOf(\Throwable::class, $e);
+        } catch (ConstraintViolationException $e) {
+            $failure = $e;
         } finally {
-            if (file_exists($tmpFile)) {
-                unlink($tmpFile);
-            }
+            unlink($tmpFile);
         }
 
-        // Cleanup
-        $db->schema()->dropTableIfExists('test_fileloader_rollback');
+        try {
+            $this->assertNotNull($failure, 'rows without the required column must be refused');
+            $count = $db->find()->from('test_fileloader_rollback')->select(['count' => Db::count()])->getValue('count');
+            $this->assertSame(0, (int)$count, 'nothing is kept from a failed load');
+        } finally {
+            $db->schema()->dropTableIfExists('test_fileloader_rollback');
+        }
     }
 
     /**
@@ -133,8 +113,7 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
             $this->assertIsBool($result);
             $this->assertEquals(0, (int)$count, 'Empty file should insert no rows');
         } catch (PDOException | DatabaseException $e) {
-            // Some databases might throw error for empty file, which is acceptable
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             if (file_exists($tmpFile)) {
                 unlink($tmpFile);
@@ -172,9 +151,7 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
             // Result should be boolean indicating success
             $this->assertIsBool($result);
         } catch (PDOException | DatabaseException $e) {
-            // If local_infile is not enabled, test will be skipped in actual FileLoadTests
-            // For this test, we just verify the method exists and can be called
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             if (file_exists($tmpFile)) {
                 unlink($tmpFile);
@@ -221,8 +198,7 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
                 $this->assertGreaterThanOrEqual(0, (int)$count);
             }
         } catch (DatabaseException | PDOException $e) {
-            // Some databases might not support JSON loading, which is acceptable
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             if (file_exists($tmpFile)) {
                 unlink($tmpFile);
@@ -264,8 +240,7 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
                 ->getValue('count');
             $this->assertEquals(0, (int)$count, 'Empty JSON file should insert no rows');
         } catch (DatabaseException | PDOException $e) {
-            // Some databases might throw error for empty file, which is acceptable
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             if (file_exists($tmpFile)) {
                 unlink($tmpFile);
@@ -300,8 +275,7 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
             // Result should be boolean indicating success
             $this->assertIsBool($result);
         } catch (DatabaseException | PDOException $e) {
-            // Some databases might not support XML loading, which is acceptable
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             if (file_exists($tmpFile)) {
                 unlink($tmpFile);
@@ -336,8 +310,7 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
             // Result should be boolean indicating success
             $this->assertIsBool($result);
         } catch (DatabaseException | PDOException $e) {
-            // Some databases might not support XML loading with linesToIgnore, which is acceptable
-            $this->assertInstanceOf(\Throwable::class, $e);
+            throw $e;
         } finally {
             if (file_exists($tmpFile)) {
                 unlink($tmpFile);
@@ -346,5 +319,47 @@ class FileLoaderEdgeCasesTests extends BaseSharedTestCase
 
         // Cleanup
         $db->schema()->dropTableIfExists('test_fileloader_xml_ignore');
+    }
+
+    public function testAFailedLoadNeverLeavesTheConnectionInATransaction(): void
+    {
+        $db = self::$db;
+        $db->schema()->dropTableIfExists('test_fileloader_tx');
+        $db->schema()->createTable('test_fileloader_tx', ['id' => $db->schema()->primaryKey(), 'name' => $db->schema()->string(100)]);
+
+        try {
+            foreach (['loadCsv' => ['/nonexistent/a.csv'], 'loadJson' => ['/nonexistent/a.json'], 'loadXml' => ['/nonexistent/a.xml']] as $method => $arguments) {
+                try {
+                    $db->find()->table('test_fileloader_tx')->$method(...$arguments);
+                } catch (\Throwable) {
+                    // expected: the file is not there
+                }
+                $this->assertFalse($db->inTransaction(), "{$method} left a transaction open");
+            }
+        } finally {
+            $db->schema()->dropTableIfExists('test_fileloader_tx');
+        }
+    }
+
+    public function testALoadInsideACallersTransactionLeavesTheCommitToTheCaller(): void
+    {
+        $db = self::$db;
+        $db->schema()->dropTableIfExists('test_fileloader_caller_tx');
+        $db->schema()->createTable('test_fileloader_caller_tx', ['id' => $db->schema()->primaryKey(), 'name' => $db->schema()->string(100)]);
+
+        $file = sys_get_temp_dir() . '/caller_tx_' . uniqid() . '.csv';
+        file_put_contents($file, "1,first\n2,second\n");
+
+        try {
+            $db->startTransaction();
+            $db->find()->table('test_fileloader_caller_tx')->loadCsv($file, ['fields' => ['id', 'name'], 'local' => true]);
+            $this->assertTrue($db->inTransaction(), 'the loader must not commit a transaction it did not start');
+            $db->rollback();
+
+            $this->assertSame(0, (int)$db->rawQueryValue('SELECT COUNT(*) FROM test_fileloader_caller_tx'));
+        } finally {
+            unlink($file);
+            $db->schema()->dropTableIfExists('test_fileloader_caller_tx');
+        }
     }
 }

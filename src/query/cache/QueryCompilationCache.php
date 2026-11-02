@@ -124,6 +124,7 @@ class QueryCompilationCache
             $compiled = $compiler();
             if ($compiled !== '') {
                 $this->cache->set($key, $compiled, $this->defaultTtl);
+                $this->remember($key);
             }
 
             return $compiled;
@@ -229,16 +230,48 @@ class QueryCompilationCache
     }
 
     /**
-     * Clear compilation cache (removes all keys with prefix).
+     * Forget every compiled query this cache has stored.
      *
-     * Note: PSR-16 doesn't have pattern-based deletion.
-     * This would need to be implemented if required.
+     * PSR-16 cannot delete by prefix, so the keys written here are listed under one index entry and deleted from it;
+     * a key whose index update was lost to a concurrent writer simply expires with its TTL.
      */
     public function clear(): void
     {
-        // PSR-16 doesn't support pattern-based deletion
-        // Cache invalidation would need to be handled differently
-        // For now, this is a placeholder
+        if (!$this->isEnabled() || $this->cache === null) {
+            return;
+        }
+
+        try {
+            $keys = $this->cache->get($this->indexKey(), []);
+            foreach (is_array($keys) ? $keys : [] as $key) {
+                $this->cache->delete((string)$key);
+            }
+            $this->cache->delete($this->indexKey());
+        } catch (Throwable) {
+            // A cache that cannot be reached has nothing to clear
+        }
+    }
+
+    /**
+     * Add a stored key to the index that {@see clear()} works from.
+     */
+    protected function remember(string $key): void
+    {
+        if ($this->cache === null) {
+            return;
+        }
+
+        $keys = $this->cache->get($this->indexKey(), []);
+        $keys = is_array($keys) ? $keys : [];
+        if (!in_array($key, $keys, true)) {
+            $keys[] = $key;
+            $this->cache->set($this->indexKey(), $keys, $this->defaultTtl);
+        }
+    }
+
+    protected function indexKey(): string
+    {
+        return $this->prefix . '__index';
     }
 
     /**

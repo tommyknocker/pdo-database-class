@@ -47,40 +47,11 @@ class FileLoader implements FileLoaderInterface, ConnectionAwareInterface
      */
     public function loadCsv(string $filePath, array $options = []): bool
     {
-        $sql = null;
-        if (!$this->connection->inTransaction()) {
-            $this->connection->transaction();
-        }
-
-        try {
-            $generator = $this->connection->getDialect()->buildLoadCsvSqlGenerator(
-                $this->prefix . $this->table,
-                $filePath,
-                $options
-            );
-
-            foreach ($generator as $batchSql) {
-                $sql = $batchSql;
-                $this->connection->prepare($sql)->execute();
-            }
-
-            if ($this->connection->inTransaction()) {
-                $this->connection->commit();
-            }
-            return $this->connection->getExecuteState() !== false;
-        } catch (PDOException $e) {
-            if ($this->connection->inTransaction()) {
-                $this->connection->rollback();
-            }
-
-            // Convert to specialized exception and re-throw
-            throw ExceptionFactory::createFromPdoException(
-                $e,
-                $this->connection->getDriverName(),
-                $sql,
-                ['operation' => 'loadCsv', 'file' => $filePath]
-            );
-        }
+        return $this->runLoad(
+            'loadCsv',
+            fn (): iterable => $this->connection->getDialect()->buildLoadCsvSqlGenerator($this->prefix . $this->table, $filePath, $options),
+            ['file' => $filePath]
+        );
     }
 
     /**
@@ -94,45 +65,15 @@ class FileLoader implements FileLoaderInterface, ConnectionAwareInterface
      */
     public function loadXml(string $filePath, string $rowTag = '<row>', ?int $linesToIgnore = null): bool
     {
-        $sql = null;
-        if (!$this->connection->inTransaction()) {
-            $this->connection->transaction();
-        }
-
-        try {
-            $options = [
-                'rowTag' => $rowTag,
-                'linesToIgnore' => $linesToIgnore,
-            ];
-
-            $generator = $this->connection->getDialect()->buildLoadXMLGenerator(
+        return $this->runLoad(
+            'loadXml',
+            fn (): iterable => $this->connection->getDialect()->buildLoadXMLGenerator(
                 $this->prefix . $this->table,
                 $filePath,
-                $options
-            );
-
-            foreach ($generator as $batchSql) {
-                $sql = $batchSql;
-                $this->connection->prepare($sql)->execute();
-            }
-
-            if ($this->connection->inTransaction()) {
-                $this->connection->commit();
-            }
-            return $this->connection->getExecuteState() !== false;
-        } catch (PDOException $e) {
-            if ($this->connection->inTransaction()) {
-                $this->connection->rollback();
-            }
-
-            // Convert to specialized exception and re-throw
-            throw ExceptionFactory::createFromPdoException(
-                $e,
-                $this->connection->getDriverName(),
-                $sql,
-                ['operation' => 'loadXml', 'file' => $filePath, 'rowTag' => $rowTag]
-            );
-        }
+                ['rowTag' => $rowTag, 'linesToIgnore' => $linesToIgnore]
+            ),
+            ['file' => $filePath, 'rowTag' => $rowTag]
+        );
     }
 
     /**
@@ -145,39 +86,63 @@ class FileLoader implements FileLoaderInterface, ConnectionAwareInterface
      */
     public function loadJson(string $filePath, array $options = []): bool
     {
+        return $this->runLoad(
+            'loadJson',
+            fn (): iterable => $this->connection->getDialect()->buildLoadJsonGenerator($this->prefix . $this->table, $filePath, $options),
+            ['file' => $filePath]
+        );
+    }
+
+    /**
+     * Run the statements a dialect generates for a file, all in one transaction.
+     *
+     * A transaction the caller already holds is left to the caller: it is neither committed nor rolled back here.
+     * One that this method starts is committed on success and rolled back on any failure, including a file that
+     * cannot be read, so the connection is never left inside a transaction.
+     *
+     * @param callable(): iterable<string> $statements Produces the SQL batches
+     * @param array<string, mixed> $context Details for the exception of a failed statement
+     */
+    protected function runLoad(string $operation, callable $statements, array $context): bool
+    {
         $sql = null;
-        if (!$this->connection->inTransaction()) {
+        $ownsTransaction = !$this->connection->inTransaction();
+        if ($ownsTransaction) {
             $this->connection->transaction();
         }
 
         try {
-            $generator = $this->connection->getDialect()->buildLoadJsonGenerator(
-                $this->prefix . $this->table,
-                $filePath,
-                $options
-            );
-
-            foreach ($generator as $batchSql) {
+            foreach ($statements() as $batchSql) {
                 $sql = $batchSql;
                 $this->connection->prepare($sql)->execute();
             }
 
-            if ($this->connection->inTransaction()) {
+            if ($ownsTransaction && $this->connection->inTransaction()) {
                 $this->connection->commit();
             }
+
             return $this->connection->getExecuteState() !== false;
         } catch (PDOException $e) {
-            if ($this->connection->inTransaction()) {
-                $this->connection->rollback();
-            }
+            $this->rollBackOwned($ownsTransaction);
 
             // Convert to specialized exception and re-throw
             throw ExceptionFactory::createFromPdoException(
                 $e,
                 $this->connection->getDriverName(),
                 $sql,
-                ['operation' => 'loadJson', 'file' => $filePath]
+                ['operation' => $operation] + $context
             );
+        } catch (\Throwable $e) {
+            $this->rollBackOwned($ownsTransaction);
+
+            throw $e;
+        }
+    }
+
+    private function rollBackOwned(bool $ownsTransaction): void
+    {
+        if ($ownsTransaction && $this->connection->inTransaction()) {
+            $this->connection->rollback();
         }
     }
 }
