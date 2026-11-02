@@ -337,6 +337,11 @@ $allUsers = $db->find()
 $db->removeScope('tenant');
 ```
 
+These scopes hold for every way the builder runs a query: `get()`, `getOne()`, `getValue()`, `getColumn()`,
+`exists()`, `paginate()`, `batch()`, `each()`, `stream()`, `toSQL()`, and `update()` and `delete()`. (`insert`,
+`replace`, `truncate` and raw SQL have no WHERE to scope.) A scope that adds a `where()` therefore also limits what an
+`update()` or `delete()` changes. It is still not a substitute for database-level tenant isolation.
+
 ### Use Cases
 
 - **Multi-tenant isolation**: Ensure all queries filter by tenant automatically

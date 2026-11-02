@@ -278,4 +278,30 @@ final class ConnectionRoutingTests extends TestCase
         $this->assertCount(2, $this->peek($master, 'SELECT * FROM t'));
         $this->assertCount(1, $this->peek($replica, 'SELECT * FROM t'));
     }
+
+    public function testGeneratorsReadOnTheReplicaLikeGet(): void
+    {
+        $master = $replica = '';
+        $db = $this->readWriteDb($master, $replica);
+
+        $this->assertSame('replica', $db->find()->from('t')->where('id', 1)->getOne()['src']);
+        $this->assertSame(['replica'], array_column(iterator_to_array($db->find()->from('t')->stream(), false), 'src'));
+        $this->assertSame(['replica'], array_column(iterator_to_array($db->find()->from('t')->each(10), false), 'src'));
+        $this->assertSame(['replica'], array_column(array_merge(...iterator_to_array($db->find()->from('t')->batch(10), false)), 'src'));
+        $this->assertSame(['replica'], array_column(iterator_to_array($db->find()->from('t')->each(10, 'id'), false), 'src'));
+    }
+
+    public function testAGeneratorKeepsItsConnectionUntilItEnds(): void
+    {
+        $master = $replica = '';
+        $db = $this->readWriteDb($master, $replica);
+        $builder = $db->find()->from('t');
+
+        $generator = $builder->stream();
+        $generator->current();
+        $this->assertSame('replica', $builder->getConnection() === $db->connection ? 'master' : 'replica');
+        $generator->next();
+
+        $this->assertSame($db->connection, $builder->getConnection(), 'the builder is back on its own connection once the generator ended');
+    }
 }

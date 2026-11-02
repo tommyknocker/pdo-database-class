@@ -823,32 +823,55 @@ class QueryBuilder implements QueryBuilderInterface
         $originalConnection = $this->switchToReadConnection();
 
         try {
-            $this->integrateJsonSelectionsAndOrders();
-
-            // Set CTE manager before building query
-            if ($this->cteManager !== null) {
-                $this->selectQueryBuilder->setCteManager($this->cteManager);
-            }
-
-            // Set UNION operations
-            if (!empty($this->unions)) {
-                $this->selectQueryBuilder->setUnions($this->unions);
-            }
-
-            // Set DISTINCT
-            if ($this->distinct) {
-                $this->selectQueryBuilder->setDistinct(true);
-            }
-
-            // Set DISTINCT ON
-            if (!empty($this->distinctOn)) {
-                $this->selectQueryBuilder->setDistinctOn($this->distinctOn);
-            }
-
-            // Prepare query context for error reporting
-            $this->prepareQueryContext();
+            $this->prepareSelect();
 
             return $this->selectQueryBuilder->get();
+        } finally {
+            $this->restoreConnection($originalConnection);
+        }
+    }
+
+    /**
+     * Hand everything this builder holds (JSON selections, CTEs, unions, DISTINCT) to the select builder and record
+     * the query context for error reporting. Run on the connection the query will use.
+     */
+    protected function prepareSelect(): void
+    {
+        $this->integrateJsonSelectionsAndOrders();
+
+        if ($this->cteManager !== null) {
+            $this->selectQueryBuilder->setCteManager($this->cteManager);
+        }
+        if (!empty($this->unions)) {
+            $this->selectQueryBuilder->setUnions($this->unions);
+        }
+        if ($this->distinct) {
+            $this->selectQueryBuilder->setDistinct(true);
+        }
+        if (!empty($this->distinctOn)) {
+            $this->selectQueryBuilder->setDistinctOn($this->distinctOn);
+        }
+
+        $this->prepareQueryContext();
+    }
+
+    /**
+     * Run a generator that reads on the connection a read query would use, for as long as it runs: the connection is
+     * switched when iteration starts and restored when it ends or the generator is dropped.
+     *
+     * @param Closure(array<string, mixed>): Generator $open
+     *
+     * @return Generator<int, mixed, mixed, void>
+     */
+    protected function routedRead(Closure $open): Generator
+    {
+        $this->applyGlobalScopes();
+        $originalConnection = $this->switchToReadConnection();
+
+        try {
+            $this->prepareSelect();
+
+            yield from $open($this->selectQueryBuilder->getQuery());
         } finally {
             $this->restoreConnection($originalConnection);
         }
@@ -1118,6 +1141,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function update(array $data): int
     {
+        $this->applyGlobalScopes();
         $originalConnection = $this->switchToWriteConnection();
 
         try {
@@ -1139,6 +1163,7 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function delete(): int
     {
+        $this->applyGlobalScopes();
         $originalConnection = $this->switchToWriteConnection();
 
         try {
@@ -1238,8 +1263,10 @@ class QueryBuilder implements QueryBuilderInterface
     public function batch(int $batchSize = 100, ?string $key = null): Generator
     {
         $this->assertKeyedBatchAllowed($key);
-        $query = $this->selectQueryBuilder->getQuery();
-        return $this->batchProcessor->batch($query['sql'], $query['params'], $batchSize, $key);
+
+        return $this->routedRead(function (array $query) use ($batchSize, $key): Generator {
+            return $this->batchProcessor->batch($query['sql'], $query['params'], $batchSize, $key);
+        });
     }
 
     /**
@@ -1263,8 +1290,10 @@ class QueryBuilder implements QueryBuilderInterface
     public function each(int $batchSize = 100, ?string $key = null): Generator
     {
         $this->assertKeyedBatchAllowed($key);
-        $query = $this->selectQueryBuilder->getQuery();
-        return $this->batchProcessor->each($query['sql'], $query['params'], $batchSize, $key);
+
+        return $this->routedRead(function (array $query) use ($batchSize, $key): Generator {
+            return $this->batchProcessor->each($query['sql'], $query['params'], $batchSize, $key);
+        });
     }
 
     protected function assertKeyedBatchAllowed(?string $key): void
@@ -1286,24 +1315,10 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function stream(): Generator
     {
-        $originalConnection = $this->switchToReadConnection();
-
-        try {
-            $this->integrateJsonSelectionsAndOrders();
-
-            // Set CTE manager before building query
-            if ($this->cteManager !== null) {
-                $this->selectQueryBuilder->setCteManager($this->cteManager);
-            }
-
-            $query = $this->selectQueryBuilder->getQuery();
+        return $this->routedRead(function (array $query): Generator {
             return $this->batchProcessor->stream($query['sql'], $query['params']);
-        } finally {
-            $this->restoreConnection($originalConnection);
-        }
+        });
     }
-
-    /* ---------------- Conditions: where / having / logical variants ---------------- */
 
     /**
      * Add WHERE clause.
@@ -1766,6 +1781,8 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function exists(): bool
     {
+        $this->applyGlobalScopes();
+
         return $this->conditionBuilder->exists();
     }
 
@@ -1777,6 +1794,8 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function notExists(): bool
     {
+        $this->applyGlobalScopes();
+
         return $this->conditionBuilder->notExists();
     }
 
@@ -2009,6 +2028,8 @@ class QueryBuilder implements QueryBuilderInterface
      */
     public function toSQL(bool $formatted = false): array
     {
+        $this->applyGlobalScopes();
+
         // Set CTE manager before building SQL
         if ($this->cteManager !== null) {
             $this->selectQueryBuilder->setCteManager($this->cteManager);

@@ -111,7 +111,7 @@ class EagerLoader
             if ($relation instanceof MorphRelation) {
                 $relation->constrainByType($query);
             }
-            $builder = $query->getQueryBuilder();
+            $builder = $query->getScopedQueryBuilder();
             $builder->select([$foreignKey, 'COUNT(*) AS pdodb_count'])
                 ->where($foreignKey, array_values($owners), 'IN')
                 ->groupBy($foreignKey);

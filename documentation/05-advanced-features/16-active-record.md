@@ -806,7 +806,9 @@ Global scopes apply to ActiveQuery reads, updates and deletes, and to updates
 and deletes on model instances. Operations such as `truncate()` and `replace()`
 that cannot honor a WHERE scope require explicitly disabling it. Raw SQL and
 `getQueryBuilder()` remain direct access: global scopes are not a substitute
-for authorization or database-level tenant isolation.
+for authorization or database-level tenant isolation. When you need the builder
+but want the model's scopes (rows as arrays, `each()`, `stream()`), use
+`getScopedQueryBuilder()`: it applies them first, so call `withoutGlobalScope()` before it.
 
 ## Typed attributes and API responses
 

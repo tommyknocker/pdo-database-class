@@ -241,7 +241,7 @@ class ActiveQuery
      * Yield model instances in database batches.
      *
      * Eager relations configured with with() are loaded once per batch.
-     * QueryBuilder::each() still returns raw rows; call getQueryBuilder()->each()
+     * QueryBuilder::each() still returns raw rows; call getScopedQueryBuilder()->each()
      * when the rows should stay arrays.
      *
      * @param string|null $key Follow this unique, increasing column instead of an OFFSET, so rows may change while
@@ -448,6 +448,21 @@ class ActiveQuery
      */
     public function getQueryBuilder(): QueryBuilder
     {
+        return $this->queryBuilder;
+    }
+
+    /**
+     * The QueryBuilder with the model's global scopes already applied, for running the query yourself (rows as
+     * arrays, `each()`, `stream()`, aggregates) without losing them.
+     *
+     * Scopes are applied now, so call `withoutGlobalScope()` before this, not after.
+     *
+     * @return QueryBuilder QueryBuilder instance
+     */
+    public function getScopedQueryBuilder(): QueryBuilder
+    {
+        $this->ensureGlobalScopes();
+
         return $this->queryBuilder;
     }
 
