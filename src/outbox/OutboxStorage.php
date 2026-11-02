@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\outbox;
 
-use JsonException;
+use Throwable;
 use tommyknocker\pdodb\dialects\roles\DialectMessagingInterface;
 use tommyknocker\pdodb\dialects\roles\DialectQuotingInterface;
 use tommyknocker\pdodb\exceptions\OutboxException;
@@ -137,7 +137,9 @@ final class OutboxStorage
             foreach ($rows as $row) {
                 try {
                     $messages[] = OutboxMessage::fromRow($row, $this->serializer);
-                } catch (JsonException|OutboxException $e) {
+                } catch (Throwable $e) {
+                    // A payload this worker cannot read (bad JSON, or a custom serializer refusing it) fails that
+                    // message only: letting it escape would roll the claim back and block the whole queue.
                     $unreadable++;
                     $this->markFailed((string)($row['id'] ?? ''), $workerToken, 'Unreadable payload: ' . $e->getMessage());
                 }

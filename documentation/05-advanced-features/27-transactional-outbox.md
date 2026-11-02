@@ -79,7 +79,9 @@ body, pass an `OutboxSerializer` (its output must be valid JSON, because the pay
 $outbox = new Outbox($db, 'pdodb_outbox', new MyEnvelopeSerializer());
 ```
 
-Use the same serializer for the workers that read the table.
+Use the same serializer for the workers that read the table. If `deserialize()` throws for a message (an unknown
+version, a failed signature check), that message is marked `failed` with the error and the rest of the batch is
+processed; one unreadable payload never blocks the queue.
 
 ## Events
 

@@ -36,6 +36,7 @@ final class OutboxFeatureSupport
             'events' => ['added' => 3, 'published' => 1, 'retry' => 1, 'failed' => 1],
             'envelope_round_trip' => ['n' => 5],
             'envelope_stored' => '{"v":1,"data":{"n":5}}',
+            'unreadable_serializer' => ['handled' => ['readable'], 'published' => 1, 'failed' => 1, 'pending' => 0],
             'rejected' => ['header-name', 'header-size', 'key-empty', 'key-long', 'not-json'],
         ];
     }
@@ -189,6 +190,45 @@ final class OutboxFeatureSupport
         $r['envelope_round_trip'] = $payload;
         // PostgreSQL's JSONB normalizes the text it stores, so compare as data there
         $r['envelope_stored'] = json_encode(json_decode((string)$stored, true), JSON_THROW_ON_ERROR);
+
+        // --- a serializer that refuses a payload fails that message only, not the queue
+        self::clear($db, $table);
+        $versioned = static fn (int $version, int $accept): OutboxSerializer => new class ($version, $accept) implements OutboxSerializer {
+            public function __construct(private int $version, private int $accept)
+            {
+            }
+
+            public function serialize(array $payload): string
+            {
+                return json_encode(['v' => $this->version, 'data' => $payload], JSON_THROW_ON_ERROR);
+            }
+
+            public function deserialize(string $stored): array
+            {
+                $decoded = json_decode($stored, true, 512, JSON_THROW_ON_ERROR);
+                if ($decoded['v'] !== $this->accept) {
+                    throw new \RuntimeException('Unsupported payload version ' . $decoded['v']);
+                }
+
+                return $decoded['data'];
+            }
+        };
+        $old = new Outbox($db, $table, $versioned(2, 1));
+        $current = new Outbox($db, $table, $versioned(1, 1));
+        $db->transaction(function () use ($old, $current): void {
+            $old->add('too-new', ['n' => 1]);
+            $current->add('readable', ['n' => 2]);
+        });
+        $handled = [];
+        $result = $current->worker('w')->runOnce(function (OutboxMessage $m) use (&$handled): void {
+            $handled[] = $m->type;
+        });
+        $r['unreadable_serializer'] = [
+            'handled' => $handled,
+            'published' => $result->published,
+            'failed' => $result->markedFailed,
+            'pending' => (int)$db->rawQueryValue('SELECT COUNT(*) FROM ' . $db->schema()->getDialect()->quoteTable($table) . " WHERE status = 'pending'"),
+        ];
 
         // --- what is rejected
         $rejected = [];
