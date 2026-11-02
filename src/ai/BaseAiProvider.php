@@ -9,7 +9,7 @@ use tommyknocker\pdodb\exceptions\QueryException;
 /**
  * Base class for AI providers with common functionality.
  */
-abstract class BaseAiProvider implements AiProviderInterface
+abstract class BaseAiProvider implements AiProviderInterface, AiUsageReporting
 {
     protected AiConfig $config;
     protected string $model = '';
@@ -18,13 +18,18 @@ abstract class BaseAiProvider implements AiProviderInterface
     protected int $maxTokens = 2000;
     protected int $timeout = 30;
     protected AiTransport $transport;
+    protected ?AiUsage $lastUsage = null;
 
     public function __construct(?AiConfig $config = null, ?AiTransport $transport = null)
     {
         $this->config = $config ?? new AiConfig();
-        $this->transport = $transport ?? new StreamAiTransport();
         $this->initializeDefaults();
         $this->initializeCommonDefaults();
+        // A transport you pass is used as given; wrap it in RetryingAiTransport yourself if you want repeats.
+        $this->transport = $transport ?? new RetryingAiTransport(
+            new StreamAiTransport(),
+            (int)$this->config->getProviderSetting($this->getProviderName(), 'retries', 2),
+        );
     }
 
     public function analyzeQuery(string $sql, array $context = []): string
@@ -147,7 +152,26 @@ abstract class BaseAiProvider implements AiProviderInterface
      */
     protected function makeRequest(string $url, array $data, array $headers = []): array
     {
-        return $this->transport->post($url, $data, $headers, $this->timeout);
+        $this->lastUsage = null;
+        $response = $this->transport->post($url, $data, $headers, $this->timeout);
+        $this->lastUsage = $this->extractUsage($response);
+
+        return $response;
+    }
+
+    public function getLastUsage(): ?AiUsage
+    {
+        return $this->lastUsage;
+    }
+
+    /**
+     * The token figures in a provider's answer. Providers that report usage override this; the default says nothing.
+     *
+     * @param array<string, mixed> $response
+     */
+    protected function extractUsage(array $response): ?AiUsage
+    {
+        return null;
     }
 
     /**

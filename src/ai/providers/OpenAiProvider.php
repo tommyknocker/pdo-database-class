@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\ai\providers;
 
 use tommyknocker\pdodb\ai\AiEndpoint;
+use tommyknocker\pdodb\ai\AiUsage;
 use tommyknocker\pdodb\ai\BaseAiProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
 
@@ -171,5 +172,15 @@ class OpenAiProvider extends BaseAiProvider
                 0
             );
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function extractUsage(array $response): ?AiUsage
+    {
+        $usage = $response['usage'] ?? null;
+
+        return is_array($usage) ? AiUsage::of($usage['prompt_tokens'] ?? null, $usage['completion_tokens'] ?? null, $usage['total_tokens'] ?? null) : null;
     }
 }

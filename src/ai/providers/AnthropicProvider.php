@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai\providers;
 
+use tommyknocker\pdodb\ai\AiUsage;
 use tommyknocker\pdodb\ai\BaseAiProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
 
@@ -102,5 +103,15 @@ class AnthropicProvider extends BaseAiProvider
                 0
             );
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function extractUsage(array $response): ?AiUsage
+    {
+        $usage = $response['usage'] ?? null;
+
+        return is_array($usage) ? AiUsage::of($usage['input_tokens'] ?? null, $usage['output_tokens'] ?? null) : null;
     }
 }

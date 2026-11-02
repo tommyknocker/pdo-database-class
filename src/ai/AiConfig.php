@@ -47,7 +47,7 @@ class AiConfig
         if (isset($ai['api_key'])) {
             $this->apiKeys[$provider] = (string)$ai['api_key'];
         }
-        foreach (['model', 'base_url', 'folder_id', 'temperature', 'max_tokens', 'timeout', 'headers', 'request_options'] as $key) {
+        foreach (['model', 'base_url', 'folder_id', 'temperature', 'max_tokens', 'timeout', 'retries', 'headers', 'request_options'] as $key) {
             if (isset($ai[$key])) {
                 $this->providerSettings[$provider][$key] = $ai[$key];
             }
@@ -67,7 +67,7 @@ class AiConfig
         $provider = $this->defaultProvider;
         foreach (['API_KEY' => 'api_key', 'MODEL' => 'model', 'BASE_URL' => 'base_url',
             'FOLDER_ID' => 'folder_id',
-            'TEMPERATURE' => 'temperature', 'MAX_TOKENS' => 'max_tokens', 'TIMEOUT' => 'timeout'] as $suffix => $key) {
+            'TEMPERATURE' => 'temperature', 'MAX_TOKENS' => 'max_tokens', 'TIMEOUT' => 'timeout', 'RETRIES' => 'retries'] as $suffix => $key) {
             $value = getenv('PDODB_AI_' . $suffix);
             if ($value === false || $value === '') {
                 continue;
@@ -90,6 +90,13 @@ class AiConfig
                 throw new \InvalidArgumentException('AI temperature must be a number between 0 and 2');
             }
             return (float)$value;
+        }
+        if ($key === 'retries') {
+            $number = filter_var($value, FILTER_VALIDATE_INT);
+            if ($number === false || $number < 0 || $number > 10) {
+                throw new \InvalidArgumentException('AI retries must be an integer from 0 to 10');
+            }
+            return $number;
         }
         if (in_array($key, ['max_tokens', 'timeout'], true)) {
             $number = filter_var($value, FILTER_VALIDATE_INT);

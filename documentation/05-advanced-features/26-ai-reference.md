@@ -23,7 +23,8 @@ Ollama needs no API key; `PDODB_AI_BASE_URL` optionally selects its server.
 Azure requires `PDODB_AI_BASE_URL` (resource endpoint) and `PDODB_AI_MODEL`
 (the deployment name); Yandex requires
 `PDODB_AI_FOLDER_ID`. Other optional overrides are `PDODB_AI_TEMPERATURE`,
-`PDODB_AI_MAX_TOKENS`, and `PDODB_AI_TIMEOUT` (seconds). Choose only the
+`PDODB_AI_MAX_TOKENS`, `PDODB_AI_TIMEOUT` (seconds) and `PDODB_AI_RETRIES`
+(see [Retries](#retries-and-transport)). Choose only the
 settings your application needs. For example, to request a lower temperature:
 
 ```dotenv
@@ -70,7 +71,7 @@ Alternatively, place the same settings in your database configuration:
 ],
 ```
 
-Use `base_url`, `folder_id`, `temperature`, `max_tokens`, or `timeout` only
+Use `base_url`, `folder_id`, `temperature`, `max_tokens`, `timeout`, or `retries` only
 when needed. For example, add `'temperature' => 0.3` to the `ai` array above.
 The key and settings belong to the selected provider; they are not sent to
 another provider. To override the temperature for a single query instead:
@@ -158,6 +159,45 @@ $schemaReport = $ai->analyzeSchema('orders');
 `explainAnalysis` argument. Prefer QueryBuilder's `explainAiAdvice()` for the
 complete collection flow. Schema reports use their own collection path; query
 context/privacy options described in the API guide apply to query advice.
+
+### Token usage
+
+Providers report how many tokens an answer used. The service keeps the last figure and a running total:
+
+```php
+$ai = new AiAnalysisService($db);
+$ai->analyzeQuery('SELECT * FROM orders WHERE status = ?', 'orders', options: ['params' => ['pending']]);
+
+$ai->getLastUsage();    // AiUsage: inputTokens, outputTokens, totalTokens of the last request
+$ai->getTotalUsage();   // the sum over all requests made through this service
+$ai->getLastUsage()?->toArray();   // ['input_tokens' => 812, 'output_tokens' => 143, 'total_tokens' => 955]
+```
+
+A figure is `null` when the provider did not report it (it is never invented as zero), and `getLastUsage()` is `null` when
+the whole answer carried no usage. Providers: OpenAI-style APIs (OpenAI, OpenRouter, DeepSeek, Azure), Anthropic,
+Google, Ollama and Yandex report it. Use it for budgets and cost logs; convert tokens to money with your provider's
+price list, which the library does not hold.
+
+### Retries and transport
+
+A request that fails for a reason that is likely to pass is repeated with growing waits (about 0.5 s, 1 s, 2 s, ... up
+to 8 s, with some random spread): a rate limit (HTTP 429), a server error or timeout (408, 5xx), or a connection that
+could not be made. A rejected key (401), a bad request (400), an unknown model (404) or an unreadable answer is
+thrown at once, because repeating it cannot help and costs money.
+
+```php
+'ai' => ['provider' => 'openai', 'api_key' => '...', 'retries' => 2],   // default 2; 0 sends once; at most 10
+```
+
+`PDODB_AI_RETRIES` sets the same. Each attempt has its own `timeout`, so the worst case is about
+`(retries + 1) × timeout` plus the waits. The wait does not follow a `Retry-After` header.
+
+To use another HTTP client, proxy or a recorded fake in tests, pass an `AiTransport` to `AiAnalysisService` or to a
+provider. A transport you pass is used as given; wrap it in `RetryingAiTransport` to get the same repeats:
+
+```php
+$ai = new AiAnalysisService($db, transport: new RetryingAiTransport(new MyPsr18Transport(), retries: 3));
+```
 
 ## CLI Commands
 

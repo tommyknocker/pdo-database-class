@@ -9,6 +9,7 @@ use tommyknocker\pdodb\ai\AiConfig;
 use tommyknocker\pdodb\ai\AiTransport;
 use tommyknocker\pdodb\ai\providers\OllamaProvider;
 use tommyknocker\pdodb\ai\providers\OpenAiCompatibleProvider;
+use tommyknocker\pdodb\ai\RetryingAiTransport;
 use tommyknocker\pdodb\ai\StreamAiTransport;
 use tommyknocker\pdodb\exceptions\QueryException;
 
@@ -89,11 +90,20 @@ final class AiTransportTests extends BaseSharedTestCase
         $provider->analyzeQuery('SELECT 1');
     }
 
-    public function testWithoutATransportRequestsGoThroughPhpStreams(): void
+    public function testWithoutATransportRequestsGoThroughPhpStreamsWithRetries(): void
     {
         $provider = new OpenAiCompatibleProvider($this->openAiConfig());
-        $property = new \ReflectionProperty($provider, 'transport');
+        $transport = (new \ReflectionProperty($provider, 'transport'))->getValue($provider);
 
-        $this->assertInstanceOf(StreamAiTransport::class, $property->getValue($provider));
+        $this->assertInstanceOf(RetryingAiTransport::class, $transport);
+        $this->assertInstanceOf(StreamAiTransport::class, (new \ReflectionProperty($transport, 'inner'))->getValue($transport));
+    }
+
+    public function testATransportYouPassIsUsedAsGiven(): void
+    {
+        $given = $this->recordingTransport([]);
+        $provider = new OpenAiCompatibleProvider($this->openAiConfig(), 'openai-compatible', $given);
+
+        $this->assertSame($given, (new \ReflectionProperty($provider, 'transport'))->getValue($provider));
     }
 }

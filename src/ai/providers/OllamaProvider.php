@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\ai\providers;
 
 use tommyknocker\pdodb\ai\AiEndpoint;
+use tommyknocker\pdodb\ai\AiUsage;
 use tommyknocker\pdodb\ai\BaseAiProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
 
@@ -78,5 +79,13 @@ class OllamaProvider extends BaseAiProvider
         }
 
         return (string)$response[self::RESPONSE_KEY_RESPONSE];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function extractUsage(array $response): ?AiUsage
+    {
+        return AiUsage::of($response['prompt_eval_count'] ?? null, $response['eval_count'] ?? null);
     }
 }

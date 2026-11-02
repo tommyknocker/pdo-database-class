@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai\providers;
 
+use tommyknocker\pdodb\ai\AiUsage;
 use tommyknocker\pdodb\ai\BaseAiProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
 
@@ -182,5 +183,17 @@ class GoogleProvider extends BaseAiProvider
                 0
             );
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function extractUsage(array $response): ?AiUsage
+    {
+        $usage = $response['usageMetadata'] ?? null;
+
+        return is_array($usage)
+            ? AiUsage::of($usage['promptTokenCount'] ?? null, $usage['candidatesTokenCount'] ?? null, $usage['totalTokenCount'] ?? null)
+            : null;
     }
 }

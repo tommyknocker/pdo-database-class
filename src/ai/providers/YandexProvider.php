@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\ai\providers;
 
+use tommyknocker\pdodb\ai\AiUsage;
 use tommyknocker\pdodb\ai\BaseAiProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
 
@@ -180,5 +181,23 @@ class YandexProvider extends BaseAiProvider
                 0
             );
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function extractUsage(array $response): ?AiUsage
+    {
+        $usage = $response['usage'] ?? null;
+        if (!is_array($usage)) {
+            return null;
+        }
+
+        // the Responses API names the figures input_tokens / output_tokens; older answers used the text-token names
+        return AiUsage::of(
+            $usage['input_tokens'] ?? $usage['inputTextTokens'] ?? null,
+            $usage['output_tokens'] ?? $usage['completionTokens'] ?? null,
+            $usage['total_tokens'] ?? $usage['totalTokens'] ?? null
+        );
     }
 }

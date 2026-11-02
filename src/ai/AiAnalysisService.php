@@ -26,6 +26,10 @@ class AiAnalysisService
     protected AiAnalysisContext $contextBuilder;
     protected ?AiProviderInterface $currentProvider = null;
 
+    private ?AiUsage $lastUsage = null;
+
+    private ?AiUsage $totalUsage = null;
+
     /**
      * @param PdoDb $db Database instance
      * @param AiConfig|null $config AI config instance (optional)
@@ -151,7 +155,7 @@ class AiAnalysisService
     {
         $aiProvider = $this->providerWithOptions($provider, $options);
 
-        return $aiProvider->analyzeQuery((string)($context['sql'] ?? ''), $context);
+        return $this->recordUsage($aiProvider, fn (): string => $aiProvider->analyzeQuery((string)($context['sql'] ?? ''), $context));
     }
 
     /** Build the exact query context without making an AI request.
@@ -186,7 +190,7 @@ class AiAnalysisService
 
         $context = $this->contextBuilder->buildSchemaContext($tableName);
 
-        return $aiProvider->analyzeSchema($context['schema'] ?? [], $context);
+        return $this->recordUsage($aiProvider, fn (): string => $aiProvider->analyzeSchema($context['schema'] ?? [], $context));
     }
 
     /**
@@ -203,6 +207,40 @@ class AiAnalysisService
     {
         $aiProvider = $this->providerWithOptions($provider, $options);
 
-        return $aiProvider->suggestOptimizations($analysis, $context);
+        return $this->recordUsage($aiProvider, fn (): string => $aiProvider->suggestOptimizations($analysis, $context));
+    }
+
+    /**
+     * Tokens used by the most recent request, or null when none was made or the provider did not report them.
+     */
+    public function getLastUsage(): ?AiUsage
+    {
+        return $this->lastUsage;
+    }
+
+    /**
+     * Tokens used by all requests made through this service so far, for providers that report them.
+     */
+    public function getTotalUsage(): ?AiUsage
+    {
+        return $this->totalUsage;
+    }
+
+    /**
+     * Run a request and note the tokens it used. A failed request used none that the provider reported.
+     *
+     * @param callable(): string $request
+     */
+    private function recordUsage(AiProviderInterface $provider, callable $request): string
+    {
+        $this->lastUsage = null;
+        $answer = $request();
+        $usage = $provider instanceof AiUsageReporting ? $provider->getLastUsage() : null;
+        $this->lastUsage = $usage;
+        if ($usage !== null) {
+            $this->totalUsage = $this->totalUsage === null ? $usage : $this->totalUsage->plus($usage);
+        }
+
+        return $answer;
     }
 }

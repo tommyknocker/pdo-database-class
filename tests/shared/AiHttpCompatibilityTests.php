@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\tests\shared;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
+use tommyknocker\pdodb\ai\AiConfig;
 use tommyknocker\pdodb\ai\providers\OpenAiProvider;
 use tommyknocker\pdodb\exceptions\QueryException;
 
@@ -17,7 +18,8 @@ final class AiHttpCompatibilityTests extends TestCase
     public function testHeadersDoNotLeakBetweenRequests(): void
     {
         require __DIR__ . '/../fixtures/ai-http-functions.php';
-        $provider = new class () extends OpenAiProvider {
+        // retries are covered by RetryingAiTransportTests; here a 429 must surface at once
+        $provider = new class (new AiConfig(['ai' => ['provider' => 'openai', 'retries' => 0]])) extends OpenAiProvider {
             public function request(string $url): array
             {
                 return $this->makeRequest($url, []);
