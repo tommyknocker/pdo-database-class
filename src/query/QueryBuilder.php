@@ -1019,7 +1019,10 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data The data to insert.
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
-     * @return int The result of the insert operation.
+     * @return int The id of the new row: the generated key, or the key the insert supplied when it was numeric. `1`
+     *             when the row has no numeric key to report (a string or UUID key, a composite key, a table without
+     *             a generated key), so `1` does not prove that the row has id 1; take the key from your own data then.
+     *             The number of affected rows for a multi-row insert.
      */
     public function insert(array $data, array $onDuplicate = []): int
     {

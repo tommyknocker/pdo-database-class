@@ -533,7 +533,10 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
             if (preg_match('/"?([A-Za-z][\w$#]*)"?\s*\.\s*NEXTVAL\b/i', $body, $sequence) !== 1) {
                 continue;
             }
-            $column = preg_match('/INTO\s+:NEW\s*\.\s*"?([A-Za-z][\w$#]*)"?/i', $body, $target) === 1 ? strtoupper($target[1]) : null;
+            // SELECT seq.NEXTVAL INTO :NEW.ID FROM DUAL  or  :NEW.ID := seq.NEXTVAL
+            $column = preg_match('/(?:INTO\s+:NEW\s*\.\s*"?([A-Za-z][\w$#]*)"?|:NEW\s*\.\s*"?([A-Za-z][\w$#]*)"?\s*:=\s*"?[A-Za-z][\w$#]*"?\s*\.\s*NEXTVAL)/i', $body, $target) === 1
+                ? strtoupper($target[2] ?? '' ?: $target[1])
+                : null;
             $found[] = ['sequence' => strtoupper($sequence[1]), 'column' => $column];
         }
 

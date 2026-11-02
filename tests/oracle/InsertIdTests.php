@@ -101,7 +101,7 @@ final class InsertIdTests extends BaseOracleTestCase
 
     private function dropHandMade(): void
     {
-        foreach (['DROP TABLE "INSERT_ID_HAND" CASCADE CONSTRAINTS', 'DROP SEQUENCE insert_id_hand_seq', 'DROP SEQUENCE insert_id_hand_id_seq', 'DROP TABLE "INSERT_ID_IDENT" CASCADE CONSTRAINTS', 'DROP TABLE "INSERT_ID_DEFAULT" CASCADE CONSTRAINTS', 'DROP SEQUENCE insert_id_default_seq'] as $sql) {
+        foreach (['DROP TABLE "INSERT_ID_HAND" CASCADE CONSTRAINTS', 'DROP SEQUENCE insert_id_hand_seq', 'DROP SEQUENCE insert_id_hand_id_seq', 'DROP TABLE "INSERT_ID_IDENT" CASCADE CONSTRAINTS', 'DROP TABLE "INSERT_ID_DEFAULT" CASCADE CONSTRAINTS', 'DROP SEQUENCE insert_id_default_seq', 'DROP TABLE "INSERT_ID_ASSIGN" CASCADE CONSTRAINTS', 'DROP SEQUENCE insert_id_assign_seq'] as $sql) {
             try {
                 self::$db->rawQuery($sql);
             } catch (\Throwable) {
@@ -165,5 +165,21 @@ final class InsertIdTests extends BaseOracleTestCase
             $this->assertSame(4 + $round, self::$db->find()->table('insert_id_ident')->insert(['amount' => 9]), "round {$round}");
             self::$db->rawQuery('DROP TABLE "INSERT_ID_IDENT" CASCADE CONSTRAINTS');
         }
+    }
+
+    public function testATriggerThatAssignsTheSequenceStillRecognizesASuppliedKey(): void
+    {
+        $this->dropHandMade();
+        self::$db->rawQuery('CREATE SEQUENCE insert_id_assign_seq START WITH 1 INCREMENT BY 1');
+        self::$db->rawQuery('CREATE TABLE "INSERT_ID_ASSIGN" ("ID" NUMBER PRIMARY KEY, "AMOUNT" NUMBER)');
+        self::$db->rawQuery('CREATE OR REPLACE TRIGGER insert_id_assign_trg BEFORE INSERT ON "INSERT_ID_ASSIGN" FOR EACH ROW BEGIN IF :NEW.ID IS NULL THEN :NEW.ID := insert_id_assign_seq.NEXTVAL; END IF; END;');
+
+        $ids = [
+            self::$db->find()->table('insert_id_assign')->insert(['amount' => 1]),
+            self::$db->find()->table('insert_id_assign')->insert(['amount' => 2]),
+            self::$db->find()->table('insert_id_assign')->insert(['id' => 70, 'amount' => 3]),
+        ];
+
+        $this->assertSame([1, 2, 70], $ids);
     }
 }

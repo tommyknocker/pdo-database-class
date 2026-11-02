@@ -8,7 +8,6 @@ use PDO;
 use PDOException;
 use PDOStatement;
 use tommyknocker\pdodb\connection\ConnectionInterface;
-use tommyknocker\pdodb\exceptions\ExceptionFactory;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
@@ -249,20 +248,11 @@ class ExecutionEngine implements ExecutionEngineInterface
 
             try {
                 $id = (int)$this->connection->getLastInsertId();
-                return $id > 0 ? $id : 1;
-            } catch (PDOException $e) {
-                // PostgreSQL: lastval is not yet defined (no SERIAL column)
-                // Oracle: lastInsertId not supported, should use RETURNING
-                // Convert to specialized exception for better error handling
-                $dbException = ExceptionFactory::createFromPdoException(
-                    $e,
-                    $this->connection->getDriverName(),
-                    $sql,
-                    ['operation' => 'getLastInsertId', 'fallback' => true]
-                );
 
-                // For this specific case, we return 1 as fallback instead of throwing
-                // This maintains backward compatibility
+                return $id > 0 ? $id : 1;
+            } catch (PDOException) {
+                // PostgreSQL: lastval is not yet defined (no SERIAL column); Oracle: lastInsertId is not supported.
+                // The documented answer for a row without a numeric key is 1 (see insert()).
                 return 1;
             }
         } finally {

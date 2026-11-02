@@ -124,7 +124,7 @@ interface QueryBuilderInterface
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate
      *
-     * @return int
+     * @return int The id of the new row; `1` when the row has no numeric key to report (see DmlQueryBuilderInterface::insert())
      */
     public function insert(array $data, array $onDuplicate = []): int;
 

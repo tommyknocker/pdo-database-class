@@ -2424,39 +2424,73 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
         // because the fallback would ask lastval() and get another table's id.
         $noId = 1;
 
-        $generated = null;
-        foreach ($this->keySequencesOf($insert->qualifiedTable) as $candidate) {
-            if ($insert->positionOf($candidate['column']) !== null) {
-                return $insert->suppliedInt($candidate['column'], $params) ?? $noId;
+        // The cache can be stale after DDL (a column made serial or identity later): on a failed currval() look the table
+        // up again once
+        for ($attempt = 0; $attempt < 2; $attempt++) {
+            $generated = null;
+            $sequences = $this->inSavepoint(fn (): array => $this->keySequencesOf($insert->qualifiedTable)) ?? [];
+            foreach ($sequences as $candidate) {
+                if ($insert->positionOf($candidate['column']) !== null) {
+                    return $insert->suppliedInt($candidate['column'], $params) ?? $noId;
+                }
+                $generated ??= $candidate['sequence'];
             }
-            $generated ??= $candidate['sequence'];
-        }
-        if ($generated === null) {
-            return $noId;
+            if ($generated === null) {
+                return $noId;
+            }
+
+            $pdo = $this->pdo;
+            $id = $this->inSavepoint(static function () use ($pdo, $generated): mixed {
+                $statement = $pdo->prepare('SELECT currval(?::regclass)');
+                $statement->execute([$generated]);
+
+                return $statement->fetchColumn();
+            });
+            if (is_numeric($id)) {
+                return (int)$id;
+            }
+            unset($this->keySequences[$insert->qualifiedTable]);
         }
 
-        // currval() fails when the sequence was not used in this session, and a failed statement aborts the transaction
-        $inTransaction = $this->pdo->inTransaction();
-        if ($inTransaction) {
-            $this->pdo->exec('SAVEPOINT pdodb_insert_id');
+        return $noId;
+    }
+
+    /**
+     * Run catalog statements that may fail (an unknown sequence, currval() before nextval()) without aborting the
+     * caller's transaction. Null when they fail.
+     *
+     * @template T
+     *
+     * @param callable(): T $work
+     *
+     * @return T|null
+     */
+    private function inSavepoint(callable $work): mixed
+    {
+        if ($this->pdo === null) {
+            return null;
         }
+
+        if (!$this->pdo->inTransaction()) {
+            try {
+                return $work();
+            } catch (PDOException) {
+                return null;
+            }
+        }
+
+        $this->pdo->exec('SAVEPOINT pdodb_insert_id');
 
         try {
-            $statement = $this->pdo->prepare('SELECT currval(?::regclass)');
-            $statement->execute([$generated]);
-            $id = $statement->fetchColumn();
-            if ($inTransaction) {
-                $this->pdo->exec('RELEASE SAVEPOINT pdodb_insert_id');
-            }
+            $result = $work();
+            $this->pdo->exec('RELEASE SAVEPOINT pdodb_insert_id');
 
-            return is_numeric($id) ? (int)$id : $noId;
+            return $result;
         } catch (PDOException) {
-            if ($inTransaction) {
-                $this->pdo->exec('ROLLBACK TO SAVEPOINT pdodb_insert_id');
-                $this->pdo->exec('RELEASE SAVEPOINT pdodb_insert_id');
-            }
+            $this->pdo->exec('ROLLBACK TO SAVEPOINT pdodb_insert_id');
+            $this->pdo->exec('RELEASE SAVEPOINT pdodb_insert_id');
 
-            return $noId;
+            return null;
         }
     }
 
@@ -2466,7 +2500,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
     private array $keySequences = [];
 
     /**
-     * The serial and identity columns of a table with their sequences, found once per table.
+     * The columns that take their value from a sequence (serial, identity or DEFAULT nextval) with their sequences, found once per table.
      *
      * @return list<array{column: string, sequence: string}>
      */
@@ -2478,19 +2512,30 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
 
         $found = [];
         if ($this->pdo !== null) {
+            // serial and identity columns have an owned sequence; a hand-made DEFAULT nextval('seq') only shows in the default
             $statement = $this->pdo->prepare(
-                'SELECT a.attname, pg_get_serial_sequence(?, a.attname) AS sequence FROM pg_attribute a '
+                'SELECT a.attname, pg_get_serial_sequence(?, a.attname) AS sequence, pg_get_expr(d.adbin, d.adrelid) AS column_default '
+                . 'FROM pg_attribute a LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum '
                 . 'WHERE a.attrelid = ?::regclass AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum'
             );
             $statement->execute([$qualifiedTable, $qualifiedTable]);
             foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                if (is_string($row['sequence'] ?? null) && $row['sequence'] !== '') {
-                    $found[] = ['column' => (string)$row['attname'], 'sequence' => $row['sequence']];
+                $sequence = (string)($row['sequence'] ?? '');
+                if ($sequence === '' && preg_match("/^nextval\\('(.+)'::regclass\\)$/", (string)($row['column_default'] ?? ''), $m) === 1) {
+                    $sequence = $m[1];
+                }
+                if ($sequence !== '') {
+                    $found[] = ['column' => (string)$row['attname'], 'sequence' => $sequence];
                 }
             }
         }
 
-        return $this->keySequences[$qualifiedTable] = $found;
+        // An empty answer is not kept: the table may get its key column later
+        if ($found !== []) {
+            $this->keySequences[$qualifiedTable] = $found;
+        }
+
+        return $found;
     }
 
     /**
