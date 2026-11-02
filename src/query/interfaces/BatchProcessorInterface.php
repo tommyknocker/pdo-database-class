@@ -15,10 +15,15 @@ interface BatchProcessorInterface
      * @param string $sql The SQL query to execute
      * @param array<string, mixed> $params The parameters for the query
      * @param int $batchSize Number of records per batch (default: 100)
+     * @param string|null $key A unique column that grows with each row (usually the primary key). With it the batches
+     *                         follow the key instead of an OFFSET: rows may be updated or deleted while iterating
+     *                         without the next batch skipping any, and every batch costs the same on a large table.
+     *                         The result is ordered by the key, so the query must not have an ORDER BY of its own and
+     *                         must select that column. Without it the batches use LIMIT/OFFSET.
      *
      * @return \Generator<int, array<int, array<string, mixed>>, mixed, void>
      */
-    public function batch(string $sql, array $params, int $batchSize = 100): \Generator;
+    public function batch(string $sql, array $params, int $batchSize = 100, ?string $key = null): \Generator;
 
     /**
      * Execute query and return iterator for individual record processing.
@@ -30,20 +35,15 @@ interface BatchProcessorInterface
      * @param string $sql The SQL query to execute
      * @param array<string, mixed> $params The parameters for the query
      * @param int $batchSize Internal batch size for database queries (default: 100)
+     * @param string|null $key A unique column that grows with each row (usually the primary key). With it the batches
+     *                         follow the key instead of an OFFSET: rows may be updated or deleted while iterating
+     *                         without the next batch skipping any, and every batch costs the same on a large table.
+     *                         The result is ordered by the key, so the query must not have an ORDER BY of its own and
+     *                         must select that column. Without it the batches use LIMIT/OFFSET.
      *
      * @return \Generator<int, array<string, mixed>, mixed, void>
      */
-    public function each(string $sql, array $params, int $batchSize = 100): \Generator;
-
-    /**
-     * Batches that continue after the last key seen instead of using an OFFSET.
-     *
-     * @param string $sql Query without ORDER BY that selects `$column`
-     * @param array<string, mixed> $params
-     *
-     * @return \Generator<int, array<int, array<string, mixed>>, mixed, void>
-     */
-    public function batchById(string $sql, array $params, int $batchSize, string $column): \Generator;
+    public function each(string $sql, array $params, int $batchSize = 100, ?string $key = null): \Generator;
 
     /**
      * Stream query results without loading into memory.

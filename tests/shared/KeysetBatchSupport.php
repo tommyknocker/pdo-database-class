@@ -7,7 +7,7 @@ namespace tommyknocker\pdodb\tests\shared;
 use tommyknocker\pdodb\PdoDb;
 
 /**
- * Shared scenario for batchById()/eachById(): rows are deleted while they are iterated.
+ * Shared scenario for batch()/each() with a key: rows are deleted while they are iterated.
  */
 final class KeysetBatchSupport
 {
@@ -23,14 +23,14 @@ final class KeysetBatchSupport
         }
 
         $seen = [];
-        foreach ($db->find()->from($table)->where('grp', 1)->eachById(2, 'id') as $row) {
+        foreach ($db->find()->from($table)->where('grp', 1)->each(2, 'id') as $row) {
             $id = (int) array_change_key_case($row)['id'];
             $seen[] = $id;
             $db->find()->table($table)->where('id', $id)->delete();
         }
 
         $batches = [];
-        foreach ($db->find()->from($table)->batchById(3) as $batch) {
+        foreach ($db->find()->from($table)->batch(3, 'id') as $batch) {
             $batches[] = count($batch);
         }
 

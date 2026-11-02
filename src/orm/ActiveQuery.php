@@ -244,13 +244,16 @@ class ActiveQuery
      * QueryBuilder::each() still returns raw rows; call getQueryBuilder()->each()
      * when the rows should stay arrays.
      *
+     * @param string|null $key Follow this unique, increasing column instead of an OFFSET, so rows may change while
+     *                         iterating; the query must then have no ORDER BY of its own
+     *
      * @return Generator<int, TModel>
      */
-    public function each(int $batchSize = 100): Generator
+    public function each(int $batchSize = 100, ?string $key = null): Generator
     {
         $this->ensureGlobalScopes();
         $this->modelClass::validateCastConnection($this->database);
-        foreach ($this->queryBuilder->batch($batchSize) as $rows) {
+        foreach ($this->queryBuilder->batch($batchSize, $key) as $rows) {
             $models = $this->modelsFromRows($rows);
             foreach ($models as $model) {
                 yield $model;

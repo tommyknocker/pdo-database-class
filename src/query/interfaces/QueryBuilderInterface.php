@@ -459,31 +459,27 @@ interface QueryBuilderInterface
     // Batch processing methods
     /**
      * @param int $batchSize
+     * @param string|null $key A unique column that grows with each row (usually the primary key). With it the batches
+     *                         follow the key instead of an OFFSET: rows may be updated or deleted while iterating
+     *                         without the next batch skipping any, and every batch costs the same on a large table.
+     *                         The result is ordered by the key, so the query must not have an ORDER BY of its own and
+     *                         must select that column. Without it the batches use LIMIT/OFFSET.
      *
      * @return Generator<int, array<int, array<string, mixed>>, mixed, void>
      */
-    public function batch(int $batchSize = 100): Generator;
+    public function batch(int $batchSize = 100, ?string $key = null): Generator;
 
     /**
      * @param int $batchSize
+     * @param string|null $key A unique column that grows with each row (usually the primary key). With it the batches
+     *                         follow the key instead of an OFFSET: rows may be updated or deleted while iterating
+     *                         without the next batch skipping any, and every batch costs the same on a large table.
+     *                         The result is ordered by the key, so the query must not have an ORDER BY of its own and
+     *                         must select that column. Without it the batches use LIMIT/OFFSET.
      *
      * @return Generator<int, array<string, mixed>, mixed, void>
      */
-    public function each(int $batchSize = 100): Generator;
-
-    /**
-     * Batches that follow a unique, increasing column instead of an OFFSET; safe while rows change.
-     *
-     * @return Generator<int, array<int, array<string, mixed>>, mixed, void>
-     */
-    public function batchById(int $batchSize = 100, string $column = 'id'): Generator;
-
-    /**
-     * Records one at a time, loaded with batchById().
-     *
-     * @return Generator<int, array<string, mixed>, mixed, void>
-     */
-    public function eachById(int $batchSize = 100, string $column = 'id'): Generator;
+    public function each(int $batchSize = 100, ?string $key = null): Generator;
 
     /**
      * Stream query results without loading into memory.

@@ -50,15 +50,25 @@ class BatchProcessor implements BatchProcessorInterface, ConnectionAwareInterfac
      * @param string $sql The SQL query to execute
      * @param array<string, mixed> $params The parameters for the query
      * @param int $batchSize Number of records per batch (default: 100)
+     * @param string|null $key A unique column that grows with each row (usually the primary key). With it the batches
+     *                         follow the key instead of an OFFSET: rows may be updated or deleted while iterating
+     *                         without the next batch skipping any, and every batch costs the same on a large table.
+     *                         The result is ordered by the key, so the query must not have an ORDER BY of its own and
+     *                         must select that column. Without it the batches use LIMIT/OFFSET.
      *
      * @return Generator<int, array<int, array<string, mixed>>, mixed, void>
      * @throws InvalidArgumentException If batch size is invalid
      * @throws PDOException
      */
-    public function batch(string $sql, array $params, int $batchSize = 100): Generator
+    public function batch(string $sql, array $params, int $batchSize = 100, ?string $key = null): Generator
     {
         if ($batchSize <= 0) {
             throw new InvalidArgumentException('Batch size must be greater than 0');
+        }
+        if ($key !== null) {
+            yield from $this->batchByKey($sql, $params, $batchSize, $key);
+
+            return;
         }
 
         $offset = 0;
@@ -85,26 +95,18 @@ class BatchProcessor implements BatchProcessorInterface, ConnectionAwareInterfac
     }
 
     /**
-     * Execute query in batches that continue after the last key seen, so rows may change while iterating.
+     * Batches that continue after the last key seen, so rows may change while iterating.
      *
      * The query is used as a derived table; `$column` must be unique and increasing, and the query must not have
      * an ORDER BY of its own.
      *
-     * @param string $sql The SQL query to execute
-     * @param array<string, mixed> $params The parameters for the query
-     * @param int $batchSize Number of records per batch
-     * @param string $column Unique, increasing column to continue after
+     * @param array<string, mixed> $params
      *
      * @return Generator<int, array<int, array<string, mixed>>, mixed, void>
-     * @throws InvalidArgumentException If batch size is invalid or the result has no such column
-     * @throws PDOException
+     * @throws InvalidArgumentException If the result has no such column
      */
-    public function batchById(string $sql, array $params, int $batchSize, string $column): Generator
+    protected function batchByKey(string $sql, array $params, int $batchSize, string $column): Generator
     {
-        if ($batchSize <= 0) {
-            throw new InvalidArgumentException('Batch size must be greater than 0');
-        }
-
         $dialect = $this->connection->getDialect();
         $quoted = $dialect->quoteIdentifier($column);
         $last = null;
@@ -161,36 +163,22 @@ class BatchProcessor implements BatchProcessorInterface, ConnectionAwareInterfac
      * @param string $sql The SQL query to execute
      * @param array<string, mixed> $params The parameters for the query
      * @param int $batchSize Internal batch size for database queries (default: 100)
+     * @param string|null $key A unique column that grows with each row (usually the primary key). With it the batches
+     *                         follow the key instead of an OFFSET: rows may be updated or deleted while iterating
+     *                         without the next batch skipping any, and every batch costs the same on a large table.
+     *                         The result is ordered by the key, so the query must not have an ORDER BY of its own and
+     *                         must select that column. Without it the batches use LIMIT/OFFSET.
      *
      * @return Generator<int, array<string, mixed>, mixed, void>
      * @throws InvalidArgumentException If batch size is invalid
      * @throws PDOException
      */
-    public function each(string $sql, array $params, int $batchSize = 100): Generator
+    public function each(string $sql, array $params, int $batchSize = 100, ?string $key = null): Generator
     {
-        if ($batchSize <= 0) {
-            throw new InvalidArgumentException('Batch size must be greater than 0');
-        }
-
-        $offset = 0;
-        $buffer = [];
-
-        while (true) {
-            // Refill buffer if empty
-            if (empty($buffer)) {
-                // Add LIMIT and OFFSET to the query (dialect-specific)
-                $batchSql = $this->connection->getDialect()->appendLimitOffset($sql, $batchSize, $offset);
-                $buffer = $this->executionEngine->fetchAll($batchSql, $params);
-
-                if (empty($buffer)) {
-                    break; // No more data
-                }
-
-                $offset += $batchSize;
+        foreach ($this->batch($sql, $params, $batchSize, $key) as $rows) {
+            foreach ($rows as $row) {
+                yield $row;
             }
-
-            // Yield one record from buffer
-            yield array_shift($buffer);
         }
     }
 

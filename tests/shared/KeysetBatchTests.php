@@ -20,12 +20,12 @@ final class KeysetBatchTests extends BaseSharedTestCase
     public function testOwnOrderByIsRejected(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        iterator_to_array(self::$db->find()->from('keyset_items')->orderBy('id', 'DESC')->batchById(2));
+        iterator_to_array(self::$db->find()->from('keyset_items')->orderBy('id', 'DESC')->batch(2, 'id'));
     }
 
     public function testInvalidBatchSizeIsRejected(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        iterator_to_array(self::$db->find()->from('keyset_items')->batchById(0));
+        iterator_to_array(self::$db->find()->from('keyset_items')->batch(0, 'id'));
     }
 }

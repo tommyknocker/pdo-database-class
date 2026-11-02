@@ -8,12 +8,12 @@ PDOdb provides these methods for processing large datasets:
 
 1. **`batch()`** - Process data in configurable chunks
 2. **`each()`** - Process one record at a time with internal buffering
-3. **`batchById()` / `eachById()`** - The same, following a unique key instead of an OFFSET (safe while rows change)
+3. **`batch(..., key: 'id')` / `each(..., key: 'id')`** - The same, following a unique key instead of an OFFSET (safe while rows change)
 4. **`stream()`** - Stream results with minimal memory usage
 
-`batch()` and `each()` page with `LIMIT ... OFFSET`. If the loop changes the rows that the query selects
-(updates the column you filter on, or deletes rows), the next page starts too far and rows are skipped. Use
-`batchById()` / `eachById()` for that.
+Without a `key`, `batch()` and `each()` page with `LIMIT ... OFFSET`. If the loop changes the rows that the query selects
+(updates the column you filter on, or deletes rows), the next page starts too far and rows are skipped, and deep pages
+get slower on a large table. Pass `key: 'id'` for that (see [Follow a Key](#follow-a-key)).
 
 ## batch() - Process in Batches
 
@@ -98,11 +98,11 @@ foreach ($db->find()
 ```
 
 If the loop changes the rows the query selects, for example by moving them out of `status = 'pending'`,
-use `eachById()` below instead.
+pass a `key` (see below).
 
-## batchById() / eachById() - Follow a Key
+## Follow a Key
 
-`batchById()` continues after the last key it saw (`WHERE id > :last ORDER BY id LIMIT n`) instead of using an OFFSET.
+With `key`, `batch()` and `each()` continue after the last key it saw (`WHERE id > :last ORDER BY id LIMIT n`) instead of using an OFFSET.
 Rows can be updated or deleted while you iterate without any being skipped, and each batch costs the same on a
 large table.
 
@@ -110,7 +110,7 @@ large table.
 foreach ($db->find()
     ->from('orders')
     ->where('status', 'pending')
-    ->eachById(100) as $order) {
+    ->each(100, key: 'id') as $order) {
 
     generateInvoice($order);
 
@@ -122,7 +122,7 @@ foreach ($db->find()
 }
 
 // Another key column, in batches
-foreach ($db->find()->from('events')->batchById(500, 'event_id') as $batch) {
+foreach ($db->find()->from('events')->batch(500, key: 'event_id') as $batch) {
     processEvents($batch);
 }
 ```
@@ -181,7 +181,7 @@ exportUsersToCsv($db, 'users_export.csv');
 | `get()` | High (loads all) | Fast | Small datasets, complex processing |
 | `batch()` | Medium (configurable) | Medium | Bulk operations, parallel processing |
 | `each()` | Medium (internal buffering) | Medium | Individual record processing |
-| `batchById()` / `eachById()` | Medium (configurable) | Medium | Loops that change the rows they read |
+| `batch()` / `each()` with `key` | Medium (configurable) | Medium | Loops that change the rows they read |
 | `stream()` | Low (streaming) | Slow | Large datasets, simple processing |
 
 ## Common Use Cases

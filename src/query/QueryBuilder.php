@@ -1308,15 +1308,21 @@ class QueryBuilder implements QueryBuilderInterface
      * Useful for processing large datasets without loading everything into memory.
      *
      * @param int $batchSize Number of records per batch (default: 100)
+     * @param string|null $key A unique column that grows with each row (usually the primary key). With it the batches
+     *                         follow the key instead of an OFFSET: rows may be updated or deleted while iterating
+     *                         without the next batch skipping any, and every batch costs the same on a large table.
+     *                         The result is ordered by the key, so the query must not have an ORDER BY of its own and
+     *                         must select that column. Without it the batches use LIMIT/OFFSET.
      *
      * @return Generator<int, array<int, array<string, mixed>>, mixed, void>
-     * @throws InvalidArgumentException If batch size is invalid
+     * @throws InvalidArgumentException If batch size is invalid, or a key is given and the query has its own ORDER BY
      * @throws PDOException
      */
-    public function batch(int $batchSize = 100): Generator
+    public function batch(int $batchSize = 100, ?string $key = null): Generator
     {
+        $this->assertKeyedBatchAllowed($key);
         $query = $this->selectQueryBuilder->getQuery();
-        return $this->batchProcessor->batch($query['sql'], $query['params'], $batchSize);
+        return $this->batchProcessor->batch($query['sql'], $query['params'], $batchSize, $key);
     }
 
     /**
@@ -1327,52 +1333,27 @@ class QueryBuilder implements QueryBuilderInterface
      * but want to avoid memory issues with large datasets.
      *
      * @param int $batchSize Internal batch size for database queries (default: 100)
+     * @param string|null $key A unique column that grows with each row (usually the primary key). With it the batches
+     *                         follow the key instead of an OFFSET: rows may be updated or deleted while iterating
+     *                         without the next batch skipping any, and every batch costs the same on a large table.
+     *                         The result is ordered by the key, so the query must not have an ORDER BY of its own and
+     *                         must select that column. Without it the batches use LIMIT/OFFSET.
      *
      * @return Generator<int, array<string, mixed>, mixed, void>
-     * @throws InvalidArgumentException If batch size is invalid
+     * @throws InvalidArgumentException If batch size is invalid, or a key is given and the query has its own ORDER BY
      * @throws PDOException
      */
-    public function each(int $batchSize = 100): Generator
+    public function each(int $batchSize = 100, ?string $key = null): Generator
     {
+        $this->assertKeyedBatchAllowed($key);
         $query = $this->selectQueryBuilder->getQuery();
-        return $this->batchProcessor->each($query['sql'], $query['params'], $batchSize);
+        return $this->batchProcessor->each($query['sql'], $query['params'], $batchSize, $key);
     }
 
-    /**
-     * Process the result in batches that follow the values of a unique, increasing column instead of an OFFSET.
-     *
-     * Unlike {@see batch()}, rows can be updated or deleted while iterating without the next batch skipping rows,
-     * and every batch costs the same on a large table. The batches are ordered by `$column`, so the query must not
-     * have an ORDER BY of its own and must select that column.
-     *
-     * @param int $batchSize Number of records per batch
-     * @param string $column Unique column that grows with each row (usually the primary key)
-     *
-     * @return Generator<int, array<int, array<string, mixed>>, mixed, void>
-     * @throws InvalidArgumentException If the batch size is invalid or the query has its own ORDER BY
-     */
-    public function batchById(int $batchSize = 100, string $column = 'id'): Generator
+    protected function assertKeyedBatchAllowed(?string $key): void
     {
-        if ($this->selectQueryBuilder->hasOrderBy()) {
-            throw new InvalidArgumentException('batchById() orders the result by the key column; remove the other ORDER BY');
-        }
-
-        $query = $this->selectQueryBuilder->getQuery();
-        return $this->batchProcessor->batchById($query['sql'], $query['params'], $batchSize, $column);
-    }
-
-    /**
-     * Process records one at a time, loading them with {@see batchById()}.
-     *
-     * @return Generator<int, array<string, mixed>, mixed, void>
-     * @throws InvalidArgumentException
-     */
-    public function eachById(int $batchSize = 100, string $column = 'id'): Generator
-    {
-        foreach ($this->batchById($batchSize, $column) as $batch) {
-            foreach ($batch as $row) {
-                yield $row;
-            }
+        if ($key !== null && $this->selectQueryBuilder->hasOrderBy()) {
+            throw new InvalidArgumentException('Batching by a key orders the result by that key; remove the other ORDER BY');
         }
     }
 
