@@ -34,10 +34,11 @@ composer require tommyknocker/pdo-database-class
 ### Specific Versions
 
 ```bash
-# Latest 2.x version
-composer require tommyknocker/pdo-database-class:^2.0
+# Latest 3.x version (requires PHP 8.4+)
+composer require tommyknocker/pdo-database-class:^3.0
 
-# Latest 1.x version (legacy)
+# Previous major versions (no longer maintained)
+composer require tommyknocker/pdo-database-class:^2.0
 composer require tommyknocker/pdo-database-class:^1.0
 
 # Development version

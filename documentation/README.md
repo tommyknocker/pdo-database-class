@@ -116,7 +116,7 @@ Complete documentation for the PDOdb library - a lightweight, framework-agnostic
 - [02. Real-World Examples](10-cookbook/02-real-world-examples.md) - Complete app examples
 - [03. Migration Guide](10-cookbook/03-migration-guide.md) - Migrating from other libraries
 - [04. Troubleshooting](10-cookbook/04-troubleshooting.md) - Common issues and solutions
-- [05. Upgrading](10-cookbook/05-upgrading.md) - Changes to review when moving to the next major version
+- [05. Upgrading](10-cookbook/05-upgrading.md) - Moving from 2.x to 3.0
 
 ## 🚀 Quick Start
 
@@ -195,7 +195,7 @@ Examples are organized by category:
 
 ## 📖 Version
 
-This documentation corresponds to PDOdb version **2.x**.
+This documentation corresponds to PDOdb version **3.x**. Coming from 2.x? See [Upgrading](10-cookbook/05-upgrading.md).
 
 ## 🤝 Contributing
 

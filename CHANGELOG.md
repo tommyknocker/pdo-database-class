@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-11-02
+
+This is a major release. Read [UPGRADE.md](UPGRADE.md) before updating: it lists every change that can alter results or
+throw where 2.x worked, and the changes needed by custom dialects.
+
 ### Added
 - `QueryBuilder::batchById()` and `eachById()` page by a unique key instead of an OFFSET, so loops that update or delete the rows they read do not skip rows.
 - `Outbox::add()` accepts a `$delaySeconds` argument and `pdodb outbox work` a `--max-runtime=N` option; `MigrationRunner::setMigrationNamespace()` sets the namespace of application migration classes.
@@ -2263,7 +2268,8 @@ Initial tagged release with basic PDO database abstraction functionality.
 
 ---
 
-[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v2.14.0...HEAD
+[Unreleased]: https://github.com/tommyknocker/pdo-database-class/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.14.0...v3.0.0
 [2.14.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.13.0...v2.14.0
 [2.13.0]: https://github.com/tommyknocker/pdo-database-class/compare/v2.12.1...v2.13.0
 [2.12.1]: https://github.com/tommyknocker/pdo-database-class/compare/v2.12.0...v2.12.1
